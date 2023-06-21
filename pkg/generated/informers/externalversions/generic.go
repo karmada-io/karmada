@@ -44,6 +44,8 @@ func (f *genericInformer) Lister() cache.GenericLister {
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
 	// Group=autoscaling.karmada.io, Version=v1alpha1
+	case v1alpha1.SchemeGroupVersion.WithResource("cronfederatedhpas"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Autoscaling().V1alpha1().CronFederatedHPAs().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("federatedhpas"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Autoscaling().V1alpha1().FederatedHPAs().Informer()}, nil
 

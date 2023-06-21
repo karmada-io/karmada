@@ -17,9 +17,17 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
+		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPA":                       schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPA(ref),
+		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPAList":                   schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPAList(ref),
+		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPARule":                   schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPARule(ref),
+		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPASpec":                   schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPASpec(ref),
+		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPAStatus":                 schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPAStatus(ref),
+		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.ExecutionHistory":                       schema_pkg_apis_autoscaling_v1alpha1_ExecutionHistory(ref),
+		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FailedExecution":                        schema_pkg_apis_autoscaling_v1alpha1_FailedExecution(ref),
 		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FederatedHPA":                           schema_pkg_apis_autoscaling_v1alpha1_FederatedHPA(ref),
 		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FederatedHPAList":                       schema_pkg_apis_autoscaling_v1alpha1_FederatedHPAList(ref),
 		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FederatedHPASpec":                       schema_pkg_apis_autoscaling_v1alpha1_FederatedHPASpec(ref),
+		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.SuccessfulExecution":                    schema_pkg_apis_autoscaling_v1alpha1_SuccessfulExecution(ref),
 		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.APIEnablement":                              schema_pkg_apis_cluster_v1alpha1_APIEnablement(ref),
 		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.APIResource":                                schema_pkg_apis_cluster_v1alpha1_APIResource(ref),
 		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.AllocatableModeling":                        schema_pkg_apis_cluster_v1alpha1_AllocatableModeling(ref),
@@ -481,6 +489,344 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 	}
 }
 
+func schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPA(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CronFederatedHPA represents a collection of repeating schedule to scale replica number of a specific workload. It can scale any resource implementing the scale subresource as well as FederatedHPA.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Spec is the specification of the CronFederatedHPA.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPASpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Status is the current status of the CronFederatedHPA.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPAStatus"),
+						},
+					},
+				},
+				Required: []string{"spec"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPASpec", "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPAStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPAList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CronFederatedHPAList contains a list of CronFederatedHPA.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPA"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPA", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPARule(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CronFederatedHPARule declares a schedule as well as scale actions.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the rule. Each rule in a CronFederatedHPA must have a unique name.\n\nNote: the name will be used as an identifier to record its execution history. Changing the name will be considered as deleting the old rule and adding a new rule, that means the original execution history will be discarded.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"schedule": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Schedule is the cron expression that represents a periodical time. The syntax follows https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#schedule-syntax.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"targetReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TargetReplicas is the target replicas to be scaled for resources referencing by ScaleTargetRef of this CronFederatedHPA. Only needed when referencing resource is not FederatedHPA.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"targetMinReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TargetMinReplicas is the target MinReplicas to be set for FederatedHPA. Only needed when referencing resource is FederatedHPA. TargetMinReplicas and TargetMaxReplicas can be specified together or either one can be specified alone. nil means the MinReplicas(.spec.minReplicas) of the referencing FederatedHPA will not be updated.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"targetMaxReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TargetMaxReplicas is the target MaxReplicas to be set for FederatedHPA. Only needed when referencing resource is FederatedHPA. TargetMinReplicas and TargetMaxReplicas can be specified together or either one can be specified alone. nil means the MaxReplicas(.spec.maxReplicas) of the referencing FederatedHPA will not be updated.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"suspend": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Suspend tells the controller to suspend subsequent executions. Defaults to false.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"timeZone": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TimeZone for the giving schedule. If not specified, this will default to the time zone of the karmada-controller-manager process. Invalid TimeZone will be rejected when applying by karmada-webhook. see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones for the all timezones.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"successfulHistoryLimit": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SuccessfulHistoryLimit represents the count of successful execution items for each rule. The value must be a positive integer. It defaults to 3.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"failedHistoryLimit": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FailedHistoryLimit represents the count of failed execution items for each rule. The value must be a positive integer. It defaults to 3.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+				Required: []string{"name", "schedule"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPASpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CronFederatedHPASpec is the specification of the CronFederatedHPA.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"scaleTargetRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ScaleTargetRef points to the target resource to scale. Target resource could be any resource that implementing the scale subresource like Deployment, or FederatedHPA.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("k8s.io/api/autoscaling/v2.CrossVersionObjectReference"),
+						},
+					},
+					"rules": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Rules contains a collection of schedules that declares when and how the referencing target resource should be scaled.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPARule"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"scaleTargetRef", "rules"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPARule", "k8s.io/api/autoscaling/v2.CrossVersionObjectReference"},
+	}
+}
+
+func schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPAStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CronFederatedHPAStatus represents the current status of a CronFederatedHPA.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"executionHistories": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExecutionHistories record the execution histories of CronFederatedHPARule.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.ExecutionHistory"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.ExecutionHistory"},
+	}
+}
+
+func schema_pkg_apis_autoscaling_v1alpha1_ExecutionHistory(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ExecutionHistory records the execution history of specific CronFederatedHPARule.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"ruleName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RuleName is the name of the CronFederatedHPARule.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"nextExecutionTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NextExecutionTime is the next time to execute. Nil means the rule has been suspended.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"successfulExecutions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SuccessfulExecutions records successful executions.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.SuccessfulExecution"),
+									},
+								},
+							},
+						},
+					},
+					"failedExecutions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FailedExecutions records failed executions.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FailedExecution"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"ruleName"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FailedExecution", "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.SuccessfulExecution", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_pkg_apis_autoscaling_v1alpha1_FailedExecution(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "FailedExecution records a failed execution.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"scheduleTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ScheduleTime is the expected execution time declared in CronFederatedHPARule.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"executionTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExecutionTime is the actual execution time of CronFederatedHPARule. Tasks may not always be executed at ScheduleTime. ExecutionTime is used to evaluate the efficiency of the controller's execution.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Message is the human-readable message indicating details about the failure.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"scheduleTime", "executionTime", "message"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
 func schema_pkg_apis_autoscaling_v1alpha1_FederatedHPA(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -635,6 +981,55 @@ func schema_pkg_apis_autoscaling_v1alpha1_FederatedHPASpec(ref common.ReferenceC
 		},
 		Dependencies: []string{
 			"k8s.io/api/autoscaling/v2.CrossVersionObjectReference", "k8s.io/api/autoscaling/v2.HorizontalPodAutoscalerBehavior", "k8s.io/api/autoscaling/v2.MetricSpec"},
+	}
+}
+
+func schema_pkg_apis_autoscaling_v1alpha1_SuccessfulExecution(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SuccessfulExecution records a successful execution.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"scheduleTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ScheduleTime is the expected execution time declared in CronFederatedHPARule.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"executionTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExecutionTime is the actual execution time of CronFederatedHPARule. Tasks may not always be executed at ScheduleTime. ExecutionTime is used to evaluate the efficiency of the controller's execution.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"appliedReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AppliedReplicas is the replicas have been applied. It is required if .spec.rules[*].targetReplicas is not empty.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"appliedMaxReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AppliedMaxReplicas is the MaxReplicas have been applied. It is required if .spec.rules[*].targetMaxReplicas is not empty.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"appliedMinReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AppliedMinReplicas is the MinReplicas have been applied. It is required if .spec.rules[*].targetMinReplicas is not empty.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+				Required: []string{"scheduleTime", "executionTime"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

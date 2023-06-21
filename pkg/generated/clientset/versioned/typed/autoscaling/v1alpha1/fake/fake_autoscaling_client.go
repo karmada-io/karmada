@@ -12,6 +12,10 @@ type FakeAutoscalingV1alpha1 struct {
 	*testing.Fake
 }
 
+func (c *FakeAutoscalingV1alpha1) CronFederatedHPAs(namespace string) v1alpha1.CronFederatedHPAInterface {
+	return &FakeCronFederatedHPAs{c, namespace}
+}
+
 func (c *FakeAutoscalingV1alpha1) FederatedHPAs(namespace string) v1alpha1.FederatedHPAInterface {
 	return &FakeFederatedHPAs{c, namespace}
 }
