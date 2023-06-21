@@ -101,7 +101,7 @@ jobs:
           token: ${{secrets.CODECOV_UPLOAD_TOKEN}}
           files: ./_output/coverage/coverage_pkg.txt,./_output/coverage/coverage_cmd.txt,./_output/coverage/coverage_examples.txt
           flags: unittests
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
   e2e:
     name: e2e test
