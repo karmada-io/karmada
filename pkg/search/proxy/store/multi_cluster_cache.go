@@ -98,16 +98,8 @@ func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema
 			newCachedResources[resource] = struct{}{}
 		}
 	}
-	for resource := range c.cachedResources {
-		if _, exist := newCachedResources[resource]; !exist {
-			delete(c.cachedResources, resource)
-		}
-	}
-	for resource := range newCachedResources {
-		if _, exist := c.cachedResources[resource]; !exist {
-			c.cachedResources[resource] = struct{}{}
-		}
-	}
+	c.cachedResources = newCachedResources
+
 	return nil
 }
 
