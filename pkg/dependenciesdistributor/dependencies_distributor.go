@@ -84,7 +84,7 @@ func (d *DependenciesDistributor) Start(ctx context.Context) error {
 	d.stopCh = ctx.Done()
 
 	bindingWorkerOptions := util.Options{
-		Name:          "resourceBinding reconciler",
+		Name:          "dependencies distributor resourceBinding reconciler",
 		KeyFunc:       detector.ClusterWideKeyFunc,
 		ReconcileFunc: d.ReconcileResourceBinding,
 	}
@@ -103,7 +103,7 @@ func (d *DependenciesDistributor) Start(ctx context.Context) error {
 	d.InformerManager.ForResource(resourceBindingGVR, bindingHandler)
 	d.resourceBindingLister = d.InformerManager.Lister(resourceBindingGVR)
 	resourceWorkerOptions := util.Options{
-		Name:          "resource detector",
+		Name:          "dependencies distributor resource detector",
 		KeyFunc:       detector.ClusterWideKeyFunc,
 		ReconcileFunc: d.Reconcile,
 	}
