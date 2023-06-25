@@ -16,15 +16,15 @@ import (
 )
 
 // EnsureKarmadaWebhook creates karmada webhook deployment and service resource.
-func EnsureKarmadaWebhook(client clientset.Interface, cfg *operatorv1alpha1.KarmadaWebhook, name, namespace string) error {
-	if err := installKarmadaWebhook(client, cfg, name, namespace); err != nil {
+func EnsureKarmadaWebhook(client clientset.Interface, cfg *operatorv1alpha1.KarmadaWebhook, name, namespace string, featureGates map[string]bool) error {
+	if err := installKarmadaWebhook(client, cfg, name, namespace, featureGates); err != nil {
 		return err
 	}
 
 	return createKarmadaWebhookService(client, name, namespace)
 }
 
-func installKarmadaWebhook(client clientset.Interface, cfg *operatorv1alpha1.KarmadaWebhook, name, namespace string) error {
+func installKarmadaWebhook(client clientset.Interface, cfg *operatorv1alpha1.KarmadaWebhook, name, namespace string, featureGates map[string]bool) error {
 	webhookDeploymentSetBytes, err := util.ParseTemplate(KarmadaWebhookDeployment, struct {
 		DeploymentName, Namespace, Image     string
 		KubeconfigSecret, WebhookCertsSecret string
@@ -46,7 +46,8 @@ func installKarmadaWebhook(client clientset.Interface, cfg *operatorv1alpha1.Kar
 		return fmt.Errorf("err when decoding KarmadaWebhook Deployment: %w", err)
 	}
 
-	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).ForDeployment(webhookDeployment)
+	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
+		WithExtraArgs(cfg.ExtraArgs).ForDeployment(webhookDeployment)
 
 	if err := apiclient.CreateOrUpdateDeployment(client, webhookDeployment); err != nil {
 		return fmt.Errorf("error when creating deployment for %s, err: %w", webhookDeployment.Name, err)
