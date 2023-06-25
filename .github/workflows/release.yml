@@ -6,7 +6,7 @@ name: Build Release
 jobs:
   release-assests:
     name: release kubectl-karmada
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         target:
@@ -44,7 +44,7 @@ jobs:
           _output/charts/karmada-chart-${{ github.ref_name }}.tgz.sha256
   release-crds-assests:
     name: release crds
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
     - name: Rename the crds directory
@@ -65,7 +65,7 @@ jobs:
   update-krew-index:
     needs: release-assests
     name: Update krew-index
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
     - name: Update new version in krew-index
