@@ -11,7 +11,7 @@ concurrency:
 jobs:
   golangci:
     name: lint
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: checkout code
         uses: actions/checkout@v3
@@ -27,7 +27,7 @@ jobs:
         run: hack/verify-import-aliases.sh
   codegen:
     name: codegen
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     env:
       GOPATH: ${{ github.workspace }}
     defaults:
@@ -62,7 +62,7 @@ jobs:
   build:
     name: compile
     needs: codegen # rely on codegen successful completion
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: checkout code
         uses: actions/checkout@v3
@@ -79,7 +79,7 @@ jobs:
   test:
     name: unit test
     needs: build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: checkout code
         uses: actions/checkout@v3
@@ -106,7 +106,7 @@ jobs:
   e2e:
     name: e2e test
     needs: build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         # Here support the latest three minor releases of Kubernetes, this can be considered to be roughly

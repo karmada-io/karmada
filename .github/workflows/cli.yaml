@@ -11,7 +11,7 @@ concurrency:
 jobs:
   init:
     name: init
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         # Here support the latest three minor releases of Kubernetes, this can be considered to be roughly
