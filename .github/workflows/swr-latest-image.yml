@@ -10,7 +10,7 @@ jobs:
     # 1. running on the forked repository would fail as missing necessary secret.
     # 2. running on the forked repository would use unnecessary GitHub Action time.
     if: ${{ github.repository == 'karmada-io/karmada' && github.ref == 'refs/heads/master' }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: checkout code
         uses: actions/checkout@v3
