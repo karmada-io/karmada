@@ -126,7 +126,10 @@ func (o *objectWatcherImpl) retainClusterFields(desired, observed *unstructured.
 func (o *objectWatcherImpl) Update(clusterName string, desireObj, clusterObj *unstructured.Unstructured) error {
 	updateAllowed := o.allowUpdate(clusterName, desireObj, clusterObj)
 	if !updateAllowed {
-		return nil
+		// The existing resource is not managed by Karmada, and no conflict resolution found, avoid updating the existing resource by default.
+		return fmt.Errorf("resource(kind=%s, %s/%s) already exist in cluster %v and the %s strategy value is empty, karmada will not manage this resource",
+			desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, workv1alpha2.ResourceConflictResolutionAnnotation,
+		)
 	}
 
 	dynamicClusterClient, err := o.ClusterClientSetFunc(clusterName, o.KubeClientSet)
