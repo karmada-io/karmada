@@ -303,7 +303,7 @@ var _ = ginkgo.Describe("[BasicPropagation] propagation testing", func() {
 
 					klog.Infof("Waiting for cr(%s/%s) synced on cluster(%s)", crNamespace, crName, cluster.Name)
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-						cr, err := dynamicClient.Resource(crGVR).Namespace(crNamespace).Get(context.TODO(), crName, metav1.GetOptions{})
+						cr, err := clusterDynamicClient.Resource(crGVR).Namespace(crNamespace).Get(context.TODO(), crName, metav1.GetOptions{})
 						if err != nil {
 							return false, err
 						}
@@ -334,7 +334,7 @@ var _ = ginkgo.Describe("[BasicPropagation] propagation testing", func() {
 
 					klog.Infof("Waiting for cr(%s/%s) disappear on cluster(%s)", crNamespace, crName, cluster.Name)
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-						_, err = dynamicClient.Resource(crGVR).Namespace(crNamespace).Get(context.TODO(), crName, metav1.GetOptions{})
+						_, err = clusterDynamicClient.Resource(crGVR).Namespace(crNamespace).Get(context.TODO(), crName, metav1.GetOptions{})
 						if err != nil {
 							if apierrors.IsNotFound(err) {
 								return true, nil
