@@ -856,7 +856,7 @@ func schema_pkg_apis_autoscaling_v1alpha1_FederatedHPA(ref common.ReferenceCallb
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Spec is the specification of the FederatedHPASpec.",
+							Description: "Spec is the specification of the FederatedHPA.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FederatedHPASpec"),
 						},
@@ -942,14 +942,14 @@ func schema_pkg_apis_autoscaling_v1alpha1_FederatedHPASpec(ref common.ReferenceC
 					},
 					"minReplicas": {
 						SchemaProps: spec.SchemaProps{
-							Description: "minReplicas is the lower limit for the number of replicas to which the autoscaler can scale down.  It defaults to 1 pod.  minReplicas is allowed to be 0 if the alpha feature gate HPAScaleToZero is enabled and at least one Object or External metric is configured.  Scaling is active as long as at least one metric value is available.",
+							Description: "MinReplicas is the lower limit for the number of replicas to which the autoscaler can scale down. It defaults to 1 pod.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
 					"maxReplicas": {
 						SchemaProps: spec.SchemaProps{
-							Description: "maxReplicas is the upper limit for the number of replicas to which the autoscaler can scale up. It cannot be less that minReplicas.",
+							Description: "MaxReplicas is the upper limit for the number of replicas to which the autoscaler can scale up. It cannot be less that minReplicas.",
 							Default:     0,
 							Type:        []string{"integer"},
 							Format:      "int32",
