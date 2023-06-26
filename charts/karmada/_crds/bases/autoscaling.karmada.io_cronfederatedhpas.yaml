@@ -1,0 +1,258 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: cronfederatedhpas.autoscaling.karmada.io
+spec:
+  group: autoscaling.karmada.io
+  names:
+    categories:
+    - karmada-io
+    kind: CronFederatedHPA
+    listKind: CronFederatedHPAList
+    plural: cronfederatedhpas
+    shortNames:
+    - cronfhpa
+    singular: cronfederatedhpa
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.scaleTargetRef.kind
+      name: REFERENCE-KIND
+      type: string
+    - jsonPath: .spec.scaleTargetRef.name
+      name: REFERENCE-NAME
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: CronFederatedHPA represents a collection of repeating schedule
+          to scale replica number of a specific workload. It can scale any resource
+          implementing the scale subresource as well as FederatedHPA.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec is the specification of the CronFederatedHPA.
+            properties:
+              rules:
+                description: Rules contains a collection of schedules that declares
+                  when and how the referencing target resource should be scaled.
+                items:
+                  description: CronFederatedHPARule declares a schedule as well as
+                    scale actions.
+                  properties:
+                    failedHistoryLimit:
+                      default: 3
+                      description: FailedHistoryLimit represents the count of failed
+                        execution items for each rule. The value must be a positive
+                        integer. It defaults to 3.
+                      format: int32
+                      maximum: 32
+                      minimum: 0
+                      type: integer
+                    name:
+                      description: "Name of the rule. Each rule in a CronFederatedHPA
+                        must have a unique name. \n Note: the name will be used as
+                        an identifier to record its execution history. Changing the
+                        name will be considered as deleting the old rule and adding
+                        a new rule, that means the original execution history will
+                        be discarded."
+                      maxLength: 32
+                      minLength: 1
+                      type: string
+                    schedule:
+                      description: Schedule is the cron expression that represents
+                        a periodical time. The syntax follows https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#schedule-syntax.
+                      type: string
+                    successfulHistoryLimit:
+                      default: 3
+                      description: SuccessfulHistoryLimit represents the count of
+                        successful execution items for each rule. The value must be
+                        a positive integer. It defaults to 3.
+                      format: int32
+                      maximum: 32
+                      minimum: 1
+                      type: integer
+                    suspend:
+                      default: false
+                      description: Suspend tells the controller to suspend subsequent
+                        executions. Defaults to false.
+                      type: boolean
+                    targetMaxReplicas:
+                      description: TargetMaxReplicas is the target MaxReplicas to
+                        be set for FederatedHPA. Only needed when referencing resource
+                        is FederatedHPA. TargetMinReplicas and TargetMaxReplicas can
+                        be specified together or either one can be specified alone.
+                        nil means the MaxReplicas(.spec.maxReplicas) of the referencing
+                        FederatedHPA will not be updated.
+                      format: int32
+                      type: integer
+                    targetMinReplicas:
+                      description: TargetMinReplicas is the target MinReplicas to
+                        be set for FederatedHPA. Only needed when referencing resource
+                        is FederatedHPA. TargetMinReplicas and TargetMaxReplicas can
+                        be specified together or either one can be specified alone.
+                        nil means the MinReplicas(.spec.minReplicas) of the referencing
+                        FederatedHPA will not be updated.
+                      format: int32
+                      type: integer
+                    targetReplicas:
+                      description: TargetReplicas is the target replicas to be scaled
+                        for resources referencing by ScaleTargetRef of this CronFederatedHPA.
+                        Only needed when referencing resource is not FederatedHPA.
+                      format: int32
+                      type: integer
+                    timeZone:
+                      description: TimeZone for the giving schedule. If not specified,
+                        this will default to the time zone of the karmada-controller-manager
+                        process. Invalid TimeZone will be rejected when applying by
+                        karmada-webhook. see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+                        for the all timezones.
+                      type: string
+                  required:
+                  - name
+                  - schedule
+                  type: object
+                type: array
+              scaleTargetRef:
+                description: ScaleTargetRef points to the target resource to scale.
+                  Target resource could be any resource that implementing the scale
+                  subresource like Deployment, or FederatedHPA.
+                properties:
+                  apiVersion:
+                    description: API version of the referent
+                    type: string
+                  kind:
+                    description: 'Kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                    type: string
+                  name:
+                    description: 'Name of the referent; More info: http://kubernetes.io/docs/user-guide/identifiers#names'
+                    type: string
+                required:
+                - kind
+                - name
+                type: object
+            required:
+            - rules
+            - scaleTargetRef
+            type: object
+          status:
+            description: Status is the current status of the CronFederatedHPA.
+            properties:
+              executionHistories:
+                description: ExecutionHistories record the execution histories of
+                  CronFederatedHPARule.
+                items:
+                  description: ExecutionHistory records the execution history of specific
+                    CronFederatedHPARule.
+                  properties:
+                    failedExecutions:
+                      description: FailedExecutions records failed executions.
+                      items:
+                        description: FailedExecution records a failed execution.
+                        properties:
+                          executionTime:
+                            description: ExecutionTime is the actual execution time
+                              of CronFederatedHPARule. Tasks may not always be executed
+                              at ScheduleTime. ExecutionTime is used to evaluate the
+                              efficiency of the controller's execution.
+                            format: date-time
+                            type: string
+                          message:
+                            description: Message is the human-readable message indicating
+                              details about the failure.
+                            type: string
+                          scheduleTime:
+                            description: ScheduleTime is the expected execution time
+                              declared in CronFederatedHPARule.
+                            format: date-time
+                            type: string
+                        required:
+                        - executionTime
+                        - message
+                        - scheduleTime
+                        type: object
+                      type: array
+                    nextExecutionTime:
+                      description: NextExecutionTime is the next time to execute.
+                        Nil means the rule has been suspended.
+                      format: date-time
+                      type: string
+                    ruleName:
+                      description: RuleName is the name of the CronFederatedHPARule.
+                      type: string
+                    successfulExecutions:
+                      description: SuccessfulExecutions records successful executions.
+                      items:
+                        description: SuccessfulExecution records a successful execution.
+                        properties:
+                          appliedMaxReplicas:
+                            description: AppliedMaxReplicas is the MaxReplicas have
+                              been applied. It is required if .spec.rules[*].targetMaxReplicas
+                              is not empty.
+                            format: int32
+                            type: integer
+                          appliedMinReplicas:
+                            description: AppliedMinReplicas is the MinReplicas have
+                              been applied. It is required if .spec.rules[*].targetMinReplicas
+                              is not empty.
+                            format: int32
+                            type: integer
+                          appliedReplicas:
+                            description: AppliedReplicas is the replicas have been
+                              applied. It is required if .spec.rules[*].targetReplicas
+                              is not empty.
+                            format: int32
+                            type: integer
+                          executionTime:
+                            description: ExecutionTime is the actual execution time
+                              of CronFederatedHPARule. Tasks may not always be executed
+                              at ScheduleTime. ExecutionTime is used to evaluate the
+                              efficiency of the controller's execution.
+                            format: date-time
+                            type: string
+                          scheduleTime:
+                            description: ScheduleTime is the expected execution time
+                              declared in CronFederatedHPARule.
+                            format: date-time
+                            type: string
+                        required:
+                        - executionTime
+                        - scheduleTime
+                        type: object
+                      type: array
+                  required:
+                  - ruleName
+                  type: object
+                type: array
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
