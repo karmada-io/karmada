@@ -606,7 +606,6 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 
 	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
-
 	// We need a service lister to build a resource interpreter with `ClusterIPServiceResolver`
 	// witch allows connection to the customized interpreter webhook without a cluster DNS service.
 	sharedFactory := informers.NewSharedInformerFactory(kubeClientSet, 0)
@@ -640,7 +639,6 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	if err := mgr.Add(resourceDetector); err != nil {
 		klog.Fatalf("Failed to setup resource detector: %v", err)
 	}
-
 	if features.FeatureGate.Enabled(features.PropagateDeps) {
 		dependenciesDistributor := &dependenciesdistributor.DependenciesDistributor{
 			Client:              mgr.GetClient(),
@@ -649,12 +647,13 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ResourceInterpreter: resourceInterpreter,
 			RESTMapper:          mgr.GetRESTMapper(),
 			EventRecorder:       mgr.GetEventRecorderFor("dependencies-distributor"),
+			RateLimiterOptions:  opts.RateLimiterOpts,
+			GenericEvent:        make(chan event.GenericEvent),
 		}
-		if err := mgr.Add(dependenciesDistributor); err != nil {
+		if err := dependenciesDistributor.SetupWithManager(mgr); err != nil {
 			klog.Fatalf("Failed to setup dependencies distributor: %v", err)
 		}
 	}
-
 	setupClusterAPIClusterDetector(mgr, opts, stopChan)
 	controllerContext := controllerscontext.Context{
 		Mgr:           mgr,
