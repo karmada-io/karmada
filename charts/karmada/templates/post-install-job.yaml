@@ -1,60 +1,6 @@
 {{- $name := include "karmada.name" . -}}
 {{- $namespace := include "karmada.namespace" . -}}
 {{- if eq .Values.installMode "host" }}
-{{- if eq .Values.certs.mode "custom" }}
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ $name }}-static-resources
-  namespace: {{ $namespace }}
-data:
-  {{- print "webhook-configuration.yaml: " | nindent 2 }} |-
-    {{- include "karmada.webhook.configuration" . | nindent 4 }}
-  {{- print "system-namespace.yaml: " | nindent 2 }} |-
-    {{- include "karmada.systemNamespace" . | nindent 4 }}
-  {{- print "karmada-aggregated-apiserver-apiservice.yaml: " | nindent 2 }} |-
-    {{- include "karmada.apiservice" . | nindent 4 }}
-  {{- print "cluster-proxy-admin-rbac.yaml: " | nindent 2 }} |-
-    {{- include "karmada.proxyRbac" . | nindent 4 }}
-  {{- print "bootstrap-token-configuration.yaml: " | nindent 2 }} |-
-    {{- include "karmada.bootstrapToken.configuration" . | nindent 4 }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ $name }}-crds
-  namespace: {{ $namespace }}
-data:
-  {{ range $path, $bytes := .Files.Glob (printf "_crds/**")}}
-  {{ $name := base $path }}
-  {{- (printf "%s: " $name) | nindent 2 }} |-
-    {{- $.Files.Get $path | nindent 4 }}
-  {{ end }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ $name }}-crds-bases
-  namespace: {{ $namespace }}
-data:
-  {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/**")}}
-  {{ $name := base $path }}
-  {{- (printf "%s: " $name) | nindent 2 }} |-
-    {{- $.Files.Get $path | nindent 4 }}
-  {{ end }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ $name }}-crds-patches
-  namespace: {{ $namespace }}
-data:
-  {{- print "webhook_in_clusterresourcebindings.yaml: " | nindent 2 }} |-
-    {{- include "karmada.crd.patch.webhook.clusterresourcebinding" . | nindent 4 }}
-  {{- print "webhook_in_resourcebindings.yaml: " | nindent 2 }} |-
-    {{- include "karmada.crd.patch.webhook.resourcebinding" . | nindent 4 }}
----
-{{- end }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -105,25 +51,50 @@ spec:
           kubectl apply -f /static-resources --kubeconfig /etc/kubeconfig
           EOF
         volumeMounts:
-          - name: {{ $name }}-crds-bases
-            mountPath: /crds/bases
+          - name: {{ $name }}-crds-kustomization
+            mountPath: /crds
           - name: {{ $name }}-crds-patches
             mountPath: /crds/patches
-          - name: {{ $name }}-crds
-            mountPath: /crds
+          - name: {{ $name }}-crds-autoscaling-bases
+            mountPath: /crds/bases/autoscaling
+          - name: {{ $name }}-crds-config-bases
+            mountPath: /crds/bases/config
+          - name: {{ $name }}-crds-multicluster-bases
+            mountPath: /crds/bases/multicluster
+          - name: {{ $name }}-crds-networking-bases
+            mountPath: /crds/bases/networking
+          - name: {{ $name }}-crds-policy-bases
+            mountPath: /crds/bases/policy
+          - name: {{ $name }}-crds-work-bases
+            mountPath: /crds/bases/work
           - name: {{ $name }}-static-resources
             mountPath: /static-resources
           {{ include "karmada.kubeconfig.volumeMount" . | nindent 10 }}
       volumes:
-        - name: {{ $name }}-crds-bases
+        - name: {{ $name }}-crds-kustomization
           configMap:
-            name: {{ $name }}-crds-bases
+            name: {{ $name }}-crds-kustomization
         - name: {{ $name }}-crds-patches
           configMap:
             name: {{ $name }}-crds-patches
-        - name: {{ $name }}-crds
+        - name: {{ $name }}-crds-autoscaling-bases
           configMap:
-            name: {{ $name }}-crds
+            name: {{ $name }}-crds-autoscaling-bases
+        - name: {{ $name }}-crds-config-bases
+          configMap:
+            name: {{ $name }}-crds-config-bases
+        - name: {{ $name }}-crds-multicluster-bases
+          configMap:
+            name: {{ $name }}-crds-multicluster-bases
+        - name: {{ $name }}-crds-networking-bases
+          configMap:
+            name: {{ $name }}-crds-networking-bases
+        - name: {{ $name }}-crds-policy-bases
+          configMap:
+            name: {{ $name }}-crds-policy-bases
+        - name: {{ $name }}-crds-work-bases
+          configMap:
+            name: {{ $name }}-crds-work-bases
         - name: {{ $name }}-static-resources
           configMap:
             name: {{ $name }}-static-resources
