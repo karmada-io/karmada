@@ -178,7 +178,27 @@ type FailoverBehavior struct {
 	// Cluster indicates failover behaviors in case of cluster failure.
 	// If this value is nil, failover is disabled.
 	// +optional
-	// Cluster *ClusterFailoverBehavior `json:"cluster,omitempty"`
+	Cluster *ClusterFailoverBehavior `json:"cluster,omitempty"`
+}
+
+// ClusterFailoverBehavior indicates cluster failover behaviors.
+type ClusterFailoverBehavior struct {
+	// PurgeMode represents how to deal with the legacy applications on the
+	// cluster from which the application is migrated.
+	// Valid options are "Immediately", "Graciously" and "Never".
+	// Defaults to "Graciously".
+	// +kubebuilder:default=Graciously
+	// +optional
+	PurgeMode PurgeMode `json:"purgeMode,omitempty"`
+
+	// GracePeriodSeconds is the maximum waiting duration in seconds before
+	// application on the migrated cluster should be deleted.
+	// Required only when PurgeMode is "Graciously" and defaults to 600s.
+	// If the application on the new cluster cannot reach a Healthy state,
+	// Karmada will delete the application after GracePeriodSeconds is reached.
+	// Value must be positive integer.
+	// +optional
+	GracePeriodSeconds *int32 `json:"gracePeriodSeconds,omitempty"`
 }
 
 // ApplicationFailoverBehavior indicates application failover behaviors.
