@@ -1,60 +1,6 @@
 {{- $name := include "karmada.name" . -}}
 {{- $namespace := include "karmada.namespace" . -}}
 {{- if eq .Values.installMode "host" }}
-{{- if eq .Values.certs.mode "custom" }}
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ $name }}-static-resources
-  namespace: {{ $namespace }}
-data:
-  {{- print "webhook-configuration.yaml: " | nindent 2 }} |-
-    {{- include "karmada.webhook.configuration" . | nindent 4 }}
-  {{- print "system-namespace.yaml: " | nindent 2 }} |-
-    {{- include "karmada.systemNamespace" . | nindent 4 }}
-  {{- print "karmada-aggregated-apiserver-apiservice.yaml: " | nindent 2 }} |-
-    {{- include "karmada.apiservice" . | nindent 4 }}
-  {{- print "cluster-proxy-admin-rbac.yaml: " | nindent 2 }} |-
-    {{- include "karmada.proxyRbac" . | nindent 4 }}
-  {{- print "bootstrap-token-configuration.yaml: " | nindent 2 }} |-
-    {{- include "karmada.bootstrapToken.configuration" . | nindent 4 }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ $name }}-crds
-  namespace: {{ $namespace }}
-data:
-  {{ range $path, $bytes := .Files.Glob (printf "_crds/**")}}
-  {{ $name := base $path }}
-  {{- (printf "%s: " $name) | nindent 2 }} |-
-    {{- $.Files.Get $path | nindent 4 }}
-  {{ end }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ $name }}-crds-bases
-  namespace: {{ $namespace }}
-data:
-  {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/**")}}
-  {{ $name := base $path }}
-  {{- (printf "%s: " $name) | nindent 2 }} |-
-    {{- $.Files.Get $path | nindent 4 }}
-  {{ end }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ $name }}-crds-patches
-  namespace: {{ $namespace }}
-data:
-  {{- print "webhook_in_clusterresourcebindings.yaml: " | nindent 2 }} |-
-    {{- include "karmada.crd.patch.webhook.clusterresourcebinding" . | nindent 4 }}
-  {{- print "webhook_in_resourcebindings.yaml: " | nindent 2 }} |-
-    {{- include "karmada.crd.patch.webhook.resourcebinding" . | nindent 4 }}
----
-{{- end }}
 apiVersion: batch/v1
 kind: Job
 metadata:

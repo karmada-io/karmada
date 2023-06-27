@@ -95,7 +95,7 @@ data:
       name: {{ $name }}-crds
       namespace: {{ $namespace }}
     data:
-      {{ range $path, $bytes := .Files.Glob (printf "_crds/**")}}
+      {{ range $path, $bytes := .Files.Glob (printf "_crds/kustomization.yaml")}}
       {{ $name := base $path }}
       {{- (printf "%s: " $name) | nindent 6 }} |-
         {{- $.Files.Get $path | nindent 8 }}
