@@ -35,7 +35,7 @@ func (d *Downloader) Read(p []byte) (n int, err error) {
 	}
 
 	d.Current += int64(n)
-	klog.Info("\rDownloading...[ %.2f%% ]", float64(d.Current*10000/d.Total)/100)
+	klog.Infof("\rDownloading...[ %.2f%% ]", float64(d.Current*10000/d.Total)/100)
 	return
 }
 
