@@ -1,0 +1,18 @@
+# We can set custom labels, annotations, arguments and featureGates to karmada components.
+apiVersion: operator.karmada.io/v1alpha1
+kind: Karmada
+metadata:
+  name: custom-karmada
+  namespace: test
+spec:
+  components:
+    karmadaAPIServer:
+      extraArgs:
+        v: "5"
+    karmadaScheduler:
+      labels:
+        custom-label-key: <custom-label-value>
+      annotations:
+        custom-annotation-key: <custom-annotation-value>
+  featureGates:
+    PropagateDeps: true
