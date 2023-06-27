@@ -17,8 +17,9 @@ var (
 		These addons are currently supported: 
 		
 		1. karmada-descheduler
-		2. karmada-scheduler-estimator
-		3. karmada-search`)
+		2. karmada-metrics-adapter
+		3. karmada-scheduler-estimator
+		4. karmada-search`)
 
 	addonsExamples = templates.Examples(`
 	# Enable or disable Karmada addons to the karmada-host cluster
