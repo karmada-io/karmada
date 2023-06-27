@@ -118,7 +118,7 @@ type KarmadaComponents struct {
 
 	// KarmadaDescheduler holds settings to karmada-descheduler component of the karmada.
 	// +optional
-	KarmadaDescheduler *KarmadaDescheduler `json:"KarmadaDescheduler,omitempty"`
+	KarmadaDescheduler *KarmadaDescheduler `json:"karmadaDescheduler,omitempty"`
 
 	// KarmadaSearch holds settings to karmada search component of the karmada.
 	// +optional

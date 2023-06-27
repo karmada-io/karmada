@@ -46,111 +46,6 @@ spec:
                 description: Components define all of karmada components. not all
                   of these components need to be installed.
                 properties:
-                  KarmadaDescheduler:
-                    description: KarmadaDescheduler holds settings to karmada-descheduler
-                      component of the karmada.
-                    properties:
-                      annotations:
-                        additionalProperties:
-                          type: string
-                        description: 'Annotations is an unstructured key value map
-                          stored with a resource that may be set by external tools
-                          to store and retrieve arbitrary metadata. They are not queryable
-                          and should be preserved when modifying objects. More info:
-                          http://kubernetes.io/docs/user-guide/annotations'
-                        type: object
-                      extraArgs:
-                        additionalProperties:
-                          type: string
-                        description: "ExtraArgs is an extra set of flags to pass to
-                          the karmada-descheduler component or override. A key in
-                          this map is the flag name as it appears on the command line
-                          except without leading dash(es). \n Note: This is a temporary
-                          solution to allow for the configuration of the karmada-descheduler
-                          component. In the future, we will provide a more structured
-                          way to configure the component. Once that is done, this
-                          field will be discouraged to be used. Incorrect settings
-                          on this field maybe lead to the corresponding component
-                          in an unhealthy state. Before you do it, please confirm
-                          that you understand the risks of this configuration. \n
-                          For supported flags, please see https://github.com/karmada-io/karmada/blob/master/cmd/descheduler/app/options/options.go
-                          for details."
-                        type: object
-                      imageRepository:
-                        description: ImageRepository sets the container registry to
-                          pull images from. if not set, the ImageRepository defined
-                          in KarmadaSpec will be used instead.
-                        type: string
-                      imageTag:
-                        description: ImageTag allows to specify a tag for the image.
-                          In case this value is set, operator does not change automatically
-                          the version of the above components during upgrades.
-                        type: string
-                      labels:
-                        additionalProperties:
-                          type: string
-                        description: 'Map of string keys and values that can be used
-                          to organize and categorize (scope and select) objects. May
-                          match selectors of replication controllers and services.
-                          More info: http://kubernetes.io/docs/user-guide/labels'
-                        type: object
-                      replicas:
-                        description: Number of desired pods. This is a pointer to
-                          distinguish between explicit zero and not specified. Defaults
-                          to 1.
-                        format: int32
-                        type: integer
-                      resources:
-                        description: 'Compute Resources required by this component.
-                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
-                        properties:
-                          claims:
-                            description: "Claims lists the names of resources, defined
-                              in spec.resourceClaims, that are used by this container.
-                              \n This is an alpha field and requires enabling the
-                              DynamicResourceAllocation feature gate. \n This field
-                              is immutable."
-                            items:
-                              description: ResourceClaim references one entry in PodSpec.ResourceClaims.
-                              properties:
-                                name:
-                                  description: Name must match the name of one entry
-                                    in pod.spec.resourceClaims of the Pod where this
-                                    field is used. It makes that resource available
-                                    inside a container.
-                                  type: string
-                              required:
-                              - name
-                              type: object
-                            type: array
-                            x-kubernetes-list-map-keys:
-                            - name
-                            x-kubernetes-list-type: map
-                          limits:
-                            additionalProperties:
-                              anyOf:
-                              - type: integer
-                              - type: string
-                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                              x-kubernetes-int-or-string: true
-                            description: 'Limits describes the maximum amount of compute
-                              resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
-                            type: object
-                          requests:
-                            additionalProperties:
-                              anyOf:
-                              - type: integer
-                              - type: string
-                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                              x-kubernetes-int-or-string: true
-                            description: 'Requests describes the minimum amount of
-                              compute resources required. If Requests is omitted for
-                              a container, it defaults to Limits if that is explicitly
-                              specified, otherwise to an implementation-defined value.
-                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
-                            type: object
-                        type: object
-                    type: object
                   etcd:
                     description: Etcd holds configuration for etcd.
                     properties:
@@ -906,6 +801,111 @@ spec:
                           - PropagateDeps: https://karmada.io/docs/userguide/scheduling/propagate-dependencies
                           - CustomizedClusterResourceModeling: https://karmada.io/docs/userguide/scheduling/cluster-resources#start-to-use-cluster-resource-models
                           More info: https://github.com/karmada-io/karmada/blob/master/pkg/features/features.go'
+                        type: object
+                      imageRepository:
+                        description: ImageRepository sets the container registry to
+                          pull images from. if not set, the ImageRepository defined
+                          in KarmadaSpec will be used instead.
+                        type: string
+                      imageTag:
+                        description: ImageTag allows to specify a tag for the image.
+                          In case this value is set, operator does not change automatically
+                          the version of the above components during upgrades.
+                        type: string
+                      labels:
+                        additionalProperties:
+                          type: string
+                        description: 'Map of string keys and values that can be used
+                          to organize and categorize (scope and select) objects. May
+                          match selectors of replication controllers and services.
+                          More info: http://kubernetes.io/docs/user-guide/labels'
+                        type: object
+                      replicas:
+                        description: Number of desired pods. This is a pointer to
+                          distinguish between explicit zero and not specified. Defaults
+                          to 1.
+                        format: int32
+                        type: integer
+                      resources:
+                        description: 'Compute Resources required by this component.
+                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        properties:
+                          claims:
+                            description: "Claims lists the names of resources, defined
+                              in spec.resourceClaims, that are used by this container.
+                              \n This is an alpha field and requires enabling the
+                              DynamicResourceAllocation feature gate. \n This field
+                              is immutable."
+                            items:
+                              description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                              properties:
+                                name:
+                                  description: Name must match the name of one entry
+                                    in pod.spec.resourceClaims of the Pod where this
+                                    field is used. It makes that resource available
+                                    inside a container.
+                                  type: string
+                              required:
+                              - name
+                              type: object
+                            type: array
+                            x-kubernetes-list-map-keys:
+                            - name
+                            x-kubernetes-list-type: map
+                          limits:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Limits describes the maximum amount of compute
+                              resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                          requests:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Requests describes the minimum amount of
+                              compute resources required. If Requests is omitted for
+                              a container, it defaults to Limits if that is explicitly
+                              specified, otherwise to an implementation-defined value.
+                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                        type: object
+                    type: object
+                  karmadaDescheduler:
+                    description: KarmadaDescheduler holds settings to karmada-descheduler
+                      component of the karmada.
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: 'Annotations is an unstructured key value map
+                          stored with a resource that may be set by external tools
+                          to store and retrieve arbitrary metadata. They are not queryable
+                          and should be preserved when modifying objects. More info:
+                          http://kubernetes.io/docs/user-guide/annotations'
+                        type: object
+                      extraArgs:
+                        additionalProperties:
+                          type: string
+                        description: "ExtraArgs is an extra set of flags to pass to
+                          the karmada-descheduler component or override. A key in
+                          this map is the flag name as it appears on the command line
+                          except without leading dash(es). \n Note: This is a temporary
+                          solution to allow for the configuration of the karmada-descheduler
+                          component. In the future, we will provide a more structured
+                          way to configure the component. Once that is done, this
+                          field will be discouraged to be used. Incorrect settings
+                          on this field maybe lead to the corresponding component
+                          in an unhealthy state. Before you do it, please confirm
+                          that you understand the risks of this configuration. \n
+                          For supported flags, please see https://github.com/karmada-io/karmada/blob/master/cmd/descheduler/app/options/options.go
+                          for details."
                         type: object
                       imageRepository:
                         description: ImageRepository sets the container registry to
