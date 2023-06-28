@@ -31,19 +31,19 @@ spec:
       serviceSubnet: 10.96.0.0/12
     karmadaAggregatedAPIServer:
       imageRepository: docker.io/karmada/karmada-aggregated-apiserver
-      imageTag: v1.4.0
+      imageTag: v1.6.0
       replicas: 1
     karmadaControllerManager:
       imageRepository: docker.io/karmada/karmada-controller-manager
-      imageTag: v1.4.0
+      imageTag: v1.6.0
       replicas: 1
     karmadaScheduler:
       imageRepository: docker.io/karmada/karmada-scheduler
-      imageTag: v1.4.0
+      imageTag: v1.6.0
       replicas: 1
     karmadaWebhook:
       imageRepository: docker.io/karmada/karmada-webhook
-      imageTag: v1.4.0
+      imageTag: v1.6.0
       replicas: 1
     kubeControllerManager:
       imageRepository: registry.k8s.io/kube-controller-manager
