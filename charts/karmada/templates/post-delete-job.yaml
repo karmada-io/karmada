@@ -44,14 +44,50 @@ spec:
               bash <<'EOF'
               set -ex
               kubectl delete -f /opt/mount/ --ignore-not-found=true
+              kubectl delete -f /opt/crds/ --ignore-not-found=true -R
               kubectl delete cm/{{ $name }}-config -n {{ $namespace }} --ignore-not-found=true
               kubectl delete deployment/{{ $name }}-controller-manager -n {{ $namespace }} --ignore-not-found=true
               EOF
           volumeMounts:
             - name: mount
               mountPath: /opt/mount
+            - name: crds
+              mountPath: /opt/crds
+            - name: crds-autoscaling-base
+              mountPath: /opt/crds/base/autoscaling
+            - name: crds-config-base
+              mountPath: /opt/crds/base/config
+            - name: crds-multicluster-base
+              mountPath: /opt/crds/base/multicluster
+            - name: crds-networking-base
+              mountPath: /opt/crds/base/networking
+            - name: crds-policy-base
+              mountPath: /opt/crds/base/policy
+            - name: crds-work-base
+              mountPath: /opt/crds/base/work
       volumes:
-        - name: mount
-          configMap:
-            name: {{ $name }}-config
+      - name: mount
+        configMap:
+          name: {{ $name }}-config
+      - name: crds
+        configMap:
+          name: {{ $name }}-crds-config
+      - name: crds-autoscaling-base
+        configMap:
+          name: {{ $name }}-crds-autoscaling-bases-config
+      - name: crds-config-base
+        configMap:
+          name: {{ $name }}-crds-config-bases-config
+      - name: crds-multicluster-base
+        configMap:
+          name: {{ $name }}-crds-multicluster-bases-config
+      - name: crds-networking-base
+        configMap:
+          name: {{ $name }}-crds-networking-bases-config
+      - name: crds-policy-base
+        configMap:
+          name: {{ $name }}-crds-policy-bases-config
+      - name: crds-work-base
+        configMap:
+          name: {{ $name }}-crds-work-bases-config
 {{- end }}
