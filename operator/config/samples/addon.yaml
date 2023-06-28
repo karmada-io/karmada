@@ -1,0 +1,9 @@
+# Enable karmadaDescheduler, karmada operator does not install karmada addon by default
+apiVersion: operator.karmada.io/v1alpha1
+kind: Karmada
+metadata:
+  name: addon-karmada
+  namespace: test
+spec:
+  components:
+    karmadaDescheduler: {}

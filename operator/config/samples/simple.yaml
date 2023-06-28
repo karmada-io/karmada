@@ -1,0 +1,6 @@
+# This is the simplest karmada cr, it will create karmada with builtin defaults
+apiVersion: operator.karmada.io/v1alpha1
+kind: Karmada
+metadata:
+  name: simple-karmada
+  namespace: test

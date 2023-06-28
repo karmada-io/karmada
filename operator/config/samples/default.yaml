@@ -1,7 +1,8 @@
+# This is a sample with defaults
 apiVersion: operator.karmada.io/v1alpha1
 kind: Karmada
 metadata:
-  name: karmada-demo
+  name: default-karmada
   namespace: test
 spec:
   components:
@@ -11,18 +12,7 @@ spec:
         imageTag: 3.5.3-0
         replicas: 1
         volumeData:
-          # hostPath:
-          #   type: DirectoryOrCreate
-          #   path: /var/lib/karmada/etcd/karmada-demo
-          volumeClaim:
-            metadata:
-              name: etcd-data
-            spec:
-              accessModes:
-                - ReadWriteOnce
-              resources:
-                requests:
-                  storage: 3Gi
+          emptyDir: {}
     karmadaAPIServer:
       imageRepository: registry.k8s.io/kube-apiserver
       imageTag: v1.25.4
