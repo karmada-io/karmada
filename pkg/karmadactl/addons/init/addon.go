@@ -23,6 +23,9 @@ const (
 
 	// SearchResourceName define Search Addon and component installed name
 	SearchResourceName = "karmada-search"
+
+	// MetricsAdapterResourceName define metrics-adapter Addon and component installed name
+	MetricsAdapterResourceName = "karmada-metrics-adapter"
 )
 
 // Addons hosts the optional components that support by karmada
