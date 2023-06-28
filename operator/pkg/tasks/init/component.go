@@ -3,12 +3,16 @@ package tasks
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/controlplane"
+	"github.com/karmada-io/karmada/operator/pkg/controlplane/metricsadapter"
 	"github.com/karmada-io/karmada/operator/pkg/controlplane/webhook"
+	"github.com/karmada-io/karmada/operator/pkg/karmadaresource/apiservice"
+	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
 )
 
@@ -27,6 +31,7 @@ func NewComponentTask() workflow.Task {
 				Run:  runKarmadaWebhook,
 			},
 			newComponentSubTask(constants.KarmadaDeschedulerComponent),
+			newKarmadaMetricsAdapterSubTask(),
 		},
 	}
 }
@@ -75,7 +80,7 @@ func runComponentSubTask(component string) func(r workflow.RunData) error {
 func runKarmadaWebhook(r workflow.RunData) error {
 	data, ok := r.(InitData)
 	if !ok {
-		return errors.New("certs task invoked with an invalid data struct")
+		return errors.New("KarmadaWebhook task invoked with an invalid data struct")
 	}
 
 	cfg := data.Components()
@@ -95,5 +100,108 @@ func runKarmadaWebhook(r workflow.RunData) error {
 	}
 
 	klog.V(2).InfoS("[KarmadaWebhook] Successfully applied karmada webhook component", "karmada", klog.KObj(data))
+	return nil
+}
+
+func newKarmadaMetricsAdapterSubTask() workflow.Task {
+	return workflow.Task{
+		Name:        constants.KarmadaMetricsAdapterComponent,
+		Run:         runKarmadaMetricsAdapter,
+		RunSubTasks: true,
+		Tasks: []workflow.Task{
+			{
+				Name: "DeployMetricAdapter",
+				Run:  runDeployMetricAdapter,
+			},
+			{
+				Name: "DeployMetricAdapterAPIService",
+				Run:  runDeployMetricAdapterAPIService,
+			},
+		},
+	}
+}
+
+func runKarmadaMetricsAdapter(r workflow.RunData) error {
+	data, ok := r.(InitData)
+	if !ok {
+		return errors.New("karmadaMetricsAdapter task invoked with an invalid data struct")
+	}
+
+	klog.V(4).InfoS("[karmadaMetricsAdapter] Running karmadaMetricsAdapter task", "karmada", klog.KObj(data))
+	return nil
+}
+
+func runDeployMetricAdapter(r workflow.RunData) error {
+	data, ok := r.(InitData)
+	if !ok {
+		return errors.New("DeployMetricAdapter task invoked with an invalid data struct")
+	}
+
+	cfg := data.Components()
+	if cfg.KarmadaMetricsAdapter == nil {
+		klog.V(2).InfoS("[karmadaMetricsAdapter] Skip install karmada-metrics-adapter component")
+		return nil
+	}
+
+	err := metricsadapter.EnsureKarmadaMetricAdapter(
+		data.RemoteClient(),
+		cfg.KarmadaMetricsAdapter,
+		data.GetName(),
+		data.GetNamespace(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to apply karmada-metrics-adapter, err: %w", err)
+	}
+
+	klog.V(2).InfoS("[DeployMetricAdapter] Successfully applied karmada-metrics-adapter component", "karmada", klog.KObj(data))
+
+	if *cfg.KarmadaMetricsAdapter.Replicas != 0 {
+		waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConfig(), data.RemoteClient(), time.Second*30)
+		if err = waiter.WaitForSomePods(karmadaMetricAdapterLabels.String(), data.GetNamespace(), 1); err != nil {
+			return fmt.Errorf("waiting for karmada-metrics-adapter to ready timeout, err: %w", err)
+		}
+
+		klog.V(2).InfoS("[DeployMetricAdapter] the karmada-metrics-adapter is ready", "karmada", klog.KObj(data))
+	}
+
+	return nil
+}
+
+func runDeployMetricAdapterAPIService(r workflow.RunData) error {
+	data, ok := r.(InitData)
+	if !ok {
+		return errors.New("DeployMetricAdapterAPIService task invoked with an invalid data struct")
+	}
+
+	cfg := data.Components()
+	if cfg.KarmadaMetricsAdapter == nil {
+		klog.V(2).InfoS("[karmadaMetricsAdapter] Skip install karmada-metrics-adapter APIService")
+		return nil
+	}
+
+	config := data.ControlplaneConfig()
+	client, err := apiclient.NewAPIRegistrationClient(config)
+	if err != nil {
+		return err
+	}
+
+	err = apiservice.EnsureMetricsAdapterAPIService(client, data.KarmadaClient(), data.GetName(), data.GetNamespace())
+	if err != nil {
+		return fmt.Errorf("failed to apply karmada-metrics-adapter APIService resource to karmada controlplane, err: %w", err)
+	}
+
+	if *cfg.KarmadaMetricsAdapter.Replicas != 0 {
+		waiter := apiclient.NewKarmadaWaiter(config, nil, time.Second*20)
+		for _, gv := range constants.KarmadaMetricsAdapterAPIServices {
+			apiServiceName := fmt.Sprintf("%s.%s", gv.Version, gv.Group)
+
+			if err := waiter.WaitForAPIService(apiServiceName); err != nil {
+				return fmt.Errorf("the APIService %s is unhealthy, err: %w", apiServiceName, err)
+			}
+		}
+
+		klog.V(2).InfoS("[DeployMetricAdapterAPIService] all karmada-metrics-adapter APIServices status is ready ", "karmada", klog.KObj(data))
+	}
+
 	return nil
 }

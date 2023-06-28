@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 const (
@@ -42,6 +43,8 @@ const (
 	KarmadaWebhook = "karmada-webhook"
 	// KarmadaDescheduler defines the name of the karmada-descheduler component
 	KarmadaDescheduler = "karmada-descheduler"
+	// KarmadaMetricsAdapter defines the name of the karmada-metrics-adapter component
+	KarmadaMetricsAdapter = "karmada-metrics-adapter"
 
 	// KarmadaSystemNamespace defines the leader selection namespace for karmada components
 	KarmadaSystemNamespace = "karmada-system"
@@ -96,12 +99,24 @@ const (
 	KarmadaWebhookComponent = "KarmadaWebhook"
 	// KarmadaDeschedulerComponent defines the name of the karmada-descheduler component
 	KarmadaDeschedulerComponent = "KarmadaDescheduler"
+	// KarmadaMetricsAdapterComponent defines the name of the karmada-metrics-adapter component
+	KarmadaMetricsAdapterComponent = "KarmadaMetricsAdapter"
 
 	// KarmadaOperatorLabelKeyName defines a label key used by all resources created by karmada operator
 	KarmadaOperatorLabelKeyName = "app.kubernetes.io/managed-by"
+
+	// APIServiceName defines the karmada aggregated apiserver APISerivce resource name.
+	APIServiceName = "v1alpha1.cluster.karmada.io"
 )
 
 var (
 	// KarmadaOperatorLabel defines the default labels in the resource create by karmada operator
 	KarmadaOperatorLabel = labels.Set{KarmadaOperatorLabelKeyName: KarmadaOperator}
+
+	// KarmadaMetricsAdapterAPIServices defines the GroupVersions of all karmada-metrics-adapter APIServices
+	KarmadaMetricsAdapterAPIServices = []schema.GroupVersion{
+		{Group: "metrics.k8s.io", Version: "v1beta1"},
+		{Group: "custom.metrics.k8s.io", Version: "v1beta1"},
+		{Group: "custom.metrics.k8s.io", Version: "v1beta2"},
+	}
 )
