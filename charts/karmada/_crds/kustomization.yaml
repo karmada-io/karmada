@@ -12,6 +12,7 @@ resources:
 - bases/config/config.karmada.io_resourceinterpretercustomizations.yaml
 - bases/config/config.karmada.io_resourceinterpreterwebhookconfigurations.yaml
 - bases/networking/networking.karmada.io_multiclusteringresses.yaml
+- bases/networking/networking.karmada.io_multiclusterservices.yaml
 - bases/autoscaling/autoscaling.karmada.io_federatedhpas.yaml
 - bases/autoscaling/autoscaling.karmada.io_cronfederatedhpas.yaml
 

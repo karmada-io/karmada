@@ -63,8 +63,13 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.RuleWithOperations":                          schema_pkg_apis_config_v1alpha1_RuleWithOperations(ref),
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.StatusAggregation":                           schema_pkg_apis_config_v1alpha1_StatusAggregation(ref),
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.StatusReflection":                            schema_pkg_apis_config_v1alpha1_StatusReflection(ref),
+		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposurePort":                            schema_pkg_apis_networking_v1alpha1_ExposurePort(ref),
+		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposureRange":                           schema_pkg_apis_networking_v1alpha1_ExposureRange(ref),
 		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterIngress":                     schema_pkg_apis_networking_v1alpha1_MultiClusterIngress(ref),
 		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterIngressList":                 schema_pkg_apis_networking_v1alpha1_MultiClusterIngressList(ref),
+		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterService":                     schema_pkg_apis_networking_v1alpha1_MultiClusterService(ref),
+		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterServiceList":                 schema_pkg_apis_networking_v1alpha1_MultiClusterServiceList(ref),
+		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterServiceSpec":                 schema_pkg_apis_networking_v1alpha1_MultiClusterServiceSpec(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ApplicationFailoverBehavior":                 schema_pkg_apis_policy_v1alpha1_ApplicationFailoverBehavior(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity":                             schema_pkg_apis_policy_v1alpha1_ClusterAffinity(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinityTerm":                         schema_pkg_apis_policy_v1alpha1_ClusterAffinityTerm(ref),
@@ -2619,6 +2624,61 @@ func schema_pkg_apis_config_v1alpha1_StatusReflection(ref common.ReferenceCallba
 	}
 }
 
+func schema_pkg_apis_networking_v1alpha1_ExposurePort(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ExposurePort describes which port will be exposed.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is the name of the port that needs to be exposed within the service. The port name must be the same as that defined in the service.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"port": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Port specifies the exposed service port.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_networking_v1alpha1_ExposureRange(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ExposureRange describes a list of clusters where the service is exposed. Now supports selecting cluster by name, leave the room for extend more methods such as using label selector.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"clusterNames": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClusterNames is the list of clusters to be selected.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_networking_v1alpha1_MultiClusterIngress(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2715,6 +2775,158 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterIngressList(ref common.Refe
 		},
 		Dependencies: []string{
 			"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterIngress", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_networking_v1alpha1_MultiClusterService(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MultiClusterService is a named abstraction of multi-cluster software service. The name field of MultiClusterService is the same as that of Service name. Services with the same name in different clusters are regarded as the same service and are associated with the same MultiClusterService. MultiClusterService can control the exposure of services to outside multiple clusters, and also enable service discovery between clusters.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Spec is the desired state of the MultiClusterService.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterServiceSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Status is the current state of the MultiClusterService.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("k8s.io/api/core/v1.ServiceStatus"),
+						},
+					},
+				},
+				Required: []string{"spec"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterServiceSpec", "k8s.io/api/core/v1.ServiceStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_networking_v1alpha1_MultiClusterServiceList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MultiClusterServiceList is a collection of MultiClusterService.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Items is the list of MultiClusterService.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterService"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterService", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_networking_v1alpha1_MultiClusterServiceSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MultiClusterServiceSpec is the desired state of the MultiClusterService.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"types": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Types specifies how to expose the service referencing by this MultiClusterService.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"ports": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Ports is the list of ports that are exposed by this MultiClusterService. No specified port will be filtered out during the service exposure and discovery process. All ports in the referencing service will be exposed by default.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposurePort"),
+									},
+								},
+							},
+						},
+					},
+					"range": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Range specifies the ranges where the referencing service should be exposed. Only valid and optional in case of Types contains CrossCluster. If not set and Types contains CrossCluster, all clusters will be selected, that means the referencing service will be exposed across all registered clusters.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposureRange"),
+						},
+					},
+				},
+				Required: []string{"types"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposurePort", "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposureRange"},
 	}
 }
 

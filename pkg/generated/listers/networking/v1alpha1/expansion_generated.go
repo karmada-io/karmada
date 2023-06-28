@@ -9,3 +9,11 @@ type MultiClusterIngressListerExpansion interface{}
 // MultiClusterIngressNamespaceListerExpansion allows custom methods to be added to
 // MultiClusterIngressNamespaceLister.
 type MultiClusterIngressNamespaceListerExpansion interface{}
+
+// MultiClusterServiceListerExpansion allows custom methods to be added to
+// MultiClusterServiceLister.
+type MultiClusterServiceListerExpansion interface{}
+
+// MultiClusterServiceNamespaceListerExpansion allows custom methods to be added to
+// MultiClusterServiceNamespaceLister.
+type MultiClusterServiceNamespaceListerExpansion interface{}
