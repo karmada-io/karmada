@@ -101,3 +101,11 @@ func distinguishUnhealthyClustersWithOthers(aggregatedStatusItems []workv1alpha2
 
 	return unhealthyClusters, others
 }
+
+func clustersToNameSet(clusters []workv1alpha2.TargetCluster) sets.Set[string] {
+	allClusters := sets.New[string]()
+	for _, cluster := range clusters {
+		allClusters.Insert(cluster.Name)
+	}
+	return allClusters
+}

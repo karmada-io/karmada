@@ -110,11 +110,6 @@ func (c *CRBApplicationFailoverController) syncBinding(binding *workv1alpha2.Clu
 	key := types.NamespacedName{Name: binding.Name, Namespace: binding.Namespace}
 	tolerationSeconds := binding.Spec.Failover.Application.DecisionConditions.TolerationSeconds
 
-	allClusters := sets.New[string]()
-	for _, cluster := range binding.Spec.Clusters {
-		allClusters.Insert(cluster.Name)
-	}
-
 	unhealthyClusters, others := distinguishUnhealthyClustersWithOthers(binding.Status.AggregatedStatus, binding.Spec)
 	duration, needEvictClusters := c.detectFailure(unhealthyClusters, tolerationSeconds, key)
 
@@ -123,6 +118,8 @@ func (c *CRBApplicationFailoverController) syncBinding(binding *workv1alpha2.Clu
 		klog.Errorf("Failed to evict binding(%s), err: %v.", binding.Name, err)
 		return 0, err
 	}
+
+	allClusters := clustersToNameSet(binding.Spec.Clusters)
 
 	if len(needEvictClusters) != 0 {
 		if err = c.updateBinding(binding, allClusters, needEvictClusters); err != nil {
