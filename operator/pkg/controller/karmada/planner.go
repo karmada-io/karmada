@@ -1,6 +1,7 @@
 package karmada
 
 import (
+	"context"
 	"fmt"
 
 	"k8s.io/client-go/rest"
@@ -83,10 +84,44 @@ func recognizeActionFor(karmada *operatorv1alpha1.Karmada) Action {
 func (p *Planner) Execute() error {
 	klog.InfoS("Start execute the workflow", "workflow", p.action, "karmada", klog.KObj(p.karmada))
 
+	if err := p.preRunJob(); err != nil {
+		return err
+	}
 	if err := p.job.Run(); err != nil {
+		return p.runJobErr(err)
+	}
+	if err := p.afterRunJob(); err != nil {
 		return err
 	}
 
 	klog.InfoS("Successfully executed the workflow", "workflow", p.action, "karmada", klog.KObj(p.karmada))
+	return nil
+}
+
+func (p *Planner) preRunJob() error {
+	if p.action == InitAction {
+		operatorv1alpha1.KarmadaInProgressing(p.karmada, operatorv1alpha1.Ready, "karmada init job is in progressing")
+	}
+	if p.action == DeInitAction {
+		operatorv1alpha1.KarmadaInProgressing(p.karmada, operatorv1alpha1.Ready, "karmada deinit job is in progressing")
+	}
+
+	return p.Client.Status().Update(context.TODO(), p.karmada)
+}
+
+func (p *Planner) runJobErr(err error) error {
+	operatorv1alpha1.KarmadaFailed(p.karmada, operatorv1alpha1.Ready, err.Error())
+	return p.Client.Status().Update(context.TODO(), p.karmada)
+}
+
+func (p *Planner) afterRunJob() error {
+	if p.action == InitAction {
+		operatorv1alpha1.KarmadaCompleted(p.karmada, operatorv1alpha1.Ready, "karmada init job is completed")
+		return p.Client.Status().Update(context.TODO(), p.karmada)
+	}
+
+	// if it is deInit workflow, the cr will be deleted with karmada is be deleted, so we need not to
+	// update the karmada status.
+
 	return nil
 }

@@ -25,7 +25,7 @@ import (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status
 // +kubebuilder:path=karmadas,scope=Namespaced,categories={karmada-io}
-// +kubebuilder:printcolumn:JSONPath=`.status.controlPlaneReady`,name="Status",type=string
+// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Ready")].status`,name="Ready",type=string
 // +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="Age",type=date
 
 // Karmada enables declarative installation of karmada.
@@ -557,10 +557,6 @@ type HostCluster struct {
 type ConditionType string
 
 const (
-	// Unknown represent a condition type the karmada not be reconciled by operator
-	// or unpredictable condition.
-	Unknown ConditionType = "Unknown"
-
 	// Ready represent a condition type the all installation process to karmada have completed.
 	Ready ConditionType = "Ready"
 )
