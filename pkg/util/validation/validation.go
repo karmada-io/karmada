@@ -22,6 +22,9 @@ const LabelValueMaxLength int = 63
 func ValidatePropagationSpec(spec policyv1alpha1.PropagationSpec) field.ErrorList {
 	var allErrs field.ErrorList
 	allErrs = append(allErrs, ValidatePlacement(spec.Placement, field.NewPath("spec").Child("placement"))...)
+	if spec.Failover != nil && spec.Failover.Application != nil && !spec.PropagateDeps {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("propagateDeps"), spec.PropagateDeps, "application failover is set, propagateDeps must be true"))
+	}
 	allErrs = append(allErrs, ValidateFailover(spec.Failover, field.NewPath("spec").Child("failover"))...)
 	return allErrs
 }
