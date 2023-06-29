@@ -207,6 +207,10 @@ func (data *initData) ControlplaneAddress() string {
 	return data.controlplaneAddress
 }
 
+func (data *initData) FeatureGates() map[string]bool {
+	return data.featureGates
+}
+
 // NewJobInitOptions calls all of InitOpt func to initialize a InitOptions.
 // if there is not InitOpt functions, it will return a default InitOptions.
 func NewJobInitOptions(opts ...InitOpt) *InitOptions {

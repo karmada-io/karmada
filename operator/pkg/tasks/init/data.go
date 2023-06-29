@@ -22,4 +22,5 @@ type InitData interface {
 	CrdsRemoteURL() string
 	KarmadaVersion() string
 	Components() *operatorv1alpha1.KarmadaComponents
+	FeatureGates() map[string]bool
 }

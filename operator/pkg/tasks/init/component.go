@@ -59,6 +59,7 @@ func runComponentSubTask(component string) func(r workflow.RunData) error {
 			component,
 			data.GetName(),
 			data.GetNamespace(),
+			data.FeatureGates(),
 			data.RemoteClient(),
 			data.Components(),
 		)
@@ -82,7 +83,13 @@ func runKarmadaWebhook(r workflow.RunData) error {
 		return errors.New("skip install karmada webhook")
 	}
 
-	err := webhook.EnsureKarmadaWebhook(data.RemoteClient(), cfg.KarmadaWebhook, data.GetName(), data.GetNamespace())
+	err := webhook.EnsureKarmadaWebhook(
+		data.RemoteClient(),
+		cfg.KarmadaWebhook,
+		data.GetName(),
+		data.GetNamespace(),
+		data.FeatureGates(),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to apply karmada webhook, err: %w", err)
 	}
