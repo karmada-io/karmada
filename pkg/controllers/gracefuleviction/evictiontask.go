@@ -13,6 +13,7 @@ type assessmentOption struct {
 	timeout        time.Duration
 	scheduleResult []workv1alpha2.TargetCluster
 	observedStatus []workv1alpha2.AggregatedStatusItem
+	replicas       int32
 }
 
 // assessEvictionTasks assesses each task according to graceful eviction rules and
@@ -38,6 +39,7 @@ func assessEvictionTasks(bindingSpec workv1alpha2.ResourceBindingSpec,
 			scheduleResult: bindingSpec.Clusters,
 			timeout:        timeout,
 			observedStatus: observedStatus,
+			replicas:       bindingSpec.Replicas,
 		})
 		if kt != nil {
 			keptTasks = append(keptTasks, *kt)
@@ -76,6 +78,7 @@ func assessSingleTask(task workv1alpha2.GracefulEvictionTask, opt assessmentOpti
 }
 
 func allScheduledResourceInHealthyState(opt assessmentOption) bool {
+	var scheduleReplaces int32 = 0
 	for _, targetCluster := range opt.scheduleResult {
 		var statusItem *workv1alpha2.AggregatedStatusItem
 
@@ -96,6 +99,10 @@ func allScheduledResourceInHealthyState(opt assessmentOption) bool {
 		if statusItem.Health != workv1alpha2.ResourceHealthy {
 			return false
 		}
+		scheduleReplaces += targetCluster.Replicas
+	}
+	if scheduleReplaces != opt.replicas {
+		return false
 	}
 
 	return true
