@@ -4382,7 +4382,7 @@ func schema_pkg_apis_policy_v1alpha1_ResourceSelector(ref common.ReferenceCallba
 					},
 					"namespace": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Namespace of the target resource. Default is empty, which means inherit from the parent object scope.",
+							Description: "Namespace of the target resource. Default is empty, which means inherit from the parent object scope. Must be the same as the namespace of PropagationPolicy and OverridePolicy. Can be a regular expression in ClusterPropagationPolicy and ClusterOverridePolicy.",
 							Type:        []string{"string"},
 							Format:      "",
 						},

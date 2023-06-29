@@ -325,6 +325,48 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 		})
 	})
 
+	ginkgo.Context("propagate namespace scope resource with resourceSelector with regexp", func() {
+		var policy *policyv1alpha1.ClusterPropagationPolicy
+		var deploymentNamespace, deploymentName, policyName string
+		var deployment *appsv1.Deployment
+		ginkgo.BeforeEach(func() {
+			policyName = deploymentNamePrefix + rand.String(RandomStrLength)
+			deploymentNamespace = testNamespace
+			deploymentName = policyName
+
+			deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
+			policy = testhelper.NewClusterPropagationPolicy(policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Namespace:  "karmadatest-.*",
+					Name:       deployment.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreateClusterPropagationPolicy(karmadaClient, policy)
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.WaitDeploymentDisappearOnClusters(framework.ClusterNames(), deployment.Namespace, deployment.Name)
+			})
+		})
+
+		ginkgo.It("deployment propagation testing", func() {
+			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+				func(deployment *appsv1.Deployment) bool {
+					return true
+				})
+		})
+	})
+
 	ginkgo.Context("Edit ClusterPropagationPolicy fields other than resourceSelector", func() {
 
 		ginkgo.When("namespace scope resource", func() {

@@ -128,6 +128,8 @@ type ResourceSelector struct {
 
 	// Namespace of the target resource.
 	// Default is empty, which means inherit from the parent object scope.
+	// Must be the same as the namespace of PropagationPolicy and OverridePolicy.
+	// Can be a regular expression in ClusterPropagationPolicy and ClusterOverridePolicy.
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
 

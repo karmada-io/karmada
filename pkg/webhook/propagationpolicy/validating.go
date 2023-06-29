@@ -33,6 +33,14 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 	}
 	klog.V(2).Infof("Validating PropagationPolicy(%s/%s) for request: %s", policy.Namespace, policy.Name, req.Operation)
 
+	for _, rs := range policy.Spec.ResourceSelectors {
+		if rs.Namespace != req.Namespace {
+			err = fmt.Errorf("the namespace of resourceSelector should be the same as the namespace of policy(%s/%s)", policy.Namespace, policy.Name)
+			klog.Error(err)
+			return admission.Denied(err.Error())
+		}
+	}
+
 	if req.Operation == admissionv1.Update {
 		oldPolicy := &policyv1alpha1.PropagationPolicy{}
 		err = v.decoder.DecodeRaw(req.OldObject, oldPolicy)

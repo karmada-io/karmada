@@ -2,6 +2,7 @@ package overridepolicy
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"k8s.io/klog/v2"
@@ -30,6 +31,14 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 	klog.V(2).Infof("Validating OverridePolicy(%s/%s) for request: %s", policy.Namespace, policy.Name, req.Operation)
+
+	for _, rs := range policy.Spec.ResourceSelectors {
+		if rs.Namespace != req.Namespace {
+			err = fmt.Errorf("the namespace of resourceSelector should be the same as the namespace of policy(%s/%s)", policy.Namespace, policy.Name)
+			klog.Error(err)
+			return admission.Denied(err.Error())
+		}
+	}
 
 	if errs := validation.ValidateOverrideSpec(&policy.Spec); len(errs) != 0 {
 		klog.Error(errs)

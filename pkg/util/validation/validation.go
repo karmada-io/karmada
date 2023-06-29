@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -23,6 +24,21 @@ func ValidatePropagationSpec(spec policyv1alpha1.PropagationSpec) field.ErrorLis
 	var allErrs field.ErrorList
 	allErrs = append(allErrs, ValidatePlacement(spec.Placement, field.NewPath("spec").Child("placement"))...)
 	allErrs = append(allErrs, ValidateFailover(spec.Failover, field.NewPath("spec").Child("failover"))...)
+	allErrs = append(allErrs, ValidateResourceSelectors(spec.ResourceSelectors, field.NewPath("spec").Child("resourceSelectors"))...)
+	return allErrs
+}
+
+// ValidateResourceSelectors validates ResourceSelectors before creation or update.
+func ValidateResourceSelectors(resourceSelectors []policyv1alpha1.ResourceSelector, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+	for _, rs := range resourceSelectors {
+		if len(rs.Namespace) > 0 {
+			_, err := regexp.Compile("^" + rs.Namespace + "$")
+			if err != nil {
+				allErrs = append(allErrs, field.Invalid(fldPath, rs, "namespace is not a correct regex"))
+			}
+		}
+	}
 	return allErrs
 }
 
@@ -209,6 +225,7 @@ func ValidateOverrideSpec(overrideSpec *policyv1alpha1.OverrideSpec) field.Error
 		allErrs = append(allErrs, field.Invalid(specPath.Child("overriders"), overrideSpec.Overriders, "overrideRules and overriders can't co-exist"))
 	}
 	allErrs = append(allErrs, ValidateOverrideRules(overrideSpec.OverrideRules, specPath)...)
+	allErrs = append(allErrs, ValidateResourceSelectors(overrideSpec.ResourceSelectors, specPath.Child("resourceSelectors"))...)
 	return allErrs
 }
 

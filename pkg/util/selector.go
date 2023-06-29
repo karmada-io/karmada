@@ -1,6 +1,8 @@
 package util
 
 import (
+	"regexp"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -33,9 +35,24 @@ func ResourceMatches(resource *unstructured.Unstructured, rs policyv1alpha1.Reso
 
 // ResourceSelectorPriority tells the priority between the specific resource and the selector.
 func ResourceSelectorPriority(resource *unstructured.Unstructured, rs policyv1alpha1.ResourceSelector) ImplicitPriority {
+	namespaceMatches := true
+
+	if len(rs.Namespace) > 0 {
+		re, err := regexp.Compile("^" + rs.Namespace + "$")
+		if err != nil {
+			// should not happen because all resource selector should be fully validated by webhook.
+			return PriorityMisMatch
+		}
+
+		found := re.MatchString(resource.GetNamespace())
+		if !found {
+			namespaceMatches = false
+		}
+	}
+
 	if resource.GetAPIVersion() != rs.APIVersion ||
 		resource.GetKind() != rs.Kind ||
-		(len(rs.Namespace) > 0 && resource.GetNamespace() != rs.Namespace) {
+		!namespaceMatches {
 		return PriorityMisMatch
 	}
 

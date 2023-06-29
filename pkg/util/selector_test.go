@@ -170,6 +170,30 @@ func TestResourceSelectorPriority(t *testing.T) {
 			want: PriorityMatchName,
 		},
 		{
+			name: "namespace matched set with regex and name matched",
+			args: args{
+				rs: policyv1alpha1.ResourceSelector{
+					APIVersion: "v1",
+					Kind:       "Pod",
+					Name:       "test",
+					Namespace:  "defaul.",
+				},
+			},
+			want: PriorityMatchName,
+		},
+		{
+			name: "namespace unmatched set with regex and name matched",
+			args: args{
+				rs: policyv1alpha1.ResourceSelector{
+					APIVersion: "v1",
+					Kind:       "Pod",
+					Name:       "test",
+					Namespace:  "fault",
+				},
+			},
+			want: PriorityMisMatch,
+		},
+		{
 			name: "[case 1] name not matched",
 			args: args{
 				rs: policyv1alpha1.ResourceSelector{
