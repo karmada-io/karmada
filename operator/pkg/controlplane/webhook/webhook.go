@@ -34,7 +34,7 @@ func installKarmadaWebhook(client clientset.Interface, cfg *operatorv1alpha1.Kar
 		Namespace:          namespace,
 		Image:              cfg.Image.Name(),
 		Replicas:           cfg.Replicas,
-		KubeconfigSecret:   util.AdminKubeconfigSercretName(name),
+		KubeconfigSecret:   util.AdminKubeconfigSecretName(name),
 		WebhookCertsSecret: util.WebhookCertSecretName(name),
 	})
 	if err != nil {

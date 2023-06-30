@@ -76,7 +76,7 @@ func getKubeControllerManagerManifest(name, namespace string, cfg *operatorv1alp
 		Namespace:          namespace,
 		Image:              cfg.Image.Name(),
 		KarmadaCertsSecret: util.KarmadaCertSecretName(name),
-		KubeconfigSecret:   util.AdminKubeconfigSercretName(name),
+		KubeconfigSecret:   util.AdminKubeconfigSecretName(name),
 		Replicas:           cfg.Replicas,
 	})
 	if err != nil {
@@ -102,7 +102,7 @@ func getKarmadaControllerManagerManifest(name, namespace string, featureGates ma
 		DeploymentName:   util.KarmadaControllerManagerName(name),
 		Namespace:        namespace,
 		Image:            cfg.Image.Name(),
-		KubeconfigSecret: util.AdminKubeconfigSercretName(name),
+		KubeconfigSecret: util.AdminKubeconfigSecretName(name),
 		Replicas:         cfg.Replicas,
 	})
 	if err != nil {
@@ -128,7 +128,7 @@ func getKarmadaSchedulerManifest(name, namespace string, featureGates map[string
 		DeploymentName:   util.KarmadaSchedulerName(name),
 		Namespace:        namespace,
 		Image:            cfg.Image.Name(),
-		KubeconfigSecret: util.AdminKubeconfigSercretName(name),
+		KubeconfigSecret: util.AdminKubeconfigSecretName(name),
 		Replicas:         cfg.Replicas,
 	})
 	if err != nil {
@@ -154,7 +154,7 @@ func getKarmadaDeschedulerManifest(name, namespace string, featureGates map[stri
 		DeploymentName:   util.KarmadaDeschedulerName(name),
 		Namespace:        namespace,
 		Image:            cfg.Image.Name(),
-		KubeconfigSecret: util.AdminKubeconfigSercretName(name),
+		KubeconfigSecret: util.AdminKubeconfigSecretName(name),
 		Replicas:         cfg.Replicas,
 	})
 	if err != nil {

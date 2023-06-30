@@ -30,7 +30,7 @@ func runCleanupKubeconfig(r workflow.RunData) error {
 
 	err := apiclient.DeleteSecretIfHasLabels(
 		data.RemoteClient(),
-		util.AdminKubeconfigSercretName(data.GetName()),
+		util.AdminKubeconfigSecretName(data.GetName()),
 		data.GetNamespace(),
 		constants.KarmadaOperatorLabel,
 	)
