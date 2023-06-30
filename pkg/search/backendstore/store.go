@@ -66,8 +66,7 @@ func GetBackend(cluster string) BackendStore {
 	defer backendLock.Unlock()
 	bs, ok := backends[cluster]
 	if !ok {
-		klog.Errorf("cannot find backend store %s, use defult backend", cluster)
-		return NewDefaultBackend(cluster)
+		return nil
 	}
 	return bs
 }
