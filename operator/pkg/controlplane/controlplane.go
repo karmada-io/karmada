@@ -95,12 +95,13 @@ func getKubeControllerManagerManifest(name, namespace string, cfg *operatorv1alp
 
 func getKarmadaControllerManagerManifest(name, namespace string, featureGates map[string]bool, cfg *operatorv1alpha1.KarmadaControllerManager) (*appsv1.Deployment, error) {
 	karmadaControllerManagerBytes, err := util.ParseTemplate(KamradaControllerManagerDeployment, struct {
-		Replicas                  *int32
-		DeploymentName, Namespace string
-		Image, KubeconfigSecret   string
+		Replicas                                   *int32
+		DeploymentName, Namespace, SystemNamespace string
+		Image, KubeconfigSecret                    string
 	}{
 		DeploymentName:   util.KarmadaControllerManagerName(name),
 		Namespace:        namespace,
+		SystemNamespace:  namespace,
 		Image:            cfg.Image.Name(),
 		KubeconfigSecret: util.AdminKubeconfigSercretName(name),
 		Replicas:         cfg.Replicas,
@@ -121,12 +122,13 @@ func getKarmadaControllerManagerManifest(name, namespace string, featureGates ma
 
 func getKarmadaSchedulerManifest(name, namespace string, featureGates map[string]bool, cfg *operatorv1alpha1.KarmadaScheduler) (*appsv1.Deployment, error) {
 	karmadaSchedulerBytes, err := util.ParseTemplate(KarmadaSchedulerDeployment, struct {
-		Replicas                  *int32
-		DeploymentName, Namespace string
-		Image, KubeconfigSecret   string
+		Replicas                                   *int32
+		DeploymentName, Namespace, SystemNamespace string
+		Image, KubeconfigSecret                    string
 	}{
 		DeploymentName:   util.KarmadaSchedulerName(name),
 		Namespace:        namespace,
+		SystemNamespace:  namespace,
 		Image:            cfg.Image.Name(),
 		KubeconfigSecret: util.AdminKubeconfigSercretName(name),
 		Replicas:         cfg.Replicas,
@@ -147,12 +149,13 @@ func getKarmadaSchedulerManifest(name, namespace string, featureGates map[string
 
 func getKarmadaDeschedulerManifest(name, namespace string, featureGates map[string]bool, cfg *operatorv1alpha1.KarmadaDescheduler) (*appsv1.Deployment, error) {
 	karmadaDeschedulerBytes, err := util.ParseTemplate(KarmadaDeschedulerDeployment, struct {
-		Replicas                  *int32
-		DeploymentName, Namespace string
-		Image, KubeconfigSecret   string
+		Replicas                                   *int32
+		DeploymentName, Namespace, SystemNamespace string
+		Image, KubeconfigSecret                    string
 	}{
 		DeploymentName:   util.KarmadaDeschedulerName(name),
 		Namespace:        namespace,
+		SystemNamespace:  namespace,
 		Image:            cfg.Image.Name(),
 		KubeconfigSecret: util.AdminKubeconfigSercretName(name),
 		Replicas:         cfg.Replicas,

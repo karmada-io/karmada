@@ -116,6 +116,7 @@ spec:
         - --cluster-status-update-frequency=10s
         - --secure-port=10357
         - --failover-eviction-timeout=30s
+        - --leader-elect-resource-namespace={{ .SystemNamespace }}
         - --v=4
         livenessProbe:
           httpGet:
@@ -170,6 +171,7 @@ spec:
         - --bind-address=0.0.0.0
         - --secure-port=10351
         - --enable-scheduler-estimator=true
+        - --leader-elect-resource-namespace={{ .SystemNamespace }}
         - --v=4
         livenessProbe:
           httpGet:
@@ -222,6 +224,7 @@ spec:
         - /bin/karmada-descheduler
         - --kubeconfig=/etc/karmada/config
         - --bind-address=0.0.0.0
+        - --leader-elect-resource-namespace={{ .SystemNamespace }}
         - --v=4
         livenessProbe:
           httpGet:
