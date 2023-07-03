@@ -12,6 +12,9 @@ github.com/MakeNowJust/heredoc
 # github.com/NYTimes/gziphandler v1.1.1
 ## explicit; go 1.11
 github.com/NYTimes/gziphandler
+# github.com/adhocore/gronx v1.6.3
+## explicit; go 1.13
+github.com/adhocore/gronx
 # github.com/alessio/shellescape v1.4.1
 ## explicit; go 1.14
 github.com/alessio/shellescape
@@ -87,6 +90,9 @@ github.com/fsnotify/fsnotify
 # github.com/fvbommel/sortorder v1.0.1
 ## explicit; go 1.13
 github.com/fvbommel/sortorder
+# github.com/go-co-op/gocron v1.30.1
+## explicit; go 1.16
+github.com/go-co-op/gocron
 # github.com/go-errors/errors v1.0.1
 ## explicit
 github.com/go-errors/errors
@@ -398,8 +404,11 @@ github.com/prometheus/procfs/internal/util
 # github.com/rivo/uniseg v0.4.2
 ## explicit; go 1.18
 github.com/rivo/uniseg
-# github.com/rogpeppe/go-internal v1.6.1
-## explicit; go 1.11
+# github.com/robfig/cron/v3 v3.0.1
+## explicit; go 1.12
+github.com/robfig/cron/v3
+# github.com/rogpeppe/go-internal v1.8.1
+## explicit; go 1.16
 github.com/rogpeppe/go-internal/fmtsort
 # github.com/rs/zerolog v1.26.1
 ## explicit; go 1.15
