@@ -209,3 +209,17 @@ webhooks:
     sideEffects: None
     admissionReviewVersions: [ "v1" ]
     timeoutSeconds: 10
+  - name: cronfederatedhpa.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["autoscaling.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["cronfederatedhpas"]
+        scope: "Namespaced"
+    clientConfig:
+      url: https://karmada-webhook.karmada-system.svc:443/validate-cronfederatedhpa
+      caBundle: {{caBundle}}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: [ "v1" ]
+    timeoutSeconds: 10

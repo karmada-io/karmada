@@ -37,6 +37,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	controllerscontext "github.com/karmada-io/karmada/pkg/controllers/context"
+	"github.com/karmada-io/karmada/pkg/controllers/cronfederatedhpa"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/controllers/federatedhpa"
 	metricsclient "github.com/karmada-io/karmada/pkg/controllers/federatedhpa/metrics"
@@ -204,6 +205,7 @@ func init() {
 	controllers["gracefulEviction"] = startGracefulEvictionController
 	controllers["applicationFailover"] = startApplicationFailoverController
 	controllers["federatedHorizontalPodAutoscaler"] = startFederatedHorizontalPodAutoscalerController
+	controllers["cronFederatedHorizontalPodAutoscaler"] = startCronFederatedHorizontalPodAutoscalerController
 }
 
 func startClusterController(ctx controllerscontext.Context) (enabled bool, err error) {
@@ -586,6 +588,18 @@ func startFederatedHorizontalPodAutoscalerController(ctx controllerscontext.Cont
 		RateLimiterOptions:                ctx.Opts.RateLimiterOptions,
 	}
 	if err = federatedHPAController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startCronFederatedHorizontalPodAutoscalerController(ctx controllerscontext.Context) (enabled bool, err error) {
+	cronFHPAController := cronfederatedhpa.CronFHPAController{
+		Client:             ctx.Mgr.GetClient(),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(cronfederatedhpa.ControllerName),
+		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
+	}
+	if err = cronFHPAController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 	return true, nil
