@@ -352,7 +352,6 @@ In order to make sure the applied configuration is corrent, some validations are
 * If `spec.scaleTargetRef.apiVersion` is `autoscaling.karmada.io/v1alpha1`, `spec.scaleTargetRef.kind` can only be `FederatedHPA`, `spec.rules[*].targetMinReplicas` and `spec.rules[*].targetMaxReplicas` cannot be empty at the same time.
 * If `spec.scaleTargetRef.apiVersion` is not `autoscaling.karmada.io/v1alpha1`, `spec.rules[*].targetReplicas` cannot be empty.
 * `spec.rules[*].schedule` should be a valid cron format.
-* `maxDelaySeconds` should be smaller than the period interval.
 
 ### Story Solution
 
@@ -374,10 +373,10 @@ spec:
     kind: Deployment
     name: shop
   rules:
-  - ruleName: "Scale-Up"
+  - name: "Scale-Up"
     schedule: "30 08 * * *"
     targetReplicas: 1000
-  - ruleName: "Scale-Down"
+  - name: "Scale-Down"
     schedule: "0 11 * * *"
     targetReplicas: 1
 ```
@@ -394,10 +393,10 @@ spec:
     kind: FederatedHPA
     name: shop-fhpa
   rules:
-  - ruleName: "Scale-Up"
+  - name: "Scale-Up"
     schedule: "30 08 * * *"
     targetMinReplicas: 1000
-  - ruleName: "Scale-Down"
+  - name: "Scale-Down"
     schedule: "0 11 * * *"
     targetMinReplicas: 1
 ```
@@ -423,11 +422,11 @@ spec:
     kind: FederatedHPA
     name: shop-fhpa
   rules:
-  - ruleName: "scale-up-asia-shanghai"
+  - name: "scale-up-asia-shanghai"
     schedule: "30 07 * * *"
     targetMinReplicas: 1000
     timeZone: "Asia/Shanghai"
-  - ruleName: "scale-up-america-los-angeles"
+  - name: "scale-up-america-los-angeles"
     schedule: "30 07 * * *"
     targetMinReplicas: 1000
     timeZone: "America/Los_Angeles"
