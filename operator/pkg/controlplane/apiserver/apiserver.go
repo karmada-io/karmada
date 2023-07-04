@@ -101,7 +101,7 @@ func installKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operator
 		Namespace:            namespace,
 		Image:                cfg.Image.Name(),
 		EtcdClientService:    util.KarmadaEtcdClientName(name),
-		KubeconfigSecret:     util.AdminKubeconfigSercretName(name),
+		KubeconfigSecret:     util.AdminKubeconfigSecretName(name),
 		KarmadaCertsSecret:   util.KarmadaCertSecretName(name),
 		EtcdCertsSecret:      util.EtcdCertSecretName(name),
 		Replicas:             cfg.Replicas,

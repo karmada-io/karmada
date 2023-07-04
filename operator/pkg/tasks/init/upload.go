@@ -77,7 +77,7 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 	err = apiclient.CreateOrUpdateSecret(data.RemoteClient(), &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: data.GetNamespace(),
-			Name:      util.AdminKubeconfigSercretName(data.GetName()),
+			Name:      util.AdminKubeconfigSecretName(data.GetName()),
 			Labels:    constants.KarmadaOperatorLabel,
 		},
 		Data: map[string][]byte{"config": configBytes},
