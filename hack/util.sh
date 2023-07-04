@@ -426,26 +426,37 @@ function util::kubectl_with_retry() {
     return ${ret}
 }
 
-# util::delete_all_clusters deletes all clusters directly
-# util::delete_all_clusters actually do three things: delete cluster、remove kubeconfig、record delete log
+# util::delete_cluster_created_by_script deletes all clusters created by hack/local-up-karmada.sh directly
+# util::delete_cluster_created_by_script actually do three things: delete cluster、remove kubeconfig、record delete log
 # Parmeters:
-#  - $1: KUBECONFIG file of host cluster, such as "~/.kube/karmada.config"
-#  - $2: KUBECONFIG file of member cluster, such as "~/.kube/members.config"
-#  - $3: log file path, such as "/tmp/karmada/"
-function util::delete_all_clusters() {
-  local main_config=${1}
-  local member_config=${2}
-  local log_path=${3}
+#  - $1: host cluster name, default by karmada-host
+#  - $2: member1 cluster name, default by member1
+#  - $3: member2 cluster name, default by member2
+#  - $4: pull mode cluster name, default by member3
+#  - $5: KUBECONFIG file of host cluster, such as "~/.kube/karmada.config"
+#  - $6: KUBECONFIG file of member cluster, such as "~/.kube/members.config"
+#  - $7: log file path, such as "/tmp/karmada/"
+function util::delete_cluster_created_by_script() {
+  local host_cluster_name=${1}
+  local member_cluster_1_name=${2}
+  local member_cluster_2_name=${3}
+  local pull_mode_cluster_name=${4}
+  local main_config=${5}
+  local member_config=${6}
+  local log_path=${7}
 
-  local log_file="${log_path}"/delete-all-clusters.log
+  local log_file="${log_path}"/delete_clusters_of_karmada.log
   rm -rf ${log_file}
   mkdir -p ${log_path}
 
-  kind delete clusters --all >> "${log_file}" 2>&1
+  kind delete cluster --name "${host_cluster_name}" >> "${log_file}" 2>&1
+  kind delete cluster --name "${member_cluster_1_name}" >> "${log_file}" 2>&1
+  kind delete cluster --name "${member_cluster_2_name}" >> "${log_file}" 2>&1
+  kind delete cluster --name "${pull_mode_cluster_name}" >> "${log_file}" 2>&1
   rm -f "${main_config}"
   rm -f "${member_config}"
 
-  echo "Deleted all clusters and the log file is in ${log_file}"
+  echo "Deleted all clusters created by script and the log file is in ${log_file}"
 }
 
 # util::create_cluster creates a kubernetes cluster

@@ -3,6 +3,8 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+# This script depends on utils in: ${REPO_ROOT}/hack/util.sh
+
 function usage() {
     echo "Usage:"
     echo "    hack/local-down-karmada.sh [-k] [-h]"
@@ -26,30 +28,25 @@ while getopts 'kh' OPT; do
     esac
 done
 
-#step1 remove kind clusters
-echo -e "\nStart removing kind clusters"
-kind delete cluster --name "${HOST_CLUSTER_NAME:-"karmada-host"}"
-kind delete cluster --name "${MEMBER_CLUSTER_1_NAME:-"member1"}"
-kind delete cluster --name "${MEMBER_CLUSTER_2_NAME:-"member2"}"
-kind delete cluster --name "${PULL_MODE_CLUSTER_NAME:-"member3"}"
-echo "Remove kind clusters successfully."
+REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+source "${REPO_ROOT}"/hack/util.sh
 
-#step2. remove kubeconfig
-echo -e "\nStart removing kubeconfig"
 KUBECONFIG_PATH=${KUBECONFIG_PATH:-"${HOME}/.kube"}
 MAIN_KUBECONFIG=${MAIN_KUBECONFIG:-"${KUBECONFIG_PATH}/karmada.config"}
 MEMBER_CLUSTER_KUBECONFIG=${MEMBER_CLUSTER_KUBECONFIG:-"${KUBECONFIG_PATH}/members.config"}
-if [ -f "${MAIN_KUBECONFIG}" ] ; then
-    rm ${MAIN_KUBECONFIG}
-    echo "Remove kubeconfig ${MAIN_KUBECONFIG} successfully."
-fi
-if [ -f "${MEMBER_CLUSTER_KUBECONFIG}" ] ; then
-    rm ${MEMBER_CLUSTER_KUBECONFIG}
-    echo "Remove kubeconfig ${MEMBER_CLUSTER_KUBECONFIG} successfully."
-fi
-echo "Remove kubeconfig successfully."
 
-#step3. remove docker images
+HOST_CLUSTER_NAME=${HOST_CLUSTER_NAME:-"karmada-host"}
+MEMBER_CLUSTER_1_NAME=${MEMBER_CLUSTER_1_NAME:-"member1"}
+MEMBER_CLUSTER_2_NAME=${MEMBER_CLUSTER_2_NAME:-"member2"}
+PULL_MODE_CLUSTER_NAME=${PULL_MODE_CLUSTER_NAME:-"member3"}
+
+KIND_LOG_FILE=${KIND_LOG_FILE:-"/tmp/karmada"}
+
+#step1 remove kind clusters and kubeconfig
+
+util::delete_cluster_created_by_script "${HOST_CLUSTER_NAME}" "${MEMBER_CLUSTER_1_NAME}" "${MEMBER_CLUSTER_2_NAME}" "${PULL_MODE_CLUSTER_NAME}" "${MAIN_KUBECONFIG}" "${MEMBER_CLUSTER_KUBECONFIG}" "${KIND_LOG_FILE}"
+
+#step2. remove docker images
 echo -e "\nStart removing images"
 version="latest"
 registry="docker.io/karmada"
