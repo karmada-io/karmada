@@ -87,13 +87,20 @@ type singleClusterInformerManagerImpl struct {
 }
 
 func (s *singleClusterInformerManagerImpl) ForResource(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) {
+	// if handler already exist, just return, nothing changed.
+	if s.IsHandlerExist(resource, handler) {
+		return
+	}
+
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	// if handler already exist, just return, nothing changed.
+	// check again in case multiple goroutines have passed the initialization check.
 	if s.isHandlerExist(resource, handler) {
 		return
 	}
+
+	klog.Infof("informer manager adding handler for resource(%s)", resource.String())
 
 	_, err := s.informerFactory.ForResource(resource).Informer().AddEventHandler(handler)
 	if err != nil {

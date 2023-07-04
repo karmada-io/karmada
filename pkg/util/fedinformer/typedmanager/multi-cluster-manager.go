@@ -7,6 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 )
@@ -94,13 +95,20 @@ func (m *multiClusterInformerManagerImpl) getManager(cluster string) (SingleClus
 }
 
 func (m *multiClusterInformerManagerImpl) ForCluster(cluster string, client kubernetes.Interface, defaultResync time.Duration) SingleClusterInformerManager {
+	// If informer manager already exist, just return
+	if manager, exist := m.getManager(cluster); exist {
+		return manager
+	}
+
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	// If informer manager already exist, just return
+	// check again in case multiple goroutines have passed the initialization check.
 	if manager, exist := m.managers[cluster]; exist {
 		return manager
 	}
+
+	klog.Infof("building informer manager for cluster: %s", cluster)
 
 	manager := NewSingleClusterInformerManager(client, defaultResync, m.stopCh, m.transformFuncs)
 	m.managers[cluster] = manager
