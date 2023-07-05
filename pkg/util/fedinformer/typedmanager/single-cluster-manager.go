@@ -106,8 +106,11 @@ type singleClusterInformerManagerImpl struct {
 }
 
 func (s *singleClusterInformerManagerImpl) ForResource(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	// if handler already exist, just return, nothing changed.
-	if s.IsHandlerExist(resource, handler) {
+	if s.isHandlerExist(resource, handler) {
 		return nil
 	}
 
@@ -116,20 +119,16 @@ func (s *singleClusterInformerManagerImpl) ForResource(resource schema.GroupVers
 		return err
 	}
 
-	s.lock.Lock()
 	if _, exist := s.informers[resource]; !exist {
 		s.informers[resource] = struct{}{}
 	}
-	s.lock.Unlock()
 
-	s.lock.RLock()
 	if resourceTransformFunc, ok := s.transformFuncs[resource]; ok && !s.isInformerStarted(resource) {
 		err = resourceInformer.Informer().SetTransform(resourceTransformFunc)
 		if err != nil {
 			return err
 		}
 	}
-	s.lock.RUnlock()
 
 	resourceInformer.Informer().AddEventHandler(handler)
 	s.appendHandler(resource, handler)
@@ -153,6 +152,10 @@ func (s *singleClusterInformerManagerImpl) IsHandlerExist(resource schema.GroupV
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
+	return s.isHandlerExist(resource, handler)
+}
+
+func (s *singleClusterInformerManagerImpl) isHandlerExist(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) bool {
 	handlers, exist := s.handlers[resource]
 	if !exist {
 		return false
@@ -199,9 +202,6 @@ func (s *singleClusterInformerManagerImpl) Lister(resource schema.GroupVersionRe
 }
 
 func (s *singleClusterInformerManagerImpl) appendHandler(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
 	// assume the handler list exist, caller should ensure for that.
 	handlers := s.handlers[resource]
 
