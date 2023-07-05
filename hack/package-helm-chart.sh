@@ -9,7 +9,11 @@ source "${REPO_ROOT}"/hack/util.sh
 version=${1}
 output_dir="${REPO_ROOT}/_output/charts"
 
-tar_file="karmada-chart-${version}.tgz"
+KARMADA_CHARTS=(
+    karmada
+    karmada-operator
+)
+
 mkdir -p "${output_dir}"
 
 # install helm
@@ -21,9 +25,16 @@ else
   util::install_helm
 fi
 
-echo "Starting to package into a Karmada chart archive"
-helm package ./charts/karmada --version "${version}" -d "${output_dir}" -u
-cd "${output_dir}"
-mv "karmada-${version}.tgz" ${tar_file}
-echo "Rename karmada-${version}.tgz to ${tar_file}"
-sha256sum "${tar_file}" > "${tar_file}.sha256"
+tar_file=""
+for chart in ${KARMADA_CHARTS[@]}; 
+do
+    tar_file="${chart}-chart-${version}.tgz"
+    echo "Starting to package into a ${chart} chart archive"
+    helm package ./charts/"${chart}" --version "${version}" -d "${output_dir}" -u
+
+    echo "Rename ${chart}-${version}.tgz to ${tar_file}"
+    mv "${output_dir}/${chart}-${version}.tgz" "${output_dir}/${tar_file}"
+
+    sha256sum "${output_dir}/${tar_file}" > "${output_dir}/${tar_file}.sha256"
+done
+
