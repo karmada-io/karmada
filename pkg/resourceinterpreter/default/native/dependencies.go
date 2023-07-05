@@ -28,6 +28,7 @@ func getAllDefaultDependenciesInterpreter() map[schema.GroupVersionKind]dependen
 	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = getJobDependencies
 	s[batchv1.SchemeGroupVersion.WithKind(util.CronJobKind)] = getCronJobDependencies
 	s[corev1.SchemeGroupVersion.WithKind(util.PodKind)] = getPodDependencies
+	s[corev1.SchemeGroupVersion.WithKind(util.ServiceKind)] = getServiceDependencies
 	s[appsv1.SchemeGroupVersion.WithKind(util.DaemonSetKind)] = getDaemonSetDependencies
 	s[appsv1.SchemeGroupVersion.WithKind(util.StatefulSetKind)] = getStatefulSetDependencies
 	s[networkingv1.SchemeGroupVersion.WithKind(util.IngressKind)] = getIngressDependencies
@@ -160,6 +161,17 @@ func getServiceImportDependencies(object *unstructured.Unstructured) ([]configv1
 					discoveryv1.LabelServiceName: derivedServiceName,
 				},
 			},
+		},
+	}, nil
+}
+
+func getServiceDependencies(object *unstructured.Unstructured) ([]configv1alpha1.DependentObjectReference, error) {
+	return []configv1alpha1.DependentObjectReference{
+		{
+			APIVersion: mcsv1alpha1.SchemeGroupVersion.String(),
+			Kind:       util.ServiceExportKind,
+			Namespace:  object.GetNamespace(),
+			Name:       object.GetName(),
 		},
 	}, nil
 }
