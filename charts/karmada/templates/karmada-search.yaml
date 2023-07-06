@@ -48,6 +48,9 @@ spec:
             - name: k8s-certs
               mountPath: /etc/kubernetes/pki
               readOnly: true
+            - name: etcd-certs
+              mountPath: /etc/etcd/pki
+              readOnly: true
             - name: kubeconfig-secret
               subPath: kubeconfig
               mountPath: /etc/kubeconfig
@@ -65,9 +68,9 @@ spec:
             {{- end }}
             {{- if eq .Values.etcd.mode "internal" }}
             - --etcd-servers=https://etcd-client.{{ include "karmada.namespace" . }}.svc.{{ .Values.clusterDomain }}:2379
-            - --etcd-cafile=/etc/kubernetes/pki/server-ca.crt
-            - --etcd-certfile=/etc/kubernetes/pki/karmada.crt
-            - --etcd-keyfile=/etc/kubernetes/pki/karmada.key
+            - --etcd-cafile=/etc/etcd/pki/server-ca.crt
+            - --etcd-certfile=/etc/etcd/pki/karmada.crt
+            - --etcd-keyfile=/etc/etcd/pki/karmada.key
             {{- end }}
             - --tls-cert-file=/etc/kubernetes/pki/karmada.crt
             - --tls-private-key-file=/etc/kubernetes/pki/karmada.key
