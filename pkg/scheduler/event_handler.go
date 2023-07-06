@@ -251,6 +251,16 @@ func (s *Scheduler) enqueueAffectedBindings(cluster *clusterv1alpha1.Cluster) er
 			continue
 		}
 
+		if placementPtr.ClusterAffinities != nil {
+			klog.InfoS("[Debug] event_handler: RB",
+				"Namespace", binding.Namespace,
+				"Name", binding.Name,
+				"SchedulerObservedGeneration", binding.Status.SchedulerObservedGeneration,
+				"Generation", binding.Generation,
+				"ClusterAffinities", placementPtr.ClusterAffinities,
+				"SchedulerObservedAffinityName", binding.Status.SchedulerObservedAffinityName)
+		}
+
 		var affinity *policyv1alpha1.ClusterAffinity
 		if placementPtr.ClusterAffinities != nil {
 			if binding.Status.SchedulerObservedGeneration != binding.Generation {
@@ -290,6 +300,15 @@ func (s *Scheduler) enqueueAffectedCRBs(cluster *clusterv1alpha1.Cluster) error 
 		if placementPtr == nil {
 			// never reach here
 			continue
+		}
+
+		if placementPtr.ClusterAffinities != nil {
+			klog.InfoS("[Debug] event_handler: CRB",
+				"Name", binding.Name,
+				"SchedulerObservedGeneration", binding.Status.SchedulerObservedGeneration,
+				"Generation", binding.Generation,
+				"ClusterAffinities", placementPtr.ClusterAffinities,
+				"SchedulerObservedAffinityName", binding.Status.SchedulerObservedAffinityName)
 		}
 
 		var affinity *policyv1alpha1.ClusterAffinity

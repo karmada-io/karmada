@@ -310,6 +310,13 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 	}
 	rb = rb.DeepCopy()
 
+	klog.InfoS("[Debug] doScheduleBinding: RB",
+		"Namespace", rb.Namespace,
+		"Name", rb.Name,
+		"SchedulerObservedGeneration", rb.Status.SchedulerObservedGeneration,
+		"Generation", rb.Generation,
+		"SchedulerObservedAffinityName", rb.Status.SchedulerObservedAffinityName)
+
 	if rb.Spec.Placement == nil {
 		// never reach here
 		err = fmt.Errorf("failed to get placement from resourceBinding(%s/%s)", rb.Namespace, rb.Name)
@@ -349,9 +356,9 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 	// binding.Status.SchedulerObservedGeneration which means the current status of binding
 	// is the latest status of successful scheduling.
 	if rb.Generation != rb.Status.SchedulerObservedGeneration {
-		updateRB := rb.DeepCopy()
-		updateRB.Status.SchedulerObservedGeneration = updateRB.Generation
-		return patchBindingStatus(s.KarmadaClient, rb, updateRB)
+		originalRB := rb.DeepCopy()
+		rb.Status.SchedulerObservedGeneration = rb.Generation
+		return patchBindingStatus(s.KarmadaClient, originalRB, rb)
 	}
 	return nil
 }
@@ -406,9 +413,9 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 	// binding.Status.SchedulerObservedGeneration which means the current status of binding
 	// is the latest status of successful scheduling.
 	if crb.Generation != crb.Status.SchedulerObservedGeneration {
-		updateCRB := crb.DeepCopy()
-		updateCRB.Status.SchedulerObservedGeneration = updateCRB.Generation
-		return patchClusterResourceBindingStatus(s.KarmadaClient, crb, updateCRB)
+		originalRB := crb.DeepCopy()
+		crb.Status.SchedulerObservedGeneration = crb.Generation
+		return patchClusterResourceBindingStatus(s.KarmadaClient, originalRB, crb)
 	}
 	return nil
 }
@@ -428,6 +435,14 @@ func (s *Scheduler) scheduleResourceBinding(rb *workv1alpha2.ResourceBinding) (e
 				err = updateErr
 			}
 		}
+
+		newRB, _ := s.bindingLister.ResourceBindings(rb.Namespace).Get(rb.Name)
+		klog.InfoS("[Debug] after patchBindingStatusCondition: RB",
+			"Namespace", newRB.Namespace,
+			"Name", newRB.Name,
+			"SchedulerObservedGeneration", newRB.Status.SchedulerObservedGeneration,
+			"Generation", newRB.Generation,
+			"SchedulerObservedAffinityName", newRB.Status.SchedulerObservedAffinityName)
 	}()
 
 	if rb.Spec.Placement.ClusterAffinities != nil {
@@ -524,15 +539,16 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinities(rb *workv1alpha
 	return scheduleErr
 }
 
-func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alpha2.ResourceBinding, placement string, scheduleResult []workv1alpha2.TargetCluster) error {
-	newBinding := oldBinding.DeepCopy()
-	if newBinding.Annotations == nil {
-		newBinding.Annotations = make(map[string]string)
-	}
-	newBinding.Annotations[util.PolicyPlacementAnnotation] = placement
-	newBinding.Spec.Clusters = scheduleResult
+func (s *Scheduler) patchScheduleResultForResourceBinding(rb *workv1alpha2.ResourceBinding, placement string, scheduleResult []workv1alpha2.TargetCluster) error {
+	originalRB := rb.DeepCopy()
 
-	patchBytes, err := helper.GenMergePatch(oldBinding, newBinding)
+	if rb.Annotations == nil {
+		rb.Annotations = make(map[string]string)
+	}
+	rb.Annotations[util.PolicyPlacementAnnotation] = placement
+	rb.Spec.Clusters = scheduleResult
+
+	patchBytes, err := helper.GenMergePatch(originalRB, rb)
 	if err != nil {
 		return err
 	}
@@ -540,13 +556,13 @@ func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alph
 		return nil
 	}
 
-	_, err = s.KarmadaClient.WorkV1alpha2().ResourceBindings(newBinding.Namespace).Patch(context.TODO(), newBinding.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
+	_, err = s.KarmadaClient.WorkV1alpha2().ResourceBindings(rb.Namespace).Patch(context.TODO(), rb.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
-		klog.Errorf("Failed to patch schedule to ResourceBinding(%s/%s): %v", oldBinding.Namespace, oldBinding.Name, err)
+		klog.Errorf("Failed to patch schedule result to ResourceBinding(%s/%s): %v", rb.Namespace, rb.Name, err)
 		return err
 	}
 
-	klog.V(4).Infof("Patch schedule to ResourceBinding(%s/%s) succeed", oldBinding.Namespace, oldBinding.Name)
+	klog.V(4).Infof("Patch schedule result to ResourceBinding(%s/%s) succeed", rb.Namespace, rb.Name)
 	return nil
 }
 
@@ -661,15 +677,15 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinities(crb *wor
 	return scheduleErr
 }
 
-func (s *Scheduler) patchScheduleResultForClusterResourceBinding(oldBinding *workv1alpha2.ClusterResourceBinding, placement string, scheduleResult []workv1alpha2.TargetCluster) error {
-	newBinding := oldBinding.DeepCopy()
-	if newBinding.Annotations == nil {
-		newBinding.Annotations = make(map[string]string)
+func (s *Scheduler) patchScheduleResultForClusterResourceBinding(crb *workv1alpha2.ClusterResourceBinding, placement string, scheduleResult []workv1alpha2.TargetCluster) error {
+	originalCRB := crb.DeepCopy()
+	if crb.Annotations == nil {
+		crb.Annotations = make(map[string]string)
 	}
-	newBinding.Annotations[util.PolicyPlacementAnnotation] = placement
-	newBinding.Spec.Clusters = scheduleResult
+	crb.Annotations[util.PolicyPlacementAnnotation] = placement
+	crb.Spec.Clusters = scheduleResult
 
-	patchBytes, err := helper.GenMergePatch(oldBinding, newBinding)
+	patchBytes, err := helper.GenMergePatch(originalCRB, crb)
 	if err != nil {
 		return err
 	}
@@ -677,13 +693,14 @@ func (s *Scheduler) patchScheduleResultForClusterResourceBinding(oldBinding *wor
 		return nil
 	}
 
-	_, err = s.KarmadaClient.WorkV1alpha2().ClusterResourceBindings().Patch(context.TODO(), newBinding.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
+	_, err = s.KarmadaClient.WorkV1alpha2().ClusterResourceBindings().Patch(context.TODO(), crb.Name, types.MergePatchType,
+		patchBytes, metav1.PatchOptions{})
 	if err != nil {
-		klog.Errorf("Failed to patch schedule to ClusterResourceBinding(%s): %v", oldBinding.Name, err)
+		klog.Errorf("Failed to patch schedule to ClusterResourceBinding(%s): %v", crb.Name, err)
 		return err
 	}
 
-	klog.V(4).Infof("Patch schedule to ClusterResourceBinding(%s) succeed", oldBinding.Name)
+	klog.V(4).Infof("Patch schedule to ClusterResourceBinding(%s) succeed", crb.Name)
 	return nil
 }
 
@@ -738,18 +755,25 @@ func (s *Scheduler) establishEstimatorConnections() {
 func patchBindingStatusCondition(karmadaClient karmadaclientset.Interface, rb *workv1alpha2.ResourceBinding, newScheduledCondition metav1.Condition) error {
 	klog.V(4).Infof("Begin to patch status condition to ResourceBinding(%s/%s)", rb.Namespace, rb.Name)
 
-	updateRB := rb.DeepCopy()
-	meta.SetStatusCondition(&updateRB.Status.Conditions, newScheduledCondition)
+	klog.InfoS("[Debug] before patchBindingStatusCondition: RB",
+		"Namespace", rb.Namespace,
+		"Name", rb.Name,
+		"SchedulerObservedGeneration", rb.Status.SchedulerObservedGeneration,
+		"Generation", rb.Generation,
+		"SchedulerObservedAffinityName", rb.Status.SchedulerObservedAffinityName)
+
+	originalRB := rb.DeepCopy()
+	meta.SetStatusCondition(&rb.Status.Conditions, newScheduledCondition)
 	// Postpone setting observed generation until schedule succeed, assume scheduler will retry and
 	// will succeed eventually.
 	if newScheduledCondition.Status == metav1.ConditionTrue {
-		updateRB.Status.SchedulerObservedGeneration = rb.Generation
+		rb.Status.SchedulerObservedGeneration = rb.Generation
 	}
 
-	if reflect.DeepEqual(rb.Status, updateRB.Status) {
+	if reflect.DeepEqual(rb.Status, originalRB.Status) {
 		return nil
 	}
-	return patchBindingStatus(karmadaClient, rb, updateRB)
+	return patchBindingStatus(karmadaClient, originalRB, rb)
 }
 
 // patchBindingStatusWithAffinityName patches schedule status with affinityName of ResourceBinding when necessary.
@@ -759,13 +783,13 @@ func patchBindingStatusWithAffinityName(karmadaClient karmadaclientset.Interface
 	}
 
 	klog.V(4).Infof("Begin to patch status with affinityName(%s) to ResourceBinding(%s/%s).", affinityName, rb.Namespace, rb.Name)
-	updateRB := rb.DeepCopy()
-	updateRB.Status.SchedulerObservedAffinityName = affinityName
-	return patchBindingStatus(karmadaClient, rb, updateRB)
+	originalRB := rb.DeepCopy()
+	rb.Status.SchedulerObservedAffinityName = affinityName
+	return patchBindingStatus(karmadaClient, originalRB, rb)
 }
 
-func patchBindingStatus(karmadaClient karmadaclientset.Interface, rb, updateRB *workv1alpha2.ResourceBinding) error {
-	patchBytes, err := helper.GenMergePatch(rb, updateRB)
+func patchBindingStatus(karmadaClient karmadaclientset.Interface, originalRB, rb *workv1alpha2.ResourceBinding) error {
+	patchBytes, err := helper.GenMergePatch(originalRB, rb)
 	if err != nil {
 		return err
 	}
@@ -780,6 +804,14 @@ func patchBindingStatus(karmadaClient karmadaclientset.Interface, rb, updateRB *
 	}
 
 	klog.V(4).Infof("Patch schedule status to ResourceBinding(%s/%s) succeed", rb.Namespace, rb.Name)
+
+	klog.InfoS("[Debug] after patchBindingStatus: RB",
+		"Namespace", rb.Namespace,
+		"Name", rb.Name,
+		"SchedulerObservedGeneration", rb.Status.SchedulerObservedGeneration,
+		"Generation", rb.Generation,
+		"SchedulerObservedAffinityName", rb.Status.SchedulerObservedAffinityName)
+
 	return nil
 }
 
@@ -787,18 +819,18 @@ func patchBindingStatus(karmadaClient karmadaclientset.Interface, rb, updateRB *
 func patchClusterBindingStatusCondition(karmadaClient karmadaclientset.Interface, crb *workv1alpha2.ClusterResourceBinding, newScheduledCondition metav1.Condition) error {
 	klog.V(4).Infof("Begin to patch status condition to ClusterResourceBinding(%s)", crb.Name)
 
-	updateCRB := crb.DeepCopy()
-	meta.SetStatusCondition(&updateCRB.Status.Conditions, newScheduledCondition)
+	originalCRB := crb.DeepCopy()
+	meta.SetStatusCondition(&crb.Status.Conditions, newScheduledCondition)
 	// Postpone setting observed generation until schedule succeed, assume scheduler will retry and
 	// will succeed eventually.
 	if newScheduledCondition.Status == metav1.ConditionTrue {
-		updateCRB.Status.SchedulerObservedGeneration = crb.Generation
+		crb.Status.SchedulerObservedGeneration = crb.Generation
 	}
 
-	if reflect.DeepEqual(crb.Status, updateCRB.Status) {
+	if reflect.DeepEqual(originalCRB.Status, crb.Status) {
 		return nil
 	}
-	return patchClusterResourceBindingStatus(karmadaClient, crb, updateCRB)
+	return patchClusterResourceBindingStatus(karmadaClient, originalCRB, crb)
 }
 
 // patchClusterBindingStatusWithAffinityName patches schedule status with affinityName of ClusterResourceBinding when necessary.
@@ -808,13 +840,13 @@ func patchClusterBindingStatusWithAffinityName(karmadaClient karmadaclientset.In
 	}
 
 	klog.V(4).Infof("Begin to patch status with affinityName(%s) to ClusterResourceBinding(%s).", affinityName, crb.Name)
-	updateCRB := crb.DeepCopy()
-	updateCRB.Status.SchedulerObservedAffinityName = affinityName
-	return patchClusterResourceBindingStatus(karmadaClient, crb, updateCRB)
+	originalCRB := crb.DeepCopy()
+	crb.Status.SchedulerObservedAffinityName = affinityName
+	return patchClusterResourceBindingStatus(karmadaClient, originalCRB, crb)
 }
 
-func patchClusterResourceBindingStatus(karmadaClient karmadaclientset.Interface, crb, updateCRB *workv1alpha2.ClusterResourceBinding) error {
-	patchBytes, err := helper.GenMergePatch(crb, updateCRB)
+func patchClusterResourceBindingStatus(karmadaClient karmadaclientset.Interface, originalCRB, crb *workv1alpha2.ClusterResourceBinding) error {
+	patchBytes, err := helper.GenMergePatch(originalCRB, crb)
 	if err != nil {
 		return err
 	}
@@ -822,7 +854,8 @@ func patchClusterResourceBindingStatus(karmadaClient karmadaclientset.Interface,
 		return nil
 	}
 
-	_, err = karmadaClient.WorkV1alpha2().ClusterResourceBindings().Patch(context.TODO(), crb.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
+	_, err = karmadaClient.WorkV1alpha2().ClusterResourceBindings().Patch(context.TODO(), crb.Name, types.MergePatchType,
+		patchBytes, metav1.PatchOptions{}, "status")
 	if err != nil {
 		klog.Errorf("Failed to patch schedule status to ClusterResourceBinding(%s): %v", crb.Name, err)
 		return err
