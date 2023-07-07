@@ -10,10 +10,14 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	operatorscheme "github.com/karmada-io/karmada/operator/pkg/scheme"
@@ -87,11 +91,18 @@ func (ctrl *Controller) syncKarmada(karmada *operatorv1alpha1.Karmada) error {
 }
 
 func (ctrl *Controller) removeFinalizer(ctx context.Context, karmada *operatorv1alpha1.Karmada) (controllerruntime.Result, error) {
-	if controllerutil.RemoveFinalizer(karmada, ControllerFinalizerName) {
-		return controllerruntime.Result{}, ctrl.Update(ctx, karmada)
-	}
+	return controllerruntime.Result{}, retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		newer := &operatorv1alpha1.Karmada{}
+		if err := ctrl.Get(ctx, client.ObjectKeyFromObject(karmada), newer); err != nil {
+			return err
+		}
 
-	return controllerruntime.Result{}, nil
+		if controllerutil.RemoveFinalizer(newer, ControllerFinalizerName) {
+			return ctrl.Update(ctx, newer)
+		}
+
+		return nil
+	})
 }
 
 func (ctrl *Controller) ensureKarmada(ctx context.Context, karmada *operatorv1alpha1.Karmada) error {
@@ -118,5 +129,25 @@ func (ctrl *Controller) ensureKarmada(ctx context.Context, karmada *operatorv1al
 
 // SetupWithManager creates a controller and register to controller manager.
 func (ctrl *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&operatorv1alpha1.Karmada{}).Complete(ctrl)
+	return controllerruntime.NewControllerManagedBy(mgr).
+		For(&operatorv1alpha1.Karmada{},
+			builder.WithPredicates(predicate.Funcs{
+				UpdateFunc: ctrl.onKarmadaUpdate,
+			})).
+		Complete(ctrl)
+}
+
+// onKarmadaUpdate returns a bool which represents whether the karmada events need to entry the queue.
+// In order to avoid invalid reconcile, we just focus on these two cases:
+// 1. when the karmada cr is deleted.
+// 2. when the spec of karmada cr is updated.
+func (ctrl *Controller) onKarmadaUpdate(updateEvent event.UpdateEvent) bool {
+	newObj := updateEvent.ObjectNew.(*operatorv1alpha1.Karmada)
+	oldObj := updateEvent.ObjectOld.(*operatorv1alpha1.Karmada)
+
+	if !newObj.DeletionTimestamp.IsZero() {
+		return true
+	}
+
+	return !reflect.DeepEqual(newObj.Spec, oldObj.Spec)
 }
