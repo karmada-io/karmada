@@ -231,5 +231,19 @@ webhooks:
     sideEffects: None
     admissionReviewVersions: [ "v1" ]
     timeoutSeconds: 3
+  - name: multiclusterservice.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["networking.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["multiclusterservices"]
+        scope: "Namespaced"
+    clientConfig:
+      url: https://{{ .Service }}.{{ .Namespace }}.svc:443/validate-multiclusterservice
+      caBundle: {{ .CaBundle }}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: [ "v1" ]
+    timeoutSeconds: 3
 `
 )
