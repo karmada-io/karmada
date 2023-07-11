@@ -61,6 +61,8 @@ spec:
                       description: Port specifies the exposed service port.
                       format: int32
                       type: integer
+                  required:
+                  - port
                   type: object
                 type: array
               range:
