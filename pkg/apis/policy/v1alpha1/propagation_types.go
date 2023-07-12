@@ -76,6 +76,7 @@ type PropagationSpec struct {
 	// template be processed.
 	// Once a resource template has been claimed by a policy, by default it will
 	// not be preempted by following policies even with a higher priority.
+	// See Preemption for more details.
 	//
 	// In case of two policies have the same priority, the one with a more precise
 	// matching rules in ResourceSelectors wins:
@@ -90,6 +91,14 @@ type PropagationSpec struct {
 	// +optional
 	// +kubebuilder:default=0
 	Priority *int32 `json:"priority,omitempty"`
+
+	// Preemption declares the behaviors for preempting.
+	// Valid options are "Always" and "Never".
+	//
+	// +kubebuilder:default="Never"
+	// +kubebuilder:validation:Enum=Always;Never
+	// +optional
+	Preemption PreemptionBehavior `json:"preemption,omitempty"`
 
 	// DependentOverrides represents the list of overrides(OverridePolicy)
 	// which must present before the current PropagationPolicy takes effect.
@@ -441,6 +450,30 @@ const (
 	//     C: Max available replica: 18
 	//   The weight of cluster A:B:C will be 6:12:18 (equals to 1:2:3). At last, the assignment would be 'A: 2, B: 4, C: 6'.
 	DynamicWeightByAvailableReplicas DynamicWeightFactor = "AvailableReplicas"
+)
+
+// PreemptionBehavior describes whether and how to preempt resources that are
+// claimed by lower-priority PropagationPolicy(ClusterPropagationPolicy).
+// +enum
+type PreemptionBehavior string
+
+const (
+	// PreemptAlways means that preemption is allowed.
+	//
+	// If it is applied to a PropagationPolicy, it can preempt any resource as
+	// per Priority, regardless of whether it has been claimed by a PropagationPolicy
+	// or a ClusterPropagationPolicy, as long as it can match the rules defined
+	// in ResourceSelector. In addition, if a resource has already been claimed
+	// by a ClusterPropagationPolicy, the PropagationPolicy can still preempt it
+	// without considering Priority.
+	//
+	// If it is applied to a ClusterPropagationPolicy, it can only preempt from
+	// ClusterPropagationPolicy, and from PropagationPolicy is not allowed.
+	PreemptAlways PreemptionBehavior = "Always"
+
+	// PreemptNever means that a PropagationPolicy(ClusterPropagationPolicy) never
+	// preempts resources.
+	PreemptNever PreemptionBehavior = "Never"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
