@@ -2641,11 +2641,13 @@ func schema_pkg_apis_networking_v1alpha1_ExposurePort(ref common.ReferenceCallba
 					"port": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Port specifies the exposed service port.",
+							Default:     0,
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
 				},
+				Required: []string{"port"},
 			},
 		},
 	}

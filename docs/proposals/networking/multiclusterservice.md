@@ -128,8 +128,8 @@ type ExposurePort struct {
 	Name string `json:"name,omitempty"`
 
 	// Port specifies the exposed service port.
-	// +optional
-	Port int32 `json:"port,omitempty"`
+	// +required
+	Port int32 `json:"port"`
 }
 
 // ExposureRange describes a list of clusters where the service is exposed.
@@ -174,7 +174,7 @@ spec:
    ports:
    - port: 80
    types:
-   - LoadBalance
+   - LoadBalancer
 ```
 
 ![image](statics/service-exposure.png)
