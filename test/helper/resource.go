@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -18,6 +19,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
+	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
 
@@ -30,6 +32,104 @@ const (
 	ResourceUnitEphemeralStorage int64 = 1024 * 1024 * 1024
 	ResourceUnitGPU              int64 = 1
 )
+
+// NewCronFederatedHPAWithScalingDeployment will build a CronFederatedHPA object with scaling deployment.
+func NewCronFederatedHPAWithScalingDeployment(namespace, name, deploymentName string,
+	rule autoscalingv1alpha1.CronFederatedHPARule) *autoscalingv1alpha1.CronFederatedHPA {
+	return &autoscalingv1alpha1.CronFederatedHPA{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "autoscaling.karmada.io/v1alpha1",
+			Kind:       "CronFederatedHPA",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+		Spec: autoscalingv1alpha1.CronFederatedHPASpec{
+			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Name:       deploymentName,
+			},
+			Rules: []autoscalingv1alpha1.CronFederatedHPARule{rule},
+		},
+	}
+}
+
+// NewCronFederatedHPAWithScalingFHPA will build a CronFederatedHPA object with scaling FederatedHPA.
+func NewCronFederatedHPAWithScalingFHPA(namespace, name, fhpaName string,
+	rule autoscalingv1alpha1.CronFederatedHPARule) *autoscalingv1alpha1.CronFederatedHPA {
+	return &autoscalingv1alpha1.CronFederatedHPA{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "autoscaling.karmada.io/v1alpha1",
+			Kind:       "CronFederatedHPA",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+		Spec: autoscalingv1alpha1.CronFederatedHPASpec{
+			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
+				APIVersion: "autoscaling.karmada.io/v1alpha1",
+				Kind:       "FederatedHPA",
+				Name:       fhpaName,
+			},
+			Rules: []autoscalingv1alpha1.CronFederatedHPARule{rule},
+		},
+	}
+}
+
+// NewCronFederatedHPARule will build a CronFederatedHPARule object.
+func NewCronFederatedHPARule(name, cron string, suspend bool, targetReplicas, targetMinReplicas, targetMaxReplicas *int32) autoscalingv1alpha1.CronFederatedHPARule {
+	return autoscalingv1alpha1.CronFederatedHPARule{
+		Name:              name,
+		Schedule:          cron,
+		TargetReplicas:    targetReplicas,
+		TargetMinReplicas: targetMinReplicas,
+		TargetMaxReplicas: targetMaxReplicas,
+		Suspend:           pointer.Bool(suspend),
+	}
+}
+
+// NewFederatedHPA will build a FederatedHPA object.
+func NewFederatedHPA(namespace, name, scaleTargetDeployment string) *autoscalingv1alpha1.FederatedHPA {
+	return &autoscalingv1alpha1.FederatedHPA{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "autoscaling.karmada.io/v1alpha1",
+			Kind:       "FederatedHPA",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+		Spec: autoscalingv1alpha1.FederatedHPASpec{
+			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Name:       scaleTargetDeployment,
+			},
+			Behavior: &autoscalingv2.HorizontalPodAutoscalerBehavior{
+				ScaleDown: &autoscalingv2.HPAScalingRules{
+					StabilizationWindowSeconds: pointer.Int32(10),
+				},
+			},
+			MinReplicas: pointer.Int32(1),
+			MaxReplicas: 1,
+			Metrics: []autoscalingv2.MetricSpec{
+				{
+					Type: autoscalingv2.ResourceMetricSourceType,
+					Resource: &autoscalingv2.ResourceMetricSource{
+						Name: corev1.ResourceCPU,
+						Target: autoscalingv2.MetricTarget{
+							Type:               autoscalingv2.UtilizationMetricType,
+							AverageUtilization: pointer.Int32(80),
+						},
+					},
+				},
+			},
+		},
+	}
+}
 
 // NewDeployment will build a deployment object.
 func NewDeployment(namespace string, name string) *appsv1.Deployment {
@@ -58,6 +158,9 @@ func NewDeployment(namespace string, name string) *appsv1.Deployment {
 						Name:  "nginx",
 						Image: "nginx:1.19.0",
 						Resources: corev1.ResourceRequirements{
+							Requests: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceCPU: resource.MustParse("10m"),
+							},
 							Limits: map[corev1.ResourceName]resource.Quantity{
 								corev1.ResourceCPU: resource.MustParse("100m"),
 							},

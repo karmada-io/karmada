@@ -223,3 +223,25 @@ func WaitDeploymentGetByClientFitWith(client kubernetes.Interface, namespace, na
 		}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 	})
 }
+
+func WaitDeploymentReplicasFitWith(clusters []string, namespace, name string, expectReplicas int) {
+	ginkgo.By(fmt.Sprintf("Check deployment(%s/%s) replicas fit with expecting", namespace, name), func() {
+		gomega.Eventually(func() bool {
+			totalReplicas := 0
+			for _, cluster := range clusters {
+				clusterClient := GetClusterClient(cluster)
+				if clusterClient == nil {
+					continue
+				}
+
+				dep, err := clusterClient.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+				if err != nil {
+					continue
+				}
+				totalReplicas += int(*dep.Spec.Replicas)
+			}
+			klog.Infof("The total replicas of deployment(%s/%s) is %d", namespace, name, totalReplicas)
+			return totalReplicas == expectReplicas
+		}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	})
+}

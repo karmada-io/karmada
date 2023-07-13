@@ -231,6 +231,9 @@ util::wait_pod_ready "${HOST_CLUSTER_NAME}" "${KARMADA_AGGREGATION_APISERVER_LAB
 # deploy karmada-search on host cluster
 kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/karmada-search.yaml"
 util::wait_pod_ready "${HOST_CLUSTER_NAME}" "${KARMADA_SEARCH_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
+# deploy karmada-metrics-adapter on host cluster
+kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/karmada-metrics-adapter.yaml"
+util::wait_pod_ready "${HOST_CLUSTER_NAME}" "${KARMADA_METRICS_ADAPTER_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
 
 # install CRD APIs on karmada apiserver.
 if ! kubectl config get-contexts "karmada-apiserver" > /dev/null 2>&1;
@@ -259,6 +262,11 @@ util::wait_apiservice_ready "karmada-apiserver" "${KARMADA_AGGREGATION_APISERVER
 kubectl --context="karmada-apiserver" apply -f "${REPO_ROOT}/artifacts/deploy/karmada-search-apiservice.yaml"
 # make sure apiservice for v1alpha1.search.karmada.io is Available
 util::wait_apiservice_ready "karmada-apiserver" "${KARMADA_SEARCH_LABEL}"
+
+# deploy APIService on karmada apiserver for karmada-metrics-adapter
+kubectl --context="karmada-apiserver" apply -f "${REPO_ROOT}/artifacts/deploy/karmada-metrics-adapter-apiservice.yaml"
+# make sure apiservice for karmada metrics adapter is Available
+util::wait_apiservice_ready "karmada-apiserver" "${KARMADA_METRICS_ADAPTER_LABEL}"
 
 # deploy cluster proxy rbac for admin
 kubectl --context="karmada-apiserver" apply -f "${REPO_ROOT}/artifacts/deploy/cluster-proxy-admin-rbac.yaml"
