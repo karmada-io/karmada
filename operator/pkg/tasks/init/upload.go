@@ -80,7 +80,7 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 			Name:      util.AdminKubeconfigSecretName(data.GetName()),
 			Labels:    constants.KarmadaOperatorLabel,
 		},
-		Data: map[string][]byte{"config": configBytes},
+		Data: map[string][]byte{"kubeconfig": configBytes},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create secret of kubeconfig, err: %w", err)
