@@ -2,6 +2,7 @@ package lifted
 
 import (
 	"fmt"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"testing"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -133,6 +134,46 @@ func TestObjectMetaObjEquivalent(t *testing.T) {
 		})
 	}
 }
+
+func TestObjectMetaObjEquivalentIgnoreKarmadaKeys(t *testing.T) {
+	tests := []struct {
+		name   string
+		a      *unstructured.Unstructured
+		b      *unstructured.Unstructured
+		expect bool
+	}{
+		{
+			name: "everything equals except Karmada labels",
+			a: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{"a": "b"},
+					},
+				},
+			},
+			b: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{"a": "b", policyv1alpha1.ClusterPropagationPolicyLabel: "cpp-example"},
+					},
+				},
+			},
+			expect: true,
+		},
+
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual := objectMetaObjEquivalent(tt.a, tt.b)
+			if actual != tt.expect {
+				t.Errorf("expect %v but got %v", tt.expect, actual)
+			}
+		})
+	}
+}
+
+
 
 func TestObjectNeedsUpdate(t *testing.T) {
 	clusterObj := &unstructured.Unstructured{
