@@ -5,6 +5,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// ResourceKindMultiClusterService is kind name of MultiClusterService.
+	ResourceKindMultiClusterService = "MultiClusterService"
+	// ResourceSingularMultiClusterService is singular name of MultiClusterService.
+	ResourceSingularMultiClusterService = "multiclusterservice"
+	// ResourcePluralMultiClusterService is plural name of MultiClusterService.
+	ResourcePluralMultiClusterService = "multiclusterservices"
+	// ResourceNamespaceScopedMultiClusterService indicates if MultiClusterService is NamespaceScoped.
+	ResourceNamespaceScopedMultiClusterService = true
+)
+
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status

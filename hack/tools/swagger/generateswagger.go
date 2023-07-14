@@ -38,6 +38,10 @@ func main() {
 		networkingv1alpha1.SchemeGroupVersion.WithResource(networkingv1alpha1.ResourcePluralMultiClusterIngress),
 		networkingv1alpha1.SchemeGroupVersion.WithResource(networkingv1alpha1.ResourceSingularMultiClusterIngress), meta.RESTScopeRoot)
 
+	mapper.AddSpecific(networkingv1alpha1.SchemeGroupVersion.WithKind(networkingv1alpha1.ResourceKindMultiClusterService),
+		networkingv1alpha1.SchemeGroupVersion.WithResource(networkingv1alpha1.ResourcePluralMultiClusterService),
+		networkingv1alpha1.SchemeGroupVersion.WithResource(networkingv1alpha1.ResourceSingularMultiClusterService), meta.RESTScopeRoot)
+
 	mapper.AddSpecific(policyv1alpha1.SchemeGroupVersion.WithKind(policyv1alpha1.ResourceKindPropagationPolicy),
 		policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourcePluralPropagationPolicy),
 		policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourceSingularPropagationPolicy), meta.RESTScopeRoot)
@@ -93,6 +97,7 @@ func main() {
 			{GVR: clusterv1alpha1.SchemeGroupVersion.WithResource(clusterv1alpha1.ResourcePluralCluster), NamespaceScoped: clusterv1alpha1.ResourceNamespaceScopedCluster},
 			{GVR: configv1alpha1.SchemeGroupVersion.WithResource(configv1alpha1.ResourcePluralResourceInterpreterWebhookConfiguration), NamespaceScoped: configv1alpha1.ResourceNamespaceScopedResourceInterpreterWebhookConfiguration},
 			{GVR: networkingv1alpha1.SchemeGroupVersion.WithResource(networkingv1alpha1.ResourcePluralMultiClusterIngress), NamespaceScoped: networkingv1alpha1.ResourceNamespaceScopedMultiClusterIngress},
+			{GVR: networkingv1alpha1.SchemeGroupVersion.WithResource(networkingv1alpha1.ResourcePluralMultiClusterService), NamespaceScoped: networkingv1alpha1.ResourceNamespaceScopedMultiClusterService},
 			{GVR: policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourcePluralPropagationPolicy), NamespaceScoped: policyv1alpha1.ResourceNamespaceScopedPropagationPolicy},
 			{GVR: policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourcePluralClusterPropagationPolicy), NamespaceScoped: policyv1alpha1.ResourceNamespaceScopedClusterPropagationPolicy},
 			{GVR: policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourcePluralOverridePolicy), NamespaceScoped: policyv1alpha1.ResourceNamespaceScopedOverridePolicy},
