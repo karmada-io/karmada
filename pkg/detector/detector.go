@@ -378,7 +378,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 	klog.Infof("Applying policy(%s/%s) for object: %s", policy.Namespace, policy.Name, objectKey)
 	var operationResult controllerutil.OperationResult
 	defer func() {
-		metrics.ObserveApplyPolicyAttemptAndLatency(object, policy.ObjectMeta, err, start)
+		metrics.ObserveApplyPolicyAttemptAndLatency(err, start)
 		if err != nil {
 			d.EventRecorder.Eventf(object, corev1.EventTypeWarning, events.EventReasonApplyPolicyFailed, "Apply policy(%s/%s) failed: %v", policy.Namespace, policy.Name, err)
 		} else if operationResult != controllerutil.OperationResultNone {
@@ -451,7 +451,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 	klog.Infof("Applying cluster policy(%s) for object: %s", policy.Name, objectKey)
 	var operationResult controllerutil.OperationResult
 	defer func() {
-		metrics.ObserveApplyPolicyAttemptAndLatency(object, policy.ObjectMeta, err, start)
+		metrics.ObserveApplyPolicyAttemptAndLatency(err, start)
 		if err != nil {
 			d.EventRecorder.Eventf(object, corev1.EventTypeWarning, events.EventReasonApplyPolicyFailed, "Apply cluster policy(%s) failed: %v", policy.Name, err)
 		} else if operationResult != controllerutil.OperationResultNone {

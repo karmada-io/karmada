@@ -53,7 +53,7 @@ func (d *ResourceDetector) propagateResource(object *unstructured.Unstructured, 
 			return fmt.Errorf("waiting for dependent overrides")
 		}
 		d.RemoveWaiting(objectKey)
-		metrics.ObserveFindMatchedPolicyLatency(object, start)
+		metrics.ObserveFindMatchedPolicyLatency(start)
 		return d.ApplyPolicy(object, objectKey, propagationPolicy)
 	}
 
@@ -70,7 +70,7 @@ func (d *ResourceDetector) propagateResource(object *unstructured.Unstructured, 
 			return fmt.Errorf("waiting for dependent overrides")
 		}
 		d.RemoveWaiting(objectKey)
-		metrics.ObserveFindMatchedPolicyLatency(object, start)
+		metrics.ObserveFindMatchedPolicyLatency(start)
 		return d.ApplyClusterPolicy(object, objectKey, clusterPolicy)
 	}
 
