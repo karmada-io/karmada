@@ -620,6 +620,14 @@ spec:
                       type: object
                     type: array
                 type: object
+              preemption:
+                default: Never
+                description: Preemption declares the behaviors for preempting. Valid
+                  options are "Always" and "Never".
+                enum:
+                - Always
+                - Never
+                type: string
               priority:
                 default: 0
                 description: "Priority indicates the importance of a policy(PropagationPolicy
@@ -627,16 +635,16 @@ spec:
                   resource templates if there is no other policies with higher priority
                   at the point of the resource template be processed. Once a resource
                   template has been claimed by a policy, by default it will not be
-                  preempted by following policies even with a higher priority. \n
-                  In case of two policies have the same priority, the one with a more
-                  precise matching rules in ResourceSelectors wins: - matching by
-                  name(resourceSelector.name) has higher priority than by selector(resourceSelector.labelSelector)
-                  - matching by selector(resourceSelector.labelSelector) has higher
-                  priority than by APIVersion(resourceSelector.apiVersion) and Kind(resourceSelector.kind).
-                  If there is still no winner at this point, the one with the lower
-                  alphabetic order wins, e.g. policy 'bar' has higher priority than
-                  'foo'. \n The higher the value, the higher the priority. Defaults
-                  to zero."
+                  preempted by following policies even with a higher priority. See
+                  Preemption for more details. \n In case of two policies have the
+                  same priority, the one with a more precise matching rules in ResourceSelectors
+                  wins: - matching by name(resourceSelector.name) has higher priority
+                  than by selector(resourceSelector.labelSelector) - matching by selector(resourceSelector.labelSelector)
+                  has higher priority than by APIVersion(resourceSelector.apiVersion)
+                  and Kind(resourceSelector.kind). If there is still no winner at
+                  this point, the one with the lower alphabetic order wins, e.g. policy
+                  'bar' has higher priority than 'foo'. \n The higher the value, the
+                  higher the priority. Defaults to zero."
                 format: int32
                 type: integer
               propagateDeps:
