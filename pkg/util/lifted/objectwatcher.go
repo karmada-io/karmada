@@ -28,6 +28,7 @@ import (
 	"strings"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -80,12 +81,19 @@ func objectMetaObjEquivalent(a, b metav1.Object) bool {
 	if a.GetNamespace() != b.GetNamespace() {
 		return false
 	}
-	aLabels := a.GetLabels()
 	// ignore the labels which are added by Karmada itself rather than user
+	aLabels := a.GetLabels()
+	delete(aLabels, policyv1alpha1.PropagationPolicyNamespaceLabel)
+	delete(aLabels, policyv1alpha1.PropagationPolicyNamespaceLabel)
+	delete(aLabels, policyv1alpha1.ClusterPropagationPolicyLabel)
 	bLabels := b.GetLabels()
 	delete(bLabels, policyv1alpha1.PropagationPolicyNamespaceLabel)
 	delete(bLabels, policyv1alpha1.PropagationPolicyNamespaceLabel)
 	delete(bLabels, policyv1alpha1.ClusterPropagationPolicyLabel)
+	delete(bLabels, workv1alpha2.ResourceBindingReferenceKey)
+	delete(bLabels, workv1alpha2.ClusterResourceBindingReferenceKey)
+	delete(bLabels, workv1alpha2.WorkNamespaceLabel)
+	delete(bLabels, workv1alpha2.WorkNameLabel)
 	if !reflect.DeepEqual(aLabels, bLabels) && (len(aLabels) != 0 || len(bLabels) != 0) {
 		return false
 	}
