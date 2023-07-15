@@ -8,7 +8,6 @@ import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -20,9 +19,9 @@ type FakeCronFederatedHPAs struct {
 	ns   string
 }
 
-var cronfederatedhpasResource = schema.GroupVersionResource{Group: "autoscaling.karmada.io", Version: "v1alpha1", Resource: "cronfederatedhpas"}
+var cronfederatedhpasResource = v1alpha1.SchemeGroupVersion.WithResource("cronfederatedhpas")
 
-var cronfederatedhpasKind = schema.GroupVersionKind{Group: "autoscaling.karmada.io", Version: "v1alpha1", Kind: "CronFederatedHPA"}
+var cronfederatedhpasKind = v1alpha1.SchemeGroupVersion.WithKind("CronFederatedHPA")
 
 // Get takes name of the cronFederatedHPA, and returns the corresponding cronFederatedHPA object, and an error if there is any.
 func (c *FakeCronFederatedHPAs) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.CronFederatedHPA, err error) {

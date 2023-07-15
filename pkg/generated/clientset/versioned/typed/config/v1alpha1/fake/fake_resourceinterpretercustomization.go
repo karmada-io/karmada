@@ -8,7 +8,6 @@ import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -19,9 +18,9 @@ type FakeResourceInterpreterCustomizations struct {
 	Fake *FakeConfigV1alpha1
 }
 
-var resourceinterpretercustomizationsResource = schema.GroupVersionResource{Group: "config.karmada.io", Version: "v1alpha1", Resource: "resourceinterpretercustomizations"}
+var resourceinterpretercustomizationsResource = v1alpha1.SchemeGroupVersion.WithResource("resourceinterpretercustomizations")
 
-var resourceinterpretercustomizationsKind = schema.GroupVersionKind{Group: "config.karmada.io", Version: "v1alpha1", Kind: "ResourceInterpreterCustomization"}
+var resourceinterpretercustomizationsKind = v1alpha1.SchemeGroupVersion.WithKind("ResourceInterpreterCustomization")
 
 // Get takes name of the resourceInterpreterCustomization, and returns the corresponding resourceInterpreterCustomization object, and an error if there is any.
 func (c *FakeResourceInterpreterCustomizations) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ResourceInterpreterCustomization, err error) {

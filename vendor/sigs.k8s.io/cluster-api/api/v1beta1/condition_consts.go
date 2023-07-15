@@ -243,6 +243,10 @@ const (
 	// MachinesReadyCondition reports an aggregate of current status of the machines controlled by the MachineSet.
 	MachinesReadyCondition ConditionType = "MachinesReady"
 
+	// PreflightCheckFailedReason (Severity=Error) documents a MachineSet failing preflight checks
+	// to create machine(s).
+	PreflightCheckFailedReason = "PreflightCheckFailed"
+
 	// BootstrapTemplateCloningFailedReason (Severity=Error) documents a MachineSet failing to
 	// clone the bootstrap template.
 	BootstrapTemplateCloningFailedReason = "BootstrapTemplateCloningFailed"
@@ -281,6 +285,11 @@ const (
 	// TopologyReconciledControlPlaneUpgradePendingReason (Severity=Info) documents reconciliation of a Cluster topology
 	// not yet completed because Control Plane is not yet updated to match the desired topology spec.
 	TopologyReconciledControlPlaneUpgradePendingReason = "ControlPlaneUpgradePending"
+
+	// TopologyReconciledMachineDeploymentsCreatePendingReason (Severity=Info) documents reconciliation of a Cluster topology
+	// not yet completed because at least one of the MachineDeployments is yet to be created.
+	// This generally happens because new MachineDeployment creations are held off while the ControlPlane is not stable.
+	TopologyReconciledMachineDeploymentsCreatePendingReason = "MachineDeploymentsCreatePending"
 
 	// TopologyReconciledMachineDeploymentsUpgradePendingReason (Severity=Info) documents reconciliation of a Cluster topology
 	// not yet completed because at least one of the MachineDeployments is not yet updated to match the desired topology spec.

@@ -8,7 +8,6 @@ import (
 	v1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -20,9 +19,9 @@ type FakeKarmadas struct {
 	ns   string
 }
 
-var karmadasResource = schema.GroupVersionResource{Group: "operator.karmada.io", Version: "v1alpha1", Resource: "karmadas"}
+var karmadasResource = v1alpha1.SchemeGroupVersion.WithResource("karmadas")
 
-var karmadasKind = schema.GroupVersionKind{Group: "operator.karmada.io", Version: "v1alpha1", Kind: "Karmada"}
+var karmadasKind = v1alpha1.SchemeGroupVersion.WithKind("Karmada")
 
 // Get takes name of the karmada, and returns the corresponding karmada object, and an error if there is any.
 func (c *FakeKarmadas) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.Karmada, err error) {

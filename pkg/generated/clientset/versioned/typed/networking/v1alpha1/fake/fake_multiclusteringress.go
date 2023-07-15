@@ -8,7 +8,6 @@ import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -20,9 +19,9 @@ type FakeMultiClusterIngresses struct {
 	ns   string
 }
 
-var multiclusteringressesResource = schema.GroupVersionResource{Group: "networking.karmada.io", Version: "v1alpha1", Resource: "multiclusteringresses"}
+var multiclusteringressesResource = v1alpha1.SchemeGroupVersion.WithResource("multiclusteringresses")
 
-var multiclusteringressesKind = schema.GroupVersionKind{Group: "networking.karmada.io", Version: "v1alpha1", Kind: "MultiClusterIngress"}
+var multiclusteringressesKind = v1alpha1.SchemeGroupVersion.WithKind("MultiClusterIngress")
 
 // Get takes name of the multiClusterIngress, and returns the corresponding multiClusterIngress object, and an error if there is any.
 func (c *FakeMultiClusterIngresses) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.MultiClusterIngress, err error) {

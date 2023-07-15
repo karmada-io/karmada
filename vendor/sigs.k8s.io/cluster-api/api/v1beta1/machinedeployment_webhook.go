@@ -31,12 +31,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
+	"sigs.k8s.io/cluster-api/feature"
 	"sigs.k8s.io/cluster-api/util/version"
 )
 
@@ -57,10 +57,8 @@ var _ webhook.Validator = &MachineDeployment{}
 
 // MachineDeploymentDefaulter creates a new CustomDefaulter for MachineDeployments.
 func MachineDeploymentDefaulter(scheme *runtime.Scheme) webhook.CustomDefaulter {
-	// Note: The error return parameter is always nil and will be dropped with the next CR release.
-	decoder, _ := admission.NewDecoder(scheme)
 	return &machineDeploymentDefaulter{
-		decoder: decoder,
+		decoder: admission.NewDecoder(scheme),
 	}
 }
 
@@ -167,22 +165,22 @@ func (webhook *machineDeploymentDefaulter) Default(ctx context.Context, obj runt
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
-func (m *MachineDeployment) ValidateCreate() error {
-	return m.validate(nil)
+func (m *MachineDeployment) ValidateCreate() (admission.Warnings, error) {
+	return nil, m.validate(nil)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
-func (m *MachineDeployment) ValidateUpdate(old runtime.Object) error {
+func (m *MachineDeployment) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	oldMD, ok := old.(*MachineDeployment)
 	if !ok {
-		return apierrors.NewBadRequest(fmt.Sprintf("expected a MachineDeployment but got a %T", old))
+		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected a MachineDeployment but got a %T", old))
 	}
-	return m.validate(oldMD)
+	return nil, m.validate(oldMD)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
-func (m *MachineDeployment) ValidateDelete() error {
-	return nil
+func (m *MachineDeployment) ValidateDelete() (admission.Warnings, error) {
+	return nil, nil
 }
 
 func (m *MachineDeployment) validate(old *MachineDeployment) error {
@@ -215,6 +213,14 @@ func (m *MachineDeployment) validate(old *MachineDeployment) error {
 				fmt.Sprintf("must match spec.selector %q", selector.String()),
 			),
 		)
+	}
+
+	// MachineSet preflight checks that should be skipped could also be set as annotation on the MachineDeployment
+	// since MachineDeployment annotations are synced to the MachineSet.
+	if feature.Gates.Enabled(feature.MachineSetPreflightChecks) {
+		if err := validateSkippedMachineSetPreflightChecks(m); err != nil {
+			allErrs = append(allErrs, err)
+		}
 	}
 
 	if old != nil && old.Spec.ClusterName != m.Spec.ClusterName {
@@ -267,14 +273,6 @@ func (m *MachineDeployment) validate(old *MachineDeployment) error {
 	return apierrors.NewInvalid(GroupVersion.WithKind("MachineDeployment").GroupKind(), m.Name, allErrs)
 }
 
-// With the Kubernetes autoscaler it is possible to use different annotations by configuring a different
-// "Cluster API group" than "cluster.x-k8s.io" via the "CAPI_GROUP" environment variable.
-// We only handle the default group in our implementation.
-const (
-	autoscalerMinSize = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size"
-	autoscalerMaxSize = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size"
-)
-
 // calculateMachineDeploymentReplicas calculates the default value of the replicas field.
 // The value will be calculated based on the following logic:
 // * if replicas is already set on newMD, keep the current value
@@ -310,27 +308,26 @@ func calculateMachineDeploymentReplicas(ctx context.Context, oldMD *MachineDeplo
 		return *newMD.Spec.Replicas, nil
 	}
 
-	// TODO(sbueringer): drop this with the next CR version that adds the MD key automatically.
-	log := ctrl.LoggerFrom(ctx).WithValues("MachineDeployment", klog.KObj(newMD))
+	log := ctrl.LoggerFrom(ctx)
 
 	// If both autoscaler annotations are set, use them to calculate the default value.
-	minSizeString, hasMinSizeAnnotation := newMD.Annotations[autoscalerMinSize]
-	maxSizeString, hasMaxSizeAnnotation := newMD.Annotations[autoscalerMaxSize]
+	minSizeString, hasMinSizeAnnotation := newMD.Annotations[AutoscalerMinSizeAnnotation]
+	maxSizeString, hasMaxSizeAnnotation := newMD.Annotations[AutoscalerMaxSizeAnnotation]
 	if hasMinSizeAnnotation && hasMaxSizeAnnotation {
 		minSize, err := strconv.ParseInt(minSizeString, 10, 32)
 		if err != nil {
-			return 0, errors.Wrapf(err, "failed to caculate MachineDeployment replicas value: could not parse the value of the %q annotation", autoscalerMinSize)
+			return 0, errors.Wrapf(err, "failed to caculate MachineDeployment replicas value: could not parse the value of the %q annotation", AutoscalerMinSizeAnnotation)
 		}
 		maxSize, err := strconv.ParseInt(maxSizeString, 10, 32)
 		if err != nil {
-			return 0, errors.Wrapf(err, "failed to caculate MachineDeployment replicas value: could not parse the value of the %q annotation", autoscalerMaxSize)
+			return 0, errors.Wrapf(err, "failed to caculate MachineDeployment replicas value: could not parse the value of the %q annotation", AutoscalerMaxSizeAnnotation)
 		}
 
 		// If it's a new MachineDeployment => Use the min size.
 		// Note: This will result in a scale up to get into the range where autoscaler takes over.
 		if oldMD == nil {
 			if !dryRun {
-				log.V(2).Info(fmt.Sprintf("Replica field has been defaulted to %d based on the %s annotation (MD is a new MD)", minSize, autoscalerMinSize))
+				log.V(2).Info(fmt.Sprintf("Replica field has been defaulted to %d based on the %s annotation (MD is a new MD)", minSize, AutoscalerMinSizeAnnotation))
 			}
 			return int32(minSize), nil
 		}
@@ -344,21 +341,21 @@ func calculateMachineDeploymentReplicas(ctx context.Context, oldMD *MachineDeplo
 		// We only have this handling to be 100% safe against panics.
 		case oldMD.Spec.Replicas == nil:
 			if !dryRun {
-				log.V(2).Info(fmt.Sprintf("Replica field has been defaulted to %d based on the %s annotation (old MD didn't have replicas set)", minSize, autoscalerMinSize))
+				log.V(2).Info(fmt.Sprintf("Replica field has been defaulted to %d based on the %s annotation (old MD didn't have replicas set)", minSize, AutoscalerMinSizeAnnotation))
 			}
 			return int32(minSize), nil
 		// If the old MachineDeployment replicas are lower than min size => Use the min size.
 		// Note: This will result in a scale up to get into the range where autoscaler takes over.
 		case *oldMD.Spec.Replicas < int32(minSize):
 			if !dryRun {
-				log.V(2).Info(fmt.Sprintf("Replica field has been defaulted to %d based on the %s annotation (old MD had replicas below min size)", minSize, autoscalerMinSize))
+				log.V(2).Info(fmt.Sprintf("Replica field has been defaulted to %d based on the %s annotation (old MD had replicas below min size)", minSize, AutoscalerMinSizeAnnotation))
 			}
 			return int32(minSize), nil
 		// If the old MachineDeployment replicas are higher than max size => Use the max size.
 		// Note: This will result in a scale down to get into the range where autoscaler takes over.
 		case *oldMD.Spec.Replicas > int32(maxSize):
 			if !dryRun {
-				log.V(2).Info(fmt.Sprintf("Replica field has been defaulted to %d based on the %s annotation (old MD had replicas above max size)", maxSize, autoscalerMaxSize))
+				log.V(2).Info(fmt.Sprintf("Replica field has been defaulted to %d based on the %s annotation (old MD had replicas above max size)", maxSize, AutoscalerMaxSizeAnnotation))
 			}
 			return int32(maxSize), nil
 		// If the old MachineDeployment replicas are between min and max size => Keep the current value.

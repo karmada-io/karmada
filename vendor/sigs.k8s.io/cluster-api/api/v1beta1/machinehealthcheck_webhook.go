@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 var (
@@ -84,22 +85,22 @@ func (m *MachineHealthCheck) Default() {
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
-func (m *MachineHealthCheck) ValidateCreate() error {
-	return m.validate(nil)
+func (m *MachineHealthCheck) ValidateCreate() (admission.Warnings, error) {
+	return nil, m.validate(nil)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
-func (m *MachineHealthCheck) ValidateUpdate(old runtime.Object) error {
+func (m *MachineHealthCheck) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	mhc, ok := old.(*MachineHealthCheck)
 	if !ok {
-		return apierrors.NewBadRequest(fmt.Sprintf("expected a MachineHealthCheck but got a %T", old))
+		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected a MachineHealthCheck but got a %T", old))
 	}
-	return m.validate(mhc)
+	return nil, m.validate(mhc)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
-func (m *MachineHealthCheck) ValidateDelete() error {
-	return nil
+func (m *MachineHealthCheck) ValidateDelete() (admission.Warnings, error) {
+	return nil, nil
 }
 
 func (m *MachineHealthCheck) validate(old *MachineHealthCheck) error {
