@@ -65,7 +65,11 @@ func NewClusterScaleClientSet(clusterName string, client client.Client) (*Cluste
 	if clusterConfig != nil {
 		hpaClient := kubeclientset.NewForConfigOrDie(clusterConfig)
 		scaleKindResolver := scale.NewDiscoveryScaleKindResolver(hpaClient.Discovery())
-		mapper, err := apiutil.NewDiscoveryRESTMapper(clusterConfig)
+		httpClient, err := rest.HTTPClientFor(clusterConfig)
+		if err != nil {
+			return nil, err
+		}
+		mapper, err := apiutil.NewDiscoveryRESTMapper(clusterConfig, httpClient)
 		if err != nil {
 			return nil, err
 		}

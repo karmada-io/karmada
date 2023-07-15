@@ -15,6 +15,7 @@ import (
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericfilters "k8s.io/apiserver/pkg/server/filters"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
+	"k8s.io/client-go/rest"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
@@ -160,7 +161,12 @@ func config(o *options.Options, outOfTreeRegistryOptions ...Option) (*search.Con
 	serverConfig.ClientConfig.QPS = o.KubeAPIQPS
 	serverConfig.ClientConfig.Burst = o.KubeAPIBurst
 
-	restMapper, err := apiutil.NewDynamicRESTMapper(serverConfig.ClientConfig)
+	httpClient, err := rest.HTTPClientFor(serverConfig.ClientConfig)
+	if err != nil {
+		klog.Errorf("Failed to create HTTP client: %v", err)
+		return nil, err
+	}
+	restMapper, err := apiutil.NewDynamicRESTMapper(serverConfig.ClientConfig, httpClient)
 	if err != nil {
 		klog.Errorf("Failed to create REST mapper: %v", err)
 		return nil, err

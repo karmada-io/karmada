@@ -14,18 +14,17 @@ import (
 
 // MutatingAdmission mutates API request if necessary.
 type MutatingAdmission struct {
-	decoder *admission.Decoder
+	Decoder *admission.Decoder
 }
 
 // Check if our MutatingAdmission implements necessary interface
 var _ admission.Handler = &MutatingAdmission{}
-var _ admission.DecoderInjector = &MutatingAdmission{}
 
 // Handle yields a response to an AdmissionRequest.
 func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) admission.Response {
 	federatedHPA := &autoscalingv1alpha1.FederatedHPA{}
 
-	err := a.decoder.Decode(req, federatedHPA)
+	err := a.Decoder.Decode(req, federatedHPA)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
@@ -40,11 +39,4 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 	}
 
 	return admission.PatchResponseFromRaw(req.Object.Raw, marshaledBytes)
-}
-
-// InjectDecoder implements admission.DecoderInjector interface.
-// A decoder will be automatically injected.
-func (a *MutatingAdmission) InjectDecoder(d *admission.Decoder) error {
-	a.decoder = d
-	return nil
 }

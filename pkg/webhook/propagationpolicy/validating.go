@@ -15,19 +15,18 @@ import (
 
 // ValidatingAdmission validates PropagationPolicy object when creating/updating/deleting.
 type ValidatingAdmission struct {
-	decoder *admission.Decoder
+	Decoder *admission.Decoder
 }
 
 // Check if our ValidatingAdmission implements necessary interface
 var _ admission.Handler = &ValidatingAdmission{}
-var _ admission.DecoderInjector = &ValidatingAdmission{}
 
 // Handle implements admission.Handler interface.
 // It yields a response to an AdmissionRequest.
 func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) admission.Response {
 	policy := &policyv1alpha1.PropagationPolicy{}
 
-	err := v.decoder.Decode(req, policy)
+	err := v.Decoder.Decode(req, policy)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
@@ -35,7 +34,7 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 
 	if req.Operation == admissionv1.Update {
 		oldPolicy := &policyv1alpha1.PropagationPolicy{}
-		err = v.decoder.DecodeRaw(req.OldObject, oldPolicy)
+		err = v.Decoder.DecodeRaw(req.OldObject, oldPolicy)
 		if err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
@@ -53,11 +52,4 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 		return admission.Denied(errs.ToAggregate().Error())
 	}
 	return admission.Allowed("")
-}
-
-// InjectDecoder implements admission.DecoderInjector interface.
-// A decoder will be automatically injected.
-func (v *ValidatingAdmission) InjectDecoder(d *admission.Decoder) error {
-	v.decoder = d
-	return nil
 }

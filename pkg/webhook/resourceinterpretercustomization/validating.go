@@ -11,22 +11,21 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 )
 
-// Check if our ValidatingAdmission implements necessary interface
-var _ admission.Handler = &ValidatingAdmission{}
-var _ admission.DecoderInjector = &ValidatingAdmission{}
-
 // ValidatingAdmission validates ResourceInterpreterCustomization object when creating/updating.
 type ValidatingAdmission struct {
 	client.Client
-	decoder *admission.Decoder
+	Decoder *admission.Decoder
 }
+
+// Check if our ValidatingAdmission implements necessary interface
+var _ admission.Handler = &ValidatingAdmission{}
 
 // Handle implements admission.Handler interface.
 // It yields a response to an AdmissionRequest.
 func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request) admission.Response {
 	configuration := &configv1alpha1.ResourceInterpreterCustomization{}
 
-	err := v.decoder.Decode(req, configuration)
+	err := v.Decoder.Decode(req, configuration)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
@@ -39,11 +38,4 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 		return admission.Denied(err.Error())
 	}
 	return admission.Allowed("")
-}
-
-// InjectDecoder implements admission.DecoderInjector interface.
-// A decoder will be automatically injected.
-func (v *ValidatingAdmission) InjectDecoder(decoder *admission.Decoder) error {
-	v.decoder = decoder
-	return nil
 }

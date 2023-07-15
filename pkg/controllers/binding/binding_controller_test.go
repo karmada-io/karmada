@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
-	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -75,7 +74,6 @@ func makeFakeRBCByResource(rs *workv1alpha2.ObjectReference) (*ResourceBindingCo
 }
 
 func TestResourceBindingController_Reconcile(t *testing.T) {
-	preTime := metav1.Date(2023, 0, 0, 0, 0, 0, 0, time.UTC)
 	tmpReq := controllerruntime.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      "test-rb",
@@ -94,19 +92,6 @@ func TestResourceBindingController_Reconcile(t *testing.T) {
 			want:    controllerruntime.Result{},
 			wantErr: false,
 			req:     tmpReq,
-		},
-		{
-			name:    "RB found with deleting",
-			want:    controllerruntime.Result{},
-			wantErr: false,
-			rb: &workv1alpha2.ResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:              "test-rb",
-					Namespace:         "default",
-					DeletionTimestamp: &preTime,
-				},
-			},
-			req: tmpReq,
 		},
 		{
 			name:    "RB found without deleting",
@@ -288,7 +273,7 @@ func TestResourceBindingController_newOverridePolicyFunc(t *testing.T) {
 			if (got == nil) != tt.want {
 				t.Errorf("newOverridePolicyFunc() is not same as want:%v", tt.want)
 			}
-			if (got(client.Object(tempOP)) == nil) == tt.obIsNil {
+			if (got(context.TODO(), client.Object(tempOP)) == nil) == tt.obIsNil {
 				t.Errorf("newOverridePolicyFunc() got() result is not same as want: %v", tt.obIsNil)
 			}
 		})

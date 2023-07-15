@@ -31,6 +31,7 @@ type ProxyREST struct{}
 var _ rest.GroupVersionKindProvider = &StandardREST{}
 var _ rest.Scoper = &StandardREST{}
 var _ rest.StandardStorage = &StandardREST{}
+var _ rest.SingularNameProvider = &StandardREST{}
 
 // Implement below interfaces for StatusREST.
 var _ rest.Patcher = &StatusREST{}
@@ -102,6 +103,11 @@ func (r *StandardREST) Watch(_ context.Context, _ *metainternalversion.ListOptio
 func (r *StandardREST) Destroy() {
 	// Given no underlying store, so we don't
 	// need to destroy anything.
+}
+
+// GetSingularName implements the SingularNameProvider interfaces.
+func (r *StandardREST) GetSingularName() string {
+	return ""
 }
 
 // GroupVersionKind implement GroupVersionKind interface.

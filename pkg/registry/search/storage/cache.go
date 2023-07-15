@@ -49,7 +49,7 @@ func (r *SearchREST) newCacheHandler(info *genericrequest.RequestInfo, _ rest.Re
 			return
 		}
 
-		if errs := metainternalversionvalidation.ValidateListOptions(&opts); len(errs) > 0 {
+		if errs := metainternalversionvalidation.ValidateListOptions(&opts, false); len(errs) > 0 {
 			rw.WriteHeader(http.StatusBadRequest)
 			klog.Errorf("Invalid decoded ListOptions: %v.", errs)
 			_ = enc.Encode(errorResponse{Error: errs.ToAggregate().Error()})

@@ -239,7 +239,7 @@ func (o *CommandPromoteOption) Run(f util.Factory, args []string) error {
 		return fmt.Errorf("failed to get control plane rest config. err: %w", err)
 	}
 
-	mapper, err := restmapper.MapperProvider(controlPlaneRestConfig)
+	mapper, err := restmapper.NewCachedRESTMapper(controlPlaneRestConfig, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create restmapper: %v", err)
 	}

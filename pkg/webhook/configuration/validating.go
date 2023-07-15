@@ -18,19 +18,18 @@ import (
 
 // ValidatingAdmission validates ResourceInterpreterWebhookConfiguration object when creating/updating.
 type ValidatingAdmission struct {
-	decoder *admission.Decoder
+	Decoder *admission.Decoder
 }
 
 // Check if our ValidatingAdmission implements necessary interface
 var _ admission.Handler = &ValidatingAdmission{}
-var _ admission.DecoderInjector = &ValidatingAdmission{}
 
 // Handle implements admission.Handler interface.
 // It yields a response to an AdmissionRequest.
 func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) admission.Response {
 	configuration := &configv1alpha1.ResourceInterpreterWebhookConfiguration{}
 
-	err := v.decoder.Decode(req, configuration)
+	err := v.Decoder.Decode(req, configuration)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
@@ -53,13 +52,6 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 	}
 
 	return admission.Allowed("")
-}
-
-// InjectDecoder implements admission.DecoderInjector interface.
-// A decoder will be automatically injected.
-func (v *ValidatingAdmission) InjectDecoder(d *admission.Decoder) error {
-	v.decoder = d
-	return nil
 }
 
 var supportedInterpreterOperation = sets.NewString(

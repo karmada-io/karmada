@@ -34,15 +34,15 @@ func NewStorage(scheme *runtime.Scheme, kubeClient kubernetes.Interface, optsGet
 	strategy := clusterregistry.NewStrategy(scheme)
 
 	store := &genericregistry.Store{
-		NewFunc:                  func() runtime.Object { return &clusterapis.Cluster{} },
-		NewListFunc:              func() runtime.Object { return &clusterapis.ClusterList{} },
-		PredicateFunc:            clusterregistry.MatchCluster,
-		DefaultQualifiedResource: clusterapis.Resource("clusters"),
-
-		CreateStrategy:      strategy,
-		UpdateStrategy:      strategy,
-		DeleteStrategy:      strategy,
-		ResetFieldsStrategy: strategy,
+		NewFunc:                   func() runtime.Object { return &clusterapis.Cluster{} },
+		NewListFunc:               func() runtime.Object { return &clusterapis.ClusterList{} },
+		PredicateFunc:             clusterregistry.MatchCluster,
+		DefaultQualifiedResource:  clusterapis.Resource("clusters"),
+		SingularQualifiedResource: clusterapis.Resource("cluster"),
+		CreateStrategy:            strategy,
+		UpdateStrategy:            strategy,
+		DeleteStrategy:            strategy,
+		ResetFieldsStrategy:       strategy,
 
 		TableConvertor: printerstorage.TableConvertor{TableGenerator: printers.NewTableGenerator().With(printersinternal.AddHandlers)},
 	}
