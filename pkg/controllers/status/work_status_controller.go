@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
@@ -202,6 +203,10 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return nil
 	}
 
+	defer func() {
+		c.reflectStatus(workObject, observedObj)
+	}()
+
 	desiredObj, err := c.getRawManifest(workObject.Spec.Workload.Manifests, observedObj)
 	if err != nil {
 		return err
@@ -235,7 +240,7 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 	}
 
 	klog.Infof("reflecting %s(%s/%s) status to Work(%s/%s)", observedObj.GetKind(), observedObj.GetNamespace(), observedObj.GetName(), workNamespace, workName)
-	return c.reflectStatus(workObject, observedObj)
+	return err
 }
 
 func (c *WorkStatusController) handleDeleteEvent(key keys.FederatedKey) error {
@@ -271,11 +276,24 @@ func (c *WorkStatusController) recreateResourceIfNeeded(work *workv1alpha1.Work,
 		}
 
 		desiredGVK := schema.FromAPIVersionAndKind(manifest.GetAPIVersion(), manifest.GetKind())
-		if reflect.DeepEqual(desiredGVK, workloadKey.GroupVersionKind()) &&
+		if !(reflect.DeepEqual(desiredGVK, workloadKey.GroupVersionKind()) &&
 			manifest.GetNamespace() == workloadKey.Namespace &&
-			manifest.GetName() == workloadKey.Name {
-			klog.Infof("recreating %s", workloadKey.String())
-			return c.ObjectWatcher.Create(workloadKey.Cluster, manifest)
+			manifest.GetName() == workloadKey.Name) {
+			continue
+		}
+		klog.Infof("recreating %s", workloadKey.String())
+		err := c.ObjectWatcher.Create(workloadKey.Cluster, manifest)
+		if err != nil {
+			var errs []error
+			errs = append(errs, err)
+
+			message := fmt.Sprintf("Failed to apply the manifest: %s", err.Error())
+			updateErr := c.updateAppliedCondition(work, metav1.ConditionFalse, "AppliedFailed", message)
+			if updateErr != nil {
+				klog.Errorf("Failed to update applied status for given work %s, namespace is %s, err is %v", work.Name, work.Namespace, err)
+				errs = append(errs, err)
+			}
+			return errors.NewAggregate(errs)
 		}
 	}
 	return nil
@@ -482,4 +500,30 @@ func (c *WorkStatusController) SetupWithManager(mgr controllerruntime.Manager) e
 		WithOptions(controller.Options{
 			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions),
 		}).Complete(c)
+}
+
+// updateAppliedCondition update the Applied condition for the given Work
+func (c *WorkStatusController) updateAppliedCondition(work *workv1alpha1.Work, status metav1.ConditionStatus, reason, message string) error {
+	newWorkAppliedCondition := metav1.Condition{
+		Type:               workv1alpha1.WorkApplied,
+		Status:             status,
+		Reason:             reason,
+		Message:            message,
+		LastTransitionTime: metav1.Now(),
+	}
+
+	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		meta.SetStatusCondition(&work.Status.Conditions, newWorkAppliedCondition)
+		updateErr := c.Status().Update(context.TODO(), work)
+		if updateErr == nil {
+			return nil
+		}
+		updated := &workv1alpha1.Work{}
+		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: work.Namespace, Name: work.Name}, updated); err == nil {
+			work = updated
+		} else {
+			klog.Errorf("Failed to get updated work %s/%s: %v", work.Namespace, work.Name, err)
+		}
+		return updateErr
+	})
 }
