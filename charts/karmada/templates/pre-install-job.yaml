@@ -58,7 +58,11 @@ data:
           - cluster:
               certificate-authority-data: {{ print "{{ ca_crt }}" }}
               insecure-skip-tls-verify: false
+              {{- if and (and (eq .Values.apiServer.serviceType "NodePort") (.Values.apiServer.nodePort)) (.Values.apiServer.hostIP) }}
+              server: https://{{ $.Values.apiServer.hostIP }}:{{ $.Values.apiServer.nodePort }}
+              {{- else }}
               server: https://{{ $name }}-apiserver.{{ $namespace }}.svc.{{ .Values.clusterDomain }}:5443
+              {{- end }}
             name: {{ $name }}-apiserver
         users:
           - user:
