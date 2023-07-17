@@ -16,7 +16,7 @@ limitations under the License.
 
 // This code is directly lifted from the Kubernetes codebase in order to avoid relying on the k8s.io/kubernetes package.
 // For reference:
-// https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go
+// https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/helper/helpers.go
 
 package lifted
 
@@ -31,7 +31,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L57-L61
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/helper/helpers.go#L57-L61
+// +lifted:changed
 
 // IsQuotaHugePageResourceName returns true if the resource name has the quota
 // related huge page resource prefix.
@@ -39,7 +40,9 @@ func IsQuotaHugePageResourceName(name corev1.ResourceName) bool {
 	return strings.HasPrefix(string(name), corev1.ResourceHugePagesPrefix) || strings.HasPrefix(string(name), corev1.ResourceRequestsHugePagesPrefix)
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L212-L232
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/helper/helpers.go#L210-L230
+// +lifted:changed
+
 var standardQuotaResources = sets.NewString(
 	string(corev1.ResourceCPU),
 	string(corev1.ResourceMemory),
@@ -62,7 +65,7 @@ var standardQuotaResources = sets.NewString(
 	string(corev1.ResourceServicesLoadBalancers),
 )
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L234-L238
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/helper/helpers.go#L232-L236
 
 // IsStandardQuotaResourceName returns true if the resource is known to
 // the quota tracking system
@@ -70,7 +73,9 @@ func IsStandardQuotaResourceName(str string) bool {
 	return standardQuotaResources.Has(str) || IsQuotaHugePageResourceName(corev1.ResourceName(str))
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L240-L261
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/helper/helpers.go#L238-L259
+// +lifted:changed
+
 var standardResources = sets.NewString(
 	string(corev1.ResourceCPU),
 	string(corev1.ResourceMemory),
@@ -94,14 +99,16 @@ var standardResources = sets.NewString(
 	string(corev1.ResourceServicesLoadBalancers),
 )
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L263-L266
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/helper/helpers.go#L261-L264
 
 // IsStandardResourceName returns true if the resource is known to the system
 func IsStandardResourceName(str string) bool {
 	return standardResources.Has(str) || IsQuotaHugePageResourceName(corev1.ResourceName(str))
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L268-L278
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/helper/helpers.go#LL266-L276
+// +lifted:changed
+
 var integerResources = sets.NewString(
 	string(corev1.ResourcePods),
 	string(corev1.ResourceQuotas),
@@ -114,7 +121,7 @@ var integerResources = sets.NewString(
 	string(corev1.ResourceServicesLoadBalancers),
 )
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L280-L283
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/helper/helpers.go#L278-L281
 
 // IsIntegerResourceName returns true if the resource is measured in integer values
 func IsIntegerResourceName(str string) bool {

@@ -55,6 +55,7 @@ func TestIsNativeResource(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(fmt.Sprintf("resourceName input=%s, expected value=%v", tc.resourceName, tc.expectVal), func(t *testing.T) {
 			t.Parallel()
 			v := IsNativeResource(tc.resourceName)

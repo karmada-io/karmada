@@ -16,7 +16,7 @@ limitations under the License.
 
 // This code is directly lifted from the Kubernetes codebase.
 // For reference:
-// https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/scheduler/framework/parallelize/parallelism_test.go
+// https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/scheduler/framework/parallelize/parallelism_test.go
 
 package parallelize
 
@@ -25,7 +25,7 @@ import (
 	"testing"
 )
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/scheduler/framework/parallelize/parallelism_test.go
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/scheduler/framework/parallelize/parallelism_test.go
 
 func TestChunkSize(t *testing.T) {
 	tests := []struct {

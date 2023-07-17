@@ -16,7 +16,7 @@ limitations under the License.
 
 // This code is directly lifted from the Kubernetes codebase in order to avoid relying on the k8s.io/kubernetes package.
 // For reference:
-// https://github.com/kubernetes/kubernetes/blob/release-1.25/cmd/genutils/genutils.go
+// https://github.com/kubernetes/kubernetes/blob/release-1.26/cmd/genutils/genutils.go
 
 package lifted
 
@@ -26,7 +26,7 @@ import (
 	"path/filepath"
 )
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.25/cmd/genutils/genutils.go
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/cmd/genutils/genutils.go
 
 // OutDir creates the absolute path name from path and checks path exists.
 // Returns absolute path including trailing '/' or error if path does not exist.

@@ -16,7 +16,7 @@ limitations under the License.
 
 // This code is directly lifted from the Kubernetes codebase.
 // For reference:
-// https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/scheduler/framework/parallelize/parallelism.go
+// https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/scheduler/framework/parallelize/parallelism.go
 
 package parallelize
 
@@ -34,6 +34,9 @@ const DefaultParallelism int = 16
 type Parallelizer struct {
 	parallelism int
 }
+
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/scheduler/framework/parallelize/parallelism.go#L35-L38
+// +lifted:changed
 
 // NewParallelizer returns an object holding the parallelism.
 func NewParallelizer(p int) Parallelizer {
@@ -57,7 +60,11 @@ func chunkSizeFor(n, parallelism int) int {
 	return s
 }
 
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/scheduler/framework/parallelize/parallelism.go#L54-L65
+// +lifted:changed
+
 // Until is a wrapper around workqueue.ParallelizeUntil to use in scheduling algorithms.
+// A given operation will be a label that is recorded in the goroutine metric.
 func (p Parallelizer) Until(ctx context.Context, pieces int, doWorkPiece workqueue.DoWorkPieceFunc) {
 	workqueue.ParallelizeUntil(ctx, p.parallelism, pieces, doWorkPiece, workqueue.WithChunkSize(chunkSizeFor(pieces, p.parallelism)))
 }
