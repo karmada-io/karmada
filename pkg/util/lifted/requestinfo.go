@@ -16,7 +16,7 @@ limitations under the License.
 
 // This code is directly lifted from the Kubernetes codebase in order to avoid relying on the k8s.io/kubernetes package.
 // For reference:
-// https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo.go
+// https://github.com/kubernetes/apiserver/blob/release-1.26/pkg/endpoints/request/requestinfo.go
 
 package lifted
 
@@ -25,19 +25,39 @@ import (
 	"strings"
 
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
+	metainternalversionscheme "k8s.io/apimachinery/pkg/apis/meta/internalversion/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	apirequest "k8s.io/apiserver/pkg/endpoints/request"
+	"k8s.io/klog/v2"
 )
 
 var apiPrefixes = sets.NewString("apis", "api")
 var grouplessAPIPrefixes = sets.NewString("api")
 
-// +lifted:source=https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo.go#L88-L247
+// +lifted:source=https://github.com/kubernetes/apiserver/blob/release-1.26/pkg/endpoints/request/requestinfo.go#L67-L71
+
+// specialVerbs contains just strings which are used in REST paths for special actions that don't fall under the normal
+// CRUDdy GET/POST/PUT/DELETE actions on REST objects.
+// TODO: find a way to keep this up to date automatically.  Maybe dynamically populate list as handlers added to
+// master's Mux.
+var specialVerbs = sets.NewString("proxy", "watch")
+
+// +lifted:source=https://github.com/kubernetes/apiserver/blob/release-1.26/pkg/endpoints/request/requestinfo.go#L73-L74
+
+// specialVerbsNoSubresources contains root verbs which do not allow subresources
+var specialVerbsNoSubresources = sets.NewString("proxy")
+
+// +lifted:source=https://github.com/kubernetes/apiserver/blob/release-1.26/pkg/endpoints/request/requestinfo.go#L76-L78
+
+// namespaceSubresources contains subresources of namespace
+// this list allows the parser to distinguish between a namespace subresource, and a namespaced resource
+var namespaceSubresources = sets.NewString("status", "finalize")
+
+// +lifted:source=https://github.com/kubernetes/apiserver/blob/release-1.26/pkg/endpoints/request/requestinfo.go#L88-L247
 // +lifted:changed
 
 // TODO write an integration test against the swagger doc to test the RequestInfo and match up behavior to responses
-
 // NewRequestInfo returns the information from the http request.  If error is not nil, RequestInfo holds the information as best it is known before the failure
 // It handles both resource and non-resource requests and fills in all the pertinent information for each.
 // Valid Inputs:
@@ -161,11 +181,18 @@ func NewRequestInfo(req *http.Request) *apirequest.RequestInfo {
 	// if there's no name on the request and we thought it was a get before, then the actual verb is a list or a watch
 	if len(requestInfo.Name) == 0 && requestInfo.Verb == "get" {
 		opts := metainternalversion.ListOptions{}
-		if values := req.URL.Query()["watch"]; len(values) > 0 {
-			switch strings.ToLower(values[0]) {
-			case "false", "0":
-			default:
-				opts.Watch = true
+		if err := metainternalversionscheme.ParameterCodec.DecodeParameters(req.URL.Query(), metav1.SchemeGroupVersion, &opts); err != nil {
+			// An error in parsing request will result in default to "list" and not setting "name" field.
+			klog.ErrorS(err, "Couldn't parse request", "Request", req.URL.Query())
+			// Reset opts to not rely on partial results from parsing.
+			// However, if watch is set, let's report it.
+			opts = metainternalversion.ListOptions{}
+			if values := req.URL.Query()["watch"]; len(values) > 0 {
+				switch strings.ToLower(values[0]) {
+				case "false", "0":
+				default:
+					opts.Watch = true
+				}
 			}
 		}
 
@@ -183,7 +210,7 @@ func NewRequestInfo(req *http.Request) *apirequest.RequestInfo {
 	return &requestInfo
 }
 
-// +lifted:source=https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo.go#L267-L274
+// +lifted:source=https://github.com/kubernetes/apiserver/blob/release-1.26/pkg/endpoints/request/requestinfo.go#L267-L274
 // +lifted:changed
 
 // SplitPath returns the segments for a URL path.
@@ -194,22 +221,3 @@ func SplitPath(path string) []string {
 	}
 	return strings.Split(path, "/")
 }
-
-// +lifted:source=https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo.go#L73-L74
-
-// specialVerbsNoSubresources contains root verbs which do not allow subresources
-var specialVerbsNoSubresources = sets.NewString("proxy")
-
-// +lifted:source=https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo.go#L76-L78
-
-// namespaceSubresources contains subresources of namespace
-// this list allows the parser to distinguish between a namespace subresource, and a namespaced resource
-var namespaceSubresources = sets.NewString("status", "finalize")
-
-// +lifted:source=https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo.go#L67-L71
-
-// specialVerbs contains just strings which are used in REST paths for special actions that don't fall under the normal
-// CRUDdy GET/POST/PUT/DELETE actions on REST objects.
-// TODO: find a way to keep this up to date automatically.  Maybe dynamically populate list as handlers added to
-// master's Mux.
-var specialVerbs = sets.NewString("proxy", "watch")
