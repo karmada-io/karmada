@@ -86,3 +86,17 @@ func RecordManagedAnnotations(object *unstructured.Unstructured) {
 	annotations[workv1alpha2.ManagedAnnotation] = strings.Join(managedKeys, ",")
 	object.SetAnnotations(annotations)
 }
+
+// RemoveAnnotations removes the annotations from the given object.
+func RemoveAnnotations(obj *unstructured.Unstructured, annotationKeys ...string) bool {
+	annotations := obj.GetAnnotations()
+	var removed bool
+	for _, a := range annotationKeys {
+		if _, ok := annotations[a]; ok {
+			removed = true
+			delete(annotations, a)
+		}
+	}
+	obj.SetAnnotations(annotations)
+	return removed
+}

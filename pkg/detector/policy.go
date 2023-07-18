@@ -189,9 +189,9 @@ func (d *ResourceDetector) cleanUnmatchedClusterResourceBinding(policyName strin
 func (d *ResourceDetector) removeResourceBindingsLabels(bindings *workv1alpha2.ResourceBindingList, selectors []policyv1alpha1.ResourceSelector, removeLabels []string) error {
 	var errs []error
 	for _, binding := range bindings.Items {
-		removed, err := d.removeResourceLabelsIfNotMatch(binding.Spec.Resource, selectors, removeLabels...)
+		removed, err := d.cleanupResourcePolicyIfNotMatch(binding.Spec.Resource, selectors, removeLabels...)
 		if err != nil {
-			klog.Errorf("Failed to remove resource labels when resource not match with policy selectors, err: %v", err)
+			klog.Errorf("Failed to remove resource labels when resource not match with policy selectors, error: %v", err)
 			errs = append(errs, err)
 			continue
 		}
@@ -205,7 +205,7 @@ func (d *ResourceDetector) removeResourceBindingsLabels(bindings *workv1alpha2.R
 		}
 		err = d.Client.Update(context.TODO(), bindingCopy)
 		if err != nil {
-			klog.Errorf("Failed to update resourceBinding(%s/%s), err: %v", binding.Namespace, binding.Name, err)
+			klog.Errorf("Failed to update resourceBinding(%s/%s), error: %v", binding.Namespace, binding.Name, err)
 			errs = append(errs, err)
 		}
 	}
@@ -220,9 +220,9 @@ func (d *ResourceDetector) removeResourceBindingsLabels(bindings *workv1alpha2.R
 func (d *ResourceDetector) removeClusterResourceBindingsLabels(bindings *workv1alpha2.ClusterResourceBindingList, selectors []policyv1alpha1.ResourceSelector) error {
 	var errs []error
 	for _, binding := range bindings.Items {
-		removed, err := d.removeResourceLabelsIfNotMatch(binding.Spec.Resource, selectors, []string{policyv1alpha1.ClusterPropagationPolicyLabel}...)
+		removed, err := d.cleanupResourcePolicyIfNotMatch(binding.Spec.Resource, selectors, policyv1alpha1.ClusterPropagationPolicyLabel)
 		if err != nil {
-			klog.Errorf("Failed to remove resource labels when resource not match with policy selectors, err: %v", err)
+			klog.Errorf("Failed to remove resource labels when resource not match with policy selectors, error: %v", err)
 			errs = append(errs, err)
 			continue
 		}
@@ -234,7 +234,7 @@ func (d *ResourceDetector) removeClusterResourceBindingsLabels(bindings *workv1a
 		delete(bindingCopy.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
 		err = d.Client.Update(context.TODO(), bindingCopy)
 		if err != nil {
-			klog.Errorf("Failed to update clusterResourceBinding(%s), err: %v", binding.Name, err)
+			klog.Errorf("Failed to update clusterResourceBinding(%s), error: %v", binding.Name, err)
 			errs = append(errs, err)
 		}
 	}
@@ -245,17 +245,14 @@ func (d *ResourceDetector) removeClusterResourceBindingsLabels(bindings *workv1a
 	return nil
 }
 
-func (d *ResourceDetector) removeResourceLabelsIfNotMatch(objectReference workv1alpha2.ObjectReference, selectors []policyv1alpha1.ResourceSelector, labelKeys ...string) (bool, error) {
-	objectKey, err := helper.ConstructClusterWideKey(objectReference)
+func (d *ResourceDetector) cleanupResourcePolicyIfNotMatch(objectReference workv1alpha2.ObjectReference, selectors []policyv1alpha1.ResourceSelector, labelKeys ...string) (bool, error) {
+	object, err := helper.FetchResourceTemplate(d.DynamicClient, d.InformerManager, d.RESTMapper, objectReference)
 	if err != nil {
-		return false, err
-	}
-
-	object, err := d.GetUnstructuredObject(objectKey)
-	if err != nil {
+		// do nothing if resource template not exist, it might has been removed.
 		if apierrors.IsNotFound(err) {
 			return false, nil
 		}
+		klog.Errorf("Failed to fetch resource template(kind=%s, %s/%s), error: %v", objectReference.Kind, objectReference.Namespace, objectReference.Name, err)
 		return false, err
 	}
 
@@ -263,14 +260,28 @@ func (d *ResourceDetector) removeResourceLabelsIfNotMatch(objectReference workv1
 		return false, nil
 	}
 
-	for _, labelKey := range labelKeys {
-		util.RemoveLabel(object, labelKey)
+	return true, d.cleanupPolicyOnResourceTemplate(object, labelKeys...)
+}
+
+func (d *ResourceDetector) cleanupPolicyOnResourceTemplate(object *unstructured.Unstructured, labelKeys ...string) error {
+	removedLabels := util.RemoveLabels(object, labelKeys...)
+	removedAnnotations := util.RemoveAnnotations(object, util.PolicyPriorityAnnotation)
+	if !removedLabels && !removedAnnotations {
+		klog.V(4).Infof("Do not need to clean up policy on resource template(kind=%s, %s/%s) because it has been cleaned up",
+			object.GetKind(), object.GetNamespace(), object.GetName())
+		return nil
 	}
-	err = d.Client.Update(context.TODO(), object)
-	if err != nil {
-		return false, err
+
+	if err := d.Client.Update(context.TODO(), object); err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.V(2).Infof("Do not need to clean up policy on resource template(kind=%s, %s/%s) because it has been deleted",
+				object.GetKind(), object.GetNamespace(), object.GetName())
+			return nil
+		}
+		return err
 	}
-	return true, nil
+	klog.V(2).Infof("Updated resource template(kind=%s, %s/%s) successfully", object.GetKind(), object.GetNamespace(), object.GetName())
+	return nil
 }
 
 func (d *ResourceDetector) listPPDerivedRB(policyNamespace, policyName string) (*workv1alpha2.ResourceBindingList, error) {

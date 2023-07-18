@@ -46,6 +46,11 @@ const (
 	// It is intended to set on Work objects to record applied overrides.
 	// The overrides items should be sorted alphabetically in ascending order by ClusterOverridePolicy's name.
 	AppliedClusterOverrides = "policy.karmada.io/applied-cluster-overrides"
+
+	// PolicyPriorityAnnotation is the annotation of a policy's priority.
+	// It is intended to set on resource template to record applied policy's priority.
+	// The priority could be either PropagationPolicy's or ClusterPropagationPolicy's.
+	PolicyPriorityAnnotation = "policy.karmada.io/applied-priority"
 )
 
 // Define finalizers used by karmada system.

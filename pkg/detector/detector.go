@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
 	"sync"
 	"time"
 
@@ -386,7 +387,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		}
 	}()
 
-	if err := d.ClaimPolicyForObject(object, policy.Namespace, policy.Name); err != nil {
+	if err := d.ClaimPolicyForObject(object, policy); err != nil {
 		klog.Errorf("Failed to claim policy(%s) for object: %s", policy.Name, object)
 		return err
 	}
@@ -459,7 +460,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 		}
 	}()
 
-	if err := d.ClaimClusterPolicyForObject(object, policy.Name); err != nil {
+	if err := d.ClaimClusterPolicyForObject(object, policy); err != nil {
 		klog.Errorf("Failed to claim cluster policy(%s) for object: %s", policy.Name, object)
 		return err
 	}
@@ -594,31 +595,37 @@ func (d *ResourceDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) 
 }
 
 // ClaimPolicyForObject set policy identifier which the object associated with.
-func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructured, policyNamespace string, policyName string) error {
+func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructured, policy *policyv1alpha1.PropagationPolicy) error {
 	claimedNS := util.GetLabelValue(object.GetLabels(), policyv1alpha1.PropagationPolicyNamespaceLabel)
 	claimedName := util.GetLabelValue(object.GetLabels(), policyv1alpha1.PropagationPolicyNameLabel)
+	claimedPriority := util.GetAnnotationValue(object.GetAnnotations(), util.PolicyPriorityAnnotation)
+	policyPriority := strconv.Itoa(int(policy.ExplicitPriority()))
 
-	// object has been claimed, don't need to claim again
-	if claimedNS == policyNamespace && claimedName == policyName {
+	// policy has no change, don't need to claim again
+	if claimedNS == policy.Namespace && claimedName == policy.Name && claimedPriority == policyPriority {
 		return nil
 	}
 
-	util.MergeLabel(object, policyv1alpha1.PropagationPolicyNamespaceLabel, policyNamespace)
-	util.MergeLabel(object, policyv1alpha1.PropagationPolicyNameLabel, policyName)
+	util.MergeLabel(object, policyv1alpha1.PropagationPolicyNamespaceLabel, policy.Namespace)
+	util.MergeLabel(object, policyv1alpha1.PropagationPolicyNameLabel, policy.Name)
+	util.MergeAnnotation(object, util.PolicyPriorityAnnotation, policyPriority)
 
 	return d.Client.Update(context.TODO(), object)
 }
 
 // ClaimClusterPolicyForObject set cluster identifier which the object associated with.
-func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unstructured, policyName string) error {
+func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unstructured, policy *policyv1alpha1.ClusterPropagationPolicy) error {
 	claimedName := util.GetLabelValue(object.GetLabels(), policyv1alpha1.ClusterPropagationPolicyLabel)
+	claimedPriority := util.GetAnnotationValue(object.GetAnnotations(), util.PolicyPriorityAnnotation)
+	policyPriority := strconv.Itoa(int(policy.ExplicitPriority()))
 
-	// object has been claimed, don't need to claim again
-	if claimedName == policyName {
+	// policy has no change, don't need to claim again
+	if claimedName == policy.Name && claimedPriority == policyPriority {
 		return nil
 	}
 
-	util.MergeLabel(object, policyv1alpha1.ClusterPropagationPolicyLabel, policyName)
+	util.MergeLabel(object, policyv1alpha1.ClusterPropagationPolicyLabel, policy.Name)
+	util.MergeAnnotation(object, util.PolicyPriorityAnnotation, policyPriority)
 	return d.Client.Update(context.TODO(), object)
 }
 
@@ -902,17 +909,17 @@ func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyNS string, poli
 	}
 
 	for index, binding := range rbs.Items {
-		// Cleanup the labels from the reference binding so that the karmada scheduler won't reschedule the binding.
+		// Cleanup the policy from the reference binding so that the karmada scheduler won't reschedule the binding.
 		if err := d.CleanupResourceBindingLabels(&rbs.Items[index], policyv1alpha1.PropagationPolicyNamespaceLabel, policyv1alpha1.PropagationPolicyNameLabel); err != nil {
-			klog.Errorf("Failed to cleanup label from resource binding(%s/%s) when propagation policy(%s/%s) removing, error: %v",
+			klog.Errorf("Failed to clean up policy from resource binding(%s/%s) when propagation policy(%s/%s) removing, error: %v",
 				binding.Namespace, binding.Name, policyNS, policyName, err)
 			return err
 		}
 
-		// Cleanup the labels from the object referencing by binding.
+		// Cleanup the policy from the object referencing by binding.
 		// In addition, this will give the object a chance to match another policy.
-		if err := d.CleanupLabels(binding.Spec.Resource, policyv1alpha1.PropagationPolicyNamespaceLabel, policyv1alpha1.PropagationPolicyNameLabel); err != nil {
-			klog.Errorf("Failed to cleanup label from resource(%s-%s/%s) when propagation policy(%s/%s) removing, error: %v",
+		if err := d.CleanupPolicy(binding.Spec.Resource, policyv1alpha1.PropagationPolicyNamespaceLabel, policyv1alpha1.PropagationPolicyNameLabel); err != nil {
+			klog.Errorf("Failed to clean up policy from resource template(kind=%s, %s/%s) when propagation policy(%s/%s) removing, error: %v",
 				binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name, policyNS, policyName, err)
 			return err
 		}
@@ -938,18 +945,18 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName str
 		errs = append(errs, err)
 	} else if len(crbs.Items) > 0 {
 		for index, binding := range crbs.Items {
-			// Cleanup the labels from the reference binding so that the karmada scheduler won't reschedule the binding.
+			// Cleanup the policy from the reference binding so that the karmada scheduler won't reschedule the binding.
 			if err := d.CleanupClusterResourceBindingLabels(&crbs.Items[index], policyv1alpha1.ClusterPropagationPolicyLabel); err != nil {
-				klog.Errorf("Failed to cleanup label from cluster resource binding(%s) when cluster propagation policy(%s) removing, error: %v",
+				klog.Errorf("Failed to clean up policy from cluster resource binding(%s) when cluster propagation policy(%s) removing, error: %v",
 					binding.Name, policyName, err)
 				errs = append(errs, err)
 			}
 
-			// Cleanup the labels from the object referencing by binding.
+			// Cleanup the policy from the object referencing by binding.
 			// In addition, this will give the object a chance to match another policy.
-			if err := d.CleanupLabels(binding.Spec.Resource, policyv1alpha1.ClusterPropagationPolicyLabel); err != nil {
-				klog.Errorf("Failed to cleanup label from resource(%s-%s/%s) when cluster resource binding(%s) removing, error: %v",
-					binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name, binding.Name, err)
+			if err := d.CleanupPolicy(binding.Spec.Resource, policyv1alpha1.ClusterPropagationPolicyLabel); err != nil {
+				klog.Errorf("Failed to clean up policy from resource template(kind=%s, %s) when cluster propagation policy(%s) removing, error: %v",
+					binding.Spec.Resource.Kind, binding.Spec.Resource.Name, policyName, err)
 				errs = append(errs, err)
 			}
 		}
@@ -962,17 +969,18 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName str
 		errs = append(errs, err)
 	} else if len(rbs.Items) > 0 {
 		for index, binding := range rbs.Items {
-			// Cleanup the labels from the reference binding so that the karmada scheduler won't reschedule the binding.
+			// Cleanup the policy from the reference binding so that the karmada scheduler won't reschedule the binding.
 			if err := d.CleanupResourceBindingLabels(&rbs.Items[index], policyv1alpha1.ClusterPropagationPolicyLabel); err != nil {
-				klog.Errorf("Failed to cleanup label from resource binding(%s/%s) when cluster propagation policy(%s) removing, error: %v",
+				klog.Errorf("Failed to clean up policy from resource binding(%s/%s) when cluster propagation policy(%s) removing, error: %v",
 					binding.Namespace, binding.Name, policyName, err)
 				errs = append(errs, err)
 			}
 
-			// Cleanup the labels from the object referencing by binding.
+			// Cleanup the policy from the object referencing by binding.
 			// In addition, this will give the object a chance to match another policy.
-			if err := d.CleanupLabels(binding.Spec.Resource, policyv1alpha1.ClusterPropagationPolicyLabel); err != nil {
-				klog.Errorf("Failed to cleanup label from resource binding(%s/%s), error: %v", binding.Namespace, binding.Name, err)
+			if err := d.CleanupPolicy(binding.Spec.Resource, policyv1alpha1.ClusterPropagationPolicyLabel); err != nil {
+				klog.Errorf("Failed to clean up policy from resource template(kind=%s, %s/%s) when cluster propagation policy(%s) removing, error: %v",
+					binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name, policyName, err)
 				errs = append(errs, err)
 			}
 		}
@@ -1088,37 +1096,19 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy
 	return nil
 }
 
-// CleanupLabels removes labels from object referencing by objRef.
-func (d *ResourceDetector) CleanupLabels(objRef workv1alpha2.ObjectReference, labels ...string) error {
-	workload, err := helper.FetchResourceTemplate(d.DynamicClient, d.InformerManager, d.RESTMapper, objRef)
+// CleanupPolicy removes policy from object referencing by objRef.
+func (d *ResourceDetector) CleanupPolicy(objectReference workv1alpha2.ObjectReference, labelKeys ...string) error {
+	object, err := helper.FetchResourceTemplate(d.DynamicClient, d.InformerManager, d.RESTMapper, objectReference)
 	if err != nil {
 		// do nothing if resource template not exist, it might has been removed.
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
-		klog.Errorf("Failed to fetch resource(kind=%s, %s/%s): %v", objRef.Kind, objRef.Namespace, objRef.Name, err)
+		klog.Errorf("Failed to fetch resource template(kind=%s, %s/%s), err: %v", objectReference.Kind, objectReference.Namespace, objectReference.Name, err)
 		return err
 	}
 
-	workloadLabels := workload.GetLabels()
-	for _, l := range labels {
-		delete(workloadLabels, l)
-	}
-	workload.SetLabels(workloadLabels)
-
-	gvr, err := restmapper.GetGroupVersionResource(d.RESTMapper, workload.GroupVersionKind())
-	if err != nil {
-		klog.Errorf("Failed to delete resource(%s/%s) labels as mapping GVK to GVR failed: %v", workload.GetNamespace(), workload.GetName(), err)
-		return err
-	}
-
-	newWorkload, err := d.DynamicClient.Resource(gvr).Namespace(workload.GetNamespace()).Update(context.TODO(), workload, metav1.UpdateOptions{})
-	if err != nil {
-		klog.Errorf("Failed to update resource %v/%v, err is %v ", workload.GetNamespace(), workload.GetName(), err)
-		return err
-	}
-	klog.V(2).Infof("Updated resource template(kind=%s, %s/%s) successfully", newWorkload.GetKind(), newWorkload.GetNamespace(), newWorkload.GetName())
-	return nil
+	return d.cleanupPolicyOnResourceTemplate(object, labelKeys...)
 }
 
 // CleanupResourceBindingLabels removes labels from resource binding.
