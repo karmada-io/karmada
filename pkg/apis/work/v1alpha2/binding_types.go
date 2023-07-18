@@ -307,6 +307,24 @@ const (
 	FullyApplied string = "FullyApplied"
 )
 
+// These are reasons for a binding's transition to a Scheduled condition.
+const (
+	// BindingReasonSuccess reason in Scheduled condition means that binding has been scheduled successfully.
+	BindingReasonSuccess = "Success"
+
+	// BindingReasonSchedulerError reason in Scheduled condition means that some internal error happens
+	// during scheduling, for example due to api-server connection error.
+	BindingReasonSchedulerError = "SchedulerError"
+
+	// BindingReasonNoClusterFit reason in Scheduled condition means that scheduling has finished
+	// due to no fit cluster.
+	BindingReasonNoClusterFit = "NoClusterFit"
+
+	// BindingReasonUnschedulable reason in Scheduled condition means that the scheduler can't schedule
+	// the binding right now, for example due to insufficient resources in the clusters.
+	BindingReasonUnschedulable = "Unschedulable"
+)
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // ResourceBindingList contains a list of ResourceBinding.

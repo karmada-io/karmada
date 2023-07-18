@@ -38,11 +38,11 @@ func (p *SpreadConstraint) Filter(
 ) *framework.Result {
 	for _, spreadConstraint := range bindingSpec.Placement.SpreadConstraints {
 		if spreadConstraint.SpreadByField == policyv1alpha1.SpreadByFieldProvider && cluster.Spec.Provider == "" {
-			return framework.NewResult(framework.Unschedulable, "cluster(s) didn't have provider property")
+			return framework.NewResult(framework.Unschedulable, "cluster(s) did not have provider property")
 		} else if spreadConstraint.SpreadByField == policyv1alpha1.SpreadByFieldRegion && cluster.Spec.Region == "" {
-			return framework.NewResult(framework.Unschedulable, "cluster(s) didn't have region property")
+			return framework.NewResult(framework.Unschedulable, "cluster(s) did not have region property")
 		} else if spreadConstraint.SpreadByField == policyv1alpha1.SpreadByFieldZone && cluster.Spec.Zone == "" {
-			return framework.NewResult(framework.Unschedulable, "cluster(s) didn't have zone property")
+			return framework.NewResult(framework.Unschedulable, "cluster(s) did not have zone property")
 		}
 	}
 

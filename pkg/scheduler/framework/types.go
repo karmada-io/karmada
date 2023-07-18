@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	// NoClusterAvailableMsg is used to format message when no clusters available.
-	NoClusterAvailableMsg = "0/%v clusters are available"
+	// noClusterAvailableMsg is used to format message when no clusters available.
+	noClusterAvailableMsg = "0/%d clusters are available: %s."
 )
 
 // ClusterToResultMap declares map from cluster name to its Result.
@@ -50,6 +50,10 @@ type FitError struct {
 
 // Error returns detailed information of why the object failed to fit on each cluster
 func (f *FitError) Error() string {
+	if f.NumAllClusters == 0 || len(f.Diagnosis.ClusterToResultMap) == 0 {
+		return fmt.Sprintf(noClusterAvailableMsg, f.NumAllClusters, "no cluster exists")
+	}
+
 	reasons := make(map[string]int)
 	for _, result := range f.Diagnosis.ClusterToResultMap {
 		for _, reason := range result.Reasons() {
@@ -65,6 +69,15 @@ func (f *FitError) Error() string {
 		sort.Strings(reasonStrings)
 		return reasonStrings
 	}
-	reasonMsg := fmt.Sprintf(NoClusterAvailableMsg+": %v.", f.NumAllClusters, strings.Join(sortReasonsHistogram(), ", "))
+	reasonMsg := fmt.Sprintf(noClusterAvailableMsg, f.NumAllClusters, strings.Join(sortReasonsHistogram(), ", "))
 	return reasonMsg
+}
+
+// UnschedulableError describes a unschedulable error, for example due to insufficient resources.
+type UnschedulableError struct {
+	Message string
+}
+
+func (u *UnschedulableError) Error() string {
+	return u.Message
 }

@@ -54,7 +54,7 @@ func (p *ClusterAffinity) Filter(
 		if util.ClusterMatches(cluster, *affinity) {
 			return framework.NewResult(framework.Success)
 		}
-		return framework.NewResult(framework.Unschedulable, "cluster(s) didn't match the placement cluster affinity constraint")
+		return framework.NewResult(framework.Unschedulable, "cluster(s) did not match the placement cluster affinity constraint")
 	}
 
 	// If no clusters specified and it is not excluded, mark it matched

@@ -54,14 +54,13 @@ const (
 )
 
 const (
-	scheduleSuccessReason  = "BindingScheduled"
-	scheduleFailedReason   = "BindingFailedScheduling"
-	scheduleSuccessMessage = "Binding has been scheduled"
+	// DefaultScheduler defines the name of default scheduler.
+	DefaultScheduler = "default-scheduler"
 )
 
 const (
-	// DefaultScheduler defines the name of default scheduler.
-	DefaultScheduler = "default-scheduler"
+	// successfulSchedulingMessage defines the successful binding event message.
+	successfulSchedulingMessage = "Binding has been scheduled successfully."
 )
 
 // Scheduler is the scheduler schema, which is used to schedule a specific resource to specific clusters
@@ -415,18 +414,14 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 
 func (s *Scheduler) scheduleResourceBinding(rb *workv1alpha2.ResourceBinding) (err error) {
 	defer func() {
-		var condition metav1.Condition
-		if err == nil {
-			condition = util.NewCondition(workv1alpha2.Scheduled, scheduleSuccessReason, scheduleSuccessMessage, metav1.ConditionTrue)
-		} else {
-			condition = util.NewCondition(workv1alpha2.Scheduled, scheduleFailedReason, err.Error(), metav1.ConditionFalse)
-		}
+		condition, ignoreErr := getConditionByError(err)
 		if updateErr := patchBindingStatusCondition(s.KarmadaClient, rb, condition); updateErr != nil {
+			// if patch error occurs, just return patch error to reconcile again.
+			err = updateErr
 			klog.Errorf("Failed to patch schedule status to ResourceBinding(%s/%s): %v", rb.Namespace, rb.Name, err)
-			if err == nil {
-				// schedule succeed but update status failed, return err in order to retry in next loop.
-				err = updateErr
-			}
+		} else if ignoreErr && err != nil {
+			// for finished schedule, we won't retry.
+			err = nil
 		}
 	}()
 
@@ -447,9 +442,9 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinity(rb *workv1alpha2.
 	}
 
 	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &rb.Spec, &rb.Status, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
-	var noClusterFit *framework.FitError
-	// in case of no cluster fit, can not return but continue to patch(cleanup) the result.
-	if err != nil && !errors.As(err, &noClusterFit) {
+	var fitErr *framework.FitError
+	// in case of no cluster error, can not return but continue to patch(cleanup) the result.
+	if err != nil && !errors.As(err, &fitErr) {
 		s.recordScheduleResultEventForResourceBinding(rb, err)
 		klog.Errorf("Failed scheduling ResourceBinding(%s/%s): %v", rb.Namespace, rb.Name, err)
 		return err
@@ -457,11 +452,11 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinity(rb *workv1alpha2.
 
 	klog.V(4).Infof("ResourceBinding(%s/%s) scheduled to clusters %v", rb.Namespace, rb.Name, scheduleResult.SuggestedClusters)
 	patchErr := s.patchScheduleResultForResourceBinding(rb, string(placementBytes), scheduleResult.SuggestedClusters)
-	s.recordScheduleResultEventForResourceBinding(rb, utilerrors.NewAggregate([]error{err, patchErr}))
-
-	// only care about the patch result,
-	// for FitError already recorded by event
-	return patchErr
+	if patchErr != nil {
+		err = utilerrors.NewAggregate([]error{err, patchErr})
+	}
+	s.recordScheduleResultEventForResourceBinding(rb, err)
+	return err
 }
 
 func (s *Scheduler) scheduleResourceBindingWithClusterAffinities(rb *workv1alpha2.ResourceBinding) error {
@@ -505,15 +500,20 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinities(rb *workv1alpha
 
 		updatedStatus.SchedulerObservedAffinityName = rb.Status.SchedulerObservedAffinityName
 
-		var noClusterFit *framework.FitError
-		if !errors.As(firstErr, &noClusterFit) {
+		var fitErr *framework.FitError
+		if !errors.As(firstErr, &fitErr) {
 			return firstErr
 		}
 
 		klog.V(4).Infof("ResourceBinding(%s/%s) scheduled to clusters %v", rb.Namespace, rb.Name, nil)
 		patchErr := s.patchScheduleResultForResourceBinding(rb, string(placementBytes), nil)
-		s.recordScheduleResultEventForResourceBinding(rb, patchErr)
-		return patchErr
+		if patchErr != nil {
+			err = utilerrors.NewAggregate([]error{firstErr, patchErr})
+		} else {
+			err = firstErr
+		}
+		s.recordScheduleResultEventForResourceBinding(rb, err)
+		return err
 	}
 
 	klog.V(4).Infof("ResourceBinding(%s/%s) scheduled to clusters %v", rb.Namespace, rb.Name, scheduleResult.SuggestedClusters)
@@ -552,18 +552,14 @@ func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alph
 
 func (s *Scheduler) scheduleClusterResourceBinding(crb *workv1alpha2.ClusterResourceBinding) (err error) {
 	defer func() {
-		var condition metav1.Condition
-		if err == nil {
-			condition = util.NewCondition(workv1alpha2.Scheduled, scheduleSuccessReason, scheduleSuccessMessage, metav1.ConditionTrue)
-		} else {
-			condition = util.NewCondition(workv1alpha2.Scheduled, scheduleFailedReason, err.Error(), metav1.ConditionFalse)
-		}
+		condition, ignoreErr := getConditionByError(err)
 		if updateErr := patchClusterBindingStatusCondition(s.KarmadaClient, crb, condition); updateErr != nil {
+			// if patch error occurs, just return patch error to reconcile again.
+			err = updateErr
 			klog.Errorf("Failed to patch schedule status to ClusterResourceBinding(%s): %v", crb.Name, err)
-			if err == nil {
-				// schedule succeed but update status failed, return err in order to retry in next loop.
-				err = updateErr
-			}
+		} else if ignoreErr && err != nil {
+			// for finished schedule, we won't retry.
+			err = nil
 		}
 	}()
 
@@ -584,9 +580,9 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinity(crb *workv
 	}
 
 	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &crb.Spec, &crb.Status, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
-	var noClusterFit *framework.FitError
-	// in case of no cluster fit, can not return but continue to patch(cleanup) the result.
-	if err != nil && !errors.As(err, &noClusterFit) {
+	var fitErr *framework.FitError
+	// in case of no cluster error, can not return but continue to patch(cleanup) the result.
+	if err != nil && !errors.As(err, &fitErr) {
 		s.recordScheduleResultEventForClusterResourceBinding(crb, err)
 		klog.Errorf("Failed scheduling clusterResourceBinding(%s): %v", crb.Name, err)
 		return err
@@ -594,11 +590,11 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinity(crb *workv
 
 	klog.V(4).Infof("clusterResourceBinding(%s) scheduled to clusters %v", crb.Name, scheduleResult.SuggestedClusters)
 	patchErr := s.patchScheduleResultForClusterResourceBinding(crb, string(placementBytes), scheduleResult.SuggestedClusters)
-	s.recordScheduleResultEventForClusterResourceBinding(crb, utilerrors.NewAggregate([]error{err, patchErr}))
-
-	// only care about the patch result,
-	// for FitError already recorded by event
-	return patchErr
+	if patchErr != nil {
+		err = utilerrors.NewAggregate([]error{err, patchErr})
+	}
+	s.recordScheduleResultEventForClusterResourceBinding(crb, err)
+	return err
 }
 
 func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinities(crb *workv1alpha2.ClusterResourceBinding) error {
@@ -642,15 +638,20 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinities(crb *wor
 
 		updatedStatus.SchedulerObservedAffinityName = crb.Status.SchedulerObservedAffinityName
 
-		var noClusterFit *framework.FitError
-		if !errors.As(firstErr, &noClusterFit) {
+		var fitErr *framework.FitError
+		if !errors.As(firstErr, &fitErr) {
 			return firstErr
 		}
 
 		klog.V(4).Infof("ClusterResourceBinding(%s) scheduled to clusters %v", crb.Name, nil)
 		patchErr := s.patchScheduleResultForClusterResourceBinding(crb, string(placementBytes), nil)
-		s.recordScheduleResultEventForClusterResourceBinding(crb, patchErr)
-		return patchErr
+		if patchErr != nil {
+			err = utilerrors.NewAggregate([]error{firstErr, patchErr})
+		} else {
+			err = firstErr
+		}
+		s.recordScheduleResultEventForClusterResourceBinding(crb, err)
+		return err
 	}
 
 	klog.V(4).Infof("ClusterResourceBinding(%s) scheduled to clusters %v", crb.Name, scheduleResult.SuggestedClusters)
@@ -846,8 +847,8 @@ func (s *Scheduler) recordScheduleResultEventForResourceBinding(rb *workv1alpha2
 	}
 
 	if schedulerErr == nil {
-		s.eventRecorder.Event(rb, corev1.EventTypeNormal, events.EventReasonScheduleBindingSucceed, scheduleSuccessMessage)
-		s.eventRecorder.Event(ref, corev1.EventTypeNormal, events.EventReasonScheduleBindingSucceed, scheduleSuccessMessage)
+		s.eventRecorder.Event(rb, corev1.EventTypeNormal, events.EventReasonScheduleBindingSucceed, successfulSchedulingMessage)
+		s.eventRecorder.Event(ref, corev1.EventTypeNormal, events.EventReasonScheduleBindingSucceed, successfulSchedulingMessage)
 	} else {
 		s.eventRecorder.Event(rb, corev1.EventTypeWarning, events.EventReasonScheduleBindingFailed, schedulerErr.Error())
 		s.eventRecorder.Event(ref, corev1.EventTypeWarning, events.EventReasonScheduleBindingFailed, schedulerErr.Error())
@@ -868,8 +869,8 @@ func (s *Scheduler) recordScheduleResultEventForClusterResourceBinding(crb *work
 	}
 
 	if schedulerErr == nil {
-		s.eventRecorder.Event(crb, corev1.EventTypeNormal, events.EventReasonScheduleBindingSucceed, scheduleSuccessMessage)
-		s.eventRecorder.Event(ref, corev1.EventTypeNormal, events.EventReasonScheduleBindingSucceed, scheduleSuccessMessage)
+		s.eventRecorder.Event(crb, corev1.EventTypeNormal, events.EventReasonScheduleBindingSucceed, successfulSchedulingMessage)
+		s.eventRecorder.Event(ref, corev1.EventTypeNormal, events.EventReasonScheduleBindingSucceed, successfulSchedulingMessage)
 	} else {
 		s.eventRecorder.Event(crb, corev1.EventTypeWarning, events.EventReasonScheduleBindingFailed, schedulerErr.Error())
 		s.eventRecorder.Event(ref, corev1.EventTypeWarning, events.EventReasonScheduleBindingFailed, schedulerErr.Error())
