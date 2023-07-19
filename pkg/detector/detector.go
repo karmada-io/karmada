@@ -421,6 +421,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 			bindingCopy.Spec.SchedulerName = binding.Spec.SchedulerName
 			bindingCopy.Spec.Placement = binding.Spec.Placement
 			bindingCopy.Spec.Failover = binding.Spec.Failover
+			bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
 			return nil
 		})
 		if err != nil {
@@ -497,6 +498,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 				bindingCopy.Spec.SchedulerName = binding.Spec.SchedulerName
 				bindingCopy.Spec.Placement = binding.Spec.Placement
 				bindingCopy.Spec.Failover = binding.Spec.Failover
+				bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
 				return nil
 			})
 			if err != nil {
@@ -541,6 +543,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			bindingCopy.Spec.SchedulerName = binding.Spec.SchedulerName
 			bindingCopy.Spec.Placement = binding.Spec.Placement
 			bindingCopy.Spec.Failover = binding.Spec.Failover
+			bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
 			return nil
 		})
 		if err != nil {
@@ -636,10 +639,11 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 			Finalizers: []string{util.BindingControllerFinalizer},
 		},
 		Spec: workv1alpha2.ResourceBindingSpec{
-			PropagateDeps: policySpec.PropagateDeps,
-			SchedulerName: policySpec.SchedulerName,
-			Placement:     &policySpec.Placement,
-			Failover:      policySpec.Failover,
+			PropagateDeps:      policySpec.PropagateDeps,
+			SchedulerName:      policySpec.SchedulerName,
+			Placement:          &policySpec.Placement,
+			Failover:           policySpec.Failover,
+			ConflictResolution: policySpec.ConflictResolution,
 			Resource: workv1alpha2.ObjectReference{
 				APIVersion:      object.GetAPIVersion(),
 				Kind:            object.GetKind(),
@@ -677,10 +681,11 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 			Finalizers: []string{util.ClusterResourceBindingControllerFinalizer},
 		},
 		Spec: workv1alpha2.ResourceBindingSpec{
-			PropagateDeps: policySpec.PropagateDeps,
-			SchedulerName: policySpec.SchedulerName,
-			Placement:     &policySpec.Placement,
-			Failover:      policySpec.Failover,
+			PropagateDeps:      policySpec.PropagateDeps,
+			SchedulerName:      policySpec.SchedulerName,
+			Placement:          &policySpec.Placement,
+			Failover:           policySpec.Failover,
+			ConflictResolution: policySpec.ConflictResolution,
 			Resource: workv1alpha2.ObjectReference{
 				APIVersion:      object.GetAPIVersion(),
 				Kind:            object.GetKind(),

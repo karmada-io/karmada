@@ -8,6 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
@@ -211,6 +212,77 @@ func Test_mergeAnnotations(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := mergeAnnotations(tt.workload, tt.binding, tt.scope); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("mergeAnnotations() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_mergeConflictResolution(t *testing.T) {
+	namespace := "fake-ns"
+	workload := unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "apps/v1",
+			"kind":       "Deployment",
+			"metadata": map[string]interface{}{
+				"name":      "test-deployment",
+				"namespace": namespace,
+			},
+		},
+	}
+	workloadOverwrite := workload.DeepCopy()
+	workloadOverwrite.SetAnnotations(map[string]string{workv1alpha2.ResourceConflictResolutionAnnotation: workv1alpha2.ResourceConflictResolutionOverwrite})
+	workloadAbort := workload.DeepCopy()
+	workloadAbort.SetAnnotations(map[string]string{workv1alpha2.ResourceConflictResolutionAnnotation: workv1alpha2.ResourceConflictResolutionAbort})
+	workloadInvalid := workload.DeepCopy()
+	workloadInvalid.SetAnnotations(map[string]string{workv1alpha2.ResourceConflictResolutionAnnotation: "unknown"})
+
+	tests := []struct {
+		name                        string
+		workload                    *unstructured.Unstructured
+		conflictResolutionInBinding policyv1alpha1.ConflictResolution
+		annotations                 map[string]string
+		want                        map[string]string
+	}{
+		{
+			name:                        "EmptyInRT_OverwriteInRB",
+			workload:                    &workload,
+			conflictResolutionInBinding: policyv1alpha1.ConflictOverwrite,
+			annotations:                 map[string]string{},
+			want:                        map[string]string{workv1alpha2.ResourceConflictResolutionAnnotation: workv1alpha2.ResourceConflictResolutionOverwrite},
+		},
+		{
+			name:                        "EmptyInRT_AbortInRB",
+			workload:                    &workload,
+			conflictResolutionInBinding: policyv1alpha1.ConflictAbort,
+			annotations:                 map[string]string{},
+			want:                        map[string]string{workv1alpha2.ResourceConflictResolutionAnnotation: workv1alpha2.ResourceConflictResolutionAbort},
+		},
+		{
+			name:                        "OverwriteInRT_AbortInPP",
+			workload:                    workloadOverwrite,
+			conflictResolutionInBinding: policyv1alpha1.ConflictAbort,
+			annotations:                 map[string]string{},
+			want:                        map[string]string{workv1alpha2.ResourceConflictResolutionAnnotation: workv1alpha2.ResourceConflictResolutionOverwrite},
+		},
+		{
+			name:                        "AbortInRT_OverwriteInPP",
+			workload:                    workloadAbort,
+			conflictResolutionInBinding: policyv1alpha1.ConflictOverwrite,
+			annotations:                 map[string]string{},
+			want:                        map[string]string{workv1alpha2.ResourceConflictResolutionAnnotation: workv1alpha2.ResourceConflictResolutionAbort},
+		},
+		{
+			name:                        "InvalidInRT_OverwriteInPP",
+			workload:                    workloadInvalid,
+			conflictResolutionInBinding: policyv1alpha1.ConflictOverwrite,
+			annotations:                 map[string]string{},
+			want:                        map[string]string{workv1alpha2.ResourceConflictResolutionAnnotation: workv1alpha2.ResourceConflictResolutionOverwrite},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := mergeConflictResolution(tt.workload, tt.conflictResolutionInBinding, tt.annotations); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("mergeConflictResolution() = %v, want %v", got, tt.want)
 			}
 		})
 	}
