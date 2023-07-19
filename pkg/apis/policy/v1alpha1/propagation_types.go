@@ -123,6 +123,19 @@ type PropagationSpec struct {
 	// If this value is nil, failover is disabled.
 	// +optional
 	Failover *FailoverBehavior `json:"failover,omitempty"`
+
+	// ConflictResolution declares how potential conflict should be handled when
+	// a resource that is being propagated already exists in the target cluster.
+	//
+	// It defaults to "Abort" which means stop propagating to avoid unexpected
+	// overwrites. The "Overwrite" might be useful when migrating legacy cluster
+	// resources to Karmada, in which case conflict is predictable and can be
+	// instructed to Karmada take over the resource by overwriting.
+	//
+	// +kubebuilder:default="Abort"
+	// +kubebuilder:validation:Enum=Abort;Overwrite
+	// +optional
+	ConflictResolution ConflictResolution `json:"conflictResolution,omitempty"`
 }
 
 // ResourceSelector the resources will be selected.
@@ -474,6 +487,19 @@ const (
 	// PreemptNever means that a PropagationPolicy(ClusterPropagationPolicy) never
 	// preempts resources.
 	PreemptNever PreemptionBehavior = "Never"
+)
+
+// ConflictResolution describes how to resolve the conflict during the process
+// of propagation especially the resource already in a member cluster.
+type ConflictResolution string
+
+const (
+	// ConflictOverwrite means that resolve the conflict by overwriting the
+	// resource with the propagating resource template.
+	ConflictOverwrite ConflictResolution = "Overwrite"
+
+	// ConflictAbort means that do not resolve the conflict and stop propagating.
+	ConflictAbort ConflictResolution = "Abort"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -17251,6 +17251,10 @@
           "description": "Association tells if relevant resources should be selected automatically. e.g. a ConfigMap referred by a Deployment. default false. Deprecated: in favor of PropagateDeps.",
           "type": "boolean"
         },
+        "conflictResolution": {
+          "description": "ConflictResolution declares how potential conflict should be handled when a resource that is being propagated already exists in the target cluster.\n\nIt defaults to \"Abort\" which means stop propagating to avoid unexpected overwrites. The \"Overwrite\" might be useful when migrating legacy cluster resources to Karmada, in which case conflict is predictable and can be instructed to Karmada take over the resource by overwriting.",
+          "type": "string"
+        },
         "dependentOverrides": {
           "description": "DependentOverrides represents the list of overrides(OverridePolicy) which must present before the current PropagationPolicy takes effect.\n\nIt used to explicitly specify overrides which current PropagationPolicy rely on. A typical scenario is the users create OverridePolicy(ies) and resources at the same time, they want to ensure the new-created policies would be adopted.\n\nNote: For the overrides, OverridePolicy(ies) in current namespace and ClusterOverridePolicy(ies), which not present in this list will still be applied if they matches the resources.",
           "type": "array",
@@ -18146,6 +18150,10 @@
             "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.TargetCluster"
           }
+        },
+        "conflictResolution": {
+          "description": "ConflictResolution declares how potential conflict should be handled when a resource that is being propagated already exists in the target cluster.\n\nIt defaults to \"Abort\" which means stop propagating to avoid unexpected overwrites. The \"Overwrite\" might be useful when migrating legacy cluster resources to Karmada, in which case conflict is predictable and can be instructed to Karmada take over the resource by overwriting.",
+          "type": "string"
         },
         "failover": {
           "description": "Failover indicates how Karmada migrates applications in case of failures. It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).",

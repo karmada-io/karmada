@@ -107,6 +107,19 @@ type ResourceBindingSpec struct {
 	// It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).
 	// +optional
 	Failover *policyv1alpha1.FailoverBehavior `json:"failover,omitempty"`
+
+	// ConflictResolution declares how potential conflict should be handled when
+	// a resource that is being propagated already exists in the target cluster.
+	//
+	// It defaults to "Abort" which means stop propagating to avoid unexpected
+	// overwrites. The "Overwrite" might be useful when migrating legacy cluster
+	// resources to Karmada, in which case conflict is predictable and can be
+	// instructed to Karmada take over the resource by overwriting.
+	//
+	// +kubebuilder:default="Abort"
+	// +kubebuilder:validation:Enum=Abort;Overwrite
+	// +optional
+	ConflictResolution policyv1alpha1.ConflictResolution `json:"conflictResolution,omitempty"`
 }
 
 // ObjectReference contains enough information to locate the referenced object inside current cluster.
