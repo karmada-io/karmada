@@ -153,6 +153,13 @@ type DependentObjectReference struct {
 	Namespace string `json:"namespace,omitempty"`
 
 	// Name represents the name of the referent.
-	// +required
-	Name string `json:"name"`
+	// Name and LabelSelector cannot be empty at the same time.
+	// +optional
+	Name string `json:"name,omitempty"`
+
+	// LabelSelector represents a label query over a set of resources.
+	// If name is not empty, labelSelector will be ignored.
+	// Name and LabelSelector cannot be empty at the same time.
+	// +optional
+	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 }

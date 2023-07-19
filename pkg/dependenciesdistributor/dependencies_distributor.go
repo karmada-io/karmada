@@ -14,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -53,6 +52,13 @@ const (
 	// in the annotations of an independent binding.
 	bindingDependenciesAnnotationKey = "resourcebinding.karmada.io/dependencies"
 )
+
+// LabelsKey is the object key which is a unique identifier under a cluster, across all resources.
+type LabelsKey struct {
+	keys.ClusterWideKey
+	// Labels is the labels of the referencing object.
+	Labels map[string]string
+}
 
 // DependenciesDistributor is to automatically propagate relevant resources.
 // Resource binding will be created when a resource(e.g. deployment) is matched by a propagation policy, we call it independent binding in DependenciesDistributor.
@@ -111,7 +117,7 @@ func (d *DependenciesDistributor) OnUpdate(oldObj, newObj interface{}) {
 		klog.V(4).Infof("Ignore update event of object (%s, kind=%s, %s) as specification no change", unstructuredOldObj.GetAPIVersion(), unstructuredOldObj.GetKind(), names.NamespacedKey(unstructuredOldObj.GetNamespace(), unstructuredOldObj.GetName()))
 		return
 	}
-
+	d.OnAdd(oldObj)
 	d.OnAdd(newObj)
 }
 
@@ -123,7 +129,7 @@ func (d *DependenciesDistributor) OnDelete(obj interface{}) {
 // Reconcile performs a full reconciliation for the object referred to by the key.
 // The key will be re-queued if an error is non-nil.
 func (d *DependenciesDistributor) reconcile(key util.QueueKey) error {
-	clusterWideKey, ok := key.(keys.ClusterWideKey)
+	clusterWideKey, ok := key.(*LabelsKey)
 	if !ok {
 		klog.Error("Invalid key")
 		return fmt.Errorf("invalid key")
@@ -157,7 +163,7 @@ func (d *DependenciesDistributor) reconcile(key util.QueueKey) error {
 }
 
 // dependentObjectReferenceMatches tells if the given object is referred by current resource binding.
-func dependentObjectReferenceMatches(objectKey keys.ClusterWideKey, referenceBinding *workv1alpha2.ResourceBinding) bool {
+func dependentObjectReferenceMatches(objectKey *LabelsKey, referenceBinding *workv1alpha2.ResourceBinding) bool {
 	dependencies, exist := referenceBinding.Annotations[bindingDependenciesAnnotationKey]
 	if !exist {
 		return false
@@ -181,9 +187,17 @@ func dependentObjectReferenceMatches(objectKey keys.ClusterWideKey, referenceBin
 	for _, dependence := range dependenciesSlice {
 		if objectKey.GroupVersion().String() == dependence.APIVersion &&
 			objectKey.Kind == dependence.Kind &&
-			objectKey.Namespace == dependence.Namespace &&
-			objectKey.Name == dependence.Name {
-			return true
+			objectKey.Namespace == dependence.Namespace {
+			if len(dependence.Name) != 0 {
+				return dependence.Name == objectKey.Name
+			}
+			var selector labels.Selector
+			if selector, err = metav1.LabelSelectorAsSelector(dependence.LabelSelector); err != nil {
+				klog.Errorf("Failed to converts the LabelSelector of binding(%s/%s) dependencies(%s): %v",
+					referenceBinding.Namespace, referenceBinding.Name, dependencies, err)
+				return false
+			}
+			return selector.Matches(labels.Set(objectKey.Labels))
 		}
 	}
 	return false
@@ -239,6 +253,60 @@ func (d *DependenciesDistributor) handleResourceBindingDeletion(namespace, name 
 	return d.removeScheduleResultFromAttachedBindings(namespace, name, attachedBindings)
 }
 
+func (d *DependenciesDistributor) removeOrphanAttachedBindings(binding *workv1alpha2.ResourceBinding, dependencies []configv1alpha1.DependentObjectReference) error {
+	// remove orphan attached bindings
+	orphanBindings, err := d.findOrphanAttachedBindings(binding, dependencies)
+	if err != nil {
+		klog.Errorf("Failed to find orphan attached bindings for resourceBinding(%s/%s). Error: %v.",
+			binding.GetNamespace(), binding.GetName(), err)
+		return err
+	}
+	err = d.removeScheduleResultFromAttachedBindings(binding.Namespace, binding.Name, orphanBindings)
+	if err != nil {
+		klog.Errorf("Failed to remove orphan attached bindings by resourceBinding(%s/%s). Error: %v.",
+			binding.GetNamespace(), binding.GetName(), err)
+		return err
+	}
+	return nil
+}
+
+func (d *DependenciesDistributor) handleDependentResource(
+	binding *workv1alpha2.ResourceBinding,
+	resource workv1alpha2.ObjectReference,
+	dependent configv1alpha1.DependentObjectReference) error {
+	switch {
+	case len(dependent.Name) != 0:
+		rawObject, err := helper.FetchResourceTemplate(d.DynamicClient, d.InformerManager, d.RESTMapper, resource)
+		if err != nil {
+			// do nothing if resource template not exist.
+			if apierrors.IsNotFound(err) {
+				return nil
+			}
+			return err
+		}
+		attachedBinding := buildAttachedBinding(binding, rawObject)
+		return d.createOrUpdateAttachedBinding(attachedBinding)
+	case dependent.LabelSelector != nil:
+		var selector labels.Selector
+		var err error
+		if selector, err = metav1.LabelSelectorAsSelector(dependent.LabelSelector); err != nil {
+			return err
+		}
+		rawObjects, err := helper.FetchResourceTemplateByLabelSelector(d.DynamicClient, d.InformerManager, d.RESTMapper, resource, selector)
+		if err != nil {
+			return err
+		}
+		for _, rawObject := range rawObjects {
+			attachedBinding := buildAttachedBinding(binding, rawObject)
+			if err := d.createOrUpdateAttachedBinding(attachedBinding); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return fmt.Errorf("the Name and LabelSelector in the DependentObjectReference of object (kind=%s %s/%s) cannot be empty at the same time", resource.Kind, resource.Namespace, resource.Name)
+}
+
 func (d *DependenciesDistributor) syncScheduleResultToAttachedBindings(binding *workv1alpha2.ResourceBinding, dependencies []configv1alpha1.DependentObjectReference) (err error) {
 	defer func() {
 		if err != nil {
@@ -251,19 +319,7 @@ func (d *DependenciesDistributor) syncScheduleResultToAttachedBindings(binding *
 	if err := d.recordDependencies(binding, dependencies); err != nil {
 		return err
 	}
-
-	// remove orphan attached bindings
-	orphanBindings, err := d.findOrphanAttachedBindings(binding, dependencies)
-	if err != nil {
-		klog.Errorf("Failed to find orphan attached bindings for resourceBinding(%s/%s). Error: %v.",
-			binding.GetNamespace(), binding.GetName(), err)
-		return err
-	}
-
-	err = d.removeScheduleResultFromAttachedBindings(binding.Namespace, binding.Name, orphanBindings)
-	if err != nil {
-		klog.Errorf("Failed to remove orphan attached bindings by resourceBinding(%s/%s). Error: %v.",
-			binding.GetNamespace(), binding.GetName(), err)
+	if err := d.removeOrphanAttachedBindings(binding, dependencies); err != nil {
 		return err
 	}
 
@@ -286,20 +342,7 @@ func (d *DependenciesDistributor) syncScheduleResultToAttachedBindings(binding *
 			d.InformerManager.ForResource(gvr, d.eventHandler)
 			startInformerManager = true
 		}
-		rawObject, err := helper.FetchResourceTemplate(d.DynamicClient, d.InformerManager, d.RESTMapper, resource)
-		if err != nil {
-			// do nothing if resource template not exist.
-			if apierrors.IsNotFound(err) {
-				continue
-			}
-			errs = append(errs, err)
-			continue
-		}
-
-		attachedBinding := buildAttachedBinding(binding, rawObject)
-		if err := d.createOrUpdateAttachedBinding(attachedBinding); err != nil {
-			errs = append(errs, err)
-		}
+		errs = append(errs, d.handleDependentResource(binding, resource, dependent))
 	}
 	if startInformerManager {
 		d.InformerManager.Start()
@@ -351,20 +394,70 @@ func (d *DependenciesDistributor) findOrphanAttachedBindings(independentBinding 
 		return nil, err
 	}
 
-	dependenciesSets := sets.NewString()
-	for _, dependency := range dependencies {
-		key := generateDependencyKey(dependency.Kind, dependency.APIVersion, dependency.Namespace, dependency.Name)
-		dependenciesSets.Insert(key)
+	dependenciesMaps := make(map[string][]int, 0)
+	for index, dependency := range dependencies {
+		key := generateDependencyKey(dependency.Kind, dependency.APIVersion, dependency.Namespace)
+		dependenciesMaps[key] = append(dependenciesMaps[key], index)
 	}
 
 	var orphanAttachedBindings []*workv1alpha2.ResourceBinding
 	for _, attachedBinding := range attachedBindings {
-		key := generateDependencyKey(attachedBinding.Spec.Resource.Kind, attachedBinding.Spec.Resource.APIVersion, attachedBinding.Spec.Resource.Namespace, attachedBinding.Spec.Resource.Name)
-		if !dependenciesSets.Has(key) {
+		key := generateDependencyKey(attachedBinding.Spec.Resource.Kind, attachedBinding.Spec.Resource.APIVersion, attachedBinding.Spec.Resource.Namespace)
+		dependencyIndexes, exist := dependenciesMaps[key]
+		if !exist {
+			orphanAttachedBindings = append(orphanAttachedBindings, attachedBinding)
+			continue
+		}
+		isOrphanAttachedBinding, err := d.isOrphanAttachedBindings(dependencies, dependencyIndexes, attachedBinding)
+		if err != nil {
+			return nil, err
+		}
+		if isOrphanAttachedBinding {
 			orphanAttachedBindings = append(orphanAttachedBindings, attachedBinding)
 		}
 	}
 	return orphanAttachedBindings, nil
+}
+
+func (d *DependenciesDistributor) isOrphanAttachedBindings(
+	dependencies []configv1alpha1.DependentObjectReference,
+	dependencyIndexes []int,
+	attachedBinding *workv1alpha2.ResourceBinding) (bool, error) {
+	var resource = attachedBinding.Spec.Resource
+	for _, idx := range dependencyIndexes {
+		dependency := dependencies[idx]
+		switch {
+		case len(dependency.Name) != 0:
+			if dependency.Name == resource.Name {
+				return false, nil
+			}
+		case dependency.LabelSelector != nil:
+			var selector labels.Selector
+			var err error
+			if selector, err = metav1.LabelSelectorAsSelector(dependency.LabelSelector); err != nil {
+				return false, err
+			}
+			rawObject, err := helper.FetchResourceTemplate(d.DynamicClient, d.InformerManager, d.RESTMapper, workv1alpha2.ObjectReference{
+				APIVersion: resource.APIVersion,
+				Kind:       resource.Kind,
+				Namespace:  resource.Namespace,
+				Name:       resource.Name,
+			})
+			if err != nil {
+				// do nothing if resource template not exist.
+				if apierrors.IsNotFound(err) {
+					continue
+				}
+				return false, err
+			}
+			if selector.Matches(labels.Set(rawObject.GetLabels())) {
+				return false, nil
+			}
+		default:
+			// can not reach here
+		}
+	}
+	return true, nil
 }
 
 func (d *DependenciesDistributor) listAttachedBindings(bindingNamespace, bindingName string) (res []*workv1alpha2.ResourceBinding, err error) {
@@ -435,8 +528,21 @@ func (d *DependenciesDistributor) Start(ctx context.Context) error {
 	klog.Infof("Starting dependencies distributor.")
 	d.stopCh = ctx.Done()
 	resourceWorkerOptions := util.Options{
-		Name:          "dependencies resource detector",
-		KeyFunc:       func(obj interface{}) (util.QueueKey, error) { return keys.ClusterWideKeyFunc(obj) },
+		Name: "dependencies resource detector",
+		KeyFunc: func(obj interface{}) (util.QueueKey, error) {
+			key, err := keys.ClusterWideKeyFunc(obj)
+			if err != nil {
+				return nil, err
+			}
+			metaInfo, err := meta.Accessor(obj)
+			if err != nil { // should not happen
+				return nil, fmt.Errorf("object has no meta: %v", err)
+			}
+			return &LabelsKey{
+				ClusterWideKey: key,
+				Labels:         metaInfo.GetLabels(),
+			}, nil
+		},
 		ReconcileFunc: d.reconcile,
 	}
 	d.eventHandler = fedinformer.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
@@ -506,12 +612,12 @@ func generateBindingDependedLabelKey(bindingNamespace, bindingName string) strin
 	return fmt.Sprintf(bindingDependedByLabelKeyPrefix + bindHashKey)
 }
 
-func generateDependencyKey(kind, apiVersion, name, namespace string) string {
+func generateDependencyKey(kind, apiVersion, namespace string) string {
 	if len(namespace) == 0 {
-		return kind + "-" + apiVersion + "-" + name
+		return kind + "-" + apiVersion
 	}
 
-	return kind + "-" + apiVersion + "-" + namespace + "-" + name
+	return kind + "-" + apiVersion + "-" + namespace
 }
 
 func buildAttachedBinding(binding *workv1alpha2.ResourceBinding, object *unstructured.Unstructured) *workv1alpha2.ResourceBinding {

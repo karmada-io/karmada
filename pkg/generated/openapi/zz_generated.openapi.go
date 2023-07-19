@@ -1811,16 +1811,23 @@ func schema_pkg_apis_config_v1alpha1_DependentObjectReference(ref common.Referen
 					},
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name represents the name of the referent.",
-							Default:     "",
+							Description: "Name represents the name of the referent. Name and LabelSelector cannot be empty at the same time.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
+					"labelSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LabelSelector represents a label query over a set of resources. If name is not empty, labelSelector will be ignored. Name and LabelSelector cannot be empty at the same time.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+						},
+					},
 				},
-				Required: []string{"apiVersion", "kind", "name"},
+				Required: []string{"apiVersion", "kind"},
 			},
 		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 	}
 }
 
