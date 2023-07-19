@@ -106,8 +106,8 @@ func ClusterMatches(cluster *clusterv1alpha1.Cluster, affinity policyv1alpha1.Cl
 
 	if affinity.FieldSelector != nil {
 		var matchFields labels.Selector
-		var err error
-		if matchFields, err = lifted.NodeSelectorRequirementsAsSelector(affinity.FieldSelector.MatchExpressions); err != nil {
+		var errs []error
+		if matchFields, errs = lifted.NodeSelectorRequirementsAsSelector(affinity.FieldSelector.MatchExpressions); errs != nil {
 			return false
 		}
 		clusterFields := extractClusterFields(cluster)

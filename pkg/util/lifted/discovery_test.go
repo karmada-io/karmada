@@ -13,8 +13,8 @@ limitations under the License.
 
 // This code is directly lifted from the Kubernetes codebase.
 // For reference:
-// https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/garbagecollector/garbagecollector_test.go#L943-L990
-// https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/garbagecollector/garbagecollector_test.go#L707-L797
+// https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/controller/garbagecollector/garbagecollector_test.go#L943-L990
+// https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/controller/garbagecollector/garbagecollector_test.go#L707-L797
 
 package lifted
 
@@ -29,39 +29,7 @@ import (
 	"k8s.io/client-go/discovery"
 )
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/garbagecollector/garbagecollector_test.go#L943-L990
-type fakeServerResources struct {
-	PreferredResources []*metav1.APIResourceList
-	Error              error
-	Lock               sync.Mutex
-	InterfaceUsedCount int
-}
-
-func (*fakeServerResources) ServerResourcesForGroupVersion(groupVersion string) (*metav1.APIResourceList, error) {
-	return nil, nil
-}
-
-// Deprecated: use ServerGroupsAndResources instead.
-func (*fakeServerResources) ServerResources() ([]*metav1.APIResourceList, error) {
-	return nil, nil
-}
-
-func (*fakeServerResources) ServerGroupsAndResources() ([]*metav1.APIGroup, []*metav1.APIResourceList, error) {
-	return nil, nil, nil
-}
-
-func (f *fakeServerResources) ServerPreferredResources() ([]*metav1.APIResourceList, error) {
-	f.Lock.Lock()
-	defer f.Lock.Unlock()
-	f.InterfaceUsedCount++
-	return f.PreferredResources, f.Error
-}
-
-func (*fakeServerResources) ServerPreferredNamespacedResources() ([]*metav1.APIResourceList, error) {
-	return nil, nil
-}
-
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/garbagecollector/garbagecollector_test.go#L707-L797
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/controller/garbagecollector/garbagecollector_test.go#L712-L802
 
 // TestGetDeletableResources ensures GetDeletableResources always returns
 // something usable regardless of discovery output.
@@ -153,4 +121,37 @@ func TestGetDeletableResources(t *testing.T) {
 			t.Errorf("expected resources:\n%v\ngot:\n%v", test.deletableResources, actual)
 		}
 	}
+}
+
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/controller/garbagecollector/garbagecollector_test.go#L948-L990
+
+type fakeServerResources struct {
+	PreferredResources []*metav1.APIResourceList
+	Error              error
+	Lock               sync.Mutex
+	InterfaceUsedCount int
+}
+
+func (*fakeServerResources) ServerResourcesForGroupVersion(groupVersion string) (*metav1.APIResourceList, error) {
+	return nil, nil
+}
+
+// Deprecated: use ServerGroupsAndResources instead.
+func (*fakeServerResources) ServerResources() ([]*metav1.APIResourceList, error) {
+	return nil, nil
+}
+
+func (*fakeServerResources) ServerGroupsAndResources() ([]*metav1.APIGroup, []*metav1.APIResourceList, error) {
+	return nil, nil, nil
+}
+
+func (f *fakeServerResources) ServerPreferredResources() ([]*metav1.APIResourceList, error) {
+	f.Lock.Lock()
+	defer f.Lock.Unlock()
+	f.InterfaceUsedCount++
+	return f.PreferredResources, f.Error
+}
+
+func (*fakeServerResources) ServerPreferredNamespacedResources() ([]*metav1.APIResourceList, error) {
+	return nil, nil
 }

@@ -16,7 +16,7 @@ limitations under the License.
 
 // This code is directly lifted from the Kubernetes codebase in order to avoid relying on the k8s.io/kubernetes package.
 // For reference:
-// https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/validation/validation_test.go#L15475-L15518
+// https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/validation/validation_test.go#L15475-L15518
 
 package lifted
 

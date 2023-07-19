@@ -16,7 +16,12 @@ limitations under the License.
 
 // This code is directly lifted from the Kubernetes codebase in order to avoid relying on the k8s.io/kubernetes package.
 // For reference:
-// https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util_test.go#L205-L695
+// https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/api/v1/pod/util.go#L66-L70
+// https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/api/v1/pod/util_test.go#L202-L366
+// https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/api/v1/pod/util_test.go#L368-L523
+// https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/api/v1/pod/util_test.go#L525-L563
+// https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/api/v1/pod/util_test.go#L565-L665
+// https://github.com/kubernetes/kubernetes/blob/release-1.26/staging/src/k8s.io/component-base/featuregate/testing/feature_gate.go#L26-L44
 
 package lifted
 
@@ -47,7 +52,8 @@ func init() {
 	runtime.Must(utilfeature.DefaultMutableFeatureGate.Add(testKubernetesFeatureGates))
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util.go#L68-L76
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/api/v1/pod/util.go#L66-L70
+// +lifted:changed
 
 // AllFeatureEnabledContainers returns a ContainerType mask which includes all container
 // types except for the ones guarded by feature gate.
@@ -59,7 +65,7 @@ func AllFeatureEnabledContainers() ContainerType {
 	return containerType
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/staging/src/k8s.io/component-base/featuregate/testing/feature_gate.go#L26-L44
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/staging/src/k8s.io/component-base/featuregate/testing/feature_gate.go#L26-L44
 
 // SetFeatureGateDuringTest sets the specified gate to the specified value, and returns a function that restores the original value.
 // Failures to set or restore cause the test to fail.
@@ -81,7 +87,7 @@ func SetFeatureGateDuringTest(tb testing.TB, gate featuregate.FeatureGate, f fea
 	}
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util_test.go#L205-L392
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/api/v1/pod/util_test.go#L202-L366
 // +lifted:changed
 
 func TestVisitContainers(t *testing.T) {
@@ -273,7 +279,7 @@ func TestVisitContainers(t *testing.T) {
 	}
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util_test.go#L394-L551
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/api/v1/pod/util_test.go#L368-L523
 // +lifted:changed
 
 func TestPodSecrets(t *testing.T) {
@@ -435,7 +441,7 @@ func TestPodSecrets(t *testing.T) {
 	})
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util_test.go#L553-L591
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/api/v1/pod/util_test.go#L525-L563
 
 // collectResourcePaths traverses the object, computing all the struct paths that lead to fields with resourcename in the name.
 // disable `deprecation` check for lifted code.
@@ -480,7 +486,7 @@ func collectResourcePaths(t *testing.T, resourcename string, path *field.Path, n
 	return resourcePaths
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util_test.go#L593-L695
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/api/v1/pod/util_test.go#L565-L665
 // +lifted:changed
 
 func TestPodConfigmaps(t *testing.T) {

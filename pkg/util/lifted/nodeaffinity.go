@@ -16,7 +16,7 @@ limitations under the License.
 
 // This code is directly lifted from the Kubernetes codebase in order to avoid relying on the k8s.io/kubernetes package.
 // For reference:
-// https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L365-L397
+// https://github.com/kubernetes/kubernetes/blob/release-1.26/staging/src/k8s.io/component-helpers/scheduling/corev1/nodeaffinity/nodeaffinity.go#L203-L242
 
 package lifted
 
@@ -28,14 +28,16 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 )
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L365-L397
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/staging/src/k8s.io/component-helpers/scheduling/corev1/nodeaffinity/nodeaffinity.go#L203-L242
+// +lifted:changed
 
 // NodeSelectorRequirementsAsSelector converts the []NodeSelectorRequirement core type into a struct that implements
 // labels.Selector.
-func NodeSelectorRequirementsAsSelector(nsm []corev1.NodeSelectorRequirement) (labels.Selector, error) {
+func NodeSelectorRequirementsAsSelector(nsm []corev1.NodeSelectorRequirement) (labels.Selector, []error) {
 	if len(nsm) == 0 {
 		return labels.Nothing(), nil
 	}
+	var errs []error
 	selector := labels.NewSelector()
 	for _, expr := range nsm {
 		var op selection.Operator
@@ -53,13 +55,17 @@ func NodeSelectorRequirementsAsSelector(nsm []corev1.NodeSelectorRequirement) (l
 		case corev1.NodeSelectorOpLt:
 			op = selection.LessThan
 		default:
-			return nil, fmt.Errorf("%q is not a valid node selector operator", expr.Operator)
+			errs = append(errs, fmt.Errorf("%q is not a valid node selector operator", expr.Operator))
+			continue
 		}
 		r, err := labels.NewRequirement(expr.Key, op, expr.Values)
 		if err != nil {
-			return nil, err
+			errs = append(errs, err)
 		}
 		selector = selector.Add(*r)
+	}
+	if len(errs) != 0 {
+		return nil, errs
 	}
 	return selector, nil
 }

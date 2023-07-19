@@ -16,7 +16,7 @@ limitations under the License.
 
 // This code is directly lifted from the Kubernetes codebase.
 // For reference:
-// https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo_test.go#L30-L184
+// https://github.com/kubernetes/apiserver/blob/release-1.26/pkg/endpoints/request/requestinfo_test.go#L30-L184
 
 package lifted
 
@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// +lifted:source=https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo_test.go#L30-L148
+// +lifted:source=https://github.com/kubernetes/apiserver/blob/release-1.26/pkg/endpoints/request/requestinfo_test.go#L30-L148
 // +lifted:changed
 
 func TestGetAPIRequestInfo(t *testing.T) {
@@ -143,7 +143,7 @@ func TestGetAPIRequestInfo(t *testing.T) {
 	}
 }
 
-// +lifted:source=https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo_test.go#L150-L184
+// +lifted:source=https://github.com/kubernetes/apiserver/blob/release-1.26/pkg/endpoints/request/requestinfo_test.go#L150-L184
 // +lifted:changed
 
 func TestGetNonAPIRequestInfo(t *testing.T) {
