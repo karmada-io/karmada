@@ -1,7 +1,6 @@
 package restmapper
 
 import (
-	"sync"
 	"testing"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -128,26 +127,36 @@ func BenchmarkGetGroupVersionResource(b *testing.B) {
 		}
 	}
 }
+func BenchmarkGetGroupVersionResourceWithoutCache(b *testing.B) {
+	groupResources, err := restmapper.GetAPIGroupResources(discoveryClient)
+	if err != nil {
+		b.Fatalf("Failed to load resources: %v", err)
+	}
+
+	mapper := restmapper.NewDiscoveryRESTMapper(groupResources)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, tc := range getGVRTestCases {
+			_, err := GetGroupVersionResource(mapper, tc.inputGVK)
+			if (err != nil && !tc.expectErr) || (err == nil && tc.expectErr) {
+				b.Errorf("GetGroupVersionResource For %#v Error: %v, wantErr: %v", tc.inputGVK, err, tc.expectErr)
+			}
+		}
+	}
+}
 
 func BenchmarkGetGroupVersionResourceWithCache(b *testing.B) {
 	cachedMapper := &cachedRESTMapper{}
 
-	var option = apiutil.WithCustomMapper(func() (meta.RESTMapper, error) {
-		groupResources, err := restmapper.GetAPIGroupResources(discoveryClient)
-		if err != nil {
-			return nil, err
-		}
-		// clear the cache map when reloading DiscoveryRESTMapper
-		cachedMapper.gvkToGVR = sync.Map{}
-		return restmapper.NewDiscoveryRESTMapper(groupResources), nil
-	})
-
-	mapper, err := apiutil.NewDynamicRESTMapper(&rest.Config{}, option)
+	groupResources, err := restmapper.GetAPIGroupResources(discoveryClient)
 	if err != nil {
-		b.Error(err)
+		b.Fatalf("Failed to load resources: %v", err)
 	}
 
-	cachedMapper.restMapper = mapper
+	newMapper := restmapper.NewDiscoveryRESTMapper(groupResources)
+	cachedMapper.restMapper = newMapper
+	cachedMapper.discoveryClient = discoveryClient
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -163,22 +172,14 @@ func BenchmarkGetGroupVersionResourceWithCache(b *testing.B) {
 func TestGetGroupVersionResourceWithCache(t *testing.T) {
 	cachedMapper := &cachedRESTMapper{}
 
-	var option = apiutil.WithCustomMapper(func() (meta.RESTMapper, error) {
-		groupResources, err := restmapper.GetAPIGroupResources(discoveryClient)
-		if err != nil {
-			return nil, err
-		}
-		// clear the cache map when reloading DiscoveryRESTMapper
-		cachedMapper.gvkToGVR = sync.Map{}
-		return restmapper.NewDiscoveryRESTMapper(groupResources), nil
-	})
-
-	mapper, err := apiutil.NewDynamicRESTMapper(&rest.Config{}, option)
+	groupResources, err := restmapper.GetAPIGroupResources(discoveryClient)
 	if err != nil {
-		t.Error(err)
+		t.Fatalf("Failed to load resources: %v", err)
 	}
 
-	cachedMapper.restMapper = mapper
+	newMapper := restmapper.NewDiscoveryRESTMapper(groupResources)
+	cachedMapper.restMapper = newMapper
+	cachedMapper.discoveryClient = discoveryClient
 
 	for _, tc := range getGVRTestCases {
 		t.Run(tc.name, func(t *testing.T) {
