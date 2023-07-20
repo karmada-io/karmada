@@ -1,6 +1,160 @@
-{{- if and (eq .Values.installMode "host") (eq .Values.certs.mode "auto") }}
 {{- $name := include "karmada.name" . -}}
 {{- $namespace := include "karmada.namespace" . -}}
+{{- if eq .Values.installMode "host" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-crds-kustomization
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "2"
+data:
+  {{ range $path, $bytes := .Files.Glob (printf "_crds/kustomization.yaml")}}
+  {{ $name := base $path }}
+  {{- (printf "%s: " $name) | nindent 6 }} |-
+    {{- $.Files.Get $path | nindent 8 }}
+  {{ end }}
+    
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-crds-autoscaling-bases
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "2"
+data:
+  {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/autoscaling/**")}}
+  {{ $name := base $path }}
+  {{- (printf "%s: " $name) | nindent 6 }} |-
+    {{- $.Files.Get $path | nindent 8 }}
+  {{ end }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-crds-config-bases
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "2"
+data:
+  {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/config/**")}}
+  {{ $name := base $path }}
+  {{- (printf "%s: " $name) | nindent 6 }} |-
+    {{- $.Files.Get $path | nindent 8 }}
+  {{ end }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-crds-multicluster-bases
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "2"
+data:
+  {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/multicluster/**")}}
+  {{ $name := base $path }}
+  {{- (printf "%s: " $name) | nindent 6 }} |-
+    {{- $.Files.Get $path | nindent 8 }}
+  {{ end }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-crds-networking-bases
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "2"
+data:
+  {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/networking/**")}}
+  {{ $name := base $path }}
+  {{- (printf "%s: " $name) | nindent 6 }} |-
+    {{- $.Files.Get $path | nindent 8 }}
+  {{ end }}
+    
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-crds-policy-bases
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "2"
+data:
+  {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/policy/**")}}
+  {{ $name := base $path }}
+  {{- (printf "%s: " $name) | nindent 6 }} |-
+    {{- $.Files.Get $path | nindent 8 }}
+  {{ end }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-crds-work-bases
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "2"
+data:
+  {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/work/**")}}
+  {{ $name := base $path }}
+  {{- (printf "%s: " $name) | nindent 6 }} |-
+    {{- $.Files.Get $path | nindent 8 }}
+  {{ end }}
+    
+{{- if eq .Values.certs.mode "custom" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-static-resources
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "2"
+data:
+  {{- print "webhook-configuration.yaml: " | nindent 6 }} |-
+    {{- include "karmada.webhook.configuration" . | nindent 8 }}
+  {{- print "system-namespace.yaml: " | nindent 6 }} |-
+    {{- include "karmada.systemNamespace" . | nindent 8 }}
+  {{- print "karmada-aggregated-apiserver-apiservice.yaml: " | nindent 6 }} |-
+    {{- include "karmada.apiservice" . | nindent 8 }}
+  {{- print "cluster-proxy-admin-rbac.yaml: " | nindent 6 }} |-
+    {{- include "karmada.proxyRbac" . | nindent 8 }}
+  {{- print "bootstrap-token-configuration.yaml: " | nindent 6 }} |-
+    {{- include "karmada.bootstrapToken.configuration" . | nindent 8 }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-crds-patches
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "2"
+data:
+  {{- print "webhook_in_clusterresourcebindings.yaml: " | nindent 6 }} |-
+    {{- include "karmada.crd.patch.webhook.clusterresourcebinding" . | nindent 8 }}
+  {{- print "webhook_in_resourcebindings.yaml: " | nindent 6 }} |-
+    {{- include "karmada.crd.patch.webhook.resourcebinding" . | nindent 8 }}
+ ---   
+{{- end}}
+
+{{- if eq .Values.certs.mode "auto" }}
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -88,29 +242,6 @@ data:
         {{- include "karmada.proxyRbac" . | nindent 8 }}
       {{- print "bootstrap-token-configuration.yaml: " | nindent 6 }} |-
         {{- include "karmada.bootstrapToken.configuration" . | nindent 8 }}
-
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ $name }}-crds-config
-  namespace: {{ $namespace }}
-  annotations:
-    "helm.sh/hook": pre-install
-    "helm.sh/hook-weight": "2"
-data:
-  crds-kustomization-configmaps.yaml: |-
-    apiVersion: v1
-    kind: ConfigMap
-    metadata:
-      name: {{ $name }}-crds-kustomization
-      namespace: {{ $namespace }}
-    data:
-      {{ range $path, $bytes := .Files.Glob (printf "_crds/kustomization.yaml")}}
-      {{ $name := base $path }}
-      {{- (printf "%s: " $name) | nindent 6 }} |-
-        {{- $.Files.Get $path | nindent 8 }}
-      {{ end }}
   crds-patches-configmaps.yaml: |-
     apiVersion: v1
     kind: ConfigMap
@@ -122,144 +253,6 @@ data:
         {{- include "karmada.crd.patch.webhook.clusterresourcebinding" . | nindent 8 }}
       {{- print "webhook_in_resourcebindings.yaml: " | nindent 6 }} |-
         {{- include "karmada.crd.patch.webhook.resourcebinding" . | nindent 8 }}
-
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ $name }}-crds-autoscaling-bases-config
-  namespace: {{ $namespace }}
-  annotations:
-    "helm.sh/hook": pre-install
-    "helm.sh/hook-weight": "2"
-data:
-  crds-bases-autoscaling-configmaps.yaml: |-
-    apiVersion: v1
-    kind: ConfigMap
-    metadata:
-      name: {{ $name }}-crds-autoscaling-bases
-      namespace: {{ $namespace }}
-    data:
-      {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/autoscaling/**")}}
-      {{ $name := base $path }}
-      {{- (printf "%s: " $name) | nindent 6 }} |-
-        {{- $.Files.Get $path | nindent 8 }}
-      {{ end }}
-
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ $name }}-crds-config-bases-config
-  namespace: {{ $namespace }}
-  annotations:
-    "helm.sh/hook": pre-install
-    "helm.sh/hook-weight": "2"
-data:
-  crds-bases-config-configmaps.yaml: |-
-    apiVersion: v1
-    kind: ConfigMap
-    metadata:
-      name: {{ $name }}-crds-config-bases
-      namespace: {{ $namespace }}
-    data:
-      {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/config/**")}}
-      {{ $name := base $path }}
-      {{- (printf "%s: " $name) | nindent 6 }} |-
-        {{- $.Files.Get $path | nindent 8 }}
-      {{ end }}
-
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ $name }}-crds-multicluster-bases-config
-  namespace: {{ $namespace }}
-  annotations:
-    "helm.sh/hook": pre-install
-    "helm.sh/hook-weight": "2"
-data:
-  crds-bases-multicluster-configmaps.yaml: |-
-    apiVersion: v1
-    kind: ConfigMap
-    metadata:
-      name: {{ $name }}-crds-multicluster-bases
-      namespace: {{ $namespace }}
-    data:
-      {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/multicluster/**")}}
-      {{ $name := base $path }}
-      {{- (printf "%s: " $name) | nindent 6 }} |-
-        {{- $.Files.Get $path | nindent 8 }}
-      {{ end }}
-
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ $name }}-crds-networking-bases-config
-  namespace: {{ $namespace }}
-  annotations:
-    "helm.sh/hook": pre-install
-    "helm.sh/hook-weight": "2"
-data:
-  crds-bases-networking-configmaps.yaml: |-
-    apiVersion: v1
-    kind: ConfigMap
-    metadata:
-      name: {{ $name }}-crds-networking-bases
-      namespace: {{ $namespace }}
-    data:
-      {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/networking/**")}}
-      {{ $name := base $path }}
-      {{- (printf "%s: " $name) | nindent 6 }} |-
-        {{- $.Files.Get $path | nindent 8 }}
-      {{ end }}
-
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ $name }}-crds-policy-bases-config
-  namespace: {{ $namespace }}
-  annotations:
-    "helm.sh/hook": pre-install
-    "helm.sh/hook-weight": "2"
-data:
-  crds-bases-policy-configmaps.yaml: |-
-    apiVersion: v1
-    kind: ConfigMap
-    metadata:
-      name: {{ $name }}-crds-policy-bases
-      namespace: {{ $namespace }}
-    data:
-      {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/policy/**")}}
-      {{ $name := base $path }}
-      {{- (printf "%s: " $name) | nindent 6 }} |-
-        {{- $.Files.Get $path | nindent 8 }}
-      {{ end }}
-
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ $name }}-crds-work-bases-config
-  namespace: {{ $namespace }}
-  annotations:
-    "helm.sh/hook": pre-install
-    "helm.sh/hook-weight": "2"
-data:
-  crds-bases-work-configmaps.yaml: |-
-    apiVersion: v1
-    kind: ConfigMap
-    metadata:
-      name: {{ $name }}-crds-work-bases
-      namespace: {{ $namespace }}
-    data:
-      {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/work/**")}}
-      {{ $name := base $path }}
-      {{- (printf "%s: " $name) | nindent 6 }} |-
-        {{- $.Files.Get $path | nindent 8 }}
-      {{ end }}
 
 ---
 apiVersion: batch/v1
@@ -308,13 +301,6 @@ spec:
           mkdir -p /opt/configs
           mkdir -p /opt/certs
           cp -r -L /opt/mount/* /opt/configs/
-          cp -r -L /opt/crds/* /opt/configs/
-          cp -r -L /opt/crds-autoscaling-base/* /opt/configs/
-          cp -r -L /opt/crds-config-base/* /opt/configs/
-          cp -r -L /opt/crds-multicluster-base/* /opt/configs/
-          cp -r -L /opt/crds-networking-base/* /opt/configs/
-          cp -r -L /opt/crds-policy-base/* /opt/configs/
-          cp -r -L /opt/crds-work-base/* /opt/configs/
           openssl req -x509 -sha256 -new -nodes -days 365 -newkey rsa:2048 -keyout "/opt/certs/server-ca.key" -out "/opt/certs/server-ca.crt" -subj "/C=xx/ST=x/L=x/O=x/OU=x/CN=ca/emailAddress=x/"
           openssl req -x509 -sha256 -new -nodes -days 365 -newkey rsa:2048 -keyout "/opt/certs/front-proxy-ca.key" -out "/opt/certs/front-proxy-ca.crt" -subj "/C=xx/ST=x/L=x/O=x/OU=x/CN=ca/emailAddress=x/"
           echo '{"signing":{"default":{"expiry":{{ printf `"%s"` .Values.certs.auto.expiry }},"usages":["signing","key encipherment","client auth","server auth"]}}}' > "/opt/certs/server-ca-config.json"
@@ -346,20 +332,6 @@ spec:
         volumeMounts:
         - name: mount
           mountPath: /opt/mount
-        - name: crds
-          mountPath: /opt/crds
-        - name: crds-autoscaling-base
-          mountPath: /opt/crds-autoscaling-base
-        - name: crds-config-base
-          mountPath: /opt/crds-config-base
-        - name: crds-multicluster-base
-          mountPath: /opt/crds-multicluster-base
-        - name: crds-networking-base
-          mountPath: /opt/crds-networking-base
-        - name: crds-policy-base
-          mountPath: /opt/crds-policy-base
-        - name: crds-work-base
-          mountPath: /opt/crds-work-base
         - name: configs
           mountPath: /opt/configs
       containers:
@@ -384,27 +356,6 @@ spec:
       - name: mount
         configMap:
           name: {{ $name }}-config
-      - name: crds
-        configMap:
-          name: {{ $name }}-crds-config
-      - name: crds-autoscaling-base
-        configMap:
-          name: {{ $name }}-crds-autoscaling-bases-config
-      - name: crds-config-base
-        configMap:
-          name: {{ $name }}-crds-config-bases-config
-      - name: crds-multicluster-base
-        configMap:
-          name: {{ $name }}-crds-multicluster-bases-config
-      - name: crds-networking-base
-        configMap:
-          name: {{ $name }}-crds-networking-bases-config
-      - name: crds-policy-base
-        configMap:
-          name: {{ $name }}-crds-policy-bases-config
-      - name: crds-work-base
-        configMap:
-          name: {{ $name }}-crds-work-bases-config
       - name: configs
         emptyDir: {}
 
@@ -448,4 +399,5 @@ subjects:
     name: {{ $name }}-pre-job
     namespace: {{ $namespace }}
 ---
+{{- end }}
 {{- end }}
