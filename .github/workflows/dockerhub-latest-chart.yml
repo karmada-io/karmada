@@ -11,6 +11,8 @@ jobs:
     # 2. running on the forked repository would use unnecessary GitHub Action time.
     if: ${{ github.repository == 'karmada-io/karmada' && github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-22.04
+    permissions:
+      id-token: write # To be able to get OIDC ID token to sign images.
     steps:
       - name: checkout code
         uses: actions/checkout@v3
@@ -24,6 +26,10 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USER_NAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.0.3
+        with:
+          cosign-release: 'v1.13.1'
       - name: package chart
         env:
           VERSION: 0.0.0
@@ -31,4 +37,6 @@ jobs:
       - name: push chart
         env:
           VERSION: 0.0.0
+          SIGN_IMAGE: 1
+          COSIGN_EXPERIMENTAL: 1
         run: make push-chart

@@ -760,3 +760,13 @@ EOF
   echo "Timeout for nodes' taint to disappear"
   return 1
 }
+
+
+# sign image with cosign.
+function util::signImage(){
+  if [ $SIGN_IMAGE = "1" ];then
+    local -r target=$1
+    echo "Signing image: "${target}
+    cosign sign --yes ${target}
+  fi
+}

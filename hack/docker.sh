@@ -69,7 +69,7 @@ function build_local_image() {
 
   if [[ "$output_type" == "registry" ]]; then
     docker push "${image_name}"
-    signImage ${image_name}
+    util::signImage ${image_name}
   fi
 }
 
@@ -91,14 +91,6 @@ function build_cross_image() {
           "${REPO_ROOT}/_output/bin"
   signImage ${image_name}
   set +x
-}
-
-function signImage(){
-  if [ $SIGN_IMAGE = "1" ];then
-    local -r target=$1
-    echo "Signing image: "${target}
-    cosign sign --yes ${target}
-  fi
 }
 
 function isCross() {
