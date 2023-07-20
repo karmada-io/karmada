@@ -170,6 +170,17 @@ func TestResourceSelectorPriority(t *testing.T) {
 			want: PriorityMatchName,
 		},
 		{
+			name: "wildcard namespace matched",
+			args: args{
+				rs: policyv1alpha1.ResourceSelector{
+					APIVersion: "*",
+					Kind:       "*",
+					Namespace:  "*",
+				},
+			},
+			want: PriorityMatchAll,
+		},
+		{
 			name: "[case 1] name not matched",
 			args: args{
 				rs: policyv1alpha1.ResourceSelector{

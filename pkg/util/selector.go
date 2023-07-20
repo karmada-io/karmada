@@ -33,9 +33,9 @@ func ResourceMatches(resource *unstructured.Unstructured, rs policyv1alpha1.Reso
 
 // ResourceSelectorPriority tells the priority between the specific resource and the selector.
 func ResourceSelectorPriority(resource *unstructured.Unstructured, rs policyv1alpha1.ResourceSelector) ImplicitPriority {
-	if resource.GetAPIVersion() != rs.APIVersion ||
-		resource.GetKind() != rs.Kind ||
-		(len(rs.Namespace) > 0 && resource.GetNamespace() != rs.Namespace) {
+	if (resource.GetAPIVersion() != rs.APIVersion && rs.APIVersion != "*") ||
+		(resource.GetKind() != rs.Kind && rs.Kind != "*") ||
+		(len(rs.Namespace) > 0 && resource.GetNamespace() != rs.Namespace && rs.Namespace != "*") {
 		return PriorityMisMatch
 	}
 
