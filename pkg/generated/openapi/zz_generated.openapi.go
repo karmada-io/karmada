@@ -4323,6 +4323,13 @@ func schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref common.ReferenceCallbac
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior"),
 						},
 					},
+					"conflictResolution": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConflictResolution declares how potential conflict should be handled when a resource that is being propagated already exists in the target cluster.\n\nIt defaults to \"Abort\" which means stop propagating to avoid unexpected overwrites. The \"Overwrite\" might be useful when migrating legacy cluster resources to Karmada, in which case conflict is predictable and can be instructed to Karmada take over the resource by overwriting.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"resourceSelectors"},
 			},
@@ -6228,6 +6235,13 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 						SchemaProps: spec.SchemaProps{
 							Description: "Failover indicates how Karmada migrates applications in case of failures. It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).",
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior"),
+						},
+					},
+					"conflictResolution": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConflictResolution declares how potential conflict should be handled when a resource that is being propagated already exists in the target cluster.\n\nIt defaults to \"Abort\" which means stop propagating to avoid unexpected overwrites. The \"Overwrite\" might be useful when migrating legacy cluster resources to Karmada, in which case conflict is predictable and can be instructed to Karmada take over the resource by overwriting.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},

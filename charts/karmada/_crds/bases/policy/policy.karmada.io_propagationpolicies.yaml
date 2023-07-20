@@ -45,6 +45,19 @@ spec:
                   automatically. e.g. a ConfigMap referred by a Deployment. default
                   false. Deprecated: in favor of PropagateDeps.'
                 type: boolean
+              conflictResolution:
+                default: Abort
+                description: "ConflictResolution declares how potential conflict should
+                  be handled when a resource that is being propagated already exists
+                  in the target cluster. \n It defaults to \"Abort\" which means stop
+                  propagating to avoid unexpected overwrites. The \"Overwrite\" might
+                  be useful when migrating legacy cluster resources to Karmada, in
+                  which case conflict is predictable and can be instructed to Karmada
+                  take over the resource by overwriting."
+                enum:
+                - Abort
+                - Overwrite
+                type: string
               dependentOverrides:
                 description: "DependentOverrides represents the list of overrides(OverridePolicy)
                   which must present before the current PropagationPolicy takes effect.
