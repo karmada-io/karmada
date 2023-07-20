@@ -56,6 +56,8 @@ const (
 	roleBindingNamePrefix         = "rolebinding-"
 	clusterRoleBindingNamePrefix  = "clusterrolebinding-"
 	podDisruptionBudgetNamePrefix = "poddisruptionbudget-"
+	federatedHPANamePrefix        = "fhpa-"
+	cronFedratedHPANamePrefix     = "cronfhpa-"
 
 	updateDeploymentReplicas  = 2
 	updateStatefulSetReplicas = 2
