@@ -536,6 +536,13 @@ func TestValidatePropagationSpec(t *testing.T) {
 				}},
 			expectedErr: "the cluster spread constraint must be enabled in one of the constraints in case of SpreadByField is enabled",
 		},
+		{
+			name: "should not use field of association",
+			spec: policyv1alpha1.PropagationSpec{
+				Association: true,
+			},
+			expectedErr: "spec.association has been deprecated, use PropagateDeps instead.",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -25,6 +25,9 @@ func ValidatePropagationSpec(spec policyv1alpha1.PropagationSpec) field.ErrorLis
 	if spec.Failover != nil && spec.Failover.Application != nil && !spec.PropagateDeps {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("propagateDeps"), spec.PropagateDeps, "application failover is set, propagateDeps must be true"))
 	}
+	if spec.Association {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("association"), spec.PropagateDeps, "spec.association has been deprecated, use PropagateDeps instead."))
+	}
 	allErrs = append(allErrs, ValidateFailover(spec.Failover, field.NewPath("spec").Child("failover"))...)
 	return allErrs
 }
