@@ -26,6 +26,22 @@ func ValidatePropagationSpec(spec policyv1alpha1.PropagationSpec) field.ErrorLis
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("propagateDeps"), spec.PropagateDeps, "application failover is set, propagateDeps must be true"))
 	}
 	allErrs = append(allErrs, ValidateFailover(spec.Failover, field.NewPath("spec").Child("failover"))...)
+	allErrs = append(allErrs, validateResourceSelectorsIfPreemptionEnabled(spec, field.NewPath("spec").Child("resourceSelectors"))...)
+	return allErrs
+}
+
+// validateResourceSelectorsIfPreemptionEnabled validates ResourceSelectors if Preemption is Always.
+func validateResourceSelectorsIfPreemptionEnabled(spec policyv1alpha1.PropagationSpec, fldPath *field.Path) field.ErrorList {
+	if spec.Preemption != policyv1alpha1.PreemptAlways {
+		return nil
+	}
+
+	var allErrs field.ErrorList
+	for index, resourceSelector := range spec.ResourceSelectors {
+		if len(resourceSelector.Name) == 0 {
+			allErrs = append(allErrs, field.Invalid(fldPath.Index(index).Child("name"), resourceSelector.Name, "name can not be empty if preemption is Always, the empty name may cause unexpected resources preemption"))
+		}
+	}
 	return allErrs
 }
 
