@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	pathvalidation "k8s.io/apimachinery/pkg/api/validation/path"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -12,9 +13,7 @@ import (
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 )
 
-// This code is directly lifted from the Kubernetes codebase.
-// For reference:
-// https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L32-37
 
 const (
 	// MaxPeriodSeconds is the largest allowed scaling policy period (in seconds)
@@ -23,14 +22,15 @@ const (
 	MaxStabilizationWindowSeconds int32 = 3600
 )
 
-// ValidateFederatedHPAName can be used to check whether the given autoscaler name is valid.
-// Prefix indicates this name will be used as part of generation, in which case trailing dashes are allowed.
-var ValidateFederatedHPAName = apivalidation.NameIsDNSSubdomain
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L103-L119
+// +lifted:changed
 
+// ValidateFederatedHPA validates a FederatedHPA and returns an
+// ErrorList with any errors.
 func ValidateFederatedHPA(fhpa *autoscalingv1alpha1.FederatedHPA) field.ErrorList {
 	errs := field.ErrorList{}
 
-	errs = append(errs, ValidateObjectMeta(&fhpa.ObjectMeta, true, ValidateFederatedHPAName, field.NewPath("metadata"))...)
+	errs = append(errs, apimachineryvalidation.ValidateObjectMeta(&fhpa.ObjectMeta, true, apivalidation.NameIsDNSSubdomain, field.NewPath("metadata"))...)
 
 	// MinReplicasLowerBound represents a minimum value for minReplicas
 	// 0 when HPA scale-to-zero feature is enabled
@@ -41,6 +41,9 @@ func ValidateFederatedHPA(fhpa *autoscalingv1alpha1.FederatedHPA) field.ErrorLis
 	errs = append(errs, validateFederatedHPAStatus(&fhpa.Status)...)
 	return errs
 }
+
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L55-L78
+// +lifted:changed
 
 func validateFederatedHPASpec(fhpaSpec *autoscalingv1alpha1.FederatedHPASpec, fldPath *field.Path, minReplicasLowerBound int32) field.ErrorList {
 	allErrs := field.ErrorList{}
@@ -67,6 +70,8 @@ func validateFederatedHPASpec(fhpaSpec *autoscalingv1alpha1.FederatedHPASpec, fl
 	return allErrs
 }
 
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L80-L101
+
 // ValidateCrossVersionObjectReference validates a CrossVersionObjectReference and returns an
 // ErrorList with any errors.
 func ValidateCrossVersionObjectReference(ref autoscalingv2.CrossVersionObjectReference, fldPath *field.Path) field.ErrorList {
@@ -90,6 +95,9 @@ func ValidateCrossVersionObjectReference(ref autoscalingv2.CrossVersionObjectRef
 	return allErrs
 }
 
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L140-L148
+// +lifted:changed
+
 // validateFederatedHPAStatus validates an update to status on a FederatedHPA and
 // returns an ErrorList with any errors.
 func validateFederatedHPAStatus(fhpaStatus *autoscalingv2.HorizontalPodAutoscalerStatus) field.ErrorList {
@@ -98,6 +106,9 @@ func validateFederatedHPAStatus(fhpaStatus *autoscalingv2.HorizontalPodAutoscale
 	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(fhpaStatus.DesiredReplicas), field.NewPath("status", "desiredReplicas"))...)
 	return allErrs
 }
+
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L150-L175
+// +lifted:changed
 
 func validateMetrics(metrics []autoscalingv2.MetricSpec, fldPath *field.Path, minReplicas *int32) field.ErrorList {
 	allErrs := field.ErrorList{}
@@ -112,6 +123,8 @@ func validateMetrics(metrics []autoscalingv2.MetricSpec, fldPath *field.Path, mi
 	return allErrs
 }
 
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L177-L188
+
 func validateBehavior(behavior *autoscalingv2.HorizontalPodAutoscalerBehavior, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	if behavior != nil {
@@ -125,8 +138,12 @@ func validateBehavior(behavior *autoscalingv2.HorizontalPodAutoscalerBehavior, f
 	return allErrs
 }
 
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L190-L191
+
 var validSelectPolicyTypes = sets.NewString(string(autoscalingv2.MaxChangePolicySelect), string(autoscalingv2.MinChangePolicySelect), string(autoscalingv2.DisabledPolicySelect))
 var validSelectPolicyTypesList = validSelectPolicyTypes.List()
+
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L193-L218
 
 func validateScalingRules(rules *autoscalingv2.HPAScalingRules, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
@@ -155,8 +172,12 @@ func validateScalingRules(rules *autoscalingv2.HPAScalingRules, fldPath *field.P
 	return allErrs
 }
 
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L220-L221
+
 var validPolicyTypes = sets.NewString(string(autoscalingv2.PodsScalingPolicy), string(autoscalingv2.PercentScalingPolicy))
 var validPolicyTypesList = validPolicyTypes.List()
+
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L223-L239
 
 func validateScalingPolicy(policy autoscalingv2.HPAScalingPolicy, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
@@ -176,11 +197,17 @@ func validateScalingPolicy(policy autoscalingv2.HPAScalingPolicy, fldPath *field
 	return allErrs
 }
 
-// TODO: Karmada only supports cpu/memory resource metrics
-var validMetricSourceTypes = sets.NewString(
-	string(autoscalingv2.ResourceMetricSourceType))
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L241-L245
+// +lifted:changed
 
+// TODO: Karmada do not support ExternalMetricSourceType currently
+var validMetricSourceTypes = sets.NewString(
+	string(autoscalingv2.ObjectMetricSourceType), string(autoscalingv2.PodsMetricSourceType),
+	string(autoscalingv2.ResourceMetricSourceType), string(autoscalingv2.ContainerResourceMetricSourceType))
 var validMetricSourceTypesList = validMetricSourceTypes.List()
+
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L247-L339
+// +lifted:changed
 
 func validateMetricSpec(spec autoscalingv2.MetricSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
@@ -194,6 +221,20 @@ func validateMetricSpec(spec autoscalingv2.MetricSpec, fldPath *field.Path) fiel
 	}
 
 	typesPresent := sets.NewString()
+	if spec.Object != nil {
+		typesPresent.Insert("object")
+		if typesPresent.Len() == 1 {
+			allErrs = append(allErrs, validateObjectSource(spec.Object, fldPath.Child("object"))...)
+		}
+	}
+
+	if spec.Pods != nil {
+		typesPresent.Insert("pods")
+		if typesPresent.Len() == 1 {
+			allErrs = append(allErrs, validatePodsSource(spec.Pods, fldPath.Child("pods"))...)
+		}
+	}
+
 	if spec.Resource != nil {
 		typesPresent.Insert("resource")
 		if typesPresent.Len() == 1 {
@@ -201,15 +242,37 @@ func validateMetricSpec(spec autoscalingv2.MetricSpec, fldPath *field.Path) fiel
 		}
 	}
 
+	if spec.ContainerResource != nil {
+		typesPresent.Insert("containerResource")
+		if typesPresent.Len() == 1 {
+			allErrs = append(allErrs, validateContainerResourceSource(spec.ContainerResource, fldPath.Child("containerResource"))...)
+		}
+	}
+
 	var expectedField string
 	switch spec.Type {
 
-	// TODO: Karmada only support resource metrics temporarily
+	case autoscalingv2.ObjectMetricSourceType:
+		if spec.Object == nil {
+			allErrs = append(allErrs, field.Required(fldPath.Child("object"), "must populate information for the given metric source"))
+		}
+		expectedField = "object"
+	case autoscalingv2.PodsMetricSourceType:
+		if spec.Pods == nil {
+			allErrs = append(allErrs, field.Required(fldPath.Child("pods"), "must populate information for the given metric source"))
+		}
+		expectedField = "pods"
 	case autoscalingv2.ResourceMetricSourceType:
 		if spec.Resource == nil {
 			allErrs = append(allErrs, field.Required(fldPath.Child("resource"), "must populate information for the given metric source"))
 		}
 		expectedField = "resource"
+	case autoscalingv2.ContainerResourceMetricSourceType:
+		if spec.ContainerResource == nil {
+			// In K8s, there is a feature gate:HPAContainerMetrics, but we don't know about member clusters, so we enable it by default.
+			allErrs = append(allErrs, field.Required(fldPath.Child("containerResource"), "must populate information for the given metric source"))
+		}
+		expectedField = "containerResource"
 	default:
 		allErrs = append(allErrs, field.NotSupported(fldPath.Child("type"), spec.Type, validMetricSourceTypesList))
 	}
@@ -223,6 +286,69 @@ func validateMetricSpec(spec autoscalingv2.MetricSpec, fldPath *field.Path) fiel
 
 	return allErrs
 }
+
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L340-L352
+
+func validateObjectSource(src *autoscalingv2.ObjectMetricSource, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	allErrs = append(allErrs, ValidateCrossVersionObjectReference(src.DescribedObject, fldPath.Child("describedObject"))...)
+	allErrs = append(allErrs, validateMetricIdentifier(src.Metric, fldPath.Child("metric"))...)
+	allErrs = append(allErrs, validateMetricTarget(src.Target, fldPath.Child("target"))...)
+
+	if src.Target.Value == nil && src.Target.AverageValue == nil {
+		allErrs = append(allErrs, field.Required(fldPath.Child("target").Child("averageValue"), "must set either a target value or averageValue"))
+	}
+
+	return allErrs
+}
+
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L371-L382
+
+func validatePodsSource(src *autoscalingv2.PodsMetricSource, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	allErrs = append(allErrs, validateMetricIdentifier(src.Metric, fldPath.Child("metric"))...)
+	allErrs = append(allErrs, validateMetricTarget(src.Target, fldPath.Child("target"))...)
+
+	if src.Target.AverageValue == nil {
+		allErrs = append(allErrs, field.Required(fldPath.Child("target").Child("averageValue"), "must specify a positive target averageValue"))
+	}
+
+	return allErrs
+}
+
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L383-L410
+
+func validateContainerResourceSource(src *autoscalingv2.ContainerResourceMetricSource, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	if len(src.Name) == 0 {
+		allErrs = append(allErrs, field.Required(fldPath.Child("name"), "must specify a resource name"))
+	} else {
+		allErrs = append(allErrs, ValidateContainerResourceName(string(src.Name), fldPath.Child("name"))...)
+	}
+
+	if len(src.Container) == 0 {
+		allErrs = append(allErrs, field.Required(fldPath.Child("container"), "must specify a container"))
+	} else {
+		allErrs = append(allErrs, ValidateDNS1123Label(src.Container, fldPath.Child("container"))...)
+	}
+
+	allErrs = append(allErrs, validateMetricTarget(src.Target, fldPath.Child("target"))...)
+
+	if src.Target.AverageUtilization == nil && src.Target.AverageValue == nil {
+		allErrs = append(allErrs, field.Required(fldPath.Child("target").Child("averageUtilization"), "must set either a target raw value or a target utilization"))
+	}
+
+	if src.Target.AverageUtilization != nil && src.Target.AverageValue != nil {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("target").Child("averageValue"), "may not set both a target raw value and a target utilization"))
+	}
+
+	return allErrs
+}
+
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L412-L430
 
 func validateResourceSource(src *autoscalingv2.ResourceMetricSource, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
@@ -243,6 +369,8 @@ func validateResourceSource(src *autoscalingv2.ResourceMetricSource, fldPath *fi
 
 	return allErrs
 }
+
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L432-L458
 
 func validateMetricTarget(mt autoscalingv2.MetricTarget, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
@@ -269,5 +397,20 @@ func validateMetricTarget(mt autoscalingv2.MetricTarget, fldPath *field.Path) fi
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("averageUtilization"), mt.AverageUtilization, "must be greater than 0"))
 	}
 
+	return allErrs
+}
+
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L460-L471
+
+func validateMetricIdentifier(id autoscalingv2.MetricIdentifier, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	if len(id.Name) == 0 {
+		allErrs = append(allErrs, field.Required(fldPath.Child("name"), "must specify a metric name"))
+	} else {
+		for _, msg := range pathvalidation.IsValidPathSegmentName(id.Name) {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("name"), id.Name, msg))
+		}
+	}
 	return allErrs
 }
