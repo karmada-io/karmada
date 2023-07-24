@@ -18,6 +18,9 @@ const (
 
 	// CustomizedClusterResourceModeling indicates if enable cluster resource custom modeling.
 	CustomizedClusterResourceModeling featuregate.Feature = "CustomizedClusterResourceModeling"
+
+	// PolicyPreemption indicates if high-priority PropagationPolicy/ClusterPropagationPolicy could preempt resource templates which are matched by low-priority PropagationPolicy/ClusterPropagationPolicy.
+	PolicyPreemption featuregate.Feature = "PropagationPolicyPreemption"
 )
 
 var (
@@ -30,6 +33,7 @@ var (
 		GracefulEviction:                  {Default: true, PreRelease: featuregate.Beta},
 		PropagateDeps:                     {Default: true, PreRelease: featuregate.Beta},
 		CustomizedClusterResourceModeling: {Default: true, PreRelease: featuregate.Beta},
+		PolicyPreemption:                  {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
 
