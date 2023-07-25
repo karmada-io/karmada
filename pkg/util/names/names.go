@@ -157,3 +157,11 @@ func GeneratePolicyName(namespace, name, gvk string) string {
 	}
 	return strings.ToLower(fmt.Sprintf("%s-%s", name, rand.SafeEncodeString(fmt.Sprint(hash.Sum32()))))
 }
+
+// NamespacedKey generates key with namespace and name.
+func NamespacedKey(namespace, name string) string {
+	if namespace == "" {
+		return name
+	}
+	return namespace + "/" + name
+}
