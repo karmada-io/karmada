@@ -562,7 +562,7 @@ etcd:
     image:
       registry: registry.k8s.io
       repository: etcd
-      tag: "3.5.3-0"
+      tag: "3.5.9-0"
       ## Specify a imagePullPolicy
       ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
       ##
