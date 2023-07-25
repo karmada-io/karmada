@@ -21,12 +21,16 @@ import (
 	_ "time/tzdata"
 
 	"github.com/adhocore/gronx"
+	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
+	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
 // ValidatingAdmission validates CronFederatedHPA object when creating/updating.
@@ -49,10 +53,13 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 	}
 	klog.V(2).Infof("Validating CronFederatedHPA(%s) for request: %s", klog.KObj(cronFHPA).String(), req.Operation)
 
-	if errs := v.validateCronFederatedHPASpec(cronFHPA); len(errs) != 0 {
+	errs := field.ErrorList{}
+	errs = append(errs, apimachineryvalidation.ValidateObjectMeta(&cronFHPA.ObjectMeta, true, apivalidation.NameIsDNSSubdomain, field.NewPath("metadata"))...)
+	errs = append(errs, validateCronFederatedHPASpec(&cronFHPA.Spec, field.NewPath("spec"))...)
+
+	if len(errs) != 0 {
 		return admission.Denied(errs.ToAggregate().Error())
 	}
-
 	return admission.Allowed("")
 }
 
@@ -64,69 +71,95 @@ func (v *ValidatingAdmission) InjectDecoder(d *admission.Decoder) error {
 }
 
 // validateCronFederatedHPASpec validates CronFederatedHPA spec
-func (v *ValidatingAdmission) validateCronFederatedHPASpec(cronFHPA *autoscalingv1alpha1.CronFederatedHPA) field.ErrorList {
+func validateCronFederatedHPASpec(spec *autoscalingv1alpha1.CronFederatedHPASpec, fldPath *field.Path) field.ErrorList {
 	errs := field.ErrorList{}
 	scaleFHPA := false
 
-	scaleTargetRef := cronFHPA.Spec.ScaleTargetRef
+	scaleTargetRef := spec.ScaleTargetRef
 	if scaleTargetRef.APIVersion == autoscalingv1alpha1.GroupVersion.String() {
 		if scaleTargetRef.Kind != autoscalingv1alpha1.FederatedHPAKind {
-			kindFieldPath := field.NewPath("spec").Child("scaleTargetRef").Child("kind")
-			fieldError := field.Invalid(kindFieldPath, scaleTargetRef.Kind,
+			kindFldPath := fldPath.Child("scaleTargetRef").Child("kind")
+			fldError := field.Invalid(kindFldPath, scaleTargetRef.Kind,
 				fmt.Sprintf("invalid scaleTargetRef kind: %s, only support %s", scaleTargetRef.Kind, autoscalingv1alpha1.FederatedHPAKind))
-			errs = append(errs, fieldError)
+			errs = append(errs, fldError)
 			return errs
 		}
 		scaleFHPA = true
 	}
 
-	errs = append(errs, v.validateCronFederatedHPARules(cronFHPA.Spec.Rules, scaleFHPA, scaleTargetRef.Kind)...)
+	errs = append(errs, lifted.ValidateCrossVersionObjectReference(scaleTargetRef, fldPath.Child("scaleTargetRef"))...)
+	errs = append(errs, validateCronFederatedHPARules(spec.Rules, scaleFHPA, scaleTargetRef.Kind, fldPath.Child("rules"))...)
 
 	return errs
 }
 
 // validateCronFederatedHPARules validates CronFederatedHPA rules
-func (v *ValidatingAdmission) validateCronFederatedHPARules(rules []autoscalingv1alpha1.CronFederatedHPARule,
-	scaleFHPA bool, scaleTargetKind string) field.ErrorList {
+func validateCronFederatedHPARules(rules []autoscalingv1alpha1.CronFederatedHPARule,
+	scaleFHPA bool, scaleTargetKind string, fldPath *field.Path) field.ErrorList {
 	errs := field.ErrorList{}
 
-	ruleFieldPath := field.NewPath("spec").Child("rules")
 	ruleNameSet := sets.NewString()
 	for index, rule := range rules {
 		if ruleNameSet.Has(rule.Name) {
-			errs = append(errs, field.Duplicate(field.NewPath("spec").
-				Child("rules").Index(index).Child("name"), rule.Name))
+			errs = append(errs, field.Duplicate(fldPath.Index(index).Child("name"), rule.Name))
 		}
 		ruleNameSet.Insert(rule.Name)
 
 		// Validate cron format
 		cronValidator := gronx.New()
 		if !cronValidator.IsValid(rule.Schedule) {
-			errs = append(errs, field.Invalid(ruleFieldPath.Index(index).Child("schedule"), rule.Schedule, "invalid cron format"))
+			errs = append(errs, field.Invalid(fldPath.Index(index).Child("schedule"), rule.Schedule, "invalid cron format"))
 		}
 
 		// Validate timezone
 		if rule.TimeZone != nil {
 			_, err := time.LoadLocation(*rule.TimeZone)
 			if err != nil {
-				errs = append(errs, field.Invalid(ruleFieldPath.Index(index).Child("timeZone"), rule.TimeZone, err.Error()))
+				errs = append(errs, field.Invalid(fldPath.Index(index).Child("timeZone"), rule.TimeZone, err.Error()))
 			}
 		}
 
-		if scaleFHPA {
-			// Validate targetMinReplicas and targetMaxReplicas
-			if rule.TargetMinReplicas == nil && rule.TargetMaxReplicas == nil {
-				errMsg := "targetMinReplicas and targetMaxReplicas cannot be nil at the same time if you want to scale FederatedHPA"
-				errs = append(errs, field.Invalid(ruleFieldPath.Index(index), "", errMsg))
-			}
-			continue
-		}
+		errs = append(errs, validateCronFederatedHPAScalingReplicas(rule, scaleFHPA, scaleTargetKind, fldPath.Index(index))...)
+	}
 
-		// Validate targetReplicas
-		if rule.TargetReplicas == nil {
-			errMsg := fmt.Sprintf("targetReplicas cannot be nil if you want to scale %s", scaleTargetKind)
-			errs = append(errs, field.Invalid(ruleFieldPath.Index(index), "", errMsg))
+	return errs
+}
+
+// validateCronFederatedHPAScalingReplicas validates CronFederatedHPA rules' scaling replicas
+func validateCronFederatedHPAScalingReplicas(rule autoscalingv1alpha1.CronFederatedHPARule, scaleFHPA bool,
+	scaleTargetKind string, fldPath *field.Path) field.ErrorList {
+	errs := field.ErrorList{}
+
+	if scaleFHPA {
+		// Validate targetMinReplicas and targetMaxReplicas
+		if rule.TargetMinReplicas == nil && rule.TargetMaxReplicas == nil {
+			errs = append(errs, field.Invalid(fldPath.Child("targetMaxReplicas"), "",
+				"targetMinReplicas and targetMaxReplicas cannot be nil at the same time if you want to scale FederatedHPA"))
 		}
+		if pointer.Int32Deref(rule.TargetMinReplicas, 1) <= 0 {
+			errs = append(errs, field.Invalid(fldPath.Child("targetMinReplicas"), "",
+				"targetMinReplicas should be larger than 0"))
+		}
+		if pointer.Int32Deref(rule.TargetMaxReplicas, 1) <= 0 {
+			errs = append(errs, field.Invalid(fldPath.Child("targetMaxReplicas"), "",
+				"targetMaxReplicas should be larger than 0"))
+		}
+		if pointer.Int32Deref(rule.TargetMinReplicas, 1) > pointer.Int32Deref(rule.TargetMaxReplicas, 1) {
+			errs = append(errs, field.Invalid(fldPath.Child("targetMinReplicas"), "",
+				"targetMaxReplicas should be larger than or equal to targetMinReplicas"))
+		}
+		return errs
+	}
+
+	// Validate targetReplicas
+	if rule.TargetReplicas == nil {
+		errMsg := fmt.Sprintf("targetReplicas cannot be nil if you want to scale %s", scaleTargetKind)
+		errs = append(errs, field.Invalid(fldPath.Child("targetReplicas"), "", errMsg))
+	}
+	// It's allowed to scale to 0, such as remove all the replicas when weekends
+	if pointer.Int32Deref(rule.TargetReplicas, 0) < 0 {
+		errs = append(errs, field.Invalid(fldPath.Child("targetReplicas"), "",
+			"targetReplicas should be larger than or equal to 0"))
 	}
 
 	return errs
