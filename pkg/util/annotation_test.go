@@ -467,3 +467,57 @@ func TestRecordManagedAnnotations(t *testing.T) {
 		})
 	}
 }
+
+func TestReplaceAnnotation(t *testing.T) {
+	workload := unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "apps/v1",
+			"kind":       "Deployment",
+			"metadata": map[string]interface{}{
+				"name": "demo-deployment",
+			},
+		},
+	}
+	workloadExistKey := workload.DeepCopy()
+	workloadExistKey.SetAnnotations(map[string]string{"testKey": "oldValue"})
+	workloadNotExistKey := workload.DeepCopy()
+	workloadNotExistKey.SetAnnotations(map[string]string{"anotherKey": "anotherValue"})
+
+	tests := []struct {
+		name            string
+		obj             *unstructured.Unstructured
+		annotationKey   string
+		annotationValue string
+		want            map[string]string
+	}{
+		{
+			name:            "nil annotation",
+			obj:             &workload,
+			annotationKey:   "testKey",
+			annotationValue: "newValue",
+			want:            map[string]string{"testKey": "newValue"},
+		},
+		{
+			name:            "exist key",
+			obj:             workloadExistKey,
+			annotationKey:   "testKey",
+			annotationValue: "newValue",
+			want:            map[string]string{"testKey": "newValue"},
+		},
+		{
+			name:            "not exist key",
+			obj:             workloadNotExistKey,
+			annotationKey:   "testKey",
+			annotationValue: "newValue",
+			want:            map[string]string{"anotherKey": "anotherValue", "testKey": "newValue"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ReplaceAnnotation(tt.obj, tt.annotationKey, tt.annotationValue)
+			if !reflect.DeepEqual(tt.obj.GetAnnotations(), tt.want) {
+				t.Errorf("ReplaceAnnotation(), obj.GetAnnotations = %v, want %v", tt.obj.GetAnnotations(), tt.want)
+			}
+		})
+	}
+}

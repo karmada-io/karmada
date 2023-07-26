@@ -43,11 +43,15 @@ const (
 	// The valid value is:
 	//   - overwrite: always overwrite the resource if already exist. The resource will be overwritten with the
 	//     configuration from control plane.
+	//   - abort: do not resolve the conflict and stop propagating to avoid unexpected overwrites (default value)
 	// Note: Propagation of the resource template without this annotation will fail in case of already exists.
 	ResourceConflictResolutionAnnotation = "work.karmada.io/conflict-resolution"
 
-	// ResourceConflictResolutionOverwrite is the value of ResourceConflictResolutionAnnotation, indicating the overwrite strategy.
+	// ResourceConflictResolutionOverwrite is a value of ResourceConflictResolutionAnnotation, indicating the overwrite strategy.
 	ResourceConflictResolutionOverwrite = "overwrite"
+
+	// ResourceConflictResolutionAbort is a value of ResourceConflictResolutionAnnotation, indicating stop propagating.
+	ResourceConflictResolutionAbort = "abort"
 )
 
 // Define annotations that are added to the resource template.
