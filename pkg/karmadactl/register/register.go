@@ -168,6 +168,7 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 	flags.StringVar(&opts.ClusterNamespace, "cluster-namespace", options.DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster secrets are stored.")
 	flags.StringVar(&opts.ClusterProvider, "cluster-provider", "", "Provider of the joining cluster. The Karmada scheduler can use this information to spread workloads across providers for higher availability.")
 	flags.StringVar(&opts.ClusterRegion, "cluster-region", "", "The region of the joining cluster. The Karmada scheduler can use this information to spread workloads across regions for higher availability.")
+	flags.StringVar(&opts.ClusterZone, "cluster-zone", "", "The zone of the joining cluster.")
 	flags.BoolVar(&opts.EnableCertRotation, "enable-cert-rotation", false, "Enable means controller would rotate certificate for karmada-agent when the certificate is about to expire.")
 	flags.StringVar(&opts.CACertPath, "ca-cert-path", CACertPath, "The path to the SSL certificate authority used to secure communications between member cluster and karmada-control-plane.")
 	flags.StringVar(&opts.BootstrapToken.Token, "token", "", "For token-based discovery, the token used to validate cluster information fetched from the API server.")
@@ -205,6 +206,9 @@ type CommandRegisterOption struct {
 
 	// ClusterRegion represents the region of the cluster locate in.
 	ClusterRegion string
+
+	// ClusterZone represents the zone of the cluster locate in.
+	ClusterZone string
 
 	// EnableCertRotation indicates if enable certificate rotation for karmada-agent.
 	EnableCertRotation bool
@@ -663,6 +667,7 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 					fmt.Sprintf("--cluster-api-endpoint=%s", o.memberClusterEndpoint),
 					fmt.Sprintf("--cluster-provider=%s", o.ClusterProvider),
 					fmt.Sprintf("--cluster-region=%s", o.ClusterRegion),
+					fmt.Sprintf("--cluster-zone=%s", o.ClusterZone),
 					fmt.Sprintf("--controllers=%s", strings.Join(controllers, ",")),
 					"--cluster-status-update-frequency=10s",
 					"--bind-address=0.0.0.0",
