@@ -19,6 +19,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
@@ -383,5 +384,15 @@ func EmitClusterEvictionEventForClusterResourceBinding(binding *workv1alpha2.Clu
 	} else {
 		eventRecorder.Eventf(binding, corev1.EventTypeNormal, events.EventReasonEvictWorkloadFromClusterSucceed, "Evict from cluster %s succeed.", cluster)
 		eventRecorder.Eventf(ref, corev1.EventTypeNormal, events.EventReasonEvictWorkloadFromClusterSucceed, "Evict from cluster %s succeed.", cluster)
+	}
+}
+
+// ConstructObjectReference constructs ObjectReference from ResourceSelector.
+func ConstructObjectReference(rs policyv1alpha1.ResourceSelector) workv1alpha2.ObjectReference {
+	return workv1alpha2.ObjectReference{
+		APIVersion: rs.APIVersion,
+		Kind:       rs.Kind,
+		Namespace:  rs.Namespace,
+		Name:       rs.Name,
 	}
 }
