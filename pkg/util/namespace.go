@@ -50,8 +50,18 @@ func DeleteNamespace(client kubeclient.Interface, namespace string) error {
 // EnsureNamespaceExist makes sure that the specific namespace exist in cluster.
 // If namespace not exit, just create it.
 func EnsureNamespaceExist(client kubeclient.Interface, namespace string, dryRun bool) (*corev1.Namespace, error) {
+	return EnsureNamespaceExistWithLabels(client, namespace, dryRun, nil)
+}
+
+// EnsureNamespaceExistWithLabels makes sure that the specific namespace exist in cluster.
+// If namespace not exit, just create it with specific labels.
+func EnsureNamespaceExistWithLabels(client kubeclient.Interface, namespace string, dryRun bool, labels map[string]string) (*corev1.Namespace, error) {
 	namespaceObj := &corev1.Namespace{}
 	namespaceObj.Name = namespace
+	// Set labels for namespace.
+	if labels != nil {
+		namespaceObj.Labels = labels
+	}
 
 	if dryRun {
 		return namespaceObj, nil
