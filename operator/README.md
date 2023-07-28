@@ -27,7 +27,7 @@ Go to the root directory of the `karmada-io/karmada` repo. To install the Helm C
 the release name `karmada-operator` in the namespace `karmada-system`, simply run the helm command:
 
 ```shell
-helm install karmada-operator -n karmada-system  --create-namespace ./charts/karmada-operator --debug
+helm install karmada-operator -n karmada-system  --create-namespace --dependency-update ./charts/karmada-operator --debug
 ```
 
 #### Using YAML resource
