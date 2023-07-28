@@ -932,10 +932,10 @@ func TestMultiClusterCache_Watch(t *testing.T) {
 		want want
 	}{
 		{
-			name: "resource version is empty",
+			name: "resource version is zero",
 			args: args{
 				options: &metainternalversion.ListOptions{
-					ResourceVersion: "",
+					ResourceVersion: "0",
 				},
 			},
 			want: want{
@@ -943,10 +943,10 @@ func TestMultiClusterCache_Watch(t *testing.T) {
 			},
 		},
 		{
-			name: "resource version of cluster2 is empty",
+			name: "resource version of cluster2 is zero",
 			args: args{
 				options: &metainternalversion.ListOptions{
-					ResourceVersion: buildMultiClusterRV(cluster1.Name, "1002"),
+					ResourceVersion: buildMultiClusterRV(cluster1.Name, "1002", cluster2.Name, "0"),
 				},
 			},
 			want: want{
@@ -954,7 +954,7 @@ func TestMultiClusterCache_Watch(t *testing.T) {
 			},
 		},
 		{
-			name: "resource versions are not empty",
+			name: "resource versions are not zero",
 			args: args{
 				options: &metainternalversion.ListOptions{
 					ResourceVersion: buildMultiClusterRV(cluster1.Name, "1002", cluster2.Name, "2002"),
@@ -968,7 +968,7 @@ func TestMultiClusterCache_Watch(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(request.WithNamespace(context.TODO(), metav1.NamespaceDefault), time.Second)
+			ctx, cancel := context.WithCancel(request.WithNamespace(context.TODO(), metav1.NamespaceDefault))
 			defer cancel()
 			watcher, err := cache.Watch(ctx, podGVR, tt.args.options)
 			if err != nil {
@@ -976,7 +976,7 @@ func TestMultiClusterCache_Watch(t *testing.T) {
 				return
 			}
 			defer watcher.Stop()
-			timeout := time.After(time.Second * 5)
+			waitCh := time.After(time.Second)
 
 			gets := sets.New[string]()
 		LOOP:
@@ -990,9 +990,8 @@ func TestMultiClusterCache_Watch(t *testing.T) {
 					if err == nil {
 						gets.Insert(accessor.GetName())
 					}
-				case <-timeout:
-					t.Error("timeout")
-					return
+				case <-waitCh:
+					break LOOP
 				}
 			}
 
@@ -1101,15 +1100,15 @@ func TestMultiClusterCache_Watch_Namespaced(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(request.WithNamespace(context.TODO(), tt.args.ns), time.Second)
+			ctx, cancel := context.WithCancel(request.WithNamespace(context.TODO(), tt.args.ns))
 			defer cancel()
-			watcher, err := cache.Watch(ctx, podGVR, &metainternalversion.ListOptions{})
+			watcher, err := cache.Watch(ctx, podGVR, &metainternalversion.ListOptions{ResourceVersion: "0"})
 			if err != nil {
 				t.Error(err)
 				return
 			}
 			defer watcher.Stop()
-			timeout := time.After(time.Second * 5)
+			waitCh := time.After(time.Second)
 
 			gots := sets.New[string]()
 		LOOP:
@@ -1123,8 +1122,8 @@ func TestMultiClusterCache_Watch_Namespaced(t *testing.T) {
 					if err == nil {
 						gots.Insert(accessor.GetName())
 					}
-				case <-timeout:
-					t.Fatal("timeout")
+				case <-waitCh:
+					break LOOP
 				}
 			}
 
