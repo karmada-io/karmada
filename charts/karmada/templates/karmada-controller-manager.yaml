@@ -8,9 +8,6 @@ metadata:
   namespace: {{ include "karmada.namespace" . }}
   labels:
   {{- include "karmada.cm.labels" . | nindent 4 }}
-  annotations:
-    "helm.sh/hook": post-install
-    "helm.sh/hook-weight": "2"
 spec:
   replicas: {{  .Values.controllerManager.replicaCount }}
   selector:
