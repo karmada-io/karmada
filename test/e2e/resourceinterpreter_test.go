@@ -428,7 +428,7 @@ end
 		})
 
 		ginkgo.BeforeEach(func() {
-			framework.CreateResourceInterpreterCustomization(karmadaClient, customization)
+			framework.CreateResourceInterpreterCustomization(karmadaClient, kubeClient, customization)
 			framework.CreateClusterPropagationPolicy(karmadaClient, crdPolicy)
 			framework.CreateClusterPropagationPolicy(karmadaClient, crdDepPolicy)
 			framework.CreateCRD(dynamicClient, crd)
@@ -586,7 +586,7 @@ var _ = framework.SerialDescribe("Resource interpreter customization testing", f
 		})
 
 		ginkgo.JustBeforeEach(func() {
-			framework.CreateResourceInterpreterCustomization(karmadaClient, customization)
+			framework.CreateResourceInterpreterCustomization(karmadaClient, kubeClient, customization)
 			// Wait for resource interpreter informer synced.
 			time.Sleep(time.Second)
 
@@ -987,8 +987,8 @@ end `,
 		})
 
 		ginkgo.JustBeforeEach(func() {
-			framework.CreateResourceInterpreterCustomization(karmadaClient, customization)
-			framework.CreateResourceInterpreterCustomization(karmadaClient, customizationAnother)
+			framework.CreateResourceInterpreterCustomization(karmadaClient, kubeClient, customization)
+			framework.CreateResourceInterpreterCustomization(karmadaClient, kubeClient, customizationAnother)
 			// Wait for resource interpreter informer synced.
 			time.Sleep(time.Second)
 

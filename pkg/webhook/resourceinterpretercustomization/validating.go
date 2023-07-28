@@ -9,6 +9,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	pkgutil "github.com/karmada-io/karmada/pkg/util"
 )
 
 // Check if our ValidatingAdmission implements necessary interface
@@ -24,6 +25,7 @@ type ValidatingAdmission struct {
 // Handle implements admission.Handler interface.
 // It yields a response to an AdmissionRequest.
 func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request) admission.Response {
+	defer pkgutil.PrintTimeCost("ValidatingAdmissionHandle")()
 	configuration := &configv1alpha1.ResourceInterpreterCustomization{}
 
 	err := v.decoder.Decode(req, configuration)

@@ -3,6 +3,9 @@ package util
 import (
 	"fmt"
 	"strings"
+	"time"
+
+	"k8s.io/klog/v2"
 )
 
 // DiffKey compares keys of two map with same key type,
@@ -59,4 +62,12 @@ func Keys[K comparable, V any](m map[K]V) []K {
 		keys = append(keys, key)
 	}
 	return keys
+}
+
+func PrintTimeCost(fuc string) func() {
+	t := time.Now()
+	return func() {
+		cost := time.Since(t)
+		klog.Infof("[PrintTimeCost] %s cost %+v", fuc, cost)
+	}
 }
