@@ -13,6 +13,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	estimatorclient "github.com/karmada-io/karmada/pkg/estimator/client"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 type calculator func([]*clusterv1alpha1.Cluster, *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster
@@ -41,6 +42,14 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 	for i := range availableTargetClusters {
 		availableTargetClusters[i].Name = clusters[i].Name
 		availableTargetClusters[i].Replicas = math.MaxInt32
+	}
+
+	// For non-workload, like ServiceAccount, ConfigMap, Secret and etc, it's unnecessary to calculate available replicas in member clusters.
+	// See issue: https://github.com/karmada-io/karmada/issues/3743.
+	if spec.Replicas == 0 {
+		klog.V(4).Infof("Do not calculate available replicas for non-workload(%s, kind=%s, %s).", spec.Resource.APIVersion,
+			spec.Resource.Kind, names.NamespacedKey(spec.Resource.Namespace, spec.Resource.Name))
+		return availableTargetClusters
 	}
 
 	// Get the minimum value of MaxAvailableReplicas in terms of all estimators.
