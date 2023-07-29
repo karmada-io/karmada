@@ -268,7 +268,7 @@ func (c *CronFederatedHPAJob) addFailedExecutionHistory(
 
 func (c *CronFederatedHPAJob) addSuccessExecutionHistory(
 	cronFHPA *autoscalingv1alpha1.CronFederatedHPA,
-	appliedReplicas, appliedMaxReplicas, appliedMinReplicas *int32) error {
+	appliedReplicas, appliedMinReplicas, appliedMaxReplicas *int32) error {
 	_, nextExecutionTime := c.scheduler.NextRun()
 
 	// Add success history record, return false if there is no such rule
