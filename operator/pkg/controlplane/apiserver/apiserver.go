@@ -37,6 +37,7 @@ func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.K
 	apiserverDeploymentBytes, err := util.ParseTemplate(KarmadaApiserverDeployment, struct {
 		DeploymentName, Namespace, Image, EtcdClientService string
 		ServiceSubnet, KarmadaCertsSecret, EtcdCertsSecret  string
+		DnsDomain string
 		Replicas                                            *int32
 		EtcdListenClientPort                                int32
 	}{
@@ -49,6 +50,7 @@ func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.K
 		EtcdCertsSecret:      util.EtcdCertSecretName(name),
 		Replicas:             cfg.Replicas,
 		EtcdListenClientPort: constants.EtcdListenClientPort,
+		DnsDomain: "cluster.local",
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing karmadaApiserver deployment template: %w", err)
