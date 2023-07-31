@@ -16,6 +16,7 @@ package cronfederatedhpa
 import (
 	"context"
 	"fmt"
+	"math"
 	"net/http"
 	"time"
 	_ "time/tzdata"
@@ -140,11 +141,11 @@ func validateCronFederatedHPAScalingReplicas(rule autoscalingv1alpha1.CronFedera
 			errs = append(errs, field.Invalid(fldPath.Child("targetMinReplicas"), "",
 				"targetMinReplicas should be larger than 0"))
 		}
-		if pointer.Int32Deref(rule.TargetMaxReplicas, 1) <= 0 {
+		if pointer.Int32Deref(rule.TargetMaxReplicas, math.MaxInt32) <= 0 {
 			errs = append(errs, field.Invalid(fldPath.Child("targetMaxReplicas"), "",
 				"targetMaxReplicas should be larger than 0"))
 		}
-		if pointer.Int32Deref(rule.TargetMinReplicas, 1) > pointer.Int32Deref(rule.TargetMaxReplicas, 1) {
+		if pointer.Int32Deref(rule.TargetMinReplicas, 1) > pointer.Int32Deref(rule.TargetMaxReplicas, math.MaxInt32) {
 			errs = append(errs, field.Invalid(fldPath.Child("targetMinReplicas"), "",
 				"targetMaxReplicas should be larger than or equal to targetMinReplicas"))
 		}
