@@ -14,6 +14,7 @@ const (
 	policyApplyAttemptsMetricsName         = "policy_apply_attempts_total"
 	syncWorkDurationMetricsName            = "binding_sync_work_duration_seconds"
 	syncWorkloadDurationMetricsName        = "work_sync_workload_duration_seconds"
+	policyPreemptionMetricsName            = "policy_preemption_total"
 )
 
 var (
@@ -45,6 +46,11 @@ var (
 		Help:    "Duration in seconds to sync the workload to a target cluster. By the result, 'error' means a work failed to sync workloads. Otherwise 'success'.",
 		Buckets: prometheus.ExponentialBuckets(0.001, 2, 12),
 	}, []string{"result"})
+
+	policyPreemptionCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: policyPreemptionMetricsName,
+		Help: "Number of preemption for the resource template. By the result, 'error' means a resource template failed to be preempted by other propagation policies. Otherwise 'success'.",
+	}, []string{"result"})
 )
 
 // ObserveFindMatchedPolicyLatency records the duration for the resource finding a matched policy.
@@ -68,6 +74,11 @@ func ObserveSyncWorkloadLatency(err error, start time.Time) {
 	syncWorkloadDurationHistogram.WithLabelValues(utilmetrics.GetResultByError(err)).Observe(utilmetrics.DurationInSeconds(start))
 }
 
+// CountPolicyPreemption records the numbers of policy preemption.
+func CountPolicyPreemption(err error) {
+	policyPreemptionCounter.WithLabelValues(utilmetrics.GetResultByError(err)).Inc()
+}
+
 // ResourceCollectors returns the collectors about resources.
 func ResourceCollectors() []prometheus.Collector {
 	return []prometheus.Collector{
@@ -76,6 +87,7 @@ func ResourceCollectors() []prometheus.Collector {
 		policyApplyAttempts,
 		syncWorkDurationHistogram,
 		syncWorkloadDurationHistogram,
+		policyPreemptionCounter,
 	}
 }
 

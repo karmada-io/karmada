@@ -100,6 +100,10 @@ const (
 	EventReasonGetDependenciesSucceed = "GetDependenciesSucceed"
 	// EventReasonGetDependenciesFailed indicates get dependencies of resource template failed.
 	EventReasonGetDependenciesFailed = "GetDependenciesFailed"
+	// EventReasonPreemptPolicySucceed indicates policy preemption of resource template succeed.
+	EventReasonPreemptPolicySucceed = "PreemptPolicySucceed"
+	// EventReasonPreemptPolicyFailed indicates policy preemption of resource template failed.
+	EventReasonPreemptPolicyFailed = "PreemptPolicyFailed"
 )
 
 // Define events for ServiceImport objects.
