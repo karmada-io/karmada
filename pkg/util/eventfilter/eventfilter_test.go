@@ -1,10 +1,10 @@
-package detector
+package eventfilter
 
 import (
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
@@ -105,7 +105,7 @@ func TestSpecificationChanged(t *testing.T) {
 				},
 				Spec: workloadv1alpha1.WorkloadSpec{
 					Replicas: pointer.Int32(3),
-					Template: v1.PodTemplateSpec{},
+					Template: corev1.PodTemplateSpec{},
 					Paused:   false,
 				},
 				Status: workloadv1alpha1.WorkloadStatus{ReadyReplicas: 3},
@@ -117,7 +117,7 @@ func TestSpecificationChanged(t *testing.T) {
 				},
 				Spec: workloadv1alpha1.WorkloadSpec{
 					Replicas: pointer.Int32(5),
-					Template: v1.PodTemplateSpec{},
+					Template: corev1.PodTemplateSpec{},
 					Paused:   false,
 				},
 				Status: workloadv1alpha1.WorkloadStatus{ReadyReplicas: 3},
@@ -133,7 +133,7 @@ func TestSpecificationChanged(t *testing.T) {
 				},
 				Spec: workloadv1alpha1.WorkloadSpec{
 					Replicas: pointer.Int32(3),
-					Template: v1.PodTemplateSpec{},
+					Template: corev1.PodTemplateSpec{},
 					Paused:   false,
 				},
 				Status: workloadv1alpha1.WorkloadStatus{ReadyReplicas: 1},
@@ -145,7 +145,7 @@ func TestSpecificationChanged(t *testing.T) {
 				},
 				Spec: workloadv1alpha1.WorkloadSpec{
 					Replicas: pointer.Int32(3),
-					Template: v1.PodTemplateSpec{},
+					Template: corev1.PodTemplateSpec{},
 					Paused:   false,
 				},
 				Status: workloadv1alpha1.WorkloadStatus{ReadyReplicas: 3},
@@ -161,7 +161,7 @@ func TestSpecificationChanged(t *testing.T) {
 				},
 				Spec: workloadv1alpha1.WorkloadSpec{
 					Replicas: pointer.Int32(3),
-					Template: v1.PodTemplateSpec{},
+					Template: corev1.PodTemplateSpec{},
 					Paused:   false,
 				},
 				Status: workloadv1alpha1.WorkloadStatus{ReadyReplicas: 1},
@@ -173,7 +173,7 @@ func TestSpecificationChanged(t *testing.T) {
 				},
 				Spec: workloadv1alpha1.WorkloadSpec{
 					Replicas: pointer.Int32(5),
-					Template: v1.PodTemplateSpec{},
+					Template: corev1.PodTemplateSpec{},
 					Paused:   false,
 				},
 				Status: workloadv1alpha1.WorkloadStatus{ReadyReplicas: 3},
