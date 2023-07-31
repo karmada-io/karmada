@@ -80,6 +80,8 @@ jobs:
     name: unit test
     needs: build
     runs-on: ubuntu-22.04
+    env:
+      COLOR_GOTEST_ENABLED: enabled
     steps:
       - name: checkout code
         uses: actions/checkout@v3
