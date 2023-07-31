@@ -29,6 +29,7 @@ type SearchREST struct {
 var _ rest.Scoper = &SearchREST{}
 var _ rest.Storage = &SearchREST{}
 var _ rest.Connecter = &SearchREST{}
+var _ rest.SingularNameProvider = &SearchREST{}
 
 // NewSearchREST returns a RESTStorage object that will work against search.
 func NewSearchREST(
@@ -101,4 +102,9 @@ func (r *SearchREST) Connect(ctx context.Context, id string, _ runtime.Object, r
 func (r *SearchREST) Destroy() {
 	// Given no underlying store, so we don't
 	// need to destroy anything.
+}
+
+// GetSingularName returns singular name of resources
+func (r *SearchREST) GetSingularName() string {
+	return "search"
 }

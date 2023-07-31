@@ -8,7 +8,7 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	"k8s.io/apimachinery/pkg/util/sets"
-	validation "k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -20,18 +20,17 @@ import (
 
 // ValidatingAdmission validates MultiClusterService object when creating/updating.
 type ValidatingAdmission struct {
-	decoder *admission.Decoder
+	Decoder *admission.Decoder
 }
 
 // Check if our ValidatingAdmission implements necessary interface
 var _ admission.Handler = &ValidatingAdmission{}
-var _ admission.DecoderInjector = &ValidatingAdmission{}
 
 // Handle implements admission.Handler interface.
 // It yields a response to an AdmissionRequest.
 func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request) admission.Response {
 	mcs := &networkingv1alpha1.MultiClusterService{}
-	err := v.decoder.Decode(req, mcs)
+	err := v.Decoder.Decode(req, mcs)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
@@ -39,7 +38,7 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 
 	if req.Operation == admissionv1.Update {
 		oldMcs := &networkingv1alpha1.MultiClusterService{}
-		err = v.decoder.DecodeRaw(req.OldObject, oldMcs)
+		err = v.Decoder.DecodeRaw(req.OldObject, oldMcs)
 		if err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
@@ -54,13 +53,6 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 		}
 	}
 	return admission.Allowed("")
-}
-
-// InjectDecoder implements admission.DecoderInjector interface.
-// A decoder will be automatically injected.
-func (v *ValidatingAdmission) InjectDecoder(d *admission.Decoder) error {
-	v.decoder = d
-	return nil
 }
 
 func (v *ValidatingAdmission) validateMCSUpdate(oldMcs, newMcs *networkingv1alpha1.MultiClusterService) field.ErrorList {

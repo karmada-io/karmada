@@ -474,7 +474,7 @@ func (d *DependenciesDistributor) SetupWithManager(mgr controllerruntime.Manager
 				RateLimiter:             ratelimiterflag.DefaultControllerRateLimiter(d.RateLimiterOptions),
 				MaxConcurrentReconciles: 2,
 			}).
-			Watches(&source.Channel{Source: d.GenericEvent}, &handler.EnqueueRequestForObject{}).
+			WatchesRawSource(&source.Channel{Source: d.GenericEvent}, &handler.EnqueueRequestForObject{}).
 			Complete(d),
 	})
 }

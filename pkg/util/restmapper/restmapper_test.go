@@ -3,14 +3,11 @@ package restmapper
 import (
 	"testing"
 
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	discoveryfake "k8s.io/client-go/discovery/fake"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	coretesting "k8s.io/client-go/testing"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
 var fakeResources = []*metav1.APIResourceList{
@@ -103,30 +100,6 @@ var getGVRTestCases = []struct {
 
 var discoveryClient = &discoveryfake.FakeDiscovery{Fake: &coretesting.Fake{Resources: fakeResources}}
 
-func BenchmarkGetGroupVersionResource(b *testing.B) {
-	var option = apiutil.WithCustomMapper(func() (meta.RESTMapper, error) {
-		groupResources, err := restmapper.GetAPIGroupResources(discoveryClient)
-		if err != nil {
-			return nil, err
-		}
-		return restmapper.NewDiscoveryRESTMapper(groupResources), nil
-	})
-
-	mapper, err := apiutil.NewDynamicRESTMapper(&rest.Config{}, option)
-	if err != nil {
-		b.Error(err)
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		for _, tc := range getGVRTestCases {
-			_, err := GetGroupVersionResource(mapper, tc.inputGVK)
-			if (err != nil && !tc.expectErr) || (err == nil && tc.expectErr) {
-				b.Errorf("GetGroupVersionResource For %#v Error: %v, wantErr: %v", tc.inputGVK, err, tc.expectErr)
-			}
-		}
-	}
-}
 func BenchmarkGetGroupVersionResourceWithoutCache(b *testing.B) {
 	groupResources, err := restmapper.GetAPIGroupResources(discoveryClient)
 	if err != nil {

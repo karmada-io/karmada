@@ -1,6 +1,7 @@
 package restmapper
 
 import (
+	"net/http"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -138,6 +139,6 @@ func NewCachedRESTMapper(cfg *rest.Config, underlyingMapper meta.RESTMapper) (me
 
 // MapperProvider is a wrapper of cachedRESTMapper which is typically used
 // to generate customized RESTMapper for controller-runtime framework.
-func MapperProvider(c *rest.Config) (meta.RESTMapper, error) {
+func MapperProvider(c *rest.Config, _ *http.Client) (meta.RESTMapper, error) {
 	return NewCachedRESTMapper(c, nil)
 }

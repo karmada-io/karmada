@@ -15,7 +15,7 @@ import (
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
-	ctrlruntimecfg "sigs.k8s.io/controller-runtime/pkg/config/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	"github.com/karmada-io/karmada/operator/cmd/operator/app/options"
@@ -133,7 +133,7 @@ func startKarmadaController(ctx ctrlctx.Context) (bool, error) {
 
 // createControllerManager creates controllerruntime.Manager from the given configuration
 func createControllerManager(ctx context.Context, o *options.Options) (controllerruntime.Manager, error) {
-	config, err := controllerruntime.GetConfig()
+	restConfig, err := controllerruntime.GetConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -155,11 +155,11 @@ func createControllerManager(ctx context.Context, o *options.Options) (controlle
 		HealthProbeBindAddress:     net.JoinHostPort(o.BindAddress, strconv.Itoa(o.SecurePort)),
 		LivenessEndpointName:       "/healthz",
 		MetricsBindAddress:         o.MetricsBindAddress,
-		Controller: ctrlruntimecfg.ControllerConfigurationSpec{
+		Controller: config.Controller{
 			GroupKindConcurrency: map[string]int{
 				operatorv1alpha1.SchemeGroupVersion.WithKind("Karmada").GroupKind().String(): o.ConcurrentKarmadaSyncs,
 			},
 		},
 	}
-	return controllerruntime.NewManager(config, opts)
+	return controllerruntime.NewManager(restConfig, opts)
 }

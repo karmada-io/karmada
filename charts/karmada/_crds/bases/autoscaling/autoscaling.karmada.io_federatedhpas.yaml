@@ -85,17 +85,17 @@ spec:
                             hold true for a specified past interval.
                           properties:
                             periodSeconds:
-                              description: PeriodSeconds specifies the window of time
+                              description: periodSeconds specifies the window of time
                                 for which the policy should hold true. PeriodSeconds
                                 must be greater than zero and less than or equal to
                                 1800 (30 min).
                               format: int32
                               type: integer
                             type:
-                              description: Type is used to specify the scaling policy.
+                              description: type is used to specify the scaling policy.
                               type: string
                             value:
-                              description: Value contains the amount of change which
+                              description: value contains the amount of change which
                                 is permitted by the policy. It must be greater than
                                 zero
                               format: int32
@@ -112,7 +112,7 @@ spec:
                           should be used. If not set, the default value Max is used.
                         type: string
                       stabilizationWindowSeconds:
-                        description: 'StabilizationWindowSeconds is the number of
+                        description: 'stabilizationWindowSeconds is the number of
                           seconds for which past recommendations should be considered
                           while scaling up or scaling down. StabilizationWindowSeconds
                           must be greater than or equal to zero and less than or equal
@@ -139,17 +139,17 @@ spec:
                             hold true for a specified past interval.
                           properties:
                             periodSeconds:
-                              description: PeriodSeconds specifies the window of time
+                              description: periodSeconds specifies the window of time
                                 for which the policy should hold true. PeriodSeconds
                                 must be greater than zero and less than or equal to
                                 1800 (30 min).
                               format: int32
                               type: integer
                             type:
-                              description: Type is used to specify the scaling policy.
+                              description: type is used to specify the scaling policy.
                               type: string
                             value:
-                              description: Value contains the amount of change which
+                              description: value contains the amount of change which
                                 is permitted by the policy. It must be greater than
                                 zero
                               format: int32
@@ -166,7 +166,7 @@ spec:
                           should be used. If not set, the default value Max is used.
                         type: string
                       stabilizationWindowSeconds:
-                        description: 'StabilizationWindowSeconds is the number of
+                        description: 'stabilizationWindowSeconds is the number of
                           seconds for which past recommendations should be considered
                           while scaling up or scaling down. StabilizationWindowSeconds
                           must be greater than or equal to zero and less than or equal
@@ -373,13 +373,15 @@ spec:
                             of a object,such as kind,name apiVersion
                           properties:
                             apiVersion:
-                              description: API version of the referent
+                              description: apiVersion is the API version of the referent
                               type: string
                             kind:
-                              description: 'Kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                              description: 'kind is the kind of the referent; More
+                                info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
                               type: string
                             name:
-                              description: 'Name of the referent; More info: http://kubernetes.io/docs/user-guide/identifiers#names'
+                              description: 'name is the name of the referent; More
+                                info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
                               type: string
                           required:
                           - kind
@@ -667,13 +669,13 @@ spec:
                   well as to actually change the replica count.
                 properties:
                   apiVersion:
-                    description: API version of the referent
+                    description: apiVersion is the API version of the referent
                     type: string
                   kind:
-                    description: 'Kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                    description: 'kind is the kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
                     type: string
                   name:
-                    description: 'Name of the referent; More info: http://kubernetes.io/docs/user-guide/identifiers#names'
+                    description: 'name is the name of the referent; More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
                     type: string
                 required:
                 - kind
@@ -738,7 +740,7 @@ spec:
                         "pods" source.
                       properties:
                         container:
-                          description: Container is the name of the container in the
+                          description: container is the name of the container in the
                             pods of the scaling target
                           type: string
                         current:
@@ -771,7 +773,7 @@ spec:
                               x-kubernetes-int-or-string: true
                           type: object
                         name:
-                          description: Name is the name of the resource in question.
+                          description: name is the name of the resource in question.
                           type: string
                       required:
                       - container
@@ -917,13 +919,15 @@ spec:
                             of a object,such as kind,name apiVersion
                           properties:
                             apiVersion:
-                              description: API version of the referent
+                              description: apiVersion is the API version of the referent
                               type: string
                             kind:
-                              description: 'Kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                              description: 'kind is the kind of the referent; More
+                                info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
                               type: string
                             name:
-                              description: 'Name of the referent; More info: http://kubernetes.io/docs/user-guide/identifiers#names'
+                              description: 'name is the name of the referent; More
+                                info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
                               type: string
                           required:
                           - kind
@@ -1133,7 +1137,7 @@ spec:
                               x-kubernetes-int-or-string: true
                           type: object
                         name:
-                          description: Name is the name of the resource in question.
+                          description: name is the name of the resource in question.
                           type: string
                       required:
                       - current

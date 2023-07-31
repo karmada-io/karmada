@@ -43,6 +43,10 @@ const (
 	// MachineDeploymentNameLabel is the label set on machines if they're controlled by MachineDeployment.
 	MachineDeploymentNameLabel = "cluster.x-k8s.io/deployment-name"
 
+	// MachinePoolNameLabel is the label indicating the name of the MachinePool a Machine is controlled by.
+	// Note: The value of this label may be a hash if the MachinePool name is longer than 63 characters.
+	MachinePoolNameLabel = "cluster.x-k8s.io/pool-name"
+
 	// MachineControlPlaneNameLabel is the label set on machines if they're controlled by a ControlPlane.
 	// Note: The value of this label may be a hash if the control plane name is longer than 63 characters.
 	MachineControlPlaneNameLabel = "cluster.x-k8s.io/control-plane-name"

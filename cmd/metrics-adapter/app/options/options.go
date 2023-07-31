@@ -5,7 +5,9 @@ import (
 
 	"github.com/spf13/pflag"
 	openapinamer "k8s.io/apiserver/pkg/endpoints/openapi"
+	"k8s.io/apiserver/pkg/features"
 	genericapiserver "k8s.io/apiserver/pkg/server"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -65,6 +67,12 @@ func (o *Options) Config() (*metricsadapter.MetricsServer, error) {
 	metricsAdapter.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(generatedopenapi.GetOpenAPIDefinitions, openapinamer.NewDefinitionNamer(api.Scheme))
 	metricsAdapter.OpenAPIConfig.Info.Title = "karmada-metrics-adapter"
 	metricsAdapter.OpenAPIConfig.Info.Version = "1.0.0"
+
+	if utilfeature.DefaultFeatureGate.Enabled(features.OpenAPIV3) {
+		metricsAdapter.OpenAPIV3Config = genericapiserver.DefaultOpenAPIConfig(generatedopenapi.GetOpenAPIDefinitions, openapinamer.NewDefinitionNamer(api.Scheme))
+		metricsAdapter.OpenAPIV3Config.Info.Title = "karmada-metrics-adapter"
+		metricsAdapter.OpenAPIV3Config.Info.Version = "1.0.0"
+	}
 
 	server, err := metricsAdapter.Server()
 	if err != nil {

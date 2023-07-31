@@ -8,7 +8,6 @@ import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -20,9 +19,9 @@ type FakeResourceBindings struct {
 	ns   string
 }
 
-var resourcebindingsResource = schema.GroupVersionResource{Group: "work.karmada.io", Version: "v1alpha1", Resource: "resourcebindings"}
+var resourcebindingsResource = v1alpha1.SchemeGroupVersion.WithResource("resourcebindings")
 
-var resourcebindingsKind = schema.GroupVersionKind{Group: "work.karmada.io", Version: "v1alpha1", Kind: "ResourceBinding"}
+var resourcebindingsKind = v1alpha1.SchemeGroupVersion.WithKind("ResourceBinding")
 
 // Get takes name of the resourceBinding, and returns the corresponding resourceBinding object, and an error if there is any.
 func (c *FakeResourceBindings) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ResourceBinding, err error) {

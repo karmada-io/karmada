@@ -22,7 +22,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
@@ -74,7 +73,7 @@ func (c *StatusController) Reconcile(ctx context.Context, req controllerruntime.
 // SetupWithManager creates a controller and register to controller manager.
 func (c *StatusController) SetupWithManager(mgr controllerruntime.Manager) error {
 	fn := handler.MapFunc(
-		func(obj client.Object) []reconcile.Request {
+		func(ctx context.Context, obj client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 
 			quotaNamespace, namespaceExist := obj.GetLabels()[util.FederatedResourceQuotaNamespaceLabel]
@@ -115,7 +114,7 @@ func (c *StatusController) SetupWithManager(mgr controllerruntime.Manager) error
 	})
 	return controllerruntime.NewControllerManagedBy(mgr).
 		For(&policyv1alpha1.FederatedResourceQuota{}).
-		Watches(&source.Kind{Type: &workv1alpha1.Work{}}, handler.EnqueueRequestsFromMapFunc(fn), workPredicate).
+		Watches(&workv1alpha1.Work{}, handler.EnqueueRequestsFromMapFunc(fn), workPredicate).
 		Complete(c)
 }
 

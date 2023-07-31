@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 func (r *KubeadmConfigTemplate) SetupWebhookWithManager(mgr ctrl.Manager) error {
@@ -44,18 +45,18 @@ func (r *KubeadmConfigTemplate) Default() {
 var _ webhook.Validator = &KubeadmConfigTemplate{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
-func (r *KubeadmConfigTemplate) ValidateCreate() error {
-	return r.Spec.validate(r.Name)
+func (r *KubeadmConfigTemplate) ValidateCreate() (admission.Warnings, error) {
+	return nil, r.Spec.validate(r.Name)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
-func (r *KubeadmConfigTemplate) ValidateUpdate(_ runtime.Object) error {
-	return r.Spec.validate(r.Name)
+func (r *KubeadmConfigTemplate) ValidateUpdate(_ runtime.Object) (admission.Warnings, error) {
+	return nil, r.Spec.validate(r.Name)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
-func (r *KubeadmConfigTemplate) ValidateDelete() error {
-	return nil
+func (r *KubeadmConfigTemplate) ValidateDelete() (admission.Warnings, error) {
+	return nil, nil
 }
 
 func (r *KubeadmConfigTemplateSpec) validate(name string) error {

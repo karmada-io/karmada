@@ -16,19 +16,18 @@ import (
 
 // ValidatingAdmission validates MultiClusterIngress object when creating/updating.
 type ValidatingAdmission struct {
-	decoder *admission.Decoder
+	Decoder *admission.Decoder
 }
 
 // Check if our ValidatingAdmission implements necessary interface
 var _ admission.Handler = &ValidatingAdmission{}
-var _ admission.DecoderInjector = &ValidatingAdmission{}
 
 // Handle implements admission.Handler interface.
 // It yields a response to an AdmissionRequest.
 func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) admission.Response {
 	mci := &networkingv1alpha1.MultiClusterIngress{}
 
-	err := v.decoder.Decode(req, mci)
+	err := v.Decoder.Decode(req, mci)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
@@ -36,7 +35,7 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 
 	if req.Operation == admissionv1.Update {
 		oldMci := &networkingv1alpha1.MultiClusterIngress{}
-		err = v.decoder.DecodeRaw(req.OldObject, oldMci)
+		err = v.Decoder.DecodeRaw(req.OldObject, oldMci)
 		if err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
@@ -51,13 +50,6 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 		}
 	}
 	return admission.Allowed("")
-}
-
-// InjectDecoder implements admission.DecoderInjector interface.
-// A decoder will be automatically injected.
-func (v *ValidatingAdmission) InjectDecoder(d *admission.Decoder) error {
-	v.decoder = d
-	return nil
 }
 
 func validateMCIUpdate(oldMci, newMci *networkingv1alpha1.MultiClusterIngress) field.ErrorList {

@@ -612,16 +612,6 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			expectedError:             false,
 		},
 		{
-			name:                      "set DeletionTimestamp in work",
-			obj:                       newPodObj("karmada-es-cluster"),
-			pod:                       newPod(workNs, workName),
-			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
-			controllerWithoutInformer: true,
-			workWithRigntNS:           true,
-			workWithDeletionTimestamp: true,
-			expectedError:             false,
-		},
-		{
 			name:                      "failed to getRawManifest, wrong Manifests in work",
 			obj:                       newPodObj("karmada-es-cluster"),
 			pod:                       newPod(workNs, workName),

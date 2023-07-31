@@ -16,7 +16,7 @@ import (
 
 // MutatingAdmission mutates API request if necessary.
 type MutatingAdmission struct {
-	decoder *admission.Decoder
+	Decoder *admission.Decoder
 
 	DefaultNotReadyTolerationSeconds    int64
 	DefaultUnreachableTolerationSeconds int64
@@ -24,13 +24,13 @@ type MutatingAdmission struct {
 
 // Check if our MutatingAdmission implements necessary interface
 var _ admission.Handler = &MutatingAdmission{}
-var _ admission.DecoderInjector = &MutatingAdmission{}
 
 // NewMutatingHandler builds a new admission.Handler.
-func NewMutatingHandler(notReadyTolerationSeconds, unreachableTolerationSeconds int64) admission.Handler {
+func NewMutatingHandler(notReadyTolerationSeconds, unreachableTolerationSeconds int64, decoder *admission.Decoder) admission.Handler {
 	return &MutatingAdmission{
 		DefaultNotReadyTolerationSeconds:    notReadyTolerationSeconds,
 		DefaultUnreachableTolerationSeconds: unreachableTolerationSeconds,
+		Decoder:                             decoder,
 	}
 }
 
@@ -38,7 +38,7 @@ func NewMutatingHandler(notReadyTolerationSeconds, unreachableTolerationSeconds 
 func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) admission.Response {
 	policy := &policyv1alpha1.PropagationPolicy{}
 
-	err := a.decoder.Decode(req, policy)
+	err := a.Decoder.Decode(req, policy)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
@@ -83,11 +83,4 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 	}
 
 	return admission.PatchResponseFromRaw(req.Object.Raw, marshaledBytes)
-}
-
-// InjectDecoder implements admission.DecoderInjector interface.
-// A decoder will be automatically injected.
-func (a *MutatingAdmission) InjectDecoder(d *admission.Decoder) error {
-	a.decoder = d
-	return nil
 }
