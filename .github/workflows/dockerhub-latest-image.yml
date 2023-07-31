@@ -38,7 +38,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.20.4
+          go-version: 1.20.6
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3.0.3
         with:
