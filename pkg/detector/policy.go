@@ -329,3 +329,13 @@ func (d *ResourceDetector) listCPPDerivedCRB(policyName string) (*workv1alpha2.C
 
 	return bindings, nil
 }
+
+// excludeClusterPolicy excludes cluster propagation policy.
+// If propagation policy was claimed, cluster propagation policy should not exists.
+func excludeClusterPolicy(objLabels map[string]string) bool {
+	if _, ok := objLabels[policyv1alpha1.ClusterPropagationPolicyLabel]; !ok {
+		return false
+	}
+	delete(objLabels, policyv1alpha1.ClusterPropagationPolicyLabel)
+	return true
+}

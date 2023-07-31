@@ -9,7 +9,6 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
@@ -40,8 +39,13 @@ func (d *ResourceDetector) handlePropagationPolicyPreemption(policy *policyv1alp
 			continue
 		}
 
-		errs = append(errs, d.preemptPropagationPolicy(resourceTemplate, policy))
-		// TODO(whitewindmills): PP preempts CPP.
+		if err := d.preemptPropagationPolicy(resourceTemplate, policy); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		if err := d.preemptClusterPropagationPolicyDirectly(resourceTemplate, policy); err != nil {
+			errs = append(errs, err)
+		}
 	}
 
 	return utilerrors.NewAggregate(errs)
@@ -61,7 +65,9 @@ func (d *ResourceDetector) handleClusterPropagationPolicyPreemption(policy *poli
 			continue
 		}
 
-		errs = append(errs, d.preemptClusterPropagationPolicy(resourceTemplate, policy))
+		if err := d.preemptClusterPropagationPolicy(resourceTemplate, policy); err != nil {
+			errs = append(errs, err)
+		}
 	}
 
 	return utilerrors.NewAggregate(errs)
@@ -98,18 +104,30 @@ func (d *ResourceDetector) preemptPropagationPolicy(resourceTemplate *unstructur
 		return nil
 	}
 
-	clusterWideKey, err := keys.ClusterWideKeyFunc(resourceTemplate)
-	if err != nil {
-		// should not happen.
-		return err
-	}
-	if err := d.ApplyPolicy(resourceTemplate, clusterWideKey, policy); err != nil {
-		klog.Errorf("Failed to apply new propagation policy(%s/%s) on resource template(%s, kind=%s, %s): %v.", policy.Namespace, policy.Name,
+	if err := d.ClaimPolicyForObject(resourceTemplate, policy.Namespace, policy.Name); err != nil {
+		klog.Errorf("Failed to claim new propagation policy(%s/%s) on resource template(%s, kind=%s, %s): %v.", policy.Namespace, policy.Name,
 			resourceTemplate.GetAPIVersion(), resourceTemplate.GetKind(), names.NamespacedKey(resourceTemplate.GetNamespace(), resourceTemplate.GetName()), err)
 		return err
 	}
 	klog.V(4).Infof("Propagation policy(%s/%s) has preempted another propagation policy(%s/%s).",
 		policy.Namespace, policy.Name, claimedPolicyNamespace, claimedPolicyName)
+	return nil
+}
+
+// preemptClusterPropagationPolicyDirectly directly preempts resource template claimed by ClusterPropagationPolicy regardless of priority.
+func (d *ResourceDetector) preemptClusterPropagationPolicyDirectly(resourceTemplate *unstructured.Unstructured, policy *policyv1alpha1.PropagationPolicy) error {
+	claimedPolicyName := util.GetLabelValue(resourceTemplate.GetLabels(), policyv1alpha1.ClusterPropagationPolicyLabel)
+	if claimedPolicyName == "" {
+		return nil
+	}
+
+	if err := d.ClaimPolicyForObject(resourceTemplate, policy.Namespace, policy.Name); err != nil {
+		klog.Errorf("Failed to claim new propagation policy(%s/%s) on resource template(%s, kind=%s, %s) directly: %v.", policy.Namespace, policy.Name,
+			resourceTemplate.GetAPIVersion(), resourceTemplate.GetKind(), names.NamespacedKey(resourceTemplate.GetNamespace(), resourceTemplate.GetName()), err)
+		return err
+	}
+	klog.V(4).Infof("Propagation policy(%s/%s) has preempted another cluster propagation policy(%s).",
+		policy.Namespace, policy.Name, claimedPolicyName)
 	return nil
 }
 
@@ -142,13 +160,8 @@ func (d *ResourceDetector) preemptClusterPropagationPolicy(resourceTemplate *uns
 		return nil
 	}
 
-	clusterWideKey, err := keys.ClusterWideKeyFunc(resourceTemplate)
-	if err != nil {
-		// should not happen.
-		return err
-	}
-	if err := d.ApplyClusterPolicy(resourceTemplate, clusterWideKey, policy); err != nil {
-		klog.Errorf("Failed to apply new cluster propagation policy(%s) on resource template(%s, kind=%s, %s): %v.", policy.Name,
+	if err := d.ClaimClusterPolicyForObject(resourceTemplate, policy.Name); err != nil {
+		klog.Errorf("Failed to claim new cluster propagation policy(%s) on resource template(%s, kind=%s, %s): %v.", policy.Name,
 			resourceTemplate.GetAPIVersion(), resourceTemplate.GetKind(), names.NamespacedKey(resourceTemplate.GetNamespace(), resourceTemplate.GetName()), err)
 		return err
 	}

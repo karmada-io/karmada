@@ -422,6 +422,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 			bindingCopy.Spec.Placement = binding.Spec.Placement
 			bindingCopy.Spec.Failover = binding.Spec.Failover
 			bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
+			excludeClusterPolicy(bindingCopy.Labels)
 			return nil
 		})
 		if err != nil {
@@ -598,18 +599,23 @@ func (d *ResourceDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) 
 
 // ClaimPolicyForObject set policy identifier which the object associated with.
 func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructured, policyNamespace string, policyName string) error {
-	claimedNS := util.GetLabelValue(object.GetLabels(), policyv1alpha1.PropagationPolicyNamespaceLabel)
-	claimedName := util.GetLabelValue(object.GetLabels(), policyv1alpha1.PropagationPolicyNameLabel)
-
-	// object has been claimed, don't need to claim again
-	if claimedNS == policyNamespace && claimedName == policyName {
-		return nil
+	objLabels := object.GetLabels()
+	if objLabels == nil {
+		objLabels = make(map[string]string)
+	} else if len(objLabels) > 0 {
+		// object has been claimed, don't need to claim again
+		if !excludeClusterPolicy(objLabels) &&
+			objLabels[policyv1alpha1.PropagationPolicyNamespaceLabel] == policyNamespace &&
+			objLabels[policyv1alpha1.PropagationPolicyNameLabel] == policyName {
+			return nil
+		}
 	}
 
-	util.MergeLabel(object, policyv1alpha1.PropagationPolicyNamespaceLabel, policyNamespace)
-	util.MergeLabel(object, policyv1alpha1.PropagationPolicyNameLabel, policyName)
-
-	return d.Client.Update(context.TODO(), object)
+	objLabels[policyv1alpha1.PropagationPolicyNamespaceLabel] = policyNamespace
+	objLabels[policyv1alpha1.PropagationPolicyNameLabel] = policyName
+	objectCopy := object.DeepCopy()
+	objectCopy.SetLabels(objLabels)
+	return d.Client.Update(context.TODO(), objectCopy)
 }
 
 // ClaimClusterPolicyForObject set cluster identifier which the object associated with.
@@ -621,8 +627,9 @@ func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unst
 		return nil
 	}
 
-	util.MergeLabel(object, policyv1alpha1.ClusterPropagationPolicyLabel, policyName)
-	return d.Client.Update(context.TODO(), object)
+	objectCopy := object.DeepCopy()
+	util.MergeLabel(objectCopy, policyv1alpha1.ClusterPropagationPolicyLabel, policyName)
+	return d.Client.Update(context.TODO(), objectCopy)
 }
 
 // BuildResourceBinding builds a desired ResourceBinding for object.
