@@ -159,5 +159,5 @@ const (
 
 const (
 	// CacheSyncTimeout refers to the time limit set on waiting for cache to sync
-	CacheSyncTimeout = 30 * time.Second
+	CacheSyncTimeout = 2 * time.Minute
 )

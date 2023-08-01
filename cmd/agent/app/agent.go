@@ -196,6 +196,7 @@ func run(ctx context.Context, opts *options.Options) error {
 				workv1alpha1.SchemeGroupVersion.WithKind("Work").GroupKind().String():       opts.ConcurrentWorkSyncs,
 				clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster").GroupKind().String(): opts.ConcurrentClusterSyncs,
 			},
+			CacheSyncTimeout: opts.ClusterCacheSyncTimeout.Duration,
 		},
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			DefaultTransform: fedinformer.StripUnusedFields,
