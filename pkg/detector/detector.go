@@ -29,6 +29,7 @@ import (
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/metrics"
@@ -411,6 +412,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 					"try again later after binding is garbage collected, see https://github.com/karmada-io/karmada/issues/2090")
 			}
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
+			bindingCopy.Annotations = util.DedupeAndMergeAnnotations(bindingCopy.Annotations, binding.Annotations)
 			bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
 			bindingCopy.OwnerReferences = binding.OwnerReferences
 			bindingCopy.Finalizers = binding.Finalizers
@@ -489,6 +491,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 						"try again later after binding is garbage collected, see https://github.com/karmada-io/karmada/issues/2090")
 				}
 				// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
+				bindingCopy.Annotations = util.DedupeAndMergeAnnotations(bindingCopy.Annotations, binding.Annotations)
 				bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
 				bindingCopy.OwnerReferences = binding.OwnerReferences
 				bindingCopy.Finalizers = binding.Finalizers
@@ -535,6 +538,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 					"try again later after binding is garbage collected, see https://github.com/karmada-io/karmada/issues/2090")
 			}
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
+			bindingCopy.Annotations = util.DedupeAndMergeAnnotations(bindingCopy.Annotations, binding.Annotations)
 			bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
 			bindingCopy.OwnerReferences = binding.OwnerReferences
 			bindingCopy.Finalizers = binding.Finalizers
@@ -642,6 +646,10 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(object, objectKey.GroupVersionKind()),
 			},
+			Annotations: map[string]string{
+				workv1alpha2.ResourceBindingReferenceKey: names.GenerateBindingReferenceKey(object.GetNamespace(), bindingName),
+				workv1alpha1.WorkNameLabel:               names.GenerateWorkName(object.GetKind(), object.GetName(), object.GetNamespace()),
+			},
 			Labels:     labels,
 			Finalizers: []string{util.BindingControllerFinalizer},
 		},
@@ -683,6 +691,10 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 			Name: bindingName,
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(object, objectKey.GroupVersionKind()),
+			},
+			Annotations: map[string]string{
+				workv1alpha2.ClusterResourceBindingReferenceKey: names.GenerateBindingReferenceKey("", bindingName),
+				workv1alpha1.WorkNameLabel:                      names.GenerateWorkName(object.GetKind(), object.GetName(), object.GetNamespace()),
 			},
 			Labels:     labels,
 			Finalizers: []string{util.ClusterResourceBindingControllerFinalizer},

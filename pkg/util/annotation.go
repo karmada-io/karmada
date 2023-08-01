@@ -23,6 +23,18 @@ func MergeAnnotation(obj *unstructured.Unstructured, annotationKey string, annot
 	}
 }
 
+// DedupeAndMergeAnnotations merges the new annotations into exist annotations.
+func DedupeAndMergeAnnotations(existAnnotation, newAnnotation map[string]string) map[string]string {
+	if existAnnotation == nil {
+		return newAnnotation
+	}
+
+	for k, v := range newAnnotation {
+		existAnnotation[k] = v
+	}
+	return existAnnotation
+}
+
 // ReplaceAnnotation adds annotation for the given object, replace the value if key exist.
 func ReplaceAnnotation(obj *unstructured.Unstructured, annotationKey string, annotationValue string) {
 	objectAnnotation := obj.GetAnnotations()
