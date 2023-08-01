@@ -15,10 +15,9 @@ func Test_dependentObjectReferenceMatches(t *testing.T) {
 		referenceBinding *workv1alpha2.ResourceBinding
 	}
 	tests := []struct {
-		name    string
-		args    args
-		want    bool
-		wantErr bool
+		name string
+		args args
+		want bool
 	}{
 		{
 			name: "test custom resource",
@@ -36,8 +35,7 @@ func Test_dependentObjectReferenceMatches(t *testing.T) {
 					}},
 				},
 			},
-			want:    true,
-			wantErr: false,
+			want: true,
 		},
 		{
 			name: "test configmap",
@@ -55,17 +53,12 @@ func Test_dependentObjectReferenceMatches(t *testing.T) {
 					}},
 				},
 			},
-			want:    true,
-			wantErr: false,
+			want: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := dependentObjectReferenceMatches(tt.args.objectKey, tt.args.referenceBinding)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("dependentObjectReferenceMatches() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			got := dependentObjectReferenceMatches(tt.args.objectKey, tt.args.referenceBinding)
 			if got != tt.want {
 				t.Errorf("dependentObjectReferenceMatches() got = %v, want %v", got, tt.want)
 			}
