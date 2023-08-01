@@ -68,6 +68,7 @@ type FederatedHPAController struct {
 	RESTMapper                meta.RESTMapper
 	EventRecorder             record.EventRecorder
 	TypedInformerManager      typedmanager.MultiClusterInformerManager
+	ClusterCacheSyncTimeout   metav1.Duration
 
 	monitor monitor.Monitor
 
@@ -544,7 +545,7 @@ func (c *FederatedHPAController) buildPodInformerForCluster(clusterScaleClient *
 	c.TypedInformerManager.Start(clusterScaleClient.ClusterName)
 
 	if err := func() error {
-		synced := c.TypedInformerManager.WaitForCacheSyncWithTimeout(clusterScaleClient.ClusterName, util.CacheSyncTimeout)
+		synced := c.TypedInformerManager.WaitForCacheSyncWithTimeout(clusterScaleClient.ClusterName, c.ClusterCacheSyncTimeout.Duration)
 		if synced == nil {
 			return fmt.Errorf("no informerFactory for cluster %s exist", clusterScaleClient.ClusterName)
 		}
