@@ -1,9 +1,128 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [v1.4.4](#v144)
+  - [Downloads for v1.4.4](#downloads-for-v144)
+  - [Changelog since v1.4.3](#changelog-since-v143)
+    - [Changes by Kind](#changes-by-kind)
+      - [Bug Fixes](#bug-fixes)
+      - [Others](#others)
+- [v1.4.3](#v143)
+  - [Downloads for v1.4.3](#downloads-for-v143)
+  - [Changelog since v1.4.2](#changelog-since-v142)
+    - [Changes by Kind](#changes-by-kind-1)
+      - [Bug Fixes](#bug-fixes-1)
+      - [Others](#others-1)
+- [v1.4.2](#v142)
+  - [Downloads for v1.4.2](#downloads-for-v142)
+  - [Changelog since v1.4.1](#changelog-since-v141)
+    - [Changes by Kind](#changes-by-kind-2)
+      - [Bug Fixes](#bug-fixes-2)
+      - [Others](#others-2)
+- [v1.4.1](#v141)
+  - [Downloads for v1.4.1](#downloads-for-v141)
+  - [Changelog since v1.4.0](#changelog-since-v140)
+    - [Changes by Kind](#changes-by-kind-3)
+      - [Bug Fixes](#bug-fixes-3)
+      - [Others](#others-3)
+- [v1.4.0](#v140)
+  - [Downloads for v1.4.0](#downloads-for-v140)
+  - [Karmada v1.4 Release Notes](#karmada-v14-release-notes)
+    - [What's New](#whats-new)
+      - [#Declarative Resource Interpreter](#declarative-resource-interpreter)
+      - [PropagationPolicy/ClusterPropagationPolicy priority](#propagationpolicyclusterpropagationpolicy-priority)
+      - [Instrumentation improvement](#instrumentation-improvement)
+    - [Other Notable Changes](#other-notable-changes)
+      - [API Changes](#api-changes)
+      - [Bug Fixes](#bug-fixes-4)
+      - [Security](#security)
+      - [Features & Enhancements](#features--enhancements)
+    - [Other](#other)
+      - [Dependencies](#dependencies)
+      - [Helm Chart](#helm-chart)
+      - [Instrumentation](#instrumentation)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 * [v1.4.0](#v140)
     * [Downloads for v1.4.0](#downloads-for-v140)
     * [Karmada v1.4 Release Notes](#karmada-v14-release-notes)
         * [1.4 What's New](#whats-new)
         * [Other Notable Changes](#other-notable-changes)
         * [Other](#other)
+
+# v1.4.4
+## Downloads for v1.4.4
+
+Download v1.4.4 in the [v1.4.4 release page](https://github.com/karmada-io/karmada/releases/tag/v1.4.4).
+
+## Changelog since v1.4.3
+### Changes by Kind
+#### Bug Fixes
+- `karmada-scheduler`: Fixed the issue that empty deployment can still be propagated to member clusters even when `--enableEmptyWorkloadPropagation` flag is false. (#3642, @chaunceyjiang)
+- `karmada-controller-manager`: Fixed the panic issue in case of the grade number of resourceModel is less than the number of resources. (#3608, @sunbinnnnn)
+
+#### Others
+None.
+
+# v1.4.3
+## Downloads for v1.4.3
+
+Download v1.4.3 in the [v1.4.3 release page](https://github.com/karmada-io/karmada/releases/tag/v1.4.3).
+
+## Changelog since v1.4.2
+### Changes by Kind
+#### Bug Fixes
+- `karmada-search`: support pod subresource (attach, exec, port-forward) through global proxy. (#3100, @ikaven1024)
+- `karmada-search`: Fixed the problem that ResourceVersion base64 encrypted repeatedly when starting multiple informers to watch resource. (#3388, @niuyueyang1996)
+- `karmada-search`: Fixed paging list in karmada search proxy in large-scale member clusters issue. (#3450, @ikaven1024)
+- `karmada-search`: Fixed contecnt-type header issue in HTTP response. (#3514, @callmeoldprince)
+- `karmada-controller-manager`: Fixed the issue that RBAC resources whose name contains uppercase characters can not be propagated. (#3215, @whitewindmills)
+- `karmada-controller-mamager`: Fixed Lua's built-in string function can not be used issue in ResourceInterpreterCustomization. (#3301, @chaunceyjiang)
+- `karmada-controller-manager`: Fixed the control plane endpointslices cannot be deleted issue. (#3353, @wenchezhao)
+- `karmadactl`: Fixed unable to view the options of `karmadactl addons enable/disable` issue. (#3306, @lonelyCZ)
+
+#### Others
+None.
+
+# v1.4.2
+## Downloads for v1.4.2
+
+Download v1.4.2 in the [v1.4.2 release page](https://github.com/karmada-io/karmada/releases/tag/v1.4.2).
+
+## Changelog since v1.4.1
+### Changes by Kind
+#### Bug Fixes
+- `karmada-controller-manager`: Fixed `LabelsOverrider` and `AnnotationsOverrider` failed to add new items issue in case of `label`/`annotation` is nil. (#2972, @chaunceyjiang)
+- `karmada-controller-manager`: `labelsOverrider/annotationsOverrider` supports `composed-labels`, like testannotation/projectId: <label-value>. (#3047, @chaunceyjiang)
+- `karmadactl`: Grant karmada-agent permission to access resourceinterpretercustomizations for `init` command. (#2986, @jwcesign)
+- `karmada-agent`: Check if the resource exists before creating it. Sometimes the resource is created in advance, to give less privilege to Karmada. (#3002, @jwcesign)
+- `karmada-search`: filter out not ready clusters. (#3016, @yanfeng1992)
+- `karmada-search`: avoid proxy request block when member cluster down. (#3030, @ikaven1024)
+- `karmada-webhook`: Fixed the issue that the InterpretDependency operation can't be registered. (#3074, @XiShanYongYe-Chang)
+
+#### Others
+None.
+
+# v1.4.1
+## Downloads for v1.4.1
+
+Download v1.4.1 in the [v1.4.1 release page](https://github.com/karmada-io/karmada/releases/tag/v1.4.1).
+
+## Changelog since v1.4.0
+### Changes by Kind
+#### Bug Fixes
+- `karmadactl`: Fixed `karmada-agent` installed by the `register` command can not delete works due to lack of permission issue. (#2904, @lonelyCZ)
+- `karmadactl`: Fixed the default ValidatingWebhookConfiguration for `resourceinterpreterwebhook` not working issue. (#2924, @qingwave)
+- `karmadactl`: Fixed the default ValidatingWebhookConfiguration for `resourceinterpretercustomizations` not working issue. (#2927, @chaunceyjiang)
+- `karmadactl`: Fixed the error of resources whose name contains colons failing to be created when using `karmadactl apply`. (#2931, @Poor12)
+- `karmada-controller-manager`/`karmada-agent`: Fixed misjudgment of deployment and statefuleset health status. (#2944, @Fish-pro)
+- `karmada-controller-manager`/`karmada-agent`: Fixed failed to sync work status issue due to the informer being accidentally shut down. (#2937, @Poor12)
+- `karmada-scheduler`: Fixed a corner case that re-schedule be skipped in case of the cluster becomes not fit. (#2955, @jwcesign)
+
+#### Others
+- Karmada is now built with Golang 1.19.4. (#2913, @qingwave)
 
 # v1.4.0
 ## Downloads for v1.4.0
