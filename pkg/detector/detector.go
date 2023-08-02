@@ -35,6 +35,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/eventfilter"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
@@ -303,7 +304,7 @@ func (d *ResourceDetector) OnUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
-	if !SpecificationChanged(unstructuredOldObj, unstructuredNewObj) {
+	if !eventfilter.SpecificationChanged(unstructuredOldObj, unstructuredNewObj) {
 		klog.V(4).Infof("Ignore update event of object (kind=%s, %s/%s) as specification no change", unstructuredOldObj.GetKind(), unstructuredOldObj.GetNamespace(), unstructuredOldObj.GetName())
 		return
 	}

@@ -1,4 +1,4 @@
-package detector
+package eventfilter
 
 import (
 	"reflect"
