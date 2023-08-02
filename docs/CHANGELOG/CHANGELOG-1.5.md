@@ -2,15 +2,26 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
+- [v1.5.2](#v152)
+  - [Downloads for v1.5.2](#downloads-for-v152)
+  - [Changelog since v1.5.1](#changelog-since-v151)
+    - [Changes by Kind](#changes-by-kind)
+      - [Bug Fixes](#bug-fixes)
+      - [Others](#others)
+- [v1.5.1](#v151)
+  - [Downloads for v1.5.1](#downloads-for-v151)
+  - [Changelog since v1.5.0](#changelog-since-v150)
+    - [Changes by Kind](#changes-by-kind-1)
+      - [Bug Fixes](#bug-fixes-1)
+      - [Others](#others-1)
 - [v1.5.0](#v150)
   - [Downloads for v1.5.0](#downloads-for-v150)
   - [What's New](#whats-new)
     - [Multiple Scheduling Groups](#multiple-scheduling-groups)
     - [New Way to Customize Scheduler](#new-way-to-customize-scheduler)
-    - [Karmada Operator Ready for Trial](#karmada-operator-ready-for-trial)
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
-    - [Bug Fixes](#bug-fixes)
+    - [Bug Fixes](#bug-fixes-2)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -19,6 +30,42 @@
     - [Instrumentation](#instrumentation)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.5.2
+## Downloads for v1.5.2
+
+Download v1.5.2 in the [v1.5.2 release page](https://github.com/karmada-io/karmada/releases/tag/v1.5.2).
+
+## Changelog since v1.5.1
+### Changes by Kind
+#### Bug Fixes
+- `karmada-controller-manager`: Fixed `Applied` condition of ResourceBinding is always true issue. (#3723, @jwcesign)
+- `karmada-controller-manager`: Fixed the panic issue in case of the grade number of resourceModel is less than the number of resources. (#3610, @sunbinnnnn)
+- `karmada-scheduler`: Fixed the issue that empty deployment can still be propagated to member clusters even when `--enableEmptyWorkloadPropagation` flag is false. (#3641, @chaunceyjiang)
+
+#### Others
+None.
+
+# v1.5.1
+## Downloads for v1.5.1
+
+Download v1.5.1 in the [v1.5.1 release page](https://github.com/karmada-io/karmada/releases/tag/v1.5.1).
+
+## Changelog since v1.5.0
+### Changes by Kind
+#### Bug Fixes
+- `karmada-search`: Fixed the problem that ResourceVersion base64 encrypted repeatedly when starting multiple informers to watch resource. (#3387, @niuyueyang1996)
+- `karmada-search`: Fixed paging list in karmada search proxy in large-scale member clusters issue. (#3449, @ikaven1024)
+- `karmada-search`: Fixed contecnt-type header issue in HTTP response. (#3513, @callmeoldprince)
+- `karmada-controller-mamager`: Fixed Lua's built-in string function can not be used issue in ResourceInterpreterCustomization. (#3282, @chaunceyjiang)
+- `karmada-controller-manager`: Fixed the control plane endpointslices cannot be deleted issue. (#3354, @wenchezhao)
+- `karmada-controller-manager`: Fixed a corner case that when there are tasks in the GracefulEvictionTasks queue, graceful-eviction-controller will not work after restarting karmada-controller-manager. (#3490, @chaunceyjiang)
+- `karmada-scheduler`: Fixed unexpected re-scheduling due to mutating informer cache issue. (#3428, @whitewindmills)
+- `karmada-scheduler`: Fixed the issue of inconsistent Generation and SchedulerObservedGeneration. (#3477, @Poor12)
+- `karmadactl`: Fixed unable to view the options of `karmadactl addons enable/disable` issue. (#3305, @lonelyCZ)
+
+#### Others
+None.
 
 # v1.5.0
 ## Downloads for v1.5.0
