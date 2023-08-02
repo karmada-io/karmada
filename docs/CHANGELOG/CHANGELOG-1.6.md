@@ -2,6 +2,18 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
+- [v1.6.2](#v162)
+  - [Downloads for v1.6.2](#downloads-for-v162)
+  - [Changelog since v1.6.1](#changelog-since-v161)
+    - [Changes by Kind](#changes-by-kind)
+      - [Bug Fixes](#bug-fixes)
+      - [Others](#others)
+- [v1.6.1](#v161)
+  - [Downloads for v1.6.1](#downloads-for-v161)
+  - [Changelog since v1.6.0](#changelog-since-v160)
+    - [Changes by Kind](#changes-by-kind-1)
+      - [Bug Fixes](#bug-fixes-1)
+      - [Others](#others-1)
 - [v1.6.0](#v160)
   - [Downloads for v1.6.0](#downloads-for-v160)
   - [What's New](#whats-new)
@@ -11,7 +23,7 @@
     - [Third-party Resource Interpreter](#third-party-resource-interpreter)
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
-    - [Bug Fixes](#bug-fixes)
+    - [Bug Fixes](#bug-fixes-2)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -20,6 +32,35 @@
     - [Instrumentation](#instrumentation)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.6.2
+## Downloads for v1.6.2
+
+Download v1.6.2 in the [v1.6.2 release page](https://github.com/karmada-io/karmada/releases/tag/v1.6.2).
+
+## Changelog since v1.6.1
+### Changes by Kind
+#### Bug Fixes
+- Chart: Fixed the issue that `karmada-search` no ETCD secret volume mount when using external ETCD.
+- `karmada-controller-manager`:  Fixed a boundary case where the `propagationpolicy.karmada.io/name` in the label of the resource template would not be removed after deleting PP.
+
+#### Others
+None.
+
+# v1.6.1
+## Downloads for v1.6.1
+
+Download v1.6.1 in the [v1.6.1 release page](https://github.com/karmada-io/karmada/releases/tag/v1.6.1).
+
+## Changelog since v1.6.0
+### Changes by Kind
+#### Bug Fixes
+- `karmada-controller-manager`: Fixed `Applied` condition of ResourceBinding is always true issue. (#3724, @jwcesign)
+- `karmada-controller-manager`: fix panic when printing log when lastSuccessfulTime of cronjob is nil. (#3698, @yike21)
+- `karmada-webhook`: When application failover is enabled, users are prevented from setting propagateDeps to `false`. (#3766, @RuliXu)
+
+#### Others
+None.
 
 # v1.6.0
 ## Downloads for v1.6.0
