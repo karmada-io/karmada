@@ -2,18 +2,24 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.5.2](#v152)
-  - [Downloads for v1.5.2](#downloads-for-v152)
-  - [Changelog since v1.5.1](#changelog-since-v151)
+- [v1.5.3](#v153)
+  - [Downloads for v1.5.3](#downloads-for-v153)
+  - [Changelog since v1.5.2](#changelog-since-v152)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
-- [v1.5.1](#v151)
-  - [Downloads for v1.5.1](#downloads-for-v151)
-  - [Changelog since v1.5.0](#changelog-since-v150)
+- [v1.5.2](#v152)
+  - [Downloads for v1.5.2](#downloads-for-v152)
+  - [Changelog since v1.5.1](#changelog-since-v151)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
+- [v1.5.1](#v151)
+  - [Downloads for v1.5.1](#downloads-for-v151)
+  - [Changelog since v1.5.0](#changelog-since-v150)
+    - [Changes by Kind](#changes-by-kind-2)
+      - [Bug Fixes](#bug-fixes-2)
+      - [Others](#others-2)
 - [v1.5.0](#v150)
   - [Downloads for v1.5.0](#downloads-for-v150)
   - [What's New](#whats-new)
@@ -21,7 +27,7 @@
     - [New Way to Customize Scheduler](#new-way-to-customize-scheduler)
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
-    - [Bug Fixes](#bug-fixes-2)
+    - [Bug Fixes](#bug-fixes-3)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -30,6 +36,19 @@
     - [Instrumentation](#instrumentation)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.5.3
+## Downloads for v1.5.3
+
+Download v1.5.3 in the [v1.5.3 release page](https://github.com/karmada-io/karmada/releases/tag/v1.5.3).
+
+## Changelog since v1.5.2
+### Changes by Kind
+#### Bug Fixes
+- Chart: Fixed the issue that `karmada-search` no ETCD secret volume mount when using external ETCD. (#3785, @my-git9)
+
+#### Others
+None.
 
 # v1.5.2
 ## Downloads for v1.5.2
