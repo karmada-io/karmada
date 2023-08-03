@@ -42,7 +42,7 @@ spec:
       {{- end }}
       automountServiceAccountToken: false
       containers:
-        - name: {{ $name }}
+        - name: {{ $name }}-descheduler
           image: {{ template "karmada.descheduler.image" . }}
           imagePullPolicy: {{ .Values.descheduler.image.pullPolicy }}
           command:
