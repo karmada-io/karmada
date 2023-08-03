@@ -6,6 +6,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -25,6 +26,7 @@ func getAllDefaultDependenciesInterpreter() map[schema.GroupVersionKind]dependen
 	s[corev1.SchemeGroupVersion.WithKind(util.PodKind)] = getPodDependencies
 	s[appsv1.SchemeGroupVersion.WithKind(util.DaemonSetKind)] = getDaemonSetDependencies
 	s[appsv1.SchemeGroupVersion.WithKind(util.StatefulSetKind)] = getStatefulSetDependencies
+	s[networkingv1.SchemeGroupVersion.WithKind(util.IngressKind)] = getIngressDependencies
 	return s
 }
 
@@ -110,4 +112,22 @@ func getStatefulSetDependencies(object *unstructured.Unstructured) ([]configv1al
 	}
 
 	return helper.GetDependenciesFromPodTemplate(podObj)
+}
+
+func getIngressDependencies(object *unstructured.Unstructured) ([]configv1alpha1.DependentObjectReference, error) {
+	ingressObj := &networkingv1.Ingress{}
+	err := helper.ConvertToTypedObject(object, ingressObj)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert Ingress from unstructured object: %v", err)
+	}
+	var dependentObjectRefs []configv1alpha1.DependentObjectReference
+	for _, tls := range ingressObj.Spec.TLS {
+		dependentObjectRefs = append(dependentObjectRefs, configv1alpha1.DependentObjectReference{
+			APIVersion: "v1",
+			Kind:       "Secret",
+			Namespace:  ingressObj.Namespace,
+			Name:       tls.SecretName,
+		})
+	}
+	return dependentObjectRefs, nil
 }
