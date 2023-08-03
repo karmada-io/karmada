@@ -566,6 +566,9 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 }
 
 // GetUnstructuredObject retrieves object by key and returned its unstructured.
+// Any updates to this resource template are not recommended as it may come from the informer cache.
+// We should abide by the principle of making a deep copy first and then modifying it.
+// See issue: https://github.com/karmada-io/karmada/issues/3878.
 func (d *ResourceDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) (*unstructured.Unstructured, error) {
 	objectGVR, err := restmapper.GetGroupVersionResource(d.RESTMapper, objectKey.GroupVersionKind())
 	if err != nil {
@@ -1114,7 +1117,7 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy
 }
 
 // CleanupLabels removes labels from object referencing by objRef.
-func (d *ResourceDetector) CleanupLabels(objRef workv1alpha2.ObjectReference, labels ...string) error {
+func (d *ResourceDetector) CleanupLabels(objRef workv1alpha2.ObjectReference, labelKeys ...string) error {
 	workload, err := helper.FetchResourceTemplate(d.DynamicClient, d.InformerManager, d.RESTMapper, objRef)
 	if err != nil {
 		// do nothing if resource template not exist, it might has been removed.
@@ -1125,11 +1128,8 @@ func (d *ResourceDetector) CleanupLabels(objRef workv1alpha2.ObjectReference, la
 		return err
 	}
 
-	workloadLabels := workload.GetLabels()
-	for _, l := range labels {
-		delete(workloadLabels, l)
-	}
-	workload.SetLabels(workloadLabels)
+	workload = workload.DeepCopy()
+	util.RemoveLabels(workload, labelKeys...)
 
 	gvr, err := restmapper.GetGroupVersionResource(d.RESTMapper, workload.GroupVersionKind())
 	if err != nil {
