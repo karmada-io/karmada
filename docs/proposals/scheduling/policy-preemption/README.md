@@ -306,7 +306,7 @@ Also, we need to add a preemption logic. The overall process is shown in the pic
 For each preemption operation, the component needs to have a corresponding metrics record. For metrics, we will record the total number of times
 a resource template is preempted. And we will use events to reflect the details of each preemption operation.
 
-For example, preemption_counts_total{namespace=default, name=nginx} 4.
+For example, policy_preemption_total{result=success} 4.
 
 #### karmada-webhook
 
