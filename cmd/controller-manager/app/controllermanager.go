@@ -44,7 +44,6 @@ import (
 	metricsclient "github.com/karmada-io/karmada/pkg/controllers/federatedhpa/metrics"
 	"github.com/karmada-io/karmada/pkg/controllers/federatedresourcequota"
 	"github.com/karmada-io/karmada/pkg/controllers/gracefuleviction"
-	"github.com/karmada-io/karmada/pkg/controllers/hpa"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/namespace"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
@@ -186,14 +185,11 @@ func Run(ctx context.Context, opts *options.Options) error {
 var controllers = make(controllerscontext.Initializers)
 
 // controllersDisabledByDefault is the set of controllers which is disabled by default
-var controllersDisabledByDefault = sets.New(
-	"hpa",
-)
+var controllersDisabledByDefault = sets.New("")
 
 func init() {
 	controllers["cluster"] = startClusterController
 	controllers["clusterStatus"] = startClusterStatusController
-	controllers["hpa"] = startHpaController
 	controllers["binding"] = startBindingController
 	controllers["bindingStatus"] = startBindingStatusController
 	controllers["execution"] = startExecutionController
@@ -305,20 +301,6 @@ func startClusterStatusController(ctx controllerscontext.Context) (enabled bool,
 		EnableClusterResourceModeling:     ctx.Opts.EnableClusterResourceModeling,
 	}
 	if err := clusterStatusController.SetupWithManager(mgr); err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
-func startHpaController(ctx controllerscontext.Context) (enabled bool, err error) {
-	hpaController := &hpa.HorizontalPodAutoscalerController{
-		Client:          ctx.Mgr.GetClient(),
-		DynamicClient:   ctx.DynamicClientSet,
-		EventRecorder:   ctx.Mgr.GetEventRecorderFor(hpa.ControllerName),
-		RESTMapper:      ctx.Mgr.GetRESTMapper(),
-		InformerManager: ctx.ControlPlaneInformerManager,
-	}
-	if err := hpaController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 	return true, nil
