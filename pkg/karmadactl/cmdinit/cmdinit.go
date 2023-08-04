@@ -122,6 +122,11 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	flags.StringVarP(&opts.EtcdHostDataPath, "etcd-data", "", "/var/lib/karmada-etcd", "etcd data path,valid in hostPath mode.")
 	flags.StringVarP(&opts.EtcdNodeSelectorLabels, "etcd-node-selector-labels", "", "", "etcd pod select the labels of the node. valid in hostPath mode ( e.g. --etcd-node-selector-labels karmada.io/etcd=true)")
 	flags.StringVarP(&opts.EtcdPersistentVolumeSize, "etcd-pvc-size", "", "5Gi", "etcd data path,valid in pvc mode.")
+	flags.StringVar(&opts.ExternalEtcdCACertPath, "external-etcd-ca-cert-path", "", "The path of CA certificate of the external etcd cluster in pem format.")
+	flags.StringVar(&opts.ExternalEtcdClientCertPath, "external-etcd-client-cert-path", "", "The path of client side certificate to the external etcd cluster in pem format.")
+	flags.StringVar(&opts.ExternalEtcdClientKeyPath, "external-etcd-client-key-path", "", "The path of client side private key to the external etcd cluster in pem format.")
+	flags.StringVar(&opts.ExternalEtcdServers, "external-etcd-servers", "", "The server urls of external etcd cluster, to be used by kube-apiserver through --etcd-servers.")
+	flags.StringVar(&opts.ExternalEtcdKeyPrefix, "external-etcd-key-prefix", "", "The key prefix to be configured to kube-apiserver through --etcd-prefix.")
 	// karmada
 	flags.StringVar(&opts.CRDs, "crds", kubernetes.DefaultCrdURL, "Karmada crds resource.(local file e.g. --crds /root/crds.tar.gz)")
 	flags.StringVarP(&opts.KarmadaAPIServerAdvertiseAddress, "karmada-apiserver-advertise-address", "", "", "The IP address the Karmada API Server will advertise it's listening on. If not set, the address on the master node will be used.")
