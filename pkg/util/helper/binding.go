@@ -215,7 +215,10 @@ func RemoveOrphanWorks(c client.Client, works []workv1alpha1.Work) error {
 	return errors.NewAggregate(errs)
 }
 
-// FetchWorkload fetches the kubernetes resource to be propagated.
+// FetchWorkload fetches the workload to be propagated.
+// Any updates to this workload are not recommended as it may come from the informer cache.
+// We should abide by the principle of making a deep copy first and then modifying it.
+// See issue: https://github.com/karmada-io/karmada/issues/3878.
 func FetchWorkload(dynamicClient dynamic.Interface, informerManager genericmanager.SingleClusterInformerManager,
 	restMapper meta.RESTMapper, resource workv1alpha2.ObjectReference) (*unstructured.Unstructured, error) {
 	dynamicResource, err := restmapper.GetGroupVersionResource(restMapper,

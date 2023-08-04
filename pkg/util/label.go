@@ -57,11 +57,17 @@ func MergeLabel(obj *unstructured.Unstructured, labelKey string, labelValue stri
 	obj.SetLabels(labels)
 }
 
-// RemoveLabel removes the label from the given object.
-func RemoveLabel(obj *unstructured.Unstructured, labelKey string) {
-	labels := obj.GetLabels()
-	delete(labels, labelKey)
-	obj.SetLabels(labels)
+// RemoveLabels removes the labels from the given object.
+func RemoveLabels(obj *unstructured.Unstructured, labelKeys ...string) {
+	if len(labelKeys) == 0 {
+		return
+	}
+
+	objLabels := obj.GetLabels()
+	for _, labelKey := range labelKeys {
+		delete(objLabels, labelKey)
+	}
+	obj.SetLabels(objLabels)
 }
 
 // DedupeAndMergeLabels merges the new labels into exist labels.
