@@ -46,12 +46,11 @@ func runDeployEtcd(r workflow.RunData) error {
 	if !ok {
 		return errors.New("deploy-etcd task invoked with an invalid data struct")
 	}
-
-	cfg := data.Components()
-	if cfg.Etcd.External != nil {
+	if runWithExtEtcd(data) {
 		klog.V(2).InfoS("[etcd] use external etcd, skip install etcd job", "karmada", data.GetName())
 		return nil
 	}
+	cfg := data.Components()
 
 	if cfg.Etcd.Local == nil {
 		return errors.New("unexpect empty etcd local configuration")
@@ -71,6 +70,10 @@ func runWaitEtcd(r workflow.RunData) error {
 	if !ok {
 		return errors.New("wait-etcd task invoked with an invalid data struct")
 	}
+	if runWithExtEtcd(data) {
+		klog.V(2).InfoS("[etcd] use external etcd, skip waiting the etcd pod", "karmada", data.GetName())
+		return nil
+	}
 
 	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConfig(), data.RemoteClient(), time.Second*30)
 
@@ -82,4 +85,8 @@ func runWaitEtcd(r workflow.RunData) error {
 
 	klog.V(2).InfoS("[wait-etcd] the etcd pods is ready", "karmada", klog.KObj(data))
 	return nil
+}
+
+func runWithExtEtcd(data InitData) bool {
+	return data.Components().Etcd.External != nil
 }

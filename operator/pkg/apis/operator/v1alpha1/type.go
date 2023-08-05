@@ -197,15 +197,15 @@ type ExternalEtcd struct {
 	Endpoints []string `json:"endpoints"`
 
 	// CAData is an SSL Certificate Authority file used to secure etcd communication.
-	// Required if using a TLS connection.
+	// +optional
 	CAData []byte `json:"caData"`
 
 	// CertData is an SSL certification file used to secure etcd communication.
-	// Required if using a TLS connection.
+	// +optional
 	CertData []byte `json:"certData"`
 
 	// KeyData is an SSL key file used to secure etcd communication.
-	// Required if using a TLS connection.
+	// +optional
 	KeyData []byte `json:"keyData"`
 }
 

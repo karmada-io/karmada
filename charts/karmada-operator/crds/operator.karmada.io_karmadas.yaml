@@ -55,14 +55,12 @@ spec:
                         properties:
                           caData:
                             description: CAData is an SSL Certificate Authority file
-                              used to secure etcd communication. Required if using
-                              a TLS connection.
+                              used to secure etcd communication.
                             format: byte
                             type: string
                           certData:
                             description: CertData is an SSL certification file used
-                              to secure etcd communication. Required if using a TLS
-                              connection.
+                              to secure etcd communication.
                             format: byte
                             type: string
                           endpoints:
@@ -72,14 +70,11 @@ spec:
                             type: array
                           keyData:
                             description: KeyData is an SSL key file used to secure
-                              etcd communication. Required if using a TLS connection.
+                              etcd communication.
                             format: byte
                             type: string
                         required:
-                        - caData
-                        - certData
                         - endpoints
-                        - keyData
                         type: object
                       local:
                         description: Local provides configuration knobs for configuring

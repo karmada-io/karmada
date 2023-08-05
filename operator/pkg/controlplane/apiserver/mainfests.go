@@ -37,7 +37,7 @@ spec:
         - --etcd-cafile=/etc/etcd/pki/etcd-ca.crt
         - --etcd-certfile=/etc/etcd/pki/etcd-client.crt
         - --etcd-keyfile=/etc/etcd/pki/etcd-client.key
-        - --etcd-servers=https://{{ .EtcdClientService }}.{{ .Namespace }}.svc.cluster.local:{{ .EtcdListenClientPort }}
+        - --etcd-servers={{ .EtcdServers }}
         - --bind-address=0.0.0.0
         - --kubelet-client-certificate=/etc/karmada/pki/karmada.crt
         - --kubelet-client-key=/etc/karmada/pki/karmada.key
@@ -164,7 +164,7 @@ spec:
         - --etcd-cafile=/etc/etcd/pki/etcd-ca.crt
         - --etcd-certfile=/etc/etcd/pki/etcd-client.crt
         - --etcd-keyfile=/etc/etcd/pki/etcd-client.key
-        - --etcd-servers=https://{{ .EtcdClientService }}.{{ .Namespace }}.svc.cluster.local:{{ .EtcdListenClientPort }}
+        - --etcd-servers={{ .EtcdServers }}
         - --tls-cert-file=/etc/karmada/pki/karmada.crt
         - --tls-private-key-file=/etc/karmada/pki/karmada.key
         - --audit-log-path=-
