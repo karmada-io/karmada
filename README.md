@@ -218,7 +218,8 @@ If you have questions, feel free to reach out to us in the following ways:
 |                  | Link                                                                                                                    |
 |------------------|-------------------------------------------------------------------------------------------------------------------------|
 | KubeCon(EU 2021) | [Beyond federation: automating multi-cloud workloads with K8s native APIs](https://www.youtube.com/watch?v=LJJoaGszBVk) |
-| KubeCon(EU 2022) | TBD                                                                                                                     |
+| KubeCon(EU 2022) | [Sailing Multi Cloud Traffic Management With Karmada](https://youtu.be/rzFbxeZQHWI)                                     |
+| KubeDay(Israel 2023)| [Simplifying Multi-cluster Kubernetes Management with Karmada](https://www.youtube.com/watch?v=WCrIhRNBZ9I) |
 
 For blogs please refer to [website](https://karmada.io/blog/).
 
