@@ -18,7 +18,7 @@ import (
 
 // EnsureKarmadaAPIServer creates karmada apiserver deployment and service resource
 func EnsureKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaComponents, name, namespace string, featureGates map[string]bool) error {
-	if err := installKarmadaAPIServer(client, cfg, name, namespace, featureGates); err != nil {
+	if err := installKarmadaAPIServer(client, cfg.KarmadaAPIServer, cfg.Etcd, name, namespace, featureGates); err != nil {
 		return fmt.Errorf("failed to install karmada apiserver, err: %w", err)
 	}
 
@@ -26,39 +26,43 @@ func EnsureKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.Ka
 }
 
 // EnsureKarmadaAggregatedAPIServer creates karmada aggregated apiserver deployment and service resource
-func EnsureKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaComponents, name, namespace string, featureGates map[string]bool) error {
-	if err := installKarmadaAggregatedAPIServer(client, cfg, name, namespace, featureGates); err != nil {
+func EnsureKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaAggregatedAPIServer, etcdCfg *operatorv1alpha1.Etcd, name, namespace string, featureGates map[string]bool) error {
+	if err := installKarmadaAggregatedAPIServer(client, cfg, etcdCfg, name, namespace, featureGates); err != nil {
 		return err
 	}
 	return createKarmadaAggregatedAPIServerService(client, name, namespace)
 }
 
-func getEtcdServers(cfg *operatorv1alpha1.KarmadaComponents) string {
-	return cfg.Etcd.External.Endpoints[0]
+func getEtcdServers(name, namespace string, etcdCfg *operatorv1alpha1.Etcd) string {
+	endpoints := ""
+	if etcdCfg.Local != nil {
+		for _, v := range etcdCfg.External.Endpoints {
+			endpoints += v + ","
+		}
+	}
+	if etcdCfg.External != nil {
+		endpoints = fmt.Sprintf("https://%s.%s.svc.cluster.local:%d", util.KarmadaEtcdClientName(name), namespace, constants.EtcdListenClientPort)
+	}
+	return endpoints
 }
 
-func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaComponents, name, namespace string, featureGates map[string]bool) error {
-	apiCfg := cfg.KarmadaAPIServer
+func installKarmadaAPIServer(client clientset.Interface, apiCfg *operatorv1alpha1.KarmadaAPIServer, etcdCfg *operatorv1alpha1.Etcd, name, namespace string, featureGates map[string]bool) error {
 	apiserverDeploymentBytes, err := util.ParseTemplate(KarmadaApiserverDeployment, struct {
-		DeploymentName, Namespace, Image, EtcdClientService string
-		ServiceSubnet, KarmadaCertsSecret, EtcdCertsSecret  string
-		EtcdServers                                         string
-		Replicas                                            *int32
-		EtcdListenClientPort                                int32
+		DeploymentName, Namespace, Image                   string
+		ServiceSubnet, KarmadaCertsSecret, EtcdCertsSecret string
+		EtcdServers                                        string
+		Replicas                                           *int32
 	}{
-		DeploymentName:       util.KarmadaAPIServerName(name),
-		Namespace:            namespace,
-		Image:                apiCfg.Image.Name(),
-		EtcdServers:          getEtcdServers(cfg),
-		EtcdClientService:    util.KarmadaEtcdClientName(name),
-		ServiceSubnet:        *apiCfg.ServiceSubnet,
-		KarmadaCertsSecret:   util.KarmadaCertSecretName(name),
-		EtcdCertsSecret:      util.EtcdCertSecretName(name),
-		Replicas:             apiCfg.Replicas,
-		EtcdListenClientPort: constants.EtcdListenClientPort,
+		DeploymentName:     util.KarmadaAPIServerName(name),
+		Namespace:          namespace,
+		Image:              apiCfg.Image.Name(),
+		EtcdServers:        getEtcdServers(name, namespace, etcdCfg),
+		ServiceSubnet:      *apiCfg.ServiceSubnet,
+		KarmadaCertsSecret: util.KarmadaCertSecretName(name),
+		EtcdCertsSecret:    util.EtcdCertSecretName(name),
+		Replicas:           apiCfg.Replicas,
 	})
 
-	//--etcd-servers=https://{{ .EtcdClientService }}.{{ .Namespace }}.svc.cluster.local:{{ .EtcdListenClientPort }}
 	if err != nil {
 		return fmt.Errorf("error when parsing karmadaApiserver deployment template: %w", err)
 	}
@@ -99,25 +103,21 @@ func createKarmadaAPIServerService(client clientset.Interface, cfg *operatorv1al
 	return nil
 }
 
-func installKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaComponents, name, namespace string, featureGates map[string]bool) error {
-	karaa := cfg.KarmadaAggregatedAPIServer
+func installKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaAggregatedAPIServer, etcdCfg *operatorv1alpha1.Etcd, name, namespace string, featureGates map[string]bool) error {
 	aggregatedAPIServerDeploymentBytes, err := util.ParseTemplate(KarmadaAggregatedAPIServerDeployment, struct {
-		DeploymentName, Namespace, Image, EtcdClientService   string
+		DeploymentName, Namespace, Image                      string
 		KubeconfigSecret, KarmadaCertsSecret, EtcdCertsSecret string
 		EtcdServers                                           string
 		Replicas                                              *int32
-		EtcdListenClientPort                                  int32
 	}{
-		DeploymentName:       util.KarmadaAggregatedAPIServerName(name),
-		Namespace:            namespace,
-		Image:                karaa.Image.Name(),
-		EtcdServers:          getEtcdServers(cfg),
-		EtcdClientService:    util.KarmadaEtcdClientName(name),
-		KubeconfigSecret:     util.AdminKubeconfigSecretName(name),
-		KarmadaCertsSecret:   util.KarmadaCertSecretName(name),
-		EtcdCertsSecret:      util.EtcdCertSecretName(name),
-		Replicas:             karaa.Replicas,
-		EtcdListenClientPort: constants.EtcdListenClientPort,
+		DeploymentName:     util.KarmadaAggregatedAPIServerName(name),
+		Namespace:          namespace,
+		Image:              cfg.Image.Name(),
+		EtcdServers:        getEtcdServers(name, namespace, etcdCfg),
+		KubeconfigSecret:   util.AdminKubeconfigSecretName(name),
+		KarmadaCertsSecret: util.KarmadaCertSecretName(name),
+		EtcdCertsSecret:    util.EtcdCertSecretName(name),
+		Replicas:           cfg.Replicas,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing karmadaAggregatedAPIServer deployment template: %w", err)
@@ -128,8 +128,8 @@ func installKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operator
 		return fmt.Errorf("err when decoding karmadaApiserver deployment: %w", err)
 	}
 
-	patcher.NewPatcher().WithAnnotations(karaa.Annotations).WithLabels(karaa.Labels).
-		WithExtraArgs(karaa.ExtraArgs).WithFeatureGates(featureGates).ForDeployment(aggregatedAPIServerDeployment)
+	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
+		WithExtraArgs(cfg.ExtraArgs).WithFeatureGates(featureGates).ForDeployment(aggregatedAPIServerDeployment)
 
 	if err := apiclient.CreateOrUpdateDeployment(client, aggregatedAPIServerDeployment); err != nil {
 		return fmt.Errorf("error when creating deployment for %s, err: %w", aggregatedAPIServerDeployment.Name, err)
