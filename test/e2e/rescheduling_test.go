@@ -19,6 +19,7 @@ package e2e
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -136,6 +137,7 @@ var _ = ginkgo.Describe("[cluster unjoined] reschedule testing", func() {
 				opts := unjoin.CommandUnjoinOption{
 					ClusterNamespace: "karmada-cluster",
 					ClusterName:      newClusterName,
+					Wait:             60 * time.Second,
 				}
 				err := opts.Run(f)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -194,6 +196,7 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 				opts := unjoin.CommandUnjoinOption{
 					ClusterNamespace: "karmada-cluster",
 					ClusterName:      newClusterName,
+					Wait:             60 * time.Second,
 				}
 				err := opts.Run(f)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
