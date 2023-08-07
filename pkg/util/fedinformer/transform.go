@@ -7,11 +7,16 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/cache"
 )
 
 // StripUnusedFields is the transform function for shared informers,
 // it removes unused fields from objects before they are stored in the cache to save memory.
 func StripUnusedFields(obj interface{}) (interface{}, error) {
+	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+		obj = tombstone.Obj
+	}
+
 	accessor, err := meta.Accessor(obj)
 	if err != nil {
 		// shouldn't happen
@@ -29,8 +34,17 @@ func StripUnusedFields(obj interface{}) (interface{}, error) {
 // Note: this function removes most of the fields, please make sure your controller
 // doesn't care for the removed fields, especially when use in shared informers.
 func NodeTransformFunc(obj interface{}) (interface{}, error) {
-	node, ok := obj.(*corev1.Node)
-	if !ok {
+	var node *corev1.Node
+	switch t := obj.(type) {
+	case *corev1.Node:
+		node = t
+	case cache.DeletedFinalStateUnknown:
+		var ok bool
+		node, ok = t.Obj.(*corev1.Node)
+		if !ok {
+			return obj, fmt.Errorf("expect resource Node but got %v", reflect.TypeOf(t.Obj))
+		}
+	default:
 		return obj, fmt.Errorf("expect resource Node but got %v", reflect.TypeOf(obj))
 	}
 
@@ -53,8 +67,17 @@ func NodeTransformFunc(obj interface{}) (interface{}, error) {
 // Note: this function removes most of the fields, please make sure your controller
 // doesn't care for the removed fields, especially when use in shared informers.
 func PodTransformFunc(obj interface{}) (interface{}, error) {
-	pod, ok := obj.(*corev1.Pod)
-	if !ok {
+	var pod *corev1.Pod
+	switch t := obj.(type) {
+	case *corev1.Pod:
+		pod = t
+	case cache.DeletedFinalStateUnknown:
+		var ok bool
+		pod, ok = t.Obj.(*corev1.Pod)
+		if !ok {
+			return obj, fmt.Errorf("expect resource Pod but got %v", reflect.TypeOf(t.Obj))
+		}
+	default:
 		return obj, fmt.Errorf("expect resource Pod but got %v", reflect.TypeOf(obj))
 	}
 
