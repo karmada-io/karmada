@@ -306,7 +306,7 @@ func TestRemoveLabel(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			RemoveLabel(tt.args.obj, tt.args.labelKey)
+			RemoveLabels(tt.args.obj, tt.args.labelKey)
 			if !reflect.DeepEqual(tt.args.obj, tt.expected) {
 				t.Errorf("RemoveLabel() = %v, want %v", tt.args.obj, tt.expected)
 			}

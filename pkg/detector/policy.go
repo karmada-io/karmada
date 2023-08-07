@@ -272,9 +272,9 @@ func (d *ResourceDetector) removeResourceLabelsIfNotMatch(objectReference workv1
 		return false, nil
 	}
 
-	for _, labelKey := range labelKeys {
-		util.RemoveLabel(object, labelKey)
-	}
+	object = object.DeepCopy()
+	util.RemoveLabels(object, labelKeys...)
+
 	err = d.Client.Update(context.TODO(), object)
 	if err != nil {
 		return false, err
