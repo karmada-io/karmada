@@ -75,7 +75,7 @@ func EnsureServiceAccountExist(client kubeclient.Interface, serviceAccountObj *c
 // WaitForServiceAccountSecretCreation wait the ServiceAccount's secret has been created.
 func WaitForServiceAccountSecretCreation(client kubeclient.Interface, asObj *corev1.ServiceAccount) (*corev1.Secret, error) {
 	var clusterSecret *corev1.Secret
-	err := wait.Poll(1*time.Second, 30*time.Second, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.TODO(), 1*time.Second, 30*time.Second, false, func(ctx context.Context) (done bool, err error) {
 		serviceAccount, err := client.CoreV1().ServiceAccounts(asObj.Namespace).Get(context.TODO(), asObj.Name, metav1.GetOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {

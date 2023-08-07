@@ -509,7 +509,7 @@ func (o *CommandRegisterOption) constructKarmadaAgentConfig(bootstrapClient *kub
 	}
 
 	klog.V(1).Infof("Waiting for the client certificate to be issued")
-	err = wait.Poll(1*time.Second, o.Timeout, func() (done bool, err error) {
+	err = wait.PollUntilContextTimeout(context.TODO(), 1*time.Second, o.Timeout, false, func(ctx context.Context) (done bool, err error) {
 		csrOK, err := bootstrapClient.CertificatesV1().CertificateSigningRequests().Get(context.TODO(), csrName, metav1.GetOptions{})
 		if err != nil {
 			return false, fmt.Errorf("failed to get the cluster csr %s. err: %v", o.ClusterName, err)

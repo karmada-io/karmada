@@ -165,7 +165,7 @@ func (c *CertRotationController) syncCertRotation(secret *corev1.Secret) error {
 
 	var newCertData []byte
 	klog.V(1).Infof("Waiting for the client certificate to be issued")
-	err = wait.Poll(1*time.Second, 5*time.Minute, func() (done bool, err error) {
+	err = wait.PollUntilContextTimeout(context.TODO(), 1*time.Second, 5*time.Minute, false, func(ctx context.Context) (done bool, err error) {
 		csr, err := c.KubeClient.CertificatesV1().CertificateSigningRequests().Get(context.TODO(), csr, metav1.GetOptions{})
 		if err != nil {
 			return false, fmt.Errorf("failed to get the cluster csr %s. err: %v", clusterName, err)
