@@ -41,7 +41,7 @@ Karmada is a sandbox project of the [Cloud Native Computing Foundation](https://
     - Support clusters in Public cloud, on-prem or edge
 
 - __Fruitful Multi-Cluster Scheduling Policies__
-    - Cluster Affinity, Multi Cluster Splitting/Rebalancing,
+    - Cluster Affinity, Multi Cluster Splitting/Rebalancing
     - Multi-Dimension HA: Region/AZ/Cluster/Provider
 
 - __Open and Neutral__
@@ -105,12 +105,14 @@ This guide will cover:
 ### Install the Karmada control plane
 
 #### 1. Clone this repo to your machine:
-```
+
+```bash
 git clone https://github.com/karmada-io/karmada
 ```
 
 #### 2. Change to the karmada directory:
-```
+
+```bash
 cd karmada
 ```
 
@@ -118,17 +120,18 @@ cd karmada
 
 run the following script:
 
-```
+```bash
 hack/local-up-karmada.sh
 ```
-This script will do following tasks for you:
+This script will do the following tasks for you:
 - Start a Kubernetes cluster to run the Karmada control plane, aka. the `host cluster`.
 - Build Karmada control plane components based on a current codebase.
 - Deploy Karmada control plane components on the `host cluster`.
 - Create member clusters and join Karmada.
 
 If everything goes well, at the end of the script output, you will see similar messages as follows:
-```
+
+```bash
 Local Karmada is running.
 
 To start using your Karmada environment, run:
@@ -156,19 +159,22 @@ In the following steps, we are going to propagate a deployment by Karmada.
 
 #### 1. Create nginx deployment in Karmada.
 First, create a [deployment](samples/nginx/deployment.yaml) named `nginx`:
-```
+
+```bash
 kubectl create -f samples/nginx/deployment.yaml
 ```
 
 #### 2. Create PropagationPolicy that will propagate nginx to member cluster
 Then, we need to create a policy to propagate the deployment to our member cluster.
-```
+
+```bash
 kubectl create -f samples/nginx/propagationpolicy.yaml
 ```
 
 #### 3. Check the deployment status from Karmada
 You can check deployment status from Karmada, don't need to access member cluster:
-```
+
+```bash
 $ kubectl get deployment
 NAME    READY   UP-TO-DATE   AVAILABLE   AGE
 nginx   2/2     2            2           20s
@@ -221,7 +227,7 @@ If you have questions, feel free to reach out to us in the following ways:
 | KubeCon(EU 2022) | [Sailing Multi Cloud Traffic Management With Karmada](https://youtu.be/rzFbxeZQHWI)                                     |
 | KubeDay(Israel 2023)| [Simplifying Multi-cluster Kubernetes Management with Karmada](https://www.youtube.com/watch?v=WCrIhRNBZ9I) |
 
-For blogs please refer to [website](https://karmada.io/blog/).
+For blogs, please refer to [website](https://karmada.io/blog/).
 
 ## Contributing
 
