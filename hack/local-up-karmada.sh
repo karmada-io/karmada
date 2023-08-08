@@ -48,7 +48,7 @@ MEMBER_CLUSTER_2_TMP_CONFIG="${KUBECONFIG_PATH}/${MEMBER_TMP_CONFIG_PREFIX}-${ME
 PULL_MODE_CLUSTER_TMP_CONFIG="${KUBECONFIG_PATH}/${MEMBER_TMP_CONFIG_PREFIX}-${PULL_MODE_CLUSTER_NAME}.config"
 HOST_IPADDRESS=${1:-}
 
-CLUSTER_VERSION=${CLUSTER_VERSION:-"kindest/node:v1.26.0"}
+CLUSTER_VERSION=${CLUSTER_VERSION:-"kindest/node:v1.27.3"}
 KIND_LOG_FILE=${KIND_LOG_FILE:-"/tmp/karmada"}
 
 #step0: prepare
@@ -65,7 +65,7 @@ util::verify_go_version
 util::cmd_must_exist "docker"
 
 # install kind and kubectl
-kind_version=v0.17.0
+kind_version=v0.20.0
 echo -n "Preparing: 'kind' existence check - "
 if util::cmd_exist kind; then
   echo "passed"
