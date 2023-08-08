@@ -174,7 +174,7 @@ webhooks:
     failurePolicy: Fail
     sideEffects: None
     admissionReviewVersions: ["v1"]
-    timeoutSeconds: 3
+    timeoutSeconds: 10
   - name: federatedresourcequota.karmada.io
     rules:
       - operations: ["CREATE", "UPDATE"]
