@@ -268,6 +268,9 @@ kubectl --context="karmada-apiserver" apply -f "${REPO_ROOT}/artifacts/deploy/ka
 # make sure apiservice for karmada metrics adapter is Available
 util::wait_apiservice_ready "karmada-apiserver" "${KARMADA_METRICS_ADAPTER_LABEL}"
 
+# grant the admin clusterrole read and write permissions for Karmada resources
+kubectl --context="karmada-apiserver" apply -f "${REPO_ROOT}/artifacts/deploy/admin-clusterrole-aggregation.yaml"
+
 # deploy cluster proxy rbac for admin
 kubectl --context="karmada-apiserver" apply -f "${REPO_ROOT}/artifacts/deploy/cluster-proxy-admin-rbac.yaml"
 
