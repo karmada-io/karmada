@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,6 +36,7 @@ type Planner struct {
 	client.Client
 	karmada *operatorv1alpha1.Karmada
 	job     *workflow.Job
+	config  *rest.Config
 }
 
 // NewPlannerFor creates planner, it will recognize the karmada resource action
@@ -68,6 +72,7 @@ func NewPlannerFor(karmada *operatorv1alpha1.Karmada, c client.Client, config *r
 		Client:  c,
 		job:     job,
 		action:  action,
+		config:  config,
 	}, nil
 }
 
@@ -124,18 +129,44 @@ func (p *Planner) runJobErr(err error) error {
 
 func (p *Planner) afterRunJob() error {
 	if p.action == InitAction {
-		// Update the condition to Ready and set kubeconfig of karmada-apiserver to status.
+		// Update the karmada condition to Ready and set kubeconfig of karmada apiserver to karmada status.
 		operatorv1alpha1.KarmadaCompleted(p.karmada, operatorv1alpha1.Ready, "karmada init job is completed")
+
+		if !util.IsInCluster(p.karmada.Spec.HostCluster) {
+			localClusterClient, err := clientset.NewForConfig(p.config)
+			if err != nil {
+				return fmt.Errorf("error when creating local cluster client, err: %w", err)
+			}
+
+			remoteClient, err := util.BuildClientFromSecretRef(localClusterClient, p.karmada.Spec.HostCluster.SecretRef)
+			if err != nil {
+				return fmt.Errorf("error when creating cluster client to install karmada, err: %w", err)
+			}
+
+			secret, err := remoteClient.CoreV1().Secrets(p.karmada.GetNamespace()).Get(context.TODO(), util.AdminKubeconfigSecretName(p.karmada.GetName()), metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+
+			_, err = localClusterClient.CoreV1().Secrets(p.karmada.GetNamespace()).Create(context.TODO(), &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: p.karmada.GetNamespace(),
+					Name:      util.AdminKubeconfigSecretName(p.karmada.GetName()),
+				},
+				Data: secret.Data,
+			}, metav1.CreateOptions{})
+			if err != nil {
+				return err
+			}
+		}
+
 		p.karmada.Status.SecretRef = &operatorv1alpha1.LocalSecretReference{
 			Namespace: p.karmada.GetNamespace(),
 			Name:      util.AdminKubeconfigSecretName(p.karmada.GetName()),
 		}
-
 		return p.Client.Status().Update(context.TODO(), p.karmada)
 	}
-
 	// if it is deInit workflow, the cr will be deleted with karmada is be deleted, so we need not to
 	// update the karmada status.
-
 	return nil
 }
