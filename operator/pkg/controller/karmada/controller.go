@@ -111,7 +111,8 @@ func (ctrl *Controller) ensureKarmada(ctx context.Context, karmada *operatorv1al
 	// registering our finalizer.
 	updated := controllerutil.AddFinalizer(karmada, ControllerFinalizerName)
 	if _, isExist := karmada.Labels[DisableCascadingDeletionLabel]; !isExist {
-		karmada.SetLabels(labels.Set{DisableCascadingDeletionLabel: "false"})
+		labelMap := labels.Merge(karmada.GetLabels(), labels.Set{DisableCascadingDeletionLabel: "false"})
+		karmada.SetLabels(labelMap)
 		updated = true
 	}
 
