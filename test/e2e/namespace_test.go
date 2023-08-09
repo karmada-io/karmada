@@ -151,8 +151,8 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				clusterClient, err := util.NewClusterClientSet(clusterJoined.Name, controlPlaneClient, nil)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				err = wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-					_, err = clusterClient.KubeClient.CoreV1().Namespaces().Get(context.TODO(), namespaceName, metav1.GetOptions{})
+				err = wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
+					_, err = clusterClient.KubeClient.CoreV1().Namespaces().Get(ctx, namespaceName, metav1.GetOptions{})
 					if err != nil {
 						if apierrors.IsNotFound(err) {
 							return false, nil
