@@ -43,7 +43,7 @@ spec:
             - --cluster-name=karmada
             - --cluster-signing-cert-file=/etc/karmada/pki/ca.crt
             - --cluster-signing-key-file=/etc/karmada/pki/ca.key
-            - --controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrapproving,csrcleaner,csrsigning
+            - --controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrapproving,csrcleaner,csrsigning,clusterrole-aggregation
             - --kubeconfig=/etc/kubeconfig
             - --leader-elect=true
             - --node-cidr-mask-size=24
