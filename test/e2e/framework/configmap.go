@@ -8,6 +8,7 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -62,5 +63,34 @@ func UpdateConfigMapWithPatch(client kubernetes.Interface, namespace, name strin
 
 		_, err = client.CoreV1().ConfigMaps(namespace).Patch(context.TODO(), name, patchType, bytes, metav1.PatchOptions{})
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	})
+}
+
+// WaitConfigMapDisappearOnCluster wait configmap disappear on cluster until timeout.
+func WaitConfigMapDisappearOnCluster(cluster, namespace, name string) {
+	clusterClient := GetClusterClient(cluster)
+	gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+
+	klog.Infof("Waiting for configmap(%s/%s) disappears on cluster(%s)", namespace, name, cluster)
+	gomega.Eventually(func() bool {
+		_, err := clusterClient.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if err == nil {
+			return false
+		}
+		if apierrors.IsNotFound(err) {
+			return true
+		}
+
+		klog.Errorf("Failed to get configmap(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
+		return false
+	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+}
+
+// WaitConfigMapDisappearOnClusters wait configmap disappear on member clusters until timeout.
+func WaitConfigMapDisappearOnClusters(clusters []string, namespace, name string) {
+	ginkgo.By(fmt.Sprintf("Check if configmap(%s/%s) disappears on member clusters", namespace, name), func() {
+		for _, clusterName := range clusters {
+			WaitConfigMapDisappearOnCluster(clusterName, namespace, name)
+		}
 	})
 }

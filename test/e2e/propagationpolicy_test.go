@@ -1031,4 +1031,89 @@ var _ = ginkgo.Describe("[AdvancedPropagation] propagation testing", func() {
 				func(deployment *appsv1.Deployment) bool { return true })
 		})
 	})
+
+	ginkgo.Context("Unbind the old PropagationPolicy and create a new one", func() {
+		var policy01, policy02 *policyv1alpha1.PropagationPolicy
+		var configmap *corev1.ConfigMap
+		var member1, member2 string
+
+		ginkgo.BeforeEach(func() {
+			member1 = framework.ClusterNames()[0]
+			member2 = framework.ClusterNames()[1]
+			policyNamespace := testNamespace
+			policyName := configMapNamePrefix + rand.String(RandomStrLength)
+
+			configmap = testhelper.NewConfigMap(testNamespace, policyName, map[string]string{"a": "b"})
+			configmap.ObjectMeta.Labels = map[string]string{"a": "b"}
+
+			policy01 = testhelper.NewPropagationPolicy(policyNamespace, policyName+"01", []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: configmap.APIVersion,
+					Kind:       configmap.Kind,
+					Name:       configmap.Name,
+				}}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: []string{member1},
+				},
+			})
+			policy02 = testhelper.NewPropagationPolicy(policyNamespace, policyName+"02", []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: configmap.APIVersion,
+					Kind:       configmap.Kind,
+					Name:       configmap.Name,
+				}}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: []string{member2},
+				},
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreateConfigMap(kubeClient, configmap)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveConfigMap(kubeClient, configmap.Namespace, configmap.Name)
+				framework.WaitConfigMapDisappearOnClusters(framework.ClusterNames(), configmap.Namespace, configmap.Name)
+			})
+		})
+
+		ginkgo.It("modify the old PropagationPolicy to unbind and create a new one", func() {
+			framework.CreatePropagationPolicy(karmadaClient, policy01)
+			framework.WaitConfigMapPresentOnClusterFitWith(member1, configmap.Namespace, configmap.Name,
+				func(configmap *corev1.ConfigMap) bool { return true })
+			framework.UpdatePropagationPolicyWithSpec(karmadaClient, policy01.Namespace, policy01.Name, policyv1alpha1.PropagationSpec{
+				ResourceSelectors: []policyv1alpha1.ResourceSelector{
+					{
+						APIVersion: configmap.APIVersion,
+						Kind:       configmap.Kind,
+						Name:       configmap.Name + "fake",
+					},
+				},
+				Placement: policyv1alpha1.Placement{
+					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+						ClusterNames: []string{member1},
+					},
+				},
+			})
+
+			framework.CreatePropagationPolicy(karmadaClient, policy02)
+			framework.WaitConfigMapDisappearOnCluster(member1, configmap.Namespace, configmap.Name)
+			framework.WaitConfigMapPresentOnClusterFitWith(member2, configmap.Namespace, configmap.Name,
+				func(configmap *corev1.ConfigMap) bool { return true })
+			framework.RemovePropagationPolicy(karmadaClient, policy01.Namespace, policy01.Name)
+			framework.RemovePropagationPolicy(karmadaClient, policy02.Namespace, policy02.Name)
+		})
+
+		ginkgo.It("delete the old PropagationPolicy to unbind and create a new one", func() {
+			framework.CreatePropagationPolicy(karmadaClient, policy01)
+			framework.WaitConfigMapPresentOnClusterFitWith(member1, configmap.Namespace, configmap.Name,
+				func(configmap *corev1.ConfigMap) bool { return true })
+			framework.RemovePropagationPolicy(karmadaClient, policy01.Namespace, policy01.Name)
+
+			framework.CreatePropagationPolicy(karmadaClient, policy02)
+			framework.WaitConfigMapDisappearOnCluster(member1, configmap.Namespace, configmap.Name)
+			framework.WaitConfigMapPresentOnClusterFitWith(member2, configmap.Namespace, configmap.Name,
+				func(configmap *corev1.ConfigMap) bool { return true })
+			framework.RemovePropagationPolicy(karmadaClient, policy02.Namespace, policy02.Name)
+		})
+	})
 })
