@@ -17,6 +17,7 @@ limitations under the License.
 package e2e
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/onsi/ginkgo/v2"
@@ -422,7 +423,7 @@ var _ = ginkgo.Describe("[ClusterAffinities] propagation testing", func() {
 				err := recoverCluster(controlPlaneClient, "member1", originalAPIEndpoint)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-				err = wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+				err = wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(_ context.Context) (done bool, err error) {
 					currentCluster, err := util.GetCluster(controlPlaneClient, "member1")
 					if err != nil {
 						return false, err

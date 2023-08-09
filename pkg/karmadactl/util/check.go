@@ -30,8 +30,8 @@ import (
 // WaitForStatefulSetRollout wait for StatefulSet reaches the ready state or timeout.
 func WaitForStatefulSetRollout(c kubernetes.Interface, sts *appsv1.StatefulSet, timeoutSeconds int) error {
 	var lastErr error
-	pollError := wait.PollImmediate(time.Second, time.Duration(timeoutSeconds)*time.Second, func() (bool, error) {
-		s, err := c.AppsV1().StatefulSets(sts.GetNamespace()).Get(context.TODO(), sts.GetName(), metav1.GetOptions{})
+	pollError := wait.PollUntilContextTimeout(context.TODO(), time.Second, time.Duration(timeoutSeconds)*time.Second, true, func(ctx context.Context) (bool, error) {
+		s, err := c.AppsV1().StatefulSets(sts.GetNamespace()).Get(ctx, sts.GetName(), metav1.GetOptions{})
 		if err != nil {
 			lastErr = err
 			return false, nil
@@ -62,8 +62,8 @@ func WaitForStatefulSetRollout(c kubernetes.Interface, sts *appsv1.StatefulSet, 
 // WaitForDeploymentRollout  wait for Deployment reaches the ready state or timeout.
 func WaitForDeploymentRollout(c kubernetes.Interface, dep *appsv1.Deployment, timeoutSeconds int) error {
 	var lastErr error
-	pollError := wait.PollImmediate(time.Second, time.Duration(timeoutSeconds)*time.Second, func() (bool, error) {
-		d, err := c.AppsV1().Deployments(dep.GetNamespace()).Get(context.TODO(), dep.GetName(), metav1.GetOptions{})
+	pollError := wait.PollUntilContextTimeout(context.TODO(), time.Second, time.Duration(timeoutSeconds)*time.Second, true, func(ctx context.Context) (bool, error) {
+		d, err := c.AppsV1().Deployments(dep.GetNamespace()).Get(ctx, dep.GetName(), metav1.GetOptions{})
 		if err != nil {
 			lastErr = err
 			return false, nil
