@@ -166,7 +166,7 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		})
 
-		ginkgo.When("Serviceaccount(tom) access the member1 cluster", func() {
+		ginkgo.When(fmt.Sprintf("Serviceaccount(tom) access the %s cluster", member1), func() {
 			var clusterClient kubernetes.Interface
 
 			ginkgo.BeforeEach(func() {
@@ -175,10 +175,10 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 			})
 
 			ginkgo.BeforeEach(func() {
-				klog.Infof("Create ServiceAccount(%s) in the cluster(%s)", klog.KObj(tomServiceAccount).String(), member1)
+				klog.Infof("Create ServiceAccount(%s) in the %s cluster", klog.KObj(tomServiceAccount).String(), member1)
 				framework.CreateServiceAccount(clusterClient, tomServiceAccount)
 				ginkgo.DeferCleanup(func() {
-					klog.Infof("Delete ServiceAccount(%s) in the cluster(%s)", klog.KObj(tomServiceAccount).String(), member1)
+					klog.Infof("Delete ServiceAccount(%s) in the %s cluster", klog.KObj(tomServiceAccount).String(), member1)
 					framework.RemoveServiceAccount(clusterClient, tomServiceAccount.Namespace, tomServiceAccount.Name)
 				})
 			})
@@ -191,8 +191,8 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 				framework.RemoveClusterRoleBinding(clusterClient, tomClusterRoleBindingOnMember.Name)
 			})
 
-			ginkgo.It("tom access the member cluster", func() {
-				ginkgo.By("access the cluster `/api` path with right", func() {
+			ginkgo.It("tom access the member1 cluster api with and without right", func() {
+				ginkgo.By(fmt.Sprintf("access the %s cluster `/api` path with right", member1), func() {
 					gomega.Eventually(func(g gomega.Gomega) (int, error) {
 						code, err := helper.DoRequest(fmt.Sprintf(karmadaHost+clusterProxy+"api", member1), tomToken)
 						g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -200,18 +200,18 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 					}, pollTimeout, pollInterval).Should(gomega.Equal(http.StatusOK))
 				})
 
-				ginkgo.By("access the cluster /api/v1/nodes path without right", func() {
+				ginkgo.By(fmt.Sprintf("access the %s cluster `/api/v1/nodes` path without right", member1), func() {
 					code, err := helper.DoRequest(fmt.Sprintf(karmadaHost+clusterProxy+"api/v1/nodes", member1), tomToken)
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 					gomega.Expect(code).Should(gomega.Equal(http.StatusForbidden))
 				})
 
-				ginkgo.By("create rbac in the member1 cluster", func() {
+				ginkgo.By(fmt.Sprintf("create rbac in the %s cluster", member1), func() {
 					framework.CreateClusterRole(clusterClient, tomClusterRoleOnMember)
 					framework.CreateClusterRoleBinding(clusterClient, tomClusterRoleBindingOnMember)
 				})
 
-				ginkgo.By("access the member1 /api/v1/nodes path with right", func() {
+				ginkgo.By(fmt.Sprintf("access the %s cluster `/api/v1/nodes` path with right", member1), func() {
 					gomega.Eventually(func(g gomega.Gomega) (int, error) {
 						code, err := helper.DoRequest(fmt.Sprintf(karmadaHost+clusterProxy+"api/v1/nodes", member1), tomToken)
 						g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -221,9 +221,9 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 			})
 		})
 
-		ginkgo.When("Serviceaccount(tom) access the member2 cluster", func() {
-			ginkgo.It("tom access the member cluster without right", func() {
-				ginkgo.By("access the cluster `/api` path without right", func() {
+		ginkgo.When(fmt.Sprintf("Serviceaccount(tom) access the %s cluster", member2), func() {
+			ginkgo.It("tom access the member2 cluster without right", func() {
+				ginkgo.By(fmt.Sprintf("access the %s cluster `/api` path without right", member2), func() {
 					code, err := helper.DoRequest(fmt.Sprintf(karmadaHost+clusterProxy, member2), tomToken)
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 					gomega.Expect(code).Should(gomega.Equal(http.StatusForbidden))
@@ -257,8 +257,8 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 				framework.RemoveClusterRoleBinding(clusterClient, tomClusterRoleBindingOnMember.Name)
 			})
 
-			ginkgo.It("tom access the member cluster", func() {
-				ginkgo.By("access the cluster `/api` path with right", func() {
+			ginkgo.It("tom access the specified cluster with/without right", func() {
+				ginkgo.By(fmt.Sprintf("access the %s cluster `/api` path with right", clusterName), func() {
 					gomega.Eventually(func(g gomega.Gomega) (int, error) {
 						code, err := helper.DoRequest(fmt.Sprintf(karmadaHost+clusterProxy+"api", clusterName), tomToken)
 						g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -266,7 +266,7 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 					}, pollTimeout, pollInterval).Should(gomega.Equal(http.StatusOK))
 				})
 
-				ginkgo.By("access the cluster /api/v1/nodes path without right", func() {
+				ginkgo.By(fmt.Sprintf("access the %s cluster `/api/v1/nodes` path without right", clusterName), func() {
 					code, err := helper.DoRequest(fmt.Sprintf(karmadaHost+clusterProxy+"api/v1/nodes", clusterName), tomToken)
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 					gomega.Expect(code).Should(gomega.Equal(http.StatusForbidden))
@@ -277,7 +277,7 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 					framework.CreateClusterRoleBinding(clusterClient, tomClusterRoleBindingOnMember)
 				})
 
-				ginkgo.By(fmt.Sprintf("access the %s /api/v1/nodes path with right", clusterName), func() {
+				ginkgo.By(fmt.Sprintf("access the %s cluster `/api/v1/nodes` path with right", clusterName), func() {
 					gomega.Eventually(func(g gomega.Gomega) (int, error) {
 						code, err := helper.DoRequest(fmt.Sprintf(karmadaHost+clusterProxy+"api/v1/nodes", clusterName), tomToken)
 						g.Expect(err).ShouldNot(gomega.HaveOccurred())
