@@ -11,6 +11,14 @@ global:
   ##   - myRegistryKeySecretName
   imagePullSecrets: []
 
+## @karmadaImageVersion the image version of each karmada components
+## "latest" is a default value for local installation.
+## If update this anchors("&karmadaImageVersion"), also update hack/package-helm-chart.sh.
+## See https://yaml.org/spec/1.2/spec.html#id2765878 and
+## https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_advanced_syntax.html#yaml-anchors-and-aliases-sharing-variable-values
+## for more details about yaml anchors and aliases.
+karmadaImageVersion: &karmadaImageVersion latest
+
 ## @param installMode "host" and "agent" are provided
 ## "host" means install karmada in the control-cluster
 ## "agent" means install agent client in the member cluster
@@ -148,7 +156,7 @@ scheduler:
   image:
     registry: docker.io
     repository: karmada/karmada-scheduler
-    tag: latest
+    tag: *karmadaImageVersion
     ## Specify a imagePullPolicy
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
@@ -205,7 +213,7 @@ webhook:
   image:
     registry: docker.io
     repository: karmada/karmada-webhook
-    tag: latest
+    tag: *karmadaImageVersion
     ## Specify a imagePullPolicy
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
@@ -262,7 +270,7 @@ controllerManager:
   image:
     registry: docker.io
     repository: karmada/karmada-controller-manager
-    tag: latest
+    tag: *karmadaImageVersion
     ## Specify a imagePullPolicy
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
@@ -409,7 +417,7 @@ aggregatedApiServer:
   image:
     registry: docker.io
     repository: karmada/karmada-aggregated-apiserver
-    tag: latest
+    tag: *karmadaImageVersion
     ## Specify a imagePullPolicy
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
@@ -636,7 +644,7 @@ agent:
   image:
     registry: docker.io
     repository: karmada/karmada-agent
-    tag: latest
+    tag: *karmadaImageVersion
     ## Specify a imagePullPolicy
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
@@ -714,7 +722,7 @@ schedulerEstimator:
   image:
     registry: docker.io
     repository: karmada/karmada-scheduler-estimator
-    tag: latest
+    tag: *karmadaImageVersion
     ## Specify a imagePullPolicy
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
@@ -771,7 +779,7 @@ descheduler:
   image:
     registry: docker.io
     repository: karmada/karmada-descheduler
-    tag: latest
+    tag: *karmadaImageVersion
     ## Specify a imagePullPolicy
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
@@ -830,7 +838,7 @@ search:
   image:
     registry: docker.io
     repository: karmada/karmada-search
-    tag: latest
+    tag: *karmadaImageVersion
     ## Specify a imagePullPolicy
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##

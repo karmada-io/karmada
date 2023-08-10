@@ -28,6 +28,8 @@ fi
 tar_file=""
 for chart in ${KARMADA_CHARTS[@]}; 
 do
+    sed -i'' -e "s/\&karmadaImageVersion .*/\&karmadaImageVersion ${version}/g" ./charts/"${chart}"/values.yaml
+
     tar_file="${chart}-chart-${version}.tgz"
     echo "Starting to package into a ${chart} chart archive"
     helm package ./charts/"${chart}" --version "${version}" -d "${output_dir}" -u
