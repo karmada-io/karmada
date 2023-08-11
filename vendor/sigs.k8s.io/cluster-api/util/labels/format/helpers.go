@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package labels contains functions to validate and compare values used in Kubernetes labels.
-package labels
+// Package format contains functions to format and compare formatted values used in Kubernetes labels.
+package format
 
 import (
 	"encoding/base64"
