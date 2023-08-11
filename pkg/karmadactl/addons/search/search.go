@@ -234,9 +234,9 @@ func getExternalEtcdServerConfig(ctx context.Context, host kubernetes.Interface,
 	for _, container := range apiserver.Spec.Template.Spec.Containers {
 		if container.Name == karmadaAPIServerDeploymentAndServiceName {
 			for _, cmd := range container.Command {
-				if strings.HasPrefix(etcdServerArgPrefix, cmd) {
+				if strings.HasPrefix(cmd, etcdServerArgPrefix) {
 					servers = cmd[etcdServerArgPrefixLength:]
-				} else if strings.HasPrefix(etcdKeyPrefixArgPrefix, cmd) {
+				} else if strings.HasPrefix(cmd, etcdKeyPrefixArgPrefix) {
 					prefix = cmd[etcdKeyPrefixArgPrefixLength:]
 				}
 				if servers != "" && prefix != "" {
