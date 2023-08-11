@@ -452,9 +452,15 @@ func startEndpointSliceController(ctx controllerscontext.Context) (enabled bool,
 }
 
 func startServiceImportController(ctx controllerscontext.Context) (enabled bool, err error) {
+	sharedFactory := informers.NewSharedInformerFactory(ctx.KubeClientSet, 0)
+	serviceLister := sharedFactory.Core().V1().Services().Lister()
+	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(ctx.DynamicClientSet, 0, nil)
+	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, serviceLister)
 	serviceImportController := &mcs.ServiceImportController{
-		Client:        ctx.Mgr.GetClient(),
-		EventRecorder: ctx.Mgr.GetEventRecorderFor(mcs.ServiceImportControllerName),
+		Client:              ctx.Mgr.GetClient(),
+		EventRecorder:       ctx.Mgr.GetEventRecorderFor(mcs.ServiceImportControllerName),
+		RESTMapper:          ctx.Mgr.GetRESTMapper(),
+		ResourceInterpreter: resourceInterpreter,
 	}
 	if err := serviceImportController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err

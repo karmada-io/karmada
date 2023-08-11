@@ -112,4 +112,6 @@ const (
 	EventReasonSyncDerivedServiceSucceed = "SyncDerivedServiceSucceed"
 	// EventReasonSyncDerivedServiceFailed indicates that sync derived service failed.
 	EventReasonSyncDerivedServiceFailed = "SyncDerivedServiceFailed"
+	// EventReasonSetServiceImportIPsFailed indicates that set serviceImport's ips failed.
+	EventReasonSetServiceImportIPsFailed = "SetServiceImportIPsFailed"
 )
