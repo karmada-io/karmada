@@ -99,7 +99,7 @@ var _ = ginkgo.Describe("[CronFederatedHPA] CronFederatedHPA testing", func() {
 			framework.RemoveCronFederatedHPA(karmadaClient, testNamespace, cronFHPAName)
 		})
 
-		ginkgo.It("Scale FederatedHPA testing", func() {
+		ginkgo.It("Test scale FederatedHPA testing", func() {
 			framework.WaitDeploymentReplicasFitWith(framework.ClusterNames(), testNamespace, deploymentName, int(*fhpa.Spec.MinReplicas))
 
 			// Create CronFederatedHPA to scale FederatedHPA
@@ -111,7 +111,7 @@ var _ = ginkgo.Describe("[CronFederatedHPA] CronFederatedHPA testing", func() {
 	})
 
 	// case 2. Scale deployment.
-	ginkgo.Context("Scale Deployment", func() {
+	ginkgo.Context("Test scale Deployment", func() {
 		targetReplicas := pointer.Int32(4)
 
 		ginkgo.BeforeEach(func() {
