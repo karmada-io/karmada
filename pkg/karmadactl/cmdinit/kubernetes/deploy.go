@@ -189,14 +189,9 @@ func (i *CommandInitOption) validateBundledEtcd(parentCommand string) error {
 }
 
 func (i *CommandInitOption) validateExternalEtcd(_ string) error {
-	if i.ExternalEtcdCACertPath == "" {
-		return fmt.Errorf("etcd ca cert path should be specified")
-	}
-	if i.ExternalEtcdClientCertPath == "" {
-		return fmt.Errorf("etcd client cert path should be specified")
-	}
-	if i.ExternalEtcdClientKeyPath == "" {
-		return fmt.Errorf("etcd client cert private key path should be specified")
+	if (i.ExternalEtcdClientCertPath == "" && i.ExternalEtcdClientKeyPath != "") ||
+		(i.ExternalEtcdClientCertPath != "" && i.ExternalEtcdClientKeyPath == "") {
+		return fmt.Errorf("etcd client cert and key should be specified both or none")
 	}
 	return nil
 }
@@ -501,6 +496,22 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 	return nil
 }
 
+func (i *CommandInitOption) readExternalEtcdCert(name string) (isExternalEtcdCert bool, err error) {
+	if i.ExternalEtcdServers == "" {
+		return
+	}
+	var getCertAndKey func(*CommandInitOption) ([]byte, []byte, error)
+	if getCertAndKey, isExternalEtcdCert = externalEtcdCertSpecialization[name]; isExternalEtcdCert {
+		var certs, key []byte
+		if certs, key, err = getCertAndKey(i); err != nil {
+			return
+		}
+		i.CertAndKeyFileData[fmt.Sprintf("%s.crt", name)] = certs
+		i.CertAndKeyFileData[fmt.Sprintf("%s.key", name)] = key
+	}
+	return
+}
+
 // RunInit Deploy karmada in kubernetes
 func (i *CommandInitOption) RunInit(parentCommand string) error {
 	// generate certificate
@@ -511,16 +522,10 @@ func (i *CommandInitOption) RunInit(parentCommand string) error {
 	i.CertAndKeyFileData = map[string][]byte{}
 
 	for _, v := range certList {
-		if i.ExternalEtcdServers != "" {
-			if getCertAndKey, needSpecialization := externalEtcdCertSpecialization[v]; needSpecialization {
-				if certs, key, err := getCertAndKey(i); err != nil {
-					return fmt.Errorf("read external etcd certificate failed, %s. %v", v, err)
-				} else {
-					i.CertAndKeyFileData[fmt.Sprintf("%s.crt", v)] = certs
-					i.CertAndKeyFileData[fmt.Sprintf("%s.key", v)] = key
-				}
-				continue
-			}
+		if isExternalEtcdCert, err := i.readExternalEtcdCert(v); err != nil {
+			return fmt.Errorf("read external etcd certificate failed, %s. %v", v, err)
+		} else if isExternalEtcdCert {
+			continue
 		}
 		certs, err := utils.FileToBytes(i.KarmadaPkiPath, fmt.Sprintf("%s.crt", v))
 		if err != nil {
