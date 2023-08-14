@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"sigs.k8s.io/cluster-api/feature"
-	capilabels "sigs.k8s.io/cluster-api/internal/labels"
+	"sigs.k8s.io/cluster-api/util/labels/format"
 	"sigs.k8s.io/cluster-api/util/version"
 )
 
@@ -70,8 +70,8 @@ func (m *MachineSet) Default() {
 
 	if len(m.Spec.Selector.MatchLabels) == 0 && len(m.Spec.Selector.MatchExpressions) == 0 {
 		// Note: MustFormatValue is used here as the value of this label will be a hash if the MachineSet name is longer than 63 characters.
-		m.Spec.Selector.MatchLabels[MachineSetNameLabel] = capilabels.MustFormatValue(m.Name)
-		m.Spec.Template.Labels[MachineSetNameLabel] = capilabels.MustFormatValue(m.Name)
+		m.Spec.Selector.MatchLabels[MachineSetNameLabel] = format.MustFormatValue(m.Name)
+		m.Spec.Template.Labels[MachineSetNameLabel] = format.MustFormatValue(m.Name)
 	}
 
 	if m.Spec.Template.Spec.Version != nil && !strings.HasPrefix(*m.Spec.Template.Spec.Version, "v") {
