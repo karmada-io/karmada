@@ -17,7 +17,7 @@ jobs:
         # Here support the latest three minor releases of Kubernetes, this can be considered to be roughly
         # the same as the End of Life of the Kubernetes release: https://kubernetes.io/releases/
         # Please remember to update the CI Schedule Workflow when we add a new version.
-        k8s: [ v1.24.2, v1.25.0, v1.26.0 ]
+        k8s: [ v1.25.0, v1.26.0, v1.27.3 ]
     steps:
       - name: checkout code
         uses: actions/checkout@v3
@@ -31,7 +31,7 @@ jobs:
           go-version: 1.20.6
       - uses: engineerd/setup-kind@v0.5.0
         with:
-          version: "v0.17.0"
+          version: "v0.20.0"
       - name: run karmadactl init test
         run: |
           export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
