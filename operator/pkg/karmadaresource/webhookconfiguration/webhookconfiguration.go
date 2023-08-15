@@ -12,8 +12,8 @@ import (
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 )
 
-// EnsureWebhookconfiguration creates karmada webhook mutatingWebhookConfiguration and validatingWebhookConfiguration
-func EnsureWebhookconfiguration(client clientset.Interface, namespace, name, caBundle string) error {
+// EnsureWebhookConfiguration creates karmada webhook mutatingWebhookConfiguration and validatingWebhookConfiguration
+func EnsureWebhookConfiguration(client clientset.Interface, namespace, name, caBundle string) error {
 	if err := mutatingWebhookConfiguration(client, namespace, name, caBundle); err != nil {
 		return err
 	}

@@ -8,7 +8,6 @@ import (
 	"path"
 	"regexp"
 	"strings"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -176,7 +175,7 @@ func runWebhookConfiguration(r workflow.RunData) error {
 	}
 
 	caBase64 := base64.StdEncoding.EncodeToString(cert.CertData())
-	return webhookconfiguration.EnsureWebhookconfiguration(
+	return webhookconfiguration.EnsureWebhookConfiguration(
 		data.KarmadaClient(),
 		data.GetNamespace(),
 		data.GetName(),
@@ -200,7 +199,7 @@ func runAPIService(r workflow.RunData) error {
 		return fmt.Errorf("failed to apply aggregated APIService resource to karmada controlplane, err: %w", err)
 	}
 
-	waiter := apiclient.NewKarmadaWaiter(config, nil, time.Second*20)
+	waiter := apiclient.NewKarmadaWaiter(config, nil, componentBeReadyTimeout)
 	if err := apiclient.TryRunCommand(waiter.WaitForAPIService, 3); err != nil {
 		return fmt.Errorf("the APIService is unhealthy, err: %w", err)
 	}

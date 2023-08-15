@@ -19,8 +19,7 @@ func GetControlplaneEndpoint(address, port string) (string, error) {
 	if ip == nil {
 		return "", fmt.Errorf("invalid value `%s` given for address", address)
 	}
-	url := formatURL(ip.String(), port)
-	return url.String(), nil
+	return formatURL(ip.String(), port).String(), nil
 }
 
 // formatURL takes a host and a port string and creates a net.URL using https scheme
