@@ -144,6 +144,16 @@ func InitKarmadaBootstrapToken(dir string) (string, error) {
 }
 
 func createExtralResources(clientSet *kubernetes.Clientset, dir string) error {
+	// grant view clusterrole with karamda resource permission
+	if err := grantKarmadaPermissionToViewClusterRole(clientSet); err != nil {
+		return err
+	}
+
+	// grant edit clusterrole with karamda resource permission
+	if err := grantKarmadaPermissionToEditClusterRole(clientSet); err != nil {
+		return err
+	}
+
 	// grant proxy permission to "system:admin".
 	if err := grantProxyPermissionToAdmin(clientSet); err != nil {
 		return err
