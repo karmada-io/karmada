@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/endpoints/request"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -31,6 +32,7 @@ func TestProxyREST_Connect(t *testing.T) {
 	defer s.Close()
 
 	type fields struct {
+		secret        *corev1.Secret
 		kubeClient    kubernetes.Interface
 		clusterGetter func(ctx context.Context, name string) (*clusterapis.Cluster, error)
 	}
@@ -48,6 +50,10 @@ func TestProxyREST_Connect(t *testing.T) {
 		{
 			name: "options is invalid",
 			fields: fields{
+				secret: &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{Name: "secret", Namespace: "ns"},
+					Data:       map[string][]byte{clusterapis.SecretTokenKey: []byte("token")},
+				},
 				kubeClient: fake.NewSimpleClientset(&corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{Name: "secret", Namespace: "ns"},
 					Data:       map[string][]byte{clusterapis.SecretTokenKey: []byte("token")},
@@ -72,6 +78,10 @@ func TestProxyREST_Connect(t *testing.T) {
 		{
 			name: "cluster not found",
 			fields: fields{
+				secret: &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{Name: "secret", Namespace: "ns"},
+					Data:       map[string][]byte{clusterapis.SecretTokenKey: []byte("token")},
+				},
 				kubeClient: fake.NewSimpleClientset(&corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{Name: "secret", Namespace: "ns"},
 					Data:       map[string][]byte{clusterapis.SecretTokenKey: []byte("token")},
@@ -88,8 +98,9 @@ func TestProxyREST_Connect(t *testing.T) {
 			want:    "",
 		},
 		{
-			name: "proxy success",
+			name: "proxy success without secret cache",
 			fields: fields{
+				secret: &corev1.Secret{},
 				kubeClient: fake.NewSimpleClientset(&corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{Name: "secret", Namespace: "ns"},
 					Data:       map[string][]byte{clusterapis.SecretTokenKey: []byte("token")},
@@ -111,19 +122,53 @@ func TestProxyREST_Connect(t *testing.T) {
 			wantErr: false,
 			want:    "ok",
 		},
+		{
+			name: "proxy success with secret cache",
+			fields: fields{
+				secret: &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{Name: "secret", Namespace: "ns"},
+					Data:       map[string][]byte{clusterapis.SecretTokenKey: []byte("token")},
+				},
+				kubeClient: fake.NewSimpleClientset(),
+				clusterGetter: func(_ context.Context, name string) (*clusterapis.Cluster, error) {
+					return &clusterapis.Cluster{
+						ObjectMeta: metav1.ObjectMeta{Name: name},
+						Spec: clusterapis.ClusterSpec{
+							APIEndpoint:           s.URL,
+							ImpersonatorSecretRef: &clusterapis.LocalSecretReference{Namespace: "ns", Name: "secret"},
+						},
+					}, nil
+				},
+			},
+			args: args{
+				id:      "cluster",
+				options: &clusterapis.ClusterProxyOptions{Path: "/proxy"},
+			},
+			wantErr: false,
+			want:    "ok",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			stopCh := make(chan struct{})
+			defer close(stopCh)
+
 			req, err := http.NewRequestWithContext(request.WithUser(request.NewContext(), &user.DefaultInfo{}), http.MethodGet, "http://127.0.0.1/xxx", nil)
 			if err != nil {
 				t.Fatal(err)
 			}
 			resp := httptest.NewRecorder()
 
+			kubeFactory := informers.NewSharedInformerFactory(fake.NewSimpleClientset(tt.fields.secret), 0)
 			r := &ProxyREST{
+				secretLister:  kubeFactory.Core().V1().Secrets().Lister(),
 				kubeClient:    tt.fields.kubeClient,
 				clusterGetter: tt.fields.clusterGetter,
 			}
+
+			kubeFactory.Start(stopCh)
+			kubeFactory.WaitForCacheSync(stopCh)
+
 			h, err := r.Connect(req.Context(), tt.args.id, tt.args.options, utiltest.NewResponder(resp))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Connect() error = %v, wantErr %v", err, tt.wantErr)
