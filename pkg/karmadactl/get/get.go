@@ -17,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	metav1beta1 "k8s.io/apimachinery/pkg/apis/meta/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/watch"
@@ -26,19 +25,19 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/rest"
 	watchtools "k8s.io/client-go/tools/watch"
+	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/cmd/get"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/interrupt"
 	"k8s.io/kubectl/pkg/util/templates"
 	utilpointer "k8s.io/utils/pointer"
 
-	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	karmadautil "github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 const (
@@ -285,14 +284,6 @@ type WatchObj struct {
 	r       *resource.Result
 }
 
-// RBInfo resourcebinding info and print info
-var RBInfo map[string]*OtherPrint
-
-// OtherPrint applied is used in the display column
-type OtherPrint struct {
-	Applied interface{}
-}
-
 // Run performs the get operation.
 func (g *CommandGetOptions) Run(f util.Factory, cmd *cobra.Command, args []string) error {
 	mux := sync.Mutex{}
@@ -309,12 +300,6 @@ func (g *CommandGetOptions) Run(f util.Factory, cmd *cobra.Command, args []strin
 	outputOption := cmd.Flags().Lookup("output").Value.String()
 	if strings.Contains(outputOption, "custom-columns") || outputOption == "yaml" || strings.Contains(outputOption, "json") {
 		g.ServerPrint = false
-	}
-
-	RBInfo = make(map[string]*OtherPrint)
-
-	if err := g.getRBInKarmada(); err != nil {
-		return err
 	}
 
 	if len(g.Clusters) == 0 {
@@ -548,16 +533,25 @@ func (g *CommandGetOptions) reconstructionRow(objs []Obj, table *metav1.Table) (
 			return nil, nil, err
 		}
 		for rowIdx := range table.Rows {
-			var tempRow metav1.TableRow
-			rbKey := getRBKey(mapping.GroupVersionKind, table.Rows[rowIdx], objs[ix].Cluster)
+			var cells []interface{}
+			cells = append(cells, table.Rows[rowIdx].Cells[0])
+			cells = append(cells, objs[ix].Cluster)
+			cells = append(cells, table.Rows[rowIdx].Cells[1:]...)
+			table.Rows[rowIdx].Cells = cells
 
-			tempRow.Cells = append(append(tempRow.Cells, table.Rows[rowIdx].Cells[0], objs[ix].Cluster), table.Rows[rowIdx].Cells[1:]...)
-			if _, ok := RBInfo[rbKey]; ok {
-				tempRow.Cells = append(tempRow.Cells, "Y")
-			} else {
-				tempRow.Cells = append(tempRow.Cells, "N")
+			unObj := &unstructured.Unstructured{}
+			err := unObj.UnmarshalJSON(table.Rows[rowIdx].Object.Raw)
+			if err != nil {
+				klog.Errorf("Failed to unmarshal unObj, error is: %v", err)
+				continue
 			}
-			table.Rows[rowIdx].Cells = tempRow.Cells
+
+			v, exist := unObj.GetLabels()[karmadautil.ManagedByKarmadaLabel]
+			if exist && v == karmadautil.ManagedByKarmadaLabelValue {
+				table.Rows[rowIdx].Cells = append(table.Rows[rowIdx].Cells, "Y")
+			} else {
+				table.Rows[rowIdx].Cells = append(table.Rows[rowIdx].Cells, "N")
+			}
 		}
 		allTableRows = append(allTableRows, table.Rows...)
 	}
@@ -578,20 +572,26 @@ func (g *CommandGetOptions) reconstructObj(obj runtime.Object, mapping *meta.RES
 	}
 
 	for rowIdx := range table.Rows {
-		var tempRow metav1.TableRow
-		rbKey := getRBKey(mapping.GroupVersionKind, table.Rows[rowIdx], cluster)
-
+		var cells []interface{}
 		if g.OutputWatchEvents {
-			tempRow.Cells = append(append(tempRow.Cells, event, table.Rows[rowIdx].Cells[0], cluster), table.Rows[rowIdx].Cells[1:]...)
+			cells = append(append(cells, event, table.Rows[rowIdx].Cells[0], cluster), table.Rows[rowIdx].Cells[1:]...)
 		} else {
-			tempRow.Cells = append(append(tempRow.Cells, table.Rows[rowIdx].Cells[0], cluster), table.Rows[rowIdx].Cells[1:]...)
+			cells = append(append(cells, table.Rows[rowIdx].Cells[0], cluster), table.Rows[rowIdx].Cells[1:]...)
 		}
-		if _, ok := RBInfo[rbKey]; ok {
-			tempRow.Cells = append(tempRow.Cells, "Y")
+		table.Rows[rowIdx].Cells = cells
+
+		unObj := &unstructured.Unstructured{}
+		err := unObj.UnmarshalJSON(table.Rows[rowIdx].Object.Raw)
+		if err != nil {
+			klog.Errorf("Failed to unmarshal unObj, error is: %v", err)
+			continue
+		}
+		v, exist := unObj.GetLabels()[karmadautil.ManagedByKarmadaLabel]
+		if exist && v == karmadautil.ManagedByKarmadaLabelValue {
+			table.Rows[rowIdx].Cells = append(table.Rows[rowIdx].Cells, "Y")
 		} else {
-			tempRow.Cells = append(tempRow.Cells, "N")
+			table.Rows[rowIdx].Cells = append(table.Rows[rowIdx].Cells, "N")
 		}
-		table.Rows[rowIdx].Cells = tempRow.Cells
 	}
 	allTableRows = append(allTableRows, table.Rows...)
 
@@ -894,58 +894,6 @@ func (g *CommandGetOptions) transformRequests(req *rest.Request) {
 		fmt.Sprintf("application/json;as=Table;v=%s;g=%s", metav1beta1.SchemeGroupVersion.Version, metav1beta1.GroupName),
 		"application/json",
 	}, ","))
-}
-
-func (g *CommandGetOptions) getRBInKarmada() error {
-	var rbList *workv1alpha2.ResourceBindingList
-	var crbList *workv1alpha2.ClusterResourceBindingList
-	var err error
-
-	if !g.AllNamespaces {
-		rbList, err = g.karmadaClient.WorkV1alpha2().ResourceBindings(*options.DefaultConfigFlags.Namespace).List(context.TODO(), metav1.ListOptions{})
-	} else {
-		rbList, err = g.karmadaClient.WorkV1alpha2().ResourceBindings(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
-	}
-	if err != nil {
-		return err
-	}
-
-	if crbList, err = g.karmadaClient.WorkV1alpha2().ClusterResourceBindings().List(context.TODO(), metav1.ListOptions{}); err != nil {
-		return err
-	}
-
-	for idx := range rbList.Items {
-		rbKey := rbList.Items[idx].GetName()
-		val := rbList.Items[idx].Status.AggregatedStatus
-		for i := range val {
-			if val[i].Applied && val[i].ClusterName != "" {
-				newRBKey := fmt.Sprintf("%s-%s", val[i].ClusterName, rbKey)
-				RBInfo[newRBKey] = &OtherPrint{
-					Applied: val[i].Applied,
-				}
-			}
-		}
-	}
-	for idx := range crbList.Items {
-		rbKey := crbList.Items[idx].GetName()
-		val := crbList.Items[idx].Status.AggregatedStatus
-		for i := range val {
-			if val[i].Applied && val[i].ClusterName != "" {
-				newRBKey := fmt.Sprintf("%s-%s", val[i].ClusterName, rbKey)
-				RBInfo[newRBKey] = &OtherPrint{
-					Applied: val[i].Applied,
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func getRBKey(gvk schema.GroupVersionKind, row metav1.TableRow, cluster string) string {
-	resourceName, _ := row.Cells[0].(string)
-	rbKey := names.GenerateBindingName(gvk.Kind, resourceName)
-
-	return fmt.Sprintf("%s-%s", cluster, rbKey)
 }
 
 func multipleGVKsRequested(objs []Obj) bool {
