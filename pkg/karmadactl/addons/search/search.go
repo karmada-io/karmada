@@ -231,19 +231,24 @@ func getExternalEtcdServerConfig(ctx context.Context, host kubernetes.Interface,
 	}
 	// should be only one container, but it may be injected others by mutating webhook of host cluster,
 	// anyway, a for can handle all cases.
-	for _, container := range apiserver.Spec.Template.Spec.Containers {
+	var apiServerContainer *corev1.Container
+	for i, container := range apiserver.Spec.Template.Spec.Containers {
 		if container.Name == karmadaAPIServerDeploymentAndServiceName {
-			for _, cmd := range container.Command {
-				if strings.HasPrefix(cmd, etcdServerArgPrefix) {
-					servers = cmd[etcdServerArgPrefixLength:]
-				} else if strings.HasPrefix(cmd, etcdKeyPrefixArgPrefix) {
-					prefix = cmd[etcdKeyPrefixArgPrefixLength:]
-				}
-				if servers != "" && prefix != "" {
-					break
-				}
-			}
-			return
+			apiServerContainer = &apiserver.Spec.Template.Spec.Containers[i]
+			break
+		}
+	}
+	if apiServerContainer == nil {
+		return
+	}
+	for _, cmd := range apiServerContainer.Command {
+		if strings.HasPrefix(cmd, etcdServerArgPrefix) {
+			servers = cmd[etcdServerArgPrefixLength:]
+		} else if strings.HasPrefix(cmd, etcdKeyPrefixArgPrefix) {
+			prefix = cmd[etcdKeyPrefixArgPrefixLength:]
+		}
+		if servers != "" && prefix != "" {
+			break
 		}
 	}
 	return

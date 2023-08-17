@@ -196,6 +196,10 @@ func (i *CommandInitOption) validateExternalEtcd(_ string) error {
 	return nil
 }
 
+func (i *CommandInitOption) isExternalEtcdProvided() bool {
+	return i.ExternalEtcdServers != ""
+}
+
 // Validate Check that there are enough flags to run the command.
 //
 //nolint:gocyclo
@@ -206,7 +210,7 @@ func (i *CommandInitOption) Validate(parentCommand string) error {
 		}
 	}
 
-	if i.ExternalEtcdServers != "" {
+	if i.isExternalEtcdProvided() {
 		return i.validateExternalEtcd(parentCommand)
 	} else {
 		return i.validateBundledEtcd(parentCommand)
@@ -232,7 +236,7 @@ func (i *CommandInitOption) Complete() error {
 		return fmt.Errorf("nodePort of karmada apiserver %v already exist", i.KarmadaAPIServerNodePort)
 	}
 
-	if i.ExternalEtcdServers == "" && i.EtcdStorageMode == "hostPath" && i.EtcdNodeSelectorLabels == "" {
+	if !i.isExternalEtcdProvided() && i.EtcdStorageMode == "hostPath" && i.EtcdNodeSelectorLabels == "" {
 		if err := i.AddNodeSelectorLabels(); err != nil {
 			return err
 		}
@@ -243,7 +247,7 @@ func (i *CommandInitOption) Complete() error {
 	}
 	klog.Infof("karmada apiserver ip: %s", i.KarmadaAPIServerIP)
 
-	if i.ExternalEtcdServers == "" && i.EtcdStorageMode == "hostPath" && i.EtcdNodeSelectorLabels != "" {
+	if !i.isExternalEtcdProvided() && i.EtcdStorageMode == "hostPath" && i.EtcdNodeSelectorLabels != "" {
 		if !i.isNodeExist(i.EtcdNodeSelectorLabels) {
 			return fmt.Errorf("no node found by label %s", i.EtcdNodeSelectorLabels)
 		}
@@ -271,7 +275,7 @@ func (i *CommandInitOption) genCerts() error {
 	notAfter := time.Now().Add(i.CertValidity).UTC()
 
 	var etcdServerCertConfig, etcdClientCertCfg *cert.CertsConfig
-	if i.ExternalEtcdServers == "" {
+	if !i.isExternalEtcdProvided() {
 		etcdServerCertDNS := []string{
 			"localhost",
 		}
@@ -400,7 +404,7 @@ func (i *CommandInitOption) createCertsSecrets() error {
 }
 
 func (i *CommandInitOption) initKarmadaAPIServer() error {
-	if i.ExternalEtcdServers == "" {
+	if !i.isExternalEtcdProvided() {
 		if err := util.CreateOrUpdateService(i.KubeClientSet, i.makeEtcdService(etcdStatefulSetAndServiceName)); err != nil {
 			return err
 		}
@@ -497,7 +501,7 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 }
 
 func (i *CommandInitOption) readExternalEtcdCert(name string) (isExternalEtcdCert bool, err error) {
-	if i.ExternalEtcdServers == "" {
+	if !i.isExternalEtcdProvided() {
 		return
 	}
 	var getCertAndKey func(*CommandInitOption) ([]byte, []byte, error)
