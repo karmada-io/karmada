@@ -267,7 +267,7 @@ var _ = ginkgo.Describe("[BasicPropagation] propagation testing", func() {
 					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Waiting for cr(%s/%s) present on cluster(%s)", crNamespace, crName, cluster.Name)
-					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 						_, err = clusterDynamicClient.Resource(crGVR).Namespace(crNamespace).Get(context.TODO(), crName, metav1.GetOptions{})
 						if err != nil {
 							if apierrors.IsNotFound(err) {
@@ -302,7 +302,7 @@ var _ = ginkgo.Describe("[BasicPropagation] propagation testing", func() {
 					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Waiting for cr(%s/%s) synced on cluster(%s)", crNamespace, crName, cluster.Name)
-					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 						cr, err := clusterDynamicClient.Resource(crGVR).Namespace(crNamespace).Get(context.TODO(), crName, metav1.GetOptions{})
 						if err != nil {
 							return false, err
@@ -333,7 +333,7 @@ var _ = ginkgo.Describe("[BasicPropagation] propagation testing", func() {
 					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Waiting for cr(%s/%s) disappear on cluster(%s)", crNamespace, crName, cluster.Name)
-					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 						_, err = clusterDynamicClient.Resource(crGVR).Namespace(crNamespace).Get(context.TODO(), crName, metav1.GetOptions{})
 						if err != nil {
 							if apierrors.IsNotFound(err) {

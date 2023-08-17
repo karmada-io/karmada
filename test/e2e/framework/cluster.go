@@ -204,7 +204,7 @@ func newClusterClientSet(controlPlaneClient client.Client, c *clusterv1alpha1.Cl
 
 // setClusterLabel set cluster label of E2E
 func setClusterLabel(c client.Client, clusterName string) error {
-	err := wait.PollImmediate(2*time.Second, 10*time.Second, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.TODO(), 2*time.Second, 10*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
 		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
@@ -317,7 +317,7 @@ func LoadRESTClientConfig(kubeconfig string, context string) (*rest.Config, erro
 
 // SetClusterRegion sets .Spec.Region field for Cluster object.
 func SetClusterRegion(c client.Client, clusterName string, regionName string) error {
-	return wait.PollImmediate(2*time.Second, 10*time.Second, func() (done bool, err error) {
+	return wait.PollUntilContextTimeout(context.TODO(), 2*time.Second, 10*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
 		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
 			if apierrors.IsConflict(err) {

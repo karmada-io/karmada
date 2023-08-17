@@ -26,7 +26,7 @@ const (
 func GetTokenFromServiceAccount(client kubernetes.Interface, saNamespace, saName string) (string, error) {
 	klog.Infof("Get serviceAccount(%s/%s)'s refer secret", saNamespace, saName)
 	var token string
-	err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 		saRefSecret, err := client.CoreV1().Secrets(saNamespace).Get(context.TODO(), saName, metav1.GetOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {

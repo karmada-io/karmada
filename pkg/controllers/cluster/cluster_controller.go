@@ -394,7 +394,7 @@ func (c *Controller) monitorClusterHealth(ctx context.Context) (err error) {
 	for i := range clusters {
 		cluster := &clusters[i]
 		var observedReadyCondition, currentReadyCondition *metav1.Condition
-		if err = wait.PollImmediate(MonitorRetrySleepTime, MonitorRetrySleepTime*HealthUpdateRetry, func() (bool, error) {
+		if err = wait.PollUntilContextTimeout(ctx, MonitorRetrySleepTime, MonitorRetrySleepTime*HealthUpdateRetry, true, func(ctx context.Context) (bool, error) {
 			// Cluster object may be changed in this function.
 			observedReadyCondition, currentReadyCondition, err = c.tryUpdateClusterHealth(ctx, cluster)
 			if err == nil {

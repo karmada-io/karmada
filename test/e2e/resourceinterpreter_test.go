@@ -181,7 +181,7 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 
 				wantedReplicas := *workload.Spec.Replicas * int32(len(framework.Clusters()))
 				klog.Infof("Waiting for workload(%s/%s) collecting correctly status", workloadNamespace, workloadName)
-				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+				err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 					currentWorkload := framework.GetWorkload(dynamicClient, workloadNamespace, workloadName)
 
 					klog.Infof("workload(%s/%s) readyReplicas: %d, wanted replicas: %d", workloadNamespace, workloadName, currentWorkload.Status.ReadyReplicas, wantedReplicas)
@@ -471,7 +471,7 @@ end
 					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Waiting for dependency cr(%s/%s) present on cluster(%s)", crNamespaceDep, crNameDep, cluster.Name)
-					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 						_, err = clusterDynamicClient.Resource(crGVRDep).Namespace(crNamespaceDep).Get(context.TODO(), crNameDep, metav1.GetOptions{})
 						if err != nil {
 							if apierrors.IsNotFound(err) {
@@ -506,7 +506,7 @@ end
 					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Waiting for cr(%s/%s) synced on cluster(%s)", crNamespaceDep, crNameDep, cluster.Name)
-					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 						cr, err := clusterDynamicClient.Resource(crGVRDep).Namespace(crNamespaceDep).Get(context.TODO(), crNameDep, metav1.GetOptions{})
 						if err != nil {
 							return false, err
@@ -537,7 +537,7 @@ end
 					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Waiting for dependency cr(%s/%s) disappear on cluster(%s)", crNamespaceDep, crNameDep, cluster.Name)
-					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 						_, err = clusterDynamicClient.Resource(crGVRDep).Namespace(crNamespaceDep).Get(context.TODO(), crNameDep, metav1.GetOptions{})
 						if err != nil {
 							if apierrors.IsNotFound(err) {

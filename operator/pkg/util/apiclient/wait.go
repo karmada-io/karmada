@@ -55,7 +55,7 @@ func NewKarmadaWaiter(config *rest.Config, client clientset.Interface, timeout t
 
 // WaitForAPI waits for the API Server's /healthz endpoint to report "ok"
 func (w *KarmadaWaiter) WaitForAPI() error {
-	return wait.PollImmediate(APICallRetryInterval, w.timeout, func() (bool, error) {
+	return wait.PollUntilContextTimeout(context.TODO(), APICallRetryInterval, w.timeout, true, func(ctx context.Context) (bool, error) {
 		healthStatus := 0
 		w.client.Discovery().RESTClient().Get().AbsPath("/healthz").Do(context.TODO()).StatusCode(&healthStatus)
 		if healthStatus != http.StatusOK {
@@ -73,7 +73,7 @@ func (w *KarmadaWaiter) WaitForAPIService() error {
 		return err
 	}
 
-	err = wait.PollImmediate(APICallRetryInterval, w.timeout, func() (done bool, err error) {
+	err = wait.PollUntilContextTimeout(context.TODO(), APICallRetryInterval, w.timeout, true, func(ctx context.Context) (done bool, err error) {
 		apiService, err := aggregateClient.ApiregistrationV1().APIServices().Get(context.TODO(), APIServiceName, metav1.GetOptions{})
 		if err != nil {
 			return false, nil
@@ -95,7 +95,7 @@ func (w *KarmadaWaiter) WaitForAPIService() error {
 // reporting status as running.
 func (w *KarmadaWaiter) WaitForPods(label, namespace string) error {
 	lastKnownPodNumber := -1
-	return wait.PollImmediate(APICallRetryInterval, w.timeout, func() (bool, error) {
+	return wait.PollUntilContextTimeout(context.TODO(), APICallRetryInterval, w.timeout, true, func(ctx context.Context) (bool, error) {
 		listOpts := metav1.ListOptions{LabelSelector: label}
 		pods, err := w.client.CoreV1().Pods(namespace).List(context.TODO(), listOpts)
 		if err != nil {
@@ -123,7 +123,7 @@ func (w *KarmadaWaiter) WaitForPods(label, namespace string) error {
 // WaitForSomePods lookup pods with the given label and wait until desired number of pods
 // reporting status as running.
 func (w *KarmadaWaiter) WaitForSomePods(label, namespace string, podNum int32) error {
-	return wait.PollImmediate(APICallRetryInterval, w.timeout, func() (bool, error) {
+	return wait.PollUntilContextTimeout(context.TODO(), APICallRetryInterval, w.timeout, true, func(ctx context.Context) (bool, error) {
 		listOpts := metav1.ListOptions{LabelSelector: label}
 		pods, err := w.client.CoreV1().Pods(namespace).List(context.TODO(), listOpts)
 		if err != nil {

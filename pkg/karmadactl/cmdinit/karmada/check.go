@@ -14,7 +14,7 @@ import (
 
 // WaitAPIServiceReady wait the api service condition true
 func WaitAPIServiceReady(c *aggregator.Clientset, name string, timeout time.Duration) error {
-	if err := wait.PollImmediate(time.Second, timeout, func() (done bool, err error) {
+	if err := wait.PollUntilContextTimeout(context.TODO(), time.Second, timeout, true, func(ctx context.Context) (done bool, err error) {
 		apiService, e := c.ApiregistrationV1().APIServices().Get(context.TODO(), name, metav1.GetOptions{})
 		if e != nil {
 			return false, nil

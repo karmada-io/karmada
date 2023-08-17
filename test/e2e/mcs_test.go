@@ -310,7 +310,7 @@ var _ = ginkgo.Describe("Multi-Cluster Service testing", func() {
 			framework.CreatePropagationPolicy(karmadaClient, importPolicy)
 
 			ginkgo.By(fmt.Sprintf("Wait derived-service(%s/%s) exist in %s cluster", demoService.Namespace, names.GenerateDerivedServiceName(demoService.Name), serviceImportClusterName), func() {
-				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+				err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 					_, err = importClusterClient.CoreV1().Services(demoService.Namespace).Get(context.TODO(), names.GenerateDerivedServiceName(demoService.Name), metav1.GetOptions{})
 					if err != nil {
 						if apierrors.IsNotFound(err) {

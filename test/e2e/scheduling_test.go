@@ -211,7 +211,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Waiting for crd(%s) present on cluster(%s)", crd.Name, targetClusterName)
-					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 						_, err = clusterDynamicClient.Resource(crdGVR).Namespace(crd.Namespace).Get(context.TODO(), crd.Name, metav1.GetOptions{})
 						if err != nil {
 							if apierrors.IsNotFound(err) {
