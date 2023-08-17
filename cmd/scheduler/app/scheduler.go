@@ -45,6 +45,22 @@ const (
 	// References:
 	// - https://en.wikipedia.org/wiki/Slowloris_(computer_security)
 	ReadHeaderTimeout = 32 * time.Second
+	// WriteTimeout is the amount of time allowed to write the
+	// request data.
+	// HTTP timeouts are necessary to expire inactive connections
+	// and failing to do so might make the application vulnerable
+	// to attacks like slowloris which work by sending data very slow,
+	// which in case of no timeout will keep the connection active
+	// eventually leading to a denial-of-service (DoS) attack.
+	WriteTimeout = 5 * time.Minute
+	// ReadTimeout is the amount of time allowed to read
+	// response data.
+	// HTTP timeouts are necessary to expire inactive connections
+	// and failing to do so might make the application vulnerable
+	// to attacks like slowloris which work by sending data very slow,
+	// which in case of no timeout will keep the connection active
+	// eventually leading to a denial-of-service (DoS) attack.
+	ReadTimeout = 5 * time.Minute
 )
 
 // Option configures a framework.Registry.
@@ -207,6 +223,8 @@ func serveHealthzAndMetrics(address string) {
 		Addr:              address,
 		Handler:           mux,
 		ReadHeaderTimeout: ReadHeaderTimeout,
+		WriteTimeout:      WriteTimeout,
+		ReadTimeout:       ReadTimeout,
 	}
 	if err := httpServer.ListenAndServe(); err != nil {
 		klog.Errorf("Failed to serve healthz and metrics: %v", err)
