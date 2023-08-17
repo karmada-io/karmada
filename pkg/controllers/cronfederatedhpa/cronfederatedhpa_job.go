@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
@@ -86,7 +87,9 @@ func RunCronFederatedHPARule(c *CronFederatedHPAJob) {
 	}
 
 	var scaleErr error
+	start := time.Now()
 	defer func() {
+		metrics.ObserveProcessCronFederatedHPARuleLatency(scaleErr, start)
 		if scaleErr != nil {
 			c.eventRecorder.Event(cronFHPA, corev1.EventTypeWarning, "ScaleFailed", scaleErr.Error())
 			err = c.addFailedExecutionHistory(cronFHPA, scaleErr.Error())
