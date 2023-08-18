@@ -25,7 +25,7 @@ import (
 
 var errAllocated = errors.New("provided port is already allocated")
 
-// NewCRDsClient is to create a clientset ClientSet
+// NewCRDsClient is to create a Clientset
 func NewCRDsClient(c *rest.Config) (*crdsclient.Clientset, error) {
 	return crdsclient.NewForConfig(c)
 }
@@ -207,26 +207,26 @@ func PatchCustomResourceDefinition(client *crdsclient.Clientset, name string, da
 }
 
 // CreateOrUpdateStatefulSet creates a StatefulSet if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
-func CreateOrUpdateStatefulSet(client clientset.Interface, statefuleSet *appsv1.StatefulSet) error {
-	_, err := client.AppsV1().StatefulSets(statefuleSet.GetNamespace()).Create(context.TODO(), statefuleSet, metav1.CreateOptions{})
+func CreateOrUpdateStatefulSet(client clientset.Interface, statefulSet *appsv1.StatefulSet) error {
+	_, err := client.AppsV1().StatefulSets(statefulSet.GetNamespace()).Create(context.TODO(), statefulSet, metav1.CreateOptions{})
 	if err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return err
 		}
 
-		older, err := client.AppsV1().StatefulSets(statefuleSet.GetNamespace()).Get(context.TODO(), statefuleSet.GetName(), metav1.GetOptions{})
+		older, err := client.AppsV1().StatefulSets(statefulSet.GetNamespace()).Get(context.TODO(), statefulSet.GetName(), metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 
-		statefuleSet.ResourceVersion = older.ResourceVersion
-		_, err = client.AppsV1().StatefulSets(statefuleSet.GetNamespace()).Update(context.TODO(), statefuleSet, metav1.UpdateOptions{})
+		statefulSet.ResourceVersion = older.ResourceVersion
+		_, err = client.AppsV1().StatefulSets(statefulSet.GetNamespace()).Update(context.TODO(), statefulSet, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
 	}
 
-	klog.V(5).InfoS("Successfully created or updated statefulset", "statefulset", statefuleSet.GetName)
+	klog.V(5).InfoS("Successfully created or updated statefulset", "statefulset", statefulSet.GetName)
 	return nil
 }
 
@@ -248,7 +248,7 @@ func DeleteDeploymentIfHasLabels(client clientset.Interface, name, namespace str
 	return client.AppsV1().Deployments(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
 
-// DeleteStatefulSetIfHasLabels deletes a StatefuleSet that exists the given labels.
+// DeleteStatefulSetIfHasLabels deletes a StatefulSet that exists the given labels.
 func DeleteStatefulSetIfHasLabels(client clientset.Interface, name, namespace string, ls labels.Set) error {
 	sts, err := client.AppsV1().StatefulSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
