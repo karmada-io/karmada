@@ -54,10 +54,7 @@ func aggregatedAPIService(client *aggregator.Clientset, name, namespace string) 
 		return fmt.Errorf("err when decoding AggregatedApiserver APIService: %w", err)
 	}
 
-	if err := apiclient.CreateOrUpdateAPIService(client, apiService); err != nil {
-		return err
-	}
-	return nil
+	return apiclient.CreateOrUpdateAPIService(client, apiService)
 }
 
 func aggregatedApiserverService(client clientset.Interface, name, namespace string) error {
@@ -77,8 +74,5 @@ func aggregatedApiserverService(client clientset.Interface, name, namespace stri
 		return fmt.Errorf("err when decoding AggregatedApiserver Service: %w", err)
 	}
 
-	if err := apiclient.CreateOrUpdateService(client, aggregatedService); err != nil {
-		return err
-	}
-	return nil
+	return apiclient.CreateOrUpdateService(client, aggregatedService)
 }
