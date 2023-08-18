@@ -92,8 +92,9 @@ func (o *Options) Run(ctx context.Context) error {
 	restConfig := config.GenericConfig.ClientConfig
 	restConfig.QPS, restConfig.Burst = o.KubeAPIQPS, o.KubeAPIBurst
 	kubeClientSet := kubernetes.NewForConfigOrDie(restConfig)
+	secretLister := config.GenericConfig.SharedInformerFactory.Core().V1().Secrets().Lister()
 
-	server, err := config.Complete().New(kubeClientSet)
+	server, err := config.Complete().New(kubeClientSet, secretLister)
 	if err != nil {
 		return err
 	}

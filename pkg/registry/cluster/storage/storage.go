@@ -12,6 +12,7 @@ import (
 	genericregistry "k8s.io/apiserver/pkg/registry/generic/registry"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/client-go/kubernetes"
+	listcorev1 "k8s.io/client-go/listers/core/v1"
 	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
 
 	clusterapis "github.com/karmada-io/karmada/pkg/apis/cluster"
@@ -30,7 +31,7 @@ type ClusterStorage struct {
 }
 
 // NewStorage returns a ClusterStorage object that will work against clusters.
-func NewStorage(scheme *runtime.Scheme, kubeClient kubernetes.Interface, optsGetter generic.RESTOptionsGetter) (*ClusterStorage, error) {
+func NewStorage(scheme *runtime.Scheme, kubeClient kubernetes.Interface, secretLister listcorev1.SecretLister, optsGetter generic.RESTOptionsGetter) (*ClusterStorage, error) {
 	strategy := clusterregistry.NewStrategy(scheme)
 
 	store := &genericregistry.Store{
@@ -63,6 +64,7 @@ func NewStorage(scheme *runtime.Scheme, kubeClient kubernetes.Interface, optsGet
 		Status:  &StatusREST{&statusStore},
 		Proxy: &ProxyREST{
 			kubeClient:    kubeClient,
+			secretLister:  secretLister,
 			clusterGetter: clusterRest.getCluster,
 		},
 	}, nil
