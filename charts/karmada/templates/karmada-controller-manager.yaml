@@ -75,5 +75,22 @@ spec:
           {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
           resources:
           {{- toYaml .Values.controllerManager.resources | nindent 12 }}
+
+{{ if .Values.controllerManager.podDisruptionBudget }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}-controller-manager
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.cm.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "karmada.cm.labels" . | nindent 6 }}
+  {{ toYaml .Values.controllerManager.podDisruptionBudget | nindent 2 }}
+{{- end -}}
+
 ---
 {{- end }}

@@ -167,4 +167,21 @@ spec:
             name: {{ $name }}-search-apiservice
         {{ include "karmada.search.kubeconfig.volume" . | nindent 8 }}
 {{- end }}
+
+{{ if .Values.search.podDisruptionBudget }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}-search
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.search.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "karmada.search.labels" . | nindent 6 }}
+  {{ toYaml .Values.search.podDisruptionBudget | nindent 2 }}
+{{- end -}}
+
 {{- end }}

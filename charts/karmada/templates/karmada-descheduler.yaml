@@ -66,4 +66,21 @@ spec:
           {{- toYaml .Values.descheduler.resources | nindent 12 }}
       volumes:
       {{- include "karmada.descheduler.kubeconfig.volume" . | nindent 8 }}
+
+{{ if .Values.descheduler.podDisruptionBudget }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}-descheduler
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.descheduler.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "karmada.descheduler.labels" . | nindent 6}}
+  {{ toYaml .Values.descheduler.podDisruptionBudget | nindent 2 }}
+{{- end -}}
+
 {{- end }}
