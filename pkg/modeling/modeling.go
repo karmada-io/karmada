@@ -162,6 +162,10 @@ func safeChangeNum(num *int, change int) {
 // AddToResourceSummary add resource node into modeling summary
 func (rs *ResourceSummary) AddToResourceSummary(crn ClusterResourceNode) {
 	index := rs.getIndex(crn)
+	if index == -1 {
+		klog.Error("ClusterResource can not add to resource summary: index is invalid.")
+		return
+	}
 	modeling := &(*rs)[index]
 	if rs.GetNodeNumFromModel(modeling) <= 5 {
 		root := modeling.linkedlist
@@ -269,6 +273,9 @@ func (rs *ResourceSummary) GetNodeNumFromModel(model *resourceModels) int {
 // DeleteFromResourceSummary dalete resource node into modeling summary
 func (rs *ResourceSummary) DeleteFromResourceSummary(crn ClusterResourceNode) error {
 	index := rs.getIndex(crn)
+	if index == -1 {
+		return errors.New("ClusterResource can not delet the resource summary: index is invalid.")
+	}
 	modeling := &(*rs)[index]
 	if rs.GetNodeNumFromModel(modeling) >= 6 {
 		root := modeling.redblackTree
