@@ -2,14 +2,19 @@
 title: Service discovery with native Kubernetes naming and resolution
 authors:
 - "@bivas"
-reviewers:
 - "@XiShanYongYe-Chang"
+reviewers:
+- "@RainbowMango"
+- "@GitHubxsy"
+- "@Rains6"
+- "@jwcesign"
+- "@chaunceyjiang"
 - TBD
 approvers:
-- "@robot"
-- TBD
+- "@RainbowMango"
 
 creation-date: 2023-06-22
+update-date: 2023-08-19
 
 ---
 
@@ -18,6 +23,8 @@ creation-date: 2023-06-22
 ## Summary
 
 With the current `ServiceImportController` when a `ServiceImport` object is reconciled, the derived service is prefixed with `derived-` prefix.
+
+This Proposal propose a method for multi-cluster service discovery using Kubernetes native Service, to modify the current implementation of Karmada's MCS. This approach does not add a `derived-` prefix when accessing services across clusters.
 
 ## Motivation
 
@@ -47,30 +54,37 @@ Following are flows to support the service import proposal:
 1. `Deployment` and `Service` are created on cluster member1 and the `Service` imported to cluster member2 using `ServiceImport` (described below as [user story 1](#story-1))
 2. `Deployment` and `Service` are created on cluster member1 and both propagated to cluster member2. `Service` from cluster member1 is imported to cluster member2 using `ServiceImport` (described below as [user story 2](#story-2))
 
-The proposal for this flow is what can be referred to as local-and-remote service discovery. The options could be:
+The proposal for this flow is what can be referred to as local-and-remote service discovery. In the process handling, it can be simply distinguished into the following scenarios:
 
 1. **Local** only - In case there's a local service by the name `foo` Karmada never attempts to import the remote service and doesn't create an `EndPointSlice`
 2. **Local** and **Remote** - Users accessing the `foo` service will reach either member1 or member2
 3. **Remote** only - in case there's a local service by the name `foo` Karmada will remove the local `EndPointSlice` and will create an `EndPointSlice` pointing to the other cluster (e.g. instead of resolving member2 cluster is will reach member1)
 
-This proposal suggests to distinguish the services type by the extending the API `multicluster.x-k8s.io/v1alpha1` of `ServiceImport` with Karmada specific annotations:
+Based on the above three scenarios, we have proposed two strategies:
+
+- **RemoteAndLocal** - When accessing Service, the traffic will be evenly distributed between the local cluster and remote cluster's Service.
+- **LocalFirst** - When accessing Services, if the local cluster Service can provide services, it will directly access the Service of the local cluster. If a failure occurs in the Service on the local cluster, it will access the Service on remote clusters.
+
+> Note: How can we detect the failure?
+> Maybe we need to watch the EndpointSlices resources of the relevant Services in the member cluster. If the EndpointSlices resource becomes non-existent or the statue become not ready, we need to synchronize it with other clusters.
+> As for the specific implementation of the LocalFirst strategy, we can iterate on it subsequently.
+
+This proposal suggests using the [MultiClusterService API](https://github.com/karmada-io/karmada/blob/24bb5829500658dd1caeea16eeace8252bcef682/pkg/apis/networking/v1alpha1/service_types.go#L30) to enable cross-cluster service discovery. To avoid conflicts with the previously provided [prefixed cross-cluster service discovery](./../networking/multiclusterservice.md#cross-clusters-service-discovery), we can add an annotation on the MultiClusterService API with the key `discovery.karmada.io/strategy`,  its value can be either `RemoteAndLocal` or `LocalFirst`.
+
 ```yaml
-apiVersion: multicluster.x-k8s.io/v1alpha1
-kind: ServiceImport
+apiVersion: networking.karmada.io/v1alpha1
+kind: MultiClusterService
 metadata:
-  name: serve
-  namespace: demo
-  annotations:
-    discovery.karmada.io/strategy: LocalAndRemote
+   name: foo
+   annotation:
+      discovery.karmada.io/strategy: RemoteAndLocal 
 spec:
-  type: ClusterSetIP
-  ports:
-  - port: 80
-    protocol: TCP
+   types:
+      - CrossCluster
+   range:
+      clusterNames:
+         - member2
 ```
-
-The default could be `LocalAndRemote`.
-
 
 ### User Stories (Optional)
 
@@ -143,23 +157,42 @@ required) or even code snippets. If there's any ambiguity about HOW your
 proposal will be implemented, this is the place to discuss them.
 -->
 
-To achieve service discovery with native Kubernetes naming and resolution, the following design details should be considered:
+### API changes
 
-1. Service Import Controller Changes: The Service Import Controller needs to be updated to remove the `"derived-"` prefix from the derived service. This ensures that the imported service retains its original name when accessed within the importing cluster.
-2. Local-Only Service Discovery: To support local-only service discovery, Karmada should be enhanced to check if there is a local service with the same name as the imported service. If a local service exists, the remote service import should be skipped, and no `EndPointSlice` should be created for the remote service. This allows local services to be accessed directly without going through the remote service.
-3. Local and Remote Service Discovery: When a service is imported from another cluster, both local and remote services should be accessible. Users accessing the service should be able to reach either the local or remote member based on their location and cluster routing. This enables high availability and load balancing between the local and remote instances of the service.
-4. Remote-Only Service Discovery: In cases where there is local service with the same name as the imported service, Karmada should remove the local `EndPointSlice` and create an `EndPointSlice` pointing to the remote cluster. This allows users to access the service through the imported `EndPointSlice`, effectively reaching the remote cluster.
+The optimization design for the MultiClusterService API needs to be further iterated and improved, such as fixing the annotation `discovery.karmada.io/strategy` in the spec.
 
-Implementing the service registration flow, the following should be considered:
-1. Given that the `Service` named `foo` exists on cluster member1
-2. The `ServiceImport` resource is created on cluster member2, specifying the import of `foo`
-3. A `Service` resource is created in cluster member2, but does not prefix the name with `derived-`
-   1. If there is already an existing `Service` named `foo` on cluster member2
-   2. The `EndPointSlice` associated with the local `foo` service points to the local `Deployment` running on member2
-   3. The controller will ignore the conflict of existing `Service` and will not create a new `Service` object
-4. And the imported `EndPointSlice` is created, pointing to the remote `Deployment` running on member1
-5. And the `EndPointSlice` associated with the imported service is prefixed with `import-`
-6. Then the requests round-robin between the local `foo` service and the imported `foo` service (member1 and member2)
+### General Idea
+
+Before delving into the specific design details, let's first take a look from the user's perspective at what preparations they need to make.
+
+1. The user creates a foo Deployment and Service on the Karmad control panel, and creates a PropagationPolicy to distribute them into the member cluster member1.
+
+![image](statics/user-operation-01.png)
+
+1. The user creates an MCS object on the Karmada control plane to enable cross-cluster service foo. In this way, the service on cluster member2 can access the foo Service on cluster member1.
+
+![image](statics/user-operation-02.png)
+
+Then, present our specific plan design.
+
+1. When the `mcs-controller` detects that a user has created a `MultiClusterService` object, it creates a `ServiceExport` in the Karmada control plane and propagates it to the source clusters through creating a `ResourceBinding` (the source clusters can obtain this via the Service associated with `ResourceBinding`).
+
+![image](statics/design-01.png)
+
+1. Depending on the existing MCS atomic capabilities, the `service-export-controller` will collect the `EndpointSlices` related to `foo` Service into the Karmada control plane.
+
+![image](statics/design-02.png)
+
+1. The `mcs-controller`, on the Karmada control plane, creates a `ResourceBinding` to propagate Service and EndpointSlice to destination clusters. This is done considering that some target Services already exist in certain destination clusters. Therefore, it's necessary to confirm the specific destination cluster based on the strategy specified in the `MultiClusterService` object.
+
+- If there is a Service existing on the target cluster, there is no need to resynchronize the EndpointSlices exported from this cluster to the cluster. Only synchronize the EndpointSlices received from other clusters.
+- If there is no Service on the target cluster, both the Service and the EndpointSlices collected from other clusters need to be synchronized to that cluster.
+
+![image](statics/design-03.png)
+
+At this point, the entire process is complete, and `foo` Service can now be accessed across clusters.
+
+![image](statics/access.png)
 
 ### Test Plan
 
@@ -175,6 +208,9 @@ that would count as tricky in the implementation, and anything particularly
 challenging to test, should be called out.
 
 -->
+
+- UT cover for new add code
+- E2E cover for new add case
 
 ## Alternatives
 
