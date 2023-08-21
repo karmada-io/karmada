@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
@@ -21,6 +22,7 @@ import (
 	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 )
 
 // These are different resource units.
@@ -608,6 +610,24 @@ func NewClusterWithResource(name string, allocatable, allocating, allocated core
 	}
 }
 
+// NewClusterWithTypeAndStatus will build a Cluster with type and status.
+func NewClusterWithTypeAndStatus(name string, clusterType string, clusterStatus metav1.ConditionStatus) *clusterv1alpha1.Cluster {
+	return &clusterv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: clusterv1alpha1.ClusterSpec{},
+		Status: clusterv1alpha1.ClusterStatus{
+			Conditions: []metav1.Condition{
+				{
+					Type:   clusterType,
+					Status: clusterStatus,
+				},
+			},
+		},
+	}
+}
+
 // NewWorkload will build a workload object.
 func NewWorkload(namespace, name string) *workloadv1alpha1.Workload {
 	podLabels := map[string]string{"app": "nginx"}
@@ -867,4 +887,26 @@ func NewPodDisruptionBudget(namespace, name string, maxUnAvailable intstr.IntOrS
 			},
 		},
 	}
+}
+
+// NewWork will build a new Work object.
+func NewWork(workName, workNs string, raw []byte) *workv1alpha1.Work {
+	work := &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      workName,
+			Namespace: workNs,
+		},
+		Spec: workv1alpha1.WorkSpec{
+			Workload: workv1alpha1.WorkloadTemplate{
+				Manifests: []workv1alpha1.Manifest{
+					{RawExtension: runtime.RawExtension{
+						Raw: raw,
+					},
+					},
+				},
+			},
+		},
+	}
+
+	return work
 }
