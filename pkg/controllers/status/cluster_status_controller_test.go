@@ -47,6 +47,19 @@ func TestClusterStatusController_Reconcile(t *testing.T) {
 			expectedError:  false,
 		},
 		{
+			name:        "Cluster found with finalizer",
+			clusterName: "test-cluster",
+			cluster: &clusterv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Finalizers: []string{
+						util.ClusterControllerFinalizer,
+					},
+				},
+			},
+			expectedResult: controllerruntime.Result{},
+			expectedError:  false,
+		},
+		{
 			name:           "Cluster found without finalizer",
 			clusterName:    "test-cluster",
 			cluster:        &clusterv1alpha1.Cluster{},
@@ -72,6 +85,7 @@ func TestClusterStatusController_Reconcile(t *testing.T) {
 			if tt.cluster != nil {
 				// Add a cluster to the fake client.
 				tt.cluster.ObjectMeta.Name = tt.clusterName
+				c.Client = fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithStatusSubresource(tt.cluster).Build()
 
 				if err := c.Client.Create(context.Background(), tt.cluster); err != nil {
 					t.Fatalf("Failed to create cluster: %v", err)
@@ -191,6 +205,51 @@ func TestClusterStatusController_syncClusterStatus(t *testing.T) {
 				APIEndpoint:                 server.URL,
 				SecretRef:                   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
 				InsecureSkipTLSVerification: true,
+				ProxyURL:                    "http://1.1.1.2",
+			},
+		}
+		c := &ClusterStatusController{
+			Client:                 fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithStatusSubresource(cluster).Build(),
+			GenericInformerManager: genericmanager.GetInstance(),
+			TypedInformerManager:   typedmanager.GetInstance(),
+			ClusterSuccessThreshold: metav1.Duration{
+				Duration: time.Duration(1000),
+			},
+			ClusterFailureThreshold: metav1.Duration{
+				Duration: time.Duration(1000),
+			},
+			clusterConditionCache: clusterConditionStore{},
+			PredicateFunc:         helper.NewClusterPredicateOnAgent("test"),
+			RateLimiterOptions: ratelimiterflag.Options{
+				RateLimiterBaseDelay:  time.Duration(1000),
+				RateLimiterMaxDelay:   time.Duration(1000),
+				RateLimiterQPS:        10,
+				RateLimiterBucketSize: 10,
+			},
+			ClusterClientSetFunc:        clusterClientSetFunc,
+			ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+		}
+
+		if err := c.Client.Create(context.Background(), cluster); err != nil {
+			t.Fatalf("Failed to create cluster: %v", err)
+		}
+
+		res, err := c.syncClusterStatus(cluster)
+		expect := controllerruntime.Result{}
+		assert.Equal(t, expect, res)
+		assert.Empty(t, err)
+	})
+
+	t.Run("online and healthy is true", func(t *testing.T) {
+		server := mockServer(http.StatusOK, false)
+		defer server.Close()
+		serverAddress = server.URL
+		cluster := &clusterv1alpha1.Cluster{
+			ObjectMeta: metav1.ObjectMeta{Name: "test"},
+			Spec: clusterv1alpha1.ClusterSpec{
+				APIEndpoint:                 server.URL,
+				SecretRef:                   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
+				InsecureSkipTLSVerification: true,
 				ProxyURL:                    "http://1.1.1.1",
 			},
 		}
@@ -215,6 +274,7 @@ func TestClusterStatusController_syncClusterStatus(t *testing.T) {
 			ClusterClientSetFunc:        clusterClientSetFunc,
 			ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 		}
+
 		if err := c.Client.Create(context.Background(), cluster); err != nil {
 			t.Fatalf("Failed to create cluster: %v", err)
 		}
@@ -747,6 +807,73 @@ func TestGetAllocatableModelings(t *testing.T) {
 }
 
 func TestClusterStatusController_updateStatusIfNeeded(t *testing.T) {
+	t.Run("cluster is in client", func(t *testing.T) {
+		cluster := &clusterv1alpha1.Cluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "cluster1",
+				Namespace: "karmada",
+			},
+			Status: clusterv1alpha1.ClusterStatus{
+				KubernetesVersion: "v1",
+			},
+			Spec: clusterv1alpha1.ClusterSpec{
+				ResourceModels: []clusterv1alpha1.ResourceModel{
+					{
+						Grade: 0,
+						Ranges: []clusterv1alpha1.ResourceModelRange{
+							{
+								Name: clusterv1alpha1.ResourceCPU,
+								Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
+								Max:  *resource.NewQuantity(1, resource.DecimalSI),
+							},
+							{
+								Name: clusterv1alpha1.ResourceMemory,
+								Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
+								Max:  *resource.NewQuantity(1024, resource.DecimalSI),
+							},
+						},
+					},
+					{
+						Grade: 1,
+						Ranges: []clusterv1alpha1.ResourceModelRange{
+							{
+								Name: clusterv1alpha1.ResourceCPU,
+								Min:  *resource.NewMilliQuantity(1, resource.DecimalSI),
+								Max:  *resource.NewQuantity(2, resource.DecimalSI),
+							},
+							{
+								Name: clusterv1alpha1.ResourceMemory,
+								Min:  *resource.NewMilliQuantity(1024, resource.DecimalSI),
+								Max:  *resource.NewQuantity(1024*2, resource.DecimalSI),
+							},
+						},
+					},
+				},
+			},
+		}
+
+		currentClusterStatus := clusterv1alpha1.ClusterStatus{
+			KubernetesVersion: "v2",
+		}
+
+		c := &ClusterStatusController{
+			Client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
+				cluster,
+			).WithStatusSubresource(cluster).Build(),
+			GenericInformerManager: genericmanager.GetInstance(),
+			TypedInformerManager:   typedmanager.GetInstance(),
+			ClusterClientOption: &util.ClientOption{
+				QPS:   5,
+				Burst: 10,
+			},
+			ClusterClientSetFunc: util.NewClusterClientSet,
+		}
+
+		actual, err := c.updateStatusIfNeeded(cluster, currentClusterStatus)
+		assert.Equal(t, controllerruntime.Result{}, actual)
+		assert.Empty(t, err, "updateStatusIfNeeded returns error")
+	})
+
 	t.Run("cluster isn't in client", func(t *testing.T) {
 		cluster := &clusterv1alpha1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{
