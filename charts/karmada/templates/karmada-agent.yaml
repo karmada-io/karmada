@@ -131,4 +131,21 @@ spec:
         - name: kubeconfig
           secret:
             secretName: {{ $name }}-kubeconfig
+
+{{ if .Values.agent.podDisruptionBudget }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.agent.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "karmada.agent.labels" . | nindent 6 }}
+  {{ toYaml .Values.agent.podDisruptionBudget | nindent 2 }}
+{{- end -}}
+
 {{- end }}

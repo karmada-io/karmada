@@ -124,4 +124,20 @@ spec:
   selector:
     {{- include "karmada.aggregatedApiserver.labels" . | nindent 4 }}
 
+{{ if and .Values.aggregatedApiserver .Values.aggregatedApiserver.podDisruptionBudget }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}-aggregated-apiserver
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.aggregatedApiserver.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "karmada.aggregatedApiserver.labels" . | nindent 6 }}
+  {{ toYaml .Values.aggregatedApiserver.podDisruptionBudget | nindent 2 }}
+{{- end -}}
+
 {{- end }}

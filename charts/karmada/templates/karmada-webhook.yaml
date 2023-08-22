@@ -81,4 +81,20 @@ spec:
     - port: 443
       targetPort: 8443
 
+{{ if .Values.webhook.podDisruptionBudget }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}-webhook
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.webhook.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "karmada.webhook.labels" . | nindent 6 }}
+  {{ toYaml .Values.webhook.podDisruptionBudget | nindent 2 }}
+{{- end -}}
+
 {{- end }}

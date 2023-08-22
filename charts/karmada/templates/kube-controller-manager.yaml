@@ -88,4 +88,21 @@ spec:
           secret:
             secretName: {{ $name }}-cert
         {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
+
+{{ if .Values.kubeControllerManager.podDisruptionBudget }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}-kube-controller-manager
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.kube-cm.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "karmada.kube-cm.labels" . | nindent 6 }}
+  {{ toYaml .Values.kubeControllerManager.podDisruptionBudget | nindent 2 }}
+{{- end -}}
+
 {{- end }}

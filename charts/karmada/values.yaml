@@ -19,6 +19,9 @@ global:
 ## for more details about yaml anchors and aliases.
 karmadaImageVersion: &karmadaImageVersion latest
 
+podDisruptionBudget: &podDisruptionBudget {}
+  # maxUnavailable: 20%
+
 ## @param installMode "host" and "agent" are provided
 ## "host" means install karmada in the control-cluster
 ## "agent" means install agent client in the member cluster
@@ -192,6 +195,8 @@ scheduler:
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 50%
+  ## @param apiServer.podDisruptionBudget
+  podDisruptionBudget: *podDisruptionBudget
 
 ## webhook config
 webhook:
@@ -249,6 +254,8 @@ webhook:
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 50%
+  ## @param apiServer.podDisruptionBudget
+  podDisruptionBudget: *podDisruptionBudget
 
 ## controller manager config
 controllerManager:
@@ -314,6 +321,8 @@ controllerManager:
   controllers: ""
   ## @param extraCommandArgs to extraCommandArgs
   extraCommandArgs: {}
+  ## @param apiServer.podDisruptionBudget
+  podDisruptionBudget: *podDisruptionBudget
 
 ## karmada apiserver config
 apiServer:
@@ -396,6 +405,8 @@ apiServer:
     rollingUpdate:
       maxUnavailable: 1
       maxSurge: 1
+  ## @param apiServer.podDisruptionBudget
+  podDisruptionBudget: *podDisruptionBudget
 
 ## karmada aggregated apiserver config
 aggregatedApiServer:
@@ -455,6 +466,8 @@ aggregatedApiServer:
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 50%
+  ## @param apiServer.podDisruptionBudget
+  podDisruptionBudget: *podDisruptionBudget
 
 ## kubernetes controller manager config
 kubeControllerManager:
@@ -514,6 +527,8 @@ kubeControllerManager:
       maxUnavailable: 0
       maxSurge: 50%
   controllers: namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrapproving,csrcleaner,csrsigning
+  ## @param apiServer.podDisruptionBudget
+  podDisruptionBudget: *podDisruptionBudget
 
 ## etcd config
 etcd:
@@ -680,6 +695,8 @@ agent:
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 50%
+  ## @param apiServer.podDisruptionBudget
+  podDisruptionBudget: *podDisruptionBudget
 
 ## karmada scheduler estimator
 schedulerEstimator:
@@ -758,6 +775,8 @@ schedulerEstimator:
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 50%
+  ## @param apiServer.podDisruptionBudget
+  podDisruptionBudget: *podDisruptionBudget
 
 ## descheduler config
 descheduler:
@@ -817,6 +836,8 @@ descheduler:
       maxSurge: 50%
   ## @param descheduler.kubeconfig kubeconfig of the descheduler
   kubeconfig: karmada-kubeconfig
+  ## @param apiServer.podDisruptionBudget
+  podDisruptionBudget: *podDisruptionBudget
 
 ## karmada-search config
 search:
@@ -878,3 +899,5 @@ search:
   certs: karmada-cert
   ## @param search.kubeconfig kubeconfig of the search
   kubeconfig: karmada-kubeconfig
+  ## @param apiServer.podDisruptionBudget
+  podDisruptionBudget: *podDisruptionBudget
