@@ -6,14 +6,18 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 type dependenciesInterpreter func(object *unstructured.Unstructured) ([]configv1alpha1.DependentObjectReference, error)
@@ -27,6 +31,7 @@ func getAllDefaultDependenciesInterpreter() map[schema.GroupVersionKind]dependen
 	s[appsv1.SchemeGroupVersion.WithKind(util.DaemonSetKind)] = getDaemonSetDependencies
 	s[appsv1.SchemeGroupVersion.WithKind(util.StatefulSetKind)] = getStatefulSetDependencies
 	s[networkingv1.SchemeGroupVersion.WithKind(util.IngressKind)] = getIngressDependencies
+	s[mcsv1alpha1.SchemeGroupVersion.WithKind(util.ServiceImportKind)] = getServiceImportDependencies
 	return s
 }
 
@@ -130,4 +135,31 @@ func getIngressDependencies(object *unstructured.Unstructured) ([]configv1alpha1
 		})
 	}
 	return dependentObjectRefs, nil
+}
+
+func getServiceImportDependencies(object *unstructured.Unstructured) ([]configv1alpha1.DependentObjectReference, error) {
+	svcImportObj := &mcsv1alpha1.ServiceImport{}
+	err := helper.ConvertToTypedObject(object, svcImportObj)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert ServiceImport from unstructured object: %v", err)
+	}
+	derivedServiceName := names.GenerateDerivedServiceName(svcImportObj.Name)
+	return []configv1alpha1.DependentObjectReference{
+		{
+			APIVersion: "v1",
+			Kind:       util.ServiceKind,
+			Namespace:  svcImportObj.Namespace,
+			Name:       derivedServiceName,
+		},
+		{
+			APIVersion: "discovery.k8s.io/v1",
+			Kind:       util.EndpointSliceKind,
+			Namespace:  svcImportObj.Namespace,
+			LabelSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					discoveryv1.LabelServiceName: derivedServiceName,
+				},
+			},
+		},
+	}, nil
 }

@@ -4,9 +4,13 @@ import (
 	"reflect"
 	"testing"
 
+	discoveryv1 "k8s.io/api/discovery/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 var (
@@ -852,6 +856,73 @@ func Test_getStatefulSetDependencies(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getStatefulSetDependencies() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_getServiceImportDependencies(t *testing.T) {
+	type args struct {
+		object *unstructured.Unstructured
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []configv1alpha1.DependentObjectReference
+		wantErr bool
+	}{
+		{
+			name: "serviceImport get dependencies",
+			args: args{
+				object: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": mcsv1alpha1.GroupVersion.String(),
+						"kind":       util.ServiceImportKind,
+						"metadata": map[string]interface{}{
+							"name":      "fake-serviceImport",
+							"namespace": namespace,
+						},
+						"spec": map[string]interface{}{
+							"type": "ClusterSetIP",
+							"ports": []interface{}{
+								map[string]interface{}{
+									"port":     80,
+									"protocol": "TCP",
+								},
+							},
+						},
+					},
+				},
+			},
+			want: []configv1alpha1.DependentObjectReference{
+				{
+					APIVersion: "v1",
+					Kind:       util.ServiceKind,
+					Namespace:  namespace,
+					Name:       "derived-fake-serviceImport",
+				},
+				{
+					APIVersion: "discovery.k8s.io/v1",
+					Kind:       util.EndpointSliceKind,
+					Namespace:  namespace,
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							discoveryv1.LabelServiceName: "derived-fake-serviceImport",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getServiceImportDependencies(tt.args.object)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("getServiceImportDependencies() err = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getServiceImportDependencies() = %v, want %v", got, tt.want)
 			}
 		})
 	}

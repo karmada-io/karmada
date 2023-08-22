@@ -63,9 +63,8 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 	helper.AddTolerations(&policy.Spec.Placement, helper.NewNotReadyToleration(a.DefaultNotReadyTolerationSeconds),
 		helper.NewUnreachableToleration(a.DefaultUnreachableTolerationSeconds))
 
-	addedResourceSelectors := helper.GetFollowedResourceSelectorsWhenMatchServiceImport(policy.Spec.ResourceSelectors)
-	if addedResourceSelectors != nil {
-		policy.Spec.ResourceSelectors = append(policy.Spec.ResourceSelectors, addedResourceSelectors...)
+	if helper.ContainsServiceImport(policy.Spec.ResourceSelectors) {
+		policy.Spec.PropagateDeps = true
 	}
 
 	// When ReplicaSchedulingType is Divided, set the default value of ReplicaDivisionPreference to Weighted.
