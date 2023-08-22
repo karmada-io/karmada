@@ -157,9 +157,26 @@ func validateClusterSpecForFieldSelector(spec *api.ClusterSpec, fldPath *field.P
 	if errs := kubevalidation.IsValidLabelValue(spec.Region); len(errs) != 0 {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("region"), spec.Region, strings.Join(errs, "; ")))
 	}
-	if errs := kubevalidation.IsValidLabelValue(spec.Zone); len(errs) != 0 {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("zone"), spec.Zone, strings.Join(errs, "; ")))
+
+	// Zone and Zones cannot co-exist.
+	// see https://github.com/karmada-io/karmada/issues/3952
+	if spec.Zone != "" && len(spec.Zones) != 0 {
+		return append(allErrs, field.TypeInvalid(fldPath.Child("spec"), spec, "Zone and Zones cannot co-exist"))
 	}
+
+	if spec.Zone != "" {
+		if errs := kubevalidation.IsValidLabelValue(spec.Zone); len(errs) != 0 {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("Zone"), spec.Zone, strings.Join(errs, "; ")))
+		}
+		return allErrs
+	}
+
+	for _, zoneValue := range spec.Zones {
+		if errs := kubevalidation.IsValidLabelValue(zoneValue); len(errs) != 0 {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("Zones"), zoneValue, strings.Join(errs, "; ")))
+		}
+	}
+
 	return allErrs
 }
 
