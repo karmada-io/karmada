@@ -15,6 +15,7 @@ const (
 	syncWorkDurationMetricsName            = "binding_sync_work_duration_seconds"
 	syncWorkloadDurationMetricsName        = "work_sync_workload_duration_seconds"
 	policyPreemptionMetricsName            = "policy_preemption_total"
+	metricsAdapterPullDurationMetricsName  = "metrics_adapter_pull_duration_seconds"
 )
 
 var (
@@ -51,6 +52,12 @@ var (
 		Name: policyPreemptionMetricsName,
 		Help: "Number of preemption for the resource template. By the result, 'error' means a resource template failed to be preempted by other propagation policies. Otherwise 'success'.",
 	}, []string{"result"})
+
+	metricsAdapterPullDurationHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    metricsAdapterPullDurationMetricsName,
+		Help:    "Duration in seconds taken by the karmada-metrics-adapter to pull metrics. By the result, 'error' means the metrics adapter failed to pull the metrics. Otherwise 'success'.",
+		Buckets: prometheus.ExponentialBuckets(0.001, 2, 12),
+	}, []string{"result"})
 )
 
 // ObserveFindMatchedPolicyLatency records the duration for the resource finding a matched policy.
@@ -79,6 +86,11 @@ func CountPolicyPreemption(err error) {
 	policyPreemptionCounter.WithLabelValues(utilmetrics.GetResultByError(err)).Inc()
 }
 
+// ObserveAdapterPullLatency observes the latency it takes for the metrics adapter to pull metrics.
+func ObserveAdapterPullLatency(err error, start time.Time) {
+	metricsAdapterPullDurationHistogram.WithLabelValues(utilmetrics.GetResultByError(err)).Observe(utilmetrics.DurationInSeconds(start))
+}
+
 // ResourceCollectors returns the collectors about resources.
 func ResourceCollectors() []prometheus.Collector {
 	return []prometheus.Collector{
@@ -88,6 +100,7 @@ func ResourceCollectors() []prometheus.Collector {
 		syncWorkDurationHistogram,
 		syncWorkloadDurationHistogram,
 		policyPreemptionCounter,
+		metricsAdapterPullDurationHistogram,
 	}
 }
 

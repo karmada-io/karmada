@@ -17,6 +17,7 @@ import (
 	clusterV1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/metricsadapter/multiclient"
 	"github.com/karmada-io/karmada/pkg/metricsadapter/provider"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -170,6 +171,13 @@ func (m *MetricsController) handleClusters() bool {
 		klog.Warningf("failed to build discoveryClient for cluster(%s), Error: %+v", clusterName, err)
 		return true
 	}
+
+	// Start capturing the time just before pulling metrics
+	startTime := time.Now()
+	defer func() {
+		metrics.ObserveAdapterPullLatency(err, startTime)
+	}()
+
 	sci := m.InformerManager.GetSingleClusterManager(clusterName)
 	// Just trigger the informer to work
 	_ = sci.Lister(provider.PodsGVR)
