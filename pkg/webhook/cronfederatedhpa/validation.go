@@ -58,7 +58,7 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 	errs = append(errs, validateCronFederatedHPASpec(&cronFHPA.Spec, field.NewPath("spec"))...)
 
 	if len(errs) != 0 {
-		return admission.Denied(errs.ToAggregate().Error())
+		return admission.Errored(http.StatusBadRequest, errs.ToAggregate())
 	}
 	return admission.Allowed("")
 }

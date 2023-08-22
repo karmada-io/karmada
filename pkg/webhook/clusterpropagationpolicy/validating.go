@@ -42,14 +42,14 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 		if policy.Spec.SchedulerName != oldPolicy.Spec.SchedulerName {
 			err = fmt.Errorf("the schedulerName should not be updated")
 			klog.Error(err)
-			return admission.Denied(err.Error())
+			return admission.Errored(http.StatusBadRequest, err)
 		}
 	}
 
 	errs := validation.ValidatePropagationSpec(policy.Spec)
 	if len(errs) != 0 {
 		klog.Error(errs)
-		return admission.Denied(errs.ToAggregate().Error())
+		return admission.Errored(http.StatusBadRequest, errs.ToAggregate())
 	}
 	return admission.Allowed("")
 }

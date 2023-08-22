@@ -35,7 +35,7 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 	if err = validateResourceInterpreterCustomizations(configuration, configs); err != nil {
-		return admission.Denied(err.Error())
+		return admission.Errored(http.StatusBadRequest, err)
 	}
 	return admission.Allowed("")
 }

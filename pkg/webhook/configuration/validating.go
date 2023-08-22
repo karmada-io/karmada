@@ -48,7 +48,7 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 
 	if len(allErrors) != 0 {
 		klog.Error(allErrors.ToAggregate())
-		return admission.Denied(allErrors.ToAggregate().Error())
+		return admission.Errored(http.StatusBadRequest, allErrors.ToAggregate())
 	}
 
 	return admission.Allowed("")

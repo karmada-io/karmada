@@ -37,7 +37,7 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 
 	if errs := validateFederatedResourceQuota(quota); len(errs) != 0 {
 		klog.Errorf("%v", errs)
-		return admission.Denied(errs.ToAggregate().Error())
+		return admission.Errored(http.StatusBadRequest, errs.ToAggregate())
 	}
 
 	return admission.Allowed("")

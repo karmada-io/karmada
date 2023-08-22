@@ -44,12 +44,12 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 		}
 		if errs := v.validateMCSUpdate(oldMcs, mcs); len(errs) != 0 {
 			klog.Errorf("Validating MultiClusterServiceUpdate failed: %v", errs)
-			return admission.Denied(errs.ToAggregate().Error())
+			return admission.Errored(http.StatusBadRequest, errs.ToAggregate())
 		}
 	} else {
 		if errs := v.validateMCS(mcs); len(errs) != 0 {
 			klog.Errorf("Validating MultiClusterService failed: %v", errs)
-			return admission.Denied(errs.ToAggregate().Error())
+			return admission.Errored(http.StatusBadRequest, errs.ToAggregate())
 		}
 	}
 	return admission.Allowed("")

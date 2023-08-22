@@ -41,12 +41,12 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 		}
 		if errs := validateMCIUpdate(oldMci, mci); len(errs) != 0 {
 			klog.Errorf("%v", errs)
-			return admission.Denied(errs.ToAggregate().Error())
+			return admission.Errored(http.StatusBadRequest, errs.ToAggregate())
 		}
 	} else {
 		if errs := validateMCI(mci); len(errs) != 0 {
 			klog.Errorf("%v", errs)
-			return admission.Denied(errs.ToAggregate().Error())
+			return admission.Errored(http.StatusBadRequest, errs.ToAggregate())
 		}
 	}
 	return admission.Allowed("")
