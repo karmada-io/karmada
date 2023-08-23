@@ -15,6 +15,7 @@ package cronfederatedhpa
 
 import (
 	"context"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -28,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
@@ -70,6 +72,10 @@ func (c *CronFHPAController) Reconcile(ctx context.Context, req controllerruntim
 		return controllerruntime.Result{}, nil
 	}
 
+	var err error
+	startTime := time.Now()
+	defer metrics.ObserveProcessCronFederatedHPALatency(err, startTime)
+
 	origRuleSets := sets.New[string]()
 	for _, history := range cronFHPA.Status.ExecutionHistories {
 		origRuleSets.Insert(history.RuleName)
@@ -84,7 +90,7 @@ func (c *CronFHPAController) Reconcile(ctx context.Context, req controllerruntim
 
 	newRuleSets := sets.New[string]()
 	for _, rule := range cronFHPA.Spec.Rules {
-		if err := c.processCronRule(cronFHPA, rule); err != nil {
+		if err = c.processCronRule(cronFHPA, rule); err != nil {
 			return controllerruntime.Result{Requeue: true}, err
 		}
 		newRuleSets.Insert(rule.Name)
@@ -96,7 +102,7 @@ func (c *CronFHPAController) Reconcile(ctx context.Context, req controllerruntim
 			continue
 		}
 		c.CronHandler.StopRuleExecutor(req.NamespacedName.String(), name)
-		if err := c.removeCronFHPAHistory(cronFHPA, name); err != nil {
+		if err = c.removeCronFHPAHistory(cronFHPA, name); err != nil {
 			return controllerruntime.Result{Requeue: true}, err
 		}
 	}
