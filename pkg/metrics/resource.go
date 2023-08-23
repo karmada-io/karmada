@@ -9,14 +9,16 @@ import (
 )
 
 const (
-	resourceMatchPolicyDurationMetricsName  = "resource_match_policy_duration_seconds"
-	resourceApplyPolicyDurationMetricsName  = "resource_apply_policy_duration_seconds"
-	policyApplyAttemptsMetricsName          = "policy_apply_attempts_total"
-	syncWorkDurationMetricsName             = "binding_sync_work_duration_seconds"
-	syncWorkloadDurationMetricsName         = "work_sync_workload_duration_seconds"
-	policyPreemptionMetricsName             = "policy_preemption_total"
-	cronFederatedHPADurationMetricsName     = "cronfederatedhpa_process_duration_seconds"
-	cronFederatedHPARuleDurationMetricsName = "cronfederatedhpa_rule_process_duration_seconds"
+	resourceMatchPolicyDurationMetricsName     = "resource_match_policy_duration_seconds"
+	resourceApplyPolicyDurationMetricsName     = "resource_apply_policy_duration_seconds"
+	policyApplyAttemptsMetricsName             = "policy_apply_attempts_total"
+	syncWorkDurationMetricsName                = "binding_sync_work_duration_seconds"
+	syncWorkloadDurationMetricsName            = "work_sync_workload_duration_seconds"
+	policyPreemptionMetricsName                = "policy_preemption_total"
+	cronFederatedHPADurationMetricsName        = "cronfederatedhpa_process_duration_seconds"
+	cronFederatedHPARuleDurationMetricsName    = "cronfederatedhpa_rule_process_duration_seconds"
+	federatedHPADurationMetricsName            = "federatedhpa_process_duration_seconds"
+	federatedHPAPullMetricsDurationMetricsName = "federatedhpa_pull_metrics_duration_seconds"
 )
 
 var (
@@ -65,6 +67,18 @@ var (
 		Help:    "Duration in seconds to process a CronFederatedHPA rule. By the result, 'error' means a CronFederatedHPA rule failed to be processed. Otherwise 'success'.",
 		Buckets: prometheus.ExponentialBuckets(0.001, 2, 12),
 	}, []string{"result"})
+
+	federatedHPADurationHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    federatedHPADurationMetricsName,
+		Help:    "Duration in seconds to process a FederatedHPA. By the result, 'error' means a FederatedHPA failed to be processed. Otherwise 'success'.",
+		Buckets: prometheus.ExponentialBuckets(0.01, 2, 12),
+	}, []string{"result"})
+
+	federatedHPAPullMetricsDurationHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    federatedHPAPullMetricsDurationMetricsName,
+		Help:    "Duration in seconds taken by the FederatedHPA to pull metrics. By the result, 'error' means the FederatedHPA failed to pull the metrics. Otherwise 'success'.",
+		Buckets: prometheus.ExponentialBuckets(0.01, 2, 12),
+	}, []string{"result", "metricType"})
 )
 
 // ObserveFindMatchedPolicyLatency records the duration for the resource finding a matched policy.
@@ -103,6 +117,16 @@ func ObserveProcessCronFederatedHPARuleLatency(err error, start time.Time) {
 	cronFederatedHPARuleDurationHistogram.WithLabelValues(utilmetrics.GetResultByError(err)).Observe(utilmetrics.DurationInSeconds(start))
 }
 
+// ObserveProcessFederatedHPALatency records the duration to process a FederatedHPA.
+func ObserveProcessFederatedHPALatency(err error, start time.Time) {
+	federatedHPADurationHistogram.WithLabelValues(utilmetrics.GetResultByError(err)).Observe(utilmetrics.DurationInSeconds(start))
+}
+
+// ObserveFederatedHPAPullMetricsLatency records the duration it takes for the FederatedHPA to pull metrics.
+func ObserveFederatedHPAPullMetricsLatency(err error, metricType string, start time.Time) {
+	federatedHPAPullMetricsDurationHistogram.WithLabelValues(utilmetrics.GetResultByError(err), metricType).Observe(utilmetrics.DurationInSeconds(start))
+}
+
 // ResourceCollectors returns the collectors about resources.
 func ResourceCollectors() []prometheus.Collector {
 	return []prometheus.Collector{
@@ -114,6 +138,8 @@ func ResourceCollectors() []prometheus.Collector {
 		policyPreemptionCounter,
 		cronFederatedHPADurationHistogram,
 		cronFederatedHPARuleDurationHistogram,
+		federatedHPADurationHistogram,
+		federatedHPAPullMetricsDurationHistogram,
 	}
 }
 
