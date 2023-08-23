@@ -73,6 +73,11 @@ func KarmadaDeschedulerName(karmada string) string {
 	return generateResourceName(karmada, "descheduler")
 }
 
+// KarmadaMetricsAdapterName returns name of karmada-metric-adapter
+func KarmadaMetricsAdapterName(karmada string) string {
+	return generateResourceName(karmada, "metrics-adapter")
+}
+
 func generateResourceName(karmada, suffix string) string {
 	if strings.Contains(karmada, "karmada") {
 		return fmt.Sprintf("%s-%s", karmada, suffix)

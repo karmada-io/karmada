@@ -200,7 +200,7 @@ func runAPIService(r workflow.RunData) error {
 	}
 
 	waiter := apiclient.NewKarmadaWaiter(config, nil, componentBeReadyTimeout)
-	if err := apiclient.TryRunCommand(waiter.WaitForAPIService, 3); err != nil {
+	if err := waiter.WaitForAPIService(constants.APIServiceName); err != nil {
 		return fmt.Errorf("the APIService is unhealthy, err: %w", err)
 	}
 

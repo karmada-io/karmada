@@ -18,9 +18,6 @@ import (
 const (
 	// APICallRetryInterval defines how long kubeadm should wait before retrying a failed API operation
 	APICallRetryInterval = 500 * time.Millisecond
-
-	// APIServiceName defines the karmada aggregated apiserver APISerivce resource name.
-	APIServiceName = "v1alpha1.cluster.karmada.io"
 )
 
 // Waiter is an interface for waiting for criteria in Karmada to happen
@@ -28,7 +25,7 @@ type Waiter interface {
 	// WaitForAPI waits for the API Server's /healthz endpoint to become "ok"
 	WaitForAPI() error
 	// WaitForAPIService waits for the APIService condition to become "true"
-	WaitForAPIService() error
+	WaitForAPIService(name string) error
 	// WaitForPods waits for Pods in the namespace to become Ready
 	WaitForPods(label, namespace string) error
 	// WaitForSomePods waits for the specified number of Pods in the namespace to become Ready
@@ -67,14 +64,14 @@ func (w *KarmadaWaiter) WaitForAPI() error {
 }
 
 // WaitForAPIService waits for the APIService condition to become "true"
-func (w *KarmadaWaiter) WaitForAPIService() error {
+func (w *KarmadaWaiter) WaitForAPIService(name string) error {
 	aggregateClient, err := aggregator.NewForConfig(w.karmadaConfig)
 	if err != nil {
 		return err
 	}
 
 	err = wait.PollImmediate(APICallRetryInterval, w.timeout, func() (done bool, err error) {
-		apiService, err := aggregateClient.ApiregistrationV1().APIServices().Get(context.TODO(), APIServiceName, metav1.GetOptions{})
+		apiService, err := aggregateClient.ApiregistrationV1().APIServices().Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return false, nil
 		}

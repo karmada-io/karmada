@@ -25,6 +25,7 @@ var (
 	karmadaControllerManagerLabels   = labels.Set{"karmada-app": constants.KarmadaControllerManager}
 	karmadaSchedulerLabels           = labels.Set{"karmada-app": constants.KarmadaScheduler}
 	karmadaWebhookLabels             = labels.Set{"karmada-app": constants.KarmadaWebhook}
+	karmadaMetricAdapterLabels       = labels.Set{"karmada-app": constants.KarmadaMetricsAdapter}
 )
 
 // NewCheckApiserverHealthTask init wait-apiserver task
