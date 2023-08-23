@@ -4,6 +4,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"
 
@@ -226,4 +227,47 @@ func (d *ResourceDetector) fetchResourceTemplate(rs policyv1alpha1.ResourceSelec
 		return nil, nil
 	}
 	return resourceTemplate, nil
+}
+
+// HandleDeprioritizedPropagationPolicy responses to priority change of a PropagationPolicy,
+// if the change is from high priority (e.g. 5) to low priority(e.g. 3), it will
+// check if there is another PropagationPolicy could preempt the targeted resource,
+// and put the PropagationPolicy in the queue to trigger preemption.
+func (d *ResourceDetector) HandleDeprioritizedPropagationPolicy(oldPolicy policyv1alpha1.PropagationPolicy, newPolicy policyv1alpha1.PropagationPolicy) {
+	klog.Infof("PropagationPolicy(%s/%s) priority changed from %d to %d", newPolicy.GetNamespace(), newPolicy.GetName(), *oldPolicy.Spec.Priority, *newPolicy.Spec.Priority)
+	policies, err := d.propagationPolicyLister.ByNamespace(newPolicy.GetNamespace()).List(labels.Everything())
+	if err != nil {
+		klog.Errorf("Failed to list PropagationPolicy from namespace: %s, error: %v", newPolicy.GetNamespace(), err)
+		return
+	}
+
+	// TODO(@RainbowMango): Should sort the listed policies to ensure the
+	// higher priority PropagationPolicy be process first to avoid possible
+	// multiple preemption.
+
+	for i := range policies {
+		var potentialPolicy policyv1alpha1.PropagationPolicy
+		if err = helper.ConvertToTypedObject(policies[i], &potentialPolicy); err != nil {
+			klog.Errorf("Failed to convert typed PropagationPolicy: %v", err)
+			continue
+		}
+		// Re-queue the polies that enables preemption and with the priority
+		// in range (new priority, old priority).
+		// For the polices with higher priority than old priority, it can
+		// perform preempt automatically and don't need to re-queue here.
+		// For the polices with lower priority than new priority, it can't
+		// perform preempt as insufficient priority.
+		if potentialPolicy.Spec.Priority != nil &&
+			potentialPolicy.Spec.Preemption == policyv1alpha1.PreemptAlways &&
+			potentialPolicy.ExplicitPriority() > newPolicy.ExplicitPriority() &&
+			potentialPolicy.ExplicitPriority() < oldPolicy.ExplicitPriority() {
+			var potentialKey util.QueueKey
+			potentialKey, err = ClusterWideKeyFunc(&potentialPolicy)
+			if err != nil {
+				return
+			}
+			klog.Infof("Enqueuing PropagationPolicy(%s/%s) in case of PropagationPolicy(%s/%s) priority changes", potentialPolicy.GetNamespace(), potentialPolicy.GetName(), newPolicy.GetNamespace(), newPolicy.GetName())
+			d.policyReconcileWorker.Add(potentialKey)
+		}
+	}
 }
