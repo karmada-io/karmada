@@ -15,8 +15,8 @@ const (
 	syncWorkDurationMetricsName             = "binding_sync_work_duration_seconds"
 	syncWorkloadDurationMetricsName         = "work_sync_workload_duration_seconds"
 	policyPreemptionMetricsName             = "policy_preemption_total"
-	cronFederatedHPADurationMetricsName     = "cron_federated_hpa_process_duration_seconds"
-	cronFederatedHPARuleDurationMetricsName = "cron_federated_hpa_rule_process_duration_seconds"
+	cronFederatedHPADurationMetricsName     = "cronfederatedhpa_process_duration_seconds"
+	cronFederatedHPARuleDurationMetricsName = "cronfederatedhpa_rule_process_duration_seconds"
 )
 
 var (
@@ -56,13 +56,13 @@ var (
 
 	cronFederatedHPADurationHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    cronFederatedHPADurationMetricsName,
-		Help:    "Duration in seconds to process a cron federated HPA. By the result, 'error' means a cron federated HPA failed to be processed. Otherwise 'success'.",
+		Help:    "Duration in seconds to process a CronFederatedHPA. By the result, 'error' means a CronFederatedHPA failed to be processed. Otherwise 'success'.",
 		Buckets: prometheus.ExponentialBuckets(0.001, 2, 12),
 	}, []string{"result"})
 
 	cronFederatedHPARuleDurationHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    cronFederatedHPARuleDurationMetricsName,
-		Help:    "Duration in seconds to process a cron federated HPA rule. By the result, 'error' means a cron federated HPA rule failed to be processed. Otherwise 'success'.",
+		Help:    "Duration in seconds to process a CronFederatedHPA rule. By the result, 'error' means a CronFederatedHPA rule failed to be processed. Otherwise 'success'.",
 		Buckets: prometheus.ExponentialBuckets(0.001, 2, 12),
 	}, []string{"result"})
 )
