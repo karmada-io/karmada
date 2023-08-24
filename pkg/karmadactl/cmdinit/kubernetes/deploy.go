@@ -219,7 +219,7 @@ func initializeDirectory(path string) error {
 			return err
 		}
 	}
-	if err := os.MkdirAll(path, os.FileMode(0o755)); err != nil {
+	if err := os.MkdirAll(path, os.FileMode(0700)); err != nil {
 		return fmt.Errorf("failed to create directory: %s, error: %v", path, err)
 	}
 
