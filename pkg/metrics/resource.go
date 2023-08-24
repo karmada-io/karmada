@@ -22,24 +22,24 @@ const (
 var (
 	findMatchedPolicyDurationHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    resourceMatchPolicyDurationMetricsName,
-		Help:    "Duration in seconds to find a matched propagation policy for the resource template.",
+		Help:    "Duration in seconds to find a matched PropagationPolicy or ClusterPropagationPolicy for the resource templates.",
 		Buckets: prometheus.ExponentialBuckets(0.001, 2, 12),
 	}, []string{})
 
 	applyPolicyDurationHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    resourceApplyPolicyDurationMetricsName,
-		Help:    "Duration in seconds to apply a propagation policy for the resource template. By the result, 'error' means a resource template failed to apply the policy. Otherwise 'success'.",
+		Help:    "Duration in seconds to apply a PropagationPolicy or ClusterPropagationPolicy for the resource templates. By the result, 'error' means a resource template failed to apply the policy. Otherwise 'success'.",
 		Buckets: prometheus.ExponentialBuckets(0.001, 2, 12),
 	}, []string{"result"})
 
 	policyApplyAttempts = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: policyApplyAttemptsMetricsName,
-		Help: "Number of attempts to be applied for a propagation policy. By the result, 'error' means a resource template failed to apply the policy. Otherwise 'success'.",
+		Help: "Number of attempts to be applied for a PropagationPolicy or ClusterPropagationPolicy. By the result, 'error' means a resource template failed to apply the policy. Otherwise 'success'.",
 	}, []string{"result"})
 
 	syncWorkDurationHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    syncWorkDurationMetricsName,
-		Help:    "Duration in seconds to sync works for a binding object. By the result, 'error' means a binding failed to sync works. Otherwise 'success'.",
+		Help:    "Duration in seconds to sync works for ResourceBinding and ClusterResourceBinding objects. By the result, 'error' means a binding failed to sync works. Otherwise 'success'.",
 		Buckets: prometheus.ExponentialBuckets(0.001, 2, 12),
 	}, []string{"result"})
 

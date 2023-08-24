@@ -100,7 +100,7 @@ func TestIncomingBindingMetrics(t *testing.T) {
 			crbInvolved: false,
 			trigger:     addBinding,
 			want: `
-			# HELP karmada_scheduler_queue_incoming_bindings_total Number of bindings added to scheduling queues by event type.
+			# HELP karmada_scheduler_queue_incoming_bindings_total Number of ResourceBinding and ClusterResourceBinding objects added to scheduling queues by event type.
 			# TYPE karmada_scheduler_queue_incoming_bindings_total counter
 			karmada_scheduler_queue_incoming_bindings_total{event="BindingAdd"} 3
 `,
@@ -110,7 +110,7 @@ func TestIncomingBindingMetrics(t *testing.T) {
 			crbInvolved: false,
 			trigger:     updateBinding,
 			want: `
-			# HELP karmada_scheduler_queue_incoming_bindings_total Number of bindings added to scheduling queues by event type.
+			# HELP karmada_scheduler_queue_incoming_bindings_total Number of ResourceBinding and ClusterResourceBinding objects added to scheduling queues by event type.
 			# TYPE karmada_scheduler_queue_incoming_bindings_total counter
 			karmada_scheduler_queue_incoming_bindings_total{event="BindingUpdate"} 3
 `,
@@ -120,7 +120,7 @@ func TestIncomingBindingMetrics(t *testing.T) {
 			crbInvolved: false,
 			trigger:     policyChanged,
 			want: `
-			# HELP karmada_scheduler_queue_incoming_bindings_total Number of bindings added to scheduling queues by event type.
+			# HELP karmada_scheduler_queue_incoming_bindings_total Number of ResourceBinding and ClusterResourceBinding objects added to scheduling queues by event type.
 			# TYPE karmada_scheduler_queue_incoming_bindings_total counter
 			karmada_scheduler_queue_incoming_bindings_total{event="PolicyChanged"} 3
 `,
@@ -130,7 +130,7 @@ func TestIncomingBindingMetrics(t *testing.T) {
 			crbInvolved: true,
 			trigger:     crbPolicyChanged,
 			want: `
-			# HELP karmada_scheduler_queue_incoming_bindings_total Number of bindings added to scheduling queues by event type.
+			# HELP karmada_scheduler_queue_incoming_bindings_total Number of ResourceBinding and ClusterResourceBinding objects added to scheduling queues by event type.
 			# TYPE karmada_scheduler_queue_incoming_bindings_total counter
 			karmada_scheduler_queue_incoming_bindings_total{event="PolicyChanged"} 3
 `,
@@ -140,7 +140,7 @@ func TestIncomingBindingMetrics(t *testing.T) {
 			crbInvolved: false,
 			trigger:     clusterChanged,
 			want: `
-			# HELP karmada_scheduler_queue_incoming_bindings_total Number of bindings added to scheduling queues by event type.
+			# HELP karmada_scheduler_queue_incoming_bindings_total Number of ResourceBinding and ClusterResourceBinding objects added to scheduling queues by event type.
 			# TYPE karmada_scheduler_queue_incoming_bindings_total counter
 			karmada_scheduler_queue_incoming_bindings_total{event="ClusterChanged"} 3
 `,
@@ -150,7 +150,7 @@ func TestIncomingBindingMetrics(t *testing.T) {
 			crbInvolved: true,
 			trigger:     crbClusterChanged,
 			want: `
-			# HELP karmada_scheduler_queue_incoming_bindings_total Number of bindings added to scheduling queues by event type.
+			# HELP karmada_scheduler_queue_incoming_bindings_total Number of ResourceBinding and ClusterResourceBinding objects added to scheduling queues by event type.
 			# TYPE karmada_scheduler_queue_incoming_bindings_total counter
 			karmada_scheduler_queue_incoming_bindings_total{event="ClusterChanged"} 3
 `,
@@ -166,7 +166,7 @@ func TestIncomingBindingMetrics(t *testing.T) {
 			crbInvolved: false,
 			trigger:     scheduleAttemptFailure,
 			want: `
-			# HELP karmada_scheduler_queue_incoming_bindings_total Number of bindings added to scheduling queues by event type.
+			# HELP karmada_scheduler_queue_incoming_bindings_total Number of ResourceBinding and ClusterResourceBinding objects added to scheduling queues by event type.
 			# TYPE karmada_scheduler_queue_incoming_bindings_total counter
 			karmada_scheduler_queue_incoming_bindings_total{event="ScheduleAttemptFailure"} 3
 `,
