@@ -16,6 +16,14 @@ func GetBindingClusterNames(spec *workv1alpha2.ResourceBindingSpec) []string {
 	return clusterNames
 }
 
+func GetEvictionClusterNames(spec *workv1alpha2.ResourceBindingSpec) []string {
+	var clusterNames []string
+	for _, task := range spec.GracefulEvictionTasks {
+		clusterNames = append(clusterNames, task.FromCluster)
+	}
+	return clusterNames
+}
+
 // IsBindingReplicasChanged will check if the sum of replicas is different from the replicas of object
 func IsBindingReplicasChanged(bindingSpec *workv1alpha2.ResourceBindingSpec, strategy *policyv1alpha1.ReplicaSchedulingStrategy) bool {
 	if strategy == nil {

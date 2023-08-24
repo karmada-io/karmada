@@ -4,6 +4,7 @@ import (
 	"context"
 
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -23,7 +24,10 @@ func IndexField(mgr controllerruntime.Manager) error {
 		if !ok {
 			return nil
 		}
-		return util.GetBindingClusterNames(&rb.Spec)
+
+		res := sets.NewString(util.GetBindingClusterNames(&rb.Spec)...)
+		res.Insert(util.GetEvictionClusterNames(&rb.Spec)...)
+		return res.List()
 	}
 
 	crbIndexerFunc := func(obj client.Object) []string {
@@ -31,7 +35,10 @@ func IndexField(mgr controllerruntime.Manager) error {
 		if !ok {
 			return nil
 		}
-		return util.GetBindingClusterNames(&crb.Spec)
+
+		res := sets.NewString(util.GetBindingClusterNames(&crb.Spec)...)
+		res.Insert(util.GetEvictionClusterNames(&crb.Spec)...)
+		return res.List()
 	}
 
 	return utilerrors.NewAggregate([]error{

@@ -54,11 +54,6 @@ func (tc *NoExecuteTaintManager) Reconcile(ctx context.Context, req reconcile.Re
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	// Check whether the target cluster has no execute taints.
-	if !helper.HasNoExecuteTaints(cluster.Spec.Taints) {
-		return controllerruntime.Result{}, nil
-	}
-
 	return tc.syncCluster(ctx, cluster)
 }
 
@@ -138,14 +133,28 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 		return fmt.Errorf("failed to get binding %s: %v", fedKey.NamespaceKey(), err)
 	}
 
-	if !binding.DeletionTimestamp.IsZero() || !binding.Spec.TargetContains(cluster) {
+	if !binding.DeletionTimestamp.IsZero() {
 		return nil
 	}
 
-	needEviction, tolerationTime, err := tc.needEviction(cluster, binding.Annotations)
+	needEviction, noNoExecuteTaints, tolerationTime, err := tc.needEviction(cluster, binding.Annotations)
 	if err != nil {
 		klog.ErrorS(err, "Failed to check if binding needs eviction", "binding", fedKey.ClusterWideKey.NamespaceKey())
 		return err
+	}
+
+	if noNoExecuteTaints {
+		binding.Spec.RemoveGracefulEvictionTask(cluster)
+		if err := tc.Update(context.TODO(), binding); err != nil {
+			helper.EmitClusterEvictionEventForResourceBinding(binding, cluster, tc.EventRecorder, err)
+			klog.ErrorS(err, "Failed to update cluster binding", "binding", binding.Name)
+			return err
+		}
+		return nil
+	}
+
+	if !binding.Spec.TargetContains(cluster) {
+		return nil
 	}
 
 	// Case 1: Need eviction now.
@@ -190,14 +199,28 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 		return fmt.Errorf("failed to get cluster binding %s: %v", fedKey.Name, err)
 	}
 
-	if !binding.DeletionTimestamp.IsZero() || !binding.Spec.TargetContains(cluster) {
+	if !binding.DeletionTimestamp.IsZero() {
 		return nil
 	}
 
-	needEviction, tolerationTime, err := tc.needEviction(cluster, binding.Annotations)
+	needEviction, noNoExecuteTaints, tolerationTime, err := tc.needEviction(cluster, binding.Annotations)
 	if err != nil {
 		klog.ErrorS(err, "Failed to check if cluster binding needs eviction", "binding", binding.Name)
 		return err
+	}
+
+	if noNoExecuteTaints {
+		binding.Spec.RemoveGracefulEvictionTask(cluster)
+		if err := tc.Update(context.TODO(), binding); err != nil {
+			helper.EmitClusterEvictionEventForClusterResourceBinding(binding, cluster, tc.EventRecorder, err)
+			klog.ErrorS(err, "Failed to update cluster binding", "binding", binding.Name)
+			return err
+		}
+		return nil
+	}
+
+	if !binding.Spec.TargetContains(cluster) {
+		return nil
 	}
 
 	// Case 1: Need eviction now.
@@ -229,33 +252,33 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 // needEviction returns whether the binding should be evicted from target cluster right now.
 // If a toleration time is found, we return false along with a minimum toleration time as the
 // second return value.
-func (tc *NoExecuteTaintManager) needEviction(clusterName string, appliedPlacement map[string]string) (bool, time.Duration, error) {
+func (tc *NoExecuteTaintManager) needEviction(clusterName string, appliedPlacement map[string]string) (bool, bool, time.Duration, error) {
 	placement, err := helper.GetAppliedPlacement(appliedPlacement)
 	if err != nil {
-		return false, -1, err
+		return false, false, -1, err
 	}
 
 	cluster := &clusterv1alpha1.Cluster{}
 	if err = tc.Client.Get(context.TODO(), types.NamespacedName{Name: clusterName}, cluster); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
-			return false, -1, nil
+			return false, false, -1, nil
 		}
-		return false, -1, err
+		return false, false, -1, err
 	}
 
 	taints := helper.GetNoExecuteTaints(cluster.Spec.Taints)
 	if len(taints) == 0 {
-		return false, -1, nil
+		return false, true, -1, nil
 	}
 	tolerations := placement.ClusterTolerations
 
 	allTolerated, usedTolerations := helper.GetMatchingTolerations(taints, tolerations)
 	if !allTolerated {
-		return true, 0, nil
+		return true, false, 0, nil
 	}
 
-	return false, helper.GetMinTolerationTime(taints, usedTolerations), nil
+	return false, false, helper.GetMinTolerationTime(taints, usedTolerations), nil
 }
 
 // SetupWithManager creates a controller and register to controller manager.
