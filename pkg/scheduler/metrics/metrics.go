@@ -46,7 +46,7 @@ var (
 		prometheus.CounterOpts{
 			Subsystem: SchedulerSubsystem,
 			Name:      "schedule_attempts_total",
-			Help:      "Number of attempts to schedule resourceBinding",
+			Help:      "Number of attempts to schedule a ResourceBinding or ClusterResourceBinding",
 		}, []string{"result", "schedule_type"})
 
 	e2eSchedulingLatency = prometheus.NewHistogramVec(
@@ -65,12 +65,12 @@ var (
 			Buckets:   prometheus.ExponentialBuckets(0.001, 2, 15),
 		}, []string{"schedule_step"})
 
-	// SchedulerQueueIncomingBindings is the number of bindings added to scheduling queues by event type.
+	// SchedulerQueueIncomingBindings is the Number of ResourceBinding and ClusterResourceBinding objects added to scheduling queues by event type.
 	SchedulerQueueIncomingBindings = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Subsystem: SchedulerSubsystem,
 			Name:      "queue_incoming_bindings_total",
-			Help:      "Number of bindings added to scheduling queues by event type.",
+			Help:      "Number of ResourceBinding and ClusterResourceBinding objects added to scheduling queues by event type.",
 		}, []string{"event"})
 
 	// FrameworkExtensionPointDuration is the metrics which indicates the latency for running all plugins of a specific extension point.
