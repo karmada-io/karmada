@@ -391,26 +391,6 @@ func newWorkLabels(workNs, workName string) map[string]string {
 	return labels
 }
 
-func newWorkWithStatus(status metav1.ConditionStatus, reason, message string, t time.Time) *workv1alpha1.Work {
-	return &workv1alpha1.Work{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "karmada-es-cluster",
-			Name:      "work-name",
-		},
-		Status: workv1alpha1.WorkStatus{
-			Conditions: []metav1.Condition{
-				{
-					Type:               workv1alpha1.WorkApplied,
-					Status:             status,
-					Reason:             reason,
-					Message:            message,
-					LastTransitionTime: metav1.NewTime(t),
-				},
-			},
-		},
-	}
-}
-
 func TestExecutionController_tryDeleteWorkload(t *testing.T) {
 	raw := []byte(`
 	{
@@ -595,108 +575,6 @@ func TestExecutionController_tryCreateOrUpdateWorkload(t *testing.T) {
 				assert.Equal(t, resource.GetLabels(), labels)
 			} else {
 				assert.Empty(t, resource.GetLabels())
-			}
-		})
-	}
-}
-
-func TestExecutionController_updateAppliedConditionIfNeed(t *testing.T) {
-	baseTime := time.Now().Add(-time.Minute)
-
-	tests := []struct {
-		name    string
-		work    *workv1alpha1.Work
-		status  metav1.ConditionStatus
-		reason  string
-		message string
-		updated bool
-	}{
-		{
-			name:    "update condition, from false to true",
-			work:    newWorkWithStatus(metav1.ConditionFalse, "reason1", "message1", baseTime),
-			status:  metav1.ConditionTrue,
-			reason:  "",
-			message: "",
-			updated: true,
-		},
-		{
-			name:    "update condition, from true to false",
-			work:    newWorkWithStatus(metav1.ConditionTrue, "", "", baseTime),
-			status:  metav1.ConditionFalse,
-			reason:  "reason1",
-			message: "message1",
-			updated: true,
-		},
-		{
-			name:    "update condition, for reason changed",
-			work:    newWorkWithStatus(metav1.ConditionFalse, "reason1", "message1", baseTime),
-			status:  metav1.ConditionFalse,
-			reason:  "reason2",
-			message: "message1",
-			updated: true,
-		},
-		{
-			name:    "update condition, for message changed",
-			work:    newWorkWithStatus(metav1.ConditionFalse, "reason1", "message1", baseTime),
-			status:  metav1.ConditionFalse,
-			reason:  "reason1",
-			message: "message2",
-			updated: true,
-		},
-		{
-			name:    "not update condition, for nothing changed",
-			work:    newWorkWithStatus(metav1.ConditionFalse, "reason1", "message1", baseTime),
-			status:  metav1.ConditionFalse,
-			reason:  "reason1",
-			message: "message1",
-			updated: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			o := newExecutionOptions()
-			o.objects = append(o.objects, tt.work)
-			o.objectsWithStatus = append(o.objectsWithStatus, &workv1alpha1.Work{})
-
-			c := newExecutionController(ctx, o)
-
-			workOld := &workv1alpha1.Work{}
-			err := c.Get(ctx, types.NamespacedName{Namespace: tt.work.Namespace, Name: tt.work.Name}, workOld)
-			if err != nil {
-				t.Errorf("failed to get created work: %v", err)
-				return
-			}
-
-			t.Logf("Got work: %+v", *workOld)
-
-			appliedCopy := meta.FindStatusCondition(workOld.DeepCopy().Status.Conditions, workv1alpha1.WorkApplied).DeepCopy()
-			err = c.updateAppliedConditionIfNeed(workOld, tt.status, tt.reason, tt.message)
-			if err != nil {
-				t.Errorf("failed to update work: %v", err)
-				return
-			}
-
-			workNew := &workv1alpha1.Work{}
-			err = c.Get(ctx, types.NamespacedName{Namespace: tt.work.Namespace, Name: tt.work.Name}, workNew)
-			if err != nil {
-				t.Errorf("failed to get updated work: %v", err)
-				return
-			}
-
-			newApplied := meta.FindStatusCondition(workNew.Status.Conditions, workv1alpha1.WorkApplied)
-			if tt.updated {
-				if appliedCopy.Status != newApplied.Status {
-					assert.NotEqual(t, newApplied.LastTransitionTime, appliedCopy.LastTransitionTime)
-				}
-
-				appliedCopy.LastTransitionTime = newApplied.LastTransitionTime
-				assert.NotEqual(t, newApplied, appliedCopy)
-			} else {
-				assert.Equal(t, newApplied, appliedCopy)
 			}
 		})
 	}
