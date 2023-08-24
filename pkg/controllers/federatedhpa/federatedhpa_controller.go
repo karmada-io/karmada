@@ -28,6 +28,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -112,6 +113,7 @@ func (c *FederatedHPAController) SetupWithManager(mgr controllerruntime.Manager)
 	return controllerruntime.NewControllerManagedBy(mgr).
 		For(&autoscalingv1alpha1.FederatedHPA{}).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Complete(c)
 }
 
