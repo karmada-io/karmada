@@ -98,7 +98,7 @@ func Unpack(file, targetPath string) error {
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if err := os.Mkdir(targetPath+"/"+header.Name, 0755); err != nil {
+			if err := os.Mkdir(targetPath+"/"+header.Name, 0700); err != nil {
 				return err
 			}
 		case tar.TypeReg:

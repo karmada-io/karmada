@@ -34,7 +34,7 @@ func Test_initializeDirectory(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.createPathInAdvance {
-				if err := os.MkdirAll("tmp", os.FileMode(0755)); err != nil {
+				if err := os.MkdirAll("tmp", os.FileMode(0700)); err != nil {
 					t.Errorf("create test directory failed in advance:%v", err)
 				}
 			}
