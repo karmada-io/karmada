@@ -405,8 +405,8 @@ func generateClusterInControllerPlane(opts util.ClusterRegisterOption) (*cluster
 			cluster.Spec.Provider = opts.ClusterProvider
 		}
 
-		if opts.ClusterZone != "" {
-			cluster.Spec.Zone = opts.ClusterZone
+		if len(opts.ClusterZones) > 0 {
+			cluster.Spec.Zones = opts.ClusterZones
 		}
 
 		if opts.ClusterRegion != "" {

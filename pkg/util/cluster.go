@@ -40,8 +40,10 @@ type ClusterRegisterOption struct {
 	ProxyServerAddress string
 	ClusterProvider    string
 	ClusterRegion      string
-	ClusterZone        string
-	DryRun             bool
+	// Deprecated: Use ClusterZones instead.
+	ClusterZone  string
+	ClusterZones []string
+	DryRun       bool
 
 	ControlPlaneConfig *rest.Config
 	ClusterConfig      *rest.Config
