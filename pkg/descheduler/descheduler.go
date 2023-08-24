@@ -167,6 +167,9 @@ func (d *Descheduler) worker(key util.QueueKey) error {
 	h := core.NewSchedulingResultHelper(binding)
 	if _, undesiredClusters := h.GetUndesiredClusters(); len(undesiredClusters) == 0 {
 		return nil
+	} else if len(undesiredClusters) == len(binding.Spec.Clusters) {
+		klog.Warningln("Could not descheduler as all clusters not satisfy desire replicas.")
+		return nil
 	}
 
 	h.FillUnschedulableReplicas(d.unschedulableThreshold)
