@@ -894,7 +894,7 @@ func (d *ResourceDetector) OnClusterPropagationPolicyAdd(obj interface{}) {
 }
 
 // OnClusterPropagationPolicyUpdate handles object update event and push the object to queue.
-func (d *ResourceDetector) OnClusterPropagationPolicyUpdate(_, newObj interface{}) {
+func (d *ResourceDetector) OnClusterPropagationPolicyUpdate(oldObj, newObj interface{}) {
 	key, err := ClusterWideKeyFunc(newObj)
 	if err != nil {
 		return
@@ -902,6 +902,52 @@ func (d *ResourceDetector) OnClusterPropagationPolicyUpdate(_, newObj interface{
 
 	klog.V(2).Infof("Update ClusterPropagationPolicy(%s)", key)
 	d.clusterPolicyReconcileWorker.Add(key)
+
+	// Temporary solution of corner case: After the priority(.spec.priority) of
+	// ClusterPropagationPolicy changed from high priority (e.g. 5) to low priority(e.g. 3),
+	// we should try to check if there is a ClusterPropagationPolicy(e.g. with priority 4)
+	// could preempt the targeted resources.
+	//
+	// Recognized limitations of the temporary solution are:
+	// - Too much logical processed in an event handler function will slow down
+	//   the overall reconcile speed.
+	// - If there is an error raised during the process, the event will be lost
+	//   and no second chance to retry.
+	//
+	// The idea of the long-term solution, perhaps ClusterPropagationPolicy could have
+	// a status, in that case we can record the observed priority(.status.observedPriority)
+	// which can be used to detect priority changes during reconcile logic.
+	if features.FeatureGate.Enabled(features.PolicyPreemption) {
+		var unstructuredOldObj *unstructured.Unstructured
+		var unstructuredNewObj *unstructured.Unstructured
+
+		unstructuredOldObj, err = helper.ToUnstructured(oldObj)
+		if err != nil {
+			klog.Errorf("Failed to transform oldObj, error: %v", err)
+			return
+		}
+		unstructuredNewObj, err = helper.ToUnstructured(newObj)
+		if err != nil {
+			klog.Errorf("Failed to transform newObj, error: %v", err)
+			return
+		}
+
+		var oldPolicy policyv1alpha1.ClusterPropagationPolicy
+		var newPolicy policyv1alpha1.ClusterPropagationPolicy
+
+		if err = helper.ConvertToTypedObject(unstructuredOldObj, &oldPolicy); err != nil {
+			klog.Errorf("Failed to convert typed ClusterPropagationPolicy(%s/%s): %v", unstructuredOldObj.GetNamespace(), unstructuredOldObj.GetName(), err)
+			return
+		}
+		if err = helper.ConvertToTypedObject(unstructuredNewObj, &newPolicy); err != nil {
+			klog.Errorf("Failed to convert typed ClusterPropagationPolicy(%s/%s): %v", newPolicy.GetNamespace(), newPolicy.GetName(), err)
+			return
+		}
+
+		if newPolicy.ExplicitPriority() < oldPolicy.ExplicitPriority() {
+			d.HandleDeprioritizedClusterPropagationPolicy(oldPolicy, newPolicy)
+		}
+	}
 }
 
 // OnClusterPropagationPolicyDelete handles object delete event and push the object to queue.
