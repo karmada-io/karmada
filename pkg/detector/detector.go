@@ -388,7 +388,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		}
 	}()
 
-	if err := d.ClaimPolicyForObject(object, policy.Namespace, policy.Name); err != nil {
+	if err := d.ClaimPolicyForObject(object, policy.Namespace, policy.Name, string(policy.UID)); err != nil {
 		klog.Errorf("Failed to claim policy(%s) for object: %s", policy.Name, object)
 		return err
 	}
@@ -396,9 +396,14 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 	policyLabels := map[string]string{
 		policyv1alpha1.PropagationPolicyNamespaceLabel: policy.GetNamespace(),
 		policyv1alpha1.PropagationPolicyNameLabel:      policy.GetName(),
+		policyv1alpha1.PropagationPolicyUIDLabel:       string(policy.UID),
+	}
+	policyAnnotations := map[string]string{
+		policyv1alpha1.PropagationPolicyNamespaceAnnotation: policy.GetNamespace(),
+		policyv1alpha1.PropagationPolicyNameAnnotation:      policy.GetName(),
 	}
 
-	binding, err := d.BuildResourceBinding(object, objectKey, policyLabels, &policy.Spec)
+	binding, err := d.BuildResourceBinding(object, objectKey, policyLabels, policyAnnotations, &policy.Spec)
 	if err != nil {
 		klog.Errorf("Failed to build resourceBinding for object: %s. error: %v", objectKey, err)
 		return err
@@ -413,6 +418,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 					"try again later after binding is garbage collected, see https://github.com/karmada-io/karmada/issues/2090")
 			}
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
+			bindingCopy.Annotations = util.DedupeAndMergeAnnotations(bindingCopy.Annotations, binding.Annotations)
 			bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
 			bindingCopy.OwnerReferences = binding.OwnerReferences
 			bindingCopy.Finalizers = binding.Finalizers
@@ -463,20 +469,24 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 		}
 	}()
 
-	if err := d.ClaimClusterPolicyForObject(object, policy.Name); err != nil {
+	if err := d.ClaimClusterPolicyForObject(object, policy.Name, string(policy.UID)); err != nil {
 		klog.Errorf("Failed to claim cluster policy(%s) for object: %s", policy.Name, object)
 		return err
 	}
 
 	policyLabels := map[string]string{
-		policyv1alpha1.ClusterPropagationPolicyLabel: policy.GetName(),
+		policyv1alpha1.ClusterPropagationPolicyLabel:    policy.GetName(),
+		policyv1alpha1.ClusterPropagationPolicyUIDLabel: string(policy.UID),
+	}
+	policyAnnotations := map[string]string{
+		policyv1alpha1.ClusterPropagationPolicyAnnotation: policy.GetName(),
 	}
 
 	// Build `ResourceBinding` or `ClusterResourceBinding` according to the resource template's scope.
 	// For namespace-scoped resources, which namespace is not empty, building `ResourceBinding`.
 	// For cluster-scoped resources, which namespace is empty, building `ClusterResourceBinding`.
 	if object.GetNamespace() != "" {
-		binding, err := d.BuildResourceBinding(object, objectKey, policyLabels, &policy.Spec)
+		binding, err := d.BuildResourceBinding(object, objectKey, policyLabels, policyAnnotations, &policy.Spec)
 		if err != nil {
 			klog.Errorf("Failed to build resourceBinding for object: %s. error: %v", objectKey, err)
 			return err
@@ -491,6 +501,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 						"try again later after binding is garbage collected, see https://github.com/karmada-io/karmada/issues/2090")
 				}
 				// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
+				bindingCopy.Annotations = util.DedupeAndMergeAnnotations(bindingCopy.Annotations, binding.Annotations)
 				bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
 				bindingCopy.OwnerReferences = binding.OwnerReferences
 				bindingCopy.Finalizers = binding.Finalizers
@@ -523,7 +534,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			klog.V(2).Infof("ResourceBinding(%s) is up to date.", binding.GetName())
 		}
 	} else {
-		binding, err := d.BuildClusterResourceBinding(object, objectKey, policyLabels, &policy.Spec)
+		binding, err := d.BuildClusterResourceBinding(object, objectKey, policyLabels, policyAnnotations, &policy.Spec)
 		if err != nil {
 			klog.Errorf("Failed to build clusterResourceBinding for object: %s. error: %v", objectKey, err)
 			return err
@@ -537,6 +548,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 					"try again later after binding is garbage collected, see https://github.com/karmada-io/karmada/issues/2090")
 			}
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
+			bindingCopy.Annotations = util.DedupeAndMergeAnnotations(bindingCopy.Annotations, binding.Annotations)
 			bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
 			bindingCopy.OwnerReferences = binding.OwnerReferences
 			bindingCopy.Finalizers = binding.Finalizers
@@ -603,7 +615,7 @@ func (d *ResourceDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) 
 }
 
 // ClaimPolicyForObject set policy identifier which the object associated with.
-func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructured, policyNamespace string, policyName string) error {
+func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructured, policyNamespace, policyName, policyUID string) error {
 	objLabels := object.GetLabels()
 	if objLabels == nil {
 		objLabels = make(map[string]string)
@@ -618,15 +630,24 @@ func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructure
 
 	objLabels[policyv1alpha1.PropagationPolicyNamespaceLabel] = policyNamespace
 	objLabels[policyv1alpha1.PropagationPolicyNameLabel] = policyName
+	objLabels[policyv1alpha1.PropagationPolicyUIDLabel] = policyUID
+
+	objectAnnotations := object.GetAnnotations()
+	if objectAnnotations == nil {
+		objectAnnotations = make(map[string]string)
+	}
+	objectAnnotations[policyv1alpha1.PropagationPolicyNamespaceAnnotation] = policyNamespace
+	objectAnnotations[policyv1alpha1.PropagationPolicyNameAnnotation] = policyName
+
 	objectCopy := object.DeepCopy()
 	objectCopy.SetLabels(objLabels)
+	objectCopy.SetAnnotations(objectAnnotations)
 	return d.Client.Update(context.TODO(), objectCopy)
 }
 
 // ClaimClusterPolicyForObject set cluster identifier which the object associated with.
-func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unstructured, policyName string) error {
+func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unstructured, policyName, policyUID string) error {
 	claimedName := util.GetLabelValue(object.GetLabels(), policyv1alpha1.ClusterPropagationPolicyLabel)
-
 	// object has been claimed, don't need to claim again
 	if claimedName == policyName {
 		return nil
@@ -634,11 +655,15 @@ func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unst
 
 	objectCopy := object.DeepCopy()
 	util.MergeLabel(objectCopy, policyv1alpha1.ClusterPropagationPolicyLabel, policyName)
+	util.MergeLabel(objectCopy, policyv1alpha1.ClusterPropagationPolicyUIDLabel, policyUID)
+
+	util.MergeAnnotation(objectCopy, policyv1alpha1.ClusterPropagationPolicyAnnotation, policyName)
 	return d.Client.Update(context.TODO(), objectCopy)
 }
 
 // BuildResourceBinding builds a desired ResourceBinding for object.
-func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string, policySpec *policyv1alpha1.PropagationSpec) (*workv1alpha2.ResourceBinding, error) {
+func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey,
+	labels, annotations map[string]string, policySpec *policyv1alpha1.PropagationSpec) (*workv1alpha2.ResourceBinding, error) {
 	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
 	propagationBinding := &workv1alpha2.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
@@ -647,8 +672,9 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(object, objectKey.GroupVersionKind()),
 			},
-			Labels:     labels,
-			Finalizers: []string{util.BindingControllerFinalizer},
+			Annotations: annotations,
+			Labels:      labels,
+			Finalizers:  []string{util.BindingControllerFinalizer},
 		},
 		Spec: workv1alpha2.ResourceBindingSpec{
 			PropagateDeps:      policySpec.PropagateDeps,
@@ -681,7 +707,8 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 }
 
 // BuildClusterResourceBinding builds a desired ClusterResourceBinding for object.
-func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string, policySpec *policyv1alpha1.PropagationSpec) (*workv1alpha2.ClusterResourceBinding, error) {
+func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey,
+	labels, annotations map[string]string, policySpec *policyv1alpha1.PropagationSpec) (*workv1alpha2.ClusterResourceBinding, error) {
 	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
 	binding := &workv1alpha2.ClusterResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
@@ -689,8 +716,9 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(object, objectKey.GroupVersionKind()),
 			},
-			Labels:     labels,
-			Finalizers: []string{util.ClusterResourceBindingControllerFinalizer},
+			Annotations: annotations,
+			Labels:      labels,
+			Finalizers:  []string{util.ClusterResourceBindingControllerFinalizer},
 		},
 		Spec: workv1alpha2.ResourceBindingSpec{
 			PropagateDeps:      policySpec.PropagateDeps,

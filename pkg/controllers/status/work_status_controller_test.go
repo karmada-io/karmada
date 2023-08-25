@@ -496,6 +496,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 	cluster := testhelper.NewClusterWithTypeAndStatus("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)
 	workName := "work"
 	workNs := "karmada-es-cluster"
+	workUID := "92345678-1234-5678-1234-567812345678"
 
 	tests := []struct {
 		name                      string
@@ -576,9 +577,9 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 
 			var work *workv1alpha1.Work
 			if tt.workWithRigntNS {
-				work = testhelper.NewWork(workName, workNs, tt.raw)
+				work = testhelper.NewWork(workName, workNs, workUID, tt.raw)
 			} else {
-				work = testhelper.NewWork(workName, fmt.Sprintf("%v-test", workNs), tt.raw)
+				work = testhelper.NewWork(workName, fmt.Sprintf("%v-test", workNs), workUID, tt.raw)
 			}
 
 			key, _ := generateKey(tt.obj)

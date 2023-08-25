@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
@@ -302,8 +303,8 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 	syncSucceedNum := 0
 	for _, manifest := range work.Spec.Workload.Manifests {
 		workload := &unstructured.Unstructured{}
-		util.MergeLabel(workload, util.ManagedByKarmadaLabel, util.ManagedByKarmadaLabelValue)
 		err := workload.UnmarshalJSON(manifest.Raw)
+		util.MergeLabel(workload, workv1alpha2.WorkUIDLabel, string(work.UID))
 		if err != nil {
 			klog.Errorf("Failed to unmarshal workload, error is: %v", err)
 			errs = append(errs, err)
