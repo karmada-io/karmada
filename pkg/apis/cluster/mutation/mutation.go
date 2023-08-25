@@ -18,11 +18,20 @@ const (
 
 // MutateCluster mutates required fields of the Cluster.
 func MutateCluster(cluster *clusterapis.Cluster) {
-	MutateClusterTaints(cluster.Spec.Taints)
+	mutateClusterTaints(cluster.Spec.Taints)
+	migrateZoneToZones(cluster)
 }
 
-// MutateClusterTaints add TimeAdded field for cluster NoExecute taints only if TimeAdded not set.
-func MutateClusterTaints(taints []corev1.Taint) {
+// migrateZoneToZones add zones field for cluster if Zones not set but Zone set only.
+func migrateZoneToZones(cluster *clusterapis.Cluster) {
+	if cluster.Spec.Zone != "" && len(cluster.Spec.Zones) == 0 {
+		cluster.Spec.Zones = append(cluster.Spec.Zones, cluster.Spec.Zone)
+		cluster.Spec.Zone = ""
+	}
+}
+
+// mutateClusterTaints add TimeAdded field for cluster NoExecute taints only if TimeAdded not set.
+func mutateClusterTaints(taints []corev1.Taint) {
 	for i := range taints {
 		if taints[i].Effect == corev1.TaintEffectNoExecute && taints[i].TimeAdded == nil {
 			now := metav1.Now()

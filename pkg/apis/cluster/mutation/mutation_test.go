@@ -1,6 +1,7 @@
 package mutation
 
 import (
+	"fmt"
 	"math"
 	"reflect"
 	"testing"
@@ -18,9 +19,10 @@ func TestMutateCluster(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
+		fun  func(args) error
 	}{
 		{
-			name: "test mutate cluster",
+			name: "test mutate cluster Taints",
 			args: args{
 				cluster: &clusterapis.Cluster{
 					Spec: clusterapis.ClusterSpec{
@@ -33,20 +35,39 @@ func TestMutateCluster(t *testing.T) {
 							{
 								Key:    "bar",
 								Effect: corev1.TaintEffectNoExecute,
-							},
-						},
+							}}}},
+			},
+			fun: func(data args) error {
+				for i := range data.cluster.Spec.Taints {
+					if data.cluster.Spec.Taints[i].Effect == corev1.TaintEffectNoExecute && data.cluster.Spec.Taints[i].TimeAdded == nil {
+						return fmt.Errorf("failed to mutate cluster, taints TimeAdded should not be nil")
+					}
+				}
+				return nil
+			},
+		},
+		{
+			name: "test mutate cluster Zone",
+			args: args{
+				cluster: &clusterapis.Cluster{
+					Spec: clusterapis.ClusterSpec{
+						Zone: "zone1",
 					},
 				},
+			},
+			fun: func(data args) error {
+				if data.cluster.Spec.Zone != "" && len(data.cluster.Spec.Zones) == 0 {
+					return fmt.Errorf("failed to mutate cluster, zones should not be nil")
+				}
+				return nil
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			MutateCluster(tt.args.cluster)
-			for i := range tt.args.cluster.Spec.Taints {
-				if tt.args.cluster.Spec.Taints[i].Effect == corev1.TaintEffectNoExecute && tt.args.cluster.Spec.Taints[i].TimeAdded == nil {
-					t.Error("failed to mutate cluster, taints TimeAdded should not be nil")
-				}
+			if err := tt.fun(tt.args); err != nil {
+				t.Error(err)
 			}
 		})
 	}
