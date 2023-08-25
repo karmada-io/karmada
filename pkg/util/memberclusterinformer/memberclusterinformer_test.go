@@ -118,6 +118,7 @@ func Test_getSingleClusterManager(t *testing.T) {
 }
 
 func Test_registerInformersAndStart(t *testing.T) {
+	workUID := "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"
 	clusterName := "cluster"
 	cluster := testhelper.NewClusterWithTypeAndStatus(clusterName, clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
 
@@ -128,7 +129,7 @@ func Test_registerInformersAndStart(t *testing.T) {
 	c := newMemberClusterInformer(cluster)
 
 	raw := []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`)
-	work := testhelper.NewWork("work", "default", raw)
+	work := testhelper.NewWork("work", "default", workUID, raw)
 
 	eventHandler := fedinformer.NewHandlerOnEvents(nil, nil, nil)
 

@@ -378,14 +378,21 @@ func newPod(name string, labels map[string]string) *corev1.Pod {
 	}
 }
 
-func newWorkLabels(workNs, workName string) map[string]string {
-	labels := map[string]string{}
+func newWorkLabels(workNs, workName, workUID string) map[string]string {
+	labels := map[string]string{
+		util.ManagedByKarmadaLabel: util.ManagedByKarmadaLabelValue,
+	}
+
 	if workNs != "" {
 		labels[workv1alpha1.WorkNamespaceLabel] = workNs
 	}
 
 	if workName != "" {
 		labels[workv1alpha1.WorkNameLabel] = workName
+	}
+
+	if workUID != "" {
+		labels[workv1alpha2.WorkReferenceUID] = workUID
 	}
 
 	return labels
@@ -428,6 +435,7 @@ func TestExecutionController_tryDeleteWorkload(t *testing.T) {
 	podName := "pod"
 	workName := "work-name"
 	workNs := "karmada-es-cluster"
+	workUID := "99f1f7c3-1f1f-4f1f-9f1f-7c3f1f1f9f1f"
 	clusterName := "cluster"
 	podGVR := corev1.SchemeGroupVersion.WithResource("pods")
 
@@ -441,8 +449,8 @@ func TestExecutionController_tryDeleteWorkload(t *testing.T) {
 	}{
 		{
 			name:                      "failed to GetObjectFromCache, wrong InformerManager in ExecutionController",
-			pod:                       newPod(podName, newWorkLabels(workNs, workName)),
-			work:                      testhelper.NewWork(workName, workNs, raw),
+			pod:                       newPod(podName, newWorkLabels(workNs, workName, workUID)),
+			work:                      testhelper.NewWork(workName, workNs, workUID, raw),
 			controllerWithoutInformer: false,
 			expectedError:             false,
 			objectNeedDelete:          false,
@@ -450,23 +458,23 @@ func TestExecutionController_tryDeleteWorkload(t *testing.T) {
 		{
 			name:                      "workload is not managed by karmada, without work-related labels",
 			pod:                       newPod(podName, nil),
-			work:                      testhelper.NewWork(workName, workNs, raw),
+			work:                      testhelper.NewWork(workName, workNs, workUID, raw),
 			controllerWithoutInformer: true,
 			expectedError:             false,
 			objectNeedDelete:          false,
 		},
 		{
 			name:                      "workload is not related to current work",
-			pod:                       newPod(podName, newWorkLabels(workNs, "wrong-work")),
-			work:                      testhelper.NewWork(workName, workNs, raw),
+			pod:                       newPod(podName, newWorkLabels(workNs, "wrong-work", workUID)),
+			work:                      testhelper.NewWork(workName, workNs, workUID, raw),
 			controllerWithoutInformer: true,
 			expectedError:             false,
 			objectNeedDelete:          false,
 		},
 		{
 			name:                      "normal case",
-			pod:                       newPod(podName, newWorkLabels(workNs, workName)),
-			work:                      testhelper.NewWork(workName, workNs, raw),
+			pod:                       newPod(podName, newWorkLabels(workNs, workName, workUID)),
+			work:                      testhelper.NewWork(workName, workNs, workUID, raw),
 			controllerWithoutInformer: true,
 			expectedError:             false,
 			objectNeedDelete:          true,
@@ -516,6 +524,7 @@ func TestExecutionController_tryCreateOrUpdateWorkload(t *testing.T) {
 	podName := "pod"
 	workName := "work-name"
 	workNs := "karmada-es-cluster"
+	workUID := "99f1f7c3-1f1f-4f1f-9f1f-7c3f1f1f9f1f"
 	clusterName := "cluster"
 	podGVR := corev1.SchemeGroupVersion.WithResource("pods")
 	annotations := map[string]string{
@@ -534,7 +543,7 @@ func TestExecutionController_tryCreateOrUpdateWorkload(t *testing.T) {
 		{
 			name:           "created workload",
 			pod:            newPod("wrong-pod", nil),
-			obj:            newPodObj(podName, newWorkLabels(workNs, workName)),
+			obj:            newPodObj(podName, newWorkLabels(workNs, workName, workUID)),
 			withAnnotation: false,
 			expectedError:  false,
 			objectExist:    true,
@@ -543,7 +552,7 @@ func TestExecutionController_tryCreateOrUpdateWorkload(t *testing.T) {
 		{
 			name:           "failed to update object, overwrite conflict resolusion not set",
 			pod:            newPod(podName, nil),
-			obj:            newPodObj(podName, newWorkLabels(workNs, workName)),
+			obj:            newPodObj(podName, newWorkLabels(workNs, workName, workUID)),
 			withAnnotation: false,
 			expectedError:  true,
 			objectExist:    true,
@@ -552,7 +561,7 @@ func TestExecutionController_tryCreateOrUpdateWorkload(t *testing.T) {
 		{
 			name:           "updated object",
 			pod:            newPod(podName, nil),
-			obj:            newPodObj(podName, newWorkLabels(workNs, workName)),
+			obj:            newPodObj(podName, newWorkLabels(workNs, workName, workUID)),
 			withAnnotation: true,
 			expectedError:  false,
 			objectExist:    true,
@@ -590,7 +599,12 @@ func TestExecutionController_tryCreateOrUpdateWorkload(t *testing.T) {
 				return
 			}
 
-			labels := map[string]string{workv1alpha1.WorkNamespaceLabel: workNs, workv1alpha1.WorkNameLabel: workName}
+			labels := map[string]string{
+				util.ManagedByKarmadaLabel:      util.ManagedByKarmadaLabelValue,
+				workv1alpha1.WorkNamespaceLabel: workNs,
+				workv1alpha1.WorkNameLabel:      workName,
+				workv1alpha2.WorkReferenceUID:   workUID,
+			}
 			if tt.labelMatch {
 				assert.Equal(t, resource.GetLabels(), labels)
 			} else {
@@ -706,6 +720,7 @@ func TestExecutionController_syncWork(t *testing.T) {
 	basePod := newPod("pod", nil)
 	workName := "work"
 	workNs := "karmada-es-cluster"
+	workUID := "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"
 	podGVR := corev1.SchemeGroupVersion.WithResource("pods")
 	podRaw := []byte(`
 	{
@@ -789,7 +804,7 @@ func TestExecutionController_syncWork(t *testing.T) {
 				o.dynamicClientSet = dynamicClientSet
 			}
 
-			work := testhelper.NewWork(workName, tt.workNamespace, podRaw)
+			work := testhelper.NewWork(workName, tt.workNamespace, workUID, podRaw)
 			o.objects = append(o.objects, work)
 			o.objectsWithStatus = append(o.objectsWithStatus, &workv1alpha1.Work{})
 
@@ -810,7 +825,7 @@ func TestExecutionController_syncWork(t *testing.T) {
 					t.Fatalf("Failed to get pod: %v", err)
 				}
 
-				expectedLabels := newWorkLabels(workNs, workName)
+				expectedLabels := newWorkLabels(workNs, workName, workUID)
 				assert.Equal(t, resource.GetLabels(), expectedLabels)
 			}
 		})
