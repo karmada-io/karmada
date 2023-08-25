@@ -136,22 +136,23 @@ func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alph
 	}
 
 	for _, clusterInfo := range info.Clusters {
-		zone := clusterInfo.Cluster.Spec.Zone
-		if zone == "" {
+		zones := clusterInfo.Cluster.Spec.Zones
+		if len(zones) == 0 {
 			continue
 		}
 
-		zoneInfo, ok := info.Zones[zone]
-		if !ok {
-			zoneInfo = ZoneInfo{
-				Name:     zone,
-				Clusters: make([]ClusterDetailInfo, 0),
+		for _, zone := range zones {
+			zoneInfo, ok := info.Zones[zone]
+			if !ok {
+				zoneInfo = ZoneInfo{
+					Name:     zone,
+					Clusters: make([]ClusterDetailInfo, 0),
+				}
 			}
+			zoneInfo.Clusters = append(zoneInfo.Clusters, clusterInfo)
+			zoneInfo.AvailableReplicas += clusterInfo.AvailableReplicas
+			info.Zones[zone] = zoneInfo
 		}
-
-		zoneInfo.Clusters = append(zoneInfo.Clusters, clusterInfo)
-		zoneInfo.AvailableReplicas += clusterInfo.AvailableReplicas
-		info.Zones[zone] = zoneInfo
 	}
 
 	for zone, zoneInfo := range info.Zones {
