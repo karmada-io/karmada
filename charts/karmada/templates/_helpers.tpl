@@ -283,6 +283,42 @@ app: {{- include "karmada.name" .}}-search
   {{- end }}
 {{- end -}}
 
+{{- define "karmada.metricsAdapter.labels" -}}
+{{- if .Values.metricsAdapter.labels }}
+{{- range $key, $value := .Values.metricsAdapter.labels }}
+{{ $key }}: {{ $value }}
+{{- end }}
+{{- else}}
+app: {{- include "karmada.name" .}}-metrics-adapter
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.metrics-adapter.podLabels" -}}
+{{- if .Values.metricsAdapter.podLabels }}
+{{- range $key, $value := .Values.metricsAdapter.podLabels }}
+{{ $key }}: {{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.metricsAdapter.kubeconfig.volume" -}}
+{{ $name :=  include "karmada.name" . }}
+{{- if eq .Values.installMode "host" -}}
+- name: k8s-certs
+  secret:
+    secretName: {{ $name }}-cert
+- name: kubeconfig-secret
+  secret:
+    secretName: {{ $name }}-kubeconfig
+{{- else -}}
+- name: k8s-certs
+  secret:
+    secretName: {{ .Values.metricsAdapter.certs }}
+- name: kubeconfig-secret
+  secret:
+    secretName: {{ .Values.metricsAdapter.kubeconfig }}
+{{- end -}}
+
 {{/*
 Return the proper karmada internal etcd image name
 */}}
@@ -422,6 +458,21 @@ Return the proper Docker Image Registry Secret Names
 {{- define "karmada.search.imagePullSecrets" -}}
 {{ include "common.images.pullSecrets" (dict "images" (list .Values.search.image) "global" .Values.global) }}
 {{- end -}}
+
+{{/*
+Return the proper karmada metricsAdapter image name
+*/}}
+{{- define "karmada.metricsAdapter.image" -}}
+{{ include "common.images.image" (dict "imageRoot" .Values.metricsAdapter.image "global" .Values.global) }}
+{{- end -}}
+
+{{/*
+Return the proper Docker Image Registry Secret Names
+*/}}
+{{- define "karmada.metricsAdapter.imagePullSecrets" -}}
+{{ include "common.images.pullSecrets" (dict "images" (list .Values.metricsAdapter.image) "global" .Values.global) }}
+{{- end -}}
+
 
 {{/*
 Return the proper karmada kubeControllerManager image name

@@ -1,0 +1,185 @@
+{{- $name := include "karmada.name" . -}}
+{{- if and (or (eq .Values.installMode "component") (eq .Values.installMode "host")) (has "metrics-adapter" .Values.components) }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}-metrics-adapter
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    app: 
+    {{- include "karmada.metricsAdapter.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+    {{- include "karmada.metricsAdapter.labels" . | nindent 6 }}
+  replicas: {{ .Values.metricsAdapter.replicaCount }}
+  {{- with .Values.metricsAdapter.strategy }}
+  strategy:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      {{- with .Values.metricsAdapter.podAnnotations }}
+      annotations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+      {{- include "karmada.metricsAdapter.labels" . | nindent 8 }}
+      {{- include "karmada.metricsAdapter.podLabels" . | indent 8 }}
+    spec:
+      {{- include "karmada.metricsAdapter.imagePullSecrets" . | nindent 6 }}
+      {{- with .Values.metricsAdapter.nodeSelector }}
+      nodeSelector:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.metricsAdapter.affinity }}
+      affinity:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.metricsAdapter.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      automountServiceAccountToken: false
+      containers:
+        - name: {{ $name }}-metrics-adapter
+          image: "{{ template "karmada.search.image" . }}"
+          imagePullPolicy: {{ .Values.metricsAdapter.image.pullPolicy | quote }}
+          volumeMounts:
+            - name: k8s-certs
+              mountPath: /etc/karmada/pki
+              readOnly: true
+            - name: kubeconfig-secret
+              subPath: kubeconfig
+              mountPath: /etc/kubeconfig
+          command:
+            - /bin/karmada-metrics-adapter
+            - --kubeconfig=/etc/kubeconfig
+            - --authentication-kubeconfig=/etc/kubeconfig
+            - --authorization-kubeconfig=/etc/kubeconfig
+            - --client-ca-file=/etc/karmada/pki/ca.crt
+            - --audit-log-path=-
+            - --audit-log-maxage=0
+            - --audit-log-maxbackup=0
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 443
+              scheme: HTTPS
+            initialDelaySeconds: 1
+            failureThreshold: 3
+            periodSeconds: 3
+            timeoutSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 443
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            failureThreshold: 3
+            periodSeconds: 10
+            timeoutSeconds: 15
+          resources:
+            requests:
+          {{- toYaml .Values.apiServer.resources | nindent 12 }}
+      volumes:
+      {{- include "karmada.metricsAdapter.kubeconfig.volume" . | nindent 8 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}-metrics-adapter
+  namespace: {{ include "karmada.namespace" }}
+  labels:
+    app: {{ include "karmada.name" . }}
+    component: metrics-adapter
+    chart: {{ .Chart.Name | quote }}
+    release: {{ .Release.Name | quote }}
+spec:
+  ports:
+    - port: 443
+      protocol: TCP
+      targetPort: 443
+  selector:
+    app: {{ include "karmada.name" . }}
+    component: metrics-adapter
+    release: {{ .Release.Name | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-metrics-adapter-apiservice
+  namespace: {{ include "karmada.namespace" . }}
+data:
+  {{- print "karmada-metrics-adapter-apiservice.yaml: " | nindent 2 }} |-
+    {{- include "karmada.apiservice" . | nindent 4 }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ $name }}-metrics-adapter-post-install"
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+    app.kubernetes.io/instance: {{ $name | quote }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+  annotations:
+    # This is what defines this resource as a hook. Without this line, the
+    # job is considered part of the release.
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  parallelism: 1
+  completions: 1
+  template:
+    metadata:
+      name: {{ $name }}
+      labels:
+        app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+        app.kubernetes.io/instance: {{ $name | quote }}
+        helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: post-install
+          image: {{ template "karmada.kubectl.image" . }}
+          imagePullPolicy: {{ .Values.kubectl.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              bash <<'EOF'
+              set -ex
+              kubectl apply -f /metrics-adapter-apiservice --kubeconfig /etc/kubeconfig
+              EOF
+          volumeMounts:
+            - name: {{ $name }}-metrics-adapter-apiservice
+              mountPath: /metrics-adapter-apiservice
+            {{ include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
+      volumes:
+        - name: {{ $name }}-metrics-adapter-apiservice
+          configMap:
+            name: {{ $name }}-metrics-adapter-apiservice
+        {{ include "karmada.metricsAdapter.kubeconfig.volume" . | nindent 8 }}
+{{- end }}
+
+{{ if .Values.metricsAdapter.podDisruptionBudget }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}-metrics-adapter
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.metricsAdapter.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "karmada.metricsAdapter.labels" . | nindent 6 }}
+  {{ toYaml .Values.metricsAdapter.podDisruptionBudget | nindent 2 }}
+{{- end -}}
+
+{{- end }}
