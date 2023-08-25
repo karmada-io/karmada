@@ -41,8 +41,8 @@ func (p *SpreadConstraint) Filter(
 			return framework.NewResult(framework.Unschedulable, "cluster(s) did not have provider property")
 		} else if spreadConstraint.SpreadByField == policyv1alpha1.SpreadByFieldRegion && cluster.Spec.Region == "" {
 			return framework.NewResult(framework.Unschedulable, "cluster(s) did not have region property")
-		} else if spreadConstraint.SpreadByField == policyv1alpha1.SpreadByFieldZone && cluster.Spec.Zone == "" {
-			return framework.NewResult(framework.Unschedulable, "cluster(s) did not have zone property")
+		} else if spreadConstraint.SpreadByField == policyv1alpha1.SpreadByFieldZone && len(cluster.Spec.Zones) == 0 {
+			return framework.NewResult(framework.Unschedulable, "cluster(s) did not have zones property")
 		}
 	}
 
