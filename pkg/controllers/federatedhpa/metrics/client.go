@@ -32,6 +32,8 @@ import (
 	resourceclient "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
 	customclient "k8s.io/metrics/pkg/client/custom_metrics"
 	externalclient "k8s.io/metrics/pkg/client/external_metrics"
+
+	"github.com/karmada-io/karmada/pkg/metrics"
 )
 
 const (
@@ -64,6 +66,11 @@ type resourceMetricsClient struct {
 // GetResourceMetric gets the given resource metric (and an associated oldest timestamp)
 // for all pods matching the specified selector in the given namespace
 func (c *resourceMetricsClient) GetResourceMetric(ctx context.Context, resource corev1.ResourceName, namespace string, selector labels.Selector, container string) (PodMetricsInfo, time.Time, error) {
+	// observe pull ResourceMetric latency
+	var err error
+	startTime := time.Now()
+	defer metrics.ObserveFederatedHPAPullMetricsLatency(err, "ResourceMetric", startTime)
+
 	metrics, err := c.client.PodMetricses(namespace).List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return nil, time.Time{}, fmt.Errorf("unable to fetch metrics from resource metrics API: %v", err)
@@ -143,6 +150,11 @@ type customMetricsClient struct {
 // GetRawMetric gets the given metric (and an associated oldest timestamp)
 // for all pods matching the specified selector in the given namespace
 func (c *customMetricsClient) GetRawMetric(metricName string, namespace string, selector labels.Selector, metricSelector labels.Selector) (PodMetricsInfo, time.Time, error) {
+	// observe pull RawMetric latency
+	var err error
+	startTime := time.Now()
+	defer metrics.ObserveFederatedHPAPullMetricsLatency(err, "RawMetric", startTime)
+
 	metrics, err := c.client.NamespacedMetrics(namespace).GetForObjects(schema.GroupKind{Kind: "Pod"}, selector, metricName, metricSelector)
 	if err != nil {
 		return nil, time.Time{}, fmt.Errorf("unable to fetch metrics from custom metrics API: %v", err)
@@ -175,9 +187,13 @@ func (c *customMetricsClient) GetRawMetric(metricName string, namespace string, 
 // GetObjectMetric gets the given metric (and an associated timestamp) for the given
 // object in the given namespace
 func (c *customMetricsClient) GetObjectMetric(metricName string, namespace string, objectRef *autoscalingv2.CrossVersionObjectReference, metricSelector labels.Selector) (int64, time.Time, error) {
+	// observe pull ObjectMetric latency
+	var err error
+	startTime := time.Now()
+	defer metrics.ObserveFederatedHPAPullMetricsLatency(err, "ObjectMetric", startTime)
+
 	gvk := schema.FromAPIVersionAndKind(objectRef.APIVersion, objectRef.Kind)
 	var metricValue *customapi.MetricValue
-	var err error
 	if gvk.Kind == "Namespace" && gvk.Group == "" {
 		// handle namespace separately
 		// NB: we ignore namespace name here, since CrossVersionObjectReference isn't
@@ -203,6 +219,11 @@ type externalMetricsClient struct {
 // GetExternalMetric gets all the values of a given external metric
 // that match the specified selector.
 func (c *externalMetricsClient) GetExternalMetric(metricName, namespace string, selector labels.Selector) ([]int64, time.Time, error) {
+	// observe pull ExternalMetric latency
+	var err error
+	startTime := time.Now()
+	defer metrics.ObserveFederatedHPAPullMetricsLatency(err, "ExternalMetric", startTime)
+
 	metrics, err := c.client.NamespacedMetrics(namespace).List(metricName, selector)
 	if err != nil {
 		return []int64{}, time.Time{}, fmt.Errorf("unable to fetch metrics from external metrics API: %v", err)

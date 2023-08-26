@@ -35,6 +35,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/controllers/federatedhpa/monitor"
+	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/typedmanager"
@@ -155,7 +156,12 @@ func (c *FederatedHPAController) Reconcile(ctx context.Context, req controllerru
 	}
 	c.hpaSelectorsMux.Unlock()
 
-	err := c.reconcileAutoscaler(ctx, hpa)
+	// observe process FederatedHPA latency
+	var err error
+	startTime := time.Now()
+	defer metrics.ObserveProcessFederatedHPALatency(err, startTime)
+
+	err = c.reconcileAutoscaler(ctx, hpa)
 	if err != nil {
 		return controllerruntime.Result{}, err
 	}
