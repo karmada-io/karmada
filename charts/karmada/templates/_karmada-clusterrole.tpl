@@ -1,3 +1,4 @@
+{{- define "karmada.clusterrole" -}}
 # This configuration is used to grant the admin clusterrole read
 # and write permissions for Karmada resources.
 
@@ -147,3 +148,4 @@ rules:
       - deletecollection
       - patch
       - update
+{{- end -}}
