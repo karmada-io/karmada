@@ -151,7 +151,7 @@ func IsBindingScheduled(status *workv1alpha2.ResourceBindingStatus) bool {
 
 // ObtainBindingSpecExistingClusters will obtain the cluster slice existing in the binding's spec field.
 func ObtainBindingSpecExistingClusters(bindingSpec workv1alpha2.ResourceBindingSpec) sets.Set[string] {
-	clusterNames := util.ConvertToClusterNames(bindingSpec.Clusters)
+	clusterNames := util.ConvertFromTargetClustersToStringSet(bindingSpec.Clusters)
 	for _, binding := range bindingSpec.RequiredBy {
 		for _, targetCluster := range binding.Clusters {
 			clusterNames.Insert(targetCluster.Name)

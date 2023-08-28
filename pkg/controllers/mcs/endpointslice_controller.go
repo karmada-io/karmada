@@ -26,12 +26,6 @@ import (
 // EndpointSliceControllerName is the controller name that will be used when reporting events.
 const EndpointSliceControllerName = "endpointslice-controller"
 
-const (
-	mcsDiscoveryAnnotationKey = "discovery.karmada.io/strategy"
-
-	mcsDiscoveryRemoteAndLocalStrategy = "RemoteAndLocal"
-)
-
 // EndpointSliceController is to collect EndpointSlice which reported by member cluster
 // from executionNamespace to serviceexport namespace.
 type EndpointSliceController struct {
