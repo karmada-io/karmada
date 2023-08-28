@@ -890,11 +890,12 @@ func NewPodDisruptionBudget(namespace, name string, maxUnAvailable intstr.IntOrS
 }
 
 // NewWork will build a new Work object.
-func NewWork(workName, workNs string, raw []byte) *workv1alpha1.Work {
+func NewWork(workName, workNs, workUID string, raw []byte) *workv1alpha1.Work {
 	work := &workv1alpha1.Work{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      workName,
 			Namespace: workNs,
+			UID:       types.UID(workUID),
 		},
 		Spec: workv1alpha1.WorkSpec{
 			Workload: workv1alpha1.WorkloadTemplate{

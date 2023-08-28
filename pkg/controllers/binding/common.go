@@ -95,7 +95,7 @@ func ensureWork(
 		}
 		workLabel := mergeLabel(clonedWorkload, workNamespace, binding, scope)
 
-		annotations := mergeAnnotations(clonedWorkload, binding, scope)
+		annotations := mergeAnnotations(clonedWorkload, workNamespace, binding, scope)
 		annotations = mergeConflictResolution(clonedWorkload, conflictResolutionInBinding, annotations)
 		annotations, err = RecordAppliedOverrides(cops, ops, annotations)
 		if err != nil {
@@ -144,16 +144,23 @@ func mergeLabel(workload *unstructured.Unstructured, workNamespace string, bindi
 	util.MergeLabel(workload, util.ManagedByKarmadaLabel, util.ManagedByKarmadaLabelValue)
 	if scope == apiextensionsv1.NamespaceScoped {
 		util.MergeLabel(workload, workv1alpha2.ResourceBindingReferenceKey, names.GenerateBindingReferenceKey(binding.GetNamespace(), binding.GetName()))
+		util.MergeLabel(workload, workv1alpha2.ResourceBindingUIDLabel, string(binding.GetUID()))
 		workLabel[workv1alpha2.ResourceBindingReferenceKey] = names.GenerateBindingReferenceKey(binding.GetNamespace(), binding.GetName())
+		workLabel[workv1alpha2.ResourceBindingUIDLabel] = string(binding.GetUID())
 	} else {
 		util.MergeLabel(workload, workv1alpha2.ClusterResourceBindingReferenceKey, names.GenerateBindingReferenceKey("", binding.GetName()))
+		util.MergeLabel(workload, workv1alpha2.ClusterResourceBindingUIDLabel, string(binding.GetUID()))
 		workLabel[workv1alpha2.ClusterResourceBindingReferenceKey] = names.GenerateBindingReferenceKey("", binding.GetName())
+		workLabel[workv1alpha2.ClusterResourceBindingUIDLabel] = string(binding.GetUID())
 	}
 	return workLabel
 }
 
-func mergeAnnotations(workload *unstructured.Unstructured, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
+func mergeAnnotations(workload *unstructured.Unstructured, workNamespace string, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
 	annotations := make(map[string]string)
+	util.MergeAnnotation(workload, workv1alpha2.WorkNameAnnotation, names.GenerateWorkName(workload.GetKind(), workload.GetName(), workload.GetNamespace()))
+	util.MergeAnnotation(workload, workv1alpha2.WorkNamespaceAnnotation, workNamespace)
+
 	if scope == apiextensionsv1.NamespaceScoped {
 		util.MergeAnnotation(workload, workv1alpha2.ResourceBindingNamespaceAnnotationKey, binding.GetNamespace())
 		util.MergeAnnotation(workload, workv1alpha2.ResourceBindingNameAnnotationKey, binding.GetName())

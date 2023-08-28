@@ -97,3 +97,15 @@ func RecordManagedAnnotations(object *unstructured.Unstructured) {
 	annotations[workv1alpha2.ManagedAnnotation] = strings.Join(managedKeys, ",")
 	object.SetAnnotations(annotations)
 }
+
+// DedupeAndMergeAnnotations merges the new annotations into exist annotations.
+func DedupeAndMergeAnnotations(existAnnotation, newAnnotation map[string]string) map[string]string {
+	if existAnnotation == nil {
+		return newAnnotation
+	}
+
+	for k, v := range newAnnotation {
+		existAnnotation[k] = v
+	}
+	return existAnnotation
+}
