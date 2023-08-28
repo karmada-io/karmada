@@ -1,128 +1,79 @@
 package spreadconstraint
 
 import (
-	"fmt"
+	"errors"
 	"reflect"
+	"sort"
+	"strings"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 )
 
-// NewClusterWithTopology will build a Cluster with topology.
-func NewClusterWithTopology(name, provider, region, zone string) *clusterv1alpha1.Cluster {
-	return &clusterv1alpha1.Cluster{
-		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Spec: clusterv1alpha1.ClusterSpec{
-			Provider: provider,
-			Region:   region,
-			Zone:     zone,
-		},
+var calcFunc calcAvailableReplicasFunc = func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
+	tc := make([]workv1alpha2.TargetCluster, 0, len(clusters))
+	for i, cluster := range clusters {
+		tc = append(tc, workv1alpha2.TargetCluster{
+			Name:     cluster.Name,
+			Replicas: 10 << i,
+		})
 	}
+	return tc
 }
 
-func generateClusterInfo() []ClusterDetailInfo {
-	return []ClusterDetailInfo{
-		{
-			Name:              "member4",
-			Score:             60,
-			AvailableReplicas: 50,
-			Cluster:           NewClusterWithTopology("member4", "P2", "R2", "Z2"),
-		},
-		{
-			Name:              "member2",
-			Score:             40,
-			AvailableReplicas: 60,
-			Cluster:           NewClusterWithTopology("member2", "P1", "R1", "Z2"),
-		},
-		{
-			Name:              "member3",
-			Score:             30,
-			AvailableReplicas: 80,
-			Cluster:           NewClusterWithTopology("member3", "P2", "R1", "Z1"),
-		},
-		{
-			Name:              "member1",
-			Score:             20,
-			AvailableReplicas: 40,
-			Cluster:           NewClusterWithTopology("member1", "P1", "R1", "Z1"),
-		},
-	}
-}
-
-func TestSelectBestClusters(t *testing.T) {
-	clusterInfos := generateClusterInfo()
-	type args struct {
-		placement         *policyv1alpha1.Placement
-		groupClustersInfo *GroupClustersInfo
-		needReplicas      int32
-	}
+func TestSelectClusters(t *testing.T) {
 	tests := []struct {
-		name    string
-		args    args
-		want    []*clusterv1alpha1.Cluster
-		wantErr error
+		name             string
+		clusterScores    framework.ClusterScoreList
+		rbSpec           *workv1alpha2.ResourceBindingSpec
+		expectedErr      error
+		expectedClusters []string
 	}{
 		{
-			name: "select clusters by cluster score",
-			args: args{
-				placement: &policyv1alpha1.Placement{
-					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
-						{
-							SpreadByField: policyv1alpha1.SpreadByFieldCluster,
-							MaxGroups:     2,
-							MinGroups:     1,
+			name: "empty spread constraints",
+			clusterScores: framework.ClusterScoreList{
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C1",
 						},
 					},
+					Score: 90,
 				},
-				groupClustersInfo: &GroupClustersInfo{
-					Clusters: clusterInfos,
-				},
-				needReplicas: 100,
 			},
-			want: []*clusterv1alpha1.Cluster{
-				clusterInfos[0].Cluster,
-				clusterInfos[1].Cluster,
+			rbSpec: &workv1alpha2.ResourceBindingSpec{
+				Placement: &policyv1alpha1.Placement{},
 			},
+			expectedErr:      nil,
+			expectedClusters: []string{"C1"},
 		},
 		{
-			name: "select clusters by cluster score and ignore available resources when scheduling strategy is duplicated",
-			args: args{
-				placement: &policyv1alpha1.Placement{
-					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
-						{
-							SpreadByField: policyv1alpha1.SpreadByFieldCluster,
-							MaxGroups:     2,
-							MinGroups:     1,
+			name: "static weighted schedule strategy",
+			clusterScores: framework.ClusterScoreList{
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C1",
 						},
 					},
-					ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-						ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDuplicated,
-					},
+					Score: 90,
 				},
-				groupClustersInfo: &GroupClustersInfo{
-					Clusters: clusterInfos,
-				},
-				needReplicas: 120,
-			},
-			want: []*clusterv1alpha1.Cluster{
-				clusterInfos[0].Cluster,
-				clusterInfos[1].Cluster,
-			},
-		},
-		{
-			name: "select clusters by cluster score and ignore available resources when scheduling strategy is static weight",
-			args: args{
-				placement: &policyv1alpha1.Placement{
-					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
-						{
-							SpreadByField: policyv1alpha1.SpreadByFieldCluster,
-							MaxGroups:     2,
-							MinGroups:     1,
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C2",
 						},
 					},
+					Score: 90,
+				},
+			},
+			rbSpec: &workv1alpha2.ResourceBindingSpec{
+				Placement: &policyv1alpha1.Placement{
 					ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
 						ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
 						ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
@@ -130,30 +81,91 @@ func TestSelectBestClusters(t *testing.T) {
 							StaticWeightList: []policyv1alpha1.StaticClusterWeight{
 								{
 									TargetCluster: policyv1alpha1.ClusterAffinity{
-										ClusterNames: []string{"member1"},
+										ClusterNames: []string{"C1", "C2"},
 									},
-									Weight: 2,
+									Weight: 1,
 								},
 							},
 						},
 					},
 				},
-				groupClustersInfo: &GroupClustersInfo{
-					Clusters: clusterInfos,
-				},
-				needReplicas: 120,
 			},
-			want: []*clusterv1alpha1.Cluster{
-				clusterInfos[0].Cluster,
-				clusterInfos[1].Cluster,
-				clusterInfos[2].Cluster,
-				clusterInfos[3].Cluster,
-			},
+			expectedErr:      nil,
+			expectedClusters: []string{"C1", "C2"},
 		},
 		{
-			name: "select clusters by cluster score and satisfy available resources",
-			args: args{
-				placement: &policyv1alpha1.Placement{
+			name: "spread by cluster with duplicated schedule strategy",
+			clusterScores: framework.ClusterScoreList{
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C1",
+						},
+					},
+					Score: 90,
+				},
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C2",
+						},
+					},
+					Score: 90,
+				},
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C3",
+						},
+					},
+					Score: 100,
+				},
+			},
+			rbSpec: &workv1alpha2.ResourceBindingSpec{
+				Placement: &policyv1alpha1.Placement{
+					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+							MaxGroups:     2,
+							MinGroups:     1,
+						},
+					},
+				},
+			},
+			expectedErr:      nil,
+			expectedClusters: []string{"C1", "C3"},
+		},
+		{
+			name: "spread by cluster without duplicated schedule strategy",
+			clusterScores: framework.ClusterScoreList{
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C1",
+						},
+					},
+					Score: 50,
+				},
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C2",
+						},
+					},
+					Score: 40,
+				},
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C3",
+						},
+					},
+					Score: 90,
+				},
+			},
+			rbSpec: &workv1alpha2.ResourceBindingSpec{
+				Replicas: 60,
+				Placement: &policyv1alpha1.Placement{
 					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
 						{
 							SpreadByField: policyv1alpha1.SpreadByFieldCluster,
@@ -165,70 +177,384 @@ func TestSelectBestClusters(t *testing.T) {
 						ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided,
 					},
 				},
-				groupClustersInfo: &GroupClustersInfo{
-					Clusters: clusterInfos,
-				},
-				needReplicas: 120,
 			},
-			want: []*clusterv1alpha1.Cluster{
-				clusterInfos[0].Cluster,
-				clusterInfos[2].Cluster,
-			},
+			expectedErr:      nil,
+			expectedClusters: []string{"C2", "C3"},
 		},
 		{
-			name: "select clusters by cluster score and insufficient resources",
-			args: args{
-				placement: &policyv1alpha1.Placement{
+			name: "spread by label is not supported now",
+			clusterScores: framework.ClusterScoreList{
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C1",
+						},
+					},
+					Score: 90,
+				},
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C2",
+						},
+					},
+					Score: 90,
+				},
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C3",
+						},
+					},
+					Score: 100,
+				},
+			},
+			rbSpec: &workv1alpha2.ResourceBindingSpec{
+				Placement: &policyv1alpha1.Placement{
+					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+						{
+							SpreadByLabel: "example.io/env",
+							MaxGroups:     2,
+							MinGroups:     1,
+						},
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+							MaxGroups:     2,
+							MinGroups:     1,
+						},
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldProvider,
+							MaxGroups:     2,
+							MinGroups:     1,
+						},
+					},
+				},
+			},
+			expectedErr:      errors.New("label:example.io/env spread is not supported now"),
+			expectedClusters: nil,
+		},
+		{
+			name: "spread constraints not be satisfied",
+			clusterScores: framework.ClusterScoreList{
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C1",
+						},
+						Spec: clusterv1alpha1.ClusterSpec{
+							Region: "R1",
+						},
+					},
+					Score: 90,
+				},
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C2",
+						},
+						Spec: clusterv1alpha1.ClusterSpec{
+							Region: "R1",
+						},
+					},
+					Score: 90,
+				},
+			},
+			rbSpec: &workv1alpha2.ResourceBindingSpec{
+				Placement: &policyv1alpha1.Placement{
 					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
 						{
 							SpreadByField: policyv1alpha1.SpreadByFieldCluster,
 							MaxGroups:     2,
 							MinGroups:     1,
 						},
-					},
-					ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-						ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided,
-					},
-				},
-				groupClustersInfo: &GroupClustersInfo{
-					Clusters: clusterInfos,
-				},
-				needReplicas: 200,
-			},
-			want:    nil,
-			wantErr: fmt.Errorf("no enough resource when selecting %d clusters", 2),
-		},
-		{
-			name: "select clusters by cluster score and exceeded the number of available clusters.",
-			args: args{
-				placement: &policyv1alpha1.Placement{
-					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
 						{
-							SpreadByField: policyv1alpha1.SpreadByFieldCluster,
-							MaxGroups:     7,
-							MinGroups:     7,
+							SpreadByField: policyv1alpha1.SpreadByFieldRegion,
+							MaxGroups:     2,
+							MinGroups:     2,
 						},
 					},
 				},
-				groupClustersInfo: &GroupClustersInfo{
-					Clusters: clusterInfos,
-				},
-				needReplicas: 30,
 			},
-			want:    nil,
-			wantErr: fmt.Errorf("the number of feasible clusters is less than spreadConstraint.MinGroups"),
+			expectedErr:      errors.New("available number 1 is less than region minimum requirement 2"),
+			expectedClusters: nil,
+		},
+		{
+			name: "spread by zone",
+			clusterScores: framework.ClusterScoreList{
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C1",
+						},
+						Spec: clusterv1alpha1.ClusterSpec{
+							Zone: "Z1",
+						},
+					},
+					Score: 90,
+				},
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C2",
+						},
+						Spec: clusterv1alpha1.ClusterSpec{
+							Zone: "Z1",
+						},
+					},
+					Score: 90,
+				},
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C3",
+						},
+						Spec: clusterv1alpha1.ClusterSpec{
+							Zone: "Z2",
+						},
+					},
+					Score: 90,
+				},
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C4",
+						},
+						Spec: clusterv1alpha1.ClusterSpec{
+							Zone: "Z2",
+						},
+					},
+					Score: 90,
+				},
+			},
+			rbSpec: &workv1alpha2.ResourceBindingSpec{
+				Placement: &policyv1alpha1.Placement{
+					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+							MaxGroups:     5,
+							MinGroups:     3,
+						},
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldZone,
+							MaxGroups:     2,
+							MinGroups:     2,
+						},
+					},
+				},
+			},
+			expectedErr:      nil,
+			expectedClusters: []string{"C1", "C2", "C3", "C4"},
+		},
+		{
+			name: "spread by region",
+			clusterScores: framework.ClusterScoreList{
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C1",
+						},
+						Spec: clusterv1alpha1.ClusterSpec{
+							Zone:   "Z1",
+							Region: "R1",
+						},
+					},
+					Score: 90,
+				},
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C2",
+						},
+						Spec: clusterv1alpha1.ClusterSpec{
+							Zone:   "Z2",
+							Region: "R1",
+						},
+					},
+					Score: 90,
+				},
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C3",
+						},
+						Spec: clusterv1alpha1.ClusterSpec{
+							Zone:   "Z3",
+							Region: "R2",
+						},
+					},
+					Score: 90,
+				},
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C4",
+						},
+						Spec: clusterv1alpha1.ClusterSpec{
+							Zone:   "Z4",
+							Region: "R3",
+						},
+					},
+					Score: 90,
+				},
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C5",
+						},
+						Spec: clusterv1alpha1.ClusterSpec{
+							Zone:   "Z5",
+							Region: "R4",
+						},
+					},
+					Score: 90,
+				},
+			},
+			rbSpec: &workv1alpha2.ResourceBindingSpec{
+				Placement: &policyv1alpha1.Placement{
+					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+							MaxGroups:     5,
+							MinGroups:     3,
+						},
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldZone,
+							MaxGroups:     6,
+							MinGroups:     4,
+						},
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldRegion,
+							MaxGroups:     4,
+							MinGroups:     3,
+						},
+					},
+				},
+			},
+			expectedErr:      nil,
+			expectedClusters: []string{"C1", "C2", "C3", "C4"},
+		},
+		{
+			name: "spread by provider",
+			clusterScores: framework.ClusterScoreList{
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C1",
+						},
+						Spec: clusterv1alpha1.ClusterSpec{
+							Zone:     "Z1",
+							Region:   "R1",
+							Provider: "P1",
+						},
+					},
+					Score: 90,
+				},
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C2",
+						},
+						Spec: clusterv1alpha1.ClusterSpec{
+							Zone:     "Z2",
+							Region:   "R1",
+							Provider: "P1",
+						},
+					},
+					Score: 50,
+				},
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C3",
+						},
+						Spec: clusterv1alpha1.ClusterSpec{
+							Zone:     "Z3",
+							Region:   "R2",
+							Provider: "P2",
+						},
+					},
+					Score: 30,
+				},
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C4",
+						},
+						Spec: clusterv1alpha1.ClusterSpec{
+							Zone:     "Z4",
+							Region:   "R3",
+							Provider: "P2",
+						},
+					},
+					Score: 70,
+				},
+				{
+					Cluster: &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "C5",
+						},
+						Spec: clusterv1alpha1.ClusterSpec{
+							Zone:     "Z5",
+							Region:   "R4",
+							Provider: "P3",
+						},
+					},
+					Score: 80,
+				},
+			},
+			rbSpec: &workv1alpha2.ResourceBindingSpec{
+				Placement: &policyv1alpha1.Placement{
+					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+							MaxGroups:     5,
+							MinGroups:     3,
+						},
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldZone,
+							MaxGroups:     6,
+							MinGroups:     4,
+						},
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldRegion,
+							MaxGroups:     4,
+							MinGroups:     3,
+						},
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldProvider,
+							MaxGroups:     3,
+							MinGroups:     2,
+						},
+					},
+				},
+			},
+			expectedErr:      nil,
+			expectedClusters: []string{"C1", "C2", "C3", "C4", "C5"},
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := SelectBestClusters(tt.args.placement, tt.args.groupClustersInfo, tt.args.needReplicas)
-			if err != nil && err.Error() != tt.wantErr.Error() {
-				t.Errorf("SelectBestClusters() error = %v, wantErr = %v", err, tt.wantErr)
-				return
+			clusters, err := SelectClusters(tt.clusterScores, tt.rbSpec, calcFunc)
+			if tt.expectedErr != nil && err == nil {
+				t.Errorf("expected err: %v, but did not get err", tt.expectedErr)
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SelectBestClusters() = %v, want %v", got, tt.want)
+			if tt.expectedErr == nil && err != nil {
+				t.Errorf("expected no err, but got err: %v", err)
+			}
+			if tt.expectedErr != nil && err != nil && !strings.Contains(err.Error(), tt.expectedErr.Error()) {
+				t.Errorf("expected err: %v, but got err: %v", tt.expectedErr, err)
+			}
+
+			var clusterNames []string
+			for _, c := range clusters {
+				clusterNames = append(clusterNames, c.Name)
+			}
+			// shouldn't care about the order of clusters
+			sort.Slice(clusterNames, func(i, j int) bool {
+				return clusterNames[i] < clusterNames[j]
+			})
+			if len(clusterNames) != len(tt.expectedClusters) || (len(clusterNames) > 0 && !reflect.DeepEqual(tt.expectedClusters, clusterNames)) {
+				t.Errorf("expected: %v, but got %v", tt.expectedClusters, clusterNames)
 			}
 		})
 	}
