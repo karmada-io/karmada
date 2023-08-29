@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
@@ -274,6 +275,15 @@ func (d *ResourceDetector) EventFilter(obj interface{}) bool {
 		case corev1.SchemeGroupVersion.WithKind("Secret"):
 			secretType, found, _ := unstructured.NestedString(unstructObj.Object, "type")
 			if found && secretType == string(corev1.SecretTypeServiceAccountToken) {
+				return false
+			}
+		// The configmap and endpoints for leader election should be prevented from propagating.
+		case corev1.SchemeGroupVersion.WithKind("ConfigMap"):
+			if _, ok := unstructObj.GetAnnotations()[resourcelock.LeaderElectionRecordAnnotationKey]; ok {
+				return false
+			}
+		case corev1.SchemeGroupVersion.WithKind("Endpoints"):
+			if _, ok := unstructObj.GetAnnotations()[resourcelock.LeaderElectionRecordAnnotationKey]; ok {
 				return false
 			}
 		}
