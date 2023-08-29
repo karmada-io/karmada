@@ -526,7 +526,7 @@ kubeControllerManager:
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 50%
-  controllers: namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrapproving,csrcleaner,csrsigning
+  controllers: namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrapproving,csrcleaner,csrsigning,clusterrole-aggregation
   ## @param apiServer.podDisruptionBudget
   podDisruptionBudget: *podDisruptionBudget
 

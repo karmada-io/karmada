@@ -135,7 +135,8 @@ data:
     {{- include "karmada.proxyRbac" . | nindent 8 }}
   {{- print "bootstrap-token-configuration.yaml: " | nindent 6 }} |-
     {{- include "karmada.bootstrapToken.configuration" . | nindent 8 }}
-
+  {{- print "clusterrole.yaml: " | nindent 6 }} |-
+    {{- include "karmada.clusterrole" . | nindent 8 }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -242,6 +243,8 @@ data:
         {{- include "karmada.proxyRbac" . | nindent 8 }}
       {{- print "bootstrap-token-configuration.yaml: " | nindent 6 }} |-
         {{- include "karmada.bootstrapToken.configuration" . | nindent 8 }}
+      {{- print "clusterrole.yaml: " | nindent 6 }} |-
+        {{- include "karmada.clusterrole" . | nindent 8 }}
   crds-patches-configmaps.yaml: |-
     apiVersion: v1
     kind: ConfigMap
