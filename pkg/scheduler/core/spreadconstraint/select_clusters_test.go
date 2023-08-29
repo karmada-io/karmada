@@ -18,7 +18,7 @@ func NewClusterWithTopology(name, provider, region, zone string) *clusterv1alpha
 		Spec: clusterv1alpha1.ClusterSpec{
 			Provider: provider,
 			Region:   region,
-			Zone:     zone,
+			Zones:    []string{zone},
 		},
 	}
 }
