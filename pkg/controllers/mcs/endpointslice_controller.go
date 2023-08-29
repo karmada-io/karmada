@@ -13,11 +13,15 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -30,7 +34,8 @@ const EndpointSliceControllerName = "endpointslice-controller"
 // from executionNamespace to serviceexport namespace.
 type EndpointSliceController struct {
 	client.Client
-	EventRecorder record.EventRecorder
+	EventRecorder      record.EventRecorder
+	RateLimiterOptions ratelimiterflag.Options
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -60,9 +65,36 @@ func (c *EndpointSliceController) Reconcile(ctx context.Context, req controllerr
 	return controllerruntime.Result{}, c.unBoxingEndpointSlice(work)
 }
 
+func (c *EndpointSliceController) endpointSliceMapFunc() handler.MapFunc {
+	return func(ctx context.Context, object client.Object) []reconcile.Request {
+		var requests []reconcile.Request
+
+		workList := &workv1alpha1.WorkList{}
+		if err := c.List(context.TODO(), workList, &client.ListOptions{
+			LabelSelector: labels.SelectorFromSet(labels.Set{
+				util.ServiceNamespaceLabel: object.GetNamespace(),
+				util.ServiceNameLabel:      object.GetName(),
+			}),
+		}); err != nil {
+			klog.ErrorS(err, "failed to list works reported by member clusters and relate with Service",
+				"Namespace", object.GetNamespace(), "Name", object.GetName())
+			return nil
+		}
+
+		for _, work := range workList.Items {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: work.Namespace,
+					Name:      work.Name,
+				}})
+		}
+		return requests
+	}
+}
+
 // SetupWithManager creates a controller and register to controller manager.
 func (c *EndpointSliceController) SetupWithManager(mgr controllerruntime.Manager) error {
-	serviceImportPredicateFun := predicate.Funcs{
+	workPredicateFun := predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			return util.GetLabelValue(createEvent.Object.GetLabels(), util.ServiceNameLabel) != ""
 		},
@@ -76,7 +108,12 @@ func (c *EndpointSliceController) SetupWithManager(mgr controllerruntime.Manager
 			return false
 		},
 	}
-	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{}, builder.WithPredicates(serviceImportPredicateFun)).Complete(c)
+	return controllerruntime.NewControllerManagedBy(mgr).
+		For(&workv1alpha1.Work{}, builder.WithPredicates(workPredicateFun)).
+		Watches(&networkingv1alpha1.MultiClusterService{}, handler.EnqueueRequestsFromMapFunc(c.endpointSliceMapFunc())).
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
+		Complete(c)
 }
 
 func (c *EndpointSliceController) unBoxingEndpointSlice(work *workv1alpha1.Work) error {
@@ -107,11 +144,15 @@ func (c *EndpointSliceController) unBoxingEndpointSlice(work *workv1alpha1.Work)
 		mcs := &networkingv1alpha1.MultiClusterService{}
 		err = c.Get(context.TODO(), mcsNamespacedName, mcs)
 		if err != nil {
-			klog.Errorf("Failed to get ref MultiClusterService(%s): %v", mcsNamespacedName.String(), err)
-			return err
+			if apierrors.IsNotFound(err) {
+				mcs = nil
+			} else {
+				klog.Errorf("Failed to get ref MultiClusterService(%s): %v", mcsNamespacedName.String(), err)
+				return err
+			}
 		}
 
-		desiredEndpointSlice := deriveEndpointSlice(endpointSlice, clusterName, mcs)
+		desiredEndpointSlice := deriveEndpointSlice(endpointSlice, clusterName, mcs, work)
 		if err = helper.CreateOrUpdateEndpointSlice(c.Client, desiredEndpointSlice); err != nil {
 			return err
 		}
@@ -120,18 +161,27 @@ func (c *EndpointSliceController) unBoxingEndpointSlice(work *workv1alpha1.Work)
 	return nil
 }
 
-func deriveEndpointSlice(eps *discoveryv1.EndpointSlice, cluster string, mcs *networkingv1alpha1.MultiClusterService) *discoveryv1.EndpointSlice {
+func deriveEndpointSlice(
+	eps *discoveryv1.EndpointSlice,
+	cluster string,
+	mcs *networkingv1alpha1.MultiClusterService,
+	work *workv1alpha1.Work,
+) *discoveryv1.EndpointSlice {
 	eps.Name = names.GenerateEndpointSliceName(eps.Name, cluster)
 	eps.Labels = map[string]string{
-		discoveryv1.LabelServiceName: labelServiceName(mcs),
+		workv1alpha1.WorkNamespaceLabel: work.Namespace,
+		workv1alpha1.WorkNameLabel:      work.Name,
+		discoveryv1.LabelServiceName:    getServiceName(mcs, work.Labels[util.ServiceNameLabel]),
 	}
 	return eps
 }
 
-func labelServiceName(mcs *networkingv1alpha1.MultiClusterService) string {
-	strategy, exist := mcs.Annotations[mcsDiscoveryAnnotationKey]
-	if exist && strategy == mcsDiscoveryRemoteAndLocalStrategy {
-		return mcs.Name
+func getServiceName(mcs *networkingv1alpha1.MultiClusterService, svcName string) string {
+	if mcs != nil {
+		strategy, exist := mcs.Annotations[mcsDiscoveryAnnotationKey]
+		if exist && strategy == mcsDiscoveryRemoteAndLocalStrategy {
+			return mcs.Name
+		}
 	}
-	return names.GenerateDerivedServiceName(mcs.Name)
+	return names.GenerateDerivedServiceName(svcName)
 }

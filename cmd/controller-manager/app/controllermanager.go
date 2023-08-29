@@ -425,6 +425,7 @@ func startServiceExportController(ctx controllerscontext.Context) (enabled bool,
 	serviceExportController := &mcs.ServiceExportController{
 		Client:                      ctx.Mgr.GetClient(),
 		EventRecorder:               ctx.Mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
+		RateLimiterOptions:          ctx.Opts.RateLimiterOptions,
 		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
 		InformerManager:             genericmanager.GetInstance(),
 		StopChan:                    ctx.StopChan,
@@ -442,8 +443,9 @@ func startServiceExportController(ctx controllerscontext.Context) (enabled bool,
 
 func startEndpointSliceController(ctx controllerscontext.Context) (enabled bool, err error) {
 	endpointSliceController := &mcs.EndpointSliceController{
-		Client:        ctx.Mgr.GetClient(),
-		EventRecorder: ctx.Mgr.GetEventRecorderFor(mcs.EndpointSliceControllerName),
+		Client:             ctx.Mgr.GetClient(),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(mcs.EndpointSliceControllerName),
+		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err := endpointSliceController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -453,8 +455,9 @@ func startEndpointSliceController(ctx controllerscontext.Context) (enabled bool,
 
 func startServiceImportController(ctx controllerscontext.Context) (enabled bool, err error) {
 	serviceImportController := &mcs.ServiceImportController{
-		Client:        ctx.Mgr.GetClient(),
-		EventRecorder: ctx.Mgr.GetEventRecorderFor(mcs.ServiceImportControllerName),
+		Client:             ctx.Mgr.GetClient(),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(mcs.ServiceImportControllerName),
+		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err := serviceImportController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err

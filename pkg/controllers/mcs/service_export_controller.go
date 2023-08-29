@@ -22,11 +22,13 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
@@ -42,6 +44,7 @@ const ServiceExportControllerName = "service-export-controller"
 type ServiceExportController struct {
 	client.Client
 	EventRecorder               record.EventRecorder
+	RateLimiterOptions          ratelimiterflag.Options
 	RESTMapper                  meta.RESTMapper
 	StopChan                    <-chan struct{}
 	InformerManager             genericmanager.MultiClusterInformerManager
@@ -126,7 +129,10 @@ func isWorkContains(manifests []workv1alpha1.Manifest, targetResource schema.Gro
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ServiceExportController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{}, builder.WithPredicates(c.PredicateFunc)).Complete(c)
+	return controllerruntime.NewControllerManagedBy(mgr).
+		For(&workv1alpha1.Work{}, builder.WithPredicates(c.PredicateFunc)).
+		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
+		Complete(c)
 }
 
 // RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
