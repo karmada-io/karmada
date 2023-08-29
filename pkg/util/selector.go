@@ -1,9 +1,12 @@
 package util
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/klog/v2"
+	"k8s.io/utils/strings/slices"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -105,14 +108,31 @@ func ClusterMatches(cluster *clusterv1alpha1.Cluster, affinity policyv1alpha1.Cl
 	}
 
 	if affinity.FieldSelector != nil {
-		var matchFields labels.Selector
-		var errs []error
-		if matchFields, errs = lifted.NodeSelectorRequirementsAsSelector(affinity.FieldSelector.MatchExpressions); errs != nil {
-			return false
+		var clusterFieldsMatchExpressions []corev1.NodeSelectorRequirement
+		for i := range affinity.FieldSelector.MatchExpressions {
+			matchExpression := &affinity.FieldSelector.MatchExpressions[i]
+			if matchExpression.Key != ZoneField {
+				clusterFieldsMatchExpressions = append(clusterFieldsMatchExpressions, *matchExpression)
+				continue
+			}
+
+			// First, match zones field.
+			if !matchZones(matchExpression, cluster.Spec.Zones) {
+				return false
+			}
 		}
-		clusterFields := extractClusterFields(cluster)
-		if matchFields != nil && !matchFields.Matches(clusterFields) {
-			return false
+
+		if len(clusterFieldsMatchExpressions) > 0 {
+			// Second, match other fields.
+			var matchFields labels.Selector
+			var errs []error
+			if matchFields, errs = lifted.NodeSelectorRequirementsAsSelector(clusterFieldsMatchExpressions); errs != nil {
+				return false
+			}
+			clusterFields := extractClusterFields(cluster)
+			if matchFields != nil && !matchFields.Matches(clusterFields) {
+				return false
+			}
 		}
 	}
 
@@ -165,9 +185,41 @@ func extractClusterFields(cluster *clusterv1alpha1.Cluster) labels.Set {
 		clusterFieldsMap[RegionField] = cluster.Spec.Region
 	}
 
-	if cluster.Spec.Zone != "" {
-		clusterFieldsMap[ZoneField] = cluster.Spec.Zone
-	}
-
 	return clusterFieldsMap
+}
+
+// matchZones checks if zoneMatchExpression can match zones and returns true if it matches.
+// For unknown operators, matchZones always returns false.
+// The matching rules are as follows:
+// 1. When the operator is "In", zoneMatchExpression must contain all zones, otherwise it doesn't match.
+// 2. When the operator is "NotIn", zoneMatchExpression mustn't contain any one of zones, otherwise it doesn't match.
+// 3. When the operator is "Exists", zones mustn't be empty, otherwise it doesn't match.
+// 4. When the operator is "DoesNotExist", zones must be empty, otherwise it doesn't match.
+func matchZones(zoneMatchExpression *corev1.NodeSelectorRequirement, zones []string) bool {
+	switch zoneMatchExpression.Operator {
+	case corev1.NodeSelectorOpIn:
+		if len(zones) == 0 {
+			return false
+		}
+		for _, zone := range zones {
+			if !slices.Contains(zoneMatchExpression.Values, zone) {
+				return false
+			}
+		}
+		return true
+	case corev1.NodeSelectorOpNotIn:
+		for _, zone := range zones {
+			if slices.Contains(zoneMatchExpression.Values, zone) {
+				return false
+			}
+		}
+		return true
+	case corev1.NodeSelectorOpExists:
+		return len(zones) > 0
+	case corev1.NodeSelectorOpDoesNotExist:
+		return len(zones) == 0
+	default:
+		klog.V(5).Infof("Unsupported %q operator for zones requirement", zoneMatchExpression.Operator)
+		return false
+	}
 }

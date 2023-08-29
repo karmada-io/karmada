@@ -297,7 +297,7 @@ func TestClusterMatches(t *testing.T) {
 			},
 		},
 		Spec: clusterv1alpha1.ClusterSpec{
-			Zone:     "zone1",
+			Zones:    []string{"zone1", "zone2", "zone3"},
 			Region:   "region1",
 			Provider: "provider1",
 		},
@@ -332,7 +332,7 @@ func TestClusterMatches(t *testing.T) {
 				ExcludeClusters: []string{cluster.Name},
 				FieldSelector: &policyv1alpha1.FieldSelector{
 					MatchExpressions: []corev1.NodeSelectorRequirement{
-						{Key: ZoneField, Operator: corev1.NodeSelectorOpIn, Values: []string{cluster.Spec.Zone}},
+						{Key: ZoneField, Operator: corev1.NodeSelectorOpIn, Values: cluster.Spec.Zones},
 					},
 				},
 			},
@@ -373,12 +373,13 @@ func TestClusterMatches(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "test cluster names and field selector(zone)",
+			name: "test cluster names and field selector(zone & region)",
 			affinity: policyv1alpha1.ClusterAffinity{
 				ClusterNames: []string{cluster.Name},
 				FieldSelector: &policyv1alpha1.FieldSelector{
 					MatchExpressions: []corev1.NodeSelectorRequirement{
-						{Key: ZoneField, Operator: corev1.NodeSelectorOpIn, Values: []string{cluster.Spec.Zone}},
+						{Key: ZoneField, Operator: corev1.NodeSelectorOpIn, Values: cluster.Spec.Zones},
+						{Key: RegionField, Operator: corev1.NodeSelectorOpIn, Values: []string{cluster.Spec.Region}},
 					},
 				},
 			},
@@ -414,7 +415,7 @@ func TestClusterMatches(t *testing.T) {
 				ClusterNames: []string{cluster.Name},
 				FieldSelector: &policyv1alpha1.FieldSelector{
 					MatchExpressions: []corev1.NodeSelectorRequirement{
-						{Key: ZoneField, Operator: corev1.NodeSelectorOpNotIn, Values: []string{cluster.Spec.Zone}},
+						{Key: ZoneField, Operator: corev1.NodeSelectorOpNotIn, Values: cluster.Spec.Zones},
 					},
 				},
 			},
@@ -452,7 +453,7 @@ func TestClusterMatches(t *testing.T) {
 				},
 				FieldSelector: &policyv1alpha1.FieldSelector{
 					MatchExpressions: []corev1.NodeSelectorRequirement{
-						{Key: ZoneField, Operator: corev1.NodeSelectorOpIn, Values: []string{cluster.Spec.Zone}},
+						{Key: ZoneField, Operator: corev1.NodeSelectorOpIn, Values: cluster.Spec.Zones},
 					},
 				},
 			},
@@ -494,7 +495,7 @@ func TestClusterMatches(t *testing.T) {
 				},
 				FieldSelector: &policyv1alpha1.FieldSelector{
 					MatchExpressions: []corev1.NodeSelectorRequirement{
-						{Key: ZoneField, Operator: corev1.NodeSelectorOpNotIn, Values: []string{cluster.Spec.Zone}},
+						{Key: ZoneField, Operator: corev1.NodeSelectorOpNotIn, Values: cluster.Spec.Zones},
 					},
 				},
 			},
@@ -576,7 +577,7 @@ func TestClusterMatches(t *testing.T) {
 			affinity: policyv1alpha1.ClusterAffinity{
 				FieldSelector: &policyv1alpha1.FieldSelector{
 					MatchExpressions: []corev1.NodeSelectorRequirement{
-						{Key: ZoneField, Operator: corev1.NodeSelectorOpIn, Values: []string{cluster.Spec.Zone}},
+						{Key: ZoneField, Operator: corev1.NodeSelectorOpIn, Values: cluster.Spec.Zones},
 					},
 				},
 			},
@@ -588,7 +589,7 @@ func TestClusterMatches(t *testing.T) {
 				ClusterNames: []string{cluster.Name},
 				FieldSelector: &policyv1alpha1.FieldSelector{
 					MatchExpressions: []corev1.NodeSelectorRequirement{
-						{Key: ZoneField, Operator: corev1.NodeSelectorOpNotIn, Values: []string{cluster.Spec.Zone}},
+						{Key: ZoneField, Operator: corev1.NodeSelectorOpNotIn, Values: cluster.Spec.Zones},
 					},
 				},
 			},
@@ -690,7 +691,7 @@ func TestClusterMatches(t *testing.T) {
 			affinity: policyv1alpha1.ClusterAffinity{
 				FieldSelector: &policyv1alpha1.FieldSelector{
 					MatchExpressions: []corev1.NodeSelectorRequirement{
-						{Key: ZoneField, Operator: corev1.NodeSelectorOpIn, Values: []string{cluster.Spec.Zone}},
+						{Key: ZoneField, Operator: corev1.NodeSelectorOpIn, Values: cluster.Spec.Zones},
 					},
 				},
 				LabelSelector: &metav1.LabelSelector{
@@ -705,7 +706,7 @@ func TestClusterMatches(t *testing.T) {
 			affinity: policyv1alpha1.ClusterAffinity{
 				FieldSelector: &policyv1alpha1.FieldSelector{
 					MatchExpressions: []corev1.NodeSelectorRequirement{
-						{Key: ZoneField, Operator: corev1.NodeSelectorOpIn, Values: []string{cluster.Spec.Zone}},
+						{Key: ZoneField, Operator: corev1.NodeSelectorOpIn, Values: cluster.Spec.Zones},
 					},
 				},
 				LabelSelector: &metav1.LabelSelector{
@@ -720,7 +721,7 @@ func TestClusterMatches(t *testing.T) {
 			affinity: policyv1alpha1.ClusterAffinity{
 				FieldSelector: &policyv1alpha1.FieldSelector{
 					MatchExpressions: []corev1.NodeSelectorRequirement{
-						{Key: ZoneField, Operator: corev1.NodeSelectorOpNotIn, Values: []string{cluster.Spec.Zone}},
+						{Key: ZoneField, Operator: corev1.NodeSelectorOpNotIn, Values: cluster.Spec.Zones},
 					},
 				},
 				LabelSelector: &metav1.LabelSelector{
@@ -735,7 +736,7 @@ func TestClusterMatches(t *testing.T) {
 			affinity: policyv1alpha1.ClusterAffinity{
 				FieldSelector: &policyv1alpha1.FieldSelector{
 					MatchExpressions: []corev1.NodeSelectorRequirement{
-						{Key: ZoneField, Operator: corev1.NodeSelectorOpIn, Values: []string{cluster.Spec.Zone}},
+						{Key: ZoneField, Operator: corev1.NodeSelectorOpIn, Values: cluster.Spec.Zones},
 					},
 				},
 				LabelSelector: &metav1.LabelSelector{
@@ -950,33 +951,18 @@ func Test_extractClusterFields(t *testing.T) {
 			},
 		},
 		{
-			name: "zone is set",
-			args: args{
-				cluster: &clusterv1alpha1.Cluster{
-					Spec: clusterv1alpha1.ClusterSpec{
-						Zone: "foo",
-					},
-				},
-			},
-			want: labels.Set{
-				ZoneField: "foo",
-			},
-		},
-		{
 			name: "all are set",
 			args: args{
 				cluster: &clusterv1alpha1.Cluster{
 					Spec: clusterv1alpha1.ClusterSpec{
 						Provider: "foo",
 						Region:   "bar",
-						Zone:     "baz",
 					},
 				},
 			},
 			want: labels.Set{
 				ProviderField: "foo",
 				RegionField:   "bar",
-				ZoneField:     "baz",
 			},
 		},
 	}
@@ -984,6 +970,103 @@ func Test_extractClusterFields(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := extractClusterFields(tt.args.cluster); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("extractClusterFields() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_matchZones(t *testing.T) {
+	tests := []struct {
+		name                string
+		zoneMatchExpression *corev1.NodeSelectorRequirement
+		zones               []string
+		matched             bool
+	}{
+		{
+			name: "empty zones for In operator",
+			zoneMatchExpression: &corev1.NodeSelectorRequirement{
+				Key:      ZoneField,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"foo"},
+			},
+			zones:   nil,
+			matched: false,
+		},
+		{
+			name: "partial zones for In operator",
+			zoneMatchExpression: &corev1.NodeSelectorRequirement{
+				Key:      ZoneField,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"foo"},
+			},
+			zones:   []string{"foo", "bar"},
+			matched: false,
+		},
+		{
+			name: "all zones for In operator",
+			zoneMatchExpression: &corev1.NodeSelectorRequirement{
+				Key:      ZoneField,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"foo", "bar"},
+			},
+			zones:   []string{"foo", "bar"},
+			matched: true,
+		},
+		{
+			name: "empty zones for NotIn operator",
+			zoneMatchExpression: &corev1.NodeSelectorRequirement{
+				Key:      ZoneField,
+				Operator: corev1.NodeSelectorOpNotIn,
+				Values:   []string{"foo"},
+			},
+			zones:   nil,
+			matched: true,
+		},
+		{
+			name: "partial zones for NotIn operator",
+			zoneMatchExpression: &corev1.NodeSelectorRequirement{
+				Key:      ZoneField,
+				Operator: corev1.NodeSelectorOpNotIn,
+				Values:   []string{"foo"},
+			},
+			zones:   []string{"foo", "bar"},
+			matched: false,
+		},
+		{
+			name: "empty zones for Exists operator",
+			zoneMatchExpression: &corev1.NodeSelectorRequirement{
+				Key:      ZoneField,
+				Operator: corev1.NodeSelectorOpExists,
+				Values:   nil,
+			},
+			zones:   nil,
+			matched: false,
+		},
+		{
+			name: "empty zones for DoesNotExist operator",
+			zoneMatchExpression: &corev1.NodeSelectorRequirement{
+				Key:      ZoneField,
+				Operator: corev1.NodeSelectorOpDoesNotExist,
+				Values:   nil,
+			},
+			zones:   nil,
+			matched: true,
+		},
+		{
+			name: "unknown operator",
+			zoneMatchExpression: &corev1.NodeSelectorRequirement{
+				Key:      ZoneField,
+				Operator: corev1.NodeSelectorOpGt,
+				Values:   nil,
+			},
+			zones:   []string{"foo"},
+			matched: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := matchZones(tt.zoneMatchExpression, tt.zones); got != tt.matched {
+				t.Errorf("matchZones() got %v, but expected %v", got, tt.matched)
 			}
 		})
 	}
