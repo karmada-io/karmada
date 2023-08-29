@@ -16881,7 +16881,6 @@
         },
         "range": {
           "description": "Range specifies the ranges where the referencing service should be exposed. Only valid and optional in case of Types contains CrossCluster. If not set and Types contains CrossCluster, all clusters will be selected, that means the referencing service will be exposed across all registered clusters.",
-          "default": {},
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.ExposureRange"
         },
         "types": {
