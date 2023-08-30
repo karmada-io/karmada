@@ -203,76 +203,57 @@ func (c *MultiClusterServiceController) reconcileWithMCSCreateOrUpdate(
 }
 
 func (c *MultiClusterServiceController) ensureExportService(ctx context.Context, mcs *networkingv1alpha1.MultiClusterService) error {
-	svcNamespacedName := types.NamespacedName{Namespace: mcs.Namespace, Name: mcs.Name}
+	namespacedName := types.NamespacedName{Namespace: mcs.Namespace, Name: mcs.Name}
 
 	// 1. make sure serviceExport exist
 	svcExport := &mcsv1alpha1.ServiceExport{}
-	err := c.Client.Get(ctx, svcNamespacedName, svcExport)
+	err := c.Client.Get(ctx, namespacedName, svcExport)
 	if err != nil && !apierrors.IsNotFound(err) {
-		klog.ErrorS(err, "failed to get serviceExport",
-			"namespacedName", svcNamespacedName.String())
+		klog.ErrorS(err, "failed to get ServiceExport object",
+			"namespacedName", namespacedName.String())
 		return err
 	}
 
 	// 2. if serviceExport not exist, just create it
 	if apierrors.IsNotFound(err) {
 		svc := &corev1.Service{}
-		err = c.Get(ctx, svcNamespacedName, svc)
+		err = c.Get(ctx, namespacedName, svc)
 		if err != nil {
-			klog.ErrorS(err, "failed to get target Service",
-				"namespacedName", svcNamespacedName.String())
+			if apierrors.IsNotFound(err) {
+				klog.V(4).InfoS("target Service object doesn't exist",
+					"namespacedName", namespacedName.String())
+				return nil
+			}
+			klog.ErrorS(err, "failed to get target Service object",
+				"namespacedName", namespacedName.String())
 			return err
 		}
 
 		svcExport = createServiceExportTemplate(svc)
 		err = c.Client.Create(ctx, svcExport)
 		if err != nil {
-			klog.ErrorS(err, "failed to create serviceExport",
-				"namespacedName", svcNamespacedName.String())
+			klog.ErrorS(err, "failed to create ServiceExport object",
+				"namespacedName", namespacedName.String())
 			return err
 		}
-		klog.V(4).InfoS("success to create serviceExport",
-			"namespacedName", svcNamespacedName.String())
-	} else { // otherwise serviceExport already exist, update it with own finalizer
-		if controllerutil.AddFinalizer(svcExport, karmadaMCSFinalizer) {
-			err = c.Client.Update(ctx, svcExport)
-			if err != nil {
-				klog.ErrorS(err, "failed to update ServiceExport with finalizer",
-					"namespacedName", svcNamespacedName.String(), "finalizer", karmadaMCSFinalizer)
-				return err
-			}
-			klog.V(4).InfoS("success to update serviceExport with finalizer",
-				"namespacedName", svcNamespacedName.String(), "finalizer", karmadaMCSFinalizer)
+		klog.V(4).InfoS("success to create ServiceExport object",
+			"namespacedName", namespacedName.String())
+	}
+
+	// 3. otherwise serviceExport already exist, update it with own finalizer
+	if controllerutil.AddFinalizer(svcExport, karmadaMCSFinalizer) {
+		err = c.Client.Update(ctx, svcExport)
+		if err != nil {
+			klog.ErrorS(err, "failed to update ServiceExport object with finalizer",
+				"namespacedName", namespacedName.String(), "finalizer", karmadaMCSFinalizer)
+			return err
 		}
+		klog.V(4).InfoS("success to update ServiceExport object with finalizer",
+			"namespacedName", namespacedName.String(), "finalizer", karmadaMCSFinalizer)
 	}
 
-	// 3. get target service's reference resourceBinding
-	refRB := &workv1alpha2.ResourceBinding{}
-	rbNamespacedName := types.NamespacedName{
-		Namespace: mcs.Namespace,
-		Name:      names.GenerateBindingName(util.ServiceKind, mcs.Name),
-	}
-	err = c.Get(ctx, rbNamespacedName, refRB)
-	if err != nil {
-		klog.ErrorS(err, "failed to get Service's ref ResourceBinding",
-			"namespacedName", rbNamespacedName.String())
-		return err
-	}
-
-	// 4. make sure the ref resourceBinding's propagateDeps is enabled
-	if refRB.Spec.PropagateDeps {
-		return nil
-	}
-	refRB.Spec.PropagateDeps = true
-	err = c.Update(ctx, refRB)
-	if err != nil {
-		klog.ErrorS(err, "failed to update Service's ref ResourceBinding",
-			"namespacedName", rbNamespacedName.String())
-		return err
-	}
-
-	klog.V(4).InfoS("Success to ensure ServiceExport",
-		"namespacedName", svcNamespacedName.String())
+	klog.V(4).InfoS("Success to ensure ServiceExport object",
+		"namespacedName", namespacedName.String())
 	return nil
 }
 

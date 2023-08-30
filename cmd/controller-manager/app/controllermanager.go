@@ -199,6 +199,7 @@ func init() {
 	controllers["serviceExport"] = startServiceExportController
 	controllers["endpointSlice"] = startEndpointSliceController
 	controllers["serviceImport"] = startServiceImportController
+	controllers["multiClusterService"] = startMultiClusterServiceController
 	controllers["unifiedAuth"] = startUnifiedAuthController
 	controllers["federatedResourceQuotaSync"] = startFederatedResourceQuotaSyncController
 	controllers["federatedResourceQuotaStatus"] = startFederatedResourceQuotaStatusController
@@ -223,7 +224,7 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 		ClusterTaintEvictionRetryFrequency: 10 * time.Second,
 		ExecutionSpaceRetryFrequency:       10 * time.Second,
 	}
-	if err := clusterController.SetupWithManager(mgr); err != nil {
+	if err = clusterController.SetupWithManager(mgr); err != nil {
 		return false, err
 	}
 
@@ -301,7 +302,7 @@ func startClusterStatusController(ctx controllerscontext.Context) (enabled bool,
 		RateLimiterOptions:                ctx.Opts.RateLimiterOptions,
 		EnableClusterResourceModeling:     ctx.Opts.EnableClusterResourceModeling,
 	}
-	if err := clusterStatusController.SetupWithManager(mgr); err != nil {
+	if err = clusterStatusController.SetupWithManager(mgr); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -318,7 +319,7 @@ func startBindingController(ctx controllerscontext.Context) (enabled bool, err e
 		ResourceInterpreter: ctx.ResourceInterpreter,
 		RateLimiterOptions:  ctx.Opts.RateLimiterOptions,
 	}
-	if err := bindingController.SetupWithManager(ctx.Mgr); err != nil {
+	if err = bindingController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 
@@ -332,7 +333,7 @@ func startBindingController(ctx controllerscontext.Context) (enabled bool, err e
 		ResourceInterpreter: ctx.ResourceInterpreter,
 		RateLimiterOptions:  ctx.Opts.RateLimiterOptions,
 	}
-	if err := clusterResourceBindingController.SetupWithManager(ctx.Mgr); err != nil {
+	if err = clusterResourceBindingController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -348,7 +349,7 @@ func startBindingStatusController(ctx controllerscontext.Context) (enabled bool,
 		RESTMapper:          ctx.Mgr.GetRESTMapper(),
 		RateLimiterOptions:  ctx.Opts.RateLimiterOptions,
 	}
-	if err := rbStatusController.SetupWithManager(ctx.Mgr); err != nil {
+	if err = rbStatusController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 
@@ -361,7 +362,7 @@ func startBindingStatusController(ctx controllerscontext.Context) (enabled bool,
 		RESTMapper:          ctx.Mgr.GetRESTMapper(),
 		RateLimiterOptions:  ctx.Opts.RateLimiterOptions,
 	}
-	if err := crbStatusController.SetupWithManager(ctx.Mgr); err != nil {
+	if err = crbStatusController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 
@@ -381,7 +382,7 @@ func startExecutionController(ctx controllerscontext.Context) (enabled bool, err
 		MemberClusterInformer: ctx.MemberClusterInformer,
 	}
 	executionController.RunWorkQueue()
-	if err := executionController.SetupWithManager(ctx.Mgr); err != nil {
+	if err = executionController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -400,7 +401,7 @@ func startWorkStatusController(ctx controllerscontext.Context) (enabled bool, er
 		MemberClusterInformer:     ctx.MemberClusterInformer,
 	}
 	workStatusController.RunWorkQueue()
-	if err := workStatusController.SetupWithManager(ctx.Mgr); err != nil {
+	if err = workStatusController.SetupWithManager(ctx.Mgr); err != nil {
 		klog.Fatalf("Failed to setup work status controller: %v", err)
 		return false, err
 	}
@@ -414,7 +415,7 @@ func startNamespaceController(ctx controllerscontext.Context) (enabled bool, err
 		SkippedPropagatingNamespaces: ctx.Opts.SkippedPropagatingNamespaces,
 		OverrideManager:              ctx.OverrideManager,
 	}
-	if err := namespaceSyncController.SetupWithManager(ctx.Mgr); err != nil {
+	if err = namespaceSyncController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -435,7 +436,7 @@ func startServiceExportController(ctx controllerscontext.Context) (enabled bool,
 		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,
 	}
 	serviceExportController.RunWorkQueue()
-	if err := serviceExportController.SetupWithManager(ctx.Mgr); err != nil {
+	if err = serviceExportController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -447,7 +448,7 @@ func startEndpointSliceController(ctx controllerscontext.Context) (enabled bool,
 		EventRecorder:      ctx.Mgr.GetEventRecorderFor(mcs.EndpointSliceControllerName),
 		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
-	if err := endpointSliceController.SetupWithManager(ctx.Mgr); err != nil {
+	if err = endpointSliceController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -459,7 +460,19 @@ func startServiceImportController(ctx controllerscontext.Context) (enabled bool,
 		EventRecorder:      ctx.Mgr.GetEventRecorderFor(mcs.ServiceImportControllerName),
 		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
-	if err := serviceImportController.SetupWithManager(ctx.Mgr); err != nil {
+	if err = serviceImportController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startMultiClusterServiceController(ctx controllerscontext.Context) (enabled bool, err error) {
+	mcsController := &mcs.MultiClusterServiceController{
+		Client:             ctx.Mgr.GetClient(),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(mcs.MultiClusterServiceControllerName),
+		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
+	}
+	if err = mcsController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -470,7 +483,7 @@ func startUnifiedAuthController(ctx controllerscontext.Context) (enabled bool, e
 		Client:        ctx.Mgr.GetClient(),
 		EventRecorder: ctx.Mgr.GetEventRecorderFor(unifiedauth.ControllerName),
 	}
-	if err := unifiedAuthController.SetupWithManager(ctx.Mgr); err != nil {
+	if err = unifiedAuthController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -508,7 +521,7 @@ func startGracefulEvictionController(ctx controllerscontext.Context) (enabled bo
 		RateLimiterOptions:      ctx.Opts.RateLimiterOptions,
 		GracefulEvictionTimeout: ctx.Opts.GracefulEvictionTimeout.Duration,
 	}
-	if err := rbGracefulEvictionController.SetupWithManager(ctx.Mgr); err != nil {
+	if err = rbGracefulEvictionController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 
@@ -518,7 +531,7 @@ func startGracefulEvictionController(ctx controllerscontext.Context) (enabled bo
 		RateLimiterOptions:      ctx.Opts.RateLimiterOptions,
 		GracefulEvictionTimeout: ctx.Opts.GracefulEvictionTimeout.Duration,
 	}
-	if err := crbGracefulEvictionController.SetupWithManager(ctx.Mgr); err != nil {
+	if err = crbGracefulEvictionController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 
