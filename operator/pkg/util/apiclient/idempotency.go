@@ -8,6 +8,7 @@ import (
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	crdsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -227,6 +228,31 @@ func CreateOrUpdateStatefulSet(client clientset.Interface, statefulSet *appsv1.S
 	}
 
 	klog.V(5).InfoS("Successfully created or updated statefulset", "statefulset", statefulSet.GetName)
+	return nil
+}
+
+// CreateOrUpdateClusterRole creates a Clusterrole if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
+func CreateOrUpdateClusterRole(client clientset.Interface, clusterrole *rbacv1.ClusterRole) error {
+	_, err := client.RbacV1().ClusterRoles().Create(context.TODO(), clusterrole, metav1.CreateOptions{})
+
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+
+		older, err := client.RbacV1().ClusterRoles().Get(context.TODO(), clusterrole.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		clusterrole.ResourceVersion = older.ResourceVersion
+		_, err = client.RbacV1().ClusterRoles().Update(context.TODO(), clusterrole, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	klog.V(4).InfoS("Successfully created or updated clusterrole", "clusterrole", clusterrole.GetName)
 	return nil
 }
 

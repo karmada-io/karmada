@@ -77,6 +77,7 @@ func NewInitJob(opt *InitOptions) *workflow.Job {
 	initJob.AppendTask(tasks.NewKarmadaAggregatedApiserverTask())
 	initJob.AppendTask(tasks.NewCheckApiserverHealthTask())
 	initJob.AppendTask(tasks.NewKarmadaResourcesTask())
+	initJob.AppendTask(tasks.NewRBACTask())
 	initJob.AppendTask(tasks.NewComponentTask())
 	initJob.AppendTask(tasks.NewWaitControlPlaneTask())
 
