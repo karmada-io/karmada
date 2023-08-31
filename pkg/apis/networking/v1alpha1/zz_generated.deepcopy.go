@@ -181,7 +181,11 @@ func (in *MultiClusterServiceSpec) DeepCopyInto(out *MultiClusterServiceSpec) {
 		*out = make([]ExposurePort, len(*in))
 		copy(*out, *in)
 	}
-	in.Range.DeepCopyInto(&out.Range)
+	if in.Range != nil {
+		in, out := &in.Range, &out.Range
+		*out = new(ExposureRange)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 

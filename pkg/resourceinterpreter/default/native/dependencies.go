@@ -32,6 +32,7 @@ func getAllDefaultDependenciesInterpreter() map[schema.GroupVersionKind]dependen
 	s[appsv1.SchemeGroupVersion.WithKind(util.StatefulSetKind)] = getStatefulSetDependencies
 	s[networkingv1.SchemeGroupVersion.WithKind(util.IngressKind)] = getIngressDependencies
 	s[mcsv1alpha1.SchemeGroupVersion.WithKind(util.ServiceImportKind)] = getServiceImportDependencies
+	s[corev1.SchemeGroupVersion.WithKind(util.ServiceKind)] = getServiceDependencies
 	return s
 }
 
@@ -160,6 +161,17 @@ func getServiceImportDependencies(object *unstructured.Unstructured) ([]configv1
 					discoveryv1.LabelServiceName: derivedServiceName,
 				},
 			},
+		},
+	}, nil
+}
+
+func getServiceDependencies(object *unstructured.Unstructured) ([]configv1alpha1.DependentObjectReference, error) {
+	return []configv1alpha1.DependentObjectReference{
+		{
+			APIVersion: mcsv1alpha1.SchemeGroupVersion.String(),
+			Kind:       util.ServiceExportKind,
+			Namespace:  object.GetNamespace(),
+			Name:       object.GetName(),
 		},
 	}, nil
 }

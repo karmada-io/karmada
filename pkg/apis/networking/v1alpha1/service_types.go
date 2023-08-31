@@ -60,7 +60,7 @@ type MultiClusterServiceSpec struct {
 	// be selected, that means the referencing service will be exposed
 	// across all registered clusters.
 	// +optional
-	Range ExposureRange `json:"range,omitempty"`
+	Range *ExposureRange `json:"range,omitempty"`
 }
 
 // ExposureType describes how to expose the service.

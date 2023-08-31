@@ -240,9 +240,9 @@ func TestConvertToClusterNames(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ConvertToClusterNames(tt.clusters)
+			got := ConvertFromTargetClustersToStringSet(tt.clusters)
 			if !reflect.DeepEqual(got, tt.expected) {
-				t.Errorf("ConvertToClusterNames() = %v, want %v", got, tt.expected)
+				t.Errorf("ConvertFromTargetClustersToStringSet() = %v, want %v", got, tt.expected)
 			}
 		})
 	}
@@ -354,6 +354,80 @@ func TestMergeTargetClusters(t *testing.T) {
 			got := MergeTargetClusters(tt.old, tt.new)
 			if !testhelper.IsScheduleResultEqual(got, tt.expected) {
 				t.Errorf("MergeTargetClusters() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestClustersToBePropagated(t *testing.T) {
+	tests := []struct {
+		name   string
+		rbSpec *workv1alpha2.ResourceBindingSpec
+		want   []workv1alpha2.TargetCluster
+	}{
+		{
+			name: "the same cluster",
+			rbSpec: &workv1alpha2.ResourceBindingSpec{
+				Clusters: []workv1alpha2.TargetCluster{
+					{
+						Name:     "foo",
+						Replicas: 1,
+					},
+				},
+				RequiredBy: []workv1alpha2.BindingSnapshot{
+					{
+						Clusters: []workv1alpha2.TargetCluster{
+							{
+								Name:     "foo",
+								Replicas: 1,
+							},
+						},
+					},
+				},
+			},
+			want: []workv1alpha2.TargetCluster{
+				{
+					Name:     "foo",
+					Replicas: 1,
+				},
+			},
+		},
+		{
+			name: "different clusters",
+			rbSpec: &workv1alpha2.ResourceBindingSpec{
+				Clusters: []workv1alpha2.TargetCluster{
+					{
+						Name:     "foo",
+						Replicas: 1,
+					},
+				},
+				RequiredBy: []workv1alpha2.BindingSnapshot{
+					{
+						Clusters: []workv1alpha2.TargetCluster{
+							{
+								Name:     "bar",
+								Replicas: 1,
+							},
+						},
+					},
+				},
+			},
+			want: []workv1alpha2.TargetCluster{
+				{
+					Name:     "foo",
+					Replicas: 1,
+				},
+				{
+					Name:     "bar",
+					Replicas: 1,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ClustersToBePropagated(tt.rbSpec); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ClustersToBePropagated() = %v, want %v", got, tt.want)
 			}
 		})
 	}

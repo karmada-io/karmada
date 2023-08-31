@@ -45,14 +45,23 @@ func GetSumOfReplicas(clusters []workv1alpha2.TargetCluster) int32 {
 	return replicasSum
 }
 
-// ConvertToClusterNames will convert a cluster slice to clusterName's sets.String
-func ConvertToClusterNames(clusters []workv1alpha2.TargetCluster) sets.Set[string] {
+// ConvertFromTargetClustersToStringSet will convert a cluster slice to clusterName's sets.String
+func ConvertFromTargetClustersToStringSet(clusters []workv1alpha2.TargetCluster) sets.Set[string] {
 	clusterNames := sets.New[string]()
 	for _, cluster := range clusters {
 		clusterNames.Insert(cluster.Name)
 	}
 
 	return clusterNames
+}
+
+// ConvertFromStringSetToTargetClusters will convert clusterName's sets.String to a cluster slice
+func ConvertFromStringSetToTargetClusters(clusterSet sets.Set[string]) []workv1alpha2.TargetCluster {
+	var clusters []workv1alpha2.TargetCluster
+	for cluster := range clusterSet {
+		clusters = append(clusters, workv1alpha2.TargetCluster{Name: cluster})
+	}
+	return clusters
 }
 
 // MergeTargetClusters will merge the replicas in two TargetCluster
@@ -80,4 +89,30 @@ func MergeTargetClusters(old, new []workv1alpha2.TargetCluster) []workv1alpha2.T
 		new = append(new, workv1alpha2.TargetCluster{Name: key, Replicas: value})
 	}
 	return new
+}
+
+// ClustersToBePropagated will return all TargetClusters owned by ResourceBindingSpec
+func ClustersToBePropagated(rbSpec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
+	targetClusters := make([]workv1alpha2.TargetCluster, len(rbSpec.Clusters))
+	copy(targetClusters, rbSpec.Clusters)
+
+	if len(rbSpec.RequiredBy) == 0 {
+		return targetClusters
+	}
+
+	scheduledClusterNames := ConvertFromTargetClustersToStringSet(rbSpec.Clusters)
+	for _, requiredByBinding := range rbSpec.RequiredBy {
+		for _, targetCluster := range requiredByBinding.Clusters {
+			if !scheduledClusterNames.Has(targetCluster.Name) {
+				scheduledClusterNames.Insert(targetCluster.Name)
+				targetClusters = append(targetClusters, targetCluster)
+			}
+		}
+	}
+	return targetClusters
+}
+
+// ClusterSetToBePropagated will return all TargetClusters string set owned by ResourceBindingSpec
+func ClusterSetToBePropagated(rbSpec *workv1alpha2.ResourceBindingSpec) sets.Set[string] {
+	return ConvertFromTargetClustersToStringSet(ClustersToBePropagated(rbSpec))
 }

@@ -45,7 +45,10 @@ func ensureWork(
 		conflictResolutionInBinding = bindingObj.Spec.ConflictResolution
 	}
 
-	targetClusters = mergeTargetClusters(targetClusters, requiredByBindingSnapshot)
+	targetClusters = util.ClustersToBePropagated(&workv1alpha2.ResourceBindingSpec{
+		Clusters:   targetClusters,
+		RequiredBy: requiredByBindingSnapshot,
+	})
 
 	var jobCompletions []workv1alpha2.TargetCluster
 	var err error
@@ -116,25 +119,6 @@ func ensureWork(
 		}
 	}
 	return nil
-}
-
-func mergeTargetClusters(targetClusters []workv1alpha2.TargetCluster, requiredByBindingSnapshot []workv1alpha2.BindingSnapshot) []workv1alpha2.TargetCluster {
-	if len(requiredByBindingSnapshot) == 0 {
-		return targetClusters
-	}
-
-	scheduledClusterNames := util.ConvertToClusterNames(targetClusters)
-
-	for _, requiredByBinding := range requiredByBindingSnapshot {
-		for _, targetCluster := range requiredByBinding.Clusters {
-			if !scheduledClusterNames.Has(targetCluster.Name) {
-				scheduledClusterNames.Insert(targetCluster.Name)
-				targetClusters = append(targetClusters, targetCluster)
-			}
-		}
-	}
-
-	return targetClusters
 }
 
 func mergeLabel(workload *unstructured.Unstructured, workNamespace string, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {

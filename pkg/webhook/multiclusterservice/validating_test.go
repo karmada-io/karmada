@@ -37,7 +37,7 @@ func TestValidateMultiClusterServiceSpec(t *testing.T) {
 						networkingv1alpha1.ExposureTypeLoadBalancer,
 						networkingv1alpha1.ExposureTypeCrossCluster,
 					},
-					Range: networkingv1alpha1.ExposureRange{
+					Range: &networkingv1alpha1.ExposureRange{
 						ClusterNames: []string{"member1", "member2"},
 					},
 				},
@@ -62,7 +62,7 @@ func TestValidateMultiClusterServiceSpec(t *testing.T) {
 						networkingv1alpha1.ExposureTypeLoadBalancer,
 						networkingv1alpha1.ExposureTypeLoadBalancer,
 					},
-					Range: networkingv1alpha1.ExposureRange{
+					Range: &networkingv1alpha1.ExposureRange{
 						ClusterNames: []string{"member1"},
 					},
 				},
@@ -82,7 +82,7 @@ func TestValidateMultiClusterServiceSpec(t *testing.T) {
 					Types: []networkingv1alpha1.ExposureType{
 						networkingv1alpha1.ExposureTypeLoadBalancer,
 					},
-					Range: networkingv1alpha1.ExposureRange{
+					Range: &networkingv1alpha1.ExposureRange{
 						ClusterNames: []string{"member1"},
 					},
 				},
@@ -102,7 +102,7 @@ func TestValidateMultiClusterServiceSpec(t *testing.T) {
 					Types: []networkingv1alpha1.ExposureType{
 						"",
 					},
-					Range: networkingv1alpha1.ExposureRange{
+					Range: &networkingv1alpha1.ExposureRange{
 						ClusterNames: []string{"member1"},
 					},
 				},
@@ -122,7 +122,7 @@ func TestValidateMultiClusterServiceSpec(t *testing.T) {
 					Types: []networkingv1alpha1.ExposureType{
 						networkingv1alpha1.ExposureTypeCrossCluster,
 					},
-					Range: networkingv1alpha1.ExposureRange{
+					Range: &networkingv1alpha1.ExposureRange{
 						ClusterNames: []string{"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
 					},
 				},
