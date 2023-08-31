@@ -155,7 +155,7 @@ type CommandInitOption struct {
 	WaitComponentReadyTimeout          int
 }
 
-func (i *CommandInitOption) validateBundledEtcd(parentCommand string) error {
+func (i *CommandInitOption) validateLocalEtcd(parentCommand string) error {
 	if i.EtcdStorageMode == etcdStorageModeHostPath && i.EtcdHostDataPath == "" {
 		return fmt.Errorf("when etcd storage mode is hostPath, dataPath is not empty. See '%s init --help'", parentCommand)
 	}
@@ -213,7 +213,7 @@ func (i *CommandInitOption) Validate(parentCommand string) error {
 	if i.isExternalEtcdProvided() {
 		return i.validateExternalEtcd(parentCommand)
 	} else {
-		return i.validateBundledEtcd(parentCommand)
+		return i.validateLocalEtcd(parentCommand)
 	}
 }
 
