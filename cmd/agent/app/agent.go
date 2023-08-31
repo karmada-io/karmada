@@ -44,7 +44,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/typedmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/memberclusterinformer"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -218,7 +217,7 @@ func run(ctx context.Context, opts *options.Options) error {
 	crtlmetrics.Registry.MustRegister(metrics.ResourceCollectorsForAgent()...)
 	crtlmetrics.Registry.MustRegister(metrics.PoolCollectors()...)
 
-	if err = setupControllers(ctx, controllerManager, opts); err != nil {
+	if err = setupControllers(controllerManager, opts, ctx.Done()); err != nil {
 		return err
 	}
 
@@ -230,18 +229,18 @@ func run(ctx context.Context, opts *options.Options) error {
 	return nil
 }
 
-func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *options.Options) error {
+func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) error {
 	restConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
-	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, ctx.Done())
+	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
 	controlPlaneKubeClientSet := kubeclientset.NewForConfigOrDie(restConfig)
 
 	// We need a service lister to build a resource interpreter with `ClusterIPServiceResolver`
 	// witch allows connection to the customized interpreter webhook without a cluster DNS service.
 	sharedFactory := informers.NewSharedInformerFactory(controlPlaneKubeClientSet, 0)
 	serviceLister := sharedFactory.Core().V1().Services().Lister()
-	sharedFactory.Start(ctx.Done())
-	sharedFactory.WaitForCacheSync(ctx.Done())
+	sharedFactory.Start(stopChan)
+	sharedFactory.WaitForCacheSync(stopChan)
 
 	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, serviceLister)
 	if err := mgr.Add(resourceInterpreter); err != nil {
@@ -249,11 +248,8 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 	}
 
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSetForAgent, resourceInterpreter)
-	memberClusterInformer := memberclusterinformer.NewMemberClusterInformer(mgr.GetClient(), mgr.GetRESTMapper(), genericmanager.GetInstance(), opts.ClusterCacheSyncTimeout, util.NewClusterDynamicClientSetForAgent)
-
 	controllerContext := controllerscontext.Context{
 		Mgr:           mgr,
-		Ctx:           ctx,
 		ObjectWatcher: objectWatcher,
 		Opts: controllerscontext.Options{
 			Controllers:                        opts.Controllers,
@@ -273,9 +269,8 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 			CertRotationRemainingTimeThreshold: opts.CertRotationRemainingTimeThreshold,
 			KarmadaKubeconfigNamespace:         opts.KarmadaKubeconfigNamespace,
 		},
-		StopChan:              ctx.Done(),
-		ResourceInterpreter:   resourceInterpreter,
-		MemberClusterInformer: memberClusterInformer,
+		StopChan:            stopChan,
+		ResourceInterpreter: resourceInterpreter,
 	}
 
 	if err := controllers.StartControllers(controllerContext, controllersDisabledByDefault); err != nil {
@@ -284,7 +279,7 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 
 	// Ensure the InformerManager stops when the stop channel closes
 	go func() {
-		<-ctx.Done()
+		<-stopChan
 		genericmanager.StopInstance()
 	}()
 
@@ -320,17 +315,14 @@ func startClusterStatusController(ctx controllerscontext.Context) (bool, error) 
 
 func startExecutionController(ctx controllerscontext.Context) (bool, error) {
 	executionController := &execution.Controller{
-		Ctx:                   ctx.Ctx,
-		Client:                ctx.Mgr.GetClient(),
-		EventRecorder:         ctx.Mgr.GetEventRecorderFor(execution.ControllerName),
-		ObjectWatcher:         ctx.ObjectWatcher,
-		PredicateFunc:         helper.NewExecutionPredicateOnAgent(),
-		RatelimiterOptions:    ctx.Opts.RateLimiterOptions,
-		ConcurrentWorkSyncs:   ctx.Opts.ConcurrentWorkSyncs,
-		StopChan:              ctx.StopChan,
-		MemberClusterInformer: ctx.MemberClusterInformer,
+		Client:             ctx.Mgr.GetClient(),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(execution.ControllerName),
+		RESTMapper:         ctx.Mgr.GetRESTMapper(),
+		ObjectWatcher:      ctx.ObjectWatcher,
+		PredicateFunc:      helper.NewExecutionPredicateOnAgent(),
+		InformerManager:    genericmanager.GetInstance(),
+		RatelimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
-	executionController.RunWorkQueue()
 	if err := executionController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
@@ -339,14 +331,18 @@ func startExecutionController(ctx controllerscontext.Context) (bool, error) {
 
 func startWorkStatusController(ctx controllerscontext.Context) (bool, error) {
 	workStatusController := &status.WorkStatusController{
-		Client:                    ctx.Mgr.GetClient(),
-		EventRecorder:             ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
-		StopChan:                  ctx.StopChan,
-		PredicateFunc:             helper.NewExecutionPredicateOnAgent(),
-		ConcurrentWorkStatusSyncs: ctx.Opts.ConcurrentWorkSyncs,
-		RateLimiterOptions:        ctx.Opts.RateLimiterOptions,
-		ResourceInterpreter:       ctx.ResourceInterpreter,
-		MemberClusterInformer:     ctx.MemberClusterInformer,
+		Client:                      ctx.Mgr.GetClient(),
+		EventRecorder:               ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
+		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
+		InformerManager:             genericmanager.GetInstance(),
+		StopChan:                    ctx.StopChan,
+		ObjectWatcher:               ctx.ObjectWatcher,
+		PredicateFunc:               helper.NewExecutionPredicateOnAgent(),
+		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+		ClusterCacheSyncTimeout:     ctx.Opts.ClusterCacheSyncTimeout,
+		ConcurrentWorkStatusSyncs:   ctx.Opts.ConcurrentWorkSyncs,
+		RateLimiterOptions:          ctx.Opts.RateLimiterOptions,
+		ResourceInterpreter:         ctx.ResourceInterpreter,
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(ctx.Mgr); err != nil {

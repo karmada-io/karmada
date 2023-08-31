@@ -20,7 +20,6 @@ import (
 	kubernetesfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	controllerruntime "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -29,17 +28,34 @@ import (
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/memberclusterinformer"
+	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
+
+func newCluster(name string, clusterType string, clusterStatus metav1.ConditionStatus) *clusterv1alpha1.Cluster {
+	return &clusterv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: clusterv1alpha1.ClusterSpec{},
+		Status: clusterv1alpha1.ClusterStatus{
+			Conditions: []metav1.Condition{
+				{
+					Type:   clusterType,
+					Status: clusterStatus,
+				},
+			},
+		},
+	}
+}
 
 func TestWorkStatusController_Reconcile(t *testing.T) {
 	tests := []struct {
 		name      string
 		c         WorkStatusController
-		dFunc     func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
 		work      *workv1alpha1.Work
 		ns        string
 		expectRes controllerruntime.Result
@@ -69,8 +85,11 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 						ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
 						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token")},
 					}).Build(),
-				PredicateFunc:      helper.NewClusterPredicateOnAgent("test"),
-				RateLimiterOptions: ratelimiterflag.Options{},
+				InformerManager:             genericmanager.GetInstance(),
+				PredicateFunc:               helper.NewClusterPredicateOnAgent("test"),
+				ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
+				ClusterCacheSyncTimeout:     metav1.Duration{},
+				RateLimiterOptions:          ratelimiterflag.Options{},
 			},
 			work: &workv1alpha1.Work{
 				ObjectMeta: metav1.ObjectMeta{
@@ -86,7 +105,6 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 					},
 				},
 			},
-			dFunc:     util.NewClusterDynamicClientSet,
 			ns:        "karmada-es-cluster",
 			expectRes: controllerruntime.Result{},
 			existErr:  false,
@@ -94,9 +112,12 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 		{
 			name: "work not exists",
 			c: WorkStatusController{
-				Client:             fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(testhelper.NewClusterWithTypeAndStatus("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
-				PredicateFunc:      helper.NewClusterPredicateOnAgent("test"),
-				RateLimiterOptions: ratelimiterflag.Options{},
+				Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
+				InformerManager:             genericmanager.GetInstance(),
+				PredicateFunc:               helper.NewClusterPredicateOnAgent("test"),
+				ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+				ClusterCacheSyncTimeout:     metav1.Duration{},
+				RateLimiterOptions:          ratelimiterflag.Options{},
 			},
 			work: &workv1alpha1.Work{
 				ObjectMeta: metav1.ObjectMeta{
@@ -112,7 +133,6 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 					},
 				},
 			},
-			dFunc:     util.NewClusterDynamicClientSetForAgent,
 			ns:        "karmada-es-cluster",
 			expectRes: controllerruntime.Result{},
 			existErr:  false,
@@ -120,9 +140,12 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 		{
 			name: "work's DeletionTimestamp isn't zero",
 			c: WorkStatusController{
-				Client:             fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(testhelper.NewClusterWithTypeAndStatus("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
-				PredicateFunc:      helper.NewClusterPredicateOnAgent("test"),
-				RateLimiterOptions: ratelimiterflag.Options{},
+				Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
+				InformerManager:             genericmanager.GetInstance(),
+				PredicateFunc:               helper.NewClusterPredicateOnAgent("test"),
+				ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+				ClusterCacheSyncTimeout:     metav1.Duration{},
+				RateLimiterOptions:          ratelimiterflag.Options{},
 			},
 			work: &workv1alpha1.Work{
 				ObjectMeta: metav1.ObjectMeta{
@@ -139,7 +162,6 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 					},
 				},
 			},
-			dFunc:     util.NewClusterDynamicClientSetForAgent,
 			ns:        "karmada-es-cluster",
 			expectRes: controllerruntime.Result{},
 			existErr:  false,
@@ -147,9 +169,12 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 		{
 			name: "work's status is not applied",
 			c: WorkStatusController{
-				Client:             fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(testhelper.NewClusterWithTypeAndStatus("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
-				PredicateFunc:      helper.NewClusterPredicateOnAgent("test"),
-				RateLimiterOptions: ratelimiterflag.Options{},
+				Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
+				InformerManager:             genericmanager.GetInstance(),
+				PredicateFunc:               helper.NewClusterPredicateOnAgent("test"),
+				ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+				ClusterCacheSyncTimeout:     metav1.Duration{},
+				RateLimiterOptions:          ratelimiterflag.Options{},
 			},
 			work: &workv1alpha1.Work{
 				ObjectMeta: metav1.ObjectMeta{
@@ -165,7 +190,6 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 					},
 				},
 			},
-			dFunc:     util.NewClusterDynamicClientSetForAgent,
 			ns:        "karmada-es-cluster",
 			expectRes: controllerruntime.Result{},
 			existErr:  false,
@@ -173,9 +197,12 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 		{
 			name: "failed to get cluster name",
 			c: WorkStatusController{
-				Client:             fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(testhelper.NewClusterWithTypeAndStatus("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
-				PredicateFunc:      helper.NewClusterPredicateOnAgent("test"),
-				RateLimiterOptions: ratelimiterflag.Options{},
+				Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
+				InformerManager:             genericmanager.GetInstance(),
+				PredicateFunc:               helper.NewClusterPredicateOnAgent("test"),
+				ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+				ClusterCacheSyncTimeout:     metav1.Duration{},
+				RateLimiterOptions:          ratelimiterflag.Options{},
 			},
 			work: &workv1alpha1.Work{
 				ObjectMeta: metav1.ObjectMeta{
@@ -191,7 +218,6 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 					},
 				},
 			},
-			dFunc:     util.NewClusterDynamicClientSetForAgent,
 			ns:        "karmada-cluster",
 			expectRes: controllerruntime.Result{Requeue: true},
 			existErr:  true,
@@ -199,9 +225,12 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 		{
 			name: "failed to get cluster",
 			c: WorkStatusController{
-				Client:             fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(testhelper.NewClusterWithTypeAndStatus("cluster1", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
-				PredicateFunc:      helper.NewClusterPredicateOnAgent("test"),
-				RateLimiterOptions: ratelimiterflag.Options{},
+				Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster1", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
+				InformerManager:             genericmanager.GetInstance(),
+				PredicateFunc:               helper.NewClusterPredicateOnAgent("test"),
+				ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+				ClusterCacheSyncTimeout:     metav1.Duration{},
+				RateLimiterOptions:          ratelimiterflag.Options{},
 			},
 			work: &workv1alpha1.Work{
 				ObjectMeta: metav1.ObjectMeta{
@@ -217,7 +246,6 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 					},
 				},
 			},
-			dFunc:     util.NewClusterDynamicClientSetForAgent,
 			ns:        "karmada-es-cluster",
 			expectRes: controllerruntime.Result{Requeue: true},
 			existErr:  true,
@@ -225,9 +253,12 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 		{
 			name: "cluster is not ready",
 			c: WorkStatusController{
-				Client:             fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(testhelper.NewClusterWithTypeAndStatus("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)).Build(),
-				PredicateFunc:      helper.NewClusterPredicateOnAgent("test"),
-				RateLimiterOptions: ratelimiterflag.Options{},
+				Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)).Build(),
+				InformerManager:             genericmanager.GetInstance(),
+				PredicateFunc:               helper.NewClusterPredicateOnAgent("test"),
+				ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+				ClusterCacheSyncTimeout:     metav1.Duration{},
+				RateLimiterOptions:          ratelimiterflag.Options{},
 			},
 			work: &workv1alpha1.Work{
 				ObjectMeta: metav1.ObjectMeta{
@@ -243,7 +274,6 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 					},
 				},
 			},
-			dFunc:     util.NewClusterDynamicClientSetForAgent,
 			ns:        "karmada-es-cluster",
 			expectRes: controllerruntime.Result{Requeue: true},
 			existErr:  true,
@@ -252,8 +282,6 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			injectMemberClusterInformer(&tt.c, genericmanager.GetInstance(), tt.dFunc)
-
 			req := controllerruntime.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      "work",
@@ -261,7 +289,7 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 				},
 			}
 
-			if err := tt.c.Create(context.Background(), tt.work); err != nil {
+			if err := tt.c.Client.Create(context.Background(), tt.work); err != nil {
 				t.Fatalf("Failed to create cluster: %v", err)
 			}
 
@@ -276,15 +304,38 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 	}
 }
 
-func TestWorkStatusController_RunWorkQueue(t *testing.T) {
-	c := WorkStatusController{
-		Client:             fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(testhelper.NewClusterWithTypeAndStatus("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)).Build(),
-		PredicateFunc:      helper.NewClusterPredicateOnAgent("test"),
-		RateLimiterOptions: ratelimiterflag.Options{},
-		eventHandler:       nil,
+func TestWorkStatusController_getEventHandler(t *testing.T) {
+	opt := util.Options{
+		Name:          "opt",
+		KeyFunc:       nil,
+		ReconcileFunc: nil,
 	}
 
-	injectMemberClusterInformer(&c, genericmanager.GetInstance(), util.NewClusterDynamicClientSetForAgent)
+	c := WorkStatusController{
+		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)).Build(),
+		InformerManager:             genericmanager.GetInstance(),
+		PredicateFunc:               helper.NewClusterPredicateOnAgent("test"),
+		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+		ClusterCacheSyncTimeout:     metav1.Duration{},
+		RateLimiterOptions:          ratelimiterflag.Options{},
+		eventHandler:                nil,
+		worker:                      util.NewAsyncWorker(opt),
+	}
+
+	eventHandler := c.getEventHandler()
+	assert.NotEmpty(t, eventHandler)
+}
+
+func TestWorkStatusController_RunWorkQueue(t *testing.T) {
+	c := WorkStatusController{
+		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)).Build(),
+		InformerManager:             genericmanager.GetInstance(),
+		PredicateFunc:               helper.NewClusterPredicateOnAgent("test"),
+		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+		ClusterCacheSyncTimeout:     metav1.Duration{},
+		RateLimiterOptions:          ratelimiterflag.Options{},
+		eventHandler:                nil,
+	}
 
 	c.RunWorkQueue()
 }
@@ -493,7 +544,7 @@ func newPod(workNs, workName string, wrongLabel ...bool) *corev1.Pod {
 }
 
 func TestWorkStatusController_syncWorkStatus(t *testing.T) {
-	cluster := testhelper.NewClusterWithTypeAndStatus("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)
+	cluster := newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)
 	workName := "work"
 	workNs := "karmada-es-cluster"
 	workUID := "92345678-1234-5678-1234-567812345678"
@@ -506,8 +557,18 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 		controllerWithoutInformer bool
 		workWithRigntNS           bool
 		expectedError             bool
+		workWithDeletionTimestamp bool
 		wrongWorkNS               bool
 	}{
+		{
+			name:                      "failed to exec NeedUpdate",
+			obj:                       newPodObj("karmada-es-cluster"),
+			pod:                       newPod(workNs, workName),
+			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
+			controllerWithoutInformer: true,
+			workWithRigntNS:           true,
+			expectedError:             true,
+		},
 		{
 			name:                      "invalid key, wrong WorkNamespaceLabel in obj",
 			obj:                       newPodObj("karmada-cluster"),
@@ -551,6 +612,25 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			controllerWithoutInformer: true,
 			workWithRigntNS:           false,
 			expectedError:             false,
+		},
+		{
+			name:                      "failed to getRawManifest, wrong Manifests in work",
+			obj:                       newPodObj("karmada-es-cluster"),
+			pod:                       newPod(workNs, workName),
+			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod1","namespace":"default"}}`),
+			controllerWithoutInformer: true,
+			workWithRigntNS:           true,
+			expectedError:             true,
+		},
+		{
+			name:                      "failed to exec GetClusterName, wrong workNamespace",
+			obj:                       newPodObj("karmada-es-cluster"),
+			pod:                       newPod(workNs, workName),
+			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
+			controllerWithoutInformer: true,
+			workWithRigntNS:           true,
+			expectedError:             true,
+			wrongWorkNS:               true,
 		},
 	}
 
@@ -598,29 +678,21 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 	}
 }
 
-func injectMemberClusterInformer(c *WorkStatusController,
-	informerManager genericmanager.MultiClusterInformerManager,
-	clusterDynamicClientSetFunc func(clusterName string, client client.Client) (*util.DynamicClusterClient, error),
-) {
-	r := memberclusterinformer.NewMemberClusterInformer(c.Client, newRESTMapper(), informerManager, metav1.Duration{}, clusterDynamicClientSetFunc)
-	c.MemberClusterInformer = r
-}
-
-func newRESTMapper() meta.RESTMapper {
-	m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
-	m.Add(corev1.SchemeGroupVersion.WithKind("Pod"), meta.RESTScopeNamespace)
-	return m
-}
-
 func newWorkStatusController(cluster *clusterv1alpha1.Cluster, dynamicClientSets ...*dynamicfake.FakeDynamicClient) WorkStatusController {
 	c := WorkStatusController{
-		Client:             fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(cluster).Build(),
-		PredicateFunc:      helper.NewClusterPredicateOnAgent("test"),
-		RateLimiterOptions: ratelimiterflag.Options{},
-		eventHandler:       nil,
+		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(cluster).Build(),
+		InformerManager:             genericmanager.GetInstance(),
+		PredicateFunc:               helper.NewClusterPredicateOnAgent("test"),
+		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+		ClusterCacheSyncTimeout:     metav1.Duration{},
+		RateLimiterOptions:          ratelimiterflag.Options{},
+		eventHandler:                nil,
+		RESTMapper: func() meta.RESTMapper {
+			m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
+			m.Add(corev1.SchemeGroupVersion.WithKind("Pod"), meta.RESTScopeNamespace)
+			return m
+		}(),
 	}
-
-	informerManager := genericmanager.GetInstance()
 
 	if len(dynamicClientSets) > 0 {
 		clusterName := cluster.Name
@@ -635,22 +707,170 @@ func newWorkStatusController(cluster *clusterv1alpha1.Cluster, dynamicClientSets
 		serviceLister := sharedFactory.Core().V1().Services().Lister()
 
 		c.ResourceInterpreter = resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, serviceLister)
+		c.ObjectWatcher = objectwatcher.NewObjectWatcher(c.Client, c.RESTMapper, util.NewClusterDynamicClientSetForAgent, c.ResourceInterpreter)
 
 		// Generate InformerManager
 		m := genericmanager.NewMultiClusterInformerManager(stopCh)
 		m.ForCluster(clusterName, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
 		m.Start(clusterName)
 		m.WaitForCacheSync(clusterName)
-		informerManager = m
+		c.InformerManager = m
 	}
-
-	injectMemberClusterInformer(&c, informerManager, util.NewClusterDynamicClientSetForAgent)
 
 	return c
 }
 
+func TestWorkStatusController_getSingleClusterManager(t *testing.T) {
+	clusterName := "cluster"
+	cluster := newCluster(clusterName, clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
+
+	// Generate InformerManager
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+
+	dynamicClientSet := dynamicfake.NewSimpleDynamicClient(scheme.Scheme)
+
+	tests := []struct {
+		name                             string
+		rightClusterName                 bool
+		expectInformer                   bool
+		expectError                      bool
+		wrongClusterDynamicClientSetFunc bool
+	}{
+		{
+			name:             "normal case",
+			rightClusterName: true,
+			expectInformer:   true,
+			expectError:      false,
+		},
+		{
+			name:                             "failed to build dynamic cluster client",
+			rightClusterName:                 false,
+			expectInformer:                   false,
+			expectError:                      true,
+			wrongClusterDynamicClientSetFunc: true,
+		},
+		{
+			name:             "failed to get single cluster",
+			rightClusterName: false,
+			expectInformer:   true,
+			expectError:      false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := newWorkStatusController(cluster)
+			m := genericmanager.NewMultiClusterInformerManager(stopCh)
+			if tt.rightClusterName {
+				m.ForCluster(clusterName, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+			} else {
+				m.ForCluster("test", dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+			}
+			m.Start(clusterName)
+			m.WaitForCacheSync(clusterName)
+			c.InformerManager = m
+
+			if tt.wrongClusterDynamicClientSetFunc {
+				c.ClusterDynamicClientSetFunc = NewClusterDynamicClientSetForAgentWithError
+			} else {
+				c.ClusterDynamicClientSetFunc = util.NewClusterDynamicClientSet
+				c.Client = fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
+					&clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+						Spec: clusterv1alpha1.ClusterSpec{
+							APIEndpoint:                 "https://127.0.0.1",
+							SecretRef:                   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
+							InsecureSkipTLSVerification: true,
+						},
+						Status: clusterv1alpha1.ClusterStatus{
+							Conditions: []metav1.Condition{
+								{
+									Type:   clusterv1alpha1.ClusterConditionReady,
+									Status: metav1.ConditionTrue,
+								},
+							},
+						},
+					},
+					&corev1.Secret{
+						ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
+						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token")},
+					}).Build()
+			}
+
+			informerManager, err := c.getSingleClusterManager(cluster)
+
+			if tt.expectInformer {
+				assert.NotEmpty(t, informerManager)
+			} else {
+				assert.Empty(t, informerManager)
+			}
+
+			if tt.expectError {
+				assert.NotEmpty(t, err)
+			} else {
+				assert.Empty(t, err)
+			}
+		})
+	}
+}
+
+func TestWorkStatusController_recreateResourceIfNeeded(t *testing.T) {
+	c := WorkStatusController{
+		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
+		InformerManager:             genericmanager.GetInstance(),
+		PredicateFunc:               helper.NewClusterPredicateOnAgent("test"),
+		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+		ClusterCacheSyncTimeout:     metav1.Duration{},
+		RateLimiterOptions:          ratelimiterflag.Options{},
+	}
+
+	workUID := "92345678-1234-5678-1234-567812345678"
+	raw := []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`)
+	work := testhelper.NewWork("work", "default", workUID, raw)
+
+	obj := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "Pod",
+			"metadata": map[string]interface{}{
+				"name":      "pod1",
+				"namespace": "default",
+				"labels": map[string]interface{}{
+					workv1alpha1.WorkNamespaceLabel: "karmada-es-cluster",
+				},
+			},
+		},
+	}
+
+	key, _ := generateKey(obj)
+
+	fedKey, ok := key.(keys.FederatedKey)
+	if !ok {
+		t.Fatalf("Invalid key, key: %v", key)
+	}
+
+	t.Run("normal case", func(t *testing.T) {
+		err := c.recreateResourceIfNeeded(work, fedKey)
+		assert.Empty(t, err)
+	})
+
+	t.Run("failed to UnmarshalJSON", func(t *testing.T) {
+		work.Spec.Workload.Manifests[0].RawExtension.Raw = []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}},`)
+		err := c.recreateResourceIfNeeded(work, fedKey)
+		assert.NotEmpty(t, err)
+	})
+}
+
 func TestWorkStatusController_buildStatusIdentifier(t *testing.T) {
-	c := WorkStatusController{}
+	c := WorkStatusController{
+		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
+		InformerManager:             genericmanager.GetInstance(),
+		PredicateFunc:               helper.NewClusterPredicateOnAgent("test"),
+		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+		ClusterCacheSyncTimeout:     metav1.Duration{},
+		RateLimiterOptions:          ratelimiterflag.Options{},
+	}
 
 	work := &workv1alpha1.Work{
 		ObjectMeta: metav1.ObjectMeta{
@@ -690,7 +910,7 @@ func TestWorkStatusController_buildStatusIdentifier(t *testing.T) {
 	})
 
 	t.Run("failed to GetManifestIndex", func(t *testing.T) {
-		wrongClusterObj, _ := helper.ToUnstructured(testhelper.NewClusterWithTypeAndStatus("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue))
+		wrongClusterObj, _ := helper.ToUnstructured(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue))
 		wrongClusterJson, _ := json.Marshal(wrongClusterObj)
 		work.Spec.Workload.Manifests = []workv1alpha1.Manifest{
 			{
@@ -704,11 +924,76 @@ func TestWorkStatusController_buildStatusIdentifier(t *testing.T) {
 }
 
 func TestWorkStatusController_mergeStatus(t *testing.T) {
-	c := WorkStatusController{}
+	c := WorkStatusController{
+		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
+		InformerManager:             genericmanager.GetInstance(),
+		PredicateFunc:               helper.NewClusterPredicateOnAgent("test"),
+		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+		ClusterCacheSyncTimeout:     metav1.Duration{},
+		RateLimiterOptions:          ratelimiterflag.Options{},
+	}
 
 	newStatus := workv1alpha1.ManifestStatus{
 		Health: "health",
 	}
 	actual := c.mergeStatus([]workv1alpha1.ManifestStatus{}, newStatus)
 	assert.Equal(t, []workv1alpha1.ManifestStatus{newStatus}, actual)
+}
+
+func TestWorkStatusController_registerInformersAndStart(t *testing.T) {
+	clusterName := "cluster"
+	cluster := newCluster(clusterName, clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
+
+	// Generate InformerManager
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+	dynamicClientSet := dynamicfake.NewSimpleDynamicClient(scheme.Scheme)
+	c := newWorkStatusController(cluster)
+	opt := util.Options{
+		Name:          "opt",
+		KeyFunc:       nil,
+		ReconcileFunc: nil,
+	}
+	c.worker = util.NewAsyncWorker(opt)
+
+	workUID := "92345678-1234-5678-1234-567812345678"
+	raw := []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`)
+	work := testhelper.NewWork("work", "default", workUID, raw)
+
+	t.Run("normal case", func(t *testing.T) {
+		m := genericmanager.NewMultiClusterInformerManager(stopCh)
+		m.ForCluster(clusterName, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
+		m.Start(clusterName)
+		m.WaitForCacheSync(clusterName)
+		c.InformerManager = m
+
+		err := c.registerInformersAndStart(cluster, work)
+		assert.Empty(t, err)
+	})
+
+	t.Run("failed to getSingleClusterManager", func(t *testing.T) {
+		c := newWorkStatusController(cluster)
+		m := genericmanager.NewMultiClusterInformerManager(stopCh)
+		m.ForCluster("test", dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
+		m.Start(clusterName)
+		m.WaitForCacheSync(clusterName)
+		c.InformerManager = m
+		c.ClusterDynamicClientSetFunc = NewClusterDynamicClientSetForAgentWithError
+
+		err := c.registerInformersAndStart(cluster, work)
+		assert.NotEmpty(t, err)
+	})
+
+	t.Run("failed to getGVRsFromWork", func(t *testing.T) {
+		work.Spec.Workload.Manifests[0].RawExtension.Raw = []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}},`)
+
+		m := genericmanager.NewMultiClusterInformerManager(stopCh)
+		m.ForCluster(clusterName, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
+		m.Start(clusterName)
+		m.WaitForCacheSync(clusterName)
+		c.InformerManager = m
+
+		err := c.registerInformersAndStart(cluster, work)
+		assert.NotEmpty(t, err)
+	})
 }

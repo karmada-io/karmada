@@ -1,8 +1,38 @@
 package fedinformer
 
 import (
+	"reflect"
+
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 )
+
+// NewHandlerOnAllEvents builds a ResourceEventHandler that the function 'fn' will be called on all events(add/update/delete).
+func NewHandlerOnAllEvents(fn func(runtime.Object)) cache.ResourceEventHandler {
+	return &cache.ResourceEventHandlerFuncs{
+		AddFunc: func(cur interface{}) {
+			curObj := cur.(runtime.Object)
+			fn(curObj)
+		},
+		UpdateFunc: func(old, cur interface{}) {
+			curObj := cur.(runtime.Object)
+			if !reflect.DeepEqual(old, cur) {
+				fn(curObj)
+			}
+		},
+		DeleteFunc: func(old interface{}) {
+			if deleted, ok := old.(cache.DeletedFinalStateUnknown); ok {
+				// This object might be stale but ok for our current usage.
+				old = deleted.Obj
+				if old == nil {
+					return
+				}
+			}
+			oldObj := old.(runtime.Object)
+			fn(oldObj)
+		},
+	}
+}
 
 // NewHandlerOnEvents builds a ResourceEventHandler.
 func NewHandlerOnEvents(addFunc func(obj interface{}), updateFunc func(oldObj, newObj interface{}), deleteFunc func(obj interface{})) cache.ResourceEventHandler {
