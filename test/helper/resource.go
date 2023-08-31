@@ -610,24 +610,6 @@ func NewClusterWithResource(name string, allocatable, allocating, allocated core
 	}
 }
 
-// NewClusterWithTypeAndStatus will build a Cluster with type and status.
-func NewClusterWithTypeAndStatus(name string, clusterType string, clusterStatus metav1.ConditionStatus) *clusterv1alpha1.Cluster {
-	return &clusterv1alpha1.Cluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Spec: clusterv1alpha1.ClusterSpec{},
-		Status: clusterv1alpha1.ClusterStatus{
-			Conditions: []metav1.Condition{
-				{
-					Type:   clusterType,
-					Status: clusterStatus,
-				},
-			},
-		},
-	}
-}
-
 // NewWorkload will build a workload object.
 func NewWorkload(namespace, name string) *workloadv1alpha1.Workload {
 	podLabels := map[string]string{"app": "nginx"}

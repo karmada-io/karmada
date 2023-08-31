@@ -40,21 +40,21 @@ const (
 
 // ObjectVersion retrieves the field type-prefixed value used for
 // determining currency of the given cluster object.
-func ObjectVersion(obj *unstructured.Unstructured) string {
-	generation := obj.GetGeneration()
+func ObjectVersion(clusterObj *unstructured.Unstructured) string {
+	generation := clusterObj.GetGeneration()
 	if generation != 0 {
 		return fmt.Sprintf("%s%d", generationPrefix, generation)
 	}
-	return fmt.Sprintf("%s%s", resourceVersionPrefix, obj.GetResourceVersion())
+	return fmt.Sprintf("%s%s", resourceVersionPrefix, clusterObj.GetResourceVersion())
 }
 
 // +lifted:source=https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/util/propagatedversion.go#L45-L59
 
 // ObjectNeedsUpdate determines whether the 2 objects provided cluster
-// object needs to be updated according to the old object and the
+// object needs to be updated according to the desired object and the
 // recorded version.
-func ObjectNeedsUpdate(oldObj, currentObj *unstructured.Unstructured, recordedVersion string) bool {
-	targetVersion := ObjectVersion(currentObj)
+func ObjectNeedsUpdate(desiredObj, clusterObj *unstructured.Unstructured, recordedVersion string) bool {
+	targetVersion := ObjectVersion(clusterObj)
 
 	if recordedVersion != targetVersion {
 		return true
@@ -63,7 +63,7 @@ func ObjectNeedsUpdate(oldObj, currentObj *unstructured.Unstructured, recordedVe
 	// If versions match and the version is sourced from the
 	// generation field, a further check of metadata equivalency is
 	// required.
-	return strings.HasPrefix(targetVersion, generationPrefix) && !objectMetaObjEquivalent(oldObj, currentObj)
+	return strings.HasPrefix(targetVersion, generationPrefix) && !objectMetaObjEquivalent(desiredObj, clusterObj)
 }
 
 // +lifted:source=https://github.com/kubernetes-retired/kubefed/blob/master/pkg/controller/util/meta.go#L82-L103

@@ -1,7 +1,6 @@
 package context
 
 import (
-	"context"
 	"regexp"
 	"time"
 
@@ -16,7 +15,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
-	"github.com/karmada-io/karmada/pkg/util/memberclusterinformer"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 )
@@ -90,7 +88,6 @@ type Options struct {
 // Context defines the context object for controller.
 type Context struct {
 	Mgr                         controllerruntime.Manager
-	Ctx                         context.Context
 	ObjectWatcher               objectwatcher.ObjectWatcher
 	Opts                        Options
 	StopChan                    <-chan struct{}
@@ -99,7 +96,6 @@ type Context struct {
 	OverrideManager             overridemanager.OverrideManager
 	ControlPlaneInformerManager genericmanager.SingleClusterInformerManager
 	ResourceInterpreter         resourceinterpreter.ResourceInterpreter
-	MemberClusterInformer       memberclusterinformer.MemberClusterInformer
 }
 
 // IsControllerEnabled check if a specified controller enabled or not.
