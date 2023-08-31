@@ -3,7 +3,6 @@ package execution
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -380,24 +379,7 @@ func (c *Controller) updateAppliedConditionIfNeed(work *workv1alpha1.Work, statu
 		LastTransitionTime: metav1.Now(),
 	}
 
-	// needUpdateCondition judges if the Applied condition needs to update.
-	needUpdateCondition := func() bool {
-		lastWorkAppliedCondition := meta.FindStatusCondition(work.Status.Conditions, workv1alpha1.WorkApplied).DeepCopy()
-
-		if lastWorkAppliedCondition != nil {
-			lastWorkAppliedCondition.LastTransitionTime = newWorkAppliedCondition.LastTransitionTime
-
-			return !reflect.DeepEqual(newWorkAppliedCondition, *lastWorkAppliedCondition)
-		}
-
-		return true
-	}
-
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		if !needUpdateCondition() {
-			return nil
-		}
-
 		meta.SetStatusCondition(&work.Status.Conditions, newWorkAppliedCondition)
 		updateErr := c.Status().Update(context.TODO(), work)
 		if updateErr == nil {
