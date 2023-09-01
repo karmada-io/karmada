@@ -74,7 +74,7 @@ type FederatedHPAController struct {
 
 	monitor monitor.Monitor
 
-	HorizontalPodAutoscalerSyncPeroid time.Duration
+	HorizontalPodAutoscalerSyncPeriod time.Duration
 	DownscaleStabilisationWindow      time.Duration
 	// Latest unstabilized recommendations for each autoscaler.
 	recommendations     map[string][]timestampedRecommendation
@@ -166,7 +166,7 @@ func (c *FederatedHPAController) Reconcile(ctx context.Context, req controllerru
 		return controllerruntime.Result{}, err
 	}
 
-	return controllerruntime.Result{RequeueAfter: c.HorizontalPodAutoscalerSyncPeroid}, nil
+	return controllerruntime.Result{RequeueAfter: c.HorizontalPodAutoscalerSyncPeriod}, nil
 }
 
 //nolint:gocyclo

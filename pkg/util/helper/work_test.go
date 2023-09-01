@@ -39,7 +39,7 @@ func TestGenEventRef(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "missing metadata.uid but has resourcetemplate.karmada.io/uid annontation",
+			name: "missing metadata.uid but has resourcetemplate.karmada.io/uid annotation",
 			obj: &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "apps/v1",

@@ -76,7 +76,7 @@ func (p *Patcher) ForDeployment(deployment *appsv1.Deployment) {
 
 		overrideArgs := map[string]string{}
 
-		// merge featureGates and build to an argurment.
+		// merge featureGates and build to an argument.
 		if len(p.featureGates) != 0 {
 			baseFeatureGates := map[string]bool{}
 
@@ -147,7 +147,7 @@ func parseFeatrueGatesArgumentToMap(featureGates string) map[string]bool {
 
 	featureGatesMap := map[string]bool{}
 	for _, featureGate := range featureGateSlice {
-		key, val, err := parseFeatrueGate(featureGate)
+		key, val, err := parseFeatureGate(featureGate)
 		if err != nil {
 			continue
 		}
@@ -221,7 +221,7 @@ func parseArgument(arg string) (string, string, error) {
 	return keyvalSlice[0], keyvalSlice[1], nil
 }
 
-func parseFeatrueGate(featureGate string) (string, bool, error) {
+func parseFeatureGate(featureGate string) (string, bool, error) {
 	if !strings.Contains(featureGate, "=") {
 		return "", false, errors.New("the featureGate should have a '=' between the flag and the value")
 	}

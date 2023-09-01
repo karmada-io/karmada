@@ -104,7 +104,7 @@ func InitKarmadaResources(dir, caBase64, systemNamespace string) error {
 		klog.Exitln(err)
 	}
 
-	if err = createExtralResources(clientSet, dir); err != nil {
+	if err = createExtraResources(clientSet, dir); err != nil {
 		klog.Exitln(err)
 	}
 
@@ -143,7 +143,7 @@ func InitKarmadaBootstrapToken(dir string) (string, error) {
 	return registerCommand, nil
 }
 
-func createExtralResources(clientSet *kubernetes.Clientset, dir string) error {
+func createExtraResources(clientSet *kubernetes.Clientset, dir string) error {
 	// grant view clusterrole with karamda resource permission
 	if err := grantKarmadaPermissionToViewClusterRole(clientSet); err != nil {
 		return err

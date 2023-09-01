@@ -8,14 +8,14 @@ import (
 
 // Default is the default BackendStore
 type Default struct {
-	resourceEventHander cache.ResourceEventHandler
+	resourceEventHandler cache.ResourceEventHandler
 }
 
 // NewDefaultBackend create a new default BackendStore
 func NewDefaultBackend(cluster string) *Default {
 	klog.Infof("create default backend store: %s", cluster)
 	return &Default{
-		resourceEventHander: &cache.ResourceEventHandlerFuncs{
+		resourceEventHandler: &cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				us, ok := obj.(*unstructured.Unstructured)
 				if !ok {
@@ -45,9 +45,9 @@ func NewDefaultBackend(cluster string) *Default {
 			}}}
 }
 
-// ResourceEventHandlerFuncs return the ResourceEventHandlerFuncs
+// ResourceEventHandlerFuncs returns the ResourceEventHandler
 func (d *Default) ResourceEventHandlerFuncs() cache.ResourceEventHandler {
-	return d.resourceEventHander
+	return d.resourceEventHandler
 }
 
 // Close close the BackendStore

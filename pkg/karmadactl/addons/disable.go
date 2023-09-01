@@ -29,7 +29,7 @@ var (
 	# Specify the Karmada control plane kubeconfig
 	%[1]s disable karmada-search --karmada-kubeconfig /etc/karmada/karmada-apiserver.config
 
-	# Sepcify the namespace where Karmada components are installed
+	# Specify the namespace where Karmada components are installed
 	%[1]s disable karmada-search --namespace karmada-system
 	`)
 )

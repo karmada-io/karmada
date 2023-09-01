@@ -566,7 +566,7 @@ func startFederatedHorizontalPodAutoscalerController(ctx controllerscontext.Cont
 		EventRecorder:                     ctx.Mgr.GetEventRecorderFor(federatedhpa.ControllerName),
 		RESTMapper:                        ctx.Mgr.GetRESTMapper(),
 		DownscaleStabilisationWindow:      ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerDownscaleStabilizationWindow.Duration,
-		HorizontalPodAutoscalerSyncPeroid: ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerSyncPeriod.Duration,
+		HorizontalPodAutoscalerSyncPeriod: ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerSyncPeriod.Duration,
 		ReplicaCalc:                       replicaCalculator,
 		ClusterScaleClientSetFunc:         util.NewClusterScaleClientSet,
 		TypedInformerManager:              typedmanager.GetInstance(),

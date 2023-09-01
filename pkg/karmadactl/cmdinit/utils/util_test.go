@@ -83,19 +83,19 @@ func TestDownloadFile(t *testing.T) {
 
 func TestListFiles(t *testing.T) {
 	tests := []struct {
-		name     string
-		path     string
-		tempfils []string
+		name      string
+		path      string
+		tempfiles []string
 	}{
 		{
-			name:     "get files from path",
-			path:     "temp-path" + randString(),
-			tempfils: []string{"tempfiles1" + randString(), "tempfiles2" + randString()},
+			name:      "get files from path",
+			path:      "temp-path" + randString(),
+			tempfiles: []string{"tempfiles1" + randString(), "tempfiles2" + randString()},
 		},
 		{
-			name:     "no files from path",
-			path:     "temp-path" + randString(),
-			tempfils: []string{},
+			name:      "no files from path",
+			path:      "temp-path" + randString(),
+			tempfiles: []string{},
 		},
 	}
 	for _, tt := range tests {
@@ -106,9 +106,9 @@ func TestListFiles(t *testing.T) {
 		defer os.RemoveAll(tt.path)
 
 		var want []string
-		for i := 0; i < len(tt.tempfils); i++ {
-			want = append(want, tt.path+"/"+tt.tempfils[i])
-			_, err = os.Create(tt.path + "/" + tt.tempfils[i])
+		for i := 0; i < len(tt.tempfiles); i++ {
+			want = append(want, tt.path+"/"+tt.tempfiles[i])
+			_, err = os.Create(tt.path + "/" + tt.tempfiles[i])
 			if err != nil {
 				t.Fatal(err)
 			}

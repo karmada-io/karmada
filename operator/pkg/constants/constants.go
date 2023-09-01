@@ -105,7 +105,7 @@ const (
 	// KarmadaOperatorLabelKeyName defines a label key used by all resources created by karmada operator
 	KarmadaOperatorLabelKeyName = "app.kubernetes.io/managed-by"
 
-	// APIServiceName defines the karmada aggregated apiserver APISerivce resource name.
+	// APIServiceName defines the karmada aggregated apiserver APIService resource name.
 	APIServiceName = "v1alpha1.cluster.karmada.io"
 )
 

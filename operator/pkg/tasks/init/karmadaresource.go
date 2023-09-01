@@ -102,7 +102,7 @@ func runCrds(r workflow.RunData) error {
 
 	cert := data.GetCert(constants.CaCertAndKeyName)
 	if len(cert.CertData()) == 0 {
-		return errors.New("unexpect empty ca cert data")
+		return errors.New("unexpected empty ca cert data")
 	}
 
 	caBase64 := base64.StdEncoding.EncodeToString(cert.CertData())
@@ -149,7 +149,7 @@ func patchCrds(crdsClient *crdsclient.Clientset, patchPath string, caBundle stri
 		}
 
 		crdPath := path.Join(patchPath, file.Name())
-		crdBytes, err := util.RelpaceYamlForReg(crdPath, caBundle, reg)
+		crdBytes, err := util.ReplaceYamlForReg(crdPath, caBundle, reg)
 		if err != nil {
 			return err
 		}
@@ -171,7 +171,7 @@ func runWebhookConfiguration(r workflow.RunData) error {
 
 	cert := data.GetCert(constants.CaCertAndKeyName)
 	if len(cert.CertData()) == 0 {
-		return errors.New("unexpect empty ca cert data for webhookConfiguration")
+		return errors.New("unexpected empty ca cert data for webhookConfiguration")
 	}
 
 	caBase64 := base64.StdEncoding.EncodeToString(cert.CertData())
