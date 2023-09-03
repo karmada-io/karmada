@@ -401,8 +401,8 @@ github.com/prometheus/procfs/internal/util
 # github.com/rivo/uniseg v0.4.2
 ## explicit; go 1.18
 github.com/rivo/uniseg
-# github.com/rogpeppe/go-internal v1.6.1
-## explicit; go 1.11
+# github.com/rogpeppe/go-internal v1.9.0
+## explicit; go 1.17
 github.com/rogpeppe/go-internal/fmtsort
 # github.com/rs/zerolog v1.26.1
 ## explicit; go 1.15
@@ -576,7 +576,7 @@ go.uber.org/zap/internal/color
 go.uber.org/zap/internal/exit
 go.uber.org/zap/zapcore
 go.uber.org/zap/zapgrpc
-# golang.org/x/crypto v0.3.0
+# golang.org/x/crypto v0.11.0
 ## explicit; go 1.17
 golang.org/x/crypto/cryptobyte
 golang.org/x/crypto/cryptobyte/asn1
@@ -587,13 +587,13 @@ golang.org/x/crypto/nacl/secretbox
 golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/salsa20/salsa
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/mod v0.9.0
+# golang.org/x/mod v0.10.0
 ## explicit; go 1.17
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/modfile
 golang.org/x/mod/module
 golang.org/x/mod/semver
-# golang.org/x/net v0.8.0
+# golang.org/x/net v0.12.0
 ## explicit; go 1.17
 golang.org/x/net/context
 golang.org/x/net/html
@@ -608,14 +608,14 @@ golang.org/x/net/internal/timeseries
 golang.org/x/net/proxy
 golang.org/x/net/trace
 golang.org/x/net/websocket
-# golang.org/x/oauth2 v0.6.0
+# golang.org/x/oauth2 v0.10.0
 ## explicit; go 1.17
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
-# golang.org/x/sync v0.1.0
+# golang.org/x/sync v0.2.0
 ## explicit
 golang.org/x/sync/singleflight
-# golang.org/x/sys v0.6.0
+# golang.org/x/sys v0.10.0
 ## explicit; go 1.17
 golang.org/x/sys/cpu
 golang.org/x/sys/execabs
@@ -624,10 +624,10 @@ golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 golang.org/x/sys/windows/registry
-# golang.org/x/term v0.6.0
+# golang.org/x/term v0.10.0
 ## explicit; go 1.17
 golang.org/x/term
-# golang.org/x/text v0.8.0
+# golang.org/x/text v0.11.0
 ## explicit; go 1.17
 golang.org/x/text/encoding
 golang.org/x/text/encoding/charmap
@@ -750,7 +750,7 @@ google.golang.org/grpc/serviceconfig
 google.golang.org/grpc/stats
 google.golang.org/grpc/status
 google.golang.org/grpc/tap
-# google.golang.org/protobuf v1.28.1
+# google.golang.org/protobuf v1.31.0
 ## explicit; go 1.11
 google.golang.org/protobuf/encoding/protojson
 google.golang.org/protobuf/encoding/prototext
