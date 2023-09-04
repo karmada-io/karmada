@@ -48,7 +48,8 @@ spec:
             - --audit-log-path=-
             - --feature-gates=APIPriorityAndFairness=false
             - --audit-log-maxage=0
-            - --audit-log-maxbackup=0
+            - --audit-log-maxbackup=0{{- if .KeyPrefix }}
+            - --etcd-prefix={{ .KeyPrefix }}{{- end }}
           livenessProbe:
             httpGet:
               path: /livez
@@ -126,6 +127,7 @@ type DeploymentReplace struct {
 	Replicas   *int32
 	Image      string
 	ETCDSevers string
+	KeyPrefix  string
 }
 
 // ServiceReplace is a struct to help to concrete

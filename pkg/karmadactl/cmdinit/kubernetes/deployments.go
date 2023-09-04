@@ -59,7 +59,11 @@ func (i *CommandInitOption) etcdServers() string {
 }
 
 func (i *CommandInitOption) karmadaAPIServerContainerCommand() []string {
-	return []string{
+	var etcdServers string
+	if etcdServers = i.ExternalEtcdServers; etcdServers == "" {
+		etcdServers = strings.TrimRight(i.etcdServers(), ",")
+	}
+	command := []string{
 		"kube-apiserver",
 		"--allow-privileged=true",
 		"--authorization-mode=Node,RBAC",
@@ -68,7 +72,7 @@ func (i *CommandInitOption) karmadaAPIServerContainerCommand() []string {
 		fmt.Sprintf("--etcd-cafile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName),
 		fmt.Sprintf("--etcd-certfile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
 		fmt.Sprintf("--etcd-keyfile=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
-		fmt.Sprintf("--etcd-servers=%s", strings.TrimRight(i.etcdServers(), ",")),
+		fmt.Sprintf("--etcd-servers=%s", etcdServers),
 		"--bind-address=0.0.0.0",
 		fmt.Sprintf("--kubelet-client-certificate=%s/%s.crt", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
 		fmt.Sprintf("--kubelet-client-key=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
@@ -91,6 +95,10 @@ func (i *CommandInitOption) karmadaAPIServerContainerCommand() []string {
 		fmt.Sprintf("--tls-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.ApiserverCertAndKeyName),
 		fmt.Sprintf("--tls-private-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.ApiserverCertAndKeyName),
 	}
+	if i.ExternalEtcdKeyPrefix != "" {
+		command = append(command, fmt.Sprintf("--etcd-prefix=%s", i.ExternalEtcdKeyPrefix))
+	}
+	return command
 }
 
 func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment {
@@ -775,6 +783,29 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 		TimeoutSeconds:      15,
 	}
 
+	var etcdServers string
+	if etcdServers = i.ExternalEtcdServers; etcdServers == "" {
+		etcdServers = strings.TrimRight(i.etcdServers(), ",")
+	}
+	command := []string{
+		"/bin/karmada-aggregated-apiserver",
+		"--kubeconfig=/etc/kubeconfig",
+		"--authentication-kubeconfig=/etc/kubeconfig",
+		"--authorization-kubeconfig=/etc/kubeconfig",
+		fmt.Sprintf("--etcd-servers=%s", etcdServers),
+		fmt.Sprintf("--etcd-cafile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName),
+		fmt.Sprintf("--etcd-certfile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
+		fmt.Sprintf("--etcd-keyfile=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
+		fmt.Sprintf("--tls-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
+		fmt.Sprintf("--tls-private-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
+		"--audit-log-path=-",
+		"--feature-gates=APIPriorityAndFairness=false",
+		"--audit-log-maxage=0",
+		"--audit-log-maxbackup=0",
+	}
+	if i.ExternalEtcdKeyPrefix != "" {
+		command = append(command, fmt.Sprintf("--etcd-prefix=%s", i.ExternalEtcdKeyPrefix))
+	}
 	podSpec := corev1.PodSpec{
 		ImagePullSecrets: i.getImagePullSecrets(),
 		Affinity: &corev1.Affinity{
@@ -798,24 +829,9 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 		AutomountServiceAccountToken: pointer.Bool(false),
 		Containers: []corev1.Container{
 			{
-				Name:  karmadaAggregatedAPIServerDeploymentAndServiceName,
-				Image: i.karmadaAggregatedAPIServerImage(),
-				Command: []string{
-					"/bin/karmada-aggregated-apiserver",
-					"--kubeconfig=/etc/kubeconfig",
-					"--authentication-kubeconfig=/etc/kubeconfig",
-					"--authorization-kubeconfig=/etc/kubeconfig",
-					fmt.Sprintf("--etcd-servers=%s", strings.TrimRight(i.etcdServers(), ",")),
-					fmt.Sprintf("--etcd-cafile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName),
-					fmt.Sprintf("--etcd-certfile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
-					fmt.Sprintf("--etcd-keyfile=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
-					fmt.Sprintf("--tls-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
-					fmt.Sprintf("--tls-private-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
-					"--audit-log-path=-",
-					"--feature-gates=APIPriorityAndFairness=false",
-					"--audit-log-maxage=0",
-					"--audit-log-maxbackup=0",
-				},
+				Name:    karmadaAggregatedAPIServerDeploymentAndServiceName,
+				Image:   i.karmadaAggregatedAPIServerImage(),
+				Command: command,
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      KubeConfigSecretAndMountName,

@@ -11,6 +11,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kuberuntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
@@ -28,6 +29,8 @@ const (
 
 	// etcdStatefulSetAndServiceName define etcd statefulSet and serviceName installed by init command
 	etcdStatefulSetAndServiceName = "etcd"
+	// karmadaAPIServerDeploymentAndServiceName defines the name of karmada-apiserver deployment and service installed by init command
+	karmadaAPIServerDeploymentAndServiceName = "karmada-apiserver"
 
 	// etcdContainerClientPort define etcd pod installed by init command
 	etcdContainerClientPort = 2379
@@ -134,7 +137,7 @@ func installComponentsOnHostCluster(opts *addoninit.CommandAddonsEnableOption) e
 		return fmt.Errorf("create karmada search service error: %v", err)
 	}
 
-	etcdServers, err := etcdServers(opts)
+	etcdServers, keyPrefix, err := etcdServers(opts)
 	if err != nil {
 		return err
 	}
@@ -146,6 +149,7 @@ func installComponentsOnHostCluster(opts *addoninit.CommandAddonsEnableOption) e
 		Namespace:  opts.Namespace,
 		Replicas:   &opts.KarmadaSearchReplicas,
 		ETCDSevers: etcdServers,
+		KeyPrefix:  keyPrefix,
 		Image:      addoninit.KarmadaSearchImage(opts),
 	})
 	if err != nil {
@@ -212,10 +216,56 @@ func installComponentsOnKarmadaControlPlane(opts *addoninit.CommandAddonsEnableO
 	return nil
 }
 
-func etcdServers(opts *addoninit.CommandAddonsEnableOption) (string, error) {
-	sts, err := opts.KubeClientSet.AppsV1().StatefulSets(opts.Namespace).Get(context.TODO(), etcdStatefulSetAndServiceName, metav1.GetOptions{})
+const (
+	etcdServerArgPrefix          = "--etcd-servers="
+	etcdServerArgPrefixLength    = len(etcdServerArgPrefix)
+	etcdKeyPrefixArgPrefix       = "--etcd-prefix="
+	etcdKeyPrefixArgPrefixLength = len(etcdKeyPrefixArgPrefix)
+)
+
+func getExternalEtcdServerConfig(ctx context.Context, host kubernetes.Interface, namespace string) (servers, prefix string, err error) {
+	var apiserver *appsv1.Deployment
+	if apiserver, err = host.AppsV1().Deployments(namespace).Get(
+		ctx, karmadaAPIServerDeploymentAndServiceName, metav1.GetOptions{}); err != nil {
+		return
+	}
+	// should be only one container, but it may be injected others by mutating webhook of host cluster,
+	// anyway, a for can handle all cases.
+	var apiServerContainer *corev1.Container
+	for i, container := range apiserver.Spec.Template.Spec.Containers {
+		if container.Name == karmadaAPIServerDeploymentAndServiceName {
+			apiServerContainer = &apiserver.Spec.Template.Spec.Containers[i]
+			break
+		}
+	}
+	if apiServerContainer == nil {
+		return
+	}
+	for _, cmd := range apiServerContainer.Command {
+		if strings.HasPrefix(cmd, etcdServerArgPrefix) {
+			servers = cmd[etcdServerArgPrefixLength:]
+		} else if strings.HasPrefix(cmd, etcdKeyPrefixArgPrefix) {
+			prefix = cmd[etcdKeyPrefixArgPrefixLength:]
+		}
+		if servers != "" && prefix != "" {
+			break
+		}
+	}
+	return
+}
+
+func etcdServers(opts *addoninit.CommandAddonsEnableOption) (string, string, error) {
+	ctx := context.TODO()
+	sts, err := opts.KubeClientSet.AppsV1().StatefulSets(opts.Namespace).Get(ctx, etcdStatefulSetAndServiceName, metav1.GetOptions{})
 	if err != nil {
-		return "", err
+		if apierrors.IsNotFound(err) {
+			if servers, prefix, cfgErr := getExternalEtcdServerConfig(ctx, opts.KubeClientSet, opts.Namespace); cfgErr != nil {
+				return "", "", cfgErr
+			} else if servers != "" {
+				return servers, prefix, nil
+			}
+		}
+		return "", "", err
 	}
 
 	etcdReplicas := *sts.Spec.Replicas
@@ -225,5 +275,5 @@ func etcdServers(opts *addoninit.CommandAddonsEnableOption) (string, error) {
 		etcdServers += fmt.Sprintf("https://%s-%v.%s.%s.svc.%s:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, opts.Namespace, opts.HostClusterDomain, etcdContainerClientPort) + ","
 	}
 
-	return strings.TrimRight(etcdServers, ","), nil
+	return strings.TrimRight(etcdServers, ","), "", nil
 }
