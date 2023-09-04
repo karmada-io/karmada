@@ -168,7 +168,7 @@ func runUploadCerts(r workflow.RunData) error {
 	klog.V(4).InfoS("[upload-certs] Running upload-certs task", "karmada", klog.KObj(data))
 
 	if len(data.CertList()) == 0 {
-		return errors.New("there is no certs in store, please reload crets to store")
+		return errors.New("there is no certs in store, please reload certs to store")
 	}
 	return nil
 }

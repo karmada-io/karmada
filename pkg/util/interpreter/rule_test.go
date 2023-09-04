@@ -689,7 +689,7 @@ func TestGetByOperation(t *testing.T) {
 			expectedRule: nil,
 		},
 		{
-			name:         "case-insensitive operation namee",
+			name:         "case-insensitive operation name",
 			operation:    "InterpretDEPendency",
 			expectedRule: &dependencyInterpretationRule{},
 		},

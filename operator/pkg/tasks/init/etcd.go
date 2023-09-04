@@ -53,7 +53,7 @@ func runDeployEtcd(r workflow.RunData) error {
 	}
 
 	if cfg.Etcd.Local == nil {
-		return errors.New("unexpect empty etcd local configuration")
+		return errors.New("unexpected empty etcd local configuration")
 	}
 
 	err := etcd.EnsureKarmadaEtcd(data.RemoteClient(), cfg.Etcd.Local, data.GetName(), data.GetNamespace())

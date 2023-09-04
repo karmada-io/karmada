@@ -46,7 +46,7 @@ func skipCerts(d workflow.RunData) (bool, error) {
 		return false, nil
 	}
 
-	if err := data.LoadCertFormSercret(secret); err != nil {
+	if err := data.LoadCertFromSecret(secret); err != nil {
 		return false, err
 	}
 

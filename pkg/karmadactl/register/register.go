@@ -211,7 +211,7 @@ type CommandRegisterOption struct {
 	EnableCertRotation bool
 
 	// CACertPath is the path to the SSL certificate authority used to
-	// secure comunications between member cluster and karmada-control-plane.
+	// secure communications between member cluster and karmada-control-plane.
 	// Defaults to "/etc/karmada/pki/ca.crt".
 	CACertPath string
 
@@ -310,7 +310,7 @@ func (o *CommandRegisterOption) Run(parentCommand string) error {
 		fmt.Printf("\n[preflight] Please check the above errors\n")
 		return nil
 	}
-	fmt.Println("[prefligt] All pre-flight checks were passed")
+	fmt.Println("[preflight] All pre-flight checks were passed")
 
 	if o.DryRun {
 		return nil
@@ -472,7 +472,7 @@ func (o *CommandRegisterOption) discoveryBootstrapConfigAndClusterInfo(bootstrap
 func (o *CommandRegisterOption) constructKarmadaAgentConfig(bootstrapClient *kubeclient.Clientset, karmadaClusterInfo *clientcmdapi.Cluster) (*clientcmdapi.Config, error) {
 	var cert []byte
 
-	pk, csr, err := generatKeyAndCSR(o.ClusterName)
+	pk, csr, err := generateKeyAndCSR(o.ClusterName)
 	if err != nil {
 		return nil, err
 	}
@@ -720,8 +720,8 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 	return karmadaAgent
 }
 
-// generatKeyAndCSR generate private key and csr
-func generatKeyAndCSR(clusterName string) (*rsa.PrivateKey, []byte, error) {
+// generateKeyAndCSR generate private key and csr
+func generateKeyAndCSR(clusterName string) (*rsa.PrivateKey, []byte, error) {
 	pk, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, nil, err

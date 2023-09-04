@@ -78,14 +78,14 @@ func runWaitControlPlane(r workflow.RunData) error {
 	return nil
 }
 
-func newWaitControlPlaneSubTask(component string, lables labels.Set) workflow.Task {
+func newWaitControlPlaneSubTask(component string, ls labels.Set) workflow.Task {
 	return workflow.Task{
 		Name: component,
-		Run:  runWaitControlPlaneSubTask(component, lables),
+		Run:  runWaitControlPlaneSubTask(component, ls),
 	}
 }
 
-func runWaitControlPlaneSubTask(component string, lables labels.Set) func(r workflow.RunData) error {
+func runWaitControlPlaneSubTask(component string, ls labels.Set) func(r workflow.RunData) error {
 	return func(r workflow.RunData) error {
 		data, ok := r.(InitData)
 		if !ok {
@@ -93,7 +93,7 @@ func runWaitControlPlaneSubTask(component string, lables labels.Set) func(r work
 		}
 
 		waiter := apiclient.NewKarmadaWaiter(nil, data.RemoteClient(), componentBeReadyTimeout)
-		if err := waiter.WaitForSomePods(lables.String(), data.GetNamespace(), 1); err != nil {
+		if err := waiter.WaitForSomePods(ls.String(), data.GetNamespace(), 1); err != nil {
 			return fmt.Errorf("waiting for %s to ready timeout, err: %w", component, err)
 		}
 

@@ -196,7 +196,7 @@ func CreateCustomResourceDefinitionIfNeed(client *crdsclient.Clientset, obj *api
 	return nil
 }
 
-// PatchCustomResourceDefinition patchs a crd resource.
+// PatchCustomResourceDefinition patches a crd resource.
 func PatchCustomResourceDefinition(client *crdsclient.Clientset, name string, data []byte) error {
 	crd := client.ApiextensionsV1().CustomResourceDefinitions()
 	if _, err := crd.Patch(context.TODO(), name, types.StrategicMergePatchType, data, metav1.PatchOptions{}); err != nil {

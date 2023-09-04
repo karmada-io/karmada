@@ -165,7 +165,7 @@ The optimization design for the MultiClusterService API needs to be further iter
 
 Before delving into the specific design details, let's first take a look from the user's perspective at what preparations they need to make.
 
-1. The user creates a foo Deployment and Service on the Karmad control panel, and creates a PropagationPolicy to distribute them into the member cluster member1.
+1. The user creates a foo Deployment and Service on the Karmada control panel, and creates a PropagationPolicy to distribute them into the member cluster member1.
 
 ![image](statics/user-operation-01.png)
 

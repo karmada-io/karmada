@@ -2,7 +2,7 @@ package v1alpha1
 
 const (
 	// TaintClusterUnscheduler will be added when cluster becomes unschedulable
-	// and removed when cluster becomes scheduable.
+	// and removed when cluster becomes schedulable.
 	TaintClusterUnscheduler = "cluster.karmada.io/unschedulable"
 	// TaintClusterNotReady will be added when cluster is not ready
 	// and removed when cluster becomes ready.

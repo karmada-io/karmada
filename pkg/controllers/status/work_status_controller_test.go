@@ -555,7 +555,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 		pod                       *corev1.Pod
 		raw                       []byte
 		controllerWithoutInformer bool
-		workWithRigntNS           bool
+		workWithRightNS           bool
 		expectedError             bool
 		workWithDeletionTimestamp bool
 		wrongWorkNS               bool
@@ -566,7 +566,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRigntNS:           true,
+			workWithRightNS:           true,
 			expectedError:             true,
 		},
 		{
@@ -575,7 +575,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRigntNS:           true,
+			workWithRightNS:           true,
 			expectedError:             true,
 		},
 		{
@@ -584,7 +584,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: false,
-			workWithRigntNS:           true,
+			workWithRightNS:           true,
 			expectedError:             true,
 		},
 		{
@@ -592,7 +592,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			obj:                       newPodObj("karmada-es-cluster"),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRigntNS:           true,
+			workWithRightNS:           true,
 			expectedError:             false,
 		},
 		{
@@ -601,7 +601,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName, true),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRigntNS:           true,
+			workWithRightNS:           true,
 			expectedError:             false,
 		},
 		{
@@ -610,7 +610,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRigntNS:           false,
+			workWithRightNS:           false,
 			expectedError:             false,
 		},
 		{
@@ -619,7 +619,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod1","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRigntNS:           true,
+			workWithRightNS:           true,
 			expectedError:             true,
 		},
 		{
@@ -628,7 +628,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRigntNS:           true,
+			workWithRightNS:           true,
 			expectedError:             true,
 			wrongWorkNS:               true,
 		},
@@ -656,7 +656,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			}
 
 			var work *workv1alpha1.Work
-			if tt.workWithRigntNS {
+			if tt.workWithRightNS {
 				work = testhelper.NewWork(workName, workNs, workUID, tt.raw)
 			} else {
 				work = testhelper.NewWork(workName, fmt.Sprintf("%v-test", workNs), workUID, tt.raw)

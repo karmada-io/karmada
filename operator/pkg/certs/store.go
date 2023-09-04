@@ -13,7 +13,7 @@ type CertStore interface {
 	AddCert(cert *KarmadaCert)
 	GetCert(name string) *KarmadaCert
 	CertList() []*KarmadaCert
-	LoadCertFormSercret(sercret *corev1.Secret) error
+	LoadCertFromSecret(secret *corev1.Secret) error
 }
 
 type splitToPairNameFunc func(name string) string
@@ -65,7 +65,7 @@ func (store *KarmadaCertStore) GetCert(name string) *KarmadaCert {
 	return nil
 }
 
-// CertList lists all of karmada certs in the cert chache.
+// CertList lists all of karmada certs in the cert cache.
 func (store *KarmadaCertStore) CertList() []*KarmadaCert {
 	certs := make([]*KarmadaCert, 0, len(store.certs))
 
@@ -76,15 +76,15 @@ func (store *KarmadaCertStore) CertList() []*KarmadaCert {
 	return certs
 }
 
-// LoadCertFormSercret loads a set of certs form k8s secret resource. we get cert
+// LoadCertFromSecret loads a set of certs form k8s secret resource. we get cert
 // cache key by calling the pairNameFunc function. if the secret data key suffix is ".crt",
 // it be considered cert data. if the suffix is ".key", it be considered cert key data.
-func (store *KarmadaCertStore) LoadCertFormSercret(sercret *corev1.Secret) error {
-	if len(sercret.Data) == 0 {
+func (store *KarmadaCertStore) LoadCertFromSecret(secret *corev1.Secret) error {
+	if len(secret.Data) == 0 {
 		return fmt.Errorf("cert data is empty")
 	}
 
-	for name, data := range sercret.Data {
+	for name, data := range secret.Data {
 		pairName := store.pairNameFunc(name)
 		kc := store.GetCert(pairName)
 		if kc == nil {

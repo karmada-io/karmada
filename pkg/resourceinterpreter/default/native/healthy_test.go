@@ -352,7 +352,7 @@ func Test_interpretDaemonSetHealth(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "updatedNumberScheduled < desiredNumberSchedulerd",
+			name: "updatedNumberScheduled < desiredNumberScheduled",
 			object: &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"status": map[string]interface{}{

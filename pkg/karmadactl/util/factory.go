@@ -96,8 +96,8 @@ func (f *factoryImpl) FactoryForMemberCluster(clusterName string) (cmdutil.Facto
 		WrapConfigFn:     f.kubeConfigFlags.WrapConfigFn,
 	}
 	// Override the kube-apiserver address.
-	memberAPIserver := karmadaAPIServer + fmt.Sprintf(proxyURL, clusterName)
-	kubeConfigFlags.APIServer = &memberAPIserver
+	memberAPIServer := karmadaAPIServer + fmt.Sprintf(proxyURL, clusterName)
+	kubeConfigFlags.APIServer = &memberAPIServer
 	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
 	return cmdutil.NewFactory(matchVersionKubeConfigFlags), nil
 }

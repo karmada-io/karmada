@@ -169,8 +169,8 @@ func ReadYamlFile(path string) ([]byte, error) {
 	return yaml.YAMLToJSON(data)
 }
 
-// RelpaceYamlForReg replace content of yaml file with a Regexp
-func RelpaceYamlForReg(path, destResource string, reg *regexp.Regexp) ([]byte, error) {
+// ReplaceYamlForReg replace content of yaml file with a Regexp
+func ReplaceYamlForReg(path, destResource string, reg *regexp.Regexp) ([]byte, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err

@@ -72,7 +72,7 @@ func GroupClustersWithScore(
 	calAvailableReplicasFunc func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster,
 ) *GroupClustersInfo {
 	if isTopologyIgnored(placement) {
-		return groupClustersIngoreTopology(clustersScore, spec, calAvailableReplicasFunc)
+		return groupClustersIgnoringTopology(clustersScore, spec, calAvailableReplicasFunc)
 	}
 
 	return groupClustersBasedTopology(clustersScore, spec, placement.SpreadConstraints, calAvailableReplicasFunc)
@@ -98,7 +98,7 @@ func groupClustersBasedTopology(
 	return groupClustersInfo
 }
 
-func groupClustersIngoreTopology(
+func groupClustersIgnoringTopology(
 	clustersScore framework.ClusterScoreList,
 	rbSpec *workv1alpha2.ResourceBindingSpec,
 	calAvailableReplicasFunc func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster,

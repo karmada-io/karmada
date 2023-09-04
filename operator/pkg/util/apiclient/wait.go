@@ -41,7 +41,7 @@ type KarmadaWaiter struct {
 	timeout       time.Duration
 }
 
-// NewKarmadaWaiter reurn a karmada waiter, the rest config is to create crd client or aggregate client.
+// NewKarmadaWaiter returns a karmada waiter, the rest config is to create crd client or aggregate client.
 func NewKarmadaWaiter(config *rest.Config, client clientset.Interface, timeout time.Duration) Waiter {
 	return &KarmadaWaiter{
 		karmadaConfig: config,
@@ -169,8 +169,8 @@ func isPodRunning(pod corev1.Pod) bool {
 		return false
 	}
 
-	for _, condtion := range pod.Status.Conditions {
-		if condtion.Type == corev1.PodReady && condtion.Status == corev1.ConditionTrue {
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionTrue {
 			return true
 		}
 	}
