@@ -376,7 +376,7 @@ end
 						DependencyInterpretation: &configv1alpha1.DependencyInterpretation{LuaScript: `
 function GetDependencies(desiredObj)                                                                     
     dependencies = {}                                                                                    
-    if desiredObj.spec.serviceAccountName ~= "" and desiredObj.spec.serviceAccountName ~= "default" then 
+    if desiredObj.spec.serviceAccountName ~= nil and desiredObj.spec.serviceAccountName ~= "default" then 
         dependency = {}                                                                                  
         dependency.apiVersion = "v1"                                                                     
         dependency.kind = "ServiceAccount"                                                               
