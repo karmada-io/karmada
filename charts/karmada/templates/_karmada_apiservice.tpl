@@ -11,7 +11,7 @@ metadata:
     app: {{ $name }}-aggregated-apiserver
     apiserver: "true"
 spec:
-  insecureSkipTLSVerify: true
+  {{- include "karmada.apiserver.caBundle" . | nindent 2 }}
   group: cluster.karmada.io
   groupPriorityMinimum: 2000
   service:
@@ -39,7 +39,7 @@ metadata:
     app: {{ $name }}-search
     apiserver: "true"
 spec:
-  insecureSkipTLSVerify: true
+  {{- include "karmada.apiserver.caBundle" . | nindent 2 }}
   group: search.karmada.io
   groupPriorityMinimum: 2000
   service:

@@ -213,6 +213,15 @@ app: {{$name}}
 {{- end }}
 {{- end -}}
 
+{{- define "karmada.apiserver.caBundle" -}}
+{{- if eq .Values.certs.mode "auto" }}
+caBundle: {{ print "{{ ca_crt }}" }}
+{{- end }}
+{{- if eq .Values.certs.mode "custom" }}
+caBundle: {{ b64enc .Values.certs.custom.caCrt }}
+{{- end }}
+{{- end -}}
+
 {{- define "karmada.webhook.caBundle" -}}
 {{- if eq .Values.certs.mode "auto" }}
 caBundle: {{ print "{{ ca_crt }}" }}

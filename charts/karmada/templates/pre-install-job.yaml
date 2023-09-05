@@ -212,7 +212,6 @@ data:
         clusters:
           - cluster:
               certificate-authority-data: {{ print "{{ ca_crt }}" }}
-              insecure-skip-tls-verify: false
               server: https://{{ $name }}-apiserver.{{ $namespace }}.svc.{{ .Values.clusterDomain }}:5443
             name: {{ $name }}-apiserver
         users:
