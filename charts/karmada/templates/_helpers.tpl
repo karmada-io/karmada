@@ -273,6 +273,10 @@ app: {{- include "karmada.name" .}}-search
   secret:
     secretName: {{ .Values.search.kubeconfig }}
 {{- end -}}
+{{- end -}}
+
+{{- define "karmada.search.etcd.cert.volume" -}}
+{{ $name :=  include "karmada.name" . }}
 - name: etcd-certs
   secret:
   {{- if eq .Values.etcd.mode "internal" }}
