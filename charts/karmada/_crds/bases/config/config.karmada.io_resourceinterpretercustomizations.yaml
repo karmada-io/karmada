@@ -52,7 +52,7 @@ spec:
                           to interpret the dependencies of a specific resource. The
                           script should implement a function as follows: luaScript:
                           > function GetDependencies(desiredObj) dependencies = {}
-                          if desiredObj.spec.serviceAccountName ~= \"\" and desiredObj.spec.serviceAccountName
+                          if desiredObj.spec.serviceAccountName ~= nil and desiredObj.spec.serviceAccountName
                           ~= \"default\" then dependency = {} dependency.apiVersion
                           = \"v1\" dependency.kind = \"ServiceAccount\" dependency.name
                           = desiredObj.spec.serviceAccountName dependency.namespace
