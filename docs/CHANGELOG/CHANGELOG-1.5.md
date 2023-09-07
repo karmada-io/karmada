@@ -2,24 +2,30 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
+- [v1.5.4](#v154)
+  - [Downloads for v1.5.4](#downloads-for-v154)
+  - [Changelog since v1.5.3](#changelog-since-v153)
+    - [Changes by Kind](#changes-by-kind)
+    - [Bug Fixes](#bug-fixes)
+    - [Others](#others)
 - [v1.5.3](#v153)
   - [Downloads for v1.5.3](#downloads-for-v153)
   - [Changelog since v1.5.2](#changelog-since-v152)
-    - [Changes by Kind](#changes-by-kind)
-      - [Bug Fixes](#bug-fixes)
-      - [Others](#others)
-- [v1.5.2](#v152)
-  - [Downloads for v1.5.2](#downloads-for-v152)
-  - [Changelog since v1.5.1](#changelog-since-v151)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
-- [v1.5.1](#v151)
-  - [Downloads for v1.5.1](#downloads-for-v151)
-  - [Changelog since v1.5.0](#changelog-since-v150)
+- [v1.5.2](#v152)
+  - [Downloads for v1.5.2](#downloads-for-v152)
+  - [Changelog since v1.5.1](#changelog-since-v151)
     - [Changes by Kind](#changes-by-kind-2)
       - [Bug Fixes](#bug-fixes-2)
       - [Others](#others-2)
+- [v1.5.1](#v151)
+  - [Downloads for v1.5.1](#downloads-for-v151)
+  - [Changelog since v1.5.0](#changelog-since-v150)
+    - [Changes by Kind](#changes-by-kind-3)
+      - [Bug Fixes](#bug-fixes-3)
+      - [Others](#others-3)
 - [v1.5.0](#v150)
   - [Downloads for v1.5.0](#downloads-for-v150)
   - [What's New](#whats-new)
@@ -27,7 +33,7 @@
     - [New Way to Customize Scheduler](#new-way-to-customize-scheduler)
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
-    - [Bug Fixes](#bug-fixes-3)
+    - [Bug Fixes](#bug-fixes-4)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -36,6 +42,20 @@
     - [Instrumentation](#instrumentation)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.5.4
+## Downloads for v1.5.4
+
+Download v1.5.4 in the [v1.5.4 release page](https://github.com/karmada-io/karmada/releases/tag/v1.5.4).
+
+## Changelog since v1.5.3
+### Changes by Kind
+### Bug Fixes
+- `karmada-search`: Fixed a panic due to concurrent mutating objects in the informer cache. ([#3977](https://github.com/karmada-io/karmada/pull/3977), @chaosi-zju)
+- `karmada-controller-manager`: Avoid updating directly cached resource templates. ([#3894](https://github.com/karmada-io/karmada/pull/3894), @whitewindmills)
+
+### Others
+- Bump k8s.io dependencies to v0.26.4 to fix a possible panic. ([#3930](https://github.com/karmada-io/karmada/pull/3930), @liangyuanpeng)
 
 # v1.5.3
 ## Downloads for v1.5.3
