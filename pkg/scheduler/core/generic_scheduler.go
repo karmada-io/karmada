@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -20,11 +21,13 @@ import (
 // ScheduleAlgorithm is the interface that should be implemented to schedule a resource to the target clusters.
 type ScheduleAlgorithm interface {
 	Schedule(context.Context, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus, *ScheduleAlgorithmOption) (scheduleResult ScheduleResult, err error)
+	CandidateScheduleClusters(context.Context, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus) (scheduleResult []*clusterv1alpha1.Cluster, err error)
 }
 
 // ScheduleAlgorithmOption represents the option for ScheduleAlgorithm.
 type ScheduleAlgorithmOption struct {
 	EnableEmptyWorkloadPropagation bool
+	EnableBindingClusterChange     bool
 }
 
 // ScheduleResult includes the clusters selected.
@@ -58,6 +61,34 @@ func (g *genericScheduler) Schedule(
 	status *workv1alpha2.ResourceBindingStatus,
 	scheduleAlgorithmOption *ScheduleAlgorithmOption,
 ) (result ScheduleResult, err error) {
+	clusters, err := g.CandidateScheduleClusters(ctx, spec, status)
+	if err != nil {
+		return result, fmt.Errorf("failed to select clusters: %w", err)
+	}
+	klog.V(4).Infof("Selected clusters: %v", clusters)
+
+	clustersWithReplicas, err := g.assignReplicas(clusters, spec.Placement, spec)
+	if err != nil {
+		return result, fmt.Errorf("failed to assign replicas: %w", err)
+	}
+
+	if scheduleAlgorithmOption.EnableBindingClusterChange {
+		clustersWithReplicas = rescheduleClusterChange(clusters, clustersWithReplicas)
+	}
+
+	if scheduleAlgorithmOption.EnableEmptyWorkloadPropagation {
+		clustersWithReplicas = attachZeroReplicasCluster(clusters, clustersWithReplicas)
+	}
+	result.SuggestedClusters = clustersWithReplicas
+
+	return result, nil
+}
+
+func (g *genericScheduler) CandidateScheduleClusters(
+	ctx context.Context,
+	spec *workv1alpha2.ResourceBindingSpec,
+	status *workv1alpha2.ResourceBindingStatus,
+) (result []*clusterv1alpha1.Cluster, err error) {
 	clusterInfoSnapshot := g.schedulerCache.Snapshot()
 	feasibleClusters, diagnosis, err := g.findClustersThatFit(ctx, spec, status, &clusterInfoSnapshot)
 	if err != nil {
@@ -85,16 +116,56 @@ func (g *genericScheduler) Schedule(
 	}
 	klog.V(4).Infof("Selected clusters: %v", clusters)
 
-	clustersWithReplicas, err := g.assignReplicas(clusters, spec.Placement, spec)
-	if err != nil {
-		return result, fmt.Errorf("failed to assign replicas: %w", err)
-	}
-	if scheduleAlgorithmOption.EnableEmptyWorkloadPropagation {
-		clustersWithReplicas = attachZeroReplicasCluster(clusters, clustersWithReplicas)
-	}
-	result.SuggestedClusters = clustersWithReplicas
+	return clusters, nil
+}
 
-	return result, nil
+func rescheduleClusterChange(candidateClusters []*clusterv1alpha1.Cluster, preClustersWithReplicas []workv1alpha2.TargetCluster) []workv1alpha2.TargetCluster {
+	rescheduleClustersWithReplicas := make([]workv1alpha2.TargetCluster, 0)
+
+	// after reschedule, the candidate clusters is null
+	if len(candidateClusters) == 0 || len(preClustersWithReplicas) == 0 {
+		return rescheduleClustersWithReplicas
+	}
+
+	candidateClusterNames := sets.NewString()
+	candidateClusterWithReplicas := make(map[string]int32, 0)
+	var removedReplicas int32 = 0
+	for _, tmp := range candidateClusters {
+		candidateClusterNames.Insert(tmp.Name)
+		candidateClusterWithReplicas[tmp.Name] = 0
+	}
+
+	preScheduledClusterNames := sets.NewString()
+	for _, tmp := range preClustersWithReplicas {
+		preScheduledClusterNames.Insert(tmp.Name)
+		if candidateClusterNames.Has(tmp.Name) {
+			candidateClusterWithReplicas[tmp.Name] = tmp.Replicas
+		}
+	}
+
+	removedClusterNames := preScheduledClusterNames.Difference(candidateClusterNames)
+	for _, tmp := range preClustersWithReplicas {
+		if removedClusterNames.Has(tmp.Name) {
+			removedReplicas += tmp.Replicas
+		}
+	}
+
+	var avgReplicas int32 = removedReplicas / int32(len(candidateClusterWithReplicas))
+	remain := removedReplicas
+	for k, v := range candidateClusterWithReplicas {
+		candidateClusterWithReplicas[k] = v + avgReplicas
+		remain -= avgReplicas
+	}
+	// random select
+	candidateClusterWithReplicas[candidateClusters[0].Name] += remain
+
+	for k, v := range candidateClusterWithReplicas {
+		if v != 0 {
+			rescheduleClustersWithReplicas = append(rescheduleClustersWithReplicas, workv1alpha2.TargetCluster{Name: k, Replicas: v})
+		}
+	}
+
+	return rescheduleClustersWithReplicas
 }
 
 // findClustersThatFit finds the clusters that are fit for the placement based on running the filter plugins.
