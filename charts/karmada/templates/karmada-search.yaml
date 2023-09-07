@@ -91,6 +91,7 @@ spec:
           {{- toYaml .Values.apiServer.resources | nindent 12 }}
       volumes:
       {{- include "karmada.search.kubeconfig.volume" . | nindent 8 }}
+      {{- include "karmada.search.etcd.cert.volume" . | nindent 8 }}
 ---
 apiVersion: v1
 kind: Service
@@ -165,7 +166,8 @@ spec:
         - name: {{ $name }}-search-apiservice
           configMap:
             name: {{ $name }}-search-apiservice
-        {{ include "karmada.search.kubeconfig.volume" . | nindent 8 }}
+        {{- include "karmada.search.kubeconfig.volume" . | nindent 8 }}
+        {{- include "karmada.search.etcd.cert.volume" . | nindent 8 }}
 {{- end }}
 
 {{ if .Values.search.podDisruptionBudget }}
