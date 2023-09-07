@@ -128,7 +128,8 @@ func runKarmadaAggregatedAPIServer(r workflow.RunData) error {
 
 	err := apiserver.EnsureKarmadaAggregatedAPIServer(
 		data.RemoteClient(),
-		cfg,
+		cfg.KarmadaAggregatedAPIServer,
+		cfg.Etcd,
 		data.GetName(),
 		data.GetNamespace(),
 		data.FeatureGates())

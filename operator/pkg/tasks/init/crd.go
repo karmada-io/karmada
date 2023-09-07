@@ -85,6 +85,7 @@ func runCrdsDownload(r workflow.RunData) error {
 	if err != nil {
 		return err
 	}
+
 	if !exist {
 		if err := os.MkdirAll(crdsDir, 0700); err != nil {
 			return err
