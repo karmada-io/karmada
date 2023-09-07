@@ -2,18 +2,24 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
+- [v1.6.3](#v163)
+  - [Downloads for v1.6.3](#downloads-for-v163)
+  - [Changelog since v1.6.2](#changelog-since-v162)
+    - [Changes by Kind](#changes-by-kind)
+    - [Bug Fixes](#bug-fixes)
+    - [Others](#others)
 - [v1.6.2](#v162)
   - [Downloads for v1.6.2](#downloads-for-v162)
   - [Changelog since v1.6.1](#changelog-since-v161)
-    - [Changes by Kind](#changes-by-kind)
-      - [Bug Fixes](#bug-fixes)
-      - [Others](#others)
-- [v1.6.1](#v161)
-  - [Downloads for v1.6.1](#downloads-for-v161)
-  - [Changelog since v1.6.0](#changelog-since-v160)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
+- [v1.6.1](#v161)
+  - [Downloads for v1.6.1](#downloads-for-v161)
+  - [Changelog since v1.6.0](#changelog-since-v160)
+    - [Changes by Kind](#changes-by-kind-2)
+      - [Bug Fixes](#bug-fixes-2)
+      - [Others](#others-2)
 - [v1.6.0](#v160)
   - [Downloads for v1.6.0](#downloads-for-v160)
   - [What's New](#whats-new)
@@ -23,7 +29,7 @@
     - [Third-party Resource Interpreter](#third-party-resource-interpreter)
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
-    - [Bug Fixes](#bug-fixes-2)
+    - [Bug Fixes](#bug-fixes-3)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -32,6 +38,21 @@
     - [Instrumentation](#instrumentation)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.6.3
+## Downloads for v1.6.3
+
+Download v1.6.3 in the [v1.6.3 release page](https://github.com/karmada-io/karmada/releases/tag/v1.6.3).
+
+## Changelog since v1.6.2
+### Changes by Kind
+### Bug Fixes
+- `karmada-search`: Fixed a panic due to concurrent mutating objects in the informer cache. ([#3978](https://github.com/karmada-io/karmada/pull/3978), @chaosi-zju)
+- `karmada-controller-manager`: Avoid updating directly cached resource templates. ([#3893](https://github.com/karmada-io/karmada/pull/3893), @whitewindmills)
+- `karmada-aggregated-apiserver`: Fixed the issue that can not proxy `exec` request to a proxy issue. ([#4022](https://github.com/karmada-io/karmada/pull/4022), @jwcesign)
+
+### Others
+- Bump k8s.io dependencies to v0.26.4 to fix a possible panic. ([#3925](https://github.com/karmada-io/karmada/pull/3925), @liangyuanpeng)
 
 # v1.6.2
 ## Downloads for v1.6.2
