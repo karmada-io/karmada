@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -15,7 +14,6 @@ import (
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
@@ -76,7 +74,7 @@ func (d *ResourceDetector) propagateResource(object *unstructured.Unstructured, 
 
 	if d.isWaiting(objectKey) {
 		// reaching here means there is no appropriate policy for the object
-		d.EventRecorder.Event(object, corev1.EventTypeWarning, events.EventReasonApplyPolicyFailed, "No policy match for resource")
+		klog.V(4).Infof("No matched policy for object: %s", objectKey.String())
 		return nil
 	}
 
