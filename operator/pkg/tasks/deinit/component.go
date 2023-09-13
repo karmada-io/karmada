@@ -19,6 +19,7 @@ func NewRemoveComponentTask() workflow.Task {
 		Run:         runRemoveComponent,
 		RunSubTasks: true,
 		Tasks: []workflow.Task{
+			newRemoveComponentWithServiceSubTask(constants.KarmadaMetricsAdapterComponent, util.KarmadaMetricsAdapterName),
 			newRemoveComponentSubTask(constants.KarmadaDeschedulerComponent, util.KarmadaDeschedulerName),
 			newRemoveComponentSubTask(constants.KarmadaSchedulerComponent, util.KarmadaSchedulerName),
 			newRemoveComponentSubTask(constants.KarmadaControllerManagerComponent, util.KarmadaControllerManagerName),
