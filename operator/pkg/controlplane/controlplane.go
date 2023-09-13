@@ -89,7 +89,7 @@ func getKubeControllerManagerManifest(name, namespace string, cfg *operatorv1alp
 	}
 
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).
-		WithLabels(cfg.Labels).WithExtraArgs(cfg.ExtraArgs).ForDeployment(kcm)
+		WithLabels(cfg.Labels).WithExtraArgs(cfg.ExtraArgs).WithResources(cfg.Resources).ForDeployment(kcm)
 	return kcm, nil
 }
 
@@ -116,7 +116,7 @@ func getKarmadaControllerManagerManifest(name, namespace string, featureGates ma
 	}
 
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
-		WithExtraArgs(cfg.ExtraArgs).WithFeatureGates(featureGates).ForDeployment(kcm)
+		WithExtraArgs(cfg.ExtraArgs).WithFeatureGates(featureGates).WithResources(cfg.Resources).ForDeployment(kcm)
 	return kcm, nil
 }
 
@@ -143,7 +143,7 @@ func getKarmadaSchedulerManifest(name, namespace string, featureGates map[string
 	}
 
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
-		WithExtraArgs(cfg.ExtraArgs).WithFeatureGates(featureGates).ForDeployment(scheduler)
+		WithExtraArgs(cfg.ExtraArgs).WithFeatureGates(featureGates).WithResources(cfg.Resources).ForDeployment(scheduler)
 	return scheduler, nil
 }
 
@@ -170,7 +170,7 @@ func getKarmadaDeschedulerManifest(name, namespace string, featureGates map[stri
 	}
 
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
-		WithExtraArgs(cfg.ExtraArgs).WithFeatureGates(featureGates).ForDeployment(descheduler)
+		WithExtraArgs(cfg.ExtraArgs).WithFeatureGates(featureGates).WithResources(cfg.Resources).ForDeployment(descheduler)
 
 	return descheduler, nil
 }

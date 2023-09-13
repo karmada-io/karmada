@@ -24,6 +24,7 @@ type Patcher struct {
 	extraArgs    map[string]string
 	featureGates map[string]bool
 	volume       *operatorv1alpha1.VolumeData
+	resources    corev1.ResourceRequirements
 }
 
 // NewPatcher returns a patcher.
@@ -61,6 +62,12 @@ func (p *Patcher) WithVolumeData(volume *operatorv1alpha1.VolumeData) *Patcher {
 	return p
 }
 
+// WithResources sets resources to the patcher.
+func (p *Patcher) WithResources(resources corev1.ResourceRequirements) *Patcher {
+	p.resources = resources
+	return p
+}
+
 // ForDeployment patches the deployment manifest.
 func (p *Patcher) ForDeployment(deployment *appsv1.Deployment) {
 	deployment.Labels = labels.Merge(deployment.Labels, p.labels)
@@ -69,6 +76,10 @@ func (p *Patcher) ForDeployment(deployment *appsv1.Deployment) {
 	deployment.Annotations = labels.Merge(deployment.Annotations, p.annotations)
 	deployment.Spec.Template.Annotations = labels.Merge(deployment.Spec.Template.Annotations, p.annotations)
 
+	if p.resources.Size() > 0 {
+		// It's considered the first container is the karmada component by default.
+		deployment.Spec.Template.Spec.Containers[0].Resources = p.resources
+	}
 	if len(p.extraArgs) != 0 || len(p.featureGates) != 0 {
 		// It's considered the first container is the karmada component by default.
 		baseArguments := deployment.Spec.Template.Spec.Containers[0].Command
@@ -109,6 +120,10 @@ func (p *Patcher) ForStatefulSet(sts *appsv1.StatefulSet) {
 		patchVolumeForStatefulSet(sts, p.volume)
 	}
 
+	if p.resources.Size() > 0 {
+		// It's considered the first container is the karmada component by default.
+		sts.Spec.Template.Spec.Containers[0].Resources = p.resources
+	}
 	if len(p.extraArgs) != 0 {
 		// It's considered the first container is the karmada component by default.
 		baseArguments := sts.Spec.Template.Spec.Containers[0].Command

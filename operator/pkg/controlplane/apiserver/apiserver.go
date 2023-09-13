@@ -59,7 +59,7 @@ func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.K
 		return fmt.Errorf("error when decoding karmadaApiserver deployment: %w", err)
 	}
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
-		WithExtraArgs(cfg.ExtraArgs).ForDeployment(apiserverDeployment)
+		WithExtraArgs(cfg.ExtraArgs).WithResources(cfg.Resources).ForDeployment(apiserverDeployment)
 
 	if err := apiclient.CreateOrUpdateDeployment(client, apiserverDeployment); err != nil {
 		return fmt.Errorf("error when creating deployment for %s, err: %w", apiserverDeployment.Name, err)
@@ -117,7 +117,7 @@ func installKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operator
 	}
 
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
-		WithExtraArgs(cfg.ExtraArgs).WithFeatureGates(featureGates).ForDeployment(aggregatedAPIServerDeployment)
+		WithExtraArgs(cfg.ExtraArgs).WithFeatureGates(featureGates).WithResources(cfg.Resources).ForDeployment(aggregatedAPIServerDeployment)
 
 	if err := apiclient.CreateOrUpdateDeployment(client, aggregatedAPIServerDeployment); err != nil {
 		return fmt.Errorf("error when creating deployment for %s, err: %w", aggregatedAPIServerDeployment.Name, err)

@@ -47,7 +47,7 @@ func installKarmadaWebhook(client clientset.Interface, cfg *operatorv1alpha1.Kar
 	}
 
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
-		WithExtraArgs(cfg.ExtraArgs).ForDeployment(webhookDeployment)
+		WithExtraArgs(cfg.ExtraArgs).WithResources(cfg.Resources).ForDeployment(webhookDeployment)
 
 	if err := apiclient.CreateOrUpdateDeployment(client, webhookDeployment); err != nil {
 		return fmt.Errorf("error when creating deployment for %s, err: %w", webhookDeployment.Name, err)
