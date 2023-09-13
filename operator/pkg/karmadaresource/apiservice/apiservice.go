@@ -30,21 +30,23 @@ func init() {
 }
 
 // EnsureAggregatedAPIService creates aggregated APIService and a service
-func EnsureAggregatedAPIService(aggregatorClient *aggregator.Clientset, client clientset.Interface, name, namespace string) error {
+func EnsureAggregatedAPIService(aggregatorClient *aggregator.Clientset, client clientset.Interface, name, namespace, caBundle string) error {
 	if err := aggregatedApiserverService(client, name, namespace); err != nil {
 		return err
 	}
 
-	return aggregatedAPIService(aggregatorClient, name, namespace)
+	return aggregatedAPIService(aggregatorClient, name, namespace, caBundle)
 }
 
-func aggregatedAPIService(client *aggregator.Clientset, name, namespace string) error {
+func aggregatedAPIService(client *aggregator.Clientset, name, namespace, caBundle string) error {
 	apiServiceBytes, err := util.ParseTemplate(KarmadaAggregatedAPIService, struct {
 		Namespace   string
 		ServiceName string
+		CABundle    string
 	}{
 		Namespace:   namespace,
 		ServiceName: util.KarmadaAggregatedAPIServerName(name),
+		CABundle:    caBundle,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing AggregatedApiserver APIService template: %w", err)
@@ -79,15 +81,15 @@ func aggregatedApiserverService(client clientset.Interface, name, namespace stri
 }
 
 // EnsureMetricsAdapterAPIService creates APIService and a service for karmada-metrics-adapter
-func EnsureMetricsAdapterAPIService(aggregatorClient *aggregator.Clientset, client clientset.Interface, name, namespace string) error {
+func EnsureMetricsAdapterAPIService(aggregatorClient *aggregator.Clientset, client clientset.Interface, name, namespace, caBundle string) error {
 	if err := karmadaMetricsAdapterService(client, name, namespace); err != nil {
 		return err
 	}
 
-	return karmadaMetricsAdapterAPIService(aggregatorClient, name, namespace)
+	return karmadaMetricsAdapterAPIService(aggregatorClient, name, namespace, caBundle)
 }
 
-func karmadaMetricsAdapterAPIService(client *aggregator.Clientset, name, namespace string) error {
+func karmadaMetricsAdapterAPIService(client *aggregator.Clientset, name, namespace, caBundle string) error {
 	for _, gv := range constants.KarmadaMetricsAdapterAPIServices {
 		// The APIService name to metrics adapter is "$version.$group"
 		apiServiceName := fmt.Sprintf("%s.%s", gv.Version, gv.Group)
@@ -95,12 +97,14 @@ func karmadaMetricsAdapterAPIService(client *aggregator.Clientset, name, namespa
 		apiServiceBytes, err := util.ParseTemplate(KarmadaMetricsAdapterAPIService, struct {
 			Name, Namespace             string
 			ServiceName, Group, Version string
+			CABundle                    string
 		}{
 			Name:        apiServiceName,
 			Namespace:   namespace,
 			Group:       gv.Group,
 			Version:     gv.Version,
 			ServiceName: util.KarmadaMetricsAdapterName(name),
+			CABundle:    caBundle,
 		})
 		if err != nil {
 			return fmt.Errorf("error when parsing KarmadaMetricsAdapter APIService %s template: %w", apiServiceName, err)
