@@ -2,6 +2,7 @@ package metricsadapter
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"time"
@@ -19,6 +20,7 @@ import (
 	addoninit "github.com/karmada-io/karmada/pkg/karmadactl/addons/init"
 	addonutils "github.com/karmada-io/karmada/pkg/karmadactl/addons/utils"
 	initkarmada "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/karmada"
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
@@ -169,6 +171,12 @@ func installComponentsOnKarmadaControlPlane(opts *addoninit.CommandAddonsEnableO
 		return fmt.Errorf("error when parsing karmada metrics adapter AA service template :%v", err)
 	}
 
+	caCertName := fmt.Sprintf("%s.crt", options.CaCertAndKeyName)
+	karmadaCerts, err := opts.KubeClientSet.CoreV1().Secrets(opts.Namespace).Get(context.TODO(), options.KarmadaCertsName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("error when getting Secret %s/%s, which is used to fetch CaCert for building APISevice: %+v", opts.Namespace, options.KarmadaCertsName, err)
+	}
+
 	aaService := &corev1.Service{}
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), aaServiceBytes, aaService); err != nil {
 		return fmt.Errorf("decode karmada metrics adapter AA service error: %v", err)
@@ -184,6 +192,7 @@ func installComponentsOnKarmadaControlPlane(opts *addoninit.CommandAddonsEnableO
 			Namespace: opts.Namespace,
 			Group:     gv[1],
 			Version:   gv[0],
+			CABundle:  base64.StdEncoding.EncodeToString(karmadaCerts.Data[caCertName]),
 		})
 		if err != nil {
 			return fmt.Errorf("error when parsing karmada metrics adapter AA apiservice template :%v", err)

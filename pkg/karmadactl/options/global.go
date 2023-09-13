@@ -16,6 +16,13 @@ const DefaultHostClusterDomain = "cluster.local"
 // DefaultKarmadactlCommandDuration defines the default timeout for karmadactl execute
 const DefaultKarmadactlCommandDuration = 60 * time.Second
 
+const (
+	// KarmadaCertsName the secret name of karmada certs
+	KarmadaCertsName = "karmada-cert"
+	// CaCertAndKeyName ca certificate cert/key name in karmada certs secret
+	CaCertAndKeyName = "ca"
+)
+
 // DefaultConfigFlags It composes the set of values necessary for obtaining a REST client config with default values set.
 var DefaultConfigFlags = genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
 

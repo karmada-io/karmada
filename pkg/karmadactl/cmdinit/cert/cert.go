@@ -23,6 +23,7 @@ import (
 	"k8s.io/kube-openapi/pkg/util/sets"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
+	globaloptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
 )
 
 const (
@@ -249,7 +250,7 @@ func GenCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg, karmadaCertC
 	if err != nil {
 		return err
 	}
-	if err = WriteCertAndKey(pkiPath, options.CaCertAndKeyName, caCert, caKey); err != nil {
+	if err = WriteCertAndKey(pkiPath, globaloptions.CaCertAndKeyName, caCert, caKey); err != nil {
 		return err
 	}
 

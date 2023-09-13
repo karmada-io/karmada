@@ -98,7 +98,7 @@ metadata:
     app: karmada-search
     apiserver: "true"
 spec:
-  insecureSkipTLSVerify: true
+  caBundle: {{ .CABundle }}
   group: search.karmada.io
   groupPriorityMinimum: 2000
   service:
@@ -141,6 +141,7 @@ type ServiceReplace struct {
 type AAApiServiceReplace struct {
 	Name      string
 	Namespace string
+	CABundle  string
 }
 
 // AAServiceReplace is a struct to help to concrete
