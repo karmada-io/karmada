@@ -68,9 +68,8 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 					&clusterv1alpha1.Cluster{
 						ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
 						Spec: clusterv1alpha1.ClusterSpec{
-							APIEndpoint:                 "https://127.0.0.1",
-							SecretRef:                   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
-							InsecureSkipTLSVerification: true,
+							APIEndpoint: "https://127.0.0.1",
+							SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
 						},
 						Status: clusterv1alpha1.ClusterStatus{
 							Conditions: []metav1.Condition{
@@ -83,7 +82,7 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 					},
 					&corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
-						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token")},
+						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
 					}).Build(),
 				InformerManager:             genericmanager.GetInstance(),
 				PredicateFunc:               helper.NewClusterPredicateOnAgent("test"),
@@ -779,9 +778,8 @@ func TestWorkStatusController_getSingleClusterManager(t *testing.T) {
 					&clusterv1alpha1.Cluster{
 						ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
 						Spec: clusterv1alpha1.ClusterSpec{
-							APIEndpoint:                 "https://127.0.0.1",
-							SecretRef:                   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
-							InsecureSkipTLSVerification: true,
+							APIEndpoint: "https://127.0.0.1",
+							SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
 						},
 						Status: clusterv1alpha1.ClusterStatus{
 							Conditions: []metav1.Condition{
@@ -794,7 +792,7 @@ func TestWorkStatusController_getSingleClusterManager(t *testing.T) {
 					},
 					&corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
-						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token")},
+						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
 					}).Build()
 			}
 

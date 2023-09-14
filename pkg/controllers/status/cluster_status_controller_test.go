@@ -32,6 +32,28 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
+// copy from go/src/net/http/internal/testcert/testcert.go
+var testCA = []byte(`-----BEGIN CERTIFICATE-----
+MIIDOTCCAiGgAwIBAgIQSRJrEpBGFc7tNb1fb5pKFzANBgkqhkiG9w0BAQsFADAS
+MRAwDgYDVQQKEwdBY21lIENvMCAXDTcwMDEwMTAwMDAwMFoYDzIwODQwMTI5MTYw
+MDAwWjASMRAwDgYDVQQKEwdBY21lIENvMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
+MIIBCgKCAQEA6Gba5tHV1dAKouAaXO3/ebDUU4rvwCUg/CNaJ2PT5xLD4N1Vcb8r
+bFSW2HXKq+MPfVdwIKR/1DczEoAGf/JWQTW7EgzlXrCd3rlajEX2D73faWJekD0U
+aUgz5vtrTXZ90BQL7WvRICd7FlEZ6FPOcPlumiyNmzUqtwGhO+9ad1W5BqJaRI6P
+YfouNkwR6Na4TzSj5BrqUfP0FwDizKSJ0XXmh8g8G9mtwxOSN3Ru1QFc61Xyeluk
+POGKBV/q6RBNklTNe0gI8usUMlYyoC7ytppNMW7X2vodAelSu25jgx2anj9fDVZu
+h7AXF5+4nJS4AAt0n1lNY7nGSsdZas8PbQIDAQABo4GIMIGFMA4GA1UdDwEB/wQE
+AwICpDATBgNVHSUEDDAKBggrBgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MB0GA1Ud
+DgQWBBStsdjh3/JCXXYlQryOrL4Sh7BW5TAuBgNVHREEJzAlggtleGFtcGxlLmNv
+bYcEfwAAAYcQAAAAAAAAAAAAAAAAAAAAATANBgkqhkiG9w0BAQsFAAOCAQEAxWGI
+5NhpF3nwwy/4yB4i/CwwSpLrWUa70NyhvprUBC50PxiXav1TeDzwzLx/o5HyNwsv
+cxv3HdkLW59i/0SlJSrNnWdfZ19oTcS+6PtLoVyISgtyN6DpkKpdG1cOkW3Cy2P2
++tK/tKHRP1Y/Ra0RiDpOAmqn0gCOFGz8+lqDIor/T7MTpibL3IxqWfPrvfVRHL3B
+grw/ZQTTIVjjh4JBSW3WyWgNo/ikC1lrVxzl4iPUGptxT36Cr7Zk2Bsg0XqwbOvK
+5d+NTDREkSnUbie4GeutujmX3Dsx88UiV6UY/4lHJa6I5leHUNOHahRbpbWeOfs/
+WkBKOclmOV2xlTVuPw==
+-----END CERTIFICATE-----`)
+
 func TestClusterStatusController_Reconcile(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -123,16 +145,13 @@ func generateClusterClient(APIEndpoint string) *util.ClusterClient {
 		&clusterv1alpha1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{Name: "test"},
 			Spec: clusterv1alpha1.ClusterSpec{
-				APIEndpoint:                 APIEndpoint,
-				SecretRef:                   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
-				InsecureSkipTLSVerification: true,
+				APIEndpoint: APIEndpoint,
+				SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
 			},
 		},
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
-			Data: map[string][]byte{
-				clusterv1alpha1.SecretTokenKey: []byte("token"),
-			},
+			Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
 		}).Build()
 	clusterClientSet, _ := util.NewClusterClientSet("test", hostClient, nil)
 	clusterClient.KubeClient = clusterClientSet.KubeClient
@@ -160,14 +179,17 @@ func TestClusterStatusController_syncClusterStatus(t *testing.T) {
 		cluster := &clusterv1alpha1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{Name: "test"},
 			Spec: clusterv1alpha1.ClusterSpec{
-				APIEndpoint:                 server.URL,
-				SecretRef:                   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
-				InsecureSkipTLSVerification: true,
-				ProxyURL:                    "http://1.1.1.1",
+				APIEndpoint: server.URL,
+				SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
+				ProxyURL:    "http://1.1.1.1",
 			},
 		}
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
+			Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
+		}
 		c := &ClusterStatusController{
-			Client:                 fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithStatusSubresource(cluster).Build(),
+			Client:                 fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithStatusSubresource(cluster, secret).Build(),
 			GenericInformerManager: genericmanager.GetInstance(),
 			TypedInformerManager:   typedmanager.GetInstance(),
 			ClusterSuccessThreshold: metav1.Duration{
@@ -202,14 +224,17 @@ func TestClusterStatusController_syncClusterStatus(t *testing.T) {
 		cluster := &clusterv1alpha1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{Name: "test"},
 			Spec: clusterv1alpha1.ClusterSpec{
-				APIEndpoint:                 server.URL,
-				SecretRef:                   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
-				InsecureSkipTLSVerification: true,
-				ProxyURL:                    "http://1.1.1.2",
+				APIEndpoint: server.URL,
+				SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
+				ProxyURL:    "http://1.1.1.2",
 			},
 		}
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
+			Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
+		}
 		c := &ClusterStatusController{
-			Client:                 fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithStatusSubresource(cluster).Build(),
+			Client:                 fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithStatusSubresource(cluster, secret).Build(),
 			GenericInformerManager: genericmanager.GetInstance(),
 			TypedInformerManager:   typedmanager.GetInstance(),
 			ClusterSuccessThreshold: metav1.Duration{
@@ -247,14 +272,17 @@ func TestClusterStatusController_syncClusterStatus(t *testing.T) {
 		cluster := &clusterv1alpha1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{Name: "test"},
 			Spec: clusterv1alpha1.ClusterSpec{
-				APIEndpoint:                 server.URL,
-				SecretRef:                   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
-				InsecureSkipTLSVerification: true,
-				ProxyURL:                    "http://1.1.1.1",
+				APIEndpoint: server.URL,
+				SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
+				ProxyURL:    "http://1.1.1.1",
 			},
 		}
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
+			Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
+		}
 		c := &ClusterStatusController{
-			Client:                 fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithStatusSubresource(cluster).Build(),
+			Client:                 fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithStatusSubresource(cluster, secret).Build(),
 			GenericInformerManager: genericmanager.GetInstance(),
 			TypedInformerManager:   typedmanager.GetInstance(),
 			ClusterSuccessThreshold: metav1.Duration{
