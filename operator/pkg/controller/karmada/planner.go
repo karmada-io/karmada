@@ -88,6 +88,7 @@ func (p *Planner) Execute() error {
 		return err
 	}
 	if err := p.job.Run(); err != nil {
+		klog.ErrorS(err, "failed to executed the workflow", "workflow", p.action, "karmada", klog.KObj(p.karmada))
 		return p.runJobErr(err)
 	}
 	if err := p.afterRunJob(); err != nil {

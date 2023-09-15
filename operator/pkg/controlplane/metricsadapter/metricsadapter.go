@@ -46,7 +46,7 @@ func installKarmadaMetricAdapter(client clientset.Interface, cfg *operatorv1alph
 		return fmt.Errorf("err when decoding KarmadaMetricAdapter Deployment: %w", err)
 	}
 
-	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).ForDeployment(metricAdapter)
+	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).WithResources(cfg.Resources).ForDeployment(metricAdapter)
 
 	if err := apiclient.CreateOrUpdateDeployment(client, metricAdapter); err != nil {
 		return fmt.Errorf("error when creating deployment for %s, err: %w", metricAdapter.Name, err)
