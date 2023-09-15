@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -28,6 +29,7 @@ func getAllDefaultReflectStatusInterpreter() map[schema.GroupVersionKind]reflect
 	s[appsv1.SchemeGroupVersion.WithKind(util.DaemonSetKind)] = reflectDaemonSetStatus
 	s[appsv1.SchemeGroupVersion.WithKind(util.StatefulSetKind)] = reflectStatefulSetStatus
 	s[policyv1.SchemeGroupVersion.WithKind(util.PodDisruptionBudgetKind)] = reflectPodDisruptionBudgetStatus
+	s[autoscalingv2.SchemeGroupVersion.WithKind(util.HorizontalPodAutoscalerKind)] = reflectHorizontalPodAutoscalerStatus
 	return s
 }
 
@@ -216,6 +218,32 @@ func reflectPodDisruptionBudgetStatus(object *unstructured.Unstructured) (*runti
 		DesiredHealthy:     pdbStatus.DesiredHealthy,
 		CurrentHealthy:     pdbStatus.CurrentHealthy,
 		DisruptedPods:      pdbStatus.DisruptedPods,
+	}
+	return helper.BuildStatusRawExtension(grabStatus)
+}
+
+func reflectHorizontalPodAutoscalerStatus(object *unstructured.Unstructured) (*runtime.RawExtension, error) {
+	statusMap, exist, err := unstructured.NestedMap(object.Object, "status")
+	if err != nil {
+		klog.Errorf("Failed to get status field from %s(%s/%s), error: %v",
+			object.GetKind(), object.GetNamespace(), object.GetName(), err)
+		return nil, err
+	}
+	if !exist {
+		klog.Errorf("Failed to grab status from %s(%s/%s) which should have status field.",
+			object.GetKind(), object.GetNamespace(), object.GetName())
+		return nil, nil
+	}
+
+	hpaStatus := &autoscalingv2.HorizontalPodAutoscalerStatus{}
+	err = helper.ConvertToTypedObject(statusMap, hpaStatus)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert HorizontalPodAutoscaler from map[string]interface{}: %v", err)
+	}
+
+	grabStatus := autoscalingv2.HorizontalPodAutoscalerStatus{
+		CurrentReplicas: hpaStatus.CurrentReplicas,
+		DesiredReplicas: hpaStatus.DesiredReplicas,
 	}
 	return helper.BuildStatusRawExtension(grabStatus)
 }
