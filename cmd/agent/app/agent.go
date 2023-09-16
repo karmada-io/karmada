@@ -140,6 +140,7 @@ func run(ctx context.Context, opts *options.Options) error {
 		ProxyServerAddress: opts.ProxyServerAddress,
 		ClusterProvider:    opts.ClusterProvider,
 		ClusterRegion:      opts.ClusterRegion,
+		ClusterZones:       opts.ClusterZones,
 		DryRun:             false,
 		ControlPlaneConfig: controlPlaneRestConfig,
 		ClusterConfig:      clusterConfig,
