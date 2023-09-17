@@ -871,7 +871,6 @@ func (c *FederatedHPAController) computeStatusForPodsMetric(ctx context.Context,
 func (c *FederatedHPAController) computeStatusForResourceMetricGeneric(ctx context.Context, req *fhpaReqParams, sourceType autoscalingv2.MetricSourceType) (replicaCountProposal int32,
 	metricStatus *autoscalingv2.MetricValueStatus, timestampProposal time.Time, metricNameProposal string,
 	condition autoscalingv2.HorizontalPodAutoscalerCondition, err error) {
-
 	var target autoscalingv2.MetricTarget
 	var resourceName corev1.ResourceName
 	var container string
