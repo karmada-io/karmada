@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -35,6 +36,7 @@ func getAllDefaultAggregateStatusInterpreter() map[schema.GroupVersionKind]aggre
 	s[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeKind)] = aggregatePersistentVolumeStatus
 	s[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeClaimKind)] = aggregatePersistentVolumeClaimStatus
 	s[policyv1.SchemeGroupVersion.WithKind(util.PodDisruptionBudgetKind)] = aggregatePodDisruptionBudgetStatus
+	s[autoscalingv2.SchemeGroupVersion.WithKind(util.HorizontalPodAutoscalerKind)] = aggregateHorizontalPodAutoscalerStatus
 	return s
 }
 
@@ -553,4 +555,36 @@ func aggregatePodDisruptionBudgetStatus(object *unstructured.Unstructured, aggre
 
 	pdb.Status = *newStatus
 	return helper.ToUnstructured(pdb)
+}
+
+func aggregateHorizontalPodAutoscalerStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
+	hpa := &autoscalingv2.HorizontalPodAutoscaler{}
+	err := helper.ConvertToTypedObject(object, hpa)
+	if err != nil {
+		return nil, err
+	}
+
+	newStatus := &autoscalingv2.HorizontalPodAutoscalerStatus{}
+	for _, item := range aggregatedStatusItems {
+		if item.Status == nil {
+			continue
+		}
+
+		temp := &autoscalingv2.HorizontalPodAutoscalerStatus{}
+		if err = json.Unmarshal(item.Status.Raw, temp); err != nil {
+			return nil, err
+		}
+		klog.V(3).Infof("Grab hpa(%s/%s) status from cluster(%s), CurrentReplicas: %d", temp.CurrentReplicas)
+
+		newStatus.CurrentReplicas += temp.CurrentReplicas
+		newStatus.DesiredReplicas += temp.DesiredReplicas
+	}
+
+	if reflect.DeepEqual(hpa.Status, *newStatus) {
+		klog.V(3).Infof("ignore update hpa(%s/%s) status as up to date", hpa.Namespace, hpa.Name)
+		return object, nil
+	}
+
+	hpa.Status = *newStatus
+	return helper.ToUnstructured(hpa)
 }
