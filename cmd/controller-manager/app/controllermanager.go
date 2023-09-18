@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/discovery"
@@ -23,6 +24,7 @@ import (
 	"k8s.io/metrics/pkg/client/external_metrics"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -54,6 +56,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
@@ -170,7 +173,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 	crtlmetrics.Registry.MustRegister(metrics.ResourceCollectors()...)
 	crtlmetrics.Registry.MustRegister(metrics.PoolCollectors()...)
 
-	setupControllers(controllerManager, opts, ctx.Done())
+	setupControllers(ctx, controllerManager, opts)
 
 	// blocks until the context is done.
 	if err := controllerManager.Start(ctx); err != nil {
@@ -592,7 +595,8 @@ func startCronFederatedHorizontalPodAutoscalerController(ctx controllerscontext.
 }
 
 // setupControllers initialize controllers and setup one by one.
-func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) {
+func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *options.Options) {
+	stopChan := ctx.Done()
 	restConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
 	discoverClientSet := discovery.NewDiscoveryClientForConfigOrDie(restConfig)
@@ -613,7 +617,16 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	sharedFactory.Start(stopChan)
 	sharedFactory.WaitForCacheSync(stopChan)
 
-	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, serviceLister)
+	// set index for hpa
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &autoscalingv2.HorizontalPodAutoscaler{}, native.IndexKeyHPAScaleTargetRef,
+		func(object client.Object) []string {
+			hpa := object.(*autoscalingv2.HorizontalPodAutoscaler)
+			return []string{hpa.Spec.ScaleTargetRef.String()}
+		}); err != nil {
+		klog.Fatalf("Failed to set index for hpa: %v", err)
+	}
+
+	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, mgr.GetClient(), serviceLister)
 	if err := mgr.Add(resourceInterpreter); err != nil {
 		klog.Fatalf("Failed to setup custom resource interpreter: %v", err)
 	}

@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
@@ -19,6 +20,7 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	crtlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -35,6 +37,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
@@ -218,7 +221,7 @@ func run(ctx context.Context, opts *options.Options) error {
 	crtlmetrics.Registry.MustRegister(metrics.ResourceCollectorsForAgent()...)
 	crtlmetrics.Registry.MustRegister(metrics.PoolCollectors()...)
 
-	if err = setupControllers(controllerManager, opts, ctx.Done()); err != nil {
+	if err = setupControllers(ctx, controllerManager, opts); err != nil {
 		return err
 	}
 
@@ -230,7 +233,8 @@ func run(ctx context.Context, opts *options.Options) error {
 	return nil
 }
 
-func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) error {
+func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *options.Options) error {
+	stopChan := ctx.Done()
 	restConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
 	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
@@ -243,7 +247,16 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	sharedFactory.Start(stopChan)
 	sharedFactory.WaitForCacheSync(stopChan)
 
-	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, serviceLister)
+	// set index for hpa
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &autoscalingv2.HorizontalPodAutoscaler{}, native.IndexKeyHPAScaleTargetRef,
+		func(object client.Object) []string {
+			hpa := object.(*autoscalingv2.HorizontalPodAutoscaler)
+			return []string{hpa.Spec.ScaleTargetRef.String()}
+		}); err != nil {
+		klog.Fatalf("Failed to set index for hpa: %v", err)
+	}
+
+	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, mgr.GetClient(), serviceLister)
 	if err := mgr.Add(resourceInterpreter); err != nil {
 		return fmt.Errorf("failed to setup custom resource interpreter: %w", err)
 	}

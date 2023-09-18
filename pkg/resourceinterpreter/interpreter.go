@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	corev1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -52,14 +53,16 @@ type ResourceInterpreter interface {
 }
 
 // NewResourceInterpreter builds a new ResourceInterpreter object.
-func NewResourceInterpreter(informer genericmanager.SingleClusterInformerManager, serviceLister corev1.ServiceLister) ResourceInterpreter {
+func NewResourceInterpreter(informer genericmanager.SingleClusterInformerManager, cli client.Client, serviceLister corev1.ServiceLister) ResourceInterpreter {
 	return &customResourceInterpreterImpl{
+		client:        cli,
 		informer:      informer,
 		serviceLister: serviceLister,
 	}
 }
 
 type customResourceInterpreterImpl struct {
+	client        client.Client
 	informer      genericmanager.SingleClusterInformerManager
 	serviceLister corev1.ServiceLister
 
@@ -80,7 +83,7 @@ func (i *customResourceInterpreterImpl) Start(ctx context.Context) (err error) {
 	i.configurableInterpreter = declarative.NewConfigurableInterpreter(i.informer)
 
 	i.thirdpartyInterpreter = thirdparty.NewConfigurableInterpreter()
-	i.defaultInterpreter = native.NewDefaultInterpreter()
+	i.defaultInterpreter = native.NewDefaultInterpreter(i.client)
 
 	i.informer.Start()
 	<-ctx.Done()

@@ -7,6 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -15,6 +16,7 @@ import (
 // DefaultInterpreter contains all default operation interpreter factory
 // for interpreting common resource.
 type DefaultInterpreter struct {
+	client                  client.Client
 	replicaHandlers         map[schema.GroupVersionKind]replicaInterpreter
 	reviseReplicaHandlers   map[schema.GroupVersionKind]reviseReplicaInterpreter
 	retentionHandlers       map[schema.GroupVersionKind]retentionInterpreter
@@ -25,11 +27,12 @@ type DefaultInterpreter struct {
 }
 
 // NewDefaultInterpreter return a new DefaultInterpreter.
-func NewDefaultInterpreter() *DefaultInterpreter {
+func NewDefaultInterpreter(client client.Client) *DefaultInterpreter {
 	return &DefaultInterpreter{
+		client:                  client,
 		replicaHandlers:         getAllDefaultReplicaInterpreter(),
 		reviseReplicaHandlers:   getAllDefaultReviseReplicaInterpreter(),
-		retentionHandlers:       getAllDefaultRetentionInterpreter(),
+		retentionHandlers:       getAllDefaultRetentionInterpreter(client),
 		aggregateStatusHandlers: getAllDefaultAggregateStatusInterpreter(),
 		dependenciesHandlers:    getAllDefaultDependenciesInterpreter(),
 		reflectStatusHandlers:   getAllDefaultReflectStatusInterpreter(),

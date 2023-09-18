@@ -678,8 +678,9 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 }
 
 func newWorkStatusController(cluster *clusterv1alpha1.Cluster, dynamicClientSets ...*dynamicfake.FakeDynamicClient) WorkStatusController {
+	cli := fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(cluster).Build()
 	c := WorkStatusController{
-		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(cluster).Build(),
+		Client:                      cli,
 		InformerManager:             genericmanager.GetInstance(),
 		PredicateFunc:               helper.NewClusterPredicateOnAgent("test"),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
@@ -705,7 +706,7 @@ func newWorkStatusController(cluster *clusterv1alpha1.Cluster, dynamicClientSets
 		sharedFactory := informers.NewSharedInformerFactory(controlPlaneKubeClientSet, 0)
 		serviceLister := sharedFactory.Core().V1().Services().Lister()
 
-		c.ResourceInterpreter = resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, serviceLister)
+		c.ResourceInterpreter = resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, cli, serviceLister)
 		c.ObjectWatcher = objectwatcher.NewObjectWatcher(c.Client, c.RESTMapper, util.NewClusterDynamicClientSetForAgent, c.ResourceInterpreter)
 
 		// Generate InformerManager

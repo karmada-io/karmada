@@ -1,12 +1,16 @@
 package native
 
 import (
+	"context"
 	"fmt"
 
+	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -16,8 +20,9 @@ import (
 // retentionInterpreter is the function that retains values from "observed" object.
 type retentionInterpreter func(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error)
 
-func getAllDefaultRetentionInterpreter() map[schema.GroupVersionKind]retentionInterpreter {
+func getAllDefaultRetentionInterpreter(client client.Client) map[schema.GroupVersionKind]retentionInterpreter {
 	s := make(map[schema.GroupVersionKind]retentionInterpreter)
+	s[appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind)] = retainDeploymentFields(client)
 	s[corev1.SchemeGroupVersion.WithKind(util.PodKind)] = retainPodFields
 	s[corev1.SchemeGroupVersion.WithKind(util.ServiceKind)] = lifted.RetainServiceFields
 	s[corev1.SchemeGroupVersion.WithKind(util.ServiceAccountKind)] = lifted.RetainServiceAccountFields
@@ -121,4 +126,36 @@ func retainJobSelectorFields(desired, observed *unstructured.Unstructured) (*uns
 		}
 	}
 	return desired, nil
+}
+
+const IndexKeyHPAScaleTargetRef = "spec.scaleTargetRef"
+
+func retainDeploymentFields(cli client.Client) retentionInterpreter {
+	return func(desired, observed *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+		hpaList := &autoscalingv2.HorizontalPodAutoscalerList{}
+		deployIdx := autoscalingv2.CrossVersionObjectReference{Kind: desired.GetKind(), Name: desired.GetName(), APIVersion: desired.GetAPIVersion()}
+
+		if err := cli.List(context.Background(), hpaList, client.InNamespace(desired.GetNamespace()),
+			client.MatchingFields{IndexKeyHPAScaleTargetRef: deployIdx.String()}); err != nil {
+			return nil, fmt.Errorf("failed to fetch HorizontalPodAutoscalerList: %+v", err)
+		}
+
+		// if the desired deployment is controller by hpa, its replicas field should be overwritten by the observed deployment
+		for _, hpa := range hpaList.Items {
+			if hpa.GetNamespace() != desired.GetNamespace() || hpa.Spec.ScaleTargetRef.Name != desired.GetName() {
+				continue
+			}
+			replicas, exist, err := unstructured.NestedInt64(observed.Object, "spec", "replicas")
+			if err != nil || !exist {
+				return nil, fmt.Errorf("failed to get spec.replicas from deployment %s/%s", observed.GetName(), observed.GetNamespace())
+			}
+			err = unstructured.SetNestedField(desired.Object, replicas, "spec", "replicas")
+			if err != nil {
+				return nil, err
+			}
+			return desired, nil
+		}
+
+		return desired, nil
+	}
 }
