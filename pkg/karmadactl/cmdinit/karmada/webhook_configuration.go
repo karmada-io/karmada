@@ -256,6 +256,23 @@ webhooks:
     sideEffects: None
     admissionReviewVersions: [ "v1" ]
     timeoutSeconds: 3
+  - name: resourcedeletionprotection.karmada.io
+    rules:
+      - operations: ["DELETE"]
+        apiGroups: ["*"]
+        apiVersions: ["*"]
+        resources: ["*"]
+        scope: "*"
+    clientConfig:
+      url: https://karmada-webhook.%[1]s.svc:443/validate-resourcedeletionprotection
+      caBundle: %[2]s
+    objectSelector:
+      matchExpressions:
+        - { key: "resourcetemplate.karmada.io/deletion-protected", operator: "Exists" }
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: [ "v1" ]
+    timeoutSeconds: 3
 `, systemNamespace, caBundle)
 }
 
