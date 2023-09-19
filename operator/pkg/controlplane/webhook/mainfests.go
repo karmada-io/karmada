@@ -31,7 +31,7 @@ spec:
         imagePullPolicy: IfNotPresent
         command:
         - /bin/karmada-webhook
-        - --kubeconfig=/etc/karmada/config
+        - --kubeconfig=/etc/karmada/kubeconfig
         - --bind-address=0.0.0.0
         - --default-not-ready-toleration-seconds=30
         - --default-unreachable-toleration-seconds=30
@@ -42,8 +42,8 @@ spec:
         - containerPort: 8443
         volumeMounts:
         - name: kubeconfig
-          subPath: config
-          mountPath: /etc/karmada/config
+          subPath: kubeconfig
+          mountPath: /etc/karmada/kubeconfig
         - name: cert
           mountPath: /var/serving-cert
           readOnly: true

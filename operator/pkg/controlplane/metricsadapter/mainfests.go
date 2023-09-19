@@ -31,17 +31,17 @@ spec:
         imagePullPolicy: IfNotPresent
         command:
         - /bin/karmada-metrics-adapter
-        - --kubeconfig=/etc/karmada/config
-        - --authentication-kubeconfig=/etc/karmada/config
-        - --authorization-kubeconfig=/etc/karmada/config
+        - --kubeconfig=/etc/karmada/kubeconfig
+        - --authentication-kubeconfig=/etc/karmada/kubeconfig
+        - --authorization-kubeconfig=/etc/karmada/kubeconfig
         - --client-ca-file=/etc/karmada/pki/ca.crt
         - --audit-log-path=-
         - --audit-log-maxage=0
         - --audit-log-maxbackup=0
         volumeMounts:
         - name: kubeconfig
-          subPath: config
-          mountPath: /etc/karmada/config
+          subPath: kubeconfig
+          mountPath: /etc/karmada/kubeconfig
         - name: karmada-cert
           mountPath: /etc/karmada/pki
           readOnly: true

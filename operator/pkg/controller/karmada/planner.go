@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	operator "github.com/karmada-io/karmada/operator/pkg"
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
+	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
 )
 
@@ -111,13 +113,24 @@ func (p *Planner) preRunJob() error {
 }
 
 func (p *Planner) runJobErr(err error) error {
+	var errs []error
+	errs = append(errs, err)
+
 	operatorv1alpha1.KarmadaFailed(p.karmada, operatorv1alpha1.Ready, err.Error())
-	return p.Client.Status().Update(context.TODO(), p.karmada)
+	errs = append(errs, p.Client.Status().Update(context.TODO(), p.karmada))
+
+	return utilerrors.NewAggregate(errs)
 }
 
 func (p *Planner) afterRunJob() error {
 	if p.action == InitAction {
+		// Update the condition to Ready and set kubeconfig of karmada-apiserver to status.
 		operatorv1alpha1.KarmadaCompleted(p.karmada, operatorv1alpha1.Ready, "karmada init job is completed")
+		p.karmada.Status.SecretRef = &operatorv1alpha1.LocalSecretReference{
+			Namespace: p.karmada.GetNamespace(),
+			Name:      util.AdminKubeconfigSecretName(p.karmada.GetName()),
+		}
+
 		return p.Client.Status().Update(context.TODO(), p.karmada)
 	}
 
