@@ -602,9 +602,10 @@ func startHPAReplicasSyncerController(ctx controllerscontext.Context) (enabled b
 	}
 
 	hpaReplicasSyncer := hpareplicassyncer.HPAReplicasSyncer{
-		Client:      ctx.Mgr.GetClient(),
-		RESTMapper:  ctx.Mgr.GetRESTMapper(),
-		ScaleClient: scaleClient,
+		Client:        ctx.Mgr.GetClient(),
+		DynamicClient: ctx.DynamicClientSet,
+		RESTMapper:    ctx.Mgr.GetRESTMapper(),
+		ScaleClient:   scaleClient,
 	}
 	err = hpaReplicasSyncer.SetupWithManager(ctx.Mgr)
 	if err != nil {
