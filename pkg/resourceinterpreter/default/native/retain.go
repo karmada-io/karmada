@@ -7,6 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -24,6 +25,7 @@ func getAllDefaultRetentionInterpreter() map[schema.GroupVersionKind]retentionIn
 	s[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeClaimKind)] = retainPersistentVolumeClaimFields
 	s[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeKind)] = retainPersistentVolumeFields
 	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = retainJobSelectorFields
+	s[mcsv1alpha1.SchemeGroupVersion.WithKind(util.ServiceImportKind)] = retainServiceImportIPsFields
 	return s
 }
 
@@ -118,6 +120,25 @@ func retainJobSelectorFields(desired, observed *unstructured.Unstructured) (*uns
 		err = unstructured.SetNestedStringMap(desired.Object, templateLabels, "spec", "template", "metadata", "labels")
 		if err != nil {
 			return nil, err
+		}
+	}
+	return desired, nil
+}
+
+func retainServiceImportIPsFields(desired, observed *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+	ips, ok, err := unstructured.NestedStringSlice(observed.Object, "spec", "ips")
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving ips from serviceImport: %w", err)
+	}
+	// !ok could indicate that ips was not assigned
+	if ok && len(ips) != 0 {
+		if len(ips) != 1 {
+			return nil, fmt.Errorf("serviceImport ips length(%d) over 1", len(ips))
+		}
+
+		err = unstructured.SetNestedSlice(desired.Object, []interface{}{ips[0]}, "spec", "ips")
+		if err != nil {
+			return nil, fmt.Errorf("error setting ips for serviceImport: %w", err)
 		}
 	}
 	return desired, nil
