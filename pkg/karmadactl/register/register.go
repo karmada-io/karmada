@@ -180,6 +180,7 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 	flags.Int32Var(&opts.KarmadaAgentReplicas, "karmada-agent-replicas", 1, "Karmada agent replicas.")
 	flags.Int32Var(&opts.CertExpirationSeconds, "cert-expiration-seconds", DefaultCertExpirationSeconds, "The expiration time of certificate.")
 	flags.BoolVar(&opts.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
+	flags.StringVar(&opts.ProxyServerAddress, "proxy-server-address", "", "Address of the proxy server that is used to proxy to the cluster.")
 
 	return cmd
 }
@@ -236,6 +237,9 @@ type CommandRegisterOption struct {
 
 	// DryRun tells if run the command in dry-run mode, without making any server requests.
 	DryRun bool
+
+	// ProxyServerAddress holds the proxy server address that is used to proxy to the cluster.
+	ProxyServerAddress string
 
 	memberClusterEndpoint string
 	memberClusterClient   *kubeclient.Clientset
@@ -674,6 +678,7 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 					fmt.Sprintf("--cluster-region=%s", o.ClusterRegion),
 					fmt.Sprintf("--cluster-zones=%s", strings.Join(o.ClusterZones, ",")),
 					fmt.Sprintf("--controllers=%s", strings.Join(controllers, ",")),
+					fmt.Sprintf("--proxy-server-address=%s", o.ProxyServerAddress),
 					"--cluster-status-update-frequency=10s",
 					"--bind-address=0.0.0.0",
 					"--secure-port=10357",
