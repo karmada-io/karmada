@@ -68,14 +68,14 @@ func runSystemNamespace(r workflow.RunData) error {
 
 	err := apiclient.CreateNamespace(data.KarmadaClient(), &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: data.GetNamespace(),
+			Name: constants.KarmadaSystemNamespace,
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create namespace %s, err: %w", data.GetNamespace(), err)
+		return fmt.Errorf("failed to create namespace %s, err: %w", constants.KarmadaSystemNamespace, err)
 	}
 
-	klog.V(2).InfoS("[systemName] Successfully created karmada system namespace", "namespace", data.GetNamespace(), "karmada", klog.KObj(data))
+	klog.V(2).InfoS("[systemName] Successfully created karmada system namespace", "namespace", constants.KarmadaSystemNamespace, "karmada", klog.KObj(data))
 	return nil
 }
 

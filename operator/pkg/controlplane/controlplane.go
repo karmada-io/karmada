@@ -101,7 +101,7 @@ func getKarmadaControllerManagerManifest(name, namespace string, featureGates ma
 	}{
 		DeploymentName:   util.KarmadaControllerManagerName(name),
 		Namespace:        namespace,
-		SystemNamespace:  namespace,
+		SystemNamespace:  constants.KarmadaSystemNamespace,
 		Image:            cfg.Image.Name(),
 		KubeconfigSecret: util.AdminKubeconfigSecretName(name),
 		Replicas:         cfg.Replicas,
@@ -128,7 +128,7 @@ func getKarmadaSchedulerManifest(name, namespace string, featureGates map[string
 	}{
 		DeploymentName:   util.KarmadaSchedulerName(name),
 		Namespace:        namespace,
-		SystemNamespace:  namespace,
+		SystemNamespace:  constants.KarmadaSystemNamespace,
 		Image:            cfg.Image.Name(),
 		KubeconfigSecret: util.AdminKubeconfigSecretName(name),
 		Replicas:         cfg.Replicas,
@@ -155,7 +155,7 @@ func getKarmadaDeschedulerManifest(name, namespace string, featureGates map[stri
 	}{
 		DeploymentName:   util.KarmadaDeschedulerName(name),
 		Namespace:        namespace,
-		SystemNamespace:  namespace,
+		SystemNamespace:  constants.KarmadaSystemNamespace,
 		Image:            cfg.Image.Name(),
 		KubeconfigSecret: util.AdminKubeconfigSecretName(name),
 		Replicas:         cfg.Replicas,
