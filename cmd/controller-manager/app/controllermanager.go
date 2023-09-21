@@ -15,6 +15,7 @@ import (
 	"k8s.io/client-go/informers"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/scale"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
@@ -44,6 +45,7 @@ import (
 	metricsclient "github.com/karmada-io/karmada/pkg/controllers/federatedhpa/metrics"
 	"github.com/karmada-io/karmada/pkg/controllers/federatedresourcequota"
 	"github.com/karmada-io/karmada/pkg/controllers/gracefuleviction"
+	"github.com/karmada-io/karmada/pkg/controllers/hpareplicassyncer"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/namespace"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
@@ -185,7 +187,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 var controllers = make(controllerscontext.Initializers)
 
 // controllersDisabledByDefault is the set of controllers which is disabled by default
-var controllersDisabledByDefault = sets.New("")
+var controllersDisabledByDefault = sets.New("hpaReplicasSyncer")
 
 func init() {
 	controllers["cluster"] = startClusterController
@@ -205,6 +207,7 @@ func init() {
 	controllers["applicationFailover"] = startApplicationFailoverController
 	controllers["federatedHorizontalPodAutoscaler"] = startFederatedHorizontalPodAutoscalerController
 	controllers["cronFederatedHorizontalPodAutoscaler"] = startCronFederatedHorizontalPodAutoscalerController
+	controllers["hpaReplicasSyncer"] = startHPAReplicasSyncerController
 }
 
 func startClusterController(ctx controllerscontext.Context) (enabled bool, err error) {
@@ -588,6 +591,26 @@ func startCronFederatedHorizontalPodAutoscalerController(ctx controllerscontext.
 	if err = cronFHPAController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
+	return true, nil
+}
+
+func startHPAReplicasSyncerController(ctx controllerscontext.Context) (enabled bool, err error) {
+	scaleKindResolver := scale.NewDiscoveryScaleKindResolver(ctx.KubeClientSet.Discovery())
+	scaleClient, err := scale.NewForConfig(ctx.Mgr.GetConfig(), ctx.Mgr.GetRESTMapper(), dynamic.LegacyAPIPathResolverFunc, scaleKindResolver)
+	if err != nil {
+		return false, err
+	}
+
+	hpaReplicasSyncer := hpareplicassyncer.HPAReplicasSyncer{
+		Client:      ctx.Mgr.GetClient(),
+		RESTMapper:  ctx.Mgr.GetRESTMapper(),
+		ScaleClient: scaleClient,
+	}
+	err = hpaReplicasSyncer.SetupWithManager(ctx.Mgr)
+	if err != nil {
+		return false, err
+	}
+
 	return true, nil
 }
 
