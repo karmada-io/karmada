@@ -574,7 +574,8 @@ func aggregateHorizontalPodAutoscalerStatus(object *unstructured.Unstructured, a
 		if err = json.Unmarshal(item.Status.Raw, temp); err != nil {
 			return nil, err
 		}
-		klog.V(3).Infof("Grab hpa(%s/%s) status from cluster(%s), CurrentReplicas: %d", temp.CurrentReplicas)
+		klog.V(3).Infof("Grab hpa(%s/%s) status from cluster(%s), CurrentReplicas: %d, DesiredReplicas: %d",
+			hpa.Namespace, hpa.Name, item.ClusterName, temp.CurrentReplicas, temp.DesiredReplicas)
 
 		newStatus.CurrentReplicas += temp.CurrentReplicas
 		newStatus.DesiredReplicas += temp.DesiredReplicas
