@@ -126,19 +126,19 @@ func (r *HPAReplicasSyncer) updateScaleIfNeed(ctx context.Context, workloadGR sc
 		return nil
 	}
 
-	if scale.Spec.Replicas != hpa.Status.CurrentReplicas {
+	if scale.Spec.Replicas != hpa.Status.DesiredReplicas {
 		oldReplicas := scale.Spec.Replicas
 
-		scale.Spec.Replicas = hpa.Status.CurrentReplicas
+		scale.Spec.Replicas = hpa.Status.DesiredReplicas
 		_, err := r.ScaleClient.Scales(hpa.Namespace).Update(ctx, workloadGR, scale, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Errorf("Failed to try to sync scale for resource(kind=%s, %s/%s) from %d to %d: %v",
-				hpa.Spec.ScaleTargetRef.Kind, hpa.Namespace, hpa.Spec.ScaleTargetRef.Name, oldReplicas, hpa.Status.CurrentReplicas, err)
+				hpa.Spec.ScaleTargetRef.Kind, hpa.Namespace, hpa.Spec.ScaleTargetRef.Name, oldReplicas, hpa.Status.DesiredReplicas, err)
 			return err
 		}
 
 		klog.V(4).Infof("Successfully synced scale for resource(kind=%s, %s/%s) from %d to %d",
-			hpa.Spec.ScaleTargetRef.Kind, hpa.Namespace, hpa.Spec.ScaleTargetRef.Name, oldReplicas, hpa.Status.CurrentReplicas)
+			hpa.Spec.ScaleTargetRef.Kind, hpa.Namespace, hpa.Spec.ScaleTargetRef.Name, oldReplicas, hpa.Status.DesiredReplicas)
 	}
 
 	return nil

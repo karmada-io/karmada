@@ -50,7 +50,7 @@ func (r *HPAReplicasSyncer) Update(e event.UpdateEvent) bool {
 		r.scaleRefWorker.Add(labelEvent{addLabelEvent, newHPA})
 	}
 
-	return oldHPA.Status.CurrentReplicas != newHPA.Status.CurrentReplicas
+	return oldHPA.Status.DesiredReplicas != newHPA.Status.DesiredReplicas
 }
 
 func (r *HPAReplicasSyncer) Delete(e event.DeleteEvent) bool {
