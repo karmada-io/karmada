@@ -147,7 +147,7 @@ func TestUpdateScaleIfNeed(t *testing.T) {
 				return
 			}
 
-			assert.Equal(t, tt.hpa.Status.CurrentReplicas, scale.Spec.Replicas)
+			assert.Equal(t, tt.hpa.Status.DesiredReplicas, scale.Spec.Replicas)
 		})
 	}
 }
@@ -307,7 +307,7 @@ func newHPA(apiVersion, kind, name string, replicas int32) *autoscalingv2.Horizo
 			},
 		},
 		Status: autoscalingv2.HorizontalPodAutoscalerStatus{
-			CurrentReplicas: replicas,
+			DesiredReplicas: replicas,
 		},
 	}
 }
