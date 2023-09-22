@@ -73,6 +73,10 @@ const (
 	// ClusterResourceBindingControllerFinalizer is added to ClusterResourceBinding to ensure related Works are deleted
 	// before ClusterResourceBinding itself is deleted.
 	ClusterResourceBindingControllerFinalizer = "karmada.io/cluster-resource-binding-controller"
+
+	// HPAReplicasSyncerFinalizer is added to HorizontalPodAutoscaler propagated by karmada to ensure
+	// the actual replicas in member clusters effected by HPA been synced before HPA itself is deleted.
+	HPAReplicasSyncerFinalizer = "karmada.io/hpa-replicas-syncer-controller"
 )
 
 const (

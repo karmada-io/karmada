@@ -17,10 +17,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	scalefake "k8s.io/client-go/scale/fake"
 	coretesting "k8s.io/client-go/testing"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 )
 
@@ -86,7 +88,7 @@ func TestGetGroupResourceAndScaleForWorkloadFromHPA(t *testing.T) {
 	}
 }
 
-func TestUpdateScaleIfNeed(t *testing.T) {
+func TestUpdateScale(t *testing.T) {
 	cases := []struct {
 		name          string
 		object        client.Object
@@ -124,7 +126,7 @@ func TestUpdateScaleIfNeed(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			syncer := newHPAReplicasSyncer(tt.object)
-			err := syncer.updateScaleIfNeed(context.TODO(), tt.gr, tt.scale, tt.hpa)
+			err := syncer.updateScale(context.TODO(), tt.gr, tt.scale, tt.hpa)
 			if tt.expectedError {
 				assert.NotEmpty(t, err)
 				return
@@ -148,6 +150,369 @@ func TestUpdateScaleIfNeed(t *testing.T) {
 			}
 
 			assert.Equal(t, tt.hpa.Status.DesiredReplicas, scale.Spec.Replicas)
+		})
+	}
+}
+
+func TestRemoveFinalizerIfNeed(t *testing.T) {
+	cases := []struct {
+		name          string
+		hpa           *autoscalingv2.HorizontalPodAutoscaler
+		withFinalizer bool
+		expectedError bool
+	}{
+		{
+			name:          "hpa with finalizer",
+			hpa:           newHPA(appsv1.SchemeGroupVersion.String(), "Deployment", "deployment-1", 3),
+			withFinalizer: true,
+			expectedError: false,
+		},
+		{
+			name:          "hpa without finalizer",
+			hpa:           newHPA(appsv1.SchemeGroupVersion.String(), "Deployment", "deployment-1", 3),
+			withFinalizer: false,
+			expectedError: false,
+		},
+		{
+			name:          "hpa not found",
+			hpa:           newHPA(appsv1.SchemeGroupVersion.String(), "Deployment", "deployment-1", 3),
+			withFinalizer: true,
+			expectedError: true,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.withFinalizer {
+				tt.hpa.Finalizers = []string{util.HPAReplicasSyncerFinalizer}
+			}
+
+			syncer := newHPAReplicasSyncer()
+			if !tt.expectedError {
+				err := syncer.Client.Create(context.TODO(), tt.hpa)
+				assert.Empty(t, err)
+				if err != nil {
+					return
+				}
+			}
+
+			err := syncer.removeFinalizerIfNeed(context.TODO(), tt.hpa)
+			if tt.expectedError {
+				assert.NotEmpty(t, err)
+				return
+			}
+			assert.Empty(t, err)
+
+			newHPA := &autoscalingv2.HorizontalPodAutoscaler{}
+			err = syncer.Client.Get(context.TODO(), types.NamespacedName{Namespace: tt.hpa.Namespace, Name: tt.hpa.Name}, newHPA)
+			assert.Empty(t, err)
+			if err != nil {
+				return
+			}
+
+			assert.Empty(t, newHPA.Finalizers)
+
+			if tt.withFinalizer {
+				assert.Equal(t, "2", newHPA.ResourceVersion)
+			} else {
+				assert.Equal(t, "1", newHPA.ResourceVersion)
+			}
+		})
+	}
+}
+
+func TestAddFinalizerIfNeed(t *testing.T) {
+	cases := []struct {
+		name          string
+		hpa           *autoscalingv2.HorizontalPodAutoscaler
+		withFinalizer bool
+		expectedError bool
+	}{
+		{
+			name:          "hpa without finalizer",
+			hpa:           newHPA(appsv1.SchemeGroupVersion.String(), "Deployment", "deployment-1", 3),
+			withFinalizer: false,
+			expectedError: false,
+		},
+		{
+			name:          "hpa with finalizer",
+			hpa:           newHPA(appsv1.SchemeGroupVersion.String(), "Deployment", "deployment-1", 3),
+			withFinalizer: true,
+			expectedError: false,
+		},
+		{
+			name:          "hpa not found",
+			hpa:           newHPA(appsv1.SchemeGroupVersion.String(), "Deployment", "deployment-1", 3),
+			withFinalizer: false,
+			expectedError: true,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.withFinalizer {
+				tt.hpa.Finalizers = []string{util.HPAReplicasSyncerFinalizer}
+			}
+
+			syncer := newHPAReplicasSyncer()
+			if !tt.expectedError {
+				err := syncer.Client.Create(context.TODO(), tt.hpa)
+				assert.Empty(t, err)
+				if err != nil {
+					return
+				}
+			}
+
+			err := syncer.addFinalizerIfNeed(context.TODO(), tt.hpa)
+			if tt.expectedError {
+				assert.NotEmpty(t, err)
+				return
+			}
+			assert.Empty(t, err)
+
+			newHPA := &autoscalingv2.HorizontalPodAutoscaler{}
+			err = syncer.Client.Get(context.TODO(), types.NamespacedName{Namespace: tt.hpa.Namespace, Name: tt.hpa.Name}, newHPA)
+			assert.Empty(t, err)
+			if err != nil {
+				return
+			}
+
+			assert.NotEmpty(t, newHPA.Finalizers)
+
+			if !tt.withFinalizer {
+				assert.Equal(t, "2", newHPA.ResourceVersion)
+			} else {
+				assert.Equal(t, "1", newHPA.ResourceVersion)
+			}
+		})
+	}
+}
+
+func TestIsReplicasSynced(t *testing.T) {
+	cases := []struct {
+		name     string
+		hpa      *autoscalingv2.HorizontalPodAutoscaler
+		scale    *autoscalingv1.Scale
+		expected bool
+	}{
+		{
+			name:     "nil hpa",
+			hpa:      nil,
+			scale:    newScale("deployment-1", 0),
+			expected: true,
+		},
+		{
+			name:     "nil scale",
+			hpa:      newHPA(appsv1.SchemeGroupVersion.String(), "Deployment", "deployment-1", 3),
+			scale:    nil,
+			expected: true,
+		},
+		{
+			name:     "nil scale and hpa",
+			hpa:      nil,
+			scale:    nil,
+			expected: true,
+		},
+		{
+			name:     "replicas has not been synced",
+			hpa:      newHPA(appsv1.SchemeGroupVersion.String(), "Deployment", "deployment-1", 3),
+			scale:    newScale("deployment-1", 0),
+			expected: false,
+		},
+		{
+			name:     "replicas has been synced",
+			hpa:      newHPA(appsv1.SchemeGroupVersion.String(), "Deployment", "deployment-1", 3),
+			scale:    newScale("deployment-1", 3),
+			expected: true,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			res := isReplicasSynced(tt.scale, tt.hpa)
+
+			assert.Equal(t, tt.expected, res)
+		})
+	}
+}
+
+func TestReconcile(t *testing.T) {
+	cases := []struct {
+		name              string
+		object            client.Object
+		gr                schema.GroupResource
+		hpa               *autoscalingv2.HorizontalPodAutoscaler
+		request           controllerruntime.Request
+		withFinalizer     bool
+		isDeleting        bool
+		expectedError     bool
+		expectedFinalizer bool
+		expectedResult    controllerruntime.Result
+		expectedScale     *autoscalingv1.Scale
+	}{
+		{
+			name:              "normal case",
+			object:            newDeployment("deployment-1", 0),
+			gr:                schema.GroupResource{Group: appsv1.SchemeGroupVersion.Group, Resource: "deployments"},
+			hpa:               newHPA(appsv1.SchemeGroupVersion.String(), "Deployment", "deployment-1", 3),
+			request:           controllerruntime.Request{NamespacedName: types.NamespacedName{Namespace: "default", Name: "deployment-1"}},
+			withFinalizer:     true,
+			isDeleting:        false,
+			expectedError:     false,
+			expectedFinalizer: true,
+			expectedResult:    controllerruntime.Result{Requeue: true},
+			expectedScale:     newScale("deployment-1", 3),
+		},
+		{
+			name:              "customized resource normal case",
+			object:            newWorkload("workload-1", 0),
+			gr:                schema.GroupResource{Group: workloadv1alpha1.SchemeGroupVersion.Group, Resource: "workloads"},
+			hpa:               newHPA(workloadv1alpha1.SchemeGroupVersion.String(), "Workload", "workload-1", 3),
+			request:           controllerruntime.Request{NamespacedName: types.NamespacedName{Namespace: "default", Name: "workload-1"}},
+			withFinalizer:     true,
+			isDeleting:        false,
+			expectedError:     false,
+			expectedFinalizer: true,
+			expectedResult:    controllerruntime.Result{Requeue: true},
+			expectedScale:     newScale("workload-1", 3),
+		},
+		{
+			name:              "replicas has been synced",
+			object:            newDeployment("deployment-1", 3),
+			gr:                schema.GroupResource{Group: appsv1.SchemeGroupVersion.Group, Resource: "deployments"},
+			hpa:               newHPA(appsv1.SchemeGroupVersion.String(), "Deployment", "deployment-1", 3),
+			request:           controllerruntime.Request{NamespacedName: types.NamespacedName{Namespace: "default", Name: "deployment-1"}},
+			withFinalizer:     true,
+			isDeleting:        false,
+			expectedError:     false,
+			expectedFinalizer: true,
+			expectedResult:    controllerruntime.Result{},
+			expectedScale:     newScale("deployment-1", 3),
+		},
+		{
+			name:              "hpa not found",
+			object:            newDeployment("deployment-1", 0),
+			gr:                schema.GroupResource{Group: appsv1.SchemeGroupVersion.Group, Resource: "deployments"},
+			hpa:               nil,
+			request:           controllerruntime.Request{NamespacedName: types.NamespacedName{Namespace: "default", Name: "deployment-1"}},
+			withFinalizer:     false,
+			isDeleting:        false,
+			expectedError:     false,
+			expectedFinalizer: false,
+			expectedResult:    controllerruntime.Result{},
+			expectedScale:     nil,
+		},
+		{
+			name:              "scale not found",
+			object:            nil,
+			gr:                schema.GroupResource{Group: appsv1.SchemeGroupVersion.Group, Resource: "deployments"},
+			hpa:               newHPA(appsv1.SchemeGroupVersion.String(), "Deployment", "deployment-1", 3),
+			request:           controllerruntime.Request{NamespacedName: types.NamespacedName{Namespace: "default", Name: "deployment-1"}},
+			withFinalizer:     false,
+			isDeleting:        false,
+			expectedError:     false,
+			expectedFinalizer: true,
+			expectedResult:    controllerruntime.Result{},
+			expectedScale:     nil,
+		},
+		{
+			name:              "without finalizer",
+			object:            newDeployment("deployment-1", 0),
+			gr:                schema.GroupResource{Group: appsv1.SchemeGroupVersion.Group, Resource: "deployments"},
+			hpa:               newHPA(appsv1.SchemeGroupVersion.String(), "Deployment", "deployment-1", 3),
+			request:           controllerruntime.Request{NamespacedName: types.NamespacedName{Namespace: "default", Name: "deployment-1"}},
+			withFinalizer:     false,
+			isDeleting:        false,
+			expectedError:     false,
+			expectedFinalizer: true,
+			expectedResult:    controllerruntime.Result{Requeue: true},
+			expectedScale:     newScale("deployment-1", 3),
+		},
+		{
+			name:              "hpa is deleting but replicas has not been synced",
+			object:            newDeployment("deployment-1", 0),
+			gr:                schema.GroupResource{Group: appsv1.SchemeGroupVersion.Group, Resource: "deployments"},
+			hpa:               newHPA(appsv1.SchemeGroupVersion.String(), "Deployment", "deployment-1", 3),
+			request:           controllerruntime.Request{NamespacedName: types.NamespacedName{Namespace: "default", Name: "deployment-1"}},
+			withFinalizer:     true,
+			isDeleting:        true,
+			expectedError:     false,
+			expectedFinalizer: true,
+			expectedResult:    controllerruntime.Result{Requeue: true},
+			expectedScale:     newScale("deployment-1", 3),
+		},
+		{
+			name:              "hpa is deleting with replicas has been synced",
+			object:            newDeployment("deployment-1", 3),
+			gr:                schema.GroupResource{Group: appsv1.SchemeGroupVersion.Group, Resource: "deployments"},
+			hpa:               newHPA(appsv1.SchemeGroupVersion.String(), "Deployment", "deployment-1", 3),
+			request:           controllerruntime.Request{NamespacedName: types.NamespacedName{Namespace: "default", Name: "deployment-1"}},
+			withFinalizer:     true,
+			isDeleting:        true,
+			expectedError:     false,
+			expectedFinalizer: false,
+			expectedResult:    controllerruntime.Result{},
+			expectedScale:     newScale("deployment-1", 3),
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			syncer := newHPAReplicasSyncer()
+
+			if tt.object != nil {
+				err := syncer.Client.Create(context.TODO(), tt.object)
+				assert.Empty(t, err)
+				if err != nil {
+					return
+				}
+			}
+
+			if tt.hpa != nil {
+				if tt.withFinalizer {
+					tt.hpa.Finalizers = []string{util.HPAReplicasSyncerFinalizer}
+				}
+
+				err := syncer.Client.Create(context.TODO(), tt.hpa)
+				assert.Empty(t, err)
+				if err != nil {
+					return
+				}
+			}
+
+			if tt.isDeleting {
+				err := syncer.Client.Delete(context.TODO(), tt.hpa)
+				assert.Empty(t, err)
+				if err != nil {
+					return
+				}
+			}
+
+			res, err := syncer.Reconcile(context.TODO(), tt.request)
+			if tt.expectedError {
+				assert.NotEmpty(t, err)
+				return
+			}
+			assert.Empty(t, err)
+
+			assert.Equal(t, tt.expectedResult, res)
+
+			if tt.expectedScale != nil {
+				scale, _ := syncer.ScaleClient.Scales(tt.hpa.Namespace).Get(context.TODO(), tt.gr, tt.hpa.Spec.ScaleTargetRef.Name, metav1.GetOptions{})
+
+				assert.Equal(t, tt.expectedScale, scale)
+			}
+
+			if tt.hpa != nil {
+				hpa := &autoscalingv2.HorizontalPodAutoscaler{}
+				_ = syncer.Client.Get(context.TODO(), types.NamespacedName{Namespace: tt.hpa.Namespace, Name: tt.hpa.Name}, hpa)
+
+				if tt.expectedFinalizer {
+					assert.NotEmpty(t, hpa.Finalizers)
+				} else {
+					assert.Empty(t, hpa.Finalizers)
+				}
+			}
 		})
 	}
 }
@@ -214,6 +579,10 @@ func getScaleFromUnstructured(obj *unstructured.Unstructured) (*autoscalingv1.Sc
 	}
 
 	return &autoscalingv1.Scale{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: obj.GetNamespace(),
+			Name:      obj.GetName(),
+		},
 		Spec: autoscalingv1.ScaleSpec{
 			Replicas: replicas,
 		},
@@ -319,6 +688,9 @@ func newScale(name string, replicas int32) *autoscalingv1.Scale {
 			Namespace: "default",
 		},
 		Spec: autoscalingv1.ScaleSpec{
+			Replicas: replicas,
+		},
+		Status: autoscalingv1.ScaleStatus{
 			Replicas: replicas,
 		},
 	}
