@@ -1270,9 +1270,9 @@ func calculateScaleUpLimitWithScalingRules(currentReplicas int32, scaleUpEvents,
 	var result int32
 	var proposed int32
 	var selectPolicyFn func(int32, int32) int32
-	if *scalingRules.SelectPolicy == autoscalingv2.DisabledPolicySelect {
+	if scalingRules.SelectPolicy != nil && *scalingRules.SelectPolicy == autoscalingv2.DisabledPolicySelect {
 		return currentReplicas // Scaling is disabled
-	} else if *scalingRules.SelectPolicy == autoscalingv2.MinChangePolicySelect {
+	} else if scalingRules.SelectPolicy != nil && *scalingRules.SelectPolicy == autoscalingv2.MinChangePolicySelect {
 		result = math.MaxInt32
 		selectPolicyFn = min // For scaling up, the lowest change ('min' policy) produces a minimum value
 	} else {
@@ -1299,9 +1299,9 @@ func calculateScaleDownLimitWithBehaviors(currentReplicas int32, scaleUpEvents, 
 	var result int32
 	var proposed int32
 	var selectPolicyFn func(int32, int32) int32
-	if *scalingRules.SelectPolicy == autoscalingv2.DisabledPolicySelect {
+	if scalingRules.SelectPolicy != nil && *scalingRules.SelectPolicy == autoscalingv2.DisabledPolicySelect {
 		return currentReplicas // Scaling is disabled
-	} else if *scalingRules.SelectPolicy == autoscalingv2.MinChangePolicySelect {
+	} else if scalingRules.SelectPolicy != nil && *scalingRules.SelectPolicy == autoscalingv2.MinChangePolicySelect {
 		result = math.MinInt32
 		selectPolicyFn = max // For scaling down, the lowest change ('min' policy) produces a maximum value
 	} else {
