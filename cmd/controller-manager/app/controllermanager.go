@@ -198,6 +198,7 @@ func init() {
 	controllers["workStatus"] = startWorkStatusController
 	controllers["namespace"] = startNamespaceController
 	controllers["serviceExport"] = startServiceExportController
+	controllers["multiClusterService"] = startMultiClusterServiceController
 	controllers["endpointSlice"] = startEndpointSliceController
 	controllers["serviceImport"] = startServiceImportController
 	controllers["unifiedAuth"] = startUnifiedAuthController
@@ -460,6 +461,18 @@ func startServiceImportController(ctx controllerscontext.Context) (enabled bool,
 		EventRecorder: ctx.Mgr.GetEventRecorderFor(mcs.ServiceImportControllerName),
 	}
 	if err := serviceImportController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startMultiClusterServiceController(ctx controllerscontext.Context) (enabled bool, err error) {
+	multiClusterServiceController := &mcs.MultiClusterServiceController{
+		Client:             ctx.Mgr.GetClient(),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(mcs.MultiClusterServiceControllerName),
+		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
+	}
+	if err := multiClusterServiceController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 	return true, nil
