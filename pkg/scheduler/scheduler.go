@@ -37,6 +37,7 @@ import (
 	frameworkplugins "github.com/karmada-io/karmada/pkg/scheduler/framework/plugins"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	utilmetrics "github.com/karmada-io/karmada/pkg/util/metrics"
@@ -114,6 +115,8 @@ type schedulerOptions struct {
 	outOfTreeRegistry runtime.Registry
 	// plugins is the list of plugins to enable or disable
 	plugins []string
+	// contains the options for rate limiter.
+	RateLimiterOptions ratelimiterflag.Options
 }
 
 // Option configures a Scheduler
@@ -183,20 +186,26 @@ func WithOutOfTreeRegistry(registry runtime.Registry) Option {
 	}
 }
 
+// WithRateLimiterOptions sets the rateLimiterOptions for scheduler
+func WithRateLimiterOptions(rateLimiterOptions ratelimiterflag.Options) Option {
+	return func(o *schedulerOptions) {
+		o.RateLimiterOptions = rateLimiterOptions
+	}
+}
+
 // NewScheduler instantiates a scheduler
 func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientset.Interface, kubeClient kubernetes.Interface, opts ...Option) (*Scheduler, error) {
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
 	bindingLister := factory.Work().V1alpha2().ResourceBindings().Lister()
 	clusterBindingLister := factory.Work().V1alpha2().ClusterResourceBindings().Lister()
 	clusterLister := factory.Cluster().V1alpha1().Clusters().Lister()
-	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "scheduler-queue")
 	schedulerCache := schedulercache.NewCache(clusterLister)
 
 	options := schedulerOptions{}
 	for _, opt := range opts {
 		opt(&options)
 	}
-
+	queue := workqueue.NewRateLimitingQueueWithConfig(ratelimiterflag.DefaultControllerRateLimiter(options.RateLimiterOptions), workqueue.RateLimitingQueueConfig{Name: "scheduler-queue"})
 	registry := frameworkplugins.NewInTreeRegistry()
 	if err := registry.Merge(options.outOfTreeRegistry); err != nil {
 		return nil, err
