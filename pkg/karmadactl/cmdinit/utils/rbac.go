@@ -6,15 +6,16 @@ import (
 )
 
 // ClusterRoleFromRules ClusterRole Rules
-func ClusterRoleFromRules(name string, rules []rbacv1.PolicyRule, labels map[string]string) *rbacv1.ClusterRole {
+func ClusterRoleFromRules(name string, rules []rbacv1.PolicyRule, annotations map[string]string, labels map[string]string) *rbacv1.ClusterRole {
 	return &rbacv1.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
 			Kind:       "ClusterRole",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   name,
-			Labels: labels,
+			Name:        name,
+			Annotations: annotations,
+			Labels:      labels,
 		},
 		Rules: rules,
 	}

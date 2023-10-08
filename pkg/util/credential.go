@@ -41,8 +41,12 @@ func ObtainCredentialsFromMemberCluster(clusterKubeClient kubeclient.Interface, 
 	var impersonatorSecret *corev1.Secret
 	var clusterSecret *corev1.Secret
 	var err error
+	// It's necessary to set the label of namespace to make sure that the namespace is created by Karmada.
+	labels := map[string]string{
+		ManagedByKarmadaLabel: ManagedByKarmadaLabelValue,
+	}
 	// ensure namespace where the karmada control plane credential be stored exists in cluster.
-	if _, err = EnsureNamespaceExist(clusterKubeClient, opts.ClusterNamespace, opts.DryRun); err != nil {
+	if _, err = EnsureNamespaceExistWithLabels(clusterKubeClient, opts.ClusterNamespace, opts.DryRun, labels); err != nil {
 		return nil, nil, err
 	}
 
@@ -98,8 +102,12 @@ func ObtainCredentialsFromMemberCluster(clusterKubeClient kubeclient.Interface, 
 
 // RegisterClusterInControllerPlane represents register cluster in controller plane
 func RegisterClusterInControllerPlane(opts ClusterRegisterOption, controlPlaneKubeClient kubeclient.Interface, generateClusterInControllerPlane generateClusterInControllerPlaneFunc) error {
+	// It's necessary to set the label of namespace to make sure that the namespace is created by Karmada.
+	labels := map[string]string{
+		ManagedByKarmadaLabel: ManagedByKarmadaLabelValue,
+	}
 	// ensure namespace where the cluster object be stored exists in control plane.
-	if _, err := EnsureNamespaceExist(controlPlaneKubeClient, opts.ClusterNamespace, opts.DryRun); err != nil {
+	if _, err := EnsureNamespaceExistWithLabels(controlPlaneKubeClient, opts.ClusterNamespace, opts.DryRun, labels); err != nil {
 		return err
 	}
 

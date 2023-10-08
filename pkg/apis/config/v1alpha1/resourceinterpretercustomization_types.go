@@ -4,6 +4,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// ResourceKindResourceInterpreterCustomization is kind name of ResourceInterpreterCustomization.
+	ResourceKindResourceInterpreterCustomization = "ResourceInterpreterCustomization"
+	// ResourceSingularResourceInterpreterCustomization is singular name of ResourceInterpreterCustomization.
+	ResourceSingularResourceInterpreterCustomization = "resourceinterpretercustomization"
+	// ResourcePluralResourceInterpreterCustomization is plural name of ResourceInterpreterCustomization.
+	ResourcePluralResourceInterpreterCustomization = "resourceinterpretercustomizations"
+	// ResourceNamespaceScopedResourceInterpreterCustomization indicates if ResourceInterpreterCustomization is NamespaceScoped.
+	ResourceNamespaceScopedResourceInterpreterCustomization = false
+)
+
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -275,7 +286,7 @@ type DependencyInterpretation struct {
 	//     luaScript: >
 	//         function GetDependencies(desiredObj)
 	//             dependencies = {}
-	//             if desiredObj.spec.serviceAccountName ~= "" and desiredObj.spec.serviceAccountName ~= "default" then
+	//             if desiredObj.spec.serviceAccountName ~= nil and desiredObj.spec.serviceAccountName ~= "default" then
 	//                 dependency = {}
 	//                 dependency.apiVersion = "v1"
 	//                 dependency.kind = "ServiceAccount"

@@ -28,6 +28,14 @@ const (
 
 	// ManagedByKarmadaLabelValue indicates that resources are managed by karmada controllers.
 	ManagedByKarmadaLabelValue = "true"
+
+	// RetainReplicasLabel is a reserved label to indicate whether the replicas should be retained. e.g:
+	// resourcetemplate.karmada.io/retain-replicas: true   // with value `true` indicates retain
+	// resourcetemplate.karmada.io/retain-replicas: false  // with value `false` and others, indicates not retain
+	RetainReplicasLabel = "resourcetemplate.karmada.io/retain-replicas"
+
+	// RetainReplicasValue is an optional value of RetainReplicasLabel, indicating retain
+	RetainReplicasValue = "true"
 )
 
 // Define annotations used by karmada system.
@@ -159,5 +167,5 @@ const (
 
 const (
 	// CacheSyncTimeout refers to the time limit set on waiting for cache to sync
-	CacheSyncTimeout = 30 * time.Second
+	CacheSyncTimeout = 2 * time.Minute
 )

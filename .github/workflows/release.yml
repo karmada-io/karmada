@@ -6,7 +6,7 @@ name: Build Release
 jobs:
   release-assests:
     name: release kubectl-karmada
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         target:
@@ -23,7 +23,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v3
       with:
-        go-version: 1.20.4
+        go-version: 1.20.6
     - name: Making and packaging
       env:
         GOOS: ${{ matrix.os }}
@@ -44,14 +44,14 @@ jobs:
           _output/charts/karmada-chart-${{ github.ref_name }}.tgz.sha256
   release-crds-assests:
     name: release crds
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
     - name: Rename the crds directory
       run: |
         mv ./charts/karmada/_crds ./charts/karmada/crds
     - name: Tar the crds
-      uses: a7ul/tar-action@v1.1.0
+      uses: a7ul/tar-action@v1.1.3
       with:
         command: c
         cwd: ./charts/karmada/
@@ -65,7 +65,7 @@ jobs:
   update-krew-index:
     needs: release-assests
     name: Update krew-index
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
     - name: Update new version in krew-index

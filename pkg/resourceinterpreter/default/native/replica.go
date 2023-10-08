@@ -3,6 +3,7 @@ package native
 import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
@@ -20,6 +21,7 @@ func getAllDefaultReplicaInterpreter() map[schema.GroupVersionKind]replicaInterp
 	s[appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind)] = deployReplica
 	s[appsv1.SchemeGroupVersion.WithKind(util.StatefulSetKind)] = statefulSetReplica
 	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = jobReplica
+	s[corev1.SchemeGroupVersion.WithKind(util.PodKind)] = podReplica
 	return s
 }
 
@@ -71,4 +73,16 @@ func jobReplica(object *unstructured.Unstructured) (int32, *workv1alpha2.Replica
 	requirement := helper.GenerateReplicaRequirements(&job.Spec.Template)
 
 	return replica, requirement, nil
+}
+
+func podReplica(object *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error) {
+	pod := &corev1.Pod{}
+	err := helper.ConvertToTypedObject(object, pod)
+	if err != nil {
+		klog.Errorf("Failed to convert object(%s), err", object.GroupVersionKind().String(), err)
+		return 0, nil, err
+	}
+
+	// For Pod, its replica is always 1.
+	return 1, helper.GenerateReplicaRequirements(&corev1.PodTemplateSpec{Spec: pod.Spec}), nil
 }

@@ -8,7 +8,6 @@ import (
 	"path"
 	"regexp"
 	"strings"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -69,14 +68,14 @@ func runSystemNamespace(r workflow.RunData) error {
 
 	err := apiclient.CreateNamespace(data.KarmadaClient(), &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: data.GetNamespace(),
+			Name: constants.KarmadaSystemNamespace,
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create namespace %s, err: %w", data.GetNamespace(), err)
+		return fmt.Errorf("failed to create namespace %s, err: %w", constants.KarmadaSystemNamespace, err)
 	}
 
-	klog.V(2).InfoS("[systemName] Successfully created karmada system namespace", "namespace", data.GetNamespace(), "karmada", klog.KObj(data))
+	klog.V(2).InfoS("[systemName] Successfully created karmada system namespace", "namespace", constants.KarmadaSystemNamespace, "karmada", klog.KObj(data))
 	return nil
 }
 
@@ -103,7 +102,7 @@ func runCrds(r workflow.RunData) error {
 
 	cert := data.GetCert(constants.CaCertAndKeyName)
 	if len(cert.CertData()) == 0 {
-		return errors.New("unexpect empty ca cert data")
+		return errors.New("unexpected empty ca cert data")
 	}
 
 	caBase64 := base64.StdEncoding.EncodeToString(cert.CertData())
@@ -150,7 +149,7 @@ func patchCrds(crdsClient *crdsclient.Clientset, patchPath string, caBundle stri
 		}
 
 		crdPath := path.Join(patchPath, file.Name())
-		crdBytes, err := util.RelpaceYamlForReg(crdPath, caBundle, reg)
+		crdBytes, err := util.ReplaceYamlForReg(crdPath, caBundle, reg)
 		if err != nil {
 			return err
 		}
@@ -172,11 +171,11 @@ func runWebhookConfiguration(r workflow.RunData) error {
 
 	cert := data.GetCert(constants.CaCertAndKeyName)
 	if len(cert.CertData()) == 0 {
-		return errors.New("unexpect empty ca cert data for webhookConfiguration")
+		return errors.New("unexpected empty ca cert data for webhookConfiguration")
 	}
 
 	caBase64 := base64.StdEncoding.EncodeToString(cert.CertData())
-	return webhookconfiguration.EnsureWebhookconfiguration(
+	return webhookconfiguration.EnsureWebhookConfiguration(
 		data.KarmadaClient(),
 		data.GetNamespace(),
 		data.GetName(),
@@ -200,8 +199,8 @@ func runAPIService(r workflow.RunData) error {
 		return fmt.Errorf("failed to apply aggregated APIService resource to karmada controlplane, err: %w", err)
 	}
 
-	waiter := apiclient.NewKarmadaWaiter(config, nil, time.Second*20)
-	if err := apiclient.TryRunCommand(waiter.WaitForAPIService, 3); err != nil {
+	waiter := apiclient.NewKarmadaWaiter(config, nil, componentBeReadyTimeout)
+	if err := waiter.WaitForAPIService(constants.APIServiceName); err != nil {
 		return fmt.Errorf("the APIService is unhealthy, err: %w", err)
 	}
 

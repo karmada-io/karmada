@@ -16,8 +16,8 @@ limitations under the License.
 
 // This code is directly lifted from the Kubernetes codebase.
 // For reference:
-// https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/validation/validation.go#L5001-L5033
-// https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/validation/validation.go#L3305-L3326
+// https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/validation/validation.go#L3497-L3518
+// https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/validation/validation.go#L5227-L5259
 
 package lifted
 
@@ -31,10 +31,32 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/validation/validation.go#L5001-L5033
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/validation/validation.go#L3497-L3518
 // +lifted:changed
 
-// ValidateClusterTaints tests if given taints have valid data.
+// Original func name: validateTaintEffect
+func validateClusterTaintEffect(effect *corev1.TaintEffect, allowEmpty bool, fldPath *field.Path) field.ErrorList {
+	if !allowEmpty && len(*effect) == 0 {
+		return field.ErrorList{field.Required(fldPath, "")}
+	}
+
+	allErrors := field.ErrorList{}
+	switch *effect {
+	case corev1.TaintEffectNoSchedule, corev1.TaintEffectNoExecute:
+	default:
+		validValues := []string{
+			string(corev1.TaintEffectNoSchedule),
+			string(corev1.TaintEffectNoExecute),
+		}
+		allErrors = append(allErrors, field.NotSupported(fldPath, *effect, validValues))
+	}
+	return allErrors
+}
+
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/validation/validation.go#L5227-L5259
+// +lifted:changed
+
+// ValidateClusterTaints tests if given taints have valid data. Original func name: validateNodeTaints
 func ValidateClusterTaints(taints []corev1.Taint, fldPath *field.Path) field.ErrorList {
 	allErrors := field.ErrorList{}
 
@@ -68,26 +90,6 @@ func ValidateClusterTaints(taints []corev1.Taint, fldPath *field.Path) field.Err
 			uniqueTaints[currTaint.Effect] = sets.String{}
 		}
 		uniqueTaints[currTaint.Effect].Insert(currTaint.Key)
-	}
-	return allErrors
-}
-
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/validation/validation.go#L3305-L3326
-// +lifted:changed
-func validateClusterTaintEffect(effect *corev1.TaintEffect, allowEmpty bool, fldPath *field.Path) field.ErrorList {
-	if !allowEmpty && len(*effect) == 0 {
-		return field.ErrorList{field.Required(fldPath, "")}
-	}
-
-	allErrors := field.ErrorList{}
-	switch *effect {
-	case corev1.TaintEffectNoSchedule, corev1.TaintEffectNoExecute:
-	default:
-		validValues := []string{
-			string(corev1.TaintEffectNoSchedule),
-			string(corev1.TaintEffectNoExecute),
-		}
-		allErrors = append(allErrors, field.NotSupported(fldPath, *effect, validValues))
 	}
 	return allErrors
 }

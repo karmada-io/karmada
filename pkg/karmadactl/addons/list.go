@@ -23,7 +23,7 @@ var (
 	# Specify the karmada control plane kubeconfig
 	%[1]s list --karmada-kubeconfig /etc/karmada/karmada-apiserver.config
 	
-	# Sepcify the namespace where Karmada components are installed
+	# Specify the namespace where Karmada components are installed
 	%[1]s list --namespace karmada-system
 	`)
 )

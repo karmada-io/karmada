@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -15,7 +14,6 @@ import (
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
@@ -53,7 +51,7 @@ func (d *ResourceDetector) propagateResource(object *unstructured.Unstructured, 
 			return fmt.Errorf("waiting for dependent overrides")
 		}
 		d.RemoveWaiting(objectKey)
-		metrics.ObserveFindMatchedPolicyLatency(object, start)
+		metrics.ObserveFindMatchedPolicyLatency(start)
 		return d.ApplyPolicy(object, objectKey, propagationPolicy)
 	}
 
@@ -70,13 +68,13 @@ func (d *ResourceDetector) propagateResource(object *unstructured.Unstructured, 
 			return fmt.Errorf("waiting for dependent overrides")
 		}
 		d.RemoveWaiting(objectKey)
-		metrics.ObserveFindMatchedPolicyLatency(object, start)
+		metrics.ObserveFindMatchedPolicyLatency(start)
 		return d.ApplyClusterPolicy(object, objectKey, clusterPolicy)
 	}
 
 	if d.isWaiting(objectKey) {
 		// reaching here means there is no appropriate policy for the object
-		d.EventRecorder.Event(object, corev1.EventTypeWarning, events.EventReasonApplyPolicyFailed, "No policy match for resource")
+		klog.V(4).Infof("No matched policy for object: %s", objectKey.String())
 		return nil
 	}
 
@@ -89,6 +87,10 @@ func (d *ResourceDetector) propagateResource(object *unstructured.Unstructured, 
 func (d *ResourceDetector) getAndApplyPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policyNamespace, policyName string) error {
 	policyObject, err := d.propagationPolicyLister.ByNamespace(policyNamespace).Get(policyName)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.V(4).Infof("PropagationPolicy(%s/%s) has been removed.", policyNamespace, policyName)
+			return d.HandlePropagationPolicyDeletion(policyNamespace, policyName)
+		}
 		klog.Errorf("Failed to get claimed policy(%s/%s),: %v", policyNamespace, policyName, err)
 		return err
 	}
@@ -122,6 +124,11 @@ func (d *ResourceDetector) getAndApplyPolicy(object *unstructured.Unstructured, 
 func (d *ResourceDetector) getAndApplyClusterPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policyName string) error {
 	policyObject, err := d.clusterPropagationPolicyLister.Get(policyName)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.V(4).Infof("ClusterPropagationPolicy(%s) has been removed.", policyName)
+			return d.HandleClusterPropagationPolicyDeletion(policyName)
+		}
+
 		klog.Errorf("Failed to get claimed policy(%s),: %v", policyName, err)
 		return err
 	}
@@ -263,9 +270,9 @@ func (d *ResourceDetector) removeResourceLabelsIfNotMatch(objectReference workv1
 		return false, nil
 	}
 
-	for _, labelKey := range labelKeys {
-		util.RemoveLabel(object, labelKey)
-	}
+	object = object.DeepCopy()
+	util.RemoveLabels(object, labelKeys...)
+
 	err = d.Client.Update(context.TODO(), object)
 	if err != nil {
 		return false, err
@@ -319,4 +326,14 @@ func (d *ResourceDetector) listCPPDerivedCRB(policyName string) (*workv1alpha2.C
 	}
 
 	return bindings, nil
+}
+
+// excludeClusterPolicy excludes cluster propagation policy.
+// If propagation policy was claimed, cluster propagation policy should not exists.
+func excludeClusterPolicy(objLabels map[string]string) bool {
+	if _, ok := objLabels[policyv1alpha1.ClusterPropagationPolicyLabel]; !ok {
+		return false
+	}
+	delete(objLabels, policyv1alpha1.ClusterPropagationPolicyLabel)
+	return true
 }

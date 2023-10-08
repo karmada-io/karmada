@@ -62,7 +62,15 @@ func TestValidateCluster(t *testing.T) {
 			expectError: true,
 		},
 		"invalid zone": {
-			cluster:     api.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "foo"}, Spec: api.ClusterSpec{SyncMode: api.Push, Provider: "Invalid Zone"}},
+			cluster:     api.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "foo"}, Spec: api.ClusterSpec{SyncMode: api.Push, Zone: "Invalid Zone"}},
+			expectError: true,
+		},
+		"invalid zones": {
+			cluster:     api.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "foo"}, Spec: api.ClusterSpec{SyncMode: api.Push, Zones: []string{"Invalid Zone", "Zone2"}}},
+			expectError: true,
+		},
+		"co-exist zones and zone": {
+			cluster:     api.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "foo"}, Spec: api.ClusterSpec{SyncMode: api.Push, Zone: "Zone", Zones: []string{"Zones"}}},
 			expectError: true,
 		},
 		"unsupported taint effect": {

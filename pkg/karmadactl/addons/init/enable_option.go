@@ -27,6 +27,10 @@ type CommandAddonsEnableOption struct {
 
 	KarmadaDeschedulerReplicas int32
 
+	KarmadaMetricsAdapterImage string
+
+	KarmadaMetricsAdapterReplicas int32
+
 	KarmadaSchedulerEstimatorImage string
 
 	KarmadaEstimatorReplicas int32
@@ -51,8 +55,10 @@ var (
 	DefaultKarmadaDeschedulerImage string
 	// DefaultKarmadaSchedulerEstimatorImage Karmada scheduler-estimator image
 	DefaultKarmadaSchedulerEstimatorImage string
-	// DefaultKarmadaSearchImage Karmada search estimator image
+	// DefaultKarmadaSearchImage Karmada search image
 	DefaultKarmadaSearchImage string
+	// DefaultKarmadaMetricsAdapterImage Karmada metrics adapter image
+	DefaultKarmadaMetricsAdapterImage string
 
 	karmadaRelease string
 )
@@ -68,6 +74,7 @@ func init() {
 	DefaultKarmadaDeschedulerImage = fmt.Sprintf("docker.io/karmada/karmada-descheduler:%s", releaseVer.ReleaseVersion())
 	DefaultKarmadaSchedulerEstimatorImage = fmt.Sprintf("docker.io/karmada/karmada-scheduler-estimator:%s", releaseVer.ReleaseVersion())
 	DefaultKarmadaSearchImage = fmt.Sprintf("docker.io/karmada/karmada-search:%s", releaseVer.ReleaseVersion())
+	DefaultKarmadaMetricsAdapterImage = fmt.Sprintf("docker.io/karmada/karmada-metrics-adapter:%s", releaseVer.ReleaseVersion())
 }
 
 // KarmadaDeschedulerImage get karmada descheduler image
@@ -92,6 +99,14 @@ func KarmadaSearchImage(o *CommandAddonsEnableOption) string {
 		return o.ImageRegistry + "/karmada-search:" + karmadaRelease
 	}
 	return o.KarmadaSearchImage
+}
+
+// KarmadaMetricsAdapterImage get karmada metrics adapter image
+func KarmadaMetricsAdapterImage(o *CommandAddonsEnableOption) string {
+	if o.ImageRegistry != "" && o.KarmadaMetricsAdapterImage == DefaultKarmadaMetricsAdapterImage {
+		return o.ImageRegistry + "/karmada-metrics-adapter:" + karmadaRelease
+	}
+	return o.KarmadaMetricsAdapterImage
 }
 
 // Complete the conditions required to be able to run enable.

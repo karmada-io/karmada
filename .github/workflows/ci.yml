@@ -11,14 +11,14 @@ concurrency:
 jobs:
   golangci:
     name: lint
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: checkout code
         uses: actions/checkout@v3
       - name: install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.20.4
+          go-version: 1.20.6
       - name: vendor
         run: hack/verify-vendor.sh
       - name: lint
@@ -27,7 +27,7 @@ jobs:
         run: hack/verify-import-aliases.sh
   codegen:
     name: codegen
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     env:
       GOPATH: ${{ github.workspace }}
     defaults:
@@ -41,7 +41,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.20.4
+          go-version: 1.20.6
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
         with:
@@ -62,7 +62,7 @@ jobs:
   build:
     name: compile
     needs: codegen # rely on codegen successful completion
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: checkout code
         uses: actions/checkout@v3
@@ -73,20 +73,22 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.20.4
+          go-version: 1.20.6
       - name: compile
         run: make all
   test:
     name: unit test
     needs: build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
+    env:
+      COLOR_GOTEST_ENABLED: enabled
     steps:
       - name: checkout code
         uses: actions/checkout@v3
       - name: install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.20.4
+          go-version: 1.20.6
       - name: make test
         run: make test
       - name: Upload coverage to Codecov
@@ -106,13 +108,13 @@ jobs:
   e2e:
     name: e2e test
     needs: build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         # Here support the latest three minor releases of Kubernetes, this can be considered to be roughly
         # the same as the End of Life of the Kubernetes release: https://kubernetes.io/releases/
         # Please remember to update the CI Schedule Workflow when we add a new version.
-        k8s: [ v1.24.2, v1.25.0, v1.26.0 ]
+        k8s: [ v1.25.0, v1.26.0, v1.27.3 ]
     steps:
       - name: checkout code
         uses: actions/checkout@v3
@@ -123,7 +125,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.20.4
+          go-version: 1.20.6
       - name: setup e2e test environment
         run: |
           export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}

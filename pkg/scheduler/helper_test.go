@@ -2,11 +2,16 @@ package scheduler
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 )
 
 func Test_needConsideredPlacementChanged(t *testing.T) {
@@ -424,6 +429,61 @@ func Test_getAffinityIndex(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := getAffinityIndex(tt.args.affinities, tt.args.observedName); got != tt.want {
 				t.Errorf("getAffinityIndex() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_getConditionByError(t *testing.T) {
+	tests := []struct {
+		name              string
+		err               error
+		expectedCondition metav1.Condition
+		ignoreErr         bool
+	}{
+		{
+			name:              "no error",
+			err:               nil,
+			expectedCondition: metav1.Condition{Type: workv1alpha2.Scheduled, Reason: workv1alpha2.BindingReasonSuccess, Status: metav1.ConditionTrue},
+			ignoreErr:         true,
+		},
+		{
+			name:              "failed to schedule",
+			err:               utilerrors.NewAggregate([]error{errors.New("")}),
+			expectedCondition: metav1.Condition{Type: workv1alpha2.Scheduled, Reason: workv1alpha2.BindingReasonSchedulerError, Status: metav1.ConditionFalse},
+			ignoreErr:         false,
+		},
+		{
+			name:              "no cluster fit",
+			err:               &framework.FitError{},
+			expectedCondition: metav1.Condition{Type: workv1alpha2.Scheduled, Reason: workv1alpha2.BindingReasonNoClusterFit, Status: metav1.ConditionFalse},
+			ignoreErr:         true,
+		},
+		{
+			name:              "aggregated fit error",
+			err:               utilerrors.NewAggregate([]error{&framework.FitError{}, errors.New("")}),
+			expectedCondition: metav1.Condition{Type: workv1alpha2.Scheduled, Reason: workv1alpha2.BindingReasonNoClusterFit, Status: metav1.ConditionFalse},
+			ignoreErr:         false,
+		},
+		{
+			name:              "unschedulable error",
+			err:               &framework.UnschedulableError{},
+			expectedCondition: metav1.Condition{Type: workv1alpha2.Scheduled, Reason: workv1alpha2.BindingReasonUnschedulable, Status: metav1.ConditionFalse},
+			ignoreErr:         false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			condition, ignoreErr := getConditionByError(tt.err)
+			if condition.Type != tt.expectedCondition.Type ||
+				condition.Reason != tt.expectedCondition.Reason ||
+				condition.Status != tt.expectedCondition.Status {
+				t.Errorf("expected condition: (%s, %s, %s), but got (%s, %s, %s)",
+					tt.expectedCondition.Type, tt.expectedCondition.Reason, tt.expectedCondition.Status, condition.Type, condition.Reason, condition.Status)
+			}
+
+			if ignoreErr != tt.ignoreErr {
+				t.Errorf("expect to ignore error: %v. but got: %v", tt.ignoreErr, ignoreErr)
 			}
 		})
 	}

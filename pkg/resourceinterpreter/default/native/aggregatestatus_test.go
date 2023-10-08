@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -1058,6 +1059,76 @@ func Test_aggregateCronJobStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			actualObj, _ := aggregateCronJobStatus(tt.curObj, tt.aggregatedStatusItems)
 			assert.Equal(t, tt.expectedObj, actualObj)
+		})
+	}
+}
+
+func Test_aggregateHorizontalPodAutoscalerStatus(t *testing.T) {
+	curHPA, _ := helper.ToUnstructured(&autoscalingv2.HorizontalPodAutoscaler{
+		Status: autoscalingv2.HorizontalPodAutoscalerStatus{
+			CurrentReplicas: 0,
+			DesiredReplicas: 0,
+		},
+	})
+	aggregatedStatusItem1, _ := helper.BuildStatusRawExtension(map[string]interface{}{
+		"currentReplicas": 2,
+		"desiredReplicas": 2,
+	})
+	aggregatedStatusItem2, _ := helper.BuildStatusRawExtension(map[string]interface{}{
+		"currentReplicas": 4,
+		"desiredReplicas": 4,
+	})
+	expectHPA, _ := helper.ToUnstructured(&autoscalingv2.HorizontalPodAutoscaler{
+		Status: autoscalingv2.HorizontalPodAutoscalerStatus{
+			CurrentReplicas: 6,
+			DesiredReplicas: 6,
+		},
+	})
+
+	type args struct {
+		object                *unstructured.Unstructured
+		aggregatedStatusItems []workv1alpha2.AggregatedStatusItem
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *unstructured.Unstructured
+		wantErr bool
+	}{
+		{
+			name: "update hpa status",
+			args: args{
+				object: curHPA,
+				aggregatedStatusItems: []workv1alpha2.AggregatedStatusItem{
+					{ClusterName: "member1", Status: aggregatedStatusItem1, Applied: true},
+					{ClusterName: "member2", Status: aggregatedStatusItem2, Applied: true},
+					{ClusterName: "member3", Status: nil, Applied: true},
+				},
+			},
+			want:    expectHPA,
+			wantErr: false,
+		},
+		{
+			name: "hpa status update to dates",
+			args: args{
+				object: expectHPA,
+				aggregatedStatusItems: []workv1alpha2.AggregatedStatusItem{
+					{ClusterName: "member1", Status: aggregatedStatusItem1, Applied: true},
+					{ClusterName: "member2", Status: aggregatedStatusItem2, Applied: true},
+					{ClusterName: "member3", Status: nil, Applied: true},
+				},
+			},
+			want:    expectHPA,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := aggregateHorizontalPodAutoscalerStatus(tt.args.object, tt.args.aggregatedStatusItems)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Test_aggregateHorizontalPodAutoscalerStatus() err = %v, wantErr %v", err, tt.wantErr)
+			}
+			assert.Equalf(t, tt.want, got, "aggregateHorizontalPodAutoscalerStatus(%v, %v)", tt.args.object, tt.args.aggregatedStatusItems)
 		})
 	}
 }

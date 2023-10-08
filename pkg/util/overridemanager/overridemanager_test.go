@@ -243,7 +243,7 @@ func TestGetMatchingOverridePolicies(t *testing.T) {
 			{
 				Path:     "/metadata/annotations",
 				Operator: "add",
-				Value:    apiextensionsv1.JSON{Raw: []byte("foo: bar")},
+				Value:    apiextensionsv1.JSON{Raw: []byte(`"foo: bar"`)},
 			},
 		},
 	}
@@ -252,7 +252,7 @@ func TestGetMatchingOverridePolicies(t *testing.T) {
 			{
 				Path:     "/metadata/annotations",
 				Operator: "add",
-				Value:    apiextensionsv1.JSON{Raw: []byte("aaa: bbb")},
+				Value:    apiextensionsv1.JSON{Raw: []byte(`"aaa: bbb"`)},
 			},
 		},
 	}
@@ -261,7 +261,7 @@ func TestGetMatchingOverridePolicies(t *testing.T) {
 			{
 				Path:     "/metadata/annotations",
 				Operator: "add",
-				Value:    apiextensionsv1.JSON{Raw: []byte("hello: world")},
+				Value:    apiextensionsv1.JSON{Raw: []byte(`"hello: world"`)},
 			},
 		},
 	}

@@ -14,7 +14,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -70,7 +69,7 @@ func (c *CRBStatusController) Reconcile(ctx context.Context, req controllerrunti
 // SetupWithManager creates a controller and register to controller manager.
 func (c *CRBStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
 	workMapFunc := handler.MapFunc(
-		func(workObj client.Object) []reconcile.Request {
+		func(ctx context.Context, workObj client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 
 			annotations := workObj.GetAnnotations()
@@ -87,7 +86,7 @@ func (c *CRBStatusController) SetupWithManager(mgr controllerruntime.Manager) er
 		})
 
 	return controllerruntime.NewControllerManagedBy(mgr).Named("clusterResourceBinding_status_controller").
-		Watches(&source.Kind{Type: &workv1alpha1.Work{}}, handler.EnqueueRequestsFromMapFunc(workMapFunc), workPredicateFn).
+		Watches(&workv1alpha1.Work{}, handler.EnqueueRequestsFromMapFunc(workMapFunc), workPredicateFn).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
 		Complete(c)
 }

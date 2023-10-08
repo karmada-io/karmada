@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/client-go/kubernetes"
+	listcorev1 "k8s.io/client-go/listers/core/v1"
 
 	clusterapis "github.com/karmada-io/karmada/pkg/apis/cluster"
 	"github.com/karmada-io/karmada/pkg/util/proxy"
@@ -18,6 +19,7 @@ import (
 // ProxyREST implements the proxy subresource for a Cluster.
 type ProxyREST struct {
 	kubeClient    kubernetes.Interface
+	secretLister  listcorev1.SecretLister
 	clusterGetter func(ctx context.Context, name string) (*clusterapis.Cluster, error)
 }
 
@@ -54,7 +56,12 @@ func (r *ProxyREST) Connect(ctx context.Context, id string, options runtime.Obje
 	}
 
 	secretGetter := func(ctx context.Context, namespace string, name string) (*corev1.Secret, error) {
-		return r.kubeClient.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+		secret, err := r.secretLister.Secrets(namespace).Get(name)
+		if err != nil {
+			// fall back to call api server in case the cache has not been synchronized yet
+			return r.kubeClient.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+		}
+		return secret, nil
 	}
 	return proxy.ConnectCluster(ctx, cluster, proxyOpts.Path, secretGetter, responder)
 }

@@ -25,6 +25,7 @@ type ProxyingREST struct {
 var _ rest.Scoper = &ProxyingREST{}
 var _ rest.Storage = &ProxyingREST{}
 var _ rest.Connecter = &ProxyingREST{}
+var _ rest.SingularNameProvider = &ProxyingREST{}
 
 // NewProxyingREST returns a RESTStorage object that will work against search.
 func NewProxyingREST(ctl *proxy.Controller) *ProxyingREST {
@@ -75,4 +76,9 @@ func (r *ProxyingREST) Connect(ctx context.Context, _ string, _ runtime.Object, 
 func (r *ProxyingREST) Destroy() {
 	// Given no underlying store, so we don't
 	// need to destroy anything.
+}
+
+// GetSingularName returns singular name of resources
+func (r *ProxyingREST) GetSingularName() string {
+	return "proxying"
 }

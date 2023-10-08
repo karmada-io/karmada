@@ -30,7 +30,7 @@ var (
 		%[1]s exec mypod -c ruby-container -C=member1 -- date
 
 		# Get output from running the 'date' command in ruby-container from pod mypod in cluster(member1)
-		%[1]sexec mypod -c ruby-container -C=member1 -- date
+		%[1]s exec mypod -c ruby-container -C=member1 -- date
 
 		# Switch to raw terminal mode; sends stdin to 'bash' in ruby-container from pod mypod in cluster(member1)
 		# and sends stdout/stderr from 'bash' back to the client

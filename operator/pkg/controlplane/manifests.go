@@ -39,16 +39,16 @@ spec:
         command:
         - kube-controller-manager
         - --allocate-node-cidrs=true
-        - --kubeconfig=/etc/karmada/config
-        - --authentication-kubeconfig=/etc/karmada/config
-        - --authorization-kubeconfig=/etc/karmada/config
+        - --kubeconfig=/etc/karmada/kubeconfig
+        - --authentication-kubeconfig=/etc/karmada/kubeconfig
+        - --authorization-kubeconfig=/etc/karmada/kubeconfig
         - --bind-address=0.0.0.0
         - --client-ca-file=/etc/karmada/pki/ca.crt
         - --cluster-cidr=10.244.0.0/16
         - --cluster-name=karmada
         - --cluster-signing-cert-file=/etc/karmada/pki/ca.crt
         - --cluster-signing-key-file=/etc/karmada/pki/ca.key
-        - --controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,csrapproving,csrcleaner,csrsigning
+        - --controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,csrapproving,csrcleaner,csrsigning,clusterrole-aggregation
         - --leader-elect=true
         - --node-cidr-mask-size=24
         - --root-ca-file=/etc/karmada/pki/ca.crt
@@ -71,8 +71,8 @@ spec:
           mountPath: /etc/karmada/pki
           readOnly: true
         - name: kubeconfig
-          mountPath: /etc/karmada/config
-          subPath: config
+          mountPath: /etc/karmada/kubeconfig
+          subPath: kubeconfig
       volumes:
         - name: karmada-certs
           secret:
@@ -111,11 +111,12 @@ spec:
         imagePullPolicy: IfNotPresent
         command:
         - /bin/karmada-controller-manager
-        - --kubeconfig=/etc/karmada/config
+        - --kubeconfig=/etc/karmada/kubeconfig
         - --bind-address=0.0.0.0
         - --cluster-status-update-frequency=10s
         - --secure-port=10357
         - --failover-eviction-timeout=30s
+        - --leader-elect-resource-namespace={{ .SystemNamespace }}
         - --v=4
         livenessProbe:
           httpGet:
@@ -128,8 +129,8 @@ spec:
           timeoutSeconds: 5
         volumeMounts:
         - name: kubeconfig
-          subPath: config
-          mountPath: /etc/karmada/config
+          subPath: kubeconfig
+          mountPath: /etc/karmada/kubeconfig
       volumes:
       - name: kubeconfig
         secret:
@@ -166,10 +167,11 @@ spec:
         imagePullPolicy: IfNotPresent
         command:
         - /bin/karmada-scheduler
-        - --kubeconfig=/etc/karmada/config
+        - --kubeconfig=/etc/karmada/kubeconfig
         - --bind-address=0.0.0.0
         - --secure-port=10351
         - --enable-scheduler-estimator=true
+        - --leader-elect-resource-namespace={{ .SystemNamespace }}
         - --v=4
         livenessProbe:
           httpGet:
@@ -182,8 +184,8 @@ spec:
           timeoutSeconds: 5
         volumeMounts:
         - name: kubeconfig
-          subPath: config
-          mountPath: /etc/karmada/config
+          subPath: kubeconfig
+          mountPath: /etc/karmada/kubeconfig
       volumes:
         - name: kubeconfig
           secret:
@@ -220,8 +222,9 @@ spec:
         imagePullPolicy: IfNotPresent
         command:
         - /bin/karmada-descheduler
-        - --kubeconfig=/etc/karmada/config
+        - --kubeconfig=/etc/karmada/kubeconfig
         - --bind-address=0.0.0.0
+        - --leader-elect-resource-namespace={{ .SystemNamespace }}
         - --v=4
         livenessProbe:
           httpGet:
@@ -234,8 +237,8 @@ spec:
           timeoutSeconds: 5
         volumeMounts:
         - name: kubeconfig
-          subPath: config
-          mountPath: /etc/karmada/config
+          subPath: kubeconfig
+          mountPath: /etc/karmada/kubeconfig
       volumes:
         - name: kubeconfig
           secret:

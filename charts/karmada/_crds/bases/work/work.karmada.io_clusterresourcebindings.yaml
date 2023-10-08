@@ -1,0 +1,1296 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: clusterresourcebindings.work.karmada.io
+spec:
+  group: work.karmada.io
+  names:
+    categories:
+    - karmada-io
+    kind: ClusterResourceBinding
+    listKind: ClusterResourceBindingList
+    plural: clusterresourcebindings
+    shortNames:
+    - crb
+    singular: clusterresourcebinding
+  scope: Cluster
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: ClusterResourceBinding represents a binding of a kubernetes resource
+          with a ClusterPropagationPolicy.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec represents the desired behavior.
+            properties:
+              clusters:
+                description: Clusters represents target member clusters where the
+                  resource to be deployed.
+                items:
+                  description: TargetCluster represents the identifier of a member
+                    cluster.
+                  properties:
+                    name:
+                      description: Name of target cluster.
+                      type: string
+                    replicas:
+                      description: Replicas in target cluster
+                      format: int32
+                      type: integer
+                  required:
+                  - name
+                  type: object
+                type: array
+              resource:
+                description: Resource represents the Kubernetes resource to be propagated.
+                properties:
+                  apiVersion:
+                    description: APIVersion represents the API version of the referent.
+                    type: string
+                  kind:
+                    description: Kind represents the Kind of the referent.
+                    type: string
+                  name:
+                    description: Name represents the name of the referent.
+                    type: string
+                  namespace:
+                    description: Namespace represents the namespace for the referent.
+                      For non-namespace scoped resources(e.g. 'ClusterRole')，do not
+                      need specify Namespace, and for namespace scoped resources,
+                      Namespace is required. If Namespace is not specified, means
+                      the resource is non-namespace scoped.
+                    type: string
+                  replicas:
+                    description: Replicas represents the replica number of the referencing
+                      resource.
+                    format: int32
+                    type: integer
+                  resourcePerReplicas:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: ReplicaResourceRequirements represents the resources
+                      required by each replica.
+                    type: object
+                  resourceVersion:
+                    description: ResourceVersion represents the internal version of
+                      the referenced object, that can be used by clients to determine
+                      when object has changed.
+                    type: string
+                required:
+                - apiVersion
+                - kind
+                - name
+                type: object
+            required:
+            - resource
+            type: object
+          status:
+            description: Status represents the most recently observed status of the
+              ResourceBinding.
+            properties:
+              aggregatedStatus:
+                description: AggregatedStatus represents status list of the resource
+                  running in each member cluster.
+                items:
+                  description: AggregatedStatusItem represents status of the resource
+                    running in a member cluster.
+                  properties:
+                    applied:
+                      description: Applied represents if the resource referencing
+                        by ResourceBinding or ClusterResourceBinding is successfully
+                        applied on the cluster.
+                      type: boolean
+                    appliedMessage:
+                      description: AppliedMessage is a human readable message indicating
+                        details about the applied status. This is usually holds the
+                        error message in case of apply failed.
+                      type: string
+                    clusterName:
+                      description: ClusterName represents the member cluster name
+                        which the resource deployed on.
+                      type: string
+                    status:
+                      description: Status reflects running status of current manifest.
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                  required:
+                  - clusterName
+                  type: object
+                type: array
+              conditions:
+                description: Conditions contain the different condition statuses.
+                items:
+                  description: "Condition contains details for one aspect of the current
+                    state of this API Resource. --- This struct is intended for direct
+                    use as an array at the field path .status.conditions.  For example,
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
+                    `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
+                  properties:
+                    lastTransitionTime:
+                      description: lastTransitionTime is the last time the condition
+                        transitioned from one status to another. This should be when
+                        the underlying condition changed.  If that is not known, then
+                        using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: message is a human readable message indicating
+                        details about the transition. This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: observedGeneration represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.conditions[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: reason contains a programmatic identifier indicating
+                        the reason for the condition's last transition. Producers
+                        of specific condition types may define expected values and
+                        meanings for this field, and whether the values are considered
+                        a guaranteed API. The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                        --- Many .condition.type values are consistent across resources
+                        like Available, but because arbitrary conditions can be useful
+                        (see .node.status.conditions), the ability to deconflict is
+                        important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: false
+    subresources:
+      status: {}
+  - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=="Scheduled")].status
+      name: Scheduled
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="FullyApplied")].status
+      name: FullyApplied
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha2
+    schema:
+      openAPIV3Schema:
+        description: ClusterResourceBinding represents a binding of a kubernetes resource
+          with a ClusterPropagationPolicy.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec represents the desired behavior.
+            properties:
+              clusters:
+                description: Clusters represents target member clusters where the
+                  resource to be deployed.
+                items:
+                  description: TargetCluster represents the identifier of a member
+                    cluster.
+                  properties:
+                    name:
+                      description: Name of target cluster.
+                      type: string
+                    replicas:
+                      description: Replicas in target cluster
+                      format: int32
+                      type: integer
+                  required:
+                  - name
+                  type: object
+                type: array
+              conflictResolution:
+                default: Abort
+                description: "ConflictResolution declares how potential conflict should
+                  be handled when a resource that is being propagated already exists
+                  in the target cluster. \n It defaults to \"Abort\" which means stop
+                  propagating to avoid unexpected overwrites. The \"Overwrite\" might
+                  be useful when migrating legacy cluster resources to Karmada, in
+                  which case conflict is predictable and can be instructed to Karmada
+                  take over the resource by overwriting."
+                enum:
+                - Abort
+                - Overwrite
+                type: string
+              failover:
+                description: Failover indicates how Karmada migrates applications
+                  in case of failures. It inherits directly from the associated PropagationPolicy(or
+                  ClusterPropagationPolicy).
+                properties:
+                  application:
+                    description: Application indicates failover behaviors in case
+                      of application failure. If this value is nil, failover is disabled.
+                      If set, the PropagateDeps should be true so that the dependencies
+                      could be migrated along with the application.
+                    properties:
+                      decisionConditions:
+                        description: 'DecisionConditions indicates the decision conditions
+                          of performing the failover process. Only when all conditions
+                          are met can the failover process be performed. Currently,
+                          DecisionConditions includes several conditions: - TolerationSeconds
+                          (optional)'
+                        properties:
+                          tolerationSeconds:
+                            default: 300
+                            description: TolerationSeconds represents the period of
+                              time Karmada should wait after reaching the desired
+                              state before performing failover process. If not specified,
+                              Karmada will immediately perform failover process. Defaults
+                              to 300s.
+                            format: int32
+                            type: integer
+                        type: object
+                      gracePeriodSeconds:
+                        description: GracePeriodSeconds is the maximum waiting duration
+                          in seconds before application on the migrated cluster should
+                          be deleted. Required only when PurgeMode is "Graciously"
+                          and defaults to 600s. If the application on the new cluster
+                          cannot reach a Healthy state, Karmada will delete the application
+                          after GracePeriodSeconds is reached. Value must be positive
+                          integer.
+                        format: int32
+                        type: integer
+                      purgeMode:
+                        default: Graciously
+                        description: PurgeMode represents how to deal with the legacy
+                          applications on the cluster from which the application is
+                          migrated. Valid options are "Immediately", "Graciously"
+                          and "Never". Defaults to "Graciously".
+                        type: string
+                    required:
+                    - decisionConditions
+                    type: object
+                type: object
+              gracefulEvictionTasks:
+                description: 'GracefulEvictionTasks holds the eviction tasks that
+                  are expected to perform the eviction in a graceful way. The intended
+                  workflow is: 1. Once the controller(such as ''taint-manager'') decided
+                  to evict the resource that is referenced by current ResourceBinding
+                  or ClusterResourceBinding from a target cluster, it removes(or scale
+                  down the replicas) the target from Clusters(.spec.Clusters) and
+                  builds a graceful eviction task. 2. The scheduler may perform a
+                  re-scheduler and probably select a substitute cluster to take over
+                  the evicting workload(resource). 3. The graceful eviction controller
+                  takes care of the graceful eviction tasks and performs the final
+                  removal after the workload(resource) is available on the substitute
+                  cluster or exceed the grace termination period(defaults to 10 minutes).'
+                items:
+                  description: GracefulEvictionTask represents a graceful eviction
+                    task.
+                  properties:
+                    creationTimestamp:
+                      description: "CreationTimestamp is a timestamp representing
+                        the server time when this object was created. Clients should
+                        not set this value to avoid the time inconsistency issue.
+                        It is represented in RFC3339 form(like '2021-04-25T10:02:10Z')
+                        and is in UTC. \n Populated by the system. Read-only."
+                      format: date-time
+                      type: string
+                    fromCluster:
+                      description: FromCluster which cluster the eviction perform
+                        from.
+                      type: string
+                    gracePeriodSeconds:
+                      description: GracePeriodSeconds is the maximum waiting duration
+                        in seconds before the item should be deleted. If the application
+                        on the new cluster cannot reach a Healthy state, Karmada will
+                        delete the item after GracePeriodSeconds is reached. Value
+                        must be positive integer. It can not co-exist with SuppressDeletion.
+                      format: int32
+                      type: integer
+                    message:
+                      description: Message is a human-readable message indicating
+                        details about the eviction. This may be an empty string.
+                      maxLength: 1024
+                      type: string
+                    producer:
+                      description: Producer indicates the controller who triggered
+                        the eviction.
+                      type: string
+                    reason:
+                      description: Reason contains a programmatic identifier indicating
+                        the reason for the eviction. Producers may define expected
+                        values and meanings for this field, and whether the values
+                        are considered a guaranteed API. The value should be a CamelCase
+                        string. This field may not be empty.
+                      maxLength: 32
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    replicas:
+                      description: Replicas indicates the number of replicas should
+                        be evicted. Should be ignored for resource type that doesn't
+                        have replica.
+                      format: int32
+                      type: integer
+                    suppressDeletion:
+                      description: SuppressDeletion represents the grace period will
+                        be persistent until the tools or human intervention stops
+                        it. It can not co-exist with GracePeriodSeconds.
+                      type: boolean
+                  required:
+                  - fromCluster
+                  - producer
+                  - reason
+                  type: object
+                type: array
+              placement:
+                description: Placement represents the rule for select clusters to
+                  propagate resources.
+                properties:
+                  clusterAffinities:
+                    description: "ClusterAffinities represents scheduling restrictions
+                      to multiple cluster groups that indicated by ClusterAffinityTerm.
+                      \n The scheduler will evaluate these groups one by one in the
+                      order they appear in the spec, the group that does not satisfy
+                      scheduling restrictions will be ignored which means all clusters
+                      in this group will not be selected unless it also belongs to
+                      the next group(a cluster could belong to multiple groups). \n
+                      If none of the groups satisfy the scheduling restrictions, then
+                      scheduling fails, which means no cluster will be selected. \n
+                      Note: 1. ClusterAffinities can not co-exist with ClusterAffinity.
+                      2. If both ClusterAffinity and ClusterAffinities are not set,
+                      any cluster can be scheduling candidates. \n Potential use case
+                      1: The private clusters in the local data center could be the
+                      main group, and the managed clusters provided by cluster providers
+                      could be the secondary group. So that the Karmada scheduler
+                      would prefer to schedule workloads to the main group and the
+                      second group will only be considered in case of the main group
+                      does not satisfy restrictions(like, lack of resources). \n Potential
+                      use case 2: For the disaster recovery scenario, the clusters
+                      could be organized to primary and backup groups, the workloads
+                      would be scheduled to primary clusters firstly, and when primary
+                      cluster fails(like data center power off), Karmada scheduler
+                      could migrate workloads to the backup clusters."
+                    items:
+                      description: ClusterAffinityTerm selects a set of cluster.
+                      properties:
+                        affinityName:
+                          description: AffinityName is the name of the cluster group.
+                          maxLength: 32
+                          minLength: 1
+                          type: string
+                        clusterNames:
+                          description: ClusterNames is the list of clusters to be
+                            selected.
+                          items:
+                            type: string
+                          type: array
+                        exclude:
+                          description: ExcludedClusters is the list of clusters to
+                            be ignored.
+                          items:
+                            type: string
+                          type: array
+                        fieldSelector:
+                          description: FieldSelector is a filter to select member
+                            clusters by fields. The key(field) of the match expression
+                            should be 'provider', 'region', or 'zone', and the operator
+                            of the match expression should be 'In' or 'NotIn'. If
+                            non-nil and non-empty, only the clusters match this filter
+                            will be selected.
+                          properties:
+                            matchExpressions:
+                              description: A list of field selector requirements.
+                              items:
+                                description: A node selector requirement is a selector
+                                  that contains values, a key, and an operator that
+                                  relates the key and values.
+                                properties:
+                                  key:
+                                    description: The label key that the selector applies
+                                      to.
+                                    type: string
+                                  operator:
+                                    description: Represents a key's relationship to
+                                      a set of values. Valid operators are In, NotIn,
+                                      Exists, DoesNotExist. Gt, and Lt.
+                                    type: string
+                                  values:
+                                    description: An array of string values. If the
+                                      operator is In or NotIn, the values array must
+                                      be non-empty. If the operator is Exists or DoesNotExist,
+                                      the values array must be empty. If the operator
+                                      is Gt or Lt, the values array must have a single
+                                      element, which will be interpreted as an integer.
+                                      This array is replaced during a strategic merge
+                                      patch.
+                                    items:
+                                      type: string
+                                    type: array
+                                required:
+                                - key
+                                - operator
+                                type: object
+                              type: array
+                          type: object
+                        labelSelector:
+                          description: LabelSelector is a filter to select member
+                            clusters by labels. If non-nil and non-empty, only the
+                            clusters match this filter will be selected.
+                          properties:
+                            matchExpressions:
+                              description: matchExpressions is a list of label selector
+                                requirements. The requirements are ANDed.
+                              items:
+                                description: A label selector requirement is a selector
+                                  that contains values, a key, and an operator that
+                                  relates the key and values.
+                                properties:
+                                  key:
+                                    description: key is the label key that the selector
+                                      applies to.
+                                    type: string
+                                  operator:
+                                    description: operator represents a key's relationship
+                                      to a set of values. Valid operators are In,
+                                      NotIn, Exists and DoesNotExist.
+                                    type: string
+                                  values:
+                                    description: values is an array of string values.
+                                      If the operator is In or NotIn, the values array
+                                      must be non-empty. If the operator is Exists
+                                      or DoesNotExist, the values array must be empty.
+                                      This array is replaced during a strategic merge
+                                      patch.
+                                    items:
+                                      type: string
+                                    type: array
+                                required:
+                                - key
+                                - operator
+                                type: object
+                              type: array
+                            matchLabels:
+                              additionalProperties:
+                                type: string
+                              description: matchLabels is a map of {key,value} pairs.
+                                A single {key,value} in the matchLabels map is equivalent
+                                to an element of matchExpressions, whose key field
+                                is "key", the operator is "In", and the values array
+                                contains only "value". The requirements are ANDed.
+                              type: object
+                          type: object
+                      required:
+                      - affinityName
+                      type: object
+                    type: array
+                  clusterAffinity:
+                    description: 'ClusterAffinity represents scheduling restrictions
+                      to a certain set of clusters. Note: 1. ClusterAffinity can not
+                      co-exist with ClusterAffinities. 2. If both ClusterAffinity
+                      and ClusterAffinities are not set, any cluster can be scheduling
+                      candidates.'
+                    properties:
+                      clusterNames:
+                        description: ClusterNames is the list of clusters to be selected.
+                        items:
+                          type: string
+                        type: array
+                      exclude:
+                        description: ExcludedClusters is the list of clusters to be
+                          ignored.
+                        items:
+                          type: string
+                        type: array
+                      fieldSelector:
+                        description: FieldSelector is a filter to select member clusters
+                          by fields. The key(field) of the match expression should
+                          be 'provider', 'region', or 'zone', and the operator of
+                          the match expression should be 'In' or 'NotIn'. If non-nil
+                          and non-empty, only the clusters match this filter will
+                          be selected.
+                        properties:
+                          matchExpressions:
+                            description: A list of field selector requirements.
+                            items:
+                              description: A node selector requirement is a selector
+                                that contains values, a key, and an operator that
+                                relates the key and values.
+                              properties:
+                                key:
+                                  description: The label key that the selector applies
+                                    to.
+                                  type: string
+                                operator:
+                                  description: Represents a key's relationship to
+                                    a set of values. Valid operators are In, NotIn,
+                                    Exists, DoesNotExist. Gt, and Lt.
+                                  type: string
+                                values:
+                                  description: An array of string values. If the operator
+                                    is In or NotIn, the values array must be non-empty.
+                                    If the operator is Exists or DoesNotExist, the
+                                    values array must be empty. If the operator is
+                                    Gt or Lt, the values array must have a single
+                                    element, which will be interpreted as an integer.
+                                    This array is replaced during a strategic merge
+                                    patch.
+                                  items:
+                                    type: string
+                                  type: array
+                              required:
+                              - key
+                              - operator
+                              type: object
+                            type: array
+                        type: object
+                      labelSelector:
+                        description: LabelSelector is a filter to select member clusters
+                          by labels. If non-nil and non-empty, only the clusters match
+                          this filter will be selected.
+                        properties:
+                          matchExpressions:
+                            description: matchExpressions is a list of label selector
+                              requirements. The requirements are ANDed.
+                            items:
+                              description: A label selector requirement is a selector
+                                that contains values, a key, and an operator that
+                                relates the key and values.
+                              properties:
+                                key:
+                                  description: key is the label key that the selector
+                                    applies to.
+                                  type: string
+                                operator:
+                                  description: operator represents a key's relationship
+                                    to a set of values. Valid operators are In, NotIn,
+                                    Exists and DoesNotExist.
+                                  type: string
+                                values:
+                                  description: values is an array of string values.
+                                    If the operator is In or NotIn, the values array
+                                    must be non-empty. If the operator is Exists or
+                                    DoesNotExist, the values array must be empty.
+                                    This array is replaced during a strategic merge
+                                    patch.
+                                  items:
+                                    type: string
+                                  type: array
+                              required:
+                              - key
+                              - operator
+                              type: object
+                            type: array
+                          matchLabels:
+                            additionalProperties:
+                              type: string
+                            description: matchLabels is a map of {key,value} pairs.
+                              A single {key,value} in the matchLabels map is equivalent
+                              to an element of matchExpressions, whose key field is
+                              "key", the operator is "In", and the values array contains
+                              only "value". The requirements are ANDed.
+                            type: object
+                        type: object
+                    type: object
+                  clusterTolerations:
+                    description: ClusterTolerations represents the tolerations.
+                    items:
+                      description: The pod this Toleration is attached to tolerates
+                        any taint that matches the triple <key,value,effect> using
+                        the matching operator <operator>.
+                      properties:
+                        effect:
+                          description: Effect indicates the taint effect to match.
+                            Empty means match all taint effects. When specified, allowed
+                            values are NoSchedule, PreferNoSchedule and NoExecute.
+                          type: string
+                        key:
+                          description: Key is the taint key that the toleration applies
+                            to. Empty means match all taint keys. If the key is empty,
+                            operator must be Exists; this combination means to match
+                            all values and all keys.
+                          type: string
+                        operator:
+                          description: Operator represents a key's relationship to
+                            the value. Valid operators are Exists and Equal. Defaults
+                            to Equal. Exists is equivalent to wildcard for value,
+                            so that a pod can tolerate all taints of a particular
+                            category.
+                          type: string
+                        tolerationSeconds:
+                          description: TolerationSeconds represents the period of
+                            time the toleration (which must be of effect NoExecute,
+                            otherwise this field is ignored) tolerates the taint.
+                            By default, it is not set, which means tolerate the taint
+                            forever (do not evict). Zero and negative values will
+                            be treated as 0 (evict immediately) by the system.
+                          format: int64
+                          type: integer
+                        value:
+                          description: Value is the taint value the toleration matches
+                            to. If the operator is Exists, the value should be empty,
+                            otherwise just a regular string.
+                          type: string
+                      type: object
+                    type: array
+                  replicaScheduling:
+                    description: ReplicaScheduling represents the scheduling policy
+                      on dealing with the number of replicas when propagating resources
+                      that have replicas in spec (e.g. deployments, statefulsets)
+                      to member clusters.
+                    properties:
+                      replicaDivisionPreference:
+                        description: ReplicaDivisionPreference determines how the
+                          replicas is divided when ReplicaSchedulingType is "Divided".
+                          Valid options are Aggregated and Weighted. "Aggregated"
+                          divides replicas into clusters as few as possible, while
+                          respecting clusters' resource availabilities during the
+                          division. "Weighted" divides replicas by weight according
+                          to WeightPreference.
+                        enum:
+                        - Aggregated
+                        - Weighted
+                        type: string
+                      replicaSchedulingType:
+                        default: Divided
+                        description: ReplicaSchedulingType determines how the replicas
+                          is scheduled when karmada propagating a resource. Valid
+                          options are Duplicated and Divided. "Duplicated" duplicates
+                          the same replicas to each candidate member cluster from
+                          resource. "Divided" divides replicas into parts according
+                          to number of valid candidate member clusters, and exact
+                          replicas for each cluster are determined by ReplicaDivisionPreference.
+                        enum:
+                        - Duplicated
+                        - Divided
+                        type: string
+                      weightPreference:
+                        description: WeightPreference describes weight for each cluster
+                          or for each group of cluster If ReplicaDivisionPreference
+                          is set to "Weighted", and WeightPreference is not set, scheduler
+                          will weight all clusters the same.
+                        properties:
+                          dynamicWeight:
+                            description: DynamicWeight specifies the factor to generates
+                              dynamic weight list. If specified, StaticWeightList
+                              will be ignored.
+                            enum:
+                            - AvailableReplicas
+                            type: string
+                          staticWeightList:
+                            description: StaticWeightList defines the static cluster
+                              weight.
+                            items:
+                              description: StaticClusterWeight defines the static
+                                cluster weight.
+                              properties:
+                                targetCluster:
+                                  description: TargetCluster describes the filter
+                                    to select clusters.
+                                  properties:
+                                    clusterNames:
+                                      description: ClusterNames is the list of clusters
+                                        to be selected.
+                                      items:
+                                        type: string
+                                      type: array
+                                    exclude:
+                                      description: ExcludedClusters is the list of
+                                        clusters to be ignored.
+                                      items:
+                                        type: string
+                                      type: array
+                                    fieldSelector:
+                                      description: FieldSelector is a filter to select
+                                        member clusters by fields. The key(field)
+                                        of the match expression should be 'provider',
+                                        'region', or 'zone', and the operator of the
+                                        match expression should be 'In' or 'NotIn'.
+                                        If non-nil and non-empty, only the clusters
+                                        match this filter will be selected.
+                                      properties:
+                                        matchExpressions:
+                                          description: A list of field selector requirements.
+                                          items:
+                                            description: A node selector requirement
+                                              is a selector that contains values,
+                                              a key, and an operator that relates
+                                              the key and values.
+                                            properties:
+                                              key:
+                                                description: The label key that the
+                                                  selector applies to.
+                                                type: string
+                                              operator:
+                                                description: Represents a key's relationship
+                                                  to a set of values. Valid operators
+                                                  are In, NotIn, Exists, DoesNotExist.
+                                                  Gt, and Lt.
+                                                type: string
+                                              values:
+                                                description: An array of string values.
+                                                  If the operator is In or NotIn,
+                                                  the values array must be non-empty.
+                                                  If the operator is Exists or DoesNotExist,
+                                                  the values array must be empty.
+                                                  If the operator is Gt or Lt, the
+                                                  values array must have a single
+                                                  element, which will be interpreted
+                                                  as an integer. This array is replaced
+                                                  during a strategic merge patch.
+                                                items:
+                                                  type: string
+                                                type: array
+                                            required:
+                                            - key
+                                            - operator
+                                            type: object
+                                          type: array
+                                      type: object
+                                    labelSelector:
+                                      description: LabelSelector is a filter to select
+                                        member clusters by labels. If non-nil and
+                                        non-empty, only the clusters match this filter
+                                        will be selected.
+                                      properties:
+                                        matchExpressions:
+                                          description: matchExpressions is a list
+                                            of label selector requirements. The requirements
+                                            are ANDed.
+                                          items:
+                                            description: A label selector requirement
+                                              is a selector that contains values,
+                                              a key, and an operator that relates
+                                              the key and values.
+                                            properties:
+                                              key:
+                                                description: key is the label key
+                                                  that the selector applies to.
+                                                type: string
+                                              operator:
+                                                description: operator represents a
+                                                  key's relationship to a set of values.
+                                                  Valid operators are In, NotIn, Exists
+                                                  and DoesNotExist.
+                                                type: string
+                                              values:
+                                                description: values is an array of
+                                                  string values. If the operator is
+                                                  In or NotIn, the values array must
+                                                  be non-empty. If the operator is
+                                                  Exists or DoesNotExist, the values
+                                                  array must be empty. This array
+                                                  is replaced during a strategic merge
+                                                  patch.
+                                                items:
+                                                  type: string
+                                                type: array
+                                            required:
+                                            - key
+                                            - operator
+                                            type: object
+                                          type: array
+                                        matchLabels:
+                                          additionalProperties:
+                                            type: string
+                                          description: matchLabels is a map of {key,value}
+                                            pairs. A single {key,value} in the matchLabels
+                                            map is equivalent to an element of matchExpressions,
+                                            whose key field is "key", the operator
+                                            is "In", and the values array contains
+                                            only "value". The requirements are ANDed.
+                                          type: object
+                                      type: object
+                                  type: object
+                                weight:
+                                  description: Weight expressing the preference to
+                                    the cluster(s) specified by 'TargetCluster'.
+                                  format: int64
+                                  minimum: 1
+                                  type: integer
+                              required:
+                              - targetCluster
+                              - weight
+                              type: object
+                            type: array
+                        type: object
+                    type: object
+                  spreadConstraints:
+                    description: SpreadConstraints represents a list of the scheduling
+                      constraints.
+                    items:
+                      description: SpreadConstraint represents the spread constraints
+                        on resources.
+                      properties:
+                        maxGroups:
+                          description: MaxGroups restricts the maximum number of cluster
+                            groups to be selected.
+                          type: integer
+                        minGroups:
+                          description: MinGroups restricts the minimum number of cluster
+                            groups to be selected. Defaults to 1.
+                          type: integer
+                        spreadByField:
+                          description: 'SpreadByField represents the fields on Karmada
+                            cluster API used for dynamically grouping member clusters
+                            into different groups. Resources will be spread among
+                            different cluster groups. Available fields for spreading
+                            are: cluster, region, zone, and provider. SpreadByField
+                            should not co-exist with SpreadByLabel. If both SpreadByField
+                            and SpreadByLabel are empty, SpreadByField will be set
+                            to "cluster" by system.'
+                          enum:
+                          - cluster
+                          - region
+                          - zone
+                          - provider
+                          type: string
+                        spreadByLabel:
+                          description: SpreadByLabel represents the label key used
+                            for grouping member clusters into different groups. Resources
+                            will be spread among different cluster groups. SpreadByLabel
+                            should not co-exist with SpreadByField.
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              propagateDeps:
+                description: PropagateDeps tells if relevant resources should be propagated
+                  automatically. It is inherited from PropagationPolicy or ClusterPropagationPolicy.
+                  default false.
+                type: boolean
+              replicaRequirements:
+                description: ReplicaRequirements represents the requirements required
+                  by each replica.
+                properties:
+                  nodeClaim:
+                    description: NodeClaim represents the node claim HardNodeAffinity,
+                      NodeSelector and Tolerations required by each replica.
+                    properties:
+                      hardNodeAffinity:
+                        description: A node selector represents the union of the results
+                          of one or more label queries over a set of nodes; that is,
+                          it represents the OR of the selectors represented by the
+                          node selector terms. Note that only PodSpec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+                          is included here because it has a hard limit on pod scheduling.
+                        properties:
+                          nodeSelectorTerms:
+                            description: Required. A list of node selector terms.
+                              The terms are ORed.
+                            items:
+                              description: A null or empty node selector term matches
+                                no objects. The requirements of them are ANDed. The
+                                TopologySelectorTerm type implements a subset of the
+                                NodeSelectorTerm.
+                              properties:
+                                matchExpressions:
+                                  description: A list of node selector requirements
+                                    by node's labels.
+                                  items:
+                                    description: A node selector requirement is a
+                                      selector that contains values, a key, and an
+                                      operator that relates the key and values.
+                                    properties:
+                                      key:
+                                        description: The label key that the selector
+                                          applies to.
+                                        type: string
+                                      operator:
+                                        description: Represents a key's relationship
+                                          to a set of values. Valid operators are
+                                          In, NotIn, Exists, DoesNotExist. Gt, and
+                                          Lt.
+                                        type: string
+                                      values:
+                                        description: An array of string values. If
+                                          the operator is In or NotIn, the values
+                                          array must be non-empty. If the operator
+                                          is Exists or DoesNotExist, the values array
+                                          must be empty. If the operator is Gt or
+                                          Lt, the values array must have a single
+                                          element, which will be interpreted as an
+                                          integer. This array is replaced during a
+                                          strategic merge patch.
+                                        items:
+                                          type: string
+                                        type: array
+                                    required:
+                                    - key
+                                    - operator
+                                    type: object
+                                  type: array
+                                matchFields:
+                                  description: A list of node selector requirements
+                                    by node's fields.
+                                  items:
+                                    description: A node selector requirement is a
+                                      selector that contains values, a key, and an
+                                      operator that relates the key and values.
+                                    properties:
+                                      key:
+                                        description: The label key that the selector
+                                          applies to.
+                                        type: string
+                                      operator:
+                                        description: Represents a key's relationship
+                                          to a set of values. Valid operators are
+                                          In, NotIn, Exists, DoesNotExist. Gt, and
+                                          Lt.
+                                        type: string
+                                      values:
+                                        description: An array of string values. If
+                                          the operator is In or NotIn, the values
+                                          array must be non-empty. If the operator
+                                          is Exists or DoesNotExist, the values array
+                                          must be empty. If the operator is Gt or
+                                          Lt, the values array must have a single
+                                          element, which will be interpreted as an
+                                          integer. This array is replaced during a
+                                          strategic merge patch.
+                                        items:
+                                          type: string
+                                        type: array
+                                    required:
+                                    - key
+                                    - operator
+                                    type: object
+                                  type: array
+                              type: object
+                            type: array
+                        required:
+                        - nodeSelectorTerms
+                        type: object
+                      nodeSelector:
+                        additionalProperties:
+                          type: string
+                        description: NodeSelector is a selector which must be true
+                          for the pod to fit on a node. Selector which must match
+                          a node's labels for the pod to be scheduled on that node.
+                        type: object
+                      tolerations:
+                        description: If specified, the pod's tolerations.
+                        items:
+                          description: The pod this Toleration is attached to tolerates
+                            any taint that matches the triple <key,value,effect> using
+                            the matching operator <operator>.
+                          properties:
+                            effect:
+                              description: Effect indicates the taint effect to match.
+                                Empty means match all taint effects. When specified,
+                                allowed values are NoSchedule, PreferNoSchedule and
+                                NoExecute.
+                              type: string
+                            key:
+                              description: Key is the taint key that the toleration
+                                applies to. Empty means match all taint keys. If the
+                                key is empty, operator must be Exists; this combination
+                                means to match all values and all keys.
+                              type: string
+                            operator:
+                              description: Operator represents a key's relationship
+                                to the value. Valid operators are Exists and Equal.
+                                Defaults to Equal. Exists is equivalent to wildcard
+                                for value, so that a pod can tolerate all taints of
+                                a particular category.
+                              type: string
+                            tolerationSeconds:
+                              description: TolerationSeconds represents the period
+                                of time the toleration (which must be of effect NoExecute,
+                                otherwise this field is ignored) tolerates the taint.
+                                By default, it is not set, which means tolerate the
+                                taint forever (do not evict). Zero and negative values
+                                will be treated as 0 (evict immediately) by the system.
+                              format: int64
+                              type: integer
+                            value:
+                              description: Value is the taint value the toleration
+                                matches to. If the operator is Exists, the value should
+                                be empty, otherwise just a regular string.
+                              type: string
+                          type: object
+                        type: array
+                    type: object
+                  resourceRequest:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: ResourceRequest represents the resources required
+                      by each replica.
+                    type: object
+                type: object
+              replicas:
+                description: Replicas represents the replica number of the referencing
+                  resource.
+                format: int32
+                type: integer
+              requiredBy:
+                description: RequiredBy represents the list of Bindings that depend
+                  on the referencing resource.
+                items:
+                  description: BindingSnapshot is a snapshot of a ResourceBinding
+                    or ClusterResourceBinding.
+                  properties:
+                    clusters:
+                      description: Clusters represents the scheduled result.
+                      items:
+                        description: TargetCluster represents the identifier of a
+                          member cluster.
+                        properties:
+                          name:
+                            description: Name of target cluster.
+                            type: string
+                          replicas:
+                            description: Replicas in target cluster
+                            format: int32
+                            type: integer
+                        required:
+                        - name
+                        type: object
+                      type: array
+                    name:
+                      description: Name represents the name of the Binding.
+                      type: string
+                    namespace:
+                      description: Namespace represents the namespace of the Binding.
+                        It is required for ResourceBinding. If Namespace is not specified,
+                        means the referencing is ClusterResourceBinding.
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
+              resource:
+                description: Resource represents the Kubernetes resource to be propagated.
+                properties:
+                  apiVersion:
+                    description: APIVersion represents the API version of the referent.
+                    type: string
+                  kind:
+                    description: Kind represents the Kind of the referent.
+                    type: string
+                  name:
+                    description: Name represents the name of the referent.
+                    type: string
+                  namespace:
+                    description: Namespace represents the namespace for the referent.
+                      For non-namespace scoped resources(e.g. 'ClusterRole')，do not
+                      need specify Namespace, and for namespace scoped resources,
+                      Namespace is required. If Namespace is not specified, means
+                      the resource is non-namespace scoped.
+                    type: string
+                  resourceVersion:
+                    description: ResourceVersion represents the internal version of
+                      the referenced object, that can be used by clients to determine
+                      when object has changed.
+                    type: string
+                  uid:
+                    description: UID of the referent.
+                    type: string
+                required:
+                - apiVersion
+                - kind
+                - name
+                type: object
+              schedulerName:
+                description: SchedulerName represents which scheduler to proceed the
+                  scheduling. It inherits directly from the associated PropagationPolicy(or
+                  ClusterPropagationPolicy).
+                type: string
+            required:
+            - resource
+            type: object
+          status:
+            description: Status represents the most recently observed status of the
+              ResourceBinding.
+            properties:
+              aggregatedStatus:
+                description: AggregatedStatus represents status list of the resource
+                  running in each member cluster.
+                items:
+                  description: AggregatedStatusItem represents status of the resource
+                    running in a member cluster.
+                  properties:
+                    applied:
+                      description: Applied represents if the resource referencing
+                        by ResourceBinding or ClusterResourceBinding is successfully
+                        applied on the cluster.
+                      type: boolean
+                    appliedMessage:
+                      description: AppliedMessage is a human readable message indicating
+                        details about the applied status. This is usually holds the
+                        error message in case of apply failed.
+                      type: string
+                    clusterName:
+                      description: ClusterName represents the member cluster name
+                        which the resource deployed on.
+                      type: string
+                    health:
+                      description: Health represents the healthy state of the current
+                        resource. There maybe different rules for different resources
+                        to achieve health status.
+                      enum:
+                      - Healthy
+                      - Unhealthy
+                      - Unknown
+                      type: string
+                    status:
+                      description: Status reflects running status of current manifest.
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                  required:
+                  - clusterName
+                  type: object
+                type: array
+              conditions:
+                description: Conditions contain the different condition statuses.
+                items:
+                  description: "Condition contains details for one aspect of the current
+                    state of this API Resource. --- This struct is intended for direct
+                    use as an array at the field path .status.conditions.  For example,
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
+                    `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
+                  properties:
+                    lastTransitionTime:
+                      description: lastTransitionTime is the last time the condition
+                        transitioned from one status to another. This should be when
+                        the underlying condition changed.  If that is not known, then
+                        using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: message is a human readable message indicating
+                        details about the transition. This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: observedGeneration represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.conditions[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: reason contains a programmatic identifier indicating
+                        the reason for the condition's last transition. Producers
+                        of specific condition types may define expected values and
+                        meanings for this field, and whether the values are considered
+                        a guaranteed API. The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                        --- Many .condition.type values are consistent across resources
+                        like Available, but because arbitrary conditions can be useful
+                        (see .node.status.conditions), the ability to deconflict is
+                        important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              schedulerObservedGeneration:
+                description: SchedulerObservedGeneration is the generation(.metadata.generation)
+                  observed by the scheduler. If SchedulerObservedGeneration is less
+                  than the generation in metadata means the scheduler hasn't confirmed
+                  the scheduling result or hasn't done the schedule yet.
+                format: int64
+                type: integer
+              schedulerObservingAffinityName:
+                description: SchedulerObservedAffinityName is the name of affinity
+                  term that is the basis of current scheduling.
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

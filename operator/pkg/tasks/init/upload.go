@@ -77,10 +77,10 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 	err = apiclient.CreateOrUpdateSecret(data.RemoteClient(), &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: data.GetNamespace(),
-			Name:      util.AdminKubeconfigSercretName(data.GetName()),
+			Name:      util.AdminKubeconfigSecretName(data.GetName()),
 			Labels:    constants.KarmadaOperatorLabel,
 		},
-		Data: map[string][]byte{"config": configBytes},
+		Data: map[string][]byte{"kubeconfig": configBytes},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create secret of kubeconfig, err: %w", err)
@@ -168,7 +168,7 @@ func runUploadCerts(r workflow.RunData) error {
 	klog.V(4).InfoS("[upload-certs] Running upload-certs task", "karmada", klog.KObj(data))
 
 	if len(data.CertList()) == 0 {
-		return errors.New("there is no certs in store, please reload crets to store")
+		return errors.New("there is no certs in store, please reload certs to store")
 	}
 	return nil
 }

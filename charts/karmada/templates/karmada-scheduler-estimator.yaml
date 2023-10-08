@@ -105,4 +105,23 @@ stringData:
           user: {{ $clusterName }}-apiserver
         name: {{ $clusterName }}-apiserver
     current-context: {{ $clusterName }}-apiserver
+
+{{ if .Values.schedulerEstimator.podDisruptionBudget }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: karmada-scheduler-estimator-{{ $clusterName }}
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    cluster: {{ $clusterName }}
+    {{- include "karmada.schedulerEstimator.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: karmada-scheduler-estimator-{{ $clusterName }}
+      {{- include "karmada.schedulerEstimator.labels" . | nindent 6 }}
+  {{ toYaml .Values.schedulerEstimator.podDisruptionBudget | nindent 2 }}
+{{- end -}}
+
 {{- end }}

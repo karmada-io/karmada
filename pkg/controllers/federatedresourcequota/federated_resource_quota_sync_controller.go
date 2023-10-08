@@ -17,7 +17,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -77,7 +76,7 @@ func (c *SyncController) Reconcile(ctx context.Context, req controllerruntime.Re
 // SetupWithManager creates a controller and register to controller manager.
 func (c *SyncController) SetupWithManager(mgr controllerruntime.Manager) error {
 	fn := handler.MapFunc(
-		func(client.Object) []reconcile.Request {
+		func(context.Context, client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 
 			FederatedResourceQuotaList := &policyv1alpha1.FederatedResourceQuotaList{}
@@ -115,7 +114,7 @@ func (c *SyncController) SetupWithManager(mgr controllerruntime.Manager) error {
 
 	return controllerruntime.NewControllerManagedBy(mgr).
 		For(&policyv1alpha1.FederatedResourceQuota{}).
-		Watches(&source.Kind{Type: &clusterv1alpha1.Cluster{}}, handler.EnqueueRequestsFromMapFunc(fn), clusterPredicate).
+		Watches(&clusterv1alpha1.Cluster{}, handler.EnqueueRequestsFromMapFunc(fn), clusterPredicate).
 		Complete(c)
 }
 

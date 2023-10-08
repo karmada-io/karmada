@@ -558,7 +558,8 @@ func recoverTaintedCluster(c client.Client, clusterName string, taint corev1.Tai
 			}
 			return false, err
 		}
-		if err := helper.UpdateClusterControllerTaint(context.TODO(), c, nil, []*corev1.Taint{&taint}, clusterObj); err != nil {
+		clusterObj.Spec.Taints = helper.SetCurrentClusterTaints(nil, []*corev1.Taint{&taint}, clusterObj)
+		if err := c.Update(context.TODO(), clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil
 			}

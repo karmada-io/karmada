@@ -1,6 +1,161 @@
-{{- if and (eq .Values.installMode "host") (eq .Values.certs.mode "auto") }}
 {{- $name := include "karmada.name" . -}}
 {{- $namespace := include "karmada.namespace" . -}}
+{{- if eq .Values.installMode "host" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-crds-kustomization
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "2"
+data:
+  {{ range $path, $bytes := .Files.Glob (printf "_crds/kustomization.yaml")}}
+  {{ $name := base $path }}
+  {{- (printf "%s: " $name) | nindent 6 }} |-
+    {{- $.Files.Get $path | nindent 8 }}
+  {{ end }}
+    
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-crds-autoscaling-bases
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "2"
+data:
+  {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/autoscaling/**")}}
+  {{ $name := base $path }}
+  {{- (printf "%s: " $name) | nindent 6 }} |-
+    {{- $.Files.Get $path | nindent 8 }}
+  {{ end }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-crds-config-bases
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "2"
+data:
+  {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/config/**")}}
+  {{ $name := base $path }}
+  {{- (printf "%s: " $name) | nindent 6 }} |-
+    {{- $.Files.Get $path | nindent 8 }}
+  {{ end }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-crds-multicluster-bases
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "2"
+data:
+  {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/multicluster/**")}}
+  {{ $name := base $path }}
+  {{- (printf "%s: " $name) | nindent 6 }} |-
+    {{- $.Files.Get $path | nindent 8 }}
+  {{ end }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-crds-networking-bases
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "2"
+data:
+  {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/networking/**")}}
+  {{ $name := base $path }}
+  {{- (printf "%s: " $name) | nindent 6 }} |-
+    {{- $.Files.Get $path | nindent 8 }}
+  {{ end }}
+    
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-crds-policy-bases
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "2"
+data:
+  {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/policy/**")}}
+  {{ $name := base $path }}
+  {{- (printf "%s: " $name) | nindent 6 }} |-
+    {{- $.Files.Get $path | nindent 8 }}
+  {{ end }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-crds-work-bases
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "2"
+data:
+  {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/work/**")}}
+  {{ $name := base $path }}
+  {{- (printf "%s: " $name) | nindent 6 }} |-
+    {{- $.Files.Get $path | nindent 8 }}
+  {{ end }}
+    
+{{- if eq .Values.certs.mode "custom" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-static-resources
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "2"
+data:
+  {{- print "webhook-configuration.yaml: " | nindent 6 }} |-
+    {{- include "karmada.webhook.configuration" . | nindent 8 }}
+  {{- print "system-namespace.yaml: " | nindent 6 }} |-
+    {{- include "karmada.systemNamespace" . | nindent 8 }}
+  {{- print "karmada-aggregated-apiserver-apiservice.yaml: " | nindent 6 }} |-
+    {{- include "karmada.apiservice" . | nindent 8 }}
+  {{- print "cluster-proxy-admin-rbac.yaml: " | nindent 6 }} |-
+    {{- include "karmada.proxyRbac" . | nindent 8 }}
+  {{- print "bootstrap-token-configuration.yaml: " | nindent 6 }} |-
+    {{- include "karmada.bootstrapToken.configuration" . | nindent 8 }}
+  {{- print "clusterrole.yaml: " | nindent 6 }} |-
+    {{- include "karmada.clusterrole" . | nindent 8 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-crds-patches
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "2"
+data:
+  {{- print "webhook_in_clusterresourcebindings.yaml: " | nindent 6 }} |-
+    {{- include "karmada.crd.patch.webhook.clusterresourcebinding" . | nindent 8 }}
+  {{- print "webhook_in_resourcebindings.yaml: " | nindent 6 }} |-
+    {{- include "karmada.crd.patch.webhook.resourcebinding" . | nindent 8 }}
+ ---   
+{{- end}}
+
+{{- if eq .Values.certs.mode "auto" }}
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -57,7 +212,6 @@ data:
         clusters:
           - cluster:
               certificate-authority-data: {{ print "{{ ca_crt }}" }}
-              insecure-skip-tls-verify: false
               server: https://{{ $name }}-apiserver.{{ $namespace }}.svc.{{ .Values.clusterDomain }}:5443
             name: {{ $name }}-apiserver
         users:
@@ -88,30 +242,8 @@ data:
         {{- include "karmada.proxyRbac" . | nindent 8 }}
       {{- print "bootstrap-token-configuration.yaml: " | nindent 6 }} |-
         {{- include "karmada.bootstrapToken.configuration" . | nindent 8 }}
-  crds-configmaps.yaml: |-
-    apiVersion: v1
-    kind: ConfigMap
-    metadata:
-      name: {{ $name }}-crds
-      namespace: {{ $namespace }}
-    data:
-      {{ range $path, $bytes := .Files.Glob (printf "_crds/**")}}
-      {{ $name := base $path }}
-      {{- (printf "%s: " $name) | nindent 6 }} |-
-        {{- $.Files.Get $path | nindent 8 }}
-      {{ end }}
-  crds-bases-configmaps.yaml: |-
-    apiVersion: v1
-    kind: ConfigMap
-    metadata:
-      name: {{ $name }}-crds-bases
-      namespace: {{ $namespace }}
-    data:
-      {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/**")}}
-      {{ $name := base $path }}
-      {{- (printf "%s: " $name) | nindent 6 }} |-
-        {{- $.Files.Get $path | nindent 8 }}
-      {{ end }}
+      {{- print "clusterrole.yaml: " | nindent 6 }} |-
+        {{- include "karmada.clusterrole" . | nindent 8 }}
   crds-patches-configmaps.yaml: |-
     apiVersion: v1
     kind: ConfigMap
@@ -269,4 +401,5 @@ subjects:
     name: {{ $name }}-pre-job
     namespace: {{ $namespace }}
 ---
+{{- end }}
 {{- end }}

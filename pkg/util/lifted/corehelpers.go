@@ -16,7 +16,7 @@ limitations under the License.
 
 // This code is directly lifted from the Kubernetes codebase in order to avoid relying on the k8s.io/kubernetes package.
 // For reference:
-// https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go
+// https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/helper/helpers.go
 
 package lifted
 
@@ -24,14 +24,13 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
-	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L57-L61
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/helper/helpers.go#L57-L61
+// +lifted:changed
 
 // IsQuotaHugePageResourceName returns true if the resource name has the quota
 // related huge page resource prefix.
@@ -39,7 +38,9 @@ func IsQuotaHugePageResourceName(name corev1.ResourceName) bool {
 	return strings.HasPrefix(string(name), corev1.ResourceHugePagesPrefix) || strings.HasPrefix(string(name), corev1.ResourceRequestsHugePagesPrefix)
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L212-L232
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/helper/helpers.go#L210-L230
+// +lifted:changed
+
 var standardQuotaResources = sets.NewString(
 	string(corev1.ResourceCPU),
 	string(corev1.ResourceMemory),
@@ -62,7 +63,7 @@ var standardQuotaResources = sets.NewString(
 	string(corev1.ResourceServicesLoadBalancers),
 )
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L234-L238
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/helper/helpers.go#L232-L236
 
 // IsStandardQuotaResourceName returns true if the resource is known to
 // the quota tracking system
@@ -70,7 +71,9 @@ func IsStandardQuotaResourceName(str string) bool {
 	return standardQuotaResources.Has(str) || IsQuotaHugePageResourceName(corev1.ResourceName(str))
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L240-L261
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/helper/helpers.go#L238-L259
+// +lifted:changed
+
 var standardResources = sets.NewString(
 	string(corev1.ResourceCPU),
 	string(corev1.ResourceMemory),
@@ -94,14 +97,16 @@ var standardResources = sets.NewString(
 	string(corev1.ResourceServicesLoadBalancers),
 )
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L263-L266
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/helper/helpers.go#L261-L264
 
 // IsStandardResourceName returns true if the resource is known to the system
 func IsStandardResourceName(str string) bool {
 	return standardResources.Has(str) || IsQuotaHugePageResourceName(corev1.ResourceName(str))
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L268-L278
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/helper/helpers.go#LL266-L276
+// +lifted:changed
+
 var integerResources = sets.NewString(
 	string(corev1.ResourcePods),
 	string(corev1.ResourceQuotas),
@@ -114,7 +119,7 @@ var integerResources = sets.NewString(
 	string(corev1.ResourceServicesLoadBalancers),
 )
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L280-L283
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/helper/helpers.go#L278-L281
 
 // IsIntegerResourceName returns true if the resource is measured in integer values
 func IsIntegerResourceName(str string) bool {
@@ -154,72 +159,4 @@ func ValidateDNS1123Label(value string, fldPath *field.Path) field.ErrorList {
 		allErrs = append(allErrs, field.Invalid(fldPath, value, msg))
 	}
 	return allErrs
-}
-
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/core/validation/validation.go
-
-// ValidateNameFunc validates that the provided name is valid for a given resource type.
-// Not all resources have the same validation rules for names. Prefix is true
-// if the name will have a value appended to it.  If the name is not valid,
-// this returns a list of descriptions of individual characteristics of the
-// value that were not valid.  Otherwise this returns an empty list or nil.
-type ValidateNameFunc apimachineryvalidation.ValidateNameFunc
-
-// ValidateObjectMeta validates an object's metadata on creation. It expects that name generation has already
-// been performed.
-// It doesn't return an error for rootscoped resources with namespace, because namespace should already be cleared before.
-// TODO: Remove calls to this method scattered in validations of specific resources, e.g., ValidatePodUpdate.
-func ValidateObjectMeta(meta *metav1.ObjectMeta, requiresNamespace bool, nameFn ValidateNameFunc, fldPath *field.Path) field.ErrorList {
-	allErrs := apimachineryvalidation.ValidateObjectMeta(meta, requiresNamespace, apimachineryvalidation.ValidateNameFunc(nameFn), fldPath)
-	// run additional checks for the finalizer name
-	for i := range meta.Finalizers {
-		allErrs = append(allErrs, validateKubeFinalizerName(string(meta.Finalizers[i]), fldPath.Child("finalizers").Index(i))...)
-	}
-	return allErrs
-}
-
-// validateKubeFinalizerName checks for "standard" names of legacy finalizer
-func validateKubeFinalizerName(stringValue string, fldPath *field.Path) field.ErrorList {
-	allErrs := field.ErrorList{}
-	if len(strings.Split(stringValue, "/")) == 1 {
-		if IsStandardFinalizerName(stringValue) {
-			return append(allErrs, field.Invalid(fldPath, stringValue, "name is neither a standard finalizer name nor is it fully qualified"))
-		}
-	}
-
-	return allErrs
-}
-
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/core/helper/helpers.go
-
-var standardFinalizers = sets.NewString(
-	string(corev1.FinalizerKubernetes),
-	metav1.FinalizerOrphanDependents,
-	metav1.FinalizerDeleteDependents,
-)
-
-// IsStandardFinalizerName checks if the input string is a standard finalizer name
-func IsStandardFinalizerName(str string) bool {
-	return standardFinalizers.Has(str)
-}
-
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/staging/src/k8s.io/apimachinery/pkg/api/validation/generic.go
-
-// NameIsDNSSubdomain is a ValidateNameFunc for names that must be a DNS subdomain.
-func NameIsDNSSubdomain(name string, prefix bool) []string {
-	if prefix {
-		name = maskTrailingDash(name)
-	}
-	return validation.IsDNS1123Subdomain(name)
-}
-
-// maskTrailingDash replaces the final character of a string with a subdomain safe
-// value if it is a dash and if the length of this string is greater than 1. Note that
-// this is used when a value could be appended to the string, see ValidateNameFunc
-// for more info.
-func maskTrailingDash(name string) string {
-	if len(name) > 1 && strings.HasSuffix(name, "-") {
-		return name[:len(name)-2] + "a"
-	}
-	return name
 }

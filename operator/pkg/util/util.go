@@ -35,7 +35,7 @@ func (d *Downloader) Read(p []byte) (n int, err error) {
 	}
 
 	d.Current += int64(n)
-	klog.Info("\rDownloading...[ %.2f%% ]", float64(d.Current*10000/d.Total)/100)
+	klog.Infof("\rDownloading...[ %.2f%% ]", float64(d.Current*10000/d.Total)/100)
 	return
 }
 
@@ -98,7 +98,7 @@ func Unpack(file, targetPath string) error {
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if err := os.Mkdir(targetPath+"/"+header.Name, 0755); err != nil {
+			if err := os.Mkdir(targetPath+"/"+header.Name, 0700); err != nil {
 				return err
 			}
 		case tar.TypeReg:
@@ -169,8 +169,8 @@ func ReadYamlFile(path string) ([]byte, error) {
 	return yaml.YAMLToJSON(data)
 }
 
-// RelpaceYamlForReg replace content of yaml file with a Regexp
-func RelpaceYamlForReg(path, destResource string, reg *regexp.Regexp) ([]byte, error) {
+// ReplaceYamlForReg replace content of yaml file with a Regexp
+func ReplaceYamlForReg(path, destResource string, reg *regexp.Regexp) ([]byte, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err

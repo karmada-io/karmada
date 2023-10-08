@@ -158,9 +158,9 @@ spec:
         imagePullPolicy: IfNotPresent
         command:
         - /bin/karmada-aggregated-apiserver
-        - --kubeconfig=/etc/karmada/config
-        - --authentication-kubeconfig=/etc/karmada/config
-        - --authorization-kubeconfig=/etc/karmada/config
+        - --kubeconfig=/etc/karmada/kubeconfig
+        - --authentication-kubeconfig=/etc/karmada/kubeconfig
+        - --authorization-kubeconfig=/etc/karmada/kubeconfig
         - --etcd-cafile=/etc/etcd/pki/etcd-ca.crt
         - --etcd-certfile=/etc/etcd/pki/etcd-client.crt
         - --etcd-keyfile=/etc/etcd/pki/etcd-client.key
@@ -172,9 +172,9 @@ spec:
         - --audit-log-maxage=0
         - --audit-log-maxbackup=0
         volumeMounts:
-        - mountPath: /etc/karmada/config
+        - mountPath: /etc/karmada/kubeconfig
           name: kubeconfig
-          subPath: config
+          subPath: kubeconfig
         - mountPath: /etc/etcd/pki
           name: etcd-cert
           readOnly: true

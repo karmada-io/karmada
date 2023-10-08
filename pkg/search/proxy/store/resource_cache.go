@@ -37,10 +37,11 @@ func (c *resourceCache) stop() {
 	go c.Store.DestroyFunc()
 }
 
-func newResourceCache(clusterName string, gvr schema.GroupVersionResource, gvk schema.GroupVersionKind,
+func newResourceCache(clusterName string, gvr schema.GroupVersionResource, gvk schema.GroupVersionKind, singularName string,
 	namespaced bool, multiNS *MultiNamespace, newClientFunc func() (dynamic.NamespaceableResourceInterface, error)) (*resourceCache, error) {
 	s := &genericregistry.Store{
-		DefaultQualifiedResource: gvr.GroupResource(),
+		DefaultQualifiedResource:  gvr.GroupResource(),
+		SingularQualifiedResource: schema.GroupResource{Group: gvr.Group, Resource: singularName},
 		NewFunc: func() runtime.Object {
 			o := &unstructured.Unstructured{}
 			o.SetAPIVersion(gvk.GroupVersion().String())

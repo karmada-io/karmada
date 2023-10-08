@@ -49,7 +49,7 @@ func (r *SearchREST) newCacheHandler(info *genericrequest.RequestInfo, _ rest.Re
 			return
 		}
 
-		if errs := metainternalversionvalidation.ValidateListOptions(&opts); len(errs) > 0 {
+		if errs := metainternalversionvalidation.ValidateListOptions(&opts, false); len(errs) > 0 {
 			rw.WriteHeader(http.StatusBadRequest)
 			klog.Errorf("Invalid decoded ListOptions: %v.", errs)
 			_ = enc.Encode(errorResponse{Error: errs.ToAggregate().Error()})
@@ -119,7 +119,7 @@ func (r *SearchREST) getObjectItemsFromClusters(
 					objGVR, namespace, name, cluster.Name, err)
 				continue
 			}
-			items = append(items, addAnnotationWithClusterName([]runtime.Object{resourceObject}, cluster.Name)...)
+			items = append(items, addAnnotationWithClusterName([]runtime.Object{resourceObject.DeepCopyObject()}, cluster.Name)...)
 		} else {
 			var resourceObjects []runtime.Object
 			if len(namespace) > 0 {
@@ -132,7 +132,13 @@ func (r *SearchREST) getObjectItemsFromClusters(
 					objGVR, cluster.Name, err)
 				continue
 			}
-			items = append(items, addAnnotationWithClusterName(resourceObjects, cluster.Name)...)
+
+			cloneObjects := make([]runtime.Object, len(resourceObjects))
+			for i := range resourceObjects {
+				cloneObjects[i] = resourceObjects[i].DeepCopyObject()
+			}
+
+			items = append(items, addAnnotationWithClusterName(cloneObjects, cluster.Name)...)
 		}
 	}
 

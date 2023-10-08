@@ -19,7 +19,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
@@ -243,20 +242,20 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 
 	return controllerruntime.NewControllerManagedBy(mgr).
 		For(&clusterv1alpha1.Cluster{}, builder.WithPredicates(clusterPredicateFunc)).
-		Watches(&source.Kind{Type: &rbacv1.ClusterRole{}}, handler.EnqueueRequestsFromMapFunc(c.newClusterRoleMapFunc())).
-		Watches(&source.Kind{Type: &rbacv1.ClusterRoleBinding{}}, handler.EnqueueRequestsFromMapFunc(c.newClusterRoleBindingMapFunc())).
+		Watches(&rbacv1.ClusterRole{}, handler.EnqueueRequestsFromMapFunc(c.newClusterRoleMapFunc())).
+		Watches(&rbacv1.ClusterRoleBinding{}, handler.EnqueueRequestsFromMapFunc(c.newClusterRoleBindingMapFunc())).
 		Complete(c)
 }
 
 func (c *Controller) newClusterRoleMapFunc() handler.MapFunc {
-	return func(a client.Object) []reconcile.Request {
+	return func(ctx context.Context, a client.Object) []reconcile.Request {
 		clusterRole := a.(*rbacv1.ClusterRole)
 		return c.generateRequestsFromClusterRole(clusterRole)
 	}
 }
 
 func (c *Controller) newClusterRoleBindingMapFunc() handler.MapFunc {
-	return func(a client.Object) []reconcile.Request {
+	return func(ctx context.Context, a client.Object) []reconcile.Request {
 		clusterRoleBinding := a.(*rbacv1.ClusterRoleBinding)
 		if clusterRoleBinding.RoleRef.Kind != util.ClusterRoleKind {
 			return nil

@@ -74,11 +74,15 @@ func Test_patchBindingStatusCondition(t *testing.T) {
 	oneHourBefore := time.Now().Add(-1 * time.Hour).Round(time.Second)
 	oneHourAfter := time.Now().Add(1 * time.Hour).Round(time.Second)
 
-	successCondition := util.NewCondition(workv1alpha2.Scheduled, scheduleSuccessReason, scheduleSuccessMessage, metav1.ConditionTrue)
-	failureCondition := util.NewCondition(workv1alpha2.Scheduled, scheduleFailedReason, "schedule error", metav1.ConditionFalse)
+	successCondition := util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue)
+	failureCondition := util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSchedulerError, "schedule error", metav1.ConditionFalse)
+	noClusterFitCondition := util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonNoClusterFit, "0/0 clusters are available", metav1.ConditionFalse)
+	unschedulableCondition := util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonUnschedulable, "insufficient resources in the clusters", metav1.ConditionFalse)
 
 	successCondition.LastTransitionTime = metav1.Time{Time: oneHourBefore}
 	failureCondition.LastTransitionTime = metav1.Time{Time: oneHourAfter}
+	noClusterFitCondition.LastTransitionTime = metav1.Time{Time: oneHourAfter}
+	unschedulableCondition.LastTransitionTime = metav1.Time{Time: oneHourAfter}
 
 	karmadaClient := karmadafake.NewSimpleClientset()
 
@@ -117,15 +121,43 @@ func Test_patchBindingStatusCondition(t *testing.T) {
 			},
 		},
 		{
+			name: "add no cluster available condition",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-3", Namespace: "default"},
+				Spec:       workv1alpha2.ResourceBindingSpec{},
+				Status:     workv1alpha2.ResourceBindingStatus{},
+			},
+			newScheduledCondition: noClusterFitCondition,
+			expected: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-3", Namespace: "default"},
+				Spec:       workv1alpha2.ResourceBindingSpec{},
+				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{noClusterFitCondition}},
+			},
+		},
+		{
+			name: "add unschedulable condition",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-4", Namespace: "default"},
+				Spec:       workv1alpha2.ResourceBindingSpec{},
+				Status:     workv1alpha2.ResourceBindingStatus{},
+			},
+			newScheduledCondition: unschedulableCondition,
+			expected: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-4", Namespace: "default"},
+				Spec:       workv1alpha2.ResourceBindingSpec{},
+				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{unschedulableCondition}},
+			},
+		},
+		{
 			name: "replace to success condition",
 			binding: &workv1alpha2.ResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "rb-3", Namespace: "default", Generation: 1},
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-5", Namespace: "default", Generation: 1},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
 				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{failureCondition}, SchedulerObservedGeneration: 2},
 			},
 			newScheduledCondition: successCondition,
 			expected: &workv1alpha2.ResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "rb-3", Namespace: "default"},
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-5", Namespace: "default"},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
 				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{successCondition}, SchedulerObservedGeneration: 1},
 			},
@@ -133,15 +165,43 @@ func Test_patchBindingStatusCondition(t *testing.T) {
 		{
 			name: "replace failure condition",
 			binding: &workv1alpha2.ResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "rb-4", Namespace: "default"},
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-6", Namespace: "default"},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
 				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{successCondition}},
 			},
 			newScheduledCondition: failureCondition,
 			expected: &workv1alpha2.ResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "rb-4", Namespace: "default"},
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-6", Namespace: "default"},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
 				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{failureCondition}},
+			},
+		},
+		{
+			name: "replace to unschedulable condition",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-7", Namespace: "default"},
+				Spec:       workv1alpha2.ResourceBindingSpec{},
+				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{failureCondition}},
+			},
+			newScheduledCondition: unschedulableCondition,
+			expected: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-7", Namespace: "default"},
+				Spec:       workv1alpha2.ResourceBindingSpec{},
+				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{unschedulableCondition}},
+			},
+		},
+		{
+			name: "replace to no cluster fit condition",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-8", Namespace: "default"},
+				Spec:       workv1alpha2.ResourceBindingSpec{},
+				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{failureCondition}},
+			},
+			newScheduledCondition: noClusterFitCondition,
+			expected: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-8", Namespace: "default"},
+				Spec:       workv1alpha2.ResourceBindingSpec{},
+				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{noClusterFitCondition}},
 			},
 		},
 	}
@@ -217,11 +277,15 @@ func Test_patchClusterBindingStatusCondition(t *testing.T) {
 	oneHourBefore := time.Now().Add(-1 * time.Hour).Round(time.Second)
 	oneHourAfter := time.Now().Add(1 * time.Hour).Round(time.Second)
 
-	successCondition := util.NewCondition(workv1alpha2.Scheduled, scheduleSuccessReason, scheduleSuccessMessage, metav1.ConditionTrue)
-	failureCondition := util.NewCondition(workv1alpha2.Scheduled, scheduleFailedReason, "schedule error", metav1.ConditionFalse)
+	successCondition := util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue)
+	failureCondition := util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSchedulerError, "schedule error", metav1.ConditionFalse)
+	noClusterFitCondition := util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonNoClusterFit, "0/0 clusters are available", metav1.ConditionFalse)
+	unschedulableCondition := util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonUnschedulable, "insufficient resources in the clusters", metav1.ConditionFalse)
 
 	successCondition.LastTransitionTime = metav1.Time{Time: oneHourBefore}
 	failureCondition.LastTransitionTime = metav1.Time{Time: oneHourAfter}
+	noClusterFitCondition.LastTransitionTime = metav1.Time{Time: oneHourAfter}
+	unschedulableCondition.LastTransitionTime = metav1.Time{Time: oneHourAfter}
 
 	karmadaClient := karmadafake.NewSimpleClientset()
 
@@ -260,15 +324,43 @@ func Test_patchClusterBindingStatusCondition(t *testing.T) {
 			},
 		},
 		{
+			name: "add unschedulable condition",
+			binding: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-3"},
+				Spec:       workv1alpha2.ResourceBindingSpec{},
+				Status:     workv1alpha2.ResourceBindingStatus{},
+			},
+			newScheduledCondition: unschedulableCondition,
+			expected: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-3"},
+				Spec:       workv1alpha2.ResourceBindingSpec{},
+				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{unschedulableCondition}},
+			},
+		},
+		{
+			name: "add no cluster fit condition",
+			binding: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-4"},
+				Spec:       workv1alpha2.ResourceBindingSpec{},
+				Status:     workv1alpha2.ResourceBindingStatus{},
+			},
+			newScheduledCondition: noClusterFitCondition,
+			expected: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-4"},
+				Spec:       workv1alpha2.ResourceBindingSpec{},
+				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{noClusterFitCondition}},
+			},
+		},
+		{
 			name: "replace to success condition",
 			binding: &workv1alpha2.ClusterResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "rb-3", Generation: 1},
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-5", Generation: 1},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
 				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{failureCondition}, SchedulerObservedGeneration: 2},
 			},
 			newScheduledCondition: successCondition,
 			expected: &workv1alpha2.ClusterResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "rb-3"},
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-5"},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
 				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{successCondition}, SchedulerObservedGeneration: 1},
 			},
@@ -276,15 +368,43 @@ func Test_patchClusterBindingStatusCondition(t *testing.T) {
 		{
 			name: "replace failure condition",
 			binding: &workv1alpha2.ClusterResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "rb-4"},
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-6"},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
 				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{successCondition}},
 			},
 			newScheduledCondition: failureCondition,
 			expected: &workv1alpha2.ClusterResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "rb-4"},
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-6"},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
 				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{failureCondition}},
+			},
+		},
+		{
+			name: "replace to unschedulable condition",
+			binding: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-7"},
+				Spec:       workv1alpha2.ResourceBindingSpec{},
+				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{failureCondition}},
+			},
+			newScheduledCondition: unschedulableCondition,
+			expected: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-7"},
+				Spec:       workv1alpha2.ResourceBindingSpec{},
+				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{unschedulableCondition}},
+			},
+		},
+		{
+			name: "replace to no cluster fit condition",
+			binding: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-8"},
+				Spec:       workv1alpha2.ResourceBindingSpec{},
+				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{failureCondition}},
+			},
+			newScheduledCondition: noClusterFitCondition,
+			expected: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-8"},
+				Spec:       workv1alpha2.ResourceBindingSpec{},
+				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{noClusterFitCondition}},
 			},
 		},
 	}
@@ -325,7 +445,7 @@ func Test_patchClusterBindingStatusWithAffinityName(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: "crb-1", Generation: 1},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
 				Status: workv1alpha2.ResourceBindingStatus{
-					Conditions:                  []metav1.Condition{util.NewCondition(workv1alpha2.Scheduled, scheduleSuccessReason, scheduleSuccessMessage, metav1.ConditionTrue)},
+					Conditions:                  []metav1.Condition{util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue)},
 					SchedulerObservedGeneration: 1,
 				},
 			},
@@ -335,7 +455,7 @@ func Test_patchClusterBindingStatusWithAffinityName(t *testing.T) {
 				Spec:       workv1alpha2.ResourceBindingSpec{},
 				Status: workv1alpha2.ResourceBindingStatus{
 					SchedulerObservedAffinityName: "group1",
-					Conditions:                    []metav1.Condition{util.NewCondition(workv1alpha2.Scheduled, scheduleSuccessReason, scheduleSuccessMessage, metav1.ConditionTrue)},
+					Conditions:                    []metav1.Condition{util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue)},
 					SchedulerObservedGeneration:   1,
 				},
 			},

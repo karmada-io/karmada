@@ -38,12 +38,14 @@ import (
 
 func init() {
 	internal.AddGlobalDialOptions = func(opt ...DialOption) {
-		extraDialOptions = append(extraDialOptions, opt...)
+		globalDialOptions = append(globalDialOptions, opt...)
 	}
 	internal.ClearGlobalDialOptions = func() {
-		extraDialOptions = nil
+		globalDialOptions = nil
 	}
 	internal.WithBinaryLogger = withBinaryLogger
+	internal.JoinDialOptions = newJoinDialOption
+	internal.DisableGlobalDialOptions = newDisableGlobalDialOptions
 }
 
 // dialOptions configure a Dial call. dialOptions are set by the DialOption
@@ -82,7 +84,7 @@ type DialOption interface {
 	apply(*dialOptions)
 }
 
-var extraDialOptions []DialOption
+var globalDialOptions []DialOption
 
 // EmptyDialOption does not alter the dial configuration. It can be embedded in
 // another structure to build custom dial options.
@@ -94,6 +96,16 @@ var extraDialOptions []DialOption
 type EmptyDialOption struct{}
 
 func (EmptyDialOption) apply(*dialOptions) {}
+
+type disableGlobalDialOptions struct{}
+
+func (disableGlobalDialOptions) apply(*dialOptions) {}
+
+// newDisableGlobalDialOptions returns a DialOption that prevents the ClientConn
+// from applying the global DialOptions (set via AddGlobalDialOptions).
+func newDisableGlobalDialOptions() DialOption {
+	return &disableGlobalDialOptions{}
+}
 
 // funcDialOption wraps a function that modifies dialOptions into an
 // implementation of the DialOption interface.
@@ -109,6 +121,20 @@ func newFuncDialOption(f func(*dialOptions)) *funcDialOption {
 	return &funcDialOption{
 		f: f,
 	}
+}
+
+type joinDialOption struct {
+	opts []DialOption
+}
+
+func (jdo *joinDialOption) apply(do *dialOptions) {
+	for _, opt := range jdo.opts {
+		opt.apply(do)
+	}
+}
+
+func newJoinDialOption(opts ...DialOption) DialOption {
+	return &joinDialOption{opts: opts}
 }
 
 // WithWriteBufferSize determines how much data can be batched before doing a
@@ -269,6 +295,9 @@ func withBackoff(bs internalbackoff.Strategy) DialOption {
 // WithBlock returns a DialOption which makes callers of Dial block until the
 // underlying connection is up. Without this, Dial returns immediately and
 // connecting the server happens in background.
+//
+// Use of this feature is not recommended.  For more information, please see:
+// https://github.com/grpc/grpc-go/blob/master/Documentation/anti-patterns.md
 func WithBlock() DialOption {
 	return newFuncDialOption(func(o *dialOptions) {
 		o.block = true
@@ -279,6 +308,9 @@ func WithBlock() DialOption {
 // return a string containing both the last connection error that occurred and
 // the context.DeadlineExceeded error.
 // Implies WithBlock()
+//
+// Use of this feature is not recommended.  For more information, please see:
+// https://github.com/grpc/grpc-go/blob/master/Documentation/anti-patterns.md
 //
 // # Experimental
 //
@@ -421,6 +453,9 @@ func withBinaryLogger(bl binarylog.Logger) DialOption {
 //
 // FailOnNonTempDialError only affects the initial dial, and does not do
 // anything useful unless you are also using WithBlock().
+//
+// Use of this feature is not recommended.  For more information, please see:
+// https://github.com/grpc/grpc-go/blob/master/Documentation/anti-patterns.md
 //
 // # Experimental
 //

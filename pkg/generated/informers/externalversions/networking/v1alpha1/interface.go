@@ -10,6 +10,8 @@ import (
 type Interface interface {
 	// MultiClusterIngresses returns a MultiClusterIngressInformer.
 	MultiClusterIngresses() MultiClusterIngressInformer
+	// MultiClusterServices returns a MultiClusterServiceInformer.
+	MultiClusterServices() MultiClusterServiceInformer
 }
 
 type version struct {
@@ -26,4 +28,9 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // MultiClusterIngresses returns a MultiClusterIngressInformer.
 func (v *version) MultiClusterIngresses() MultiClusterIngressInformer {
 	return &multiClusterIngressInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// MultiClusterServices returns a MultiClusterServiceInformer.
+func (v *version) MultiClusterServices() MultiClusterServiceInformer {
+	return &multiClusterServiceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

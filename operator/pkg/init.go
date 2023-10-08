@@ -77,6 +77,7 @@ func NewInitJob(opt *InitOptions) *workflow.Job {
 	initJob.AppendTask(tasks.NewKarmadaAggregatedApiserverTask())
 	initJob.AppendTask(tasks.NewCheckApiserverHealthTask())
 	initJob.AppendTask(tasks.NewKarmadaResourcesTask())
+	initJob.AppendTask(tasks.NewRBACTask())
 	initJob.AppendTask(tasks.NewComponentTask())
 	initJob.AppendTask(tasks.NewWaitControlPlaneTask())
 
@@ -205,6 +206,10 @@ func (data *initData) KarmadaVersion() string {
 
 func (data *initData) ControlplaneAddress() string {
 	return data.controlplaneAddress
+}
+
+func (data *initData) FeatureGates() map[string]bool {
+	return data.featureGates
 }
 
 // NewJobInitOptions calls all of InitOpt func to initialize a InitOptions.

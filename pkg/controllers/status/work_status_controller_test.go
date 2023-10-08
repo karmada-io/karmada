@@ -32,6 +32,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
+	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
 func newCluster(name string, clusterType string, clusterStatus metav1.ConditionStatus) *clusterv1alpha1.Cluster {
@@ -67,9 +68,8 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 					&clusterv1alpha1.Cluster{
 						ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
 						Spec: clusterv1alpha1.ClusterSpec{
-							APIEndpoint:                 "https://127.0.0.1",
-							SecretRef:                   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
-							InsecureSkipTLSVerification: true,
+							APIEndpoint: "https://127.0.0.1",
+							SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
 						},
 						Status: clusterv1alpha1.ClusterStatus{
 							Conditions: []metav1.Condition{
@@ -82,7 +82,7 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 					},
 					&corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
-						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token")},
+						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
 					}).Build(),
 				InformerManager:             genericmanager.GetInstance(),
 				PredicateFunc:               helper.NewClusterPredicateOnAgent("test"),
@@ -546,6 +546,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 	cluster := newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)
 	workName := "work"
 	workNs := "karmada-es-cluster"
+	workUID := "92345678-1234-5678-1234-567812345678"
 
 	tests := []struct {
 		name                      string
@@ -553,7 +554,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 		pod                       *corev1.Pod
 		raw                       []byte
 		controllerWithoutInformer bool
-		workWithRigntNS           bool
+		workWithRightNS           bool
 		expectedError             bool
 		workWithDeletionTimestamp bool
 		wrongWorkNS               bool
@@ -564,7 +565,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRigntNS:           true,
+			workWithRightNS:           true,
 			expectedError:             true,
 		},
 		{
@@ -573,7 +574,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRigntNS:           true,
+			workWithRightNS:           true,
 			expectedError:             true,
 		},
 		{
@@ -582,7 +583,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: false,
-			workWithRigntNS:           true,
+			workWithRightNS:           true,
 			expectedError:             true,
 		},
 		{
@@ -590,7 +591,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			obj:                       newPodObj("karmada-es-cluster"),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRigntNS:           true,
+			workWithRightNS:           true,
 			expectedError:             false,
 		},
 		{
@@ -599,7 +600,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName, true),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRigntNS:           true,
+			workWithRightNS:           true,
 			expectedError:             false,
 		},
 		{
@@ -608,17 +609,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRigntNS:           false,
-			expectedError:             false,
-		},
-		{
-			name:                      "set DeletionTimestamp in work",
-			obj:                       newPodObj("karmada-es-cluster"),
-			pod:                       newPod(workNs, workName),
-			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
-			controllerWithoutInformer: true,
-			workWithRigntNS:           true,
-			workWithDeletionTimestamp: true,
+			workWithRightNS:           false,
 			expectedError:             false,
 		},
 		{
@@ -627,7 +618,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod1","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRigntNS:           true,
+			workWithRightNS:           true,
 			expectedError:             true,
 		},
 		{
@@ -636,7 +627,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRigntNS:           true,
+			workWithRightNS:           true,
 			expectedError:             true,
 			wrongWorkNS:               true,
 		},
@@ -664,14 +655,10 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			}
 
 			var work *workv1alpha1.Work
-			if tt.workWithRigntNS {
-				work = newWork(workName, workNs, tt.raw)
+			if tt.workWithRightNS {
+				work = testhelper.NewWork(workName, workNs, workUID, tt.raw)
 			} else {
-				work = newWork(workName, fmt.Sprintf("%v-test", workNs), tt.raw)
-			}
-
-			if tt.workWithDeletionTimestamp {
-				work = newWork(workName, workNs, tt.raw, false)
+				work = testhelper.NewWork(workName, fmt.Sprintf("%v-test", workNs), workUID, tt.raw)
 			}
 
 			key, _ := generateKey(tt.obj)
@@ -730,31 +717,6 @@ func newWorkStatusController(cluster *clusterv1alpha1.Cluster, dynamicClientSets
 	}
 
 	return c
-}
-
-func newWork(workName, workNs string, raw []byte, deletionTimestampIsZero ...bool) *workv1alpha1.Work {
-	work := &workv1alpha1.Work{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      workName,
-			Namespace: workNs,
-		},
-		Spec: workv1alpha1.WorkSpec{
-			Workload: workv1alpha1.WorkloadTemplate{
-				Manifests: []workv1alpha1.Manifest{
-					{RawExtension: runtime.RawExtension{
-						Raw: raw,
-					},
-					},
-				},
-			},
-		},
-	}
-
-	if len(deletionTimestampIsZero) > 0 && !deletionTimestampIsZero[0] {
-		work.DeletionTimestamp = &metav1.Time{Time: time.Now()}
-	}
-
-	return work
 }
 
 func TestWorkStatusController_getSingleClusterManager(t *testing.T) {
@@ -816,9 +778,8 @@ func TestWorkStatusController_getSingleClusterManager(t *testing.T) {
 					&clusterv1alpha1.Cluster{
 						ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
 						Spec: clusterv1alpha1.ClusterSpec{
-							APIEndpoint:                 "https://127.0.0.1",
-							SecretRef:                   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
-							InsecureSkipTLSVerification: true,
+							APIEndpoint: "https://127.0.0.1",
+							SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
 						},
 						Status: clusterv1alpha1.ClusterStatus{
 							Conditions: []metav1.Condition{
@@ -831,7 +792,7 @@ func TestWorkStatusController_getSingleClusterManager(t *testing.T) {
 					},
 					&corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
-						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token")},
+						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
 					}).Build()
 			}
 
@@ -862,8 +823,9 @@ func TestWorkStatusController_recreateResourceIfNeeded(t *testing.T) {
 		RateLimiterOptions:          ratelimiterflag.Options{},
 	}
 
+	workUID := "92345678-1234-5678-1234-567812345678"
 	raw := []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`)
-	work := newWork("work", "default", raw)
+	work := testhelper.NewWork("work", "default", workUID, raw)
 
 	obj := &unstructured.Unstructured{
 		Object: map[string]interface{}{
@@ -992,8 +954,9 @@ func TestWorkStatusController_registerInformersAndStart(t *testing.T) {
 	}
 	c.worker = util.NewAsyncWorker(opt)
 
+	workUID := "92345678-1234-5678-1234-567812345678"
 	raw := []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`)
-	work := newWork("work", "default", raw)
+	work := testhelper.NewWork("work", "default", workUID, raw)
 
 	t.Run("normal case", func(t *testing.T) {
 		m := genericmanager.NewMultiClusterInformerManager(stopCh)

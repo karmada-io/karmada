@@ -1,5 +1,3 @@
 # Karmada Community Code of Conduct
 
-Karmada follows the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md).
-
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the project team at cncf-karmada-maintainers@lists.cncf.io
+Please refer to our [Karmada Community Code of Conduct](https://github.com/karmada-io/community/blob/main/CODE_OF_CONDUCT.md).

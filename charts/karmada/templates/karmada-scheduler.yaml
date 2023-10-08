@@ -66,6 +66,23 @@ spec:
           {{- toYaml .Values.scheduler.resources | nindent 12 }}
       volumes:
       {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
+
+{{ if .Values.scheduler.podDisruptionBudget }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}-scheduler
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.scheduler.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "karmada.scheduler.labels" . | nindent 6 }}
+  {{ toYaml .Values.scheduler.podDisruptionBudget | nindent 2 }}
+{{- end }}
+
 ---
 
 {{- end }}

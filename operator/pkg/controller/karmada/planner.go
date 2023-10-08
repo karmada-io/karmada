@@ -1,14 +1,17 @@
 package karmada
 
 import (
+	"context"
 	"fmt"
 
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	operator "github.com/karmada-io/karmada/operator/pkg"
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
+	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
 )
 
@@ -83,10 +86,56 @@ func recognizeActionFor(karmada *operatorv1alpha1.Karmada) Action {
 func (p *Planner) Execute() error {
 	klog.InfoS("Start execute the workflow", "workflow", p.action, "karmada", klog.KObj(p.karmada))
 
+	if err := p.preRunJob(); err != nil {
+		return err
+	}
 	if err := p.job.Run(); err != nil {
+		klog.ErrorS(err, "failed to executed the workflow", "workflow", p.action, "karmada", klog.KObj(p.karmada))
+		return p.runJobErr(err)
+	}
+	if err := p.afterRunJob(); err != nil {
 		return err
 	}
 
 	klog.InfoS("Successfully executed the workflow", "workflow", p.action, "karmada", klog.KObj(p.karmada))
+	return nil
+}
+
+func (p *Planner) preRunJob() error {
+	if p.action == InitAction {
+		operatorv1alpha1.KarmadaInProgressing(p.karmada, operatorv1alpha1.Ready, "karmada init job is in progressing")
+	}
+	if p.action == DeInitAction {
+		operatorv1alpha1.KarmadaInProgressing(p.karmada, operatorv1alpha1.Ready, "karmada deinit job is in progressing")
+	}
+
+	return p.Client.Status().Update(context.TODO(), p.karmada)
+}
+
+func (p *Planner) runJobErr(err error) error {
+	var errs []error
+	errs = append(errs, err)
+
+	operatorv1alpha1.KarmadaFailed(p.karmada, operatorv1alpha1.Ready, err.Error())
+	errs = append(errs, p.Client.Status().Update(context.TODO(), p.karmada))
+
+	return utilerrors.NewAggregate(errs)
+}
+
+func (p *Planner) afterRunJob() error {
+	if p.action == InitAction {
+		// Update the condition to Ready and set kubeconfig of karmada-apiserver to status.
+		operatorv1alpha1.KarmadaCompleted(p.karmada, operatorv1alpha1.Ready, "karmada init job is completed")
+		p.karmada.Status.SecretRef = &operatorv1alpha1.LocalSecretReference{
+			Namespace: p.karmada.GetNamespace(),
+			Name:      util.AdminKubeconfigSecretName(p.karmada.GetName()),
+		}
+
+		return p.Client.Status().Update(context.TODO(), p.karmada)
+	}
+
+	// if it is deInit workflow, the cr will be deleted with karmada is be deleted, so we need not to
+	// update the karmada status.
+
 	return nil
 }

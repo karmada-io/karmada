@@ -27,6 +27,7 @@ func ensureWork(
 	var placement *policyv1alpha1.Placement
 	var requiredByBindingSnapshot []workv1alpha2.BindingSnapshot
 	var replicas int32
+	var conflictResolutionInBinding policyv1alpha1.ConflictResolution
 	switch scope {
 	case apiextensionsv1.NamespaceScoped:
 		bindingObj := binding.(*workv1alpha2.ResourceBinding)
@@ -34,12 +35,14 @@ func ensureWork(
 		requiredByBindingSnapshot = bindingObj.Spec.RequiredBy
 		placement = bindingObj.Spec.Placement
 		replicas = bindingObj.Spec.Replicas
+		conflictResolutionInBinding = bindingObj.Spec.ConflictResolution
 	case apiextensionsv1.ClusterScoped:
 		bindingObj := binding.(*workv1alpha2.ClusterResourceBinding)
 		targetClusters = bindingObj.Spec.Clusters
 		requiredByBindingSnapshot = bindingObj.Spec.RequiredBy
 		placement = bindingObj.Spec.Placement
 		replicas = bindingObj.Spec.Replicas
+		conflictResolutionInBinding = bindingObj.Spec.ConflictResolution
 	}
 
 	targetClusters = mergeTargetClusters(targetClusters, requiredByBindingSnapshot)
@@ -92,7 +95,8 @@ func ensureWork(
 		}
 		workLabel := mergeLabel(clonedWorkload, workNamespace, binding, scope)
 
-		annotations := mergeAnnotations(clonedWorkload, binding, scope)
+		annotations := mergeAnnotations(clonedWorkload, workNamespace, binding, scope)
+		annotations = mergeConflictResolution(clonedWorkload, conflictResolutionInBinding, annotations)
 		annotations, err = RecordAppliedOverrides(cops, ops, annotations)
 		if err != nil {
 			klog.Errorf("Failed to record appliedOverrides, Error: %v", err)
@@ -140,16 +144,23 @@ func mergeLabel(workload *unstructured.Unstructured, workNamespace string, bindi
 	util.MergeLabel(workload, util.ManagedByKarmadaLabel, util.ManagedByKarmadaLabelValue)
 	if scope == apiextensionsv1.NamespaceScoped {
 		util.MergeLabel(workload, workv1alpha2.ResourceBindingReferenceKey, names.GenerateBindingReferenceKey(binding.GetNamespace(), binding.GetName()))
+		util.MergeLabel(workload, workv1alpha2.ResourceBindingUIDLabel, string(binding.GetUID()))
 		workLabel[workv1alpha2.ResourceBindingReferenceKey] = names.GenerateBindingReferenceKey(binding.GetNamespace(), binding.GetName())
+		workLabel[workv1alpha2.ResourceBindingUIDLabel] = string(binding.GetUID())
 	} else {
 		util.MergeLabel(workload, workv1alpha2.ClusterResourceBindingReferenceKey, names.GenerateBindingReferenceKey("", binding.GetName()))
+		util.MergeLabel(workload, workv1alpha2.ClusterResourceBindingUIDLabel, string(binding.GetUID()))
 		workLabel[workv1alpha2.ClusterResourceBindingReferenceKey] = names.GenerateBindingReferenceKey("", binding.GetName())
+		workLabel[workv1alpha2.ClusterResourceBindingUIDLabel] = string(binding.GetUID())
 	}
 	return workLabel
 }
 
-func mergeAnnotations(workload *unstructured.Unstructured, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
+func mergeAnnotations(workload *unstructured.Unstructured, workNamespace string, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
 	annotations := make(map[string]string)
+	util.MergeAnnotation(workload, workv1alpha2.WorkNameAnnotation, names.GenerateWorkName(workload.GetKind(), workload.GetName(), workload.GetNamespace()))
+	util.MergeAnnotation(workload, workv1alpha2.WorkNamespaceAnnotation, workNamespace)
+
 	if scope == apiextensionsv1.NamespaceScoped {
 		util.MergeAnnotation(workload, workv1alpha2.ResourceBindingNamespaceAnnotationKey, binding.GetNamespace())
 		util.MergeAnnotation(workload, workv1alpha2.ResourceBindingNameAnnotationKey, binding.GetName())
@@ -191,6 +202,32 @@ func RecordAppliedOverrides(cops *overridemanager.AppliedOverrides, ops *overrid
 	}
 
 	return annotations, nil
+}
+
+// mergeConflictResolution determine the conflictResolution annotation of Work: preferentially inherit from RT, then RB
+func mergeConflictResolution(workload *unstructured.Unstructured, conflictResolutionInBinding policyv1alpha1.ConflictResolution,
+	annotations map[string]string) map[string]string {
+	// conflictResolutionInRT refer to the annotation in ResourceTemplate
+	conflictResolutionInRT := util.GetAnnotationValue(workload.GetAnnotations(), workv1alpha2.ResourceConflictResolutionAnnotation)
+
+	// the final conflictResolution annotation value of Work inherit from RT preferentially
+	// so if conflictResolution annotation is defined in RT already, just copy the value and return
+	if conflictResolutionInRT == workv1alpha2.ResourceConflictResolutionOverwrite || conflictResolutionInRT == workv1alpha2.ResourceConflictResolutionAbort {
+		annotations[workv1alpha2.ResourceConflictResolutionAnnotation] = conflictResolutionInRT
+		return annotations
+	} else if conflictResolutionInRT != "" {
+		// ignore its value and add logs if conflictResolutionInRT is neither abort nor overwrite.
+		klog.Warningf("ignore the invalid conflict-resolution annotation in ResourceTemplate %s/%s/%s: %s",
+			workload.GetKind(), workload.GetNamespace(), workload.GetName(), conflictResolutionInRT)
+	}
+
+	if conflictResolutionInBinding == policyv1alpha1.ConflictOverwrite {
+		annotations[workv1alpha2.ResourceConflictResolutionAnnotation] = workv1alpha2.ResourceConflictResolutionOverwrite
+		return annotations
+	}
+
+	annotations[workv1alpha2.ResourceConflictResolutionAnnotation] = workv1alpha2.ResourceConflictResolutionAbort
+	return annotations
 }
 
 func divideReplicasByJobCompletions(workload *unstructured.Unstructured, clusters []workv1alpha2.TargetCluster) ([]workv1alpha2.TargetCluster, error) {

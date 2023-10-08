@@ -19,7 +19,7 @@ type GlobalCommandOptions struct {
 	KarmadaConfig  string
 	KarmadaContext string
 
-	// Namespace holds the namespace where Karmada components intalled
+	// Namespace holds the namespace where Karmada components installed
 	Namespace string
 
 	// Cluster holds the name of member cluster to enable or disable scheduler estimator

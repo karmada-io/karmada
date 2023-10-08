@@ -40,8 +40,10 @@ type ClusterRegisterOption struct {
 	ProxyServerAddress string
 	ClusterProvider    string
 	ClusterRegion      string
-	ClusterZone        string
-	DryRun             bool
+	// Deprecated: Use ClusterZones instead.
+	ClusterZone  string
+	ClusterZones []string
+	DryRun       bool
 
 	ControlPlaneConfig *rest.Config
 	ClusterConfig      *rest.Config
@@ -192,7 +194,7 @@ func IsClusterIdentifyUnique(controlPlaneClient karmadaclientset.Interface, id s
 	return true, "", nil
 }
 
-// ClusterAccessCredentialChanged checks whether the cluster a ccess credential changed
+// ClusterAccessCredentialChanged checks whether the cluster access credential changed
 func ClusterAccessCredentialChanged(newSpec, oldSpec clusterv1alpha1.ClusterSpec) bool {
 	if oldSpec.APIEndpoint == newSpec.APIEndpoint &&
 		oldSpec.InsecureSkipTLSVerification == newSpec.InsecureSkipTLSVerification &&

@@ -231,6 +231,9 @@ util::wait_pod_ready "${HOST_CLUSTER_NAME}" "${KARMADA_AGGREGATION_APISERVER_LAB
 # deploy karmada-search on host cluster
 kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/karmada-search.yaml"
 util::wait_pod_ready "${HOST_CLUSTER_NAME}" "${KARMADA_SEARCH_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
+# deploy karmada-metrics-adapter on host cluster
+kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/karmada-metrics-adapter.yaml"
+util::wait_pod_ready "${HOST_CLUSTER_NAME}" "${KARMADA_METRICS_ADAPTER_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
 
 # install CRD APIs on karmada apiserver.
 if ! kubectl config get-contexts "karmada-apiserver" > /dev/null 2>&1;
@@ -247,18 +250,36 @@ util::fill_cabundle "${ROOT_CA_FILE}" "${TEMP_PATH_CRDS}/_crds/patches/webhook_i
 util::fill_cabundle "${ROOT_CA_FILE}" "${TEMP_PATH_CRDS}/_crds/patches/webhook_in_clusterresourcebindings.yaml"
 installCRDs "karmada-apiserver" "${TEMP_PATH_CRDS}"
 
+# render the caBundle in these apiservice with root ca, then karmada-apiserver can use caBundle to verify corresponding AA's server-cert
+TEMP_PATH_APISERVICE=$(mktemp -d)
+trap '{ rm -rf ${TEMP_PATH_APISERVICE}; }' EXIT
+cp -rf "${REPO_ROOT}"/artifacts/deploy/karmada-aggregated-apiserver-apiservice.yaml "${TEMP_PATH_APISERVICE}"/karmada-aggregated-apiserver-apiservice.yaml
+cp -rf "${REPO_ROOT}"/artifacts/deploy/karmada-metrics-adapter-apiservice.yaml "${TEMP_PATH_APISERVICE}"/karmada-metrics-adapter-apiservice.yaml
+cp -rf "${REPO_ROOT}"/artifacts/deploy/karmada-search-apiservice.yaml "${TEMP_PATH_APISERVICE}"/karmada-search-apiservice.yaml
+util::fill_cabundle "${ROOT_CA_FILE}" "${TEMP_PATH_APISERVICE}"/karmada-aggregated-apiserver-apiservice.yaml
+util::fill_cabundle "${ROOT_CA_FILE}" "${TEMP_PATH_APISERVICE}"/karmada-metrics-adapter-apiservice.yaml
+util::fill_cabundle "${ROOT_CA_FILE}" "${TEMP_PATH_APISERVICE}"/karmada-search-apiservice.yaml
+
 # deploy webhook configurations on karmada apiserver
 util::deploy_webhook_configuration "karmada-apiserver" "${ROOT_CA_FILE}" "${REPO_ROOT}/artifacts/deploy/webhook-configuration.yaml"
 
 # deploy APIService on karmada apiserver for karmada-aggregated-apiserver
-kubectl --context="karmada-apiserver" apply -f "${REPO_ROOT}/artifacts/deploy/karmada-aggregated-apiserver-apiservice.yaml"
+kubectl --context="karmada-apiserver" apply -f "${TEMP_PATH_APISERVICE}"/karmada-aggregated-apiserver-apiservice.yaml
 # make sure apiservice for v1alpha1.cluster.karmada.io is Available
 util::wait_apiservice_ready "karmada-apiserver" "${KARMADA_AGGREGATION_APISERVER_LABEL}"
 
 # deploy APIService on karmada apiserver for karmada-search
-kubectl --context="karmada-apiserver" apply -f "${REPO_ROOT}/artifacts/deploy/karmada-search-apiservice.yaml"
+kubectl --context="karmada-apiserver" apply -f "${TEMP_PATH_APISERVICE}"/karmada-search-apiservice.yaml
 # make sure apiservice for v1alpha1.search.karmada.io is Available
 util::wait_apiservice_ready "karmada-apiserver" "${KARMADA_SEARCH_LABEL}"
+
+# deploy APIService on karmada apiserver for karmada-metrics-adapter
+kubectl --context="karmada-apiserver" apply -f "${TEMP_PATH_APISERVICE}"/karmada-metrics-adapter-apiservice.yaml
+# make sure apiservice for karmada metrics adapter is Available
+util::wait_apiservice_ready "karmada-apiserver" "${KARMADA_METRICS_ADAPTER_LABEL}"
+
+# grant the admin clusterrole read and write permissions for Karmada resources
+kubectl --context="karmada-apiserver" apply -f "${REPO_ROOT}/artifacts/deploy/admin-clusterrole-aggregation.yaml"
 
 # deploy cluster proxy rbac for admin
 kubectl --context="karmada-apiserver" apply -f "${REPO_ROOT}/artifacts/deploy/cluster-proxy-admin-rbac.yaml"

@@ -38,6 +38,7 @@ import (
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	tokenutil "github.com/karmada-io/karmada/pkg/karmadactl/util/bootstraptoken"
+	"github.com/karmada-io/karmada/pkg/util"
 	karmadautil "github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/lifted/pubkeypin"
 	"github.com/karmada-io/karmada/pkg/version"
@@ -168,6 +169,7 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 	flags.StringVar(&opts.ClusterNamespace, "cluster-namespace", options.DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster secrets are stored.")
 	flags.StringVar(&opts.ClusterProvider, "cluster-provider", "", "Provider of the joining cluster. The Karmada scheduler can use this information to spread workloads across providers for higher availability.")
 	flags.StringVar(&opts.ClusterRegion, "cluster-region", "", "The region of the joining cluster. The Karmada scheduler can use this information to spread workloads across regions for higher availability.")
+	flags.StringSliceVar(&opts.ClusterZones, "cluster-zones", []string{}, "The zones of the joining cluster. The Karmada scheduler can use this information to spread workloads across zones for higher availability.")
 	flags.BoolVar(&opts.EnableCertRotation, "enable-cert-rotation", false, "Enable means controller would rotate certificate for karmada-agent when the certificate is about to expire.")
 	flags.StringVar(&opts.CACertPath, "ca-cert-path", CACertPath, "The path to the SSL certificate authority used to secure communications between member cluster and karmada-control-plane.")
 	flags.StringVar(&opts.BootstrapToken.Token, "token", "", "For token-based discovery, the token used to validate cluster information fetched from the API server.")
@@ -178,6 +180,7 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 	flags.Int32Var(&opts.KarmadaAgentReplicas, "karmada-agent-replicas", 1, "Karmada agent replicas.")
 	flags.Int32Var(&opts.CertExpirationSeconds, "cert-expiration-seconds", DefaultCertExpirationSeconds, "The expiration time of certificate.")
 	flags.BoolVar(&opts.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
+	flags.StringVar(&opts.ProxyServerAddress, "proxy-server-address", "", "Address of the proxy server that is used to proxy to the cluster.")
 
 	return cmd
 }
@@ -206,11 +209,14 @@ type CommandRegisterOption struct {
 	// ClusterRegion represents the region of the cluster locate in.
 	ClusterRegion string
 
+	// ClusterZones represents the zones of the cluster locate in.
+	ClusterZones []string
+
 	// EnableCertRotation indicates if enable certificate rotation for karmada-agent.
 	EnableCertRotation bool
 
 	// CACertPath is the path to the SSL certificate authority used to
-	// secure comunications between member cluster and karmada-control-plane.
+	// secure communications between member cluster and karmada-control-plane.
 	// Defaults to "/etc/karmada/pki/ca.crt".
 	CACertPath string
 
@@ -231,6 +237,9 @@ type CommandRegisterOption struct {
 
 	// DryRun tells if run the command in dry-run mode, without making any server requests.
 	DryRun bool
+
+	// ProxyServerAddress holds the proxy server address that is used to proxy to the cluster.
+	ProxyServerAddress string
 
 	memberClusterEndpoint string
 	memberClusterClient   *kubeclient.Clientset
@@ -309,7 +318,7 @@ func (o *CommandRegisterOption) Run(parentCommand string) error {
 		fmt.Printf("\n[preflight] Please check the above errors\n")
 		return nil
 	}
-	fmt.Println("[prefligt] All pre-flight checks were passed")
+	fmt.Println("[preflight] All pre-flight checks were passed")
 
 	if o.DryRun {
 		return nil
@@ -339,8 +348,12 @@ func (o *CommandRegisterOption) Run(parentCommand string) error {
 		return err
 	}
 
+	// It's necessary to set the label of namespace to make sure that the namespace is created by Karmada.
+	labels := map[string]string{
+		util.ManagedByKarmadaLabel: util.ManagedByKarmadaLabelValue,
+	}
 	// ensure namespace where the karmada-agent resources be deployed exists in the member cluster
-	if _, err := karmadautil.EnsureNamespaceExist(o.memberClusterClient, o.Namespace, o.DryRun); err != nil {
+	if _, err := karmadautil.EnsureNamespaceExistWithLabels(o.memberClusterClient, o.Namespace, o.DryRun, labels); err != nil {
 		return err
 	}
 
@@ -467,7 +480,7 @@ func (o *CommandRegisterOption) discoveryBootstrapConfigAndClusterInfo(bootstrap
 func (o *CommandRegisterOption) constructKarmadaAgentConfig(bootstrapClient *kubeclient.Clientset, karmadaClusterInfo *clientcmdapi.Cluster) (*clientcmdapi.Config, error) {
 	var cert []byte
 
-	pk, csr, err := generatKeyAndCSR(o.ClusterName)
+	pk, csr, err := generateKeyAndCSR(o.ClusterName)
 	if err != nil {
 		return nil, err
 	}
@@ -663,7 +676,9 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 					fmt.Sprintf("--cluster-api-endpoint=%s", o.memberClusterEndpoint),
 					fmt.Sprintf("--cluster-provider=%s", o.ClusterProvider),
 					fmt.Sprintf("--cluster-region=%s", o.ClusterRegion),
+					fmt.Sprintf("--cluster-zones=%s", strings.Join(o.ClusterZones, ",")),
 					fmt.Sprintf("--controllers=%s", strings.Join(controllers, ",")),
+					fmt.Sprintf("--proxy-server-address=%s", o.ProxyServerAddress),
 					"--cluster-status-update-frequency=10s",
 					"--bind-address=0.0.0.0",
 					"--secure-port=10357",
@@ -715,8 +730,8 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 	return karmadaAgent
 }
 
-// generatKeyAndCSR generate private key and csr
-func generatKeyAndCSR(clusterName string) (*rsa.PrivateKey, []byte, error) {
+// generateKeyAndCSR generate private key and csr
+func generateKeyAndCSR(clusterName string) (*rsa.PrivateKey, []byte, error) {
 	pk, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, nil, err

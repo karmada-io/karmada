@@ -331,6 +331,7 @@ func autoConvert_v1alpha1_ClusterSpec_To_cluster_ClusterSpec(in *ClusterSpec, ou
 	out.Provider = in.Provider
 	out.Region = in.Region
 	out.Zone = in.Zone
+	out.Zones = *(*[]string)(unsafe.Pointer(&in.Zones))
 	out.Taints = *(*[]v1.Taint)(unsafe.Pointer(&in.Taints))
 	out.ResourceModels = *(*[]cluster.ResourceModel)(unsafe.Pointer(&in.ResourceModels))
 	return nil
@@ -353,6 +354,7 @@ func autoConvert_cluster_ClusterSpec_To_v1alpha1_ClusterSpec(in *cluster.Cluster
 	out.Provider = in.Provider
 	out.Region = in.Region
 	out.Zone = in.Zone
+	out.Zones = *(*[]string)(unsafe.Pointer(&in.Zones))
 	out.Taints = *(*[]v1.Taint)(unsafe.Pointer(&in.Taints))
 	out.ResourceModels = *(*[]ResourceModel)(unsafe.Pointer(&in.ResourceModels))
 	return nil

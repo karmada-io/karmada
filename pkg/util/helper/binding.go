@@ -19,6 +19,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
@@ -206,6 +207,9 @@ func RemoveOrphanWorks(c client.Client, works []workv1alpha1.Work) error {
 }
 
 // FetchResourceTemplate fetches the resource template to be propagated.
+// Any updates to this resource template are not recommended as it may come from the informer cache.
+// We should abide by the principle of making a deep copy first and then modifying it.
+// See issue: https://github.com/karmada-io/karmada/issues/3878.
 func FetchResourceTemplate(
 	dynamicClient dynamic.Interface,
 	informerManager genericmanager.SingleClusterInformerManager,
@@ -245,6 +249,56 @@ func FetchResourceTemplate(
 	}
 
 	return unstructuredObj, nil
+}
+
+// FetchResourceTemplateByLabelSelector fetches the resource template by label selector to be propagated.
+// Any updates to this resource template are not recommended as it may come from the informer cache.
+// We should abide by the principle of making a deep copy first and then modifying it.
+// See issue: https://github.com/karmada-io/karmada/issues/3878.
+func FetchResourceTemplateByLabelSelector(
+	dynamicClient dynamic.Interface,
+	informerManager genericmanager.SingleClusterInformerManager,
+	restMapper meta.RESTMapper,
+	resource workv1alpha2.ObjectReference,
+	selector labels.Selector,
+) ([]*unstructured.Unstructured, error) {
+	gvr, err := restmapper.GetGroupVersionResource(restMapper, schema.FromAPIVersionAndKind(resource.APIVersion, resource.Kind))
+	if err != nil {
+		klog.Errorf("Failed to get GVR from GVK(%s/%s), Error: %v", resource.APIVersion, resource.Kind, err)
+		return nil, err
+	}
+	var objectList []runtime.Object
+	if len(resource.Namespace) == 0 {
+		// cluster-scoped resource
+		objectList, err = informerManager.Lister(gvr).List(selector)
+	} else {
+		objectList, err = informerManager.Lister(gvr).ByNamespace(resource.Namespace).List(selector)
+	}
+	var objects []*unstructured.Unstructured
+	if err != nil || len(objectList) == 0 {
+		// fall back to call api server in case the cache has not been synchronized yet
+		klog.Warningf("Failed to get resource template (%s/%s/%s) from cache, Error: %v. Fall back to call api server.",
+			resource.Kind, resource.Namespace, resource.Name, err)
+		unstructuredList, err := dynamicClient.Resource(gvr).Namespace(resource.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: selector.String()})
+		if err != nil {
+			klog.Errorf("Failed to get resource template (%s/%s/%s) from api server, Error: %v",
+				resource.Kind, resource.Namespace, resource.Name, err)
+			return nil, err
+		}
+		for i := range unstructuredList.Items {
+			objects = append(objects, &unstructuredList.Items[i])
+		}
+	}
+
+	for i := range objectList {
+		unstructuredObj, err := ToUnstructured(objectList[i])
+		if err != nil {
+			klog.Errorf("Failed to transform object(%s/%s), Error: %v", resource.Namespace, resource.Name, err)
+			return nil, err
+		}
+		objects = append(objects, unstructuredObj)
+	}
+	return objects, nil
 }
 
 // GetClusterResourceBindings returns a ClusterResourceBindingList by labels.
@@ -383,5 +437,15 @@ func EmitClusterEvictionEventForClusterResourceBinding(binding *workv1alpha2.Clu
 	} else {
 		eventRecorder.Eventf(binding, corev1.EventTypeNormal, events.EventReasonEvictWorkloadFromClusterSucceed, "Evict from cluster %s succeed.", cluster)
 		eventRecorder.Eventf(ref, corev1.EventTypeNormal, events.EventReasonEvictWorkloadFromClusterSucceed, "Evict from cluster %s succeed.", cluster)
+	}
+}
+
+// ConstructObjectReference constructs ObjectReference from ResourceSelector.
+func ConstructObjectReference(rs policyv1alpha1.ResourceSelector) workv1alpha2.ObjectReference {
+	return workv1alpha2.ObjectReference{
+		APIVersion: rs.APIVersion,
+		Kind:       rs.Kind,
+		Namespace:  rs.Namespace,
+		Name:       rs.Name,
 	}
 }

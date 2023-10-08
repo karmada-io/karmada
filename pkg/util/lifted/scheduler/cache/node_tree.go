@@ -16,7 +16,7 @@ limitations under the License.
 
 // This code is directly lifted from the Kubernetes codebase in order to avoid relying on the k8s.io/kubernetes package.
 // For reference:
-// https://github.com/kubernetes/kubernetes/blob/release-1.25/pkg/scheduler/internal/cache/node_tree.go
+// https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/scheduler/internal/cache/node_tree.go
 
 package cache
 
@@ -114,7 +114,7 @@ func (nt *nodeTree) updateNode(old, new *corev1.Node) {
 	if oldZone == newZone {
 		return
 	}
-	_ = nt.removeNode(old) // No error checking. We ignore whether the old node exists or not.
+	nt.removeNode(old) // No error checking. We ignore whether the old node exists or not.
 	nt.addNode(new)
 }
 

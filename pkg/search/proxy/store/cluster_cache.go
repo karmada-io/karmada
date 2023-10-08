@@ -61,8 +61,14 @@ func (c *clusterCache) updateCache(resources map[schema.GroupVersionResource]*Mu
 				multiNS.Add(metav1.NamespaceAll)
 			}
 
+			singularName, err := c.restMapper.ResourceSingularizer(resource.Resource)
+			if err != nil {
+				klog.Warningf("Failed to get singular name for resource: %s", resource.String())
+				return err
+			}
+
 			klog.Infof("Add cache for %s %s", c.clusterName, resource.String())
-			cache, err := newResourceCache(c.clusterName, resource, kind, namespaced, multiNS, c.clientForResourceFunc(resource))
+			cache, err := newResourceCache(c.clusterName, resource, kind, singularName, namespaced, multiNS, c.clientForResourceFunc(resource))
 			if err != nil {
 				return err
 			}

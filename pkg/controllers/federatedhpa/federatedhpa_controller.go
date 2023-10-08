@@ -28,12 +28,14 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/controllers/federatedhpa/monitor"
+	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/typedmanager"
@@ -68,10 +70,11 @@ type FederatedHPAController struct {
 	RESTMapper                meta.RESTMapper
 	EventRecorder             record.EventRecorder
 	TypedInformerManager      typedmanager.MultiClusterInformerManager
+	ClusterCacheSyncTimeout   metav1.Duration
 
 	monitor monitor.Monitor
 
-	HorizontalPodAutoscalerSyncPeroid time.Duration
+	HorizontalPodAutoscalerSyncPeriod time.Duration
 	DownscaleStabilisationWindow      time.Duration
 	// Latest unstabilized recommendations for each autoscaler.
 	recommendations     map[string][]timestampedRecommendation
@@ -132,6 +135,7 @@ func (c *FederatedHPAController) SetupWithManager(mgr controllerruntime.Manager)
 	return controllerruntime.NewControllerManagedBy(mgr).
 		For(&autoscalingv1alpha1.FederatedHPA{}).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Complete(c)
 }
 
@@ -173,12 +177,17 @@ func (c *FederatedHPAController) Reconcile(ctx context.Context, req controllerru
 	}
 	c.hpaSelectorsMux.Unlock()
 
-	err := c.reconcileAutoscaler(ctx, hpa)
+	// observe process FederatedHPA latency
+	var err error
+	startTime := time.Now()
+	defer metrics.ObserveProcessFederatedHPALatency(err, startTime)
+
+	err = c.reconcileAutoscaler(ctx, hpa)
 	if err != nil {
 		return controllerruntime.Result{}, err
 	}
 
-	return controllerruntime.Result{RequeueAfter: c.HorizontalPodAutoscalerSyncPeroid}, nil
+	return controllerruntime.Result{RequeueAfter: c.HorizontalPodAutoscalerSyncPeriod}, nil
 }
 
 func (c *FederatedHPAController) reconcileAutoscaler(ctx context.Context, hpa *autoscalingv1alpha1.FederatedHPA) (retErr error) {
@@ -564,7 +573,7 @@ func (c *FederatedHPAController) buildPodInformerForCluster(clusterScaleClient *
 	c.TypedInformerManager.Start(clusterScaleClient.ClusterName)
 
 	if err := func() error {
-		synced := c.TypedInformerManager.WaitForCacheSyncWithTimeout(clusterScaleClient.ClusterName, util.CacheSyncTimeout)
+		synced := c.TypedInformerManager.WaitForCacheSyncWithTimeout(clusterScaleClient.ClusterName, c.ClusterCacheSyncTimeout.Duration)
 		if synced == nil {
 			return fmt.Errorf("no informerFactory for cluster %s exist", clusterScaleClient.ClusterName)
 		}

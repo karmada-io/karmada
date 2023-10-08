@@ -52,7 +52,7 @@ type ClusterResourceNode struct {
 	quantity int
 
 	// resourceList records the resource list of this node.
-	// It maybe contain cpu, mrmory, gpu...
+	// It maybe contain cpu, memory, gpu...
 	// User can specify which parameters need to be included before the cluster starts
 	// +required
 	resourceList ResourceList
@@ -162,6 +162,10 @@ func safeChangeNum(num *int, change int) {
 // AddToResourceSummary add resource node into modeling summary
 func (rs *ResourceSummary) AddToResourceSummary(crn ClusterResourceNode) {
 	index := rs.getIndex(crn)
+	if index == -1 {
+		klog.Error("ClusterResource can not add to resource summary: index is invalid.")
+		return
+	}
 	modeling := &(*rs)[index]
 	if rs.GetNodeNumFromModel(modeling) <= 5 {
 		root := modeling.linkedlist
@@ -236,9 +240,9 @@ func rbtConvertToLl(rbt *rbt.Tree) *list.List {
 }
 
 // ConvertToResourceList is convert from corev1.ResourceList to ResourceList
-func ConvertToResourceList(rslist corev1.ResourceList) ResourceList {
+func ConvertToResourceList(rsList corev1.ResourceList) ResourceList {
 	resourceList := ResourceList{}
-	for name, quantity := range rslist {
+	for name, quantity := range rsList {
 		if name == corev1.ResourceCPU {
 			resourceList[clusterapis.ResourceCPU] = quantity
 		} else if name == corev1.ResourceMemory {
@@ -261,14 +265,17 @@ func (rs *ResourceSummary) GetNodeNumFromModel(model *resourceModels) int {
 	} else if model.linkedlist == nil && model.redblackTree == nil {
 		return 0
 	} else if model.linkedlist != nil && model.redblackTree != nil {
-		klog.Info("GetNodeNum: unknow error")
+		klog.Info("GetNodeNum: unknown error")
 	}
 	return 0
 }
 
-// DeleteFromResourceSummary dalete resource node into modeling summary
+// DeleteFromResourceSummary deletes resource node into modeling summary
 func (rs *ResourceSummary) DeleteFromResourceSummary(crn ClusterResourceNode) error {
 	index := rs.getIndex(crn)
+	if index == -1 {
+		return errors.New("ClusterResource can not delete the resource summary: index is invalid")
+	}
 	modeling := &(*rs)[index]
 	if rs.GetNodeNumFromModel(modeling) >= 6 {
 		root := modeling.redblackTree

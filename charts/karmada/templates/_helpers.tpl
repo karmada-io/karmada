@@ -213,6 +213,15 @@ app: {{$name}}
 {{- end }}
 {{- end -}}
 
+{{- define "karmada.apiserver.caBundle" -}}
+{{- if eq .Values.certs.mode "auto" }}
+caBundle: {{ print "{{ ca_crt }}" }}
+{{- end }}
+{{- if eq .Values.certs.mode "custom" }}
+caBundle: {{ b64enc .Values.certs.custom.caCrt }}
+{{- end }}
+{{- end -}}
+
 {{- define "karmada.webhook.caBundle" -}}
 {{- if eq .Values.certs.mode "auto" }}
 caBundle: {{ print "{{ ca_crt }}" }}
@@ -273,6 +282,18 @@ app: {{- include "karmada.name" .}}-search
   secret:
     secretName: {{ .Values.search.kubeconfig }}
 {{- end -}}
+{{- end -}}
+
+{{- define "karmada.search.etcd.cert.volume" -}}
+{{ $name :=  include "karmada.name" . }}
+- name: etcd-certs
+  secret:
+  {{- if eq .Values.etcd.mode "internal" }}
+    secretName: {{ $name }}-cert
+  {{- end }}
+  {{- if eq .Values.etcd.mode "external" }}
+    secretName: {{ $name }}-external-etcd-cert
+  {{- end }}
 {{- end -}}
 
 {{/*

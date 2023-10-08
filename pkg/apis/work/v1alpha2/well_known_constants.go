@@ -1,6 +1,21 @@
 package v1alpha2
 
 const (
+	// ResourceBindingUIDLabel is the UID of ResourceBinding object.
+	ResourceBindingUIDLabel = "resourcebinding.karmada.io/uid"
+
+	// ClusterResourceBindingUIDLabel is the uid of ClusterResourceBinding object.
+	ClusterResourceBindingUIDLabel = "clusterresourcebinding.karmada.io/uid"
+
+	// WorkNamespaceAnnotation is added to objects to specify associated Work's namespace.
+	WorkNamespaceAnnotation = "work.karmada.io/namespace"
+
+	// WorkNameAnnotation is added to objects to specify associated Work's name.
+	WorkNameAnnotation = "work.karmada.io/name"
+
+	// WorkUIDLabel is the uid of Work object.
+	WorkUIDLabel = "work.karmada.io/uid"
+
 	// ResourceBindingReferenceKey is the key of ResourceBinding object.
 	// It is usually a unique hash value of ResourceBinding object's namespace and name, intended to be added to the Work object.
 	// It will be used to retrieve all Works objects that derived from a specific ResourceBinding object.
@@ -43,11 +58,15 @@ const (
 	// The valid value is:
 	//   - overwrite: always overwrite the resource if already exist. The resource will be overwritten with the
 	//     configuration from control plane.
+	//   - abort: do not resolve the conflict and stop propagating to avoid unexpected overwrites (default value)
 	// Note: Propagation of the resource template without this annotation will fail in case of already exists.
 	ResourceConflictResolutionAnnotation = "work.karmada.io/conflict-resolution"
 
-	// ResourceConflictResolutionOverwrite is the value of ResourceConflictResolutionAnnotation, indicating the overwrite strategy.
+	// ResourceConflictResolutionOverwrite is a value of ResourceConflictResolutionAnnotation, indicating the overwrite strategy.
 	ResourceConflictResolutionOverwrite = "overwrite"
+
+	// ResourceConflictResolutionAbort is a value of ResourceConflictResolutionAnnotation, indicating stop propagating.
+	ResourceConflictResolutionAbort = "abort"
 )
 
 // Define annotations that are added to the resource template.

@@ -3,7 +3,6 @@ package tasks
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"k8s.io/klog/v2"
 
@@ -84,7 +83,12 @@ func runKarmadaAPIServer(r workflow.RunData) error {
 		return nil
 	}
 
-	err := apiserver.EnsureKarmadaAPIServer(data.RemoteClient(), cfg, data.GetName(), data.GetNamespace())
+	err := apiserver.EnsureKarmadaAPIServer(
+		data.RemoteClient(),
+		cfg,
+		data.GetName(),
+		data.GetNamespace(),
+		data.FeatureGates())
 	if err != nil {
 		return fmt.Errorf("failed to install karmada apiserver component, err: %w", err)
 	}
@@ -99,7 +103,7 @@ func runWaitKarmadaAPIServer(r workflow.RunData) error {
 		return errors.New("wait-KarmadaAPIServer task invoked with an invalid data struct")
 	}
 
-	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConfig(), data.RemoteClient(), time.Second*30)
+	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConfig(), data.RemoteClient(), componentBeReadyTimeout)
 
 	err := waiter.WaitForSomePods(karmadaApiserverLabels.String(), data.GetNamespace(), 1)
 	if err != nil {
@@ -122,7 +126,12 @@ func runKarmadaAggregatedAPIServer(r workflow.RunData) error {
 		return nil
 	}
 
-	err := apiserver.EnsureKarmadaAggregatedAPIServer(data.RemoteClient(), cfg, data.GetName(), data.GetNamespace())
+	err := apiserver.EnsureKarmadaAggregatedAPIServer(
+		data.RemoteClient(),
+		cfg,
+		data.GetName(),
+		data.GetNamespace(),
+		data.FeatureGates())
 	if err != nil {
 		return fmt.Errorf("failed to install karmada aggregated apiserver, err: %w", err)
 	}
@@ -137,11 +146,11 @@ func runWaitKarmadaAggregatedAPIServer(r workflow.RunData) error {
 		return errors.New("wait-KarmadaAggregatedAPIServer task invoked with an invalid data struct")
 	}
 
-	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConfig(), data.RemoteClient(), time.Second*30)
+	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConfig(), data.RemoteClient(), componentBeReadyTimeout)
 
 	err := waiter.WaitForSomePods(karmadaAggregatedAPIServerLabels.String(), data.GetNamespace(), 1)
 	if err != nil {
-		return fmt.Errorf("waiting for karmada-apiserver to ready timeout, err: %w", err)
+		return fmt.Errorf("waiting for karmada-aggregated-apiserver to ready timeout, err: %w", err)
 	}
 
 	klog.V(2).InfoS("[wait-KarmadaAggregatedAPIServer] the karmada-aggregated-apiserver is ready", "karmada", klog.KObj(data))

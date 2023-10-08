@@ -2,6 +2,14 @@
 
 package v1alpha1
 
+// CronFederatedHPAListerExpansion allows custom methods to be added to
+// CronFederatedHPALister.
+type CronFederatedHPAListerExpansion interface{}
+
+// CronFederatedHPANamespaceListerExpansion allows custom methods to be added to
+// CronFederatedHPANamespaceLister.
+type CronFederatedHPANamespaceListerExpansion interface{}
+
 // FederatedHPAListerExpansion allows custom methods to be added to
 // FederatedHPALister.
 type FederatedHPAListerExpansion interface{}

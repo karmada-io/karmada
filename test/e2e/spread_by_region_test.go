@@ -132,10 +132,7 @@ var _ = framework.SerialDescribe("spread-by-region testing", func() {
 						targetClusterNames = append(targetClusterNames, cluster.Name)
 					}
 
-					if len(targetClusterNames) != updatedRegionGroups {
-						return false, nil
-					}
-					return true, nil
+					return len(targetClusterNames) == updatedRegionGroups, nil
 				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			})
 		})

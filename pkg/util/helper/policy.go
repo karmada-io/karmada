@@ -3,15 +3,13 @@ package helper
 import (
 	"encoding/json"
 
-	discoveryv1 "k8s.io/api/discovery/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 // SetDefaultSpreadConstraints set default spread constraints if both 'SpreadByField' and 'SpreadByLabel' not set.
@@ -60,47 +58,18 @@ func IsDependentClusterOverridesPresent(c client.Client, policy *policyv1alpha1.
 	return true, nil
 }
 
-// GetFollowedResourceSelectorsWhenMatchServiceImport get followed derived-service and endpointSlices resource selectors
-// when policy's ResourceSelectors contains ResourceSelector, whose kind is ServiceImport.
-func GetFollowedResourceSelectorsWhenMatchServiceImport(resourceSelectors []policyv1alpha1.ResourceSelector) []policyv1alpha1.ResourceSelector {
-	var addedResourceSelectors []policyv1alpha1.ResourceSelector
-
+// ContainsServiceImport Check whether the ResourceSelectors of the policy contain ResourceSelector, and its Kind is ServiceImport.
+func ContainsServiceImport(resourceSelectors []policyv1alpha1.ResourceSelector) bool {
 	for _, resourceSelector := range resourceSelectors {
 		if resourceSelector.Kind != util.ServiceImportKind {
 			continue
 		}
-
-		if resourceSelector.Namespace == "" || resourceSelector.Name == "" {
+		if resourceSelector.APIVersion != mcsv1alpha1.GroupVersion.String() {
 			continue
 		}
-
-		addedResourceSelectors = append(addedResourceSelectors, GenerateResourceSelectorForServiceImport(resourceSelector)...)
+		return true
 	}
-
-	return addedResourceSelectors
-}
-
-// GenerateResourceSelectorForServiceImport generates resource selectors for ServiceImport.
-func GenerateResourceSelectorForServiceImport(svcImport policyv1alpha1.ResourceSelector) []policyv1alpha1.ResourceSelector {
-	derivedServiceName := names.GenerateDerivedServiceName(svcImport.Name)
-	return []policyv1alpha1.ResourceSelector{
-		{
-			APIVersion: "v1",
-			Kind:       util.ServiceKind,
-			Namespace:  svcImport.Namespace,
-			Name:       derivedServiceName,
-		},
-		{
-			APIVersion: "discovery.k8s.io/v1",
-			Kind:       util.EndpointSliceKind,
-			Namespace:  svcImport.Namespace,
-			LabelSelector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					discoveryv1.LabelServiceName: derivedServiceName,
-				},
-			},
-		},
-	}
+	return false
 }
 
 // IsReplicaDynamicDivided checks if a PropagationPolicy schedules replicas as dynamic.

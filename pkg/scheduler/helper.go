@@ -2,11 +2,17 @@ package scheduler
 
 import (
 	"encoding/json"
+	"errors"
 	"reflect"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/scheduler/framework"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 func placementChanged(
@@ -83,4 +89,34 @@ func getAffinityIndex(affinities []policyv1alpha1.ClusterAffinityTerm, observedN
 		}
 	}
 	return 0
+}
+
+// getConditionByError returns condition by error type, bool to indicate if ignore this error.
+func getConditionByError(err error) (metav1.Condition, bool) {
+	if err == nil {
+		return util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue), true
+	}
+
+	var unschedulableErr *framework.UnschedulableError
+	if errors.As(err, &unschedulableErr) {
+		return util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonUnschedulable, err.Error(), metav1.ConditionFalse), false
+	}
+
+	fitErrMatcher := func(e error) bool {
+		var fitErr *framework.FitError
+		return errors.As(e, &fitErr)
+	}
+	if fitErrMatcher(err) {
+		return util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonNoClusterFit, err.Error(), metav1.ConditionFalse), true
+	}
+	var aggregatedErr utilerrors.Aggregate
+	if errors.As(err, &aggregatedErr) {
+		for _, ae := range aggregatedErr.Errors() {
+			if fitErrMatcher(ae) {
+				// if aggregated NoClusterFit error got, we do not ignore error but retry scheduling.
+				return util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonNoClusterFit, err.Error(), metav1.ConditionFalse), false
+			}
+		}
+	}
+	return util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSchedulerError, err.Error(), metav1.ConditionFalse), false
 }

@@ -27,7 +27,7 @@ Go to the root directory of the `karmada-io/karmada` repo. To install the Helm C
 the release name `karmada-operator` in the namespace `karmada-system`, simply run the helm command:
 
 ```shell
-helm install karmada-operator -n karmada-system  --create-namespace ./charts/karmada-operator --debug
+helm install karmada-operator -n karmada-system  --create-namespace --dependency-update ./charts/karmada-operator --debug
 ```
 
 #### Using YAML resource
@@ -134,6 +134,13 @@ It is important to proceed with caution when deleting a Karmada CR due to the po
 
 ```shell
 kubectl delete karmada karmada-demo -n test
+```
+
+If you want to delete a Karmada CR without cascading deletion of the associated Karmada instance,
+you can run the following command before performing the deletion operation.
+
+```shell
+kubectl label karmada karmada-demo -n test operator.karmada.io/disable-cascading-deletion=true
 ```
 
 ### Custom Karmada CR

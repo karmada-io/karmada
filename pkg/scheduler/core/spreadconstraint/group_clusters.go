@@ -72,7 +72,7 @@ func GroupClustersWithScore(
 	calAvailableReplicasFunc func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster,
 ) *GroupClustersInfo {
 	if isTopologyIgnored(placement) {
-		return groupClustersIngoreTopology(clustersScore, spec, calAvailableReplicasFunc)
+		return groupClustersIgnoringTopology(clustersScore, spec, calAvailableReplicasFunc)
 	}
 
 	return groupClustersBasedTopology(clustersScore, spec, placement.SpreadConstraints, calAvailableReplicasFunc)
@@ -98,7 +98,7 @@ func groupClustersBasedTopology(
 	return groupClustersInfo
 }
 
-func groupClustersIngoreTopology(
+func groupClustersIgnoringTopology(
 	clustersScore framework.ClusterScoreList,
 	rbSpec *workv1alpha2.ResourceBindingSpec,
 	calAvailableReplicasFunc func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster,
@@ -136,22 +136,23 @@ func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alph
 	}
 
 	for _, clusterInfo := range info.Clusters {
-		zone := clusterInfo.Cluster.Spec.Zone
-		if zone == "" {
+		zones := clusterInfo.Cluster.Spec.Zones
+		if len(zones) == 0 {
 			continue
 		}
 
-		zoneInfo, ok := info.Zones[zone]
-		if !ok {
-			zoneInfo = ZoneInfo{
-				Name:     zone,
-				Clusters: make([]ClusterDetailInfo, 0),
+		for _, zone := range zones {
+			zoneInfo, ok := info.Zones[zone]
+			if !ok {
+				zoneInfo = ZoneInfo{
+					Name:     zone,
+					Clusters: make([]ClusterDetailInfo, 0),
+				}
 			}
+			zoneInfo.Clusters = append(zoneInfo.Clusters, clusterInfo)
+			zoneInfo.AvailableReplicas += clusterInfo.AvailableReplicas
+			info.Zones[zone] = zoneInfo
 		}
-
-		zoneInfo.Clusters = append(zoneInfo.Clusters, clusterInfo)
-		zoneInfo.AvailableReplicas += clusterInfo.AvailableReplicas
-		info.Zones[zone] = zoneInfo
 	}
 
 	for zone, zoneInfo := range info.Zones {

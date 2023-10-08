@@ -1,0 +1,67 @@
+project_name: tasker
+
+release:
+  prerelease: auto
+  name_template: "Version v{{.Version}}"
+  # draft: true
+  mode: "keep-existing"
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - <<: &build_defaults
+      binary: bin/tasker
+      main: ./cmd/tasker
+      ldflags:
+        - -X main.Version={{.Version}}
+      env:
+        - CGO_ENABLED=0
+    id: macOS
+    goos: [darwin]
+    goarch: [amd64, arm64]
+
+  - <<: *build_defaults
+    id: linux
+    goos: [linux]
+    goarch: [386, arm, amd64, arm64]
+
+  - <<: *build_defaults
+    id: windows
+    goos: [windows]
+    goarch: [amd64]
+
+archives:
+  - id: nix
+    builds: [macOS, linux]
+    <<: &archive_defaults
+      name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    wrap_in_directory: true
+    rlcp: true
+    format: tar.gz
+    files:
+      - LICENSE
+
+  - id: windows
+    builds: [windows]
+    <<: *archive_defaults
+    wrap_in_directory: false
+    format: zip
+    files:
+      - LICENSE
+
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+changelog:
+  skip: true
+  use: github
+  sort: desc
+  filters:
+    exclude:
+      - '^doc:'
+      - '^dev:'
+      - '^build:'
+      - '^ci:'

@@ -14,7 +14,7 @@ import (
 	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 )
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/networking/validation/validation_test.go
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/networking/validation/validation_test.go#L591-L824
 // +lifted:changed
 
 func TestValidateIngress(t *testing.T) {
@@ -244,7 +244,7 @@ func TestValidateIngress(t *testing.T) {
 	}
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/networking/validation/validation_test.go
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/networking/validation/validation_test.go#L1747-L1836
 
 func TestValidateIngressTLS(t *testing.T) {
 	pathTypeImplementationSpecific := networkingv1.PathTypeImplementationSpecific
@@ -329,7 +329,7 @@ func TestValidateIngressTLS(t *testing.T) {
 	}
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/networking/validation/validation_test.go
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/networking/validation/validation_test.go#L1838-L1897
 
 // TestValidateEmptyIngressTLS verifies that an empty TLS configuration can be
 // specified, which ingress controllers may interpret to mean that TLS should be
@@ -386,7 +386,7 @@ func TestValidateEmptyIngressTLS(t *testing.T) {
 	}
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/networking/validation/validation_test.go
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/networking/validation/validation_test.go#L1899-L1991
 // +lifted:changed
 
 func TestValidateIngressStatusUpdate(t *testing.T) {

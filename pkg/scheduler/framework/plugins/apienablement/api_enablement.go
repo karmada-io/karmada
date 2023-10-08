@@ -40,7 +40,7 @@ func (p *APIEnablement) Filter(
 ) *framework.Result {
 	if !helper.IsAPIEnabled(cluster.Status.APIEnablements, bindingSpec.Resource.APIVersion, bindingSpec.Resource.Kind) {
 		klog.V(2).Infof("Cluster(%s) not fit as missing API(%s, kind=%s)", cluster.Name, bindingSpec.Resource.APIVersion, bindingSpec.Resource.Kind)
-		return framework.NewResult(framework.Unschedulable, "cluster(s) didn't have the API resource")
+		return framework.NewResult(framework.Unschedulable, "cluster(s) did not have the API resource")
 	}
 
 	return framework.NewResult(framework.Success)

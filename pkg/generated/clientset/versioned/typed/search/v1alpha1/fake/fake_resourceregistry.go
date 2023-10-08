@@ -8,7 +8,6 @@ import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -19,9 +18,9 @@ type FakeResourceRegistries struct {
 	Fake *FakeSearchV1alpha1
 }
 
-var resourceregistriesResource = schema.GroupVersionResource{Group: "search.karmada.io", Version: "v1alpha1", Resource: "resourceregistries"}
+var resourceregistriesResource = v1alpha1.SchemeGroupVersion.WithResource("resourceregistries")
 
-var resourceregistriesKind = schema.GroupVersionKind{Group: "search.karmada.io", Version: "v1alpha1", Kind: "ResourceRegistry"}
+var resourceregistriesKind = v1alpha1.SchemeGroupVersion.WithKind("ResourceRegistry")
 
 // Get takes name of the resourceRegistry, and returns the corresponding resourceRegistry object, and an error if there is any.
 func (c *FakeResourceRegistries) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ResourceRegistry, err error) {

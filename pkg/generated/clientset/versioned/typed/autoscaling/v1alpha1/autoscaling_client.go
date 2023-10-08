@@ -12,12 +12,17 @@ import (
 
 type AutoscalingV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	CronFederatedHPAsGetter
 	FederatedHPAsGetter
 }
 
 // AutoscalingV1alpha1Client is used to interact with features provided by the autoscaling.karmada.io group.
 type AutoscalingV1alpha1Client struct {
 	restClient rest.Interface
+}
+
+func (c *AutoscalingV1alpha1Client) CronFederatedHPAs(namespace string) CronFederatedHPAInterface {
+	return newCronFederatedHPAs(c, namespace)
 }
 
 func (c *AutoscalingV1alpha1Client) FederatedHPAs(namespace string) FederatedHPAInterface {

@@ -14,6 +14,8 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
 	kubeclientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/scale"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
@@ -22,7 +24,7 @@ import (
 	"k8s.io/metrics/pkg/client/external_metrics"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/config/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	crtlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -37,12 +39,13 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	controllerscontext "github.com/karmada-io/karmada/pkg/controllers/context"
+	"github.com/karmada-io/karmada/pkg/controllers/cronfederatedhpa"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/controllers/federatedhpa"
 	metricsclient "github.com/karmada-io/karmada/pkg/controllers/federatedhpa/metrics"
 	"github.com/karmada-io/karmada/pkg/controllers/federatedresourcequota"
 	"github.com/karmada-io/karmada/pkg/controllers/gracefuleviction"
-	"github.com/karmada-io/karmada/pkg/controllers/hpa"
+	"github.com/karmada-io/karmada/pkg/controllers/hpareplicassyncer"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/namespace"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
@@ -117,12 +120,12 @@ func Run(ctx context.Context, opts *options.Options) error {
 
 	profileflag.ListenAndServe(opts.ProfileOpts)
 
-	config, err := controllerruntime.GetConfig()
+	controlPlaneRestConfig, err := controllerruntime.GetConfig()
 	if err != nil {
 		panic(err)
 	}
-	config.QPS, config.Burst = opts.KubeAPIQPS, opts.KubeAPIBurst
-	controllerManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
+	controlPlaneRestConfig.QPS, controlPlaneRestConfig.Burst = opts.KubeAPIQPS, opts.KubeAPIBurst
+	controllerManager, err := controllerruntime.NewManager(controlPlaneRestConfig, controllerruntime.Options{
 		Logger:                     klog.Background(),
 		Scheme:                     gclient.NewSchema(),
 		SyncPeriod:                 &opts.ResyncPeriod.Duration,
@@ -140,7 +143,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 		BaseContext: func() context.Context {
 			return ctx
 		},
-		Controller: v1alpha1.ControllerConfigurationSpec{
+		Controller: config.Controller{
 			GroupKindConcurrency: map[string]int{
 				workv1alpha1.SchemeGroupVersion.WithKind("Work").GroupKind().String():                     opts.ConcurrentWorkSyncs,
 				workv1alpha2.SchemeGroupVersion.WithKind("ResourceBinding").GroupKind().String():          opts.ConcurrentResourceBindingSyncs,
@@ -148,10 +151,12 @@ func Run(ctx context.Context, opts *options.Options) error {
 				clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster").GroupKind().String():               opts.ConcurrentClusterSyncs,
 				schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Namespace"}.GroupKind().String(): opts.ConcurrentNamespaceSyncs,
 			},
+			CacheSyncTimeout: opts.ClusterCacheSyncTimeout.Duration,
 		},
-		NewCache: cache.BuilderWithOptions(cache.Options{
-			DefaultTransform: fedinformer.StripUnusedFields,
-		}),
+		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
+			opts.DefaultTransform = fedinformer.StripUnusedFields
+			return cache.New(config, opts)
+		},
 	})
 	if err != nil {
 		klog.Errorf("Failed to build controller manager: %v", err)
@@ -182,14 +187,11 @@ func Run(ctx context.Context, opts *options.Options) error {
 var controllers = make(controllerscontext.Initializers)
 
 // controllersDisabledByDefault is the set of controllers which is disabled by default
-var controllersDisabledByDefault = sets.New(
-	"hpa",
-)
+var controllersDisabledByDefault = sets.New("hpaReplicasSyncer")
 
 func init() {
 	controllers["cluster"] = startClusterController
 	controllers["clusterStatus"] = startClusterStatusController
-	controllers["hpa"] = startHpaController
 	controllers["binding"] = startBindingController
 	controllers["bindingStatus"] = startBindingStatusController
 	controllers["execution"] = startExecutionController
@@ -204,6 +206,8 @@ func init() {
 	controllers["gracefulEviction"] = startGracefulEvictionController
 	controllers["applicationFailover"] = startApplicationFailoverController
 	controllers["federatedHorizontalPodAutoscaler"] = startFederatedHorizontalPodAutoscalerController
+	controllers["cronFederatedHorizontalPodAutoscaler"] = startCronFederatedHorizontalPodAutoscalerController
+	controllers["hpaReplicasSyncer"] = startHPAReplicasSyncerController
 }
 
 func startClusterController(ctx controllerscontext.Context) (enabled bool, err error) {
@@ -300,20 +304,6 @@ func startClusterStatusController(ctx controllerscontext.Context) (enabled bool,
 		EnableClusterResourceModeling:     ctx.Opts.EnableClusterResourceModeling,
 	}
 	if err := clusterStatusController.SetupWithManager(mgr); err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
-func startHpaController(ctx controllerscontext.Context) (enabled bool, err error) {
-	hpaController := &hpa.HorizontalPodAutoscalerController{
-		Client:          ctx.Mgr.GetClient(),
-		DynamicClient:   ctx.DynamicClientSet,
-		EventRecorder:   ctx.Mgr.GetEventRecorderFor(hpa.ControllerName),
-		RESTMapper:      ctx.Mgr.GetRESTMapper(),
-		InformerManager: ctx.ControlPlaneInformerManager,
-	}
-	if err := hpaController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -579,15 +569,49 @@ func startFederatedHorizontalPodAutoscalerController(ctx controllerscontext.Cont
 		EventRecorder:                     ctx.Mgr.GetEventRecorderFor(federatedhpa.ControllerName),
 		RESTMapper:                        ctx.Mgr.GetRESTMapper(),
 		DownscaleStabilisationWindow:      ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerDownscaleStabilizationWindow.Duration,
-		HorizontalPodAutoscalerSyncPeroid: ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerSyncPeriod.Duration,
+		HorizontalPodAutoscalerSyncPeriod: ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerSyncPeriod.Duration,
 		ReplicaCalc:                       replicaCalculator,
 		ClusterScaleClientSetFunc:         util.NewClusterScaleClientSet,
 		TypedInformerManager:              typedmanager.GetInstance(),
 		RateLimiterOptions:                ctx.Opts.RateLimiterOptions,
+		ClusterCacheSyncTimeout:           ctx.Opts.ClusterCacheSyncTimeout,
 	}
 	if err = federatedHPAController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
+	return true, nil
+}
+
+func startCronFederatedHorizontalPodAutoscalerController(ctx controllerscontext.Context) (enabled bool, err error) {
+	cronFHPAController := cronfederatedhpa.CronFHPAController{
+		Client:             ctx.Mgr.GetClient(),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(cronfederatedhpa.ControllerName),
+		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
+	}
+	if err = cronFHPAController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startHPAReplicasSyncerController(ctx controllerscontext.Context) (enabled bool, err error) {
+	scaleKindResolver := scale.NewDiscoveryScaleKindResolver(ctx.KubeClientSet.Discovery())
+	scaleClient, err := scale.NewForConfig(ctx.Mgr.GetConfig(), ctx.Mgr.GetRESTMapper(), dynamic.LegacyAPIPathResolverFunc, scaleKindResolver)
+	if err != nil {
+		return false, err
+	}
+
+	hpaReplicasSyncer := hpareplicassyncer.HPAReplicasSyncer{
+		Client:        ctx.Mgr.GetClient(),
+		DynamicClient: ctx.DynamicClientSet,
+		RESTMapper:    ctx.Mgr.GetRESTMapper(),
+		ScaleClient:   scaleClient,
+	}
+	err = hpaReplicasSyncer.SetupWithManager(ctx.Mgr)
+	if err != nil {
+		return false, err
+	}
+
 	return true, nil
 }
 
@@ -606,7 +630,6 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 
 	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
-
 	// We need a service lister to build a resource interpreter with `ClusterIPServiceResolver`
 	// witch allows connection to the customized interpreter webhook without a cluster DNS service.
 	sharedFactory := informers.NewSharedInformerFactory(kubeClientSet, 0)
@@ -640,7 +663,6 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	if err := mgr.Add(resourceDetector); err != nil {
 		klog.Fatalf("Failed to setup resource detector: %v", err)
 	}
-
 	if features.FeatureGate.Enabled(features.PropagateDeps) {
 		dependenciesDistributor := &dependenciesdistributor.DependenciesDistributor{
 			Client:              mgr.GetClient(),
@@ -649,12 +671,12 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ResourceInterpreter: resourceInterpreter,
 			RESTMapper:          mgr.GetRESTMapper(),
 			EventRecorder:       mgr.GetEventRecorderFor("dependencies-distributor"),
+			RateLimiterOptions:  opts.RateLimiterOpts,
 		}
-		if err := mgr.Add(dependenciesDistributor); err != nil {
+		if err := dependenciesDistributor.SetupWithManager(mgr); err != nil {
 			klog.Fatalf("Failed to setup dependencies distributor: %v", err)
 		}
 	}
-
 	setupClusterAPIClusterDetector(mgr, opts, stopChan)
 	controllerContext := controllerscontext.Context{
 		Mgr:           mgr,

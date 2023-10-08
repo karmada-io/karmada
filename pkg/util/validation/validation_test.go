@@ -536,6 +536,20 @@ func TestValidatePropagationSpec(t *testing.T) {
 				}},
 			expectedErr: "the cluster spread constraint must be enabled in one of the constraints in case of SpreadByField is enabled",
 		},
+		{
+			name: "resourceSelector name is empty when preemption is enabled",
+			spec: policyv1alpha1.PropagationSpec{
+				ResourceSelectors: []policyv1alpha1.ResourceSelector{
+					{
+						APIVersion: "v1",
+						Kind:       "Pod",
+						Namespace:  "default",
+					},
+				},
+				Preemption: policyv1alpha1.PreemptAlways,
+			},
+			expectedErr: "name can not be empty if preemption is Always, the empty name may cause unexpected resources preemption",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

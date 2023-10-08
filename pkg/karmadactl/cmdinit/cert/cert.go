@@ -285,6 +285,10 @@ func GenCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg, karmadaCertC
 		return err
 	}
 
+	if etcdServerCertCfg == nil && etcdClientCertCfg == nil {
+		// use external etcd
+		return nil
+	}
 	return genEtcdCerts(pkiPath, etcdServerCertCfg, etcdClientCertCfg)
 }
 

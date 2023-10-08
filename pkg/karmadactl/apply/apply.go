@@ -28,6 +28,7 @@ var metadataAccessor = meta.NewAccessor()
 type CommandApplyOptions struct {
 	// apply flags
 	KubectlApplyFlags *kubectlapply.ApplyFlags
+	UtilFactory       util.Factory
 	AllClusters       bool
 	Clusters          []string
 
@@ -66,7 +67,8 @@ var (
 // NewCmdApply creates the `apply` command
 func NewCmdApply(f util.Factory, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
 	o := &CommandApplyOptions{
-		KubectlApplyFlags: kubectlapply.NewApplyFlags(nil, streams),
+		KubectlApplyFlags: kubectlapply.NewApplyFlags(streams),
+		UtilFactory:       f,
 	}
 	cmd := &cobra.Command{
 		Use:                   "apply (-f FILENAME | -k DIRECTORY)",
@@ -105,8 +107,7 @@ func (o *CommandApplyOptions) Complete(f util.Factory, cmd *cobra.Command, paren
 		return err
 	}
 	o.karmadaClient = karmadaClient
-	o.KubectlApplyFlags.Factory = f
-	kubectlApplyOptions, err := o.KubectlApplyFlags.ToOptions(cmd, parentCommand, args)
+	kubectlApplyOptions, err := o.KubectlApplyFlags.ToOptions(f, cmd, parentCommand, args)
 	if err != nil {
 		return err
 	}
@@ -171,7 +172,7 @@ func (o *CommandApplyOptions) generateAndInjectPolices() error {
 		if err != nil {
 			return fmt.Errorf("unable to recognize resource: %v", err)
 		}
-		client, err := o.KubectlApplyFlags.Factory.UnstructuredClientForMapping(mapping)
+		client, err := o.UtilFactory.UnstructuredClientForMapping(mapping)
 		if err != nil {
 			return fmt.Errorf("unable to connect to a server to handle %q: %v", mapping.Resource, err)
 		}

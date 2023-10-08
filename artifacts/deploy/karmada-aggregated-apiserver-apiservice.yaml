@@ -6,7 +6,7 @@ metadata:
     app: karmada-aggregated-apiserver
     apiserver: "true"
 spec:
-  insecureSkipTLSVerify: true
+  caBundle: {{caBundle}}
   group: cluster.karmada.io
   groupPriorityMinimum: 2000
   service:

@@ -13,12 +13,13 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
 	kubeclientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/config/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	crtlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
@@ -139,6 +140,7 @@ func run(ctx context.Context, opts *options.Options) error {
 		ProxyServerAddress: opts.ProxyServerAddress,
 		ClusterProvider:    opts.ClusterProvider,
 		ClusterRegion:      opts.ClusterRegion,
+		ClusterZones:       opts.ClusterZones,
 		DryRun:             false,
 		ControlPlaneConfig: controlPlaneRestConfig,
 		ClusterConfig:      clusterConfig,
@@ -191,15 +193,17 @@ func run(ctx context.Context, opts *options.Options) error {
 		BaseContext: func() context.Context {
 			return ctx
 		},
-		Controller: v1alpha1.ControllerConfigurationSpec{
+		Controller: config.Controller{
 			GroupKindConcurrency: map[string]int{
 				workv1alpha1.SchemeGroupVersion.WithKind("Work").GroupKind().String():       opts.ConcurrentWorkSyncs,
 				clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster").GroupKind().String(): opts.ConcurrentClusterSyncs,
 			},
+			CacheSyncTimeout: opts.ClusterCacheSyncTimeout.Duration,
 		},
-		NewCache: cache.BuilderWithOptions(cache.Options{
-			DefaultTransform: fedinformer.StripUnusedFields,
-		}),
+		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
+			opts.DefaultTransform = fedinformer.StripUnusedFields
+			return cache.New(config, opts)
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build controller manager: %w", err)
@@ -398,8 +402,8 @@ func generateClusterInControllerPlane(opts util.ClusterRegisterOption) (*cluster
 			cluster.Spec.Provider = opts.ClusterProvider
 		}
 
-		if opts.ClusterZone != "" {
-			cluster.Spec.Zone = opts.ClusterZone
+		if len(opts.ClusterZones) > 0 {
+			cluster.Spec.Zones = opts.ClusterZones
 		}
 
 		if opts.ClusterRegion != "" {

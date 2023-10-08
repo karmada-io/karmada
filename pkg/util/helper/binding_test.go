@@ -801,6 +801,154 @@ func TestFetchWorkload(t *testing.T) {
 	}
 }
 
+func TestFetchWorkloadByLabelSelector(t *testing.T) {
+	type args struct {
+		dynamicClient   dynamic.Interface
+		informerManager func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager
+		restMapper      meta.RESTMapper
+		resource        workv1alpha2.ObjectReference
+		selector        *metav1.LabelSelector
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    int
+		wantErr bool
+	}{
+		{
+			name: "kind is not registered",
+			args: args{
+				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme),
+				informerManager: func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager {
+					return genericmanager.NewSingleClusterInformerManager(dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0, stopCh)
+				},
+				restMapper: meta.NewDefaultRESTMapper(nil),
+				resource:   workv1alpha2.ObjectReference{APIVersion: "v1", Kind: "Pod"},
+			},
+			want:    0,
+			wantErr: true,
+		},
+		{
+			name: "namespace scope: get from client",
+			args: args{
+				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
+					&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"foo": "foo"}}}),
+				informerManager: func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager {
+					return genericmanager.NewSingleClusterInformerManager(dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0, stopCh)
+				},
+				restMapper: func() meta.RESTMapper {
+					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
+					m.Add(corev1.SchemeGroupVersion.WithKind("Pod"), meta.RESTScopeNamespace)
+					return m
+				}(),
+				resource: workv1alpha2.ObjectReference{
+					APIVersion: "v1",
+					Kind:       "Pod",
+					Namespace:  "default",
+				},
+				selector: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "foo"}},
+			},
+			want:    1,
+			wantErr: false,
+		},
+		{
+			name: "namespace scope: get from cache",
+			args: args{
+				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme),
+				informerManager: func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager {
+					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
+						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"bar": "foo"}}})
+					m := genericmanager.NewSingleClusterInformerManager(c, 0, stopCh)
+					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+					m.Start()
+					m.WaitForCacheSync()
+					return m
+				},
+				restMapper: func() meta.RESTMapper {
+					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
+					m.Add(corev1.SchemeGroupVersion.WithKind("Pod"), meta.RESTScopeNamespace)
+					return m
+				}(),
+				resource: workv1alpha2.ObjectReference{
+					APIVersion: "v1",
+					Kind:       "Pod",
+					Namespace:  "default",
+					Name:       "pod",
+				},
+				selector: &metav1.LabelSelector{MatchLabels: map[string]string{"bar": "foo"}},
+			},
+			want:    1,
+			wantErr: false,
+		},
+		{
+			name: "cluster scope: get from client",
+			args: args{
+				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node", Labels: map[string]string{"bar": "bar"}}}),
+				informerManager: func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager {
+					return genericmanager.NewSingleClusterInformerManager(dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0, stopCh)
+				},
+				restMapper: func() meta.RESTMapper {
+					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
+					m.Add(corev1.SchemeGroupVersion.WithKind("Node"), meta.RESTScopeRoot)
+					return m
+				}(),
+				resource: workv1alpha2.ObjectReference{
+					APIVersion: "v1",
+					Kind:       "Node",
+					Name:       "node",
+				},
+				selector: &metav1.LabelSelector{MatchLabels: map[string]string{"bar": "bar"}},
+			},
+			want:    1,
+			wantErr: false,
+		},
+		{
+			name: "cluster scope: get from cache",
+			args: args{
+				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme),
+				informerManager: func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager {
+					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
+						&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node", Labels: map[string]string{"bar": "foo"}}})
+					m := genericmanager.NewSingleClusterInformerManager(c, 0, stopCh)
+					m.Lister(corev1.SchemeGroupVersion.WithResource("nodes"))
+					m.Start()
+					m.WaitForCacheSync()
+					return m
+				},
+				restMapper: func() meta.RESTMapper {
+					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
+					m.Add(corev1.SchemeGroupVersion.WithKind("Node"), meta.RESTScopeRoot)
+					return m
+				}(),
+				resource: workv1alpha2.ObjectReference{
+					APIVersion: "v1",
+					Kind:       "Node",
+					Name:       "node",
+				},
+				selector: &metav1.LabelSelector{MatchLabels: map[string]string{"bar": "foo"}},
+			},
+			want:    1,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stopCh := make(chan struct{})
+			mgr := tt.args.informerManager(stopCh)
+			selector, _ := metav1.LabelSelectorAsSelector(tt.args.selector)
+			got, err := FetchResourceTemplateByLabelSelector(tt.args.dynamicClient, mgr, tt.args.restMapper, tt.args.resource, selector)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("FetchResourceTemplate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if len(got) != tt.want {
+				t.Errorf("FetchResourceTemplate() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestDeleteWorkByRBNamespaceAndName(t *testing.T) {
 	type args struct {
 		c         client.Client

@@ -174,7 +174,7 @@ webhooks:
     failurePolicy: Fail
     sideEffects: None
     admissionReviewVersions: ["v1"]
-    timeoutSeconds: 3
+    timeoutSeconds: 10
   - name: federatedresourcequota.karmada.io
     rules:
       - operations: ["CREATE", "UPDATE"]
@@ -202,6 +202,48 @@ webhooks:
     failurePolicy: Fail
     sideEffects: None
     admissionReviewVersions: ["v1"]
+    timeoutSeconds: 3
+  - name: federatedhpa.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["autoscaling.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["federatedhpas"]
+        scope: "Namespaced"
+    clientConfig:
+      url: https://{{ .Service }}.{{ .Namespace }}.svc:443/validate-federatedhpa
+      caBundle: {{ .CaBundle }}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: [ "v1" ]
+    timeoutSeconds: 3
+  - name: cronfederatedhpa.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["autoscaling.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["cronfederatedhpas"]
+        scope: "Namespaced"
+    clientConfig:
+      url: https://{{ .Service }}.{{ .Namespace }}.svc:443/validate-cronfederatedhpa
+      caBundle: {{ .CaBundle }}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: [ "v1" ]
+    timeoutSeconds: 3
+  - name: multiclusterservice.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["networking.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["multiclusterservices"]
+        scope: "Namespaced"
+    clientConfig:
+      url: https://{{ .Service }}.{{ .Namespace }}.svc:443/validate-multiclusterservice
+      caBundle: {{ .CaBundle }}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: [ "v1" ]
     timeoutSeconds: 3
 `
 )

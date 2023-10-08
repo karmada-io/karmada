@@ -372,7 +372,7 @@ func (c *ClusterStatusController) initLeaseController(cluster *clusterv1alpha1.C
 		klog.Infof("Starting syncing lease for cluster: %s", cluster.Name)
 
 		// lease controller will keep running until the stop channel is closed(context is canceled)
-		clusterLeaseController.Run(ctx.Done())
+		clusterLeaseController.Run(ctx)
 
 		klog.Infof("Stop syncing lease for cluster: %s", cluster.Name)
 		c.ClusterLeaseControllers.Delete(cluster.Name) // ensure the cache is clean

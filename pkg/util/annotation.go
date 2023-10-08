@@ -10,7 +10,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
-// MergeAnnotation adds annotation for the given object.
+// MergeAnnotation adds annotation for the given object, keep the value unchanged if key exist.
 func MergeAnnotation(obj *unstructured.Unstructured, annotationKey string, annotationValue string) {
 	objectAnnotation := obj.GetAnnotations()
 	if objectAnnotation == nil {
@@ -21,6 +21,17 @@ func MergeAnnotation(obj *unstructured.Unstructured, annotationKey string, annot
 		objectAnnotation[annotationKey] = annotationValue
 		obj.SetAnnotations(objectAnnotation)
 	}
+}
+
+// ReplaceAnnotation adds annotation for the given object, replace the value if key exist.
+func ReplaceAnnotation(obj *unstructured.Unstructured, annotationKey string, annotationValue string) {
+	objectAnnotation := obj.GetAnnotations()
+	if objectAnnotation == nil {
+		objectAnnotation = make(map[string]string, 1)
+	}
+
+	objectAnnotation[annotationKey] = annotationValue
+	obj.SetAnnotations(objectAnnotation)
 }
 
 // RetainAnnotations merges the annotations that added by controllers running
@@ -85,4 +96,16 @@ func RecordManagedAnnotations(object *unstructured.Unstructured) {
 	sort.Strings(managedKeys)
 	annotations[workv1alpha2.ManagedAnnotation] = strings.Join(managedKeys, ",")
 	object.SetAnnotations(annotations)
+}
+
+// DedupeAndMergeAnnotations merges the new annotations into exist annotations.
+func DedupeAndMergeAnnotations(existAnnotation, newAnnotation map[string]string) map[string]string {
+	if existAnnotation == nil {
+		return newAnnotation
+	}
+
+	for k, v := range newAnnotation {
+		existAnnotation[k] = v
+	}
+	return existAnnotation
 }

@@ -21,7 +21,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -170,7 +169,7 @@ func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv
 // SetupWithManager creates a controller and register to controller manager.
 func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	clusterNamespaceFn := handler.MapFunc(
-		func(a client.Object) []reconcile.Request {
+		func(ctx context.Context, a client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 			namespaceList := &corev1.NamespaceList{}
 			if err := c.Client.List(context.TODO(), namespaceList); err != nil {
@@ -202,7 +201,7 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	})
 
 	clusterOverridePolicyNamespaceFn := handler.MapFunc(
-		func(obj client.Object) []reconcile.Request {
+		func(ctx context.Context, obj client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 			cop, ok := obj.(*policyv1alpha1.ClusterOverridePolicy)
 			if !ok {
@@ -266,10 +265,10 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 
 	return controllerruntime.NewControllerManagedBy(mgr).
 		For(&corev1.Namespace{}).
-		Watches(&source.Kind{Type: &clusterv1alpha1.Cluster{}},
+		Watches(&clusterv1alpha1.Cluster{},
 			handler.EnqueueRequestsFromMapFunc(clusterNamespaceFn),
 			clusterPredicate).
-		Watches(&source.Kind{Type: &policyv1alpha1.ClusterOverridePolicy{}},
+		Watches(&policyv1alpha1.ClusterOverridePolicy{},
 			handler.EnqueueRequestsFromMapFunc(clusterOverridePolicyNamespaceFn),
 			clusterOverridePolicyPredicate).
 		Complete(c)
