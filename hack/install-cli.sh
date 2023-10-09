@@ -241,9 +241,9 @@ setup_binary() {
 
   local CMD_MOVE="mv -i \"${TMP_DIR}/${INSTALL_CLI_TYPE}\" \"${INSTALL_LOCATION}\""
   if [[ -w "${INSTALL_LOCATION}" ]]; then
-    eval "${CMD_MOVE}"
+    eval "${CMD_MOVE} < /dev/tty"
   else
-    eval "sudo ${CMD_MOVE}"
+    eval "sudo ${CMD_MOVE} < /dev/tty"
   fi
 }
 
