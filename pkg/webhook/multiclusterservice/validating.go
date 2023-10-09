@@ -82,7 +82,7 @@ func (v *ValidatingAdmission) validateMultiClusterServiceSpec(mcs *networkingv1a
 		allErrs = append(allErrs, v.validateExposurePort(&port, allPortNames, portPath)...)
 	}
 	typesPath := specPath.Child("types")
-	for i := range mcs.Spec.Ports {
+	for i := range mcs.Spec.Types {
 		typePath := typesPath.Index(i)
 		exposureType := mcs.Spec.Types[i]
 		allErrs = append(allErrs, v.validateExposureType(&exposureType, typePath)...)
