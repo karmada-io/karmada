@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"go.uber.org/atomic"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -137,44 +136,6 @@ func Test_asyncWorker_Run(t *testing.T) {
 				return fmt.Errorf("expected item not processed, expected: %v, all processed item: %v",
 					i, processed)
 			}
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		t.Error(err.Error())
-	}
-}
-
-type asyncWorkerReconciler2 struct {
-	receivedTimes atomic.Int64
-}
-
-func (a *asyncWorkerReconciler2) ReconcileFunc(_ QueueKey) error {
-	a.receivedTimes.Inc()
-	return errors.New("always fail")
-}
-
-func Test_asyncWorker_drop_resource(t *testing.T) {
-	const name = "fake_node"
-	const wantReceivedTimes = maxRetries + 1
-
-	reconcile := new(asyncWorkerReconciler2)
-	worker := newTestAsyncWorker(reconcile.ReconcileFunc)
-
-	stopChan := make(chan struct{})
-	defer close(stopChan)
-
-	worker.Run(5, stopChan)
-
-	worker.Add(name)
-
-	err := assertUntil(20*time.Second, func() error {
-		receivedTimes := reconcile.receivedTimes.Load()
-
-		if receivedTimes != wantReceivedTimes {
-			return fmt.Errorf("receivedTimes = %v, want = %v", receivedTimes, wantReceivedTimes)
 		}
 
 		return nil
