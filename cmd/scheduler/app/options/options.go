@@ -14,6 +14,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/scheduler"
 	frameworkplugins "github.com/karmada-io/karmada/pkg/scheduler/framework/plugins"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
@@ -68,6 +69,9 @@ type Options struct {
 	// SchedulerName represents the name of the scheduler.
 	// default is "default-scheduler".
 	SchedulerName string
+
+	// RateLimiterOpts contains the options for rate limiter.
+	RateLimiterOpts ratelimiterflag.Options
 }
 
 // NewOptions builds an default scheduler options.
@@ -111,4 +115,5 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&o.SchedulerName, "scheduler-name", scheduler.DefaultScheduler, "SchedulerName represents the name of the scheduler. default is 'default-scheduler'.")
 	features.FeatureGate.AddFlag(fs)
 	o.ProfileOpts.AddFlags(fs)
+	o.RateLimiterOpts.AddFlags(fs)
 }
