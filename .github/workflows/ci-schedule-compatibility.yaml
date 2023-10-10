@@ -1,5 +1,6 @@
 name: APIServer compatibility
 on:
+  workflow_dispatch:
   schedule:
     # Run this workflow "At 20:00 UTC on Sunday and Saturday"
     - cron: '0 20 * * 0,6'
@@ -11,6 +12,7 @@ jobs:
     if: ${{ github.repository == 'karmada-io/karmada' }}
     runs-on: ubuntu-22.04
     strategy:
+      fail-fast: false
       matrix:
         kubeapiserver-version: [ v1.21.10, v1.22.7, v1.23.4, v1.24.2, v1.25.0, v1.26.0, v1.27.3 ]
         karmada-version: [ release-1.4, release-1.5, release-1.6 ]
