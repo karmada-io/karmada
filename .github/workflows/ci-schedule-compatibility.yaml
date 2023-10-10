@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        kubeapiserver-version: [ v1.21.10, v1.22.7, v1.23.4, v1.24.2, v1.25.0, v1.26.0, v1.27.3 ]
+        kubeapiserver-version: [ v1.21.10, v1.22.7, v1.23.4, v1.24.2, v1.25.0, v1.26.0, v1.27.3, v1.28.0 ]
         karmada-version: [ release-1.4, release-1.5, release-1.6 ]
 
         include:
