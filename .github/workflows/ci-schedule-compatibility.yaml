@@ -11,6 +11,9 @@ jobs:
     if: ${{ github.repository == 'karmada-io/karmada' }}
     runs-on: ubuntu-22.04
     strategy:
+      # max-parallel limits the max number of jobs running at the same time.
+      # We set it to 5 to avoid too many jobs running at the same time, causing the CI to fail because of resource limitations.
+      max-parallel: 5
       fail-fast: false
       matrix:
         kubeapiserver-version: [ v1.23.4, v1.24.2, v1.25.0, v1.26.0, v1.27.3, v1.28.0, v1.29.0 ]
@@ -51,8 +54,12 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
       - name: setup e2e test environment
-        run: |
-          hack/local-up-karmada.sh
+        uses: nick-fields/retry@v2.9.0
+        with:
+          max_attempts: 3
+          timeout_minutes: 20
+          command: |
+            hack/local-up-karmada.sh
       - name: change kube-apiserver and kube-controller-manager version
         run: |
           # Update images
