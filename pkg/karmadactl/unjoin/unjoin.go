@@ -78,10 +78,10 @@ type CommandUnjoinOption struct {
 	// ClusterNamespace holds namespace where the member cluster secrets are stored
 	ClusterNamespace string
 
-	// ClusterName is the cluster's name that we are going to join with.
+	// ClusterName is the cluster's name that we are going to unjoin with.
 	ClusterName string
 
-	// ClusterContext is the cluster's context that we are going to join with.
+	// ClusterContext is the cluster's context that we are going to unjoin with.
 	ClusterContext string
 
 	// ClusterKubeConfig is the cluster's kubeconfig path.
