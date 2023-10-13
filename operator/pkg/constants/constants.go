@@ -15,7 +15,7 @@ const (
 	// EtcdDefaultVersion defines the default of the karmada etcd image tag
 	EtcdDefaultVersion = "3.5.9-0"
 	// KarmadaDefaultVersion defines the default of the karmada components image tag
-	KarmadaDefaultVersion = "v1.6.0"
+	KarmadaDefaultVersion = "v1.7.0"
 	// KubeDefaultVersion defines the default of the karmada apiserver and kubeControllerManager image tag
 	KubeDefaultVersion = "v1.25.4"
 	// KarmadaDefaultServiceSubnet defines the default of the subnet used by k8s services.
