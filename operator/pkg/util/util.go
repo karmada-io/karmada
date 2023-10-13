@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
 	"k8s.io/klog/v2"
@@ -136,6 +137,28 @@ func ListFiles(path string) []os.FileInfo {
 	if err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
 			files = append(files, info)
+		}
+		return nil
+	}); err != nil {
+		fmt.Println(err)
+	}
+
+	return files
+}
+
+type FileExtInfo struct {
+	os.FileInfo
+	AbsPath string
+}
+
+func ListFileWithSuffix(path, suffix string) []FileExtInfo {
+	files := []FileExtInfo{}
+	if err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+		if !info.IsDir() && strings.HasSuffix(path, suffix) {
+			files = append(files, FileExtInfo{
+				AbsPath:  path,
+				FileInfo: info,
+			})
 		}
 		return nil
 	}); err != nil {
