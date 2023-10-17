@@ -1,0 +1,39 @@
+name: image-scanning
+on:
+  push: 
+jobs:
+  use-trivy-to-scan-image:
+    name: image-scanning
+    if: ${{ github.repository == 'karmada-io/karmada' }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - karmada-controller-manager
+          - karmada-scheduler
+          - karmada-descheduler
+          - karmada-webhook
+          - karmada-agent
+          - karmada-scheduler-estimator
+          - karmada-interpreter-webhook-example
+          - karmada-aggregated-apiserver
+          - karmada-search
+          - karmada-operator
+          - karmada-metrics-adapter
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v2
+      - name: Build an image from Dockerfile
+        run: |
+          export VERSION="latest"
+          export REGISTRY="docker.io/karmada"
+          make image-${{ matrix.target }}
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.12.0
+        with:
+          image-ref: 'docker.io/karmada/${{ matrix.target }}:latest'
+          format: 'table'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          exit-code: '1'
