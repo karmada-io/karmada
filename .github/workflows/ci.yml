@@ -101,7 +101,7 @@ jobs:
           # but adding a token might increase successful uploads as per:
           # https://community.codecov.com/t/upload-issues-unable-to-locate-build-via-github-actions-api/3954
           token: ${{secrets.CODECOV_UPLOAD_TOKEN}}
-          files: ./_output/coverage/coverage_pkg.txt,./_output/coverage/coverage_cmd.txt,./_output/coverage/coverage_examples.txt
+          files: ./_output/coverage/coverage_pkg.txt,./_output/coverage/coverage_cmd.txt,./_output/coverage/coverage_examples.txt,./_output/coverage/coverage_operator.txt
           flags: unittests
           fail_ci_if_error: false
           verbose: true

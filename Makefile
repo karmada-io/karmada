@@ -121,6 +121,7 @@ test: install_gotest
 	$(GOTEST) --race --v ./pkg/... -coverprofile=./_output/coverage/coverage_pkg.txt -covermode=atomic
 	$(GOTEST) --race --v ./cmd/... -coverprofile=./_output/coverage/coverage_cmd.txt -covermode=atomic
 	$(GOTEST) --race --v ./examples/... -coverprofile=./_output/coverage/coverage_examples.txt -covermode=atomic
+	$(GOTEST) --race --v ./operator/... -coverprofile=./_output/coverage/coverage_operator.txt -covermode=atomic
 
 upload-images: images
 	@echo "push images to $(REGISTRY)"
