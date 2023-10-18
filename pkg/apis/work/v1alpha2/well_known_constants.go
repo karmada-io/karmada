@@ -94,6 +94,14 @@ const (
 	// E.g. "resourcetemplate.karmada.io/managed-annotations: bar,foo".
 	// Note: the keys will be sorted in alphabetical order.
 	ManagedAnnotation = "resourcetemplate.karmada.io/managed-annotations"
+
+	// DeletionProtectionLabelKey If a user assigns the DeletionProtectionLabelKey label to a specific resource,
+	// and the value of this label is DeletionProtectionAlways, then deletion requests
+	// for this resource will be denied.
+	// In the current design, only the Value set to 'Always' will be protected,
+	// Additional options will be added here in the future.
+	DeletionProtectionLabelKey = "resourcetemplate.karmada.io/deletion-protected"
+	DeletionProtectionAlways   = "Always"
 )
 
 // Define eviction reasons.
