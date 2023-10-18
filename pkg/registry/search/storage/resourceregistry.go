@@ -25,14 +25,17 @@ func NewResourceRegistryStorage(scheme *runtime.Scheme, optsGetter generic.RESTO
 	strategy := searchregistry.NewStrategy(scheme)
 
 	store := &genericregistry.Store{
-		NewFunc:                  func() runtime.Object { return &searchapis.ResourceRegistry{} },
-		NewListFunc:              func() runtime.Object { return &searchapis.ResourceRegistryList{} },
-		PredicateFunc:            searchregistry.MatchResourceRegistry,
-		DefaultQualifiedResource: searchapis.Resource("resourceRegistries"),
+		NewFunc:       func() runtime.Object { return &searchapis.ResourceRegistry{} },
+		NewListFunc:   func() runtime.Object { return &searchapis.ResourceRegistryList{} },
+		PredicateFunc: searchregistry.MatchResourceRegistry,
+		// NOTE: plural name and singular name of the resource must be all lowercase.
+		DefaultQualifiedResource:  searchapis.Resource("resourceregistries"),
+		SingularQualifiedResource: searchapis.Resource("resourceregistry"),
 
-		CreateStrategy: strategy,
-		UpdateStrategy: strategy,
-		DeleteStrategy: strategy,
+		CreateStrategy:      strategy,
+		UpdateStrategy:      strategy,
+		DeleteStrategy:      strategy,
+		ResetFieldsStrategy: strategy,
 
 		// TODO: define table converter that exposes more than name/creation timestamp
 		TableConvertor: rest.NewDefaultTableConvertor(searchapis.Resource("resourceRegistries")),
