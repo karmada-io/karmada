@@ -2,6 +2,12 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
+- [v1.7.1](#v171)
+  - [Downloads for v1.7.1](#downloads-for-v171)
+  - [Changelog since v1.7.0](#changelog-since-v170)
+    - [Changes by Kind](#changes-by-kind)
+      - [Bug Fixes](#bug-fixes)
+      - [Others](#others)
 - [v1.7.0](#v170)
   - [Downloads for v1.7.0](#downloads-for-v170)
   - [What's New](#whats-new)
@@ -13,7 +19,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes)
+    - [Bug Fixes](#bug-fixes-1)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -22,6 +28,22 @@
     - [Instrumentation](#instrumentation)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.7.1
+## Downloads for v1.7.1
+
+Download v1.7.1 in the [v1.7.1 release page](https://github.com/karmada-io/karmada/releases/tag/v1.7.1).
+
+## Changelog since v1.7.0
+### Changes by Kind
+#### Bug Fixes
+- `karmada-aggregated-apiserver`: Fixed the issue that can not proxy `exec` request to a proxy issue. ([#4021](https://github.com/karmada-io/karmada/pull/4021), @jwcesign)
+- `karmada-operator`: Fixed the issue that karmada-metrics-adapter was not removed after deleting a Karmada instance. ([#4060](https://github.com/karmada-io/karmada/pull/4060), @wawa0210)
+- `karmada-controller-manager`: Fix panic when FederatedHPA's SelectPolicy is nil and FederatedHPA webhook is disabled. ([#4085](https://github.com/karmada-io/karmada/pull/4085), @watermeion)
+- `karmada-webhook`: Fixed to validate spec.types of MultiClusterService API. ([#4114](https://github.com/karmada-io/karmada/pull/4114), @lonelyCZ)
+
+#### Others
+None.
 
 # v1.7.0
 ## Downloads for v1.7.0

@@ -2,24 +2,30 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.6.3](#v163)
-  - [Downloads for v1.6.3](#downloads-for-v163)
-  - [Changelog since v1.6.2](#changelog-since-v162)
+- [v1.6.4](#v164)
+  - [Downloads for v1.6.4](#downloads-for-v164)
+  - [Changelog since v1.6.3](#changelog-since-v163)
     - [Changes by Kind](#changes-by-kind)
     - [Bug Fixes](#bug-fixes)
     - [Others](#others)
+- [v1.6.3](#v163)
+  - [Downloads for v1.6.3](#downloads-for-v163)
+  - [Changelog since v1.6.2](#changelog-since-v162)
+    - [Changes by Kind](#changes-by-kind-1)
+    - [Bug Fixes](#bug-fixes-1)
+    - [Others](#others-1)
 - [v1.6.2](#v162)
   - [Downloads for v1.6.2](#downloads-for-v162)
   - [Changelog since v1.6.1](#changelog-since-v161)
-    - [Changes by Kind](#changes-by-kind-1)
-      - [Bug Fixes](#bug-fixes-1)
-      - [Others](#others-1)
-- [v1.6.1](#v161)
-  - [Downloads for v1.6.1](#downloads-for-v161)
-  - [Changelog since v1.6.0](#changelog-since-v160)
     - [Changes by Kind](#changes-by-kind-2)
       - [Bug Fixes](#bug-fixes-2)
       - [Others](#others-2)
+- [v1.6.1](#v161)
+  - [Downloads for v1.6.1](#downloads-for-v161)
+  - [Changelog since v1.6.0](#changelog-since-v160)
+    - [Changes by Kind](#changes-by-kind-3)
+      - [Bug Fixes](#bug-fixes-3)
+      - [Others](#others-3)
 - [v1.6.0](#v160)
   - [Downloads for v1.6.0](#downloads-for-v160)
   - [What's New](#whats-new)
@@ -29,7 +35,7 @@
     - [Third-party Resource Interpreter](#third-party-resource-interpreter)
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
-    - [Bug Fixes](#bug-fixes-3)
+    - [Bug Fixes](#bug-fixes-4)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -38,6 +44,19 @@
     - [Instrumentation](#instrumentation)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.6.4
+## Downloads for v1.6.4
+
+Download v1.6.4 in the [v1.6.4 release page](https://github.com/karmada-io/karmada/releases/tag/v1.6.4).
+
+## Changelog since v1.6.3
+### Changes by Kind
+### Bug Fixes
+- `karmada-controller-manager`: Fix panic when FederatedHPA's SelectPolicy is nil and FederatedHPA webhook is disabled. ([#4104](https://github.com/karmada-io/karmada/pull/4104), @jwcesign)
+
+### Others
+None.
 
 # v1.6.3
 ## Downloads for v1.6.3
