@@ -258,7 +258,9 @@ func (s *Scheduler) enqueueAffectedBindings(cluster *clusterv1alpha1.Cluster) er
 				// for scheduling or its status has not been synced to the
 				// cache. Just enqueue the binding to avoid missing the cluster
 				// update event.
-				s.onResourceBindingRequeue(binding, metrics.ClusterChanged)
+				if schedulerNameFilter(s.schedulerName, binding.Spec.SchedulerName) {
+					s.onResourceBindingRequeue(binding, metrics.ClusterChanged)
+				}
 				continue
 			}
 			affinityIndex := getAffinityIndex(placementPtr.ClusterAffinities, binding.Status.SchedulerObservedAffinityName)
@@ -273,7 +275,9 @@ func (s *Scheduler) enqueueAffectedBindings(cluster *clusterv1alpha1.Cluster) er
 			fallthrough
 		case util.ClusterMatches(cluster, *affinity):
 			// If the cluster manifest match the affinity, add it to the queue, trigger rescheduling
-			s.onResourceBindingRequeue(binding, metrics.ClusterChanged)
+			if schedulerNameFilter(s.schedulerName, binding.Spec.SchedulerName) {
+				s.onResourceBindingRequeue(binding, metrics.ClusterChanged)
+			}
 		}
 	}
 
@@ -299,7 +303,9 @@ func (s *Scheduler) enqueueAffectedCRBs(cluster *clusterv1alpha1.Cluster) error 
 				// for scheduling or its status has not been synced to the
 				// cache. Just enqueue the binding to avoid missing the cluster
 				// update event.
-				s.onClusterResourceBindingRequeue(binding, metrics.ClusterChanged)
+				if schedulerNameFilter(s.schedulerName, binding.Spec.SchedulerName) {
+					s.onClusterResourceBindingRequeue(binding, metrics.ClusterChanged)
+				}
 				continue
 			}
 			affinityIndex := getAffinityIndex(placementPtr.ClusterAffinities, binding.Status.SchedulerObservedAffinityName)
@@ -314,7 +320,9 @@ func (s *Scheduler) enqueueAffectedCRBs(cluster *clusterv1alpha1.Cluster) error 
 			fallthrough
 		case util.ClusterMatches(cluster, *affinity):
 			// If the cluster manifest match the affinity, add it to the queue, trigger rescheduling
-			s.onClusterResourceBindingRequeue(binding, metrics.ClusterChanged)
+			if schedulerNameFilter(s.schedulerName, binding.Spec.SchedulerName) {
+				s.onClusterResourceBindingRequeue(binding, metrics.ClusterChanged)
+			}
 		}
 	}
 
