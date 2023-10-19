@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/scale"
 	"k8s.io/klog/v2"
@@ -16,7 +17,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 const (
@@ -32,8 +35,9 @@ type HPAReplicasSyncer struct {
 	DynamicClient dynamic.Interface
 	RESTMapper    meta.RESTMapper
 
-	ScaleClient    scale.ScalesGetter
-	scaleRefWorker util.AsyncWorker
+	ScaleClient               scale.ScalesGetter
+	ClusterScaleClientSetFunc func(string, client.Client) (*util.ClusterScaleClient, error)
+	scaleRefWorker            util.AsyncWorker
 }
 
 // SetupWithManager creates a controller and register to controller manager.
@@ -114,6 +118,46 @@ func (r *HPAReplicasSyncer) getGroupResourceAndScaleForWorkloadFromHPA(ctx conte
 	return gr, scale, nil
 }
 
+// getDesiredReplicasForWorkloadFromCluster parses GroupResource and get DesiredReplicas
+// of the workload declared from member clusters.
+func (r *HPAReplicasSyncer) getDesiredReplicasForWorkloadFromCluster(ctx context.Context, hpa *autoscalingv2.HorizontalPodAutoscaler) (int32, error) {
+	gvk := schema.FromAPIVersionAndKind(hpa.Spec.ScaleTargetRef.APIVersion, hpa.Spec.ScaleTargetRef.Kind)
+	mapping, err := r.RESTMapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	if err != nil {
+		klog.Errorf("Failed to get group resource for resource(kind=%s, %s/%s): %v",
+			hpa.Spec.ScaleTargetRef.Kind, hpa.Namespace, hpa.Spec.ScaleTargetRef.Name, err)
+
+		return 0, err
+	}
+	gr := mapping.Resource.GroupResource()
+	binding := &workv1alpha2.ResourceBinding{}
+	if err := r.Client.Get(ctx, types.NamespacedName{
+		Namespace: hpa.Namespace,
+		Name:      names.GenerateBindingName(hpa.Spec.ScaleTargetRef.Kind, hpa.Spec.ScaleTargetRef.Name)}, binding); err != nil {
+		return 0, err
+	}
+	desiredReplicas := int32(0)
+	for _, cluster := range binding.Spec.Clusters {
+		clusterClient, err := r.ClusterScaleClientSetFunc(cluster.Name, r.Client)
+		if err != nil {
+			klog.Errorf("Failed to get scale client of cluster %s.", cluster)
+			return 0, err
+		}
+		subScale, err := clusterClient.ScaleClient.Scales(hpa.Namespace).Get(ctx, gr, hpa.Spec.ScaleTargetRef.Name, metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				// If the scale of workload is not found, skip processing.
+				return 0, nil
+			}
+			klog.Errorf("Failed to get scale for resource(kind=%s, %s/%s cluster: %s): %s.",
+				hpa.Spec.ScaleTargetRef.Kind, hpa.Namespace, hpa.Spec.ScaleTargetRef.Name, cluster.Name, err)
+			return 0, err
+		}
+		desiredReplicas += subScale.Spec.Replicas
+	}
+	return desiredReplicas, nil
+}
+
 // updateScaleIfNeed would update the scale of workload on fed-control plane
 // if the replicas declared in the workload on karmada-control-plane does not match
 // the actual replicas in member clusters effected by HPA.
@@ -125,11 +169,13 @@ func (r *HPAReplicasSyncer) updateScaleIfNeed(ctx context.Context, workloadGR sc
 
 		return nil
 	}
-
-	if scale.Spec.Replicas != hpa.Status.DesiredReplicas {
+	desiredReplicas, err := r.getDesiredReplicasForWorkloadFromCluster(ctx, hpa)
+	if err != nil {
+		return err
+	}
+	if scale.Spec.Replicas != desiredReplicas {
 		oldReplicas := scale.Spec.Replicas
-
-		scale.Spec.Replicas = hpa.Status.DesiredReplicas
+		scale.Spec.Replicas = desiredReplicas
 		_, err := r.ScaleClient.Scales(hpa.Namespace).Update(ctx, workloadGR, scale, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Errorf("Failed to try to sync scale for resource(kind=%s, %s/%s) from %d to %d: %v",

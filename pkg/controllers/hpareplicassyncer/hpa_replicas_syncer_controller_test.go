@@ -21,7 +21,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 func TestGetGroupResourceAndScaleForWorkloadFromHPA(t *testing.T) {
@@ -89,7 +92,7 @@ func TestGetGroupResourceAndScaleForWorkloadFromHPA(t *testing.T) {
 func TestUpdateScaleIfNeed(t *testing.T) {
 	cases := []struct {
 		name          string
-		object        client.Object
+		objects       []client.Object
 		gr            schema.GroupResource
 		scale         *autoscalingv1.Scale
 		hpa           *autoscalingv2.HorizontalPodAutoscaler
@@ -97,7 +100,7 @@ func TestUpdateScaleIfNeed(t *testing.T) {
 	}{
 		{
 			name:          "normal case",
-			object:        newDeployment("deployment-1", 0),
+			objects:       []client.Object{newDeployment("deployment-1", 1), newResourceBinding("Deployment", "deployment-1")},
 			gr:            schema.GroupResource{Group: appsv1.SchemeGroupVersion.Group, Resource: "deployments"},
 			scale:         newScale("deployment-1", 0),
 			hpa:           newHPA(appsv1.SchemeGroupVersion.String(), "Deployment", "deployment-1", 3),
@@ -105,7 +108,7 @@ func TestUpdateScaleIfNeed(t *testing.T) {
 		},
 		{
 			name:          "custom resource case",
-			object:        newWorkload("workload-1", 0),
+			objects:       []client.Object{newWorkload("workload-1", 1), newResourceBinding("Workload", "workload-1")},
 			gr:            schema.GroupResource{Group: workloadv1alpha1.SchemeGroupVersion.Group, Resource: "workloads"},
 			scale:         newScale("workload-1", 0),
 			hpa:           newHPA(workloadv1alpha1.SchemeGroupVersion.String(), "Workload", "workload-1", 3),
@@ -113,7 +116,7 @@ func TestUpdateScaleIfNeed(t *testing.T) {
 		},
 		{
 			name:          "scale not found",
-			object:        newDeployment("deployment-1", 0),
+			objects:       []client.Object{newDeployment("deployment-1", 0)},
 			gr:            schema.GroupResource{Group: "fake", Resource: "fakeworkloads"},
 			scale:         newScale("fake-workload-1", 0),
 			hpa:           newHPA("fake/v1", "FakeWorkload", "fake-workload-1", 3),
@@ -123,7 +126,7 @@ func TestUpdateScaleIfNeed(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			syncer := newHPAReplicasSyncer(tt.object)
+			syncer := newHPAReplicasSyncer(tt.objects...)
 			err := syncer.updateScaleIfNeed(context.TODO(), tt.gr, tt.scale, tt.hpa)
 			if tt.expectedError {
 				assert.NotEmpty(t, err)
@@ -167,6 +170,14 @@ func newHPAReplicasSyncer(objs ...client.Object) *HPAReplicasSyncer {
 		Client:      fakeClient,
 		RESTMapper:  fakeMapper,
 		ScaleClient: fakeScaleClient,
+		ClusterScaleClientSetFunc: func(s string, c client.Client) (*util.ClusterScaleClient, error) {
+			return &util.ClusterScaleClient{
+				KubeClient: nil,
+				// Here should use the ScaleClient of the member cluster instead of the control plane's ScaleClient.
+				ScaleClient: fakeScaleClient,
+				ClusterName: "",
+			}, nil
+		},
 	}
 }
 
@@ -320,6 +331,29 @@ func newScale(name string, replicas int32) *autoscalingv1.Scale {
 		},
 		Spec: autoscalingv1.ScaleSpec{
 			Replicas: replicas,
+		},
+	}
+}
+
+func newResourceBinding(kind, name string) *workv1alpha2.ResourceBinding {
+	return &workv1alpha2.ResourceBinding{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      names.GenerateBindingName(kind, name),
+			Namespace: "default",
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Clusters: []workv1alpha2.TargetCluster{
+				{
+					Name: "member1",
+				},
+				{
+					Name: "member2",
+				},
+				{
+					Name: "member3",
+				},
+			},
 		},
 	}
 }
