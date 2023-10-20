@@ -115,12 +115,8 @@ func runCrds(r workflow.RunData) error {
 }
 
 func createCrds(crdsClient *crdsclient.Clientset, crdsPath string) error {
-	for _, file := range util.ListFiles(crdsPath) {
-		if file.IsDir() || path.Ext(file.Name()) != ".yaml" {
-			continue
-		}
-
-		crdBytes, err := util.ReadYamlFile(path.Join(crdsPath, file.Name()))
+	for _, file := range util.ListFileWithSuffix(crdsPath, ".yaml") {
+		crdBytes, err := util.ReadYamlFile(file.AbsPath)
 		if err != nil {
 			return err
 		}
@@ -138,18 +134,13 @@ func createCrds(crdsClient *crdsclient.Clientset, crdsPath string) error {
 }
 
 func patchCrds(crdsClient *crdsclient.Clientset, patchPath string, caBundle string) error {
-	for _, file := range util.ListFiles(patchPath) {
-		if file.IsDir() || path.Ext(file.Name()) != ".yaml" {
-			continue
-		}
-
+	for _, file := range util.ListFileWithSuffix(patchPath, ".yaml") {
 		reg, err := regexp.Compile("{{caBundle}}")
 		if err != nil {
 			return err
 		}
 
-		crdPath := path.Join(patchPath, file.Name())
-		crdBytes, err := util.ReplaceYamlForReg(crdPath, caBundle, reg)
+		crdBytes, err := util.ReplaceYamlForReg(file.AbsPath, caBundle, reg)
 		if err != nil {
 			return err
 		}
