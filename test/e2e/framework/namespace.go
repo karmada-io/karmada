@@ -89,3 +89,18 @@ func WaitNamespaceDisappearOnClusters(clusters []string, name string) {
 		}
 	})
 }
+
+// UpdateNamespaceLabels update namespace's labels.
+func UpdateNamespaceLabels(client kubernetes.Interface, namespace *corev1.Namespace, labels map[string]string) {
+	ginkgo.By(fmt.Sprintf("Updating namespace(%s)'s labels to %v", namespace.Name, labels), func() {
+		gomega.Eventually(func() error {
+			ns, err := client.CoreV1().Namespaces().Get(context.TODO(), namespace.Name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			ns.Labels = labels
+			_, err = client.CoreV1().Namespaces().Update(context.TODO(), ns, metav1.UpdateOptions{})
+			return err
+		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+	})
+}

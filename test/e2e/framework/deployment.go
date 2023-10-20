@@ -147,7 +147,22 @@ func UpdateDeploymentAnnotations(client kubernetes.Interface, deployment *appsv1
 	})
 }
 
-// UpdateDeploymentVolumes update Deployment's volumes.
+// UpdateDeploymentLabels update deployment's labels.
+func UpdateDeploymentLabels(client kubernetes.Interface, deployment *appsv1.Deployment, labels map[string]string) {
+	ginkgo.By(fmt.Sprintf("Updating Deployment(%s/%s)'s labels to %v", deployment.Namespace, deployment.Name, labels), func() {
+		gomega.Eventually(func() error {
+			deploy, err := client.AppsV1().Deployments(deployment.Namespace).Get(context.TODO(), deployment.Name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			deploy.Labels = labels
+			_, err = client.AppsV1().Deployments(deploy.Namespace).Update(context.TODO(), deploy, metav1.UpdateOptions{})
+			return err
+		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+	})
+}
+
+// UpdateDeploymentVolumes update deployment's volumes.
 func UpdateDeploymentVolumes(client kubernetes.Interface, deployment *appsv1.Deployment, volumes []corev1.Volume) {
 	ginkgo.By(fmt.Sprintf("Updating Deployment(%s/%s)'s volumes", deployment.Namespace, deployment.Name), func() {
 		gomega.Eventually(func() error {
@@ -162,7 +177,7 @@ func UpdateDeploymentVolumes(client kubernetes.Interface, deployment *appsv1.Dep
 	})
 }
 
-// UpdateDeploymentServiceAccountName update Deployment's serviceAccountName.
+// UpdateDeploymentServiceAccountName update deployment's serviceAccountName.
 func UpdateDeploymentServiceAccountName(client kubernetes.Interface, deployment *appsv1.Deployment, serviceAccountName string) {
 	ginkgo.By(fmt.Sprintf("Updating Deployment(%s/%s)'s serviceAccountName", deployment.Namespace, deployment.Name), func() {
 		gomega.Eventually(func() error {
