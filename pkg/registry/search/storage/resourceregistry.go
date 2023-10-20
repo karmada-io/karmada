@@ -30,7 +30,6 @@ func NewResourceRegistryStorage(scheme *runtime.Scheme, optsGetter generic.RESTO
 		PredicateFunc: searchregistry.MatchResourceRegistry,
 		// NOTE: plural name and singular name of the resource must be all lowercase.
 		DefaultQualifiedResource:  searchapis.Resource("resourceregistries"),
-		SingularQualifiedResource: searchapis.Resource("resourceregistry"),
 
 		CreateStrategy:      strategy,
 		UpdateStrategy:      strategy,
