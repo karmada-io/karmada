@@ -16,12 +16,14 @@ import (
 
 var (
 	mu                  sync.Mutex
-	modelSortings       [][]resource.Quantity
 	defaultModelSorting []clusterapis.ResourceName
 )
 
 // ResourceSummary records the list of resourceModels
-type ResourceSummary []resourceModels
+type ResourceSummary struct {
+	RMs           []resourceModels
+	modelSortings [][]resource.Quantity
+}
 
 // resourceModels records the number of each allocatable resource models.
 type resourceModels struct {
@@ -62,10 +64,10 @@ type ClusterResourceNode struct {
 type ResourceList map[clusterapis.ResourceName]resource.Quantity
 
 // InitSummary is the init function of modeling data structure
-func InitSummary(resourceModels []clusterapis.ResourceModel) (ResourceSummary, error) {
+func InitSummary(resourceModel []clusterapis.ResourceModel) (ResourceSummary, error) {
 	var rsName []clusterapis.ResourceName
 	var rsList []ResourceList
-	for _, rm := range resourceModels {
+	for _, rm := range resourceModel {
 		tmp := map[clusterapis.ResourceName]resource.Quantity{}
 		for _, rmItem := range rm.Ranges {
 			if len(rsName) != len(rm.Ranges) {
@@ -77,21 +79,21 @@ func InitSummary(resourceModels []clusterapis.ResourceModel) (ResourceSummary, e
 	}
 
 	if len(rsName) != 0 && len(rsList) != 0 && (len(rsName) != len(rsList[0])) {
-		return nil, errors.New("the number of resourceName is not equal the number of resourceList")
+		return ResourceSummary{}, errors.New("the number of resourceName is not equal the number of resourceList")
 	}
-	var rs ResourceSummary
+
 	if len(rsName) != 0 {
 		defaultModelSorting = rsName
 	}
-	rs = make(ResourceSummary, len(rsList))
+	rms := make([]resourceModels, len(rsList))
 	// generate a sorted array by first priority of ResourceName
-	modelSortings = make([][]resource.Quantity, len(rsName))
+	modelSortings := make([][]resource.Quantity, len(rsName))
 	for index := 0; index < len(rsList); index++ {
 		for i, name := range rsName {
 			modelSortings[i] = append(modelSortings[i], rsList[index][name])
 		}
 	}
-	return rs, nil
+	return ResourceSummary{RMs: rms, modelSortings: modelSortings}, nil
 }
 
 // NewClusterResourceNode create new cluster resource node
@@ -105,7 +107,7 @@ func NewClusterResourceNode(resourceList corev1.ResourceList) ClusterResourceNod
 func (rs *ResourceSummary) getIndex(crn ClusterResourceNode) int {
 	index := math.MaxInt
 	for i, m := range defaultModelSorting {
-		tmpIndex := searchLastLessElement(modelSortings[i], crn.resourceList[m])
+		tmpIndex := searchLastLessElement(rs.modelSortings[i], crn.resourceList[m])
 		if tmpIndex < index {
 			index = tmpIndex
 		}
@@ -166,7 +168,7 @@ func (rs *ResourceSummary) AddToResourceSummary(crn ClusterResourceNode) {
 		klog.Error("ClusterResource can not add to resource summary: index is invalid.")
 		return
 	}
-	modeling := &(*rs)[index]
+	modeling := &(*rs).RMs[index]
 	if rs.GetNodeNumFromModel(modeling) <= 5 {
 		root := modeling.linkedlist
 		if root == nil {
@@ -268,68 +270,4 @@ func (rs *ResourceSummary) GetNodeNumFromModel(model *resourceModels) int {
 		klog.Info("GetNodeNum: unknown error")
 	}
 	return 0
-}
-
-// DeleteFromResourceSummary deletes resource node into modeling summary
-func (rs *ResourceSummary) DeleteFromResourceSummary(crn ClusterResourceNode) error {
-	index := rs.getIndex(crn)
-	if index == -1 {
-		return errors.New("ClusterResource can not delete the resource summary: index is invalid")
-	}
-	modeling := &(*rs)[index]
-	if rs.GetNodeNumFromModel(modeling) >= 6 {
-		root := modeling.redblackTree
-		tmpNode := root.GetNode(crn)
-		if tmpNode != nil {
-			node := tmpNode.Key.(ClusterResourceNode)
-			safeChangeNum(&node.quantity, -crn.quantity)
-			tmpNode.Key = node
-			if node.quantity == 0 {
-				root.Remove(tmpNode)
-			}
-		} else {
-			return errors.New("delete fail: node no found in redblack tree")
-		}
-		modeling.redblackTree = root
-	} else {
-		root, tree := modeling.linkedlist, modeling.redblackTree
-		if root == nil && tree != nil {
-			root = rbtConvertToLl(tree)
-		}
-		if root == nil && tree == nil {
-			return errors.New("delete fail: node no found in linked list")
-		}
-		found := false
-		// traverse linkedlist to remove quantity of recourse modeling
-		for element := root.Front(); element != nil; element = element.Next() {
-			if clusterResourceNodeComparator(element.Value, crn) == 0 {
-				tmpCrn := element.Value.(ClusterResourceNode)
-				safeChangeNum(&tmpCrn.quantity, -crn.quantity)
-				element.Value = tmpCrn
-				if tmpCrn.quantity == 0 {
-					root.Remove(element)
-				}
-				found = true
-			}
-			if found {
-				break
-			}
-		}
-		if !found {
-			return errors.New("delete fail: node no found in linkedlist")
-		}
-		modeling.linkedlist = root
-	}
-	safeChangeNum(&modeling.Quantity, -crn.quantity)
-	return nil
-}
-
-// UpdateInResourceSummary update resource node into modeling summary
-func (rs *ResourceSummary) UpdateInResourceSummary(oldNode, newNode ClusterResourceNode) error {
-	rs.AddToResourceSummary(newNode)
-	err := rs.DeleteFromResourceSummary(oldNode)
-	if err != nil {
-		return errors.New("delete fail: node no found in linked list")
-	}
-	return nil
 }

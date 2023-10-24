@@ -618,8 +618,8 @@ func getAllocatableModelings(cluster *clusterv1alpha1.Cluster, nodes []*corev1.N
 		modelingSummary.AddToResourceSummary(modeling.NewClusterResourceNode(nodeAvailable))
 	}
 
-	m := make([]clusterv1alpha1.AllocatableModeling, len(modelingSummary))
-	for index, resourceModel := range modelingSummary {
+	m := make([]clusterv1alpha1.AllocatableModeling, len(modelingSummary.RMs))
+	for index, resourceModel := range modelingSummary.RMs {
 		m[index].Grade = cluster.Spec.ResourceModels[index].Grade
 		m[index].Count = resourceModel.Quantity
 	}
