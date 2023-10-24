@@ -230,8 +230,8 @@ func defaultJobInitOptions() *InitOptions {
 	operatorscheme.Scheme.Default(karmada)
 
 	return &InitOptions{
-		CrdRemoteURL:   fmt.Sprintf(defaultCrdURL, constants.KarmadaDefaultVersion),
-		KarmadaVersion: constants.KarmadaDefaultVersion,
+		CrdRemoteURL:   fmt.Sprintf(defaultCrdURL, operatorv1alpha1.DefaultKarmadaImageVersion),
+		KarmadaVersion: operatorv1alpha1.DefaultKarmadaImageVersion,
 		KarmadaDataDir: constants.KarmadaDataDir,
 		Karmada:        karmada,
 	}
