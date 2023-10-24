@@ -21,6 +21,40 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
+var rbPredicateFn = builder.WithPredicates(predicate.Funcs{
+	CreateFunc: func(e event.CreateEvent) bool { return false },
+	UpdateFunc: func(e event.UpdateEvent) bool {
+		var oldResourceVersion, newResourceVersion string
+
+		// NOTE: We add this logic to prevent the situation as following:
+		// 1. Create Deployment and HPA.
+		// 2. Propagate Deployment with divided policy and propagate HPA with duplicated policy.
+		// 3. HPA scaled up the Deployment in member clusters
+		// 4. hpareplicassyncer update Deployment's replicas based on HPA status in Kamarda control plane.
+		// 5. It will cause the Deployment.status.observedGeneration != Deployment.metadata.generation(this is needed in some workflow cases)
+		switch oldBinding := e.ObjectOld.(type) {
+		case *workv1alpha2.ResourceBinding:
+			oldResourceVersion = oldBinding.Spec.Resource.ResourceVersion
+		case *workv1alpha2.ClusterResourceBinding:
+			oldResourceVersion = oldBinding.Spec.Resource.ResourceVersion
+		default:
+			return false
+		}
+
+		switch newBinding := e.ObjectNew.(type) {
+		case *workv1alpha2.ResourceBinding:
+			newResourceVersion = newBinding.Spec.Resource.ResourceVersion
+		case *workv1alpha2.ClusterResourceBinding:
+			newResourceVersion = newBinding.Spec.Resource.ResourceVersion
+		default:
+			return false
+		}
+
+		return !reflect.DeepEqual(oldResourceVersion, newResourceVersion)
+	},
+	DeleteFunc: func(e event.DeleteEvent) bool { return false },
+})
+
 var workPredicateFn = builder.WithPredicates(predicate.Funcs{
 	CreateFunc: func(e event.CreateEvent) bool { return false },
 	UpdateFunc: func(e event.UpdateEvent) bool {
