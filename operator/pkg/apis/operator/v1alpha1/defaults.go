@@ -5,12 +5,16 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 
 	"github.com/karmada-io/karmada/operator/pkg/constants"
+	"github.com/karmada-io/karmada/pkg/version"
 )
 
 var (
+	// DefaultKarmadaImageVersion defines the default of the karmada components image tag
+	DefaultKarmadaImageVersion                string
 	etcdImageRepository                       = fmt.Sprintf("%s/%s", constants.KubeDefaultRepository, constants.Etcd)
 	karmadaAPIServiceImageRepository          = fmt.Sprintf("%s/%s", constants.KubeDefaultRepository, constants.KubeAPIServer)
 	karmadaAggregatedAPIServerImageRepository = fmt.Sprintf("%s/%s", constants.KarmadaDefaultRepository, constants.KarmadaAggregatedAPIServer)
@@ -21,6 +25,16 @@ var (
 	karmadaDeschedulerImageRepository         = fmt.Sprintf("%s/%s", constants.KarmadaDefaultRepository, constants.KarmadaDescheduler)
 	KarmadaMetricsAdapterImageRepository      = fmt.Sprintf("%s/%s", constants.KarmadaDefaultRepository, constants.KarmadaMetricsAdapter)
 )
+
+func init() {
+	releaseVer, err := version.ParseGitVersion(version.Get().GitVersion)
+	if err != nil {
+		klog.Infof("No default release version found. build version: %s", version.Get().String())
+		releaseVer = &version.ReleaseVersion{} // initialize to avoid panic
+	}
+	DefaultKarmadaImageVersion = releaseVer.ReleaseVersion()
+	klog.Infof("default Karmada Image Version: %s", DefaultKarmadaImageVersion)
+}
 
 func addDefaultingFuncs(scheme *runtime.Scheme) error {
 	return RegisterDefaults(scheme)
@@ -138,7 +152,7 @@ func setDefaultsKarmadaAggregatedAPIServer(obj *KarmadaComponents) {
 		aggregated.Image.ImageRepository = karmadaAggregatedAPIServerImageRepository
 	}
 	if len(aggregated.Image.ImageTag) == 0 {
-		aggregated.Image.ImageTag = constants.KarmadaDefaultVersion
+		aggregated.Image.ImageTag = DefaultKarmadaImageVersion
 	}
 	if aggregated.Replicas == nil {
 		aggregated.Replicas = pointer.Int32(1)
@@ -172,7 +186,7 @@ func setDefaultsKarmadaControllerManager(obj *KarmadaComponents) {
 		karmadaControllerManager.Image.ImageRepository = karmadaControllerManagerImageRepository
 	}
 	if len(karmadaControllerManager.Image.ImageTag) == 0 {
-		karmadaControllerManager.Image.ImageTag = constants.KarmadaDefaultVersion
+		karmadaControllerManager.Image.ImageTag = DefaultKarmadaImageVersion
 	}
 	if karmadaControllerManager.Replicas == nil {
 		karmadaControllerManager.Replicas = pointer.Int32(1)
@@ -189,7 +203,7 @@ func setDefaultsKarmadaScheduler(obj *KarmadaComponents) {
 		scheduler.Image.ImageRepository = karmadaSchedulerImageRepository
 	}
 	if len(scheduler.Image.ImageTag) == 0 {
-		scheduler.Image.ImageTag = constants.KarmadaDefaultVersion
+		scheduler.Image.ImageTag = DefaultKarmadaImageVersion
 	}
 	if scheduler.Replicas == nil {
 		scheduler.Replicas = pointer.Int32(1)
@@ -206,7 +220,7 @@ func setDefaultsKarmadaWebhook(obj *KarmadaComponents) {
 		webhook.Image.ImageRepository = karmadaWebhookImageRepository
 	}
 	if len(webhook.Image.ImageTag) == 0 {
-		webhook.Image.ImageTag = constants.KarmadaDefaultVersion
+		webhook.Image.ImageTag = DefaultKarmadaImageVersion
 	}
 	if webhook.Replicas == nil {
 		webhook.Replicas = pointer.Int32(1)
@@ -223,7 +237,7 @@ func setDefaultsKarmadaDescheduler(obj *KarmadaComponents) {
 		descheduler.Image.ImageRepository = karmadaDeschedulerImageRepository
 	}
 	if len(descheduler.Image.ImageTag) == 0 {
-		descheduler.Image.ImageTag = constants.KarmadaDefaultVersion
+		descheduler.Image.ImageTag = DefaultKarmadaImageVersion
 	}
 	if descheduler.Replicas == nil {
 		descheduler.Replicas = pointer.Int32(1)
@@ -240,7 +254,7 @@ func setDefaultsKarmadaMetricsAdapter(obj *KarmadaComponents) {
 		metricsAdapter.Image.ImageRepository = KarmadaMetricsAdapterImageRepository
 	}
 	if len(metricsAdapter.Image.ImageTag) == 0 {
-		metricsAdapter.Image.ImageTag = constants.KarmadaDefaultVersion
+		metricsAdapter.Image.ImageTag = DefaultKarmadaImageVersion
 	}
 
 	if metricsAdapter.Replicas == nil {
