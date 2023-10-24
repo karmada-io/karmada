@@ -18,7 +18,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.20.6
+          go-version: 1.20.10
       - name: vendor
         run: hack/verify-vendor.sh
       - name: lint
@@ -41,7 +41,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.20.6
+          go-version: 1.20.10
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
         with:
@@ -73,7 +73,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.20.6
+          go-version: 1.20.10
       - name: compile
         run: make all
   test:
@@ -88,7 +88,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.20.6
+          go-version: 1.20.10
       - name: make test
         run: make test
       - name: Upload coverage to Codecov
@@ -138,7 +138,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.20.6
+          go-version: 1.20.10
       - name: setup e2e test environment
         run: |
           export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
