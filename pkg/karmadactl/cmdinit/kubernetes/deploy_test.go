@@ -11,6 +11,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+	"github.com/karmada-io/karmada/pkg/karmadactl/config"
 )
 
 func Test_initializeDirectory(t *testing.T) {
@@ -279,7 +280,7 @@ func TestKubeRegistry(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tt.opt.kubeRegistry()
+			result := config.KubeRegistry(tt.opt.KubeImageRegistry, tt.opt.ImageRegistry, tt.opt.KubeImageMirrorCountry)
 			if result != tt.expectedKubeRegistry {
 				t.Errorf("Unexpected result: %s", result)
 			}
@@ -361,7 +362,7 @@ func TestEtcdInitImage(t *testing.T) {
 			name: "ImageRegistry is set and EtcdInitImage is set to default value",
 			opt: &CommandInitOption{
 				ImageRegistry: "my-registry",
-				EtcdInitImage: DefaultInitImage,
+				EtcdInitImage: config.DefaultInitImage,
 			},
 			expected: "my-registry/alpine:3.15.1",
 		},
@@ -375,9 +376,9 @@ func TestEtcdInitImage(t *testing.T) {
 		{
 			name: "ImageRegistry is not set and EtcdInitImage is set to default value",
 			opt: &CommandInitOption{
-				EtcdInitImage: DefaultInitImage,
+				EtcdInitImage: config.DefaultInitImage,
 			},
-			expected: DefaultInitImage,
+			expected: config.DefaultInitImage,
 		},
 	}
 
@@ -431,7 +432,7 @@ func TestKarmadaSchedulerImage(t *testing.T) {
 			name: "ImageRegistry is set and KarmadaSchedulerImage is set to default value",
 			opt: &CommandInitOption{
 				ImageRegistry:         "my-registry",
-				KarmadaSchedulerImage: DefaultKarmadaSchedulerImage,
+				KarmadaSchedulerImage: config.DefaultKarmadaSchedulerImage,
 			},
 			expected: "my-registry/karmada-scheduler:" + karmadaRelease,
 		},
@@ -445,9 +446,9 @@ func TestKarmadaSchedulerImage(t *testing.T) {
 		{
 			name: "ImageRegistry is not set and KarmadaSchedulerImage is set to default value",
 			opt: &CommandInitOption{
-				KarmadaSchedulerImage: DefaultKarmadaSchedulerImage,
+				KarmadaSchedulerImage: config.DefaultKarmadaSchedulerImage,
 			},
-			expected: DefaultKarmadaSchedulerImage,
+			expected: config.DefaultKarmadaSchedulerImage,
 		},
 	}
 

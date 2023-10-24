@@ -11,6 +11,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/cert"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/kubernetes"
 	cmdinitoptions "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/config"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/version"
@@ -117,7 +118,7 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	flags.StringVarP(&opts.EtcdStorageMode, "etcd-storage-mode", "", "hostPath",
 		fmt.Sprintf("etcd data storage mode(%s). value is PVC, specify --storage-classes-name", strings.Join(kubernetes.SupportedStorageMode(), ",")))
 	flags.StringVarP(&opts.EtcdImage, "etcd-image", "", "", "etcd image")
-	flags.StringVarP(&opts.EtcdInitImage, "etcd-init-image", "", kubernetes.DefaultInitImage, "etcd init container image")
+	flags.StringVarP(&opts.EtcdInitImage, "etcd-init-image", "", config.DefaultInitImage, "etcd init container image")
 	flags.Int32VarP(&opts.EtcdReplicas, "etcd-replicas", "", 1, "etcd replica set, cluster 3,5...singular")
 	flags.StringVarP(&opts.EtcdHostDataPath, "etcd-data", "", "/var/lib/karmada-etcd", "etcd data path,valid in hostPath mode.")
 	flags.StringVarP(&opts.EtcdNodeSelectorLabels, "etcd-node-selector-labels", "", "", "etcd pod select the labels of the node. valid in hostPath mode ( e.g. --etcd-node-selector-labels karmada.io/etcd=true)")
@@ -135,15 +136,15 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	flags.StringVarP(&opts.KarmadaPkiPath, "karmada-pki", "", "/etc/karmada/pki", "Karmada pki path. Karmada cert files")
 	flags.StringVarP(&opts.KarmadaAPIServerImage, "karmada-apiserver-image", "", "", "Kubernetes apiserver image")
 	flags.Int32VarP(&opts.KarmadaAPIServerReplicas, "karmada-apiserver-replicas", "", 1, "Karmada apiserver replica set")
-	flags.StringVarP(&opts.KarmadaSchedulerImage, "karmada-scheduler-image", "", kubernetes.DefaultKarmadaSchedulerImage, "Karmada scheduler image")
+	flags.StringVarP(&opts.KarmadaSchedulerImage, "karmada-scheduler-image", "", config.DefaultKarmadaSchedulerImage, "Karmada scheduler image")
 	flags.Int32VarP(&opts.KarmadaSchedulerReplicas, "karmada-scheduler-replicas", "", 1, "Karmada scheduler replica set")
 	flags.StringVarP(&opts.KubeControllerManagerImage, "karmada-kube-controller-manager-image", "", "", "Kubernetes controller manager image")
 	flags.Int32VarP(&opts.KubeControllerManagerReplicas, "karmada-kube-controller-manager-replicas", "", 1, "Karmada kube controller manager replica set")
-	flags.StringVarP(&opts.KarmadaControllerManagerImage, "karmada-controller-manager-image", "", kubernetes.DefaultKarmadaControllerManagerImage, "Karmada controller manager image")
+	flags.StringVarP(&opts.KarmadaControllerManagerImage, "karmada-controller-manager-image", "", config.DefaultKarmadaControllerManagerImage, "Karmada controller manager image")
 	flags.Int32VarP(&opts.KarmadaControllerManagerReplicas, "karmada-controller-manager-replicas", "", 1, "Karmada controller manager replica set")
-	flags.StringVarP(&opts.KarmadaWebhookImage, "karmada-webhook-image", "", kubernetes.DefualtKarmadaWebhookImage, "Karmada webhook image")
+	flags.StringVarP(&opts.KarmadaWebhookImage, "karmada-webhook-image", "", config.DefualtKarmadaWebhookImage, "Karmada webhook image")
 	flags.Int32VarP(&opts.KarmadaWebhookReplicas, "karmada-webhook-replicas", "", 1, "Karmada webhook replica set")
-	flags.StringVarP(&opts.KarmadaAggregatedAPIServerImage, "karmada-aggregated-apiserver-image", "", kubernetes.DefaultKarmadaAggregatedAPIServerImage, "Karmada aggregated apiserver image")
+	flags.StringVarP(&opts.KarmadaAggregatedAPIServerImage, "karmada-aggregated-apiserver-image", "", config.DefaultKarmadaAggregatedAPIServerImage, "Karmada aggregated apiserver image")
 	flags.Int32VarP(&opts.KarmadaAggregatedAPIServerReplicas, "karmada-aggregated-apiserver-replicas", "", 1, "Karmada aggregated apiserver replica set")
 	flags.IntVarP(&opts.WaitComponentReadyTimeout, "wait-component-ready-timeout", "", cmdinitoptions.WaitComponentReadyTimeout, "Wait for karmada component ready timeout. 0 means wait forever")
 	return cmd
