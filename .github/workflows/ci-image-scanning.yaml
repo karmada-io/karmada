@@ -23,7 +23,7 @@ jobs:
           - karmada-metrics-adapter
     steps:
       - name: checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Build an image from Dockerfile
         run: |
           export VERSION="latest"
@@ -37,6 +37,13 @@ jobs:
           ignore-unfixed: true
           vuln-type: 'os,library'
           output: 'trivy-results.sarif'
+      - name: display scan results
+        uses: aquasecurity/trivy-action@0.12.0
+        with:
+          image-ref: 'docker.io/karmada/${{ matrix.target }}:latest'
+          format: 'table'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v2
         with:
