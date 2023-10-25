@@ -115,21 +115,47 @@ PropagationPolicy 去抢占原全局 ClusterPropagationPolicy，不失为一种�
 
 ## Proposal
 
+基于上述 [Method Four](#method-four) 在 PropagationPolicy/ClusterPropagationPolicy 中新增 label `effect-strategy`：
 
-
-### Proposal Summary
-
-
-### Risks and Mitigations
-
-none
+* 值为 `all`: 全量生效策略，默认值，修改本 Policy 对命中的资源模版立即全量生效
+* 值为 `incremental`：增量生效策略，修改本 Policy 对命中的资源模版增量生效
 
 ## Design Details
 
+### Detector for Policy
+
+修改 Detector 组件的逻辑
+
+1）当 Detector 监听到 PropagationPolicy/ClusterPropagationPolicy 的新增或修改事件时，检查相应 Policy 
+是否有 `effect-strategy` 标签，从而判断实施 `全量生效` 还是 `增量生效` 策略：
+
+* 对于本 Policy 已命中的资源模版：
+  * 全量生效：原逻辑不变，通过 LabelSelector 先找命中的 Binding，再找相应的资源模版，最后触发资源模版的 `Reconcile`
+  * 增量生效：不做任何处理 (资源模版被主动更新时，自然会进入 `Reconcile` 逻辑)
+* 对于尚未被 Policy 命中的 (处于 waitingList) 中的资源模版：
+  * 全量生效：原逻辑不变，判断是否被本 Policy 命中，是则触发其 `Reconcile`
+  * 增量生效：同全量生效
+* Policy 开启了抢占
+  * 全量生效：立即执行抢占逻辑
+  * 增量生效：
+
+pp更新时会判断已命中的资源是否不再被命中，如果是，会清除资源上的label，那么，当 pp 不再立即生效时，什么时机由谁去执行这个清除label的操作
+
+
+2）当 Detector 监听到 PropagationPolicy/ClusterPropagationPolicy 的删除事件，
+
+pp删除事件如何响应
+
+### Detector for ResourceTemplate
+
+
+
+
+
+
 ### API Modify
 
-
-### Calculation Algorithm
+none
 
 ### Test Plan
 
