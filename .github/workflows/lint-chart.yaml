@@ -30,6 +30,7 @@ jobs:
       - name: Run chart-testing (template)
         run: |
           helm template --set components={"search,descheduler,schedulerEstimator"} --dependency-update ./charts/karmada --debug > /dev/null
+          helm template --set components={"search,descheduler,schedulerEstimator"},certs.mode=custom --dependency-update ./charts/karmada --debug > /dev/null
           helm template --set components={"search,descheduler,schedulerEstimator"},installMode=component --dependency-update ./charts/karmada --debug > /dev/null
           helm template --set installMode=agent --dependency-update ./charts/karmada --debug > /dev/null
           helm template --dependency-update ./charts/karmada-operator --debug > /dev/null   
