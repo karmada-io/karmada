@@ -3,6 +3,28 @@ entries:
   karmada:
   - apiVersion: v2
     appVersion: v1.1.0
+    created: "2023-10-25T16:55:42.896904-04:00"
+    dependencies:
+    - name: common
+      repository: https://charts.bitnami.com/bitnami
+      version: 1.x.x
+    description: A Helm chart for karmada
+    digest: cd63fc86a70a5c288d1e41204adef4774faabf99539fbab08d761842ca9092af
+    kubeVersion: '>= 1.16.0-0'
+    maintainers:
+    - email: jrkeen@hotmail.com
+      name: jrkeen
+    - email: jackson.cloudnative@gmail.com
+      name: pidb
+    - email: shentiecheng@huawei.com
+      name: Poor12
+    name: karmada
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.7.1/karmada-chart-v1.7.1.tgz
+    version: v1.7.1
+  - apiVersion: v2
+    appVersion: v1.1.0
     created: "2023-09-14T18:29:27.744549-04:00"
     dependencies:
     - name: common
@@ -175,4 +197,4 @@ entries:
     urls:
     - https://github.com/karmada-io/karmada/releases/download/v1.2.0/karmada-chart-v1.2.0.tgz
     version: v1.2.0
-generated: "2023-09-14T18:29:27.739005-04:00"
+generated: "2023-10-25T16:55:42.883421-04:00"
