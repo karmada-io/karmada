@@ -25,11 +25,11 @@ func NewResourceRegistryStorage(scheme *runtime.Scheme, optsGetter generic.RESTO
 	strategy := searchregistry.NewStrategy(scheme)
 
 	store := &genericregistry.Store{
-		NewFunc:       func() runtime.Object { return &searchapis.ResourceRegistry{} },
-		NewListFunc:   func() runtime.Object { return &searchapis.ResourceRegistryList{} },
-		PredicateFunc: searchregistry.MatchResourceRegistry,
-		// NOTE: plural name and singular name of the resource must be all lowercase.
-		DefaultQualifiedResource:  searchapis.Resource("resourceregistries"),
+		NewFunc:                  func() runtime.Object { return &searchapis.ResourceRegistry{} },
+		NewListFunc:              func() runtime.Object { return &searchapis.ResourceRegistryList{} },
+		PredicateFunc:            searchregistry.MatchResourceRegistry,
+		DefaultQualifiedResource: searchapis.Resource("resourceRegistries"),
+		// NOTE: singular name of the resource must be all lowercase.
 		SingularQualifiedResource: searchapis.Resource("resourceregistry"),
 
 		CreateStrategy:      strategy,
