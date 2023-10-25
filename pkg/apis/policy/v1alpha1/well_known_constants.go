@@ -1,6 +1,20 @@
 package v1alpha1
 
 const (
+	// PropagationPolicyPermanentIDLabel is the identifier of a PropagationPolicy object.
+	// Karmada generates a unique identifier, such as metadata.UUID, for each PropagationPolicy object.
+	// This identifier will be used as a label selector to locate corresponding resources, such as ResourceBinding.
+	// The reason for generating a new unique identifier instead of simply using metadata.UUID is because:
+	// In backup scenarios, when applying the backup resource manifest in a new cluster, the UUID may change.
+	PropagationPolicyPermanentIDLabel = "propagationpolicy.karmada.io/permanent-id"
+
+	// ClusterPropagationPolicyPermanentIDLabel is the identifier of a ClusterPropagationPolicy object.
+	// Karmada generates a unique identifier, such as metadata.UUID, for each ClusterPropagationPolicy object.
+	// This identifier will be used as a label selector to locate corresponding resources, such as ResourceBinding.
+	// The reason for generating a new unique identifier instead of simply using metadata.UUID is because:
+	// In backup scenarios, when applying the backup resource manifest in a new cluster, the UUID may change.
+	ClusterPropagationPolicyPermanentIDLabel = "clusterpropagationpolicy.karmada.io/permanent-id"
+
 	// PropagationPolicyUIDLabel is the uid of PropagationPolicy object.
 	PropagationPolicyUIDLabel = "propagationpolicy.karmada.io/uid"
 

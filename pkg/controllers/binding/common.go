@@ -143,15 +143,23 @@ func mergeLabel(workload *unstructured.Unstructured, workNamespace string, bindi
 	util.MergeLabel(workload, workv1alpha1.WorkNameLabel, names.GenerateWorkName(workload.GetKind(), workload.GetName(), workload.GetNamespace()))
 	util.MergeLabel(workload, util.ManagedByKarmadaLabel, util.ManagedByKarmadaLabelValue)
 	if scope == apiextensionsv1.NamespaceScoped {
+		util.RemoveLabels(workload, workv1alpha2.ResourceBindingUIDLabel)
+
+		bindingID := util.GetLabelValue(binding.GetLabels(), workv1alpha2.ResourceBindingPermanentIDLabel)
 		util.MergeLabel(workload, workv1alpha2.ResourceBindingReferenceKey, names.GenerateBindingReferenceKey(binding.GetNamespace(), binding.GetName()))
-		util.MergeLabel(workload, workv1alpha2.ResourceBindingUIDLabel, string(binding.GetUID()))
+		util.MergeLabel(workload, workv1alpha2.ResourceBindingPermanentIDLabel, bindingID)
+
 		workLabel[workv1alpha2.ResourceBindingReferenceKey] = names.GenerateBindingReferenceKey(binding.GetNamespace(), binding.GetName())
-		workLabel[workv1alpha2.ResourceBindingUIDLabel] = string(binding.GetUID())
+		workLabel[workv1alpha2.ResourceBindingPermanentIDLabel] = bindingID
 	} else {
+		util.RemoveLabels(workload, workv1alpha2.ClusterResourceBindingUIDLabel)
+
+		bindingID := util.GetLabelValue(binding.GetLabels(), workv1alpha2.ClusterResourceBindingPermanentIDLabel)
 		util.MergeLabel(workload, workv1alpha2.ClusterResourceBindingReferenceKey, names.GenerateBindingReferenceKey("", binding.GetName()))
-		util.MergeLabel(workload, workv1alpha2.ClusterResourceBindingUIDLabel, string(binding.GetUID()))
+		util.MergeLabel(workload, workv1alpha2.ClusterResourceBindingPermanentIDLabel, bindingID)
+
 		workLabel[workv1alpha2.ClusterResourceBindingReferenceKey] = names.GenerateBindingReferenceKey("", binding.GetName())
-		workLabel[workv1alpha2.ClusterResourceBindingUIDLabel] = string(binding.GetUID())
+		workLabel[workv1alpha2.ClusterResourceBindingPermanentIDLabel] = bindingID
 	}
 	return workLabel
 }

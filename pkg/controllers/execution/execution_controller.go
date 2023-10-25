@@ -190,12 +190,12 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 	for _, manifest := range work.Spec.Workload.Manifests {
 		workload := &unstructured.Unstructured{}
 		err := workload.UnmarshalJSON(manifest.Raw)
-		util.MergeLabel(workload, workv1alpha2.WorkUIDLabel, string(work.UID))
 		if err != nil {
 			klog.Errorf("Failed to unmarshal workload, error is: %v", err)
 			errs = append(errs, err)
 			continue
 		}
+		util.MergeLabel(workload, workv1alpha2.WorkPermanentIDLabel, util.GetLabelValue(work.Labels, workv1alpha2.WorkPermanentIDLabel))
 
 		if err = c.tryCreateOrUpdateWorkload(clusterName, workload); err != nil {
 			klog.Errorf("Failed to create or update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)

@@ -1,6 +1,23 @@
 package v1alpha2
 
 const (
+	// ResourceBindingPermanentIDLabel is the identifier of a ResourceBinding object.
+	// Karmada generates a unique identifier, such as metadata.UUID, for each ResourceBinding object.
+	// This identifier will be used as a label selector to locate corresponding resources, such as Work.
+	// The reason for generating a new unique identifier instead of simply using metadata.UUID is because:
+	// In backup scenarios, when applying the backup resource manifest in a new cluster, the UUID may change.
+	ResourceBindingPermanentIDLabel = "resourcebinding.karmada.io/permanent-id"
+
+	// ClusterResourceBindingPermanentIDLabel is the identifier of a ClusterResourceBinding object.
+	// Karmada generates a unique identifier, such as metadata.UUID, for each ClusterResourceBinding object.
+	// This identifier will be used as a label selector to locate corresponding resources, such as Work.
+	// The reason for generating a new unique identifier instead of simply using metadata.UUID is because:
+	// In backup scenarios, when applying the backup resource manifest in a new cluster, the UUID may change.
+	ClusterResourceBindingPermanentIDLabel = "clusterresourcebinding.karmada.io/permanent-id"
+
+	// WorkPermanentIDLabel is the ID of Work object.
+	WorkPermanentIDLabel = "work.karmada.io/permanent-id"
+
 	// ResourceBindingUIDLabel is the UID of ResourceBinding object.
 	ResourceBindingUIDLabel = "resourcebinding.karmada.io/uid"
 
