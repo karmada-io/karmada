@@ -167,8 +167,9 @@ func TestConnectCluster(t *testing.T) {
 				cluster: &clusterapis.Cluster{
 					ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "cluster"},
 					Spec: clusterapis.ClusterSpec{
-						APIEndpoint:           s.URL,
-						ImpersonatorSecretRef: &clusterapis.LocalSecretReference{Namespace: "ns", Name: "secret"},
+						APIEndpoint:                 s.URL,
+						ImpersonatorSecretRef:       &clusterapis.LocalSecretReference{Namespace: "ns", Name: "secret"},
+						InsecureSkipTLSVerification: true,
 					},
 				},
 				secretGetter: func(_ context.Context, ns string, name string) (*corev1.Secret, error) {

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/registry/generic"
@@ -58,7 +59,7 @@ func NewStorage(scheme *runtime.Scheme, kubeClient kubernetes.Interface, secretL
 	statusStore.UpdateStrategy = statusStrategy
 	statusStore.ResetFieldsStrategy = statusStrategy
 
-	clusterRest := &REST{store}
+	clusterRest := &REST{secretLister, store}
 	return &ClusterStorage{
 		Cluster: clusterRest,
 		Status:  &StatusREST{&statusStore},
@@ -72,6 +73,7 @@ func NewStorage(scheme *runtime.Scheme, kubeClient kubernetes.Interface, secretL
 
 // REST implements a RESTStorage for Cluster.
 type REST struct {
+	secretLister listcorev1.SecretLister
 	*genericregistry.Store
 }
 
@@ -85,7 +87,15 @@ func (r *REST) ResourceLocation(ctx context.Context, name string) (*url.URL, htt
 		return nil, nil, err
 	}
 
-	return proxy.Location(cluster)
+	secretGetter := func(ctx context.Context, namespace, name string) (*corev1.Secret, error) {
+		return r.secretLister.Secrets(namespace).Get(name)
+	}
+	tlsConfig, err := proxy.GetTlsConfigForCluster(ctx, cluster, secretGetter)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return proxy.Location(cluster, tlsConfig)
 }
 
 func (r *REST) getCluster(ctx context.Context, name string) (*clusterapis.Cluster, error) {
