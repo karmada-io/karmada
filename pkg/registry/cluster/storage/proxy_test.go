@@ -62,8 +62,9 @@ func TestProxyREST_Connect(t *testing.T) {
 					return &clusterapis.Cluster{
 						ObjectMeta: metav1.ObjectMeta{Name: name},
 						Spec: clusterapis.ClusterSpec{
-							APIEndpoint:           s.URL,
-							ImpersonatorSecretRef: &clusterapis.LocalSecretReference{Namespace: "ns", Name: "secret"},
+							APIEndpoint:                 s.URL,
+							ImpersonatorSecretRef:       &clusterapis.LocalSecretReference{Namespace: "ns", Name: "secret"},
+							InsecureSkipTLSVerification: true,
 						},
 					}, nil
 				},
@@ -109,8 +110,9 @@ func TestProxyREST_Connect(t *testing.T) {
 					return &clusterapis.Cluster{
 						ObjectMeta: metav1.ObjectMeta{Name: name},
 						Spec: clusterapis.ClusterSpec{
-							APIEndpoint:           s.URL,
-							ImpersonatorSecretRef: &clusterapis.LocalSecretReference{Namespace: "ns", Name: "secret"},
+							APIEndpoint:                 s.URL,
+							ImpersonatorSecretRef:       &clusterapis.LocalSecretReference{Namespace: "ns", Name: "secret"},
+							InsecureSkipTLSVerification: true,
 						},
 					}, nil
 				},
@@ -134,8 +136,9 @@ func TestProxyREST_Connect(t *testing.T) {
 					return &clusterapis.Cluster{
 						ObjectMeta: metav1.ObjectMeta{Name: name},
 						Spec: clusterapis.ClusterSpec{
-							APIEndpoint:           s.URL,
-							ImpersonatorSecretRef: &clusterapis.LocalSecretReference{Namespace: "ns", Name: "secret"},
+							APIEndpoint:                 s.URL,
+							ImpersonatorSecretRef:       &clusterapis.LocalSecretReference{Namespace: "ns", Name: "secret"},
+							InsecureSkipTLSVerification: true,
 						},
 					}, nil
 				},

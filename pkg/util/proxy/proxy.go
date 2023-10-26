@@ -3,6 +3,7 @@ package proxy
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net/http"
@@ -25,9 +26,16 @@ import (
 	clusterapis "github.com/karmada-io/karmada/pkg/apis/cluster"
 )
 
+type SecretGetterFunc func(context.Context, string, string) (*corev1.Secret, error)
+
 // ConnectCluster returns a handler for proxy cluster.
-func ConnectCluster(ctx context.Context, cluster *clusterapis.Cluster, proxyPath string, secretGetter func(context.Context, string, string) (*corev1.Secret, error), responder registryrest.Responder) (http.Handler, error) {
-	location, proxyTransport, err := Location(cluster)
+func ConnectCluster(ctx context.Context, cluster *clusterapis.Cluster, proxyPath string, secretGetter SecretGetterFunc, responder registryrest.Responder) (http.Handler, error) {
+	tlsConfig, err := GetTlsConfigForCluster(ctx, cluster, secretGetter)
+	if err != nil {
+		return nil, err
+	}
+
+	location, proxyTransport, err := Location(cluster, tlsConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -37,20 +45,20 @@ func ConnectCluster(ctx context.Context, cluster *clusterapis.Cluster, proxyPath
 		return nil, fmt.Errorf("the impersonatorSecretRef of cluster %s is nil", cluster.Name)
 	}
 
-	secret, err := secretGetter(ctx, cluster.Spec.ImpersonatorSecretRef.Namespace, cluster.Spec.ImpersonatorSecretRef.Name)
+	impersonateTokenSecret, err := secretGetter(ctx, cluster.Spec.ImpersonatorSecretRef.Namespace, cluster.Spec.ImpersonatorSecretRef.Name)
 	if err != nil {
 		return nil, err
 	}
-
-	impersonateToken, err := getImpersonateToken(cluster.Name, secret)
+	impersonateToken, err := getImpersonateToken(cluster.Name, impersonateTokenSecret)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get impresonateToken for cluster %s: %v", cluster.Name, err)
 	}
 
-	return newProxyHandler(location, proxyTransport, cluster, impersonateToken, responder)
+	return newProxyHandler(location, proxyTransport, cluster, impersonateToken, responder, tlsConfig)
 }
 
-func newProxyHandler(location *url.URL, proxyTransport http.RoundTripper, cluster *clusterapis.Cluster, impersonateToken string, responder registryrest.Responder) (http.Handler, error) {
+func newProxyHandler(location *url.URL, proxyTransport http.RoundTripper, cluster *clusterapis.Cluster, impersonateToken string,
+	responder registryrest.Responder, tlsConfig *tls.Config) (http.Handler, error) {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		requester, exist := request.UserFrom(req.Context())
 		if !exist {
@@ -76,7 +84,7 @@ func newProxyHandler(location *url.URL, proxyTransport http.RoundTripper, cluste
 		location.RawQuery = req.URL.RawQuery
 
 		upgradeDialer := NewUpgradeDialerWithConfig(UpgradeDialerWithConfig{
-			TLS:        &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+			TLS:        tlsConfig,
 			Proxier:    http.ProxyURL(proxyURL),
 			PingPeriod: time.Second * 5,
 			Header:     ParseProxyHeaders(cluster.Spec.ProxyHeader),
@@ -94,14 +102,46 @@ func NewThrottledUpgradeAwareProxyHandler(location *url.URL, transport http.Roun
 	return proxy.NewUpgradeAwareHandler(location, transport, wrapTransport, upgradeRequired, proxy.NewErrorResponder(responder))
 }
 
+func GetTlsConfigForCluster(ctx context.Context, cluster *clusterapis.Cluster, secretGetter SecretGetterFunc) (*tls.Config, error) {
+	// The secret is optional for a pull-mode cluster, if no secret just returns a config with root CA unset.
+	if cluster.Spec.SecretRef == nil {
+		return &tls.Config{
+			MinVersion: tls.VersionTLS13,
+			// Ignore false positive warning: "TLS InsecureSkipVerify may be true. (gosec)"
+			// Whether to skip server certificate verification depends on the
+			// configuration(.spec.insecureSkipTLSVerification, defaults to false) in a Cluster object.
+			InsecureSkipVerify: cluster.Spec.InsecureSkipTLSVerification, //nolint:gosec
+		}, nil
+	}
+	caSecret, err := secretGetter(ctx, cluster.Spec.SecretRef.Namespace, cluster.Spec.SecretRef.Name)
+	if err != nil {
+		return nil, err
+	}
+	caBundle, err := getClusterCABundle(cluster.Name, caSecret)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get CA bundle for cluster %s: %v", cluster.Name, err)
+	}
+
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM([]byte(caBundle))
+	return &tls.Config{
+		RootCAs:    caCertPool,
+		MinVersion: tls.VersionTLS13,
+		// Ignore false positive warning: "TLS InsecureSkipVerify may be true. (gosec)"
+		// Whether to skip server certificate verification depends on the
+		// configuration(.spec.insecureSkipTLSVerification, defaults to false) in a Cluster object.
+		InsecureSkipVerify: cluster.Spec.InsecureSkipTLSVerification, //nolint:gosec
+	}, nil
+}
+
 // Location returns a URL to which one can send traffic for the specified cluster.
-func Location(cluster *clusterapis.Cluster) (*url.URL, http.RoundTripper, error) {
+func Location(cluster *clusterapis.Cluster, tlsConfig *tls.Config) (*url.URL, http.RoundTripper, error) {
 	location, err := constructLocation(cluster)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	proxyTransport, err := createProxyTransport(cluster)
+	proxyTransport, err := createProxyTransport(cluster, tlsConfig)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -122,12 +162,11 @@ func constructLocation(cluster *clusterapis.Cluster) (*url.URL, error) {
 	return uri, nil
 }
 
-func createProxyTransport(cluster *clusterapis.Cluster) (*http.Transport, error) {
+func createProxyTransport(cluster *clusterapis.Cluster, tlsConfig *tls.Config) (*http.Transport, error) {
 	var proxyDialerFn utilnet.DialFunc
-	proxyTLSClientConfig := &tls.Config{InsecureSkipVerify: true} // #nosec
 	trans := utilnet.SetTransportDefaults(&http.Transport{
 		DialContext:     proxyDialerFn,
-		TLSClientConfig: proxyTLSClientConfig,
+		TLSClientConfig: tlsConfig,
 	})
 
 	if proxyURL := cluster.Spec.ProxyURL; proxyURL != "" {
@@ -160,6 +199,14 @@ func getImpersonateToken(clusterName string, secret *corev1.Secret) (string, err
 		return "", fmt.Errorf("the impresonate token of cluster %s is empty", clusterName)
 	}
 	return string(token), nil
+}
+
+func getClusterCABundle(clusterName string, secret *corev1.Secret) (string, error) {
+	caBundle, found := secret.Data[clusterapis.SecretCADataKey]
+	if !found {
+		return "", fmt.Errorf("the CA bundle of cluster %s is empty", clusterName)
+	}
+	return string(caBundle), nil
 }
 
 func skipGroup(group string) bool {
