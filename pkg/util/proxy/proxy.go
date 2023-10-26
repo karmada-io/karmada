@@ -76,7 +76,10 @@ func newProxyHandler(location *url.URL, proxyTransport http.RoundTripper, cluste
 		location.RawQuery = req.URL.RawQuery
 
 		upgradeDialer := NewUpgradeDialerWithConfig(UpgradeDialerWithConfig{
-			TLS:        &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+			TLS: &tls.Config{
+				InsecureSkipVerify: true, //nolint:gosec
+				MinVersion:         tls.VersionTLS13,
+			},
 			Proxier:    http.ProxyURL(proxyURL),
 			PingPeriod: time.Second * 5,
 			Header:     ParseProxyHeaders(cluster.Spec.ProxyHeader),
@@ -124,7 +127,10 @@ func constructLocation(cluster *clusterapis.Cluster) (*url.URL, error) {
 
 func createProxyTransport(cluster *clusterapis.Cluster) (*http.Transport, error) {
 	var proxyDialerFn utilnet.DialFunc
-	proxyTLSClientConfig := &tls.Config{InsecureSkipVerify: true} // #nosec
+	proxyTLSClientConfig := &tls.Config{
+		InsecureSkipVerify: true, //nolint:gosec
+		MinVersion:         tls.VersionTLS13,
+	}
 	trans := utilnet.SetTransportDefaults(&http.Transport{
 		DialContext:     proxyDialerFn,
 		TLSClientConfig: proxyTLSClientConfig,
