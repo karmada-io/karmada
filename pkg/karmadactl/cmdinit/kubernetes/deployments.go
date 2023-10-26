@@ -12,6 +12,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
+	globaloptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
 )
 
 const (
@@ -21,7 +22,6 @@ const (
 
 	// KubeConfigSecretAndMountName is the secret and volume mount name of karmada kubeconfig
 	KubeConfigSecretAndMountName                                = "kubeconfig"
-	karmadaCertsName                                            = "karmada-cert"
 	karmadaCertsVolumeMountPath                                 = "/etc/karmada/pki"
 	kubeConfigContainerMountPath                                = "/etc/kubeconfig"
 	karmadaAPIServerDeploymentAndServiceName                    = "karmada-apiserver"
@@ -67,7 +67,7 @@ func (i *CommandInitOption) karmadaAPIServerContainerCommand() []string {
 		"kube-apiserver",
 		"--allow-privileged=true",
 		"--authorization-mode=Node,RBAC",
-		fmt.Sprintf("--client-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.CaCertAndKeyName),
+		fmt.Sprintf("--client-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
 		"--enable-bootstrap-token-auth=true",
 		fmt.Sprintf("--etcd-cafile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName),
 		fmt.Sprintf("--etcd-certfile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
@@ -180,7 +180,7 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 				},
 				VolumeMounts: []corev1.VolumeMount{
 					{
-						Name:      karmadaCertsName,
+						Name:      globaloptions.KarmadaCertsName,
 						ReadOnly:  true,
 						MountPath: karmadaCertsVolumeMountPath,
 					},
@@ -191,10 +191,10 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 		},
 		Volumes: []corev1.Volume{
 			{
-				Name: karmadaCertsName,
+				Name: globaloptions.KarmadaCertsName,
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: karmadaCertsName,
+						SecretName: globaloptions.KarmadaCertsName,
 					},
 				},
 			},
@@ -290,17 +290,17 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 					"--authentication-kubeconfig=/etc/kubeconfig",
 					"--authorization-kubeconfig=/etc/kubeconfig",
 					"--bind-address=0.0.0.0",
-					fmt.Sprintf("--client-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.CaCertAndKeyName),
+					fmt.Sprintf("--client-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
 					"--cluster-cidr=10.244.0.0/16",
 					fmt.Sprintf("--cluster-name=%s", options.ClusterName),
-					fmt.Sprintf("--cluster-signing-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.CaCertAndKeyName),
-					fmt.Sprintf("--cluster-signing-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.CaCertAndKeyName),
+					fmt.Sprintf("--cluster-signing-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
+					fmt.Sprintf("--cluster-signing-key-file=%s/%s.key", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
 					"--controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrapproving,csrcleaner,csrsigning,clusterrole-aggregation",
 					"--kubeconfig=/etc/kubeconfig",
 					"--leader-elect=true",
 					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
 					"--node-cidr-mask-size=24",
-					fmt.Sprintf("--root-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.CaCertAndKeyName),
+					fmt.Sprintf("--root-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
 					fmt.Sprintf("--service-account-private-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
 					fmt.Sprintf("--service-cluster-ip-range=%s", serviceClusterIP),
 					"--use-service-account-credentials=true",
@@ -322,7 +322,7 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 						SubPath:   KubeConfigSecretAndMountName,
 					},
 					{
-						Name:      karmadaCertsName,
+						Name:      globaloptions.KarmadaCertsName,
 						ReadOnly:  true,
 						MountPath: karmadaCertsVolumeMountPath,
 					},
@@ -339,10 +339,10 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 				},
 			},
 			{
-				Name: karmadaCertsName,
+				Name: globaloptions.KarmadaCertsName,
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: karmadaCertsName,
+						SecretName: globaloptions.KarmadaCertsName,
 					},
 				},
 			},
@@ -840,7 +840,7 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 						SubPath:   KubeConfigSecretAndMountName,
 					},
 					{
-						Name:      karmadaCertsName,
+						Name:      globaloptions.KarmadaCertsName,
 						ReadOnly:  true,
 						MountPath: karmadaCertsVolumeMountPath,
 					},
@@ -864,10 +864,10 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 				},
 			},
 			{
-				Name: karmadaCertsName,
+				Name: globaloptions.KarmadaCertsName,
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: karmadaCertsName,
+						SecretName: globaloptions.KarmadaCertsName,
 					},
 				},
 			},

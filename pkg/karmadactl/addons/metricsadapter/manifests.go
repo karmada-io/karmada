@@ -102,7 +102,7 @@ spec:
     namespace:  {{ .Namespace }}
   group: {{ .Group }}
   version:  {{ .Version }}
-  insecureSkipTLSVerify: true
+  caBundle: {{ .CABundle }}
   groupPriorityMinimum: 100
   versionPriority: 200
 `
@@ -140,6 +140,7 @@ type AAApiServiceReplace struct {
 	Namespace string
 	Group     string
 	Version   string
+	CABundle  string
 }
 
 // AAServiceReplace is a struct to help to concrete

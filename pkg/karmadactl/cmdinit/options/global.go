@@ -1,8 +1,6 @@
 package options
 
 const (
-	// CaCertAndKeyName ca certificate key name
-	CaCertAndKeyName = "ca"
 	// EtcdCaCertAndKeyName etcd ca certificate key name
 	EtcdCaCertAndKeyName = "etcd-ca"
 	// EtcdServerCertAndKeyName etcd server certificate key name
