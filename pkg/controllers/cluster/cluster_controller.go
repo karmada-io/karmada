@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/features"
@@ -296,6 +297,13 @@ func (c *Controller) removeExecutionSpace(cluster *clusterv1alpha1.Cluster) erro
 			Name: executionSpaceName,
 		},
 	}
+	// delete finalizers of work objects when the sync-mode is pull and cluster status is notready or unknown
+	if cluster.Spec.SyncMode == clusterv1alpha1.Pull && !util.IsClusterReady(&cluster.Status) {
+		if err := c.deleteFinalizerForWorks(executionSpaceObj); err != nil {
+			klog.Errorf("Error while deleting finalizers of work which in %s: %s", executionSpaceName, err)
+			return err
+		}
+	}
 	if err := c.Client.Delete(context.TODO(), executionSpaceObj); err != nil && !apierrors.IsNotFound(err) {
 		klog.Errorf("Error while deleting namespace %s: %s", executionSpaceName, err)
 		return err
@@ -319,6 +327,39 @@ func (c *Controller) ExecutionSpaceExistForCluster(clusterName string) (bool, er
 		return false, err
 	}
 	return true, nil
+}
+
+// Delete finalizers of work objects
+func (c *Controller) deleteFinalizerForWorks(workSpace *corev1.Namespace) error {
+	workList := &workv1alpha1.WorkList{}
+	err := c.Client.List(context.TODO(), workList, &client.ListOptions{
+		Namespace: workSpace.Name,
+	})
+	if err != nil {
+		klog.Errorf("Failed to list works in %s: %s", workSpace.Name, err)
+		return err
+	}
+
+	var errors []error
+	for i := range workList.Items {
+		work := &workList.Items[i]
+		err = c.removeWorkFinalizer(work)
+		if err != nil {
+			errors = append(errors, fmt.Errorf("error while removing finalizers of works %s: %v", work.Name, err))
+		}
+	}
+	return utilerrors.NewAggregate(errors)
+}
+
+func (c *Controller) removeWorkFinalizer(work *workv1alpha1.Work) error {
+	if !controllerutil.ContainsFinalizer(work, util.ExecutionControllerFinalizer) {
+		return nil
+	}
+
+	controllerutil.RemoveFinalizer(work, util.ExecutionControllerFinalizer)
+	err := c.Client.Update(context.TODO(), work)
+
+	return err
 }
 
 func (c *Controller) removeFinalizer(cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
