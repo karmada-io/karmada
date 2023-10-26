@@ -4,7 +4,6 @@ import (
 	"container/list"
 	"errors"
 	"math"
-	"sync"
 
 	rbt "github.com/emirpasic/gods/trees/redblacktree"
 	corev1 "k8s.io/api/core/v1"
@@ -14,15 +13,11 @@ import (
 	clusterapis "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
 
-var (
-	mu                  sync.Mutex
-	defaultModelSorting []clusterapis.ResourceName
-)
-
 // ResourceSummary records the list of resourceModels
 type ResourceSummary struct {
-	RMs           []resourceModels
-	modelSortings [][]resource.Quantity
+	RMs                       []resourceModels
+	modelSortings             [][]resource.Quantity
+	modelSortingResourceNames []clusterapis.ResourceName
 }
 
 // resourceModels records the number of each allocatable resource models.
@@ -82,9 +77,6 @@ func InitSummary(resourceModel []clusterapis.ResourceModel) (ResourceSummary, er
 		return ResourceSummary{}, errors.New("the number of resourceName is not equal the number of resourceList")
 	}
 
-	if len(rsName) != 0 {
-		defaultModelSorting = rsName
-	}
 	rms := make([]resourceModels, len(rsList))
 	// generate a sorted array by first priority of ResourceName
 	modelSortings := make([][]resource.Quantity, len(rsName))
@@ -93,7 +85,7 @@ func InitSummary(resourceModel []clusterapis.ResourceModel) (ResourceSummary, er
 			modelSortings[i] = append(modelSortings[i], rsList[index][name])
 		}
 	}
-	return ResourceSummary{RMs: rms, modelSortings: modelSortings}, nil
+	return ResourceSummary{RMs: rms, modelSortings: modelSortings, modelSortingResourceNames: rsName}, nil
 }
 
 // NewClusterResourceNode create new cluster resource node
@@ -106,7 +98,7 @@ func NewClusterResourceNode(resourceList corev1.ResourceList) ClusterResourceNod
 
 func (rs *ResourceSummary) getIndex(crn ClusterResourceNode) int {
 	index := math.MaxInt
-	for i, m := range defaultModelSorting {
+	for i, m := range rs.modelSortingResourceNames {
 		tmpIndex := searchLastLessElement(rs.modelSortings[i], crn.resourceList[m])
 		if tmpIndex < index {
 			index = tmpIndex
@@ -140,11 +132,11 @@ func searchLastLessElement(nums []resource.Quantity, target resource.Quantity) i
 }
 
 // clusterResourceNodeComparator provides a fast comparison on clusterResourceNodes
-func clusterResourceNodeComparator(a, b interface{}) int {
+func (rs *ResourceSummary) clusterResourceNodeComparator(a, b interface{}) int {
 	s1 := a.(ClusterResourceNode)
 	s2 := b.(ClusterResourceNode)
-	for index := 0; index < len(defaultModelSorting); index++ {
-		tmp1, tmp2 := s1.resourceList[defaultModelSorting[index]], s2.resourceList[defaultModelSorting[index]]
+	for index := 0; index < len(rs.modelSortingResourceNames); index++ {
+		tmp1, tmp2 := s1.resourceList[rs.modelSortingResourceNames[index]], s2.resourceList[rs.modelSortingResourceNames[index]]
 
 		diff := tmp1.Cmp(tmp2)
 		if diff != 0 {
@@ -152,13 +144,6 @@ func clusterResourceNodeComparator(a, b interface{}) int {
 		}
 	}
 	return 0
-}
-
-func safeChangeNum(num *int, change int) {
-	mu.Lock()
-	defer mu.Unlock()
-
-	*num += change
 }
 
 // AddToResourceSummary add resource node into modeling summary
@@ -177,11 +162,11 @@ func (rs *ResourceSummary) AddToResourceSummary(crn ClusterResourceNode) {
 		found := false
 		// traverse linkedlist to add quantity of recourse modeling
 		for element := root.Front(); element != nil; element = element.Next() {
-			switch clusterResourceNodeComparator(element.Value, crn) {
+			switch rs.clusterResourceNodeComparator(element.Value, crn) {
 			case 0:
 				{
 					tmpCrn := element.Value.(ClusterResourceNode)
-					safeChangeNum(&tmpCrn.quantity, crn.quantity)
+					tmpCrn.quantity += crn.quantity
 					element.Value = tmpCrn
 					found = true
 					break
@@ -208,35 +193,27 @@ func (rs *ResourceSummary) AddToResourceSummary(crn ClusterResourceNode) {
 	} else {
 		root := modeling.redblackTree
 		if root == nil {
-			root = llConvertToRbt(modeling.linkedlist)
+			root = rs.llConvertToRbt(modeling.linkedlist)
 			modeling.linkedlist = nil
 		}
 		tmpNode := root.GetNode(crn)
 		if tmpNode != nil {
 			node := tmpNode.Key.(ClusterResourceNode)
-			safeChangeNum(&node.quantity, crn.quantity)
+			node.quantity += crn.quantity
 			tmpNode.Key = node
 		} else {
 			root.Put(crn, crn.quantity)
 		}
 		modeling.redblackTree = root
 	}
-	safeChangeNum(&modeling.Quantity, crn.quantity)
+	modeling.Quantity += crn.quantity
 }
 
-func llConvertToRbt(list *list.List) *rbt.Tree {
-	root := rbt.NewWith(clusterResourceNodeComparator)
+func (rs *ResourceSummary) llConvertToRbt(list *list.List) *rbt.Tree {
+	root := rbt.NewWith(rs.clusterResourceNodeComparator)
 	for element := list.Front(); element != nil; element = element.Next() {
 		tmpCrn := element.Value.(ClusterResourceNode)
 		root.Put(tmpCrn, tmpCrn.quantity)
-	}
-	return root
-}
-
-func rbtConvertToLl(rbt *rbt.Tree) *list.List {
-	root := list.New()
-	for _, v := range rbt.Keys() {
-		root.PushBack(v)
 	}
 	return root
 }
