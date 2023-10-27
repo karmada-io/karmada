@@ -92,5 +92,4 @@ spec:
   {{ toYaml .Values.controllerManager.podDisruptionBudget | nindent 2 }}
 {{- end -}}
 
----
 {{- end }}
