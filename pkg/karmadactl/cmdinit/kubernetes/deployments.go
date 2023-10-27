@@ -94,6 +94,7 @@ func (i *CommandInitOption) karmadaAPIServerContainerCommand() []string {
 		"--requestheader-username-headers=X-Remote-User",
 		fmt.Sprintf("--tls-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.ApiserverCertAndKeyName),
 		fmt.Sprintf("--tls-private-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.ApiserverCertAndKeyName),
+		"--tls-min-version=VersionTLS13",
 	}
 	if i.ExternalEtcdKeyPrefix != "" {
 		command = append(command, fmt.Sprintf("--etcd-prefix=%s", i.ExternalEtcdKeyPrefix))
@@ -798,6 +799,7 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 		fmt.Sprintf("--etcd-keyfile=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
 		fmt.Sprintf("--tls-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
 		fmt.Sprintf("--tls-private-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
+		"--tls-min-version=VersionTLS13",
 		"--audit-log-path=-",
 		"--feature-gates=APIPriorityAndFairness=false",
 		"--audit-log-maxage=0",
