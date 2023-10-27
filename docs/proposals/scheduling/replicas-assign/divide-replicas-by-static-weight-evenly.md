@@ -197,11 +197,24 @@ From the above stories we can summarize the following rules：
 * If the result of replicas "divide by static weight" been changed, we need just re-schedule and re-random directly.
 * If unchanged, we should firstly infer the last random result, and re-random based on the last result.
 
-So, I propose:
+So, I propose，for static weight scheduling:
 
-* Assign residual replicas to clusters randomly when using static weight dividing strategy.
-* Add last schedule result and weight to ResourceBinding (clusters/replicas already exist, last weight should been added).
-* Calculate the random assignment based on the last schedule result and weight.
+1. Binding will record the sum-replicas, static weight and allocation result of the previous version (currently incomplete, need to add information in the API).
+2. Before reschedule by modifying the Binding, it will first refer to the previous version sum-replicas, static weight and allocation result, 
+   and determine whether the previous allocation result also meets the current sum-replicas + static weights, and if so, directly use the previous allocation result.
+   (math problem, @zhzhuang-zju described the calculation method in detail in another document), including:
+   * The sum-replicas remains unchanged, the static weight of each cluster changes: then the allocation result can remain unchanged if certain conditions are met.
+   * The sum-replicas increases, at the same time new clusters are added: when certain conditions are met, the original cluster allocation results can remain unchanged, and the new replicas can be directly allocated to the new clusters
+   * The sum-replicas decreases, at the same time some clusters are downsized: when certain conditions are met, the allocation result of the remaining cluster can remain unchanged, and the replicas can be directly remove from the downsized cluster.
+3. When rescheduling, the sum-replicas / total weight = the number of unit-weighted replicas, if it can be rounded up, then each cluster will be allocated [each cluster weight * the number of unit-weighted replicas]
+4. If the sum-replicas cannot be divided by total weight, it is necessary to consider the distribution of the remainder:
+   * If [each cluster weight * number of unit-weighted replicas] is different from the previous calculation, the remainder is directly randomized.
+   * If [each cluster weight * number of unit-weighted replicas] is the same as the previous calculation, then the allocation of the remainder needs to be randomized on the basis of the previous allocation of the remainder.
+5. The residuals are randomly assigned with different probabilities for each cluster:
+   * Take [each cluster weight * number of unit-weighted replicas] as the probability of assigning the remainder to that cluster, the larger the weight, the greater the probability of being randomized
+   * Measure the load capacity of each cluster by the maximum number of replicas it can accommodate, and calculate the probability of assigning a remainder based on the ratio of the maximum number of replicas it can accommodate, 
+     the higher the load capacity, the greater the probability of being randomized.
+   * The final probability of randomization is calculated using the coefficient factor that combines the above two factors.
 
 ### Risks and Mitigations
 
