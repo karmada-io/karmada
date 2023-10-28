@@ -126,7 +126,7 @@ type Rule struct {
 	//  ["apps", "batch", "example.io"] means matches 3 groups.
 	//  ["*"] means matches all group
 	//
-	// Note: The group cloud be empty, e.g the 'core' group of kubernetes, in that case use [""].
+	// Note: The group could be empty, e.g the 'core' group of kubernetes, in that case use [""].
 	// +required
 	APIGroups []string `json:"apiGroups"`
 

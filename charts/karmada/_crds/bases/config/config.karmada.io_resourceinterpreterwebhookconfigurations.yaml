@@ -128,7 +128,7 @@ spec:
                           to. '*' is all groups. If '*' is present, the length of
                           the slice must be one. For example: [\"apps\", \"batch\",
                           \"example.io\"] means matches 3 groups. [\"*\"] means matches
-                          all group \n Note: The group cloud be empty, e.g the 'core'
+                          all group \n Note: The group could be empty, e.g the 'core'
                           group of kubernetes, in that case use [\"\"]."
                         items:
                           type: string
