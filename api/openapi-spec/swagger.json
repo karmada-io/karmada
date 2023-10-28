@@ -20914,7 +20914,7 @@
       ],
       "properties": {
         "apiGroups": {
-          "description": "APIGroups is the API groups the resources belong to. '*' is all groups. If '*' is present, the length of the slice must be one. For example:\n [\"apps\", \"batch\", \"example.io\"] means matches 3 groups.\n [\"*\"] means matches all group\n\nNote: The group cloud be empty, e.g the 'core' group of kubernetes, in that case use [\"\"].",
+          "description": "APIGroups is the API groups the resources belong to. '*' is all groups. If '*' is present, the length of the slice must be one. For example:\n [\"apps\", \"batch\", \"example.io\"] means matches 3 groups.\n [\"*\"] means matches all group\n\nNote: The group could be empty, e.g the 'core' group of kubernetes, in that case use [\"\"].",
           "type": "array",
           "items": {
             "type": "string",
@@ -22266,7 +22266,7 @@
       ]
     },
     "com.github.karmada-io.karmada.pkg.apis.search.v1alpha1.ResourceRegistryList": {
-      "description": "ResourceRegistryList if a collection of ResourceRegistry.",
+      "description": "ResourceRegistryList is a collection of ResourceRegistry.",
       "type": "object",
       "required": [
         "items"

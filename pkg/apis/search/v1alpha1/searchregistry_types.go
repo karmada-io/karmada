@@ -103,7 +103,7 @@ type ResourceRegistryStatus struct {
 // +kubebuilder:resource:scope="Cluster"
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// ResourceRegistryList if a collection of ResourceRegistry.
+// ResourceRegistryList is a collection of ResourceRegistry.
 type ResourceRegistryList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

@@ -2504,7 +2504,7 @@ func schema_pkg_apis_config_v1alpha1_Rule(ref common.ReferenceCallback) common.O
 				Properties: map[string]spec.Schema{
 					"apiGroups": {
 						SchemaProps: spec.SchemaProps{
-							Description: "APIGroups is the API groups the resources belong to. '*' is all groups. If '*' is present, the length of the slice must be one. For example:\n [\"apps\", \"batch\", \"example.io\"] means matches 3 groups.\n [\"*\"] means matches all group\n\nNote: The group cloud be empty, e.g the 'core' group of kubernetes, in that case use [\"\"].",
+							Description: "APIGroups is the API groups the resources belong to. '*' is all groups. If '*' is present, the length of the slice must be one. For example:\n [\"apps\", \"batch\", \"example.io\"] means matches 3 groups.\n [\"*\"] means matches all group\n\nNote: The group could be empty, e.g the 'core' group of kubernetes, in that case use [\"\"].",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2578,7 +2578,7 @@ func schema_pkg_apis_config_v1alpha1_RuleWithOperations(ref common.ReferenceCall
 					},
 					"apiGroups": {
 						SchemaProps: spec.SchemaProps{
-							Description: "APIGroups is the API groups the resources belong to. '*' is all groups. If '*' is present, the length of the slice must be one. For example:\n [\"apps\", \"batch\", \"example.io\"] means matches 3 groups.\n [\"*\"] means matches all group\n\nNote: The group cloud be empty, e.g the 'core' group of kubernetes, in that case use [\"\"].",
+							Description: "APIGroups is the API groups the resources belong to. '*' is all groups. If '*' is present, the length of the slice must be one. For example:\n [\"apps\", \"batch\", \"example.io\"] means matches 3 groups.\n [\"*\"] means matches all group\n\nNote: The group could be empty, e.g the 'core' group of kubernetes, in that case use [\"\"].",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -4753,7 +4753,7 @@ func schema_pkg_apis_search_v1alpha1_ResourceRegistryList(ref common.ReferenceCa
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ResourceRegistryList if a collection of ResourceRegistry.",
+				Description: "ResourceRegistryList is a collection of ResourceRegistry.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
