@@ -35,6 +35,8 @@ spec:
         - --authentication-kubeconfig=/etc/karmada/kubeconfig
         - --authorization-kubeconfig=/etc/karmada/kubeconfig
         - --client-ca-file=/etc/karmada/pki/ca.crt
+        - --tls-cert-file=/etc/karmada/pki/karmada.crt
+        - --tls-private-key-file=/etc/karmada/pki/karmada.key
         - --audit-log-path=-
         - --audit-log-maxage=0
         - --audit-log-maxbackup=0

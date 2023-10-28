@@ -13,7 +13,7 @@ metadata:
 spec:
   group: cluster.karmada.io
   groupPriorityMinimum: 2000
-  insecureSkipTLSVerify: true
+  caBundle: {{ .CABundle }}
   service:
     name: {{ .ServiceName }}
     namespace: {{ .Namespace }}
@@ -45,7 +45,7 @@ spec:
     namespace: {{ .Namespace }}
   group: {{ .Group }}
   version: {{ .Version }}
-  insecureSkipTLSVerify: true
+  caBundle: {{ .CABundle }}
   groupPriorityMinimum: 100
   versionPriority: 200
 `

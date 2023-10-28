@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"time"
@@ -185,7 +186,13 @@ func runDeployMetricAdapterAPIService(r workflow.RunData) error {
 		return err
 	}
 
-	err = apiservice.EnsureMetricsAdapterAPIService(client, data.KarmadaClient(), data.GetName(), data.GetNamespace())
+	cert := data.GetCert(constants.CaCertAndKeyName)
+	if len(cert.CertData()) == 0 {
+		return errors.New("unexpected empty ca cert data for aggregatedAPIService")
+	}
+	caBase64 := base64.StdEncoding.EncodeToString(cert.CertData())
+
+	err = apiservice.EnsureMetricsAdapterAPIService(client, data.KarmadaClient(), data.GetName(), data.GetNamespace(), caBase64)
 	if err != nil {
 		return fmt.Errorf("failed to apply karmada-metrics-adapter APIService resource to karmada controlplane, err: %w", err)
 	}
