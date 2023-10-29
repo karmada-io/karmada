@@ -43,6 +43,7 @@ spec:
             - --audit-log-path=-
             - --audit-log-maxage=0
             - --audit-log-maxbackup=0
+            - --tls-min-version=VersionTLS13
           readinessProbe:
             httpGet:
               path: /readyz
