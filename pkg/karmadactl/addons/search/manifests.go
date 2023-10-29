@@ -45,6 +45,7 @@ spec:
             - --etcd-keyfile=/etc/karmada/pki/etcd-client.key
             - --tls-cert-file=/etc/karmada/pki/karmada.crt
             - --tls-private-key-file=/etc/karmada/pki/karmada.key
+            - --tls-min-version=VersionTLS13
             - --audit-log-path=-
             - --feature-gates=APIPriorityAndFairness=false
             - --audit-log-maxage=0
