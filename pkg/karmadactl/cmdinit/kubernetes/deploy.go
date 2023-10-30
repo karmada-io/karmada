@@ -313,7 +313,6 @@ func (i *CommandInitOption) genCerts() error {
 	karmadaIPs = append(
 		karmadaIPs,
 		utils.StringToNetIP("127.0.0.1"),
-		utils.StringToNetIP("10.254.0.1"),
 	)
 	karmadaIPs = append(karmadaIPs, i.KarmadaAPIServerIP...)
 
