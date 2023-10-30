@@ -326,7 +326,7 @@ func NewPod(namespace string, name string) *corev1.Pod {
 				},
 				{
 					Name:  "busybox",
-					Image: "busybox-old:1.19.0",
+					Image: "busybox:1.36.0",
 					Ports: []corev1.ContainerPort{
 						{
 							Name:          "web",

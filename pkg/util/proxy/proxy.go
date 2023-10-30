@@ -35,7 +35,11 @@ func ConnectCluster(ctx context.Context, cluster *clusterapis.Cluster, proxyPath
 		return nil, err
 	}
 
-	location, proxyTransport, err := Location(cluster, tlsConfig)
+	// In the Location function, the tlsConfig.NextProtos will be modified,
+	// which will affect its usage in the newProxyHandler function (e.g., exec requires an upgraded tls connection).
+	// Therefore, we clone the tlsConfig here to prevent any unexpected modifications.
+	// TODO: Identify the root cause and find a better solution to fix it.
+	location, proxyTransport, err := Location(cluster, tlsConfig.Clone())
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +58,7 @@ func ConnectCluster(ctx context.Context, cluster *clusterapis.Cluster, proxyPath
 		return nil, fmt.Errorf("failed to get impresonateToken for cluster %s: %v", cluster.Name, err)
 	}
 
-	return newProxyHandler(location, proxyTransport, cluster, impersonateToken, responder, tlsConfig)
+	return newProxyHandler(location, proxyTransport, cluster, impersonateToken, responder, tlsConfig.Clone())
 }
 
 func newProxyHandler(location *url.URL, proxyTransport http.RoundTripper, cluster *clusterapis.Cluster, impersonateToken string,
