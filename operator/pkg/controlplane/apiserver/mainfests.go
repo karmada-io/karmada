@@ -59,6 +59,7 @@ spec:
         - --max-requests-inflight=1500
         - --max-mutating-requests-inflight=500
         - --v=4
+	- --tls-min-version=VersionTLS13
         livenessProbe:
           failureThreshold: 8
           httpGet:
@@ -171,6 +172,7 @@ spec:
         - --feature-gates=APIPriorityAndFairness=false
         - --audit-log-maxage=0
         - --audit-log-maxbackup=0
+	- --tls-min-version=VersionTLS13
         volumeMounts:
         - mountPath: /etc/karmada/kubeconfig
           name: kubeconfig
