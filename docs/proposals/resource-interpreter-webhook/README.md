@@ -29,7 +29,7 @@ This proposal aims to provide a solution for users to teach Karmada to learn the
 
 ## Motivation
 
-Nowadays, lots of people or projects extend Kubernetes by `Custom Resource Defination`. In order to propagate the 
+Nowadays, lots of people or projects extend Kubernetes by `Custom Resource Definition`. In order to propagate the 
 custom resources, Karmada has to learn the structure of the custom resource.
 
 ### Goals

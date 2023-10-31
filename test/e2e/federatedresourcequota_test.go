@@ -114,7 +114,7 @@ var _ = ginkgo.Describe("FederatedResourceQuota auto-provision testing", func() 
 		})
 
 		ginkgo.It("federatedResourceQuota should be propagated to new joined clusters", func() {
-			ginkgo.By(fmt.Sprintf("Joinning cluster: %s", clusterName), func() {
+			ginkgo.By(fmt.Sprintf("Joining cluster: %s", clusterName), func() {
 				opts := join.CommandJoinOption{
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",

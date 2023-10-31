@@ -83,7 +83,7 @@ The diagram is explained below:
 
 * Here give a service named `foo` in `member1`. We should use the full domain name: `foo.default.svc.cluster.local` to access this service. But we cannot use the same domain name in `member2`.
 
-* `Karmada` exports the service through `ServiceExport` and imports it into `member2` through `ServiceImport`. At this time, the shadow service `derived-foo` will appear in `member2`. User in `memeber2` can access to the `foo` service in `memeber1` by using `derived-foo.default.svc.cluster.local`.
+* `Karmada` exports the service through `ServiceExport` and imports it into `member2` through `ServiceImport`. At this time, the shadow service `derived-foo` will appear in `member2`. User in `member2` can access to the `foo` service in `member1` by using `derived-foo.default.svc.cluster.local`.
 
 * After the `coreDNS` installed with `multicluster` found the `ServiceImport` had been created, it will analyze `name`, `namespace`, and `ips` fields of the `ServiceImport` and generate the rr records. In this example, the `ips` in `ServiceImport` can be the `clusterIP` of `derived-foo`.
 

@@ -151,7 +151,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 				searchObject(fmt.Sprintf(pathNSDeploymentsFmt, testNamespace), m1DmName, true)
 			})
 
-			ginkgo.It("[memeber2 deployments namespace] should be not searchable", func() {
+			ginkgo.It("[member2 deployments namespace] should be not searchable", func() {
 				searchObject(fmt.Sprintf(pathNSDeploymentsFmt, testNamespace), m2DmName, false)
 			})
 
@@ -789,7 +789,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 				// search cache should not have the deployment
 				searchObject(pathAllDeployments, existsDeploymentName, false)
 				// join the cluster
-				ginkgo.By(fmt.Sprintf("Joinning cluster: %s", clusterName), func() {
+				ginkgo.By(fmt.Sprintf("Joining cluster: %s", clusterName), func() {
 					opts := join.CommandJoinOption{
 						DryRun:            false,
 						ClusterNamespace:  "karmada-cluster",

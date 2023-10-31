@@ -89,7 +89,7 @@ var _ = ginkgo.Describe("[cluster unjoined] reschedule testing", func() {
 		})
 
 		ginkgo.It("deployment reschedule testing", func() {
-			ginkgo.By(fmt.Sprintf("Joinning cluster: %s", newClusterName), func() {
+			ginkgo.By(fmt.Sprintf("Joining cluster: %s", newClusterName), func() {
 				opts := join.CommandJoinOption{
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
@@ -224,7 +224,7 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 					framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 				})
 
-				ginkgo.By(fmt.Sprintf("Joinning cluster: %s", newClusterName))
+				ginkgo.By(fmt.Sprintf("Joining cluster: %s", newClusterName))
 				opts := join.CommandJoinOption{
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
@@ -283,7 +283,7 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 					return testhelper.IsExclude(newClusterName, targetClusterNames)
 				}, pollTimeout, pollInterval).Should(gomega.BeTrue())
 
-				ginkgo.By(fmt.Sprintf("Joinning cluster: %s", newClusterName))
+				ginkgo.By(fmt.Sprintf("Joining cluster: %s", newClusterName))
 				opts := join.CommandJoinOption{
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",

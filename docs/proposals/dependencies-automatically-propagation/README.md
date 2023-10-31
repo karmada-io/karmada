@@ -177,7 +177,7 @@ spec:
             name: my-config
 ```
 
-Creating a propagation policy to propagate the deployment to specific clusters. To enable auto-propagating dependencies, we need to set `propagateDeps` as `ture`.
+Creating a propagation policy to propagate the deployment to specific clusters. To enable auto-propagating dependencies, we need to set `propagateDeps` as `true`.
 ```yaml
 apiVersion: policy.karmada.io/v1alpha1
 kind: PropagationPolicy
