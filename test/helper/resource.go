@@ -133,6 +133,41 @@ func NewFederatedHPA(namespace, name, scaleTargetDeployment string) *autoscaling
 	}
 }
 
+// NewHPA will build a HorizontalPodAutoscaler object.
+func NewHPA(namespace, name, scaleDeployment string) *autoscalingv2.HorizontalPodAutoscaler {
+	return &autoscalingv2.HorizontalPodAutoscaler{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "autoscaling/v2",
+			Kind:       "HorizontalPodAutoscaler",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+		Spec: autoscalingv2.HorizontalPodAutoscalerSpec{
+			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
+				Kind:       "Deployment",
+				Name:       scaleDeployment,
+				APIVersion: "apps/v1",
+			},
+			MinReplicas: pointer.Int32(4),
+			MaxReplicas: 6,
+			Metrics: []autoscalingv2.MetricSpec{
+				{
+					Type: autoscalingv2.ResourceMetricSourceType,
+					Resource: &autoscalingv2.ResourceMetricSource{
+						Name: corev1.ResourceCPU,
+						Target: autoscalingv2.MetricTarget{
+							Type:               autoscalingv2.UtilizationMetricType,
+							AverageUtilization: pointer.Int32(80),
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 // NewDeployment will build a deployment object.
 func NewDeployment(namespace string, name string) *appsv1.Deployment {
 	podLabels := map[string]string{"app": "nginx"}
