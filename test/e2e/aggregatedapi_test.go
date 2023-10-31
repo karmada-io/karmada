@@ -77,7 +77,7 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 	})
 
 	ginkgo.BeforeEach(func() {
-		ginkgo.By(fmt.Sprintf("Joinning cluster: %s", clusterName), func() {
+		ginkgo.By(fmt.Sprintf("Joining cluster: %s", clusterName), func() {
 			opts := join.CommandJoinOption{
 				DryRun:            false,
 				ClusterNamespace:  secretStoreNamespace,
@@ -91,7 +91,7 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 	})
 
 	ginkgo.AfterEach(func() {
-		ginkgo.By(fmt.Sprintf("Unjoinning cluster: %s", clusterName), func() {
+		ginkgo.By(fmt.Sprintf("Unjoining cluster: %s", clusterName), func() {
 			opts := unjoin.CommandUnjoinOption{
 				DryRun:            false,
 				ClusterNamespace:  secretStoreNamespace,

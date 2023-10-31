@@ -348,7 +348,7 @@ For example:
 | Run once an hour at the beginning of the hour								| 0 * * * * 		|
 
 #### karmada-webhook
-In order to make sure the applied configuration is corrent, some validations are necessary for `CronFederatedHPA`, these logic should be implemented in `karmada-webhook`:
+In order to make sure the applied configuration is correct, some validations are necessary for `CronFederatedHPA`, these logic should be implemented in `karmada-webhook`:
 * If `spec.scaleTargetRef.apiVersion` is `autoscaling.karmada.io/v1alpha1`, `spec.scaleTargetRef.kind` can only be `FederatedHPA`, `spec.rules[*].targetMinReplicas` and `spec.rules[*].targetMaxReplicas` cannot be empty at the same time.
 * If `spec.scaleTargetRef.apiVersion` is not `autoscaling.karmada.io/v1alpha1`, `spec.rules[*].targetReplicas` cannot be empty.
 * `spec.rules[*].schedule` should be a valid cron format.

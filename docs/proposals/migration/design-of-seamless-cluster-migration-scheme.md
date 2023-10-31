@@ -169,7 +169,7 @@ Users only need to add `conflict resolution` annotations in the `ResourceTemplat
 
 #### Story 4
 
-Similarly, if multiple `Deployment` is defined in one `PropagationPolicy` , and users hope `Karmada` ignoring takeover the conflict `Deployment` by default, but forcing takeover individual specificed conflict `Deployment` :
+Similarly, if multiple `Deployment` is defined in one `PropagationPolicy` , and users hope `Karmada` ignoring takeover the conflict `Deployment` by default, but forcing takeover individual specified conflict `Deployment` :
 
 A feasible practice is to declare `conflictResolution: Abort` in the `PropagationPolicy` (or leave it blank), and annotate `work.karmada.io/conflict-resolution: overwrite` in the `ResourceTemplate`.
 
@@ -309,6 +309,6 @@ No such api modify even makes code more clean, but two reasons are under my cons
 Adding this field to CRDs including `ResourceBinding` can more clearly demonstrate this ability to users than adding annotations.
 
 2）Adding annotations is just a **compatible** way for individual exceptions, even if we remove it, it's still justifiable. Assuming it doesn't exist, 
-we still need to modify the api of `ResourceBinding`. I mean, the annotation is just a addons, our desgin shouldn't overdependence on it.
+we still need to modify the api of `ResourceBinding`. I mean, the annotation is just a addons, our design shouldn't overdependence on it.
 
 3）More convenient for code implementation

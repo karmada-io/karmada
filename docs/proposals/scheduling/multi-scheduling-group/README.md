@@ -298,7 +298,7 @@ continue to evaluate from this affinity term.
 
 #### karmada-controller-manager
 
-When creating or updating `ResourceBidning`/`ClusterResourceBinding`, the added
+When creating or updating `ResourceBinding`/`ClusterResourceBinding`, the added
 `OrderedClusterAffinities` in `PropagationPolicy`/`ClusterPropagationPolicy` should
 be synced.
 

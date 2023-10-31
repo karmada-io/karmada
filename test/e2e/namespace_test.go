@@ -89,7 +89,7 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 		})
 
 		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("Joinning cluster: %s", clusterName), func() {
+			ginkgo.By(fmt.Sprintf("Joining cluster: %s", clusterName), func() {
 				opts := join.CommandJoinOption{
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
