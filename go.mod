@@ -29,7 +29,7 @@ require (
 	golang.org/x/time v0.3.0
 	golang.org/x/tools v0.9.3
 	gomodules.xyz/jsonpatch/v2 v2.3.0
-	google.golang.org/grpc v1.55.0
+	google.golang.org/grpc v1.56.3
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.27.3
 	k8s.io/apiextensions-apiserver v0.27.3
