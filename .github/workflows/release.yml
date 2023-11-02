@@ -76,6 +76,8 @@ jobs:
         files: |
           _output/charts/karmada-chart-${{ github.ref_name }}.tgz
           _output/charts/karmada-chart-${{ github.ref_name }}.tgz.sha256
+          _output/charts/karmada-operator-chart-${{ github.ref_name }}.tgz
+          _output/charts/karmada-operator-chart-${{ github.ref_name }}.tgz.sha256
   update-krew-index:
     needs: release-assests
     name: Update krew-index
