@@ -7,11 +7,11 @@ metadata:
   name: {{ $name }}-aggregated-apiserver
   namespace: {{ include "karmada.namespace" . }}
   labels:
-    {{- include "karmada.aggregatedApiserver.labels" . | nindent 4 }}
+    {{- include "karmada.aggregatedApiServer.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      {{- include "karmada.aggregatedApiserver.labels" . | nindent 6 }}
+      {{- include "karmada.aggregatedApiServer.labels" . | nindent 6 }}
   replicas: {{ .Values.aggregatedApiServer.replicaCount }}
   {{- with .Values.aggregatedApiServer.strategy }}
   strategy:
@@ -24,8 +24,8 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "karmada.aggregatedApiserver.labels" . | nindent 8 }}
-        {{- include "karmada.aggregatedApiserver.podLabels" . | nindent 8 }}
+        {{- include "karmada.aggregatedApiServer.labels" . | nindent 8 }}
+        {{- include "karmada.aggregatedApiServer.podLabels" . | nindent 8 }}
     spec:
       {{- include "karmada.aggregatedApiServer.imagePullSecrets" . | nindent 6 }}
       automountServiceAccountToken: false
@@ -115,16 +115,16 @@ metadata:
   name: {{ $name }}-aggregated-apiserver
   namespace: {{ include "karmada.namespace" . }}
   labels:
-    {{- include "karmada.aggregatedApiserver.labels" . | nindent 4 }}
+    {{- include "karmada.aggregatedApiServer.labels" . | nindent 4 }}
 spec:
   ports:
     - port: 443
       protocol: TCP
       targetPort: 443
   selector:
-    {{- include "karmada.aggregatedApiserver.labels" . | nindent 4 }}
+    {{- include "karmada.aggregatedApiServer.labels" . | nindent 4 }}
 
-{{ if and .Values.aggregatedApiserver .Values.aggregatedApiserver.podDisruptionBudget }}
+{{ if and .Values.aggregatedApiServer .Values.aggregatedApiServer.podDisruptionBudget }}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -132,12 +132,12 @@ metadata:
   name: {{ $name }}-aggregated-apiserver
   namespace: {{ include "karmada.namespace" . }}
   labels:
-    {{- include "karmada.aggregatedApiserver.labels" . | nindent 4 }}
+    {{- include "karmada.aggregatedApiServer.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      {{- include "karmada.aggregatedApiserver.labels" . | nindent 6 }}
-  {{ toYaml .Values.aggregatedApiserver.podDisruptionBudget | nindent 2 }}
+      {{- include "karmada.aggregatedApiServer.labels" . | nindent 6 }}
+  {{ toYaml .Values.aggregatedApiServer.podDisruptionBudget | nindent 2 }}
 {{- end -}}
 
 {{- end }}
