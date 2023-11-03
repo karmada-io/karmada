@@ -44,7 +44,7 @@ app: etcd
 {{- end }}
 {{- end -}}
 
-{{- define "karmada.aggregatedApiserver.labels" -}}
+{{- define "karmada.aggregatedApiServer.labels" -}}
 {{- if .Values.aggregatedApiServer.labels }}
 {{- range $key, $value := .Values.aggregatedApiServer.labels }}
 {{ $key }}: {{ $value }}
@@ -54,7 +54,7 @@ app: {{- include "karmada.name" .}}-aggregated-apiserver
 {{- end }}
 {{- end -}}
 
-{{- define "karmada.aggregatedApiserver.podLabels" -}}
+{{- define "karmada.aggregatedApiServer.podLabels" -}}
 {{- if .Values.aggregatedApiServer.podLabels }}
 {{- range $key, $value := .Values.aggregatedApiServer.podLabels }}
 {{ $key }}: {{ $value }}
