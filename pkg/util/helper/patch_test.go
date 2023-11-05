@@ -1,9 +1,12 @@
 package helper
 
 import (
+	"encoding/json"
+	"fmt"
 	"math"
 	"testing"
 
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -109,7 +112,6 @@ func TestGenMergePatch(t *testing.T) {
 }
 
 func TestGenJSONPatch(t *testing.T) {
-	//doc := `{"field1":1,"field2":"2","field3":[3],"field4":{"a":"a"}}`
 	type args struct {
 		op    string
 		from  string
@@ -257,6 +259,127 @@ func TestGenJSONPatch(t *testing.T) {
 			}
 			if tt.want != string(patchBytes) {
 				t.Errorf("want: %s, but got: %s", tt.want, patchBytes)
+			}
+		})
+	}
+}
+
+func TestGenReplaceFieldJSONPatch(t *testing.T) {
+	originalObj := &appsv1.Deployment{Status: appsv1.DeploymentStatus{
+		ObservedGeneration: 1,
+		Replicas:           1,
+		UpdatedReplicas:    1,
+		ReadyReplicas:      1,
+		AvailableReplicas:  1,
+	}}
+	newObj := originalObj.DeepCopy()
+	newObj.Status = appsv1.DeploymentStatus{
+		ObservedGeneration: 2,
+		Replicas:           2,
+		UpdatedReplicas:    2,
+		ReadyReplicas:      2,
+		AvailableReplicas:  2,
+	}
+	newStatusJSON, _ := json.Marshal(newObj.Status)
+	pathStatus := "/status"
+	type args struct {
+		path               string
+		originalFieldValue interface{}
+		newFieldValue      interface{}
+	}
+	tests := []struct {
+		name string
+		args args
+		want func() ([]byte, error)
+	}{
+		{
+			name: "return nil when no patch is needed",
+			args: args{
+				path:               pathStatus,
+				originalFieldValue: originalObj.Status,
+				newFieldValue:      originalObj.Status,
+			},
+			want: func() ([]byte, error) {
+				return nil, nil
+			},
+		},
+		{
+			name: "return add JSONPatch when field in original obj is nil",
+			args: args{
+				path:               pathStatus,
+				originalFieldValue: nil,
+				newFieldValue:      newObj.Status,
+			},
+			want: func() ([]byte, error) {
+				return GenJSONPatch(JSONPatchOPAdd, "", pathStatus, newObj.Status)
+			},
+		},
+		{
+			name: "e2e return add JSONPatch when field in original obj is nil",
+			args: args{
+				path:               pathStatus,
+				originalFieldValue: nil,
+				newFieldValue:      newObj.Status,
+			},
+			want: func() ([]byte, error) {
+				return []byte(fmt.Sprintf(`[{"op":"add","path":"%s","value":%s}]`, pathStatus, newStatusJSON)), nil
+			},
+		},
+		{
+			name: "return replace JSONPatch when field in original obj in non-nil, whatever what's in the original field",
+			args: args{
+				path:               pathStatus,
+				originalFieldValue: originalObj.Status,
+				newFieldValue:      newObj.Status,
+			},
+			want: func() ([]byte, error) {
+				return GenJSONPatch(JSONPatchOPReplace, "", pathStatus, newObj.Status)
+			},
+		},
+		{
+			name: "e2e return replace JSONPatch when field in original obj in non-nil, whatever what's in the original field",
+			args: args{
+				path:               pathStatus,
+				originalFieldValue: originalObj.Status,
+				newFieldValue:      newObj.Status,
+			},
+			want: func() ([]byte, error) {
+				return []byte(fmt.Sprintf(`[{"op":"replace","path":"%s","value":%s}]`, pathStatus, newStatusJSON)), nil
+			},
+		},
+		{
+			name: "return remove JSONPatch when field in new obj is nil",
+			args: args{
+				path:               pathStatus,
+				originalFieldValue: originalObj.Status,
+				newFieldValue:      nil,
+			},
+			want: func() ([]byte, error) {
+				return GenJSONPatch(JSONPatchOPRemove, "", pathStatus, nil)
+			},
+		},
+		{
+			name: "e2e return remove JSONPatch when field in new obj is nil",
+			args: args{
+				path:               pathStatus,
+				originalFieldValue: originalObj.Status,
+				newFieldValue:      nil,
+			},
+			want: func() ([]byte, error) {
+				return []byte(fmt.Sprintf(`[{"op":"remove","path":"%s"}]`, pathStatus)), nil
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GenReplaceFieldJSONPatch(tt.args.path, tt.args.originalFieldValue, tt.args.newFieldValue)
+			want, wantErr := tt.want()
+
+			if fmt.Sprint(wantErr) != fmt.Sprint(err) {
+				t.Errorf("wantErr: %s, but got err: %s", fmt.Sprint(wantErr), fmt.Sprint(err))
+			}
+			if string(want) != string(got) {
+				t.Errorf("\nwant:    %s\nbut got: %s\n", want, got)
 			}
 		})
 	}

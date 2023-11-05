@@ -55,13 +55,13 @@ func GenMergePatch(originalObj interface{}, modifiedObj interface{}) ([]byte, er
 // add/replace/delete certain JSON **Object** field.
 func GenReplaceFieldJSONPatch(path string, originalFieldValue, newFieldValue interface{}) ([]byte, error) {
 	if reflect.DeepEqual(originalFieldValue, newFieldValue) {
-		return []byte(`[]`), nil
+		return nil, nil
 	}
 	if newFieldValue == nil {
 		return GenJSONPatch(JSONPatchOPRemove, "", path, nil)
 	}
-	// The implementation of “add” and “replace” for JSON objects is actually the same
-	// in “github.com/evanphx/json-patch/v5”, which is used by us and k8s.
+	// The implementation of "add" and "replace" for JSON objects is actually the same
+	// in "github.com/evanphx/json-patch/v5", which is used by Karmada and K8s.
 	// We implemented it here just to follow the RFC6902.
 	if originalFieldValue == nil {
 		return GenJSONPatch(JSONPatchOPAdd, "", path, newFieldValue)
