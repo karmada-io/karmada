@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
 	"k8s.io/klog/v2"
@@ -145,6 +146,28 @@ func ListFiles(path string) []os.FileInfo {
 	return files
 }
 
+type FileExtInfo struct {
+	os.FileInfo
+	AbsPath string
+}
+
+func ListFileWithSuffix(path, suffix string) []FileExtInfo {
+	files := []FileExtInfo{}
+	if err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+		if !info.IsDir() && strings.HasSuffix(path, suffix) {
+			files = append(files, FileExtInfo{
+				AbsPath:  path,
+				FileInfo: info,
+			})
+		}
+		return nil
+	}); err != nil {
+		fmt.Println(err)
+	}
+
+	return files
+}
+
 // PathExists check whether the path is exist
 func PathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
@@ -169,8 +192,8 @@ func ReadYamlFile(path string) ([]byte, error) {
 	return yaml.YAMLToJSON(data)
 }
 
-// RelpaceYamlForReg replace content of yaml file with a Regexp
-func RelpaceYamlForReg(path, destResource string, reg *regexp.Regexp) ([]byte, error) {
+// ReplaceYamlForReg replace content of yaml file with a Regexp
+func ReplaceYamlForReg(path, destResource string, reg *regexp.Regexp) ([]byte, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
