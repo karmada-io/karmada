@@ -30,7 +30,7 @@ metadata:
   namespace: {{ .Namespace }}
 spec:
   type: ExternalName
-  externalName: {{ .ServiceName }}.{{ .Namespace }}.svc
+  externalName: {{ .HostClusterServiceName }}.{{ .HostClusterNamespace }}.svc
 `
 
 	// KarmadaMetricsAdapterAPIService is karmada-metrics-adapter APIService manifest
@@ -59,6 +59,6 @@ metadata:
   namespace: {{ .Namespace }}
 spec:
   type: ExternalName
-  externalName: {{ .ServiceName }}.{{ .Namespace }}.svc
+  externalName: {{ .HostClusterServiceName }}.{{ .HostClusterNamespace }}.svc
 `
 )
