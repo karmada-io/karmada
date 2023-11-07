@@ -10,6 +10,7 @@ import (
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	tasks "github.com/karmada-io/karmada/operator/pkg/tasks/deinit"
+	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
 )
 
@@ -44,16 +45,21 @@ func NewDeInitDataJob(opt *DeInitOptions) *workflow.Job {
 	deInitJob.AppendTask(tasks.NewCleanupKubeconfigTask())
 
 	deInitJob.SetDataInitializer(func() (workflow.RunData, error) {
+		localClusterClient, err := clientset.NewForConfig(opt.Kubeconfig)
+		if err != nil {
+			return nil, fmt.Errorf("error when creating local cluster client, err: %w", err)
+		}
+
 		// if there is no endpoint info, we are consider that the local cluster
 		// is remote cluster to install karmada.
 		var remoteClient clientset.Interface
-		if opt.HostCluster.SecretRef == nil && len(opt.HostCluster.APIEndpoint) == 0 {
-			client, err := clientset.NewForConfig(opt.Kubeconfig)
+		if util.IsInCluster(opt.HostCluster) {
+			remoteClient = localClusterClient
+		} else {
+			remoteClient, err = util.BuildClientFromSecretRef(localClusterClient, opt.HostCluster.SecretRef)
 			if err != nil {
-				return nil, fmt.Errorf("error when create cluster client to install karmada, err: %w", err)
+				return nil, fmt.Errorf("error when creating cluster client to install karmada, err: %w", err)
 			}
-
-			remoteClient = client
 		}
 
 		if len(opt.Name) == 0 || len(opt.Namespace) == 0 {
