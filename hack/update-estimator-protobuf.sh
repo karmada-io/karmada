@@ -17,7 +17,7 @@ GO111MODULE=on go install github.com/gogo/protobuf/protoc-gen-gogo
 GO111MODULE=on go install github.com/vektra/mockery/v2
 
 #ref https://github.com/kubernetes/kubernetes/blob/master/hack/update-generated-protobuf-dockerized.sh
-if [[ -z "$(which protoc)" || "$(protoc --version)" != "libprotoc 3."* ]]; then
+if [[ -z "$(which protoc)" || $(protoc --version | sed -r "s/libprotoc ([0-9]+).*/\1/g") -lt 3 ]]; then
   echo "Generating protobuf requires protoc 3.0.0-beta1 or newer. Please download and"
   echo "install the platform appropriate Protobuf package for your OS: "
   echo
