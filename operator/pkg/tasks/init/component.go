@@ -192,7 +192,7 @@ func runDeployMetricAdapterAPIService(r workflow.RunData) error {
 	}
 	caBase64 := base64.StdEncoding.EncodeToString(cert.CertData())
 
-	err = apiservice.EnsureMetricsAdapterAPIService(client, data.KarmadaClient(), data.GetName(), data.GetNamespace(), caBase64)
+	err = apiservice.EnsureMetricsAdapterAPIService(client, data.KarmadaClient(), data.GetName(), constants.KarmadaSystemNamespace, data.GetName(), data.GetNamespace(), caBase64)
 	if err != nil {
 		return fmt.Errorf("failed to apply karmada-metrics-adapter APIService resource to karmada controlplane, err: %w", err)
 	}
