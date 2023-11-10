@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -33,6 +34,11 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	"github.com/karmada-io/karmada/test/helper"
+	testhelper "github.com/karmada-io/karmada/test/helper"
+)
+
+const (
+	karmadactlTimeout = time.Second * 10
 )
 
 var _ = ginkgo.Describe("Karmadactl promote testing", func() {
@@ -555,5 +561,49 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 					Should(gomega.Equal(false))
 			})
 		})
+	})
+})
+
+var _ = ginkgo.Describe("Karmadactl exec testing", func() {
+	var policyName string
+	var pod *corev1.Pod
+	var policy *policyv1alpha1.PropagationPolicy
+
+	ginkgo.BeforeEach(func() {
+		policyName = podNamePrefix + rand.String(RandomStrLength)
+		pod = helper.NewPod(testNamespace, podNamePrefix+rand.String(RandomStrLength))
+		policy = testhelper.NewPropagationPolicy(testNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: pod.APIVersion,
+				Kind:       pod.Kind,
+				Name:       pod.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: framework.ClusterNames(),
+			},
+		})
+	})
+
+	ginkgo.BeforeEach(func() {
+		framework.CreatePropagationPolicy(karmadaClient, policy)
+		framework.CreatePod(kubeClient, pod)
+		ginkgo.DeferCleanup(func() {
+			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policyName)
+			framework.RemovePod(kubeClient, pod.Namespace, pod.Name)
+		})
+	})
+
+	ginkgo.It("Test exec command", func() {
+		framework.WaitPodPresentOnClustersFitWith(framework.ClusterNames(), pod.Namespace, pod.Name,
+			func(pod *corev1.Pod) bool {
+				return pod.Status.Phase == corev1.PodRunning
+			})
+
+		for _, clusterName := range framework.ClusterNames() {
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, pod.Namespace, karmadactlTimeout, "exec", pod.Name, "-C", clusterName, "--", "echo", "hello")
+			_, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		}
 	})
 })

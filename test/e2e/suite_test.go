@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,7 +23,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/kind/pkg/cluster"
-	"sigs.k8s.io/kind/pkg/exec"
+	kindexec "sigs.k8s.io/kind/pkg/exec"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	karmada "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
@@ -79,6 +81,7 @@ var (
 var (
 	karmadaContext        string
 	kubeconfig            string
+	karmadactlPath        string
 	restConfig            *rest.Config
 	karmadaHost           string
 	kubeClient            kubernetes.Interface
@@ -110,8 +113,15 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	kubeconfig = os.Getenv("KUBECONFIG")
 	gomega.Expect(kubeconfig).ShouldNot(gomega.BeEmpty())
 
+	goPathCmd := exec.Command("go", "env", "GOPATH")
+	goPath, err := goPathCmd.CombinedOutput()
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	formatGoPath := strings.Trim(string(goPath), "\n")
+	karmadactlPath = formatGoPath + "/bin/karmadactl"
+	gomega.Expect(karmadactlPath).ShouldNot(gomega.BeEmpty())
+
 	clusterProvider = cluster.NewProvider()
-	var err error
 	restConfig, err = framework.LoadRESTClientConfig(kubeconfig, karmadaContext)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
@@ -178,12 +188,12 @@ func createCluster(clusterName, kubeConfigPath, controlPlane, clusterContext str
 		return err
 	}
 
-	cmd := exec.Command(
+	cmd := kindexec.Command(
 		"docker", "inspect",
 		"--format", "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
 		controlPlane,
 	)
-	lines, err := exec.OutputLines(cmd)
+	lines, err := kindexec.OutputLines(cmd)
 	if err != nil {
 		return err
 	}
