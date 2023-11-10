@@ -78,21 +78,20 @@ type ResourceBindingSpec struct {
 	// +optional
 	Placement *policyv1alpha1.Placement `json:"placement,omitempty"`
 
-	// GracefulEvictionTasks holds the eviction tasks that are expected to perform
-	// the eviction in a graceful way.
+	// EvictionTasks holds the eviction tasks that are expected to perform the eviction.
 	// The intended workflow is:
 	// 1. Once the controller(such as 'taint-manager') decided to evict the resource that
 	//    is referenced by current ResourceBinding or ClusterResourceBinding from a target
 	//    cluster, it removes(or scale down the replicas) the target from Clusters(.spec.Clusters)
-	//    and builds a graceful eviction task.
+	//    and builds a eviction task.
 	// 2. The scheduler may perform a re-scheduler and probably select a substitute cluster
 	//    to take over the evicting workload(resource).
-	// 3. The graceful eviction controller takes care of the graceful eviction tasks and
+	// 3. The eviction controller(gracefully or ungracefully) takes care of the graceful eviction tasks and
 	//    performs the final removal after the workload(resource) is available on the substitute
 	//    cluster or exceed the grace termination period(defaults to 10 minutes).
 	//
 	// +optional
-	GracefulEvictionTasks []GracefulEvictionTask `json:"gracefulEvictionTasks,omitempty"`
+	EvictionTasks []EvictionTask `json:"evictionTasks,omitempty"`
 
 	// RequiredBy represents the list of Bindings that depend on the referencing resource.
 	// +optional
@@ -187,8 +186,8 @@ type TargetCluster struct {
 	Replicas int32 `json:"replicas,omitempty"`
 }
 
-// GracefulEvictionTask represents a graceful eviction task.
-type GracefulEvictionTask struct {
+// EvictionTask represents a eviction task.
+type EvictionTask struct {
 	// FromCluster which cluster the eviction perform from.
 	// +required
 	FromCluster string `json:"fromCluster"`
@@ -218,6 +217,10 @@ type GracefulEvictionTask struct {
 	// Producer indicates the controller who triggered the eviction.
 	// +required
 	Producer string `json:"producer"`
+
+	// Evicted indicates if the eviction is performed.
+	// +required
+	Evicted bool `json:"evicated"`
 
 	// GracePeriodSeconds is the maximum waiting duration in seconds before the item
 	// should be deleted. If the application on the new cluster cannot reach a Healthy state,

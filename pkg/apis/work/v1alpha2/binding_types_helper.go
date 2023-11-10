@@ -70,7 +70,7 @@ func (s *ResourceBindingSpec) TargetContains(name string) bool {
 
 // ClusterInGracefulEvictionTasks checks if the target cluster is in the GracefulEvictionTasks which means it is in the process of eviction.
 func (s *ResourceBindingSpec) ClusterInGracefulEvictionTasks(name string) bool {
-	for _, task := range s.GracefulEvictionTasks {
+	for _, task := range s.EvictionTasks {
 		if task.FromCluster == name {
 			return true
 		}
@@ -136,16 +136,17 @@ func (s *ResourceBindingSpec) GracefulEvictCluster(name string, options *TaskOpt
 
 	// build eviction task
 	evictingCluster := evictCluster.DeepCopy()
-	evictionTask := GracefulEvictionTask{
+	evictionTask := EvictionTask{
 		FromCluster:        evictingCluster.Name,
 		Reason:             options.reason,
 		Message:            options.message,
 		Producer:           options.producer,
+		Evicted:            false,
 		GracePeriodSeconds: options.gracePeriodSeconds,
 		SuppressDeletion:   options.suppressDeletion,
 	}
 	if evictingCluster.Replicas > 0 {
 		evictionTask.Replicas = &evictingCluster.Replicas
 	}
-	s.GracefulEvictionTasks = append(s.GracefulEvictionTasks, evictionTask)
+	s.EvictionTasks = append(s.EvictionTasks, evictionTask)
 }

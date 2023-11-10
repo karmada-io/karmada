@@ -533,6 +533,20 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinities(rb *workv1alpha
 	return scheduleErr
 }
 
+func (s *Scheduler) recordEvicationTaskStateForResourceBinding(rb *workv1alpha2.ResourceBinding, scheduleResult []workv1alpha2.TargetCluster) {
+	for index, task := range rb.Spec.EvictionTasks {
+		if task.Evicted {
+			continue
+		}
+		for _, scheduledCluster := range scheduleResult {
+			if scheduledCluster.Name == task.FromCluster {
+				break
+			}
+		}
+		rb.Spec.EvictionTasks[index].Evicted = true
+	}
+}
+
 func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alpha2.ResourceBinding, placement string, scheduleResult []workv1alpha2.TargetCluster) error {
 	newBinding := oldBinding.DeepCopy()
 	if newBinding.Annotations == nil {
@@ -540,6 +554,7 @@ func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alph
 	}
 	newBinding.Annotations[util.PolicyPlacementAnnotation] = placement
 	newBinding.Spec.Clusters = scheduleResult
+	s.recordEvicationTaskStateForResourceBinding(newBinding, scheduleResult)
 
 	patchBytes, err := helper.GenMergePatch(oldBinding, newBinding)
 	if err != nil {
@@ -671,6 +686,20 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinities(crb *wor
 	return scheduleErr
 }
 
+func (s *Scheduler) recordEvicationTaskStateForClusterResourceBinding(rb *workv1alpha2.ClusterResourceBinding, scheduleResult []workv1alpha2.TargetCluster) {
+	for index, task := range rb.Spec.EvictionTasks {
+		if task.Evicted {
+			continue
+		}
+		for _, scheduledCluster := range scheduleResult {
+			if scheduledCluster.Name == task.FromCluster {
+				break
+			}
+		}
+		rb.Spec.EvictionTasks[index].Evicted = true
+	}
+}
+
 func (s *Scheduler) patchScheduleResultForClusterResourceBinding(oldBinding *workv1alpha2.ClusterResourceBinding, placement string, scheduleResult []workv1alpha2.TargetCluster) error {
 	newBinding := oldBinding.DeepCopy()
 	if newBinding.Annotations == nil {
@@ -678,6 +707,7 @@ func (s *Scheduler) patchScheduleResultForClusterResourceBinding(oldBinding *wor
 	}
 	newBinding.Annotations[util.PolicyPlacementAnnotation] = placement
 	newBinding.Spec.Clusters = scheduleResult
+	s.recordEvicationTaskStateForClusterResourceBinding(newBinding, scheduleResult)
 
 	patchBytes, err := helper.GenMergePatch(oldBinding, newBinding)
 	if err != nil {

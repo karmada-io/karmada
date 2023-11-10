@@ -62,14 +62,14 @@ func (c *CRBGracefulEvictionController) Reconcile(ctx context.Context, req contr
 }
 
 func (c *CRBGracefulEvictionController) syncBinding(binding *workv1alpha2.ClusterResourceBinding) (time.Duration, error) {
-	keptTask, evictedClusters := assessEvictionTasks(binding.Spec, binding.Status.AggregatedStatus, c.GracefulEvictionTimeout, metav1.Now())
-	if reflect.DeepEqual(binding.Spec.GracefulEvictionTasks, keptTask) {
-		return nextRetry(keptTask, c.GracefulEvictionTimeout, metav1.Now().Time), nil
+	keptTask, evictedClusters := assessEvictionTasks(binding.Spec, binding.Status.AggregatedStatus, metav1.Now())
+	if reflect.DeepEqual(binding.Spec.EvictionTasks, keptTask) {
+		return 0, nil
 	}
 
 	objPatch := client.MergeFrom(binding)
 	modifiedObj := binding.DeepCopy()
-	modifiedObj.Spec.GracefulEvictionTasks = keptTask
+	modifiedObj.Spec.EvictionTasks = keptTask
 	err := c.Client.Patch(context.TODO(), modifiedObj, objPatch)
 	if err != nil {
 		return 0, err
@@ -78,7 +78,7 @@ func (c *CRBGracefulEvictionController) syncBinding(binding *workv1alpha2.Cluste
 	for _, cluster := range evictedClusters {
 		helper.EmitClusterEvictionEventForClusterResourceBinding(binding, cluster, c.EventRecorder, err)
 	}
-	return nextRetry(keptTask, c.GracefulEvictionTimeout, metav1.Now().Time), nil
+	return 0, nil
 }
 
 // SetupWithManager creates a controller and register to controller manager.
@@ -86,7 +86,7 @@ func (c *CRBGracefulEvictionController) SetupWithManager(mgr controllerruntime.M
 	clusterResourceBindingPredicateFn := predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			newObj := createEvent.Object.(*workv1alpha2.ClusterResourceBinding)
-			if len(newObj.Spec.GracefulEvictionTasks) == 0 {
+			if len(newObj.Spec.EvictionTasks) == 0 {
 				return false
 			}
 			// When the current component is restarted and there are still tasks in the
@@ -96,7 +96,7 @@ func (c *CRBGracefulEvictionController) SetupWithManager(mgr controllerruntime.M
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			newObj := updateEvent.ObjectNew.(*workv1alpha2.ClusterResourceBinding)
 
-			if len(newObj.Spec.GracefulEvictionTasks) == 0 {
+			if len(newObj.Spec.EvictionTasks) == 0 {
 				return false
 			}
 

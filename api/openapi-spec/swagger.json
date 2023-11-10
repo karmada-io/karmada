@@ -22690,19 +22690,25 @@
         }
       ]
     },
-    "com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.GracefulEvictionTask": {
-      "description": "GracefulEvictionTask represents a graceful eviction task.",
+    "com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.EvictionTask": {
+      "description": "EvictionTask represents a eviction task.",
       "type": "object",
       "required": [
         "fromCluster",
         "reason",
-        "producer"
+        "producer",
+        "evicated"
       ],
       "properties": {
         "creationTimestamp": {
           "description": "CreationTimestamp is a timestamp representing the server time when this object was created. Clients should not set this value to avoid the time inconsistency issue. It is represented in RFC3339 form(like '2021-04-25T10:02:10Z') and is in UTC.\n\nPopulated by the system. Read-only.",
           "default": {},
           "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
+        },
+        "evicated": {
+          "description": "Evicted indicates if the eviction is performed.",
+          "type": "boolean",
+          "default": false
         },
         "fromCluster": {
           "description": "FromCluster which cluster the eviction perform from.",
@@ -22914,17 +22920,17 @@
           "description": "ConflictResolution declares how potential conflict should be handled when a resource that is being propagated already exists in the target cluster.\n\nIt defaults to \"Abort\" which means stop propagating to avoid unexpected overwrites. The \"Overwrite\" might be useful when migrating legacy cluster resources to Karmada, in which case conflict is predictable and can be instructed to Karmada take over the resource by overwriting.",
           "type": "string"
         },
-        "failover": {
-          "description": "Failover indicates how Karmada migrates applications in case of failures. It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).",
-          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FailoverBehavior"
-        },
-        "gracefulEvictionTasks": {
-          "description": "GracefulEvictionTasks holds the eviction tasks that are expected to perform the eviction in a graceful way. The intended workflow is: 1. Once the controller(such as 'taint-manager') decided to evict the resource that\n   is referenced by current ResourceBinding or ClusterResourceBinding from a target\n   cluster, it removes(or scale down the replicas) the target from Clusters(.spec.Clusters)\n   and builds a graceful eviction task.\n2. The scheduler may perform a re-scheduler and probably select a substitute cluster\n   to take over the evicting workload(resource).\n3. The graceful eviction controller takes care of the graceful eviction tasks and\n   performs the final removal after the workload(resource) is available on the substitute\n   cluster or exceed the grace termination period(defaults to 10 minutes).",
+        "evictionTasks": {
+          "description": "EvictionTasks holds the eviction tasks that are expected to perform the eviction. The intended workflow is: 1. Once the controller(such as 'taint-manager') decided to evict the resource that\n   is referenced by current ResourceBinding or ClusterResourceBinding from a target\n   cluster, it removes(or scale down the replicas) the target from Clusters(.spec.Clusters)\n   and builds a eviction task.\n2. The scheduler may perform a re-scheduler and probably select a substitute cluster\n   to take over the evicting workload(resource).\n3. The eviction controller(gracefully or ungracefully) takes care of the graceful eviction tasks and\n   performs the final removal after the workload(resource) is available on the substitute\n   cluster or exceed the grace termination period(defaults to 10 minutes).",
           "type": "array",
           "items": {
             "default": {},
-            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.GracefulEvictionTask"
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.EvictionTask"
           }
+        },
+        "failover": {
+          "description": "Failover indicates how Karmada migrates applications in case of failures. It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FailoverBehavior"
         },
         "placement": {
           "description": "Placement represents the rule for select clusters to propagate resources.",

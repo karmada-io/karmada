@@ -158,7 +158,8 @@ func (c *RBApplicationFailoverController) evictBinding(binding *workv1alpha2.Res
 				return err
 			}
 		case policyv1alpha1.Immediately:
-			binding.Spec.RemoveCluster(cluster)
+			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(workv1alpha2.WithProducer(RBApplicationFailoverControllerName),
+				workv1alpha2.WithReason(workv1alpha2.EvictionReasonApplicationFailure), workv1alpha2.WithSuppressDeletion(pointer.Bool(false))))
 		}
 	}
 

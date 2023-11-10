@@ -145,7 +145,7 @@ func TestDistinguishUnhealthyClustersWithOthers(t *testing.T) {
 				},
 			},
 			resourceBindingSpec: workv1alpha2.ResourceBindingSpec{
-				GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
+				EvictionTasks: []workv1alpha2.EvictionTask{
 					{
 						FromCluster: "member2",
 					},

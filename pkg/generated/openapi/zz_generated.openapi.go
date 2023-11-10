@@ -135,7 +135,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.BindingSnapshot":                               schema_pkg_apis_work_v1alpha2_BindingSnapshot(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ClusterResourceBinding":                        schema_pkg_apis_work_v1alpha2_ClusterResourceBinding(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ClusterResourceBindingList":                    schema_pkg_apis_work_v1alpha2_ClusterResourceBindingList(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.GracefulEvictionTask":                          schema_pkg_apis_work_v1alpha2_GracefulEvictionTask(ref),
+		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.EvictionTask":                                  schema_pkg_apis_work_v1alpha2_EvictionTask(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.NodeClaim":                                     schema_pkg_apis_work_v1alpha2_NodeClaim(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ObjectReference":                               schema_pkg_apis_work_v1alpha2_ObjectReference(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements":                           schema_pkg_apis_work_v1alpha2_ReplicaRequirements(ref),
@@ -5869,11 +5869,11 @@ func schema_pkg_apis_work_v1alpha2_ClusterResourceBindingList(ref common.Referen
 	}
 }
 
-func schema_pkg_apis_work_v1alpha2_GracefulEvictionTask(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_work_v1alpha2_EvictionTask(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "GracefulEvictionTask represents a graceful eviction task.",
+				Description: "EvictionTask represents a eviction task.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"fromCluster": {
@@ -5914,6 +5914,14 @@ func schema_pkg_apis_work_v1alpha2_GracefulEvictionTask(ref common.ReferenceCall
 							Format:      "",
 						},
 					},
+					"evicated": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Evicted indicates if the eviction is performed.",
+							Default:     false,
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"gracePeriodSeconds": {
 						SchemaProps: spec.SchemaProps{
 							Description: "GracePeriodSeconds is the maximum waiting duration in seconds before the item should be deleted. If the application on the new cluster cannot reach a Healthy state, Karmada will delete the item after GracePeriodSeconds is reached. Value must be positive integer. It can not co-exist with SuppressDeletion.",
@@ -5936,7 +5944,7 @@ func schema_pkg_apis_work_v1alpha2_GracefulEvictionTask(ref common.ReferenceCall
 						},
 					},
 				},
-				Required: []string{"fromCluster", "reason", "producer"},
+				Required: []string{"fromCluster", "reason", "producer", "evicated"},
 			},
 		},
 		Dependencies: []string{
@@ -6244,15 +6252,15 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement"),
 						},
 					},
-					"gracefulEvictionTasks": {
+					"evictionTasks": {
 						SchemaProps: spec.SchemaProps{
-							Description: "GracefulEvictionTasks holds the eviction tasks that are expected to perform the eviction in a graceful way. The intended workflow is: 1. Once the controller(such as 'taint-manager') decided to evict the resource that\n   is referenced by current ResourceBinding or ClusterResourceBinding from a target\n   cluster, it removes(or scale down the replicas) the target from Clusters(.spec.Clusters)\n   and builds a graceful eviction task.\n2. The scheduler may perform a re-scheduler and probably select a substitute cluster\n   to take over the evicting workload(resource).\n3. The graceful eviction controller takes care of the graceful eviction tasks and\n   performs the final removal after the workload(resource) is available on the substitute\n   cluster or exceed the grace termination period(defaults to 10 minutes).",
+							Description: "EvictionTasks holds the eviction tasks that are expected to perform the eviction. The intended workflow is: 1. Once the controller(such as 'taint-manager') decided to evict the resource that\n   is referenced by current ResourceBinding or ClusterResourceBinding from a target\n   cluster, it removes(or scale down the replicas) the target from Clusters(.spec.Clusters)\n   and builds a eviction task.\n2. The scheduler may perform a re-scheduler and probably select a substitute cluster\n   to take over the evicting workload(resource).\n3. The eviction controller(gracefully or ungracefully) takes care of the graceful eviction tasks and\n   performs the final removal after the workload(resource) is available on the substitute\n   cluster or exceed the grace termination period(defaults to 10 minutes).",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.GracefulEvictionTask"),
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.EvictionTask"),
 									},
 								},
 							},
@@ -6297,7 +6305,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.BindingSnapshot", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.GracefulEvictionTask", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ObjectReference", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster"},
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.BindingSnapshot", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.EvictionTask", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ObjectReference", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster"},
 	}
 }
 

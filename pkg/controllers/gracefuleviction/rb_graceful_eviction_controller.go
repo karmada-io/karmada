@@ -62,14 +62,14 @@ func (c *RBGracefulEvictionController) Reconcile(ctx context.Context, req contro
 }
 
 func (c *RBGracefulEvictionController) syncBinding(binding *workv1alpha2.ResourceBinding) (time.Duration, error) {
-	keptTask, evictedCluster := assessEvictionTasks(binding.Spec, binding.Status.AggregatedStatus, c.GracefulEvictionTimeout, metav1.Now())
-	if reflect.DeepEqual(binding.Spec.GracefulEvictionTasks, keptTask) {
-		return nextRetry(keptTask, c.GracefulEvictionTimeout, metav1.Now().Time), nil
+	keptTask, evictedCluster := assessEvictionTasks(binding.Spec, binding.Status.AggregatedStatus, metav1.Now())
+	if reflect.DeepEqual(binding.Spec.EvictionTasks, keptTask) {
+		return 0, nil
 	}
 
 	objPatch := client.MergeFrom(binding)
 	modifiedObj := binding.DeepCopy()
-	modifiedObj.Spec.GracefulEvictionTasks = keptTask
+	modifiedObj.Spec.EvictionTasks = keptTask
 	err := c.Client.Patch(context.TODO(), modifiedObj, objPatch)
 	if err != nil {
 		return 0, err
@@ -78,7 +78,7 @@ func (c *RBGracefulEvictionController) syncBinding(binding *workv1alpha2.Resourc
 	for _, cluster := range evictedCluster {
 		helper.EmitClusterEvictionEventForResourceBinding(binding, cluster, c.EventRecorder, err)
 	}
-	return nextRetry(keptTask, c.GracefulEvictionTimeout, metav1.Now().Time), nil
+	return 0, nil
 }
 
 // SetupWithManager creates a controller and register to controller manager.
@@ -86,7 +86,7 @@ func (c *RBGracefulEvictionController) SetupWithManager(mgr controllerruntime.Ma
 	resourceBindingPredicateFn := predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			newObj := createEvent.Object.(*workv1alpha2.ResourceBinding)
-			if len(newObj.Spec.GracefulEvictionTasks) == 0 {
+			if len(newObj.Spec.EvictionTasks) == 0 {
 				return false
 			}
 			// When the current component is restarted and there are still tasks in the
@@ -96,7 +96,7 @@ func (c *RBGracefulEvictionController) SetupWithManager(mgr controllerruntime.Ma
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			newObj := updateEvent.ObjectNew.(*workv1alpha2.ResourceBinding)
 
-			if len(newObj.Spec.GracefulEvictionTasks) == 0 {
+			if len(newObj.Spec.EvictionTasks) == 0 {
 				return false
 			}
 
