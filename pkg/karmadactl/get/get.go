@@ -254,20 +254,7 @@ func (g *CommandGetOptions) Validate(cmd *cobra.Command) error {
 		if err != nil {
 			return err
 		}
-		clusterSet := sets.NewString()
-		for _, cluster := range clusters.Items {
-			clusterSet.Insert(cluster.Name)
-		}
-
-		var noneExistClusters []string
-		for _, cluster := range g.Clusters {
-			if !clusterSet.Has(cluster) {
-				noneExistClusters = append(noneExistClusters, cluster)
-			}
-		}
-		if len(noneExistClusters) != 0 {
-			return fmt.Errorf("clusters don't exist: " + strings.Join(noneExistClusters, ","))
-		}
+		return util.VerifyClustersExist(g.Clusters, clusters)
 	}
 	return nil
 }
