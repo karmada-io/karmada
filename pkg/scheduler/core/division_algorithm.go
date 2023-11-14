@@ -19,19 +19,28 @@ func (a TargetClustersList) Len() int           { return len(a) }
 func (a TargetClustersList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a TargetClustersList) Less(i, j int) bool { return a[i].Replicas > a[j].Replicas }
 
-func getStaticWeightInfoList(clusters []*clusterv1alpha1.Cluster, weightList []policyv1alpha1.StaticClusterWeight) helper.ClusterWeightInfoList {
+func getStaticWeightInfoList(clusters []*clusterv1alpha1.Cluster, weightList []policyv1alpha1.StaticClusterWeight,
+	lastTargetClusters []workv1alpha2.TargetCluster) helper.ClusterWeightInfoList {
 	list := make(helper.ClusterWeightInfoList, 0)
 	for _, cluster := range clusters {
 		var weight int64
+		var lastReplicas int32
 		for _, staticWeightRule := range weightList {
 			if util.ClusterMatches(cluster, staticWeightRule.TargetCluster) {
 				weight = util.MaxInt64(weight, staticWeightRule.Weight)
 			}
 		}
+		for _, lastTargetCluster := range lastTargetClusters {
+			if cluster.Name == lastTargetCluster.Name {
+				lastReplicas = lastTargetCluster.Replicas
+				break
+			}
+		}
 		if weight > 0 {
 			list = append(list, helper.ClusterWeightInfo{
-				ClusterName: cluster.Name,
-				Weight:      weight,
+				ClusterName:  cluster.Name,
+				Weight:       weight,
+				LastReplicas: lastReplicas,
 			})
 		}
 	}

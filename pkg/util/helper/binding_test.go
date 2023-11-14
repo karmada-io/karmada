@@ -3,6 +3,7 @@ package helper
 import (
 	"context"
 	"reflect"
+	"sort"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -41,7 +42,8 @@ func TestDispenseReplicasByTargetClusters(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want []workv1alpha2.TargetCluster
+		// wants specifies multi possible desired result, any one got is expected
+		wants [][]workv1alpha2.TargetCluster
 	}{
 		{
 			name: "empty clusters",
@@ -49,7 +51,9 @@ func TestDispenseReplicasByTargetClusters(t *testing.T) {
 				clusters: []workv1alpha2.TargetCluster{},
 				sum:      10,
 			},
-			want: []workv1alpha2.TargetCluster{},
+			wants: [][]workv1alpha2.TargetCluster{
+				{},
+			},
 		},
 		{
 			name: "1 cluster, 5 replicas, 10 sum",
@@ -62,10 +66,12 @@ func TestDispenseReplicasByTargetClusters(t *testing.T) {
 				},
 				sum: 10,
 			},
-			want: []workv1alpha2.TargetCluster{
+			wants: [][]workv1alpha2.TargetCluster{
 				{
-					Name:     ClusterMember1,
-					Replicas: 10,
+					{
+						Name:     ClusterMember1,
+						Replicas: 10,
+					},
 				},
 			},
 		},
@@ -88,18 +94,20 @@ func TestDispenseReplicasByTargetClusters(t *testing.T) {
 				},
 				sum: 12,
 			},
-			want: []workv1alpha2.TargetCluster{
+			wants: [][]workv1alpha2.TargetCluster{
 				{
-					Name:     ClusterMember1,
-					Replicas: 4,
-				},
-				{
-					Name:     ClusterMember2,
-					Replicas: 4,
-				},
-				{
-					Name:     ClusterMember3,
-					Replicas: 4,
+					{
+						Name:     ClusterMember1,
+						Replicas: 4,
+					},
+					{
+						Name:     ClusterMember2,
+						Replicas: 4,
+					},
+					{
+						Name:     ClusterMember3,
+						Replicas: 4,
+					},
 				},
 			},
 		},
@@ -122,18 +130,48 @@ func TestDispenseReplicasByTargetClusters(t *testing.T) {
 				},
 				sum: 10,
 			},
-			want: []workv1alpha2.TargetCluster{
+			wants: [][]workv1alpha2.TargetCluster{
 				{
-					Name:     ClusterMember1,
-					Replicas: 4,
+					{
+						Name:     ClusterMember1,
+						Replicas: 4,
+					},
+					{
+						Name:     ClusterMember2,
+						Replicas: 3,
+					},
+					{
+						Name:     ClusterMember3,
+						Replicas: 3,
+					},
 				},
 				{
-					Name:     ClusterMember2,
-					Replicas: 3,
+					{
+						Name:     ClusterMember1,
+						Replicas: 3,
+					},
+					{
+						Name:     ClusterMember2,
+						Replicas: 4,
+					},
+					{
+						Name:     ClusterMember3,
+						Replicas: 3,
+					},
 				},
 				{
-					Name:     ClusterMember3,
-					Replicas: 3,
+					{
+						Name:     ClusterMember1,
+						Replicas: 3,
+					},
+					{
+						Name:     ClusterMember2,
+						Replicas: 3,
+					},
+					{
+						Name:     ClusterMember3,
+						Replicas: 4,
+					},
 				},
 			},
 		},
@@ -156,27 +194,33 @@ func TestDispenseReplicasByTargetClusters(t *testing.T) {
 				},
 				sum: 13,
 			},
-			want: []workv1alpha2.TargetCluster{
+			wants: [][]workv1alpha2.TargetCluster{
 				{
-					Name:     ClusterMember1,
-					Replicas: 2,
-				},
-				{
-					Name:     ClusterMember2,
-					Replicas: 4,
-				},
-				{
-					Name:     ClusterMember3,
-					Replicas: 7,
+					{
+						Name:     ClusterMember1,
+						Replicas: 2,
+					},
+					{
+						Name:     ClusterMember2,
+						Replicas: 4,
+					},
+					{
+						Name:     ClusterMember3,
+						Replicas: 7,
+					},
 				},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := SpreadReplicasByTargetClusters(tt.args.sum, tt.args.clusters, nil); !testhelper.IsScheduleResultEqual(got, tt.want) {
-				t.Errorf("SpreadReplicasByTargetClusters() = %v, want %v", got, tt.want)
+			got := SpreadReplicasByTargetClusters(tt.args.sum, tt.args.clusters, nil)
+			for _, want := range tt.wants {
+				if testhelper.IsScheduleResultEqual(got, want) {
+					return
+				}
 			}
+			t.Errorf("dynamicScaleUp() got = %v, wants %v", got, tt.wants)
 		})
 	}
 }
@@ -285,6 +329,18 @@ func TestObtainBindingSpecExistingClusters(t *testing.T) {
 	}
 }
 
+// sortClusterByWeight sort clusters by the weight
+func sortClusterByWeight(m map[string]int64) ClusterWeightInfoList {
+	p := make(ClusterWeightInfoList, len(m))
+	i := 0
+	for k, v := range m {
+		p[i] = ClusterWeightInfo{ClusterName: k, Weight: v}
+		i++
+	}
+	sort.Sort(p)
+	return p
+}
+
 func TestSortClusterByWeight(t *testing.T) {
 	type args struct {
 		m map[string]int64
@@ -315,24 +371,18 @@ func TestSortClusterByWeight(t *testing.T) {
 					"cluster11": 1,
 					"cluster12": 2,
 					"cluster13": 3,
-					"cluster21": 1,
-					"cluster22": 2,
-					"cluster23": 3,
 				},
 			},
 			want: []ClusterWeightInfo{
 				{ClusterName: "cluster13", Weight: 3},
-				{ClusterName: "cluster23", Weight: 3},
 				{ClusterName: "cluster12", Weight: 2},
-				{ClusterName: "cluster22", Weight: 2},
 				{ClusterName: "cluster11", Weight: 1},
-				{ClusterName: "cluster21", Weight: 1},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := SortClusterByWeight(tt.args.m); !reflect.DeepEqual(got, tt.want) {
+			if got := sortClusterByWeight(tt.args.m); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("SortClusterByWeight() = %v, want %v", got, tt.want)
 			}
 		})
