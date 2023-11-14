@@ -57,7 +57,6 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 	ginkgo.Context("Test promoting namespaced resource: deployment", func() {
 		var deployment *appsv1.Deployment
 		var deploymentNamespace, deploymentName string
-		var deploymentOpts, namespaceOpts promote.CommandPromoteOption
 
 		ginkgo.BeforeEach(func() {
 			deploymentNamespace = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
@@ -95,17 +94,8 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 
 			// Step 2, promote namespace used by the deployment from member1 to karmada
 			ginkgo.By(fmt.Sprintf("Promoting namespace %s from member: %s to karmada control plane", deploymentNamespace, member1), func() {
-				namespaceOpts = promote.CommandPromoteOption{
-					Cluster:          member1,
-					AutoCreatePolicy: true,
-				}
-				args := []string{"namespace", deploymentNamespace}
-				// init args: place namespace name to CommandPromoteOption.name
-				err := namespaceOpts.Complete(f, args)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				// use karmadactl to promote a namespace from member1
-				err = namespaceOpts.Run(f, args)
+				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "promote", "namespace", deploymentNamespace, "-C", member1)
+				_, err := cmd.ExecOrDie()
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				framework.WaitNamespacePresentOnClusterByClient(kubeClient, deploymentNamespace)
@@ -113,18 +103,8 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 
 			// Step 3,  promote deployment from cluster member1 to karmada
 			ginkgo.By(fmt.Sprintf("Promoting deployment %s from member: %s to karmada", deploymentName, member1), func() {
-				deploymentOpts = promote.CommandPromoteOption{
-					Namespace:        deploymentNamespace,
-					Cluster:          member1,
-					AutoCreatePolicy: true,
-				}
-				args := []string{"deployment", deploymentName}
-				// init args: place deployment name to CommandPromoteOption.name
-				err := deploymentOpts.Complete(f, args)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				// use karmadactl to promote a deployment from member1
-				err = deploymentOpts.Run(f, args)
+				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, deploymentNamespace, karmadactlTimeout, "promote", "deployment", deploymentName, "-C", member1)
+				_, err := cmd.ExecOrDie()
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
