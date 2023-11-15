@@ -76,3 +76,39 @@ func NewPodMetricsSorter(metrics []metricsapi.PodMetrics, withNamespace bool, so
 		podMetrics:    podMetrics,
 	}
 }
+
+// NodeMetricsSorter sorts a list of NodeMetrics.
+type NodeMetricsSorter struct {
+	metrics []metricsapi.NodeMetrics
+	sortBy  string
+}
+
+// Len returns the length of the NodeMetricsSorter.
+func (n *NodeMetricsSorter) Len() int {
+	return len(n.metrics)
+}
+
+// Swap swaps the place of two NodeMetrics.
+func (n *NodeMetricsSorter) Swap(i, j int) {
+	n.metrics[i], n.metrics[j] = n.metrics[j], n.metrics[i]
+}
+
+// Less compares two NodeMetrics and returns true if the first NodeMetrics should sort before the second.
+func (n *NodeMetricsSorter) Less(i, j int) bool {
+	switch n.sortBy {
+	case "cpu":
+		return n.metrics[i].Usage.Cpu().MilliValue() > n.metrics[j].Usage.Cpu().MilliValue()
+	case "memory":
+		return n.metrics[i].Usage.Memory().Value() > n.metrics[j].Usage.Memory().Value()
+	default:
+		return n.metrics[i].Name < n.metrics[j].Name
+	}
+}
+
+// NewNodeMetricsSorter returns a new NodeMetricsSorter, which can be used to sort a list of NodeMetrics.
+func NewNodeMetricsSorter(metrics []metricsapi.NodeMetrics, sortBy string) *NodeMetricsSorter {
+	return &NodeMetricsSorter{
+		metrics: metrics,
+		sortBy:  sortBy,
+	}
+}
