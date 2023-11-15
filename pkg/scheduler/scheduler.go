@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -94,6 +95,7 @@ type Scheduler struct {
 	schedulerName                       string
 
 	enableEmptyWorkloadPropagation bool
+	enableBindingClusterChange     bool
 }
 
 type schedulerOptions struct {
@@ -111,6 +113,8 @@ type schedulerOptions struct {
 	schedulerName string
 	//enableEmptyWorkloadPropagation represents whether allow workload with replicas 0 propagated to member clusters should be enabled
 	enableEmptyWorkloadPropagation bool
+	//enableBindingClusterChange represents whether allow binding clusters match the newest affinities
+	enableBindingClusterChange bool
 	// outOfTreeRegistry represents the registry of out-of-tree plugins
 	outOfTreeRegistry runtime.Registry
 	// plugins is the list of plugins to enable or disable
@@ -168,6 +172,13 @@ func WithSchedulerName(schedulerName string) Option {
 func WithEnableEmptyWorkloadPropagation(enableEmptyWorkloadPropagation bool) Option {
 	return func(o *schedulerOptions) {
 		o.enableEmptyWorkloadPropagation = enableEmptyWorkloadPropagation
+	}
+}
+
+// WithEnableBindingClusterChange sets the enableBindingClusterChange for scheduler
+func WithEnableBindingClusterChange(enableBindingClusterChange bool) Option {
+	return func(o *schedulerOptions) {
+		o.enableBindingClusterChange = enableBindingClusterChange
 	}
 }
 
@@ -250,6 +261,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 		estimatorclient.RegisterSchedulerEstimator(schedulerEstimator)
 	}
 	sched.enableEmptyWorkloadPropagation = options.enableEmptyWorkloadPropagation
+	sched.enableBindingClusterChange = options.enableBindingClusterChange
 	sched.schedulerName = options.schedulerName
 
 	sched.addAllEventHandlers()
@@ -301,6 +313,8 @@ func (s *Scheduler) doSchedule(key string) error {
 	if err != nil {
 		return err
 	}
+	klog.InfoS("ready to schedule", "ns", ns, "name", name)
+
 	if len(ns) > 0 {
 		return s.doScheduleBinding(ns, name)
 	}
@@ -350,6 +364,19 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
+
+	if s.enableBindingClusterChange {
+		if change, err := s.checkNeedReschedule(rb.Spec, rb.Status); err != nil {
+			klog.ErrorS(err, "check cluster change fail", "ns", rb.Namespace, "Name", rb.Name)
+			return err
+		} else if change {
+			klog.Infof("Reschedule ResourceBinding(%s/%s) as replicas scaled down or scaled up", namespace, name)
+			err = s.scheduleResourceBinding(rb)
+			metrics.BindingSchedule(string(ScaleSchedule), utilmetrics.DurationInSeconds(start), err)
+			return err
+		}
+	}
+
 	// TODO(dddddai): reschedule bindings on cluster change
 	klog.V(3).Infof("Don't need to schedule ResourceBinding(%s/%s)", rb.Namespace, rb.Name)
 
@@ -362,6 +389,49 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		return patchBindingStatus(s.KarmadaClient, rb, updateRB)
 	}
 	return nil
+}
+
+func (s *Scheduler) checkNeedReschedule(rbc workv1alpha2.ResourceBindingSpec, rbs workv1alpha2.ResourceBindingStatus) (reschedule bool, err error) {
+	var (
+		scheduleResult []*clusterv1alpha1.Cluster
+		firstErr       error
+	)
+
+	affinityIndex := getAffinityIndex(rbc.Placement.ClusterAffinities, rbs.SchedulerObservedAffinityName)
+	updatedStatus := rbs.DeepCopy()
+	for affinityIndex < len(rbc.Placement.ClusterAffinities) {
+		updatedStatus.SchedulerObservedAffinityName = rbc.Placement.ClusterAffinities[affinityIndex].AffinityName
+		scheduleResult, err = s.Algorithm.CandidateScheduleClusters(context.TODO(), &rbc, updatedStatus)
+		if err == nil {
+			break
+		}
+
+		// obtain to err of the first scheduling
+		if firstErr == nil {
+			firstErr = err
+		}
+
+		affinityIndex++
+	}
+
+	newScheduleClusters := sets.NewString()
+	if len(scheduleResult) != 0 {
+		for _, tmp := range scheduleResult {
+			newScheduleClusters.Insert(tmp.Name)
+		}
+	}
+
+	oldScheduleClusters := sets.NewString()
+	if len(rbc.Clusters) != 0 {
+		for _, tmp := range rbc.Clusters {
+			oldScheduleClusters.Insert(tmp.Name)
+		}
+	}
+
+	needReschedule := !oldScheduleClusters.Equal(newScheduleClusters)
+
+	//klog.InfoS("check resourcebinding need reschedule", "ns", rb.Namespace, "name", rb.Name, "reschedule", needReschedule, "suggestClusters", newScheduleClusters, "currentClusters", oldScheduleClusters)
+	return needReschedule, firstErr
 }
 
 func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
@@ -407,6 +477,19 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
+
+	if s.enableBindingClusterChange {
+		if change, err := s.checkNeedReschedule(crb.Spec, crb.Status); err != nil {
+			klog.ErrorS(err, "check clusterresourcebinding cluster change fail", "Name", crb.Name)
+			return err
+		} else if change {
+			klog.Infof("Reschedule ClusterResourceBinding(%s) as replicas scaled down or scaled up", name)
+			err = s.scheduleClusterResourceBinding(crb)
+			metrics.BindingSchedule(string(ScaleSchedule), utilmetrics.DurationInSeconds(start), err)
+			return err
+		}
+	}
+
 	// TODO(dddddai): reschedule bindings on cluster change
 	klog.Infof("Don't need to schedule ClusterResourceBinding(%s)", name)
 
@@ -450,7 +533,7 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinity(rb *workv1alpha2.
 		return err
 	}
 
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &rb.Spec, &rb.Status, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &rb.Spec, &rb.Status, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation, EnableBindingClusterChange: s.enableBindingClusterChange})
 	var fitErr *framework.FitError
 	// in case of no cluster error, can not return but continue to patch(cleanup) the result.
 	if err != nil && !errors.As(err, &fitErr) {
@@ -488,7 +571,7 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinities(rb *workv1alpha
 	for affinityIndex < len(rb.Spec.Placement.ClusterAffinities) {
 		klog.V(4).Infof("Schedule ResourceBinding(%s/%s) with clusterAffiliates index(%d)", rb.Namespace, rb.Name, affinityIndex)
 		updatedStatus.SchedulerObservedAffinityName = rb.Spec.Placement.ClusterAffinities[affinityIndex].AffinityName
-		scheduleResult, err = s.Algorithm.Schedule(context.TODO(), &rb.Spec, updatedStatus, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
+		scheduleResult, err = s.Algorithm.Schedule(context.TODO(), &rb.Spec, updatedStatus, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation, EnableBindingClusterChange: s.enableBindingClusterChange})
 		if err == nil {
 			break
 		}
@@ -588,7 +671,7 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinity(crb *workv
 		return err
 	}
 
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &crb.Spec, &crb.Status, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &crb.Spec, &crb.Status, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation, EnableBindingClusterChange: s.enableBindingClusterChange})
 	var fitErr *framework.FitError
 	// in case of no cluster error, can not return but continue to patch(cleanup) the result.
 	if err != nil && !errors.As(err, &fitErr) {
@@ -626,7 +709,7 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinities(crb *wor
 	for affinityIndex < len(crb.Spec.Placement.ClusterAffinities) {
 		klog.V(4).Infof("Schedule ClusterResourceBinding(%s) with clusterAffiliates index(%d)", crb.Name, affinityIndex)
 		updatedStatus.SchedulerObservedAffinityName = crb.Spec.Placement.ClusterAffinities[affinityIndex].AffinityName
-		scheduleResult, err = s.Algorithm.Schedule(context.TODO(), &crb.Spec, updatedStatus, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
+		scheduleResult, err = s.Algorithm.Schedule(context.TODO(), &crb.Spec, updatedStatus, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation, EnableBindingClusterChange: s.enableBindingClusterChange})
 		if err == nil {
 			break
 		}

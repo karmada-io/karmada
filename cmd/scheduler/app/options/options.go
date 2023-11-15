@@ -58,7 +58,11 @@ type Options struct {
 
 	// EnableEmptyWorkloadPropagation represents whether workload with 0 replicas could be propagated to member clusters.
 	EnableEmptyWorkloadPropagation bool
-	ProfileOpts                    profileflag.Options
+
+	//EnableBindingClusterChange represents whether allow binding clusters match the newest affinities
+	EnableBindingClusterChange bool
+
+	ProfileOpts profileflag.Options
 
 	// Plugins is the list of plugins to enable or disable
 	// '*' means "all enabled by default plugins"
@@ -123,6 +127,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&o.SchedulerEstimatorServicePrefix, "scheduler-estimator-service-prefix", "karmada-scheduler-estimator", "The prefix of scheduler estimator service name")
 	fs.IntVar(&o.SchedulerEstimatorPort, "scheduler-estimator-port", defaultEstimatorPort, "The secure port on which to connect the accurate scheduler estimator.")
 	fs.BoolVar(&o.EnableEmptyWorkloadPropagation, "enable-empty-workload-propagation", false, "Enable workload with replicas 0 to be propagated to member clusters.")
+	fs.BoolVar(&o.EnableBindingClusterChange, "enable-binding-cluster-change", false, "Enable binding clusters match the newest affinities.")
 	fs.StringSliceVar(&o.Plugins, "plugins", []string{"*"},
 		fmt.Sprintf("A list of plugins to enable. '*' enables all build-in and customized plugins, 'foo' enables the plugin named 'foo', '*,-foo' disables the plugin named 'foo'.\nAll build-in plugins: %s.", strings.Join(frameworkplugins.NewInTreeRegistry().FactoryNames(), ",")))
 	fs.StringVar(&o.SchedulerName, "scheduler-name", scheduler.DefaultScheduler, "SchedulerName represents the name of the scheduler. default is 'default-scheduler'.")

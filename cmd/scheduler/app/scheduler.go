@@ -157,6 +157,7 @@ func run(opts *options.Options, stopChan <-chan struct{}, registryOptions ...Opt
 		scheduler.WithSchedulerEstimatorPort(opts.SchedulerEstimatorPort),
 		scheduler.WithSchedulerEstimatorTimeout(opts.SchedulerEstimatorTimeout),
 		scheduler.WithEnableEmptyWorkloadPropagation(opts.EnableEmptyWorkloadPropagation),
+		scheduler.WithEnableBindingClusterChange(opts.EnableBindingClusterChange),
 		scheduler.WithEnableSchedulerPlugin(opts.Plugins),
 		scheduler.WithSchedulerName(opts.SchedulerName),
 		scheduler.WithRateLimiterOptions(opts.RateLimiterOpts),
