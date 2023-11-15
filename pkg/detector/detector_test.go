@@ -125,3 +125,20 @@ func BenchmarkEventFilterMultiSkipNameSpaces(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkEventFilterExtensionApiserverAuthentication(b *testing.B) {
+	dt := &ResourceDetector{}
+	dt.SkippedPropagatingNamespaces = append(dt.SkippedPropagatingNamespaces, regexp.MustCompile("^kube-.*$"))
+	for i := 0; i < b.N; i++ {
+		dt.EventFilter(&unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"apiVersion": "v1",
+				"kind":       "ConfigMap",
+				"metadata": map[string]interface{}{
+					"name":      "extension-apiserver-authentication",
+					"namespace": "kube-system",
+				},
+			},
+		})
+	}
+}

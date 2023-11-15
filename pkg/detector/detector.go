@@ -233,16 +233,15 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 	return d.propagateResource(object, clusterWideKey)
 }
 
-// EventFilter tells if an object should be take care of.
+// EventFilter tells if an object should be taken care of.
 //
-// All objects under Kubernetes reserved namespace should be ignored:
-// - kube-*
 // All objects under Karmada reserved namespace should be ignored:
 // - karmada-system
 // - karmada-cluster
 // - karmada-es-*
 //
-// If '--skipped-propagating-namespaces' is specified, all APIs in the skipped-propagating-namespaces will be ignored.
+// If '--skipped-propagating-namespaces'(defaults to kube-.*) is specified,
+// all resources in the skipped-propagating-namespaces will be ignored.
 func (d *ResourceDetector) EventFilter(obj interface{}) bool {
 	key, err := ClusterWideKeyFunc(obj)
 	if err != nil {
@@ -277,6 +276,14 @@ func (d *ResourceDetector) EventFilter(obj interface{}) bool {
 				return false
 			}
 		}
+	}
+
+	// Prevent configmap/extension-apiserver-authentication from propagating as it is generated
+	// and managed by kube-apiserver.
+	// Refer to https://github.com/karmada-io/karmada/issues/4228 for more details.
+	if clusterWideKey.Namespace == "kube-system" && clusterWideKey.Kind == "ConfigMap" &&
+		clusterWideKey.Name == "extension-apiserver-authentication" {
+		return false
 	}
 
 	return true
