@@ -18,6 +18,7 @@ import (
 
 	"github.com/onsi/ginkgo/v2"
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/utils/pointer"
 
@@ -39,17 +40,21 @@ Test Case Overview:
 		Test suspend rule in CronFederatedHPA
 	case 4:
 		Test unsuspend rule then suspend it in CronFederatedHPA
+	case 5:
+		Test scale HPA.
 */
 var _ = ginkgo.Describe("[CronFederatedHPA] CronFederatedHPA testing", func() {
-	var cronFHPAName, fhpaName, policyName, deploymentName string
+	var cronFHPAName, fhpaName, hpaName, policyName, deploymentName string
 	var cronFHPA *autoscalingv1alpha1.CronFederatedHPA
 	var fhpa *autoscalingv1alpha1.FederatedHPA
+	var hpa *autoscalingv2.HorizontalPodAutoscaler
 	var deployment *appsv1.Deployment
 	var policy *policyv1alpha1.PropagationPolicy
 
 	ginkgo.BeforeEach(func() {
 		cronFHPAName = cronFedratedHPANamePrefix + rand.String(RandomStrLength)
 		fhpaName = federatedHPANamePrefix + rand.String(RandomStrLength)
+		hpaName = hpaNamePrefix + rand.String(RandomStrLength)
 		policyName = deploymentNamePrefix + rand.String(RandomStrLength)
 		deploymentName = policyName
 
@@ -194,6 +199,43 @@ var _ = ginkgo.Describe("[CronFederatedHPA] CronFederatedHPA testing", func() {
 			// So wait for 1m30s and check whether the replicas changed and whether the suspend field works
 			time.Sleep(time.Minute*1 + time.Second*30)
 			framework.WaitDeploymentReplicasFitWith(framework.ClusterNames(), testNamespace, deploymentName, int(*deployment.Spec.Replicas))
+		})
+	})
+
+	// case 5: Scale HPA.
+	ginkgo.Context("Scale HPA", func() {
+		targetMinReplicas := pointer.Int32(5)
+		targetMaxReplicas := pointer.Int32(100)
+
+		ginkgo.BeforeEach(func() {
+			// */1 * * * * means the rule will be triggered every 1 minute
+			rule := helper.NewCronFederatedHPARule("scale-up", "*/1 * * * *", false, nil, targetMinReplicas, targetMaxReplicas)
+			cronFHPA = helper.NewCronFederatedHPAWithScalingHPA(testNamespace, cronFHPAName, hpaName, rule)
+			hpa = helper.NewHPA(testNamespace, hpaName, deploymentName)
+		})
+
+		ginkgo.AfterEach(func() {
+			framework.RemoveHPA(kubeClient, testNamespace, hpaName)
+			framework.RemoveCronFederatedHPA(karmadaClient, testNamespace, cronFHPAName)
+		})
+
+		ginkgo.It("Test scale HPA testing", func() {
+			policy.Spec.ResourceSelectors = append(policy.Spec.ResourceSelectors, policyv1alpha1.ResourceSelector{
+				APIVersion: hpa.APIVersion,
+				Kind:       hpa.Kind,
+				Name:       hpa.Name,
+			})
+			policy.Spec.Placement.ReplicaScheduling.ReplicaSchedulingType = policyv1alpha1.ReplicaSchedulingTypeDuplicated
+			framework.UpdatePropagationPolicyWithSpec(karmadaClient, testNamespace, policy.Name, policy.Spec)
+
+			framework.CreateHPA(kubeClient, hpa)
+			framework.WaitDeploymentReplicasFitWith(framework.ClusterNames(), testNamespace, deploymentName, int(*hpa.Spec.MinReplicas)*len(framework.ClusterNames()))
+
+			// Create CronFederatedHPA to scale HPA
+			framework.CreateCronFederatedHPA(karmadaClient, cronFHPA)
+
+			// Wait CronFederatedHPA to scale HPA's minReplicas
+			framework.WaitDeploymentReplicasFitWith(framework.ClusterNames(), testNamespace, deploymentName, int(*targetMinReplicas)*len(framework.ClusterNames()))
 		})
 	})
 })

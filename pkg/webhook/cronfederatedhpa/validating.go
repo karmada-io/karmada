@@ -22,6 +22,7 @@ import (
 	_ "time/tzdata"
 
 	"github.com/adhocore/gronx"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -31,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/cronfederatedhpa"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
@@ -63,20 +65,19 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 	return admission.Allowed("")
 }
 
+var minMaxThresholdResouceList = map[cronfederatedhpa.ScalerKey]struct{}{
+	{ApiVersion: autoscalingv1alpha1.SchemeGroupVersion.String(), Kind: "FederatedHPA"}:      {},
+	{ApiVersion: autoscalingv2.SchemeGroupVersion.String(), Kind: "HorizontalPodAutoscaler"}: {},
+}
+
 // validateCronFederatedHPASpec validates CronFederatedHPA spec
 func validateCronFederatedHPASpec(spec *autoscalingv1alpha1.CronFederatedHPASpec, fldPath *field.Path) field.ErrorList {
 	errs := field.ErrorList{}
 	scaleFHPA := false
 
 	scaleTargetRef := spec.ScaleTargetRef
-	if scaleTargetRef.APIVersion == autoscalingv1alpha1.GroupVersion.String() {
-		if scaleTargetRef.Kind != autoscalingv1alpha1.FederatedHPAKind {
-			kindFldPath := fldPath.Child("scaleTargetRef").Child("kind")
-			fldError := field.Invalid(kindFldPath, scaleTargetRef.Kind,
-				fmt.Sprintf("invalid scaleTargetRef kind: %s, only support %s", scaleTargetRef.Kind, autoscalingv1alpha1.FederatedHPAKind))
-			errs = append(errs, fldError)
-			return errs
-		}
+	if _, ok := minMaxThresholdResouceList[cronfederatedhpa.ScalerKey{
+		ApiVersion: scaleTargetRef.APIVersion, Kind: scaleTargetRef.Kind}]; ok {
 		scaleFHPA = true
 	}
 

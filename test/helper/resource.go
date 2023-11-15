@@ -81,6 +81,29 @@ func NewCronFederatedHPAWithScalingFHPA(namespace, name, fhpaName string,
 	}
 }
 
+// NewCronFederatedHPAWithScalingHPA will build a CronFederatedHPA object with scaling HPA.
+func NewCronFederatedHPAWithScalingHPA(namespace, name, hpaName string,
+	rule autoscalingv1alpha1.CronFederatedHPARule) *autoscalingv1alpha1.CronFederatedHPA {
+	return &autoscalingv1alpha1.CronFederatedHPA{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "autoscaling.karmada.io/v1alpha1",
+			Kind:       "CronFederatedHPA",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+		Spec: autoscalingv1alpha1.CronFederatedHPASpec{
+			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
+				APIVersion: "autoscaling/v2",
+				Kind:       "HorizontalPodAutoscaler",
+				Name:       hpaName,
+			},
+			Rules: []autoscalingv1alpha1.CronFederatedHPARule{rule},
+		},
+	}
+}
+
 // NewCronFederatedHPARule will build a CronFederatedHPARule object.
 func NewCronFederatedHPARule(name, cron string, suspend bool, targetReplicas, targetMinReplicas, targetMaxReplicas *int32) autoscalingv1alpha1.CronFederatedHPARule {
 	return autoscalingv1alpha1.CronFederatedHPARule{
