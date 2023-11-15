@@ -24,10 +24,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cordon"
-	"github.com/karmada-io/karmada/pkg/karmadactl/join"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
-	"github.com/karmada-io/karmada/pkg/karmadactl/promote"
-	"github.com/karmada-io/karmada/pkg/karmadactl/unjoin"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/util"
 	khelper "github.com/karmada-io/karmada/pkg/util/helper"
@@ -44,14 +41,12 @@ const (
 var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 	var member1 string
 	var member1Client kubernetes.Interface
-	var f cmdutil.Factory
 
 	ginkgo.BeforeEach(func() {
 		member1 = "member1"
 		member1Client = framework.GetClusterClient(member1)
 		defaultConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
 		defaultConfigFlags.Context = &karmadaContext
-		f = cmdutil.NewFactory(defaultConfigFlags)
 	})
 
 	ginkgo.Context("Test promoting namespaced resource: deployment", func() {
@@ -133,7 +128,6 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 		var clusterRoleName, clusterRoleBindingName string
 		var clusterRole *rbacv1.ClusterRole
 		var clusterRoleBinding *rbacv1.ClusterRoleBinding
-		var clusterRoleOpts, clusterRoleBindingOpts promote.CommandPromoteOption
 
 		ginkgo.BeforeEach(func() {
 			var nameFlag = rand.String(RandomStrLength)
@@ -182,32 +176,12 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 
 			// Step2, promote clusterrole and clusterrolebinding from member1
 			ginkgo.By(fmt.Sprintf("Promoting clusterrole %s and clusterrolebindings %s from member to karmada", clusterRoleName, clusterRoleBindingName), func() {
-				clusterRoleOpts = promote.CommandPromoteOption{
-					Cluster:          member1,
-					AutoCreatePolicy: true,
-				}
-
-				args := []string{"clusterrole", clusterRoleName}
-				// init args: place clusterrole name to CommandPromoteOption.name
-				err := clusterRoleOpts.Complete(f, args)
+				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "promote", "clusterrole", clusterRoleName, "-C", member1)
+				_, err := cmd.ExecOrDie()
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-				// use karmadactl to promote clusterrole from member1
-				err = clusterRoleOpts.Run(f, args)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				clusterRoleBindingOpts = promote.CommandPromoteOption{
-					Cluster:          member1,
-					AutoCreatePolicy: true,
-				}
-
-				args = []string{"clusterrolebinding", clusterRoleBindingName}
-				// init args: place clusterrolebinding name to CommandPromoteOption.name
-				err = clusterRoleBindingOpts.Complete(f, args)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				// use karmadactl to promote clusterrolebinding from member1
-				err = clusterRoleBindingOpts.Run(f, args)
+				cmd = framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "promote", "clusterrolebinding", clusterRoleBindingName, "-C", member1)
+				_, err = cmd.ExecOrDie()
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
@@ -249,31 +223,16 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 			})
 
 			ginkgo.By(fmt.Sprintf("Promoting namespace %s from member: %s to karmada control plane", serviceNamespace, member1), func() {
-				opts := promote.CommandPromoteOption{
-					Cluster:          member1,
-					AutoCreatePolicy: true,
-				}
-				args := []string{"namespace", serviceNamespace}
-				err := opts.Complete(f, args)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				err = opts.Run(f, args)
+				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "promote", "namespace", serviceNamespace, "-C", member1)
+				_, err := cmd.ExecOrDie()
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				framework.WaitNamespacePresentOnClusterByClient(kubeClient, serviceNamespace)
 			})
 
 			ginkgo.By(fmt.Sprintf("Promoting service %s from member: %s to karmada control plane", serviceName, member1), func() {
-				opts := promote.CommandPromoteOption{
-					Namespace:        serviceNamespace,
-					Cluster:          member1,
-					AutoCreatePolicy: true,
-				}
-				args := []string{"service", serviceName}
-				err := opts.Complete(f, args)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				err = opts.Run(f, args)
+				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, serviceNamespace, karmadactlTimeout, "promote", "service", serviceName, "-C", member1)
+				_, err := cmd.ExecOrDie()
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
@@ -306,7 +265,6 @@ var _ = framework.SerialDescribe("Karmadactl join/unjoin testing", ginkgo.Labels
 		var policyName, policyNamespace string
 		var deployment *appsv1.Deployment
 		var policy *policyv1alpha1.PropagationPolicy
-		var f cmdutil.Factory
 
 		ginkgo.BeforeEach(func() {
 			clusterName = "member-e2e-" + rand.String(3)
@@ -333,7 +291,6 @@ var _ = framework.SerialDescribe("Karmadactl join/unjoin testing", ginkgo.Labels
 			})
 			defaultConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
 			defaultConfigFlags.Context = &karmadaContext
-			f = cmdutil.NewFactory(defaultConfigFlags)
 		})
 
 		ginkgo.BeforeEach(func() {
@@ -352,14 +309,9 @@ var _ = framework.SerialDescribe("Karmadactl join/unjoin testing", ginkgo.Labels
 
 		ginkgo.BeforeEach(func() {
 			ginkgo.By(fmt.Sprintf("Joining cluster: %s", clusterName), func() {
-				opts := join.CommandJoinOption{
-					DryRun:            false,
-					ClusterNamespace:  "karmada-cluster",
-					ClusterName:       clusterName,
-					ClusterContext:    clusterContext,
-					ClusterKubeConfig: kubeConfigPath,
-				}
-				err := opts.Run(f)
+				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "join",
+					"--cluster-kubeconfig", kubeConfigPath, "--cluster-context", clusterContext, "--cluster-namespace", "karmada-cluster", clusterName)
+				_, err := cmd.ExecOrDie()
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 		})
@@ -418,15 +370,9 @@ var _ = framework.SerialDescribe("Karmadactl join/unjoin testing", ginkgo.Labels
 			})
 
 			ginkgo.By(fmt.Sprintf("Unjoinning cluster: %s", clusterName), func() {
-				opts := unjoin.CommandUnjoinOption{
-					DryRun:            false,
-					ClusterNamespace:  "karmada-cluster",
-					ClusterName:       clusterName,
-					ClusterContext:    clusterContext,
-					ClusterKubeConfig: kubeConfigPath,
-					Wait:              5 * options.DefaultKarmadactlCommandDuration,
-				}
-				err := opts.Run(f)
+				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", 5*options.DefaultKarmadactlCommandDuration,
+					"unjoin", "--cluster-kubeconfig", kubeConfigPath, "--cluster-context", clusterContext, "--cluster-namespace", "karmada-cluster", clusterName)
+				_, err := cmd.ExecOrDie()
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 		})
@@ -459,14 +405,9 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		})
 		ginkgo.By(fmt.Sprintf("Joinning cluster: %s", clusterName), func() {
-			opts := join.CommandJoinOption{
-				DryRun:            false,
-				ClusterNamespace:  "karmada-cluster",
-				ClusterName:       clusterName,
-				ClusterContext:    clusterContext,
-				ClusterKubeConfig: kubeConfigPath,
-			}
-			err := opts.Run(f)
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout,
+				"join", "--cluster-kubeconfig", kubeConfigPath, "--cluster-context", clusterContext, "--cluster-namespace", "karmada-cluster", clusterName)
+			_, err := cmd.ExecOrDie()
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		})
 		// When a newly joined cluster is unready at the beginning, the scheduler will ignore it.
@@ -477,15 +418,9 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 		})
 		ginkgo.DeferCleanup(func() {
 			ginkgo.By(fmt.Sprintf("Unjoinning cluster: %s", clusterName), func() {
-				opts := unjoin.CommandUnjoinOption{
-					DryRun:            false,
-					ClusterNamespace:  "karmada-cluster",
-					ClusterName:       clusterName,
-					ClusterContext:    clusterContext,
-					ClusterKubeConfig: kubeConfigPath,
-					Wait:              5 * options.DefaultKarmadactlCommandDuration,
-				}
-				err := opts.Run(f)
+				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", 5*options.DefaultKarmadactlCommandDuration,
+					"unjoin", "--cluster-kubeconfig", kubeConfigPath, "--cluster-context", clusterContext, "--cluster-namespace", "karmada-cluster", clusterName)
+				_, err := cmd.ExecOrDie()
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 			ginkgo.By(fmt.Sprintf("Deleting clusters: %s", clusterName), func() {
