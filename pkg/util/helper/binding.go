@@ -2,6 +2,8 @@ package helper
 
 import (
 	"context"
+	"crypto/rand"
+	"math/big"
 	"sort"
 
 	corev1 "k8s.io/api/core/v1"
@@ -32,8 +34,9 @@ import (
 
 // ClusterWeightInfo records the weight of a cluster
 type ClusterWeightInfo struct {
-	ClusterName string
-	Weight      int64
+	ClusterName  string
+	Weight       int64
+	LastReplicas int32
 }
 
 // ClusterWeightInfoList is a slice of ClusterWeightInfo that implements sort.Interface to sort by Value.
@@ -45,19 +48,18 @@ func (p ClusterWeightInfoList) Less(i, j int) bool {
 	if p[i].Weight != p[j].Weight {
 		return p[i].Weight > p[j].Weight
 	}
-	return p[i].ClusterName < p[j].ClusterName
-}
-
-// SortClusterByWeight sort clusters by the weight
-func SortClusterByWeight(m map[string]int64) ClusterWeightInfoList {
-	p := make(ClusterWeightInfoList, len(m))
-	i := 0
-	for k, v := range m {
-		p[i] = ClusterWeightInfo{k, v}
-		i++
+	// when weights is equal, sort by last scheduling replicas result,
+	// more last scheduling replicas means the remainders of the last scheduling were randomized to such clusters,
+	// so in order to keep the inertia in this scheduling, such clusters should also be prioritized
+	if p[i].LastReplicas != p[j].LastReplicas {
+		return p[i].LastReplicas > p[j].LastReplicas
 	}
-	sort.Sort(p)
-	return p
+	// when last scheduling replicas is also equal, sort by random,
+	// first generate a random number within [0, 100) range,
+	// then return < if the actual number is in [0, 50) range, return > if is in [50, 100) range
+	const maxRandomNum = 100
+	randomNum, err := rand.Int(rand.Reader, big.NewInt(maxRandomNum))
+	return err == nil && randomNum.Cmp(big.NewInt(maxRandomNum/2)) >= 0
 }
 
 // GetWeightSum returns the sum of the weight info.
@@ -125,12 +127,20 @@ func (a *Dispenser) TakeByWeight(w ClusterWeightInfoList) {
 }
 
 // GetStaticWeightInfoListByTargetClusters constructs a weight list by target cluster slice.
-func GetStaticWeightInfoListByTargetClusters(tcs []workv1alpha2.TargetCluster) ClusterWeightInfoList {
+func GetStaticWeightInfoListByTargetClusters(tcs, scheduled []workv1alpha2.TargetCluster) ClusterWeightInfoList {
 	weightList := make(ClusterWeightInfoList, 0, len(tcs))
-	for _, result := range tcs {
+	for _, targetCluster := range tcs {
+		var lastReplicas int32
+		for _, scheduledCluster := range scheduled {
+			if targetCluster.Name == scheduledCluster.Name {
+				lastReplicas = scheduledCluster.Replicas
+				break
+			}
+		}
 		weightList = append(weightList, ClusterWeightInfo{
-			ClusterName: result.Name,
-			Weight:      int64(result.Replicas),
+			ClusterName:  targetCluster.Name,
+			Weight:       int64(targetCluster.Replicas),
+			LastReplicas: lastReplicas,
 		})
 	}
 	return weightList
@@ -138,7 +148,7 @@ func GetStaticWeightInfoListByTargetClusters(tcs []workv1alpha2.TargetCluster) C
 
 // SpreadReplicasByTargetClusters divides replicas by the weight of a target cluster list.
 func SpreadReplicasByTargetClusters(numReplicas int32, tcs, init []workv1alpha2.TargetCluster) []workv1alpha2.TargetCluster {
-	weightList := GetStaticWeightInfoListByTargetClusters(tcs)
+	weightList := GetStaticWeightInfoListByTargetClusters(tcs, init)
 	disp := NewDispenser(numReplicas, init)
 	disp.TakeByWeight(weightList)
 	return disp.Result
