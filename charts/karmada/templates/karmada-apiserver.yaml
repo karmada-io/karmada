@@ -73,6 +73,7 @@ spec:
             - --tls-private-key-file=/etc/kubernetes/pki/karmada.key
             - --max-requests-inflight={{ .Values.apiServer.maxRequestsInflight }}
             - --max-mutating-requests-inflight={{ .Values.apiServer.maxMutatingRequestsInflight }}
+            - --tls-min-version=VersionTLS13
           ports:
             - name: http
               containerPort: 5443
