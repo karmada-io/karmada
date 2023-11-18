@@ -17,6 +17,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/endpoints/request"
+	"k8s.io/apiserver/pkg/features"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 	utiltrace "k8s.io/utils/trace"
@@ -161,6 +163,21 @@ func (c *MultiClusterCache) Get(ctx context.Context, gvr schema.GroupVersionReso
 	return cloneObj, err
 }
 
+func shouldDelegateList(opts *metainternalversion.ListOptions) bool {
+	resourceVersion := opts.ResourceVersion
+	pagingEnabled := utilfeature.DefaultFeatureGate.Enabled(features.APIListChunking)
+	hasContinuation := pagingEnabled && len(opts.Continue) > 0
+	hasLimit := pagingEnabled && opts.Limit > 0 && resourceVersion != "0"
+
+	// If resourceVersion is not specified, serve it from underlying
+	// storage (for backward compatibility). If a continuation is
+	// requested, serve it from the underlying storage as well.
+	// Limits are only sent to storage when resourceVersion is non-zero
+	// since the watch cache isn't able to perform continuations, and
+	// limits are ignored when resource version is zero
+	return resourceVersion == "" || hasContinuation || hasLimit || opts.ResourceVersionMatch == metav1.ResourceVersionMatchExact
+}
+
 // List returns the object list
 // nolint:gocyclo
 func (c *MultiClusterCache) List(ctx context.Context, gvr schema.GroupVersionResource, o *metainternalversion.ListOptions) (runtime.Object, error) {
@@ -244,7 +261,7 @@ func (c *MultiClusterCache) List(ctx context.Context, gvr schema.GroupVersionRes
 		return cnt, list.GetContinue(), nil
 	}
 
-	if options.Limit == 0 {
+	if !shouldDelegateList(options) {
 		for _, cluster := range clusters {
 			_, _, err := listFunc(cluster)
 			if err != nil {
