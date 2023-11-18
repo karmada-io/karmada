@@ -65,6 +65,7 @@ spec:
             - --feature-gates=APIPriorityAndFairness=false
             - --audit-log-maxage=0
             - --audit-log-maxbackup=0
+            - --tls-min-version=VersionTLS13
           resources:
             {{- toYaml .Values.aggregatedApiServer.resources | nindent 12 }}
           readinessProbe:
