@@ -151,7 +151,7 @@ data:
     {{- include "karmada.crd.patch.webhook.clusterresourcebinding" . | nindent 8 }}
   {{- print "webhook_in_resourcebindings.yaml: " | nindent 6 }} |-
     {{- include "karmada.crd.patch.webhook.resourcebinding" . | nindent 8 }}
- ---   
+---   
 {{- end}}
 
 {{- if eq .Values.certs.mode "auto" }}
