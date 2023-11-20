@@ -98,9 +98,12 @@ func removeGenerateSelectorOfJob(workload *unstructured.Unstructured) error {
 		return err
 	}
 	if exist {
-		if util.GetLabelValue(matchLabels, "controller-uid") != "" {
-			delete(matchLabels, "controller-uid")
-		}
+		delete(matchLabels, "controller-uid")
+		// The label 'batch.kubernetes.io/controller-uid' was introduced at Kubernetes v1.27, which intend to replace
+		// the previous label "controller-uid"(without batch.kubernetes.io prefix).
+		// See https://github.com/kubernetes/kubernetes/pull/114930 for more details.
+		delete(matchLabels, batchv1.ControllerUidLabel)
+
 		err = unstructured.SetNestedStringMap(workload.Object, matchLabels, "spec", "selector", "matchLabels")
 		if err != nil {
 			return err
@@ -112,13 +115,13 @@ func removeGenerateSelectorOfJob(workload *unstructured.Unstructured) error {
 		return err
 	}
 	if exist {
-		if util.GetLabelValue(templateLabels, "controller-uid") != "" {
-			delete(templateLabels, "controller-uid")
-		}
-
-		if util.GetLabelValue(templateLabels, "job-name") != "" {
-			delete(templateLabels, "job-name")
-		}
+		delete(templateLabels, "controller-uid")
+		delete(templateLabels, "job-name")
+		// The label 'batch.kubernetes.io/controller-uid' and 'batch.kubernetes.io/job-name' were introduced at
+		// Kubernetes v1.27, which intend to replace the previous labels 'controller-uid' and 'job-name' respectively.
+		// See https://github.com/kubernetes/kubernetes/pull/114930 for more details.
+		delete(templateLabels, batchv1.ControllerUidLabel)
+		delete(templateLabels, batchv1.JobNameLabel)
 
 		err = unstructured.SetNestedStringMap(workload.Object, templateLabels, "spec", "template", "metadata", "labels")
 		if err != nil {
