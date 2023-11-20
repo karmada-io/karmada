@@ -9,6 +9,7 @@ import (
 	kuberuntime "k8s.io/apimachinery/pkg/runtime"
 	clientset "k8s.io/client-go/kubernetes"
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/component-base/cli/flag"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
@@ -47,7 +48,7 @@ func installKarmadaEtcd(client clientset.Interface, name, namespace string, cfg 
 	etcdStatefulSetBytes, err := util.ParseTemplate(KarmadaEtcdStatefulSet, struct {
 		StatefulSetName, Namespace, Image, EtcdClientService string
 		CertsSecretName, EtcdPeerServiceName                 string
-		InitialCluster, EtcdDataVolumeName                   string
+		InitialCluster, EtcdDataVolumeName, EtcdCipherSuites string
 		Replicas, EtcdListenClientPort, EtcdListenPeerPort   int32
 	}{
 		StatefulSetName:      util.KarmadaEtcdName(name),
@@ -58,6 +59,7 @@ func installKarmadaEtcd(client clientset.Interface, name, namespace string, cfg 
 		EtcdPeerServiceName:  util.KarmadaEtcdName(name),
 		EtcdDataVolumeName:   constants.EtcdDataVolumeName,
 		InitialCluster:       strings.Join(initialClusters, ","),
+		EtcdCipherSuites:     genEtcdCipherSuites(),
 		Replicas:             *cfg.Replicas,
 		EtcdListenClientPort: constants.EtcdListenClientPort,
 		EtcdListenPeerPort:   constants.EtcdListenPeerPort,
@@ -126,4 +128,11 @@ func createEtcdService(client clientset.Interface, name, namespace string) error
 	}
 
 	return nil
+}
+
+// Setting Golang's secure cipher suites as etcd's cipher suites.
+// They are obtained by the return value of the function CipherSuites() under the go/src/crypto/tls/cipher_suites.go package.
+// Consistent with the Preferred values of k8s’s default cipher suites.
+func genEtcdCipherSuites() string {
+	return strings.Join(flag.PreferredTLSCipherNames(), ",")
 }
