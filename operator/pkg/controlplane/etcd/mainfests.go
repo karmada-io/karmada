@@ -44,7 +44,8 @@ spec:
         - --key-file=/etc/karmada/pki/etcd/etcd-server.key
         - --data-dir=/var/lib/etcd
         - --snapshot-count=10000
-        - --log-level=debug
+        - --log-level=debug=
+        - --cipher-suites={{ .EtcdCipherSuites }}
         env:
         - name: KARMADA_ETCD_NAME
           valueFrom:
