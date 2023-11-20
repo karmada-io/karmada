@@ -226,6 +226,10 @@ If you have questions, feel free to reach out to us in the following ways:
 | KubeCon(EU 2021) | [Beyond federation: automating multi-cloud workloads with K8s native APIs](https://www.youtube.com/watch?v=LJJoaGszBVk) |
 | KubeCon(EU 2022) | [Sailing Multi Cloud Traffic Management With Karmada](https://youtu.be/rzFbxeZQHWI)                                     |
 | KubeDay(Israel 2023)| [Simplifying Multi-cluster Kubernetes Management with Karmada](https://www.youtube.com/watch?v=WCrIhRNBZ9I) |
+| KubeCon(China 2023) | [Multi-Cloud Multi-Cluster HPA Helps Trip.com Group Deal with Business Downturn and Rapid Recovery](https://www.youtube.com/watch?v=uninSyVBKO4) |
+| KubeCon(China 2023) | [Break Through Cluster Boundaries to Autoscale Workloads Across Them on a Large Scale](https://www.youtube.com/watch?v=22W1yrEJjtQ) |
+| KubeCon(China 2023) | [Cross-Cluster Traffic Orchestration with eBPF](https://www.youtube.com/watch?v=e4GA5e-C7n0) |
+| KubeCon(China 2023) | [Non-Intrusively Enable OpenKruise and Argo Workflow in a Multi-Cluster Federation](https://www.youtube.com/watch?v=gcllTXRkz-E) |
 
 For blogs, please refer to [website](https://karmada.io/blog/).
 
