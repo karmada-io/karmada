@@ -27,6 +27,8 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 )
 
 // CreateOrUpdateEndpointSlice creates a EndpointSlice object if not exist, or updates if it already exists.
@@ -90,4 +92,14 @@ func DeleteEndpointSlice(c client.Client, selector labels.Set) error {
 	}
 
 	return errors.NewAggregate(errs)
+}
+
+// MultiClusterServiceCrossClusterEnabled checks weather the MultiClusterService contains CrossCluster type.
+func MultiClusterServiceCrossClusterEnabled(mcs *networkingv1alpha1.MultiClusterService) bool {
+	for _, t := range mcs.Spec.Types {
+		if t == networkingv1alpha1.ExposureTypeCrossCluster {
+			return true
+		}
+	}
+	return false
 }

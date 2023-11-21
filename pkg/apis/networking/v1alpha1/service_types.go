@@ -30,6 +30,8 @@ const (
 	ResourcePluralMultiClusterService = "multiclusterservices"
 	// ResourceNamespaceScopedMultiClusterService indicates if MultiClusterService is NamespaceScoped.
 	ResourceNamespaceScopedMultiClusterService = true
+	// MCSServiceAppliedConditionType is indicates the condition type of mcs service applied.
+	MCSServiceAppliedConditionType = "ServiceApplied"
 )
 
 // +genclient

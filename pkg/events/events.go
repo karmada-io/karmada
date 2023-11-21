@@ -129,3 +129,11 @@ const (
 	// EventReasonSyncDerivedServiceFailed indicates that sync derived service failed.
 	EventReasonSyncDerivedServiceFailed = "SyncDerivedServiceFailed"
 )
+
+// Define events for MultiClusterService objects and their associated resources.
+const (
+	// EventReasonSyncServiceWorkFailed is indicates that sync service work failed.
+	EventReasonSyncServiceWorkFailed string = "SyncServiceWorkFailed"
+	// EventReasonSyncServiceWorkSucceed is indicates that sync service work succeed.
+	EventReasonSyncServiceWorkSucceed string = "SyncServiceWorkSucceed"
+)
