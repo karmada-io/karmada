@@ -5,13 +5,16 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+source "${REPO_ROOT}"/hack/util.sh
+
 function usage() {
   echo "This script starts a kube cluster by kind."
   echo "Usage: hack/create-cluster.sh <CLUSTER_NAME> [KUBECONFIG]"
   echo "Example: hack/create-cluster.sh host /root/.kube/karmada.config"
 }
 
-CLUSTER_VERSION=${CLUSTER_VERSION:-"kindest/node:v1.27.3"}
+CLUSTER_VERSION=${CLUSTER_VERSION:-"${DEFAULT_CLUSTER_VERSION}"}
 
 if [[ $# -lt 1 ]]; then
   usage
