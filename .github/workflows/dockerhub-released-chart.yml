@@ -6,6 +6,8 @@ on:
 jobs:
   publish-chart-to-dockerhub:
     name: publish to DockerHub
+    permissions:
+      id-token: write # To be able to get OIDC ID token to sign images.
     runs-on: ubuntu-22.04
     steps:
       - name: checkout code
@@ -20,6 +22,10 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USER_NAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.0.3
+        with:
+          cosign-release: 'v1.13.1'
       - name: package chart
         env:
           VERSION: ${{ github.ref_name }}
@@ -27,4 +33,6 @@ jobs:
       - name: push chart
         env:
           VERSION: ${{ github.ref_name }}
+          SIGN_IMAGE: 1
+          COSIGN_EXPERIMENTAL: 1
         run: make push-chart

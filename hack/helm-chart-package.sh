@@ -39,4 +39,3 @@ do
 
     sha256sum "${output_dir}/${tar_file}" > "${output_dir}/${tar_file}.sha256"
 done
-
