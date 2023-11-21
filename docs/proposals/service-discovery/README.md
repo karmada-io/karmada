@@ -3,13 +3,12 @@ title: Service discovery with native Kubernetes naming and resolution
 authors:
 - "@bivas"
 - "@XiShanYongYe-Chang"
+- "@jwcesign"
 reviewers:
 - "@RainbowMango"
 - "@GitHubxsy"
 - "@Rains6"
-- "@jwcesign"
 - "@chaunceyjiang"
-- TBD
 approvers:
 - "@RainbowMango"
 
@@ -22,7 +21,7 @@ update-date: 2023-08-19
 
 ## Summary
 
-With the current `serviceImport` controller, when a `ServiceImport` object is reconciled, the derived service is prefixed with `derived-` prefix.
+In multi-cluster scenarios, there is a need to access services across clusters. Currently, Karmada support this by creating derived service(with `derived-` prefix, ) in other clusters to access the service.
 
 This Proposal propose a method for multi-cluster service discovery using Kubernetes native Service, to modify the current implementation of Karmada's MCS. This approach does not add a `derived-` prefix when accessing services across clusters.
 
@@ -32,11 +31,14 @@ This Proposal propose a method for multi-cluster service discovery using Kuberne
 This section is for explicitly listing the motivation, goals, and non-goals of
 this KEP.  Describe why the change is important and the benefits to users.
 -->
+
 Having a `derived-` prefix for `Service` resources seems counterintuitive when thinking about service discovery:
 - Assuming the pod is exported as the service `foo`
 - Another pod that wishes to access it on the same cluster will simply call `foo` and Kubernetes will bind to the correct one
 - If that pod is scheduled to another cluster, the original service discovery will fail as there's no service by the name `foo`
 - To find the original pod, the other pod is required to know it is in another cluster and use `derived-foo` to work properly
+
+If Karmada supports service discovery using native Kubernetes naming and resolution (without the `derived-` prefix), users can access the service using its original name without needing to modify their code to accommodate services with the `derived-` prefix.
 
 ### Goals
 
@@ -51,8 +53,8 @@ Having a `derived-` prefix for `Service` resources seems counterintuitive when t
 
 Following are flows to support the service import proposal:
 
-1. `Deployment` and `Service` are created on cluster member1 and the `Service` imported to cluster member2 using `ServiceImport` (described below as [user story 1](#story-1))
-2. `Deployment` and `Service` are created on cluster member1 and both propagated to cluster member2. `Service` from cluster member1 is imported to cluster member2 using `ServiceImport` (described below as [user story 2](#story-2))
+1. `Deployment` and `Service` are created on cluster member1 and the `Service` imported to cluster member2 using `MultiClusterService` (described below as [user story 1](#story-1))
+2. `Deployment` and `Service` are created on cluster member1 and both propagated to cluster member2. `Service` from cluster member1 is imported to cluster member2 using `MultiClusterService` (described below as [user story 2](#story-2))
 
 The proposal for this flow is what can be referred to as local-and-remote service discovery. In the process handling, it can be simply distinguished into the following scenarios:
 
@@ -60,16 +62,17 @@ The proposal for this flow is what can be referred to as local-and-remote servic
 2. **Local** and **Remote** - Users accessing the `foo` service will reach either member1 or member2
 3. **Remote** only - in case there's a local service by the name `foo` Karmada will remove the local `EndPointSlice` and will create an `EndPointSlice` pointing to the other cluster (e.g. instead of resolving member2 cluster is will reach member1)
 
-Based on the above three scenarios, we have proposed two strategies:
+Based on the above three scenarios, we think there is two reasonable strategies(Users can utilize PP to propagate the Service and implement the `Local` scenario, it's not necessary to implement it with `MultiClusterService`):
 
 - **RemoteAndLocal** - When accessing Service, the traffic will be evenly distributed between the local cluster and remote cluster's Service.
 - **LocalFirst** - When accessing Services, if the local cluster Service can provide services, it will directly access the Service of the local cluster. If a failure occurs in the Service on the local cluster, it will access the Service on remote clusters.
 
 > Note: How can we detect the failure?
 > Maybe we need to watch the EndpointSlices resources of the relevant Services in the member cluster. If the EndpointSlices resource becomes non-existent or the statue become not ready, we need to synchronize it with other clusters.
-> As for the specific implementation of the LocalFirst strategy, we can iterate on it subsequently.
 
-This proposal suggests using the [MultiClusterService API](https://github.com/karmada-io/karmada/blob/24bb5829500658dd1caeea16eeace8252bcef682/pkg/apis/networking/v1alpha1/service_types.go#L30) to enable cross-cluster service discovery. To avoid conflicts with the previously provided [prefixed cross-cluster service discovery](./../networking/multiclusterservice.md#cross-clusters-service-discovery), we can add an annotation on the MultiClusterService API with the key `discovery.karmada.io/strategy`, its value can be either `RemoteAndLocal` or `LocalFirst`.
+This proposal suggests using the [MultiClusterService API](https://github.com/karmada-io/karmada/blob/24bb5829500658dd1caeea16eeace8252bcef682/pkg/apis/networking/v1alpha1/service_types.go#L30) to enable cross-cluster service discovery.
+
+This proposal focuses on the `RemoteAndLocal` strategy, and we will subsequently iterate on the `LocalFirst` strategy.
 
 ### User Stories (Optional)
 
@@ -82,27 +85,16 @@ bogged down.
 
 #### Story 1
 
-As a Kubernetes cluster member,
-I want to access a service from another cluster member,
-So that I can communicate with the service using its original name.
-
-**Background**: The Service named `foo` is created on cluster member1 and imported to cluster member2 using `ServiceImport`.
+As a user of a Kubernetes cluster, I want to be able to access a service whose corresponding pods are located in another cluster. I hope to communicate with the service using its original name.
 
 **Scenario**:
 
 1. Given that the `Service` named `foo` exists on cluster member1
-2. And the `ServiceImport` resource is created on cluster member2, specifying the import of `foo`
-3. When I try to access the service inside member2
-4. Then I can access the service using the name `foo.myspace.svc.cluster.local`
+1. When I try to access the service inside member2, I can access the service using the name `foo.myspace.svc.cluster.local`
 
 #### Story 2
 
-As a Kubernetes cluster member,
-I want to handle conflicts when importing a service from another cluster member,
-So that I can access the service without collisions and maintain high availability.
-
-**Background**: The Service named `foo` is created on cluster member1 and has a conflict when attempting to import to cluster member2.
-Conflict refers to the situation where there is already a `Service` `foo` existing on the cluster (e.g. propagated with `PropagationPolicy`), but we still need to import `Service` `foo` from other clusters onto this cluster (using `ServiceImport`)
+As a user of a Kubernetes cluster, I want to access a service that has pods located in both this cluster and another. I expect to communicate with the service using its original name, and have the requests routed to the appropriate pods across clusters.
 
 **Scenario**:
 
@@ -123,7 +115,7 @@ This might be a good place to talk about core concepts and how they relate.
 ### Risks and Mitigations
 
 <!--
-What are the risks of this proposal, and how do we mitigate? 
+What are the risks of this proposal, and how do we mitigate?
 
 How will security be reviewed, and by whom?
 
@@ -131,7 +123,8 @@ How will UX be reviewed, and by whom?
 
 Consider including folks who also work outside the SIG or subproject.
 -->
-Adding a `Service` that resolve to a remote cluster will add a network latency of communication between clusters. 
+
+Adding a `Service` that resolve to a remote cluster will add a network latency of communication between clusters.
 
 ## Design Details
 
@@ -144,118 +137,196 @@ proposal will be implemented, this is the place to discuss them.
 
 ### API changes
 
-Add an annotation on the MultiClusterService API with the key `discovery.karmada.io/strategy`, its value can be either `RemoteAndLocal` or `LocalFirst`.
+This proposal proposes two new fields `ServiceProvisionClusters` and `ServiceConsumptionClusters` in `MultiClusterService` API.
 
+```go
+
+type MultiClusterServiceSpec struct {
+	...
+
+	// ServiceProvisionClusters specifies the clusters which will provision the service backend.
+	// If leave it empty, we will collect the backend endpoints from all clusters and sync
+	// them to the ServiceConsumptionClusters.
+	// +optional
+	ServiceProvisionClusters []string `json:"serviceProvisionClusters,omitempty"`
+
+	// ServiceConsumptionClusters specifies the clusters where the service will be exposed, for clients.
+	// If leave it empty, the service will be exposed to all clusters.
+	// +optional
+	ServiceConsumptionClusters []string `json:"serviceConsumptionClusters,omitempty"`
+}
+
+```
+
+With this API, we will:
+* Use `ServiceProvisionClusters` to specify the member clusters which will provision the service backend, if leave it empty, we will collect the backend endpoints from all clusters and sync them to the `ServiceConsumptionClusters`.
+* Use `ServiceConsumptionClusters` to specify the clusters where the service will be exposed. If leave it empty, the service will be exposed to all clusters.
+
+For example, if we want access `foo`` service which are localted in member2 from member3 , we can use the following yaml:
 ```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: foo
+spec:
+  ports:
+  - port: 80
+    targetPort: 8080
+  selector:
+    app: foo
+---
 apiVersion: networking.karmada.io/v1alpha1
 kind: MultiClusterService
 metadata:
    name: foo
-   annotation:
-      discovery.karmada.io/strategy: RemoteAndLocal 
 spec:
    types:
       - CrossCluster
-   range:
-      clusterNames:
-         - member2
+    serviceProvisionClusters:
+      - member2
+    serviceConsumptionClusters:
+      - member3
 ```
 
-The optimization design for the MultiClusterService API needs to be further iterated and improved, such as fixing the annotation `discovery.karmada.io/strategy` in the spec.
+### Implementation workflow
 
-### General Idea
+#### Service propagation
 
-Before delving into the specific design details, let's first take a look from the user's perspective at what preparations they need to make.
+The process of propagating Service from Karmada control plane to member clusters is as follows:
 
-First, the user creates a foo Deployment and Service on the Karmada control panel, and creates a PropagationPolicy to distribute them into the member cluster `member1`.
+<p align="center">
+  <img src="./statics/mcs-svc-sync.png" width="60%">
+</p>
 
-![image](statics/user-operation-01.png)
+1. `multiclusterservice` controller will list&watch `Service` and `MultiClusterService` resources from Karmada control plane.
+1. Once there is same name `MultiClusterService` and `Service`, `multiclusterservice` will create the Work(corresponding to `Service`), the target cluster namespace is all the clusters in filed `spec.serviceProvisionClusters` and `spec.serviceConsumptionClusters`.
+1. The Work will be synchronized with the member clusters. After synchronization, `EndpointSlice` will be created in member clusters.
 
-Second, the user creates an MCS object on the Karmada control plane to enable cross-cluster service `foo`. In this way, the service on cluster `member2` can access the foo Service on cluster member1.
+#### `EndpointSlice` synchronization
 
-![image](statics/user-operation-02.png)
+The process of synchronizing `EndpointSlice` from `ServiceProvisionClusters` to `ServiceConsumptionClusters` is as follows:
 
-Then, present our specific plan design.
+<p align="center">
+  <img src="./statics/mcs-eps-collect.png" height="400px">
+</p>
 
-1. When the `mcs-controller` detects that a user has created a `MultiClusterService` object, it will create a `ServiceExport` object in the Karmada control plane and propagates it to the source clusters. This process involves two issues.
-- How are source clusters determined?
-- How to propagate the `ServiceExport` object?
+1. `endpointsliceCollect` controller will list&watch `MultiClusterService`.
+1. `endpointsliceCollect` controller will build the informer to list&watch the target service's EndpointSlice from `ServiceProvisionClusters`.
+1. `endpointsliceCollect` controller will create the corresponding Work for each `EndpointSlice` in the cluster namespace.
+  When creating the Work, in order to delete the corresponding work when `MultiClusterService` deletion, we should add following labels:
+    * `endpointslice.karmada.io/name`: the service name of the original `EndpointSlice`.
+    * `endpointslice.karmada.io/namespace`: the service namespace of the original `EndpointSlice`.
 
-Detailed explanations are given below:
+<p align="center">
+  <img src="./statics/mcs-eps-sync.png" height="400px">
+</p>
 
-- There are two ways of thinking about the first question:
-  - We can determine which clusters the target service was propagated to by looking up the `ResourceBinding` associated with the target service, which are the source clusters.
-  - Alternatively, we can just treat all clusters as source clusters. This creates some redundancies, but they can be eliminated in subsequent iterations.
-- There are four ways we can use to propagate `ServiceExport` to member clusters:
-  - Propagated by specifying a `PropagationPolicy`, specifying the source clusters in the `.spec.placement.clusterAffinity.clusterNames` field of the `PropagationPolicy`.
-    - pros: 
-      - Ability to reuse previous code to a greater extent.
-    - cons:
-      - `PropagationPolicy` is a user-oriented API that has impact on user perception.
-      - In order to get real-time source clusters information, controller need to watch the `ResourceBinding` object. This drawback no longer exists for the direct way of treating all clusters as source cluster.
-  - Propagated by specifying a `ResourceBinding`, specify the source clusters in the `.spec.clusters` field of the `ResourceBinding`
-    - pros:
-      - Ability to reuse previous code to a greater extent.
-    - cons:
-      - In order to get real-time source clusters information, controller need to watch the `ResourceBinding` object. This drawback no longer exists for the direct way of treating all clusters as source cluster.
-  - Propagated by specifying a set of `Work`s in the namespaces that correspond to the source clusters.
-    - pros:
-      - Clear implementation logic.
-    - cons:
-      - In order to get real-time source clusters information, controller need to watch the `ResourceBinding` object. This drawback no longer exists for the direct way of treating all clusters as source cluster.
-      - Less reuse of code logic, `Work` object needs to be created one by one.
-  - Modify the `.spec.propagateDeps` field of the ResourceBinding associated with the target `Service` object to true, enable the dependency distributor capability, and add the `ServiceExport` resource to the [InterpretDependency](https://karmada.io/docs/next/userguide/globalview/customizing-resource-interpreter/#interpretdependency) resource interpreter of the `Service` resource.
-    - pros:
-      - Code logic reuse is large, do not need to watch ResourceBinding resource changes.
-    - cons:
-      - The controller need to enable the dependency distributor capability of the target `Service` object and maintain it.
-  
-Taken together, we can propagate `ServiceExport` to all clusters with the help of `ResourceBinding`.
+1. `endpointsliceDispatch` controller will list&watch `MultiClusterService`.
+1. `endpointsliceDispatch` controller will list&watch `EndpointSlice` from `MultiClusterService`'s `spec.serviceProvisionClusters`.
+1. `endpointsliceDispatch` controller will creat the corresponding Work for each `EndpointSlice` in the cluster namespace of `MultiClusterService`'s `spec.serviceConsumptionClusters`.
+  When creating the Work, in order to facilitate problem investigation, we should add following annotation to record the original `EndpointSlice` information:
+    * `endpointslice.karmada.io/work-provision-cluster`: the cluster name of the original `EndpointSlice`.
+  Also, we should add the following annotation to the syned `EndpointSlice` record the original information:
+    * `endpointslice.karmada.io/endpointslice-generation`: the resoruce generation of the `EndpointSlice`, it could be used to check whether the `EndpointSlice` is the newest version.
+    * `endpointslice.karmada.io/provision-cluster`: the cluster location of the original `EndpointSlice`.
+1. Karmada will sync the `EndpointSlice`'s work to the member clusters.
 
-![image](statics/design-01.png)
+But, there is one point to note that, assume I have following configuration:
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: foo
+spec:
+  ports:
+  - port: 80
+    targetPort: 8080
+  selector:
+    app: foo
+---
+apiVersion: networking.karmada.io/v1alpha1
+kind: MultiClusterService
+metadata:
+   name: foo
+spec:
+  types:
+    - CrossCluster
+  serviceProvisionClusters:
+    - member1
+    - member2
+  serviceConsumptionClusters:
+    - member2
+```
 
-2. Depending on the existing MCS atomic capabilities, the `serviceExport` controller and `endpointSlice` controller will collect the `EndpointSlices` related to `foo` Service into the Karmada control plane.
+When create the corresponding Work, Karmada should only sync the exists `EndpointSlice` in `member1` to `member2`.
 
-![image](statics/design-02.png)
+### Components change
 
-3. The `mcs-controller` controller propagates `Service` and `EndpointSlice` objects from karmada control-plane to the destination clusters and over-watch synchronizes their changes. Again, this process requires consideration of two issues.
-- How are destination clusters determined?
-- How to propagate the `Service` and `EndpointSlice` object?
+#### karmada-controller
 
-> Note: In this scenario, we haven't used the `ServiceImport` object yet, so we don't need to propagate it to the destination clusters.
+* Add `multiclusterservice` controller to support reconcile `MultiClusterService` and Clusters, including creation/deletion/updating.
+* Add `endpointsliceCollect` controller to support reconcile `MultiClusterService` and Clusters, collect `EndpointSlice` from `ServerClusters` as work.
+* Add `endpointsliceDispatch` controller to support reconcile `MultiClusterService` and Clusters, dispatch `EndpointSlice` work from `serviceProvisionClusters` to `serviceConsumptionClusters`.
 
-Detailed explanations are given below:
+### Status Record
 
-- We can get the destination clusters from the `.spec.range` field of the `MultiClusterService` object. One thing to consider, however, is that the resources to be propagated may already exist in the destination clusters.
-  - If there is a Service existing on the target cluster, there is no need to resynchronize the EndpointSlices exported from this cluster to the cluster. Only synchronize the EndpointSlices received from other clusters.
-  - If there is no Service on the target cluster, both the Service and the EndpointSlices collected from other clusters need to be synchronized to that cluster.
--  There are three ways we can use to propagate `Service` and `EndpointSlice` to the destination clusters:
-  - Propagated the `Service` and `EndpointSlice` resources by specifying the respective `ResourceBinding`, specify the source clusters in the `.spec.clusters` field of the `ResourceBinding`
-    - pros:
-      - Ability to reuse previous code to a greater extent.
-    - cons:
-      - Since the `Service` object has already been propagated to the source clusters by the user, we need to create a new `ResourceBinding` object to propagate it to the destination clusters.
-  - Propagated the `Service` and `EndpointSlice` resources by specifying the respective set of `Work`s in the namespaces that correspond to the source clusters.
-    - pros:
-      - Clear implementation logic.
-    - cons:
-      - Less reuse of code logic, `Work` object needs to be created one by one.
-  - Modify the `.spec.propagateDeps` field of the ResourceBinding associated with the target `Service` object to true, enable the dependency distributor capability, and add the `EndpointSlice` resource to the [InterpretDependency](https://karmada.io/docs/next/userguide/globalview/customizing-resource-interpreter/#interpretdependency) resource interpreter of the `Service` resource.
-    - pros:
-      - Code logic reuse is large, do not need to watch ResourceBinding resource changes.
-    - cons:
-      - The controller need to enable the dependency distributor capability of the target `Service` object and maintain it.
-      - Since the `Service` object has already been propagated to the source clusters by the user, we need to create a new `ResourceBinding` object to propagate it to the destination clusters.
+We should have following Condition in `MultiClusterService`:
+```go
+	MCSServiceAppliedConditionType          = "ServiceApplied"
 
-We need to choose a way, or provide new ideas, to accomplish the propagation of `Service` and `EndpointSlice` resources.
+	MCSEndpointSliceCollectedCondtionType = "EndpointSliceCollected"
 
-Taken together, we can propagate `Service` and `EndpointSlice` to the destination clusters with the help of `ResourceBinding`.
+	MCSEndpointSliceAppliedCondtionType = "EndpointSliceApplied"
+```
 
-![image](statics/design-03.png)
+`MCSServiceAppliedConditionType` is used to record the status of `Service` propagation, for example:
+```yaml
+status:
+  conditions:
+  - lastTransitionTime: "2023-11-20T02:30:49Z"
+    message: Service is propagated to target clusters.
+    reason: ServiceAppliedSuccess
+    status: "True"
+    type: ServiceApplied
+```
 
-At this point, the entire process is complete, and `foo` Service can now be accessed across clusters.
+`MCSEndpointSliceCollectedConditionType` is used to record the status of `EndpointSlice` collection, for example:
+```yaml
+status:
+  conditions:
+  - lastTransitionTime: "2023-11-20T02:30:49Z"
+    message: Failed to list&watch EndpointSlice in member3.
+    reason: EndpointSliceCollectedFailed
+    status: "False"
+    type: EndpointSliceCollected
+```
 
-![image](statics/access.png)
+`MCSEndpointSliceAppliedConditionType` is used to record the status of `EndpointSlice` synchronization, for example:
+```yaml
+status:
+  conditions:
+  - lastTransitionTime: "2023-11-20T02:30:49Z"
+    message: EndpointSlices are propagated to target clusters.
+    reason: EndpointSliceAppliedSuccess
+    status: "True"
+    type: EndpointSliceApplied
+```
+
+### Metrics Record
+
+For better monitoring, we should have following metrics:
+
+* `mcs_sync_svc_duration_seconds` - The duration of syncing `Service` from Karmada control plane to member clusters.
+* `mcs_sync_eps_duration_seconds` - The time it takes from detecting the EndpointSlice to creating/updating the corresponding Work in a specific namespace.
+
+### Development Plan
+
+* API definition, including API files, CRD files, and generated code. (1d)
+* For `multiclusterservice` controller, List&watch mcs and service, reconcile the work in execution namespace. (5d)
+* For `multiclusterservice` controller, List&watch cluster creation/deletion, reconcile the work in corresponding cluster execution namespace. (10)
+* For `endpointsliceCollect` controller, List&watch mcs, collect the corresponding EndpointSlice from `serviceProvisionClusters`, and `endpointsliceDispatch` controller should sync the corresponding Work. (5d)
+* For `endpointsliceCollect` controller, List&watch cluster creation/deletion, reconcile the EndpointSlice's work in corresponding cluster execution namespace. (10d)
+* If cluster gets unhealth, mcs-eps-controller should delete the EndpointSlice from all the cluster execution namespace. (5d)
 
 ### Test Plan
 
