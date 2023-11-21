@@ -19,7 +19,9 @@ At present, there's no way to optimize costs by having the Karmada cluster sched
 - Enable the Karmada scheduler to be aware of the cost of member clusters.
 - Introduce a cost-optimized scheduling mode, where the scheduling takes cluster cost factors into consideration in this mode.
 ### Non-Goals
-When the workload has already been deployed, if the cluster prices change, the scheduler will reschedule based on the new prices.
+- Use public cloud pricing API to calculate cluster's price by Karmada itself.
+- When the workload has already been deployed, if the cluster prices change, the scheduler will reschedule based on the new prices.
+
 ## Proposal
 
 ### User Stories (Optional)
@@ -52,9 +54,8 @@ type AccurateSchedulerEstimatorServer struct {
 ```
 ### Get Member Cluster Price
 We will introduce a method for the scheduler to retrieve the cluster pricing:
-- The Estimator Server will poll the cluster pricing API every hour and update the `AccurateSchedulerEstimatorServer.price`.
-    - Implement common public cloud service price query API calls.
-    - For other private clusters, users are required to provide an HTTP interface following specific guidelines.
+- The Estimator Server will pull the cluster pricing API every hour and update the `AccurateSchedulerEstimatorServer.price`.
+    - Users are required to provide an HTTP interface following specific guidelines.
 ### New Strategy
 We will introduce a new scheduling strategy named `CostOptimizedStrategy`. This strategy will have a corresponding function called `assignByCostOptimizedStrategy`, with the following steps:
 - Calculate the available resource amount for each cluster.
