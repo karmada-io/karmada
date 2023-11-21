@@ -182,6 +182,16 @@ func (in *MultiClusterServiceSpec) DeepCopyInto(out *MultiClusterServiceSpec) {
 		copy(*out, *in)
 	}
 	in.Range.DeepCopyInto(&out.Range)
+	if in.ServiceProvisionClusters != nil {
+		in, out := &in.ServiceProvisionClusters, &out.ServiceProvisionClusters
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.ServiceConsumptionClusters != nil {
+		in, out := &in.ServiceConsumptionClusters, &out.ServiceConsumptionClusters
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
