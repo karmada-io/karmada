@@ -39,6 +39,8 @@ KARMADA_GO_PACKAGE="github.com/karmada-io/karmada"
 
 MIN_Go_VERSION=go1.20.0
 
+DEFAULT_CLUSTER_VERSION="kindest/node:v1.27.3"
+
 KARMADA_TARGET_SOURCE=(
   karmada-aggregated-apiserver=cmd/aggregated-apiserver
   karmada-controller-manager=cmd/controller-manager
