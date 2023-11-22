@@ -27,7 +27,6 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/cache"
-	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
@@ -175,44 +174,10 @@ func (g *genericScheduler) prioritizeClusters(
 
 func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreList,
 	placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec) ([]*clusterv1alpha1.Cluster, error) {
-	startTime := time.Now()
-	defer metrics.ScheduleStep(metrics.ScheduleStepSelect, startTime)
-
-	groupClustersInfo := spreadconstraint.GroupClustersWithScore(clustersScore, placement, spec, calAvailableReplicas)
-	return spreadconstraint.SelectBestClusters(placement, groupClustersInfo, spec.Replicas)
+	return SelectClusters(clustersScore, placement, spec)
 }
 
-func (g *genericScheduler) assignReplicas(
-	clusters []*clusterv1alpha1.Cluster,
-	placement *policyv1alpha1.Placement,
-	object *workv1alpha2.ResourceBindingSpec,
-) ([]workv1alpha2.TargetCluster, error) {
-	startTime := time.Now()
-	defer metrics.ScheduleStep(metrics.ScheduleStepAssignReplicas, startTime)
-
-	if len(clusters) == 0 {
-		return nil, fmt.Errorf("no clusters available to schedule")
-	}
-
-	if object.Replicas > 0 {
-		state := newAssignState(clusters, placement, object)
-		assignFunc, ok := assignFuncMap[state.strategyType]
-		if !ok {
-			// should never happen at present
-			return nil, fmt.Errorf("unsupported replica scheduling strategy, replicaSchedulingType: %s, replicaDivisionPreference: %s, "+
-				"please try another scheduling strategy", placement.ReplicaSchedulingType(), placement.ReplicaScheduling.ReplicaDivisionPreference)
-		}
-		assignResults, err := assignFunc(state)
-		if err != nil {
-			return nil, err
-		}
-		return removeZeroReplicasCluster(assignResults), nil
-	}
-
-	// If not workload, assign all clusters without considering replicas.
-	targetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
-	for i, cluster := range clusters {
-		targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name}
-	}
-	return targetClusters, nil
+func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, placement *policyv1alpha1.Placement,
+	object *workv1alpha2.ResourceBindingSpec) ([]workv1alpha2.TargetCluster, error) {
+	return AssignReplicas(clusters, placement, object)
 }
