@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/tools/clientcmd"
 	apiserverflag "k8s.io/component-base/cli/flag"
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -31,6 +32,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/addons"
 	"github.com/karmada-io/karmada/pkg/karmadactl/apply"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit"
+	"github.com/karmada-io/karmada/pkg/karmadactl/config"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cordon"
 	"github.com/karmada-io/karmada/pkg/karmadactl/deinit"
 	"github.com/karmada-io/karmada/pkg/karmadactl/describe"
@@ -133,6 +135,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 
 	rootCmd.AddCommand(sharedcommand.NewCmdVersion(parentCommand))
 	rootCmd.AddCommand(options.NewCmdOptions(parentCommand, ioStreams.Out))
+	rootCmd.AddCommand(config.NewCmdConfig(parentCommand, clientcmd.NewDefaultPathOptions(), ioStreams))
 
 	templates.ActsAsRootCommand(rootCmd, filters, groups...)
 
