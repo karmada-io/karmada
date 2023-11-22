@@ -469,6 +469,67 @@ aggregatedApiServer:
   ## @param apiServer.podDisruptionBudget
   podDisruptionBudget: *podDisruptionBudget
 
+## karmada metrics adapter config
+metricsAdapter:
+  ## @param metricsAdapter.labels labels of the karmada-metrics-adapter pods
+  labels:
+    app: karmada-metrics-adapter
+  ## @param metricsAadpter.replicaCount target replicas of the karmada-mertics-adapter
+  replicaCount: 1
+  ## @param metricsAadpter.podAnnotations annotations of the karmada-mertics-adapter pods
+  podAnnotations: {}
+  ## @param metricsAadpter.podLabels labels of the karmada-mertics-adapter pods
+  podLabels: {}
+  ## @param image.registry karmada metricsAadpter image registry
+  ## @param image.repository karmada metricsAadpter image repository
+  ## @param image.tag karmada metricsAadpter image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada metricsAadpter image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: docker.io
+    repository: karmada/karmada-metrics-adapter
+    tag: *karmadaImageVersion
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: Always
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+  ## @param metricsAadpter.resources resource quota of the karmada-mertics-adapter
+  resources:
+    requests:
+      cpu: 100m
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param metricsAadpter.nodeSelector node selector of the karmada-mertics-adapter
+  nodeSelector: {}
+  ## @param metricsAadpter.affinity affinity of the karmada-mertics-adapter
+  affinity: {}
+  ## @param metricsAadpter.tolerations tolerations of the karmada-mertics-adapter
+  tolerations: []
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+  ## @param metricsAadpter.strategy strategy of the karmada-mertics-adapter
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+  ## @param apiServer.podDisruptionBudget
+  podDisruptionBudget: *podDisruptionBudget
+
 ## kubernetes controller manager config
 kubeControllerManager:
   ## @param kubeControllerManager.labels labels of the kube-controller-manager deployment

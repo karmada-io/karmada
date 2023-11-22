@@ -62,6 +62,24 @@ app: {{- include "karmada.name" .}}-aggregated-apiserver
 {{- end }}
 {{- end -}}
 
+{{- define "karmada.metricsAdapter.labels" -}}
+{{- if .Values.metricsAdapter.labels }}
+{{- range $key, $value := .Values.metricsAdapter.labels }}
+{{ $key }}: {{ $value }}
+{{- end }}
+{{- else}}
+app: {{- include "karmada.name" .}}-metrics-adapter
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.metricsAdapter.podLabels" -}}
+{{- if .Values.metricsAdapter.podLabels }}
+{{- range $key, $value := .Values.metricsAdapter.podLabels }}
+{{ $key }}: {{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
 {{- define "karmada.kube-cm.labels" -}}
 {{- if .Values.kubeControllerManager.labels }}
 {{- range $key, $value := .Values.kubeControllerManager.labels }}
@@ -420,6 +438,20 @@ Return the proper Docker Image Registry Secret Names
 */}}
 {{- define "karmada.aggregatedApiServer.imagePullSecrets" -}}
 {{ include "common.images.pullSecrets" (dict "images" (list .Values.aggregatedApiServer.image) "global" .Values.global) }}
+{{- end -}}
+
+{{/*
+Return the proper karmada metricsAdapter image name
+*/}}
+{{- define "karmada.metricsAdapter.image" -}}
+{{ include "common.images.image" (dict "imageRoot" .Values.metricsAdapter.image "global" .Values.global) }}
+{{- end -}}
+
+{{/*
+Return the proper Docker Image Registry Secret Names
+*/}}
+{{- define "karmada.metricsAdapter.imagePullSecrets" -}}
+{{ include "common.images.pullSecrets" (dict "images" (list .Values.metricsAdapter.image) "global" .Values.global) }}
 {{- end -}}
 
 {{/*
