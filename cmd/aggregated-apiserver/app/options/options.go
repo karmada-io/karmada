@@ -35,7 +35,6 @@ import (
 	genericfilters "k8s.io/apiserver/pkg/server/filters"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	netutils "k8s.io/utils/net"
 
@@ -107,10 +106,9 @@ func (o *Options) Run(ctx context.Context) error {
 
 	restConfig := config.GenericConfig.ClientConfig
 	restConfig.QPS, restConfig.Burst = o.KubeAPIQPS, o.KubeAPIBurst
-	kubeClientSet := kubernetes.NewForConfigOrDie(restConfig)
 	secretLister := config.GenericConfig.SharedInformerFactory.Core().V1().Secrets().Lister()
 
-	server, err := config.Complete().New(kubeClientSet, secretLister)
+	server, err := config.Complete().New(restConfig, secretLister)
 	if err != nil {
 		return err
 	}

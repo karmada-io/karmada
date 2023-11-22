@@ -69,7 +69,7 @@ func ConnectCluster(ctx context.Context, cluster *clusterapis.Cluster, proxyPath
 	if err != nil {
 		return nil, err
 	}
-	impersonateToken, err := getImpersonateToken(cluster.Name, impersonateTokenSecret)
+	impersonateToken, err := ImpersonateToken(cluster.Name, impersonateTokenSecret)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get impresonateToken for cluster %s: %v", cluster.Name, err)
 	}
@@ -88,7 +88,7 @@ func newProxyHandler(location *url.URL, proxyTransport http.RoundTripper, cluste
 
 		req.Header.Set(authenticationv1.ImpersonateUserHeader, requester.GetName())
 		for _, group := range requester.GetGroups() {
-			if !skipGroup(group) {
+			if !SkipGroup(group) {
 				req.Header.Add(authenticationv1.ImpersonateGroupHeader, group)
 			}
 		}
@@ -213,7 +213,7 @@ func ParseProxyHeaders(proxyHeaders map[string]string) http.Header {
 	return header
 }
 
-func getImpersonateToken(clusterName string, secret *corev1.Secret) (string, error) {
+func ImpersonateToken(clusterName string, secret *corev1.Secret) (string, error) {
 	token, found := secret.Data[clusterapis.SecretTokenKey]
 	if !found {
 		return "", fmt.Errorf("the impresonate token of cluster %s is empty", clusterName)
@@ -229,7 +229,8 @@ func getClusterCABundle(clusterName string, secret *corev1.Secret) (string, erro
 	return string(caBundle), nil
 }
 
-func skipGroup(group string) bool {
+// SkipGroup tells whether the input group can be skipped during impersonate.
+func SkipGroup(group string) bool {
 	switch group {
 	case user.AllAuthenticated, user.AllUnauthenticated:
 		return true
