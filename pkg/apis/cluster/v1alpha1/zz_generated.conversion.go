@@ -460,7 +460,7 @@ func Convert_cluster_ResourceModel_To_v1alpha1_ResourceModel(in *cluster.Resourc
 }
 
 func autoConvert_v1alpha1_ResourceModelRange_To_cluster_ResourceModelRange(in *ResourceModelRange, out *cluster.ResourceModelRange, s conversion.Scope) error {
-	out.Name = cluster.ResourceName(in.Name)
+	out.Name = v1.ResourceName(in.Name)
 	out.Min = in.Min
 	out.Max = in.Max
 	return nil
@@ -472,7 +472,7 @@ func Convert_v1alpha1_ResourceModelRange_To_cluster_ResourceModelRange(in *Resou
 }
 
 func autoConvert_cluster_ResourceModelRange_To_v1alpha1_ResourceModelRange(in *cluster.ResourceModelRange, out *ResourceModelRange, s conversion.Scope) error {
-	out.Name = ResourceName(in.Name)
+	out.Name = v1.ResourceName(in.Name)
 	out.Min = in.Min
 	out.Max = in.Max
 	return nil

@@ -114,7 +114,7 @@ func TestValidateCluster(t *testing.T) {
 							Grade: 1,
 							Ranges: []api.ResourceModelRange{
 								{
-									Name: api.ResourceCPU,
+									Name: corev1.ResourceCPU,
 									Min:  *resource.NewQuantity(0, resource.DecimalSI),
 									Max:  *resource.NewQuantity(2, resource.DecimalSI),
 								},
@@ -124,7 +124,7 @@ func TestValidateCluster(t *testing.T) {
 							Grade: 2,
 							Ranges: []api.ResourceModelRange{
 								{
-									Name: api.ResourceCPU,
+									Name: corev1.ResourceCPU,
 									Min:  *resource.NewQuantity(2, resource.DecimalSI),
 									Max:  *resource.NewQuantity(math.MaxInt64, resource.DecimalSI),
 								},
@@ -144,7 +144,7 @@ func TestValidateCluster(t *testing.T) {
 							Grade: 1,
 							Ranges: []api.ResourceModelRange{
 								{
-									Name: api.ResourceCPU,
+									Name: corev1.ResourceCPU,
 									Min:  *resource.NewQuantity(0, resource.DecimalSI),
 									Max:  *resource.NewQuantity(2, resource.DecimalSI),
 								},
@@ -154,12 +154,12 @@ func TestValidateCluster(t *testing.T) {
 							Grade: 2,
 							Ranges: []api.ResourceModelRange{
 								{
-									Name: api.ResourceCPU,
+									Name: corev1.ResourceCPU,
 									Min:  *resource.NewQuantity(2, resource.DecimalSI),
 									Max:  *resource.NewQuantity(math.MaxInt64, resource.DecimalSI),
 								},
 								{
-									Name: api.ResourceMemory,
+									Name: corev1.ResourceMemory,
 									Min:  *resource.NewQuantity(2, resource.DecimalSI),
 									Max:  *resource.NewQuantity(math.MaxInt64, resource.DecimalSI),
 								},
@@ -179,7 +179,7 @@ func TestValidateCluster(t *testing.T) {
 							Grade: 1,
 							Ranges: []api.ResourceModelRange{
 								{
-									Name: api.ResourceCPU,
+									Name: corev1.ResourceCPU,
 									Min:  *resource.NewQuantity(2, resource.DecimalSI),
 									Max:  *resource.NewQuantity(0, resource.DecimalSI),
 								},
@@ -199,7 +199,7 @@ func TestValidateCluster(t *testing.T) {
 							Grade: 1,
 							Ranges: []api.ResourceModelRange{
 								{
-									Name: api.ResourceCPU,
+									Name: corev1.ResourceCPU,
 									Min:  *resource.NewQuantity(1, resource.DecimalSI),
 									Max:  *resource.NewQuantity(math.MaxInt64, resource.DecimalSI),
 								},
@@ -219,7 +219,7 @@ func TestValidateCluster(t *testing.T) {
 							Grade: 1,
 							Ranges: []api.ResourceModelRange{
 								{
-									Name: api.ResourceCPU,
+									Name: corev1.ResourceCPU,
 									Min:  *resource.NewQuantity(0, resource.DecimalSI),
 									Max:  *resource.NewQuantity(2, resource.DecimalSI),
 								},
@@ -239,7 +239,7 @@ func TestValidateCluster(t *testing.T) {
 							Grade: 1,
 							Ranges: []api.ResourceModelRange{
 								{
-									Name: api.ResourceCPU,
+									Name: corev1.ResourceCPU,
 									Min:  *resource.NewQuantity(0, resource.DecimalSI),
 									Max:  *resource.NewQuantity(2, resource.DecimalSI),
 								},
@@ -249,7 +249,7 @@ func TestValidateCluster(t *testing.T) {
 							Grade: 2,
 							Ranges: []api.ResourceModelRange{
 								{
-									Name: api.ResourceMemory,
+									Name: corev1.ResourceMemory,
 									Min:  *resource.NewQuantity(2, resource.DecimalSI),
 									Max:  *resource.NewQuantity(math.MaxInt64, resource.DecimalSI),
 								},
@@ -269,7 +269,7 @@ func TestValidateCluster(t *testing.T) {
 							Grade: 1,
 							Ranges: []api.ResourceModelRange{
 								{
-									Name: api.ResourceCPU,
+									Name: corev1.ResourceCPU,
 									Min:  *resource.NewQuantity(0, resource.DecimalSI),
 									Max:  *resource.NewQuantity(2, resource.DecimalSI),
 								},
@@ -279,7 +279,7 @@ func TestValidateCluster(t *testing.T) {
 							Grade: 2,
 							Ranges: []api.ResourceModelRange{
 								{
-									Name: api.ResourceCPU,
+									Name: corev1.ResourceCPU,
 									Min:  *resource.NewQuantity(1, resource.DecimalSI),
 									Max:  *resource.NewQuantity(math.MaxInt64, resource.DecimalSI),
 								},

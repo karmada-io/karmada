@@ -90,7 +90,7 @@ func TestStrategy_PrepareForCreate(t *testing.T) {
 			Grade: 2,
 			Ranges: []clusterapis.ResourceModelRange{
 				{
-					Name: clusterapis.ResourceCPU,
+					Name: corev1.ResourceCPU,
 					Min:  *resource.NewQuantity(2, resource.DecimalSI),
 					Max:  *resource.NewQuantity(math.MaxInt64, resource.DecimalSI),
 				},
@@ -100,7 +100,7 @@ func TestStrategy_PrepareForCreate(t *testing.T) {
 			Grade: 1,
 			Ranges: []clusterapis.ResourceModelRange{
 				{
-					Name: clusterapis.ResourceCPU,
+					Name: corev1.ResourceCPU,
 					Min:  *resource.NewQuantity(0, resource.DecimalSI),
 					Max:  *resource.NewQuantity(2, resource.DecimalSI),
 				},
@@ -113,7 +113,7 @@ func TestStrategy_PrepareForCreate(t *testing.T) {
 			Grade: 1,
 			Ranges: []clusterapis.ResourceModelRange{
 				{
-					Name: clusterapis.ResourceCPU,
+					Name: corev1.ResourceCPU,
 					Min:  *resource.NewQuantity(0, resource.DecimalSI),
 					Max:  *resource.NewQuantity(2, resource.DecimalSI),
 				},
@@ -123,7 +123,7 @@ func TestStrategy_PrepareForCreate(t *testing.T) {
 			Grade: 2,
 			Ranges: []clusterapis.ResourceModelRange{
 				{
-					Name: clusterapis.ResourceCPU,
+					Name: corev1.ResourceCPU,
 					Min:  *resource.NewQuantity(2, resource.DecimalSI),
 					Max:  *resource.NewQuantity(math.MaxInt64, resource.DecimalSI),
 				},
@@ -180,7 +180,7 @@ func TestStrategy_PrepareForUpdate(t *testing.T) {
 			Grade: 2,
 			Ranges: []clusterapis.ResourceModelRange{
 				{
-					Name: clusterapis.ResourceCPU,
+					Name: corev1.ResourceCPU,
 					Min:  *resource.NewQuantity(2, resource.DecimalSI),
 					Max:  *resource.NewQuantity(math.MaxInt64, resource.DecimalSI),
 				},
@@ -190,7 +190,7 @@ func TestStrategy_PrepareForUpdate(t *testing.T) {
 			Grade: 1,
 			Ranges: []clusterapis.ResourceModelRange{
 				{
-					Name: clusterapis.ResourceCPU,
+					Name: corev1.ResourceCPU,
 					Min:  *resource.NewQuantity(0, resource.DecimalSI),
 					Max:  *resource.NewQuantity(2, resource.DecimalSI),
 				},
@@ -203,7 +203,7 @@ func TestStrategy_PrepareForUpdate(t *testing.T) {
 			Grade: 1,
 			Ranges: []clusterapis.ResourceModelRange{
 				{
-					Name: clusterapis.ResourceCPU,
+					Name: corev1.ResourceCPU,
 					Min:  *resource.NewQuantity(0, resource.DecimalSI),
 					Max:  *resource.NewQuantity(2, resource.DecimalSI),
 				},
@@ -213,7 +213,7 @@ func TestStrategy_PrepareForUpdate(t *testing.T) {
 			Grade: 2,
 			Ranges: []clusterapis.ResourceModelRange{
 				{
-					Name: clusterapis.ResourceCPU,
+					Name: corev1.ResourceCPU,
 					Min:  *resource.NewQuantity(2, resource.DecimalSI),
 					Max:  *resource.NewQuantity(math.MaxInt64, resource.DecimalSI),
 				},
