@@ -19,9 +19,9 @@ helm install karmada -n karmada-system --create-namespace --dependency-update ./
 
 ## Installing the Chart
 
-To install the chart with the release name `karmada` in namespace `karmada-system`:
+There are two installation methods, local and remote, to install the chart with the release name `karmada` in namespace `karmada-system`.
 
-- local installation
+### Local installation
 
 Switch to the `root` directory of the repo.
 
@@ -29,7 +29,7 @@ Switch to the `root` directory of the repo.
 helm install karmada -n karmada-system --create-namespace --dependency-update ./charts/karmada
 ```
 
-- remote installation
+### Remote installation
 
 First, add the Karmada chart repo to your local repository.
 
@@ -58,6 +58,8 @@ STATUS: deployed
 REVISION: 1
 TEST SUITE: None
 ```
+
+### Export kubeconfig
 
 Get kubeconfig from the cluster:
 
@@ -107,7 +109,7 @@ The command removes all the Kubernetes components associated with the chart and 
 
 ```console
 kubectl delete sa/karmada-pre-job -nkarmada-system
-kubectl delete clusterRole/karmada-pre-job 
+kubectl delete clusterRole/karmada-pre-job
 kubectl delete clusterRoleBinding/karmada-pre-job
 kubectl delete ns karmada-system
 ```
