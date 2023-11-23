@@ -20,8 +20,10 @@ import (
 	"reflect"
 	"testing"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
@@ -526,71 +528,65 @@ func TestRetainLabels(t *testing.T) {
 func TestRecordManagedLabels(t *testing.T) {
 	tests := []struct {
 		name     string
-		object   *unstructured.Unstructured
-		expected *unstructured.Unstructured
+		object   *workv1alpha1.Work
+		expected *workv1alpha1.Work
 	}{
 		{
 			name: "nil label",
-			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "apps/v1",
-					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
-						"name": "demo-deployment-1",
-					},
-					"spec": map[string]interface{}{
-						"replicas": 2,
-					},
+			object: &workv1alpha1.Work{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "work.karmada.io/v1alpha1",
+					Kind:       "Work",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "demo-work-1",
+					Namespace: "cluster1-ns",
+					Labels:    nil,
 				},
 			},
-			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "apps/v1",
-					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
-						"name": "demo-deployment-1",
-						"annotations": map[string]interface{}{
-							workv1alpha2.ManagedLabels: "",
-						},
+			expected: &workv1alpha1.Work{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "work.karmada.io/v1alpha1",
+					Kind:       "Work",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "demo-work-1",
+					Namespace: "cluster1-ns",
+					Annotations: map[string]string{
+						workv1alpha2.ManagedLabels: "",
 					},
-					"spec": map[string]interface{}{
-						"replicas": 2,
-					},
+					Labels: nil,
 				},
 			},
 		},
 		{
 			name: "object has has labels",
-			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "apps/v1",
-					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
-						"name": "demo-deployment-1",
-						"labels": map[string]interface{}{
-							"foo": "foo",
-						},
-					},
-					"spec": map[string]interface{}{
-						"replicas": 2,
+			object: &workv1alpha1.Work{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "work.karmada.io/v1alpha1",
+					Kind:       "Work",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "demo-work-1",
+					Namespace: "cluster1-ns",
+					Labels: map[string]string{
+						"foo": "bar",
 					},
 				},
 			},
-			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "apps/v1",
-					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
-						"name": "demo-deployment-1",
-						"annotations": map[string]interface{}{
-							workv1alpha2.ManagedLabels: "foo",
-						},
-						"labels": map[string]interface{}{
-							"foo": "foo",
-						},
+			expected: &workv1alpha1.Work{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "work.karmada.io/v1alpha1",
+					Kind:       "Work",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "demo-work-1",
+					Namespace: "cluster1-ns",
+					Annotations: map[string]string{
+						workv1alpha2.ManagedLabels: "foo",
 					},
-					"spec": map[string]interface{}{
-						"replicas": 2,
+					Labels: map[string]string{
+						"foo": "bar",
 					},
 				},
 			},
