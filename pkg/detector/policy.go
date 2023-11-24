@@ -30,6 +30,7 @@ import (
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
@@ -37,20 +38,24 @@ import (
 )
 
 func (d *ResourceDetector) propagateResource(object *unstructured.Unstructured, objectKey keys.ClusterWideKey) error {
-	// 1. Check if the object has been claimed by a PropagationPolicy,
-	// if so, just apply it.
-	policyLabels := object.GetLabels()
-	claimedNamespace := util.GetLabelValue(policyLabels, policyv1alpha1.PropagationPolicyNamespaceLabel)
-	claimedName := util.GetLabelValue(policyLabels, policyv1alpha1.PropagationPolicyNameLabel)
-	if claimedNamespace != "" && claimedName != "" {
-		return d.getAndApplyPolicy(object, objectKey, claimedNamespace, claimedName)
-	}
+	// if StaticPolicy disabled, directly look for best match policy and apply it, ignoring any previous policy
+	// if no best match policy, just add the RT to waiting list, the RT will adjust to new placement when new matchable policy occurred.
+	if !features.FeatureGate.Enabled(features.StaticPolicy) {
+		// 1. Check if the object has been claimed by a PropagationPolicy,
+		// if so, just apply it.
+		policyLabels := object.GetLabels()
+		claimedNamespace := util.GetLabelValue(policyLabels, policyv1alpha1.PropagationPolicyNamespaceLabel)
+		claimedName := util.GetLabelValue(policyLabels, policyv1alpha1.PropagationPolicyNameLabel)
+		if claimedNamespace != "" && claimedName != "" {
+			return d.getAndApplyPolicy(object, objectKey, claimedNamespace, claimedName)
+		}
 
-	// 2. Check if the object has been claimed by a ClusterPropagationPolicy,
-	// if so, just apply it.
-	claimedName = util.GetLabelValue(policyLabels, policyv1alpha1.ClusterPropagationPolicyLabel)
-	if claimedName != "" {
-		return d.getAndApplyClusterPolicy(object, objectKey, claimedName)
+		// 2. Check if the object has been claimed by a ClusterPropagationPolicy,
+		// if so, just apply it.
+		claimedName = util.GetLabelValue(policyLabels, policyv1alpha1.ClusterPropagationPolicyLabel)
+		if claimedName != "" {
+			return d.getAndApplyClusterPolicy(object, objectKey, claimedName)
+		}
 	}
 
 	// 3. attempt to match policy in its namespace.
