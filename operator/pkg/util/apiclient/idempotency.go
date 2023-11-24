@@ -19,6 +19,7 @@ package apiclient
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -90,19 +91,25 @@ func CreateOrUpdateSecret(client clientset.Interface, secret *corev1.Secret) err
 func CreateOrUpdateService(client clientset.Interface, service *corev1.Service) error {
 	_, err := client.CoreV1().Services(service.GetNamespace()).Create(context.TODO(), service, metav1.CreateOptions{})
 	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			_, err := client.CoreV1().Services(service.GetNamespace()).Update(context.TODO(), service, metav1.UpdateOptions{})
+		if !apierrors.IsAlreadyExists(err) {
+			// Ignore if the Service is invalid with this error message:
+			// Service "apiserver" is invalid: provided Port is already allocated.
+			if apierrors.IsInvalid(err) && strings.Contains(err.Error(), errAllocated.Error()) {
+				klog.V(2).ErrorS(err, "failed to create or update serivce", "service", klog.KObj(service))
+				return nil
+			}
+			return fmt.Errorf("unable to create Service: %v", err)
+		}
+
+		older, err := client.CoreV1().Services(service.GetNamespace()).Get(context.TODO(), service.GetName(), metav1.GetOptions{})
+		if err != nil {
 			return err
 		}
 
-		// Ignore if the Service is invalid with this error message:
-		// Service "apiserver" is invalid: provided Port is already allocated.
-		if apierrors.IsInvalid(err) && strings.Contains(err.Error(), errAllocated.Error()) {
-			klog.V(2).ErrorS(err, "failed to create or update serivce", "service", klog.KObj(service))
-			return nil
+		service.ResourceVersion = older.ResourceVersion
+		if _, err := client.CoreV1().Services(service.GetNamespace()).Update(context.TODO(), service, metav1.UpdateOptions{}); err != nil {
+			return fmt.Errorf("unable to update Service: %v", err)
 		}
-
-		return err
 	}
 
 	klog.V(5).InfoS("Successfully created or updated service", "service", service.GetName())
