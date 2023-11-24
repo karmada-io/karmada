@@ -72,10 +72,11 @@ spec:
         - --requestheader-username-headers=X-Remote-User
         - --tls-cert-file=/etc/karmada/pki/apiserver.crt
         - --tls-private-key-file=/etc/karmada/pki/apiserver.key
+        - --tls-min-version=VersionTLS13
         - --max-requests-inflight=1500
         - --max-mutating-requests-inflight=500
         - --v=4
-	- --tls-min-version=VersionTLS13
+
         livenessProbe:
           failureThreshold: 8
           httpGet:
@@ -184,11 +185,11 @@ spec:
         - --etcd-servers=https://{{ .EtcdClientService }}.{{ .Namespace }}.svc.cluster.local:{{ .EtcdListenClientPort }}
         - --tls-cert-file=/etc/karmada/pki/karmada.crt
         - --tls-private-key-file=/etc/karmada/pki/karmada.key
+        - --tls-min-version=VersionTLS13
         - --audit-log-path=-
         - --feature-gates=APIPriorityAndFairness=false
         - --audit-log-maxage=0
         - --audit-log-maxbackup=0
-	- --tls-min-version=VersionTLS13
         volumeMounts:
         - mountPath: /etc/karmada/kubeconfig
           name: kubeconfig
