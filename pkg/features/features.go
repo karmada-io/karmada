@@ -37,6 +37,8 @@ const (
 
 	// PolicyPreemption indicates if high-priority PropagationPolicy/ClusterPropagationPolicy could preempt resource templates which are matched by low-priority PropagationPolicy/ClusterPropagationPolicy.
 	PolicyPreemption featuregate.Feature = "PropagationPolicyPreemption"
+
+	StaticPolicy featuregate.Feature = "StaticPolicy"
 )
 
 var (
@@ -50,6 +52,7 @@ var (
 		PropagateDeps:                     {Default: true, PreRelease: featuregate.Beta},
 		CustomizedClusterResourceModeling: {Default: true, PreRelease: featuregate.Beta},
 		PolicyPreemption:                  {Default: false, PreRelease: featuregate.Alpha},
+		StaticPolicy:                      {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
 

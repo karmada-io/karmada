@@ -929,7 +929,9 @@ func (d *ResourceDetector) OnPropagationPolicyUpdate(oldObj, newObj interface{})
 	// The idea of the long-term solution, perhaps PropagationPolicy could have
 	// a status, in that case we can record the observed priority(.status.observedPriority)
 	// which can be used to detect priority changes during reconcile logic.
-	if features.FeatureGate.Enabled(features.PolicyPreemption) {
+	//
+	// notes that preemption take effect only when StaticPolicy disabled.
+	if !features.FeatureGate.Enabled(features.StaticPolicy) && features.FeatureGate.Enabled(features.PolicyPreemption) {
 		var unstructuredOldObj *unstructured.Unstructured
 		var unstructuredNewObj *unstructured.Unstructured
 
@@ -1039,7 +1041,9 @@ func (d *ResourceDetector) OnClusterPropagationPolicyUpdate(oldObj, newObj inter
 	// The idea of the long-term solution, perhaps ClusterPropagationPolicy could have
 	// a status, in that case we can record the observed priority(.status.observedPriority)
 	// which can be used to detect priority changes during reconcile logic.
-	if features.FeatureGate.Enabled(features.PolicyPreemption) {
+	//
+	// notes that preemption take effect only when StaticPolicy disabled.
+	if !features.FeatureGate.Enabled(features.StaticPolicy) && features.FeatureGate.Enabled(features.PolicyPreemption) {
 		var unstructuredOldObj *unstructured.Unstructured
 		var unstructuredNewObj *unstructured.Unstructured
 
@@ -1227,21 +1231,25 @@ func (d *ResourceDetector) HandlePropagationPolicyCreationOrUpdate(policy *polic
 		return err
 	}
 
-	// When updating fields other than ResourceSelector, should first find the corresponding ResourceBinding
-	// and add the bound object to the processor's queue for reconciliation to make sure that
-	// PropagationPolicy's updates can be synchronized to ResourceBinding.
-	resourceBindings, err := d.listPPDerivedRB(policy.Namespace, policy.Name)
-	if err != nil {
-		return err
-	}
-	for _, rb := range resourceBindings.Items {
-		resourceKey, err := helper.ConstructClusterWideKey(rb.Spec.Resource)
+	// if StaticPolicy disabled, add the PP related RT to processor, otherwise just skip this step
+	if !features.FeatureGate.Enabled(features.StaticPolicy) {
+		// When updating fields other than ResourceSelector, should first find the corresponding ResourceBinding
+		// and add the bound object to the processor's queue for reconciliation to make sure that
+		// PropagationPolicy's updates can be synchronized to ResourceBinding.
+		resourceBindings, err := d.listPPDerivedRB(policy.Namespace, policy.Name)
 		if err != nil {
 			return err
 		}
-		d.Processor.Add(resourceKey)
+		for _, rb := range resourceBindings.Items {
+			resourceKey, err := helper.ConstructClusterWideKey(rb.Spec.Resource)
+			if err != nil {
+				return err
+			}
+			d.Processor.Add(resourceKey)
+		}
 	}
 
+	// check whether there are matched RT in waiting list, is so, add it to processor
 	matchedKeys := d.GetMatching(policy.Spec.ResourceSelectors)
 	klog.Infof("Matched %d resources by policy(%s/%s)", len(matchedKeys), policy.Namespace, policy.Name)
 
@@ -1259,8 +1267,8 @@ func (d *ResourceDetector) HandlePropagationPolicyCreationOrUpdate(policy *polic
 		d.Processor.Add(key)
 	}
 
-	// if preemption is enabled, handle the preemption process.
-	if preemptionEnabled(policy.Spec.Preemption) {
+	// if preemption is enabled, handle the preemption process (preemption take effect only when StaticPolicy disabled).
+	if !features.FeatureGate.Enabled(features.StaticPolicy) && preemptionEnabled(policy.Spec.Preemption) {
 		return d.handlePropagationPolicyPreemption(policy)
 	}
 
@@ -1284,32 +1292,14 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy
 		return err
 	}
 
-	// When updating fields other than ResourceSelector, should first find the corresponding ResourceBinding/ClusterResourceBinding
-	// and add the bound object to the processor's queue for reconciliation to make sure that
-	// ClusterPropagationPolicy's updates can be synchronized to ResourceBinding/ClusterResourceBinding.
-	resourceBindings, err := d.listCPPDerivedRB(policy.Name)
-	if err != nil {
-		return err
-	}
-	clusterResourceBindings, err := d.listCPPDerivedCRB(policy.Name)
-	if err != nil {
-		return err
-	}
-	for _, rb := range resourceBindings.Items {
-		resourceKey, err := helper.ConstructClusterWideKey(rb.Spec.Resource)
-		if err != nil {
+	// if StaticPolicy disabled, add the PP related RT to processor, otherwise just skip this step
+	if !features.FeatureGate.Enabled(features.StaticPolicy) {
+		if err = d.addRelatedTemplateToProcessorQueue(policy); err != nil {
 			return err
 		}
-		d.Processor.Add(resourceKey)
-	}
-	for _, crb := range clusterResourceBindings.Items {
-		resourceKey, err := helper.ConstructClusterWideKey(crb.Spec.Resource)
-		if err != nil {
-			return err
-		}
-		d.Processor.Add(resourceKey)
 	}
 
+	// check whether there are matched RT in waiting list, is so, add it to processor
 	matchedKeys := d.GetMatching(policy.Spec.ResourceSelectors)
 	klog.Infof("Matched %d resources by policy(%s)", len(matchedKeys), policy.Name)
 
@@ -1327,11 +1317,40 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy
 		d.Processor.Add(key)
 	}
 
-	// if preemption is enabled, handle the preemption process.
-	if preemptionEnabled(policy.Spec.Preemption) {
+	// if preemption is enabled, handle the preemption process (preemption take effect only when StaticPolicy disabled).
+	if !features.FeatureGate.Enabled(features.StaticPolicy) && preemptionEnabled(policy.Spec.Preemption) {
 		return d.handleClusterPropagationPolicyPreemption(policy)
 	}
 
+	return nil
+}
+
+// addRelatedTemplateToProcessorQueue When updating fields other than ResourceSelector, should first find the corresponding
+// ResourceBinding/ClusterResourceBinding and add the bound object to the processor's queue for reconciliation to make sure that
+// ClusterPropagationPolicy's updates can be synchronized to ResourceBinding/ClusterResourceBinding.
+func (d *ResourceDetector) addRelatedTemplateToProcessorQueue(policy *policyv1alpha1.ClusterPropagationPolicy) error {
+	resourceBindings, err := d.listCPPDerivedRB(policy.Name)
+	if err != nil {
+		return fmt.Errorf("failed to list CPP(%s) derived RB: %+v", policy.Name, err)
+	}
+	clusterResourceBindings, err := d.listCPPDerivedCRB(policy.Name)
+	if err != nil {
+		return fmt.Errorf("failed to list CPP(%s) derived CRB: %+v", policy.Name, err)
+	}
+	for _, rb := range resourceBindings.Items {
+		resourceKey, err := helper.ConstructClusterWideKey(rb.Spec.Resource)
+		if err != nil {
+			return fmt.Errorf("failed to get resource ClusterWideKey from RB(%s): %+v", rb.Name, err)
+		}
+		d.Processor.Add(resourceKey)
+	}
+	for _, crb := range clusterResourceBindings.Items {
+		resourceKey, err := helper.ConstructClusterWideKey(crb.Spec.Resource)
+		if err != nil {
+			return fmt.Errorf("failed to get resource ClusterWideKey from CRB(%s): %+v", crb.Name, err)
+		}
+		d.Processor.Add(resourceKey)
+	}
 	return nil
 }
 
