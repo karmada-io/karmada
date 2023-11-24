@@ -2966,9 +2966,39 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterServiceSpec(ref common.Refe
 					},
 					"range": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Range specifies the ranges where the referencing service should be exposed. Only valid and optional in case of Types contains CrossCluster. If not set and Types contains CrossCluster, all clusters will be selected, that means the referencing service will be exposed across all registered clusters.",
+							Description: "Range specifies the ranges where the referencing service should be exposed. Only valid and optional in case of Types contains CrossCluster. If not set and Types contains CrossCluster, all clusters will be selected, that means the referencing service will be exposed across all registered clusters. Deprecated: in favor of ServiceProvisionClusters/ServiceConsumptionClusters.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposureRange"),
+						},
+					},
+					"serviceProvisionClusters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ServiceProvisionClusters specifies the clusters which will provision the service backend. If leave it empty, we will collect the backend endpoints from all clusters and sync them to the ServiceConsumptionClusters.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"serviceConsumptionClusters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ServiceConsumptionClusters specifies the clusters where the service will be exposed, for clients. If leave it empty, the service will be exposed to all clusters.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 				},

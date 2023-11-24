@@ -66,11 +66,11 @@ spec:
                   type: object
                 type: array
               range:
-                description: Range specifies the ranges where the referencing service
+                description: 'Range specifies the ranges where the referencing service
                   should be exposed. Only valid and optional in case of Types contains
                   CrossCluster. If not set and Types contains CrossCluster, all clusters
                   will be selected, that means the referencing service will be exposed
-                  across all registered clusters.
+                  across all registered clusters. Deprecated: in favor of ServiceProvisionClusters/ServiceConsumptionClusters.'
                 properties:
                   clusterNames:
                     description: ClusterNames is the list of clusters to be selected.
@@ -78,6 +78,20 @@ spec:
                       type: string
                     type: array
                 type: object
+              serviceConsumptionClusters:
+                description: ServiceConsumptionClusters specifies the clusters where
+                  the service will be exposed, for clients. If leave it empty, the
+                  service will be exposed to all clusters.
+                items:
+                  type: string
+                type: array
+              serviceProvisionClusters:
+                description: ServiceProvisionClusters specifies the clusters which
+                  will provision the service backend. If leave it empty, we will collect
+                  the backend endpoints from all clusters and sync them to the ServiceConsumptionClusters.
+                items:
+                  type: string
+                type: array
               types:
                 description: Types specifies how to expose the service referencing
                   by this MultiClusterService.
