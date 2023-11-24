@@ -1,0 +1,119 @@
+{{- if eq .Values.installMode "host" }}
+{{- $name := include "karmada.name" . -}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}-metrics-adapter
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.metricsAdapter.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "karmada.metricsAdapter.labels" . | nindent 6 }}
+  replicas: {{ .Values.metricsAdapter.replicaCount }}
+  {{- with .Values.metricsAdapter.strategy }}
+  strategy:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      {{- with .Values.metricsAdapter.podAnnotations }}
+      annotations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "karmada.metricsAdapter.labels" . | nindent 8 }}
+        {{- include "karmada.metricsAdapter.podLabels" . | nindent 8 }}
+    spec:
+      {{- include "karmada.metricsAdapter.imagePullSecrets" . | nindent 6 }}
+      automountServiceAccountToken: false
+      containers:
+        - name: {{ $name }}-aggregated-apiserver
+          image: {{ template "karmada.metricsAdapter.image" . }}
+          imagePullPolicy: {{ .Values.metricsAdapter.image.pullPolicy }}
+          volumeMounts:
+            {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
+            - name: apiserver-cert
+              mountPath: /etc/kubernetes/pki
+              readOnly: true
+          command:
+            - /bin/karmada-metrics-adapter
+            - --kubeconfig=/etc/kubeconfig
+            - --authentication-kubeconfig=/etc/kubeconfig
+            - --authorization-kubeconfig=/etc/kubeconfig
+            - --tls-cert-file=/etc/kubernetes/pki/karmada.crt
+            - --tls-private-key-file=/etc/kubernetes/pki/karmada.key
+            - --audit-log-path=-
+            - --audit-log-maxage=0
+            - --audit-log-maxbackup=0
+            - --tls-min-version=VersionTLS13
+          resources:
+            {{- toYaml .Values.metricsAdapter.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 443
+              scheme: HTTPS
+            initialDelaySeconds: 1
+            periodSeconds: 3
+            timeoutSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 443
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 15
+      {{- with .Values.metricsAdapter.nodeSelector }}
+      nodeSelector:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.metricsAdapter.affinity }}
+      affinity:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.metricsAdapter.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
+        - name: apiserver-cert
+          secret:
+            secretName: {{ $name }}-cert
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}-metrics-adapter
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.metricsAdapter.labels" . | nindent 4 }}
+spec:
+  ports:
+    - port: 443
+      protocol: TCP
+      targetPort: 443
+  selector:
+    {{- include "karmada.metricsAdapter.labels" . | nindent 4 }}
+
+{{ if and .Values.metricsAdapter .Values.metricsAdapter.podDisruptionBudget }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}-metrics-adapter
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.metricsAdapter.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "karmada.metricsAdapter.labels" . | nindent 6 }}
+  {{ toYaml .Values.metricsAdapter.podDisruptionBudget | nindent 2 }}
+{{- end -}}
+
+{{- end }}
