@@ -54,8 +54,7 @@ func ValidateClusterName(name string) []string {
 }
 
 var (
-	supportedSyncModes     = sets.NewString(string(api.Pull), string(api.Push))
-	supportedResourceNames = sets.NewString(string(api.ResourceCPU), string(api.ResourceMemory), string(api.ResourceStorage), string(api.ResourceEphemeralStorage))
+	supportedSyncModes = sets.NewString(string(api.Pull), string(api.Push))
 )
 
 // ValidateCluster tests if required fields in the Cluster are set.
@@ -208,9 +207,6 @@ func ValidateClusterResourceModels(fldPath *field.Path, models []api.ResourceMod
 		}
 
 		for j, resourceModelRange := range resourceModel.Ranges {
-			if !supportedResourceNames.Has(string(resourceModelRange.Name)) {
-				return field.NotSupported(fldPath.Child("ranges").Child("name"), resourceModelRange.Name, supportedResourceNames.List())
-			}
 			if resourceModelRange.Max.Cmp(resourceModelRange.Min) <= 0 {
 				return field.Invalid(fldPath, models, "The max value of each resource must be greater than the min value")
 			}

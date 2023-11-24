@@ -112,8 +112,8 @@ func getAllowedPodNumber(resourceSummary *clusterv1alpha1.ResourceSummary) int64
 	return allowedPodNumber
 }
 
-func convertToResourceModelsMinMap(models []clusterv1alpha1.ResourceModel) map[clusterv1alpha1.ResourceName][]resource.Quantity {
-	resourceModelsMinMap := make(map[clusterv1alpha1.ResourceName][]resource.Quantity)
+func convertToResourceModelsMinMap(models []clusterv1alpha1.ResourceModel) map[corev1.ResourceName][]resource.Quantity {
+	resourceModelsMinMap := make(map[corev1.ResourceName][]resource.Quantity)
 	for _, model := range models {
 		for _, resourceModelRange := range model.Ranges {
 			resourceModelsMinMap[resourceModelRange.Name] = append(resourceModelsMinMap[resourceModelRange.Name], resourceModelRange.Min)
@@ -123,7 +123,7 @@ func convertToResourceModelsMinMap(models []clusterv1alpha1.ResourceModel) map[c
 	return resourceModelsMinMap
 }
 
-func getNodeAvailableReplicas(modelIndex int, replicaRequirements *workv1alpha2.ReplicaRequirements, resourceModelsMinMap map[clusterv1alpha1.ResourceName][]resource.Quantity) int64 {
+func getNodeAvailableReplicas(modelIndex int, replicaRequirements *workv1alpha2.ReplicaRequirements, resourceModelsMinMap map[corev1.ResourceName][]resource.Quantity) int64 {
 	var maximumReplicasOneNode int64 = math.MaxInt64
 	for key, value := range replicaRequirements.ResourceRequest {
 		requestedQuantity := value.Value()
@@ -131,7 +131,7 @@ func getNodeAvailableReplicas(modelIndex int, replicaRequirements *workv1alpha2.
 			continue
 		}
 
-		availableMinBoundary := resourceModelsMinMap[clusterv1alpha1.ResourceName(key)][modelIndex]
+		availableMinBoundary := resourceModelsMinMap[key][modelIndex]
 
 		availableQuantity := availableMinBoundary.Value()
 		if key == corev1.ResourceCPU {
@@ -204,7 +204,7 @@ func getMaximumReplicasBasedOnResourceModels(cluster *clusterv1alpha1.Cluster, r
 			continue
 		}
 
-		quantityArray, ok := resourceModelsMinMap[clusterv1alpha1.ResourceName(key)]
+		quantityArray, ok := resourceModelsMinMap[key]
 		if !ok {
 			return -1, fmt.Errorf("resource model is inapplicable as missing resource: %s", string(key))
 		}

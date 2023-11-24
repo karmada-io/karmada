@@ -33,7 +33,7 @@ import (
 type ResourceSummary struct {
 	RMs                       []resourceModels
 	modelSortings             [][]resource.Quantity
-	modelSortingResourceNames []clusterapis.ResourceName
+	modelSortingResourceNames []corev1.ResourceName
 }
 
 // resourceModels records the number of each allocatable resource models.
@@ -68,18 +68,15 @@ type ClusterResourceNode struct {
 	// It maybe contain cpu, memory, gpu...
 	// User can specify which parameters need to be included before the cluster starts
 	// +required
-	resourceList ResourceList
+	resourceList corev1.ResourceList
 }
-
-// ResourceList is a set of (resource name, quantity) pairs.
-type ResourceList map[clusterapis.ResourceName]resource.Quantity
 
 // InitSummary is the init function of modeling data structure
 func InitSummary(resourceModel []clusterapis.ResourceModel) (ResourceSummary, error) {
-	var rsName []clusterapis.ResourceName
-	var rsList []ResourceList
+	var rsName []corev1.ResourceName
+	var rsList []corev1.ResourceList
 	for _, rm := range resourceModel {
-		tmp := map[clusterapis.ResourceName]resource.Quantity{}
+		tmp := map[corev1.ResourceName]resource.Quantity{}
 		for _, rmItem := range rm.Ranges {
 			if len(rsName) != len(rm.Ranges) {
 				rsName = append(rsName, rmItem.Name)
@@ -108,7 +105,7 @@ func InitSummary(resourceModel []clusterapis.ResourceModel) (ResourceSummary, er
 func NewClusterResourceNode(resourceList corev1.ResourceList) ClusterResourceNode {
 	return ClusterResourceNode{
 		quantity:     1,
-		resourceList: ConvertToResourceList(resourceList),
+		resourceList: resourceList,
 	}
 }
 
@@ -232,23 +229,6 @@ func (rs *ResourceSummary) llConvertToRbt(list *list.List) *rbt.Tree {
 		root.Put(tmpCrn, tmpCrn.quantity)
 	}
 	return root
-}
-
-// ConvertToResourceList is convert from corev1.ResourceList to ResourceList
-func ConvertToResourceList(rsList corev1.ResourceList) ResourceList {
-	resourceList := ResourceList{}
-	for name, quantity := range rsList {
-		if name == corev1.ResourceCPU {
-			resourceList[clusterapis.ResourceCPU] = quantity
-		} else if name == corev1.ResourceMemory {
-			resourceList[clusterapis.ResourceMemory] = quantity
-		} else if name == corev1.ResourceStorage {
-			resourceList[clusterapis.ResourceStorage] = quantity
-		} else if name == corev1.ResourceEphemeralStorage {
-			resourceList[clusterapis.ResourceEphemeralStorage] = quantity
-		}
-	}
-	return resourceList
 }
 
 // GetNodeNumFromModel is for getting node number from the modeling
