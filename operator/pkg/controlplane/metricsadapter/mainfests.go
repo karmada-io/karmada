@@ -53,10 +53,10 @@ spec:
         - --client-ca-file=/etc/karmada/pki/ca.crt
         - --tls-cert-file=/etc/karmada/pki/karmada.crt
         - --tls-private-key-file=/etc/karmada/pki/karmada.key
+        - --tls-min-version=VersionTLS13
         - --audit-log-path=-
         - --audit-log-maxage=0
         - --audit-log-maxbackup=0
-	- --tls-min-version=VersionTLS13
         volumeMounts:
         - name: kubeconfig
           subPath: kubeconfig
