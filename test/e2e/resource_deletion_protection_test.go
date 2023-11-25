@@ -39,7 +39,7 @@ var _ = ginkgo.Describe("[resource deletion protection] deletion protection test
 		framework.CreateDeployment(kubeClient, deployment)
 	})
 
-	ginkgo.It("delete the protected deployment", func() {
+	ginkgo.It("Delete the protected deployment", func() {
 		framework.UpdateDeploymentLabels(kubeClient, deployment, protectedLabelValues)
 
 		// the deletion operation should return an error like:
@@ -50,7 +50,7 @@ var _ = ginkgo.Describe("[resource deletion protection] deletion protection test
 		gomega.Expect(err).Should(gomega.MatchError(gomega.ContainSubstring(deletionProtectionErrorSubStr)))
 	})
 
-	ginkgo.It("delete the protected namespace", func() {
+	ginkgo.It("Delete the protected namespace", func() {
 		framework.UpdateNamespaceLabels(kubeClient, namespace, protectedLabelValues)
 
 		// the deletion operation should return an error too.
@@ -58,7 +58,7 @@ var _ = ginkgo.Describe("[resource deletion protection] deletion protection test
 		gomega.Expect(err).Should(gomega.MatchError(gomega.ContainSubstring(deletionProtectionErrorSubStr)))
 	})
 
-	ginkgo.It("delete the no protected namespace, the deployment is protected", func() {
+	ginkgo.It("Delete the no protected namespace, the deployment is protected", func() {
 		framework.UpdateDeploymentLabels(kubeClient, deployment, protectedLabelValues)
 
 		// the deletion operation should not return an error, and the namespace
@@ -69,7 +69,7 @@ var _ = ginkgo.Describe("[resource deletion protection] deletion protection test
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	})
 
-	ginkgo.It("delete the namespace after the protection has been removed", func() {
+	ginkgo.It("Delete the namespace after the protection has been removed", func() {
 		framework.UpdateNamespaceLabels(kubeClient, namespace, protectedLabelValues)
 		err := kubeClient.CoreV1().Namespaces().Delete(context.TODO(), namespaceName, metav1.DeleteOptions{})
 		gomega.Expect(err).Should(gomega.MatchError(gomega.ContainSubstring(deletionProtectionErrorSubStr)))

@@ -1,0 +1,8 @@
+### resource deletion protection e2e test coverage analysis
+
+| Test Case                                                                  | E2E Describe Text                                              | Comments                                                                                                               |
+|----------------------------------------------------------------------------|----------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------|
+| Test the basic protection for deployment                                   | Delete the protected deployment                                | [Resource Deletion Protection](https://karmada.io/docs/next/administrator/configuration/resource-deletion-protection/) |
+| Test the basic protection for namespace                                    | Delete the protected namespace                                 |                                                                                                                        |
+| Test delete the unprotected namespace that contains a protected Deployment | Delete the no protected namespace, the deployment is protected |                                                                                                                        |
+| Test delete the namespace after the protection has been removed            | Delete the namespace after the protection has been removed     |                                                                                                                        |

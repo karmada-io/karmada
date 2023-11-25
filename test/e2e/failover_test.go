@@ -219,7 +219,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 				}
 			})
 
-			ginkgo.By("check whether deployment of failed cluster is rescheduled to other available cluster", func() {
+			ginkgo.By("check whether deployment of taint cluster is rescheduled to other available cluster", func() {
 				gomega.Eventually(func() int {
 					targetClusterNames = framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 					for _, targetClusterName := range targetClusterNames {
@@ -307,7 +307,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 			})
 		})
 
-		ginkgo.It("application failover", func() {
+		ginkgo.It("application failover with purgeMode graciously", func() {
 			disabledClusters := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 			ginkgo.By("create an error op", func() {
 				overridePolicy = testhelper.NewOverridePolicyByOverrideRules(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
@@ -369,7 +369,6 @@ var _ = framework.SerialDescribe("failover testing", func() {
 				framework.RemoveOverridePolicy(karmadaClient, policyNamespace, policyName)
 			})
 		})
-
 	})
 
 	ginkgo.Context("Application failover testing with purgeMode never", func() {
@@ -435,7 +434,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 			})
 		})
 
-		ginkgo.It("application failover", func() {
+		ginkgo.It("application failover with purgeMode never", func() {
 			disabledClusters := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 			ginkgo.By("create an error op", func() {
 				overridePolicy = testhelper.NewOverridePolicyByOverrideRules(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
@@ -497,9 +496,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 				framework.RemoveOverridePolicy(karmadaClient, policyNamespace, policyName)
 			})
 		})
-
 	})
-
 })
 
 // disableCluster will set wrong API endpoint of current cluster
