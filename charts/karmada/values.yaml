@@ -19,6 +19,10 @@ global:
 ## for more details about yaml anchors and aliases.
 karmadaImageVersion: &karmadaImageVersion latest
 
+## Specify the imagePullPolicy of karmada images
+## Defaults to 'IfNotPresent', you can set to 'Always' in cases of special needs
+karmadaImagePullPolicy: &karmadaImagePullPolicy IfNotPresent
+
 podDisruptionBudget: &podDisruptionBudget {}
   # maxUnavailable: 20%
 
@@ -50,10 +54,8 @@ cfssl:
     registry: docker.io
     repository: cfssl/cfssl
     tag: latest
-    ## Specify a imagePullPolicy
-    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
-    ##
-    pullPolicy: Always
+    ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
+    pullPolicy: IfNotPresent
 
 kubectl:
   ## @param image.registry karmada kubectl image registry
@@ -64,10 +66,8 @@ kubectl:
     registry: docker.io
     repository: bitnami/kubectl
     tag: latest
-    ## Specify a imagePullPolicy
-    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
-    ##
-    pullPolicy: Always
+    ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
+    pullPolicy: IfNotPresent
 
 ## pre-install job config
 preInstallJob:
@@ -160,10 +160,7 @@ scheduler:
     registry: docker.io
     repository: karmada/karmada-scheduler
     tag: *karmadaImageVersion
-    ## Specify a imagePullPolicy
-    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
-    ##
-    pullPolicy: Always
+    pullPolicy: *karmadaImagePullPolicy
     ## Optionally specify an array of imagePullSecrets.
     ## Secrets must be manually created in the namespace.
     ## Example:
@@ -219,10 +216,7 @@ webhook:
     registry: docker.io
     repository: karmada/karmada-webhook
     tag: *karmadaImageVersion
-    ## Specify a imagePullPolicy
-    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
-    ##
-    pullPolicy: Always
+    pullPolicy: *karmadaImagePullPolicy
     ## Optionally specify an array of imagePullSecrets.
     ## Secrets must be manually created in the namespace.
     ## Example:
@@ -278,10 +272,7 @@ controllerManager:
     registry: docker.io
     repository: karmada/karmada-controller-manager
     tag: *karmadaImageVersion
-    ## Specify a imagePullPolicy
-    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
-    ##
-    pullPolicy: Always
+    pullPolicy: *karmadaImagePullPolicy
     ## Optionally specify an array of imagePullSecrets.
     ## Secrets must be manually created in the namespace.
     ## Example:
@@ -346,9 +337,7 @@ apiServer:
     registry: registry.k8s.io
     repository: kube-apiserver
     tag: "v1.25.4"
-    ## Specify a imagePullPolicy
-    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
-    ##
+    ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
     pullPolicy: IfNotPresent
     ## Optionally specify an array of imagePullSecrets.
     ## Secrets must be manually created in the namespace.
@@ -429,10 +418,7 @@ aggregatedApiServer:
     registry: docker.io
     repository: karmada/karmada-aggregated-apiserver
     tag: *karmadaImageVersion
-    ## Specify a imagePullPolicy
-    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
-    ##
-    pullPolicy: Always
+    pullPolicy: *karmadaImagePullPolicy
     ## Optionally specify an array of imagePullSecrets.
     ## Secrets must be manually created in the namespace.
     ## Example:
@@ -551,9 +537,7 @@ kubeControllerManager:
     registry: registry.k8s.io
     repository: kube-controller-manager
     tag: "v1.25.4"
-    ## Specify a imagePullPolicy
-    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
-    ##
+    ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
     pullPolicy: IfNotPresent
     ## Optionally specify an array of imagePullSecrets.
     ## Secrets must be manually created in the namespace.
@@ -647,9 +631,7 @@ etcd:
       registry: registry.k8s.io
       repository: etcd
       tag: "3.5.9-0"
-      ## Specify a imagePullPolicy
-      ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
-      ##
+      ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
       pullPolicy: IfNotPresent
     ## @param etcd.internal.storageType storage type for etcd data
     ## "pvc" means using volumeClaimTemplates
@@ -721,10 +703,7 @@ agent:
     registry: docker.io
     repository: karmada/karmada-agent
     tag: *karmadaImageVersion
-    ## Specify a imagePullPolicy
-    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
-    ##
-    pullPolicy: Always
+    pullPolicy: *karmadaImagePullPolicy
     ## Optionally specify an array of imagePullSecrets.
     ## Secrets must be manually created in the namespace.
     ## Example:
@@ -801,10 +780,7 @@ schedulerEstimator:
     registry: docker.io
     repository: karmada/karmada-scheduler-estimator
     tag: *karmadaImageVersion
-    ## Specify a imagePullPolicy
-    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
-    ##
-    pullPolicy: Always
+    pullPolicy: *karmadaImagePullPolicy
     ## Optionally specify an array of imagePullSecrets.
     ## Secrets must be manually created in the namespace.
     ## Example:
@@ -860,10 +836,7 @@ descheduler:
     registry: docker.io
     repository: karmada/karmada-descheduler
     tag: *karmadaImageVersion
-    ## Specify a imagePullPolicy
-    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
-    ##
-    pullPolicy: Always
+    pullPolicy: *karmadaImagePullPolicy
     ## Optionally specify an array of imagePullSecrets.
     ## Secrets must be manually created in the namespace.
     ## Example:
@@ -921,10 +894,7 @@ search:
     registry: docker.io
     repository: karmada/karmada-search
     tag: *karmadaImageVersion
-    ## Specify a imagePullPolicy
-    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
-    ##
-    pullPolicy: Always
+    pullPolicy: *karmadaImagePullPolicy
     ## Optionally specify an array of imagePullSecrets.
     ## Secrets must be manually created in the namespace.
     ## Example:
