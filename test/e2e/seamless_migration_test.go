@@ -19,6 +19,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -107,6 +108,7 @@ var _ = ginkgo.Describe("Seamless migration testing", func() {
 			ginkgo.By(fmt.Sprintf("Update PropagationPolicy %s in karmada control plane with conflictResolution=Overwrite", propagationPolicy.Name), func() {
 				propagationPolicy.Spec.ConflictResolution = policyv1alpha1.ConflictOverwrite
 				framework.UpdatePropagationPolicyWithSpec(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name, propagationPolicy.Spec)
+				framework.AddAnnotationsToDeployment(kubeClient, deployment, map[string]string{reconcileAnnotationKey: time.Now().Format(time.RFC3339)})
 			})
 
 			// Step 3, Verify Deployment Replicas all ready and ResourceBinding got Healthy for overwriting conflict resource

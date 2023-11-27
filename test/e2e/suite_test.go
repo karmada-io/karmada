@@ -85,6 +85,8 @@ const (
 	updateCRnamespace         = "e2e-test"
 	updateBackoffLimit        = 3
 	updateParallelism         = 3
+
+	reconcileAnnotationKey = "test/reconciledAt"
 )
 
 var (

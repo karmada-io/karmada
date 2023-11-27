@@ -17,6 +17,8 @@ limitations under the License.
 package e2e
 
 import (
+	"time"
+
 	"github.com/onsi/ginkgo/v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -115,6 +117,8 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 					}
 
 					framework.PatchPropagationPolicy(karmadaClient, policy.Namespace, policyName, patch, types.JSONPatchType)
+					framework.AddAnnotationsToDeployment(kubeClient, deployment, map[string]string{reconcileAnnotationKey: time.Now().Format(time.RFC3339)})
+
 					framework.WaitDeploymentPresentOnClustersFitWith(updateClusterNames, deployment.Namespace, deploymentName,
 						func(deployment *appsv1.Deployment) bool {
 							return true
@@ -428,6 +432,9 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 					}
 
 					framework.PatchClusterPropagationPolicy(karmadaClient, policyName, patch, types.JSONPatchType)
+					framework.AddAnnotationsToDeployment(kubeClient, deployment, map[string]string{reconcileAnnotationKey: time.Now().Format(time.RFC3339)})
+					framework.AddAnnotationsToConfigMap(kubeClient, configMap, map[string]string{reconcileAnnotationKey: time.Now().Format(time.RFC3339)})
+
 					framework.WaitDeploymentPresentOnClustersFitWith(updateClusterNames, deployment.Namespace, deploymentName,
 						func(deployment *appsv1.Deployment) bool {
 							return true

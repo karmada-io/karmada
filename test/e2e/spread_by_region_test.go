@@ -19,6 +19,7 @@ package e2e
 import (
 	"context"
 	"strconv"
+	"time"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -137,6 +138,8 @@ var _ = framework.SerialDescribe("spread-by-region testing", func() {
 					},
 				}
 				framework.PatchPropagationPolicy(karmadaClient, policyNamespace, policyName, patch, types.JSONPatchType)
+				framework.AddAnnotationsToDeployment(kubeClient, deployment, map[string]string{reconcileAnnotationKey: time.Now().Format(time.RFC3339)})
+
 				bindingName := names.GenerateBindingName(deployment.Kind, deployment.Name)
 				binding := &workv1alpha2.ResourceBinding{}
 				gomega.Eventually(func(g gomega.Gomega) (bool, error) {

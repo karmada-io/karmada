@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"time"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -461,6 +462,7 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 			})
 
 			framework.PatchPropagationPolicy(karmadaClient, policy.Namespace, policyName, patch, types.JSONPatchType)
+			framework.AddAnnotationsToDaemonSet(kubeClient, daemonSet, map[string]string{reconcileAnnotationKey: time.Now().Format(time.RFC3339)})
 
 			ginkgo.By("check if daemonSet status has been update with new collection", func() {
 				wantedReplicas := int32(len(framework.Clusters()) - 1)

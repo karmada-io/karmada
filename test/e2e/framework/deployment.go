@@ -163,6 +163,27 @@ func UpdateDeploymentAnnotations(client kubernetes.Interface, deployment *appsv1
 	})
 }
 
+// AddAnnotationsToDeployment add annotations to deployment.
+func AddAnnotationsToDeployment(client kubernetes.Interface, deployment *appsv1.Deployment, annotations map[string]string) {
+	ginkgo.By(fmt.Sprintf("Adding annotations %v to Deployment(%s/%s)", annotations, deployment.Namespace, deployment.Name), func() {
+		gomega.Eventually(func() error {
+			deploy, err := client.AppsV1().Deployments(deployment.Namespace).Get(context.TODO(), deployment.Name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			for k, v := range annotations {
+				if deploy.Annotations == nil {
+					deploy.Annotations = map[string]string{k: v}
+				} else {
+					deploy.Annotations[k] = v
+				}
+			}
+			_, err = client.AppsV1().Deployments(deploy.Namespace).Update(context.TODO(), deploy, metav1.UpdateOptions{})
+			return err
+		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+	})
+}
+
 // UpdateDeploymentLabels update deployment's labels.
 func UpdateDeploymentLabels(client kubernetes.Interface, deployment *appsv1.Deployment, labels map[string]string) {
 	ginkgo.By(fmt.Sprintf("Updating Deployment(%s/%s)'s labels to %v", deployment.Namespace, deployment.Name, labels), func() {

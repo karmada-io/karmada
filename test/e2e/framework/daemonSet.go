@@ -42,3 +42,24 @@ func RemoveDaemonSet(client kubernetes.Interface, namespace, name string) {
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	})
 }
+
+// AddAnnotationsToDaemonSet add annotations to DaemonSet.
+func AddAnnotationsToDaemonSet(client kubernetes.Interface, daemonSet *appsv1.DaemonSet, annotations map[string]string) {
+	ginkgo.By(fmt.Sprintf("Adding annotations %v to DaemonSet(%s/%s)", annotations, daemonSet.Namespace, daemonSet.Name), func() {
+		gomega.Eventually(func() error {
+			ds, err := client.AppsV1().DaemonSets(daemonSet.Namespace).Get(context.TODO(), daemonSet.Name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			for k, v := range annotations {
+				if ds.Annotations == nil {
+					ds.Annotations = map[string]string{k: v}
+				} else {
+					ds.Annotations[k] = v
+				}
+			}
+			_, err = client.AppsV1().DaemonSets(ds.Namespace).Update(context.TODO(), ds, metav1.UpdateOptions{})
+			return err
+		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+	})
+}

@@ -228,6 +228,8 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 					},
 				})
 
+				framework.AddAnnotationsToDeployment(kubeClient, deployment02, map[string]string{reconcileAnnotationKey: time.Now().Format(time.RFC3339)})
+
 				framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment02.Namespace, deployment02.Name,
 					func(deployment *appsv1.Deployment) bool { return true })
 			})
@@ -241,8 +243,11 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 					},
 				})
 
+				framework.AddAnnotationsToDeployment(kubeClient, deployment02, map[string]string{reconcileAnnotationKey: time.Now().Format(time.RFC3339)})
+
 				framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment02.Namespace, deployment02.Name,
 					func(deployment *appsv1.Deployment) bool { return true })
+
 				framework.WaitDeploymentGetByClientFitWith(kubeClient, deployment01.Namespace, deployment01.Name,
 					func(deployment *appsv1.Deployment) bool {
 						if deployment.Labels == nil {
@@ -309,6 +314,8 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 					},
 				})
 
+				framework.AddAnnotationsToClusterRole(kubeClient, clusterRole02, map[string]string{reconcileAnnotationKey: time.Now().Format(time.RFC3339)})
+
 				framework.WaitClusterRolePresentOnClusterFitWith(targetMember, clusterRole02.Name,
 					func(role *rbacv1.ClusterRole) bool {
 						return true
@@ -324,10 +331,13 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 					},
 				})
 
+				framework.AddAnnotationsToClusterRole(kubeClient, clusterRole02, map[string]string{reconcileAnnotationKey: time.Now().Format(time.RFC3339)})
+
 				framework.WaitClusterRolePresentOnClusterFitWith(targetMember, clusterRole02.Name,
 					func(role *rbacv1.ClusterRole) bool {
 						return true
 					})
+
 				framework.WaitClusterRoleGetByClientFitWith(kubeClient, clusterRole01.Name,
 					func(clusterRole *rbacv1.ClusterRole) bool {
 						if clusterRole.Labels == nil {
@@ -397,6 +407,8 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 					},
 				}
 				framework.PatchClusterPropagationPolicy(karmadaClient, policy.Name, patch, types.JSONPatchType)
+				framework.AddAnnotationsToDeployment(kubeClient, deployment, map[string]string{reconcileAnnotationKey: time.Now().Format(time.RFC3339)})
+
 				gomega.Eventually(func() bool {
 					bindings, err := karmadaClient.WorkV1alpha2().ResourceBindings(testNamespace).List(context.TODO(), metav1.ListOptions{
 						LabelSelector: labels.SelectorFromSet(labels.Set{
@@ -423,6 +435,8 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 					},
 				}
 				framework.PatchClusterPropagationPolicy(karmadaClient, policy.Name, patch, types.JSONPatchType)
+				framework.AddAnnotationsToDeployment(kubeClient, deployment, map[string]string{reconcileAnnotationKey: time.Now().Format(time.RFC3339)})
+
 				framework.WaitDeploymentDisappearOnCluster(targetMember, deployment.Namespace, deployment.Name)
 				framework.WaitDeploymentPresentOnClusterFitWith(updatedMember, deployment.Namespace, deployment.Name,
 					func(deployment *appsv1.Deployment) bool { return true })
@@ -480,6 +494,8 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 					},
 				}
 				framework.PatchClusterPropagationPolicy(karmadaClient, policy.Name, patch, types.JSONPatchType)
+				framework.AddAnnotationsToClusterRole(kubeClient, clusterRole, map[string]string{reconcileAnnotationKey: time.Now().Format(time.RFC3339)})
+
 				framework.WaitClusterRoleDisappearOnCluster(targetMember, clusterRole.Name)
 				framework.WaitClusterRolePresentOnClusterFitWith(updatedMember, clusterRole.Name,
 					func(role *rbacv1.ClusterRole) bool {

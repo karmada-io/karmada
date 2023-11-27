@@ -18,6 +18,7 @@ package e2e
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -151,6 +152,7 @@ var _ = ginkgo.Describe("[ClusterAffinities] propagation testing", func() {
 					ClusterAffinity: policyv1alpha1.ClusterAffinity{ClusterNames: []string{"member2"}},
 				}}
 				framework.UpdatePropagationPolicyWithSpec(karmadaClient, policy.Namespace, policy.Name, policy.Spec)
+				framework.AddAnnotationsToDeployment(kubeClient, deployment, map[string]string{reconcileAnnotationKey: time.Now().Format(time.RFC3339)})
 
 				// 3. wait for deployment present on member2 cluster
 				framework.WaitDeploymentPresentOnClusterFitWith("member2", deployment.Namespace, deployment.Name, func(deployment *appsv1.Deployment) bool { return true })
@@ -194,6 +196,7 @@ var _ = ginkgo.Describe("[ClusterAffinities] propagation testing", func() {
 				policy.Spec.Placement.ClusterAffinity = &policyv1alpha1.ClusterAffinity{ClusterNames: []string{"member2"}}
 				policy.Spec.Placement.ClusterAffinities = nil
 				framework.UpdatePropagationPolicyWithSpec(karmadaClient, policy.Namespace, policy.Name, policy.Spec)
+				framework.AddAnnotationsToDeployment(kubeClient, deployment, map[string]string{reconcileAnnotationKey: time.Now().Format(time.RFC3339)})
 
 				// 3. wait for deployment present on member2 cluster
 				framework.WaitDeploymentPresentOnClusterFitWith("member2", deployment.Namespace, deployment.Name, func(deployment *appsv1.Deployment) bool { return true })
@@ -314,6 +317,7 @@ var _ = ginkgo.Describe("[ClusterAffinities] propagation testing", func() {
 					ClusterAffinity: policyv1alpha1.ClusterAffinity{ClusterNames: []string{"member2"}},
 				}}
 				framework.UpdateClusterPropagationPolicyWithSpec(karmadaClient, policy.Name, policy.Spec)
+				framework.AddAnnotationsToClusterRole(kubeClient, clusterRole, map[string]string{reconcileAnnotationKey: time.Now().Format(time.RFC3339)})
 
 				// 3. wait for clusterRole present on member2 cluster
 				framework.WaitClusterRolePresentOnClusterFitWith("member2", clusterRole.Name, func(clusterRole *rbacv1.ClusterRole) bool { return true })
@@ -357,6 +361,7 @@ var _ = ginkgo.Describe("[ClusterAffinities] propagation testing", func() {
 				policy.Spec.Placement.ClusterAffinity = &policyv1alpha1.ClusterAffinity{ClusterNames: []string{"member2"}}
 				policy.Spec.Placement.ClusterAffinities = nil
 				framework.UpdateClusterPropagationPolicyWithSpec(karmadaClient, policy.Name, policy.Spec)
+				framework.AddAnnotationsToClusterRole(kubeClient, clusterRole, map[string]string{reconcileAnnotationKey: time.Now().Format(time.RFC3339)})
 
 				// 3. wait for clusterRole present on member2 cluster
 				framework.WaitClusterRolePresentOnClusterFitWith("member2", clusterRole.Name, func(clusterRole *rbacv1.ClusterRole) bool { return true })

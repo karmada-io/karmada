@@ -47,6 +47,27 @@ func RemoveConfigMap(client kubernetes.Interface, namespace, name string) {
 	})
 }
 
+// AddAnnotationsToConfigMap add annotations to ConfigMap.
+func AddAnnotationsToConfigMap(client kubernetes.Interface, configMap *corev1.ConfigMap, annotations map[string]string) {
+	ginkgo.By(fmt.Sprintf("Adding annotations %v to ConfigMap(%s/%s)", annotations, configMap.Namespace, configMap.Name), func() {
+		gomega.Eventually(func() error {
+			cm, err := client.CoreV1().ConfigMaps(configMap.Namespace).Get(context.TODO(), configMap.Name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			for k, v := range annotations {
+				if cm.Annotations == nil {
+					cm.Annotations = map[string]string{k: v}
+				} else {
+					cm.Annotations[k] = v
+				}
+			}
+			_, err = client.CoreV1().ConfigMaps(cm.Namespace).Update(context.TODO(), cm, metav1.UpdateOptions{})
+			return err
+		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+	})
+}
+
 // WaitConfigMapPresentOnClustersFitWith wait configmap present on clusters sync with fit func.
 func WaitConfigMapPresentOnClustersFitWith(clusters []string, namespace, name string, fit func(configmap *corev1.ConfigMap) bool) {
 	ginkgo.By(fmt.Sprintf("Waiting for configmap(%s/%s) synced on member clusters", namespace, name), func() {

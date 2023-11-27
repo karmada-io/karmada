@@ -121,6 +121,27 @@ func RemoveClusterRole(client kubernetes.Interface, name string) {
 	})
 }
 
+// AddAnnotationsToClusterRole add annotations to clusterRole.
+func AddAnnotationsToClusterRole(client kubernetes.Interface, clusterRole *rbacv1.ClusterRole, annotations map[string]string) {
+	ginkgo.By(fmt.Sprintf("Adding annotations %v to ClusterRole(%s)", annotations, clusterRole.Name), func() {
+		gomega.Eventually(func() error {
+			clusterRoleTmp, err := client.RbacV1().ClusterRoles().Get(context.TODO(), clusterRole.Name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			for k, v := range annotations {
+				if clusterRoleTmp.Annotations == nil {
+					clusterRoleTmp.Annotations = map[string]string{k: v}
+				} else {
+					clusterRoleTmp.Annotations[k] = v
+				}
+			}
+			_, err = client.RbacV1().ClusterRoles().Update(context.TODO(), clusterRoleTmp, metav1.UpdateOptions{})
+			return err
+		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+	})
+}
+
 // WaitClusterRolePresentOnClustersFitWith wait clusterRole present on clusters sync with fit func.
 func WaitClusterRolePresentOnClustersFitWith(clusters []string, name string, fit func(clusterRole *rbacv1.ClusterRole) bool) {
 	ginkgo.By(fmt.Sprintf("Waiting for clusterRole(%s) synced on member clusters", name), func() {
