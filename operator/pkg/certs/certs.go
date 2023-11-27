@@ -473,8 +473,8 @@ func apiServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, e
 			"kubernetes",
 			"kubernetes.default",
 			"kubernetes.default.svc",
-			fmt.Sprintf("*.%s.svc.cluster.local", cfg.Namespace),
-			fmt.Sprintf("*.%s.svc", cfg.Namespace),
+			fmt.Sprintf("*.%s.svc.cluster.local", constants.KarmadaSystemNamespace),
+			fmt.Sprintf("*.%s.svc", constants.KarmadaSystemNamespace),
 		},
 		IPs: []net.IP{
 			net.IPv4(127, 0, 0, 1),
