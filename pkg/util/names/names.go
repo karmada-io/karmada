@@ -89,6 +89,10 @@ func GenerateBindingReferenceKey(namespace, name string) string {
 	return rand.SafeEncodeString(fmt.Sprint(hash.Sum32()))
 }
 
+func GenerateMCSWorkName(kind, name, namespace, cluster string) string {
+	return GenerateWorkName(kind, name, cluster+"/"+namespace)
+}
+
 // GenerateWorkName will generate work name by its name and the hash of its namespace, kind and name.
 func GenerateWorkName(kind, name, namespace string) string {
 	// The name of resources, like 'Role'/'ClusterRole'/'RoleBinding'/'ClusterRoleBinding',

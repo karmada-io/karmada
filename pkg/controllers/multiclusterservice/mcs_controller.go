@@ -19,9 +19,7 @@ package multiclusterservice
 import (
 	"context"
 	"fmt"
-	"strings"
 
-	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -64,6 +62,10 @@ type MCSController struct {
 	EventRecorder      record.EventRecorder
 	RateLimiterOptions ratelimiterflag.Options
 }
+
+var (
+	serviceGVK = corev1.SchemeGroupVersion.WithKind("Service")
+)
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 // The Controller will requeue the Request to be processed again if an error is non-nil or
@@ -110,6 +112,12 @@ func (c *MCSController) handleMCSDelete(ctx context.Context, mcs *networkingv1al
 		return controllerruntime.Result{}, err
 	}
 
+	if err := c.deleteMultiClusterServiceWork(mcs, true); err != nil {
+		c.EventRecorder.Event(mcs, corev1.EventTypeWarning, events.EventReasonSyncServiceWorkFailed,
+			fmt.Sprintf("failed to delete MultiClusterService work :%v", err))
+		return controllerruntime.Result{}, err
+	}
+
 	finalizersUpdated := controllerutil.RemoveFinalizer(mcs, util.MCSControllerFinalizer)
 	if finalizersUpdated {
 		err := c.Client.Update(ctx, mcs)
@@ -125,32 +133,76 @@ func (c *MCSController) handleMCSDelete(ctx context.Context, mcs *networkingv1al
 }
 
 func (c *MCSController) deleteServiceWork(mcs *networkingv1alpha1.MultiClusterService, retainClusters sets.Set[string]) error {
-	mcsID, err := c.getMultiClusterServiceID(mcs)
-	if err != nil {
-		klog.Errorf("Get MultiClusterService(%s/%s) ID error:%v", mcs.Namespace, mcs.Name, err)
-		return err
-	}
-
-	workList, err := helper.GetWorksByLabelsSet(c, labels.Set{networkingv1alpha1.MultiClusterServicePermanentIDLabel: mcsID})
+	mcsID := util.GetLabelValue(mcs.Labels, networkingv1alpha1.MultiClusterServicePermanentIDLabel)
+	workList, err := helper.GetWorksByLabelsSet(c, labels.Set{
+		networkingv1alpha1.MultiClusterServicePermanentIDLabel: mcsID,
+	})
 	if err != nil {
 		klog.ErrorS(err, "failed to get work", "namespace", mcs.Namespace, "name", mcs.Name)
 		return err
 	}
 
-	for index := range workList.Items {
-		clusterName := strings.TrimPrefix(workList.Items[index].Namespace, names.ExecutionSpacePrefix)
+	for _, work := range workList.Items {
+		if !helper.IsWorkContains(work.Spec.Workload.Manifests, serviceGVK) {
+			continue
+		}
+		clusterName, err := names.GetClusterName(work.Namespace)
+		if err != nil {
+			klog.Errorf("Failed to get member cluster name for work %s/%s", work.Namespace, work.Name)
+			continue
+		}
 		if retainClusters.Has(clusterName) {
 			continue
 		}
 
-		if err = c.Client.Delete(context.TODO(), &workList.Items[index]); err != nil && !apierrors.IsNotFound(err) {
-			klog.Errorf("Error while updating work(%s/%s) deletion timestamp: %s",
-				workList.Items[index].Namespace, workList.Items[index].Name, err)
+		if err = c.Client.Delete(context.TODO(), work.DeepCopy()); err != nil && !apierrors.IsNotFound(err) {
+			klog.Errorf("Error while deleting work(%s/%s) deletion timestamp: %s",
+				work.Namespace, work.Name, err)
 			return err
 		}
 	}
 
 	klog.V(4).InfoS("success to delete service work", "namespace", mcs.Namespace, "name", mcs.Name)
+	return nil
+}
+
+func (c *MCSController) deleteMultiClusterServiceWork(mcs *networkingv1alpha1.MultiClusterService, deleteAll bool) error {
+	mcsID := util.GetLabelValue(mcs.Labels, networkingv1alpha1.MultiClusterServicePermanentIDLabel)
+	workList, err := helper.GetWorksByLabelsSet(c, labels.Set{
+		networkingv1alpha1.MultiClusterServicePermanentIDLabel: mcsID,
+	})
+	if err != nil {
+		klog.Errorf("Failed to list work by MultiClusterService(%s/%s):%v", mcs.Namespace, mcs.Name, err)
+		return err
+	}
+
+	provisionClusters, err := helper.GetProvisionClusters(c.Client, mcs)
+	if err != nil {
+		klog.Errorf("Failed to get provision clusters by MultiClusterService(%s/%s):%v", mcs.Namespace, mcs.Name, err)
+		return err
+	}
+
+	for _, work := range workList.Items {
+		if !helper.IsWorkContains(work.Spec.Workload.Manifests, multiClusterServiceGVK) {
+			continue
+		}
+		clusterName, err := names.GetClusterName(work.Namespace)
+		if err != nil {
+			klog.Errorf("Failed to get member cluster name for work %s/%s:%v", work.Namespace, work.Name, work)
+			continue
+		}
+		if !deleteAll && provisionClusters.Has(clusterName) {
+			continue
+		}
+
+		if err = c.Client.Delete(context.TODO(), work.DeepCopy()); err != nil && !apierrors.IsNotFound(err) {
+			klog.Errorf("Error while updating work(%s/%s) deletion timestamp: %s",
+				work.Namespace, work.Name, err)
+			return err
+		}
+	}
+
+	klog.V(4).InfoS("Success to delete MultiClusterService work", "namespace", mcs.Namespace, "name", mcs.Name)
 	return nil
 }
 
@@ -160,7 +212,12 @@ func (c *MCSController) handleMCSCreateOrUpdate(ctx context.Context, mcs *networ
 
 	// 1. if mcs not contain CrossCluster type, delete service work if needed
 	if !helper.MultiClusterServiceCrossClusterEnabled(mcs) {
-		return c.deleteServiceWork(mcs, sets.New[string]())
+		if err := c.deleteServiceWork(mcs, sets.New[string]()); err != nil {
+			return err
+		}
+		if err := c.deleteMultiClusterServiceWork(mcs, true); err != nil {
+			return err
+		}
 	}
 
 	// 2. add finalizer if needed
@@ -173,7 +230,12 @@ func (c *MCSController) handleMCSCreateOrUpdate(ctx context.Context, mcs *networ
 		}
 	}
 
-	// 3. make sure service exist
+	// 3. Generate the MCS work
+	if err := c.ensureMultiClusterServiceWork(ctx, mcs); err != nil {
+		return err
+	}
+
+	// 4. make sure service exist
 	svc := &corev1.Service{}
 	err := c.Client.Get(ctx, types.NamespacedName{Namespace: mcs.Namespace, Name: mcs.Name}, svc)
 	if err != nil && !apierrors.IsNotFound(err) {
@@ -181,7 +243,7 @@ func (c *MCSController) handleMCSCreateOrUpdate(ctx context.Context, mcs *networ
 		return err
 	}
 
-	// 4. if service not exist, delete service work if needed
+	// 5. if service not exist, delete service work if needed
 	if apierrors.IsNotFound(err) {
 		delErr := c.deleteServiceWork(mcs, sets.New[string]())
 		if delErr != nil {
@@ -192,18 +254,59 @@ func (c *MCSController) handleMCSCreateOrUpdate(ctx context.Context, mcs *networ
 		return err
 	}
 
-	// 5. if service exist, create or update corresponding work in clusters
+	// 6. if service exist, create or update corresponding work in clusters
 	syncClusters, err := c.syncSVCWorkToClusters(ctx, mcs, svc)
 	if err != nil {
 		return err
 	}
 
-	// 6. delete service work not in need sync clusters
+	// 7. delete MultiClusterService work not in provision clusters
+	if err = c.deleteMultiClusterServiceWork(mcs, false); err != nil {
+		return err
+	}
+
+	// 8. delete service work not in need sync clusters
 	if err = c.deleteServiceWork(mcs, syncClusters); err != nil {
 		return err
 	}
 
 	klog.V(4).InfoS("success to ensure service work", "namespace", mcs.Namespace, "name", mcs.Name)
+	return nil
+}
+
+func (c *MCSController) ensureMultiClusterServiceWork(ctx context.Context, mcs *networkingv1alpha1.MultiClusterService) error {
+	provisionCluster, err := helper.GetProvisionClusters(c.Client, mcs)
+	if err != nil {
+		klog.Errorf("Failed to get provision clusters by MultiClusterService(%s/%s):%v", mcs.Namespace, mcs.Name, err)
+		return err
+	}
+
+	for clusterName := range provisionCluster {
+		workMeta := metav1.ObjectMeta{
+			Name:      names.GenerateMCSWorkName(mcs.Kind, mcs.Name, mcs.Namespace, clusterName),
+			Namespace: names.GenerateExecutionSpaceName(clusterName),
+			Labels: map[string]string{
+				// We add this id in mutating webhook, let's just use it
+				networkingv1alpha1.MultiClusterServicePermanentIDLabel: util.GetLabelValue(mcs.Labels, networkingv1alpha1.MultiClusterServicePermanentIDLabel),
+				util.ManagedByKarmadaLabel:                             util.ManagedByKarmadaLabelValue,
+				util.PropagationInstruction:                            util.PropagationInstructionSuppressed,
+				util.ServiceNamespaceLabel:                             mcs.Namespace,
+				util.ServiceNameLabel:                                  mcs.Name,
+			},
+		}
+
+		mcsObj, err := helper.ToUnstructured(mcs)
+		if err != nil {
+			klog.Errorf("Failed to convert MultiClusterService(%s/%s) to unstructured object, err is %v", mcs.Namespace, mcs.Name, err)
+			return err
+		}
+		if err = helper.CreateOrUpdateWork(c, workMeta, mcsObj); err != nil {
+			klog.Errorf("Failed to create or update MultiClusterService(%s/%s) work in the given member cluster %s, err is %v",
+				mcs.Namespace, mcs.Name, clusterName, err)
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -235,20 +338,15 @@ func (c *MCSController) syncSVCWorkToClusters(
 		return syncClusters, err
 	}
 
-	mcsID, err := c.getMultiClusterServiceID(mcs)
-	if err != nil {
-		klog.Errorf("Get MultiClusterService(%s/%s) ID error:%v", mcs.Namespace, mcs.Name, err)
-		return syncClusters, err
-	}
-
 	var errs []error
 	for clusterName := range syncClusters {
 		workMeta := metav1.ObjectMeta{
-			Name:       names.GenerateWorkName(svc.Kind, svc.Name, clusterName+"/"+svc.Namespace),
+			Name:       names.GenerateMCSWorkName(svc.Kind, svc.Name, svc.Namespace, clusterName),
 			Namespace:  names.GenerateExecutionSpaceName(clusterName),
 			Finalizers: []string{util.ExecutionControllerFinalizer},
 			Labels: map[string]string{
-				networkingv1alpha1.MultiClusterServicePermanentIDLabel: mcsID,
+				// We add this id in mutating webhook, let's just use it
+				networkingv1alpha1.MultiClusterServicePermanentIDLabel: util.GetLabelValue(mcs.Labels, networkingv1alpha1.MultiClusterServicePermanentIDLabel),
 				util.ManagedByKarmadaLabel:                             util.ManagedByKarmadaLabelValue,
 			},
 		}
@@ -292,19 +390,6 @@ func (c *MCSController) updateMCSStatus(mcs *networkingv1alpha1.MultiClusterServ
 		}
 		return updateErr
 	})
-}
-
-func (c *MCSController) getMultiClusterServiceID(mcs *networkingv1alpha1.MultiClusterService) (string, error) {
-	id := util.GetLabelValue(mcs.GetLabels(), networkingv1alpha1.MultiClusterServicePermanentIDLabel)
-	if id == "" {
-		id = uuid.New().String()
-		mcs.Labels = util.DedupeAndMergeLabels(mcs.Labels, map[string]string{networkingv1alpha1.MultiClusterServicePermanentIDLabel: id})
-		if err := c.Client.Update(context.TODO(), mcs); err != nil {
-			return id, err
-		}
-	}
-
-	return id, nil
 }
 
 // SetupWithManager creates a controller and register to controller manager.

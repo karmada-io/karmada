@@ -99,7 +99,7 @@ func (c *ServiceExportController) Reconcile(ctx context.Context, req controllerr
 		return controllerruntime.Result{}, nil
 	}
 
-	if !isWorkContains(work.Spec.Workload.Manifests, serviceExportGVK) {
+	if !helper.IsWorkContains(work.Spec.Workload.Manifests, serviceExportGVK) {
 		return controllerruntime.Result{}, nil
 	}
 
@@ -121,23 +121,6 @@ func (c *ServiceExportController) Reconcile(ctx context.Context, req controllerr
 	}
 
 	return c.buildResourceInformers(cluster)
-}
-
-// isWorkContains checks if the target resource exists in a work.spec.workload.manifests.
-func isWorkContains(manifests []workv1alpha1.Manifest, targetResource schema.GroupVersionKind) bool {
-	for index := range manifests {
-		workload := &unstructured.Unstructured{}
-		err := workload.UnmarshalJSON(manifests[index].Raw)
-		if err != nil {
-			klog.Errorf("Failed to unmarshal work manifests index %d, error is: %v", index, err)
-			continue
-		}
-
-		if targetResource == workload.GroupVersionKind() {
-			return true
-		}
-	}
-	return false
 }
 
 // SetupWithManager creates a controller and register to controller manager.

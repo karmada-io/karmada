@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -100,6 +101,19 @@ func GetCluster(hostClient client.Client, clusterName string) (*clusterv1alpha1.
 		return nil, err
 	}
 	return cluster, nil
+}
+
+// GetClusterWithKubeClient returns the given Clusters name set
+func GetClusterSet(hostClient client.Client) (sets.Set[string], error) {
+	clusterList := &clusterv1alpha1.ClusterList{}
+	if err := hostClient.List(context.Background(), clusterList); err != nil {
+		return nil, err
+	}
+	clusterSet := sets.New[string]()
+	for _, cluster := range clusterList.Items {
+		clusterSet.Insert(cluster.Name)
+	}
+	return clusterSet, nil
 }
 
 // CreateClusterObject create cluster object in karmada control plane
