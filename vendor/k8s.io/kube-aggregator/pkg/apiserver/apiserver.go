@@ -441,6 +441,8 @@ func (s *APIAggregator) PrepareRun() (preparedAPIAggregator, error) {
 		openAPIV3Aggregator, err := openapiv3aggregator.BuildAndRegisterAggregator(
 			specDownloaderV3,
 			s.GenericAPIServer.NextDelegate(),
+			s.GenericAPIServer.Handler.GoRestfulContainer,
+			s.openAPIConfig,
 			s.GenericAPIServer.Handler.NonGoRestfulMux)
 		if err != nil {
 			return preparedAPIAggregator{}, err
@@ -552,7 +554,7 @@ func (s *APIAggregator) RemoveAPIService(apiServiceName string) {
 		s.openAPIAggregationController.RemoveAPIService(apiServiceName)
 	}
 	if s.openAPIV3AggregationController != nil {
-		s.openAPIAggregationController.RemoveAPIService(apiServiceName)
+		s.openAPIV3AggregationController.RemoveAPIService(apiServiceName)
 	}
 	delete(s.proxyHandlers, apiServiceName)
 

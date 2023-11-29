@@ -85,6 +85,7 @@ func RenderOpenAPISpec(cfg Config) (string, error) {
 		return "", err
 	}
 	serverConfig.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(cfg.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(cfg.Scheme))
+	serverConfig.OpenAPIV3Config = genericapiserver.DefaultOpenAPIV3Config(cfg.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(cfg.Scheme))
 	serverConfig.OpenAPIConfig.Info.InfoProps = cfg.Info
 
 	genericServer, err := serverConfig.Complete().New("karmada-openapi-server", genericapiserver.NewEmptyDelegate())
