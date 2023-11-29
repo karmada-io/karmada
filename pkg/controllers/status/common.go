@@ -21,6 +21,15 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
+// Fake predicate for inheriting concurrency of `forType` from global options.
+// Matching the feature in later version.
+var bindingPredicateFn = builder.WithPredicates(predicate.Funcs{
+	CreateFunc:  func(event.CreateEvent) bool { return false },
+	UpdateFunc:  func(event.UpdateEvent) bool { return false },
+	DeleteFunc:  func(event.DeleteEvent) bool { return false },
+	GenericFunc: func(event.GenericEvent) bool { return false },
+})
+
 var workPredicateFn = builder.WithPredicates(predicate.Funcs{
 	CreateFunc: func(e event.CreateEvent) bool { return false },
 	UpdateFunc: func(e event.UpdateEvent) bool {
