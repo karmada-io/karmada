@@ -102,7 +102,7 @@ func (c *CRBStatusController) SetupWithManager(mgr controllerruntime.Manager) er
 		})
 
 	return controllerruntime.NewControllerManagedBy(mgr).Named("clusterResourceBinding_status_controller").
-		For(&workv1alpha2.ResourceBinding{}, rbPredicateFn).
+		For(&workv1alpha2.ClusterResourceBinding{}, bindingPredicateFn).
 		Watches(&workv1alpha1.Work{}, handler.EnqueueRequestsFromMapFunc(workMapFunc), workPredicateFn).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
 		Complete(c)
