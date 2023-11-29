@@ -79,6 +79,20 @@ webhooks:
     sideEffects: None
     admissionReviewVersions: [ "v1" ]
     timeoutSeconds: 3
+  - name: multiclusterservice.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["networking.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["multiclusterservices"]
+        scope: "Namespaced"
+    clientConfig:
+      url: https://{{ $name }}-webhook.{{ $namespace }}.svc:443/mutate-multiclusterservice
+      {{- include "karmada.webhook.caBundle" . | nindent 6 }}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: [ "v1" ]
+    timeoutSeconds: 3
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
