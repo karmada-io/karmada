@@ -63,6 +63,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/gracefuleviction"
 	"github.com/karmada-io/karmada/pkg/controllers/hpareplicassyncer"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
+	"github.com/karmada-io/karmada/pkg/controllers/multiclusterservice"
 	"github.com/karmada-io/karmada/pkg/controllers/namespace"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	"github.com/karmada-io/karmada/pkg/controllers/unifiedauth"
@@ -224,6 +225,7 @@ func init() {
 	controllers["federatedHorizontalPodAutoscaler"] = startFederatedHorizontalPodAutoscalerController
 	controllers["cronFederatedHorizontalPodAutoscaler"] = startCronFederatedHorizontalPodAutoscalerController
 	controllers["hpaReplicasSyncer"] = startHPAReplicasSyncerController
+	controllers["multiclusterservice"] = startMCSController
 }
 
 func startClusterController(ctx controllerscontext.Context) (enabled bool, err error) {
@@ -628,6 +630,18 @@ func startHPAReplicasSyncerController(ctx controllerscontext.Context) (enabled b
 		return false, err
 	}
 
+	return true, nil
+}
+
+func startMCSController(ctx controllerscontext.Context) (enabled bool, err error) {
+	mcsController := &multiclusterservice.MCSController{
+		Client:             ctx.Mgr.GetClient(),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(multiclusterservice.ControllerName),
+		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
+	}
+	if err = mcsController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
 	return true, nil
 }
 
