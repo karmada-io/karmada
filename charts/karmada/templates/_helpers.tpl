@@ -8,12 +8,21 @@
 {{- default .Release.Namespace -}}
 {{- end -}}
 
+{{- define "karmada.commonLabels" -}}
+{{- if .Values.global.commonLabels -}}
+{{- range $key, $value := .Values.global.commonLabels }}
+{{ $key }}: {{ $value | quote }}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
 {{- define "karmada.apiserver.labels" -}}
 {{- if .Values.apiServer.labels }}
 {{- range $key, $value := .Values.apiServer.labels }}
 {{ $key }}: {{ $value }}
 {{- end }}
 {{- else}}
+{{- include "karmada.commonLabels" . -}}
 app: {{- include "karmada.name" .}}-apiserver
 {{- end }}
 {{- end -}}
@@ -29,9 +38,10 @@ app: {{- include "karmada.name" .}}-apiserver
 {{- define "karmada.etcd.labels" -}}
 {{- if .Values.etcd.labels }}
 {{- range $key, $value := .Values.etcd.labels }}
-{{ $key }}: {{ $value }}
+{{ $key }}: {{ $value | quote }}
 {{- end }}
 {{- else}}
+{{- include "karmada.commonLabels" . -}}
 app: etcd
 {{- end }}
 {{- end -}}
@@ -52,6 +62,7 @@ app: etcd
 {{- else}}
 app: {{- include "karmada.name" .}}-aggregated-apiserver
 {{- end }}
+{{- include "karmada.commonLabels" . -}}
 {{- end -}}
 
 {{- define "karmada.aggregatedApiServer.podLabels" -}}
@@ -88,6 +99,7 @@ app: {{- include "karmada.name" .}}-metrics-adapter
 {{- else}}
 app: {{- include "karmada.name" .}}-kube-controller-manager
 {{- end }}
+{{- include "karmada.commonLabels" . -}}
 {{- end -}}
 
 {{- define "karmada.kube-cm.podLabels" -}}
@@ -129,6 +141,7 @@ certificate-authority-data: {{ b64enc .Values.certs.custom.caCrt }}
 {{- else -}}
 app: {{$name}}-controller-manager
 {{- end -}}
+{{- include "karmada.commonLabels" . -}}
 {{- end -}}
 
 {{- define "karmada.cm.podLabels" -}}
@@ -149,6 +162,7 @@ app: {{$name}}-controller-manager
 {{- else -}}
 app: {{$name}}-scheduler
 {{- end -}}
+{{- include "karmada.commonLabels" . -}}
 {{- end -}}
 
 {{- define "karmada.scheduler.podLabels" -}}
@@ -169,6 +183,7 @@ app: {{$name}}-scheduler
 {{- else -}}
 app: {{$name}}
 {{- end -}}
+{{- include "karmada.commonLabels" . -}}
 {{- end -}}
 
 {{- define "karmada.descheduler.podLabels" -}}
@@ -202,6 +217,7 @@ app: {{$name}}
 {{- else}}
 app: {{$name}}-webhook
 {{- end }}
+{{- include "karmada.commonLabels" . -}}
 {{- end -}}
 
 {{- define "karmada.webhook.podLabels" -}}
@@ -221,6 +237,7 @@ app: {{$name}}-webhook
 {{- else}}
 app: {{$name}}
 {{- end }}
+{{- include "karmada.commonLabels" . -}}
 {{- end -}}
 
 {{- define "karmada.agent.podLabels" -}}
@@ -263,6 +280,7 @@ caBundle: {{ b64enc .Values.certs.custom.caCrt }}
 {{ $key }}: {{ $value }}
 {{- end }}
 {{- end }}
+{{- include "karmada.commonLabels" . -}}
 {{- end -}}
 
 {{- define "karmada.search.labels" -}}
@@ -273,6 +291,7 @@ caBundle: {{ b64enc .Values.certs.custom.caCrt }}
 {{- else}}
 app: {{- include "karmada.name" .}}-search
 {{- end }}
+{{- include "karmada.commonLabels" . -}}
 {{- end -}}
 
 {{- define "karmada.search.podLabels" -}}
@@ -281,6 +300,18 @@ app: {{- include "karmada.name" .}}-search
 {{ $key }}: {{ $value }}
 {{- end }}
 {{- end }}
+{{- end -}}
+
+{{- define "karmada.preInstallJob.labels" -}}
+{{- include "karmada.commonLabels" . -}}
+{{- end -}}
+
+{{- define "karmada.postInstallJob.labels" -}}
+{{- include "karmada.commonLabels" . -}}
+{{- end -}}
+
+{{- define "karmada.postDeleteJob.labels" -}}
+{{- include "karmada.commonLabels" . -}}
 {{- end -}}
 
 {{- define "karmada.search.kubeconfig.volume" -}}

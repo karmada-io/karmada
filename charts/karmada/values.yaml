@@ -11,6 +11,12 @@ global:
   ##   - myRegistryKeySecretName
   imagePullSecrets: []
 
+  ## #param global.commonLabels Common labels applied to all ressources
+  ## E.g.
+  ## commonLabels:
+  ##   team: infra
+  commonLabels: {}
+
 ## @karmadaImageVersion the image version of each karmada components
 ## "latest" is a default value for local installation.
 ## If update this anchors("&karmadaImageVersion"), also update hack/package-helm-chart.sh.
