@@ -51,8 +51,8 @@ const (
 	// ManagedByKarmadaLabelValue indicates that resources are managed by karmada controllers.
 	ManagedByKarmadaLabelValue = "true"
 
-	// EndpointSliceControllerLabelValue indicates the endpointSlice are controlled by karmada-mcs-endpointslice-controller
-	EndpointSliceControllerLabelValue = "karmada-mcs-endpointslice-controller"
+	// EndpointSliceDispatchControllerLabelValue indicates the endpointSlice are controlled by Karmada
+	EndpointSliceDispatchControllerLabelValue = "endpointslice-dispatch-controller.karmada.io"
 
 	// RetainReplicasLabel is a reserved label to indicate whether the replicas should be retained. e.g:
 	// resourcetemplate.karmada.io/retain-replicas: true   // with value `true` indicates retain

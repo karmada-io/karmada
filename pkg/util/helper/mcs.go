@@ -118,3 +118,16 @@ func GetProvisionClusters(client client.Client, mcs *networkingv1alpha1.MultiClu
 	}
 	return provisionClusters, nil
 }
+
+func GetConsumptionClustres(client client.Client, mcs *networkingv1alpha1.MultiClusterService) (sets.Set[string], error) {
+	consumptionClusters := sets.New[string](mcs.Spec.ServiceConsumptionClusters...)
+	if len(consumptionClusters) == 0 {
+		var err error
+		consumptionClusters, err = util.GetClusterSet(client)
+		if err != nil {
+			klog.Errorf("Failed to get cluster set, Error: %v", err)
+			return nil, err
+		}
+	}
+	return consumptionClusters, nil
+}
