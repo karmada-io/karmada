@@ -32,6 +32,8 @@ const (
 	ResourceNamespaceScopedMultiClusterService = true
 	// MCSServiceAppliedConditionType is indicates the condition type of mcs service applied.
 	MCSServiceAppliedConditionType = "ServiceApplied"
+	// EndpointSliceDispatched indicates whether the EndpointSlice is dispatched to consumption clusters
+	EndpointSliceDispatched string = "EndpointSliceDispatched"
 )
 
 // +genclient

@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
@@ -177,4 +178,21 @@ func GenEventRef(resource *unstructured.Unstructured) (*corev1.ObjectReference, 
 	}
 
 	return ref, nil
+}
+
+// IsWorkContains checks if the target resource exists in a work.spec.workload.manifests.
+func IsWorkContains(manifests []workv1alpha1.Manifest, targetResource schema.GroupVersionKind) bool {
+	for index := range manifests {
+		workload := &unstructured.Unstructured{}
+		err := workload.UnmarshalJSON(manifests[index].Raw)
+		if err != nil {
+			klog.Errorf("Failed to unmarshal work manifests index %d, error is: %v", index, err)
+			continue
+		}
+
+		if targetResource == workload.GroupVersionKind() {
+			return true
+		}
+	}
+	return false
 }

@@ -96,7 +96,7 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "karmada-controller-manager",
 		Long: `The karmada-controller-manager runs various controllers.
-The controllers watch Karmada objects and then talk to the underlying clusters' API servers 
+The controllers watch Karmada objects and then talk to the underlying clusters' API servers
 to create regular Kubernetes resources.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// validate options
@@ -226,6 +226,8 @@ func init() {
 	controllers["cronFederatedHorizontalPodAutoscaler"] = startCronFederatedHorizontalPodAutoscalerController
 	controllers["hpaReplicasSyncer"] = startHPAReplicasSyncerController
 	controllers["multiclusterservice"] = startMCSController
+	controllers["endpointsliceCollect"] = startEndpointSliceCollectController
+	controllers["endpointsliceDispatch"] = startEndpointSliceDispatchController
 }
 
 func startClusterController(ctx controllerscontext.Context) (enabled bool, err error) {
@@ -456,6 +458,38 @@ func startServiceExportController(ctx controllerscontext.Context) (enabled bool,
 	}
 	serviceExportController.RunWorkQueue()
 	if err := serviceExportController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startEndpointSliceCollectController(ctx controllerscontext.Context) (enabled bool, err error) {
+	opts := ctx.Opts
+	endpointSliceCollectController := &multiclusterservice.EndpointSliceCollectController{
+		Client:                      ctx.Mgr.GetClient(),
+		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
+		InformerManager:             genericmanager.GetInstance(),
+		StopChan:                    ctx.StopChan,
+		WorkerNumber:                3,
+		PredicateFunc:               helper.NewPredicateForEndpointSliceCollectController(ctx.Mgr),
+		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
+		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,
+	}
+	endpointSliceCollectController.RunWorkQueue()
+	if err := endpointSliceCollectController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startEndpointSliceDispatchController(ctx controllerscontext.Context) (enabled bool, err error) {
+	endpointSliceSyncController := &multiclusterservice.EndpointsliceDispatchController{
+		Client:          ctx.Mgr.GetClient(),
+		EventRecorder:   ctx.Mgr.GetEventRecorderFor(multiclusterservice.EndpointsliceDispatchControllerName),
+		RESTMapper:      ctx.Mgr.GetRESTMapper(),
+		InformerManager: genericmanager.GetInstance(),
+	}
+	if err := endpointSliceSyncController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 	return true, nil

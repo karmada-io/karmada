@@ -23,12 +23,14 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // CreateOrUpdateEndpointSlice creates a EndpointSlice object if not exist, or updates if it already exists.
@@ -94,12 +96,25 @@ func DeleteEndpointSlice(c client.Client, selector labels.Set) error {
 	return errors.NewAggregate(errs)
 }
 
-// MultiClusterServiceCrossClusterEnabled checks weather the MultiClusterService contains CrossCluster type.
 func MultiClusterServiceCrossClusterEnabled(mcs *networkingv1alpha1.MultiClusterService) bool {
-	for _, t := range mcs.Spec.Types {
-		if t == networkingv1alpha1.ExposureTypeCrossCluster {
+	for _, svcType := range mcs.Spec.Types {
+		if svcType == networkingv1alpha1.ExposureTypeCrossCluster {
 			return true
 		}
 	}
+
 	return false
+}
+
+func GetProvisionClusters(client client.Client, mcs *networkingv1alpha1.MultiClusterService) (sets.Set[string], error) {
+	provisionClusters := sets.New[string](mcs.Spec.ServiceProvisionClusters...)
+	if len(provisionClusters) == 0 {
+		var err error
+		provisionClusters, err = util.GetClusterSet(client)
+		if err != nil {
+			klog.Errorf("Failed to get cluster set, Error: %v", err)
+			return nil, err
+		}
+	}
+	return provisionClusters, nil
 }

@@ -46,6 +46,7 @@ import (
 	controllerscontext "github.com/karmada-io/karmada/pkg/controllers/context"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
+	"github.com/karmada-io/karmada/pkg/controllers/multiclusterservice"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
@@ -74,7 +75,7 @@ func NewAgentCommand(ctx context.Context) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "karmada-agent",
 		Long: `The karmada-agent is the agent of member clusters. It can register a specific cluster to the Karmada control
-plane and sync manifests from the Karmada control plane to the member cluster. In addition, it also syncs the status of member 
+plane and sync manifests from the Karmada control plane to the member cluster. In addition, it also syncs the status of member
 cluster and manifests to the Karmada control plane.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// validate options
@@ -127,6 +128,7 @@ func init() {
 	controllers["workStatus"] = startWorkStatusController
 	controllers["serviceExport"] = startServiceExportController
 	controllers["certRotation"] = startCertRotationController
+	controllers["endpointsliceCollect"] = startEndpointSliceCollectController
 }
 
 func run(ctx context.Context, opts *options.Options) error {
@@ -382,6 +384,25 @@ func startServiceExportController(ctx controllerscontext.Context) (bool, error) 
 	}
 	serviceExportController.RunWorkQueue()
 	if err := serviceExportController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startEndpointSliceCollectController(ctx controllerscontext.Context) (enabled bool, err error) {
+	opts := ctx.Opts
+	endpointSliceCollectController := &multiclusterservice.EndpointSliceCollectController{
+		Client:                      ctx.Mgr.GetClient(),
+		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
+		InformerManager:             genericmanager.GetInstance(),
+		StopChan:                    ctx.StopChan,
+		WorkerNumber:                3,
+		PredicateFunc:               helper.NewPredicateForEndpointSliceCollectControllerOnAgent(opts.ClusterName),
+		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
+		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,
+	}
+	endpointSliceCollectController.RunWorkQueue()
+	if err := endpointSliceCollectController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 	return true, nil
