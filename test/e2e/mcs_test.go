@@ -27,17 +27,21 @@ import (
 	discoveryv1 "k8s.io/api/discovery/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
+	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
+	"github.com/karmada-io/karmada/test/helper"
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
@@ -455,3 +459,455 @@ var _ = ginkgo.Describe("Multi-Cluster Service testing", func() {
 		})
 	})
 })
+
+/*
+MultiClusterService with CrossCluster type focus on syncing Services' EndpointSlice to other clusters.
+Test Case Overview:
+
+	case 1:
+		ServiceProvisionClusters field is [member1], ServiceConsumptionClusters field is [member2]
+		The endpointSlice in member1 will be synced to member1, with prefix member1-
+	case 2:
+		ServiceProvisionClusters field is [member1,member2], ServiceConsumptionClusters field is [member2]
+		The endpointSlice in member1 will be synced to member1, with prefix member1-, and do not sync member2's endpointslice to member2 again
+	case 3:
+		fist, ServiceProvisionClusters field is [member1,member2], ServiceConsumptionClusters field is [member2]
+		The endpointSlice in member1 will be synced to member1, with prefix member1-, and do not sync member2's endpointslice to member2 again
+		then, ServiceProvisionClusters field changes to [member2], ServiceConsumptionClusters field is [member1]
+		The endpointSlice in member2 will be synced to member1, with prefix member2-
+	case 4:
+		ServiceProvisionClusters field is empty, ServiceConsumptionClusters field is [member2]
+		The endpointSlice in all member clusters(except member2) will be synced to member2
+	case 5:
+		ServiceProvisionClusters field is [member1], ServiceConsumptionClusters field is empty
+		The endpointSlice in member1 will be synced to all member clusters(except member1)
+	case 6:
+		ServiceProvisionClusters field is empty, ServiceConsumptionClusters field is empty
+		The endpointSlice in all member clusters will be synced to all member clusters
+*/
+var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
+	var mcsName, serviceName, policyName, deploymentName string
+	var deployment *appsv1.Deployment
+	var policy *policyv1alpha1.PropagationPolicy
+	var service *corev1.Service
+	var member1Name, member2Name string
+	var member2Client kubernetes.Interface
+
+	ginkgo.BeforeEach(func() {
+		mcsName = mcsNamePrefix + rand.String(RandomStrLength)
+		serviceName = mcsName
+		policyName = mcsNamePrefix + rand.String(RandomStrLength)
+		deploymentName = policyName
+		member1Name = framework.ClusterNames()[0]
+		member2Name = framework.ClusterNames()[1]
+
+		member2Client = framework.GetClusterClient(member2Name)
+		gomega.Expect(member2Client).ShouldNot(gomega.BeNil())
+
+		service = helper.NewService(testNamespace, serviceName, corev1.ServiceTypeClusterIP)
+		deployment = helper.NewDeployment(testNamespace, deploymentName)
+		policy = helper.NewPropagationPolicy(testNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: deployment.APIVersion,
+				Kind:       deployment.Kind,
+				Name:       deploymentName,
+			},
+		}, policyv1alpha1.Placement{
+			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+				ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDuplicated,
+			},
+		})
+	})
+
+	ginkgo.JustBeforeEach(func() {
+		framework.CreateDeployment(kubeClient, deployment)
+		framework.CreateService(kubeClient, service)
+		ginkgo.DeferCleanup(func() {
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			framework.RemoveService(kubeClient, service.Namespace, service.Name)
+		})
+	})
+
+	// case 1: ServiceProvisionClusters field is [member1], ServiceConsumptionClusters field is [member2]
+	ginkgo.Context("ServiceProvisionClusters field is [member1], ServiceConsumptionClusters field is [member2]", func() {
+		var mcs *networkingv1alpha1.MultiClusterService
+
+		ginkgo.BeforeEach(func() {
+			mcs = helper.NewCrossClusterMultiClusterService(testNamespace, mcsName, []string{member1Name}, []string{member2Name})
+			policy.Spec.Placement.ClusterAffinity = &policyv1alpha1.ClusterAffinity{
+				ClusterNames: []string{member1Name},
+			}
+			framework.CreateMultiClusterService(karmadaClient, mcs)
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+
+			curlPod := helper.NewCurlPod(testNamespace, deploymentName)
+			framework.CreatePod(member2Client, curlPod)
+		})
+
+		ginkgo.AfterEach(func() {
+			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
+			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
+			framework.RemovePod(member2Client, testNamespace, deploymentName)
+
+			framework.WaitServiceDisappearOnCluster(member1Name, testNamespace, serviceName)
+			framework.WaitServiceDisappearOnCluster(member2Name, testNamespace, serviceName)
+		})
+
+		ginkgo.It("Test request the service", func() {
+			framework.WaitPodPresentOnClusterFitWith(member2Name, testNamespace, deploymentName, func(pod *corev1.Pod) bool {
+				return pod.Status.Phase == corev1.PodRunning
+			})
+
+			framework.WaitDeploymentPresentOnClustersFitWith([]string{member1Name}, testNamespace, deploymentName, func(deployment *appsv1.Deployment) bool {
+				return deployment.Status.ReadyReplicas == *deployment.Spec.Replicas
+			})
+
+			framework.WaitMultiClusterServicePresentOnClustersFitWith(karmadaClient, testNamespace, mcsName, func(mcs *networkingv1alpha1.MultiClusterService) bool {
+				return meta.IsStatusConditionTrue(mcs.Status.Conditions, networkingv1alpha1.EndpointSliceDispatched)
+			})
+
+			gomega.Eventually(func() bool {
+				return checkEndpointSliceWithMultiClusterService(testNamespace, mcsName, mcs.Spec.ServiceProvisionClusters, mcs.Spec.ServiceConsumptionClusters)
+			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
+
+			svcName := fmt.Sprintf("http://%s.%s", serviceName, testNamespace)
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, testNamespace, karmadactlTimeout, "exec", deploymentName, "-C", member2Name, "--", "curl", svcName)
+			_, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+	})
+
+	// case 2: ServiceProvisionClusters field is [member1,member2], ServiceConsumptionClusters field is [member2]
+	ginkgo.Context("ServiceProvisionClusters field is [member1,member2], ServiceConsumptionClusters field is [member2]", func() {
+		var mcs *networkingv1alpha1.MultiClusterService
+
+		ginkgo.BeforeEach(func() {
+			mcs = helper.NewCrossClusterMultiClusterService(testNamespace, mcsName, []string{member1Name, member2Name}, []string{member2Name})
+			policy.Spec.Placement.ClusterAffinity = &policyv1alpha1.ClusterAffinity{
+				ClusterNames: []string{member1Name, member2Name},
+			}
+			framework.CreateMultiClusterService(karmadaClient, mcs)
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+
+			curlPod := helper.NewCurlPod(testNamespace, deploymentName)
+			framework.CreatePod(member2Client, curlPod)
+		})
+
+		ginkgo.AfterEach(func() {
+			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
+			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
+			framework.RemovePod(member2Client, testNamespace, deploymentName)
+
+			framework.WaitServiceDisappearOnCluster(member1Name, testNamespace, serviceName)
+			framework.WaitServiceDisappearOnCluster(member2Name, testNamespace, serviceName)
+		})
+
+		ginkgo.It("Test request the service", func() {
+			framework.WaitPodPresentOnClustersFitWith([]string{member2Name}, testNamespace, deploymentName, func(pod *corev1.Pod) bool {
+				return pod.Status.Phase == corev1.PodRunning
+			})
+
+			framework.WaitDeploymentPresentOnClustersFitWith([]string{member1Name, member2Name}, testNamespace, deploymentName, func(deployment *appsv1.Deployment) bool {
+				return deployment.Status.ReadyReplicas == *deployment.Spec.Replicas
+			})
+
+			framework.WaitMultiClusterServicePresentOnClustersFitWith(karmadaClient, testNamespace, mcsName, func(mcs *networkingv1alpha1.MultiClusterService) bool {
+				return meta.IsStatusConditionTrue(mcs.Status.Conditions, networkingv1alpha1.EndpointSliceDispatched)
+			})
+
+			gomega.Eventually(func() bool {
+				return checkEndpointSliceWithMultiClusterService(testNamespace, mcsName, mcs.Spec.ServiceProvisionClusters, mcs.Spec.ServiceConsumptionClusters)
+			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
+
+			svcName := fmt.Sprintf("http://%s.%s", serviceName, testNamespace)
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, testNamespace, karmadactlTimeout, "exec", deploymentName, "-C", member2Name, "--", "curl", svcName)
+			_, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+	})
+
+	// case 3:
+	//	fist, ServiceProvisionClusters field is [member1,member2], ServiceConsumptionClusters field is [member2]
+	//	then, ServiceProvisionClusters field changes to [member2], ServiceConsumptionClusters field is [member1]
+	ginkgo.Context("Update ServiceProvisionClusters/ServiceConsumptionClusters field", func() {
+		var mcs *networkingv1alpha1.MultiClusterService
+
+		ginkgo.BeforeEach(func() {
+			mcs = helper.NewCrossClusterMultiClusterService(testNamespace, mcsName, []string{member1Name, member2Name}, []string{member2Name})
+			policy.Spec.Placement.ClusterAffinity = &policyv1alpha1.ClusterAffinity{
+				ClusterNames: []string{member1Name, member2Name},
+			}
+			framework.CreateMultiClusterService(karmadaClient, mcs)
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+
+			curlPod := helper.NewCurlPod(testNamespace, deploymentName)
+			framework.CreatePod(member2Client, curlPod)
+		})
+
+		ginkgo.AfterEach(func() {
+			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
+			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
+			framework.RemovePod(member2Client, testNamespace, deploymentName)
+
+			framework.WaitServiceDisappearOnCluster(member1Name, testNamespace, serviceName)
+			framework.WaitServiceDisappearOnCluster(member2Name, testNamespace, serviceName)
+		})
+
+		ginkgo.It("Test request the service", func() {
+			framework.WaitPodPresentOnClustersFitWith([]string{member2Name}, testNamespace, deploymentName, func(pod *corev1.Pod) bool {
+				return pod.Status.Phase == corev1.PodRunning
+			})
+
+			framework.WaitDeploymentPresentOnClustersFitWith([]string{member1Name, member2Name}, testNamespace, deploymentName, func(deployment *appsv1.Deployment) bool {
+				return deployment.Status.ReadyReplicas == *deployment.Spec.Replicas
+			})
+
+			framework.WaitMultiClusterServicePresentOnClustersFitWith(karmadaClient, testNamespace, mcsName, func(mcs *networkingv1alpha1.MultiClusterService) bool {
+				return meta.IsStatusConditionTrue(mcs.Status.Conditions, networkingv1alpha1.EndpointSliceDispatched)
+			})
+
+			gomega.Eventually(func() bool {
+				return checkEndpointSliceWithMultiClusterService(testNamespace, mcsName, mcs.Spec.ServiceProvisionClusters, mcs.Spec.ServiceConsumptionClusters)
+			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
+
+			svcName := fmt.Sprintf("http://%s.%s", serviceName, testNamespace)
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, testNamespace, karmadactlTimeout, "exec", deploymentName, "-C", member2Name, "--", "curl", svcName)
+			_, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+			mcs.Spec.ServiceProvisionClusters = []string{member2Name}
+			mcs.Spec.ServiceConsumptionClusters = []string{member1Name}
+			framework.UpdateMultiClusterService(karmadaClient, mcs)
+
+			gomega.Eventually(func() bool {
+				return checkEndpointSliceWithMultiClusterService(testNamespace, mcsName, mcs.Spec.ServiceProvisionClusters, mcs.Spec.ServiceConsumptionClusters)
+			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
+		})
+	})
+
+	// case 4: ServiceProvisionClusters field is empty, ServiceConsumptionClusters field is [member2]
+	ginkgo.Context("ServiceProvisionClusters field is empty, ServiceConsumptionClusters field is [member2]", func() {
+		var mcs *networkingv1alpha1.MultiClusterService
+
+		ginkgo.BeforeEach(func() {
+			member2Client = framework.GetClusterClient(member2Name)
+			gomega.Expect(member2Client).ShouldNot(gomega.BeNil())
+
+			mcs = helper.NewCrossClusterMultiClusterService(testNamespace, mcsName, []string{}, []string{member2Name})
+			policy.Spec.Placement.ClusterAffinity = &policyv1alpha1.ClusterAffinity{
+				ClusterNames: []string{member1Name},
+			}
+			framework.CreateMultiClusterService(karmadaClient, mcs)
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+
+			curlPod := helper.NewCurlPod(testNamespace, deploymentName)
+			framework.CreatePod(member2Client, curlPod)
+		})
+
+		ginkgo.AfterEach(func() {
+			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
+			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
+			framework.RemovePod(member2Client, testNamespace, deploymentName)
+
+			framework.WaitServiceDisappearOnCluster(member2Name, testNamespace, serviceName)
+		})
+
+		ginkgo.It("Test request the service", func() {
+			framework.WaitPodPresentOnClustersFitWith([]string{member2Name}, testNamespace, deploymentName, func(pod *corev1.Pod) bool {
+				return pod.Status.Phase == corev1.PodRunning
+			})
+
+			framework.WaitDeploymentPresentOnClustersFitWith([]string{member1Name}, testNamespace, deploymentName, func(deployment *appsv1.Deployment) bool {
+				return deployment.Status.ReadyReplicas == *deployment.Spec.Replicas
+			})
+
+			framework.WaitMultiClusterServicePresentOnClustersFitWith(karmadaClient, testNamespace, mcsName, func(mcs *networkingv1alpha1.MultiClusterService) bool {
+				return meta.IsStatusConditionTrue(mcs.Status.Conditions, networkingv1alpha1.EndpointSliceDispatched)
+			})
+
+			gomega.Eventually(func() bool {
+				return checkEndpointSliceWithMultiClusterService(testNamespace, mcsName, mcs.Spec.ServiceProvisionClusters, mcs.Spec.ServiceConsumptionClusters)
+			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
+
+			svcName := fmt.Sprintf("http://%s.%s", serviceName, testNamespace)
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, testNamespace, karmadactlTimeout, "exec", deploymentName, "-C", member2Name, "--", "curl", svcName)
+			_, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+	})
+
+	// case 5: ServiceProvisionClusters field is [member1], ServiceConsumptionClusters field is empty
+	ginkgo.Context("ServiceProvisionClusters field is [member1], ServiceConsumptionClusters field is empty", func() {
+		var mcs *networkingv1alpha1.MultiClusterService
+
+		ginkgo.BeforeEach(func() {
+			mcs = helper.NewCrossClusterMultiClusterService(testNamespace, mcsName, []string{member1Name}, []string{})
+			policy.Spec.Placement.ClusterAffinity = &policyv1alpha1.ClusterAffinity{
+				ClusterNames: []string{member1Name},
+			}
+			framework.CreateMultiClusterService(karmadaClient, mcs)
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+
+			createCurlPod([]string{member1Name, member2Name}, testNamespace, deploymentName)
+		})
+
+		ginkgo.AfterEach(func() {
+			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
+			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
+			deleteCurlPod([]string{member1Name, member2Name}, testNamespace, deploymentName)
+
+			framework.WaitServiceDisappearOnCluster(member1Name, testNamespace, serviceName)
+			framework.WaitServiceDisappearOnCluster(member2Name, testNamespace, serviceName)
+		})
+
+		ginkgo.It("Test request the service", func() {
+			framework.WaitPodPresentOnClustersFitWith([]string{member1Name, member2Name}, testNamespace, deploymentName, func(pod *corev1.Pod) bool {
+				return pod.Status.Phase == corev1.PodRunning
+			})
+
+			framework.WaitDeploymentPresentOnClustersFitWith([]string{member1Name}, testNamespace, deploymentName, func(deployment *appsv1.Deployment) bool {
+				return deployment.Status.ReadyReplicas == *deployment.Spec.Replicas
+			})
+
+			framework.WaitMultiClusterServicePresentOnClustersFitWith(karmadaClient, testNamespace, mcsName, func(mcs *networkingv1alpha1.MultiClusterService) bool {
+				return meta.IsStatusConditionTrue(mcs.Status.Conditions, networkingv1alpha1.EndpointSliceDispatched)
+			})
+
+			gomega.Eventually(func() bool {
+				return checkEndpointSliceWithMultiClusterService(testNamespace, mcsName, mcs.Spec.ServiceProvisionClusters, mcs.Spec.ServiceConsumptionClusters)
+			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
+
+			for _, clusterName := range []string{member1Name, member2Name} {
+				svcName := fmt.Sprintf("http://%s.%s", serviceName, testNamespace)
+				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, testNamespace, karmadactlTimeout, "exec", deploymentName, "-C", clusterName, "--", "curl", svcName)
+				_, err := cmd.ExecOrDie()
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			}
+		})
+	})
+
+	// case 6: ServiceProvisionClusters field is empty, ServiceConsumptionClusters field is empty
+	ginkgo.Context("ServiceProvisionClusters field is empty, ServiceConsumptionClusters field is empty", func() {
+		var mcs *networkingv1alpha1.MultiClusterService
+
+		ginkgo.BeforeEach(func() {
+			mcs = helper.NewCrossClusterMultiClusterService(testNamespace, mcsName, []string{}, []string{})
+			policy.Spec.Placement.ClusterAffinity = &policyv1alpha1.ClusterAffinity{
+				ClusterNames: []string{member1Name},
+			}
+			framework.CreateMultiClusterService(karmadaClient, mcs)
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+
+			createCurlPod([]string{member1Name, member2Name}, testNamespace, deploymentName)
+		})
+
+		ginkgo.AfterEach(func() {
+			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
+			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
+			deleteCurlPod([]string{member1Name, member2Name}, testNamespace, deploymentName)
+
+			framework.WaitServiceDisappearOnCluster(member1Name, testNamespace, serviceName)
+			framework.WaitServiceDisappearOnCluster(member2Name, testNamespace, serviceName)
+		})
+
+		ginkgo.It("Test request the service", func() {
+			framework.WaitPodPresentOnClustersFitWith([]string{member1Name, member2Name}, testNamespace, deploymentName, func(pod *corev1.Pod) bool {
+				return pod.Status.Phase == corev1.PodRunning
+			})
+
+			framework.WaitDeploymentPresentOnClustersFitWith([]string{member1Name}, testNamespace, deploymentName, func(deployment *appsv1.Deployment) bool {
+				return deployment.Status.ReadyReplicas == *deployment.Spec.Replicas
+			})
+
+			framework.WaitMultiClusterServicePresentOnClustersFitWith(karmadaClient, testNamespace, mcsName, func(mcs *networkingv1alpha1.MultiClusterService) bool {
+				return meta.IsStatusConditionTrue(mcs.Status.Conditions, networkingv1alpha1.EndpointSliceDispatched)
+			})
+
+			gomega.Eventually(func() bool {
+				return checkEndpointSliceWithMultiClusterService(testNamespace, mcsName, mcs.Spec.ServiceProvisionClusters, mcs.Spec.ServiceConsumptionClusters)
+			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
+
+			for _, clusterName := range []string{member1Name, member2Name} {
+				svcName := fmt.Sprintf("http://%s.%s", serviceName, testNamespace)
+				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, testNamespace, karmadactlTimeout, "exec", deploymentName, "-C", clusterName, "--", "curl", svcName)
+				_, err := cmd.ExecOrDie()
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			}
+		})
+	})
+})
+
+func checkEndpointSliceWithMultiClusterService(mcsNamespace, mcsName string, provisionClusters, consumptionClusters []string) bool {
+	if len(provisionClusters) == 0 {
+		provisionClusters = framework.ClusterNames()
+	}
+	if len(consumptionClusters) == 0 {
+		consumptionClusters = framework.ClusterNames()
+	}
+
+	for _, clusterName := range provisionClusters {
+		provisonClusterClient := framework.GetClusterClient(clusterName)
+		gomega.Expect(provisonClusterClient).ShouldNot(gomega.BeNil())
+
+		provisionEPSList, err := provisonClusterClient.DiscoveryV1().EndpointSlices(mcsNamespace).List(context.TODO(), metav1.ListOptions{
+			LabelSelector: labels.Set{discoveryv1.LabelServiceName: mcsName}.AsSelector().String(),
+		})
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+		for _, consumptionCluster := range consumptionClusters {
+			consumptionClusterClient := framework.GetClusterClient(consumptionCluster)
+			gomega.Expect(consumptionClusterClient).ShouldNot(gomega.BeNil())
+
+			consumptionEPSList, err := consumptionClusterClient.DiscoveryV1().EndpointSlices(mcsNamespace).List(context.TODO(), metav1.ListOptions{
+				LabelSelector: labels.Set{discoveryv1.LabelServiceName: mcsName}.AsSelector().String(),
+			})
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+			if !checkEndpointSliceSynced(provisionEPSList, consumptionEPSList, clusterName, consumptionCluster) {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func checkEndpointSliceSynced(provisionEPSList, consumptionEPSList *discoveryv1.EndpointSliceList, provisonCluster, consumptionCluster string) bool {
+	if provisonCluster == consumptionCluster {
+		return true
+	}
+
+	synced := false
+	for _, item := range provisionEPSList.Items {
+		if item.GetLabels()[discoveryv1.LabelManagedBy] == util.EndpointSliceControllerLabelValue {
+			continue
+		}
+		for _, consumptionItem := range consumptionEPSList.Items {
+			klog.Infof("jw:%v,%v/%v,%v", consumptionItem.Name, len(consumptionItem.Endpoints), item.Name, len(item.Endpoints))
+			if consumptionItem.Name == provisonCluster+"-"+item.Name && len(consumptionItem.Endpoints) == len(item.Endpoints) {
+				synced = true
+				break
+			}
+			synced = false
+		}
+	}
+
+	return synced
+}
+
+func createCurlPod(clusters []string, podNamespace, podName string) {
+	for _, clusterName := range clusters {
+		client := framework.GetClusterClient(clusterName)
+		gomega.Expect(client).ShouldNot(gomega.BeNil())
+		curlPod := helper.NewCurlPod(podNamespace, podName)
+		framework.CreatePod(client, curlPod)
+	}
+}
+
+func deleteCurlPod(clusters []string, podNamespace, podName string) {
+	for _, clusterName := range clusters {
+		client := framework.GetClusterClient(clusterName)
+		gomega.Expect(client).ShouldNot(gomega.BeNil())
+		framework.RemovePod(client, podNamespace, podName)
+	}
+}
