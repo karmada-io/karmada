@@ -464,6 +464,9 @@ func startServiceExportController(ctx controllerscontext.Context) (enabled bool,
 }
 
 func startEndpointSliceCollectController(ctx controllerscontext.Context) (enabled bool, err error) {
+	if !features.FeatureGate.Enabled(features.Failover) {
+		return false, nil
+	}
 	opts := ctx.Opts
 	endpointSliceCollectController := &multiclusterservice.EndpointSliceCollectController{
 		Client:                      ctx.Mgr.GetClient(),
@@ -483,6 +486,9 @@ func startEndpointSliceCollectController(ctx controllerscontext.Context) (enable
 }
 
 func startEndpointSliceDispatchController(ctx controllerscontext.Context) (enabled bool, err error) {
+	if !features.FeatureGate.Enabled(features.Failover) {
+		return false, nil
+	}
 	endpointSliceSyncController := &multiclusterservice.EndpointsliceDispatchController{
 		Client:          ctx.Mgr.GetClient(),
 		EventRecorder:   ctx.Mgr.GetEventRecorderFor(multiclusterservice.EndpointsliceDispatchControllerName),
@@ -668,6 +674,9 @@ func startHPAReplicasSyncerController(ctx controllerscontext.Context) (enabled b
 }
 
 func startMCSController(ctx controllerscontext.Context) (enabled bool, err error) {
+	if !features.FeatureGate.Enabled(features.MultiClusterService) {
+		return false, nil
+	}
 	mcsController := &multiclusterservice.MCSController{
 		Client:             ctx.Mgr.GetClient(),
 		EventRecorder:      ctx.Mgr.GetEventRecorderFor(multiclusterservice.ControllerName),

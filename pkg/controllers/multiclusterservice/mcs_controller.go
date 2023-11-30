@@ -290,8 +290,8 @@ func (c *MCSController) ensureMultiClusterServiceWork(ctx context.Context, mcs *
 				networkingv1alpha1.MultiClusterServicePermanentIDLabel: util.GetLabelValue(mcs.Labels, networkingv1alpha1.MultiClusterServicePermanentIDLabel),
 				util.ManagedByKarmadaLabel:                             util.ManagedByKarmadaLabelValue,
 				util.PropagationInstruction:                            util.PropagationInstructionSuppressed,
-				util.ServiceNamespaceLabel:                             mcs.Namespace,
-				util.ServiceNameLabel:                                  mcs.Name,
+				util.MultiClusterServiceNamespaceLabel:                 mcs.Namespace,
+				util.MultiClusterServiceNameLabel:                      mcs.Name,
 			},
 		}
 

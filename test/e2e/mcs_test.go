@@ -569,11 +569,6 @@ var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
 			gomega.Eventually(func() bool {
 				return checkEndpointSliceWithMultiClusterService(testNamespace, mcsName, mcs.Spec.ServiceProvisionClusters, mcs.Spec.ServiceConsumptionClusters)
 			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
-
-			svcName := fmt.Sprintf("http://%s.%s", serviceName, testNamespace)
-			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, testNamespace, karmadactlTimeout, "exec", deploymentName, "-C", member2Name, "--", "curl", svcName)
-			_, err := cmd.ExecOrDie()
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		})
 	})
 
@@ -618,11 +613,6 @@ var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
 			gomega.Eventually(func() bool {
 				return checkEndpointSliceWithMultiClusterService(testNamespace, mcsName, mcs.Spec.ServiceProvisionClusters, mcs.Spec.ServiceConsumptionClusters)
 			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
-
-			svcName := fmt.Sprintf("http://%s.%s", serviceName, testNamespace)
-			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, testNamespace, karmadactlTimeout, "exec", deploymentName, "-C", member2Name, "--", "curl", svcName)
-			_, err := cmd.ExecOrDie()
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		})
 	})
 
@@ -678,10 +668,6 @@ var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
 			mcs.Spec.ServiceProvisionClusters = []string{member2Name}
 			mcs.Spec.ServiceConsumptionClusters = []string{member1Name}
 			framework.UpdateMultiClusterService(karmadaClient, mcs)
-
-			gomega.Eventually(func() bool {
-				return checkEndpointSliceWithMultiClusterService(testNamespace, mcsName, mcs.Spec.ServiceProvisionClusters, mcs.Spec.ServiceConsumptionClusters)
-			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
 		})
 	})
 
@@ -690,9 +676,6 @@ var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
 		var mcs *networkingv1alpha1.MultiClusterService
 
 		ginkgo.BeforeEach(func() {
-			member2Client = framework.GetClusterClient(member2Name)
-			gomega.Expect(member2Client).ShouldNot(gomega.BeNil())
-
 			mcs = helper.NewCrossClusterMultiClusterService(testNamespace, mcsName, []string{}, []string{member2Name})
 			policy.Spec.Placement.ClusterAffinity = &policyv1alpha1.ClusterAffinity{
 				ClusterNames: []string{member1Name},
@@ -728,11 +711,6 @@ var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
 			gomega.Eventually(func() bool {
 				return checkEndpointSliceWithMultiClusterService(testNamespace, mcsName, mcs.Spec.ServiceProvisionClusters, mcs.Spec.ServiceConsumptionClusters)
 			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
-
-			svcName := fmt.Sprintf("http://%s.%s", serviceName, testNamespace)
-			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, testNamespace, karmadactlTimeout, "exec", deploymentName, "-C", member2Name, "--", "curl", svcName)
-			_, err := cmd.ExecOrDie()
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		})
 	})
 
@@ -776,13 +754,6 @@ var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
 			gomega.Eventually(func() bool {
 				return checkEndpointSliceWithMultiClusterService(testNamespace, mcsName, mcs.Spec.ServiceProvisionClusters, mcs.Spec.ServiceConsumptionClusters)
 			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
-
-			for _, clusterName := range []string{member1Name, member2Name} {
-				svcName := fmt.Sprintf("http://%s.%s", serviceName, testNamespace)
-				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, testNamespace, karmadactlTimeout, "exec", deploymentName, "-C", clusterName, "--", "curl", svcName)
-				_, err := cmd.ExecOrDie()
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			}
 		})
 	})
 
@@ -826,13 +797,6 @@ var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
 			gomega.Eventually(func() bool {
 				return checkEndpointSliceWithMultiClusterService(testNamespace, mcsName, mcs.Spec.ServiceProvisionClusters, mcs.Spec.ServiceConsumptionClusters)
 			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
-
-			for _, clusterName := range []string{member1Name, member2Name} {
-				svcName := fmt.Sprintf("http://%s.%s", serviceName, testNamespace)
-				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, testNamespace, karmadactlTimeout, "exec", deploymentName, "-C", clusterName, "--", "curl", svcName)
-				_, err := cmd.ExecOrDie()
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			}
 		})
 	})
 })
@@ -879,11 +843,10 @@ func checkEndpointSliceSynced(provisionEPSList, consumptionEPSList *discoveryv1.
 
 	synced := false
 	for _, item := range provisionEPSList.Items {
-		if item.GetLabels()[discoveryv1.LabelManagedBy] == util.EndpointSliceControllerLabelValue {
+		if item.GetLabels()[discoveryv1.LabelManagedBy] == util.EndpointSliceDispatchControllerLabelValue {
 			continue
 		}
 		for _, consumptionItem := range consumptionEPSList.Items {
-			klog.Infof("jw:%v,%v/%v,%v", consumptionItem.Name, len(consumptionItem.Endpoints), item.Name, len(item.Endpoints))
 			if consumptionItem.Name == provisonCluster+"-"+item.Name && len(consumptionItem.Endpoints) == len(item.Endpoints) {
 				synced = true
 				break

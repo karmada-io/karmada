@@ -31,7 +31,7 @@ spec:
             - --secure-port=10357
             - --failover-eviction-timeout=30s
             - --controllers=*,hpaReplicasSyncer
-            - --feature-gates=PropagationPolicyPreemption=true
+            - --feature-gates=PropagationPolicyPreemption=true,MultiClusterService=true
             - --v=4
           livenessProbe:
             httpGet:
