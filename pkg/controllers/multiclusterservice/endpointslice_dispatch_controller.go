@@ -87,8 +87,8 @@ func (c *EndpointsliceDispatchController) Reconcile(ctx context.Context, req con
 		return controllerruntime.Result{}, nil
 	}
 
-	mcsName := util.GetLabelValue(work.Labels, util.ServiceNameLabel)
-	mcsNS := util.GetLabelValue(work.Labels, util.ServiceNamespaceLabel)
+	mcsName := util.GetLabelValue(work.Labels, util.MultiClusterServiceNameLabel)
+	mcsNS := util.GetLabelValue(work.Labels, util.MultiClusterServiceNamespaceLabel)
 	mcs := &networkingv1alpha1.MultiClusterService{}
 	if err := c.Client.Get(ctx, types.NamespacedName{Namespace: mcsNS, Name: mcsName}, mcs); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -150,17 +150,17 @@ func (c *EndpointsliceDispatchController) SetupWithManager(mgr controllerruntime
 	workPredicateFun := predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			// We only care about the EndpointSlice work from provision clusters
-			return util.GetLabelValue(createEvent.Object.GetLabels(), util.ServiceNameLabel) != "" &&
+			return util.GetLabelValue(createEvent.Object.GetLabels(), util.MultiClusterServiceNameLabel) != "" &&
 				util.GetAnnotationValue(createEvent.Object.GetAnnotations(), util.EndpointSliceProvisionClusterAnnotation) == ""
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			// We only care about the EndpointSlice work from provision clusters
-			return util.GetLabelValue(updateEvent.ObjectNew.GetLabels(), util.ServiceNameLabel) != "" &&
+			return util.GetLabelValue(updateEvent.ObjectNew.GetLabels(), util.MultiClusterServiceNameLabel) != "" &&
 				util.GetAnnotationValue(updateEvent.ObjectNew.GetAnnotations(), util.EndpointSliceProvisionClusterAnnotation) == ""
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			// We only care about the EndpointSlice work from provision clusters
-			return util.GetLabelValue(deleteEvent.Object.GetLabels(), util.ServiceNameLabel) != "" &&
+			return util.GetLabelValue(deleteEvent.Object.GetLabels(), util.MultiClusterServiceNameLabel) != "" &&
 				util.GetAnnotationValue(deleteEvent.Object.GetAnnotations(), util.EndpointSliceProvisionClusterAnnotation) == ""
 		},
 		GenericFunc: func(genericEvent event.GenericEvent) bool {
@@ -186,8 +186,8 @@ func (c *EndpointsliceDispatchController) newMultiClusterServiceFunc() handler.M
 		workList := &workv1alpha1.WorkList{}
 		if err := c.Client.List(context.TODO(), workList, &client.ListOptions{
 			LabelSelector: labels.SelectorFromSet(map[string]string{
-				util.ServiceNameLabel:      mcsName,
-				util.ServiceNamespaceLabel: mcsNamespace,
+				util.MultiClusterServiceNameLabel:      mcsName,
+				util.MultiClusterServiceNamespaceLabel: mcsNamespace,
 			}),
 		}); err != nil {
 			klog.Errorf("Failed to list work, error: %v", err)
@@ -211,8 +211,8 @@ func (c *EndpointsliceDispatchController) cleanOrphanDispatchedEndpointSlice(ctx
 	workList := &workv1alpha1.WorkList{}
 	if err := c.Client.List(ctx, workList, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
-			util.ServiceNameLabel:      mcs.Name,
-			util.ServiceNamespaceLabel: mcs.Namespace,
+			util.MultiClusterServiceNameLabel:      mcs.Name,
+			util.MultiClusterServiceNamespaceLabel: mcs.Namespace,
 		})}); err != nil {
 		klog.Errorf("Failed to list works, error is: %v", err)
 		return err
@@ -311,9 +311,9 @@ func (c *EndpointsliceDispatchController) syncEndpointSlice(ctx context.Context,
 				util.EndpointSliceProvisionClusterAnnotation: epsSourceCluster,
 			},
 			Labels: map[string]string{
-				util.ManagedByKarmadaLabel: util.ManagedByKarmadaLabelValue,
-				util.ServiceNameLabel:      mcs.Name,
-				util.ServiceNamespaceLabel: mcs.Namespace,
+				util.ManagedByKarmadaLabel:             util.ManagedByKarmadaLabelValue,
+				util.MultiClusterServiceNameLabel:      mcs.Name,
+				util.MultiClusterServiceNamespaceLabel: mcs.Namespace,
 			},
 		}
 		unstructuredEPS, err := helper.ToUnstructured(endpointSlice)

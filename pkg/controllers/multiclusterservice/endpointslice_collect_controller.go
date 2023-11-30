@@ -127,8 +127,8 @@ func (c *EndpointSliceCollectController) cleanWorkWithMCSDelete(work *workv1alph
 	if err := c.List(context.TODO(), workList, &client.ListOptions{
 		Namespace: work.Namespace,
 		LabelSelector: labels.SelectorFromSet(labels.Set{
-			util.ServiceNameLabel:      util.GetLabelValue(work.Labels, util.ServiceNameLabel),
-			util.ServiceNamespaceLabel: util.GetLabelValue(work.Labels, util.ServiceNamespaceLabel),
+			util.MultiClusterServiceNameLabel:      util.GetLabelValue(work.Labels, util.MultiClusterServiceNameLabel),
+			util.MultiClusterServiceNamespaceLabel: util.GetLabelValue(work.Labels, util.MultiClusterServiceNamespaceLabel),
 		}),
 	}); err != nil {
 		klog.Errorf("Failed to list workList reported by work(MultiClusterService)(%s/%s): %v", work.Namespace, work.Name, err)
@@ -347,8 +347,8 @@ func (c *EndpointSliceCollectController) handleEndpointSliceEvent(endpointSliceK
 	if err := c.Client.List(context.TODO(), workList, &client.ListOptions{
 		Namespace: names.GenerateExecutionSpaceName(endpointSliceKey.Cluster),
 		LabelSelector: labels.SelectorFromSet(labels.Set{
-			util.ServiceNamespaceLabel: endpointSliceKey.Namespace,
-			util.ServiceNameLabel:      util.GetLabelValue(endpointSliceObj.GetLabels(), discoveryv1.LabelServiceName),
+			util.MultiClusterServiceNamespaceLabel: endpointSliceKey.Namespace,
+			util.MultiClusterServiceNameLabel:      util.GetLabelValue(endpointSliceObj.GetLabels(), discoveryv1.LabelServiceName),
 		})}); err != nil {
 		klog.Errorf("Failed to list workList reported by endpointSlice(%s/%s), error: %v", endpointSliceKey.Namespace, endpointSliceKey.Name, err)
 		return err
@@ -382,8 +382,8 @@ func (c *EndpointSliceCollectController) collectTargetEndpointSlice(work *workv1
 		return err
 	}
 
-	svcNamespace := util.GetLabelValue(work.Labels, util.ServiceNamespaceLabel)
-	svcName := util.GetLabelValue(work.Labels, util.ServiceNameLabel)
+	svcNamespace := util.GetLabelValue(work.Labels, util.MultiClusterServiceNamespaceLabel)
+	svcName := util.GetLabelValue(work.Labels, util.MultiClusterServiceNameLabel)
 	selector := labels.SelectorFromSet(labels.Set{
 		discoveryv1.LabelServiceName: svcName,
 	})
@@ -433,8 +433,8 @@ func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructur
 		Name:      names.GenerateMCSWorkName(endpointSlice.GetKind(), endpointSlice.GetName(), endpointSlice.GetNamespace(), clusterName),
 		Namespace: executionSpace,
 		Labels: map[string]string{
-			util.ServiceNamespaceLabel: endpointSlice.GetNamespace(),
-			util.ServiceNameLabel:      endpointSlice.GetLabels()[discoveryv1.LabelServiceName],
+			util.MultiClusterServiceNamespaceLabel: endpointSlice.GetNamespace(),
+			util.MultiClusterServiceNameLabel:      endpointSlice.GetLabels()[discoveryv1.LabelServiceName],
 			// indicate the Work should be not propagated since it's collected resource.
 			util.PropagationInstruction: util.PropagationInstructionSuppressed,
 			util.ManagedByKarmadaLabel:  util.ManagedByKarmadaLabelValue,

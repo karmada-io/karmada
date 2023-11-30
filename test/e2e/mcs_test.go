@@ -879,7 +879,7 @@ func checkEndpointSliceSynced(provisionEPSList, consumptionEPSList *discoveryv1.
 
 	synced := false
 	for _, item := range provisionEPSList.Items {
-		if item.GetLabels()[discoveryv1.LabelManagedBy] == util.EndpointSliceControllerLabelValue {
+		if item.GetLabels()[discoveryv1.LabelManagedBy] == util.EndpointSliceDispatchControllerLabelValue {
 			continue
 		}
 		for _, consumptionItem := range consumptionEPSList.Items {
