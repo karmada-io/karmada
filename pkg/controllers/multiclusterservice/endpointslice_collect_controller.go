@@ -140,6 +140,11 @@ func (c *EndpointSliceCollectController) cleanWorkWithMCSDelete(work *workv1alph
 		if !helper.IsWorkContains(work.Spec.Workload.Manifests, endpointSliceGVK) {
 			continue
 		}
+		// We only care about the EndpointSlice work in provision clusters
+		if util.GetAnnotationValue(work.Annotations, util.EndpointSliceProvisionClusterAnnotation) != "" {
+			continue
+		}
+
 		if err := c.Delete(context.TODO(), work.DeepCopy()); err != nil {
 			klog.Errorf("Failed to delete work(%s/%s), Error: %v", work.Namespace, work.Name, err)
 			errs = append(errs, err)
@@ -334,7 +339,7 @@ func (c *EndpointSliceCollectController) handleEndpointSliceEvent(endpointSliceK
 		return err
 	}
 
-	if util.GetLabelValue(endpointSliceObj.GetLabels(), discoveryv1.LabelManagedBy) == util.EndpointSliceControllerLabelValue {
+	if util.GetLabelValue(endpointSliceObj.GetLabels(), discoveryv1.LabelManagedBy) == util.EndpointSliceDispatchControllerLabelValue {
 		return nil
 	}
 
@@ -393,7 +398,7 @@ func (c *EndpointSliceCollectController) collectTargetEndpointSlice(work *workv1
 			klog.Errorf("Failed to convert object to EndpointSlice, error: %v", err)
 			return err
 		}
-		if util.GetLabelValue(eps.GetLabels(), discoveryv1.LabelManagedBy) == util.EndpointSliceControllerLabelValue {
+		if util.GetLabelValue(eps.GetLabels(), discoveryv1.LabelManagedBy) == util.EndpointSliceDispatchControllerLabelValue {
 			continue
 		}
 		epsUnstructured, err := helper.ToUnstructured(eps)
