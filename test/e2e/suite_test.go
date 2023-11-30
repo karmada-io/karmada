@@ -77,6 +77,7 @@ const (
 	federatedHPANamePrefix        = "fhpa-"
 	cronFedratedHPANamePrefix     = "cronfhpa-"
 	resourceRegistryPrefix        = "rr-"
+	mcsNamePrefix                 = "mcs-"
 
 	updateDeploymentReplicas  = 2
 	updateStatefulSetReplicas = 2

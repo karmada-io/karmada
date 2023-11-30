@@ -38,6 +38,7 @@ import (
 	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 )
 
@@ -218,6 +219,9 @@ func NewDeployment(namespace string, name string) *appsv1.Deployment {
 								corev1.ResourceCPU: resource.MustParse("100m"),
 							},
 						},
+						Ports: []corev1.ContainerPort{
+							{ContainerPort: 80, Protocol: corev1.ProtocolTCP},
+						},
 					}},
 				},
 			},
@@ -253,6 +257,26 @@ func NewDaemonSet(namespace string, name string) *appsv1.DaemonSet {
 					}},
 				},
 			},
+		},
+	}
+}
+
+func NewCrossClusterMultiClusterService(namespace, name string, provisionClusters, consumptionClusters []string) *networkingv1alpha1.MultiClusterService {
+	return &networkingv1alpha1.MultiClusterService{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "networking.karmada.io/v1alpha1",
+			Kind:       "MultiClusterService",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+		Spec: networkingv1alpha1.MultiClusterServiceSpec{
+			Types: []networkingv1alpha1.ExposureType{
+				networkingv1alpha1.ExposureTypeCrossCluster,
+			},
+			ServiceProvisionClusters:   provisionClusters,
+			ServiceConsumptionClusters: consumptionClusters,
 		},
 	}
 }
@@ -308,9 +332,10 @@ func NewService(namespace string, name string, svcType corev1.ServiceType) *core
 					Name:       "http",
 					Protocol:   corev1.ProtocolTCP,
 					Port:       80,
-					TargetPort: intstr.IntOrString{IntVal: 8080},
+					TargetPort: intstr.IntOrString{IntVal: 80},
 				},
 			},
+			Selector: map[string]string{"app": "nginx"},
 		},
 	}
 }
@@ -349,6 +374,31 @@ func NewPod(namespace string, name string) *corev1.Pod {
 							ContainerPort: 81,
 							Protocol:      corev1.ProtocolTCP,
 						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func NewCurlPod(namespace string, name string) *corev1.Pod {
+	return &corev1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Pod",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  "mycurlpod",
+					Image: "curlimages/curl",
+					Command: []string{
+						"sleep",
+						"3600",
 					},
 				},
 			},
