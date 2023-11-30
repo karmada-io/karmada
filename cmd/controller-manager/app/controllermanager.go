@@ -464,7 +464,7 @@ func startServiceExportController(ctx controllerscontext.Context) (enabled bool,
 }
 
 func startEndpointSliceCollectController(ctx controllerscontext.Context) (enabled bool, err error) {
-	if !features.FeatureGate.Enabled(features.Failover) {
+	if !features.FeatureGate.Enabled(features.MultiClusterService) {
 		return false, nil
 	}
 	opts := ctx.Opts
@@ -486,7 +486,7 @@ func startEndpointSliceCollectController(ctx controllerscontext.Context) (enable
 }
 
 func startEndpointSliceDispatchController(ctx controllerscontext.Context) (enabled bool, err error) {
-	if !features.FeatureGate.Enabled(features.Failover) {
+	if !features.FeatureGate.Enabled(features.MultiClusterService) {
 		return false, nil
 	}
 	endpointSliceSyncController := &multiclusterservice.EndpointsliceDispatchController{
