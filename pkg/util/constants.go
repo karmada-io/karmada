@@ -25,6 +25,14 @@ const (
 	// ServiceNameLabel is added to work object, which is report by member cluster, to specify service name associated with EndpointSlice.
 	ServiceNameLabel = "endpointslice.karmada.io/name"
 
+	// MultiClusterServiceNamespaceLabel is added to work object, represents the work is managed by the corresponding MultiClusterService
+	// This label indicates the namepsace
+	MultiClusterServiceNamespaceLabel = "multiclusterservice.karmada.io/namespace"
+
+	// MultiClusterServiceNameLabel is added to work object, represents the work is managed by the corresponding MultiClusterService
+	// This label indicates the name
+	MultiClusterServiceNameLabel = "multiclusterservice.karmada.io/name"
+
 	// EndPointSliceProvisionClusterAnnotation is added to EndpointSlice to specify the cluster which cluster provides the EndpointSlice.
 	EndpointSliceProvisionClusterAnnotation = "endpointslice.karmada.io/provision-cluster"
 
