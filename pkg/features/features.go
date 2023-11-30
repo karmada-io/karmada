@@ -37,6 +37,9 @@ const (
 
 	// PolicyPreemption indicates if high-priority PropagationPolicy/ClusterPropagationPolicy could preempt resource templates which are matched by low-priority PropagationPolicy/ClusterPropagationPolicy.
 	PolicyPreemption featuregate.Feature = "PropagationPolicyPreemption"
+
+	// MultiClusterService indicates if enable multi-cluster service function.
+	MultiClusterService featuregate.Feature = "MultiClusterService"
 )
 
 var (
@@ -50,6 +53,7 @@ var (
 		PropagateDeps:                     {Default: true, PreRelease: featuregate.Beta},
 		CustomizedClusterResourceModeling: {Default: true, PreRelease: featuregate.Beta},
 		PolicyPreemption:                  {Default: false, PreRelease: featuregate.Alpha},
+		MultiClusterService:               {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
 
