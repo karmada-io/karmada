@@ -8,6 +8,7 @@ metadata:
   name: mutating-config
   labels:
     app: mutating-config
+    {{- include "karmada.commonLabels" . | nindent 4 }}
 webhooks:
   - name: propagationpolicy.karmada.io
     rules:
@@ -100,6 +101,7 @@ metadata:
   name: validating-config
   labels:
     app: validating-config
+    {{- include "karmada.commonLabels" . | nindent 4 }}
 webhooks:
   - name: propagationpolicy.karmada.io
     rules:

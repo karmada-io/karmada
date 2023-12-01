@@ -8,6 +8,10 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: clusterresourcebindings.work.karmada.io
+  {{- if "karmada.commonLabels" }}
+  labels:
+    {{- include "karmada.commonLabels" . | nindent 4 }}
+  {{- end }}
 spec:
   conversion:
     strategy: Webhook

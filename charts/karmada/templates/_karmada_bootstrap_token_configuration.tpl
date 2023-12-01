@@ -7,6 +7,10 @@ kind: ConfigMap
 metadata:
   name: cluster-info
   namespace: kube-public
+  {{- if "karmada.commonLabels" }}
+  labels:
+    {{- include "karmada.commonLabels" . | nindent 4 }}
+  {{- end }}
 data:
   kubeconfig: |
     apiVersion: v1
@@ -21,6 +25,10 @@ kind: Role
 metadata:
   name: karmada:bootstrap-signer-clusterinfo
   namespace: kube-public
+  {{- if "karmada.commonLabels" }}
+  labels:
+    {{- include "karmada.commonLabels" . | nindent 4 }}
+  {{- end }}
 rules:
 - apiGroups:
   - ""
@@ -36,6 +44,10 @@ kind: RoleBinding
 metadata:
   name: karmada:bootstrap-signer-clusterinfo
   namespace: kube-public
+  {{- if "karmada.commonLabels" }}
+  labels:
+    {{- include "karmada.commonLabels" . | nindent 4 }}
+  {{- end }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -49,6 +61,10 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: karmada:agent-bootstrap
+  {{- if "karmada.commonLabels" }}
+  labels:
+    {{- include "karmada.commonLabels" . | nindent 4 }}
+  {{- end }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -62,6 +78,10 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: karmada:agent-autoapprove-bootstrap
+  {{- if "karmada.commonLabels" }}
+  labels:
+    {{- include "karmada.commonLabels" . | nindent 4 }}
+  {{- end }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -75,6 +95,10 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: karmada:agent-autoapprove-certificate-rotation
+  {{- if "karmada.commonLabels" }}
+  labels:
+    {{- include "karmada.commonLabels" . | nindent 4 }}
+  {{- end }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -88,6 +112,10 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: system:karmada:agent
+  {{- if "karmada.commonLabels" }}
+  labels:
+    {{- include "karmada.commonLabels" . | nindent 4 }}
+  {{- end }}
 rules:
 - apiGroups:
   - authentication.k8s.io
@@ -191,6 +219,10 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: system:karmada:agent
+  {{- if "karmada.commonLabels" }}
+  labels:
+    {{- include "karmada.commonLabels" . | nindent 4 }}
+  {{- end }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

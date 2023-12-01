@@ -10,6 +10,10 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 data:
   {{ range $path, $bytes := .Files.Glob (printf "_crds/kustomization.yaml")}}
   {{ $name := base $path }}
@@ -26,6 +30,10 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 data:
   {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/autoscaling/**")}}
   {{ $name := base $path }}
@@ -42,6 +50,10 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 data:
   {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/config/**")}}
   {{ $name := base $path }}
@@ -58,6 +70,10 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 data:
   {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/multicluster/**")}}
   {{ $name := base $path }}
@@ -74,6 +90,10 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 data:
   {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/networking/**")}}
   {{ $name := base $path }}
@@ -91,6 +111,10 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 data:
   {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/policy/**")}}
   {{ $name := base $path }}
@@ -107,6 +131,10 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 data:
   {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/work/**")}}
   {{ $name := base $path }}
@@ -124,6 +152,10 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 data:
   {{- print "webhook-configuration.yaml: " | nindent 6 }} |-
     {{- include "karmada.webhook.configuration" . | nindent 8 }}
@@ -146,6 +178,10 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 data:
   {{- print "webhook_in_clusterresourcebindings.yaml: " | nindent 6 }} |-
     {{- include "karmada.crd.patch.webhook.clusterresourcebinding" . | nindent 8 }}
@@ -164,6 +200,10 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 data:
   cert.yaml: |-
     apiVersion: v1
@@ -268,6 +308,10 @@ metadata:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "3"
     "helm.sh/hook-delete-policy": hook-succeeded
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 spec:
   parallelism: 1
   completions: 1
@@ -370,6 +414,10 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "1"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -378,6 +426,10 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "1"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 rules:
   - apiGroups: ['*']
     resources: ['*']
@@ -392,6 +444,10 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "1"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

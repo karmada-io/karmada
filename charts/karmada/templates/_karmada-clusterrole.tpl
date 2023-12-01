@@ -14,6 +14,7 @@ metadata:
     kubernetes.io/bootstrapping: rbac-defaults
     # used to aggregate rules to view clusterrole
     rbac.authorization.k8s.io/aggregate-to-view: "true"
+    {{- include "karmada.commonLabels" . | nindent 4 }}
   name: karmada-view
 rules:
   - apiGroups:
@@ -83,6 +84,7 @@ metadata:
     kubernetes.io/bootstrapping: rbac-defaults
     # used to aggregate rules to view clusterrole
     rbac.authorization.k8s.io/aggregate-to-edit: "true"
+    {{- include "karmada.commonLabels" . | nindent 4 }}
   name: karmada-edit
 rules:
   - apiGroups:

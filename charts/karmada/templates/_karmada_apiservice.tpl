@@ -10,6 +10,7 @@ metadata:
   labels:
     app: {{ $name }}-aggregated-apiserver
     apiserver: "true"
+    {{- include "karmada.commonLabels" . | nindent 4 }}
 spec:
   {{- include "karmada.apiserver.caBundle" . | nindent 2 }}
   group: cluster.karmada.io
@@ -25,6 +26,9 @@ kind: Service
 metadata:
   name: {{ $name }}-aggregated-apiserver
   namespace: {{ $systemNamespace }}
+  labels:
+    app: {{ $name }}-aggregated-apiserver
+    {{- include "karmada.commonLabels" . | nindent 4 }}
 spec:
   type: ExternalName
   externalName: {{ $name }}-aggregated-apiserver.{{ include "karmada.namespace" . }}.svc.{{ .Values.clusterDomain }}
@@ -98,6 +102,7 @@ metadata:
   labels:
     app: {{ $name }}-search
     apiserver: "true"
+    {{- include "karmada.commonLabels" . | nindent 4 }}
 spec:
   {{- include "karmada.apiserver.caBundle" . | nindent 2 }}
   group: search.karmada.io
@@ -113,6 +118,9 @@ kind: Service
 metadata:
   name: {{ $name }}-search
   namespace: {{ $systemNamespace }}
+  labels:
+    app: {{ $name }}-search
+    {{- include "karmada.commonLabels" . | nindent 4 }}
 spec:
   type: ExternalName
   externalName: {{ $name }}-search.{{ include "karmada.namespace" . }}.svc.{{ .Values.clusterDomain }}
