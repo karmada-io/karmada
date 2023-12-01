@@ -50,14 +50,14 @@ spec:
                       luaScript:
                         description: "LuaScript holds the Lua script that is used
                           to interpret the dependencies of a specific resource. The
-                          script should implement a function as follows: luaScript:
+                          script should implement a function as follows: \n ``` luaScript:
                           > function GetDependencies(desiredObj) dependencies = {}
                           if desiredObj.spec.serviceAccountName ~= nil and desiredObj.spec.serviceAccountName
                           ~= \"default\" then dependency = {} dependency.apiVersion
                           = \"v1\" dependency.kind = \"ServiceAccount\" dependency.name
                           = desiredObj.spec.serviceAccountName dependency.namespace
                           = desiredObj.namespace dependencies[1] = {} dependencies[1]
-                          = dependency end return dependencies end \n The content
+                          = dependency end return dependencies end ``` \n The content
                           of the LuaScript needs to be a whole function including
                           both declaration and implementation. \n The parameters will
                           be supplied by the system: - desiredObj: the object represents
@@ -75,10 +75,10 @@ spec:
                       luaScript:
                         description: "LuaScript holds the Lua script that is used
                           to assess the health state of a specific resource. The script
-                          should implement a function as follows: luaScript: > function
-                          InterpretHealth(observedObj) if observedObj.status.readyReplicas
-                          == observedObj.spec.replicas then return true end end \n
-                          The content of the LuaScript needs to be a whole function
+                          should implement a function as follows: \n ``` luaScript:
+                          > function InterpretHealth(observedObj) if observedObj.status.readyReplicas
+                          == observedObj.spec.replicas then return true end end ```
+                          \n The content of the LuaScript needs to be a whole function
                           including both declaration and implementation. \n The parameters
                           will be supplied by the system: - observedObj: the object
                           represents the configuration that is observed from a specific
@@ -100,14 +100,14 @@ spec:
                       luaScript:
                         description: "LuaScript holds the Lua script that is used
                           to discover the resource's replica as well as resource requirements
-                          \n The script should implement a function as follows: luaScript:
-                          > function GetReplicas(desiredObj) replica = desiredObj.spec.replicas
-                          requirement = {} requirement.nodeClaim = {} requirement.nodeClaim.nodeSelector
-                          = desiredObj.spec.template.spec.nodeSelector requirement.nodeClaim.tolerations
-                          = desiredObj.spec.template.spec.tolerations requirement.resourceRequest
-                          = desiredObj.spec.template.spec.containers[1].resources.limits
-                          return replica, requirement end \n The content of the LuaScript
-                          needs to be a whole function including both declaration
+                          \n The script should implement a function as follows: \n
+                          ``` luaScript: > function GetReplicas(desiredObj) replica
+                          = desiredObj.spec.replicas requirement = {} requirement.nodeClaim
+                          = {} requirement.nodeClaim.nodeSelector = desiredObj.spec.template.spec.nodeSelector
+                          requirement.nodeClaim.tolerations = desiredObj.spec.template.spec.tolerations
+                          requirement.resourceRequest = desiredObj.spec.template.spec.containers[1].resources.limits
+                          return replica, requirement end ``` \n The content of the
+                          LuaScript needs to be a whole function including both declaration
                           and implementation. \n The parameters will be supplied by
                           the system: - desiredObj: the object represents the configuration
                           to be applied to the member cluster. \n The function expects
@@ -130,12 +130,12 @@ spec:
                       luaScript:
                         description: "LuaScript holds the Lua script that is used
                           to revise replicas in the desired specification. The script
-                          should implement a function as follows: luaScript: > function
-                          ReviseReplica(desiredObj, desiredReplica) desiredObj.spec.replicas
-                          = desiredReplica return desiredObj end \n The content of
-                          the LuaScript needs to be a whole function including both
-                          declaration and implementation. \n The parameters will be
-                          supplied by the system: - desiredObj: the object represents
+                          should implement a function as follows: \n ``` luaScript:
+                          > function ReviseReplica(desiredObj, desiredReplica) desiredObj.spec.replicas
+                          = desiredReplica return desiredObj end ``` \n The content
+                          of the LuaScript needs to be a whole function including
+                          both declaration and implementation. \n The parameters will
+                          be supplied by the system: - desiredObj: the object represents
                           the configuration to be applied to the member cluster. -
                           desiredReplica: the replica number should be applied with.
                           \n The returned object should be a revised configuration
@@ -157,17 +157,17 @@ spec:
                       luaScript:
                         description: "LuaScript holds the Lua script that is used
                           to retain runtime values to the desired specification. \n
-                          The script should implement a function as follows: luaScript:
-                          > function Retain(desiredObj, observedObj) desiredObj.spec.fieldFoo
-                          = observedObj.spec.fieldFoo return desiredObj end \n The
-                          content of the LuaScript needs to be a whole function including
-                          both declaration and implementation. \n The parameters will
-                          be supplied by the system: - desiredObj: the object represents
-                          the configuration to be applied to the member cluster. -
-                          observedObj: the object represents the configuration that
-                          is observed from a specific member cluster. \n The returned
-                          object should be a retained configuration which will be
-                          applied to member cluster eventually."
+                          The script should implement a function as follows: \n ```
+                          luaScript: > function Retain(desiredObj, observedObj) desiredObj.spec.fieldFoo
+                          = observedObj.spec.fieldFoo return desiredObj end ``` \n
+                          The content of the LuaScript needs to be a whole function
+                          including both declaration and implementation. \n The parameters
+                          will be supplied by the system: - desiredObj: the object
+                          represents the configuration to be applied to the member
+                          cluster. - observedObj: the object represents the configuration
+                          that is observed from a specific member cluster. \n The
+                          returned object should be a retained configuration which
+                          will be applied to member cluster eventually."
                         type: string
                     required:
                     - luaScript
@@ -182,11 +182,11 @@ spec:
                       luaScript:
                         description: "LuaScript holds the Lua script that is used
                           to aggregate decentralized statuses to the desired specification.
-                          The script should implement a function as follows: luaScript:
-                          > function AggregateStatus(desiredObj, statusItems) for
-                          i = 1, #statusItems do desiredObj.status.readyReplicas =
-                          desiredObj.status.readyReplicas + items[i].readyReplicas
-                          end return desiredObj end \n The content of the LuaScript
+                          The script should implement a function as follows: \n ```
+                          luaScript: > function AggregateStatus(desiredObj, statusItems)
+                          for i = 1, #statusItems do desiredObj.status.readyReplicas
+                          = desiredObj.status.readyReplicas + items[i].readyReplicas
+                          end return desiredObj end ``` \n The content of the LuaScript
                           needs to be a whole function including both declaration
                           and implementation. \n The parameters will be supplied by
                           the system: - desiredObj: the object represents a resource
@@ -206,15 +206,16 @@ spec:
                       luaScript:
                         description: "LuaScript holds the Lua script that is used
                           to get the status from the observed specification. The script
-                          should implement a function as follows: luaScript: > function
-                          ReflectStatus(observedObj) status = {} status.readyReplicas
-                          = observedObj.status.observedObj return status end \n The
-                          content of the LuaScript needs to be a whole function including
-                          both declaration and implementation. \n The parameters will
-                          be supplied by the system: - observedObj: the object represents
-                          the configuration that is observed from a specific member
-                          cluster. \n The returned status could be the whole status
-                          or part of it and will be set into both Work and ResourceBinding(ClusterResourceBinding)."
+                          should implement a function as follows: \n ``` luaScript:
+                          > function ReflectStatus(observedObj) status = {} status.readyReplicas
+                          = observedObj.status.observedObj return status end ``` \n
+                          The content of the LuaScript needs to be a whole function
+                          including both declaration and implementation. \n The parameters
+                          will be supplied by the system: - observedObj: the object
+                          represents the configuration that is observed from a specific
+                          member cluster. \n The returned status could be the whole
+                          status or part of it and will be set into both Work and
+                          ResourceBinding(ClusterResourceBinding)."
                         type: string
                     required:
                     - luaScript
