@@ -108,26 +108,26 @@ func MultiClusterServiceCrossClusterEnabled(mcs *networkingv1alpha1.MultiCluster
 
 func GetProvisionClusters(client client.Client, mcs *networkingv1alpha1.MultiClusterService) (sets.Set[string], error) {
 	provisionClusters := sets.New[string](mcs.Spec.ServiceProvisionClusters...)
-	if len(provisionClusters) == 0 {
-		var err error
-		provisionClusters, err = util.GetClusterSet(client)
-		if err != nil {
-			klog.Errorf("Failed to get cluster set, Error: %v", err)
-			return nil, err
-		}
+	existClusters, err := util.GetClusterSet(client)
+	if err != nil {
+		klog.Errorf("Failed to get cluster set, Error: %v", err)
+		return nil, err
 	}
-	return provisionClusters, nil
+	if len(provisionClusters) == 0 {
+		return existClusters, nil
+	}
+	return provisionClusters.Intersection(existClusters), nil
 }
 
 func GetConsumptionClustres(client client.Client, mcs *networkingv1alpha1.MultiClusterService) (sets.Set[string], error) {
 	consumptionClusters := sets.New[string](mcs.Spec.ServiceConsumptionClusters...)
-	if len(consumptionClusters) == 0 {
-		var err error
-		consumptionClusters, err = util.GetClusterSet(client)
-		if err != nil {
-			klog.Errorf("Failed to get cluster set, Error: %v", err)
-			return nil, err
-		}
+	existClusters, err := util.GetClusterSet(client)
+	if err != nil {
+		klog.Errorf("Failed to get cluster set, Error: %v", err)
+		return nil, err
 	}
-	return consumptionClusters, nil
+	if len(consumptionClusters) == 0 {
+		return existClusters, nil
+	}
+	return consumptionClusters.Intersection(existClusters), nil
 }
