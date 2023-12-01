@@ -38,7 +38,7 @@ import (
 	"github.com/karmada-io/karmada/test/helper"
 )
 
-var _ = ginkgo.Describe("FederatedResourceQuota auto-provision testing", func() {
+var _ = framework.SerialDescribe("FederatedResourceQuota auto-provision testing", func() {
 	var frqNamespace, frqName string
 	var federatedResourceQuota *policyv1alpha1.FederatedResourceQuota
 	var f cmdutil.Factory
@@ -156,7 +156,7 @@ var _ = ginkgo.Describe("FederatedResourceQuota auto-provision testing", func() 
 	})
 })
 
-var _ = ginkgo.Describe("[FederatedResourceQuota] status collection testing", func() {
+var _ = framework.SerialDescribe("[FederatedResourceQuota] status collection testing", func() {
 	var frqNamespace, frqName string
 	var federatedResourceQuota *policyv1alpha1.FederatedResourceQuota
 
