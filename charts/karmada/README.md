@@ -159,22 +159,24 @@ components: [
   "schedulerEstimator"
 ]
 schedulerEstimator:
-  clusterName: "member"
-  ## kubeconfig of the member cluster
-  kubeconfig:
-    caCrt: |
-      -----BEGIN CERTIFICATE-----
-      XXXXXXXXXXXXXXXXXXXXXXXXXXX
-      -----END CERTIFICATE-----
-    crt: |
-      -----BEGIN CERTIFICATE-----
-      XXXXXXXXXXXXXXXXXXXXXXXXXXX
-      -----END CERTIFICATE-----
-    key: |
-      -----BEGIN RSA PRIVATE KEY-----
-      XXXXXXXXXXXXXXXXXXXXXXXXXXX
-      -----END RSA PRIVATE KEY-----
-    server: "https://apiserver.member"
+  memberClusters:
+  - clusterName: "member"
+    replicaCount: 1
+    ## kubeconfig of the member cluster
+    kubeconfig:
+      caCrt: |
+        -----BEGIN CERTIFICATE-----
+        XXXXXXXXXXXXXXXXXXXXXXXXXXX
+        -----END CERTIFICATE-----
+      crt: |
+        -----BEGIN CERTIFICATE-----
+        XXXXXXXXXXXXXXXXXXXXXXXXXXX
+        -----END CERTIFICATE-----
+      key: |
+        -----BEGIN RSA PRIVATE KEY-----
+        XXXXXXXXXXXXXXXXXXXXXXXXXXX
+        -----END RSA PRIVATE KEY-----
+      server: "https://apiserver.member"
 ```
 
 Execute command (switch to the `root` directory of the repo, and sets the `current-context` in a kubeconfig file)

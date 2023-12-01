@@ -746,32 +746,34 @@ agent:
 
 ## karmada scheduler estimator
 schedulerEstimator:
-  ## schedulerEstimator.clusterName the name of the member cluster
-  clusterName: ""
-  ## kubeconfig of the member cluster
-  kubeconfig:
-    ## @param schedulerEstimator.kubeconfig.caCrt ca of the certificate
-    caCrt: |
-      -----BEGIN CERTIFICATE-----
-      XXXXXXXXXXXXXXXXXXXXXXXXXXX
-      -----END CERTIFICATE-----
-    ## @param schedulerEstimator.kubeconfig.crt crt of the certificate
-    crt: |
-      -----BEGIN CERTIFICATE-----
-      XXXXXXXXXXXXXXXXXXXXXXXXXXX
-      -----END CERTIFICATE-----
-    ## @param schedulerEstimator.kubeconfig.key key of the certificate
-    key: |
-      -----BEGIN RSA PRIVATE KEY-----
-      XXXXXXXXXXXXXXXXXXXXXXXXXXX
-      -----END RSA PRIVATE KEY-----
-    ## @param schedulerEstimator.kubeconfig.server apiserver of the member cluster
-    server: ""
+  ## @param schedulerEstimator.memberClusters each cluster requires an estimator component, fill in the information for each cluster
+  memberClusters:
+      ## @param schedulerEstimator.memberClusterInfo[0].clusterName the name of the member cluster
+    - clusterName: ""
+      ## @param schedulerEstimator.memberClusterInfo[0].replicaCount target replicas
+      replicaCount: 1
+      ## kubeconfig of the member cluster
+      kubeconfig:
+        ## @param schedulerEstimator.memberClusterInfo[0].kubeconfig.server apiserver of the member cluster
+        server: ""
+        ## @param schedulerEstimator.memberClusterInfo[0].kubeconfig.caCrt ca of the certificate
+        caCrt: |
+          -----BEGIN CERTIFICATE-----
+          XXXXXXXXXXXXXXXXXXXXXXXXXXX
+          -----END CERTIFICATE-----
+        ## @param schedulerEstimator.memberClusterInfo[0].kubeconfig.crt crt of the certificate
+        crt: |
+          -----BEGIN CERTIFICATE-----
+          XXXXXXXXXXXXXXXXXXXXXXXXXXX
+          -----END CERTIFICATE-----
+        ## @param schedulerEstimator.memberClusterInfo[0].kubeconfig.key key of the certificate
+        key: |
+          -----BEGIN RSA PRIVATE KEY-----
+          XXXXXXXXXXXXXXXXXXXXXXXXXXX
+          -----END RSA PRIVATE KEY-----
   ## @param schedulerEstimator.labels labels of the scheduler-estimator deployment
   labels:
     app: karmada-scheduler-estimator
-  ## @param schedulerEstimator.replicaCount target replicas
-  replicaCount: 1
   ## @param schedulerEstimator.podAnnotations annotations of the scheduler-estimator pods
   podAnnotations: {}
   ## @param schedulerEstimator.podLabels labels of the scheduler-estimator pods
