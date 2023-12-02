@@ -101,26 +101,26 @@ func (c *EndpointsliceDispatchController) Reconcile(ctx context.Context, req con
 	var err error
 	defer func() {
 		if err != nil {
-			_ = c.updateEndpointSliceSynced(mcs, metav1.ConditionFalse, "EndpointSliceSyncFailed", err.Error())
+			_ = c.updateEndpointSliceDispatched(mcs, metav1.ConditionFalse, "EndpointSliceDispatchedFailed", err.Error())
 			c.EventRecorder.Eventf(mcs, corev1.EventTypeWarning, events.EventReasonDispatchEndpointSliceFailed, err.Error())
 			return
 		}
-		_ = c.updateEndpointSliceSynced(mcs, metav1.ConditionTrue, "EndpointSliceSyncSucceed", "EndpointSlice are synced successfully")
-		c.EventRecorder.Eventf(mcs, corev1.EventTypeNormal, events.EventReasonDispatchEndpointSliceSucceed, "EndpointSlice are synced successfully")
+		_ = c.updateEndpointSliceDispatched(mcs, metav1.ConditionTrue, "EndpointSliceDispatchedSucceed", "EndpointSlice are dispatched successfully")
+		c.EventRecorder.Eventf(mcs, corev1.EventTypeNormal, events.EventReasonDispatchEndpointSliceSucceed, "EndpointSlice are dispatched successfully")
 	}()
 
 	if err = c.cleanOrphanDispatchedEndpointSlice(ctx, mcs); err != nil {
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	if err = c.syncEndpointSlice(ctx, work.DeepCopy(), mcs); err != nil {
+	if err = c.dispatchEndpointSlice(ctx, work.DeepCopy(), mcs); err != nil {
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	return controllerruntime.Result{}, nil
 }
 
-func (c *EndpointsliceDispatchController) updateEndpointSliceSynced(mcs *networkingv1alpha1.MultiClusterService, status metav1.ConditionStatus, reason, message string) error {
+func (c *EndpointsliceDispatchController) updateEndpointSliceDispatched(mcs *networkingv1alpha1.MultiClusterService, status metav1.ConditionStatus, reason, message string) error {
 	EndpointSliceCollected := metav1.Condition{
 		Type:               networkingv1alpha1.EndpointSliceDispatched,
 		Status:             status,
@@ -249,7 +249,7 @@ func (c *EndpointsliceDispatchController) cleanOrphanDispatchedEndpointSlice(ctx
 	return nil
 }
 
-func (c *EndpointsliceDispatchController) syncEndpointSlice(ctx context.Context, work *workv1alpha1.Work, mcs *networkingv1alpha1.MultiClusterService) error {
+func (c *EndpointsliceDispatchController) dispatchEndpointSlice(ctx context.Context, work *workv1alpha1.Work, mcs *networkingv1alpha1.MultiClusterService) error {
 	epsSourceCluster, err := names.GetClusterName(work.Namespace)
 	if err != nil {
 		klog.Errorf("Failed to get EndpointSlice source cluster name for work %s/%s", work.Namespace, work.Name)
@@ -322,7 +322,7 @@ func (c *EndpointsliceDispatchController) syncEndpointSlice(ctx context.Context,
 			return err
 		}
 		if err := helper.CreateOrUpdateWork(c.Client, workMeta, unstructuredEPS); err != nil {
-			klog.Errorf("Failed to sync EndpointSlice %s/%s from %s to cluster %s:%v",
+			klog.Errorf("Failed to dispatch EndpointSlice %s/%s from %s to cluster %s:%v",
 				work.GetNamespace(), work.GetName(), epsSourceCluster, clusterName, err)
 			return err
 		}

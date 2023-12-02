@@ -170,20 +170,20 @@ func (c *EndpointSliceCollectController) RunWorkQueue() {
 	workerOptions := util.Options{
 		Name:          "endpointslice-collect",
 		KeyFunc:       nil,
-		ReconcileFunc: c.syncEndpointSlice,
+		ReconcileFunc: c.collectEndpointSlice,
 	}
 	c.worker = util.NewAsyncWorker(workerOptions)
 	c.worker.Run(c.WorkerNumber, c.StopChan)
 }
 
-func (c *EndpointSliceCollectController) syncEndpointSlice(key util.QueueKey) error {
+func (c *EndpointSliceCollectController) collectEndpointSlice(key util.QueueKey) error {
 	fedKey, ok := key.(keys.FederatedKey)
 	if !ok {
-		klog.Errorf("Failed to sync endpointslice as invalid key: %v", key)
+		klog.Errorf("Failed to collect endpointslice as invalid key: %v", key)
 		return fmt.Errorf("invalid key")
 	}
 
-	klog.V(4).Infof("Begin to sync %s %s.", fedKey.Kind, fedKey.NamespaceKey())
+	klog.V(4).Infof("Begin to collect %s %s.", fedKey.Kind, fedKey.NamespaceKey())
 	if err := c.handleEndpointSliceEvent(fedKey); err != nil {
 		klog.Errorf("Failed to handle endpointSlice(%s) event, Error: %v",
 			fedKey.NamespaceKey(), err)
@@ -201,7 +201,7 @@ func (c *EndpointSliceCollectController) buildResourceInformers(ctx context.Cont
 	}
 
 	if !util.IsClusterReady(&cluster.Status) {
-		klog.Errorf("Stop sync endpointslice for cluster(%s) as cluster not ready.", cluster.Name)
+		klog.Errorf("Stop collect endpointslice for cluster(%s) as cluster not ready.", cluster.Name)
 		return fmt.Errorf("cluster(%s) not ready", cluster.Name)
 	}
 
