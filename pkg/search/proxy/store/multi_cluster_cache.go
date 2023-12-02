@@ -230,6 +230,7 @@ func (c *MultiClusterCache) List(ctx context.Context, gvr schema.GroupVersionRes
 			utiltrace.Field{Key: "cluster", Value: cluster},
 			utiltrace.Field{Key: "options", Value: fmt.Sprintf("%#v", options)},
 		)
+		klog.V(4).Infof("List member cluster %v with %#v", cluster, options)
 		obj, err := cache.List(ctx, options)
 		if err != nil {
 			return 0, "", err
@@ -295,7 +296,16 @@ func (c *MultiClusterCache) List(ctx context.Context, gvr schema.GroupVersionRes
 	if err := c.fillMissingClusterResourceVersion(ctx, responseResourceVersion, clusters, gvr); err != nil {
 		return nil, err
 	}
-	responseContinue.RV = responseResourceVersion.String()
+
+	// responseContinue.Cluster is empty, means paging is over, and continue will not be responded.
+	if responseContinue.Cluster != "" {
+		// If request rv is 0, then response rv is also 0, making next request visit cache again.
+		if o.ResourceVersion == "0" {
+			responseContinue.RV = "0"
+		} else {
+			responseContinue.RV = responseResourceVersion.String()
+		}
+	}
 
 	if resultObject == nil {
 		resultObject = &metav1.List{
