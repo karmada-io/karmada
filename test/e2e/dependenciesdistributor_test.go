@@ -30,7 +30,7 @@ import (
 )
 
 var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relevant resources testing", func() {
-	ginkgo.Context("dependencies propagation with propagationpolicy testing", func() {
+	ginkgo.Context("dependencies propagation with propagationPolicy testing", func() {
 		var initClusterNames, updateClusterNames []string
 		var policyName string
 		var deploymentName string
@@ -343,7 +343,7 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 		})
 	})
 
-	ginkgo.Context("dependencies propagation with clusterpropagationpolicy testing", func() {
+	ginkgo.Context("dependencies propagation with clusterPropagationPolicy testing", func() {
 		var initClusterNames, updateClusterNames []string
 		var policyName string
 		var deploymentName string

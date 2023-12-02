@@ -1092,7 +1092,7 @@ var _ = ginkgo.Describe("[AdvancedPropagation] propagation testing", func() {
 			})
 		})
 
-		ginkgo.It("modify the old PropagationPolicy to unbind and create a new one", func() {
+		ginkgo.It("modify the old propagationPolicy to unbind and create a new one", func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy01)
 			framework.WaitConfigMapPresentOnClusterFitWith(member1, configmap.Namespace, configmap.Name,
 				func(configmap *corev1.ConfigMap) bool { return true })
@@ -1119,7 +1119,7 @@ var _ = ginkgo.Describe("[AdvancedPropagation] propagation testing", func() {
 			framework.RemovePropagationPolicy(karmadaClient, policy02.Namespace, policy02.Name)
 		})
 
-		ginkgo.It("delete the old PropagationPolicy to unbind and create a new one", func() {
+		ginkgo.It("delete the old propagationPolicy to unbind and create a new one", func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy01)
 			framework.WaitConfigMapPresentOnClusterFitWith(member1, configmap.Namespace, configmap.Name,
 				func(configmap *corev1.ConfigMap) bool { return true })

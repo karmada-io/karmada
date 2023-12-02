@@ -35,7 +35,7 @@ import (
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
-var _ = ginkgo.Describe("[BasicClusterOverridePolicy] basic cluster override policy testing", func() {
+var _ = ginkgo.Describe("The basic ClusterOverridePolicy testing", func() {
 	ginkgo.Context("Namespace propagation testing", func() {
 		var (
 			randNamespace string
@@ -86,7 +86,7 @@ var _ = ginkgo.Describe("[BasicClusterOverridePolicy] basic cluster override pol
 			})
 		})
 
-		ginkgo.It("Namespace testing", func() {
+		ginkgo.It("Namespace labelOverride testing", func() {
 			ginkgo.By(fmt.Sprintf("Check if namespace(%s) present on member clusters", ns.Name), func() {
 				for _, clusterName := range framework.ClusterNames() {
 					clusterClient := framework.GetClusterClient(clusterName)
@@ -99,10 +99,9 @@ var _ = ginkgo.Describe("[BasicClusterOverridePolicy] basic cluster override pol
 							if apierrors.IsNotFound(err) {
 								return false, nil
 							}
-
 							return false, err
 						}
-
+						// Check if the cluster's customLabel is correct value
 						v, ok := clusterNs.Labels[customLabelKey]
 						if ok && v == customLabelVal {
 							return true, nil
@@ -115,7 +114,7 @@ var _ = ginkgo.Describe("[BasicClusterOverridePolicy] basic cluster override pol
 	})
 })
 
-var _ = framework.SerialDescribe("Test clusterOverridePolicy with nil resourceSelectors", func() {
+var _ = framework.SerialDescribe("The ClusterOverridePolicy with nil resourceSelectors testing", func() {
 	var deploymentNamespace, deploymentName string
 	var propagationPolicyNamespace, propagationPolicyName string
 	var clusterOverridePolicyName string

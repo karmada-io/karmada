@@ -342,7 +342,6 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 	})
 
 	ginkgo.Context("Edit ClusterPropagationPolicy fields other than resourceSelector", func() {
-
 		ginkgo.When("namespace scope resource", func() {
 			var policy *policyv1alpha1.ClusterPropagationPolicy
 			var deployment *appsv1.Deployment
@@ -565,7 +564,7 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 			})
 		})
 
-		ginkgo.It("high explicit/low priority/implicit priority ClusterPropagationPolicy testing", func() {
+		ginkgo.It("high explicit/low priority/implicit priority ClusterPropagationPolicy propagation testing", func() {
 			ginkgo.By("check whether the deployment uses the highest explicit priority ClusterPropagationPolicy", func() {
 				framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 					func(deployment *appsv1.Deployment) bool {
