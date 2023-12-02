@@ -381,31 +381,6 @@ func NewPod(namespace string, name string) *corev1.Pod {
 	}
 }
 
-func NewCurlPod(namespace string, name string) *corev1.Pod {
-	return &corev1.Pod{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Pod",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: namespace,
-			Name:      name,
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:  "mycurlpod",
-					Image: "curlimages/curl",
-					Command: []string{
-						"sleep",
-						"3600",
-					},
-				},
-			},
-		},
-	}
-}
-
 // NewCustomResourceDefinition will build a CRD object.
 func NewCustomResourceDefinition(group string, specNames apiextensionsv1.CustomResourceDefinitionNames, scope apiextensionsv1.ResourceScope) *apiextensionsv1.CustomResourceDefinition {
 	return &apiextensionsv1.CustomResourceDefinition{

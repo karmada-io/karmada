@@ -539,25 +539,17 @@ var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
 			}
 			framework.CreateMultiClusterService(karmadaClient, mcs)
 			framework.CreatePropagationPolicy(karmadaClient, policy)
-
-			curlPod := helper.NewCurlPod(testNamespace, deploymentName)
-			framework.CreatePod(member2Client, curlPod)
 		})
 
 		ginkgo.AfterEach(func() {
 			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
 			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
-			framework.RemovePod(member2Client, testNamespace, deploymentName)
 
 			framework.WaitServiceDisappearOnCluster(member1Name, testNamespace, serviceName)
 			framework.WaitServiceDisappearOnCluster(member2Name, testNamespace, serviceName)
 		})
 
-		ginkgo.It("Test request the service", func() {
-			framework.WaitPodPresentOnClusterFitWith(member2Name, testNamespace, deploymentName, func(pod *corev1.Pod) bool {
-				return pod.Status.Phase == corev1.PodRunning
-			})
-
+		ginkgo.It("Test dispatch EndpointSlice from the provision clusters to the consumption clusters", func() {
 			framework.WaitDeploymentPresentOnClustersFitWith([]string{member1Name}, testNamespace, deploymentName, func(deployment *appsv1.Deployment) bool {
 				return deployment.Status.ReadyReplicas == *deployment.Spec.Replicas
 			})
@@ -583,25 +575,17 @@ var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
 			}
 			framework.CreateMultiClusterService(karmadaClient, mcs)
 			framework.CreatePropagationPolicy(karmadaClient, policy)
-
-			curlPod := helper.NewCurlPod(testNamespace, deploymentName)
-			framework.CreatePod(member2Client, curlPod)
 		})
 
 		ginkgo.AfterEach(func() {
 			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
 			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
-			framework.RemovePod(member2Client, testNamespace, deploymentName)
 
 			framework.WaitServiceDisappearOnCluster(member1Name, testNamespace, serviceName)
 			framework.WaitServiceDisappearOnCluster(member2Name, testNamespace, serviceName)
 		})
 
-		ginkgo.It("Test request the service", func() {
-			framework.WaitPodPresentOnClustersFitWith([]string{member2Name}, testNamespace, deploymentName, func(pod *corev1.Pod) bool {
-				return pod.Status.Phase == corev1.PodRunning
-			})
-
+		ginkgo.It("Test dispatch EndpointSlice from the provision clusters to the consumption clusters", func() {
 			framework.WaitDeploymentPresentOnClustersFitWith([]string{member1Name, member2Name}, testNamespace, deploymentName, func(deployment *appsv1.Deployment) bool {
 				return deployment.Status.ReadyReplicas == *deployment.Spec.Replicas
 			})
@@ -629,25 +613,17 @@ var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
 			}
 			framework.CreateMultiClusterService(karmadaClient, mcs)
 			framework.CreatePropagationPolicy(karmadaClient, policy)
-
-			curlPod := helper.NewCurlPod(testNamespace, deploymentName)
-			framework.CreatePod(member2Client, curlPod)
 		})
 
 		ginkgo.AfterEach(func() {
 			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
 			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
-			framework.RemovePod(member2Client, testNamespace, deploymentName)
 
 			framework.WaitServiceDisappearOnCluster(member1Name, testNamespace, serviceName)
 			framework.WaitServiceDisappearOnCluster(member2Name, testNamespace, serviceName)
 		})
 
-		ginkgo.It("Test request the service", func() {
-			framework.WaitPodPresentOnClustersFitWith([]string{member2Name}, testNamespace, deploymentName, func(pod *corev1.Pod) bool {
-				return pod.Status.Phase == corev1.PodRunning
-			})
-
+		ginkgo.It("Test dispatch EndpointSlice from the provision clusters to the consumption clusters", func() {
 			framework.WaitDeploymentPresentOnClustersFitWith([]string{member1Name, member2Name}, testNamespace, deploymentName, func(deployment *appsv1.Deployment) bool {
 				return deployment.Status.ReadyReplicas == *deployment.Spec.Replicas
 			})
@@ -660,14 +636,13 @@ var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
 				return checkEndpointSliceWithMultiClusterService(testNamespace, mcsName, mcs.Spec.ServiceProvisionClusters, mcs.Spec.ServiceConsumptionClusters)
 			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
 
-			svcName := fmt.Sprintf("http://%s.%s", serviceName, testNamespace)
-			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, testNamespace, karmadactlTimeout, "exec", deploymentName, "-C", member2Name, "--", "curl", svcName)
-			_, err := cmd.ExecOrDie()
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
 			mcs.Spec.ServiceProvisionClusters = []string{member2Name}
 			mcs.Spec.ServiceConsumptionClusters = []string{member1Name}
 			framework.UpdateMultiClusterService(karmadaClient, mcs)
+
+			framework.WaitMultiClusterServicePresentOnClustersFitWith(karmadaClient, testNamespace, mcsName, func(mcs *networkingv1alpha1.MultiClusterService) bool {
+				return meta.IsStatusConditionTrue(mcs.Status.Conditions, networkingv1alpha1.EndpointSliceDispatched)
+			})
 		})
 	})
 
@@ -682,24 +657,16 @@ var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
 			}
 			framework.CreateMultiClusterService(karmadaClient, mcs)
 			framework.CreatePropagationPolicy(karmadaClient, policy)
-
-			curlPod := helper.NewCurlPod(testNamespace, deploymentName)
-			framework.CreatePod(member2Client, curlPod)
 		})
 
 		ginkgo.AfterEach(func() {
 			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
 			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
-			framework.RemovePod(member2Client, testNamespace, deploymentName)
 
 			framework.WaitServiceDisappearOnCluster(member2Name, testNamespace, serviceName)
 		})
 
-		ginkgo.It("Test request the service", func() {
-			framework.WaitPodPresentOnClustersFitWith([]string{member2Name}, testNamespace, deploymentName, func(pod *corev1.Pod) bool {
-				return pod.Status.Phase == corev1.PodRunning
-			})
-
+		ginkgo.It("Test dispatch EndpointSlice from the provision clusters to the consumption clusters", func() {
 			framework.WaitDeploymentPresentOnClustersFitWith([]string{member1Name}, testNamespace, deploymentName, func(deployment *appsv1.Deployment) bool {
 				return deployment.Status.ReadyReplicas == *deployment.Spec.Replicas
 			})
@@ -725,24 +692,17 @@ var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
 			}
 			framework.CreateMultiClusterService(karmadaClient, mcs)
 			framework.CreatePropagationPolicy(karmadaClient, policy)
-
-			createCurlPod([]string{member1Name, member2Name}, testNamespace, deploymentName)
 		})
 
 		ginkgo.AfterEach(func() {
 			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
 			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
-			deleteCurlPod([]string{member1Name, member2Name}, testNamespace, deploymentName)
 
 			framework.WaitServiceDisappearOnCluster(member1Name, testNamespace, serviceName)
 			framework.WaitServiceDisappearOnCluster(member2Name, testNamespace, serviceName)
 		})
 
-		ginkgo.It("Test request the service", func() {
-			framework.WaitPodPresentOnClustersFitWith([]string{member1Name, member2Name}, testNamespace, deploymentName, func(pod *corev1.Pod) bool {
-				return pod.Status.Phase == corev1.PodRunning
-			})
-
+		ginkgo.It("Test dispatch EndpointSlice from the provision clusters to the consumption clusters", func() {
 			framework.WaitDeploymentPresentOnClustersFitWith([]string{member1Name}, testNamespace, deploymentName, func(deployment *appsv1.Deployment) bool {
 				return deployment.Status.ReadyReplicas == *deployment.Spec.Replicas
 			})
@@ -768,24 +728,17 @@ var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
 			}
 			framework.CreateMultiClusterService(karmadaClient, mcs)
 			framework.CreatePropagationPolicy(karmadaClient, policy)
-
-			createCurlPod([]string{member1Name, member2Name}, testNamespace, deploymentName)
 		})
 
 		ginkgo.AfterEach(func() {
 			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
 			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
-			deleteCurlPod([]string{member1Name, member2Name}, testNamespace, deploymentName)
 
 			framework.WaitServiceDisappearOnCluster(member1Name, testNamespace, serviceName)
 			framework.WaitServiceDisappearOnCluster(member2Name, testNamespace, serviceName)
 		})
 
-		ginkgo.It("Test request the service", func() {
-			framework.WaitPodPresentOnClustersFitWith([]string{member1Name, member2Name}, testNamespace, deploymentName, func(pod *corev1.Pod) bool {
-				return pod.Status.Phase == corev1.PodRunning
-			})
-
+		ginkgo.It("Test dispatch EndpointSlice from the provision clusters to the consumption clusters", func() {
 			framework.WaitDeploymentPresentOnClustersFitWith([]string{member1Name}, testNamespace, deploymentName, func(deployment *appsv1.Deployment) bool {
 				return deployment.Status.ReadyReplicas == *deployment.Spec.Replicas
 			})
@@ -841,11 +794,11 @@ func checkEndpointSliceSynced(provisionEPSList, consumptionEPSList *discoveryv1.
 		return true
 	}
 
-	synced := false
 	for _, item := range provisionEPSList.Items {
 		if item.GetLabels()[discoveryv1.LabelManagedBy] == util.EndpointSliceDispatchControllerLabelValue {
 			continue
 		}
+		synced := false
 		for _, consumptionItem := range consumptionEPSList.Items {
 			if consumptionItem.Name == provisonCluster+"-"+item.Name && len(consumptionItem.Endpoints) == len(item.Endpoints) {
 				synced = true
@@ -853,24 +806,10 @@ func checkEndpointSliceSynced(provisionEPSList, consumptionEPSList *discoveryv1.
 			}
 			synced = false
 		}
+		if !synced {
+			return false
+		}
 	}
 
-	return synced
-}
-
-func createCurlPod(clusters []string, podNamespace, podName string) {
-	for _, clusterName := range clusters {
-		client := framework.GetClusterClient(clusterName)
-		gomega.Expect(client).ShouldNot(gomega.BeNil())
-		curlPod := helper.NewCurlPod(podNamespace, podName)
-		framework.CreatePod(client, curlPod)
-	}
-}
-
-func deleteCurlPod(clusters []string, podNamespace, podName string) {
-	for _, clusterName := range clusters {
-		client := framework.GetClusterClient(clusterName)
-		gomega.Expect(client).ShouldNot(gomega.BeNil())
-		framework.RemovePod(client, podNamespace, podName)
-	}
+	return true
 }
