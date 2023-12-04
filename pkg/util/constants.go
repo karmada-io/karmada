@@ -18,6 +18,7 @@ package util
 
 import "time"
 
+// Define labels used by karmada system.
 const (
 	// ServiceNamespaceLabel is added to work object, which is report by member cluster, to specify service namespace associated with EndpointSlice.
 	ServiceNamespaceLabel = "endpointslice.karmada.io/namespace"
@@ -26,18 +27,12 @@ const (
 	ServiceNameLabel = "endpointslice.karmada.io/name"
 
 	// MultiClusterServiceNamespaceLabel is added to work object, represents the work is managed by the corresponding MultiClusterService
-	// This label indicates the namepsace
+	// This label indicates the namespace.
 	MultiClusterServiceNamespaceLabel = "multiclusterservice.karmada.io/namespace"
 
 	// MultiClusterServiceNameLabel is added to work object, represents the work is managed by the corresponding MultiClusterService
-	// This label indicates the name
+	// This label indicates the name.
 	MultiClusterServiceNameLabel = "multiclusterservice.karmada.io/name"
-
-	// EndPointSliceProvisionClusterAnnotation is added to EndpointSlice to specify the cluster which cluster provides the EndpointSlice.
-	EndpointSliceProvisionClusterAnnotation = "endpointslice.karmada.io/provision-cluster"
-
-	// EndPointSliceProvisionGenerationAnnotation is added to EndpointSlice to specify the generation of EndpointSlice of the provision cluster.
-	EndPointSliceProvisionGenerationAnnotation = "endpointslice.karmada.io/endpointslice-generation"
 
 	// PropagationInstruction is used to mark a resource(like Work) propagation instruction.
 	// Valid values includes:
@@ -56,9 +51,6 @@ const (
 	// ManagedByKarmadaLabel is a reserved karmada label to indicate whether resources are managed by karmada controllers.
 	ManagedByKarmadaLabel = "karmada.io/managed"
 
-	// ManagedByKarmadaLabelValue indicates that resources are managed by karmada controllers.
-	ManagedByKarmadaLabelValue = "true"
-
 	// EndpointSliceDispatchControllerLabelValue indicates the endpointSlice are controlled by Karmada
 	EndpointSliceDispatchControllerLabelValue = "endpointslice-dispatch-controller.karmada.io"
 
@@ -66,9 +58,17 @@ const (
 	// resourcetemplate.karmada.io/retain-replicas: true   // with value `true` indicates retain
 	// resourcetemplate.karmada.io/retain-replicas: false  // with value `false` and others, indicates not retain
 	RetainReplicasLabel = "resourcetemplate.karmada.io/retain-replicas"
+)
+
+const (
+	// ManagedByKarmadaLabelValue indicates that resources are managed by karmada controllers.
+	ManagedByKarmadaLabelValue = "true"
 
 	// RetainReplicasValue is an optional value of RetainReplicasLabel, indicating retain
 	RetainReplicasValue = "true"
+
+	// PropagationInstructionSuppressed indicates that the resource should not be propagated.
+	PropagationInstructionSuppressed = "suppressed"
 )
 
 // Define annotations used by karmada system.
@@ -87,6 +87,9 @@ const (
 	// It is intended to set on Work objects to record applied overrides.
 	// The overrides items should be sorted alphabetically in ascending order by ClusterOverridePolicy's name.
 	AppliedClusterOverrides = "policy.karmada.io/applied-cluster-overrides"
+
+	// EndpointSliceProvisionClusterAnnotation is added to EndpointSlice to specify the cluster which cluster provides the EndpointSlice.
+	EndpointSliceProvisionClusterAnnotation = "endpointslice.karmada.io/provision-cluster"
 )
 
 // Define finalizers used by karmada system.
@@ -150,7 +153,7 @@ const (
 	DaemonSetKind = "DaemonSet"
 	// EndpointSliceKind indicates the target resource is a endpointslice
 	EndpointSliceKind = "EndpointSlice"
-	// PersistentVolumeClaimKind indicated the target resource is a persistentvolumeclaim
+	// PersistentVolumeClaimKind indicates the target resource is a persistentvolumeclaim
 	PersistentVolumeClaimKind = "PersistentVolumeClaim"
 	// PersistentVolumeKind indicates the target resource is a persistentvolume
 	PersistentVolumeKind = "PersistentVolume"
@@ -158,19 +161,17 @@ const (
 	HorizontalPodAutoscalerKind = "HorizontalPodAutoscaler"
 	// PodDisruptionBudgetKind indicates the target resource is a poddisruptionbudget
 	PodDisruptionBudgetKind = "PodDisruptionBudget"
+	// ClusterRoleKind indicates the target resource is a clusterrole
+	ClusterRoleKind = "ClusterRole"
+	// ClusterRoleBindingKind indicates the target resource is a clusterrolebinding
+	ClusterRoleBindingKind = "ClusterRoleBinding"
+	// CRDKind indicates the target resource is a CustomResourceDefinition
+	CRDKind = "CustomResourceDefinition"
 
 	// ServiceExportKind indicates the target resource is a serviceexport crd
 	ServiceExportKind = "ServiceExport"
 	// ServiceImportKind indicates the target resource is a serviceimport crd
 	ServiceImportKind = "ServiceImport"
-
-	// CRDKind indicated the target resource is a CustomResourceDefinition
-	CRDKind = "CustomResourceDefinition"
-
-	// ClusterRoleKind indicates the target resource is a clusterrole
-	ClusterRoleKind = "ClusterRole"
-	// ClusterRoleBindingKind indicates the target resource is a clusterrolebinding
-	ClusterRoleBindingKind = "ClusterRoleBinding"
 )
 
 // Define resource filed
@@ -185,13 +186,6 @@ const (
 	ParallelismField = "parallelism"
 	// CompletionsField indicates the 'completions' field of a job
 	CompletionsField = "completions"
-	// TemplateField indicates the 'template' field of a resource
-	TemplateField = "template"
-)
-
-const (
-	// PropagationInstructionSuppressed indicates that the resource should not be propagated.
-	PropagationInstructionSuppressed = "suppressed"
 )
 
 const (
