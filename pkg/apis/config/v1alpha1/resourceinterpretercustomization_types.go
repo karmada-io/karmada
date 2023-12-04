@@ -139,11 +139,14 @@ type LocalValueRetention struct {
 	// to the desired specification.
 	//
 	// The script should implement a function as follows:
-	//     luaScript: >
-	//         function Retain(desiredObj, observedObj)
-	//             desiredObj.spec.fieldFoo = observedObj.spec.fieldFoo
-	//             return desiredObj
-	//         end
+	//
+	// ```
+	//   luaScript: >
+	//       function Retain(desiredObj, observedObj)
+	//           desiredObj.spec.fieldFoo = observedObj.spec.fieldFoo
+	//           return desiredObj
+	//       end
+	// ```
 	//
 	// The content of the LuaScript needs to be a whole function including both
 	// declaration and implementation.
@@ -167,16 +170,19 @@ type ReplicaResourceRequirement struct {
 	// replica as well as resource requirements
 	//
 	// The script should implement a function as follows:
-	//     luaScript: >
-	//         function GetReplicas(desiredObj)
-	//             replica = desiredObj.spec.replicas
-	//             requirement = {}
-	//             requirement.nodeClaim = {}
-	//             requirement.nodeClaim.nodeSelector = desiredObj.spec.template.spec.nodeSelector
-	//             requirement.nodeClaim.tolerations = desiredObj.spec.template.spec.tolerations
-	//             requirement.resourceRequest = desiredObj.spec.template.spec.containers[1].resources.limits
-	//             return replica, requirement
-	//         end
+	//
+	// ```
+	//   luaScript: >
+	//       function GetReplicas(desiredObj)
+	//           replica = desiredObj.spec.replicas
+	//           requirement = {}
+	//           requirement.nodeClaim = {}
+	//           requirement.nodeClaim.nodeSelector = desiredObj.spec.template.spec.nodeSelector
+	//           requirement.nodeClaim.tolerations = desiredObj.spec.template.spec.tolerations
+	//           requirement.resourceRequest = desiredObj.spec.template.spec.containers[1].resources.limits
+	//           return replica, requirement
+	//       end
+	// ```
 	//
 	// The content of the LuaScript needs to be a whole function including both
 	// declaration and implementation.
@@ -198,11 +204,14 @@ type ReplicaResourceRequirement struct {
 type ReplicaRevision struct {
 	// LuaScript holds the Lua script that is used to revise replicas in the desired specification.
 	// The script should implement a function as follows:
-	//     luaScript: >
-	//         function ReviseReplica(desiredObj, desiredReplica)
-	//             desiredObj.spec.replicas = desiredReplica
-	//             return desiredObj
-	//         end
+	//
+	// ```
+	//   luaScript: >
+	//       function ReviseReplica(desiredObj, desiredReplica)
+	//           desiredObj.spec.replicas = desiredReplica
+	//           return desiredObj
+	//       end
+	// ```
 	//
 	// The content of the LuaScript needs to be a whole function including both
 	// declaration and implementation.
@@ -222,12 +231,15 @@ type ReplicaRevision struct {
 type StatusReflection struct {
 	// LuaScript holds the Lua script that is used to get the status from the observed specification.
 	// The script should implement a function as follows:
-	//     luaScript: >
-	//         function ReflectStatus(observedObj)
-	//             status = {}
-	//             status.readyReplicas = observedObj.status.observedObj
-	//             return status
-	//         end
+	//
+	// ```
+	//   luaScript: >
+	//       function ReflectStatus(observedObj)
+	//           status = {}
+	//           status.readyReplicas = observedObj.status.observedObj
+	//           return status
+	//       end
+	// ```
 	//
 	// The content of the LuaScript needs to be a whole function including both
 	// declaration and implementation.
@@ -247,13 +259,16 @@ type StatusAggregation struct {
 	// LuaScript holds the Lua script that is used to aggregate decentralized statuses
 	// to the desired specification.
 	// The script should implement a function as follows:
-	//     luaScript: >
-	//         function AggregateStatus(desiredObj, statusItems)
-	//             for i = 1, #statusItems do
-	//                 desiredObj.status.readyReplicas = desiredObj.status.readyReplicas + items[i].readyReplicas
-	//             end
-	//             return desiredObj
-	//         end
+	//
+	// ```
+	//   luaScript: >
+	//       function AggregateStatus(desiredObj, statusItems)
+	//           for i = 1, #statusItems do
+	//               desiredObj.status.readyReplicas = desiredObj.status.readyReplicas + items[i].readyReplicas
+	//           end
+	//           return desiredObj
+	//       end
+	// ```
 	//
 	// The content of the LuaScript needs to be a whole function including both
 	// declaration and implementation.
@@ -273,12 +288,15 @@ type HealthInterpretation struct {
 	// LuaScript holds the Lua script that is used to assess the health state of
 	// a specific resource.
 	// The script should implement a function as follows:
-	//     luaScript: >
-	//         function InterpretHealth(observedObj)
-	//             if observedObj.status.readyReplicas == observedObj.spec.replicas then
-	//                 return true
-	//             end
-	//         end
+	//
+	// ```
+	//   luaScript: >
+	//       function InterpretHealth(observedObj)
+	//           if observedObj.status.readyReplicas == observedObj.spec.replicas then
+	//               return true
+	//           end
+	//       end
+	// ```
 	//
 	// The content of the LuaScript needs to be a whole function including both
 	// declaration and implementation.
@@ -299,20 +317,23 @@ type DependencyInterpretation struct {
 	// LuaScript holds the Lua script that is used to interpret the dependencies of
 	// a specific resource.
 	// The script should implement a function as follows:
-	//     luaScript: >
-	//         function GetDependencies(desiredObj)
-	//             dependencies = {}
-	//             if desiredObj.spec.serviceAccountName ~= nil and desiredObj.spec.serviceAccountName ~= "default" then
-	//                 dependency = {}
-	//                 dependency.apiVersion = "v1"
-	//                 dependency.kind = "ServiceAccount"
-	//                 dependency.name = desiredObj.spec.serviceAccountName
-	//                 dependency.namespace = desiredObj.namespace
-	//                 dependencies[1] = {}
-	//                 dependencies[1] = dependency
-	//             end
-	//             return dependencies
-	//         end
+	//
+	// ```
+	//   luaScript: >
+	//       function GetDependencies(desiredObj)
+	//           dependencies = {}
+	//           if desiredObj.spec.serviceAccountName ~= nil and desiredObj.spec.serviceAccountName ~= "default" then
+	//               dependency = {}
+	//               dependency.apiVersion = "v1"
+	//               dependency.kind = "ServiceAccount"
+	//               dependency.name = desiredObj.spec.serviceAccountName
+	//               dependency.namespace = desiredObj.namespace
+	//               dependencies[1] = {}
+	//               dependencies[1] = dependency
+	//           end
+	//           return dependencies
+	//       end
+	// ```
 	//
 	// The content of the LuaScript needs to be a whole function including both
 	// declaration and implementation.
