@@ -104,7 +104,7 @@ func (c *RBStatusController) SetupWithManager(mgr controllerruntime.Manager) err
 		})
 
 	return controllerruntime.NewControllerManagedBy(mgr).Named("resourceBinding_status_controller").
-		For(&workv1alpha2.ResourceBinding{}, rbPredicateFn).
+		For(&workv1alpha2.ResourceBinding{}, bindingPredicateFn).
 		Watches(&workv1alpha1.Work{}, handler.EnqueueRequestsFromMapFunc(workMapFunc), workPredicateFn).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
 		Complete(c)

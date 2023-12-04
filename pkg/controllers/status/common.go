@@ -37,7 +37,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
-var rbPredicateFn = builder.WithPredicates(predicate.Funcs{
+var bindingPredicateFn = builder.WithPredicates(predicate.Funcs{
 	CreateFunc: func(e event.CreateEvent) bool { return false },
 	UpdateFunc: func(e event.UpdateEvent) bool {
 		var oldResourceVersion, newResourceVersion string
