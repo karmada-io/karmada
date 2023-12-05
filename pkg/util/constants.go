@@ -88,7 +88,7 @@ const (
 	// The overrides items should be sorted alphabetically in ascending order by ClusterOverridePolicy's name.
 	AppliedClusterOverrides = "policy.karmada.io/applied-cluster-overrides"
 
-	// EndpointSliceProvisionClusterAnnotation is added to EndpointSlice to specify the cluster which cluster provides the EndpointSlice.
+	// EndPointSliceProvisionClusterAnnotation is added to work of the dispatch EndpointSlice in consumption clusters's namespace.
 	EndpointSliceProvisionClusterAnnotation = "endpointslice.karmada.io/provision-cluster"
 )
 
