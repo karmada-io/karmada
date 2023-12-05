@@ -41,6 +41,7 @@ func NewRemoveComponentTask() workflow.Task {
 			newRemoveComponentSubTask(constants.KarmadaControllerManagerComponent, util.KarmadaControllerManagerName),
 			newRemoveComponentSubTask(constants.KubeControllerManagerComponent, util.KubeControllerManagerName),
 			newRemoveComponentWithServiceSubTask(constants.KarmadaWebhookComponent, util.KarmadaWebhookName),
+			newRemoveComponentWithServiceSubTask(constants.KarmadaSearchComponent, util.KarmadaSearchName),
 			newRemoveComponentWithServiceSubTask(constants.KarmadaAggregatedAPIServerComponent, util.KarmadaAggregatedAPIServerName),
 			newRemoveComponentWithServiceSubTask(constants.KarmadaAPIserverComponent, util.KarmadaAPIServerName),
 			{

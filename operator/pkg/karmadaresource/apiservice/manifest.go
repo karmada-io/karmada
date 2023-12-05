@@ -77,4 +77,36 @@ spec:
   type: ExternalName
   externalName: {{ .HostClusterServiceName }}.{{ .HostClusterNamespace }}.svc
 `
+
+	// KarmadaSearchAPIService is karmada-search APIService manifest
+	KarmadaSearchAPIService = `
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1alpha1.search.karmada.io
+  labels:
+    app: karmada-search
+    apiserver: "true"
+spec:
+  caBundle: {{ .CABundle }}
+  group: search.karmada.io
+  groupPriorityMinimum: 2000
+  service:
+    name: {{ .ServiceName }}
+    namespace: {{ .Namespace }}
+  version: v1alpha1
+  versionPriority: 10
+`
+
+	// KarmadaSearchService is karmada-search service manifest
+	KarmadaSearchService = `
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .ServiceName }}
+  namespace: {{ .Namespace }}
+spec:
+  type: ExternalName
+  externalName: {{ .HostClusterServiceName }}.{{ .HostClusterNamespace }}.svc
+`
 )

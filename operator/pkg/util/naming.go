@@ -54,6 +54,11 @@ func KarmadaAggregatedAPIServerName(karmada string) string {
 	return generateResourceName(karmada, "aggregated-apiserver")
 }
 
+// KarmadaSearchAPIServerName returns secret name of karmada-search
+func KarmadaSearchAPIServerName(karmada string) string {
+	return generateResourceName(karmada, "search")
+}
+
 // KarmadaEtcdName returns name of karmada-etcd
 func KarmadaEtcdName(karmada string) string {
 	return generateResourceName(karmada, "etcd")
@@ -92,6 +97,11 @@ func KarmadaDeschedulerName(karmada string) string {
 // KarmadaMetricsAdapterName returns name of karmada-metric-adapter
 func KarmadaMetricsAdapterName(karmada string) string {
 	return generateResourceName(karmada, "metrics-adapter")
+}
+
+// KarmadaSearchName returns name of karmada-search
+func KarmadaSearchName(karmada string) string {
+	return generateResourceName(karmada, "search")
 }
 
 func generateResourceName(karmada, suffix string) string {

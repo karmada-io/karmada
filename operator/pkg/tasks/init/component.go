@@ -27,6 +27,7 @@ import (
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/controlplane"
 	"github.com/karmada-io/karmada/operator/pkg/controlplane/metricsadapter"
+	"github.com/karmada-io/karmada/operator/pkg/controlplane/search"
 	"github.com/karmada-io/karmada/operator/pkg/controlplane/webhook"
 	"github.com/karmada-io/karmada/operator/pkg/karmadaresource/apiservice"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
@@ -44,11 +45,12 @@ func NewComponentTask() workflow.Task {
 			newComponentSubTask(constants.KarmadaControllerManagerComponent),
 			newComponentSubTask(constants.KarmadaSchedulerComponent),
 			{
-				Name: "KarmadaWebhook",
+				Name: constants.KarmadaWebhookComponent,
 				Run:  runKarmadaWebhook,
 			},
 			newComponentSubTask(constants.KarmadaDeschedulerComponent),
 			newKarmadaMetricsAdapterSubTask(),
+			newKarmadaSearchSubTask(),
 		},
 	}
 }
@@ -224,6 +226,96 @@ func runDeployMetricAdapterAPIService(r workflow.RunData) error {
 		}
 
 		klog.V(2).InfoS("[DeployMetricAdapterAPIService] all karmada-metrics-adapter APIServices status is ready ", "karmada", klog.KObj(data))
+	}
+
+	return nil
+}
+
+func newKarmadaSearchSubTask() workflow.Task {
+	return workflow.Task{
+		Name:        constants.KarmadaSearchComponent,
+		Run:         runKarmadaResources,
+		RunSubTasks: true,
+		Tasks: []workflow.Task{
+			{
+				Name: "DeployKarmadaSearch",
+				Run:  runKarmadaSearch,
+			},
+			{
+				Name: "DeployKarmadaSearchAPIService",
+				Run:  runDeployKarmadaSearchAPIService,
+			},
+		},
+	}
+}
+
+func runKarmadaSearch(r workflow.RunData) error {
+	data, ok := r.(InitData)
+	if !ok {
+		return errors.New("KarmadaSearch task invoked with an invalid data struct")
+	}
+
+	cfg := data.Components()
+	if cfg.KarmadaSearch == nil {
+		klog.Infof("Skip installing component (%s/%s)", data.GetNamespace(), constants.KarmadaSearchComponent)
+		return nil
+	}
+
+	err := search.EnsureKarmadaSearch(
+		data.RemoteClient(),
+		cfg.KarmadaSearch,
+		data.GetName(),
+		data.GetNamespace(),
+		data.FeatureGates(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to apply karmada search, err: %w", err)
+	}
+
+	klog.V(2).InfoS("[KarmadaSearch] Successfully applied karmada search component", "karmada", klog.KObj(data))
+	return nil
+}
+
+func runDeployKarmadaSearchAPIService(r workflow.RunData) error {
+	data, ok := r.(InitData)
+	if !ok {
+		return errors.New("DeploySearchAPIService task invoked with an invalid data struct")
+	}
+
+	cfg := data.Components()
+	if cfg.KarmadaSearch == nil {
+		klog.V(2).InfoS("[karmadaSearch] Skip install karmada-search APIService")
+		return nil
+	}
+
+	config := data.ControlplaneConfig()
+	client, err := apiclient.NewAPIRegistrationClient(config)
+	if err != nil {
+		return err
+	}
+
+	cert := data.GetCert(constants.CaCertAndKeyName)
+	if len(cert.CertData()) == 0 {
+		return errors.New("unexpected empty ca cert data for search")
+	}
+	caBase64 := base64.StdEncoding.EncodeToString(cert.CertData())
+
+	err = apiservice.EnsureSearchAPIService(client, data.KarmadaClient(), data.GetName(), constants.KarmadaSystemNamespace, data.GetName(), data.GetNamespace(), caBase64)
+	if err != nil {
+		return fmt.Errorf("failed to apply karmada-metrics-adapter APIService resource to karmada controlplane, err: %w", err)
+	}
+
+	if *cfg.KarmadaSearch.Replicas != 0 {
+		waiter := apiclient.NewKarmadaWaiter(config, nil, time.Second*20)
+		for _, gv := range constants.KarmadaSearchAPIServices {
+			apiServiceName := fmt.Sprintf("%s.%s", gv.Version, gv.Group)
+
+			if err := waiter.WaitForAPIService(apiServiceName); err != nil {
+				return fmt.Errorf("the APIService %s is unhealthy, err: %w", apiServiceName, err)
+			}
+		}
+
+		klog.V(2).InfoS("[DeploySearchAPIService] all karmada-search APIServices status is ready ", "karmada", klog.KObj(data))
 	}
 
 	return nil
