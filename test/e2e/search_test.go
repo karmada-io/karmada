@@ -74,17 +74,6 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 	var pathNSDeploymentsFmt = pathPrefix + "apis/apps/v1/namespaces/%s/deployments"
 	// var pathWithLabel = pathPrefix + "apis/apps/v1/namespaces/kube-system/deployments?labelSelector=k8s-app=kube-dns"
 
-	// var pollTimeout = 30 * time.Second
-	var searchObject = func(path, target string, exists bool) {
-		gomega.Eventually(func(g gomega.Gomega) (bool, error) {
-			res := karmadaClient.SearchV1alpha1().RESTClient().Get().AbsPath(path).Do(context.TODO())
-			g.Expect(res.Error()).ShouldNot(gomega.HaveOccurred())
-			raw, err := res.Raw()
-			g.Expect(err).ShouldNot(gomega.HaveOccurred())
-			return strings.Contains(string(raw), target), nil
-		}, pollTimeout, pollInterval).Should(gomega.Equal(exists))
-	}
-
 	ginkgo.BeforeAll(func() {
 		// get clusters' name
 		pushModeClusters := framework.ClusterNamesWithSyncMode(clusterv1alpha1.Push)
@@ -733,193 +722,214 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 			})
 		})
 	})
+})
 
-	// test when cluster joined, updated, karmada will reconcile search cache
-	ginkgo.Describe("reconcile ResourceRegistry when clusters joined, updated", ginkgo.Ordered, func() {
-		ginkgo.Context("when cluster joined", func() {
-			var (
-				clusterName    string
-				homeDir        string
-				kubeConfigPath string
-				controlPlane   string
-				clusterContext string
-				f              cmdutil.Factory
+// test when cluster joined, updated, karmada will reconcile search cache
+var _ = framework.SerialDescribe("reconcile ResourceRegistry when clusters joined, updated", func() {
+	var member1 = "member1"
+	var member2 = "member2"
 
-				rrName           string
-				rr               *searchv1alpha1.ResourceRegistry
-				resourceSelector searchv1alpha1.ResourceSelector
-			)
+	var member1PodName = "etcd-member1-control-plane"
+	var member2PodName = "etcd-member2-control-plane"
+	var existsDeploymentName = "coredns"
 
-			ginkgo.BeforeAll(func() {
-				clusterName = "member-e2e-" + rand.String(RandomStrLength)
-				homeDir = os.Getenv("HOME")
-				kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, clusterName)
-				controlPlane = fmt.Sprintf("%s-control-plane", clusterName)
-				clusterContext = fmt.Sprintf("kind-%s", clusterName)
-				defaultConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
-				defaultConfigFlags.Context = &karmadaContext
-				f = cmdutil.NewFactory(defaultConfigFlags)
+	var pathPrefix = "/apis/search.karmada.io/v1alpha1/search/cache/"
+	var pathAllPods = pathPrefix + "api/v1/pods"
+	var pathAllDeployments = pathPrefix + "apis/apps/v1/deployments"
 
-				// create a cluster
-				ginkgo.By(fmt.Sprintf("Creating cluster: %s", clusterName), func() {
-					err := createCluster(clusterName, kubeConfigPath, controlPlane, clusterContext)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				})
+	ginkgo.Context("when cluster joined", func() {
+		var (
+			clusterName    string
+			homeDir        string
+			kubeConfigPath string
+			controlPlane   string
+			clusterContext string
+			f              cmdutil.Factory
 
-				// create a ResourceRegistry with a non joined cluster name
-				rrName = resourceRegistryPrefix + rand.String(RandomStrLength)
-				resourceSelector = searchv1alpha1.ResourceSelector{
-					APIVersion: "apps/v1",
-					Kind:       "Deployment",
-				}
-				rr = &searchv1alpha1.ResourceRegistry{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: rrName,
-					},
-					Spec: searchv1alpha1.ResourceRegistrySpec{
-						TargetCluster: policyv1alpha1.ClusterAffinity{
-							ClusterNames: []string{clusterName},
-						},
-						ResourceSelectors: []searchv1alpha1.ResourceSelector{
-							resourceSelector,
-						},
-					},
-				}
-				// create a ResourceRegistry with a non joined cluster name
-				ginkgo.By(fmt.Sprintf("create ResourceRegistry %s with a non joined cluster name %v and resource selector %v", rrName, clusterName, resourceSelector), func() {
-					framework.CreateResourceRegistry(karmadaClient, rr)
-				})
+			rrName           string
+			rr               *searchv1alpha1.ResourceRegistry
+			resourceSelector searchv1alpha1.ResourceSelector
+		)
+
+		ginkgo.BeforeEach(func() {
+			clusterName = "member-e2e-" + rand.String(RandomStrLength)
+			homeDir = os.Getenv("HOME")
+			kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, clusterName)
+			controlPlane = fmt.Sprintf("%s-control-plane", clusterName)
+			clusterContext = fmt.Sprintf("kind-%s", clusterName)
+			defaultConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
+			defaultConfigFlags.Context = &karmadaContext
+			f = cmdutil.NewFactory(defaultConfigFlags)
+
+			// create a cluster
+			ginkgo.By(fmt.Sprintf("Creating cluster: %s", clusterName), func() {
+				err := createCluster(clusterName, kubeConfigPath, controlPlane, clusterContext)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
-			ginkgo.AfterAll(func() {
-				framework.RemoveResourceRegistry(karmadaClient, rrName)
-
-				ginkgo.By(fmt.Sprintf("Deleting clusters: %s", clusterName), func() {
-					err := deleteCluster(clusterName, kubeConfigPath)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-					_ = os.Remove(kubeConfigPath)
-				})
-			})
-
-			ginkgo.It("[member clusters joined] could reconcile ResourceRegistry", func() {
-				// search cache should not have the deployment
-				searchObject(pathAllDeployments, existsDeploymentName, false)
-				// join the cluster
-				ginkgo.By(fmt.Sprintf("Joining cluster: %s", clusterName), func() {
-					opts := join.CommandJoinOption{
-						DryRun:            false,
-						ClusterNamespace:  "karmada-cluster",
-						ClusterName:       clusterName,
-						ClusterContext:    clusterContext,
-						ClusterKubeConfig: kubeConfigPath,
-					}
-					err := opts.Run(f)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				})
-				// search cache should have the deployment
-				searchObject(pathAllDeployments, existsDeploymentName, true)
-
-				ginkgo.By(fmt.Sprintf("Unjoinning cluster: %s", clusterName), func() {
-					opts := unjoin.CommandUnjoinOption{
-						DryRun:            false,
-						ClusterNamespace:  "karmada-cluster",
-						ClusterName:       clusterName,
-						ClusterContext:    clusterContext,
-						ClusterKubeConfig: kubeConfigPath,
-						Wait:              5 * options.DefaultKarmadactlCommandDuration,
-					}
-					err := opts.Run(f)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				})
+			// create a ResourceRegistry with a non joined cluster name
+			rrName = resourceRegistryPrefix + rand.String(RandomStrLength)
+			resourceSelector = searchv1alpha1.ResourceSelector{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+			}
+			rr = &searchv1alpha1.ResourceRegistry{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: rrName,
+				},
+				Spec: searchv1alpha1.ResourceRegistrySpec{
+					TargetCluster: policyv1alpha1.ClusterAffinity{
+						ClusterNames: []string{clusterName},
+					},
+					ResourceSelectors: []searchv1alpha1.ResourceSelector{
+						resourceSelector,
+					},
+				},
+			}
+			// create a ResourceRegistry with a non joined cluster name
+			ginkgo.By(fmt.Sprintf("create ResourceRegistry %s with a non joined cluster name %v and resource selector %v", rrName, clusterName, resourceSelector), func() {
+				framework.CreateResourceRegistry(karmadaClient, rr)
 			})
 		})
 
-		ginkgo.Context("when cluster updated", func() {
-			var (
-				rrName           string
-				rr               *searchv1alpha1.ResourceRegistry
-				labelKey         string
-				labelValue       string
-				labelSelector    *metav1.LabelSelector
-				resourceSelector searchv1alpha1.ResourceSelector
-			)
+		ginkgo.AfterEach(func() {
+			framework.RemoveResourceRegistry(karmadaClient, rrName)
 
-			ginkgo.BeforeAll(func() {
-				// create a ResourceRegistry with label selector
-				rrName = resourceRegistryPrefix + rand.String(RandomStrLength)
-				labelKey = "karmada-cluster.k8s.some.com/managed"
-				labelValue = "true"
-				labelSelector = &metav1.LabelSelector{
-					MatchExpressions: []metav1.LabelSelectorRequirement{
-						{
-							Key:      labelKey,
-							Operator: metav1.LabelSelectorOpExists,
-						},
-					},
-				}
-				resourceSelector = searchv1alpha1.ResourceSelector{
-					APIVersion: "v1",
-					Kind:       "Pod",
-				}
-				rr = &searchv1alpha1.ResourceRegistry{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: rrName,
-					},
-					Spec: searchv1alpha1.ResourceRegistrySpec{
-						TargetCluster: policyv1alpha1.ClusterAffinity{
-							LabelSelector: labelSelector,
-						},
-						ResourceSelectors: []searchv1alpha1.ResourceSelector{
-							resourceSelector,
-						},
-					},
-				}
-				ginkgo.By(fmt.Sprintf("create ResourceRegistry %s with label selector %v and resource selector %v", rrName, labelSelector, resourceSelector), func() {
-					framework.CreateResourceRegistry(karmadaClient, rr)
-				})
+			ginkgo.By(fmt.Sprintf("Deleting clusters: %s", clusterName), func() {
+				err := deleteCluster(clusterName, kubeConfigPath)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				_ = os.Remove(kubeConfigPath)
 			})
+		})
 
-			ginkgo.AfterAll(func() {
-				framework.RemoveResourceRegistry(karmadaClient, rrName)
+		ginkgo.It("[member clusters joined] could reconcile ResourceRegistry", func() {
+			// search cache should not have the deployment
+			searchObject(pathAllDeployments, existsDeploymentName, false)
+			// join the cluster
+			ginkgo.By(fmt.Sprintf("Joining cluster: %s", clusterName), func() {
+				opts := join.CommandJoinOption{
+					DryRun:            false,
+					ClusterNamespace:  "karmada-cluster",
+					ClusterName:       clusterName,
+					ClusterContext:    clusterContext,
+					ClusterKubeConfig: kubeConfigPath,
+				}
+				err := opts.Run(f)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
+			// search cache should have the deployment
+			searchObject(pathAllDeployments, existsDeploymentName, true)
 
-			ginkgo.It("[member clusters updated, deleted label] could reconcile ResourceRegistry", func() {
-				// search the pod in the ResourceRegistry will fail
-				searchObject(pathAllPods, member1PodName, false)
-
-				// add the label to the member1 cluster
-				ginkgo.By(fmt.Sprintf("add label %s=%s to cluster %s", labelKey, labelValue, member1), func() {
-					framework.UpdateClusterLabels(karmadaClient, member1, map[string]string{labelKey: labelValue})
-				})
-
-				// search the pod in the ResourceRegistry will success
-				searchObject(pathAllPods, member1PodName, true)
-
-				// add the label to the member2 cluster
-				ginkgo.By(fmt.Sprintf("add label %s=%s to cluster %s", labelKey, labelValue, member2), func() {
-					framework.UpdateClusterLabels(karmadaClient, member2, map[string]string{labelKey: labelValue})
-				})
-
-				// search the pod in the ResourceRegistry will success
-				searchObject(pathAllPods, member2PodName, true)
-
-				// delete the label of the member2 cluster
-				ginkgo.By(fmt.Sprintf("delete label %s=%s to cluster %s", labelKey, labelValue, member2), func() {
-					framework.DeleteClusterLabels(karmadaClient, member2, map[string]string{labelKey: labelValue})
-				})
-
-				// search the pod in the ResourceRegistry will fail
-				searchObject(pathAllPods, member2PodName, false)
-
-				// delete the label of the member1 cluster
-				ginkgo.By(fmt.Sprintf("delete label %s=%s to cluster %s", labelKey, labelValue, member1), func() {
-					framework.DeleteClusterLabels(karmadaClient, member1, map[string]string{labelKey: labelValue})
-
-				})
-
-				// search the pod in the ResourceRegistry will fail
-				searchObject(pathAllPods, member1PodName, false)
+			ginkgo.By(fmt.Sprintf("Unjoinning cluster: %s", clusterName), func() {
+				opts := unjoin.CommandUnjoinOption{
+					DryRun:            false,
+					ClusterNamespace:  "karmada-cluster",
+					ClusterName:       clusterName,
+					ClusterContext:    clusterContext,
+					ClusterKubeConfig: kubeConfigPath,
+					Wait:              5 * options.DefaultKarmadactlCommandDuration,
+				}
+				err := opts.Run(f)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 		})
 	})
+
+	ginkgo.Context("when cluster updated", func() {
+		var (
+			rrName           string
+			rr               *searchv1alpha1.ResourceRegistry
+			labelKey         string
+			labelValue       string
+			labelSelector    *metav1.LabelSelector
+			resourceSelector searchv1alpha1.ResourceSelector
+		)
+
+		ginkgo.BeforeEach(func() {
+			// create a ResourceRegistry with label selector
+			rrName = resourceRegistryPrefix + rand.String(RandomStrLength)
+			labelKey = "karmada-cluster.k8s.some.com/managed"
+			labelValue = "true"
+			labelSelector = &metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{
+						Key:      labelKey,
+						Operator: metav1.LabelSelectorOpExists,
+					},
+				},
+			}
+			resourceSelector = searchv1alpha1.ResourceSelector{
+				APIVersion: "v1",
+				Kind:       "Pod",
+			}
+			rr = &searchv1alpha1.ResourceRegistry{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: rrName,
+				},
+				Spec: searchv1alpha1.ResourceRegistrySpec{
+					TargetCluster: policyv1alpha1.ClusterAffinity{
+						LabelSelector: labelSelector,
+					},
+					ResourceSelectors: []searchv1alpha1.ResourceSelector{
+						resourceSelector,
+					},
+				},
+			}
+			ginkgo.By(fmt.Sprintf("create ResourceRegistry %s with label selector %v and resource selector %v", rrName, labelSelector, resourceSelector), func() {
+				framework.CreateResourceRegistry(karmadaClient, rr)
+			})
+		})
+
+		ginkgo.AfterEach(func() {
+			framework.RemoveResourceRegistry(karmadaClient, rrName)
+		})
+
+		ginkgo.It("[member clusters updated, deleted label] could reconcile ResourceRegistry", func() {
+			// search the pod in the ResourceRegistry will fail
+			searchObject(pathAllPods, member1PodName, false)
+
+			// add the label to the member1 cluster
+			ginkgo.By(fmt.Sprintf("add label %s=%s to cluster %s", labelKey, labelValue, member1), func() {
+				framework.UpdateClusterLabels(karmadaClient, member1, map[string]string{labelKey: labelValue})
+			})
+
+			// search the pod in the ResourceRegistry will success
+			searchObject(pathAllPods, member1PodName, true)
+
+			// add the label to the member2 cluster
+			ginkgo.By(fmt.Sprintf("add label %s=%s to cluster %s", labelKey, labelValue, member2), func() {
+				framework.UpdateClusterLabels(karmadaClient, member2, map[string]string{labelKey: labelValue})
+			})
+
+			// search the pod in the ResourceRegistry will success
+			searchObject(pathAllPods, member2PodName, true)
+
+			// delete the label of the member2 cluster
+			ginkgo.By(fmt.Sprintf("delete label %s=%s to cluster %s", labelKey, labelValue, member2), func() {
+				framework.DeleteClusterLabels(karmadaClient, member2, map[string]string{labelKey: labelValue})
+			})
+
+			// search the pod in the ResourceRegistry will fail
+			searchObject(pathAllPods, member2PodName, false)
+
+			// delete the label of the member1 cluster
+			ginkgo.By(fmt.Sprintf("delete label %s=%s to cluster %s", labelKey, labelValue, member1), func() {
+				framework.DeleteClusterLabels(karmadaClient, member1, map[string]string{labelKey: labelValue})
+
+			})
+
+			// search the pod in the ResourceRegistry will fail
+			searchObject(pathAllPods, member1PodName, false)
+		})
+	})
 })
+
+func searchObject(path, target string, exists bool) {
+	gomega.Eventually(func(g gomega.Gomega) (bool, error) {
+		res := karmadaClient.SearchV1alpha1().RESTClient().Get().AbsPath(path).Do(context.TODO())
+		g.Expect(res.Error()).ShouldNot(gomega.HaveOccurred())
+		raw, err := res.Raw()
+		g.Expect(err).ShouldNot(gomega.HaveOccurred())
+		return strings.Contains(string(raw), target), nil
+	}, pollTimeout, pollInterval).Should(gomega.Equal(exists))
+}
