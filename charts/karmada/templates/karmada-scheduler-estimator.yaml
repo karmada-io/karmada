@@ -58,6 +58,8 @@ spec:
             - name: member-kubeconfig
               subPath: {{ $clusterName }}-kubeconfig
               mountPath: /etc/{{ $clusterName }}-kubeconfig
+          resources:
+          {{- toYaml .Values.schedulerEstimator.resources | nindent 12 }}
       volumes:
         - name: member-kubeconfig
           secret:
