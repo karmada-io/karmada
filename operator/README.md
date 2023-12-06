@@ -82,6 +82,13 @@ metadata:
 EOF
 ```
 
+You can also create a Karmada CR directly using the sample provided by the Karmada operator.
+
+```shell
+kubectl create namespace test
+kubectl apply -f operator/config/samples/karmada.yaml
+```
+
 Wait for around 40 seconds, and the pods of the Karmada components will be running in the same namespace as the Karmada CR.
 
 ```shell
@@ -91,8 +98,17 @@ karmada-demo-apiserver-55968d9f8c-mp8hf                 1/1     Running   0     
 karmada-demo-controller-manager-64455f7fd4-stls6        1/1     Running   0          5s
 karmada-demo-etcd-0                                     1/1     Running   0          37s
 karmada-demo-kube-controller-manager-584f978bbd-fftwq   1/1     Running   0          5s
+karmada-demo-metrics-adapter-57cb5f56b6-4vwk2           1/1     Running   0          5s
+karmada-demo-metrics-adapter-57cb5f56b6-zbhjk           1/1     Running   0          5s
 karmada-demo-scheduler-6d77b7547-hgz8n                  1/1     Running   0          5s
 karmada-demo-webhook-6f5944f5d8-bpkqz                   1/1     Running   0          5s
+```
+
+### Generate kubeconfig for karmada
+
+```shell
+kubectl get secret -n test karmada-demo-admin-config -o jsonpath={.data.kubeconfig} | base64 -d > ~/.kube/karmada-apiserver.config
+export KUBECONFIG=~/.kube/karmada-apiserver.config
 ```
 
 > **Tip**:
@@ -233,14 +249,10 @@ metadata:
   namespace: test
 spec:
   components:
-    KarmadaDescheduler: {}
+    karmadaDescheduler: {}
 ```
 
 If you want to install with the defaults, simply define an empty struct for `descheduler`.
-
-> **Tip**:
->
-> Now, we only support installing the `descheduler` addon.
 
 ## Contributing
 
