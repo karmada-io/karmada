@@ -1,11 +1,12 @@
-{{- if eq .Values.installMode "host" }}
+{{- if and (or (eq .Values.installMode "component") (eq .Values.installMode "host")) (has "metricsAdapter" .Values.components) }}
+{{ $namespace := include "karmada.namespace" .}}
 {{- $name := include "karmada.name" . -}}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ $name }}-metrics-adapter
-  namespace: {{ include "karmada.namespace" . }}
+  namespace: {{ $namespace }}
   labels:
     {{- include "karmada.metricsAdapter.labels" . | nindent 4 }}
 spec:
@@ -89,7 +90,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ $name }}-metrics-adapter
-  namespace: {{ include "karmada.namespace" . }}
+  namespace: {{ $namespace }}
   labels:
     {{- include "karmada.metricsAdapter.labels" . | nindent 4 }}
 spec:
@@ -106,7 +107,7 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: {{ $name }}-metrics-adapter
-  namespace: {{ include "karmada.namespace" . }}
+  namespace: {{ $namespace }}
   labels:
     {{- include "karmada.metricsAdapter.labels" . | nindent 4 }}
 spec:
