@@ -21,7 +21,7 @@ kubectl apply -f guestbooks-clusterpropagationpolicy.yaml
 ```
 The CRD will be propagated to member clusters according to the rules defined in ClusterPropagationPolicy
 >Note: We can only use ClusterPropagationPolicy not PropagationPolicy here.
-> Please refer to FAQ Difference between [PropagationPolicy and ClusterPropagationPolicy](https://github.com/karmada-io/karmada/blob/master/docs/frequently-asked-questions.md#what-is-the-difference-between-propagationpolicy-and-clusterpropagationpolicy)
+> Please refer to FAQ Difference between [PropagationPolicy and ClusterPropagationPolicy](https://karmada.io/docs/faq#what-is-the-difference-between-propagationpolicy-and-clusterpropagationpolicy)
 > for more details.
 3. Create a Guestbook named `guestbook-sample` in Karmada
 ```bash
