@@ -40,7 +40,7 @@ Apparently, using the proxy will greatly simplify external components' access to
 
 Try these:
 
-- **[Aggregated Kubernetes API Endpoint](https://github.com/karmada-io/karmada/blob/master/docs/userguide/aggregated-api-endpoint.md)** This component is built for Unified authentication. The restful api client still needs to enumerate all the member clusters to get the right information.
+- **[Aggregated Kubernetes API Endpoint](https://karmada.io/docs/userguide/globalview/aggregated-api-endpoint)** This component is built for Unified authentication. The restful api client still needs to enumerate all the member clusters to get the right information.
 - **[Caching](https://github.com/karmada-io/karmada/tree/master/docs/proposals/caching) (aka karmada-search)** This component can only get/list, not watch or update data. 
 
 # Motivation
