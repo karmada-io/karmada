@@ -35,12 +35,10 @@ missing_license_header_files="$($ADDLICENSE_BIN \
   -ignore "docs/**" \
   -ignore ".github/**" \
   -ignore "third_party/**" \
-  -ignore "**/pb/**" \
   -ignore "**/*.md" \
   -ignore "**/*.yaml" \
   -ignore "**/*.yml" \
   -ignore "**/*.json" \
-  -ignore "**/*.proto" \
   .)" || true
 
 if [[ "$missing_license_header_files" ]]; then
