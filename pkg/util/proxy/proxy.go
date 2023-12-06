@@ -137,13 +137,10 @@ func GetTlsConfigForCluster(ctx context.Context, cluster *clusterapis.Cluster, s
 	if err != nil {
 		return nil, err
 	}
-	caBundle, err := getClusterCABundle(cluster.Name, caSecret)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get CA bundle for cluster %s: %v", cluster.Name, err)
-	}
+	caBundle := getClusterCABundle(caSecret)
 
 	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM([]byte(caBundle))
+	caCertPool.AppendCertsFromPEM(caBundle)
 	return &tls.Config{
 		RootCAs:    caCertPool,
 		MinVersion: tls.VersionTLS13,
@@ -221,12 +218,12 @@ func ImpersonateToken(clusterName string, secret *corev1.Secret) (string, error)
 	return string(token), nil
 }
 
-func getClusterCABundle(clusterName string, secret *corev1.Secret) (string, error) {
+func getClusterCABundle(secret *corev1.Secret) []byte {
 	caBundle, found := secret.Data[clusterapis.SecretCADataKey]
 	if !found {
-		return "", fmt.Errorf("the CA bundle of cluster %s is empty", clusterName)
+		return []byte{}
 	}
-	return string(caBundle), nil
+	return caBundle
 }
 
 // SkipGroup tells whether the input group can be skipped during impersonate.
