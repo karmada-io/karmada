@@ -379,7 +379,7 @@ func TestEtcdInitImage(t *testing.T) {
 				ImageRegistry: "my-registry",
 				EtcdInitImage: DefaultInitImage,
 			},
-			expected: "my-registry/alpine:3.15.1",
+			expected: "my-registry/alpine:3.18.5",
 		},
 		{
 			name: "EtcdInitImage is set to a non-default value",
