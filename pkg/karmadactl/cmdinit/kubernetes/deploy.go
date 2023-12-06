@@ -78,7 +78,7 @@ func init() {
 	karmadaRelease = releaseVer.PatchRelease()
 
 	DefaultCrdURL = fmt.Sprintf("https://github.com/karmada-io/karmada/releases/download/%s/crds.tar.gz", releaseVer.FirstMinorRelease())
-	DefaultInitImage = "docker.io/alpine:3.15.1"
+	DefaultInitImage = "docker.io/alpine:3.18.5"
 	DefaultKarmadaSchedulerImage = fmt.Sprintf("docker.io/karmada/karmada-scheduler:%s", releaseVer.PatchRelease())
 	DefaultKarmadaControllerManagerImage = fmt.Sprintf("docker.io/karmada/karmada-controller-manager:%s", releaseVer.PatchRelease())
 	DefualtKarmadaWebhookImage = fmt.Sprintf("docker.io/karmada/karmada-webhook:%s", releaseVer.PatchRelease())
@@ -568,7 +568,7 @@ func (i *CommandInitOption) kubeControllerManagerImage() string {
 // get etcd-init image
 func (i *CommandInitOption) etcdInitImage() string {
 	if i.ImageRegistry != "" && i.EtcdInitImage == DefaultInitImage {
-		return i.ImageRegistry + "/alpine:3.15.1"
+		return i.ImageRegistry + "/alpine:3.18.5"
 	}
 	return i.EtcdInitImage
 }
