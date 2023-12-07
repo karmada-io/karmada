@@ -1,0 +1,189 @@
+---
+title: Your short, descriptive title
+authors:
+- "@robot" # Authors' github accounts here.
+reviewers:
+- "@robot"
+- TBD
+approvers:
+- "@robot"
+- TBD
+
+creation-date: yyyy-mm-dd
+
+---
+
+# Your short, descriptive title
+
+<!--
+This is the title of your KEP. Keep it short, simple, and descriptive. A good
+title can help communicate what the KEP is and should be considered as part of
+any review.
+-->
+
+## Summary
+
+With the development of multi-cluster technology, some users begin to want to migrate stateful applications to multi-cluster scenarios, which cannot be covered well by the current version of karmada. Each user needs to implement a `karmada-operator` that does something similar, so we can propose an API to handle the common coordination related work logic, while setting aside a mechanism for the user's `karmada-operator` to complete the specific logic, such as rolling upgrades, scaling, etc.
+
+## Motivation
+
+Provides a new API for stateful applications across clusters, enabling karmada to adapt to stateful applications across clusters.
+
+### Goals
+
+- Defining an API(TBD,karmada/StatefulSet?) enables users to implement specific logic for stateful operator applications across clusters.
+-  Propose the implementation ideas for involved components, including the new controller of `cross_cluster_statefulset_controller` in karmada-controller-manager.
+
+### Non-Goals
+
+## Proposal
+
+<!--
+This is where we get down to the specifics of what the proposal actually is.
+This should have enough detail that reviewers can understand exactly what
+you're proposing, but should not include things like API designs or
+implementation. What is the desired outcome and how do we measure success?.
+The "Design Details" section below is for the real
+nitty-gritty.
+-->
+
+### User Stories (Optional)
+
+#### As a user, I want to deploy a cross cluster stateful app.
+
+I want to let my kubernetes operator can working for cross cluster stateful with karmada and not need to implement other operator for karmada.
+
+#### Story 1
+
+#### Story 2
+
+### Notes/Constraints/Caveats (Optional)
+
+<!--
+What are the caveats to the proposal?
+What are some important details that didn't come across above?
+Go in to as much detail as necessary here.
+This might be a good place to talk about core concepts and how they relate.
+-->
+
+### Risks and Mitigations
+
+<!--
+What are the risks of this proposal, and how do we mitigate? 
+
+How will security be reviewed, and by whom?
+
+How will UX be reviewed, and by whom?
+
+Consider including folks who also work outside the SIG or subproject.
+-->
+
+## Design Details
+
+
+### New API
+
+
+```golang
+type MultiClusterStatefulSet struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// Spec is the desired state of the MultiClusterIngress.
+	// +optional
+	Spec MultiClusterStatefulSetSpec `json:"spec,omitempty"`
+}
+
+// MultiClusterStatefulSetSpec is the desired state of the MultiClusterStatefulSet.
+type MultiClusterStatefulSetSpec struct {
+	ResourceSelector policyv1alpha1.ResourceSelector `json:"resourceSelector,omitempty"`
+}
+```
+
+### Two part here for user CRD
+
+### propagate schedule result to all of member cluster for CRD
+
+propagate schedule result with CRD annotation,just like:
+
+```yaml
+Name:         xline
+Namespace:    xline
+API Version:  apps.my.io/v1alpha1
+Kind:         XlineCluster
+Annotations:
+    corssclusterstatefulset.karmada.io/replicas: {"member1":"1","member2":"1"}
+...
+```
+
+The above yaml means the member cluster of member1 have 1 replcas for this resource and member cluster of member2 have 1 replicas of this resource.
+
+Then the user's operator can use this messgae to init they app cluster at member cluster, Before to really init cluster, they will splice the network so that resources between clusters can access each other, like: `xline-0=xline-0.member1.karmada,xline-1=xline-1.member2.karmada`,It depends on how the user connects to the network of member clusters, which is not within the scope of the API's responsibilities.
+
+### Strategy for rollingupdate
+
+#### First step: decide which ones member cluster is processer 
+
+Propagate processor with CRD annotation:
+
+
+```yaml
+Name:         xline
+Namespace:    xline
+API Version:  apps.my.io/v1alpha1
+Kind:         XlineCluster
+Annotations:
+    corssclusterstatefulset.karmada.io/processers: ["member1","member2"]
+...
+```
+
+The above yaml means the member cluster of member1 & member2 need to create/update this resource.
+
+Then the user's operator can use this information to determine whether you need to perform a create/update operation.
+
+#### Second step: cross_cluster_statefulset_controller determines whether the user's operator in the member cluster has completed the update.
+
+```yaml
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: xline
+spec:
+  resourceSelector:
+	apiVersion: apps.my.io/v1alpha1
+	kind: XlineCluster
+	name: xline
+	namespace: default
+```
+
+In order to check whether the update has been performed, the user must specify a ResourceInterpreterCustomization or webhook corresponding to the resource,And then `cross_cluster_statefulset_controller` will check the InterpretHealth or a new operation.
+
+TODO..
+
+### Test Plan
+
+<!--
+**Note:** *Not required until targeted at a release.*
+
+Consider the following in developing a test plan for this enhancement:
+- Will there be e2e and integration tests, in addition to unit tests?
+- How will it be tested in isolation vs with other components?
+
+No need to outline all test cases, just the general strategy. Anything
+that would count as tricky in the implementation, and anything particularly
+challenging to test, should be called out.
+
+-->
+
+## Alternatives
+
+<!--
+What other approaches did you consider, and why did you rule them out? These do
+not need to be as detailed as the proposal, but should include enough
+information to express the idea and why it was not acceptable.
+-->
+
+<!--
+Note: This is a simplified version of kubernetes enhancement proposal template.
+https://github.com/kubernetes/enhancements/tree/3317d4cb548c396a430d1c1ac6625226018adf6a/keps/NNNN-kep-template
+-->
