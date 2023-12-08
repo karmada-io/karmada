@@ -20,6 +20,9 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .spec.workload.manifests[*].kind
+      name: Workload-Kind
+      type: string
     - jsonPath: .status.conditions[?(@.type=="Applied")].status
       name: Applied
       type: string
