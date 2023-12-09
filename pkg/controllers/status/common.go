@@ -24,6 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -34,6 +35,7 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
@@ -119,13 +121,24 @@ func updateResourceStatus(
 		klog.Errorf("Failed to aggregate status for resource(%s/%s/%s, Error: %v", gvr, resource.GetNamespace(), resource.GetName(), err)
 		return err
 	}
-	if reflect.DeepEqual(resource, newObj) {
+
+	oldStatus, _, _ := unstructured.NestedFieldNoCopy(resource.Object, "status")
+	newStatus, _, _ := unstructured.NestedFieldNoCopy(newObj.Object, "status")
+	if reflect.DeepEqual(oldStatus, newStatus) {
 		klog.V(3).Infof("Ignore update resource(%s/%s/%s) status as up to date.", gvr, resource.GetNamespace(), resource.GetName())
 		return nil
 	}
 
-	if _, err = dynamicClient.Resource(gvr).Namespace(resource.GetNamespace()).UpdateStatus(context.TODO(), newObj, metav1.UpdateOptions{}); err != nil {
-		klog.Errorf("Failed to update resource(%s/%s/%s), Error: %v", gvr, resource.GetNamespace(), resource.GetName(), err)
+	patchBytes, err := helper.GenReplaceFieldJSONPatch("/status", oldStatus, newStatus)
+	if err != nil {
+		klog.Errorf("Failed to gen patch bytes for resource(%s/%s/%s, Error: %v", gvr, resource.GetNamespace(), resource.GetName(), err)
+		return err
+	}
+
+	_, err = dynamicClient.Resource(gvr).Namespace(resource.GetNamespace()).
+		Patch(context.TODO(), resource.GetName(), types.JSONPatchType, patchBytes, metav1.PatchOptions{}, "status")
+	if err != nil {
+		klog.Error("Failed to update resource(%s/%s/%s), Error: %v", gvr, resource.GetNamespace(), resource.GetName(), err)
 		return err
 	}
 	klog.V(3).Infof("Update resource(%s/%s/%s) status successfully.", gvr, resource.GetNamespace(), resource.GetName())
