@@ -40,6 +40,11 @@ cp -r _crds crds
 tar -zcvf ../../crds.tar.gz crds
 cd -
 
+# make images
+export VERSION="latest"
+export REGISTRY="docker.io/karmada"
+make images GOOS="linux" --directory="${REPO_ROOT}"
+
 # make karmadactl binary
 make karmadactl
 
@@ -66,9 +71,19 @@ util::wait_context_exist "${MEMBER_CLUSTER_2_NAME}" ${KUBECONFIG_PATH}/${MEMBER_
 kubectl wait --for=condition=Ready nodes --all --timeout=800s --kubeconfig=${KUBECONFIG_PATH}/${MEMBER_CLUSTER_2_NAME}.config
 util::wait_nodes_taint_disappear 800 ${KUBECONFIG_PATH}/${MEMBER_CLUSTER_2_NAME}.config
 
+# load components images to kind cluster
+kind load docker-image "${REGISTRY}/karmada-controller-manager:${VERSION}" --name="${HOST_CLUSTER_NAME}"
+kind load docker-image "${REGISTRY}/karmada-scheduler:${VERSION}" --name="${HOST_CLUSTER_NAME}"
+kind load docker-image "${REGISTRY}/karmada-webhook:${VERSION}" --name="${HOST_CLUSTER_NAME}"
+kind load docker-image "${REGISTRY}/karmada-aggregated-apiserver:${VERSION}" --name="${HOST_CLUSTER_NAME}"
+
 # init Karmada control plane
 echo "Start init karmada control plane..."
 ${BUILD_PATH}/karmadactl init --kubeconfig=${KUBECONFIG_PATH}/${HOST_CLUSTER_NAME}.config \
+    --karmada-controller-manager-image="${REGISTRY}/karmada-controller-manager:${VERSION}" \
+    --karmada-scheduler-image="${REGISTRY}/karmada-scheduler:${VERSION}" \
+    --karmada-webhook-image="${REGISTRY}/karmada-webhook:${VERSION}" \
+    --karmada-aggregated-apiserver-image="${REGISTRY}/karmada-aggregated-apiserver:${VERSION}" \
     --karmada-data=${HOME}/karmada \
     --karmada-pki=${HOME}/karmada/pki \
     --crds=./crds.tar.gz
