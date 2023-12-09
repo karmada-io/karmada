@@ -63,6 +63,8 @@ spec:
               path: /readyz
               port: 8443
               scheme: HTTPS
+          resources:
+          {{- toYaml .Values.webhook.resources | nindent 12 }}
       volumes:
       {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
         - name: {{ $name }}-webhook-cert-secret
