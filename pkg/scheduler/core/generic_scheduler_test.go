@@ -28,49 +28,51 @@ import (
 )
 
 type testcase struct {
-	name      string
-	clusters  []*clusterv1alpha1.Cluster
-	object    *workv1alpha2.ResourceBindingSpec
-	placement *policyv1alpha1.Placement
-	// changeCondForNextSchedule following cases will schedule twice, this function aims to change the schedule condition for second schedule
-	changeCondForNextSchedule func(tt *testcase)
-	// wants key is first time schedule possible result, value is second time schedule possible result
-	wants   map[string][]string
-	wantErr bool
+	name                      string
+	clusters                  []*clusterv1alpha1.Cluster
+	object                    workv1alpha2.ResourceBindingSpec
+	placement                 *policyv1alpha1.Placement
+	previousResultToNewResult map[string][]string
+	wantErr                   bool
 }
 
-var clusterToIndex = map[string]int{
-	ClusterMember1: 0,
-	ClusterMember2: 1,
-	ClusterMember3: 2,
-	ClusterMember4: 3,
-}
+var clusterToIndex = map[string]int{ClusterMember1: 0, ClusterMember2: 1, ClusterMember3: 2, ClusterMember4: 3}
+var indexToCluster = []string{ClusterMember1, ClusterMember2, ClusterMember3, ClusterMember4}
 
-// isScheduleResultEqual change []workv1alpha2.TargetCluster to the string format just like 1:1:1, and compare it to expect string
-func isScheduleResultEqual(tcs []workv1alpha2.TargetCluster, expect string) bool {
+func targetClusterToString(tcs []workv1alpha2.TargetCluster) string {
 	res := make([]string, len(tcs))
 	for _, cluster := range tcs {
 		idx := clusterToIndex[cluster.Name]
 		res[idx] = strconv.Itoa(int(cluster.Replicas))
 	}
-	actual := strings.Join(res, ":")
-	return actual == expect
+	return strings.Join(res, ":")
+}
+
+func stringToTargetCluster(str string) []workv1alpha2.TargetCluster {
+	arr := strings.Split(str, ":")
+	tcs := make([]workv1alpha2.TargetCluster, len(arr))
+	for i, replicas := range arr {
+		num, _ := strconv.Atoi(replicas)
+		tcs[i].Replicas = int32(num) // #nosec G109
+		tcs[i].Name = indexToCluster[i]
+	}
+	return tcs
 }
 
 // These are acceptance test cases given by QA for requirement: dividing replicas by static weight evenly
 // https://github.com/karmada-io/karmada/issues/4220
 func Test_EvenDistributionOfReplicas(t *testing.T) {
-	tests := []*testcase{
+	tests := []testcase{
+		// Test Case No.1 of even distribution of replicas
+		// 1. create deployment (replicas=3), weight=1:1
+		// 2. check two member cluster replicas, should be 2:1 or 1:2
 		{
-			// Test Case No.1 of even distribution of replicas
-			// 1. create deployment (replicas=3), weight=1:1
-			// 2. check two member cluster replicas, should be 2:1 or 1:2
 			name: "replica 3, static weighted 1:1",
 			clusters: []*clusterv1alpha1.Cluster{
 				helper.NewCluster(ClusterMember1),
 				helper.NewCluster(ClusterMember2),
 			},
-			object: &workv1alpha2.ResourceBindingSpec{
+			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 3,
 			},
 			placement: &policyv1alpha1.Placement{
@@ -85,26 +87,24 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 					},
 				},
 			},
-			changeCondForNextSchedule: nil,
-			wants: map[string][]string{
-				"1:2": {},
-				"2:1": {},
+			previousResultToNewResult: map[string][]string{
+				"": {"1:2", "2:1"},
 			},
 			wantErr: false,
 		},
+		// Test Case No.2 of even distribution of replicas
+		// 1. create deployment (replicas=3), weight=1:1:1
+		// 2. check three member cluster replicas, should be 1:1:1
+		// 3. update replicas from 3 to 5
+		// 4. check three member cluster replicas, should be 2:2:1 or 2:1:2 or 1:2:2
 		{
-			// Test Case No.2 of even distribution of replicas
-			// 1. create deployment (replicas=3), weight=1:1:1
-			// 2. check three member cluster replicas, should be 1:1:1
-			// 3. update replicas from 3 to 5
-			// 4. check three member cluster replicas, should be 2:2:1 or 2:1:2 or 1:2:2
-			name: "replica 3, static weighted 1:1:1, change replicas from 3 to 5",
+			name: "replica 3, static weighted 1:1:1, change replicas from 3 to 5, before change",
 			clusters: []*clusterv1alpha1.Cluster{
 				helper.NewCluster(ClusterMember1),
 				helper.NewCluster(ClusterMember2),
 				helper.NewCluster(ClusterMember3),
 			},
-			object: &workv1alpha2.ResourceBindingSpec{
+			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 3,
 			},
 			placement: &policyv1alpha1.Placement{
@@ -120,11 +120,106 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 					},
 				},
 			},
-			changeCondForNextSchedule: func(tt *testcase) {
-				tt.object.Replicas = 5
+			previousResultToNewResult: map[string][]string{
+				"": {"1:1:1"},
 			},
-			wants: map[string][]string{
+			wantErr: false,
+		},
+		{
+			name: "replica 3, static weighted 1:1:1, change replicas from 3 to 5, after change",
+			clusters: []*clusterv1alpha1.Cluster{
+				helper.NewCluster(ClusterMember1),
+				helper.NewCluster(ClusterMember2),
+				helper.NewCluster(ClusterMember3),
+			},
+			object: workv1alpha2.ResourceBindingSpec{
+				Replicas: 5, // change replicas from 3 to 5
+			},
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+					WeightPreference: &policyv1alpha1.ClusterPreferences{
+						StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 1},
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+						},
+					},
+				},
+			},
+			previousResultToNewResult: map[string][]string{
 				"1:1:1": {"2:2:1", "2:1:2", "1:2:2"},
+			},
+			wantErr: false,
+		},
+		// Test Case No.3 of even distribution of replicas
+		// 1. create deployment (replicas=7), weight=2:1:1:1
+		// 2. check three member cluster replicas, can be 3:2:1:1、3:1:2:1、3:1:1:2
+		// 3. update replicas from 7 to 8
+		// 4. check three member cluster replicas, the added replica should lie in first cluster, i.e:
+		//    * 3:2:1:1 --> 4:2:1:1
+		//    * 3:1:2:1 --> 4:1:2:1
+		//    * 3:1:1:2 --> 4:1:1:2
+		{
+			name: "replica 7, static weighted 2:1:1:1, change replicas from 7 to 8, before change",
+			clusters: []*clusterv1alpha1.Cluster{
+				helper.NewCluster(ClusterMember1),
+				helper.NewCluster(ClusterMember2),
+				helper.NewCluster(ClusterMember3),
+				helper.NewCluster(ClusterMember4),
+			},
+			object: workv1alpha2.ResourceBindingSpec{
+				Replicas: 7,
+			},
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+					WeightPreference: &policyv1alpha1.ClusterPreferences{
+						StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 2},
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember4}}, Weight: 1},
+						},
+					},
+				},
+			},
+			previousResultToNewResult: map[string][]string{
+				"": {"3:2:1:1", "3:1:2:1", "3:1:1:2"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "replica 7, static weighted 2:1:1:1, change replicas from 7 to 8, after change",
+			clusters: []*clusterv1alpha1.Cluster{
+				helper.NewCluster(ClusterMember1),
+				helper.NewCluster(ClusterMember2),
+				helper.NewCluster(ClusterMember3),
+				helper.NewCluster(ClusterMember4),
+			},
+			object: workv1alpha2.ResourceBindingSpec{
+				Replicas: 8, // change replicas from 7 to 8
+			},
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+					WeightPreference: &policyv1alpha1.ClusterPreferences{
+						StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 2},
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember4}}, Weight: 1},
+						},
+					},
+				},
+			},
+			previousResultToNewResult: map[string][]string{
+				"3:2:1:1": {"4:2:1:1"},
+				"3:1:2:1": {"4:1:2:1"},
+				"3:1:1:2": {"4:1:1:2"},
 			},
 			wantErr: false,
 		},
@@ -132,42 +227,30 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var g = &genericScheduler{}
-			var firstScheduleResult, secondScheduleResult string
+			for previous, expect := range tt.previousResultToNewResult {
+				obj := tt.object
 
-			// 1. schedule for the first time, and check whether first schedule result within tt.wants
-			got, err := g.assignReplicas(tt.clusters, tt.placement, tt.object)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("AssignReplicas() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			for firstScheduleResult = range tt.wants {
-				if isScheduleResultEqual(got, firstScheduleResult) {
-					break
+				// 1. get previous schedule result, if previous == "" means no previous schedule result
+				if previous != "" {
+					obj.Clusters = stringToTargetCluster(previous)
 				}
-			}
-			if !isScheduleResultEqual(got, firstScheduleResult) {
-				t.Errorf("AssignReplicas() got = %v, wants %v", got, tt.wants)
-				return
-			}
 
-			// 2. change the schedule condition
-			if tt.changeCondForNextSchedule == nil {
-				return
-			}
-			tt.changeCondForNextSchedule(tt)
-
-			// 3. schedule for the second time, and check whether second schedule result within tt.wants
-			got, err = g.assignReplicas(tt.clusters, tt.placement, tt.object)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("AssignReplicas() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			for _, secondScheduleResult = range tt.wants[firstScheduleResult] {
-				if isScheduleResultEqual(got, secondScheduleResult) {
+				// 2. schedule basing on previous schedule result
+				got, err := g.assignReplicas(tt.clusters, tt.placement, &obj)
+				if (err != nil) != tt.wantErr {
+					t.Errorf("AssignReplicas() error = %v, wantErr %v", err, tt.wantErr)
 					return
 				}
+
+				// 3. check if previous schedule result valid
+				gotResult := targetClusterToString(got)
+				for _, expectResult := range expect {
+					if gotResult == expectResult {
+						return
+					}
+				}
+				t.Errorf("AssignReplicas() got = %v, wants %s --> %v", got, gotResult, expect)
 			}
-			t.Errorf("AssignReplicas() got = %v, wants %v", got, tt.wants)
 		})
 	}
 }
