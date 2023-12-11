@@ -1,6 +1,9 @@
 {{- if and (or (eq .Values.installMode "component") (eq .Values.installMode "host")) (has "schedulerEstimator" .Values.components) }}
+
 {{ $namespace := include "karmada.namespace" .}}
-{{ $clusterName := .Values.schedulerEstimator.clusterName }}
+{{- range $index, $member := .Values.schedulerEstimator.memberClusters }}
+
+{{ $clusterName := $member.clusterName }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -9,38 +12,38 @@ metadata:
   namespace: {{ $namespace }}
   labels:
     cluster: {{ $clusterName }}
-    {{- include "karmada.schedulerEstimator.labels" . | nindent 4 }}
+    {{- include "karmada.schedulerEstimator.labels" $ | nindent 4 }}
 spec:
-  replicas: {{  .Values.schedulerEstimator.replicaCount }}
+  replicas: {{  $member.replicaCount }}
   selector:
     matchLabels:
       app: karmada-scheduler-estimator-{{ $clusterName }}
-      {{- include "karmada.schedulerEstimator.labels" . | nindent 6 }}
-  {{- with .Values.schedulerEstimator.strategy }}
+      {{- include "karmada.schedulerEstimator.labels" $ | nindent 6 }}
+  {{- with $.Values.schedulerEstimator.strategy }}
   strategy:
   {{- toYaml . | nindent 4 }}
   {{- end }}
   template:
     metadata:
-      {{- with .Values.schedulerEstimator.podAnnotations }}
+      {{- with $.Values.schedulerEstimator.podAnnotations }}
       annotations:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
         app: karmada-scheduler-estimator-{{ $clusterName }}
-        {{- include "karmada.schedulerEstimator.labels" . | nindent 8 }}
-        {{- include "karmada.schedulerEstimator.podLabels" . | nindent 8 }}
+        {{- include "karmada.schedulerEstimator.labels" $ | nindent 8 }}
+        {{- include "karmada.schedulerEstimator.podLabels" $ | nindent 8 }}
     spec:
-      {{- include "karmada.schedulerEstimator.imagePullSecrets" . | nindent 6 }}
-      {{- with .Values.schedulerEstimator.tolerations }}
+      {{- include "karmada.schedulerEstimator.imagePullSecrets" $ | nindent 6 }}
+      {{- with $.Values.schedulerEstimator.tolerations }}
       tolerations:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       automountServiceAccountToken: false
       containers:
         - name: karmada-scheduler-estimator
-          image: {{ template "karmada.schedulerEstimator.image" . }}
-          imagePullPolicy: {{ .Values.schedulerEstimator.image.pullPolicy }}
+          image: {{ template "karmada.schedulerEstimator.image" $ }}
+          imagePullPolicy: {{ $.Values.schedulerEstimator.image.pullPolicy }}
           command:
             - /bin/karmada-scheduler-estimator
             - --kubeconfig=/etc/{{ $clusterName }}-kubeconfig
@@ -59,7 +62,7 @@ spec:
               subPath: {{ $clusterName }}-kubeconfig
               mountPath: /etc/{{ $clusterName }}-kubeconfig
           resources:
-          {{- toYaml .Values.schedulerEstimator.resources | nindent 12 }}
+          {{- toYaml $.Values.schedulerEstimator.resources | nindent 12 }}
       volumes:
         - name: member-kubeconfig
           secret:
@@ -75,7 +78,7 @@ metadata:
 spec:
   selector:
     app: karmada-scheduler-estimator-{{ $clusterName }}
-    {{- include "karmada.schedulerEstimator.labels" . | nindent 4 }}
+    {{- include "karmada.schedulerEstimator.labels" $ | nindent 4 }}
   ports:
     - protocol: TCP
       port: 10352
@@ -92,14 +95,14 @@ stringData:
     kind: Config
     clusters:
       - cluster:
-          certificate-authority-data: {{ b64enc .Values.schedulerEstimator.kubeconfig.caCrt }}
+          certificate-authority-data: {{ b64enc $member.kubeconfig.caCrt }}
           insecure-skip-tls-verify: false
-          server: {{ .Values.schedulerEstimator.kubeconfig.server }}
+          server: {{ $member.kubeconfig.server }}
         name: {{ $clusterName }}-apiserver
     users:
       - user:
-          client-certificate-data: {{ b64enc .Values.schedulerEstimator.kubeconfig.crt }}
-          client-key-data: {{ b64enc .Values.schedulerEstimator.kubeconfig.key }}
+          client-certificate-data: {{ b64enc $member.kubeconfig.crt }}
+          client-key-data: {{ b64enc $member.kubeconfig.key }}
         name: {{ $clusterName }}-apiserver
     contexts:
       - context:
@@ -108,22 +111,24 @@ stringData:
         name: {{ $clusterName }}-apiserver
     current-context: {{ $clusterName }}-apiserver
 
-{{ if .Values.schedulerEstimator.podDisruptionBudget }}
+{{ if $.Values.schedulerEstimator.podDisruptionBudget }}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: karmada-scheduler-estimator-{{ $clusterName }}
-  namespace: {{ include "karmada.namespace" . }}
+  namespace: {{ include "karmada.namespace" $ }}
   labels:
     cluster: {{ $clusterName }}
-    {{- include "karmada.schedulerEstimator.labels" . | nindent 4 }}
+    {{- include "karmada.schedulerEstimator.labels" $ | nindent 4 }}
 spec:
   selector:
     matchLabels:
       app: karmada-scheduler-estimator-{{ $clusterName }}
-      {{- include "karmada.schedulerEstimator.labels" . | nindent 6 }}
-  {{ toYaml .Values.schedulerEstimator.podDisruptionBudget | nindent 2 }}
+      {{- include "karmada.schedulerEstimator.labels" $ | nindent 6 }}
+  {{ toYaml $.Values.schedulerEstimator.podDisruptionBudget | nindent 2 }}
 {{- end -}}
+
+{{- end }}
 
 {{- end }}
