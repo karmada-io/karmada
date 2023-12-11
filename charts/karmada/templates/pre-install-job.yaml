@@ -307,7 +307,7 @@ metadata:
     # job is considered part of the release.
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "3"
-    "helm.sh/hook-delete-policy": hook-succeeded
+    "helm.sh/hook-delete-policy": {{ .Values.preInstallJob.hookDeletePolicy }}
   {{- if "karmada.preInstallJob.labels" }}
   labels:
     {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
