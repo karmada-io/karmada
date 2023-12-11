@@ -13,5 +13,6 @@
 | Kevin Wang  | @kevin-wangzefeng | Huawei        | <wangzefeng@huawei.com>  |
 | Lei Xue     | @carmark          | Moore Threads | <vfs@live.com>           |
 | Shiyi Xie   | @GitHubxsy        | Huawei        | <xieshiyi1@huawei.com>   |
+| Xiao Zhang  | @wawa0210         | DaoCloud      | <xiao.zhang@daocloud.io> |
 | Yifan Shen  | @zoroyouxi        | ICBC          | <shenyf@sdc.icbc.com.cn> |
 | Yiheng Ci   | @lfbear           | VIPKID        | <ciyiheng@vipkid.com.cn> |
