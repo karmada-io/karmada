@@ -79,6 +79,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.RuleWithOperations":                          schema_pkg_apis_config_v1alpha1_RuleWithOperations(ref),
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.StatusAggregation":                           schema_pkg_apis_config_v1alpha1_StatusAggregation(ref),
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.StatusReflection":                            schema_pkg_apis_config_v1alpha1_StatusReflection(ref),
+		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ClusterSelector":                         schema_pkg_apis_networking_v1alpha1_ClusterSelector(ref),
 		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposurePort":                            schema_pkg_apis_networking_v1alpha1_ExposurePort(ref),
 		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposureRange":                           schema_pkg_apis_networking_v1alpha1_ExposureRange(ref),
 		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterIngress":                     schema_pkg_apis_networking_v1alpha1_MultiClusterIngress(ref),
@@ -2688,6 +2689,26 @@ func schema_pkg_apis_config_v1alpha1_StatusReflection(ref common.ReferenceCallba
 	}
 }
 
+func schema_pkg_apis_networking_v1alpha1_ClusterSelector(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ClusterSelector specifies the cluster to be selected.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is the name of the cluster to be selected.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_networking_v1alpha1_ExposurePort(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2982,14 +3003,14 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterServiceSpec(ref common.Refe
 					},
 					"range": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Range specifies the ranges where the referencing service should be exposed. Only valid and optional in case of Types contains CrossCluster. If not set and Types contains CrossCluster, all clusters will be selected, that means the referencing service will be exposed across all registered clusters. Deprecated: in favor of ServiceProvisionClusters/ServiceConsumptionClusters.",
+							Description: "Range specifies the ranges where the referencing service should be exposed. Only valid and optional in case of Types contains CrossCluster. If not set and Types contains CrossCluster, all clusters will be selected, that means the referencing service will be exposed across all registered clusters. Deprecated: in favor of ProviderClusters/ConsumerClusters.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposureRange"),
 						},
 					},
 					"serviceProvisionClusters": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ServiceProvisionClusters specifies the clusters which will provision the service backend. If leave it empty, we will collect the backend endpoints from all clusters and sync them to the ServiceConsumptionClusters.",
+							Description: "ServiceProvisionClusters specifies the clusters which will provision the service backend. If leave it empty, we will collect the backend endpoints from all clusters and sync them to the ServiceConsumptionClusters. Deprecated: in favor of ProviderClusters/ConsumerClusters.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -3004,7 +3025,7 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterServiceSpec(ref common.Refe
 					},
 					"serviceConsumptionClusters": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ServiceConsumptionClusters specifies the clusters where the service will be exposed, for clients. If leave it empty, the service will be exposed to all clusters.",
+							Description: "ServiceConsumptionClusters specifies the clusters where the service will be exposed, for clients. If leave it empty, the service will be exposed to all clusters. Deprecated: in favor of ProviderClusters/ConsumerClusters.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -3017,12 +3038,40 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterServiceSpec(ref common.Refe
 							},
 						},
 					},
+					"providerClusters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ProviderClusters specifies the clusters which will provide the service backend. If leave it empty, we will collect the backend endpoints from all clusters and sync them to the ConsumerClusters.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ClusterSelector"),
+									},
+								},
+							},
+						},
+					},
+					"consumerClusters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConsumerClusters specifies the clusters where the service will be exposed, for clients. If leave it empty, the service will be exposed to all clusters.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ClusterSelector"),
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"types"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposurePort", "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposureRange"},
+			"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ClusterSelector", "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposurePort", "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposureRange"},
 	}
 }
 

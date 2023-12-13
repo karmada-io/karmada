@@ -247,6 +247,14 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 		return err
 	}
 
+	resourceTemplateClaimedBy := util.GetLabelValue(object.GetLabels(), util.ResourceTemplateClaimedByLabel)
+	// If the resource lacks this label, it implies that the resource template can be propagated by Policy.
+	// For instance, once MultiClusterService takes over the Service, Policy cannot reclaim it.
+	if resourceTemplateClaimedBy != "" {
+		d.RemoveWaiting(clusterWideKey)
+		return nil
+	}
+
 	return d.propagateResource(object, clusterWideKey)
 }
 

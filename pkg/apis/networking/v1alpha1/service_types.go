@@ -79,20 +79,40 @@ type MultiClusterServiceSpec struct {
 	// If not set and Types contains CrossCluster, all clusters will
 	// be selected, that means the referencing service will be exposed
 	// across all registered clusters.
-	// Deprecated: in favor of ServiceProvisionClusters/ServiceConsumptionClusters.
+	// Deprecated: in favor of ProviderClusters/ConsumerClusters.
 	// +optional
 	Range ExposureRange `json:"range,omitempty"`
 
 	// ServiceProvisionClusters specifies the clusters which will provision the service backend.
 	// If leave it empty, we will collect the backend endpoints from all clusters and sync
 	// them to the ServiceConsumptionClusters.
+	// Deprecated: in favor of ProviderClusters/ConsumerClusters.
 	// +optional
 	ServiceProvisionClusters []string `json:"serviceProvisionClusters,omitempty"`
 
 	// ServiceConsumptionClusters specifies the clusters where the service will be exposed, for clients.
 	// If leave it empty, the service will be exposed to all clusters.
+	// Deprecated: in favor of ProviderClusters/ConsumerClusters.
 	// +optional
 	ServiceConsumptionClusters []string `json:"serviceConsumptionClusters,omitempty"`
+
+	// ProviderClusters specifies the clusters which will provide the service backend.
+	// If leave it empty, we will collect the backend endpoints from all clusters and sync
+	// them to the ConsumerClusters.
+	// +optional
+	ProviderClusters []ClusterSelector `json:"providerClusters,omitempty"`
+
+	// ConsumerClusters specifies the clusters where the service will be exposed, for clients.
+	// If leave it empty, the service will be exposed to all clusters.
+	// +optional
+	ConsumerClusters []ClusterSelector `json:"consumerClusters,omitempty"`
+}
+
+// ClusterSelector specifies the cluster to be selected.
+type ClusterSelector struct {
+	// Name is the name of the cluster to be selected.
+	// +required
+	Name string `json:"name,omitempty"`
 }
 
 // ExposureType describes how to expose the service.

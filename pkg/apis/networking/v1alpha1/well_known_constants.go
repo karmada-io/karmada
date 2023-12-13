@@ -23,4 +23,12 @@ const (
 	// The reason for generating a new unique identifier instead of simply using metadata.UUID is because:
 	// In backup scenarios, when applying the backup resource manifest in a new cluster, the UUID may change.
 	MultiClusterServicePermanentIDLabel = "multiclusterservice.karmada.io/permanent-id"
+
+	// MultiClusterServiceNameAnnotation is the name of a MultiClusterService object.
+	// This annotation will be added to the resource template and ResourceBinding
+	MultiClusterServiceNameAnnotation = "multiclusterservice.karmada.io/name"
+
+	// MultiClusterServiceNamespaceAnnotation is the namespace of a MultiClusterService object.
+	// This annotation will be added to the resource template and ResourceBinding
+	MultiClusterServiceNamespaceAnnotation = "multiclusterservice.karmada.io/namespace"
 )
