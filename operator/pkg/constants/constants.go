@@ -55,6 +55,8 @@ const (
 	KarmadaScheduler = "karmada-scheduler"
 	// KarmadaWebhook defines the name of the karmada-webhook component
 	KarmadaWebhook = "karmada-webhook"
+	// KarmadaSearch defines the name of the karmada-search component
+	KarmadaSearch = "karmada-search"
 	// KarmadaDescheduler defines the name of the karmada-descheduler component
 	KarmadaDescheduler = "karmada-descheduler"
 	// KarmadaMetricsAdapter defines the name of the karmada-metrics-adapter component
@@ -111,6 +113,8 @@ const (
 	KarmadaSchedulerComponent = "KarmadaScheduler"
 	// KarmadaWebhookComponent defines the name of the karmada-webhook component
 	KarmadaWebhookComponent = "KarmadaWebhook"
+	// KarmadaSearchComponent defines the name of the karmada-search component
+	KarmadaSearchComponent = "KarmadaSearch"
 	// KarmadaDeschedulerComponent defines the name of the karmada-descheduler component
 	KarmadaDeschedulerComponent = "KarmadaDescheduler"
 	// KarmadaMetricsAdapterComponent defines the name of the karmada-metrics-adapter component
@@ -132,5 +136,10 @@ var (
 		{Group: "metrics.k8s.io", Version: "v1beta1"},
 		{Group: "custom.metrics.k8s.io", Version: "v1beta1"},
 		{Group: "custom.metrics.k8s.io", Version: "v1beta2"},
+	}
+
+	// KarmadaSearchAPIServices defines the GroupVersions of all karmada-search APIServices
+	KarmadaSearchAPIServices = []schema.GroupVersion{
+		{Group: "search.karmada.io", Version: "v1alpha1"},
 	}
 )

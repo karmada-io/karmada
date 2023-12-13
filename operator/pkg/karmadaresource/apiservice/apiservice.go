@@ -169,3 +169,64 @@ func karmadaMetricsAdapterService(client clientset.Interface, karmadaControlPlan
 	}
 	return nil
 }
+
+// EnsureSearchAPIService creates APIService and a service for karmada-metrics-adapter
+func EnsureSearchAPIService(aggregatorClient *aggregator.Clientset, client clientset.Interface, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, hostClusterServiceName, hostClusterNamespace, caBundle string) error {
+	if err := karmadaSearchService(client, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, hostClusterServiceName, hostClusterNamespace); err != nil {
+		return err
+	}
+
+	return karmadaSearchAPIService(aggregatorClient, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, caBundle)
+}
+
+func karmadaSearchAPIService(client *aggregator.Clientset, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, caBundle string) error {
+	apiServiceBytes, err := util.ParseTemplate(KarmadaSearchAPIService, struct {
+		ServiceName, Namespace string
+		CABundle               string
+	}{
+		Namespace:   karmadaControlPlaneNamespace,
+		ServiceName: util.KarmadaSearchAPIServerName(karmadaControlPlaneServiceName),
+		CABundle:    caBundle,
+	})
+	if err != nil {
+		return fmt.Errorf("error when parsing KarmadaSearch APIService template: %s", err.Error())
+	}
+
+	apiService := &apiregistrationv1.APIService{}
+	if err = runtime.DecodeInto(codecs.UniversalDecoder(), apiServiceBytes, apiService); err != nil {
+		return fmt.Errorf("err when decoding KarmadaSearch APIService: %s", err.Error())
+	}
+
+	if err = apiclient.CreateOrUpdateAPIService(client, apiService); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func karmadaSearchService(client clientset.Interface, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, hostClusterServiceName, hostClusterNamespace string) error {
+	searchApiserverServiceBytes, err := util.ParseTemplate(KarmadaSearchService, struct {
+		Namespace              string
+		ServiceName            string
+		HostClusterServiceName string
+		HostClusterNamespace   string
+	}{
+		Namespace:              karmadaControlPlaneNamespace,
+		ServiceName:            util.KarmadaSearchName(karmadaControlPlaneServiceName),
+		HostClusterServiceName: util.KarmadaSearchName(hostClusterServiceName),
+		HostClusterNamespace:   hostClusterNamespace,
+	})
+	if err != nil {
+		return fmt.Errorf("error when parsing KarmadaSearch Service template: %w", err)
+	}
+
+	searchService := &corev1.Service{}
+	if err := runtime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), searchApiserverServiceBytes, searchService); err != nil {
+		return fmt.Errorf("err when decoding KarmadaSearch Service: %w", err)
+	}
+
+	if err := apiclient.CreateOrUpdateService(client, searchService); err != nil {
+		return err
+	}
+	return nil
+}
