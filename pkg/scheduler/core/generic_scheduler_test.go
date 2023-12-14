@@ -155,9 +155,9 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 		},
 		// Test Case No.3 of even distribution of replicas
 		// 1. create deployment (replicas=7), weight=2:1:1:1
-		// 2. check three member cluster replicas, can be 3:2:1:1、3:1:2:1、3:1:1:2
+		// 2. check four member cluster replicas, can be 3:2:1:1、3:1:2:1、3:1:1:2
 		// 3. update replicas from 7 to 8
-		// 4. check three member cluster replicas, the added replica should lie in first cluster, i.e:
+		// 4. check four member cluster replicas, the added replica should lie in first cluster, i.e:
 		//    * 3:2:1:1 --> 4:2:1:1
 		//    * 3:1:2:1 --> 4:1:2:1
 		//    * 3:1:1:2 --> 4:1:1:2
@@ -223,6 +223,76 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		// Test Case No.4 of even distribution of replicas
+		// 1. create deployment (replicas=9), weight=2:1:1:1
+		// 2. check four member cluster replicas, can be 4:2:2:1、4:1:2:2、4:2:1:2
+		// 3. update replicas from 9 to 8
+		// 4. check four member cluster replicas, the reduced replica should be scaled down from cluster with 2 replicas previously, i.e:
+		//    * 4:2:2:1 --> 4:2:1:1 or 4:1:2:1
+		//    * 4:1:2:2 --> 4:1:1:2 or 4:1:2:1
+		//    * 4:2:1:2 --> 4:1:1:2 or 4:2:1:1
+		{
+			name: "replica 9, static weighted 2:1:1:1, change replicas from 9 to 8, before change",
+			clusters: []*clusterv1alpha1.Cluster{
+				helper.NewCluster(ClusterMember1),
+				helper.NewCluster(ClusterMember2),
+				helper.NewCluster(ClusterMember3),
+				helper.NewCluster(ClusterMember4),
+			},
+			object: workv1alpha2.ResourceBindingSpec{
+				Replicas: 9,
+			},
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+					WeightPreference: &policyv1alpha1.ClusterPreferences{
+						StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 2},
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember4}}, Weight: 1},
+						},
+					},
+				},
+			},
+			previousResultToNewResult: map[string][]string{
+				"": {"4:2:2:1", "4:1:2:2", "4:2:1:2"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "replica 9, static weighted 2:1:1:1, change replicas from 9 to 8, after change",
+			clusters: []*clusterv1alpha1.Cluster{
+				helper.NewCluster(ClusterMember1),
+				helper.NewCluster(ClusterMember2),
+				helper.NewCluster(ClusterMember3),
+				helper.NewCluster(ClusterMember4),
+			},
+			object: workv1alpha2.ResourceBindingSpec{
+				Replicas: 8,
+			},
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+					WeightPreference: &policyv1alpha1.ClusterPreferences{
+						StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 2},
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember4}}, Weight: 1},
+						},
+					},
+				},
+			},
+			previousResultToNewResult: map[string][]string{
+				"4:2:2:1": {"4:2:1:1", "4:1:2:1"},
+				"4:1:2:2": {"4:1:1:2", "4:1:2:1"},
+				"4:2:1:2": {"4:1:1:2", "4:2:1:1"},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -242,7 +312,7 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 					return
 				}
 
-				// 3. check if previous schedule result valid
+				// 3. check if schedule result got match to expected
 				gotResult := targetClusterToString(got)
 				for _, expectResult := range expect {
 					if gotResult == expectResult {
