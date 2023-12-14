@@ -82,6 +82,9 @@ const (
 
 	// WorkNameLabel is added to objects to specify associated Work's name.
 	WorkNameLabel = "work.karmada.io/name"
+
+	// BindingManagedByLabel is added to ResourceBinding to represent what kind of resource manages this Binding.
+	BindingManagedByLabel = "binding.karmada.io/managed-by"
 )
 
 // Define resource conflict resolution

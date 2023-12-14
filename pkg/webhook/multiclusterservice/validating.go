@@ -103,19 +103,19 @@ func (v *ValidatingAdmission) validateMultiClusterServiceSpec(mcs *networkingv1a
 		exposureType := mcs.Spec.Types[i]
 		allErrs = append(allErrs, v.validateExposureType(&exposureType, typePath)...)
 	}
-	clusterNamesPath := specPath.Child("range").Child("serviceProvisionClusters")
-	for i := range mcs.Spec.ServiceProvisionClusters {
+	clusterNamesPath := specPath.Child("range").Child("providerClusters")
+	for i := range mcs.Spec.ProviderClusters {
 		clusterNamePath := clusterNamesPath.Index(i)
-		clusterName := mcs.Spec.ServiceProvisionClusters[i]
+		clusterName := mcs.Spec.ProviderClusters[i].Name
 		if errMegs := clustervalidation.ValidateClusterName(clusterName); len(errMegs) > 0 {
 			allErrs = append(allErrs, field.Invalid(clusterNamePath, clusterName, strings.Join(errMegs, ",")))
 		}
 	}
 
-	clusterNamesPath = specPath.Child("range").Child("serviceConsumptionClusters")
-	for i := range mcs.Spec.ServiceConsumptionClusters {
+	clusterNamesPath = specPath.Child("range").Child("consumerClusters")
+	for i := range mcs.Spec.ConsumerClusters {
 		clusterNamePath := clusterNamesPath.Index(i)
-		clusterName := mcs.Spec.ServiceConsumptionClusters[i]
+		clusterName := mcs.Spec.ConsumerClusters[i].Name
 		if errMegs := clustervalidation.ValidateClusterName(clusterName); len(errMegs) > 0 {
 			allErrs = append(allErrs, field.Invalid(clusterNamePath, clusterName, strings.Join(errMegs, ",")))
 		}

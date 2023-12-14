@@ -91,7 +91,7 @@ func (c *EndpointSliceCollectController) Reconcile(ctx context.Context, req cont
 	}
 
 	if !work.DeletionTimestamp.IsZero() {
-		// The Provision Clusters' EndpointSlice will be deleted by mcs_controller, let's just ignore it
+		// The Provider Clusters' EndpointSlice will be deleted by mcs_controller, let's just ignore it
 		return controllerruntime.Result{}, nil
 	}
 
@@ -376,7 +376,7 @@ func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructur
 
 	workMeta := metav1.ObjectMeta{
 		// Karmada will synchronize this work to other cluster namespaces and add the cluster name to prevent conflicts.
-		Name:      names.GenerateMCSWorkName(endpointSlice.GetKind(), endpointSlice.GetName(), endpointSlice.GetNamespace(), clusterName),
+		Name:      names.GenerateWorkName(endpointSlice.GetKind(), endpointSlice.GetName(), endpointSlice.GetNamespace()),
 		Namespace: executionSpace,
 		Labels: map[string]string{
 			util.MultiClusterServiceNamespaceLabel: endpointSlice.GetNamespace(),
@@ -400,7 +400,7 @@ func cleanupWorkWithEndpointSliceDelete(c client.Client, endpointSliceKey keys.F
 
 	workNamespaceKey := types.NamespacedName{
 		Namespace: executionSpace,
-		Name:      names.GenerateMCSWorkName(endpointSliceKey.Kind, endpointSliceKey.Name, endpointSliceKey.Namespace, endpointSliceKey.Cluster),
+		Name:      names.GenerateWorkName(endpointSliceKey.Kind, endpointSliceKey.Name, endpointSliceKey.Namespace),
 	}
 	work := &workv1alpha1.Work{}
 	if err := c.Get(context.TODO(), workNamespaceKey, work); err != nil {

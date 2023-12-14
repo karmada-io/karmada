@@ -44,6 +44,18 @@ spec:
           spec:
             description: Spec is the desired state of the MultiClusterService.
             properties:
+              consumerClusters:
+                description: ConsumerClusters specifies the clusters where the service
+                  will be exposed, for clients. If leave it empty, the service will
+                  be exposed to all clusters.
+                items:
+                  description: ClusterSelector specifies the cluster to be selected.
+                  properties:
+                    name:
+                      description: Name is the name of the cluster to be selected.
+                      type: string
+                  type: object
+                type: array
               ports:
                 description: Ports is the list of ports that are exposed by this MultiClusterService.
                   No specified port will be filtered out during the service exposure
@@ -65,12 +77,24 @@ spec:
                   - port
                   type: object
                 type: array
+              providerClusters:
+                description: ProviderClusters specifies the clusters which will provide
+                  the service backend. If leave it empty, we will collect the backend
+                  endpoints from all clusters and sync them to the ConsumerClusters.
+                items:
+                  description: ClusterSelector specifies the cluster to be selected.
+                  properties:
+                    name:
+                      description: Name is the name of the cluster to be selected.
+                      type: string
+                  type: object
+                type: array
               range:
                 description: 'Range specifies the ranges where the referencing service
                   should be exposed. Only valid and optional in case of Types contains
                   CrossCluster. If not set and Types contains CrossCluster, all clusters
                   will be selected, that means the referencing service will be exposed
-                  across all registered clusters. Deprecated: in favor of ServiceProvisionClusters/ServiceConsumptionClusters.'
+                  across all registered clusters. Deprecated: in favor of ProviderClusters/ConsumerClusters.'
                 properties:
                   clusterNames:
                     description: ClusterNames is the list of clusters to be selected.
@@ -79,16 +103,18 @@ spec:
                     type: array
                 type: object
               serviceConsumptionClusters:
-                description: ServiceConsumptionClusters specifies the clusters where
+                description: 'ServiceConsumptionClusters specifies the clusters where
                   the service will be exposed, for clients. If leave it empty, the
-                  service will be exposed to all clusters.
+                  service will be exposed to all clusters. Deprecated: in favor of
+                  ProviderClusters/ConsumerClusters.'
                 items:
                   type: string
                 type: array
               serviceProvisionClusters:
-                description: ServiceProvisionClusters specifies the clusters which
+                description: 'ServiceProvisionClusters specifies the clusters which
                   will provision the service backend. If leave it empty, we will collect
                   the backend endpoints from all clusters and sync them to the ServiceConsumptionClusters.
+                  Deprecated: in favor of ProviderClusters/ConsumerClusters.'
                 items:
                   type: string
                 type: array

@@ -27,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
@@ -150,17 +149,17 @@ func (c *EndpointsliceDispatchController) updateEndpointSliceDispatched(mcs *net
 func (c *EndpointsliceDispatchController) SetupWithManager(mgr controllerruntime.Manager) error {
 	workPredicateFun := predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
-			// We only care about the EndpointSlice work from provision clusters
+			// We only care about the EndpointSlice work from provider clusters
 			return util.GetLabelValue(createEvent.Object.GetLabels(), util.MultiClusterServiceNameLabel) != "" &&
 				util.GetAnnotationValue(createEvent.Object.GetAnnotations(), util.EndpointSliceProvisionClusterAnnotation) == ""
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			// We only care about the EndpointSlice work from provision clusters
+			// We only care about the EndpointSlice work from provider clusters
 			return util.GetLabelValue(updateEvent.ObjectNew.GetLabels(), util.MultiClusterServiceNameLabel) != "" &&
 				util.GetAnnotationValue(updateEvent.ObjectNew.GetAnnotations(), util.EndpointSliceProvisionClusterAnnotation) == ""
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			// We only care about the EndpointSlice work from provision clusters
+			// We only care about the EndpointSlice work from provider clusters
 			return util.GetLabelValue(deleteEvent.Object.GetLabels(), util.MultiClusterServiceNameLabel) != "" &&
 				util.GetAnnotationValue(deleteEvent.Object.GetAnnotations(), util.EndpointSliceProvisionClusterAnnotation) == ""
 		},
@@ -192,9 +191,9 @@ func (c *EndpointsliceDispatchController) newClusterFunc() handler.MapFunc {
 
 		var requests []reconcile.Request
 		for _, mcs := range mcsList.Items {
-			clusterSet, err := helper.GetConsumptionClustres(c.Client, mcs.DeepCopy())
+			clusterSet, _, err := helper.GetConsumerClustres(c.Client, mcs.DeepCopy())
 			if err != nil {
-				klog.Errorf("Failed to get provision clusters, error: %v", err)
+				klog.Errorf("Failed to get provider clusters, error: %v", err)
 				continue
 			}
 
@@ -208,9 +207,9 @@ func (c *EndpointsliceDispatchController) newClusterFunc() handler.MapFunc {
 				continue
 			}
 			for _, work := range workList {
-				// This annotation is only added to the EndpointSlice work in consumption clusters' execution namespace
-				// Here, when new cluster joins to Karmada and it's in the consumption cluster set, we need to re-sync the EndpointSlice work
-				// from provision cluster to the newly joined cluster
+				// This annotation is only added to the EndpointSlice work in consumer clusters' execution namespace
+				// Here, when new cluster joins to Karmada and it's in the consumer cluster set, we need to re-sync the EndpointSlice work
+				// from provider cluster to the newly joined cluster
 				if util.GetLabelValue(work.Annotations, util.EndpointSliceProvisionClusterAnnotation) != "" {
 					continue
 				}
@@ -256,7 +255,7 @@ func (c *EndpointsliceDispatchController) newMultiClusterServiceFunc() handler.M
 
 		var requests []reconcile.Request
 		for _, work := range workList {
-			// We only care about the EndpointSlice work from provision clusters
+			// We only care about the EndpointSlice work from provider clusters
 			if util.GetLabelValue(work.Annotations, util.EndpointSliceProvisionClusterAnnotation) != "" {
 				continue
 			}
@@ -279,14 +278,14 @@ func (c *EndpointsliceDispatchController) cleanOrphanDispatchedEndpointSlice(ctx
 	}
 
 	for _, work := range workList.Items {
-		// We only care about the EndpointSlice work in consumption clusters
+		// We only care about the EndpointSlice work in consumer clusters
 		if util.GetAnnotationValue(work.Annotations, util.EndpointSliceProvisionClusterAnnotation) == "" {
 			continue
 		}
 
-		consumptionClusters, err := helper.GetConsumptionClustres(c.Client, mcs)
+		consumerClusters, _, err := helper.GetConsumerClustres(c.Client, mcs)
 		if err != nil {
-			klog.Errorf("Failed to get consumption clusters, error is: %v", err)
+			klog.Errorf("Failed to get consumer clusters, error is: %v", err)
 			return err
 		}
 
@@ -296,7 +295,7 @@ func (c *EndpointsliceDispatchController) cleanOrphanDispatchedEndpointSlice(ctx
 			return err
 		}
 
-		if consumptionClusters.Has(cluster) {
+		if consumerClusters.Has(cluster) {
 			continue
 		}
 
@@ -316,15 +315,12 @@ func (c *EndpointsliceDispatchController) dispatchEndpointSlice(ctx context.Cont
 		return err
 	}
 
-	consumptionClusters := sets.New[string](mcs.Spec.ServiceConsumptionClusters...)
-	if len(consumptionClusters) == 0 {
-		consumptionClusters, err = util.GetClusterSet(c.Client)
-		if err != nil {
-			klog.Errorf("Failed to get cluster set, error is: %v", err)
-			return err
-		}
+	consumerClusters, _, err := helper.GetConsumerClustres(c.Client, mcs)
+	if err != nil {
+		klog.Errorf("Failed to get consumer clusters, error is: %v", err)
+		return err
 	}
-	for clusterName := range consumptionClusters {
+	for clusterName := range consumerClusters {
 		if clusterName == epsSourceCluster {
 			continue
 		}
@@ -409,7 +405,7 @@ func (c *EndpointsliceDispatchController) cleanupEndpointSliceFromConsumerCluste
 
 	epsSourceCluster, err := names.GetClusterName(work.Namespace)
 	if err != nil {
-		klog.Errorf("Failed to get EndpointSlice provision cluster name for work %s/%s", work.Namespace, work.Name)
+		klog.Errorf("Failed to get EndpointSlice provider cluster name for work %s/%s", work.Namespace, work.Name)
 		return err
 	}
 	for _, item := range workList.Items {

@@ -58,6 +58,9 @@ const (
 	// resourcetemplate.karmada.io/retain-replicas: true   // with value `true` indicates retain
 	// resourcetemplate.karmada.io/retain-replicas: false  // with value `false` and others, indicates not retain
 	RetainReplicasLabel = "resourcetemplate.karmada.io/retain-replicas"
+
+	// ResourceTemplateClaimedByLabel is added to the ResourceTemplate, indicating which resource is in charge of propagating the ResourceTemplate.
+	ResourceTemplateClaimedByLabel = "resourcetemplate.karmada.io/claimed-by"
 )
 
 const (
@@ -106,7 +109,7 @@ const (
 	// before ResourceBinding itself is deleted.
 	BindingControllerFinalizer = "karmada.io/binding-controller"
 
-	// MCSEndpointSliceCollectControllerFinalizer is added to mcs to ensure related Works in provision clusters are deleted
+	// MCSEndpointSliceCollectControllerFinalizer is added to mcs to ensure related Works in provider clusters are deleted
 	MCSEndpointSliceCollectControllerFinalizer = "karmada.io/mcs-endpointslice-collect-controller"
 
 	// MCSEndpointSliceDispatchControllerFinalizer is added to mcs to ensure related Works in consumption clusters are deleted
@@ -172,6 +175,9 @@ const (
 	ServiceExportKind = "ServiceExport"
 	// ServiceImportKind indicates the target resource is a serviceimport crd
 	ServiceImportKind = "ServiceImport"
+
+	// MultiClusterServiceKind indicates the target resource is a MultiClusterService
+	MultiClusterServiceKind = "MultiClusterService"
 )
 
 // Define resource filed

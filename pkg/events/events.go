@@ -132,12 +132,14 @@ const (
 
 // Define events for MultiClusterService objects with CrossCluster type.
 const (
-	// EventReasonSyncServiceWorkFailed is indicates that sync service work failed.
-	EventReasonSyncServiceWorkFailed string = "SyncServiceWorkFailed"
-	// EventReasonSyncServiceWorkSucceed is indicates that sync service work succeed.
-	EventReasonSyncServiceWorkSucceed string = "SyncServiceWorkSucceed"
+	// EventReasonSyncServiceFailed is indicates that sync service failed.
+	EventReasonSyncServiceFailed string = "SyncServiceFailed"
+	// EventReasonSyncServiceSucceed is indicates that sync service succeed.
+	EventReasonSyncServiceSucceed string = "SyncServiceSucceed"
 	// EventReasonDispatchEndpointSliceFailed indicates that dispatch endpointslice failed.
 	EventReasonDispatchEndpointSliceFailed = "DispatchEndpointSliceFailed"
 	// EventReasonDispatchEndpointSliceSucceed indicates that dispatch endpointslice succeed.
 	EventReasonDispatchEndpointSliceSucceed = "DispatchEndpointSliceSucceed"
+	// EventReasonConfigurationRedundant indicates that MultiClusterService configuration redundant.
+	EventReasonConfigurationRedundant = "ConfigurationRedundant"
 )
