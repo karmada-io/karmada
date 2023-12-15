@@ -276,6 +276,10 @@ func (c *WorkStatusController) handleDeleteEvent(key keys.FederatedKey) error {
 		return nil
 	}
 
+	if util.GetLabelValue(work.Labels, util.PropagationInstruction) == util.PropagationInstructionSuppressed {
+		return nil
+	}
+
 	return c.recreateResourceIfNeeded(work, key)
 }
 
