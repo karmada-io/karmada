@@ -17,7 +17,7 @@ metadata:
     # job is considered part of the release.
     "helm.sh/hook": post-install
     "helm.sh/hook-weight": "0"
-    "helm.sh/hook-delete-policy": hook-succeeded
+    "helm.sh/hook-delete-policy": {{ .Values.postInstallJob.hookDeletePolicy }}
 spec:
   parallelism: 1
   completions: 1

@@ -79,16 +79,22 @@ kubectl:
 preInstallJob:
   tolerations: []
   nodeSelector: {}
+  ## Define policies that determine when to delete corresponding hook resources: before-hook-creation,hook-succeeded,hook-failed
+  hookDeletePolicy: "hook-succeeded"
 
 ## post-install job config
 postInstallJob:
   tolerations: []
   nodeSelector: {}
+  ## Define policies that determine when to delete corresponding hook resources: before-hook-creation,hook-succeeded,hook-failed
+  hookDeletePolicy: "hook-succeeded"
 
 ## post-delete job config
 postDeleteJob:
   tolerations: []
   nodeSelector: {}
+  ## Define policies that determine when to delete corresponding hook resources: before-hook-creation,hook-succeeded,hook-failed
+  hookDeletePolicy: "hook-succeeded"
 
 ## karmada certificate config
 certs:
