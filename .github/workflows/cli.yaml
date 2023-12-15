@@ -13,6 +13,7 @@ jobs:
     name: init
     runs-on: ubuntu-22.04
     strategy:
+      fail-fast: false
       matrix:
         # Here support the latest three minor releases of Kubernetes, this can be considered to be roughly
         # the same as the End of Life of the Kubernetes release: https://kubernetes.io/releases/
