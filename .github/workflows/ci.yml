@@ -106,6 +106,7 @@ jobs:
     needs: build
     runs-on: ubuntu-22.04
     strategy:
+      fail-fast: false
       matrix:
         k8s: [ v1.21.10, v1.22.7, v1.23.4, v1.24.2, v1.25.0, v1.26.0 ]
     steps:
