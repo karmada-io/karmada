@@ -286,9 +286,7 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 			})
 			ginkgo.It("when the ReplicaScheduling of the policy is nil, reschedule testing", func() {
 				ginkgo.By("create deployment and policy")
-
 				framework.CreatePropagationPolicy(karmadaClient, policy)
-
 				framework.CreateDeployment(kubeClient, deployment)
 				ginkgo.DeferCleanup(func() {
 					framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
@@ -391,7 +389,7 @@ var _ = ginkgo.Describe("[cluster labels changed] reschedule testing while polic
 				func(deployment *appsv1.Deployment) bool { return true })
 		})
 
-		ginkgo.It("change labels to testing deployment reschedule", func() {
+		ginkgo.It("change labels to testing deployment reschedule(PropagationPolicy)", func() {
 			labelsUpdate := map[string]string{labelKey: "not_ok"}
 			framework.UpdateClusterLabels(karmadaClient, targetMember, labelsUpdate)
 			framework.WaitDeploymentDisappearOnCluster(targetMember, deployment.Namespace, deployment.Name)
@@ -423,16 +421,14 @@ var _ = ginkgo.Describe("[cluster labels changed] reschedule testing while polic
 
 		ginkgo.BeforeEach(func() {
 			framework.CreateClusterPropagationPolicy(karmadaClient, policy)
-
 			ginkgo.DeferCleanup(func() {
 				framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
 			})
-
 			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment.Namespace, deployment.Name,
 				func(deployment *appsv1.Deployment) bool { return true })
 		})
 
-		ginkgo.It("change labels to testing deployment reschedule", func() {
+		ginkgo.It("change labels to testing deployment reschedule(ClusterPropagationPolicy)", func() {
 			labelsUpdate := map[string]string{labelKey: "not_ok"}
 			framework.UpdateClusterLabels(karmadaClient, targetMember, labelsUpdate)
 			framework.WaitDeploymentDisappearOnCluster(targetMember, deployment.Namespace, deployment.Name)
