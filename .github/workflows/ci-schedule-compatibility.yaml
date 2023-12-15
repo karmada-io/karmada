@@ -18,13 +18,13 @@ jobs:
 
         include:
         - karmada-version: release-1.5
-          go-version: 1.19.5
+          go-version: 1.19.13
 
         - karmada-version: release-1.6
-          go-version: 1.20.5
+          go-version: 1.20.12
 
         - karmada-version: release-1.7
-          go-version: 1.20.6
+          go-version: 1.20.12
 
     steps:
       # Free up disk space on Ubuntu
