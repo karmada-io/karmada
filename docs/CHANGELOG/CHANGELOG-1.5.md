@@ -2,30 +2,36 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.5.4](#v154)
-  - [Downloads for v1.5.4](#downloads-for-v154)
-  - [Changelog since v1.5.3](#changelog-since-v153)
+- [v1.5.5](#v155)
+  - [Downloads for v1.5.5](#downloads-for-v155)
+  - [Changelog since v1.5.4](#changelog-since-v154)
     - [Changes by Kind](#changes-by-kind)
     - [Bug Fixes](#bug-fixes)
     - [Others](#others)
+- [v1.5.4](#v154)
+  - [Downloads for v1.5.4](#downloads-for-v154)
+  - [Changelog since v1.5.3](#changelog-since-v153)
+    - [Changes by Kind](#changes-by-kind-1)
+    - [Bug Fixes](#bug-fixes-1)
+    - [Others](#others-1)
 - [v1.5.3](#v153)
   - [Downloads for v1.5.3](#downloads-for-v153)
   - [Changelog since v1.5.2](#changelog-since-v152)
-    - [Changes by Kind](#changes-by-kind-1)
-      - [Bug Fixes](#bug-fixes-1)
-      - [Others](#others-1)
-- [v1.5.2](#v152)
-  - [Downloads for v1.5.2](#downloads-for-v152)
-  - [Changelog since v1.5.1](#changelog-since-v151)
     - [Changes by Kind](#changes-by-kind-2)
       - [Bug Fixes](#bug-fixes-2)
       - [Others](#others-2)
-- [v1.5.1](#v151)
-  - [Downloads for v1.5.1](#downloads-for-v151)
-  - [Changelog since v1.5.0](#changelog-since-v150)
+- [v1.5.2](#v152)
+  - [Downloads for v1.5.2](#downloads-for-v152)
+  - [Changelog since v1.5.1](#changelog-since-v151)
     - [Changes by Kind](#changes-by-kind-3)
       - [Bug Fixes](#bug-fixes-3)
       - [Others](#others-3)
+- [v1.5.1](#v151)
+  - [Downloads for v1.5.1](#downloads-for-v151)
+  - [Changelog since v1.5.0](#changelog-since-v150)
+    - [Changes by Kind](#changes-by-kind-4)
+      - [Bug Fixes](#bug-fixes-4)
+      - [Others](#others-4)
 - [v1.5.0](#v150)
   - [Downloads for v1.5.0](#downloads-for-v150)
   - [What's New](#whats-new)
@@ -33,7 +39,7 @@
     - [New Way to Customize Scheduler](#new-way-to-customize-scheduler)
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
-    - [Bug Fixes](#bug-fixes-4)
+    - [Bug Fixes](#bug-fixes-5)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -42,6 +48,22 @@
     - [Instrumentation](#instrumentation)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.5.5
+## Downloads for v1.5.5
+
+Download v1.5.5 in the [v1.5.5 release page](https://github.com/karmada-io/karmada/releases/tag/v1.5.5).
+
+## Changelog since v1.5.4
+### Changes by Kind
+### Bug Fixes
+- `karmada-controller-manager`: only update `aggregatedStatus` and `conditions` fields during `binding-status controller` updating status of binding. ([#4236](https://github.com/karmada-io/karmada/pull/4236), @jwcesign)
+- `karmada-controller-manager`: Pruned job labels `batch.kubernetes.io/controller-uid` and `batch.kubernetes.io/job-name` which were introduced by Kubernetes 1.27. ([#4264](https://github.com/karmada-io/karmada/pull/4264), @liangyuanpeng)
+- `karmada-search`: Fix lock race affects watch RestChan not close, causing client hanging when performing watch. ([#4242](https://github.com/karmada-io/karmada/pull/4242), @xigang)
+
+### Others
+- `release1.5`: The base image `alpine` now has been promoted from `alpine:3.17.1` to `alpine:3.18.5`. ([#4382](https://github.com/karmada-io/karmada/pull/4382), @zhzhuang-zju)
+- Karmada is now built with Go1.19.13.  ([#4394](https://github.com/karmada-io/karmada/pull/4394), @RainbowMango)
 
 # v1.5.4
 ## Downloads for v1.5.4
