@@ -96,6 +96,7 @@ func DeleteEndpointSlice(c client.Client, selector labels.Set) error {
 	return errors.NewAggregate(errs)
 }
 
+// MultiClusterServiceCrossClusterEnabled will check if it's a CrossCluster MultiClusterService.
 func MultiClusterServiceCrossClusterEnabled(mcs *networkingv1alpha1.MultiClusterService) bool {
 	for _, svcType := range mcs.Spec.Types {
 		if svcType == networkingv1alpha1.ExposureTypeCrossCluster {
@@ -106,34 +107,36 @@ func MultiClusterServiceCrossClusterEnabled(mcs *networkingv1alpha1.MultiCluster
 	return false
 }
 
-func GetProviderClusters(client client.Client, mcs *networkingv1alpha1.MultiClusterService) (existClusters, noneExistClusters sets.Set[string], err error) {
+// GetProviderClusters will extract the target provider clusters of the service
+func GetProviderClusters(client client.Client, mcs *networkingv1alpha1.MultiClusterService) (sets.Set[string], error) {
 	providerClusters := sets.New[string]()
 	for _, p := range mcs.Spec.ProviderClusters {
 		providerClusters.Insert(p.Name)
 	}
+	if len(providerClusters) != 0 {
+		return providerClusters, nil
+	}
 	allClusters, err := util.GetClusterSet(client)
 	if err != nil {
 		klog.Errorf("Failed to get cluster set, Error: %v", err)
-		return nil, nil, err
+		return nil, err
 	}
-	if len(providerClusters) == 0 {
-		return allClusters, nil, nil
-	}
-	return providerClusters.Clone().Intersection(allClusters), providerClusters.Clone().Delete(allClusters.UnsortedList()...), nil
+	return allClusters, nil
 }
 
-func GetConsumerClustres(client client.Client, mcs *networkingv1alpha1.MultiClusterService) (existClusters, noneExistClusters sets.Set[string], err error) {
+// GetProviderClusters will extract the target consumer clusters of the service
+func GetConsumerClusters(client client.Client, mcs *networkingv1alpha1.MultiClusterService) (sets.Set[string], error) {
 	consumerClusters := sets.New[string]()
 	for _, c := range mcs.Spec.ConsumerClusters {
 		consumerClusters.Insert(c.Name)
 	}
+	if len(consumerClusters) != 0 {
+		return consumerClusters, nil
+	}
 	allClusters, err := util.GetClusterSet(client)
 	if err != nil {
 		klog.Errorf("Failed to get cluster set, Error: %v", err)
-		return nil, nil, err
+		return nil, err
 	}
-	if len(consumerClusters) == 0 {
-		return allClusters, nil, nil
-	}
-	return consumerClusters.Clone().Intersection(allClusters), consumerClusters.Clone().Delete(allClusters.UnsortedList()...), nil
+	return allClusters, nil
 }

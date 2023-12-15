@@ -16,7 +16,11 @@ limitations under the License.
 
 package util
 
-import "time"
+import (
+	"time"
+
+	discoveryv1 "k8s.io/api/discovery/v1"
+)
 
 // Define labels used by karmada system.
 const (
@@ -210,4 +214,9 @@ const (
 const (
 	// CacheSyncTimeout refers to the time limit set on waiting for cache to sync
 	CacheSyncTimeout = 2 * time.Minute
+)
+
+var (
+	// EndpointSliceGVK is the GroupVersionKind of K8s native EndpointSlice.
+	EndpointSliceGVK = discoveryv1.SchemeGroupVersion.WithKind("EndpointSlice")
 )
