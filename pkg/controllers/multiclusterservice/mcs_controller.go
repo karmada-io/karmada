@@ -418,16 +418,7 @@ func (c *MCSController) propagateService(ctx context.Context, mcs *networkingv1a
 
 func (c *MCSController) buildResourceBinding(svc *corev1.Service, mcs *networkingv1alpha1.MultiClusterService,
 	providerClusters, consumerClusters sets.Set[string]) (*workv1alpha2.ResourceBinding, error) {
-	allClusters, err := util.GetClusterSet(c.Client)
-	if err != nil {
-		klog.Errorf("Failed to get all clusters:%v", err)
-		return nil, err
-	}
-
 	propagateClusters := providerClusters.Clone().Insert(consumerClusters.Clone().UnsortedList()...)
-	if propagateClusters.Equal(allClusters) {
-		propagateClusters = sets.Set[string]{}
-	}
 	placement := &policyv1alpha1.Placement{
 		ClusterAffinity: &policyv1alpha1.ClusterAffinity{
 			ClusterNames: propagateClusters.UnsortedList(),
