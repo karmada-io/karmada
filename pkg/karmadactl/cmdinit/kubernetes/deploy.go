@@ -93,8 +93,8 @@ var (
 	DefaultKarmadaSchedulerImage string
 	// DefaultKarmadaControllerManagerImage Karmada controller manager image
 	DefaultKarmadaControllerManagerImage string
-	// DefualtKarmadaWebhookImage Karmada webhook image
-	DefualtKarmadaWebhookImage string
+	// DefaultKarmadaWebhookImage Karmada webhook image
+	DefaultKarmadaWebhookImage string
 	// DefaultKarmadaAggregatedAPIServerImage Karmada aggregated apiserver image
 	DefaultKarmadaAggregatedAPIServerImage string
 )
@@ -117,7 +117,7 @@ func init() {
 	DefaultInitImage = "docker.io/alpine:3.18.5"
 	DefaultKarmadaSchedulerImage = fmt.Sprintf("docker.io/karmada/karmada-scheduler:%s", releaseVer.ReleaseVersion())
 	DefaultKarmadaControllerManagerImage = fmt.Sprintf("docker.io/karmada/karmada-controller-manager:%s", releaseVer.ReleaseVersion())
-	DefualtKarmadaWebhookImage = fmt.Sprintf("docker.io/karmada/karmada-webhook:%s", releaseVer.ReleaseVersion())
+	DefaultKarmadaWebhookImage = fmt.Sprintf("docker.io/karmada/karmada-webhook:%s", releaseVer.ReleaseVersion())
 	DefaultKarmadaAggregatedAPIServerImage = fmt.Sprintf("docker.io/karmada/karmada-aggregated-apiserver:%s", releaseVer.ReleaseVersion())
 }
 
@@ -696,7 +696,7 @@ func (i *CommandInitOption) karmadaControllerManagerImage() string {
 
 // get karmada-webhook image
 func (i *CommandInitOption) karmadaWebhookImage() string {
-	if i.ImageRegistry != "" && i.KarmadaWebhookImage == DefualtKarmadaWebhookImage {
+	if i.ImageRegistry != "" && i.KarmadaWebhookImage == DefaultKarmadaWebhookImage {
 		return i.ImageRegistry + "/karmada-webhook:" + karmadaRelease
 	}
 	return i.KarmadaWebhookImage

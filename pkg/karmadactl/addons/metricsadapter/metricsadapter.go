@@ -190,7 +190,7 @@ func installComponentsOnKarmadaControlPlane(opts *addoninit.CommandAddonsEnableO
 	caCertName := fmt.Sprintf("%s.crt", options.CaCertAndKeyName)
 	karmadaCerts, err := opts.KubeClientSet.CoreV1().Secrets(opts.Namespace).Get(context.TODO(), options.KarmadaCertsName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("error when getting Secret %s/%s, which is used to fetch CaCert for building APISevice: %+v", opts.Namespace, options.KarmadaCertsName, err)
+		return fmt.Errorf("error when getting Secret %s/%s, which is used to fetch CaCert for building APIService: %+v", opts.Namespace, options.KarmadaCertsName, err)
 	}
 
 	aaService := &corev1.Service{}

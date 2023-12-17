@@ -96,7 +96,7 @@ func TestFlagsIP(t *testing.T) {
 		want []net.IP
 	}{
 		{
-			name: "all ips are vaild",
+			name: "all ips are valid",
 			ip:   "10.0.0.1,10.0.0.2",
 			want: []net.IP{
 				net.ParseIP("10.0.0.1"),
@@ -104,7 +104,7 @@ func TestFlagsIP(t *testing.T) {
 			},
 		},
 		{
-			name: "have invaild ip",
+			name: "have invalid ip",
 			ip:   "10.0.0,10.0.0.2",
 			want: []net.IP{
 				net.ParseIP("127.0.0.1"),

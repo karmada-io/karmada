@@ -90,7 +90,7 @@ type InitOpt func(o *InitOptions)
 var _ tasks.InitData = &initData{}
 
 // initData defines all the runtime information used when ruing init workflow;
-// this data is shared across all the tasks tha are included in the workflow.
+// this data is shared across all the tasks that are included in the workflow.
 type initData struct {
 	sync.Once
 	certs.CertStore

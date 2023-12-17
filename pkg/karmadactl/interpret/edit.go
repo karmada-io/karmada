@@ -390,7 +390,7 @@ func parseEditedIntoCustomization(file []byte, into *configv1alpha1.ResourceInte
 			if currRule == nil {
 				return fmt.Errorf("unexpected line %q", line)
 			}
-			script += string(line) + "\n"
+			script += line + "\n"
 		}
 	}
 

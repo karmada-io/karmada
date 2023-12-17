@@ -76,7 +76,7 @@ func VerifyResourceInterpreterContext(uid types.UID, operation configv1alpha1.In
 	switch r := interpreterContext.(type) {
 	case *configv1alpha1.ResourceInterpreterContext:
 		if r.Response == nil {
-			return nil, fmt.Errorf("webhook resonse was absent")
+			return nil, fmt.Errorf("webhook response was absent")
 		}
 
 		if r.Response.UID != uid {

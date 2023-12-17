@@ -108,7 +108,7 @@ verify_downloader() {
   return 0
 }
 
-# Create tempory directory and cleanup when done
+# Create temporary directory and cleanup when done
 setup_tmp() {
   TMP_DIR=$(mktemp -d -t "${INSTALL_CLI_TYPE}"-install.XXXXXXXXXX)
   TMP_METADATA="${TMP_DIR}/${INSTALL_CLI_TYPE}.json"

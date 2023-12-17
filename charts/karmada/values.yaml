@@ -11,7 +11,7 @@ global:
   ##   - myRegistryKeySecretName
   imagePullSecrets: []
 
-  ## #param global.commonLabels Common labels applied to all ressources
+  ## #param global.commonLabels Common labels applied to all resources
   ## E.g.
   ## commonLabels:
   ##   team: infra

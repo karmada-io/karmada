@@ -105,7 +105,7 @@ func runRemoveComponentSubTask(component string, workloadNameFunc util.Namefunc,
 				constants.KarmadaOperatorLabel,
 			)
 			if err != nil {
-				return fmt.Errorf("failed to cleanup serivce of component %s, err: %w", component, err)
+				return fmt.Errorf("failed to cleanup service of component %s, err: %w", component, err)
 			}
 		}
 

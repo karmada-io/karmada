@@ -114,7 +114,7 @@ func (r *ResourceMetricsProvider) getMetricsParallel(resourceFunc queryResourceF
 	}
 
 	// step 2. Query metrics from the filtered target clusters
-	metricsChanel := make(chan interface{})
+	metricsChannel := make(chan interface{})
 
 	var wg sync.WaitGroup
 	for _, clusterName := range targetClusters {
@@ -139,17 +139,17 @@ func (r *ResourceMetricsProvider) getMetricsParallel(resourceFunc queryResourceF
 
 			// If there are multiple metrics with same name, it's ok because it's an array instead of a map.
 			// The HPA controller will calculate the average utilization with the array.
-			metricsChanel <- metrics
+			metricsChannel <- metrics
 		}(clusterName)
 	}
 
 	go func() {
 		wg.Wait()
-		close(metricsChanel)
+		close(metricsChannel)
 	}()
 
 	for {
-		data, ok := <-metricsChanel
+		data, ok := <-metricsChannel
 		if !ok {
 			break
 		}
@@ -426,7 +426,7 @@ func (p *PodLister) convertToPodPartialData(pod *corev1.Pod, selector string, la
 		ret.Annotations = map[string]string{}
 	}
 
-	//If user sets this annotation, we need to remove it to avoid parsing wrong next.
+	// If user sets this annotation, we need to remove it to avoid parsing wrong next.
 	if !labelSelector {
 		delete(ret.Annotations, namespaceSpecifiedAnnotation)
 		delete(ret.Annotations, labelSelectorAnnotationInternal)
@@ -539,7 +539,7 @@ func (n *NodeLister) List(selector labels.Selector) (ret []*corev1.Node, err err
 				nodeTyped.Annotations = map[string]string{}
 			}
 
-			//If user sets this annotation, we need to reset it.
+			// If user sets this annotation, we need to reset it.
 			nodeTyped.Annotations[labelSelectorAnnotationInternal] = selector.String()
 			ret = append(ret, nodeTyped)
 		}
@@ -587,7 +587,7 @@ func (n *NodeLister) Get(name string) (*corev1.Node, error) {
 			nodeTyped.Annotations = map[string]string{}
 		}
 
-		//If user sets this annotation, we need to remove it to avoid parsing wrong next.
+		// If user sets this annotation, we need to remove it to avoid parsing wrong next.
 		delete(nodeTyped.Annotations, labelSelectorAnnotationInternal)
 	}
 

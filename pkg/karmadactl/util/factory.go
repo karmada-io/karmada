@@ -47,7 +47,7 @@ var _ Factory = &factoryImpl{}
 type factoryImpl struct {
 	cmdutil.Factory
 
-	// kubeConfigFlags holds all the flags specificed by user.
+	// kubeConfigFlags holds all the flags specified by user.
 	// These flags will be inherited by the member cluster's client.
 	kubeConfigFlags *genericclioptions.ConfigFlags
 }
