@@ -227,7 +227,7 @@ The process of synchronizing `EndpointSlice` from `ServiceProvisionClusters` to 
   When creating the Work, in order to facilitate problem investigation, we should add following annotation to record the original `EndpointSlice` information:
     * `endpointslice.karmada.io/work-provision-cluster`: the cluster name of the original `EndpointSlice`.
   Also, we should add the following annotation to the syned `EndpointSlice` record the original information:
-    * `endpointslice.karmada.io/endpointslice-generation`: the resoruce generation of the `EndpointSlice`, it could be used to check whether the `EndpointSlice` is the newest version.
+    * `endpointslice.karmada.io/endpointslice-generation`: the resource generation of the `EndpointSlice`, it could be used to check whether the `EndpointSlice` is the newest version.
     * `endpointslice.karmada.io/provision-cluster`: the cluster location of the original `EndpointSlice`.
 1. Karmada will sync the `EndpointSlice`'s work to the member clusters.
 
@@ -274,9 +274,9 @@ We should have following Condition in `MultiClusterService`:
 ```go
 	MCSServiceAppliedConditionType          = "ServiceApplied"
 
-	MCSEndpointSliceCollectedCondtionType = "EndpointSliceCollected"
+	MCSEndpointSliceCollectedConditionType = "EndpointSliceCollected"
 
-	MCSEndpointSliceAppliedCondtionType = "EndpointSliceApplied"
+	MCSEndpointSliceAppliedConditionType = "EndpointSliceApplied"
 ```
 
 `MCSServiceAppliedConditionType` is used to record the status of `Service` propagation, for example:

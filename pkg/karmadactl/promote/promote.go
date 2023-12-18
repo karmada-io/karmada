@@ -155,7 +155,7 @@ type CommandPromoteOption struct {
 
 	// PolicyName is the name of the PropagationPolicy(or ClusterPropagationPolicy),
 	// It defaults to the promoting resource name with a random hash suffix.
-	// It will be ingnored if AutoCreatePolicy is false.
+	// It will be ignored if AutoCreatePolicy is false.
 	PolicyName string
 
 	resource.FilenameOptions

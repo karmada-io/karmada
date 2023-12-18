@@ -115,7 +115,7 @@ func (c *Cluster) Connect(ctx context.Context, request framework.ProxyRequest) (
 		return h, nil
 	}
 
-	// Objects get by client via proxy are edited some fields, different from objets in member clusters.
+	// Objects get by client via proxy are edited some fields, different from objects in member clusters.
 	// So before update, we shall recover these fields.
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		if err = modifyRequest(req, clusterName); err != nil {

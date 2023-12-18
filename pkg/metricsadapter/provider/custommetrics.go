@@ -68,7 +68,7 @@ func (c *CustomMetricsProvider) GetMetricByName(ctx context.Context, name types.
 		return nil, err
 	}
 	metricValueList := &custom_metrics.MetricValueList{}
-	metricsChanel := make(chan *custom_metrics.MetricValueList)
+	metricsChannel := make(chan *custom_metrics.MetricValueList)
 	wg := sync.WaitGroup{}
 	for _, cluster := range clusters {
 		wg.Add(1)
@@ -79,15 +79,15 @@ func (c *CustomMetricsProvider) GetMetricByName(ctx context.Context, name types.
 				klog.Warningf("query %s's %s metric from cluster %s failed, err: %+v", info.GroupResource.String(), info.Metric, clusterName, err)
 				return
 			}
-			metricsChanel <- metrics
+			metricsChannel <- metrics
 		}(cluster.Name)
 	}
 	go func() {
 		wg.Wait()
-		close(metricsChanel)
+		close(metricsChannel)
 	}()
 	for {
-		metrics, ok := <-metricsChanel
+		metrics, ok := <-metricsChannel
 		if !ok {
 			break
 		}
@@ -119,7 +119,7 @@ func (c *CustomMetricsProvider) GetMetricBySelector(ctx context.Context, namespa
 	}
 	metricValueList := &custom_metrics.MetricValueList{}
 	wg := sync.WaitGroup{}
-	metricsChanel := make(chan *custom_metrics.MetricValueList)
+	metricsChannel := make(chan *custom_metrics.MetricValueList)
 	for _, cluster := range clusters {
 		wg.Add(1)
 		go func(clusterName string) {
@@ -129,16 +129,16 @@ func (c *CustomMetricsProvider) GetMetricBySelector(ctx context.Context, namespa
 				klog.Warningf("query %s's %s metric from cluster %s failed", info.GroupResource.String(), info.Metric, clusterName)
 				return
 			}
-			metricsChanel <- metrics
+			metricsChannel <- metrics
 		}(cluster.Name)
 	}
 	go func() {
 		wg.Wait()
-		close(metricsChanel)
+		close(metricsChannel)
 	}()
 	sameMetrics := make(map[string]custom_metrics.MetricValue)
 	for {
-		metrics, ok := <-metricsChanel
+		metrics, ok := <-metricsChannel
 		if !ok {
 			break
 		}

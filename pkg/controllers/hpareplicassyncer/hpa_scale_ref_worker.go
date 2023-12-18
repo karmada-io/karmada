@@ -34,7 +34,7 @@ import (
 type labelEventKind int
 
 const (
-	// addLabelEvent refer to addding util.RetainReplicasLabel to resource scaled by HPA
+	// addLabelEvent refer to adding util.RetainReplicasLabel to resource scaled by HPA
 	addLabelEvent labelEventKind = iota
 	// deleteLabelEvent refer to deleting util.RetainReplicasLabel from resource scaled by HPA
 	deleteLabelEvent

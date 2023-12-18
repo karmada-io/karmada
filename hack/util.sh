@@ -381,7 +381,7 @@ function util::wait_pod_ready() {
 }
 
 # util::wait_apiservice_ready waits for apiservice state becomes Available until timeout.
-# Parmeters:
+# Parameters:
 #  - $1: k8s context name, such as "karmada-apiserver"
 #  - $2: apiservice label, such as "app=etcd"
 #  - $3: time out, such as "200s"
@@ -402,7 +402,7 @@ function util::wait_apiservice_ready() {
 }
 
 # util::wait_cluster_ready waits for cluster state becomes ready until timeout.
-# Parmeters:
+# Parameters:
 #  - $1: context name, such as "karmada-apiserver"
 #  - $2: cluster name, such as "member1"
 function util:wait_cluster_ready() {
@@ -444,7 +444,7 @@ function util::kubectl_with_retry() {
 
 # util::delete_all_clusters deletes all clusters directly
 # util::delete_all_clusters actually do three things: delete cluster、remove kubeconfig、record delete log
-# Parmeters:
+# Parameters:
 #  - $1: KUBECONFIG file of host cluster, such as "~/.kube/karmada.config"
 #  - $2: KUBECONFIG file of member cluster, such as "~/.kube/members.config"
 #  - $3: log file path, such as "/tmp/karmada/"
@@ -466,7 +466,7 @@ function util::delete_all_clusters() {
 
 # util::create_cluster creates a kubernetes cluster
 # util::create_cluster creates a kind cluster and don't wait for control plane node to be ready.
-# Parmeters:
+# Parameters:
 #  - $1: cluster name, such as "host"
 #  - $2: KUBECONFIG file, such as "/var/run/host.config"
 #  - $3: node docker image to use for booting the cluster, such as "kindest/node:v1.19.1"

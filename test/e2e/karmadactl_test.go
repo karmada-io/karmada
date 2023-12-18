@@ -421,7 +421,7 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 			err := createCluster(clusterName, kubeConfigPath, controlPlane, clusterContext)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		})
-		ginkgo.By(fmt.Sprintf("Joinning cluster: %s", clusterName), func() {
+		ginkgo.By(fmt.Sprintf("Joining cluster: %s", clusterName), func() {
 			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout,
 				"join", "--cluster-kubeconfig", kubeConfigPath, "--cluster-context", clusterContext, "--cluster-namespace", "karmada-cluster", clusterName)
 			_, err := cmd.ExecOrDie()

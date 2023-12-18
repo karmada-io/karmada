@@ -128,7 +128,7 @@ func Unpack(file, targetPath string) error {
 			}
 			outFile.Close()
 		default:
-			fmt.Printf("uknown type: %v in %s\n", header.Typeflag, header.Name)
+			fmt.Printf("unknown type: %v in %s\n", header.Typeflag, header.Name)
 		}
 	}
 	return nil
