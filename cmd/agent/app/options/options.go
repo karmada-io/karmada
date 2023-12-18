@@ -52,7 +52,7 @@ type Options struct {
 	LeaderElection componentbaseconfig.LeaderElectionConfiguration
 	// BindAddress is the IP address on which to listen for the --secure-port port.
 	BindAddress string
-	// SecurePort is the port that the the server serves at.
+	// SecurePort is the port that the server serves at.
 	// Note: We hope support https in the future once controller-runtime provides the functionality.
 	SecurePort        int
 	KarmadaKubeConfig string
@@ -143,7 +143,7 @@ type Options struct {
 	KarmadaKubeconfigNamespace string
 }
 
-// NewOptions builds an default scheduler options.
+// NewOptions builds a default scheduler options.
 func NewOptions() *Options {
 	return &Options{
 		LeaderElection: componentbaseconfig.LeaderElectionConfiguration{

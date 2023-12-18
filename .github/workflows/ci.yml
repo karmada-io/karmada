@@ -9,6 +9,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.actor }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 jobs:
+  typos-check:
+    name: Spell Check with Typos
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Actions Repository
+        uses: actions/checkout@v3
+      - name: Check spelling with custom config file
+        uses: crate-ci/typos@v1.16.24
+        with:
+          config: ./typos.toml
   golangci:
     name: lint
     runs-on: ubuntu-22.04
@@ -47,7 +57,7 @@ jobs:
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
         with:
-          version: '3.x'
+          version: "3.x"
           # Use the automatic token, so that this task can be run in the forked repo.
           # https://docs.github.com/en/actions/security-guides/automatic-token-authentication
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -117,7 +127,7 @@ jobs:
         # Here support the latest three minor releases of Kubernetes, this can be considered to be roughly
         # the same as the End of Life of the Kubernetes release: https://kubernetes.io/releases/
         # Please remember to update the CI Schedule Workflow when we add a new version.
-        k8s: [ v1.26.0, v1.27.3, v1.28.0 ]
+        k8s: [v1.26.0, v1.27.3, v1.28.0]
     steps:
       # Free up disk space on Ubuntu
       - name: Free Disk Space (Ubuntu)
