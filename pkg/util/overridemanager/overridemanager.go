@@ -92,7 +92,7 @@ func (o *overrideManagerImpl) ApplyOverridePolicies(rawObj *unstructured.Unstruc
 		klog.Errorf("Failed to get member cluster: %s, error: %v", clusterName, err)
 		return nil, nil, err
 	}
-
+	util.MergeAnnotation(rawObj, util.ClusterNameAnnotation, clusterName)
 	var appliedClusterOverrides *AppliedOverrides
 	var appliedNamespacedOverrides *AppliedOverrides
 	var err error

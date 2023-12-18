@@ -36,6 +36,7 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 // CreateOrUpdateWork creates a Work object if not exist, or updates if it already exist.
@@ -44,6 +45,11 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 	if conflictResolution, ok := workMeta.GetAnnotations()[workv1alpha2.ResourceConflictResolutionAnnotation]; ok {
 		util.MergeAnnotation(workload, workv1alpha2.ResourceConflictResolutionAnnotation, conflictResolution)
 	}
+	clusterName, err := names.GetClusterName(workMeta.Namespace)
+	if err != nil {
+		return err
+	}
+	util.MergeAnnotation(workload, util.ClusterNameAnnotation, clusterName)
 	util.MergeAnnotation(workload, workv1alpha2.ResourceTemplateUIDAnnotation, string(workload.GetUID()))
 	util.RecordManagedAnnotations(workload)
 	util.RecordManagedLabels(workload)
