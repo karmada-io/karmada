@@ -45,6 +45,11 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 	if conflictResolution, ok := workMeta.GetAnnotations()[workv1alpha2.ResourceConflictResolutionAnnotation]; ok {
 		util.ReplaceAnnotation(workload, workv1alpha2.ResourceConflictResolutionAnnotation, conflictResolution)
 	}
+	clusterName, err := names.GetClusterName(workMeta.Namespace)
+	if err != nil {
+		return err
+	}
+	util.MergeAnnotation(workload, "cluster.karmada.io/name", clusterName)
 	util.MergeAnnotation(workload, workv1alpha2.ResourceTemplateUIDAnnotation, string(workload.GetUID()))
 	util.RecordManagedAnnotations(workload)
 	workloadJSON, err := workload.MarshalJSON()
