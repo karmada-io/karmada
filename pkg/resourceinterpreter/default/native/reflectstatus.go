@@ -78,19 +78,6 @@ func reflectDeploymentStatus(object *unstructured.Unstructured) (*runtime.RawExt
 }
 
 func reflectServiceStatus(object *unstructured.Unstructured) (*runtime.RawExtension, error) {
-	serviceType, exist, err := unstructured.NestedString(object.Object, "spec", "type")
-	if err != nil {
-		klog.Errorf("Failed to get spec.type field from %s(%s/%s)")
-	}
-	if !exist {
-		klog.Errorf("Failed to get spec.type from %s(%s/%s) which should have spec.type field.",
-			object.GetKind(), object.GetNamespace(), object.GetName())
-		return nil, nil
-	}
-	if serviceType != string(corev1.ServiceTypeLoadBalancer) {
-		return nil, nil
-	}
-
 	statusMap, exist, err := unstructured.NestedMap(object.Object, "status")
 	if err != nil {
 		klog.Errorf("Failed to get status field from %s(%s/%s), error: %v",
