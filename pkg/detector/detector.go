@@ -1185,6 +1185,8 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName str
 				klog.Errorf("Failed to clean up label from resource(%s-%s) when cluster propagation policy(%s) removing, error: %v",
 					binding.Spec.Resource.Kind, binding.Spec.Resource.Name, policyName, err)
 				errs = append(errs, err)
+				// Skip cleaning up policy labels from ClusterResourceBinding, give a chance to do that in a retry loop.
+				continue
 			}
 
 			// Clean up the labels from the reference binding so that the karmada scheduler won't reschedule the binding.
@@ -1210,6 +1212,8 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName str
 				klog.Errorf("Failed to clean up label from resource(%s-%s/%s) when cluster propagation policy(%s) removing, error: %v",
 					binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name, policyName, err)
 				errs = append(errs, err)
+				// Skip cleaning up policy labels from ResourceBinding, give a chance to do that in a retry loop.
+				continue
 			}
 
 			// Clean up the labels from the reference binding so that the karmada scheduler won't reschedule the binding.
