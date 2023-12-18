@@ -444,7 +444,7 @@ func (c *MCSController) buildResourceBinding(svc *corev1.Service, mcs *networkin
 		},
 		Spec: workv1alpha2.ResourceBindingSpec{
 			Placement:          placement,
-			ConflictResolution: policyv1alpha1.ConflictOverwrite,
+			ConflictResolution: policyv1alpha1.ConflictAbort,
 			Resource: workv1alpha2.ObjectReference{
 				APIVersion:      svc.APIVersion,
 				Kind:            svc.Kind,
