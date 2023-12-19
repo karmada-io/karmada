@@ -704,7 +704,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 
 	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
 	// We need a service lister to build a resource interpreter with `ClusterIPServiceResolver`
-	// witch allows connection to the customized interpreter webhook without a cluster DNS service.
+	// which allows connection to the customized interpreter webhook without a cluster DNS service.
 	sharedFactory := informers.NewSharedInformerFactory(kubeClientSet, 0)
 	serviceLister := sharedFactory.Core().V1().Services().Lister()
 	sharedFactory.Start(stopChan)
