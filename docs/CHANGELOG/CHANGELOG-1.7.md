@@ -2,12 +2,18 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.7.1](#v171)
-  - [Downloads for v1.7.1](#downloads-for-v171)
-  - [Changelog since v1.7.0](#changelog-since-v170)
+- [v1.7.2](#v172)
+  - [Downloads for v1.7.2](#downloads-for-v172)
+  - [Changelog since v1.7.1](#changelog-since-v171)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
+- [v1.7.1](#v171)
+  - [Downloads for v1.7.1](#downloads-for-v171)
+  - [Changelog since v1.7.0](#changelog-since-v170)
+    - [Changes by Kind](#changes-by-kind-1)
+      - [Bug Fixes](#bug-fixes-1)
+      - [Others](#others-1)
 - [v1.7.0](#v170)
   - [Downloads for v1.7.0](#downloads-for-v170)
   - [What's New](#whats-new)
@@ -19,7 +25,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-1)
+    - [Bug Fixes](#bug-fixes-2)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -28,6 +34,23 @@
     - [Instrumentation](#instrumentation)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.7.2
+## Downloads for v1.7.2
+
+Download v1.7.2 in the [v1.7.2 release page](https://github.com/karmada-io/karmada/releases/tag/v1.7.2).
+
+## Changelog since v1.7.1
+### Changes by Kind
+#### Bug Fixes
+- `karmada-controller-manager`: only update `aggregatedStatus` and `conditions` fields during `binding-status controller` updating status of binding. ([#4234](https://github.com/karmada-io/karmada/pull/4234), @jwcesign)
+- `karmada-controller-manager`: Pruned job labels `batch.kubernetes.io/controller-uid` and `batch.kubernetes.io/job-name` which were introduced by Kubernetes 1.27. ([#4263](https://github.com/karmada-io/karmada/pull/4263), @liangyuanpeng)
+- `karmada-search`: Fix lock race affects watch RestChan not close, causing client hanging when performing watch. ([#4239](https://github.com/karmada-io/karmada/pull/4239), @xigang)
+- `karmada-operator`: Fixed can not load Karmada v1.7.0 crds issue.  ([#4207](https://github.com/karmada-io/karmada/pull/4207), @liangyuanpeng)
+
+#### Others
+- `release1.7`: The base image `alpine` now has been promoted from `alpine:3.18.3` to `alpine:3.18.5` ([#4380](https://github.com/karmada-io/karmada/pull/4380), @zhzhuang-zju)
+- Karmada is now built with Go1.20.12.  ([#4369](https://github.com/karmada-io/karmada/pull/4396), @RainbowMango)
 
 # v1.7.1
 ## Downloads for v1.7.1

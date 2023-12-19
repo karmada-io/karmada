@@ -2,6 +2,12 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
+- [v1.8.1](#v181)
+  - [Downloads for v1.8.1](#downloads-for-v181)
+  - [Changelog since v1.8.0](#changelog-since-v180)
+    - [Changes by Kind](#changes-by-kind)
+      - [Bug Fixes](#bug-fixes)
+      - [Others](#others)
 - [v1.8.0](#v180)
   - [Downloads for v1.8.0](#downloads-for-v180)
   - [What's New](#whats-new)
@@ -12,7 +18,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes)
+    - [Bug Fixes](#bug-fixes-1)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -22,6 +28,20 @@
   - [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.8.1
+## Downloads for v1.8.1
+
+Download v1.8.1 in the [v1.8.1 release page](https://github.com/karmada-io/karmada/releases/tag/v1.8.1).
+
+## Changelog since v1.8.0
+### Changes by Kind
+#### Bug Fixes
+- `karmada-controller-manager`: fix incorrect `forType` in `cluster-resource-binding-status controller` from `ResouceBinding` to `ClusterResourceBinding`. ([#4365](https://github.com/karmada-io/karmada/pull/4365), @lxtywypc)
+- `karmadactl`: Fixed return err in case of `secret.spec.caBundle` is nil. ([#4391](https://github.com/karmada-io/karmada/pull/4391), @XiShanYongYe-Chang)
+
+#### Others
+- Karmada is now built with Go1.20.12.  ([#4397](https://github.com/karmada-io/karmada/pull/4397), @RainbowMango)
 
 # v1.8.0
 ## Downloads for v1.8.0
