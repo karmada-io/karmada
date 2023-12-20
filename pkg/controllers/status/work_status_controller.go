@@ -312,10 +312,6 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 	}
 	c.EventRecorder.Eventf(work, corev1.EventTypeNormal, events.EventReasonReflectStatusSucceed, "Reflect status for object(%s/%s/%s) succeed.", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName())
 
-	if statusRaw == nil {
-		return nil
-	}
-
 	var resourceHealth workv1alpha1.ResourceHealth
 	// When an unregistered resource kind is requested with the ResourceInterpreter,
 	// the interpreter will return an error, we treat its health status as Unknown.
