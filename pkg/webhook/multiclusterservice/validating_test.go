@@ -51,7 +51,6 @@ func TestValidateMultiClusterServiceSpec(t *testing.T) {
 					},
 					Types: []networkingv1alpha1.ExposureType{
 						networkingv1alpha1.ExposureTypeLoadBalancer,
-						networkingv1alpha1.ExposureTypeCrossCluster,
 					},
 					ProviderClusters: []networkingv1alpha1.ClusterSelector{
 						{Name: "member1"},
@@ -64,6 +63,39 @@ func TestValidateMultiClusterServiceSpec(t *testing.T) {
 				},
 			},
 			expectedErr: field.ErrorList{},
+		},
+		{
+			name: "multiple exposure type mcs",
+			mcs: &networkingv1alpha1.MultiClusterService{
+				Spec: networkingv1alpha1.MultiClusterServiceSpec{
+					Ports: []networkingv1alpha1.ExposurePort{
+						{
+							Name: "foo",
+							Port: 16312,
+						},
+						{
+							Name: "bar",
+							Port: 16313,
+						},
+					},
+					Types: []networkingv1alpha1.ExposureType{
+						networkingv1alpha1.ExposureTypeLoadBalancer,
+						networkingv1alpha1.ExposureTypeCrossCluster,
+					},
+					ProviderClusters: []networkingv1alpha1.ClusterSelector{
+						{Name: "member1"},
+						{Name: "member2"},
+					},
+					ConsumerClusters: []networkingv1alpha1.ClusterSelector{
+						{Name: "member1"},
+						{Name: "member2"},
+					},
+				},
+			},
+			expectedErr: field.ErrorList{field.Invalid(specFld.Child("types"), []networkingv1alpha1.ExposureType{
+				networkingv1alpha1.ExposureTypeLoadBalancer,
+				networkingv1alpha1.ExposureTypeCrossCluster,
+			}, "MultiClusterService types should not contain more than one type")},
 		},
 		{
 			name: "duplicated svc name",

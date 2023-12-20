@@ -19,6 +19,7 @@ package multiclusterservice
 import (
 	"context"
 	"net/http"
+	"reflect"
 	"strings"
 
 	admissionv1 "k8s.io/api/admission/v1"
@@ -73,8 +74,18 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 
 func (v *ValidatingAdmission) validateMCSUpdate(oldMcs, newMcs *networkingv1alpha1.MultiClusterService) field.ErrorList {
 	allErrs := apimachineryvalidation.ValidateObjectMetaUpdate(&newMcs.ObjectMeta, &oldMcs.ObjectMeta, field.NewPath("metadata"))
+	allErrs = append(allErrs, v.validateMCSTypesUpdate(oldMcs, newMcs)...)
 	allErrs = append(allErrs, v.validateMCS(newMcs)...)
 	allErrs = append(allErrs, lifted.ValidateLoadBalancerStatus(&newMcs.Status.LoadBalancer, field.NewPath("status", "loadBalancer"))...)
+	return allErrs
+}
+
+func (v *ValidatingAdmission) validateMCSTypesUpdate(oldMcs, newMcs *networkingv1alpha1.MultiClusterService) field.ErrorList {
+	allErrs := field.ErrorList{}
+	if !reflect.DeepEqual(oldMcs.Spec.Types, newMcs.Spec.Types) {
+		typePath := field.NewPath("spec").Child("types")
+		allErrs = append(allErrs, field.Invalid(typePath, oldMcs.Spec.Types, "MultiClusterService types are immutable"))
+	}
 	return allErrs
 }
 
@@ -97,12 +108,19 @@ func (v *ValidatingAdmission) validateMultiClusterServiceSpec(mcs *networkingv1a
 		port := mcs.Spec.Ports[i]
 		allErrs = append(allErrs, v.validateExposurePort(&port, allPortNames, portPath)...)
 	}
+
+	typesSet := sets.Set[string]{}
 	typesPath := specPath.Child("types")
 	for i := range mcs.Spec.Types {
 		typePath := typesPath.Index(i)
 		exposureType := mcs.Spec.Types[i]
+		typesSet.Insert(string(exposureType))
 		allErrs = append(allErrs, v.validateExposureType(&exposureType, typePath)...)
 	}
+	if len(typesSet) > 1 {
+		allErrs = append(allErrs, field.Invalid(typesPath, mcs.Spec.Types, "MultiClusterService types should not contain more than one type"))
+	}
+
 	clusterNamesPath := specPath.Child("range").Child("providerClusters")
 	for i := range mcs.Spec.ProviderClusters {
 		clusterNamePath := clusterNamesPath.Index(i)
