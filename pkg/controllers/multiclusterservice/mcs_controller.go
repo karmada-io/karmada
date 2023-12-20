@@ -19,7 +19,6 @@ package multiclusterservice
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
@@ -86,23 +85,7 @@ func (c *MCSController) Reconcile(ctx context.Context, req controllerruntime.Req
 		return c.handleMultiClusterServiceDelete(mcs.DeepCopy())
 	}
 
-	providerClusters, noneExistProviderClusters, err := helper.GetProviderClusters(c.Client, mcs)
-	if err != nil {
-		klog.Errorf("Failed to get provider clusters by MultiClusterService(%s/%s):%v", mcs.Namespace, mcs.Name, err)
-		return controllerruntime.Result{}, err
-	}
-	consumerClusters, noneExistConsumerClusters, err := helper.GetConsumerClustres(c.Client, mcs)
-	if err != nil {
-		klog.Errorf("Failed to get consumer clusters by MultiClusterService(%s/%s):%v", mcs.Namespace, mcs.Name, err)
-		return controllerruntime.Result{}, err
-	}
-	if len(noneExistProviderClusters) != 0 || len(noneExistConsumerClusters) != 0 {
-		msgProvider := strings.Join(noneExistProviderClusters.UnsortedList(), ",")
-		msgConsumer := strings.Join(noneExistConsumerClusters.UnsortedList(), ",")
-		c.EventRecorder.Eventf(mcs, corev1.EventTypeNormal, events.EventReasonConfigurationRedundant,
-			fmt.Sprintf("ProviderClusters(%s)/ConsumerClusters(%s) dont's exist, Karmada will ignore them", msgProvider, msgConsumer))
-	}
-
+	var err error
 	defer func() {
 		if err != nil {
 			_ = c.updateMultiClusterServiceStatus(mcs, metav1.ConditionFalse, "ServiceAppliedFailed", err.Error())
@@ -113,7 +96,7 @@ func (c *MCSController) Reconcile(ctx context.Context, req controllerruntime.Req
 		c.EventRecorder.Eventf(mcs, corev1.EventTypeNormal, events.EventReasonSyncServiceSucceed, "Service is propagated to target clusters.")
 	}()
 
-	if err = c.handleMultiClusterServiceCreateOrUpdate(mcs.DeepCopy(), providerClusters, consumerClusters); err != nil {
+	if err = c.handleMultiClusterServiceCreateOrUpdate(mcs.DeepCopy()); err != nil {
 		return controllerruntime.Result{}, err
 	}
 	return controllerruntime.Result{}, nil
@@ -201,7 +184,7 @@ func (c *MCSController) cleanProviderEndpointSliceWork(work *workv1alpha1.Work) 
 
 	var errs []error
 	for _, work := range workList.Items {
-		if !helper.IsWorkContains(work.Spec.Workload.Manifests, endpointSliceGVK) {
+		if !helper.IsWorkContains(work.Spec.Workload.Manifests, util.EndpointSliceGVK) {
 			continue
 		}
 		// This annotation is only added to the EndpointSlice work in consumer clusters' execution namespace
@@ -230,8 +213,19 @@ func (c *MCSController) cleanProviderEndpointSliceWork(work *workv1alpha1.Work) 
 	return nil
 }
 
-func (c *MCSController) handleMultiClusterServiceCreateOrUpdate(mcs *networkingv1alpha1.MultiClusterService, providerClusters, consumerClusters sets.Set[string]) error {
+func (c *MCSController) handleMultiClusterServiceCreateOrUpdate(mcs *networkingv1alpha1.MultiClusterService) error {
 	klog.V(4).Infof("Begin to handle MultiClusterService(%s/%s) create or update event", mcs.Namespace, mcs.Name)
+
+	providerClusters, err := helper.GetProviderClusters(c.Client, mcs)
+	if err != nil {
+		klog.Errorf("Failed to get provider clusters by MultiClusterService(%s/%s):%v", mcs.Namespace, mcs.Name, err)
+		return err
+	}
+	consumerClusters, err := helper.GetConsumerClusters(c.Client, mcs)
+	if err != nil {
+		klog.Errorf("Failed to get consumer clusters by MultiClusterService(%s/%s):%v", mcs.Namespace, mcs.Name, err)
+		return err
+	}
 
 	// 1. if mcs not contain CrossCluster type, delete service work if needed
 	if !helper.MultiClusterServiceCrossClusterEnabled(mcs) {
@@ -274,18 +268,16 @@ func (c *MCSController) handleMultiClusterServiceCreateOrUpdate(mcs *networkingv
 
 	// 5. make sure service exist
 	svc := &corev1.Service{}
-	err := c.Client.Get(context.Background(), types.NamespacedName{Namespace: mcs.Namespace, Name: mcs.Name}, svc)
+	err = c.Client.Get(context.Background(), types.NamespacedName{Namespace: mcs.Namespace, Name: mcs.Name}, svc)
 	// If the Serivice are deleted, the Service's ResourceBinding will be cleaned by GC
-	if err != nil && !apierrors.IsNotFound(err) {
+	if err != nil {
 		klog.Errorf("Failed to get service(%s/%s):%v", mcs.Namespace, mcs.Name, err)
 		return err
 	}
 
 	// 6. if service exists, create or update corresponding ResourceBinding
-	if err == nil {
-		if err := c.propagateService(context.Background(), mcs, svc, providerClusters, consumerClusters); err != nil {
-			return err
-		}
+	if err := c.propagateService(context.Background(), mcs, svc, providerClusters, consumerClusters); err != nil {
+		return err
 	}
 
 	klog.V(4).Infof("Success to reconcile MultiClusterService(%s/%s)", mcs.Namespace, mcs.Name)
@@ -294,9 +286,25 @@ func (c *MCSController) handleMultiClusterServiceCreateOrUpdate(mcs *networkingv
 
 func (c *MCSController) propagateMultiClusterService(mcs *networkingv1alpha1.MultiClusterService, providerClusters sets.Set[string]) error {
 	for clusterName := range providerClusters {
-		if !c.IsClusterReady(clusterName) {
+		clusterObj, err := util.GetCluster(c.Client, clusterName)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				c.EventRecorder.Eventf(mcs, corev1.EventTypeWarning, events.EventReasonClusterNotFound, "Provider cluster %s is not found", clusterName)
+				continue
+			}
+			klog.Errorf("Failed to get cluster %s, error is: %v", clusterName, err)
+			return err
+		}
+		if !util.IsClusterReady(&clusterObj.Status) {
+			c.EventRecorder.Eventf(mcs, corev1.EventTypeWarning, events.EventReasonSyncServiceFailed,
+				"Provider cluster %s is not ready, skip to propagate MultiClusterService", clusterName)
 			continue
 		}
+		if !helper.IsAPIEnabled(clusterObj.Status.APIEnablements, util.EndpointSliceGVK.GroupVersion().String(), util.EndpointSliceGVK.Kind) {
+			c.EventRecorder.Eventf(mcs, corev1.EventTypeWarning, events.EventReasonAPIIncompatible, "Provider cluster %s does not support EndpointSlice", clusterName)
+			continue
+		}
+
 		workMeta := metav1.ObjectMeta{
 			Name:      names.GenerateWorkName(mcs.Kind, mcs.Name, mcs.Namespace),
 			Namespace: names.GenerateExecutionSpaceName(clusterName),
@@ -648,7 +656,7 @@ func (c *MCSController) needSyncMultiClusterService(mcs *networkingv1alpha1.Mult
 		return true, nil
 	}
 
-	providerClusters, _, err := helper.GetProviderClusters(c.Client, mcs)
+	providerClusters, err := helper.GetProviderClusters(c.Client, mcs)
 	if err != nil {
 		klog.Errorf("Failed to get provider clusters by MultiClusterService(%s/%s):%v", mcs.Namespace, mcs.Name, err)
 		return false, err
@@ -657,7 +665,7 @@ func (c *MCSController) needSyncMultiClusterService(mcs *networkingv1alpha1.Mult
 		return true, nil
 	}
 
-	consumerClusters, _, err := helper.GetConsumerClustres(c.Client, mcs)
+	consumerClusters, err := helper.GetConsumerClusters(c.Client, mcs)
 	if err != nil {
 		klog.Errorf("Failed to get consumer clusters by MultiClusterService(%s/%s):%v", mcs.Namespace, mcs.Name, err)
 		return false, err

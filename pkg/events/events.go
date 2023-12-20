@@ -140,6 +140,8 @@ const (
 	EventReasonDispatchEndpointSliceFailed = "DispatchEndpointSliceFailed"
 	// EventReasonDispatchEndpointSliceSucceed indicates that dispatch endpointslice succeed.
 	EventReasonDispatchEndpointSliceSucceed = "DispatchEndpointSliceSucceed"
-	// EventReasonConfigurationRedundant indicates that MultiClusterService configuration redundant.
-	EventReasonConfigurationRedundant = "ConfigurationRedundant"
+	// EventReasonClusterNotFound indicates that the cluster configured in MultiClusterService does not exist.
+	EventReasonClusterNotFound = "ClusterNotFound"
+	// EventReasonAPIIncompatible indicates that the MultiClusterService may not function properly as some member clusters do not support EndpointSlice.
+	EventReasonAPIIncompatible = "APIIncompatible"
 )
