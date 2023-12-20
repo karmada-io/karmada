@@ -210,6 +210,8 @@ func (s *Scheduler) updateCluster(oldObj, newObj interface{}) {
 		// to the worker. Therefore, call Add func instead of Enqueue func.
 		s.clusterReconcileWorker.Add(oldCluster)
 		s.clusterReconcileWorker.Add(newCluster)
+	case !equality.Semantic.DeepEqual(oldCluster.Status.ResourceSummary, newCluster.Status.ResourceSummary):
+		s.clusterResourcesReconcileWorker.Enqueue(newCluster)
 	}
 }
 
@@ -254,6 +256,53 @@ func (s *Scheduler) reconcileCluster(key util.QueueKey) error {
 		s.enqueueAffectedBindings(cluster),
 		s.enqueueAffectedCRBs(cluster)},
 	)
+}
+
+func (s *Scheduler) reconcileClusterResources(key util.QueueKey) error {
+	clusterName, ok := key.(string)
+	if !ok {
+		return fmt.Errorf("invalid cluster key: %s", key)
+	}
+	return utilerrors.NewAggregate([]error{
+		s.enqueueUnschedulableBindings(clusterName),
+		s.enqueueUnschedulableCRBs(clusterName)},
+	)
+}
+
+func (s *Scheduler) enqueueUnschedulableBindings(clusterName string) error {
+	klog.V(4).Infof("Enqueue Unschedulable ResourceBinding with cluster %s", clusterName)
+	// ignore the error here, there's no need to retry,
+	// and it's also fine to handle it after the cluster resources changes once.
+	bindings, _ := s.bindingLister.List(labels.Everything())
+	for _, binding := range bindings {
+		placementPtr := binding.Spec.Placement
+		if placementPtr == nil {
+			// never reach here
+			continue
+		}
+		if util.IsUnschedulableBinding(binding.Status) {
+			s.onResourceBindingRequeue(binding, metrics.ClusterResourcesChanged)
+		}
+	}
+	return nil
+}
+
+func (s *Scheduler) enqueueUnschedulableCRBs(clusterName string) error {
+	klog.V(4).Infof("Enqueue Unschedulable ClusterResourceBinding with cluster %s", clusterName)
+	// ignore the error here, there's no need to retry,
+	// and it's also fine to handle it after the cluster resources changes once.
+	bindings, _ := s.clusterBindingLister.List(labels.Everything())
+	for _, binding := range bindings {
+		placementPtr := binding.Spec.Placement
+		if placementPtr == nil {
+			// never reach here
+			continue
+		}
+		if util.IsUnschedulableBinding(binding.Status) {
+			s.onClusterResourceBindingRequeue(binding, metrics.ClusterResourcesChanged)
+		}
+	}
+	return nil
 }
 
 // enqueueAffectedBindings find all RBs related to the cluster and reschedule them
