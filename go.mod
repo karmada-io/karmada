@@ -24,6 +24,7 @@ require (
 	github.com/stretchr/testify v1.8.3
 	github.com/vektra/mockery/v2 v2.10.0
 	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64
+	go.uber.org/mock v0.4.0
 	golang.org/x/net v0.17.0
 	golang.org/x/term v0.13.0
 	golang.org/x/text v0.13.0
