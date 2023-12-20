@@ -351,7 +351,7 @@ func (c *MCSController) retrieveService(mcs *networkingv1alpha1.MultiClusterServ
 		delete(svcCopy.Labels, networkingv1alpha1.MultiClusterServicePermanentIDLabel)
 	}
 
-	if err = c.Client.Update(context.Background(), svc); err != nil {
+	if err = c.Client.Update(context.Background(), svcCopy); err != nil {
 		klog.Errorf("Failed to update service(%s/%s):%v", mcs.Namespace, mcs.Name, err)
 		return err
 	}
@@ -580,7 +580,9 @@ func (c *MCSController) SetupWithManager(mgr controllerruntime.Manager) error {
 
 	svcPredicateFunc := predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
-			return true
+			svc := e.Object.(*corev1.Service)
+
+			return c.serviceHasCrossClusterMultiClusterService(svc)
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			svcOld := e.ObjectOld.(*corev1.Service)
@@ -592,13 +594,14 @@ func (c *MCSController) SetupWithManager(mgr controllerruntime.Manager) error {
 				equality.Semantic.DeepEqual(svcOld.Spec, svcNew.Spec) {
 				return false
 			}
-			return true
+			return c.serviceHasCrossClusterMultiClusterService(svcNew)
 		},
-		DeleteFunc: func(event.DeleteEvent) bool {
-			return true
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			svc := e.Object.(*corev1.Service)
+			return c.serviceHasCrossClusterMultiClusterService(svc)
 		},
 		GenericFunc: func(event.GenericEvent) bool {
-			return true
+			return false
 		},
 	}
 
@@ -618,6 +621,19 @@ func (c *MCSController) SetupWithManager(mgr controllerruntime.Manager) error {
 		Watches(&clusterv1alpha1.Cluster{}, handler.EnqueueRequestsFromMapFunc(c.clusterMapFunc())).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
 		Complete(c)
+}
+
+func (c *MCSController) serviceHasCrossClusterMultiClusterService(svc *corev1.Service) bool {
+	mcs := &networkingv1alpha1.MultiClusterService{}
+	if err := c.Client.Get(context.Background(),
+		types.NamespacedName{Namespace: svc.Namespace, Name: svc.Name}, mcs); err != nil {
+		if !apierrors.IsNotFound(err) {
+			klog.Errorf("Failed to get MultiClusterService(%s/%s):%v", svc.Namespace, svc.Name, err)
+		}
+		return false
+	}
+
+	return helper.MultiClusterServiceCrossClusterEnabled(mcs)
 }
 
 func (c *MCSController) clusterMapFunc() handler.MapFunc {
@@ -652,6 +668,10 @@ func (c *MCSController) clusterMapFunc() handler.MapFunc {
 }
 
 func (c *MCSController) needSyncMultiClusterService(mcs *networkingv1alpha1.MultiClusterService, clusterName string) (bool, error) {
+	if !helper.MultiClusterServiceCrossClusterEnabled(mcs) {
+		return false, nil
+	}
+
 	if len(mcs.Spec.ProviderClusters) == 0 || len(mcs.Spec.ConsumerClusters) == 0 {
 		return true, nil
 	}
