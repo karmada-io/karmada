@@ -63,7 +63,7 @@ func stringToTargetCluster(str string) []workv1alpha2.TargetCluster {
 // https://github.com/karmada-io/karmada/issues/4220
 func Test_EvenDistributionOfReplicas(t *testing.T) {
 	tests := []testcase{
-		// Test Case No.1 of even distribution of replicas
+		// Test Case No.1 of even distribution of replicas: random assignment of static weight remainder
 		// 1. create deployment (replicas=3), weight=1:1
 		// 2. check two member cluster replicas, should be 2:1 or 1:2
 		{
@@ -92,7 +92,7 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		// Test Case No.2 of even distribution of replicas
+		// Test Case No.2 of even distribution of replicas: random assignment of static weight remainder in expanding replicas scenarios
 		// 1. create deployment (replicas=3), weight=1:1:1
 		// 2. check three member cluster replicas, should be 1:1:1
 		// 3. update replicas from 3 to 5
@@ -153,7 +153,7 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		// Test Case No.3 of even distribution of replicas
+		// Test Case No.3 of even distribution of replicas: ensure as much inertia as possible in expanding replicas scenarios
 		// 1. create deployment (replicas=7), weight=2:1:1:1
 		// 2. check four member cluster replicas, can be 3:2:1:1、3:1:2:1、3:1:1:2
 		// 3. update replicas from 7 to 8
@@ -223,7 +223,7 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		// Test Case No.4 of even distribution of replicas
+		// Test Case No.4 of even distribution of replicas: ensure as much inertia as possible in reducing replicas scenarios
 		// 1. create deployment (replicas=9), weight=2:1:1:1
 		// 2. check four member cluster replicas, can be 4:2:2:1、4:1:2:2、4:2:1:2
 		// 3. update replicas from 9 to 8
@@ -290,6 +290,76 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 				"4:2:2:1": {"4:2:1:1", "4:1:2:1"},
 				"4:1:2:2": {"4:1:1:2", "4:1:2:1"},
 				"4:2:1:2": {"4:1:1:2", "4:2:1:1"},
+			},
+			wantErr: false,
+		},
+		// Test Case No.5 of even distribution of replicas: ensure as much inertia as possible in modifying static weight scenarios
+		// 1. create deployment (replicas=6), weight=1:1:1:1
+		// 2. check four member cluster replicas, can be 2:2:1:1、2:1:2:1、2:1:1:2、1:2:2:1、1:2:1:2、1:1:2:2
+		// 3. change static weight from 1:1:1:1 to 2:1:1:1
+		// 4. check four member cluster replicas, the result should be 3:1:1:1
+		{
+			name: "replica 6, static weighted 1:1:1:1, change static weighted from 1:1:1:1 to 2:1:1:1, before change",
+			clusters: []*clusterv1alpha1.Cluster{
+				helper.NewCluster(ClusterMember1),
+				helper.NewCluster(ClusterMember2),
+				helper.NewCluster(ClusterMember3),
+				helper.NewCluster(ClusterMember4),
+			},
+			object: workv1alpha2.ResourceBindingSpec{
+				Replicas: 6,
+			},
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+					WeightPreference: &policyv1alpha1.ClusterPreferences{
+						StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 1},
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember4}}, Weight: 1},
+						},
+					},
+				},
+			},
+			previousResultToNewResult: map[string][]string{
+				"": {"2:2:1:1", "2:1:2:1", "2:1:1:2", "1:2:2:1", "1:2:1:2", "1:1:2:2"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "replica 6, static weighted 1:1:1:1, change static weighted from 1:1:1:1 to 2:1:1:1, after change",
+			clusters: []*clusterv1alpha1.Cluster{
+				helper.NewCluster(ClusterMember1),
+				helper.NewCluster(ClusterMember2),
+				helper.NewCluster(ClusterMember3),
+				helper.NewCluster(ClusterMember4),
+			},
+			object: workv1alpha2.ResourceBindingSpec{
+				Replicas: 6,
+			},
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+					WeightPreference: &policyv1alpha1.ClusterPreferences{
+						StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 2},
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember4}}, Weight: 1},
+						},
+					},
+				},
+			},
+			previousResultToNewResult: map[string][]string{
+				"2:2:1:1": {"3:1:1:1"},
+				"2:1:2:1": {"3:1:1:1"},
+				"2:1:1:2": {"3:1:1:1"},
+				"1:2:2:1": {"3:1:1:1"},
+				"1:2:1:2": {"3:1:1:1"},
+				"1:1:2:2": {"3:1:1:1"},
 			},
 			wantErr: false,
 		},
