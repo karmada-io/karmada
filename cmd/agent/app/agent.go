@@ -196,8 +196,7 @@ func run(ctx context.Context, opts *options.Options) error {
 
 	controllerManager, err := controllerruntime.NewManager(controlPlaneRestConfig, controllerruntime.Options{
 		Scheme:                     gclient.NewSchema(),
-		SyncPeriod:                 &opts.ResyncPeriod.Duration,
-		Namespace:                  executionSpace,
+		Cache:                      cache.Options{SyncPeriod: &opts.ResyncPeriod.Duration, Namespaces: []string{executionSpace}},
 		LeaderElection:             opts.LeaderElection.LeaderElect,
 		LeaderElectionID:           fmt.Sprintf("karmada-agent-%s", opts.ClusterName),
 		LeaderElectionNamespace:    opts.LeaderElection.ResourceNamespace,

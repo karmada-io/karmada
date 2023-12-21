@@ -145,7 +145,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 	controllerManager, err := controllerruntime.NewManager(controlPlaneRestConfig, controllerruntime.Options{
 		Logger:                     klog.Background(),
 		Scheme:                     gclient.NewSchema(),
-		SyncPeriod:                 &opts.ResyncPeriod.Duration,
+		Cache:                      cache.Options{SyncPeriod: &opts.ResyncPeriod.Duration},
 		LeaderElection:             opts.LeaderElection.LeaderElect,
 		LeaderElectionID:           opts.LeaderElection.ResourceName,
 		LeaderElectionNamespace:    opts.LeaderElection.ResourceNamespace,
