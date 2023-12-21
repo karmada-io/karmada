@@ -3,9 +3,9 @@ name: Chart Lint
 
 env:
   HELM_VERSION: v3.11.2
-  KIND_VERSION: v0.14.0
-  KIND_NODE_IMAGE: kindest/node:v1.27.3
-  K8S_VERSION: v1.26.4
+  KIND_VERSION: v0.20.0
+  KIND_NODE_IMAGE: kindest/node:v1.29.0
+  K8S_VERSION: v1.29.0
 
 on:
   push:
