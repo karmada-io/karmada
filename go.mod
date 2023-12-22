@@ -9,7 +9,6 @@ require (
 	github.com/evanphx/json-patch/v5 v5.6.0
 	github.com/go-co-op/gocron v1.30.1
 	github.com/gogo/protobuf v1.3.2
-	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.5.9
 	github.com/google/uuid v1.3.0
 	github.com/kr/pretty v0.3.1
