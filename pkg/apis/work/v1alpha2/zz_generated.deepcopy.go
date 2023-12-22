@@ -149,7 +149,10 @@ func (in *GracefulEvictionTask) DeepCopyInto(out *GracefulEvictionTask) {
 		*out = new(bool)
 		**out = **in
 	}
-	in.CreationTimestamp.DeepCopyInto(&out.CreationTimestamp)
+	if in.CreationTimestamp != nil {
+		in, out := &in.CreationTimestamp, &out.CreationTimestamp
+		*out = (*in).DeepCopy()
+	}
 	return
 }
 
