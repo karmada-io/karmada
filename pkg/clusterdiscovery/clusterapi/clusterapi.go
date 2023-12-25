@@ -91,7 +91,7 @@ func (d *ClusterDetector) Start(ctx context.Context) error {
 func (d *ClusterDetector) discoveryCluster() {
 	for _, gvr := range clusterGVRs {
 		if !d.InformerManager.IsHandlerExist(gvr, d.EventHandler) {
-			klog.Infof("Setup informer fo %s", gvr.String())
+			klog.Infof("Setup informer for %s", gvr.String())
 			d.InformerManager.ForResource(gvr, d.EventHandler)
 		}
 	}
