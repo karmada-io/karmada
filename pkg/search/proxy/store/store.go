@@ -191,6 +191,11 @@ func (s *store) Count(string) (int64, error) {
 	return 0, fmt.Errorf("count is not supported in proxy store")
 }
 
+// RequestWatchProgress implements storage.Interface.
+func (s *store) RequestWatchProgress(context.Context) error {
+	return fmt.Errorf("not implemented")
+}
+
 func (s *store) client(namespace string) (dynamic.ResourceInterface, error) {
 	client, err := s.newClientFunc()
 	if err != nil {

@@ -80,7 +80,7 @@ func RenderOpenAPISpec(cfg Config) (string, error) {
 	}
 
 	serverConfig := genericapiserver.NewRecommendedConfig(cfg.Codecs)
-	if err := options.ApplyTo(serverConfig); err != nil {
+	if err := options.SecureServing.ApplyTo(&serverConfig.Config.SecureServing, &serverConfig.Config.LoopbackClientConfig); err != nil {
 		klog.Fatal(err)
 		return "", err
 	}
