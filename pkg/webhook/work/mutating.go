@@ -21,13 +21,16 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/google/uuid"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native/prune"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // MutatingAdmission mutates API request if necessary.
@@ -76,6 +79,10 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 	marshaledBytes, err := json.Marshal(work)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
+	}
+
+	if util.GetLabelValue(work.Labels, workv1alpha2.WorkPermanentIDLabel) == "" {
+		util.MergeLabel(work, workv1alpha2.WorkPermanentIDLabel, uuid.New().String())
 	}
 
 	return admission.PatchResponseFromRaw(req.Object.Raw, marshaledBytes)
