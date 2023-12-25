@@ -33,7 +33,6 @@ import (
 )
 
 var _ = ginkgo.Describe("porting workloads testing", func() {
-
 	ginkgo.Context("porting workloads from legacy clusters testing", func() {
 		var policyNamespace, policyName string
 		var deploymentNamespace, deploymentName string

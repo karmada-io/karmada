@@ -96,7 +96,6 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 		})
 
 		ginkgo.It("Test promoting a deployment from cluster member", func() {
-
 			// Step 1,  create namespace and deployment on cluster member1
 			ginkgo.By(fmt.Sprintf("Creating deployment %s with namespace %s not existed in karmada control plane", deploymentName, deploymentNamespace), func() {
 				deploymentNamespaceObj := helper.NewNamespace(deploymentNamespace)
@@ -140,8 +139,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 		})
 	})
 
-	ginkgo.Context("Test promoting cluster resources: clusterrole and clusterrolebing", func() {
-
+	ginkgo.Context("Test promoting cluster resources: clusterrole and clusterrolebinding", func() {
 		var clusterRoleName, clusterRoleBindingName string
 		var clusterRole *rbacv1.ClusterRole
 		var clusterRoleBinding *rbacv1.ClusterRoleBinding
@@ -184,7 +182,6 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 		})
 
 		ginkgo.It("Test promoting clusterrole and clusterrolebindings", func() {
-
 			// Step1, create clusterrole and clusterrolebinding on member1
 			ginkgo.By(fmt.Sprintf("Creating clusterrole and clusterrolebinding in member: %s", member1), func() {
 				framework.CreateClusterRole(member1Client, clusterRole)
@@ -232,7 +229,6 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 		})
 
 		ginkgo.It("Test promoting a service from cluster member", func() {
-
 			ginkgo.By(fmt.Sprintf("Creating service %s with namespace %s not existed in karmada control plane", serviceName, serviceNamespace), func() {
 				serviceNamespaceObj := helper.NewNamespace(serviceNamespace)
 				framework.CreateNamespace(member1Client, serviceNamespaceObj)
@@ -455,7 +451,6 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 			}
 			err := cordon.RunCordonOrUncordon(cordon.DesiredCordon, f, opts)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
 		})
 
 		ginkgo.It(fmt.Sprintf("cluster %s should have unschedulable:NoSchedule taint", clusterName), func() {

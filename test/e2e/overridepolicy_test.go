@@ -427,7 +427,7 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 	})
 })
 
-var _ = framework.SerialDescribe("OverridePolicy with nil resourceSelectors", func() {
+var _ = framework.SerialDescribe("OverridePolicy with nil resourceSelector testing", func() {
 	var deploymentNamespace, deploymentName string
 	var propagationPolicyNamespace, propagationPolicyName string
 	var overridePolicyNamespace, overridePolicyName string
@@ -736,7 +736,7 @@ var _ = ginkgo.Describe("[OverrideRules] apply overriders testing", func() {
 	})
 })
 
-var _ = framework.SerialDescribe("OverrideRules with nil resourceSelectors", func() {
+var _ = framework.SerialDescribe("OverrideRules with nil resourceSelector testing", func() {
 	var deploymentNamespace, deploymentName string
 	var propagationPolicyNamespace, propagationPolicyName string
 	var overridePolicyNamespace, overridePolicyName string
