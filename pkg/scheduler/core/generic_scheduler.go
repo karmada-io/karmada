@@ -104,6 +104,8 @@ func (g *genericScheduler) Schedule(
 	if err != nil {
 		return result, fmt.Errorf("failed to assign replicas: %w", err)
 	}
+	klog.V(4).Infof("Assigned Replicas: %v", clustersWithReplicas)
+
 	if scheduleAlgorithmOption.EnableEmptyWorkloadPropagation {
 		clustersWithReplicas = attachZeroReplicasCluster(clusters, clustersWithReplicas)
 	}
