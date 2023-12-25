@@ -30,10 +30,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/apiserver/pkg/features"
 	"k8s.io/apiserver/pkg/storage"
 	"k8s.io/apiserver/pkg/storage/cacher/metrics"
-	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/component-base/tracing"
 	"k8s.io/klog/v2"
@@ -198,10 +196,6 @@ type watchCache struct {
 
 	// For testing cache interval invalidation.
 	indexValidator indexValidator
-
-	// Requests progress notification if there are requests waiting for watch
-	// to be fresh
-	waitingUntilFresh *conditionalProgressRequester
 }
 
 func newWatchCache(
@@ -210,9 +204,8 @@ func newWatchCache(
 	getAttrsFunc func(runtime.Object) (labels.Set, fields.Set, error),
 	versioner storage.Versioner,
 	indexers *cache.Indexers,
-	clock clock.WithTicker,
-	groupResource schema.GroupResource,
-	progressRequester *conditionalProgressRequester) *watchCache {
+	clock clock.Clock,
+	groupResource schema.GroupResource) *watchCache {
 	wc := &watchCache{
 		capacity:            defaultLowerBoundCapacity,
 		keyFunc:             keyFunc,
@@ -229,7 +222,6 @@ func newWatchCache(
 		clock:               clock,
 		versioner:           versioner,
 		groupResource:       groupResource,
-		waitingUntilFresh:   progressRequester,
 	}
 	metrics.WatchCacheCapacity.WithLabelValues(groupResource.String()).Set(float64(wc.capacity))
 	wc.cond = sync.NewCond(wc.RLocker())
@@ -313,7 +305,7 @@ func (w *watchCache) processEvent(event watch.Event, resourceVersion uint64, upd
 
 	if err := func() error {
 		// TODO: We should consider moving this lock below after the watchCacheEvent
-		// is created. In such situation, the only problematic scenario is Replace()
+		// is created. In such situation, the only problematic scenario is Replace(
 		// happening after getting object from store and before acquiring a lock.
 		// Maybe introduce another lock for this purpose.
 		w.Lock()
@@ -414,7 +406,6 @@ func (w *watchCache) UpdateResourceVersion(resourceVersion string) {
 		w.Lock()
 		defer w.Unlock()
 		w.resourceVersion = rv
-		w.cond.Broadcast()
 	}()
 
 	// Avoid calling event handler under lock.
@@ -493,14 +484,7 @@ func (s sortableStoreElements) Swap(i, j int) {
 // WaitUntilFreshAndList returns list of pointers to `storeElement` objects along
 // with their ResourceVersion and the name of the index, if any, that was used.
 func (w *watchCache) WaitUntilFreshAndList(ctx context.Context, resourceVersion uint64, matchValues []storage.MatchValue) ([]interface{}, uint64, string, error) {
-	var err error
-	if utilfeature.DefaultFeatureGate.Enabled(features.ConsistentListFromCache) && w.notFresh(resourceVersion) {
-		w.waitingUntilFresh.Add()
-		err = w.waitUntilFreshAndBlock(ctx, resourceVersion)
-		w.waitingUntilFresh.Remove()
-	} else {
-		err = w.waitUntilFreshAndBlock(ctx, resourceVersion)
-	}
+	err := w.waitUntilFreshAndBlock(ctx, resourceVersion)
 	defer w.RUnlock()
 	if err != nil {
 		return nil, 0, "", err
@@ -521,12 +505,6 @@ func (w *watchCache) WaitUntilFreshAndList(ctx context.Context, resourceVersion 
 
 	sort.Sort(sortableStoreElements(result))
 	return result, rv, index, err
-}
-
-func (w *watchCache) notFresh(resourceVersion uint64) bool {
-	w.RLock()
-	defer w.RUnlock()
-	return resourceVersion > w.resourceVersion
 }
 
 // WaitUntilFreshAndGet returns a pointers to <storeElement> object.
@@ -630,8 +608,8 @@ func (w *watchCache) Resync() error {
 }
 
 func (w *watchCache) currentCapacity() int {
-	w.RLock()
-	defer w.RUnlock()
+	w.Lock()
+	defer w.Unlock()
 	return w.capacity
 }
 

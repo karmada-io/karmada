@@ -197,14 +197,15 @@ func (a *cachedTokenAuthenticator) doAuthenticateToken(ctx context.Context, toke
 		recorder := &recorder{}
 		ctx = warning.WithWarningRecorder(ctx, recorder)
 
-		ctx = audit.WithAuditContext(ctx)
-		ac := audit.AuditContextFrom(ctx)
 		// since this is shared work between multiple requests, we have no way of knowing if any
 		// particular request supports audit annotations.  thus we always attempt to record them.
-		ac.Event.Level = auditinternal.LevelMetadata
+		ev := &auditinternal.Event{Level: auditinternal.LevelMetadata}
+		ctx = audit.WithAuditContext(ctx)
+		ac := audit.AuditContextFrom(ctx)
+		ac.Event = ev
 
 		record.resp, record.ok, record.err = a.authenticator.AuthenticateToken(ctx, token)
-		record.annotations = ac.Event.Annotations
+		record.annotations = ev.Annotations
 		record.warnings = recorder.extractWarnings()
 
 		if !a.cacheErrs && record.err != nil {

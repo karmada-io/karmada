@@ -43,7 +43,10 @@ func (oa OpenAPI) InstallV2(c *restful.Container, mux *mux.PathRecorderMux) (*ha
 	}
 	spec.Definitions = handler.PruneDefaults(spec.Definitions)
 	openAPIVersionedService := handler.NewOpenAPIService(spec)
-	openAPIVersionedService.RegisterOpenAPIVersionedService("/openapi/v2", mux)
+	err = openAPIVersionedService.RegisterOpenAPIVersionedService("/openapi/v2", mux)
+	if err != nil {
+		klog.Fatalf("Failed to register versioned open api spec for root: %v", err)
+	}
 
 	return openAPIVersionedService, spec
 }

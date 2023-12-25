@@ -22,11 +22,13 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type skipNonAppliedManager struct {
 	fieldManager           Manager
 	objectCreater          runtime.ObjectCreater
+	gvk                    schema.GroupVersionKind
 	beforeApplyManagerName string
 	probability            float32
 }
@@ -34,16 +36,17 @@ type skipNonAppliedManager struct {
 var _ Manager = &skipNonAppliedManager{}
 
 // NewSkipNonAppliedManager creates a new wrapped FieldManager that only starts tracking managers after the first apply.
-func NewSkipNonAppliedManager(fieldManager Manager, objectCreater runtime.ObjectCreater) Manager {
-	return NewProbabilisticSkipNonAppliedManager(fieldManager, objectCreater, 0.0)
+func NewSkipNonAppliedManager(fieldManager Manager, objectCreater runtime.ObjectCreater, gvk schema.GroupVersionKind) Manager {
+	return NewProbabilisticSkipNonAppliedManager(fieldManager, objectCreater, gvk, 0.0)
 }
 
 // NewProbabilisticSkipNonAppliedManager creates a new wrapped FieldManager that starts tracking managers after the first apply,
 // or starts tracking on create with p probability.
-func NewProbabilisticSkipNonAppliedManager(fieldManager Manager, objectCreater runtime.ObjectCreater, p float32) Manager {
+func NewProbabilisticSkipNonAppliedManager(fieldManager Manager, objectCreater runtime.ObjectCreater, gvk schema.GroupVersionKind, p float32) Manager {
 	return &skipNonAppliedManager{
 		fieldManager:           fieldManager,
 		objectCreater:          objectCreater,
+		gvk:                    gvk,
 		beforeApplyManagerName: "before-first-apply",
 		probability:            p,
 	}
@@ -75,10 +78,9 @@ func (f *skipNonAppliedManager) Update(liveObj, newObj runtime.Object, managed M
 // Apply implements Manager.
 func (f *skipNonAppliedManager) Apply(liveObj, appliedObj runtime.Object, managed Managed, fieldManager string, force bool) (runtime.Object, Managed, error) {
 	if len(managed.Fields()) == 0 {
-		gvk := appliedObj.GetObjectKind().GroupVersionKind()
-		emptyObj, err := f.objectCreater.New(gvk)
+		emptyObj, err := f.objectCreater.New(f.gvk)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create empty object of type %v: %v", gvk, err)
+			return nil, nil, fmt.Errorf("failed to create empty object of type %v: %v", f.gvk, err)
 		}
 		liveObj, managed, err = f.fieldManager.Update(emptyObj, liveObj, managed, f.beforeApplyManagerName)
 		if err != nil {

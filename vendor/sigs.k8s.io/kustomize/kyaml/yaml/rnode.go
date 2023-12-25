@@ -450,13 +450,15 @@ func (rn *RNode) getMetaData() *yaml.Node {
 	if IsMissingOrNull(rn) {
 		return nil
 	}
-	content := rn.Content()
+	var n *RNode
 	if rn.YNode().Kind == DocumentNode {
 		// get the content if this is the document node
-		content = content[0].Content
+		n = NewRNode(rn.Content()[0])
+	} else {
+		n = rn
 	}
 	var mf *yaml.Node
-	visitMappingNodeFields(content, func(key, value *yaml.Node) {
+	visitMappingNodeFields(n.Content(), func(key, value *yaml.Node) {
 		if !IsYNodeNilOrEmpty(value) {
 			mf = value
 		}
@@ -1005,11 +1007,7 @@ func deAnchor(yn *yaml.Node) (res *yaml.Node, err error) {
 	case yaml.ScalarNode:
 		return yn, nil
 	case yaml.AliasNode:
-		result, err := deAnchor(yn.Alias)
-		if err != nil {
-			return nil, err
-		}
-		return CopyYNode(result), nil
+		return deAnchor(yn.Alias)
 	case yaml.MappingNode:
 		toMerge, err := removeMergeTags(yn)
 		if err != nil {

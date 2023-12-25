@@ -39,26 +39,26 @@ var (
 
 	registeredMetrics = NewCounterVec(
 		&CounterOpts{
-			Name:           "registered_metrics_total",
+			Name:           "registered_metric_total",
 			Help:           "The count of registered metrics broken by stability level and deprecation version.",
-			StabilityLevel: BETA,
+			StabilityLevel: ALPHA,
 		},
 		[]string{"stability_level", "deprecated_version"},
 	)
 
 	disabledMetricsTotal = NewCounter(
 		&CounterOpts{
-			Name:           "disabled_metrics_total",
+			Name:           "disabled_metric_total",
 			Help:           "The count of disabled metrics.",
-			StabilityLevel: BETA,
+			StabilityLevel: ALPHA,
 		},
 	)
 
 	hiddenMetricsTotal = NewCounter(
 		&CounterOpts{
-			Name:           "hidden_metrics_total",
+			Name:           "hidden_metric_total",
 			Help:           "The count of hidden metrics.",
-			StabilityLevel: BETA,
+			StabilityLevel: ALPHA,
 		},
 	)
 )

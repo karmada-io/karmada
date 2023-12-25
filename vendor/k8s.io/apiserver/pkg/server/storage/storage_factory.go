@@ -291,17 +291,28 @@ func Configs(storageConfig storagebackend.Config) []storagebackend.Config {
 
 // Returns all storage configurations including those for group resource overrides
 func configs(storageConfig storagebackend.Config, grOverrides map[schema.GroupResource]groupResourceOverrides) []storagebackend.Config {
-	configs := []storagebackend.Config{storageConfig}
-
-	for _, override := range grOverrides {
-		if len(override.etcdLocation) == 0 {
-			continue
-		}
+	locations := sets.NewString()
+	configs := []storagebackend.Config{}
+	for _, loc := range storageConfig.Transport.ServerList {
 		// copy
 		newConfig := storageConfig
-		override.Apply(&newConfig, &StorageCodecConfig{})
-		newConfig.Transport.ServerList = override.etcdLocation
+		newConfig.Transport.ServerList = []string{loc}
 		configs = append(configs, newConfig)
+		locations.Insert(loc)
+	}
+
+	for _, override := range grOverrides {
+		for _, loc := range override.etcdLocation {
+			if locations.Has(loc) {
+				continue
+			}
+			// copy
+			newConfig := storageConfig
+			override.Apply(&newConfig, &StorageCodecConfig{})
+			newConfig.Transport.ServerList = []string{loc}
+			configs = append(configs, newConfig)
+			locations.Insert(loc)
+		}
 	}
 	return configs
 }

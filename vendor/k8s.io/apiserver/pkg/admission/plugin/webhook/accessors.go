@@ -26,7 +26,8 @@ import (
 	"k8s.io/apiserver/pkg/admission/plugin/webhook/matchconditions"
 	"k8s.io/apiserver/pkg/admission/plugin/webhook/predicates/namespace"
 	"k8s.io/apiserver/pkg/admission/plugin/webhook/predicates/object"
-	"k8s.io/apiserver/pkg/cel/environment"
+	celconfig "k8s.io/apiserver/pkg/apis/cel"
+	"k8s.io/apiserver/pkg/authorization/authorizer"
 	webhookutil "k8s.io/apiserver/pkg/util/webhook"
 	"k8s.io/client-go/rest"
 )
@@ -48,7 +49,7 @@ type WebhookAccessor interface {
 	GetRESTClient(clientManager *webhookutil.ClientManager) (*rest.RESTClient, error)
 
 	// GetCompiledMatcher gets the compiled matcher object
-	GetCompiledMatcher(compiler cel.FilterCompiler) matchconditions.Matcher
+	GetCompiledMatcher(compiler cel.FilterCompiler, authorizer authorizer.Authorizer) matchconditions.Matcher
 
 	// GetName gets the webhook Name field. Note that the name is scoped to the webhook
 	// configuration and does not provide a globally unique identity, if a unique identity is
@@ -80,9 +81,6 @@ type WebhookAccessor interface {
 	GetMutatingWebhook() (*v1.MutatingWebhook, bool)
 	// GetValidatingWebhook if the accessor contains a ValidatingWebhook, returns it and true, else returns false.
 	GetValidatingWebhook() (*v1.ValidatingWebhook, bool)
-
-	// GetType returns the type of the accessor (validate or admit)
-	GetType() string
 }
 
 // NewMutatingWebhookAccessor creates an accessor for a MutatingWebhook.
@@ -126,11 +124,8 @@ func (m *mutatingWebhookAccessor) GetRESTClient(clientManager *webhookutil.Clien
 	return m.client, m.clientErr
 }
 
-func (m *mutatingWebhookAccessor) GetType() string {
-	return "admit"
-}
-
-func (m *mutatingWebhookAccessor) GetCompiledMatcher(compiler cel.FilterCompiler) matchconditions.Matcher {
+// TODO: graduation to beta: resolve the fact that we rebuild ALL items whenever ANY config changes in NewMutatingWebhookConfigurationManager and NewValidatingWebhookConfigurationManager ... now that we're doing CEL compilation, we probably want to avoid that
+func (m *mutatingWebhookAccessor) GetCompiledMatcher(compiler cel.FilterCompiler, authorizer authorizer.Authorizer) matchconditions.Matcher {
 	m.compileMatcher.Do(func() {
 		expressions := make([]cel.ExpressionAccessor, len(m.MutatingWebhook.MatchConditions))
 		for i, matchCondition := range m.MutatingWebhook.MatchConditions {
@@ -145,8 +140,8 @@ func (m *mutatingWebhookAccessor) GetCompiledMatcher(compiler cel.FilterCompiler
 				HasParams:     false,
 				HasAuthorizer: true,
 			},
-			environment.StoredExpressions,
-		), m.FailurePolicy, "webhook", "admit", m.Name)
+			celconfig.PerCallLimit,
+		), authorizer, m.FailurePolicy, "validating", m.Name)
 	})
 	return m.compiledMatcher
 }
@@ -258,7 +253,7 @@ func (v *validatingWebhookAccessor) GetRESTClient(clientManager *webhookutil.Cli
 	return v.client, v.clientErr
 }
 
-func (v *validatingWebhookAccessor) GetCompiledMatcher(compiler cel.FilterCompiler) matchconditions.Matcher {
+func (v *validatingWebhookAccessor) GetCompiledMatcher(compiler cel.FilterCompiler, authorizer authorizer.Authorizer) matchconditions.Matcher {
 	v.compileMatcher.Do(func() {
 		expressions := make([]cel.ExpressionAccessor, len(v.ValidatingWebhook.MatchConditions))
 		for i, matchCondition := range v.ValidatingWebhook.MatchConditions {
@@ -273,8 +268,8 @@ func (v *validatingWebhookAccessor) GetCompiledMatcher(compiler cel.FilterCompil
 				HasParams:     false,
 				HasAuthorizer: true,
 			},
-			environment.StoredExpressions,
-		), v.FailurePolicy, "webhook", "validating", v.Name)
+			celconfig.PerCallLimit,
+		), authorizer, v.FailurePolicy, "validating", v.Name)
 	})
 	return v.compiledMatcher
 }
@@ -291,10 +286,6 @@ func (v *validatingWebhookAccessor) GetParsedObjectSelector() (labels.Selector, 
 		v.objectSelector, v.objectSelectorErr = metav1.LabelSelectorAsSelector(v.ObjectSelector)
 	})
 	return v.objectSelector, v.objectSelectorErr
-}
-
-func (m *validatingWebhookAccessor) GetType() string {
-	return "validate"
 }
 
 func (v *validatingWebhookAccessor) GetName() string {

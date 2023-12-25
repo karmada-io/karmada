@@ -35,7 +35,6 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/dynamic"
@@ -76,7 +75,7 @@ type ApplyFlags struct {
 	PruneWhitelist []string // TODO: Remove this in kubectl 1.28 or later
 	PruneAllowlist []string
 
-	genericiooptions.IOStreams
+	genericclioptions.IOStreams
 }
 
 // ApplyOptions defines flags and other configuration parameters for the `apply` command
@@ -110,7 +109,7 @@ type ApplyOptions struct {
 	Namespace        string
 	EnforceNamespace bool
 
-	genericiooptions.IOStreams
+	genericclioptions.IOStreams
 
 	// Objects (and some denormalized data) which are to be
 	// applied. The standard way to fill in this structure
@@ -160,7 +159,7 @@ var (
 		# Apply the JSON passed into stdin to a pod
 		cat pod.json | kubectl apply -f -
 
-		# Apply the configuration from all files that end with '.json'
+		# Apply the configuration from all files that end with '.json' - i.e. expand wildcard characters in file names
 		kubectl apply -f '*.json'
 
 		# Note: --prune is still in Alpha
@@ -180,7 +179,7 @@ var (
 var ApplySetToolVersion = version.Get().GitVersion
 
 // NewApplyFlags returns a default ApplyFlags
-func NewApplyFlags(streams genericiooptions.IOStreams) *ApplyFlags {
+func NewApplyFlags(streams genericclioptions.IOStreams) *ApplyFlags {
 	return &ApplyFlags{
 		RecordFlags: genericclioptions.NewRecordFlags(),
 		DeleteFlags: delete.NewDeleteFlags("The files that contain the configurations to apply."),
@@ -194,7 +193,7 @@ func NewApplyFlags(streams genericiooptions.IOStreams) *ApplyFlags {
 }
 
 // NewCmdApply creates the `apply` command
-func NewCmdApply(baseName string, f cmdutil.Factory, ioStreams genericiooptions.IOStreams) *cobra.Command {
+func NewCmdApply(baseName string, f cmdutil.Factory, ioStreams genericclioptions.IOStreams) *cobra.Command {
 	flags := NewApplyFlags(ioStreams)
 
 	cmd := &cobra.Command{
