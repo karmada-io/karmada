@@ -33,7 +33,7 @@ source "${KARMADA_ROOT}"/hack/util.sh
 echo -n "Preparing: 'mockgen' existence check - "
 if [ ! $(util::cmd_exist mockgen) ]; then
   # install from vendor with the pinned version in go.mod file
-  GO111MODULE=on go install "github.com/golang/mock/mockgen"
+  GO111MODULE=on go install "go.uber.org/mock/mockgen"
 fi
 
 find_files() {
