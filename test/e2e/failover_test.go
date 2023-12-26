@@ -156,6 +156,10 @@ var _ = framework.SerialDescribe("failover testing", func() {
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				}
 			})
+
+			ginkgo.By("check whether the deployment disappears in the recovered clusters", func() {
+				framework.WaitDeploymentDisappearOnClusters(disabledClusters, deploymentNamespace, deploymentName)
+			})
 		})
 	})
 
@@ -255,6 +259,10 @@ var _ = framework.SerialDescribe("failover testing", func() {
 					err := recoverTaintedCluster(controlPlaneClient, disabledCluster, taint)
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				}
+			})
+
+			ginkgo.By("check whether the deployment disappears in the recovered clusters", func() {
+				framework.WaitDeploymentDisappearOnClusters(disabledClusters, deploymentNamespace, deploymentName)
 			})
 		})
 	})
