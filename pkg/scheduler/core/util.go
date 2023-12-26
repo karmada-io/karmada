@@ -96,7 +96,7 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 		}
 	}
 
-	klog.V(4).Infof("Target cluster: %v", availableTargetClusters)
+	klog.V(4).Infof("Target cluster calculated by estimators (available cluster && maxAvailableReplicas): %v", availableTargetClusters)
 	return availableTargetClusters
 }
 
