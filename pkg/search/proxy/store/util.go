@@ -184,7 +184,7 @@ func (c *multiClusterContinue) String() string {
 
 type decoratedWatcher struct {
 	watcher   watch.Interface
-	decorator func(watch.Event)
+	decorator func(watch.Event) watch.Event
 }
 
 type watchMux struct {
@@ -202,7 +202,7 @@ func newWatchMux() *watchMux {
 }
 
 // AddSource shall be called before Start
-func (w *watchMux) AddSource(watcher watch.Interface, decorator func(watch.Event)) {
+func (w *watchMux) AddSource(watcher watch.Interface, decorator func(watch.Event) watch.Event) {
 	w.sources = append(w.sources, decoratedWatcher{
 		watcher:   watcher,
 		decorator: decorator,
@@ -251,7 +251,7 @@ func (w *watchMux) Stop() {
 	}
 }
 
-func (w *watchMux) startWatchSource(source watch.Interface, decorator func(watch.Event)) {
+func (w *watchMux) startWatchSource(source watch.Interface, decorator func(watch.Event) watch.Event) {
 	defer source.Stop()
 	defer w.Stop()
 	for {
@@ -264,7 +264,7 @@ func (w *watchMux) startWatchSource(source watch.Interface, decorator func(watch
 			// sourceEvent object is cacheObject,all watcher use the same point,must deepcopy.
 			copyEvent = *sourceEvent.DeepCopy()
 			if decorator != nil {
-				decorator(copyEvent)
+				copyEvent = decorator(copyEvent)
 			}
 		case <-w.done:
 			return

@@ -19,6 +19,7 @@ package store
 import (
 	"context"
 	"fmt"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"math"
 	"sort"
 	"strings"
@@ -34,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/client-go/dynamic"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 	utiltrace "k8s.io/utils/trace"
 )
@@ -54,13 +56,22 @@ type Store interface {
 type MultiClusterCache struct {
 	lock            sync.RWMutex
 	cache           map[string]*clusterCache
-	cachedResources map[schema.GroupVersionResource]struct{}
+	cachedResources map[schema.GroupVersionResource]cachedResourcesInfo
 	restMapper      meta.RESTMapper
 	// newClientFunc returns a dynamic client for member cluster apiserver
 	newClientFunc func(string) (dynamic.Interface, error)
 }
 
+type cachedResourcesInfo struct {
+	encode bool
+}
+
 var _ Store = &MultiClusterCache{}
+var scheme = runtime.NewScheme()
+
+func init() {
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+}
 
 // NewMultiClusterCache return a cache for resources from member clusters
 func NewMultiClusterCache(newClientFunc func(string) (dynamic.Interface, error), restMapper meta.RESTMapper) *MultiClusterCache {
@@ -68,7 +79,7 @@ func NewMultiClusterCache(newClientFunc func(string) (dynamic.Interface, error),
 		restMapper:      restMapper,
 		newClientFunc:   newClientFunc,
 		cache:           map[string]*clusterCache{},
-		cachedResources: map[schema.GroupVersionResource]struct{}{},
+		cachedResources: map[schema.GroupVersionResource]cachedResourcesInfo{},
 	}
 }
 
@@ -121,8 +132,25 @@ func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema
 	}
 	for resource := range newCachedResources {
 		if _, exist := c.cachedResources[resource]; !exist {
-			c.cachedResources[resource] = struct{}{}
+			c.cachedResources[resource] = cachedResourcesInfo{}
 		}
+	}
+
+	for gvr, v := range c.cachedResources {
+		kind, err := c.restMapper.KindFor(gvr)
+		if err != nil {
+			continue
+		}
+		_, err = scheme.New(kind)
+		if err != nil {
+			continue
+		}
+		if !v.encode {
+			klog.V(1).Infof("gvr %v will encode with kind %+v", gvr, kind)
+			v.encode = true
+			c.cachedResources[gvr] = v
+		}
+
 	}
 	return nil
 }
@@ -322,6 +350,20 @@ func (c *MultiClusterCache) List(ctx context.Context, gvr schema.GroupVersionRes
 	return resultObject, nil
 }
 
+func watchUseProtobuf(ctx context.Context) bool {
+	acceptValues := ctx.Value("Accept")
+	if acceptValues != nil {
+		avs := acceptValues.([]string)
+		for _, v := range avs {
+			vs := strings.Split(v, ",")
+			if vs[0] == "application/vnd.kubernetes.protobuf" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // Watch watches the resource
 func (c *MultiClusterCache) Watch(ctx context.Context, gvr schema.GroupVersionResource, options *metainternalversion.ListOptions) (watch.Interface, error) {
 	klog.V(5).Infof("Request watch %v with rv=%v", gvr.String(), options.ResourceVersion)
@@ -341,7 +383,7 @@ func (c *MultiClusterCache) Watch(ctx context.Context, gvr schema.GroupVersionRe
 		responseResourceVersion.set(cluster, accessor.GetResourceVersion())
 		accessor.SetResourceVersion(responseResourceVersion.String())
 	}
-
+	usePb := watchUseProtobuf(ctx)
 	mux := newWatchMux()
 	clusters := c.getClusterNames()
 	for i := range clusters {
@@ -355,14 +397,37 @@ func (c *MultiClusterCache) Watch(ctx context.Context, gvr schema.GroupVersionRe
 		if err != nil {
 			return nil, err
 		}
-
-		mux.AddSource(w, func(e watch.Event) {
+		encodePb := c.cachedResources[gvr].encode && usePb
+		mux.AddSource(w, func(e watch.Event) watch.Event {
 			setObjectResourceVersionFunc(cluster, e.Object)
 			addCacheSourceAnnotation(e.Object, cluster)
+			e = encodeObjectWithPb(encodePb, gvr, e)
+			return e
 		})
 	}
 	mux.Start()
 	return mux, nil
+}
+
+// encode CacheableObject or Unstructured to pbMarshal
+func encodeObjectWithPb(encodePb bool, gvr schema.GroupVersionResource, e watch.Event) watch.Event {
+	if encodePb {
+		obj := e.Object
+		cacheObj, ok := obj.(runtime.CacheableObject)
+		if ok {
+			obj = cacheObj.GetObject()
+		}
+		newObj, err := scheme.UnsafeConvertToVersion(obj, &schema.GroupVersion{
+			Group:   gvr.Group,
+			Version: gvr.Version,
+		})
+		if err != nil {
+			klog.Errorf("UnsafeConvertToVersion failed with gvr %v obj %v error %v", gvr, e.Object, err)
+			return e
+		}
+		e.Object = newObj
+	}
+	return e
 }
 
 func (c *MultiClusterCache) getClusterNames() []string {
