@@ -136,6 +136,11 @@ func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema
 		}
 	}
 
+	// update cachedResource encode
+	c.updateCachedResourcesEncode()
+	return nil
+}
+func (c *MultiClusterCache) updateCachedResourcesEncode() {
 	for gvr, v := range c.cachedResources {
 		kind, err := c.restMapper.KindFor(gvr)
 		if err != nil {
@@ -151,7 +156,6 @@ func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema
 			c.cachedResources[gvr] = v
 		}
 	}
-	return nil
 }
 
 // Stop stops the cache for multi cluster.
