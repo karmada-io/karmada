@@ -150,7 +150,6 @@ func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema
 			v.encode = true
 			c.cachedResources[gvr] = v
 		}
-
 	}
 	return nil
 }
