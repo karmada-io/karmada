@@ -67,10 +67,10 @@ type cachedResourcesInfo struct {
 }
 
 var _ Store = &MultiClusterCache{}
-var scheme = runtime.NewScheme()
+var encodeScheme = runtime.NewScheme()
 
 func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(clientgoscheme.AddToScheme(encodeScheme))
 }
 
 // NewMultiClusterCache return a cache for resources from member clusters
@@ -141,7 +141,7 @@ func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema
 		if err != nil {
 			continue
 		}
-		_, err = scheme.New(kind)
+		_, err = encodeScheme.New(kind)
 		if err != nil {
 			continue
 		}
@@ -417,7 +417,7 @@ func encodeObjectWithPb(encodePb bool, gvr schema.GroupVersionResource, e watch.
 		if ok {
 			obj = cacheObj.GetObject()
 		}
-		newObj, err := scheme.UnsafeConvertToVersion(obj, &schema.GroupVersion{
+		newObj, err := encodeScheme.UnsafeConvertToVersion(obj, &schema.GroupVersion{
 			Group:   gvr.Group,
 			Version: gvr.Version,
 		})
