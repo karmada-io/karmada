@@ -2,15 +2,19 @@
 
 ## Resource Interpreter
 
-This example implements a new CustomResourceDefinition(CRD), `Workload`, and creates a resource interpreter webhook.
+This example installs a CustomResourceDefinition(CRD), `Workload` in the `karmada-apiserver`, and deploys a deployment `karmada-interpreter-webhook-example` in the Karmada host.
 
 ### Install
 
 ### Prerequisites
 
-For karmada deploy using `hack/local-up-karmada.sh`, there are `karmada-host`, `karmada-apiserver` and three member clusters named `member1`, `member2` and `member3`.
+For Karmada deploy using `hack/local-up-karmada.sh`, there are `karmada-host`, `karmada-apiserver` and three member clusters named `member1`, `member2` and `member3`.
 
-Then you need to deploy MetalLB as a Load Balancer to expose the webhook.
+> Note: If you use other installation methods, please adapt your installation method proactively.
+
+In the current example, we will deploy `karmada-interpreter-webhook-example` in the Karmada control plane. Since it involves a cluster with Pull mode, the initiator of resource interpreter requests is in `karmada-agent`. Therefore, we create a Service of type `LoadBalancer` for `karmada-interpreter-webhook-example`.
+
+So we need to deploy MetalLB as a Load Balancer to expose the webhook. Please run the following script to deploy MetalLB.
 
 ```bash
 kubectl --context="karmada-host" get configmap kube-proxy -n kube-system -o yaml | \
@@ -53,13 +57,11 @@ Install CRD in `karmada-apiserver` by running the following command:
 kubectl --kubeconfig $HOME/.kube/karmada.config --context karmada-apiserver apply -f examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml
 ```
 
-Create `ClusterPropagationPolicy` object to propagate CRD to member clusters:
-
-workload-crd-cpp.yaml:
+Create a `ClusterPropagationPolicy` resource object to propagate `Workload` CRD to member clusters:
 
 <details>
 
-<summary>unfold me to see the yaml</summary>
+<summary>workload-crd-cpp.yaml</summary>
 
 ```yaml
 apiVersion: policy.karmada.io/v1alpha1
@@ -88,11 +90,9 @@ kubectl --kubeconfig $HOME/.kube/karmada.config --context karmada-apiserver appl
 
 Execute below script:
 
-webhook-configuration.sh
-
 <details>
 
-<summary>unfold me to see the script</summary>
+<summary>webhook-configuration.sh</summary>
 
 ```bash
 #!/usr/bin/env bash
@@ -118,21 +118,52 @@ chmod +x webhook-configuration.sh
 ./webhook-configuration.sh
 ```
 
-#### Step3: Deploy interpreter webhook example in karmada-host
+#### Step3: Deploy karmada-interpreter-webhook-example in karmada-host
 
 ```bash
 kubectl --kubeconfig $HOME/.kube/karmada.config --context karmada-host apply -f examples/customresourceinterpreter/karmada-interpreter-webhook-example.yaml
 ```
 
+> Note: karmada-interpreter-webhook-example is just a demo for testing and reference. If you plan to use the interpreter webhook, please implement specific components based on your business needs.
+
+In the current example, the interpreter webhook is deployed under the namespace `karmada-system`. If you are trying to deploy the interpreter webhook in a namespace other than the default karmada-system namespace, and use the domain address of Service in the URL. Such as (take the `test` namespace as an example):
+
+```yaml
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterWebhookConfiguration
+metadata:
+  name: examples
+webhooks:
+  - name: workloads.example.com
+    rules:
+      - operations: [ "InterpretReplica","ReviseReplica","Retain","AggregateStatus", "InterpretHealth", "InterpretStatus", "InterpretDependency" ]
+        apiGroups: [ "workload.example.io" ]
+        apiVersions: [ "v1alpha1" ]
+        kinds: [ "Workload" ]
+    clientConfig:
+      url: https://karmada-interpreter-webhook-example.test.svc.cluster.local:443/interpreter-workload # domain address here
+      caBundle: {{caBundle}}
+    interpreterContextVersions: [ "v1alpha1" ]
+    timeoutSeconds: 3
+```
+
+Please set the correct certificate and add the domain address to the CN field of the certificate.
+
+In the testing environment of Karmada, this is controlled in script `hack/deploy-karmada.sh`:
+
+https://github.com/karmada-io/karmada/blob/303f2cd24bf5d750c2391bb6699ac89d78b3c43f/hack/deploy-karmada.sh#L155
+
+We recommend that you deploy the interpreter webhook component and Karmada control plane components in the same namespace. If you need to deploy them in different namespaces, please plan ahead when generating certificates.
+
+The relevant problem description has been recorded in [#4478](https://github.com/karmada-io/karmada/issues/4478), please refer to it.
+
 ### Usage
 
 Create a `Workload` resource and propagate it to the member clusters:
 
-workload-interpret-test.yaml:
-
 <details>
 
-<summary>unfold me to see the yaml</summary>
+<summary>workload-interpret-test.yaml</summary>
 
 ```yaml
 apiVersion: workload.example.io/v1alpha1
@@ -257,6 +288,5 @@ You can check if the `status` field of `Workload` object is aggregated correctly
 ```bash
 kubectl get workload nginx --kubeconfig $HOME/.kube/karmada.config --context karmada-apiserver -o yaml
 ```
- 
 
-> Note: If you want to use `Retain`/`InterpretStatus`/`InterpretHealth` function in pull mode cluster, you need to deploy interpreter webhook example in this member cluster.
+> Note: If you want to use `Retain`/`InterpretStatus`/`InterpretHealth` function in Pull mode cluster, you need to deploy karmada-interpreter-webhook-example in the Pull mode cluster.
