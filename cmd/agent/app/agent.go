@@ -38,6 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	crtlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/karmada-io/karmada/cmd/agent/app/options"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -196,7 +197,7 @@ func run(ctx context.Context, opts *options.Options) error {
 
 	controllerManager, err := controllerruntime.NewManager(controlPlaneRestConfig, controllerruntime.Options{
 		Scheme:                     gclient.NewSchema(),
-		Cache:                      cache.Options{SyncPeriod: &opts.ResyncPeriod.Duration, Namespaces: []string{executionSpace}},
+		Cache:                      cache.Options{SyncPeriod: &opts.ResyncPeriod.Duration, DefaultNamespaces: map[string]cache.Config{executionSpace: {}}},
 		LeaderElection:             opts.LeaderElection.LeaderElect,
 		LeaderElectionID:           fmt.Sprintf("karmada-agent-%s", opts.ClusterName),
 		LeaderElectionNamespace:    opts.LeaderElection.ResourceNamespace,
@@ -206,7 +207,7 @@ func run(ctx context.Context, opts *options.Options) error {
 		RetryPeriod:                &opts.LeaderElection.RetryPeriod.Duration,
 		HealthProbeBindAddress:     net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)),
 		LivenessEndpointName:       "/healthz",
-		MetricsBindAddress:         opts.MetricsBindAddress,
+		Metrics:                    metricsserver.Options{BindAddress: opts.MetricsBindAddress},
 		MapperProvider:             restmapper.MapperProvider,
 		BaseContext: func() context.Context {
 			return ctx

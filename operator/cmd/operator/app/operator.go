@@ -31,8 +31,10 @@ import (
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/karmada-io/karmada/operator/cmd/operator/app/options"
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
@@ -164,7 +166,7 @@ func createControllerManager(ctx context.Context, o *options.Options) (controlle
 		BaseContext: func() context.Context {
 			return ctx
 		},
-		SyncPeriod:                 &o.ResyncPeriod.Duration,
+		Cache:                      cache.Options{SyncPeriod: &o.ResyncPeriod.Duration},
 		LeaderElection:             o.LeaderElection.LeaderElect,
 		LeaderElectionID:           o.LeaderElection.ResourceName,
 		LeaderElectionNamespace:    o.LeaderElection.ResourceNamespace,
@@ -174,7 +176,7 @@ func createControllerManager(ctx context.Context, o *options.Options) (controlle
 		LeaderElectionResourceLock: o.LeaderElection.ResourceLock,
 		HealthProbeBindAddress:     net.JoinHostPort(o.BindAddress, strconv.Itoa(o.SecurePort)),
 		LivenessEndpointName:       "/healthz",
-		MetricsBindAddress:         o.MetricsBindAddress,
+		Metrics:                    metricsserver.Options{BindAddress: o.MetricsBindAddress},
 		Controller: config.Controller{
 			GroupKindConcurrency: map[string]int{
 				operatorv1alpha1.SchemeGroupVersion.WithKind("Karmada").GroupKind().String(): o.ConcurrentKarmadaSyncs,
