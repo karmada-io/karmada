@@ -10,7 +10,7 @@
     "version": "unversioned"
   },
   "paths": {
-    "/apis": {
+    "/apis/": {
       "get": {
         "description": "get available API versions",
         "consumes": [
@@ -40,7 +40,7 @@
         }
       }
     },
-    "/apis/autoscaling.karmada.io": {
+    "/apis/autoscaling.karmada.io/": {
       "get": {
         "description": "get information of a group",
         "consumes": [
@@ -70,7 +70,7 @@
         }
       }
     },
-    "/apis/autoscaling.karmada.io/v1alpha1": {
+    "/apis/autoscaling.karmada.io/v1alpha1/": {
       "get": {
         "description": "get available resources",
         "consumes": [
@@ -1986,7 +1986,7 @@
         }
       ]
     },
-    "/apis/cluster.karmada.io": {
+    "/apis/cluster.karmada.io/": {
       "get": {
         "description": "get information of a group",
         "consumes": [
@@ -2016,7 +2016,7 @@
         }
       }
     },
-    "/apis/cluster.karmada.io/v1alpha1": {
+    "/apis/cluster.karmada.io/v1alpha1/": {
       "get": {
         "description": "get available resources",
         "consumes": [
@@ -3285,7 +3285,7 @@
         }
       ]
     },
-    "/apis/config.karmada.io": {
+    "/apis/config.karmada.io/": {
       "get": {
         "description": "get information of a group",
         "consumes": [
@@ -3315,7 +3315,7 @@
         }
       }
     },
-    "/apis/config.karmada.io/v1alpha1": {
+    "/apis/config.karmada.io/v1alpha1/": {
       "get": {
         "description": "get available resources",
         "consumes": [
@@ -4917,7 +4917,7 @@
         }
       ]
     },
-    "/apis/networking.karmada.io": {
+    "/apis/networking.karmada.io/": {
       "get": {
         "description": "get information of a group",
         "consumes": [
@@ -4947,7 +4947,7 @@
         }
       }
     },
-    "/apis/networking.karmada.io/v1alpha1": {
+    "/apis/networking.karmada.io/v1alpha1/": {
       "get": {
         "description": "get available resources",
         "consumes": [
@@ -6863,7 +6863,7 @@
         }
       ]
     },
-    "/apis/policy.karmada.io": {
+    "/apis/policy.karmada.io/": {
       "get": {
         "description": "get information of a group",
         "consumes": [
@@ -6893,7 +6893,7 @@
         }
       }
     },
-    "/apis/policy.karmada.io/v1alpha1": {
+    "/apis/policy.karmada.io/v1alpha1/": {
       "get": {
         "description": "get available resources",
         "consumes": [
@@ -11324,7 +11324,7 @@
         }
       ]
     },
-    "/apis/search.karmada.io": {
+    "/apis/search.karmada.io/": {
       "get": {
         "description": "get information of a group",
         "consumes": [
@@ -11354,7 +11354,7 @@
         }
       }
     },
-    "/apis/search.karmada.io/v1alpha1": {
+    "/apis/search.karmada.io/v1alpha1/": {
       "get": {
         "description": "get available resources",
         "consumes": [
@@ -12170,7 +12170,7 @@
         }
       ]
     },
-    "/apis/work.karmada.io": {
+    "/apis/work.karmada.io/": {
       "get": {
         "description": "get information of a group",
         "consumes": [
@@ -12200,7 +12200,7 @@
         }
       }
     },
-    "/apis/work.karmada.io/v1alpha1": {
+    "/apis/work.karmada.io/v1alpha1/": {
       "get": {
         "description": "get available resources",
         "consumes": [
@@ -13173,7 +13173,7 @@
         }
       ]
     },
-    "/apis/work.karmada.io/v1alpha2": {
+    "/apis/work.karmada.io/v1alpha2/": {
       "get": {
         "description": "get available resources",
         "consumes": [
