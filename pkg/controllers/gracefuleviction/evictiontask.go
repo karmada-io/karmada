@@ -44,7 +44,7 @@ func assessEvictionTasks(bindingSpec workv1alpha2.ResourceBindingSpec,
 	for _, task := range bindingSpec.GracefulEvictionTasks {
 		// set creation timestamp for new task
 		if task.CreationTimestamp.IsZero() {
-			task.CreationTimestamp = now
+			task.CreationTimestamp = &now
 			keptTasks = append(keptTasks, task)
 			continue
 		}

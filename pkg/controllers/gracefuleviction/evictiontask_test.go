@@ -45,7 +45,7 @@ func Test_assessSingleTask(t *testing.T) {
 			args: args{
 				task: workv1alpha2.GracefulEvictionTask{
 					FromCluster:       "member1",
-					CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 				},
 				opt: assessmentOption{
 					timeout: timeout,
@@ -56,7 +56,7 @@ func Test_assessSingleTask(t *testing.T) {
 			},
 			want: &workv1alpha2.GracefulEvictionTask{
 				FromCluster:       "member1",
-				CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+				CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 			},
 		},
 		{
@@ -64,7 +64,7 @@ func Test_assessSingleTask(t *testing.T) {
 			args: args{
 				task: workv1alpha2.GracefulEvictionTask{
 					FromCluster:       "member1",
-					CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -4)},
+					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -4)},
 				},
 				opt: assessmentOption{
 					timeout: timeout,
@@ -80,7 +80,7 @@ func Test_assessSingleTask(t *testing.T) {
 			args: args{
 				task: workv1alpha2.GracefulEvictionTask{
 					FromCluster:       "member1",
-					CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 				},
 				opt: assessmentOption{
 					timeout: timeout,
@@ -99,7 +99,7 @@ func Test_assessSingleTask(t *testing.T) {
 			args: args{
 				task: workv1alpha2.GracefulEvictionTask{
 					FromCluster:       "member1",
-					CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 				},
 				opt: assessmentOption{
 					timeout: timeout,
@@ -113,7 +113,7 @@ func Test_assessSingleTask(t *testing.T) {
 			},
 			want: &workv1alpha2.GracefulEvictionTask{
 				FromCluster:       "member1",
-				CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+				CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 			},
 		},
 		{
@@ -121,7 +121,7 @@ func Test_assessSingleTask(t *testing.T) {
 			args: args{
 				task: workv1alpha2.GracefulEvictionTask{
 					FromCluster:       "member1",
-					CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 				},
 				opt: assessmentOption{
 					timeout: timeout,
@@ -135,7 +135,7 @@ func Test_assessSingleTask(t *testing.T) {
 			},
 			want: &workv1alpha2.GracefulEvictionTask{
 				FromCluster:       "member1",
-				CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+				CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 			},
 		},
 		{
@@ -144,7 +144,7 @@ func Test_assessSingleTask(t *testing.T) {
 				task: workv1alpha2.GracefulEvictionTask{
 					FromCluster:        "member1",
 					GracePeriodSeconds: pointer.Int32(30),
-					CreationTimestamp:  metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+					CreationTimestamp:  &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 				},
 				opt: assessmentOption{
 					timeout: timeout,
@@ -164,7 +164,7 @@ func Test_assessSingleTask(t *testing.T) {
 				task: workv1alpha2.GracefulEvictionTask{
 					FromCluster:        "member1",
 					GracePeriodSeconds: pointer.Int32(120),
-					CreationTimestamp:  metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+					CreationTimestamp:  &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 				},
 				opt: assessmentOption{
 					timeout: timeout,
@@ -179,7 +179,7 @@ func Test_assessSingleTask(t *testing.T) {
 			want: &workv1alpha2.GracefulEvictionTask{
 				FromCluster:        "member1",
 				GracePeriodSeconds: pointer.Int32(120),
-				CreationTimestamp:  metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+				CreationTimestamp:  &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 			},
 		},
 		{
@@ -188,7 +188,7 @@ func Test_assessSingleTask(t *testing.T) {
 				task: workv1alpha2.GracefulEvictionTask{
 					FromCluster:       "member1",
 					SuppressDeletion:  pointer.Bool(true),
-					CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 				},
 				opt: assessmentOption{
 					timeout: timeout,
@@ -203,7 +203,7 @@ func Test_assessSingleTask(t *testing.T) {
 			want: &workv1alpha2.GracefulEvictionTask{
 				FromCluster:       "member1",
 				SuppressDeletion:  pointer.Bool(true),
-				CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+				CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 			},
 		},
 		{
@@ -212,7 +212,7 @@ func Test_assessSingleTask(t *testing.T) {
 				task: workv1alpha2.GracefulEvictionTask{
 					FromCluster:       "member1",
 					SuppressDeletion:  pointer.Bool(false),
-					CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 				},
 				opt: assessmentOption{
 					timeout: timeout,
@@ -271,11 +271,11 @@ func Test_assessEvictionTasks(t *testing.T) {
 			wantTask: []workv1alpha2.GracefulEvictionTask{
 				{
 					FromCluster:       "member1",
-					CreationTimestamp: timeNow,
+					CreationTimestamp: &timeNow,
 				},
 				{
 					FromCluster:       "member2",
-					CreationTimestamp: timeNow,
+					CreationTimestamp: &timeNow,
 				},
 			},
 			wantCluster: nil,
@@ -290,11 +290,11 @@ func Test_assessEvictionTasks(t *testing.T) {
 					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
 						{
 							FromCluster:       "member1",
-							CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+							CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 						},
 						{
 							FromCluster:       "member2",
-							CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -2)},
+							CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -2)},
 						},
 					},
 				},
@@ -305,11 +305,11 @@ func Test_assessEvictionTasks(t *testing.T) {
 			wantTask: []workv1alpha2.GracefulEvictionTask{
 				{
 					FromCluster:       "member1",
-					CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 				},
 				{
 					FromCluster:       "member2",
-					CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -2)},
+					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -2)},
 				},
 			},
 			wantCluster: nil,
@@ -324,11 +324,11 @@ func Test_assessEvictionTasks(t *testing.T) {
 					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
 						{
 							FromCluster:       "member1",
-							CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -4)},
+							CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -4)},
 						},
 						{
 							FromCluster:       "member2",
-							CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -5)},
+							CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -5)},
 						},
 					},
 				},
@@ -353,11 +353,11 @@ func Test_assessEvictionTasks(t *testing.T) {
 						},
 						{
 							FromCluster:       "member2",
-							CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -2)},
+							CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -2)},
 						},
 						{
 							FromCluster:       "member3",
-							CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -4)},
+							CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -4)},
 						},
 					},
 				},
@@ -368,11 +368,11 @@ func Test_assessEvictionTasks(t *testing.T) {
 			wantTask: []workv1alpha2.GracefulEvictionTask{
 				{
 					FromCluster:       "member1",
-					CreationTimestamp: timeNow,
+					CreationTimestamp: &timeNow,
 				},
 				{
 					FromCluster:       "member2",
-					CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -2)},
+					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -2)},
 				},
 			},
 			wantCluster: []string{"member3"},
@@ -388,11 +388,11 @@ func Test_assessEvictionTasks(t *testing.T) {
 					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
 						{
 							FromCluster:       "member1",
-							CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+							CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 						},
 						{
 							FromCluster:       "member2",
-							CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -2)},
+							CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -2)},
 						},
 					},
 				},
@@ -405,11 +405,11 @@ func Test_assessEvictionTasks(t *testing.T) {
 			wantTask: []workv1alpha2.GracefulEvictionTask{
 				{
 					FromCluster:       "member1",
-					CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 				},
 				{
 					FromCluster:       "member2",
-					CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -2)},
+					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -2)},
 				},
 			},
 			wantCluster: nil,
@@ -425,11 +425,11 @@ func Test_assessEvictionTasks(t *testing.T) {
 					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
 						{
 							FromCluster:       "member1",
-							CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+							CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 						},
 						{
 							FromCluster:       "member2",
-							CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -2)},
+							CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -2)},
 						},
 					},
 				},
@@ -454,11 +454,11 @@ func Test_assessEvictionTasks(t *testing.T) {
 					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
 						{
 							FromCluster:       "member1",
-							CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+							CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 						},
 						{
 							FromCluster:       "member2",
-							CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -2)},
+							CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -2)},
 						},
 					},
 				},
@@ -472,11 +472,11 @@ func Test_assessEvictionTasks(t *testing.T) {
 			wantTask: []workv1alpha2.GracefulEvictionTask{
 				{
 					FromCluster:       "member1",
-					CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 				},
 				{
 					FromCluster:       "member2",
-					CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -2)},
+					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -2)},
 				},
 			},
 			wantCluster: nil,
@@ -492,11 +492,11 @@ func Test_assessEvictionTasks(t *testing.T) {
 					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
 						{
 							FromCluster:       "member1",
-							CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+							CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 						},
 						{
 							FromCluster:       "member2",
-							CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -2)},
+							CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -2)},
 						},
 					},
 				},
@@ -510,11 +510,11 @@ func Test_assessEvictionTasks(t *testing.T) {
 			wantTask: []workv1alpha2.GracefulEvictionTask{
 				{
 					FromCluster:       "member1",
-					CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 				},
 				{
 					FromCluster:       "member2",
-					CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -2)},
+					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -2)},
 				},
 			},
 			wantCluster: nil,
@@ -557,11 +557,11 @@ func Test_nextRetry(t *testing.T) {
 				task: []workv1alpha2.GracefulEvictionTask{
 					{
 						FromCluster:       "member1",
-						CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -19)},
+						CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -19)},
 					},
 					{
 						FromCluster:       "member2",
-						CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -10)},
+						CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -10)},
 					},
 				},
 				timeout: timeout,
@@ -575,11 +575,11 @@ func Test_nextRetry(t *testing.T) {
 				task: []workv1alpha2.GracefulEvictionTask{
 					{
 						FromCluster:       "member1",
-						CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -10)},
+						CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -10)},
 					},
 					{
 						FromCluster:       "member2",
-						CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -5)},
+						CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -5)},
 					},
 				},
 				timeout: timeout,
@@ -593,12 +593,12 @@ func Test_nextRetry(t *testing.T) {
 				task: []workv1alpha2.GracefulEvictionTask{
 					{
 						FromCluster:       "member1",
-						CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -60)},
+						CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -60)},
 						SuppressDeletion:  pointer.Bool(true),
 					},
 					{
 						FromCluster:       "member2",
-						CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -5)},
+						CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -5)},
 					},
 				},
 				timeout: timeout,
@@ -612,12 +612,12 @@ func Test_nextRetry(t *testing.T) {
 				task: []workv1alpha2.GracefulEvictionTask{
 					{
 						FromCluster:       "member1",
-						CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -60)},
+						CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -60)},
 						SuppressDeletion:  pointer.Bool(true),
 					},
 					{
 						FromCluster:       "member2",
-						CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -5)},
+						CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -5)},
 						SuppressDeletion:  pointer.Bool(true),
 					},
 				},

@@ -6027,7 +6027,6 @@ func schema_pkg_apis_work_v1alpha2_GracefulEvictionTask(ref common.ReferenceCall
 					"creationTimestamp": {
 						SchemaProps: spec.SchemaProps{
 							Description: "CreationTimestamp is a timestamp representing the server time when this object was created. Clients should not set this value to avoid the time inconsistency issue. It is represented in RFC3339 form(like '2021-04-25T10:02:10Z') and is in UTC.\n\nPopulated by the system. Read-only.",
-							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},

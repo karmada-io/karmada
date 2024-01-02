@@ -256,7 +256,7 @@ type GracefulEvictionTask struct {
 	//
 	// Populated by the system. Read-only.
 	// +optional
-	CreationTimestamp metav1.Time `json:"creationTimestamp,omitempty"`
+	CreationTimestamp *metav1.Time `json:"creationTimestamp,omitempty"`
 }
 
 // BindingSnapshot is a snapshot of a ResourceBinding or ClusterResourceBinding.
