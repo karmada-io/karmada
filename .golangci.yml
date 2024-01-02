@@ -79,6 +79,7 @@ linters-settings:
       - name: dot-imports
       - name: errorf
       - name: exported
+      - name: var-declaration
   staticcheck:
     checks:
       - all
