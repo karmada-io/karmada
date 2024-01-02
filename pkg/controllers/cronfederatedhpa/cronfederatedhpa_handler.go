@@ -17,7 +17,7 @@ import (
 	"fmt"
 	"sync"
 	"time"
-	_ "time/tzdata"
+	_ "time/tzdata" // import tzdata to support time zone parsing, this is needed by function time.LoadLocation
 
 	"github.com/go-co-op/gocron"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
