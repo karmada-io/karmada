@@ -18,6 +18,7 @@ package app
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"net/http"
@@ -117,12 +118,28 @@ func Run(ctx context.Context, opts *options.Options) error {
 		Logger: klog.Background(),
 		Scheme: gclient.NewSchema(),
 		WebhookServer: webhook.NewServer(webhook.Options{
-			Host:          opts.BindAddress,
-			Port:          opts.SecurePort,
-			CertDir:       opts.CertDir,
-			CertName:      opts.CertName,
-			KeyName:       opts.KeyName,
-			TLSMinVersion: opts.TLSMinVersion,
+			Host:     opts.BindAddress,
+			Port:     opts.SecurePort,
+			CertDir:  opts.CertDir,
+			CertName: opts.CertName,
+			KeyName:  opts.KeyName,
+			TLSOpts: []func(*tls.Config){
+				func(config *tls.Config) {
+					// Just transform the valid options as opts.TLSMinVersion
+					// can only accept "1.0", "1.1", "1.2", "1.3" and has default
+					// value,
+					switch opts.TLSMinVersion {
+					case "1.0":
+						config.MinVersion = tls.VersionTLS10
+					case "1.1":
+						config.MinVersion = tls.VersionTLS11
+					case "1.2":
+						config.MinVersion = tls.VersionTLS12
+					case "1.3":
+						config.MinVersion = tls.VersionTLS13
+					}
+				},
+			},
 		}),
 		LeaderElection:         false,
 		MetricsBindAddress:     opts.MetricsBindAddress,
