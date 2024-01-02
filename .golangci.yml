@@ -69,6 +69,7 @@ linters-settings:
       - name: superfluous-else
         arguments:
           - preserveScope
+      - name: error-strings
   staticcheck:
     checks:
       - all

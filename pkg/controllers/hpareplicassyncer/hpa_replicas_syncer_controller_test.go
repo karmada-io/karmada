@@ -190,7 +190,7 @@ func reactionFuncForGetting(c client.Client, mapper meta.RESTMapper) coretesting
 	return func(action coretesting.Action) (bool, runtime.Object, error) {
 		getAction, ok := action.(coretesting.GetAction)
 		if !ok {
-			return false, nil, fmt.Errorf("Not GET Action!")
+			return false, nil, fmt.Errorf("not GET Action")
 		}
 
 		obj, err := newUnstructured(getAction.GetResource(), mapper)
@@ -243,12 +243,12 @@ func reactionFuncForUpdating(c client.Client, mapper meta.RESTMapper) coretestin
 	return func(action coretesting.Action) (bool, runtime.Object, error) {
 		updateAction, ok := action.(coretesting.UpdateAction)
 		if !ok {
-			return false, nil, fmt.Errorf("Not UPDATE Action!")
+			return false, nil, fmt.Errorf("not UPDATE Action")
 		}
 
 		scale, ok := updateAction.GetObject().(*autoscalingv1.Scale)
 		if !ok {
-			return false, nil, fmt.Errorf("Not autoscalingv1.Scale Object!")
+			return false, nil, fmt.Errorf("not autoscalingv1.Scale Object")
 		}
 
 		obj, err := newUnstructured(updateAction.GetResource(), mapper)
