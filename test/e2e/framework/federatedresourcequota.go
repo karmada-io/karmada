@@ -77,9 +77,8 @@ func WaitFederatedResourceQuotaCollectStatus(client karmada.Interface, namespace
 					matched = true
 					if reflect.DeepEqual(assign.Hard, aggregated.Hard) {
 						break
-					} else {
-						return false, nil
 					}
+					return false, nil
 				}
 				if !matched {
 					return false, nil

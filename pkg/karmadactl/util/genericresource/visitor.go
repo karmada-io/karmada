@@ -285,10 +285,9 @@ func readHTTPWithRetries(get httpget, duration time.Duration, u string, attempts
 		if statusCode >= 500 && statusCode < 600 {
 			// Retry 500's
 			continue
-		} else {
-			// Don't retry other StatusCodes
-			break
 		}
+		// Don't retry other StatusCodes
+		break
 	}
 	return nil, err
 }
