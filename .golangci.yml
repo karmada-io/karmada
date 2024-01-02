@@ -83,6 +83,7 @@ linters-settings:
       - name: blank-imports
       - name: indent-error-flow
       - name: unreachable-code
+      - name: var-naming
   staticcheck:
     checks:
       - all
