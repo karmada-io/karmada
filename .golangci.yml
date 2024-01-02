@@ -66,6 +66,7 @@ linters-settings:
       # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#if-return
       - name: if-return
         disabled: true
+      - name: indent-error-flow
   staticcheck:
     checks:
       - all
