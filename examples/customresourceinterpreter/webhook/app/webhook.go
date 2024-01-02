@@ -29,6 +29,7 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/karmada-io/karmada/examples/customresourceinterpreter/webhook/app/options"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
@@ -85,10 +86,12 @@ func Run(ctx context.Context, opts *options.Options) error {
 	}
 
 	hookManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
-		Logger:         klog.Background(),
-		Host:           opts.BindAddress,
-		Port:           opts.SecurePort,
-		CertDir:        opts.CertDir,
+		Logger: klog.Background(),
+		WebhookServer: webhook.NewServer(webhook.Options{
+			Host:    opts.BindAddress,
+			Port:    opts.SecurePort,
+			CertDir: opts.CertDir,
+		}),
 		LeaderElection: false,
 	})
 	if err != nil {

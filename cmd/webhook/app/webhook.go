@@ -29,6 +29,7 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/conversion"
@@ -142,7 +143,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 			},
 		}),
 		LeaderElection:         false,
-		MetricsBindAddress:     opts.MetricsBindAddress,
+		Metrics:                metricsserver.Options{BindAddress: opts.MetricsBindAddress},
 		HealthProbeBindAddress: opts.HealthProbeBindAddress,
 	})
 	if err != nil {
