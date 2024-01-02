@@ -39,7 +39,7 @@ var (
 	karmadaSchedulerImageRepository           = fmt.Sprintf("%s/%s", constants.KarmadaDefaultRepository, constants.KarmadaScheduler)
 	karmadaWebhookImageRepository             = fmt.Sprintf("%s/%s", constants.KarmadaDefaultRepository, constants.KarmadaWebhook)
 	karmadaDeschedulerImageRepository         = fmt.Sprintf("%s/%s", constants.KarmadaDefaultRepository, constants.KarmadaDescheduler)
-	KarmadaMetricsAdapterImageRepository      = fmt.Sprintf("%s/%s", constants.KarmadaDefaultRepository, constants.KarmadaMetricsAdapter)
+	karmadaMetricsAdapterImageRepository      = fmt.Sprintf("%s/%s", constants.KarmadaDefaultRepository, constants.KarmadaMetricsAdapter)
 	karmadaSearchImageRepository              = fmt.Sprintf("%s/%s", constants.KarmadaDefaultRepository, constants.KarmadaSearch)
 )
 
@@ -285,7 +285,7 @@ func setDefaultsKarmadaMetricsAdapter(obj *KarmadaComponents) {
 
 	metricsAdapter := obj.KarmadaMetricsAdapter
 	if len(metricsAdapter.Image.ImageRepository) == 0 {
-		metricsAdapter.Image.ImageRepository = KarmadaMetricsAdapterImageRepository
+		metricsAdapter.Image.ImageRepository = karmadaMetricsAdapterImageRepository
 	}
 	if len(metricsAdapter.Image.ImageTag) == 0 {
 		metricsAdapter.Image.ImageTag = DefaultKarmadaImageVersion

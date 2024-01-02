@@ -103,7 +103,7 @@ func GetCluster(hostClient client.Client, clusterName string) (*clusterv1alpha1.
 	return cluster, nil
 }
 
-// GetClusterWithKubeClient returns the given Clusters name set
+// GetClusterSet returns the given Clusters name set
 func GetClusterSet(hostClient client.Client) (sets.Set[string], error) {
 	clusterList := &clusterv1alpha1.ClusterList{}
 	if err := hostClient.List(context.Background(), clusterList); err != nil {

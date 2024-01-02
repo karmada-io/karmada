@@ -66,6 +66,7 @@ func IsInCluster(hostCluster *operatorv1alpha1.HostCluster) bool {
 	return hostCluster == nil || hostCluster.SecretRef == nil || len(hostCluster.SecretRef.Name) == 0
 }
 
+// BuildClientFromSecretRef builds a clientset from the secret reference.
 func BuildClientFromSecretRef(client *clientset.Clientset, ref *operatorv1alpha1.LocalSecretReference) (*clientset.Clientset, error) {
 	secret, err := client.CoreV1().Secrets(ref.Namespace).Get(context.TODO(), ref.Name, metav1.GetOptions{})
 	if err != nil {

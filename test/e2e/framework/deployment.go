@@ -255,6 +255,7 @@ func WaitDeploymentGetByClientFitWith(client kubernetes.Interface, namespace, na
 	})
 }
 
+// WaitDeploymentReplicasFitWith wait deployment replicas get by client fit with expected replicas.
 func WaitDeploymentReplicasFitWith(clusters []string, namespace, name string, expectReplicas int) {
 	ginkgo.By(fmt.Sprintf("Check deployment(%s/%s) replicas fit with expecting", namespace, name), func() {
 		gomega.Eventually(func() bool {

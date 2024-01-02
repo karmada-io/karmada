@@ -39,6 +39,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// UpgradeAwareHandler is an interface for dialing a backend for an upgrade request
 type UpgradeAwareHandler struct {
 	proxyutil.UpgradeAwareHandler
 

@@ -623,7 +623,7 @@ func startFederatedHorizontalPodAutoscalerController(ctx controllerscontext.Cont
 		ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerTolerance,
 		ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerCPUInitializationPeriod.Duration,
 		ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerInitialReadinessDelay.Duration)
-	federatedHPAController := federatedhpa.FederatedHPAController{
+	federatedHPAController := federatedhpa.FHPAController{
 		Client:                            ctx.Mgr.GetClient(),
 		EventRecorder:                     ctx.Mgr.GetEventRecorderFor(federatedhpa.ControllerName),
 		RESTMapper:                        ctx.Mgr.GetRESTMapper(),

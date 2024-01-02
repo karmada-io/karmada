@@ -29,11 +29,13 @@ import (
 	uexec "k8s.io/utils/exec"
 )
 
+// KarmadactlBuilder is a builder to run karmadactl.
 type KarmadactlBuilder struct {
 	cmd     *exec.Cmd
 	timeout <-chan time.Time
 }
 
+// TestKubeconfig contains the information of a test kubeconfig.
 type TestKubeconfig struct {
 	KubeConfig     string
 	KarmadaContext string
@@ -41,6 +43,7 @@ type TestKubeconfig struct {
 	Namespace      string
 }
 
+// NewKarmadactlCommand creates a new KarmadactlBuilder.
 func NewKarmadactlCommand(kubeConfig, karmadaContext, karmadactlPath, namespace string, timeout time.Duration, args ...string) *KarmadactlBuilder {
 	builder := new(KarmadactlBuilder)
 	tk := NewTestKubeconfig(kubeConfig, karmadaContext, karmadactlPath, namespace)
@@ -49,6 +52,7 @@ func NewKarmadactlCommand(kubeConfig, karmadaContext, karmadactlPath, namespace 
 	return builder
 }
 
+// NewTestKubeconfig creates a new TestKubeconfig.
 func NewTestKubeconfig(kubeConfig, karmadaContext, karmadactlpath, namespace string) *TestKubeconfig {
 	return &TestKubeconfig{
 		KubeConfig:     kubeConfig,
@@ -96,6 +100,7 @@ func isTimeout(err error) bool {
 	return false
 }
 
+// ExecOrDie executes the karmadactl executable and returns the stdout.
 func (k *KarmadactlBuilder) ExecOrDie() (string, error) {
 	str, err := k.exec()
 	if isTimeout(err) {
@@ -104,6 +109,7 @@ func (k *KarmadactlBuilder) ExecOrDie() (string, error) {
 	return str, err
 }
 
+// exec runs the karmadactl executable and returns the stdout.
 func (k *KarmadactlBuilder) exec() (string, error) {
 	stdOut, _, err := k.execWithFullOutput()
 	return stdOut, err

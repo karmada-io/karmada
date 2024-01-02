@@ -27,6 +27,7 @@ import (
 
 var _ predicate.Predicate = &HPAReplicasSyncer{}
 
+// Create implements CreateEvent filter
 func (r *HPAReplicasSyncer) Create(e event.CreateEvent) bool {
 	hpa, ok := e.Object.(*autoscalingv2.HorizontalPodAutoscaler)
 	if !ok {
@@ -42,6 +43,7 @@ func (r *HPAReplicasSyncer) Create(e event.CreateEvent) bool {
 	return false
 }
 
+// Update implements UpdateEvent filter
 func (r *HPAReplicasSyncer) Update(e event.UpdateEvent) bool {
 	oldHPA, ok := e.ObjectOld.(*autoscalingv2.HorizontalPodAutoscaler)
 	if !ok {
@@ -69,6 +71,7 @@ func (r *HPAReplicasSyncer) Update(e event.UpdateEvent) bool {
 	return oldHPA.Status.DesiredReplicas != newHPA.Status.DesiredReplicas
 }
 
+// Delete implements DeleteEvent filter
 func (r *HPAReplicasSyncer) Delete(e event.DeleteEvent) bool {
 	hpa, ok := e.Object.(*autoscalingv2.HorizontalPodAutoscaler)
 	if !ok {
@@ -82,6 +85,7 @@ func (r *HPAReplicasSyncer) Delete(e event.DeleteEvent) bool {
 	return false
 }
 
+// Generic implements default GenericEvent filter
 func (r *HPAReplicasSyncer) Generic(e event.GenericEvent) bool {
 	return false
 }

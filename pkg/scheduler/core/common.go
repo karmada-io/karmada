@@ -28,6 +28,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
 )
 
+// SelectClusters selects clusters based on the placement and resource binding spec.
 func SelectClusters(clustersScore framework.ClusterScoreList,
 	placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec) ([]*clusterv1alpha1.Cluster, error) {
 	startTime := time.Now()
@@ -37,6 +38,7 @@ func SelectClusters(clustersScore framework.ClusterScoreList,
 	return spreadconstraint.SelectBestClusters(placement, groupClustersInfo, spec.Replicas)
 }
 
+// AssignReplicas assigns replicas to clusters based on the placement and resource binding spec.
 func AssignReplicas(
 	clusters []*clusterv1alpha1.Cluster,
 	placement *policyv1alpha1.Placement,

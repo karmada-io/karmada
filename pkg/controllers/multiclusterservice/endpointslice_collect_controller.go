@@ -52,6 +52,7 @@ import (
 // EndpointSliceCollectControllerName is the controller name that will be used when reporting events.
 const EndpointSliceCollectControllerName = "endpointslice-collect-controller"
 
+// EndpointSliceCollectController collects EndpointSlice from member clusters and reports them to control-plane.
 type EndpointSliceCollectController struct {
 	client.Client
 	RESTMapper                  meta.RESTMapper

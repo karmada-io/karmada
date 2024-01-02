@@ -39,7 +39,8 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
-type CronFederatedHPAJob struct {
+// ScalingJob is a job to handle CronFederatedHPA.
+type ScalingJob struct {
 	client        client.Client
 	eventRecorder record.EventRecorder
 	scheduler     *gocron.Scheduler
@@ -48,9 +49,10 @@ type CronFederatedHPAJob struct {
 	rule          autoscalingv1alpha1.CronFederatedHPARule
 }
 
+// NewCronFederatedHPAJob creates a new CronFederatedHPAJob.
 func NewCronFederatedHPAJob(client client.Client, eventRecorder record.EventRecorder, scheduler *gocron.Scheduler,
-	cronFHPA *autoscalingv1alpha1.CronFederatedHPA, rule autoscalingv1alpha1.CronFederatedHPARule) *CronFederatedHPAJob {
-	return &CronFederatedHPAJob{
+	cronFHPA *autoscalingv1alpha1.CronFederatedHPA, rule autoscalingv1alpha1.CronFederatedHPARule) *ScalingJob {
+	return &ScalingJob{
 		client:        client,
 		eventRecorder: eventRecorder,
 		scheduler:     scheduler,
@@ -62,7 +64,8 @@ func NewCronFederatedHPAJob(client client.Client, eventRecorder record.EventReco
 	}
 }
 
-func RunCronFederatedHPARule(c *CronFederatedHPAJob) {
+// RunCronFederatedHPARule runs the job to handle CronFederatedHPA.
+func RunCronFederatedHPARule(c *ScalingJob) {
 	klog.V(4).Infof("Start to handle CronFederatedHPA %s", c.namespaceName)
 	defer klog.V(4).Infof("End to handle CronFederatedHPA %s", c.namespaceName)
 
@@ -122,7 +125,8 @@ func RunCronFederatedHPARule(c *CronFederatedHPAJob) {
 	})
 }
 
-func (c *CronFederatedHPAJob) ScaleFHPA(cronFHPA *autoscalingv1alpha1.CronFederatedHPA) error {
+// ScaleFHPA scales FederatedHPA's minReplicas and maxReplicas
+func (c *ScalingJob) ScaleFHPA(cronFHPA *autoscalingv1alpha1.CronFederatedHPA) error {
 	fhpaName := types.NamespacedName{
 		Namespace: cronFHPA.Namespace,
 		Name:      cronFHPA.Spec.ScaleTargetRef.Name,
@@ -161,7 +165,8 @@ func (c *CronFederatedHPAJob) ScaleFHPA(cronFHPA *autoscalingv1alpha1.CronFedera
 	return nil
 }
 
-func (c *CronFederatedHPAJob) ScaleWorkloads(cronFHPA *autoscalingv1alpha1.CronFederatedHPA) error {
+// ScaleWorkloads scales workload's replicas directly
+func (c *ScalingJob) ScaleWorkloads(cronFHPA *autoscalingv1alpha1.CronFederatedHPA) error {
 	ctx := context.Background()
 
 	scaleClient := c.client.SubResource("scale")
@@ -217,7 +222,7 @@ func (c *CronFederatedHPAJob) ScaleWorkloads(cronFHPA *autoscalingv1alpha1.CronF
 	return nil
 }
 
-func (c *CronFederatedHPAJob) addFailedExecutionHistory(
+func (c *ScalingJob) addFailedExecutionHistory(
 	cronFHPA *autoscalingv1alpha1.CronFederatedHPA, errMsg string) error {
 	_, nextExecutionTime := c.scheduler.NextRun()
 
@@ -269,7 +274,7 @@ func (c *CronFederatedHPAJob) addFailedExecutionHistory(
 	})
 }
 
-func (c *CronFederatedHPAJob) addSuccessExecutionHistory(
+func (c *ScalingJob) addSuccessExecutionHistory(
 	cronFHPA *autoscalingv1alpha1.CronFederatedHPA,
 	appliedReplicas, appliedMinReplicas, appliedMaxReplicas *int32) error {
 	_, nextExecutionTime := c.scheduler.NextRun()

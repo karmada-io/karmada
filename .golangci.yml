@@ -78,6 +78,7 @@ linters-settings:
       - name: error-naming
       - name: dot-imports
       - name: errorf
+      - name: exported
   staticcheck:
     checks:
       - all

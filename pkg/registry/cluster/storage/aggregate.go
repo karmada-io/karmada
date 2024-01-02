@@ -132,7 +132,7 @@ func requestWithResourceNameHandlerFunc(
 			cluster := clusterList.Items[i]
 			go func(cluster *clusterapis.Cluster) {
 				defer wg.Done()
-				tlsConfig, err := proxy.GetTlsConfigForCluster(ctx, cluster, secretGetter)
+				tlsConfig, err := proxy.GetTLSConfigForCluster(ctx, cluster, secretGetter)
 				if err != nil {
 					klog.Error(err)
 					return
@@ -221,7 +221,7 @@ func requestWithoutResourceNameHandlerFunc(
 			cluster := clusterList.Items[i]
 			go func(cluster *clusterapis.Cluster) {
 				defer wg.Done()
-				tlsConfig, err := proxy.GetTlsConfigForCluster(ctx, cluster, secretGetter)
+				tlsConfig, err := proxy.GetTLSConfigForCluster(ctx, cluster, secretGetter)
 				if err != nil {
 					klog.Error(err)
 					return
