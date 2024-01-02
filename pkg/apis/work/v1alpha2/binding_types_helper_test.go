@@ -152,7 +152,7 @@ func TestResourceBindingSpec_GracefulEvictCluster(t *testing.T) {
 	tests := []struct {
 		Name       string
 		InputSpec  ResourceBindingSpec
-		EvictEvent GracefulEvictionTask
+		EvictEvent EvictionTask
 		ExpectSpec ResourceBindingSpec
 	}{
 		{
@@ -160,7 +160,7 @@ func TestResourceBindingSpec_GracefulEvictCluster(t *testing.T) {
 			InputSpec: ResourceBindingSpec{
 				Clusters: []TargetCluster{{Name: "m1"}, {Name: "m2"}, {Name: "m3"}},
 			},
-			EvictEvent: GracefulEvictionTask{FromCluster: "non-exist"},
+			EvictEvent: EvictionTask{FromCluster: "non-exist"},
 			ExpectSpec: ResourceBindingSpec{
 				Clusters: []TargetCluster{{Name: "m1"}, {Name: "m2"}, {Name: "m3"}},
 			},
@@ -170,7 +170,7 @@ func TestResourceBindingSpec_GracefulEvictCluster(t *testing.T) {
 			InputSpec: ResourceBindingSpec{
 				Clusters: []TargetCluster{{Name: "m1", Replicas: 1}, {Name: "m2", Replicas: 2}, {Name: "m3", Replicas: 3}},
 			},
-			EvictEvent: GracefulEvictionTask{
+			EvictEvent: EvictionTask{
 				FromCluster: "m1",
 				Reason:      EvictionReasonTaintUntolerated,
 				Message:     "graceful eviction",
@@ -178,7 +178,7 @@ func TestResourceBindingSpec_GracefulEvictCluster(t *testing.T) {
 			},
 			ExpectSpec: ResourceBindingSpec{
 				Clusters: []TargetCluster{{Name: "m2", Replicas: 2}, {Name: "m3", Replicas: 3}},
-				GracefulEvictionTasks: []GracefulEvictionTask{
+				EvictionTasks: []EvictionTask{
 					{
 						FromCluster: "m1",
 						Replicas:    pointer.Int32(1),
@@ -194,7 +194,7 @@ func TestResourceBindingSpec_GracefulEvictCluster(t *testing.T) {
 			InputSpec: ResourceBindingSpec{
 				Clusters: []TargetCluster{{Name: "m1", Replicas: 1}, {Name: "m2", Replicas: 2}, {Name: "m3", Replicas: 3}},
 			},
-			EvictEvent: GracefulEvictionTask{
+			EvictEvent: EvictionTask{
 				FromCluster: "m2",
 				Reason:      EvictionReasonTaintUntolerated,
 				Message:     "graceful eviction",
@@ -202,7 +202,7 @@ func TestResourceBindingSpec_GracefulEvictCluster(t *testing.T) {
 			},
 			ExpectSpec: ResourceBindingSpec{
 				Clusters: []TargetCluster{{Name: "m1", Replicas: 1}, {Name: "m3", Replicas: 3}},
-				GracefulEvictionTasks: []GracefulEvictionTask{
+				EvictionTasks: []EvictionTask{
 					{
 						FromCluster: "m2",
 						Replicas:    pointer.Int32(2),
@@ -218,7 +218,7 @@ func TestResourceBindingSpec_GracefulEvictCluster(t *testing.T) {
 			InputSpec: ResourceBindingSpec{
 				Clusters: []TargetCluster{{Name: "m1", Replicas: 1}, {Name: "m2", Replicas: 2}, {Name: "m3", Replicas: 3}},
 			},
-			EvictEvent: GracefulEvictionTask{
+			EvictEvent: EvictionTask{
 				FromCluster: "m3",
 				Reason:      EvictionReasonTaintUntolerated,
 				Message:     "graceful eviction",
@@ -226,7 +226,7 @@ func TestResourceBindingSpec_GracefulEvictCluster(t *testing.T) {
 			},
 			ExpectSpec: ResourceBindingSpec{
 				Clusters: []TargetCluster{{Name: "m1", Replicas: 1}, {Name: "m2", Replicas: 2}},
-				GracefulEvictionTasks: []GracefulEvictionTask{
+				EvictionTasks: []EvictionTask{
 					{
 						FromCluster: "m3",
 						Replicas:    pointer.Int32(3),
@@ -240,10 +240,10 @@ func TestResourceBindingSpec_GracefulEvictCluster(t *testing.T) {
 		{
 			Name: "eviction task should be appended to non-empty tasks",
 			InputSpec: ResourceBindingSpec{
-				Clusters:              []TargetCluster{{Name: "m1", Replicas: 1}, {Name: "m2", Replicas: 2}, {Name: "m3", Replicas: 3}},
-				GracefulEvictionTasks: []GracefulEvictionTask{{FromCluster: "original-cluster"}},
+				Clusters:      []TargetCluster{{Name: "m1", Replicas: 1}, {Name: "m2", Replicas: 2}, {Name: "m3", Replicas: 3}},
+				EvictionTasks: []EvictionTask{{FromCluster: "original-cluster"}},
 			},
-			EvictEvent: GracefulEvictionTask{
+			EvictEvent: EvictionTask{
 				FromCluster: "m3",
 				Reason:      EvictionReasonTaintUntolerated,
 				Message:     "graceful eviction",
@@ -251,7 +251,7 @@ func TestResourceBindingSpec_GracefulEvictCluster(t *testing.T) {
 			},
 			ExpectSpec: ResourceBindingSpec{
 				Clusters: []TargetCluster{{Name: "m1", Replicas: 1}, {Name: "m2", Replicas: 2}},
-				GracefulEvictionTasks: []GracefulEvictionTask{
+				EvictionTasks: []EvictionTask{
 					{
 						FromCluster: "original-cluster",
 					},
@@ -274,7 +274,7 @@ func TestResourceBindingSpec_GracefulEvictCluster(t *testing.T) {
 			Name: "same eviction task should not be appended multiple times",
 			InputSpec: ResourceBindingSpec{
 				Clusters: []TargetCluster{{Name: "m1", Replicas: 1}, {Name: "m2", Replicas: 2}},
-				GracefulEvictionTasks: []GracefulEvictionTask{
+				EvictionTasks: []EvictionTask{
 					{
 						FromCluster: "m1",
 						Replicas:    pointer.Int32(1),
@@ -284,7 +284,7 @@ func TestResourceBindingSpec_GracefulEvictCluster(t *testing.T) {
 					},
 				},
 			},
-			EvictEvent: GracefulEvictionTask{
+			EvictEvent: EvictionTask{
 				FromCluster: "m1",
 				Replicas:    pointer.Int32(1),
 				Reason:      EvictionReasonTaintUntolerated,
@@ -293,7 +293,7 @@ func TestResourceBindingSpec_GracefulEvictCluster(t *testing.T) {
 			},
 			ExpectSpec: ResourceBindingSpec{
 				Clusters: []TargetCluster{{Name: "m2", Replicas: 2}},
-				GracefulEvictionTasks: []GracefulEvictionTask{
+				EvictionTasks: []EvictionTask{
 					{
 						FromCluster: "m1",
 						Replicas:    pointer.Int32(1),
@@ -314,15 +314,15 @@ func TestResourceBindingSpec_GracefulEvictCluster(t *testing.T) {
 			if !reflect.DeepEqual(tc.InputSpec.Clusters, tc.ExpectSpec.Clusters) {
 				t.Fatalf("expect clusters: %v, but got: %v", tc.ExpectSpec.Clusters, tc.InputSpec.Clusters)
 			}
-			if !reflect.DeepEqual(tc.InputSpec.GracefulEvictionTasks, tc.ExpectSpec.GracefulEvictionTasks) {
-				t.Fatalf("expect tasks: %v, but got: %v", tc.ExpectSpec.GracefulEvictionTasks, tc.InputSpec.GracefulEvictionTasks)
+			if !reflect.DeepEqual(tc.InputSpec.EvictionTasks, tc.ExpectSpec.EvictionTasks) {
+				t.Fatalf("expect tasks: %v, but got: %v", tc.ExpectSpec.EvictionTasks, tc.InputSpec.EvictionTasks)
 			}
 		})
 	}
 }
 
 func TestResourceBindingSpec_ClusterInGracefulEvictionTasks(t *testing.T) {
-	gracefulEvictionTasks := []GracefulEvictionTask{
+	gracefulEvictionTasks := []EvictionTask{
 		{
 			FromCluster: "member1",
 			Producer:    EvictionProducerTaintManager,
@@ -344,7 +344,7 @@ func TestResourceBindingSpec_ClusterInGracefulEvictionTasks(t *testing.T) {
 		{
 			name: "targetCluster is in the process of eviction",
 			InputSpec: ResourceBindingSpec{
-				GracefulEvictionTasks: gracefulEvictionTasks,
+				EvictionTasks: gracefulEvictionTasks,
 			},
 			targetCluster: "member1",
 			expect:        true,
@@ -352,7 +352,7 @@ func TestResourceBindingSpec_ClusterInGracefulEvictionTasks(t *testing.T) {
 		{
 			name: "targetCluster is not in the process of eviction",
 			InputSpec: ResourceBindingSpec{
-				GracefulEvictionTasks: gracefulEvictionTasks,
+				EvictionTasks: gracefulEvictionTasks,
 			},
 			targetCluster: "member3",
 			expect:        false,

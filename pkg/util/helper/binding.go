@@ -21,6 +21,7 @@ import (
 	"crypto/rand"
 	"math/big"
 	"sort"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -184,8 +185,14 @@ func ObtainBindingSpecExistingClusters(bindingSpec workv1alpha2.ResourceBindingS
 		}
 	}
 
-	for _, task := range bindingSpec.GracefulEvictionTasks {
-		clusterNames.Insert(task.FromCluster)
+	for _, task := range bindingSpec.EvictionTasks {
+		gracePeriodSeconds := int32(0)
+		if task.GracePeriodSeconds != nil {
+			gracePeriodSeconds = *task.GracePeriodSeconds * int32(time.Second)
+		}
+		if task.CreationTimestamp.Add(time.Duration(gracePeriodSeconds)).Before(metav1.Now().Time) {
+			clusterNames.Insert(task.FromCluster)
+		}
 	}
 
 	return clusterNames

@@ -296,7 +296,7 @@ func TestObtainBindingSpecExistingClusters(t *testing.T) {
 						},
 					},
 				},
-				GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
+				EvictionTasks: []workv1alpha2.EvictionTask{
 					{
 						FromCluster: "member4",
 					},
@@ -327,7 +327,7 @@ func TestObtainBindingSpecExistingClusters(t *testing.T) {
 						},
 					},
 				},
-				GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
+				EvictionTasks: []workv1alpha2.EvictionTask{
 					{
 						FromCluster: "member3",
 					},
