@@ -21,7 +21,7 @@ import (
 	_ "crypto/sha512" // initialize crypto/sha512 to enable sha512 algorithm
 	"strings"
 
-	"github.com/distribution/distribution/v3/reference"
+	"github.com/distribution/reference"
 )
 
 // Components make up a whole image.
