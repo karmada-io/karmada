@@ -121,8 +121,8 @@ func (frw *frameworkImpl) runFilterPlugin(
 	return result
 }
 
-// RunScorePlugins runs the set of configured Filter plugins for resources on the cluster.
-// If any of the result is not success, the cluster is not suited for the resource.
+// RunScorePlugins runs the set of configured Score plugins.
+// It returns a list that stores scores from each plugin and total score for each Cluster.
 func (frw *frameworkImpl) RunScorePlugins(
 	ctx context.Context,
 	spec *workv1alpha2.ResourceBindingSpec,
