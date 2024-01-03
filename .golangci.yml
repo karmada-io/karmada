@@ -76,6 +76,8 @@ linters-settings:
       - name: increment-decrement
       - name: range
       - name: error-naming
+      - name: dot-imports
+      - name: errorf
   staticcheck:
     checks:
       - all
