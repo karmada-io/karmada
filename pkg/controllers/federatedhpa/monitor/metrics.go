@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// metrics packages contains metrics which are exposed from the HPA controller.
+// Package monitor contains metrics which are exposed from the HPA controller.
 package monitor
 
 import (
