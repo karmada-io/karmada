@@ -70,6 +70,7 @@ linters-settings:
         arguments:
           - preserveScope
       - name: error-strings
+      - name: error-return
   staticcheck:
     checks:
       - all
