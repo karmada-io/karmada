@@ -32,6 +32,6 @@ controller-gen crd paths=./pkg/apis/policy/... output:crd:dir=./charts/karmada/_
 controller-gen crd paths=./pkg/apis/work/... output:crd:dir=./charts/karmada/_crds/bases/work
 controller-gen crd paths=./pkg/apis/autoscaling/... output:crd:dir=./charts/karmada/_crds/bases/autoscaling
 controller-gen crd paths=./pkg/apis/networking/... output:crd:dir=./charts/karmada/_crds/bases/networking
-controller-gen crd paths=./examples/customresourceinterpreter/apis/... output:crd:dir=./examples/customresourceinterpreter/apis/
+controller-gen crd:generateEmbeddedObjectMeta=true paths=./examples/customresourceinterpreter/apis/... output:crd:dir=./examples/customresourceinterpreter/apis/
 controller-gen crd:generateEmbeddedObjectMeta=true paths=./operator/pkg/apis/operator/... output:crd:dir=./charts/karmada-operator/crds
 controller-gen crd:generateEmbeddedObjectMeta=true paths=./operator/pkg/apis/operator/... output:crd:dir=./operator/config/crds
