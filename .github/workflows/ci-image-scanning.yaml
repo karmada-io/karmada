@@ -1,6 +1,9 @@
 name: image-scanning
 on:
-  push: 
+  push:
+  schedule:
+    # Run this workflow "At 00:00 UTC on Sunday"
+    - cron: '0 0 * * 0'
 jobs:
   use-trivy-to-scan-image:
     name: image-scanning
@@ -24,6 +27,10 @@ jobs:
     steps:
       - name: checkout code
         uses: actions/checkout@v3
+      - name: install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.20.11
       - name: Build an image from Dockerfile
         run: |
           export VERSION="latest"
