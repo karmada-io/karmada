@@ -17,7 +17,6 @@ limitations under the License.
 package cronfederatedhpa
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -73,24 +72,6 @@ func Test_validateCronFederatedHPASpec(t *testing.T) {
 				},
 			},
 			expectedErr: "",
-		},
-		{
-			name: "unsupported kind in apiVersion: autoscaling.karmada.io/v1alpha1",
-			spec: &autoscalingv1alpha1.CronFederatedHPASpec{
-				ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
-					APIVersion: autoscalingv1alpha1.GroupVersion.String(),
-					Kind:       "Test",
-					Name:       "foo",
-				},
-				Rules: []autoscalingv1alpha1.CronFederatedHPARule{
-					{
-						Name:           "bar",
-						Schedule:       "0 0 13 * 5",
-						TargetReplicas: pointer.Int32(1),
-					},
-				},
-			},
-			expectedErr: fmt.Sprintf("invalid scaleTargetRef kind: %s, only support %s", "Test", autoscalingv1alpha1.FederatedHPAKind),
 		},
 		{
 			name: "unspecified spec.scaleTargetRef.kind",

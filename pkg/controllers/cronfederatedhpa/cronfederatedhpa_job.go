@@ -17,16 +17,13 @@ package cronfederatedhpa
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/go-co-op/gocron"
-	autoscalingv1 "k8s.io/api/autoscaling/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
@@ -34,15 +31,27 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/controllers/cronfederatedhpa/implementation"
 	"github.com/karmada-io/karmada/pkg/metrics"
-	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/cronfederatedhpa"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
+
+type ReplicasScalerInterface interface {
+	ScaleReplicas(cronFHPA *autoscalingv1alpha1.CronFederatedHPA, rule autoscalingv1alpha1.CronFederatedHPARule) error
+}
+
+type MinMaxThresholdScalerInterface interface {
+	ScaleMinMaxThreshold(cronFHPA *autoscalingv1alpha1.CronFederatedHPA, rule autoscalingv1alpha1.CronFederatedHPARule) error
+}
 
 type CronFederatedHPAJob struct {
 	client        client.Client
 	eventRecorder record.EventRecorder
 	scheduler     *gocron.Scheduler
+
+	minMaxScaleHandler   map[cronfederatedhpa.ScalerKey]MinMaxThresholdScalerInterface
+	replicasScaleHandler ReplicasScalerInterface
 
 	namespaceName types.NamespacedName
 	rule          autoscalingv1alpha1.CronFederatedHPARule
@@ -50,6 +59,11 @@ type CronFederatedHPAJob struct {
 
 func NewCronFederatedHPAJob(client client.Client, eventRecorder record.EventRecorder, scheduler *gocron.Scheduler,
 	cronFHPA *autoscalingv1alpha1.CronFederatedHPA, rule autoscalingv1alpha1.CronFederatedHPARule) *CronFederatedHPAJob {
+	// If you want to support other types, please implement the related interface and put the implementation struct in the map
+	minMaxScaleHandler := map[cronfederatedhpa.ScalerKey]MinMaxThresholdScalerInterface{
+		{ApiVersion: autoscalingv1alpha1.GroupVersion.String(), Kind: "FederatedHPA"}:            &implementation.FederatedHPAScaler{Client: client},
+		{ApiVersion: autoscalingv2.SchemeGroupVersion.String(), Kind: "HorizontalPodAutoscaler"}: &implementation.HPAScaler{Client: client},
+	}
 	return &CronFederatedHPAJob{
 		client:        client,
 		eventRecorder: eventRecorder,
@@ -58,7 +72,9 @@ func NewCronFederatedHPAJob(client client.Client, eventRecorder record.EventReco
 			Name:      cronFHPA.Name,
 			Namespace: cronFHPA.Namespace,
 		},
-		rule: rule,
+		replicasScaleHandler: &implementation.ReplicasScaler{Client: client},
+		minMaxScaleHandler:   minMaxScaleHandler,
+		rule:                 rule,
 	}
 }
 
@@ -101,15 +117,10 @@ func RunCronFederatedHPARule(c *CronFederatedHPAJob) {
 		}
 	}()
 
-	if cronFHPA.Spec.ScaleTargetRef.APIVersion == autoscalingv1alpha1.GroupVersion.String() {
-		if cronFHPA.Spec.ScaleTargetRef.Kind != autoscalingv1alpha1.FederatedHPAKind {
-			scaleErr = fmt.Errorf("CronFederatedHPA(%s) do not support scale target %s/%s",
-				c.namespaceName, cronFHPA.Spec.ScaleTargetRef.APIVersion, cronFHPA.Spec.ScaleTargetRef.Kind)
-			return
-		}
-
+	if handler, ok := c.minMaxScaleHandler[cronfederatedhpa.ScalerKey{
+		ApiVersion: cronFHPA.Spec.ScaleTargetRef.APIVersion, Kind: cronFHPA.Spec.ScaleTargetRef.Kind}]; ok {
 		scaleErr = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-			err = c.ScaleFHPA(cronFHPA)
+			err = handler.ScaleMinMaxThreshold(cronFHPA, c.rule)
 			return err
 		})
 		return
@@ -117,104 +128,9 @@ func RunCronFederatedHPARule(c *CronFederatedHPAJob) {
 
 	// scale workload directly
 	scaleErr = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		err = c.ScaleWorkloads(cronFHPA)
+		err = c.replicasScaleHandler.ScaleReplicas(cronFHPA, c.rule)
 		return err
 	})
-}
-
-func (c *CronFederatedHPAJob) ScaleFHPA(cronFHPA *autoscalingv1alpha1.CronFederatedHPA) error {
-	fhpaName := types.NamespacedName{
-		Namespace: cronFHPA.Namespace,
-		Name:      cronFHPA.Spec.ScaleTargetRef.Name,
-	}
-
-	fhpa := &autoscalingv1alpha1.FederatedHPA{}
-	err := c.client.Get(context.TODO(), fhpaName, fhpa)
-	if err != nil {
-		return err
-	}
-
-	update := false
-	if c.rule.TargetMaxReplicas != nil && fhpa.Spec.MaxReplicas != *c.rule.TargetMaxReplicas {
-		fhpa.Spec.MaxReplicas = *c.rule.TargetMaxReplicas
-		update = true
-	}
-	if c.rule.TargetMinReplicas != nil && *fhpa.Spec.MinReplicas != *c.rule.TargetMinReplicas {
-		*fhpa.Spec.MinReplicas = *c.rule.TargetMinReplicas
-		update = true
-	}
-
-	if update {
-		err := c.client.Update(context.TODO(), fhpa)
-		if err != nil {
-			klog.Errorf("CronFederatedHPA(%s) updates FederatedHPA(%s/%s) failed: %v",
-				c.namespaceName, fhpa.Namespace, fhpa.Name, err)
-			return err
-		}
-		klog.V(4).Infof("CronFederatedHPA(%s) scales FederatedHPA(%s/%s) successfully",
-			c.namespaceName, fhpa.Namespace, fhpa.Name)
-		return nil
-	}
-
-	klog.V(4).Infof("CronFederatedHPA(%s) find nothing updated for FederatedHPA(%s/%s), skip it",
-		c.namespaceName, fhpa.Namespace, fhpa.Name)
-	return nil
-}
-
-func (c *CronFederatedHPAJob) ScaleWorkloads(cronFHPA *autoscalingv1alpha1.CronFederatedHPA) error {
-	ctx := context.Background()
-
-	scaleClient := c.client.SubResource("scale")
-
-	targetGV, err := schema.ParseGroupVersion(cronFHPA.Spec.ScaleTargetRef.APIVersion)
-	if err != nil {
-		klog.Errorf("CronFederatedHPA(%s) parses GroupVersion(%s) failed: %v",
-			c.namespaceName, cronFHPA.Spec.ScaleTargetRef.APIVersion, err)
-		return err
-	}
-	targetGVK := schema.GroupVersionKind{
-		Group:   targetGV.Group,
-		Kind:    cronFHPA.Spec.ScaleTargetRef.Kind,
-		Version: targetGV.Version,
-	}
-	targetResource := &unstructured.Unstructured{}
-	targetResource.SetGroupVersionKind(targetGVK)
-	err = c.client.Get(ctx, types.NamespacedName{Namespace: cronFHPA.Namespace, Name: cronFHPA.Spec.ScaleTargetRef.Name}, targetResource)
-	if err != nil {
-		klog.Errorf("Get Resource(%s/%s) failed: %v", cronFHPA.Namespace, cronFHPA.Spec.ScaleTargetRef.Name, err)
-		return err
-	}
-
-	scaleObj := &unstructured.Unstructured{}
-	err = scaleClient.Get(ctx, targetResource, scaleObj)
-	if err != nil {
-		klog.Errorf("Get Scale for resource(%s/%s) failed: %v", cronFHPA.Namespace, cronFHPA.Spec.ScaleTargetRef.Name, err)
-		return err
-	}
-
-	scale := &autoscalingv1.Scale{}
-	err = helper.ConvertToTypedObject(scaleObj, scale)
-	if err != nil {
-		klog.Errorf("Convert Scale failed: %v", err)
-		return err
-	}
-
-	if scale.Spec.Replicas != *c.rule.TargetReplicas {
-		if err := helper.ApplyReplica(scaleObj, int64(*c.rule.TargetReplicas), util.ReplicasField); err != nil {
-			klog.Errorf("CronFederatedHPA(%s) applies Replicas for %s/%s failed: %v",
-				c.namespaceName, cronFHPA.Namespace, cronFHPA.Spec.ScaleTargetRef.Name, err)
-			return err
-		}
-		err := scaleClient.Update(ctx, targetResource, client.WithSubResourceBody(scaleObj))
-		if err != nil {
-			klog.Errorf("CronFederatedHPA(%s) updates scale resource failed: %v", c.namespaceName, err)
-			return err
-		}
-		klog.V(4).Infof("CronFederatedHPA(%s) scales resource(%s/%s) successfully",
-			c.namespaceName, cronFHPA.Namespace, cronFHPA.Spec.ScaleTargetRef.Name)
-		return nil
-	}
-	return nil
 }
 
 func (c *CronFederatedHPAJob) addFailedExecutionHistory(
