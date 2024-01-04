@@ -110,9 +110,9 @@ func (k *KarmadactlBuilder) exec() (string, error) {
 }
 
 // execWithFullOutput runs the karmadactl executable, and returns the stdout and stderr.
-func (b KarmadactlBuilder) execWithFullOutput() (string, string, error) {
+func (k KarmadactlBuilder) execWithFullOutput() (string, string, error) {
 	var stdout, stderr bytes.Buffer
-	cmd := b.cmd
+	cmd := k.cmd
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 
 	if err := cmd.Start(); err != nil {
@@ -134,8 +134,8 @@ func (b KarmadactlBuilder) execWithFullOutput() (string, string, error) {
 				Code: rc,
 			}
 		}
-	case <-b.timeout:
-		err := b.cmd.Process.Kill()
+	case <-k.timeout:
+		err := k.cmd.Process.Kill()
 		if err != nil {
 			return "", "", fmt.Errorf("after execution timeout, error killing %v:\nCommand stdout:\n%v\nstderr:\n%v\nerror:\n%v", cmd, cmd.Stdout, cmd.Stderr, err)
 		}

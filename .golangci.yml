@@ -71,6 +71,7 @@ linters-settings:
           - preserveScope
       - name: error-strings
       - name: error-return
+      - name: receiver-naming
   staticcheck:
     checks:
       - all
