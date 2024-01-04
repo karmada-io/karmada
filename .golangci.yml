@@ -82,6 +82,7 @@ linters-settings:
       - name: var-declaration
       - name: blank-imports
       - name: indent-error-flow
+      - name: unreachable-code
   staticcheck:
     checks:
       - all
