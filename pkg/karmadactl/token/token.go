@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/duration"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kubeclient "k8s.io/client-go/kubernetes"
 	bootstrapapi "k8s.io/cluster-bootstrap/token/api"
 	bootstraputil "k8s.io/cluster-bootstrap/token/util"
@@ -66,7 +66,7 @@ var (
 )
 
 // NewCmdToken returns cobra.Command for token management
-func NewCmdToken(f util.Factory, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdToken(f util.Factory, parentCommand string, streams genericiooptions.IOStreams) *cobra.Command {
 	opts := &CommandTokenOptions{
 		parentCommand: parentCommand,
 		TTL: &metav1.Duration{

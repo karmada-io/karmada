@@ -36,7 +36,7 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/rest"
@@ -106,7 +106,7 @@ var (
 )
 
 // NewCmdGet New get command
-func NewCmdGet(f util.Factory, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdGet(f util.Factory, parentCommand string, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewCommandGetOptions(streams)
 	cmd := &cobra.Command{
 		Use:                   "get [NAME | -l label | -n namespace]",
@@ -178,13 +178,13 @@ type CommandGetOptions struct {
 	IgnoreNotFound bool
 	Export         bool
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 
 	karmadaClient karmadaclientset.Interface
 }
 
 // NewCommandGetOptions returns a CommandGetOptions with default chunk size 500.
-func NewCommandGetOptions(streams genericclioptions.IOStreams) *CommandGetOptions {
+func NewCommandGetOptions(streams genericiooptions.IOStreams) *CommandGetOptions {
 	return &CommandGetOptions{
 		PrintFlags:  get.NewGetPrintFlags(),
 		IOStreams:   streams,

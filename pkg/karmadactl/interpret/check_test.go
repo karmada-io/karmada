@@ -19,7 +19,7 @@ package interpret
 import (
 	"testing"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 
 	cmdtesting "github.com/karmada-io/karmada/pkg/karmadactl/util/testing"
@@ -101,7 +101,7 @@ RULERS:
 			tf := cmdtesting.NewTestFactory()
 			defer tf.Cleanup()
 
-			streams, _, buf, _ := genericclioptions.NewTestIOStreams()
+			streams, _, buf, _ := genericiooptions.NewTestIOStreams()
 			tt.options.IOStreams = streams
 			if err := tt.options.Complete(tf, nil, nil); err != nil {
 				t.Fatal(err)

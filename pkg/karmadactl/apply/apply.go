@@ -26,7 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	kubectlapply "k8s.io/kubectl/pkg/cmd/apply"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -81,7 +81,7 @@ var (
 )
 
 // NewCmdApply creates the `apply` command
-func NewCmdApply(f util.Factory, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdApply(f util.Factory, parentCommand string, streams genericiooptions.IOStreams) *cobra.Command {
 	o := &CommandApplyOptions{
 		KubectlApplyFlags: kubectlapply.NewApplyFlags(streams),
 		UtilFactory:       f,

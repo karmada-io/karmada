@@ -24,7 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/cmd/util/editor"
@@ -90,7 +90,7 @@ const (
 )
 
 // NewCmdInterpret new interpret command.
-func NewCmdInterpret(f util.Factory, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdInterpret(f util.Factory, parentCommand string, streams genericiooptions.IOStreams) *cobra.Command {
 	editorFlags := editor.NewEditOptions(editor.NormalEditMode, streams)
 	editorFlags.PrintFlags = editorFlags.PrintFlags.WithTypeSetter(gclient.NewSchema())
 
@@ -157,7 +157,7 @@ type Options struct {
 
 	Rules interpreter.Rules
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 // Complete ensures that options are valid and marshals them if necessary

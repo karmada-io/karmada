@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -65,7 +65,7 @@ type TopPodOptions struct {
 	metrics       *metricsapi.PodMetricsList
 	karmadaClient karmadaclientset.Interface
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 const metricsCreationDelay = 2 * time.Minute
@@ -93,7 +93,7 @@ var (
 		%[1]s top pod -l name=myLabel`))
 )
 
-func NewCmdTopPod(f util.Factory, parentCommand string, o *TopPodOptions, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdTopPod(f util.Factory, parentCommand string, o *TopPodOptions, streams genericiooptions.IOStreams) *cobra.Command {
 	if o == nil {
 		o = &TopPodOptions{
 			IOStreams:          streams,
