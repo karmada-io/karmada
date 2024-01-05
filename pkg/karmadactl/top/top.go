@@ -61,6 +61,7 @@ func NewCmdTop(f util.Factory, parentCommand string, streams genericclioptions.I
 
 	// create subcommands
 	cmd.AddCommand(NewCmdTopPod(f, parentCommand, nil, streams))
+	cmd.AddCommand(NewCmdTopNode(f, parentCommand, nil, streams))
 
 	return cmd
 }
