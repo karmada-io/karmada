@@ -120,6 +120,27 @@ type timestampedRecommendation struct {
 	timestamp      time.Time
 }
 
+// fhpaReqParams is parameters to get recommend metrics
+type fhpaReqParams struct {
+	fhpa           *autoscalingv1alpha1.FederatedHPA
+	metricSpec     autoscalingv2.MetricSpec
+	selector       labels.Selector
+	metricSelector labels.Selector
+	podList        []*corev1.Pod
+	calibration    float64
+	specReplicas   int32 // current spec replicas
+	statusReplicas int32
+}
+
+// fhpaResp is the response
+type fhpaResp struct {
+	condition            autoscalingv2.HorizontalPodAutoscalerCondition
+	status               *autoscalingv2.MetricStatus
+	timestampProposal    time.Time
+	metricNameProposal   string
+	replicaCountProposal int32
+}
+
 // SetupWithManager creates a controller and register to controller manager.
 func (c *FederatedHPAController) SetupWithManager(mgr controllerruntime.Manager) error {
 	c.recommendations = map[string][]timestampedRecommendation{}
@@ -185,7 +206,6 @@ func (c *FederatedHPAController) Reconcile(ctx context.Context, req controllerru
 	return controllerruntime.Result{RequeueAfter: c.HorizontalPodAutoscalerSyncPeriod}, nil
 }
 
-//nolint:gocyclo
 func (c *FederatedHPAController) reconcileAutoscaler(ctx context.Context, hpa *autoscalingv1alpha1.FederatedHPA) (retErr error) {
 	// actionLabel is used to report which actions this reconciliation has taken.
 	actionLabel := monitor.ActionLabelNone
@@ -608,22 +628,33 @@ func (c *FederatedHPAController) computeReplicasForMetrics(ctx context.Context, 
 	invalidMetricsCount := 0
 	var invalidMetricError error
 	var invalidMetricCondition autoscalingv2.HorizontalPodAutoscalerCondition
+	hpaReq := &fhpaReqParams{
+		fhpa:           hpa,
+		specReplicas:   specReplicas,
+		statusReplicas: statusReplicas,
+		selector:       selector,
+		podList:        podList,
+		calibration:    calibration,
+	}
 
 	for i, metricSpec := range metricSpecs {
-		replicaCountProposal, metricNameProposal, timestampProposal, condition, err := c.computeReplicasForMetric(ctx, hpa, metricSpec, specReplicas, statusReplicas, selector, &statuses[i], podList, calibration)
-
+		hpaReq.metricSpec = metricSpec
+		resp, err := c.computeReplicasForMetric(ctx, hpaReq)
 		if err != nil {
 			if invalidMetricsCount <= 0 {
-				invalidMetricCondition = condition
+				invalidMetricCondition = resp.condition
 				invalidMetricError = err
 			}
 			invalidMetricsCount++
 			continue
 		}
-		if replicas == 0 || replicaCountProposal > replicas {
-			timestamp = timestampProposal
-			replicas = replicaCountProposal
-			metric = metricNameProposal
+		if resp.status != nil {
+			statuses[i] = *resp.status
+		}
+		if replicas == 0 || resp.replicaCountProposal > replicas {
+			timestamp = resp.timestampProposal
+			replicas = resp.replicaCountProposal
+			metric = resp.metricNameProposal
 		}
 	}
 
@@ -704,19 +735,15 @@ func (c *FederatedHPAController) validateAndParseSelector(hpa *autoscalingv1alph
 
 // Computes the desired number of replicas for a specific hpa and metric specification,
 // returning the metric status and a proposed condition to be set on the HPA object.
-//
-//nolint:gocyclo
-func (c *FederatedHPAController) computeReplicasForMetric(ctx context.Context, hpa *autoscalingv1alpha1.FederatedHPA, spec autoscalingv2.MetricSpec,
-	specReplicas, statusReplicas int32, selector labels.Selector, status *autoscalingv2.MetricStatus, podList []*corev1.Pod, calibration float64) (replicaCountProposal int32, metricNameProposal string,
-	timestampProposal time.Time, condition autoscalingv2.HorizontalPodAutoscalerCondition, err error) {
+func (c *FederatedHPAController) computeReplicasForMetric(ctx context.Context, req *fhpaReqParams) (resp fhpaResp, err error) {
 	// actionLabel is used to report which actions this reconciliation has taken.
 	start := time.Now()
 	defer func() {
 		actionLabel := monitor.ActionLabelNone
 		switch {
-		case replicaCountProposal > hpa.Status.CurrentReplicas:
+		case resp.replicaCountProposal > req.fhpa.Status.CurrentReplicas:
 			actionLabel = monitor.ActionLabelScaleUp
-		case replicaCountProposal < hpa.Status.CurrentReplicas:
+		case resp.replicaCountProposal < req.fhpa.Status.CurrentReplicas:
 			actionLabel = monitor.ActionLabelScaleDown
 		}
 
@@ -730,127 +757,163 @@ func (c *FederatedHPAController) computeReplicasForMetric(ctx context.Context, h
 			errorLabel = monitor.ErrorLabelSpec
 		}
 
-		c.monitor.ObserveMetricComputationResult(actionLabel, errorLabel, time.Since(start), spec.Type)
+		c.monitor.ObserveMetricComputationResult(actionLabel, errorLabel, time.Since(start), req.metricSpec.Type)
 	}()
 
-	switch spec.Type {
+	switch req.metricSpec.Type {
 	case autoscalingv2.ObjectMetricSourceType:
-		metricSelector, err := metav1.LabelSelectorAsSelector(spec.Object.Metric.Selector)
+		metricSelector, err := metav1.LabelSelectorAsSelector(req.metricSpec.Object.Metric.Selector)
 		if err != nil {
-			condition := c.getUnableComputeReplicaCountCondition(hpa, "FailedGetObjectMetric", err)
-			return 0, "", time.Time{}, condition, fmt.Errorf("failed to get object metric value: %v", err)
+			resp.condition = c.getUnableComputeReplicaCountCondition(req.fhpa, "FailedGetObjectMetric", err)
+			return resp, fmt.Errorf("failed to get object metric value: %v", err)
 		}
-		replicaCountProposal, timestampProposal, metricNameProposal, condition, err = c.computeStatusForObjectMetric(specReplicas, statusReplicas, spec, hpa, status, metricSelector, podList, calibration)
+		req.metricSelector = metricSelector
+		resp, err = c.computeStatusForObjectMetric(ctx, req)
 		if err != nil {
-			return 0, "", time.Time{}, condition, fmt.Errorf("failed to get object metric value: %v", err)
+			resp.timestampProposal = time.Time{}
+			return resp, fmt.Errorf("failed to get object metric value: %v", err)
 		}
 	case autoscalingv2.PodsMetricSourceType:
-		metricSelector, err := metav1.LabelSelectorAsSelector(spec.Pods.Metric.Selector)
+		metricSelector, err := metav1.LabelSelectorAsSelector(req.metricSpec.Pods.Metric.Selector)
 		if err != nil {
-			condition := c.getUnableComputeReplicaCountCondition(hpa, "FailedGetPodsMetric", err)
-			return 0, "", time.Time{}, condition, fmt.Errorf("failed to get pods metric value: %v", err)
+			resp.condition = c.getUnableComputeReplicaCountCondition(req.fhpa, "FailedGetPodsMetric", err)
+			return resp, fmt.Errorf("failed to get pods metric value: %v", err)
 		}
-		replicaCountProposal, timestampProposal, metricNameProposal, condition, err = c.computeStatusForPodsMetric(specReplicas, spec, hpa, selector, status, metricSelector, podList, calibration)
+		req.metricSelector = metricSelector
+		resp, err = c.computeStatusForPodsMetric(ctx, req)
 		if err != nil {
-			return 0, "", time.Time{}, condition, fmt.Errorf("failed to get pods metric value: %v", err)
+			resp.timestampProposal = time.Time{}
+			return resp, fmt.Errorf("failed to get pods metric value: %v", err)
 		}
 	case autoscalingv2.ResourceMetricSourceType:
-		replicaCountProposal, timestampProposal, metricNameProposal, condition, err = c.computeStatusForResourceMetric(ctx, specReplicas, spec, hpa, selector, status, podList, calibration)
+		resp, err = c.computeStatusForResourceMetric(ctx, req)
 		if err != nil {
-			return 0, "", time.Time{}, condition, fmt.Errorf("failed to get %s resource metric value: %v", spec.Resource.Name, err)
+			resp.timestampProposal = time.Time{}
+			return resp, fmt.Errorf("failed to get %s resource metric value: %v", req.metricSpec.Resource.Name, err)
 		}
 	case autoscalingv2.ContainerResourceMetricSourceType:
-		replicaCountProposal, timestampProposal, metricNameProposal, condition, err = c.computeStatusForContainerResourceMetric(ctx, specReplicas, spec, hpa, selector, status, podList, calibration)
+		resp, err = c.computeStatusForContainerResourceMetric(ctx, req)
 		if err != nil {
-			return 0, "", time.Time{}, condition, fmt.Errorf("failed to get %s container metric value: %v", spec.ContainerResource.Container, err)
+			resp.timestampProposal = time.Time{}
+			return resp, fmt.Errorf("failed to get %s container metric value: %v", req.metricSpec.ContainerResource.Container, err)
 		}
 	default:
 		// It shouldn't reach here as invalid metric source type is filtered out in the api-server's validation.
-		err = fmt.Errorf("unknown metric source type %q%w", string(spec.Type), errSpec)
-		condition := c.getUnableComputeReplicaCountCondition(hpa, "InvalidMetricSourceType", err)
-		return 0, "", time.Time{}, condition, err
+		err = fmt.Errorf("unknown metric source type %q%w", string(req.metricSpec.Type), errSpec)
+		resp.condition = c.getUnableComputeReplicaCountCondition(req.fhpa, "InvalidMetricSourceType", err)
+		resp.timestampProposal = time.Time{}
+		return resp, err
 	}
-	return replicaCountProposal, metricNameProposal, timestampProposal, autoscalingv2.HorizontalPodAutoscalerCondition{}, nil
+	return resp, nil
 }
 
 // computeStatusForObjectMetric computes the desired number of replicas for the specified metric of type ObjectMetricSourceType.
-func (c *FederatedHPAController) computeStatusForObjectMetric(specReplicas, statusReplicas int32, metricSpec autoscalingv2.MetricSpec, hpa *autoscalingv1alpha1.FederatedHPA, status *autoscalingv2.MetricStatus, metricSelector labels.Selector, podList []*corev1.Pod, calibration float64) (replicas int32, timestamp time.Time, metricName string, condition autoscalingv2.HorizontalPodAutoscalerCondition, err error) {
-	if metricSpec.Object.Target.Type == autoscalingv2.ValueMetricType {
-		replicaCountProposal, usageProposal, timestampProposal, err := c.ReplicaCalc.GetObjectMetricReplicas(specReplicas, metricSpec.Object.Target.Value.MilliValue(), metricSpec.Object.Metric.Name, hpa.Namespace, &metricSpec.Object.DescribedObject, metricSelector, podList, calibration)
+func (c *FederatedHPAController) computeStatusForObjectMetric(ctx context.Context, req *fhpaReqParams) (resp fhpaResp, err error) {
+	if req.metricSpec.Object.Target.Type == autoscalingv2.ValueMetricType {
+		replicaCountProposal, usageProposal, timestampProposal, err := c.ReplicaCalc.GetObjectMetricReplicas(ctx, req)
 		if err != nil {
-			condition := c.getUnableComputeReplicaCountCondition(hpa, "FailedGetObjectMetric", err)
-			return 0, timestampProposal, "", condition, err
+			resp.condition = c.getUnableComputeReplicaCountCondition(req.fhpa, "FailedGetObjectMetric", err)
+			resp.timestampProposal = timestampProposal
+			return resp, err
 		}
-		*status = autoscalingv2.MetricStatus{
+		resp.status = &autoscalingv2.MetricStatus{
 			Type: autoscalingv2.ObjectMetricSourceType,
 			Object: &autoscalingv2.ObjectMetricStatus{
-				DescribedObject: metricSpec.Object.DescribedObject,
+				DescribedObject: req.metricSpec.Object.DescribedObject,
 				Metric: autoscalingv2.MetricIdentifier{
-					Name:     metricSpec.Object.Metric.Name,
-					Selector: metricSpec.Object.Metric.Selector,
+					Name:     req.metricSpec.Object.Metric.Name,
+					Selector: req.metricSpec.Object.Metric.Selector,
 				},
 				Current: autoscalingv2.MetricValueStatus{
 					Value: resource.NewMilliQuantity(usageProposal, resource.DecimalSI),
 				},
 			},
 		}
-		return replicaCountProposal, timestampProposal, fmt.Sprintf("%s metric %s", metricSpec.Object.DescribedObject.Kind, metricSpec.Object.Metric.Name), autoscalingv2.HorizontalPodAutoscalerCondition{}, nil
-	} else if metricSpec.Object.Target.Type == autoscalingv2.AverageValueMetricType {
-		replicaCountProposal, usageProposal, timestampProposal, err := c.ReplicaCalc.GetObjectPerPodMetricReplicas(statusReplicas, metricSpec.Object.Target.AverageValue.MilliValue(), metricSpec.Object.Metric.Name, hpa.Namespace, &metricSpec.Object.DescribedObject, metricSelector, calibration)
+		resp.timestampProposal = timestampProposal
+		resp.condition = autoscalingv2.HorizontalPodAutoscalerCondition{}
+		resp.replicaCountProposal = replicaCountProposal
+		resp.metricNameProposal = fmt.Sprintf("%s metric %s", req.metricSpec.Object.DescribedObject.Kind, req.metricSpec.Object.Metric.Name)
+		return resp, nil
+	} else if req.metricSpec.Object.Target.Type == autoscalingv2.AverageValueMetricType {
+		replicaCountProposal, usageProposal, timestampProposal, err := c.ReplicaCalc.GetObjectPerPodMetricReplicas(ctx, req)
 		if err != nil {
-			condition := c.getUnableComputeReplicaCountCondition(hpa, "FailedGetObjectMetric", err)
-			return 0, time.Time{}, "", condition, fmt.Errorf("failed to get %s object metric: %v", metricSpec.Object.Metric.Name, err)
+			resp.condition = c.getUnableComputeReplicaCountCondition(req.fhpa, "FailedGetObjectMetric", err)
+			resp.timestampProposal = time.Time{}
+			return resp, fmt.Errorf("failed to get %s object metric: %v", req.metricSpec.Object.Metric.Name, err)
 		}
-		*status = autoscalingv2.MetricStatus{
+		resp.status = &autoscalingv2.MetricStatus{
 			Type: autoscalingv2.ObjectMetricSourceType,
 			Object: &autoscalingv2.ObjectMetricStatus{
 				Metric: autoscalingv2.MetricIdentifier{
-					Name:     metricSpec.Object.Metric.Name,
-					Selector: metricSpec.Object.Metric.Selector,
+					Name:     req.metricSpec.Object.Metric.Name,
+					Selector: req.metricSpec.Object.Metric.Selector,
 				},
 				Current: autoscalingv2.MetricValueStatus{
 					AverageValue: resource.NewMilliQuantity(usageProposal, resource.DecimalSI),
 				},
 			},
 		}
-		return replicaCountProposal, timestampProposal, fmt.Sprintf("external metric %s(%+v)", metricSpec.Object.Metric.Name, metricSpec.Object.Metric.Selector), autoscalingv2.HorizontalPodAutoscalerCondition{}, nil
+		resp.timestampProposal = timestampProposal
+		resp.condition = autoscalingv2.HorizontalPodAutoscalerCondition{}
+		resp.replicaCountProposal = replicaCountProposal
+		resp.metricNameProposal = fmt.Sprintf("external metric %s(%+v)", req.metricSpec.Object.Metric.Name, req.metricSpec.Object.Metric.Selector)
+		return resp, nil
 	}
 	errMsg := "invalid object metric source: neither a value target nor an average value target was set"
 	err = fmt.Errorf(errMsg)
-	condition = c.getUnableComputeReplicaCountCondition(hpa, "FailedGetObjectMetric", err)
-	return 0, time.Time{}, "", condition, err
+	resp.condition = c.getUnableComputeReplicaCountCondition(req.fhpa, "FailedGetObjectMetric", err)
+	resp.timestampProposal = time.Time{}
+	return resp, err
 }
 
 // computeStatusForPodsMetric computes the desired number of replicas for the specified metric of type PodsMetricSourceType.
-func (c *FederatedHPAController) computeStatusForPodsMetric(currentReplicas int32, metricSpec autoscalingv2.MetricSpec, hpa *autoscalingv1alpha1.FederatedHPA, selector labels.Selector, status *autoscalingv2.MetricStatus, metricSelector labels.Selector, podList []*corev1.Pod, calibration float64) (replicaCountProposal int32, timestampProposal time.Time, metricNameProposal string, condition autoscalingv2.HorizontalPodAutoscalerCondition, err error) {
-	replicaCountProposal, usageProposal, timestampProposal, err := c.ReplicaCalc.GetMetricReplicas(currentReplicas, metricSpec.Pods.Target.AverageValue.MilliValue(), metricSpec.Pods.Metric.Name, hpa.Namespace, selector, metricSelector, podList, calibration)
+func (c *FederatedHPAController) computeStatusForPodsMetric(ctx context.Context, req *fhpaReqParams) (resp fhpaResp, err error) {
+	replicaCountProposal, usageProposal, timestampProposal, err := c.ReplicaCalc.GetMetricReplicas(ctx, req)
+	resp.timestampProposal = timestampProposal
 	if err != nil {
-		condition = c.getUnableComputeReplicaCountCondition(hpa, "FailedGetPodsMetric", err)
-		return 0, timestampProposal, "", condition, err
+		resp.condition = c.getUnableComputeReplicaCountCondition(req.fhpa, "FailedGetPodsMetric", err)
+		return resp, err
 	}
-	*status = autoscalingv2.MetricStatus{
+	resp.status = &autoscalingv2.MetricStatus{
 		Type: autoscalingv2.PodsMetricSourceType,
 		Pods: &autoscalingv2.PodsMetricStatus{
 			Metric: autoscalingv2.MetricIdentifier{
-				Name:     metricSpec.Pods.Metric.Name,
-				Selector: metricSpec.Pods.Metric.Selector,
+				Name:     req.metricSpec.Pods.Metric.Name,
+				Selector: req.metricSpec.Pods.Metric.Selector,
 			},
 			Current: autoscalingv2.MetricValueStatus{
 				AverageValue: resource.NewMilliQuantity(usageProposal, resource.DecimalSI),
 			},
 		},
 	}
+	resp.replicaCountProposal = replicaCountProposal
+	resp.metricNameProposal = fmt.Sprintf("pods metric %s", req.metricSpec.Pods.Metric.Name)
+	resp.condition = autoscalingv2.HorizontalPodAutoscalerCondition{}
 
-	return replicaCountProposal, timestampProposal, fmt.Sprintf("pods metric %s", metricSpec.Pods.Metric.Name), autoscalingv2.HorizontalPodAutoscalerCondition{}, nil
+	return resp, nil
 }
 
-func (c *FederatedHPAController) computeStatusForResourceMetricGeneric(ctx context.Context, currentReplicas int32, target autoscalingv2.MetricTarget,
-	resourceName corev1.ResourceName, namespace string, container string, selector labels.Selector, sourceType autoscalingv2.MetricSourceType, podList []*corev1.Pod, calibration float64) (replicaCountProposal int32,
+func (c *FederatedHPAController) computeStatusForResourceMetricGeneric(ctx context.Context, req *fhpaReqParams, sourceType autoscalingv2.MetricSourceType) (replicaCountProposal int32,
 	metricStatus *autoscalingv2.MetricValueStatus, timestampProposal time.Time, metricNameProposal string,
 	condition autoscalingv2.HorizontalPodAutoscalerCondition, err error) {
+	var target autoscalingv2.MetricTarget
+	var resourceName corev1.ResourceName
+	var container string
+
+	switch sourceType {
+	case autoscalingv2.ResourceMetricSourceType:
+		target = req.metricSpec.Resource.Target
+		resourceName = req.metricSpec.Resource.Name
+		container = ""
+	case autoscalingv2.ContainerResourceMetricSourceType:
+		target = req.metricSpec.ContainerResource.Target
+		resourceName = req.metricSpec.ContainerResource.Name
+		container = req.metricSpec.ContainerResource.Container
+	}
+
 	if target.AverageValue != nil {
 		var rawProposal int64
-		replicaCountProposal, rawProposal, timestampProposal, err := c.ReplicaCalc.GetRawResourceReplicas(ctx, currentReplicas, target.AverageValue.MilliValue(), resourceName, namespace, selector, container, podList, calibration)
+		replicaCountProposal, rawProposal, timestampProposal, err := c.ReplicaCalc.GetRawResourceReplicas(ctx, req, target.AverageValue.MilliValue(), resourceName, container)
 		if err != nil {
 			return 0, nil, time.Time{}, "", condition, fmt.Errorf("failed to get %s utilization: %v", resourceName, err)
 		}
@@ -867,7 +930,7 @@ func (c *FederatedHPAController) computeStatusForResourceMetricGeneric(ctx conte
 	}
 
 	targetUtilization := *target.AverageUtilization
-	replicaCountProposal, percentageProposal, rawProposal, timestampProposal, err := c.ReplicaCalc.GetResourceReplicas(ctx, currentReplicas, targetUtilization, resourceName, namespace, selector, container, podList, calibration)
+	replicaCountProposal, percentageProposal, rawProposal, timestampProposal, err := c.ReplicaCalc.GetResourceReplicas(ctx, req, targetUtilization, resourceName, container)
 	if err != nil {
 		return 0, nil, time.Time{}, "", condition, fmt.Errorf("failed to get %s utilization: %v", resourceName, err)
 	}
@@ -884,42 +947,48 @@ func (c *FederatedHPAController) computeStatusForResourceMetricGeneric(ctx conte
 }
 
 // computeStatusForResourceMetric computes the desired number of replicas for the specified metric of type ResourceMetricSourceType.
-func (c *FederatedHPAController) computeStatusForResourceMetric(ctx context.Context, currentReplicas int32, metricSpec autoscalingv2.MetricSpec, hpa *autoscalingv1alpha1.FederatedHPA,
-	selector labels.Selector, status *autoscalingv2.MetricStatus, podList []*corev1.Pod, calibration float64) (replicaCountProposal int32, timestampProposal time.Time,
-	metricNameProposal string, condition autoscalingv2.HorizontalPodAutoscalerCondition, err error) {
-	replicaCountProposal, metricValueStatus, timestampProposal, metricNameProposal, condition, err := c.computeStatusForResourceMetricGeneric(ctx, currentReplicas, metricSpec.Resource.Target, metricSpec.Resource.Name, hpa.Namespace, "", selector, autoscalingv2.ResourceMetricSourceType, podList, calibration)
+func (c *FederatedHPAController) computeStatusForResourceMetric(ctx context.Context, req *fhpaReqParams) (resp fhpaResp, err error) {
+	replicaCountProposal, metricValueStatus, timestampProposal, metricNameProposal, condition, err := c.computeStatusForResourceMetricGeneric(ctx, req, autoscalingv2.ResourceMetricSourceType)
+	resp.condition = condition
+	resp.metricNameProposal = metricNameProposal
+	resp.replicaCountProposal = replicaCountProposal
+	resp.timestampProposal = timestampProposal
 	if err != nil {
-		condition = c.getUnableComputeReplicaCountCondition(hpa, "FailedGetResourceMetric", err)
-		return replicaCountProposal, timestampProposal, metricNameProposal, condition, err
+		resp.condition = c.getUnableComputeReplicaCountCondition(req.fhpa, "FailedGetResourceMetric", err)
+		return resp, err
 	}
-	*status = autoscalingv2.MetricStatus{
+	resp.status = &autoscalingv2.MetricStatus{
 		Type: autoscalingv2.ResourceMetricSourceType,
 		Resource: &autoscalingv2.ResourceMetricStatus{
-			Name:    metricSpec.Resource.Name,
+			Name:    req.metricSpec.Resource.Name,
 			Current: *metricValueStatus,
 		},
 	}
-	return replicaCountProposal, timestampProposal, metricNameProposal, condition, nil
+	return resp, nil
 }
 
 // computeStatusForContainerResourceMetric computes the desired number of replicas for the specified metric of type ResourceMetricSourceType.
-func (c *FederatedHPAController) computeStatusForContainerResourceMetric(ctx context.Context, currentReplicas int32, metricSpec autoscalingv2.MetricSpec, hpa *autoscalingv1alpha1.FederatedHPA,
-	selector labels.Selector, status *autoscalingv2.MetricStatus, podList []*corev1.Pod, calibration float64) (replicaCountProposal int32, timestampProposal time.Time,
-	metricNameProposal string, condition autoscalingv2.HorizontalPodAutoscalerCondition, err error) {
-	replicaCountProposal, metricValueStatus, timestampProposal, metricNameProposal, condition, err := c.computeStatusForResourceMetricGeneric(ctx, currentReplicas, metricSpec.ContainerResource.Target, metricSpec.ContainerResource.Name, hpa.Namespace, metricSpec.ContainerResource.Container, selector, autoscalingv2.ContainerResourceMetricSourceType, podList, calibration)
+func (c *FederatedHPAController) computeStatusForContainerResourceMetric(ctx context.Context, req *fhpaReqParams) (resp fhpaResp, err error) {
+	replicaCountProposal, metricValueStatus, timestampProposal, metricNameProposal, condition, err := c.computeStatusForResourceMetricGeneric(ctx,
+		req,
+		autoscalingv2.ContainerResourceMetricSourceType)
+	resp.condition = condition
+	resp.metricNameProposal = metricNameProposal
+	resp.replicaCountProposal = replicaCountProposal
+	resp.timestampProposal = timestampProposal
 	if err != nil {
-		condition = c.getUnableComputeReplicaCountCondition(hpa, "FailedGetContainerResourceMetric", err)
-		return replicaCountProposal, timestampProposal, metricNameProposal, condition, err
+		resp.condition = c.getUnableComputeReplicaCountCondition(req.fhpa, "FailedGetContainerResourceMetric", err)
+		return resp, err
 	}
-	*status = autoscalingv2.MetricStatus{
+	resp.status = &autoscalingv2.MetricStatus{
 		Type: autoscalingv2.ContainerResourceMetricSourceType,
 		ContainerResource: &autoscalingv2.ContainerResourceMetricStatus{
-			Name:      metricSpec.ContainerResource.Name,
-			Container: metricSpec.ContainerResource.Container,
+			Name:      req.metricSpec.ContainerResource.Name,
+			Container: req.metricSpec.ContainerResource.Container,
 			Current:   *metricValueStatus,
 		},
 	}
-	return replicaCountProposal, timestampProposal, metricNameProposal, condition, nil
+	return resp, nil
 }
 
 func (c *FederatedHPAController) recordInitialRecommendation(currentReplicas int32, key string) {
