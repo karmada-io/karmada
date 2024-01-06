@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package lifted
+package lua
 
 // This code is directly lifted from the argo-cd codebase in order to avoid relying on the lua package.
 // For reference:
