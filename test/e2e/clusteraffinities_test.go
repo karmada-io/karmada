@@ -436,6 +436,5 @@ var _ = ginkgo.Describe("[ClusterAffinities] propagation testing", func() {
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 		})
-
 	})
 })
