@@ -205,13 +205,13 @@ func (s *singleClusterInformerManagerImpl) Lister(resource schema.GroupVersionRe
 	s.lock.Unlock()
 
 	s.lock.RLock()
+	defer s.lock.RUnlock()
 	if resourceTransformFunc, ok := s.transformFuncs[resource]; ok && !s.isInformerStarted(resource) {
 		err = resourceInformer.Informer().SetTransform(resourceTransformFunc)
 		if err != nil {
 			return nil, err
 		}
 	}
-	s.lock.RUnlock()
 
 	if resource == nodeGVR {
 		return s.informerFactory.Core().V1().Nodes().Lister(), nil
@@ -233,13 +233,13 @@ func (s *singleClusterInformerManagerImpl) appendHandler(resource schema.GroupVe
 
 func (s *singleClusterInformerManagerImpl) Start() {
 	s.lock.Lock()
+	defer s.lock.Unlock()
 	s.informerFactory.Start(s.ctx.Done())
 	for resource := range s.informers {
 		if _, exist := s.startedInformers[resource]; !exist {
 			s.startedInformers[resource] = struct{}{}
 		}
 	}
-	s.lock.Unlock()
 }
 
 func (s *singleClusterInformerManagerImpl) Stop() {
