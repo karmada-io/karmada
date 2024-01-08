@@ -65,6 +65,17 @@ type PropagationSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	ResourceSelectors []ResourceSelector `json:"resourceSelectors"`
 
+	// ExcludedResources used to exclude resources.
+	// It consists of a slice of exclusion rules and a resource will be excluded
+	// if it matches any of the rules.
+	//
+	// Note that, if a resource has been propagated and then excluded, its behavior
+	// is equivalent to the deletion of PropagationPolicy or ClusterPropagationPolicy.
+	// That is the propagated resource will continue to exist in member cluster(s)
+	// until it is removed or took over by another policy.
+	// +optional
+	ExcludedResources []ExcludedResource `json:"excludedResources,omitempty"`
+
 	// Association tells if relevant resources should be selected automatically.
 	// e.g. a ConfigMap referred by a Deployment.
 	// default false.
@@ -176,6 +187,34 @@ type ResourceSelector struct {
 
 	// A label query over a set of resources.
 	// If name is not empty, labelSelector will be ignored.
+	// +optional
+	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
+}
+
+// ExcludedResource specifies which resources need to be excluded.
+type ExcludedResource struct {
+	// APIVersion represents the API version of the target resources.
+	// If not empty, resources under this API group will be excluded.
+	// +optional
+	APIVersion string `json:"apiVersion,omitempty"`
+
+	// Kind represents the Kind of the target resources.
+	// If not empty, resources with this Kind will be excluded.
+	// +optional
+	Kind string `json:"kind,omitempty"`
+
+	// Namespace of the target resource.
+	// If not empty, resources under this namespace will be excluded.
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+
+	// Name of the target resource.
+	// If not empty, resources with this name will be excluded.
+	// +optional
+	Name string `json:"name,omitempty"`
+
+	// A label query over a set of resources.
+	// If not empty, resources match the label query will be excluded.
 	// +optional
 	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 }

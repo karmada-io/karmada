@@ -16640,6 +16640,32 @@
         }
       }
     },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ExcludedResource": {
+      "description": "ExcludedResource specifies which resources need to be excluded.",
+      "type": "object",
+      "properties": {
+        "apiVersion": {
+          "description": "APIVersion represents the API version of the target resources. If not empty, resources under this API group will be excluded.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind represents the Kind of the target resources. If not empty, resources with this Kind will be excluded.",
+          "type": "string"
+        },
+        "labelSelector": {
+          "description": "A label query over a set of resources. If not empty, resources match the label query will be excluded.",
+          "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector"
+        },
+        "name": {
+          "description": "Name of the target resource. If not empty, resources with this name will be excluded.",
+          "type": "string"
+        },
+        "namespace": {
+          "description": "Namespace of the target resource. If not empty, resources under this namespace will be excluded.",
+          "type": "string"
+        }
+      }
+    },
     "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FailoverBehavior": {
       "description": "FailoverBehavior indicates failover behaviors in case of an application or cluster failure.",
       "type": "object",
@@ -17162,6 +17188,14 @@
           "items": {
             "type": "string",
             "default": ""
+          }
+        },
+        "excludedResources": {
+          "description": "ExcludedResources used to exclude resources. It consists of a slice of exclusion rules and a resource will be excluded if it matches any of the rules.\n\nNote that, if a resource has been propagated and then excluded, its behavior is equivalent to the deletion of PropagationPolicy or ClusterPropagationPolicy. That is the propagated resource will continue to exist in member cluster(s) until it is removed or took over by another policy.",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ExcludedResource"
           }
         },
         "failover": {
