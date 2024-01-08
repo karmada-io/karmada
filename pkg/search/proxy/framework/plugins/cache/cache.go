@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/endpoints/handlers"
 	"k8s.io/apiserver/pkg/registry/rest"
@@ -109,7 +110,7 @@ func (c *Cache) Connect(_ context.Context, request framework.ProxyRequest) (http
 			Namer:         meta.NewAccessor(),
 			ClusterScoped: mapping.Scope.Name() == meta.RESTScopeNameRoot,
 		},
-		Serializer:       scheme.Codecs.WithoutConversion(),
+		Serializer:       getNegotiatedSerializer(gvk),
 		Convertor:        runtime.NewScheme(),
 		Subresource:      requestInfo.Subresource,
 		MetaGroupVersion: metav1.SchemeGroupVersion,
@@ -124,6 +125,15 @@ func (c *Cache) Connect(_ context.Context, request framework.ProxyRequest) (http
 		h = handlers.GetResource(r, scope)
 	}
 	return h, nil
+}
+
+func getNegotiatedSerializer(gvk schema.GroupVersionKind) runtime.NegotiatedSerializer {
+	if scheme.Scheme.Recognizes(gvk) {
+		return scheme.Codecs.WithoutConversion()
+	}
+
+	jsonInfo, _ := runtime.SerializerInfoForMediaType(scheme.Codecs.SupportedMediaTypes(), runtime.ContentTypeJSON)
+	return serializer.NegotiatedSerializerWrapper(jsonInfo)
 }
 
 type rester struct {
