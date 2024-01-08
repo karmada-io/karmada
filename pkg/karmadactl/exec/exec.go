@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kubectlexec "k8s.io/kubectl/pkg/cmd/exec"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -60,7 +60,7 @@ var (
 )
 
 // NewCmdExec new exec command.
-func NewCmdExec(f util.Factory, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdExec(f util.Factory, parentCommand string, streams genericiooptions.IOStreams) *cobra.Command {
 	o := &CommandExecOptions{
 		KubectlExecOptions: &kubectlexec.ExecOptions{
 			StreamOptions: kubectlexec.StreamOptions{

@@ -20,7 +20,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kubectldescribe "k8s.io/kubectl/pkg/cmd/describe"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -61,7 +61,7 @@ var (
 )
 
 // NewCmdDescribe new describe command.
-func NewCmdDescribe(f util.Factory, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdDescribe(f util.Factory, parentCommand string, streams genericiooptions.IOStreams) *cobra.Command {
 	o := &CommandDescribeOptions{}
 	kubedescribeFlags := kubectldescribe.NewDescribeFlags(f, streams)
 

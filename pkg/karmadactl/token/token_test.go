@@ -24,7 +24,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kubernetesfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/cluster-bootstrap/token/api"
 
@@ -200,7 +200,7 @@ func TestCommandTokenOptions_runDeleteTokens(t *testing.T) {
 }
 
 func TestNewCmdToken(t *testing.T) {
-	stream := genericclioptions.IOStreams{}
+	stream := genericiooptions.IOStreams{}
 	f := util.NewFactory(options.DefaultConfigFlags)
 	cmdToken := NewCmdToken(f, "karmadactl", stream)
 	if cmdToken == nil {

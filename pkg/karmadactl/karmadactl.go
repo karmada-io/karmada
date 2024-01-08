@@ -23,7 +23,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	apiserverflag "k8s.io/component-base/cli/flag"
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -81,7 +81,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 	// Prevent klog errors about logging before parsing.
 	_ = flag.CommandLine.Parse(nil)
 	f := util.NewFactory(options.DefaultConfigFlags)
-	ioStreams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
+	ioStreams := genericiooptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
 	groups := templates.CommandGroups{
 		{
 			Message: "Basic Commands:",

@@ -64,7 +64,9 @@ func NewMetricsController(restConfig *rest.Config, factory informerfactory.Share
 		MultiClusterDiscovery: multiclient.NewMultiClusterDiscoveryClient(clusterLister, kubeFactory),
 		InformerManager:       genericmanager.GetInstance(),
 		restConfig:            restConfig,
-		queue:                 workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "metrics-adapter"),
+		queue: workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
+			Name: "metrics-adapter",
+		}),
 	}
 	controller.addEventHandler()
 
