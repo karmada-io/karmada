@@ -234,6 +234,7 @@ func (c *MultiClusterCache) List(ctx context.Context, gvr schema.GroupVersionRes
 			utiltrace.Field{Key: "cluster", Value: cluster},
 			utiltrace.Field{Key: "options", Value: fmt.Sprintf("%#v", options)},
 		)
+		klog.V(4).Infof("List member cluster %v with %#v", cluster, options)
 		obj, err := cache.List(ctx, options)
 		if err != nil {
 			// When resource is not installed in cluster, cacher will return this error.
@@ -301,8 +302,12 @@ func (c *MultiClusterCache) List(ctx context.Context, gvr schema.GroupVersionRes
 		}
 	}
 
-	if err := c.fillMissingClusterResourceVersion(ctx, responseResourceVersion, clusters, gvr); err != nil {
-		return nil, err
+	if o.ResourceVersion == "0" {
+		for _, cluster := range clusters {
+			if _, ok := responseResourceVersion.rvs[cluster]; !ok {
+				responseResourceVersion.rvs[cluster] = "0"
+			}
+		}
 	}
 	responseContinue.RV = responseResourceVersion.String()
 
