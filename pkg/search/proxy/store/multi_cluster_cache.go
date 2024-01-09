@@ -142,19 +142,21 @@ func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema
 }
 func (c *MultiClusterCache) updateCachedResourcesEncode() {
 	for gvr, v := range c.cachedResources {
+		if v.encode {
+			continue
+		}
 		kind, err := c.restMapper.KindFor(gvr)
 		if err != nil {
+			klog.V(7).Infof("kind for gvr %v failed with error %v", gvr, kind)
 			continue
 		}
 		_, err = encodeScheme.New(kind)
 		if err != nil {
 			continue
 		}
-		if !v.encode {
-			klog.V(1).Infof("gvr %v will encode with kind %+v", gvr, kind)
-			v.encode = true
-			c.cachedResources[gvr] = v
-		}
+		klog.V(1).Infof("gvr %v will encode with kind %+v", gvr, kind)
+		v.encode = true
+		c.cachedResources[gvr] = v
 	}
 }
 
@@ -420,10 +422,7 @@ func encodeObjectWithPb(encodePb bool, gvr schema.GroupVersionResource, e watch.
 		if ok {
 			obj = cacheObj.GetObject()
 		}
-		newObj, err := encodeScheme.UnsafeConvertToVersion(obj, &schema.GroupVersion{
-			Group:   gvr.Group,
-			Version: gvr.Version,
-		})
+		newObj, err := encodeScheme.UnsafeConvertToVersion(obj, gvr.GroupVersion())
 		if err != nil {
 			klog.Errorf("UnsafeConvertToVersion failed with gvr %v obj %v error %v", gvr, e.Object, err)
 			return e
