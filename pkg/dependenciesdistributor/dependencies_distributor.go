@@ -534,6 +534,7 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding 
 			klog.Errorf("Failed to update resource binding(%s/%s): %v", existBinding.Namespace, existBinding.Name, err)
 			return err
 		}
+		return nil
 	}
 
 	if !apierrors.IsNotFound(err) {
