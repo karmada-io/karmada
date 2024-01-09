@@ -25,6 +25,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
 
+// VerifyClustersExist verifies the clusters exist.
 func VerifyClustersExist(input []string, clusters *clusterv1alpha1.ClusterList) error {
 	clusterSet := sets.NewString()
 	for _, cluster := range clusters.Items {

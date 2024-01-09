@@ -31,15 +31,20 @@ import (
 )
 
 var (
+	// MeasuredResources is the list of resources that are measured by the top command.
 	MeasuredResources = []corev1.ResourceName{
 		corev1.ResourceCPU,
 		corev1.ResourceMemory,
 	}
-	PodColumns      = []string{"NAME", "CLUSTER", "CPU(cores)", "MEMORY(bytes)"}
+	// PodColumns is the list of columns used in the top pod command.
+	PodColumns = []string{"NAME", "CLUSTER", "CPU(cores)", "MEMORY(bytes)"}
+	// NamespaceColumn is the column name for namespace.
 	NamespaceColumn = "NAMESPACE"
-	PodColumn       = "POD"
+	// PodColumn is the column name for pod.
+	PodColumn = "POD"
 )
 
+// ResourceMetricsInfo contains the information of a resource metric.
 type ResourceMetricsInfo struct {
 	Cluster   string
 	Name      string
@@ -47,15 +52,18 @@ type ResourceMetricsInfo struct {
 	Available corev1.ResourceList
 }
 
-type TopCmdPrinter struct {
+// CmdPrinter is an implementation of TopPrinter which prints the metrics to the given writer.
+type CmdPrinter struct {
 	out io.Writer
 }
 
-func NewTopCmdPrinter(out io.Writer) *TopCmdPrinter {
-	return &TopCmdPrinter{out: out}
+// NewTopCmdPrinter creates a new TopCmdPrinter.
+func NewTopCmdPrinter(out io.Writer) *CmdPrinter {
+	return &CmdPrinter{out: out}
 }
 
-func (printer *TopCmdPrinter) PrintPodMetrics(metrics []metricsapi.PodMetrics, printContainers, withNamespace, noHeaders bool, sortBy string, sum bool) error {
+// PrintPodMetrics prints the given metrics to the given writer.
+func (printer *CmdPrinter) PrintPodMetrics(metrics []metricsapi.PodMetrics, printContainers, withNamespace, noHeaders bool, sortBy string, sum bool) error {
 	if len(metrics) == 0 {
 		return nil
 	}
@@ -199,11 +207,13 @@ func printPodResourcesSum(out io.Writer, total corev1.ResourceList, columnWidth 
 	})
 }
 
+// ResourceAdder adds pod metrics to a total
 type ResourceAdder struct {
 	resources []corev1.ResourceName
 	total     corev1.ResourceList
 }
 
+// NewResourceAdder returns a new ResourceAdder
 func NewResourceAdder(resources []corev1.ResourceName) *ResourceAdder {
 	return &ResourceAdder{
 		resources: resources,

@@ -35,9 +35,9 @@ type PodMetric struct {
 // PodMetricsInfo contains pod metrics as a map from pod names to PodMetricsInfo
 type PodMetricsInfo map[string]PodMetric
 
-// MetricsClient knows how to query a remote interface to retrieve container-level
+// QueryClient knows how to query a remote interface to retrieve container-level
 // resource metrics as well as pod-level arbitrary metrics
-type MetricsClient interface {
+type QueryClient interface {
 	// GetResourceMetric gets the given resource metric (and an associated oldest timestamp)
 	// for the specified named container in all pods matching the specified selector in the given namespace and when
 	// the container is an empty string it returns the sum of all the container metrics.

@@ -46,7 +46,8 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
-type TopPodOptions struct {
+// PodOptions contains the options to the top command.
+type PodOptions struct {
 	ResourceName       string
 	Namespace          string
 	Clusters           []string
@@ -61,7 +62,7 @@ type TopPodOptions struct {
 	lock               sync.Mutex
 	errs               []error
 
-	Printer       *TopCmdPrinter
+	Printer       *CmdPrinter
 	metrics       *metricsapi.PodMetricsList
 	karmadaClient karmadaclientset.Interface
 
@@ -93,9 +94,10 @@ var (
 		%[1]s top pod -l name=myLabel`))
 )
 
-func NewCmdTopPod(f util.Factory, parentCommand string, o *TopPodOptions, streams genericiooptions.IOStreams) *cobra.Command {
+// NewCmdTopPod implements the top pod command.
+func NewCmdTopPod(f util.Factory, parentCommand string, o *PodOptions, streams genericiooptions.IOStreams) *cobra.Command {
 	if o == nil {
-		o = &TopPodOptions{
+		o = &PodOptions{
 			IOStreams:          streams,
 			UseProtocolBuffers: true,
 		}
@@ -129,7 +131,8 @@ func NewCmdTopPod(f util.Factory, parentCommand string, o *TopPodOptions, stream
 	return cmd
 }
 
-func (o *TopPodOptions) Complete(f util.Factory, cmd *cobra.Command, args []string) error {
+// Complete completes all the required options.
+func (o *PodOptions) Complete(f util.Factory, cmd *cobra.Command, args []string) error {
 	var err error
 	if len(args) == 1 {
 		o.ResourceName = args[0]
@@ -157,7 +160,8 @@ func (o *TopPodOptions) Complete(f util.Factory, cmd *cobra.Command, args []stri
 	return nil
 }
 
-func (o *TopPodOptions) Validate() error {
+// Validate checks the validity of the options.
+func (o *PodOptions) Validate() error {
 	if len(o.SortBy) > 0 {
 		if o.SortBy != sortByCPU && o.SortBy != sortByMemory {
 			return errors.New("--sort-by accepts only cpu or memory")
@@ -176,7 +180,8 @@ func (o *TopPodOptions) Validate() error {
 	return nil
 }
 
-func (o *TopPodOptions) RunTopPod(f util.Factory) error {
+// RunTopPod runs the top pod command.
+func (o *PodOptions) RunTopPod(f util.Factory) error {
 	var err error
 	var wg sync.WaitGroup
 
@@ -227,7 +232,7 @@ func (o *TopPodOptions) RunTopPod(f util.Factory) error {
 	return utilerrors.NewAggregate(o.errs)
 }
 
-func (o *TopPodOptions) runTopPodPerCluster(f util.Factory,
+func (o *PodOptions) runTopPodPerCluster(f util.Factory,
 	cluster string, labelSelector labels.Selector, fieldSelector fields.Selector) {
 	var err error
 	defer func() {
@@ -295,7 +300,7 @@ func getMetricsFromMetricsAPI(metricsClient *metricsclientset.Clientset, namespa
 	return metrics, nil
 }
 
-func verifyEmptyMetrics(o *TopPodOptions, clusterClient *kubernetes.Clientset, labelSelector labels.Selector, fieldSelector fields.Selector) error {
+func verifyEmptyMetrics(o *PodOptions, clusterClient *kubernetes.Clientset, labelSelector labels.Selector, fieldSelector fields.Selector) error {
 	if len(o.ResourceName) > 0 {
 		pod, err := clusterClient.CoreV1().Pods(o.Namespace).Get(context.TODO(), o.ResourceName, metav1.GetOptions{})
 		if err != nil {

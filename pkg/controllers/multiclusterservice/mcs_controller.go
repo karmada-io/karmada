@@ -536,6 +536,7 @@ func (c *MCSController) updateMultiClusterServiceStatus(mcs *networkingv1alpha1.
 	})
 }
 
+// IsClusterReady checks whether the cluster is ready.
 func (c *MCSController) IsClusterReady(clusterName string) bool {
 	cluster := &clusterv1alpha1.Cluster{}
 	if err := c.Client.Get(context.TODO(), types.NamespacedName{Name: clusterName}, cluster); err != nil {

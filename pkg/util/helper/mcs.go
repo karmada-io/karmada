@@ -124,7 +124,7 @@ func GetProviderClusters(client client.Client, mcs *networkingv1alpha1.MultiClus
 	return allClusters, nil
 }
 
-// GetProviderClusters will extract the target consumer clusters of the service
+// GetConsumerClusters will extract the target consumer clusters of the service
 func GetConsumerClusters(client client.Client, mcs *networkingv1alpha1.MultiClusterService) (sets.Set[string], error) {
 	consumerClusters := sets.New[string]()
 	for _, c := range mcs.Spec.ConsumerClusters {

@@ -28,6 +28,7 @@ func (image *Image) Name() string {
 	return fmt.Sprintf("%s:%s", image.ImageRepository, image.ImageTag)
 }
 
+// KarmadaInProgressing sets the Karmada condition to Progressing.
 func KarmadaInProgressing(karmada *Karmada, conditionType ConditionType, message string) {
 	karmada.Status.Conditions = []metav1.Condition{}
 	newCondition := metav1.Condition{
@@ -40,6 +41,7 @@ func KarmadaInProgressing(karmada *Karmada, conditionType ConditionType, message
 	apimeta.SetStatusCondition(&karmada.Status.Conditions, newCondition)
 }
 
+// KarmadaCompleted sets the Karmada condition to Completed.
 func KarmadaCompleted(karmada *Karmada, conditionType ConditionType, message string) {
 	karmada.Status.Conditions = []metav1.Condition{}
 	newCondition := metav1.Condition{
@@ -52,6 +54,7 @@ func KarmadaCompleted(karmada *Karmada, conditionType ConditionType, message str
 	apimeta.SetStatusCondition(&karmada.Status.Conditions, newCondition)
 }
 
+// KarmadaFailed sets the Karmada condition to Failed.
 func KarmadaFailed(karmada *Karmada, conditionType ConditionType, message string) {
 	karmada.Status.Conditions = []metav1.Condition{}
 	newCondition := metav1.Condition{

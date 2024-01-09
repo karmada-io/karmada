@@ -23,6 +23,7 @@ import (
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 )
 
+// PodMetricsSorter sorts a list of PodMetrics.
 type PodMetricsSorter struct {
 	metrics       []metricsapi.PodMetrics
 	sortBy        string
@@ -30,15 +31,18 @@ type PodMetricsSorter struct {
 	podMetrics    []corev1.ResourceList
 }
 
+// Len returns the length of the PodMetricsSorter.
 func (p *PodMetricsSorter) Len() int {
 	return len(p.metrics)
 }
 
+// Swap swaps the place of two PodMetrics.
 func (p *PodMetricsSorter) Swap(i, j int) {
 	p.metrics[i], p.metrics[j] = p.metrics[j], p.metrics[i]
 	p.podMetrics[i], p.podMetrics[j] = p.podMetrics[j], p.podMetrics[i]
 }
 
+// Less compares two PodMetrics and returns true if the first PodMetrics should sort before the second.
 func (p *PodMetricsSorter) Less(i, j int) bool {
 	switch p.sortBy {
 	case "cpu":
@@ -56,6 +60,7 @@ func (p *PodMetricsSorter) Less(i, j int) bool {
 	}
 }
 
+// NewPodMetricsSorter returns a new PodMetricsSorter, which can be used to sort a list of PodMetrics.
 func NewPodMetricsSorter(metrics []metricsapi.PodMetrics, withNamespace bool, sortBy string) *PodMetricsSorter {
 	var podMetrics = make([]corev1.ResourceList, len(metrics))
 	if len(sortBy) > 0 {

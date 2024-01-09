@@ -261,6 +261,7 @@ func NewDaemonSet(namespace string, name string) *appsv1.DaemonSet {
 	}
 }
 
+// NewCrossClusterMultiClusterService will build a MultiClusterService object.
 func NewCrossClusterMultiClusterService(namespace, name string, providerClusters, consumerClusters []string) *networkingv1alpha1.MultiClusterService {
 	providerClusterSelector := []networkingv1alpha1.ClusterSelector{}
 	for _, cluster := range providerClusters {

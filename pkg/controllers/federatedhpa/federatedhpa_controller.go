@@ -78,8 +78,8 @@ var (
 	errSpec error = errors.New("")
 )
 
-// FederatedHPAController is to sync FederatedHPA.
-type FederatedHPAController struct {
+// FHPAController is to sync FederatedHPA.
+type FHPAController struct {
 	client.Client
 	ReplicaCalc               *ReplicaCalculator
 	ClusterScaleClientSetFunc func(string, client.Client) (*util.ClusterScaleClient, error)
@@ -121,7 +121,7 @@ type timestampedRecommendation struct {
 }
 
 // SetupWithManager creates a controller and register to controller manager.
-func (c *FederatedHPAController) SetupWithManager(mgr controllerruntime.Manager) error {
+func (c *FHPAController) SetupWithManager(mgr controllerruntime.Manager) error {
 	c.recommendations = map[string][]timestampedRecommendation{}
 	c.scaleUpEvents = map[string][]timestampedScaleEvent{}
 	c.scaleDownEvents = map[string][]timestampedScaleEvent{}
@@ -137,7 +137,7 @@ func (c *FederatedHPAController) SetupWithManager(mgr controllerruntime.Manager)
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (c *FederatedHPAController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
+func (c *FHPAController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Reconciling FederatedHPA %s.", req.NamespacedName.String())
 
 	hpa := &autoscalingv1alpha1.FederatedHPA{}
@@ -186,7 +186,7 @@ func (c *FederatedHPAController) Reconcile(ctx context.Context, req controllerru
 }
 
 //nolint:gocyclo
-func (c *FederatedHPAController) reconcileAutoscaler(ctx context.Context, hpa *autoscalingv1alpha1.FederatedHPA) (retErr error) {
+func (c *FHPAController) reconcileAutoscaler(ctx context.Context, hpa *autoscalingv1alpha1.FederatedHPA) (retErr error) {
 	// actionLabel is used to report which actions this reconciliation has taken.
 	actionLabel := monitor.ActionLabelNone
 	start := time.Now()
@@ -402,7 +402,7 @@ func (c *FederatedHPAController) reconcileAutoscaler(ctx context.Context, hpa *a
 	return retErr
 }
 
-func (c *FederatedHPAController) getBindingByLabel(resourceLabel map[string]string, resourceRef autoscalingv2.CrossVersionObjectReference) (*workv1alpha2.ResourceBinding, error) {
+func (c *FHPAController) getBindingByLabel(resourceLabel map[string]string, resourceRef autoscalingv2.CrossVersionObjectReference) (*workv1alpha2.ResourceBinding, error) {
 	if len(resourceLabel) == 0 {
 		return nil, fmt.Errorf("Target resource has no label. ")
 	}
@@ -450,7 +450,7 @@ func (c *FederatedHPAController) getBindingByLabel(resourceLabel map[string]stri
 	return binding, nil
 }
 
-func (c *FederatedHPAController) getTargetCluster(binding *workv1alpha2.ResourceBinding) ([]string, error) {
+func (c *FHPAController) getTargetCluster(binding *workv1alpha2.ResourceBinding) ([]string, error) {
 	if len(binding.Spec.Clusters) == 0 {
 		return nil, fmt.Errorf("Binding has no schedulable clusters. ")
 	}
@@ -470,7 +470,7 @@ func (c *FederatedHPAController) getTargetCluster(binding *workv1alpha2.Resource
 	return allClusters, nil
 }
 
-func (c *FederatedHPAController) scaleForTargetCluster(clusters []string, hpa *autoscalingv1alpha1.FederatedHPA, mapping *meta.RESTMapping) (*autoscalingv1.Scale, []*corev1.Pod, error) {
+func (c *FHPAController) scaleForTargetCluster(clusters []string, hpa *autoscalingv1alpha1.FederatedHPA, mapping *meta.RESTMapping) (*autoscalingv1.Scale, []*corev1.Pod, error) {
 	multiClusterScale := &autoscalingv1.Scale{
 		Spec: autoscalingv1.ScaleSpec{
 			Replicas: 0,
@@ -552,7 +552,7 @@ func (c *FederatedHPAController) scaleForTargetCluster(clusters []string, hpa *a
 }
 
 // buildPodInformerForCluster builds informer manager for cluster if it doesn't exist, then constructs informers for pod and start it. If the informer manager exist, return it.
-func (c *FederatedHPAController) buildPodInformerForCluster(clusterScaleClient *util.ClusterScaleClient) (typedmanager.SingleClusterInformerManager, error) {
+func (c *FHPAController) buildPodInformerForCluster(clusterScaleClient *util.ClusterScaleClient) (typedmanager.SingleClusterInformerManager, error) {
 	singleClusterInformerManager := c.TypedInformerManager.GetSingleClusterManager(clusterScaleClient.ClusterName)
 	if singleClusterInformerManager == nil {
 		singleClusterInformerManager = c.TypedInformerManager.ForCluster(clusterScaleClient.ClusterName, clusterScaleClient.KubeClient, 0)
@@ -593,7 +593,7 @@ func (c *FederatedHPAController) buildPodInformerForCluster(clusterScaleClient *
 // It may return both valid metricDesiredReplicas and an error,
 // when some metrics still work and HPA should perform scaling based on them.
 // If HPA cannot do anything due to error, it returns -1 in metricDesiredReplicas as a failure signal.
-func (c *FederatedHPAController) computeReplicasForMetrics(ctx context.Context, hpa *autoscalingv1alpha1.FederatedHPA, scale *autoscalingv1.Scale,
+func (c *FHPAController) computeReplicasForMetrics(ctx context.Context, hpa *autoscalingv1alpha1.FederatedHPA, scale *autoscalingv1.Scale,
 	metricSpecs []autoscalingv2.MetricSpec, templateReplicas int32, podList []*corev1.Pod) (replicas int32, metric string, statuses []autoscalingv2.MetricStatus, timestamp time.Time, err error) {
 	selector, err := c.validateAndParseSelector(hpa, scale.Status.Selector, podList)
 	if err != nil {
@@ -643,7 +643,7 @@ func (c *FederatedHPAController) computeReplicasForMetrics(ctx context.Context, 
 }
 
 // hpasControllingPodsUnderSelector returns a list of keys of all HPAs that control a given list of pods.
-func (c *FederatedHPAController) hpasControllingPodsUnderSelector(pods []*corev1.Pod) []selectors.Key {
+func (c *FHPAController) hpasControllingPodsUnderSelector(pods []*corev1.Pod) []selectors.Key {
 	c.hpaSelectorsMux.Lock()
 	defer c.hpaSelectorsMux.Unlock()
 
@@ -675,7 +675,7 @@ func (c *FederatedHPAController) hpasControllingPodsUnderSelector(pods []*corev1
 // - all pods by current selector are controlled by only one HPA.
 // Returns an error if the check has failed or the parsed selector if succeeded.
 // In case of an error the ScalingActive is set to false with the corresponding reason.
-func (c *FederatedHPAController) validateAndParseSelector(hpa *autoscalingv1alpha1.FederatedHPA, selector string, podList []*corev1.Pod) (labels.Selector, error) {
+func (c *FHPAController) validateAndParseSelector(hpa *autoscalingv1alpha1.FederatedHPA, selector string, podList []*corev1.Pod) (labels.Selector, error) {
 	parsedSelector, err := labels.Parse(selector)
 	if err != nil {
 		errMsg := fmt.Sprintf("couldn't convert selector into a corresponding internal selector object: %v", err)
@@ -706,7 +706,7 @@ func (c *FederatedHPAController) validateAndParseSelector(hpa *autoscalingv1alph
 // returning the metric status and a proposed condition to be set on the HPA object.
 //
 //nolint:gocyclo
-func (c *FederatedHPAController) computeReplicasForMetric(ctx context.Context, hpa *autoscalingv1alpha1.FederatedHPA, spec autoscalingv2.MetricSpec,
+func (c *FHPAController) computeReplicasForMetric(ctx context.Context, hpa *autoscalingv1alpha1.FederatedHPA, spec autoscalingv2.MetricSpec,
 	specReplicas, statusReplicas int32, selector labels.Selector, status *autoscalingv2.MetricStatus, podList []*corev1.Pod, calibration float64) (replicaCountProposal int32, metricNameProposal string,
 	timestampProposal time.Time, condition autoscalingv2.HorizontalPodAutoscalerCondition, err error) {
 	// actionLabel is used to report which actions this reconciliation has taken.
@@ -774,7 +774,7 @@ func (c *FederatedHPAController) computeReplicasForMetric(ctx context.Context, h
 }
 
 // computeStatusForObjectMetric computes the desired number of replicas for the specified metric of type ObjectMetricSourceType.
-func (c *FederatedHPAController) computeStatusForObjectMetric(specReplicas, statusReplicas int32, metricSpec autoscalingv2.MetricSpec, hpa *autoscalingv1alpha1.FederatedHPA, status *autoscalingv2.MetricStatus, metricSelector labels.Selector, podList []*corev1.Pod, calibration float64) (replicas int32, timestamp time.Time, metricName string, condition autoscalingv2.HorizontalPodAutoscalerCondition, err error) {
+func (c *FHPAController) computeStatusForObjectMetric(specReplicas, statusReplicas int32, metricSpec autoscalingv2.MetricSpec, hpa *autoscalingv1alpha1.FederatedHPA, status *autoscalingv2.MetricStatus, metricSelector labels.Selector, podList []*corev1.Pod, calibration float64) (replicas int32, timestamp time.Time, metricName string, condition autoscalingv2.HorizontalPodAutoscalerCondition, err error) {
 	if metricSpec.Object.Target.Type == autoscalingv2.ValueMetricType {
 		replicaCountProposal, usageProposal, timestampProposal, err := c.ReplicaCalc.GetObjectMetricReplicas(specReplicas, metricSpec.Object.Target.Value.MilliValue(), metricSpec.Object.Metric.Name, hpa.Namespace, &metricSpec.Object.DescribedObject, metricSelector, podList, calibration)
 		if err != nil {
@@ -822,7 +822,7 @@ func (c *FederatedHPAController) computeStatusForObjectMetric(specReplicas, stat
 }
 
 // computeStatusForPodsMetric computes the desired number of replicas for the specified metric of type PodsMetricSourceType.
-func (c *FederatedHPAController) computeStatusForPodsMetric(currentReplicas int32, metricSpec autoscalingv2.MetricSpec, hpa *autoscalingv1alpha1.FederatedHPA, selector labels.Selector, status *autoscalingv2.MetricStatus, metricSelector labels.Selector, podList []*corev1.Pod, calibration float64) (replicaCountProposal int32, timestampProposal time.Time, metricNameProposal string, condition autoscalingv2.HorizontalPodAutoscalerCondition, err error) {
+func (c *FHPAController) computeStatusForPodsMetric(currentReplicas int32, metricSpec autoscalingv2.MetricSpec, hpa *autoscalingv1alpha1.FederatedHPA, selector labels.Selector, status *autoscalingv2.MetricStatus, metricSelector labels.Selector, podList []*corev1.Pod, calibration float64) (replicaCountProposal int32, timestampProposal time.Time, metricNameProposal string, condition autoscalingv2.HorizontalPodAutoscalerCondition, err error) {
 	replicaCountProposal, usageProposal, timestampProposal, err := c.ReplicaCalc.GetMetricReplicas(currentReplicas, metricSpec.Pods.Target.AverageValue.MilliValue(), metricSpec.Pods.Metric.Name, hpa.Namespace, selector, metricSelector, podList, calibration)
 	if err != nil {
 		condition = c.getUnableComputeReplicaCountCondition(hpa, "FailedGetPodsMetric", err)
@@ -844,7 +844,7 @@ func (c *FederatedHPAController) computeStatusForPodsMetric(currentReplicas int3
 	return replicaCountProposal, timestampProposal, fmt.Sprintf("pods metric %s", metricSpec.Pods.Metric.Name), autoscalingv2.HorizontalPodAutoscalerCondition{}, nil
 }
 
-func (c *FederatedHPAController) computeStatusForResourceMetricGeneric(ctx context.Context, currentReplicas int32, target autoscalingv2.MetricTarget,
+func (c *FHPAController) computeStatusForResourceMetricGeneric(ctx context.Context, currentReplicas int32, target autoscalingv2.MetricTarget,
 	resourceName corev1.ResourceName, namespace string, container string, selector labels.Selector, sourceType autoscalingv2.MetricSourceType, podList []*corev1.Pod, calibration float64) (replicaCountProposal int32,
 	metricStatus *autoscalingv2.MetricValueStatus, timestampProposal time.Time, metricNameProposal string,
 	condition autoscalingv2.HorizontalPodAutoscalerCondition, err error) {
@@ -884,7 +884,7 @@ func (c *FederatedHPAController) computeStatusForResourceMetricGeneric(ctx conte
 }
 
 // computeStatusForResourceMetric computes the desired number of replicas for the specified metric of type ResourceMetricSourceType.
-func (c *FederatedHPAController) computeStatusForResourceMetric(ctx context.Context, currentReplicas int32, metricSpec autoscalingv2.MetricSpec, hpa *autoscalingv1alpha1.FederatedHPA,
+func (c *FHPAController) computeStatusForResourceMetric(ctx context.Context, currentReplicas int32, metricSpec autoscalingv2.MetricSpec, hpa *autoscalingv1alpha1.FederatedHPA,
 	selector labels.Selector, status *autoscalingv2.MetricStatus, podList []*corev1.Pod, calibration float64) (replicaCountProposal int32, timestampProposal time.Time,
 	metricNameProposal string, condition autoscalingv2.HorizontalPodAutoscalerCondition, err error) {
 	replicaCountProposal, metricValueStatus, timestampProposal, metricNameProposal, condition, err := c.computeStatusForResourceMetricGeneric(ctx, currentReplicas, metricSpec.Resource.Target, metricSpec.Resource.Name, hpa.Namespace, "", selector, autoscalingv2.ResourceMetricSourceType, podList, calibration)
@@ -903,7 +903,7 @@ func (c *FederatedHPAController) computeStatusForResourceMetric(ctx context.Cont
 }
 
 // computeStatusForContainerResourceMetric computes the desired number of replicas for the specified metric of type ResourceMetricSourceType.
-func (c *FederatedHPAController) computeStatusForContainerResourceMetric(ctx context.Context, currentReplicas int32, metricSpec autoscalingv2.MetricSpec, hpa *autoscalingv1alpha1.FederatedHPA,
+func (c *FHPAController) computeStatusForContainerResourceMetric(ctx context.Context, currentReplicas int32, metricSpec autoscalingv2.MetricSpec, hpa *autoscalingv1alpha1.FederatedHPA,
 	selector labels.Selector, status *autoscalingv2.MetricStatus, podList []*corev1.Pod, calibration float64) (replicaCountProposal int32, timestampProposal time.Time,
 	metricNameProposal string, condition autoscalingv2.HorizontalPodAutoscalerCondition, err error) {
 	replicaCountProposal, metricValueStatus, timestampProposal, metricNameProposal, condition, err := c.computeStatusForResourceMetricGeneric(ctx, currentReplicas, metricSpec.ContainerResource.Target, metricSpec.ContainerResource.Name, hpa.Namespace, metricSpec.ContainerResource.Container, selector, autoscalingv2.ContainerResourceMetricSourceType, podList, calibration)
@@ -922,7 +922,7 @@ func (c *FederatedHPAController) computeStatusForContainerResourceMetric(ctx con
 	return replicaCountProposal, timestampProposal, metricNameProposal, condition, nil
 }
 
-func (c *FederatedHPAController) recordInitialRecommendation(currentReplicas int32, key string) {
+func (c *FHPAController) recordInitialRecommendation(currentReplicas int32, key string) {
 	c.recommendationsLock.Lock()
 	defer c.recommendationsLock.Unlock()
 	if c.recommendations[key] == nil {
@@ -933,7 +933,7 @@ func (c *FederatedHPAController) recordInitialRecommendation(currentReplicas int
 // stabilizeRecommendation:
 // - replaces old recommendation with the newest recommendation,
 // - returns max of recommendations that are not older than DownscaleStabilisationWindow.
-func (c *FederatedHPAController) stabilizeRecommendation(key string, prenormalizedDesiredReplicas int32) int32 {
+func (c *FHPAController) stabilizeRecommendation(key string, prenormalizedDesiredReplicas int32) int32 {
 	maxRecommendation := prenormalizedDesiredReplicas
 	foundOldSample := false
 	oldSampleIndex := 0
@@ -959,7 +959,7 @@ func (c *FederatedHPAController) stabilizeRecommendation(key string, prenormaliz
 
 // normalizeDesiredReplicas takes the metrics desired replicas value and normalizes it based on the appropriate conditions (i.e. < maxReplicas, >
 // minReplicas, etc...)
-func (c *FederatedHPAController) normalizeDesiredReplicas(hpa *autoscalingv1alpha1.FederatedHPA, key string, currentReplicas int32, prenormalizedDesiredReplicas int32, minReplicas int32) int32 {
+func (c *FHPAController) normalizeDesiredReplicas(hpa *autoscalingv1alpha1.FederatedHPA, key string, currentReplicas int32, prenormalizedDesiredReplicas int32, minReplicas int32) int32 {
 	stabilizedRecommendation := c.stabilizeRecommendation(key, prenormalizedDesiredReplicas)
 	if stabilizedRecommendation != prenormalizedDesiredReplicas {
 		setCondition(hpa, autoscalingv2.AbleToScale, corev1.ConditionTrue, "ScaleDownStabilized", "recent recommendations were higher than current one, applying the highest recent recommendation")
@@ -994,7 +994,7 @@ type NormalizationArg struct {
 // 2. Apply the scale up/down limits from the hpaSpec.Behaviors (i.e. add no more than 4 pods)
 // 3. Apply the constraints period (i.e. add no more than 4 pods per minute)
 // 4. Apply the stabilization (i.e. add no more than 4 pods per minute, and pick the smallest recommendation during last 5 minutes)
-func (c *FederatedHPAController) normalizeDesiredReplicasWithBehaviors(hpa *autoscalingv1alpha1.FederatedHPA, key string, currentReplicas, prenormalizedDesiredReplicas, minReplicas int32) int32 {
+func (c *FHPAController) normalizeDesiredReplicasWithBehaviors(hpa *autoscalingv1alpha1.FederatedHPA, key string, currentReplicas, prenormalizedDesiredReplicas, minReplicas int32) int32 {
 	c.maybeInitScaleDownStabilizationWindow(hpa)
 	normalizationArg := NormalizationArg{
 		Key:               key,
@@ -1022,7 +1022,7 @@ func (c *FederatedHPAController) normalizeDesiredReplicasWithBehaviors(hpa *auto
 	return desiredReplicas
 }
 
-func (c *FederatedHPAController) maybeInitScaleDownStabilizationWindow(hpa *autoscalingv1alpha1.FederatedHPA) {
+func (c *FHPAController) maybeInitScaleDownStabilizationWindow(hpa *autoscalingv1alpha1.FederatedHPA) {
 	behavior := hpa.Spec.Behavior
 	if behavior != nil && behavior.ScaleDown != nil && behavior.ScaleDown.StabilizationWindowSeconds == nil {
 		stabilizationWindowSeconds := (int32)(c.DownscaleStabilisationWindow.Seconds())
@@ -1043,7 +1043,7 @@ func getReplicasChangePerPeriod(periodSeconds int32, scaleEvents []timestampedSc
 	return replicas
 }
 
-func (c *FederatedHPAController) getUnableComputeReplicaCountCondition(hpa runtime.Object, reason string, err error) (condition autoscalingv2.HorizontalPodAutoscalerCondition) {
+func (c *FHPAController) getUnableComputeReplicaCountCondition(hpa runtime.Object, reason string, err error) (condition autoscalingv2.HorizontalPodAutoscalerCondition) {
 	c.EventRecorder.Event(hpa, corev1.EventTypeWarning, reason, err.Error())
 	return autoscalingv2.HorizontalPodAutoscalerCondition{
 		Type:    autoscalingv2.ScalingActive,
@@ -1055,7 +1055,7 @@ func (c *FederatedHPAController) getUnableComputeReplicaCountCondition(hpa runti
 
 // storeScaleEvent stores (adds or replaces outdated) scale event.
 // outdated events to be replaced were marked as outdated in the `markScaleEventsOutdated` function
-func (c *FederatedHPAController) storeScaleEvent(behavior *autoscalingv2.HorizontalPodAutoscalerBehavior, key string, prevReplicas, newReplicas int32) {
+func (c *FHPAController) storeScaleEvent(behavior *autoscalingv2.HorizontalPodAutoscalerBehavior, key string, prevReplicas, newReplicas int32) {
 	if behavior == nil {
 		return // we should not store any event as they will not be used
 	}
@@ -1106,7 +1106,7 @@ func (c *FederatedHPAController) storeScaleEvent(behavior *autoscalingv2.Horizon
 // stabilizeRecommendationWithBehaviors:
 // - replaces old recommendation with the newest recommendation,
 // - returns {max,min} of recommendations that are not older than constraints.Scale{Up,Down}.DelaySeconds
-func (c *FederatedHPAController) stabilizeRecommendationWithBehaviors(args NormalizationArg) (int32, string, string) {
+func (c *FHPAController) stabilizeRecommendationWithBehaviors(args NormalizationArg) (int32, string, string) {
 	now := time.Now()
 
 	foundOldSample := false
@@ -1166,7 +1166,7 @@ func (c *FederatedHPAController) stabilizeRecommendationWithBehaviors(args Norma
 
 // convertDesiredReplicasWithBehaviorRate performs the actual normalization, given the constraint rate
 // It doesn't consider the stabilizationWindow, it is done separately
-func (c *FederatedHPAController) convertDesiredReplicasWithBehaviorRate(args NormalizationArg) (int32, string, string) {
+func (c *FHPAController) convertDesiredReplicasWithBehaviorRate(args NormalizationArg) (int32, string, string) {
 	var possibleLimitingReason, possibleLimitingMessage string
 
 	if args.DesiredReplicas > args.CurrentReplicas {
@@ -1339,13 +1339,13 @@ func calculateScaleDownLimitWithBehaviors(currentReplicas int32, scaleUpEvents, 
 }
 
 // setCurrentReplicasInStatus sets the current replica count in the status of the HPA.
-func (c *FederatedHPAController) setCurrentReplicasInStatus(hpa *autoscalingv1alpha1.FederatedHPA, currentReplicas int32) {
+func (c *FHPAController) setCurrentReplicasInStatus(hpa *autoscalingv1alpha1.FederatedHPA, currentReplicas int32) {
 	c.setStatus(hpa, currentReplicas, hpa.Status.DesiredReplicas, hpa.Status.CurrentMetrics, false)
 }
 
 // setStatus recreates the status of the given HPA, updating the current and
 // desired replicas, as well as the metric statuses
-func (c *FederatedHPAController) setStatus(hpa *autoscalingv1alpha1.FederatedHPA, currentReplicas, desiredReplicas int32, metricStatuses []autoscalingv2.MetricStatus, rescale bool) {
+func (c *FHPAController) setStatus(hpa *autoscalingv1alpha1.FederatedHPA, currentReplicas, desiredReplicas int32, metricStatuses []autoscalingv2.MetricStatus, rescale bool) {
 	hpa.Status = autoscalingv2.HorizontalPodAutoscalerStatus{
 		CurrentReplicas: currentReplicas,
 		DesiredReplicas: desiredReplicas,
@@ -1361,7 +1361,7 @@ func (c *FederatedHPAController) setStatus(hpa *autoscalingv1alpha1.FederatedHPA
 }
 
 // updateStatusIfNeeded calls updateStatus only if the status of the new HPA is not the same as the old status
-func (c *FederatedHPAController) updateStatusIfNeeded(oldStatus *autoscalingv2.HorizontalPodAutoscalerStatus, newHPA *autoscalingv1alpha1.FederatedHPA) error {
+func (c *FHPAController) updateStatusIfNeeded(oldStatus *autoscalingv2.HorizontalPodAutoscalerStatus, newHPA *autoscalingv1alpha1.FederatedHPA) error {
 	// skip a write if we wouldn't need to update
 	if apiequality.Semantic.DeepEqual(oldStatus, &newHPA.Status) {
 		return nil
@@ -1370,7 +1370,7 @@ func (c *FederatedHPAController) updateStatusIfNeeded(oldStatus *autoscalingv2.H
 }
 
 // updateStatus actually does the update request for the status of the given HPA
-func (c *FederatedHPAController) updateStatus(hpa *autoscalingv1alpha1.FederatedHPA) error {
+func (c *FHPAController) updateStatus(hpa *autoscalingv1alpha1.FederatedHPA) error {
 	err := c.Status().Update(context.TODO(), hpa)
 	if err != nil {
 		c.EventRecorder.Event(hpa, corev1.EventTypeWarning, "FailedUpdateStatus", err.Error())

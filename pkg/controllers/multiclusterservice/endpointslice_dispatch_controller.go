@@ -52,6 +52,7 @@ import (
 // EndpointsliceDispatchControllerName is the controller name that will be used when reporting events.
 const EndpointsliceDispatchControllerName = "endpointslice-dispatch-controller"
 
+// EndpointsliceDispatchController will reconcile a MultiClusterService object
 type EndpointsliceDispatchController struct {
 	client.Client
 	EventRecorder   record.EventRecorder
