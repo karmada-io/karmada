@@ -481,6 +481,17 @@ func apiServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, e
 		},
 	}
 
+	// When deploying a karmada under a namespace other than 'karmada-system', like 'test', there are two scenarios below：
+	// 1.When karmada-apiserver access APIService, the cert of 'karmada-demo-aggregated-apiserver' will be verified to see
+	// if its altNames contains 'karmada-demo-aggregated-apiserver.karmada-system.svc';
+	// 2.When karmada-apiserver access webhook, the cert of 'karmada-demo-webhook' will be verified to see
+	// if its altNames contains 'karmada-demo-webhook.test.svc'.
+	// Therefore, the certificate's altNames should contain both 'karmada-system.svc.cluster.local' and 'test.svc.cluster.local'.
+	if cfg.Namespace != constants.KarmadaSystemNamespace {
+		appendSANsToAltNames(altNames, []string{fmt.Sprintf("*.%s.svc.cluster.local", cfg.Namespace),
+			fmt.Sprintf("*.%s.svc", cfg.Namespace)})
+	}
+
 	if len(cfg.Components.KarmadaAPIServer.CertSANs) > 0 {
 		appendSANsToAltNames(altNames, cfg.Components.KarmadaAPIServer.CertSANs)
 	}
