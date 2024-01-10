@@ -19,6 +19,7 @@ package dependenciesdistributor
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -132,20 +133,26 @@ func (d *DependenciesDistributor) OnAdd(obj interface{}) {
 
 // OnUpdate handles object update event and push the object to queue.
 func (d *DependenciesDistributor) OnUpdate(oldObj, newObj interface{}) {
+	unstructuredNewObj, err := helper.ToUnstructured(newObj)
+	if err != nil {
+		klog.Errorf("Failed to transform newObj, error: %v", err)
+		return
+	}
+	if !unstructuredNewObj.GetDeletionTimestamp().IsZero() {
+		klog.V(4).Infof("Ignore update event of object(%s, kind=%s, %s) as being deleted.",
+			unstructuredNewObj.GetAPIVersion(), unstructuredNewObj.GetKind(), names.NamespacedKey(unstructuredNewObj.GetNamespace(), unstructuredNewObj.GetName()))
+		return
+	}
+
 	unstructuredOldObj, err := helper.ToUnstructured(oldObj)
 	if err != nil {
 		klog.Errorf("Failed to transform oldObj, error: %v", err)
 		return
 	}
 
-	unstructuredNewObj, err := helper.ToUnstructured(newObj)
-	if err != nil {
-		klog.Errorf("Failed to transform newObj, error: %v", err)
-		return
-	}
-
 	if !eventfilter.SpecificationChanged(unstructuredOldObj, unstructuredNewObj) {
-		klog.V(4).Infof("Ignore update event of object (%s, kind=%s, %s) as specification no change", unstructuredOldObj.GetAPIVersion(), unstructuredOldObj.GetKind(), names.NamespacedKey(unstructuredOldObj.GetNamespace(), unstructuredOldObj.GetName()))
+		klog.V(4).Infof("Ignore update event of object(%s, kind=%s, %s) as specification no change",
+			unstructuredOldObj.GetAPIVersion(), unstructuredOldObj.GetKind(), names.NamespacedKey(unstructuredOldObj.GetNamespace(), unstructuredOldObj.GetName()))
 		return
 	}
 	d.OnAdd(oldObj)
@@ -347,6 +354,12 @@ func (d *DependenciesDistributor) handleDependentResource(
 			}
 			return err
 		}
+
+		// do nothing if resource template is being deleted.
+		if !rawObject.GetDeletionTimestamp().IsZero() {
+			return nil
+		}
+
 		attachedBinding := buildAttachedBinding(independentBinding, rawObject)
 		return d.createOrUpdateAttachedBinding(attachedBinding)
 	case dependent.LabelSelector != nil:
@@ -360,6 +373,11 @@ func (d *DependenciesDistributor) handleDependentResource(
 			return err
 		}
 		for _, rawObject := range rawObjects {
+			// do nothing if resource template is being deleted.
+			if !rawObject.GetDeletionTimestamp().IsZero() {
+				continue
+			}
+
 			attachedBinding := buildAttachedBinding(independentBinding, rawObject)
 			if err := d.createOrUpdateAttachedBinding(attachedBinding); err != nil {
 				return err
@@ -368,7 +386,7 @@ func (d *DependenciesDistributor) handleDependentResource(
 		return nil
 	}
 	// can not reach here
-	return fmt.Errorf("the Name and LabelSelector in the DependentObjectReference cannot be empty at the same time")
+	return errors.New("the Name and LabelSelector in the DependentObjectReference cannot be empty at the same time")
 }
 
 func (d *DependenciesDistributor) syncScheduleResultToAttachedBindings(independentBinding *workv1alpha2.ResourceBinding, dependencies []configv1alpha1.DependentObjectReference) (err error) {
@@ -483,6 +501,7 @@ func (d *DependenciesDistributor) isOrphanAttachedBindings(
 	dependencyIndexes []int,
 	attachedBinding *workv1alpha2.ResourceBinding) (bool, error) {
 	var resource = attachedBinding.Spec.Resource
+	var rawObject *unstructured.Unstructured
 	for _, idx := range dependencyIndexes {
 		dependency := dependencies[idx]
 		switch {
@@ -496,19 +515,27 @@ func (d *DependenciesDistributor) isOrphanAttachedBindings(
 			if selector, err = metav1.LabelSelectorAsSelector(dependency.LabelSelector); err != nil {
 				return false, err
 			}
-			rawObject, err := helper.FetchResourceTemplate(d.DynamicClient, d.InformerManager, d.RESTMapper, workv1alpha2.ObjectReference{
-				APIVersion: resource.APIVersion,
-				Kind:       resource.Kind,
-				Namespace:  resource.Namespace,
-				Name:       resource.Name,
-			})
-			if err != nil {
-				// do nothing if resource template not exist.
-				if apierrors.IsNotFound(err) {
-					continue
+
+			if rawObject == nil {
+				rawObject, err = helper.FetchResourceTemplate(d.DynamicClient, d.InformerManager, d.RESTMapper, workv1alpha2.ObjectReference{
+					APIVersion: resource.APIVersion,
+					Kind:       resource.Kind,
+					Namespace:  resource.Namespace,
+					Name:       resource.Name,
+				})
+				if err != nil {
+					// return nil err if resource template not exist.
+					if apierrors.IsNotFound(err) {
+						return false, nil
+					}
+					return false, err
 				}
-				return false, err
+				// return nil err if resource template is being deleted.
+				if !rawObject.GetDeletionTimestamp().IsZero() {
+					return false, nil
+				}
 			}
+
 			if selector.Matches(labels.Set(rawObject.GetLabels())) {
 				return false, nil
 			}
@@ -602,7 +629,9 @@ func (d *DependenciesDistributor) Start(ctx context.Context) error {
 		},
 		ReconcileFunc: d.reconcileResourceTemplate,
 	}
-	d.eventHandler = fedinformer.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
+	// For attached resource templates, its ResourceBinding will be deleted when it's deleted, any update on its ResourceBinding makes no sense.
+	// So we don't pay attention to deleted attached resource templates.
+	d.eventHandler = fedinformer.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, nil)
 	d.resourceProcessor = util.NewAsyncWorker(resourceWorkerOptions)
 	d.resourceProcessor.Run(2, d.stopCh)
 	<-d.stopCh
