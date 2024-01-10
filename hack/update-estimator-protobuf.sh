@@ -22,13 +22,28 @@ KARMADA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
 # Use `hack/generate-proto.sh` to generate proto files.
 
-export GOPATH=$(go env GOPATH | awk -F ':' '{print $1}')
+DEFAULT_GOPATH=$(go env GOPATH | awk -F ':' '{print $1}')
+export GOPATH=${DEFAULT_GOPATH}
 export PATH=$PATH:$GOPATH/bin
 
 GO111MODULE=on go install golang.org/x/tools/cmd/goimports
 GO111MODULE=on go install k8s.io/code-generator/cmd/go-to-protobuf
 GO111MODULE=on go install github.com/gogo/protobuf/protoc-gen-gogo
 GO111MODULE=on go install github.com/vektra/mockery/v2
+
+# Make dummy GOPATH for go-to-protobuf to generate the files to repo root.
+# It is useful for case that karmada repo not in the real GOPATH.
+go_path="${KARMADA_ROOT}/_go"
+cleanup() {
+  rm -rf "${go_path}"
+}
+trap "cleanup" EXIT SIGINT
+
+cleanup
+
+source "${KARMADA_ROOT}"/hack/util.sh
+util:create_gopath_tree "${KARMADA_ROOT}" "${go_path}"
+export GOPATH="${go_path}"
 
 #ref https://github.com/kubernetes/kubernetes/blob/master/hack/update-generated-protobuf-dockerized.sh
 if [[ -z "$(which protoc)" || $(protoc --version | sed -r "s/libprotoc ([0-9]+).*/\1/g") -lt 3 ]]; then
@@ -54,7 +69,7 @@ APIMACHINERY_PKGS=(
   k8s.io/api/core/v1
 )
 
-${GOPATH}/bin/go-to-protobuf \
+go-to-protobuf \
   --go-header-file=./hack/boilerplate/boilerplate.go.txt \
   --apimachinery-packages=$(IFS=, ; echo "${APIMACHINERY_PKGS[*]}") \
   --packages=$(IFS=, ; echo "${PACKAGES[*]}") \
@@ -64,4 +79,5 @@ ${GOPATH}/bin/go-to-protobuf \
 go generate ./pkg/estimator/service
 
 # The `go-to-protobuf` tool will modify all import proto files in vendor, so we should use go mod vendor to prevent.
+export GOPATH=${DEFAULT_GOPATH}
 go mod vendor
