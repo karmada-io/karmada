@@ -229,9 +229,8 @@ func (i *CommandInitOption) Validate(parentCommand string) error {
 
 	if i.isExternalEtcdProvided() {
 		return i.validateExternalEtcd(parentCommand)
-	} else {
-		return i.validateLocalEtcd(parentCommand)
 	}
+	return i.validateLocalEtcd(parentCommand)
 }
 
 // Complete Initialize k8s client

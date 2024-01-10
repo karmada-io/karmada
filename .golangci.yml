@@ -80,6 +80,8 @@ linters-settings:
       - name: errorf
       - name: exported
       - name: var-declaration
+      - name: blank-imports
+      - name: indent-error-flow
   staticcheck:
     checks:
       - all

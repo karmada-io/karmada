@@ -19,10 +19,9 @@ import (
 	"math"
 	"net/http"
 	"time"
-	_ "time/tzdata"
+	_ "time/tzdata" // import tzdata to support time zone parsing, this is needed by function time.LoadLocation
 
 	"github.com/adhocore/gronx"
-	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -54,7 +53,7 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 	klog.V(2).Infof("Validating CronFederatedHPA(%s) for request: %s", klog.KObj(cronFHPA).String(), req.Operation)
 
 	errs := field.ErrorList{}
-	errs = append(errs, apimachineryvalidation.ValidateObjectMeta(&cronFHPA.ObjectMeta, true, apivalidation.NameIsDNSSubdomain, field.NewPath("metadata"))...)
+	errs = append(errs, apivalidation.ValidateObjectMeta(&cronFHPA.ObjectMeta, true, apivalidation.NameIsDNSSubdomain, field.NewPath("metadata"))...)
 	errs = append(errs, validateCronFederatedHPASpec(&cronFHPA.Spec, field.NewPath("spec"))...)
 
 	if len(errs) != 0 {
