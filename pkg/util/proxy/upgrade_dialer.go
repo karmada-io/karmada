@@ -120,14 +120,14 @@ func (u *UpgradeDialer) dial(req *http.Request) (net.Conn, error) {
 	case "socks5":
 		return u.dialWithSocks5Proxy(req, proxyURL)
 	case "https", "http", "":
-		return u.dialWithHttpProxy(req, proxyURL)
+		return u.dialWithHTTPProxy(req, proxyURL)
 	}
 
 	return nil, fmt.Errorf("proxy URL scheme not supported: %s", proxyURL.Scheme)
 }
 
-// dialWithHttpProxy dials the host specified by url through an http or an https proxy.
-func (u *UpgradeDialer) dialWithHttpProxy(req *http.Request, proxyURL *url.URL) (net.Conn, error) {
+// dialWithHTTPProxy dials the host specified by url through an http or an https proxy.
+func (u *UpgradeDialer) dialWithHTTPProxy(req *http.Request, proxyURL *url.URL) (net.Conn, error) {
 	// ensure we use a canonical host with proxyReq
 	targetHost := netutil.CanonicalAddr(req.URL)
 
