@@ -34,7 +34,7 @@ import (
 
 // OpenSafeOs open safe os
 func OpenSafeOs(L *lua.LState) int {
-	tabmod := L.RegisterModule(lua.TabLibName, osFuncs)
+	tabmod := L.RegisterModule(lua.OsLibName, osFuncs)
 	L.Push(tabmod)
 	return 1
 }
