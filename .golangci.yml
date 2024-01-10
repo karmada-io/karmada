@@ -84,6 +84,7 @@ linters-settings:
       - name: indent-error-flow
       - name: unreachable-code
       - name: var-naming
+      - name: redefines-builtin-id
   staticcheck:
     checks:
       - all

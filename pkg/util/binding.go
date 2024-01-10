@@ -72,28 +72,28 @@ func ConvertToClusterNames(clusters []workv1alpha2.TargetCluster) sets.Set[strin
 }
 
 // MergeTargetClusters will merge the replicas in two TargetCluster
-func MergeTargetClusters(old, new []workv1alpha2.TargetCluster) []workv1alpha2.TargetCluster {
+func MergeTargetClusters(oldCluster, newCluster []workv1alpha2.TargetCluster) []workv1alpha2.TargetCluster {
 	switch {
-	case len(old) == 0:
-		return new
-	case len(new) == 0:
-		return old
+	case len(oldCluster) == 0:
+		return newCluster
+	case len(newCluster) == 0:
+		return oldCluster
 	}
 	// oldMap is a map of the result for the old replicas so that it can be merged with the new result easily
 	oldMap := make(map[string]int32)
-	for _, cluster := range old {
+	for _, cluster := range oldCluster {
 		oldMap[cluster.Name] = cluster.Replicas
 	}
 	// merge the new replicas and the data of old replicas
-	for i, cluster := range new {
+	for i, cluster := range newCluster {
 		value, ok := oldMap[cluster.Name]
 		if ok {
-			new[i].Replicas = cluster.Replicas + value
+			newCluster[i].Replicas = cluster.Replicas + value
 			delete(oldMap, cluster.Name)
 		}
 	}
 	for key, value := range oldMap {
-		new = append(new, workv1alpha2.TargetCluster{Name: key, Replicas: value})
+		newCluster = append(newCluster, workv1alpha2.TargetCluster{Name: key, Replicas: value})
 	}
-	return new
+	return newCluster
 }
