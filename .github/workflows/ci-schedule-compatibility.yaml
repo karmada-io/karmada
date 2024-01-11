@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubeapiserver-version: [ v1.21.10, v1.22.7, v1.23.4, v1.24.2, v1.25.0, v1.26.0, v1.27.3, v1.28.0, v1.29.0 ]
+        kubeapiserver-version: [ v1.23.4, v1.24.2, v1.25.0, v1.26.0, v1.27.3, v1.28.0, v1.29.0 ]
         karmada-version: [ release-1.6, release-1.7, release-1.8 ]
 
         include:
