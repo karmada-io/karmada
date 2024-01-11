@@ -397,8 +397,10 @@ func GenerateReplicaRequirements(podTemplate *corev1.PodTemplateSpec) *workv1alp
 
 	if nodeClaim != nil || resourceRequest != nil {
 		return &workv1alpha2.ReplicaRequirements{
-			NodeClaim:       nodeClaim,
-			ResourceRequest: resourceRequest,
+			NodeClaim:         nodeClaim,
+			ResourceRequest:   resourceRequest,
+			Namespace:         podTemplate.Namespace,
+			PriorityClassName: podTemplate.Spec.PriorityClassName,
 		}
 	}
 

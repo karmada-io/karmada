@@ -72,9 +72,12 @@ func (es *AccurateSchedulerEstimatorServer) estimateReplicas(
 	if requirements.NodeClaim != nil {
 		tolerations = requirements.NodeClaim.Tolerations
 	}
-
 	// TODO(Garrybest): design a framework and make filter and score plugins
 	var res int32
+	replicas, err := es.estimateFramework.RunEstimateReplicasPlugins(ctx, &requirements)
+	if err != nil {
+		return replicas, err
+	}
 	processNode := func(i int) {
 		node := allNodes[i]
 		if !nodeutil.IsNodeAffinityMatched(node.Node(), affinity) || !nodeutil.IsTolerationMatched(node.Node(), tolerations) {
@@ -84,6 +87,10 @@ func (es *AccurateSchedulerEstimatorServer) estimateReplicas(
 		atomic.AddInt32(&res, maxReplica)
 	}
 	es.parallelizer.Until(ctx, len(allNodes), processNode)
+
+	if replicas < res {
+		res = replicas
+	}
 	return res, nil
 }
 

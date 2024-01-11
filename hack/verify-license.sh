@@ -39,6 +39,7 @@ missing_license_header_files="$($ADDLICENSE_BIN \
   -ignore "**/*.yaml" \
   -ignore "**/*.yml" \
   -ignore "**/*.json" \
+  -ignore ".idea/**" \
   .)" || true
 
 if [[ "$missing_license_header_files" ]]; then

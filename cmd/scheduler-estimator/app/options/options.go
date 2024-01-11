@@ -18,6 +18,7 @@ package options
 
 import (
 	"github.com/spf13/pflag"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
 
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 )
@@ -67,5 +68,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.Float32Var(&o.ClusterAPIQPS, "kube-api-qps", 20.0, "QPS to use while talking with apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	fs.IntVar(&o.ClusterAPIBurst, "kube-api-burst", 30, "Burst to use while talking with apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	fs.IntVar(&o.Parallelism, "parallelism", o.Parallelism, "Parallelism defines the amount of parallelism in algorithms for estimating. Must be greater than 0. Defaults to 16.")
+	utilfeature.DefaultMutableFeatureGate.AddFlag(fs)
+
 	o.ProfileOpts.AddFlags(fs)
 }

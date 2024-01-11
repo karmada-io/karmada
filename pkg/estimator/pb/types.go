@@ -57,6 +57,10 @@ type ReplicaRequirements struct {
 	// ResourceRequest represents the resources required by each replica.
 	// +optional
 	ResourceRequest corev1.ResourceList `json:"resourceRequest,omitempty" protobuf:"bytes,2,rep,name=resourceRequest,casttype=k8s.io/api/core/v1.ResourceList,castkey=k8s.io/api/core/v1.ResourceName"`
+	// +optional
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,3,opt,name=namespace"`
+	// +optional
+	PriorityClassName string `json:"priorityClassName,omitempty" protobuf:"bytes,4,opt,name=priorityClassName"`
 }
 
 // MaxAvailableReplicasResponse represents the response that sent by gRPC server to calculate max available replicas.

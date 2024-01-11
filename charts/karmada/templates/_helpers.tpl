@@ -543,6 +543,22 @@ Return the proper karmada kubectl image name
      {{- end -}}
 {{- end -}}
 
+{{- define "karmada.schedulerEstimator.featureGates" -}}
+     {{- if (not (empty .Values.schedulerEstimator.featureGates)) }}
+          {{- $featureGatesFlag := "" -}}
+          {{- range $key, $value := .Values.schedulerEstimator.featureGates -}}
+               {{- if not (empty (toString $value)) }}
+                    {{- $featureGatesFlag = cat $featureGatesFlag $key "=" $value ","  -}}
+               {{- end -}}
+          {{- end -}}
+
+          {{- if gt (len $featureGatesFlag) 0 }}
+               {{- $featureGatesFlag := trimSuffix "," $featureGatesFlag  | nospace -}}
+               {{- printf "%s=%s" "--feature-gates" $featureGatesFlag -}}
+          {{- end -}}
+     {{- end -}}
+{{- end -}}
+
 {{- define "karmada.controllerManager.extraCommandArgs" -}}
 {{- if .Values.controllerManager.extraCommandArgs }}
 {{- range $key, $value := .Values.controllerManager.extraCommandArgs }}

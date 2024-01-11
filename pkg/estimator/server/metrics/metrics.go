@@ -64,9 +64,34 @@ var (
 			Buckets:   prometheus.ExponentialBuckets(0.001, 2, 10),
 		}, []string{"result", "type", "step"})
 
+	// FrameworkExtensionPointDuration is the metrics which indicates the latency for running all plugins of a specific extension point.
+	FrameworkExtensionPointDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Subsystem: SchedulerEstimatorSubsystem,
+			Name:      "estimating_plugin_extension_point_duration_seconds",
+			Help:      "Latency for running all plugins of a specific extension point.",
+			// Start with 0.1ms with the last bucket being [~200ms, Inf)
+			Buckets: prometheus.ExponentialBuckets(0.0001, 2, 12),
+		},
+		[]string{"estimating_plugin_extension_point"})
+
+	// PluginExecutionDuration is the metrics which indicates the duration for running a plugin at a specific extension point.
+	PluginExecutionDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Subsystem: SchedulerEstimatorSubsystem,
+			Name:      "estimating_plugin_execution_duration_seconds",
+			Help:      "Duration for running a plugin at a specific extension point.",
+			// Start with 0.01ms with the last bucket being [~22ms, Inf). We use a small factor (1.5)
+			// so that we have better granularity since plugin latency is very sensitive.
+			Buckets: prometheus.ExponentialBuckets(0.00001, 1.5, 20),
+		},
+		[]string{"estimating_plugin", "estimating_plugin_extension_point"})
+
 	metrics = []prometheus.Collector{
 		requestCount,
 		estimatingAlgorithmLatency,
+		FrameworkExtensionPointDuration,
+		PluginExecutionDuration,
 	}
 )
 
