@@ -112,6 +112,13 @@ function util::cmd_must_exist {
     fi
 }
 
+function util::verify_docker {
+  if ! docker ps -q >/dev/null 2>&1; then
+      echo "Docker is not available, Please verify docker is installed and available"
+      exit 1
+  fi
+}
+
 function util::verify_go_version {
     local go_version
     IFS=" " read -ra go_version <<< "$(GOFLAGS='' go version)"

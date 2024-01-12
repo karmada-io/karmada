@@ -75,8 +75,8 @@ fi
 util::cmd_must_exist "go"
 util::verify_go_version
 
-# Make sure docker exists
-util::cmd_must_exist "docker"
+# Make sure docker is available
+util::verify_docker
 
 # install kind and kubectl
 kind_version=v0.20.0
