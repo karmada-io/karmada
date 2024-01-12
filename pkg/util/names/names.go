@@ -181,3 +181,11 @@ func NamespacedKey(namespace, name string) string {
 	}
 	return namespace + "/" + name
 }
+
+// ClusteredKey generates key with cluster and name.
+func ClusteredKey(cluster, name string) string {
+	if cluster == "" {
+		return name
+	}
+	return cluster + "/" + name
+}

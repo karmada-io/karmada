@@ -33,7 +33,9 @@ import (
 	customclient "k8s.io/metrics/pkg/client/custom_metrics"
 	externalclient "k8s.io/metrics/pkg/client/external_metrics"
 
+	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/metrics"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 const (
@@ -101,7 +103,7 @@ func getContainerMetrics(rawMetrics []metricsapi.PodMetrics, resource corev1.Res
 			if c.Name == container {
 				containerFound = true
 				if val, resFound := c.Usage[resource]; resFound {
-					res[m.Name] = PodMetric{
+					res[names.ClusteredKey(m.Annotations[autoscalingv1alpha1.QuerySourceAnnotationKey], m.Name)] = PodMetric{
 						Timestamp: m.Timestamp.Time,
 						Window:    m.Window.Duration,
 						Value:     val.MilliValue(),
@@ -132,7 +134,7 @@ func getPodMetrics(rawMetrics []metricsapi.PodMetrics, resource corev1.ResourceN
 			podSum += resValue.MilliValue()
 		}
 		if !missing {
-			res[m.Name] = PodMetric{
+			res[names.ClusteredKey(m.Annotations[autoscalingv1alpha1.QuerySourceAnnotationKey], m.Name)] = PodMetric{
 				Timestamp: m.Timestamp.Time,
 				Window:    m.Window.Duration,
 				Value:     podSum,
