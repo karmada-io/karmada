@@ -452,12 +452,16 @@ function util::delete_all_clusters() {
   local main_config=${1}
   local member_config=${2}
   local log_path=${3}
+  local host_cluster_name=${4}
+  local member1_name=${5}
+  local member2_name=${6}
 
   local log_file="${log_path}"/delete-all-clusters.log
   rm -rf ${log_file}
   mkdir -p ${log_path}
 
-  kind delete clusters --all >> "${log_file}" 2>&1
+  # only delete karmada create clusters
+  kind delete clusters "${host_cluster_name}" "${member1_name}" "${member2_name}" >> "${log_file}" 2>&1
   rm -f "${main_config}"
   rm -f "${member_config}"
 
