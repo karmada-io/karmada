@@ -341,7 +341,7 @@ func TestWorkStatusController_getEventHandler(t *testing.T) {
 	assert.NotEmpty(t, eventHandler)
 }
 
-func TestWorkStatusController_RunWorkQueue(t *testing.T) {
+func TestWorkStatusController_RunWorkQueue(_ *testing.T) {
 	c := WorkStatusController{
 		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)).Build(),
 		InformerManager:             genericmanager.GetInstance(),

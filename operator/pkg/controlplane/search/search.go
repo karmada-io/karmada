@@ -41,7 +41,7 @@ func EnsureKarmadaSearch(client clientset.Interface, cfg *operatorv1alpha1.Karma
 	return createKarmadaSearchService(client, name, namespace)
 }
 
-func installKarmadaSearch(client clientset.Interface, cfg *operatorv1alpha1.KarmadaSearch, name, namespace string, featureGates map[string]bool) error {
+func installKarmadaSearch(client clientset.Interface, cfg *operatorv1alpha1.KarmadaSearch, name, namespace string, _ map[string]bool) error {
 	searchDeploymentSetBytes, err := util.ParseTemplate(KarmadaSearchDeployment, struct {
 		DeploymentName, Namespace, Image, KarmadaCertsSecret string
 		KubeconfigSecret, EtcdClientService                  string

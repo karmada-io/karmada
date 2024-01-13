@@ -85,6 +85,7 @@ linters-settings:
       - name: unreachable-code
       - name: var-naming
       - name: redefines-builtin-id
+      - name: unused-parameter
   staticcheck:
     checks:
       - all

@@ -40,7 +40,7 @@ func EnsureKarmadaWebhook(client clientset.Interface, cfg *operatorv1alpha1.Karm
 	return createKarmadaWebhookService(client, name, namespace)
 }
 
-func installKarmadaWebhook(client clientset.Interface, cfg *operatorv1alpha1.KarmadaWebhook, name, namespace string, featureGates map[string]bool) error {
+func installKarmadaWebhook(client clientset.Interface, cfg *operatorv1alpha1.KarmadaWebhook, name, namespace string, _ map[string]bool) error {
 	webhookDeploymentSetBytes, err := util.ParseTemplate(KarmadaWebhookDeployment, struct {
 		DeploymentName, Namespace, Image     string
 		KubeconfigSecret, WebhookCertsSecret string

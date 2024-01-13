@@ -86,7 +86,7 @@ func (r *HPAReplicasSyncer) Delete(e event.DeleteEvent) bool {
 }
 
 // Generic implements default GenericEvent filter
-func (r *HPAReplicasSyncer) Generic(e event.GenericEvent) bool {
+func (r *HPAReplicasSyncer) Generic(_ event.GenericEvent) bool {
 	return false
 }
 

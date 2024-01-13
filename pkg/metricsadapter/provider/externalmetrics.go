@@ -35,7 +35,7 @@ func MakeExternalMetricsProvider() *ExternalMetricsProvider {
 }
 
 // GetExternalMetric will query metrics by selector from member clusters and return the result
-func (c *ExternalMetricsProvider) GetExternalMetric(ctx context.Context, namespace string, metricSelector labels.Selector, info provider.ExternalMetricInfo) (*external_metrics.ExternalMetricValueList, error) {
+func (c *ExternalMetricsProvider) GetExternalMetric(_ context.Context, _ string, _ labels.Selector, _ provider.ExternalMetricInfo) (*external_metrics.ExternalMetricValueList, error) {
 	return nil, fmt.Errorf("karmada-metrics-adapter still not implement it")
 }
 

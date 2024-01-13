@@ -985,7 +985,7 @@ func TestClusterStatusController_updateStatusIfNeeded(t *testing.T) {
 	})
 }
 
-func NewClusterDynamicClientSetForAgentWithError(clusterName string, client client.Client) (*util.DynamicClusterClient, error) {
+func NewClusterDynamicClientSetForAgentWithError(_ string, _ client.Client) (*util.DynamicClusterClient, error) {
 	return nil, fmt.Errorf("err")
 }
 
@@ -1029,7 +1029,7 @@ func TestClusterStatusController_initializeGenericInformerManagerForCluster(t *t
 	})
 }
 
-func TestClusterStatusController_initLeaseController(t *testing.T) {
+func TestClusterStatusController_initLeaseController(_ *testing.T) {
 	c := &ClusterStatusController{
 		Client:                 fake.NewClientBuilder().WithScheme(gclient.NewSchema()).Build(),
 		GenericInformerManager: genericmanager.GetInstance(),
