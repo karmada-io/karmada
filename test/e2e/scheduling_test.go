@@ -99,7 +99,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 			})
 		})
 
-		ginkgo.It("deployment propagation with label and group constraints testing", func() {
+		ginkgo.It("Deployment propagation with label and group constraints testing", func() {
 			ginkgo.By("collect the target clusters in resource binding", func() {
 				targetClusterNames = framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 				gomega.Expect(len(targetClusterNames) == minGroups).ShouldNot(gomega.BeFalse())
@@ -191,7 +191,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 			})
 		})
 
-		ginkgo.It("crd with specified label and group constraints propagation testing", func() {
+		ginkgo.It("CRD with specified label and group constraints propagation testing", func() {
 			ginkgo.By("collect the target clusters in cluster resource binding", func() {
 				bindingName := names.GenerateBindingName(crd.Kind, crd.Name)
 				fmt.Printf("crd kind is %s, name is %s\n", crd.Kind, crd.Name)
@@ -237,7 +237,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 						}
 						targetCluster, _ := util.GetCluster(controlPlaneClient, targetClusterName)
 						groupMatchedClusters = append(groupMatchedClusters, targetCluster)
-						fmt.Printf("Crd(%s) is present on cluster(%s).\n", crd.Name, targetClusterName)
+						fmt.Printf("CRD(%s) is present on cluster(%s).\n", crd.Name, targetClusterName)
 						return true, nil
 					})
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -413,7 +413,7 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 			klog.Infof("check if deployment's replicas are duplicate on member clusters")
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 				func(deploy *appsv1.Deployment) bool {
-					klog.Infof("Deployment(%s/%s)'s replcas is %d, expected: %d.",
+					klog.Infof("Deployment(%s/%s)'s replicas is %d, expected: %d.",
 						deploy.Namespace, deploy.Name, *deploy.Spec.Replicas, *deployment.Spec.Replicas)
 					return *deploy.Spec.Replicas == *deployment.Spec.Replicas
 				})
@@ -433,7 +433,7 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 			klog.Infof("check if deployment's replicas have been updated on member clusters")
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 				func(deploy *appsv1.Deployment) bool {
-					klog.Infof("Deployment(%s/%s)'s replcas is %d, expected: %d.",
+					klog.Infof("Deployment(%s/%s)'s replicas is %d, expected: %d.",
 						deploy.Namespace, deploy.Name, *deploy.Spec.Replicas, updateDeploymentReplicas)
 					return *deploy.Spec.Replicas == updateDeploymentReplicas
 				})
@@ -459,7 +459,7 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 			klog.Infof("check if deployment's replicas are divided equally on member clusters")
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 				func(deploy *appsv1.Deployment) bool {
-					klog.Infof("Deployment(%s/%s)'s replcas is %d, expected: %d.",
+					klog.Infof("Deployment(%s/%s)'s replicas is %d, expected: %d.",
 						deploy.Namespace, deploy.Name, *deploy.Spec.Replicas, expectedReplicas)
 					return *deploy.Spec.Replicas == expectedReplicas
 				})
@@ -490,7 +490,7 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 			klog.Infof("check if deployment's replicas are divided equally on member clusters")
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 				func(deploy *appsv1.Deployment) bool {
-					klog.Infof("Deployment(%s/%s)'s replcas is %d, expected: %d.",
+					klog.Infof("Deployment(%s/%s)'s replicas is %d, expected: %d.",
 						deploy.Namespace, deploy.Name, *deploy.Spec.Replicas, expectedReplicas)
 					return *deploy.Spec.Replicas == expectedReplicas
 				})
@@ -539,7 +539,7 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 						memberDeployment, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 						g.Expect(err).NotTo(gomega.HaveOccurred())
 
-						klog.Infof("Deployment(%s/%s)'s replcas is %d on cluster(%s), expected: %d.",
+						klog.Infof("Deployment(%s/%s)'s replicas is %d on cluster(%s), expected: %d.",
 							deploymentNamespace, deploymentName, *memberDeployment.Spec.Replicas, cluster.Name, expectedReplicas)
 						return *memberDeployment.Spec.Replicas, nil
 					}, pollTimeout, pollInterval).Should(gomega.Equal(expectedReplicas))
@@ -602,7 +602,7 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 						memberDeployment, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 						g.Expect(err).NotTo(gomega.HaveOccurred())
 
-						klog.Infof("Deployment(%s/%s)'s replcas is %d on cluster(%s), expected: %d.",
+						klog.Infof("Deployment(%s/%s)'s replicas is %d on cluster(%s), expected: %d.",
 							deploymentNamespace, deploymentName, *memberDeployment.Spec.Replicas, cluster.Name, expectedReplicas)
 						return *memberDeployment.Spec.Replicas, nil
 					}, pollTimeout, pollInterval).Should(gomega.Equal(expectedReplicas))
@@ -652,7 +652,7 @@ var _ = ginkgo.Describe("[JobReplicaScheduling] JobReplicaSchedulingStrategy tes
 			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 
-		ginkgo.It("job replicas divided and weighted testing", func() {
+		ginkgo.It("Job replicas divided and weighted testing", func() {
 			sumWeight := 0
 			staticWeightLists := make([]policyv1alpha1.StaticClusterWeight, 0)
 			for index, clusterName := range framework.ClusterNames() {

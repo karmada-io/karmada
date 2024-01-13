@@ -241,10 +241,7 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 					// not collect status.conditions in webhook
 					klog.Infof("work(%s/%s) length of conditions: %v, want: %v", workNamespace, workName, len(observedStatus.Conditions), 0)
 
-					if observedStatus.ReadyReplicas == *workload.Spec.Replicas && len(observedStatus.Conditions) == 0 {
-						return true, nil
-					}
-					return false, nil
+					return observedStatus.ReadyReplicas == *workload.Spec.Replicas && len(observedStatus.Conditions) == 0, nil
 				}, pollTimeout, pollInterval).Should(gomega.BeTrue())
 			}
 		})
@@ -459,7 +456,7 @@ end
 			})
 		})
 
-		ginkgo.It("dependency cr propagation testing", func() {
+		ginkgo.It("Dependency cr propagation testing", func() {
 			framework.GetCRD(dynamicClient, crd.Name)
 			framework.WaitCRDPresentOnClusters(karmadaClient, framework.ClusterNames(),
 				fmt.Sprintf("%s/%s", crd.Spec.Group, "v1alpha1"), crd.Spec.Names.Kind)
@@ -785,7 +782,7 @@ var _ = framework.SerialDescribe("Resource interpreter customization testing", f
 		end
 		replicas = 0
 		for i = 1, #statusItems do
-			if statusItems[i].status ~= nil and statusItems[i].status.replicas ~= nil  then
+			if statusItems[i].status ~= nil and statusItems[i].status.replicas ~= nil then
 				replicas = replicas + statusItems[i].status.replicas + 1
 			end 
 		end
@@ -1045,7 +1042,6 @@ end `,
 						})
 				})
 			})
-
 		})
 	})
 })
