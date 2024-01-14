@@ -554,7 +554,7 @@ func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj 
 		}
 
 		if o.AutoCreatePolicy {
-			err = o.createClusterPropagationPolicy(karmadaClient, obj, gvr, isDep)
+			err = o.createClusterPropagationPolicy(karmadaClient, gvr, isDep)
 			if err != nil {
 				return err
 			}
@@ -681,7 +681,7 @@ func (o *CommandPromoteOption) createPropagationPolicy(karmadaClient *karmadacli
 }
 
 // createClusterPropagationPolicy create ClusterPropagationPolicy in karmada control plane
-func (o *CommandPromoteOption) createClusterPropagationPolicy(karmadaClient *karmadaclientset.Clientset, obj *unstructured.Unstructured, gvr schema.GroupVersionResource, isDep bool) error {
+func (o *CommandPromoteOption) createClusterPropagationPolicy(karmadaClient *karmadaclientset.Clientset, gvr schema.GroupVersionResource, isDep bool) error {
 	var policyName string
 	if o.PolicyName == "" {
 		policyName = names.GeneratePolicyName("", o.name, o.gvk.String())

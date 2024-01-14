@@ -102,7 +102,7 @@ func (c *EndpointSliceCollectController) Reconcile(ctx context.Context, req cont
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	if err = c.buildResourceInformers(ctx, work, clusterName); err != nil {
+	if err = c.buildResourceInformers(clusterName); err != nil {
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
@@ -147,7 +147,7 @@ func (c *EndpointSliceCollectController) collectEndpointSlice(key util.QueueKey)
 	return nil
 }
 
-func (c *EndpointSliceCollectController) buildResourceInformers(ctx context.Context, work *workv1alpha1.Work, clusterName string) error {
+func (c *EndpointSliceCollectController) buildResourceInformers(clusterName string) error {
 	cluster, err := util.GetCluster(c.Client, clusterName)
 	if err != nil {
 		klog.Errorf("Failed to get the given member cluster %s", clusterName)

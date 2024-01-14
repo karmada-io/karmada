@@ -49,7 +49,7 @@ func EnsureKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operatorv
 	return createKarmadaAggregatedAPIServerService(client, name, namespace)
 }
 
-func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaAPIServer, name, namespace string, featureGates map[string]bool) error {
+func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaAPIServer, name, namespace string, _ map[string]bool) error {
 	apiserverDeploymentBytes, err := util.ParseTemplate(KarmadaApiserverDeployment, struct {
 		DeploymentName, Namespace, Image, EtcdClientService string
 		ServiceSubnet, KarmadaCertsSecret, EtcdCertsSecret  string
