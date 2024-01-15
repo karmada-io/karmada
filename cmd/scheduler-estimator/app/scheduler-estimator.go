@@ -135,7 +135,7 @@ func run(ctx context.Context, opts *options.Options) error {
 	}
 
 	if err = e.Start(ctx); err != nil {
-		klog.Errorf("estimator server exits unexpectedly: %v", err)
+		klog.Errorf("Estimator server exits unexpectedly: %v", err)
 		return err
 	}
 

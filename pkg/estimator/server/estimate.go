@@ -72,7 +72,7 @@ func (es *AccurateSchedulerEstimatorServer) estimateReplicas(
 	if requirements.NodeClaim != nil {
 		tolerations = requirements.NodeClaim.Tolerations
 	}
-	// TODO(Garrybest): design a framework and make filter and score plugins
+
 	var res int32
 	replicas, err := es.estimateFramework.RunEstimateReplicasPlugins(ctx, &requirements)
 	if err != nil {

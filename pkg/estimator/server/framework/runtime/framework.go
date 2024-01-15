@@ -96,6 +96,10 @@ func (frw *frameworkImpl) SharedInformerFactory() informers.SharedInformerFactor
 	return frw.informerFactory
 }
 
+// RunEstimateReplicasPlugins runs the set of configured EstimateReplicasPlugins
+// for estimating replicas based on the given replicaRequirements.
+// It returns an integer and an error.
+// The integer represents the minimum calculated value of estimated replicas from each EstimateReplicasPlugin.
 func (frw *frameworkImpl) RunEstimateReplicasPlugins(ctx context.Context, replicaRequirements *pb.ReplicaRequirements) (int32, error) {
 	startTime := time.Now()
 	defer func() {
@@ -104,12 +108,9 @@ func (frw *frameworkImpl) RunEstimateReplicasPlugins(ctx context.Context, replic
 	var result int32 = math.MaxInt32
 	for _, pl := range frw.estimateReplicasPlugins {
 		if replica, err := frw.runEstimateReplicasPlugins(ctx, pl, replicaRequirements); err == nil {
-			result = func(a, b int32) int32 {
-				if a <= b {
-					return a
-				}
-				return b
-			}(replica, result)
+			if replica < result {
+				result = replica
+			}
 		} else {
 			return 0, err
 		}
