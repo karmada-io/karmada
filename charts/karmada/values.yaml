@@ -828,10 +828,8 @@ schedulerEstimator:
       maxSurge: 50%
   ## @param apiServer.podDisruptionBudget
   podDisruptionBudget: *podDisruptionBudget
-  ## @param featureGate to controllerManager
-  featureGates:
-    ## @param ResourceQuotaEstimate is a feature gate for the scheduler-estimator to allow resource quota estimator.
-    ResourceQuotaEstimate: false
+  ## @param featureGate to schedulerEstimator
+  featureGates: {}
 
 ## descheduler config
 descheduler:

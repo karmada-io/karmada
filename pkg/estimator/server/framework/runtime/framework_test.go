@@ -19,15 +19,15 @@ package runtime
 import (
 	"context"
 	"fmt"
-	"github.com/karmada-io/karmada/pkg/estimator/server/framework"
 	"math"
 	"testing"
 
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
+	"github.com/karmada-io/karmada/pkg/estimator/server/framework"
 )
 
 var (
-	estimateReplicaError = fmt.Errorf("estimate failed")
+	errEstimateReplica = fmt.Errorf("estimate failed")
 )
 
 type estimateReplicaResult struct {
@@ -96,12 +96,12 @@ func Test_frameworkImpl_RunEstimateReplicasPlugins(t *testing.T) {
 					name: "error",
 					inj: injectedResult{
 						estimateReplicaResult{
-							err: estimateReplicaError,
+							err: errEstimateReplica,
 						},
 					},
 				},
 			},
-			expected: estimateReplicaResult{err: estimateReplicaError},
+			expected: estimateReplicaResult{err: errEstimateReplica},
 		},
 		{
 			name: "all EstimateReplicasPlugins returned success and but different replica",

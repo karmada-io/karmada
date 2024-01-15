@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Karmada Authors.
+Copyright 2024 The Karmada Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -110,6 +110,8 @@ func (frw *frameworkImpl) RunEstimateReplicasPlugins(ctx context.Context, replic
 				}
 				return b
 			}(replica, result)
+		} else {
+			return 0, err
 		}
 	}
 	return result, nil

@@ -95,12 +95,6 @@ message ReplicaRequirements {
   // ResourceRequest represents the resources required by each replica.
   // +optional
   map<string, k8s.io.apimachinery.pkg.api.resource.Quantity> resourceRequest = 2;
-
-  // +optional
-  optional string namespace = 3;
-
-  // +optional
-  optional string priorityClassName = 4;
 }
 
 // UnschedulableReplicasRequest represents the request that sent by gRPC client to calculate unschedulable replicas.

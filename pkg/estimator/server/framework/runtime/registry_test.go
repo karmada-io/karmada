@@ -17,9 +17,11 @@ limitations under the License.
 package runtime
 
 import (
-	"github.com/google/uuid"
-	"github.com/karmada-io/karmada/pkg/estimator/server/framework"
 	"testing"
+
+	"github.com/google/uuid"
+
+	"github.com/karmada-io/karmada/pkg/estimator/server/framework"
 )
 
 type mockNoopPlugin struct {
