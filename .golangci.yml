@@ -86,6 +86,9 @@ linters-settings:
       - name: var-naming
       - name: redefines-builtin-id
       - name: unused-parameter
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: unexported-return
   staticcheck:
     checks:
       - all
