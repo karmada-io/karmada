@@ -112,7 +112,7 @@ echo -e "Preparing kindClusterConfig in path: ${TEMP_PATH}"
 cp -rf "${REPO_ROOT}"/artifacts/kindClusterConfig/member1.yaml "${TEMP_PATH}"/member1.yaml
 cp -rf "${REPO_ROOT}"/artifacts/kindClusterConfig/member2.yaml "${TEMP_PATH}"/member2.yaml
 
-util::delete_all_clusters "${MAIN_KUBECONFIG}" "${MEMBER_CLUSTER_KUBECONFIG}" "${KIND_LOG_FILE}"
+util::delete_necessary_resources "${MAIN_KUBECONFIG},${MEMBER_CLUSTER_KUBECONFIG}" "${HOST_CLUSTER_NAME},${MEMBER_CLUSTER_1_NAME},${MEMBER_CLUSTER_2_NAME},${PULL_MODE_CLUSTER_NAME}" "${KIND_LOG_FILE}"
 
 if [[ -n "${HOST_IPADDRESS}" ]]; then # If bind the port of clusters(karmada-host, member1 and member2) to the host IP
   util::verify_ip_address "${HOST_IPADDRESS}"

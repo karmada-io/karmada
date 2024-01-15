@@ -449,26 +449,26 @@ function util::kubectl_with_retry() {
     return ${ret}
 }
 
-# util::delete_all_clusters deletes all clusters directly
-# util::delete_all_clusters actually do three things: delete cluster、remove kubeconfig、record delete log
+# util::delete_necessary_resources deletes clusters(karmada-host, member1, member2 and member3) and related resources directly
+# util::delete_necessary_resources actually do three things: delete cluster、remove kubeconfig、record delete log
 # Parameters:
-#  - $1: KUBECONFIG file of host cluster, such as "~/.kube/karmada.config"
-#  - $2: KUBECONFIG file of member cluster, such as "~/.kube/members.config"
+#  - $1: KUBECONFIG files of clusters, separated by ",", such as "~/.kube/karmada.config,~/.kube/members.config"
+#  - $2: clusters, separated by ",", such as "karmada-host,member1"
 #  - $3: log file path, such as "/tmp/karmada/"
-function util::delete_all_clusters() {
-  local main_config=${1}
-  local member_config=${2}
+function util::delete_necessary_resources() {
+  local config_files=${1}
+  local clusters=${2}
   local log_path=${3}
 
-  local log_file="${log_path}"/delete-all-clusters.log
-  rm -rf ${log_file}
+  local log_file="${log_path}"/delete-necessary-resources.log
+  rm -f ${log_file}
   mkdir -p ${log_path}
 
-  kind delete clusters --all >> "${log_file}" 2>&1
-  rm -f "${main_config}"
-  rm -f "${member_config}"
-
-  echo "Deleted all clusters and the log file is in ${log_file}"
+  local config_file_arr=$(echo ${config_files}| tr ',' ' ')
+  local cluster_arr=$(echo ${clusters}| tr ',' ' ')
+  kind delete clusters ${cluster_arr} >> "${log_file}" 2>&1
+  rm -f ${config_file_arr}
+  echo "Deleted all necessary clusters and the log file is in ${log_file}"
 }
 
 # util::create_cluster creates a kubernetes cluster
