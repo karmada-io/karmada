@@ -49,7 +49,7 @@ func (pl *TestPlugin) Name() string {
 	return pl.name
 }
 
-func (pl *TestPlugin) Estimate(ctx context.Context, replicaRequirements *pb.ReplicaRequirements) (int32, error) {
+func (pl *TestPlugin) Estimate(_ context.Context, _ *pb.ReplicaRequirements) (int32, error) {
 	return pl.inj.estimateReplicaResult.replica, pl.inj.estimateReplicaResult.err
 }
 
