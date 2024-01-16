@@ -32,7 +32,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util/fixedpool"
-	"github.com/karmada-io/karmada/pkg/util/lifted"
+	lualifted "github.com/karmada-io/karmada/pkg/util/lifted/lua"
 )
 
 // VM Defines a struct that implements the luaVM.
@@ -66,7 +66,7 @@ func (vm *VM) NewLuaState() (*lua.LState, error) {
 		return nil, err
 	}
 	// preload our 'safe' version of the OS library. Allows the 'local os = require("os")' to work
-	l.PreloadModule(lua.OsLibName, lifted.SafeOsLoader)
+	l.PreloadModule(lua.OsLibName, lualifted.SafeOsLoader)
 	// preload kube library. Allows the 'local kube = require("kube")' to work
 	l.PreloadModule(KubeLibName, KubeLoader)
 	return l, err
@@ -181,13 +181,13 @@ func (vm *VM) setLib(l *lua.LState) error {
 		n string
 		f lua.LGFunction
 	}{
-		{lua.LoadLibName, lua.OpenPackage},
+		{lua.LoadLibName, lualifted.OpenPackage},
 		{lua.BaseLibName, lua.OpenBase},
 		{lua.TabLibName, lua.OpenTable},
 		{lua.StringLibName, lua.OpenString},
 		{lua.MathLibName, lua.OpenMath},
 		// load our 'safe' version of the OS library
-		{lua.OsLibName, lifted.OpenSafeOs},
+		{lua.OsLibName, lualifted.OpenSafeOs},
 	} {
 		if err := l.CallByParam(lua.P{
 			Fn:      l.NewFunction(pair.f),
@@ -197,6 +197,35 @@ func (vm *VM) setLib(l *lua.LState) error {
 			return err
 		}
 	}
+
+	// Set potentially unsafe basic functions to nil, prohibiting users from
+	// calling these functions in custom Lua scripts.
+	// For the safety analysis of Sandbox in Lua, please refer to http://lua-users.org/wiki/SandBoxes
+	// For users, these functions are not needed for parsing resource templates,
+	// so disabling these functions has no impact on functionality.
+	for _, value := range []string{
+		"collectgarbage",
+		"dofile",
+		"getfenv",
+		"getmetatable",
+		"load",
+		"loadfile",
+		"loadstring",
+		"rawequal",
+		"rawget",
+		"rawset",
+		"setfenv",
+		"setmetatable",
+		"module",
+		"newproxy",
+	} {
+		overrideFunc := "function %s() error('call function %s is not supported in karmada customized resourceinterpreter.') end"
+		err := l.DoString(fmt.Sprintf(overrideFunc, value, value))
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -298,7 +327,7 @@ func NewWithContext(ctx context.Context) (*lua.LState, error) {
 		return nil, err
 	}
 	// preload our 'safe' version of the OS library. Allows the 'local os = require("os")' to work
-	l.PreloadModule(lua.OsLibName, lifted.SafeOsLoader)
+	l.PreloadModule(lua.OsLibName, lualifted.SafeOsLoader)
 	// preload kube library. Allows the 'local kube = require("kube")' to work
 	l.PreloadModule(KubeLibName, KubeLoader)
 	if ctx != nil {
