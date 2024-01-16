@@ -1,5 +1,6 @@
 name: APIServer compatibility
 on:
+  workflow_dispatch:
   schedule:
     # Run this workflow "At 20:00 UTC on Sunday and Saturday"
     - cron: '0 20 * * 0,6'
