@@ -68,7 +68,12 @@ github.com/emicklei/go-restful/v3/log
 # github.com/emirpasic/gods v1.18.1
 ## explicit; go 1.2
 github.com/emirpasic/gods/containers
+github.com/emirpasic/gods/lists
+github.com/emirpasic/gods/lists/arraylist
+github.com/emirpasic/gods/queues
+github.com/emirpasic/gods/queues/priorityqueue
 github.com/emirpasic/gods/trees
+github.com/emirpasic/gods/trees/binaryheap
 github.com/emirpasic/gods/trees/redblacktree
 github.com/emirpasic/gods/utils
 # github.com/evanphx/json-patch v5.6.0+incompatible
