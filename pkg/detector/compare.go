@@ -37,6 +37,9 @@ func getHighestPriorityPropagationPolicy(policies []*policyv1alpha1.PropagationP
 		if implicitPriority <= util.PriorityMisMatch {
 			continue
 		}
+		if util.ResourceMatchExcluded(resource, policy.Spec.ExcludedResources...) {
+			continue
+		}
 		explicitPriority := policy.ExplicitPriority()
 
 		if matchedPolicyExplicitPriority < explicitPriority {
@@ -72,6 +75,9 @@ func getHighestPriorityClusterPropagationPolicy(policies []*policyv1alpha1.Clust
 	for _, policy := range policies {
 		implicitPriority := util.ResourceMatchSelectorsPriority(resource, policy.Spec.ResourceSelectors...)
 		if implicitPriority <= util.PriorityMisMatch {
+			continue
+		}
+		if util.ResourceMatchExcluded(resource, policy.Spec.ExcludedResources...) {
 			continue
 		}
 		explicitPriority := policy.ExplicitPriority()

@@ -913,7 +913,8 @@ func (d *ResourceDetector) RemoveWaiting(objectKey keys.ClusterWideKey) {
 }
 
 // GetMatching gets objects keys in waiting list that matches one of resource selectors.
-func (d *ResourceDetector) GetMatching(resourceSelectors []policyv1alpha1.ResourceSelector) []keys.ClusterWideKey {
+func (d *ResourceDetector) GetMatching(resourceSelectors []policyv1alpha1.ResourceSelector,
+	excludedResources []policyv1alpha1.ExcludedResource) []keys.ClusterWideKey {
 	d.waitingLock.RLock()
 	defer d.waitingLock.RUnlock()
 
@@ -927,11 +928,8 @@ func (d *ResourceDetector) GetMatching(resourceSelectors []policyv1alpha1.Resour
 			continue
 		}
 
-		for _, rs := range resourceSelectors {
-			if util.ResourceMatches(waitObj, rs) {
-				matchedResult = append(matchedResult, waitKey)
-				break
-			}
+		if util.ResourceMatchSelectors(waitObj, resourceSelectors...) && !util.ResourceMatchExcluded(waitObj, excludedResources...) {
+			matchedResult = append(matchedResult, waitKey)
 		}
 	}
 
@@ -1272,7 +1270,7 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName str
 func (d *ResourceDetector) HandlePropagationPolicyCreationOrUpdate(policy *policyv1alpha1.PropagationPolicy) error {
 	// If the Policy's ResourceSelectors change, causing certain resources to no longer match the Policy, the label marked
 	// on relevant resource template will be removed (which gives the resource template a change to match another policy).
-	err := d.cleanPPUnmatchedResourceBindings(policy.Namespace, policy.Name, policy.Spec.ResourceSelectors)
+	err := d.cleanPPUnmatchedResourceBindings(policy.Namespace, policy.Name, policy.Spec.ResourceSelectors, policy.Spec.ExcludedResources)
 	if err != nil {
 		return err
 	}
@@ -1293,7 +1291,7 @@ func (d *ResourceDetector) HandlePropagationPolicyCreationOrUpdate(policy *polic
 	}
 
 	// check whether there are matched RT in waiting list, is so, add it to processor
-	matchedKeys := d.GetMatching(policy.Spec.ResourceSelectors)
+	matchedKeys := d.GetMatching(policy.Spec.ResourceSelectors, policy.Spec.ExcludedResources)
 	klog.Infof("Matched %d resources by policy(%s/%s)", len(matchedKeys), policy.Namespace, policy.Name)
 
 	// check dependents only when there at least a real match.
@@ -1329,12 +1327,12 @@ func (d *ResourceDetector) HandlePropagationPolicyCreationOrUpdate(policy *polic
 func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy *policyv1alpha1.ClusterPropagationPolicy) error {
 	// If the Policy's ResourceSelectors change, causing certain resources to no longer match the Policy, the label marked
 	// on relevant resource template will be removed (which gives the resource template a change to match another policy).
-	err := d.cleanCPPUnmatchedResourceBindings(policy.Name, policy.Spec.ResourceSelectors)
+	err := d.cleanCPPUnmatchedResourceBindings(policy.Name, policy.Spec.ResourceSelectors, policy.Spec.ExcludedResources)
 	if err != nil {
 		return err
 	}
 
-	err = d.cleanUnmatchedClusterResourceBinding(policy.Name, policy.Spec.ResourceSelectors)
+	err = d.cleanUnmatchedClusterResourceBinding(policy.Name, policy.Spec.ResourceSelectors, policy.Spec.ExcludedResources)
 	if err != nil {
 		return err
 	}
@@ -1365,7 +1363,7 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy
 		d.Processor.Add(keys.ClusterWideKeyWithConfig{ClusterWideKey: resourceKey, ResourceChangeByKarmada: true})
 	}
 
-	matchedKeys := d.GetMatching(policy.Spec.ResourceSelectors)
+	matchedKeys := d.GetMatching(policy.Spec.ResourceSelectors, policy.Spec.ExcludedResources)
 	klog.Infof("Matched %d resources by policy(%s)", len(matchedKeys), policy.Name)
 
 	// check dependents only when there at least a real match.

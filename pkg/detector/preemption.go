@@ -58,6 +58,9 @@ func (d *ResourceDetector) handlePropagationPolicyPreemption(policy *policyv1alp
 		if resourceTemplate == nil {
 			continue
 		}
+		if util.ResourceMatchExcluded(resourceTemplate, policy.Spec.ExcludedResources...) {
+			continue
+		}
 
 		if err := d.preemptPropagationPolicy(resourceTemplate, policy); err != nil {
 			errs = append(errs, err)
@@ -82,6 +85,9 @@ func (d *ResourceDetector) handleClusterPropagationPolicyPreemption(policy *poli
 			continue
 		}
 		if resourceTemplate == nil {
+			continue
+		}
+		if util.ResourceMatchExcluded(resourceTemplate, policy.Spec.ExcludedResources...) {
 			continue
 		}
 
