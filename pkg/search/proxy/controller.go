@@ -47,6 +47,7 @@ import (
 	pluginruntime "github.com/karmada-io/karmada/pkg/search/proxy/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/search/proxy/store"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
@@ -223,6 +224,15 @@ func (ctl *Controller) reconcile(util.QueueKey) error {
 			}
 
 			for resource, multiNS := range matchedResources {
+				gvk, err := ctl.restMapper.KindFor(resource)
+				if err != nil {
+					klog.Errorf("Failed to get gvk: %v", err)
+					continue
+				}
+				if !helper.IsAPIEnabled(cluster.Status.APIEnablements, gvk.GroupVersion().String(), gvk.Kind) {
+					klog.Warningf("Resource %s is not enabled for cluster %s", resource.String(), cluster)
+					continue
+				}
 				resourcesByClusters[cluster.Name][resource] = multiNS
 			}
 		}

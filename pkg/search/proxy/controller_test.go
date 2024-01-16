@@ -510,9 +510,28 @@ func TestController_Connect_Error(t *testing.T) {
 
 func newCluster(name string) *clusterv1alpha1.Cluster {
 	c := &clusterv1alpha1.Cluster{}
+	clusterEnablements := []clusterv1alpha1.APIEnablement{
+		{
+			GroupVersion: "v1",
+			Resources: []clusterv1alpha1.APIResource{
+				{
+					Kind: "Pod",
+				},
+			},
+		},
+		{
+			GroupVersion: "v1",
+			Resources: []clusterv1alpha1.APIResource{
+				{
+					Kind: "Node",
+				},
+			},
+		},
+	}
 	c.Name = name
 	conditions := make([]metav1.Condition, 0, 1)
 	conditions = append(conditions, util.NewCondition(clusterv1alpha1.ClusterConditionReady, "", "", metav1.ConditionTrue))
 	c.Status.Conditions = conditions
+	c.Status.APIEnablements = clusterEnablements
 	return c
 }
