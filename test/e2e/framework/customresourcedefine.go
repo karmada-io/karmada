@@ -94,3 +94,19 @@ func WaitCRDDisappearedOnClusters(clusters []string, crdName string) {
 		}
 	})
 }
+
+// WaitCRDFitWith wait crd fit with util timeout
+func WaitCRDFitWith(client dynamic.Interface, crdName string, fit func(crd *apiextensionsv1.CustomResourceDefinition) bool) {
+	gomega.Eventually(func() bool {
+		crd := &apiextensionsv1.CustomResourceDefinition{}
+		unstructured, err := client.Resource(crdGVR).Get(context.TODO(), crdName, metav1.GetOptions{})
+		if err != nil {
+			return false
+		}
+		err = helper.ConvertToTypedObject(unstructured, crd)
+		if err != nil {
+			return false
+		}
+		return fit(crd)
+	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+}

@@ -33,6 +33,8 @@ import (
 	"k8s.io/klog/v2"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
@@ -641,6 +643,143 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 						klog.Infof("Matched ClusterPropagationPolicy:%s", deployment.GetLabels()[policyv1alpha1.ClusterPropagationPolicyLabel])
 						return deployment.GetLabels()[policyv1alpha1.ClusterPropagationPolicyLabel] == explicitPriorityMatchName
 					})
+			})
+		})
+	})
+})
+
+// Delete when delete a clusterPropagationPolicy, and no more clusterPropagationPolicy matches the object, something like
+// labels should be cleaned.
+var _ = ginkgo.Describe("[Delete] clusterPropagation testing", func() {
+	ginkgo.Context("delete clusterPropagation and remove the labels from the resource template and reference binding", func() {
+		var policy *policyv1alpha1.ClusterPropagationPolicy
+		var deployment *appsv1.Deployment
+		var targetMember string
+
+		ginkgo.BeforeEach(func() {
+			targetMember = framework.ClusterNames()[0]
+			policyName := deploymentNamePrefix + rand.String(RandomStrLength)
+
+			deployment = testhelper.NewDeployment(testNamespace, policyName+"01")
+
+			policy = testhelper.NewClusterPropagationPolicy(policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				}}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: []string{targetMember},
+				},
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreateClusterPropagationPolicy(karmadaClient, policy)
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				// clusterPropagationPolicy will be removed in subsequent test cases
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			})
+
+			gomega.Eventually(func() bool {
+				bindings, err := karmadaClient.WorkV1alpha2().ResourceBindings(testNamespace).List(context.TODO(), metav1.ListOptions{
+					LabelSelector: labels.SelectorFromSet(labels.Set{
+						policyv1alpha1.ClusterPropagationPolicyLabel: policy.Name,
+					}).String(),
+				})
+				if err != nil {
+					return false
+				}
+				return len(bindings.Items) != 0
+			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+		})
+
+		ginkgo.It("delete ClusterPropagationPolicy and check whether labels are deleted correctly", func() {
+			framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
+			framework.WaitDeploymentFitWith(kubeClient, deployment.Namespace, deployment.Name, func(dep *appsv1.Deployment) bool {
+				if dep.Labels == nil {
+					return true
+				}
+				return dep.Labels[policyv1alpha1.ClusterPropagationPolicyLabel] == "" && dep.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] == ""
+			})
+
+			resourceBindingName := names.GenerateBindingName(deployment.Kind, deployment.Name)
+			framework.WaitResourceBindingFitWith(karmadaClient, deployment.Namespace, resourceBindingName, func(resourceBinding *workv1alpha2.ResourceBinding) bool {
+				if resourceBinding.Labels == nil {
+					return true
+				}
+				return resourceBinding.Labels[policyv1alpha1.ClusterPropagationPolicyLabel] == "" && resourceBinding.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] == ""
+			})
+		})
+	})
+
+	ginkgo.Context("delete clusterPropagation and remove the labels from the resource template and reference clusterBinding", func() {
+		var crdGroup string
+		var randStr string
+		var crdSpecNames apiextensionsv1.CustomResourceDefinitionNames
+		var crd *apiextensionsv1.CustomResourceDefinition
+		var crdPolicy *policyv1alpha1.ClusterPropagationPolicy
+
+		ginkgo.BeforeEach(func() {
+			crdGroup = fmt.Sprintf("example-%s.karmada.io", rand.String(RandomStrLength))
+			randStr = rand.String(RandomStrLength)
+			crdSpecNames = apiextensionsv1.CustomResourceDefinitionNames{
+				Kind:     fmt.Sprintf("Foo%s", randStr),
+				ListKind: fmt.Sprintf("Foo%sList", randStr),
+				Plural:   fmt.Sprintf("foo%ss", randStr),
+				Singular: fmt.Sprintf("foo%s", randStr),
+			}
+			crd = testhelper.NewCustomResourceDefinition(crdGroup, crdSpecNames, apiextensionsv1.ClusterScoped)
+			crdPolicy = testhelper.NewClusterPropagationPolicy(crd.Name, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: crd.APIVersion,
+					Kind:       crd.Kind,
+					Name:       crd.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreateClusterPropagationPolicy(karmadaClient, crdPolicy)
+			framework.CreateCRD(dynamicClient, crd)
+			ginkgo.DeferCleanup(func() {
+				// clusterPropagationPolicy will be removed in subsequent test cases
+				framework.RemoveCRD(dynamicClient, crd.Name)
+				framework.WaitCRDDisappearedOnClusters(framework.ClusterNames(), crd.Name)
+			})
+			gomega.Eventually(func() bool {
+				bindings, err := karmadaClient.WorkV1alpha2().ClusterResourceBindings().List(context.TODO(), metav1.ListOptions{
+					LabelSelector: labels.SelectorFromSet(labels.Set{
+						policyv1alpha1.ClusterPropagationPolicyLabel: crdPolicy.Name,
+					}).String(),
+				})
+				if err != nil {
+					return false
+				}
+				return len(bindings.Items) != 0
+			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+		})
+
+		ginkgo.It("delete ClusterPropagationPolicy and check whether labels are deleted correctly", func() {
+			framework.RemoveClusterPropagationPolicy(karmadaClient, crdPolicy.Name)
+			framework.WaitCRDFitWith(dynamicClient, crd.Name, func(crd *apiextensionsv1.CustomResourceDefinition) bool {
+				if crd.Labels == nil {
+					return true
+				}
+				return crd.Labels[policyv1alpha1.ClusterPropagationPolicyLabel] == "" && crd.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] == ""
+			})
+
+			resourceBindingName := names.GenerateBindingName(crd.Kind, crd.Name)
+			framework.WaitClusterResourceBindingFitWith(karmadaClient, resourceBindingName, func(crb *workv1alpha2.ClusterResourceBinding) bool {
+				if crb.Labels == nil {
+					return true
+				}
+				return crb.Labels[policyv1alpha1.ClusterPropagationPolicyLabel] == "" && crb.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] == ""
 			})
 		})
 	})
