@@ -18,6 +18,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -74,9 +75,9 @@ func (es *AccurateSchedulerEstimatorServer) estimateReplicas(
 	}
 
 	var res int32
-	replicas, err := es.estimateFramework.RunEstimateReplicasPlugins(ctx, &requirements)
-	if err != nil {
-		return replicas, err
+	replicas, ret := es.estimateFramework.RunEstimateReplicasPlugins(ctx, snapshot, &requirements)
+	if !ret.IsSuccess() && !ret.IsNoOperation() {
+		return replicas, fmt.Errorf(fmt.Sprintf("estimate replice plugins fails with %s", ret.Reasons()))
 	}
 	processNode := func(i int) {
 		node := allNodes[i]
@@ -88,7 +89,7 @@ func (es *AccurateSchedulerEstimatorServer) estimateReplicas(
 	}
 	es.parallelizer.Until(ctx, len(allNodes), processNode)
 
-	if replicas < res {
+	if ret.IsSuccess() && replicas < res {
 		res = replicas
 	}
 	return res, nil

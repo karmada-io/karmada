@@ -29,6 +29,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
 	"github.com/karmada-io/karmada/pkg/estimator/server/framework"
 	"github.com/karmada-io/karmada/pkg/estimator/server/metrics"
+	schedcache "github.com/karmada-io/karmada/pkg/util/lifted/scheduler/cache"
 	utilmetrics "github.com/karmada-io/karmada/pkg/util/metrics"
 )
 
@@ -115,31 +116,31 @@ func (frw *frameworkImpl) SharedInformerFactory() informers.SharedInformerFactor
 // for estimating replicas based on the given replicaRequirements.
 // It returns an integer and an error.
 // The integer represents the minimum calculated value of estimated replicas from each EstimateReplicasPlugin.
-func (frw *frameworkImpl) RunEstimateReplicasPlugins(ctx context.Context, replicaRequirements *pb.ReplicaRequirements) (int32, error) {
+func (frw *frameworkImpl) RunEstimateReplicasPlugins(ctx context.Context, snapshot *schedcache.Snapshot, replicaRequirements *pb.ReplicaRequirements) (int32, *framework.Result) {
 	startTime := time.Now()
 	defer func() {
 		metrics.FrameworkExtensionPointDuration.WithLabelValues(estimator).Observe(utilmetrics.DurationInSeconds(startTime))
 	}()
-	var result int32 = math.MaxInt32
+	var replica int32 = math.MaxInt32
+	results := make(framework.PluginToResult)
 	for _, pl := range frw.estimateReplicasPlugins {
-		if replica, err := frw.runEstimateReplicasPlugins(ctx, pl, replicaRequirements); err == nil {
-			if replica < result {
-				result = replica
-			}
-		} else {
-			return 0, err
+		plReplica, ret := frw.runEstimateReplicasPlugins(ctx, pl, snapshot, replicaRequirements)
+		if ret.IsSuccess() && plReplica < replica {
+			replica = plReplica
 		}
+		results[pl.Name()] = ret
 	}
-	return result, nil
+	return replica, results.Merge()
 }
 
 func (frw *frameworkImpl) runEstimateReplicasPlugins(
 	ctx context.Context,
 	pl framework.EstimateReplicasPlugin,
+	snapshot *schedcache.Snapshot,
 	replicaRequirements *pb.ReplicaRequirements,
-) (int32, error) {
+) (int32, *framework.Result) {
 	startTime := time.Now()
-	result, err := pl.Estimate(ctx, replicaRequirements)
+	replica, ret := pl.Estimate(ctx, snapshot, replicaRequirements)
 	metrics.PluginExecutionDuration.WithLabelValues(pl.Name(), estimator).Observe(utilmetrics.DurationInSeconds(startTime))
-	return result, err
+	return replica, ret
 }
