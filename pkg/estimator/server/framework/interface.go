@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"k8s.io/client-go/informers"
+	clientset "k8s.io/client-go/kubernetes"
 
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
 )
@@ -55,5 +56,6 @@ type EstimateReplicasPlugin interface {
 // must store and use this handle to call framework functions.
 // We follow the design pattern as kubernetes scheduler framework
 type Handle interface {
+	ClientSet() clientset.Interface
 	SharedInformerFactory() informers.SharedInformerFactory
 }

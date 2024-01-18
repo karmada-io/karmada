@@ -126,6 +126,7 @@ func NewEstimatorServer(
 
 	registry := frameworkplugins.NewInTreeRegistry()
 	estimateFramework, err := frameworkruntime.NewFramework(registry,
+		frameworkruntime.WithClientSet(kubeClient),
 		frameworkruntime.WithInformerFactory(informerFactory),
 	)
 	if err != nil {

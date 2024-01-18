@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"k8s.io/client-go/informers"
+	clientset "k8s.io/client-go/kubernetes"
 
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
 	"github.com/karmada-io/karmada/pkg/estimator/server/framework"
@@ -39,12 +40,14 @@ const (
 // plugins.
 type frameworkImpl struct {
 	estimateReplicasPlugins []framework.EstimateReplicasPlugin
+	clientSet               clientset.Interface
 	informerFactory         informers.SharedInformerFactory
 }
 
 var _ framework.Framework = &frameworkImpl{}
 
 type frameworkOptions struct {
+	clientSet       clientset.Interface
 	informerFactory informers.SharedInformerFactory
 }
 
@@ -53,6 +56,13 @@ type Option func(*frameworkOptions)
 
 func defaultFrameworkOptions() frameworkOptions {
 	return frameworkOptions{}
+}
+
+// WithClientSet sets clientSet for the scheduling frameworkImpl.
+func WithClientSet(clientSet clientset.Interface) Option {
+	return func(o *frameworkOptions) {
+		o.clientSet = clientSet
+	}
 }
 
 // WithInformerFactory sets informer factory for the scheduling frameworkImpl.
@@ -89,6 +99,11 @@ func addPluginToList(plugin framework.Plugin, pluginType reflect.Type, pluginLis
 		newPlugins := reflect.Append(*pluginList, reflect.ValueOf(plugin))
 		pluginList.Set(newPlugins)
 	}
+}
+
+// ClientSet returns a kubernetes clientset.
+func (frw *frameworkImpl) ClientSet() clientset.Interface {
+	return frw.clientSet
 }
 
 // SharedInformerFactory returns a shared informer factory.
