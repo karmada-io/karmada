@@ -107,7 +107,7 @@ func Test_frameworkImpl_RunEstimateReplicasPlugins(t *testing.T) {
 					},
 				},
 				{
-					name: "error",
+					name: "unschedulable",
 					inj: injectedResult{
 						estimateReplicaResult{
 							replica: 0,
@@ -122,10 +122,10 @@ func Test_frameworkImpl_RunEstimateReplicasPlugins(t *testing.T) {
 			},
 		},
 		{
-			name: "one EstimateReplicasPlugin plugin returned unschedulable, but another EstimateReplicasPlugin plugin returned unschedulable",
+			name: "one EstimateReplicasPlugin plugin returned unschedulable, but another EstimateReplicasPlugin plugin returned noop",
 			plugins: []*TestPlugin{
 				{
-					name: "success",
+					name: "unschedulable",
 					inj: injectedResult{
 						estimateReplicaResult{
 							replica: 0,
