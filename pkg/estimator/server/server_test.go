@@ -244,7 +244,7 @@ func TestAccurateSchedulerEstimatorServer_MaxAvailableReplicas(t *testing.T) {
 				},
 			}
 
-			es := NewEstimatorServer(fake.NewSimpleClientset(tt.objs...), dynamicClient, discoveryClient, opt, ctx.Done())
+			es, _ := NewEstimatorServer(fake.NewSimpleClientset(tt.objs...), dynamicClient, discoveryClient, opt, ctx.Done())
 
 			es.informerFactory.Start(ctx.Done())
 			es.informerFactory.WaitForCacheSync(ctx.Done())
@@ -396,7 +396,7 @@ func BenchmarkAccurateSchedulerEstimatorServer_MaxAvailableReplicas(b *testing.B
 				objs = append(objs, pod)
 			}
 
-			es := NewEstimatorServer(fake.NewSimpleClientset(objs...), dynamicClient, discoveryClient, opt, ctx.Done())
+			es, _ := NewEstimatorServer(fake.NewSimpleClientset(objs...), dynamicClient, discoveryClient, opt, ctx.Done())
 
 			es.informerFactory.Start(ctx.Done())
 			es.informerFactory.WaitForCacheSync(ctx.Done())

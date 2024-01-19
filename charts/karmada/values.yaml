@@ -828,6 +828,9 @@ schedulerEstimator:
       maxSurge: 50%
   ## @param apiServer.podDisruptionBudget
   podDisruptionBudget: *podDisruptionBudget
+  ## @param featureGate to schedulerEstimator
+  # FooPluginName: true
+  featureGates: {}
 
 ## descheduler config
 descheduler:

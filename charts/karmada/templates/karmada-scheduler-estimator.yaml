@@ -48,6 +48,9 @@ spec:
             - /bin/karmada-scheduler-estimator
             - --kubeconfig=/etc/{{ $clusterName }}-kubeconfig
             - --cluster-name={{ $clusterName }}
+            {{- with (include "karmada.schedulerEstimator.featureGates" (dict "featureGatesArg" $.Values.schedulerEstimator.featureGates)) }}
+            - {{ . }}
+            {{- end}}
           livenessProbe:
             httpGet:
               path: /healthz

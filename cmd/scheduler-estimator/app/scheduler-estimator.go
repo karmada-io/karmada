@@ -128,9 +128,14 @@ func run(ctx context.Context, opts *options.Options) error {
 	dynamicClient := dynamic.NewForConfigOrDie(restConfig)
 	discoveryClient := discovery.NewDiscoveryClientForConfigOrDie(restConfig)
 
-	e := server.NewEstimatorServer(kubeClient, dynamicClient, discoveryClient, opts, ctx.Done())
+	e, err := server.NewEstimatorServer(kubeClient, dynamicClient, discoveryClient, opts, ctx.Done())
+	if err != nil {
+		klog.Errorf("Fail to create estimator server: %v", err)
+		return err
+	}
+
 	if err = e.Start(ctx); err != nil {
-		klog.Errorf("estimator server exits unexpectedly: %v", err)
+		klog.Errorf("Estimator server exits unexpectedly: %v", err)
 		return err
 	}
 

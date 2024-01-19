@@ -43,6 +43,9 @@ import (
 
 	"github.com/karmada-io/karmada/cmd/scheduler-estimator/app/options"
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
+	"github.com/karmada-io/karmada/pkg/estimator/server/framework"
+	frameworkplugins "github.com/karmada-io/karmada/pkg/estimator/server/framework/plugins"
+	frameworkruntime "github.com/karmada-io/karmada/pkg/estimator/server/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/estimator/server/metrics"
 	"github.com/karmada-io/karmada/pkg/estimator/server/replica"
 	estimatorservice "github.com/karmada-io/karmada/pkg/estimator/service"
@@ -70,15 +73,16 @@ var (
 // AccurateSchedulerEstimatorServer is the gRPC server of a cluster accurate scheduler estimator.
 // Please see https://github.com/karmada-io/karmada/pull/580 (#580).
 type AccurateSchedulerEstimatorServer struct {
-	port            int
-	clusterName     string
-	kubeClient      kubernetes.Interface
-	restMapper      meta.RESTMapper
-	informerFactory informers.SharedInformerFactory
-	nodeLister      listv1.NodeLister
-	replicaLister   *replica.ListerWrapper
-	informerManager genericmanager.SingleClusterInformerManager
-	parallelizer    parallelize.Parallelizer
+	port              int
+	clusterName       string
+	kubeClient        kubernetes.Interface
+	restMapper        meta.RESTMapper
+	informerFactory   informers.SharedInformerFactory
+	nodeLister        listv1.NodeLister
+	replicaLister     *replica.ListerWrapper
+	informerManager   genericmanager.SingleClusterInformerManager
+	parallelizer      parallelize.Parallelizer
+	estimateFramework framework.Framework
 
 	Cache schedcache.Cache
 }
@@ -90,7 +94,7 @@ func NewEstimatorServer(
 	discoveryClient discovery.DiscoveryInterface,
 	opts *options.Options,
 	stopChan <-chan struct{},
-) *AccurateSchedulerEstimatorServer {
+) (*AccurateSchedulerEstimatorServer, error) {
 	cachedDiscoClient := cacheddiscovery.NewMemCacheClient(discoveryClient)
 	restMapper := restmapper.NewDeferredDiscoveryRESTMapper(cachedDiscoClient)
 	informerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
@@ -120,9 +124,19 @@ func NewEstimatorServer(
 		es.informerManager.Lister(gvr)
 	}
 
+	registry := frameworkplugins.NewInTreeRegistry()
+	estimateFramework, err := frameworkruntime.NewFramework(registry,
+		frameworkruntime.WithClientSet(kubeClient),
+		frameworkruntime.WithInformerFactory(informerFactory),
+	)
+	if err != nil {
+		return es, err
+	}
+	es.estimateFramework = estimateFramework
+
 	addAllEventHandlers(es, informerFactory)
 
-	return es
+	return es, nil
 }
 
 // Start runs the accurate replica estimator server.
@@ -193,7 +207,6 @@ func (es *AccurateSchedulerEstimatorServer) MaxAvailableReplicas(ctx context.Con
 	if request.Cluster != es.clusterName {
 		return nil, fmt.Errorf("cluster name does not match, got: %s, desire: %s", request.Cluster, es.clusterName)
 	}
-
 	maxReplicas, err := es.EstimateReplicas(ctx, object, request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to estimate replicas: %v", err)

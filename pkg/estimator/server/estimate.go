@@ -18,6 +18,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -73,8 +74,11 @@ func (es *AccurateSchedulerEstimatorServer) estimateReplicas(
 		tolerations = requirements.NodeClaim.Tolerations
 	}
 
-	// TODO(Garrybest): design a framework and make filter and score plugins
 	var res int32
+	replicas, ret := es.estimateFramework.RunEstimateReplicasPlugins(ctx, snapshot, &requirements)
+	if !ret.IsSuccess() && !ret.IsNoOperation() {
+		return replicas, fmt.Errorf(fmt.Sprintf("estimate replice plugins fails with %s", ret.Reasons()))
+	}
 	processNode := func(i int) {
 		node := allNodes[i]
 		if !nodeutil.IsNodeAffinityMatched(node.Node(), affinity) || !nodeutil.IsTolerationMatched(node.Node(), tolerations) {
@@ -84,6 +88,10 @@ func (es *AccurateSchedulerEstimatorServer) estimateReplicas(
 		atomic.AddInt32(&res, maxReplica)
 	}
 	es.parallelizer.Until(ctx, len(allNodes), processNode)
+
+	if ret.IsSuccess() && replicas < res {
+		res = replicas
+	}
 	return res, nil
 }
 
