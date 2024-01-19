@@ -91,6 +91,8 @@ func (se *SchedulerEstimator) maxAvailableReplicas(ctx context.Context, cluster 
 	}
 	if replicaRequirements != nil {
 		req.ReplicaRequirements.ResourceRequest = replicaRequirements.ResourceRequest
+		req.ReplicaRequirements.Namespace = replicaRequirements.Namespace
+		req.ReplicaRequirements.PriorityClassName = replicaRequirements.PriorityClassName
 		if replicaRequirements.NodeClaim != nil {
 			req.ReplicaRequirements.NodeClaim = &pb.NodeClaim{
 				NodeAffinity: replicaRequirements.NodeClaim.HardNodeAffinity,

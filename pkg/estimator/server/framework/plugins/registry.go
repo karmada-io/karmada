@@ -17,11 +17,14 @@ limitations under the License.
 package plugins
 
 import (
+	"github.com/karmada-io/karmada/pkg/estimator/server/framework/plugins/resourcequota"
 	"github.com/karmada-io/karmada/pkg/estimator/server/framework/runtime"
 )
 
 // NewInTreeRegistry builds the registry with all the in-tree plugins.
 func NewInTreeRegistry() runtime.Registry {
-	registry := runtime.Registry{}
+	registry := runtime.Registry{
+		resourcequota.Name: resourcequota.New,
+	}
 	return registry
 }

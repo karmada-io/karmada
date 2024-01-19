@@ -175,6 +175,14 @@ type ReplicaRequirements struct {
 	// ResourceRequest represents the resources required by each replica.
 	// +optional
 	ResourceRequest corev1.ResourceList `json:"resourceRequest,omitempty"`
+
+	// Namespace represents the resources namespaces
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+
+	// PriorityClassName represents the resources priorityClassName
+	// +optional
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
 // NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.

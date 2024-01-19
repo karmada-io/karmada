@@ -41,6 +41,7 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
@@ -396,10 +397,17 @@ func GenerateReplicaRequirements(podTemplate *corev1.PodTemplateSpec) *workv1alp
 	resourceRequest := util.EmptyResource().AddPodTemplateRequest(&podTemplate.Spec).ResourceList()
 
 	if nodeClaim != nil || resourceRequest != nil {
-		return &workv1alpha2.ReplicaRequirements{
+		replicaRequirements := &workv1alpha2.ReplicaRequirements{
 			NodeClaim:       nodeClaim,
 			ResourceRequest: resourceRequest,
 		}
+		if features.FeatureGate.Enabled(features.ResourceQuotaEstimate) {
+			replicaRequirements.Namespace = podTemplate.Namespace
+			// PriorityClassName is set from podTemplate
+			// If it is not set from podTemplate, it is default to an empty string
+			replicaRequirements.PriorityClassName = podTemplate.Spec.PriorityClassName
+		}
+		return replicaRequirements
 	}
 
 	return nil

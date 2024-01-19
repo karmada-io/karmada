@@ -57,6 +57,15 @@ type ReplicaRequirements struct {
 	// ResourceRequest represents the resources required by each replica.
 	// +optional
 	ResourceRequest corev1.ResourceList `json:"resourceRequest,omitempty" protobuf:"bytes,2,rep,name=resourceRequest,casttype=k8s.io/api/core/v1.ResourceList,castkey=k8s.io/api/core/v1.ResourceName"`
+	// Namespace represents the namespaces belonged to a ResourceRequest
+	// +optional
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,3,opt,name=namespace"`
+	// PriorityClassName represents the priority class name for a given ResourceRequest
+	// Resource quotas are introduced for multi tenants sharing a cluster
+	// Besides estimate the replica based on nodes' resources, we need to consider the resource quota of a ResourceRequest
+	// ResourceQuota have an associated set of scopes, one of them is priority class
+	// +optional
+	PriorityClassName string `json:"priorityClassName,omitempty" protobuf:"bytes,4,opt,name=priorityClassName"`
 }
 
 // MaxAvailableReplicasResponse represents the response that sent by gRPC server to calculate max available replicas.
