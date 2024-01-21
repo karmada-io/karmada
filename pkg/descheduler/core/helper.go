@@ -62,26 +62,60 @@ func NewSchedulingResultHelper(binding *workv1alpha2.ResourceBinding) *Schedulin
 func (h *SchedulingResultHelper) FillUnschedulableReplicas(unschedulableThreshold time.Duration) {
 	reference := &h.Spec.Resource
 	undesiredClusters, undesiredClusterNames := h.GetUndesiredClusters()
+	// clusterIndexToEstimatorPriority key refers to index of cluster slice,
+	// value refers to the EstimatorPriority of who gave its estimated result.
+	clusterIndexToEstimatorPriority := make(map[int]estimatorclient.EstimatorPriority)
+
 	// Set the boundary.
 	for i := range undesiredClusters {
 		undesiredClusters[i].Unschedulable = math.MaxInt32
 	}
-	// Get the minimum value of MaxAvailableReplicas in terms of all estimators.
+
+	// Get all replicaEstimators, which are stored in TreeMap.
 	estimators := estimatorclient.GetUnschedulableReplicaEstimators()
 	ctx := context.WithValue(context.TODO(), util.ContextKeyObject,
 		fmt.Sprintf("kind=%s, name=%s/%s", reference.Kind, reference.Namespace, reference.Name))
-	for _, estimator := range estimators {
-		res, err := estimator.GetUnschedulableReplicas(ctx, undesiredClusterNames, reference, unschedulableThreshold)
-		if err != nil {
-			klog.Errorf("Max cluster unschedulable replicas error: %v", err)
-			continue
+
+	// List all unschedulableReplicaEstimators in order of descending priority. The estimators are grouped with different
+	// priorities, e.g: [priority:20, {estimators:[es1, es3]}, {priority:10, estimators:[es2, es4]}, ...]
+	estimatorGroups := estimators.Values()
+
+	// Iterate the estimator groups in order of descending priority
+	for _, estimatorGroup := range estimatorGroups {
+		// if higher-priority estimators have formed a full result of member clusters, no longer to call lower-priority estimator.
+		if len(clusterIndexToEstimatorPriority) == len(undesiredClusterNames) {
+			break
 		}
-		for i := range res {
-			if res[i].Replicas == estimatorclient.UnauthenticReplica {
+		estimatorsWithSamePriority := estimatorGroup.(map[string]estimatorclient.UnschedulableReplicaEstimator)
+		// iterate through these estimators with the same priority.
+		for _, estimator := range estimatorsWithSamePriority {
+			res, err := estimator.GetUnschedulableReplicas(ctx, undesiredClusterNames, reference, unschedulableThreshold)
+			if err != nil {
+				klog.Errorf("Max cluster unschedulable replicas error: %v", err)
 				continue
 			}
-			if undesiredClusters[i].ClusterName == res[i].Name && undesiredClusters[i].Unschedulable > res[i].Replicas {
-				undesiredClusters[i].Unschedulable = res[i].Replicas
+			for i := range res {
+				// the result of this cluster estimated failed, ignore the corresponding result
+				if res[i].Replicas == estimatorclient.UnauthenticReplica {
+					continue
+				}
+				// the cluster name not match, ignore, which hardly ever happens
+				if res[i].Name != undesiredClusters[i].ClusterName {
+					klog.Errorf("unexpected cluster name in the result of estimator with %d priority, "+
+						"expected: %s, got: %s", estimator.Priority(), undesiredClusters[i].ClusterName, res[i].Name)
+					continue
+				}
+				// the result of this cluster has already been estimated by higher-priority estimator,
+				// ignore the corresponding result by this estimator
+				if priority, ok := clusterIndexToEstimatorPriority[i]; ok && estimator.Priority() < priority {
+					continue
+				}
+				// if multiple estimators are called, choose the minimum value of each estimated result,
+				// record the priority of result provider.
+				if res[i].Replicas < undesiredClusters[i].Unschedulable {
+					undesiredClusters[i].Unschedulable = res[i].Replicas
+					clusterIndexToEstimatorPriority[i] = estimator.Priority()
+				}
 			}
 		}
 	}

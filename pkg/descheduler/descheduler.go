@@ -100,7 +100,8 @@ func NewDescheduler(karmadaClient karmadaclientset.Interface, kubeClient kuberne
 		ReconcileFunc: desched.reconcileEstimatorConnection,
 	}
 	desched.schedulerEstimatorWorker = util.NewAsyncWorker(schedulerEstimatorWorkerOptions)
-	schedulerEstimator := estimatorclient.NewSchedulerEstimator(desched.schedulerEstimatorCache, opts.SchedulerEstimatorTimeout.Duration)
+	schedulerEstimator := estimatorclient.NewSchedulerEstimator(desched.schedulerEstimatorCache,
+		opts.SchedulerEstimatorTimeout.Duration, estimatorclient.Accurate)
 	estimatorclient.RegisterSchedulerEstimator(schedulerEstimator)
 	deschedulerWorkerOptions := util.Options{
 		Name:          "descheduler",

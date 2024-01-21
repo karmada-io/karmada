@@ -32,15 +32,17 @@ import (
 
 // GeneralEstimator is the default replica estimator.
 func init() {
-	replicaEstimators["general-estimator"] = NewGeneralEstimator()
+	registerReplicaEstimator("general-estimator", NewGeneralEstimator(General))
 }
 
 // GeneralEstimator is a normal estimator in terms of cluster ResourceSummary.
-type GeneralEstimator struct{}
+type GeneralEstimator struct {
+	priority EstimatorPriority
+}
 
 // NewGeneralEstimator builds a new GeneralEstimator.
-func NewGeneralEstimator() *GeneralEstimator {
-	return &GeneralEstimator{}
+func NewGeneralEstimator(priority EstimatorPriority) *GeneralEstimator {
+	return &GeneralEstimator{priority: priority}
 }
 
 // MaxAvailableReplicas estimates the maximum replicas that can be applied to the target cluster by cluster ResourceSummary.
@@ -51,6 +53,11 @@ func (ge *GeneralEstimator) MaxAvailableReplicas(_ context.Context, clusters []*
 		availableTargetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name, Replicas: maxReplicas}
 	}
 	return availableTargetClusters, nil
+}
+
+// Priority provides the priority of this estimator.
+func (ge *GeneralEstimator) Priority() EstimatorPriority {
+	return ge.priority
 }
 
 func (ge *GeneralEstimator) maxAvailableReplicas(cluster *clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) int32 {

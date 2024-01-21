@@ -485,7 +485,7 @@ func TestDescheduler_worker(t *testing.T) {
 				unschedulableThreshold:  5 * time.Minute,
 				eventRecorder:           record.NewFakeRecorder(1024),
 			}
-			schedulerEstimator := estimatorclient.NewSchedulerEstimator(desched.schedulerEstimatorCache, 5*time.Second)
+			schedulerEstimator := estimatorclient.NewSchedulerEstimator(desched.schedulerEstimatorCache, 5*time.Second, estimatorclient.Accurate)
 			estimatorclient.RegisterSchedulerEstimator(schedulerEstimator)
 
 			for _, c := range tt.args.unschedulable {
