@@ -40,6 +40,10 @@ const (
 
 	// MultiClusterService indicates if enable multi-cluster service function.
 	MultiClusterService featuregate.Feature = "MultiClusterService"
+
+	// PolicyLazyReconcile indicates if enable Lazy Reconcile feature for Propagation Policy.
+	// If enabled, the effective time of policy modification will be delayed until the resource template is modified.
+	PolicyLazyReconcile featuregate.Feature = "PolicyLazyReconcile"
 )
 
 var (
@@ -54,6 +58,7 @@ var (
 		CustomizedClusterResourceModeling: {Default: true, PreRelease: featuregate.Beta},
 		PolicyPreemption:                  {Default: false, PreRelease: featuregate.Alpha},
 		MultiClusterService:               {Default: false, PreRelease: featuregate.Alpha},
+		PolicyLazyReconcile:               {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
 
