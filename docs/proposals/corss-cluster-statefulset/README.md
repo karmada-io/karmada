@@ -107,12 +107,28 @@ type CrossClusterStatefulsetSetSpec struct {
 propagate schedule result with CRD annotation,just like:
 
 ```yaml
+# member1
 Name:         xline
 Namespace:    xline
 API Version:  apps.my.io/v1alpha1
 Kind:         XlineCluster
 Annotations:
-    corssclusterstatefulset.karmada.io/replicas: {"member1":"1","member2":"1"}
+    corssclusterstatefulset.karmada.io/replicas: [
+      {"member1":"1","self":true},
+      {"member1":"2","self":false}
+      ]
+...
+---
+# member2
+Name:         xline
+Namespace:    xline
+API Version:  apps.my.io/v1alpha1
+Kind:         XlineCluster
+Annotations:
+    corssclusterstatefulset.karmada.io/replicas: [
+      {"member1":"1","self":false},
+      {"member1":"2","self":true}
+      ]
 ...
 ```
 
@@ -128,13 +144,21 @@ Propagate processor with CRD annotation:
 
 
 ```yaml
+# member1
 Name:         xline
 Namespace:    xline
 API Version:  apps.my.io/v1alpha1
 Kind:         XlineCluster
 Annotations:
-    corssclusterstatefulset.karmada.io/processers: ["member1","member2"]
-...
+    corssclusterstatefulset.karmada.io/processer: true #true/false
+---
+# member2
+Name:         xline
+Namespace:    xline
+API Version:  apps.my.io/v1alpha1
+Kind:         XlineCluster
+Annotations:
+    corssclusterstatefulset.karmada.io/processer: true #true/false
 ```
 
 The above yaml means the member cluster of member1 & member2 need to create/update this resource.
