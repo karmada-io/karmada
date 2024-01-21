@@ -85,17 +85,17 @@ Consider including folks who also work outside the SIG or subproject.
 
 
 ```golang
-type MultiClusterStatefulSet struct {
+type CrossClusterStatefulsetSet struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// Spec is the desired state of the MultiClusterIngress.
 	// +optional
-	Spec MultiClusterStatefulSetSpec `json:"spec,omitempty"`
+	Spec CrossClusterStatefulsetSetSpec `json:"spec,omitempty"`
 }
 
-// MultiClusterStatefulSetSpec is the desired state of the MultiClusterStatefulSet.
-type MultiClusterStatefulSetSpec struct {
+// CrossClusterStatefulsetSetSpec is the desired state of the CrossClusterStatefulsetSet.
+type CrossClusterStatefulsetSetSpec struct {
 	ResourceSelector policyv1alpha1.ResourceSelector `json:"resourceSelector,omitempty"`
 }
 ```
@@ -144,16 +144,16 @@ Then the user's operator can use this information to determine whether you need 
 #### Second step: cross_cluster_statefulset_controller determines whether the user's operator in the member cluster has completed the update.
 
 ```yaml
-apiVersion: policy.karmada.io/v1alpha1
-kind: PropagationPolicy
+apiVersion: apps.karmada.io/v1alpha1
+kind: CrossClusterStatefulset
 metadata:
   name: xline
 spec:
   resourceSelector:
-	apiVersion: apps.my.io/v1alpha1
-	kind: XlineCluster
-	name: xline
-	namespace: default
+    apiVersion: apps.my.io/v1alpha1
+    kind: XlineCluster
+    name: xline
+    namespace: default
 ```
 
 In order to check whether the update has been performed, the user must specify a ResourceInterpreterCustomization or webhook corresponding to the resource,And then `cross_cluster_statefulset_controller` will check the InterpretHealth or a new operation.
