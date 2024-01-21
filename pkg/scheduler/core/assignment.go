@@ -180,7 +180,7 @@ func assignByDynamicStrategy(state *assignState) ([]workv1alpha2.TargetCluster, 
 			return nil, fmt.Errorf("failed to scale up: %v", err)
 		}
 		return result, nil
-	} else {
-		return state.scheduledClusters, nil
 	}
+
+	return state.scheduledClusters, nil
 }

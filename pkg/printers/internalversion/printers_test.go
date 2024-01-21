@@ -69,16 +69,16 @@ func TestPrintCluster(t *testing.T) {
 		},
 	}
 
-	for i, test := range tests {
-		rows, err := printCluster(&test.cluster, test.generateOptions)
+	for i := range tests {
+		rows, err := printCluster(&tests[i].cluster, tests[i].generateOptions)
 		if err != nil {
 			t.Fatal(err)
 		}
 		for i := range rows {
 			rows[i].Object.Object = nil
 		}
-		if !reflect.DeepEqual(test.expect, rows) {
-			t.Errorf("%d mismatch: %s", i, diff.ObjectReflectDiff(test.expect, rows))
+		if !reflect.DeepEqual(tests[i].expect, rows) {
+			t.Errorf("%d mismatch: %s", i, diff.ObjectReflectDiff(tests[i].expect, rows))
 		}
 	}
 }

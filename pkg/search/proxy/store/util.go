@@ -315,9 +315,9 @@ func (n *MultiNamespace) Single() (string, bool) {
 	if n.allNamespaces || n.namespaces.Len() != 1 {
 		return "", false
 	}
-	var ns string
-	for ns = range n.namespaces {
-	}
+
+	// reach here means there is exactly one namespace, so we can safely get it.
+	ns := sets.List(n.namespaces)[0]
 	return ns, true
 }
 

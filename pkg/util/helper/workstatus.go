@@ -229,14 +229,14 @@ func assembleWorkStatus(works []workv1alpha1.Work, workload *unstructured.Unstru
 			Health:      workv1alpha2.ResourceUnknown,
 		}
 
-		for _, manifestStatus := range work.Status.ManifestStatuses {
-			equal, err := equalIdentifier(&manifestStatus.Identifier, identifierIndex, workload)
+		for i := range work.Status.ManifestStatuses {
+			equal, err := equalIdentifier(&work.Status.ManifestStatuses[i].Identifier, identifierIndex, workload)
 			if err != nil {
 				return nil, err
 			}
 			if equal {
-				aggregatedStatus.Status = manifestStatus.Status
-				aggregatedStatus.Health = workv1alpha2.ResourceHealth(manifestStatus.Health)
+				aggregatedStatus.Status = work.Status.ManifestStatuses[i].Status
+				aggregatedStatus.Health = workv1alpha2.ResourceHealth(work.Status.ManifestStatuses[i].Health)
 				break
 			}
 		}

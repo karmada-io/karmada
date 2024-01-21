@@ -94,17 +94,17 @@ func ValidateClusterAffinities(affinities []policyv1alpha1.ClusterAffinityTerm, 
 	var allErrs field.ErrorList
 
 	affinityNames := make(map[string]bool)
-	for index, term := range affinities {
-		for _, err := range validation.IsQualifiedName(term.AffinityName) {
-			allErrs = append(allErrs, field.Invalid(fldPath.Index(index), term.AffinityName, err))
+	for index := range affinities {
+		for _, err := range validation.IsQualifiedName(affinities[index].AffinityName) {
+			allErrs = append(allErrs, field.Invalid(fldPath.Index(index), affinities[index].AffinityName, err))
 		}
-		if _, exist := affinityNames[term.AffinityName]; exist {
+		if _, exist := affinityNames[affinities[index].AffinityName]; exist {
 			allErrs = append(allErrs, field.Invalid(fldPath, affinities, "each affinity term in a policy must have a unique name"))
 		} else {
-			affinityNames[term.AffinityName] = true
+			affinityNames[affinities[index].AffinityName] = true
 		}
 
-		allErrs = append(allErrs, ValidateClusterAffinity(&term.ClusterAffinity, fldPath.Index(index))...)
+		allErrs = append(allErrs, ValidateClusterAffinity(&affinities[index].ClusterAffinity, fldPath.Index(index))...)
 	}
 	return allErrs
 }

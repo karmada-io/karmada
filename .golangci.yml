@@ -89,6 +89,8 @@ linters-settings:
       - name: context-as-argument
       - name: context-keys-type
       - name: unexported-return
+      - name: time-naming
+      - name: empty-block
   staticcheck:
     checks:
       - all
