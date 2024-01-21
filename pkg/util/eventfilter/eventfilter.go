@@ -18,9 +18,21 @@ package eventfilter
 
 import (
 	"reflect"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/features"
 )
+
+// labelOrAnnoKeyPrefixByKarmada defines the key prefix used for labels or annotations used by karmada's own components.
+const labelOrAnnoKeyPrefixByKarmada = ".karmada.io"
+
+// labelsForUserWithKarmadaPrefix enumerates special cases that labels use the karmada prefix but are really only for users to use.
+var labelsForUserWithKarmadaPrefix = map[string]struct{}{
+	policyv1alpha1.NamespaceSkipAutoPropagationLabel: {},
+}
 
 // SpecificationChanged check if the specification of the given object change or not
 func SpecificationChanged(oldObj, newObj *unstructured.Unstructured) bool {
@@ -33,6 +45,33 @@ func SpecificationChanged(oldObj, newObj *unstructured.Unstructured) bool {
 	for _, r := range removedFields {
 		unstructured.RemoveNestedField(oldBackup.Object, r...)
 		unstructured.RemoveNestedField(newBackup.Object, r...)
+	}
+
+	// If Policy LazyReconcile feature enabled, ignore the label/annotation modifications by karmada's own components.
+	if features.FeatureGate.Enabled(features.PolicyLazyReconcile) {
+		// Remove the labels or annotations modified by karmada's own components.
+		for k := range oldBackup.GetLabels() {
+			_, isLabelForUser := labelsForUserWithKarmadaPrefix[k]
+			if strings.Contains(k, labelOrAnnoKeyPrefixByKarmada) && !isLabelForUser {
+				unstructured.RemoveNestedField(oldBackup.Object, []string{"metadata", "labels", k}...)
+			}
+		}
+		for k := range oldBackup.GetAnnotations() {
+			if strings.Contains(k, labelOrAnnoKeyPrefixByKarmada) {
+				unstructured.RemoveNestedField(oldBackup.Object, []string{"metadata", "annotations", k}...)
+			}
+		}
+		for k := range newBackup.GetLabels() {
+			_, isLabelForUser := labelsForUserWithKarmadaPrefix[k]
+			if strings.Contains(k, labelOrAnnoKeyPrefixByKarmada) && !isLabelForUser {
+				unstructured.RemoveNestedField(newBackup.Object, []string{"metadata", "labels", k}...)
+			}
+		}
+		for k := range newBackup.GetAnnotations() {
+			if strings.Contains(k, labelOrAnnoKeyPrefixByKarmada) {
+				unstructured.RemoveNestedField(newBackup.Object, []string{"metadata", "annotations", k}...)
+			}
+		}
 	}
 
 	return !reflect.DeepEqual(oldBackup, newBackup)
