@@ -3,6 +3,7 @@ on:
   schedule:
     # Run this workflow "At 18:00 UTC on Sunday and Saturday"
     - cron: '0 18 * * 0,6'
+    
 jobs:
   e2e:
     name: e2e test
@@ -42,11 +43,12 @@ jobs:
           go-version: 1.20.11
       - name: setup e2e test environment
         uses: nick-fields/retry@v2.9.0
-        max_attempts: 3
-        timeout_minutes: 20
-        command: |
-          export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
-          hack/local-up-karmada.sh
+        with:
+          max_attempts: 3
+          timeout_minutes: 20
+          command: |
+            export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
+            hack/local-up-karmada.sh
       - name: run e2e
         run: |
           export ARTIFACTS_PATH=${{ github.workspace }}/karmada-e2e-logs/${{ matrix.k8s }}/
