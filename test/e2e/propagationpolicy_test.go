@@ -42,6 +42,7 @@ import (
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/detector"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
@@ -1096,24 +1097,15 @@ var _ = ginkgo.Describe("[AdvancedPropagation] propagation testing", func() {
 			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 		})
 
-		ginkgo.It("delete the propagationPolicy and check whether labels are deleted correctly", func() {
+		ginkgo.It("delete the propagationPolicy and check whether labels and annotations are deleted correctly", func() {
 			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 			framework.WaitDeploymentFitWith(kubeClient, deployment.Namespace, deployment.Name, func(dep *appsv1.Deployment) bool {
-				if dep.Labels == nil {
-					return true
-				}
-				return dep.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel] == "" && dep.Labels[policyv1alpha1.PropagationPolicyNameLabel] == "" &&
-					dep.Labels[policyv1alpha1.PropagationPolicyNamespaceLabel] == ""
-
+				return !(framework.MapContainKeys(dep.GetLabels(), detector.PropagationPolicyRefLabels) || framework.MapContainKeys(dep.GetAnnotations(), detector.PropagationPolicyRefAnnotations))
 			})
 
 			resourceBindingName := names.GenerateBindingName(deployment.Kind, deployment.Name)
 			framework.WaitResourceBindingFitWith(karmadaClient, deployment.Namespace, resourceBindingName, func(resourceBinding *workv1alpha2.ResourceBinding) bool {
-				if resourceBinding.Labels == nil {
-					return true
-				}
-				return resourceBinding.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel] == "" && resourceBinding.Labels[policyv1alpha1.PropagationPolicyNameLabel] == "" &&
-					resourceBinding.Labels[policyv1alpha1.PropagationPolicyNamespaceLabel] == ""
+				return !(framework.MapContainKeys(resourceBinding.GetLabels(), detector.PropagationPolicyRefLabels) || framework.MapContainKeys(resourceBinding.GetAnnotations(), detector.PropagationPolicyRefAnnotations))
 			})
 		})
 	})

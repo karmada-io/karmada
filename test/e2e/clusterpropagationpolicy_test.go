@@ -34,6 +34,7 @@ import (
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/detector"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
@@ -650,8 +651,8 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 
 // Delete when delete a clusterPropagationPolicy, and no more clusterPropagationPolicy matches the object, something like
 // labels should be cleaned.
-var _ = ginkgo.Describe("[Delete] clusterPropagation testing", func() {
-	ginkgo.Context("delete clusterPropagation and remove the labels from the resource template and reference binding", func() {
+var _ = ginkgo.Describe("[Delete] ClusterPropagation testing", func() {
+	ginkgo.Context("delete ClusterPropagation and remove the labels and annotations from the resource template and reference binding", func() {
 		var policy *policyv1alpha1.ClusterPropagationPolicy
 		var deployment *appsv1.Deployment
 		var targetMember string
@@ -695,26 +696,20 @@ var _ = ginkgo.Describe("[Delete] clusterPropagation testing", func() {
 			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 		})
 
-		ginkgo.It("delete ClusterPropagationPolicy and check whether labels are deleted correctly", func() {
+		ginkgo.It("delete ClusterPropagationPolicy and check whether labels and annotations are deleted correctly", func() {
 			framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
 			framework.WaitDeploymentFitWith(kubeClient, deployment.Namespace, deployment.Name, func(dep *appsv1.Deployment) bool {
-				if dep.Labels == nil {
-					return true
-				}
-				return dep.Labels[policyv1alpha1.ClusterPropagationPolicyLabel] == "" && dep.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] == ""
+				return !(framework.MapContainKeys(dep.GetLabels(), detector.ClusterPropagationPolicyRefLabels) || framework.MapContainKeys(dep.GetAnnotations(), detector.ClusterPropagationPolicyRefAnnotations))
 			})
 
 			resourceBindingName := names.GenerateBindingName(deployment.Kind, deployment.Name)
 			framework.WaitResourceBindingFitWith(karmadaClient, deployment.Namespace, resourceBindingName, func(resourceBinding *workv1alpha2.ResourceBinding) bool {
-				if resourceBinding.Labels == nil {
-					return true
-				}
-				return resourceBinding.Labels[policyv1alpha1.ClusterPropagationPolicyLabel] == "" && resourceBinding.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] == ""
+				return !(framework.MapContainKeys(resourceBinding.GetLabels(), detector.ClusterPropagationPolicyRefLabels) || framework.MapContainKeys(resourceBinding.GetAnnotations(), detector.ClusterPropagationPolicyRefAnnotations))
 			})
 		})
 	})
 
-	ginkgo.Context("delete clusterPropagation and remove the labels from the resource template and reference clusterBinding", func() {
+	ginkgo.Context("delete ClusterPropagation and remove the labels and annotations from the resource template and reference clusterBinding", func() {
 		var crdGroup string
 		var randStr string
 		var crdSpecNames apiextensionsv1.CustomResourceDefinitionNames
@@ -765,21 +760,15 @@ var _ = ginkgo.Describe("[Delete] clusterPropagation testing", func() {
 			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 		})
 
-		ginkgo.It("delete ClusterPropagationPolicy and check whether labels are deleted correctly", func() {
+		ginkgo.It("delete ClusterPropagationPolicy and check whether labels and annotations are deleted correctly", func() {
 			framework.RemoveClusterPropagationPolicy(karmadaClient, crdPolicy.Name)
 			framework.WaitCRDFitWith(dynamicClient, crd.Name, func(crd *apiextensionsv1.CustomResourceDefinition) bool {
-				if crd.Labels == nil {
-					return true
-				}
-				return crd.Labels[policyv1alpha1.ClusterPropagationPolicyLabel] == "" && crd.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] == ""
+				return !(framework.MapContainKeys(crd.GetLabels(), detector.ClusterPropagationPolicyRefLabels) || framework.MapContainKeys(crd.GetAnnotations(), detector.ClusterPropagationPolicyRefAnnotations))
 			})
 
 			resourceBindingName := names.GenerateBindingName(crd.Kind, crd.Name)
 			framework.WaitClusterResourceBindingFitWith(karmadaClient, resourceBindingName, func(crb *workv1alpha2.ClusterResourceBinding) bool {
-				if crb.Labels == nil {
-					return true
-				}
-				return crb.Labels[policyv1alpha1.ClusterPropagationPolicyLabel] == "" && crb.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] == ""
+				return !(framework.MapContainKeys(crb.GetLabels(), detector.ClusterPropagationPolicyRefLabels) || framework.MapContainKeys(crb.GetAnnotations(), detector.ClusterPropagationPolicyRefAnnotations))
 			})
 		})
 	})

@@ -80,3 +80,13 @@ func UpdateClusterPropagationPolicy(client karmada.Interface, name string, resou
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	})
 }
+
+// MapContainKeys used to determine if the map contains any item from the string array.
+func MapContainKeys(m map[string]string, keys []string) bool {
+	for _, key := range keys {
+		if _, ok := m[key]; ok {
+			return true
+		}
+	}
+	return false
+}
