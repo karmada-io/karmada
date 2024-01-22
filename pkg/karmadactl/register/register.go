@@ -50,6 +50,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/karmada-io/karmada/pkg/apis/cluster/validation"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
@@ -362,6 +363,18 @@ func (o *CommandRegisterOption) Run(parentCommand string) error {
 	karmadaAgentCfg, err := o.constructKarmadaAgentConfig(bootstrapClient, karmadaClusterInfo)
 	if err != nil {
 		return err
+	}
+
+	fmt.Println("[karmada-agent-start] Waiting to check cluster exists")
+	karmadaClient, err := ToKarmadaClient(karmadaAgentCfg)
+	if err != nil {
+		return err
+	}
+	_, exist, err := karmadautil.GetClusterWithKarmadaClient(karmadaClient, o.ClusterName)
+	if err != nil {
+		return err
+	} else if exist {
+		return fmt.Errorf("failed to register as cluster with name %s already exists", o.ClusterName)
 	}
 
 	// It's necessary to set the label of namespace to make sure that the namespace is created by Karmada.
@@ -1020,4 +1033,20 @@ func ToClientSet(config *clientcmdapi.Config) (*kubeclient.Clientset, error) {
 		return nil, fmt.Errorf("failed to create API client: %w", err)
 	}
 	return client, nil
+}
+
+// ToKarmadaClient converts a KubeConfig object to a client
+func ToKarmadaClient(config *clientcmdapi.Config) (*karmadaclientset.Clientset, error) {
+	overrides := clientcmd.ConfigOverrides{Timeout: "10s"}
+	clientConfig, err := clientcmd.NewDefaultClientConfig(*config, &overrides).ClientConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create API client configuration from kubeconfig: %w", err)
+	}
+
+	karmadaClient, err := karmadaclientset.NewForConfig(clientConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return karmadaClient, nil
 }
