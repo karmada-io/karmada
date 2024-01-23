@@ -33,7 +33,7 @@ subjects:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: {{ $name }}-kubeconfig
+  name: karmada-kubeconfig
   namespace: {{ include "karmada.namespace" . }}
 stringData:
   karmada-kubeconfig: |-
@@ -130,7 +130,7 @@ spec:
       volumes:
         - name: kubeconfig
           secret:
-            secretName: {{ $name }}-kubeconfig
+            secretName: karmada-kubeconfig
 
 {{ if .Values.agent.podDisruptionBudget }}
 ---
