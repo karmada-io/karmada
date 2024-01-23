@@ -76,11 +76,11 @@ func TestGetBindingClusterNames(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := GetBindingClusterNames(&tt.binding.Spec)
-			if !reflect.DeepEqual(got, tt.expected) {
-				t.Errorf("GetBindingClusterNames() = %v, want %v", got, tt.expected)
+	for i := range tests {
+		t.Run(tests[i].name, func(t *testing.T) {
+			got := GetBindingClusterNames(&tests[i].binding.Spec)
+			if !reflect.DeepEqual(got, tests[i].expected) {
+				t.Errorf("GetBindingClusterNames() = %v, want %v", got, tests[i].expected)
 			}
 		})
 	}

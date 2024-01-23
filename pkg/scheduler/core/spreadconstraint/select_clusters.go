@@ -54,9 +54,9 @@ func selectBestClustersBySpreadConstraints(spreadConstraints []policyv1alpha1.Sp
 		return selectBestClustersByRegion(spreadConstraintMap, groupClustersInfo)
 	} else if _, exist := spreadConstraintMap[policyv1alpha1.SpreadByFieldCluster]; exist {
 		return selectBestClustersByCluster(spreadConstraintMap[policyv1alpha1.SpreadByFieldCluster], groupClustersInfo, needReplicas)
-	} else {
-		return nil, fmt.Errorf("just support cluster and region spread constraint")
 	}
+
+	return nil, fmt.Errorf("just support cluster and region spread constraint")
 }
 
 func shouldIgnoreSpreadConstraint(placement *policyv1alpha1.Placement) bool {

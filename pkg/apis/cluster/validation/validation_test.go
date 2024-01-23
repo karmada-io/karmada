@@ -313,12 +313,13 @@ func TestValidateCluster(t *testing.T) {
 	}
 
 	for name, testCase := range testCases {
-		errs := ValidateCluster(&testCase.cluster)
-		if len(errs) == 0 && testCase.expectError {
+		pinedCase := testCase
+		errs := ValidateCluster(&pinedCase.cluster)
+		if len(errs) == 0 && pinedCase.expectError {
 			t.Errorf("expected failure for %q, but there were none", name)
 			return
 		}
-		if len(errs) != 0 && !testCase.expectError {
+		if len(errs) != 0 && !pinedCase.expectError {
 			t.Errorf("expected success for %q, but there were errors: %v", name, errs)
 			return
 		}
