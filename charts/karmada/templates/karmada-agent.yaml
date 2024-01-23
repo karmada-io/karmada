@@ -36,7 +36,7 @@ metadata:
   name: {{ $name }}-kubeconfig
   namespace: {{ include "karmada.namespace" . }}
 stringData:
-  kubeconfig: |-
+  karmada-kubeconfig: |-
     apiVersion: v1
     kind: Config
     clusters:
@@ -103,7 +103,7 @@ spec:
           imagePullPolicy: {{ .Values.agent.image.pullPolicy }}
           command:
             - /bin/karmada-agent
-            - --karmada-kubeconfig=/etc/kubeconfig/kubeconfig
+            - --karmada-kubeconfig=/etc/kubeconfig/karmada-kubeconfig
             - --cluster-name={{ .Values.agent.clusterName }}
             {{- if .Values.agent.clusterEndpoint }}
             - --cluster-api-endpoint={{ .Values.agent.clusterEndpoint }}
