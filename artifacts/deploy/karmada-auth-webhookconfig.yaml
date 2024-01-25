@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: karmada-authorization-webhook-config
+  namespace: karmada-system
+data:
+  config.yaml: |
+    apiVersion: v1
+    kind: Config
+    clusters:
+      - name: karmada-authorization-webhook
+        cluster:
+          certificate-authority: /etc/karmada/pki/ca.crt
+          server: https://karmada-webhook.karmada-system.svc:443/clusterauthorization/authorize
+    users:
+      - name: karmada-apiserver
+        user:
+          client-certificate: /etc/karmada/pki/karmada.crt
+          client-key: /etc/karmada/pki/karmada.key
+    current-context: karmada-authorization-webhook
+    contexts:
+    - context:
+        cluster: karmada-authorization-webhook
+        user: karmada-apiserver
+      name: karmada-authorization-webhook

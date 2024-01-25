@@ -89,6 +89,23 @@ webhooks:
     sideEffects: None
     admissionReviewVersions: [ "v1" ]
     timeoutSeconds: 3
+  - name: clusterrestriction.karmada.io
+    rules:
+      - operations: ["*"]
+        apiGroups: ["", "work.karmada.io"]
+        apiVersions: ["*"]
+        resources: [
+          "namespaces", "secrets", "lease", "events",
+          "works",
+        ]
+        scope: "*"
+    clientConfig:
+      url: https://karmada-webhook.karmada-system.svc:443/mutate-clusterrestriction
+      caBundle: {{caBundle}}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: [ "v1" ]
+    timeoutSeconds: 3
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration

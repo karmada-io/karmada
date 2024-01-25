@@ -35,7 +35,12 @@ spec:
           command:
             - kube-apiserver
             - --allow-privileged=true
-            - --authorization-mode=Node,RBAC
+            # The second Webhook is for Cluster Authorization
+            - --authorization-mode=Node,Webhook,RBAC
+            - --authorization-webhook-config-file=/etc/karmada/authorization-webhook-config/config.yaml
+            - --authorization-webhook-version=v1
+            - --authorization-webhook-cache-authorized-ttl=120s
+            - --authorization-webhook-cache-unauthorized-ttl=30s
             - --client-ca-file=/etc/kubernetes/pki/server-ca.crt
             - --disable-admission-plugins=StorageObjectInUseProtection,ServiceAccount
             - --enable-bootstrap-token-auth=true
@@ -109,6 +114,9 @@ spec:
             - name: etcd-cert
               mountPath: /etc/etcd/pki
               readOnly: true
+            - mountPath: /etc/karmada/authorization-webhook-config
+              name: karmada-authorization-webhook-config
+              readOnly: true
       {{- if .Values.apiServer.hostNetwork }}
       dnsPolicy: ClusterFirstWithHostNet
       {{- end }}
@@ -138,6 +146,9 @@ spec:
         - name: apiserver-cert
           secret:
             secretName: {{ $name }}-cert
+        - name: karmada-authorization-webhook-config
+          configMap:
+            name: {{ $name }}-authorization-webhook-config
         - name: etcd-cert
           secret:
           {{- if eq .Values.etcd.mode "internal" }}

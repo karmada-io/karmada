@@ -227,6 +227,32 @@ data:
         {{ print "{{ front_proxy_crt }}" }}
       front-proxy-client.key: |-
         {{ print "{{ front_proxy_key }}" }}
+  karmada-authorization-webhook-config.yaml: |-
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: {{ $name }}-authorization-webhook-config
+      namespace: {{ $namespace }}
+    data:
+      config.yaml: |
+        apiVersion: v1
+        kind: Config
+        clusters:
+          - name: karmada-authorization-webhook
+            cluster:
+              certificate-authority: /etc/kubernetes/pki/server-ca.crt
+              server: https://{{ $name }}-webhook.{{ $namespace }}.svc:443/clusterauthorization/authorize
+        users:
+          - name: karmada-apiserver
+            user:
+              client-certificate: /etc/kubernetes/pki/karmada.crt
+              client-key: /etc/kubernetes/pki/karmada.key
+        current-context: karmada-authorization-webhook
+        contexts:
+        - context:
+            cluster: karmada-authorization-webhook
+            user: karmada-apiserver
+          name: karmada-authorization-webhook
   webhook-cert.yaml: |-
     apiVersion: v1
     kind: Secret
