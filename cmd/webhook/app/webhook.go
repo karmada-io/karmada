@@ -43,6 +43,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 	"github.com/karmada-io/karmada/pkg/webhook/clusteroverridepolicy"
 	"github.com/karmada-io/karmada/pkg/webhook/clusterpropagationpolicy"
+	"github.com/karmada-io/karmada/pkg/webhook/clusterrestriction"
 	"github.com/karmada-io/karmada/pkg/webhook/configuration"
 	"github.com/karmada-io/karmada/pkg/webhook/cronfederatedhpa"
 	"github.com/karmada-io/karmada/pkg/webhook/federatedhpa"
@@ -176,6 +177,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 	hookServer.Register("/mutate-multiclusterservice", &webhook.Admission{Handler: &multiclusterservice.MutatingAdmission{Decoder: decoder}})
 	hookServer.Register("/mutate-federatedhpa", &webhook.Admission{Handler: &federatedhpa.MutatingAdmission{Decoder: decoder}})
 	hookServer.Register("/validate-resourcedeletionprotection", &webhook.Admission{Handler: &resourcedeletionprotection.ValidatingAdmission{Decoder: decoder}})
+	hookServer.Register("/mutate-clusterrestriction", &webhook.Admission{Handler: &clusterrestriction.MutatingAdmission{Decoder: decoder}})
 	hookServer.WebhookMux().Handle("/readyz/", http.StripPrefix("/readyz/", &healthz.Handler{}))
 
 	// blocks until the context is done.
