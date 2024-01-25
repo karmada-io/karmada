@@ -111,6 +111,21 @@ func ClusterWideKeyFunc(obj interface{}) (ClusterWideKey, error) {
 	return key, nil
 }
 
+// ClusterWideKeyWithConfig is the object key which is a unique identifier under a cluster, combined with certain config.
+type ClusterWideKeyWithConfig struct {
+	// ClusterWideKey is the object key which is a unique identifier under a cluster, across all resources.
+	ClusterWideKey ClusterWideKey
+
+	// ResourceChangeByKarmada defines whether resource is changed by Karmada
+	ResourceChangeByKarmada bool
+}
+
+// String returns the key's printable info with format:
+// "<GroupVersion>, kind=<Kind>, <NamespaceKey>, ResourceChangeByKarmada=<ResourceChangeByKarmada>"
+func (k ClusterWideKeyWithConfig) String() string {
+	return fmt.Sprintf("%s, ResourceChangeByKarmada=%v", k.ClusterWideKey.String(), k.ResourceChangeByKarmada)
+}
+
 // FederatedKey is the object key which is a unique identifier across all clusters in federation.
 type FederatedKey struct {
 	// Cluster is the cluster name of the referencing object.

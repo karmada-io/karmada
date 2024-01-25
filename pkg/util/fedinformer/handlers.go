@@ -24,7 +24,7 @@ import (
 )
 
 // NewHandlerOnAllEvents builds a ResourceEventHandler that the function 'fn' will be called on all events(add/update/delete).
-func NewHandlerOnAllEvents(fn func(runtime.Object)) cache.ResourceEventHandler {
+func NewHandlerOnAllEvents(fn func(interface{})) cache.ResourceEventHandler {
 	return &cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			curObj := cur.(runtime.Object)
