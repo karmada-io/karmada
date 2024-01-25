@@ -24,10 +24,12 @@ import (
 	"net/http"
 
 	"github.com/spf13/cobra"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -35,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/conversion"
 
 	"github.com/karmada-io/karmada/cmd/webhook/app/options"
+	"github.com/karmada-io/karmada/pkg/authorization/webhook/clusterauthorization"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
@@ -116,9 +119,20 @@ func Run(ctx context.Context, opts *options.Options) error {
 	}
 	config.QPS, config.Burst = opts.KubeAPIQPS, opts.KubeAPIBurst
 
+	runtimeScheme := gclient.NewSchema()
+	// apiextensions scheme is required in authorization webhook
+	if err := apiextensionsv1.AddToScheme(runtimeScheme); err != nil {
+		panic(err)
+	}
 	hookManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
 		Logger: klog.Background(),
-		Scheme: gclient.NewSchema(),
+		Scheme: runtimeScheme,
+		Client: client.Options{
+			Cache: &client.CacheOptions{
+				// unstructured cache is used in clusterauthorization webhook
+				Unstructured: true,
+			},
+		},
 		WebhookServer: webhook.NewServer(webhook.Options{
 			Host:     opts.BindAddress,
 			Port:     opts.SecurePort,
@@ -178,6 +192,9 @@ func Run(ctx context.Context, opts *options.Options) error {
 	hookServer.Register("/mutate-federatedhpa", &webhook.Admission{Handler: &federatedhpa.MutatingAdmission{Decoder: decoder}})
 	hookServer.Register("/validate-resourcedeletionprotection", &webhook.Admission{Handler: &resourcedeletionprotection.ValidatingAdmission{Decoder: decoder}})
 	hookServer.Register("/mutate-clusterrestriction", &webhook.Admission{Handler: &clusterrestriction.MutatingAdmission{Decoder: decoder}})
+	if err := (&clusterauthorization.Authorizer{}).SetupWithManager(ctx, hookManager); err != nil {
+		klog.Fatal("Failed to register clusterauthorization webhook: %v", err)
+	}
 	hookServer.WebhookMux().Handle("/readyz/", http.StripPrefix("/readyz/", &healthz.Handler{}))
 
 	// blocks until the context is done.
