@@ -19,7 +19,6 @@ package util
 import (
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -39,7 +38,7 @@ type AsyncWorker interface {
 	AddAfter(item interface{}, duration time.Duration)
 
 	// Enqueue generates the key of 'obj' according to a 'KeyFunc' then adds the key as an item to queue by 'Add'.
-	Enqueue(obj runtime.Object)
+	Enqueue(obj interface{})
 
 	// Run starts a certain number of concurrent workers to reconcile the items and will never stop until 'stopChan'
 	// is closed.
@@ -90,10 +89,10 @@ func NewAsyncWorker(opt Options) AsyncWorker {
 	}
 }
 
-func (w *asyncWorker) Enqueue(obj runtime.Object) {
+func (w *asyncWorker) Enqueue(obj interface{}) {
 	key, err := w.keyFunc(obj)
 	if err != nil {
-		klog.Warningf("Failed to generate key for obj: %s", obj.GetObjectKind().GroupVersionKind())
+		klog.Warningf("Failed to generate key for obj: %+v", obj)
 		return
 	}
 

@@ -17,6 +17,10 @@ limitations under the License.
 package detector
 
 import (
+	"fmt"
+
+	"k8s.io/apimachinery/pkg/runtime"
+
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 )
@@ -24,4 +28,34 @@ import (
 // ClusterWideKeyFunc generates a ClusterWideKey for object.
 func ClusterWideKeyFunc(obj interface{}) (util.QueueKey, error) {
 	return keys.ClusterWideKeyFunc(obj)
+}
+
+const (
+	// ObjectChangedByKarmada the key name for a bool value which describes whether the object is changed by Karmada
+	ObjectChangedByKarmada = "ObjectChangedByKarmada"
+)
+
+// ResourceItem a object key with certain extended config
+type ResourceItem struct {
+	Obj                     runtime.Object
+	ResourceChangeByKarmada bool
+}
+
+// ResourceItemKeyFunc generates a ClusterWideKeyWithConfig for object.
+func ResourceItemKeyFunc(obj interface{}) (util.QueueKey, error) {
+	var err error
+	key := keys.ClusterWideKeyWithConfig{}
+
+	resourceItem, ok := obj.(ResourceItem)
+	if !ok {
+		return key, fmt.Errorf("failed to assert object as ResourceItem")
+	}
+
+	key.ResourceChangeByKarmada = resourceItem.ResourceChangeByKarmada
+	key.ClusterWideKey, err = keys.ClusterWideKeyFunc(resourceItem.Obj)
+	if err != nil {
+		return key, err
+	}
+
+	return key, nil
 }
