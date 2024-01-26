@@ -29,7 +29,7 @@ import (
 )
 
 var (
-	assignFuncMap = map[string]func(*assignState) ([]workv1alpha2.TargetCluster, error){
+	assignFuncMap = map[string]func(*assignState, []*clusterv1alpha1.Cluster) ([]workv1alpha2.TargetCluster, error){
 		DuplicatedStrategy:    assignByDuplicatedStrategy,
 		AggregatedStrategy:    assignByDynamicStrategy,
 		StaticWeightStrategy:  assignByStaticWeightStrategy,
@@ -89,8 +89,18 @@ func newAssignState(candidates []*clusterv1alpha1.Cluster, placement *policyv1al
 	return &assignState{candidates: candidates, strategy: placement.ReplicaScheduling, spec: obj, strategyType: strategyType}
 }
 
-func (as *assignState) buildScheduledClusters() {
-	as.scheduledClusters = as.spec.Clusters
+func (as *assignState) buildScheduledClusters(feasibleClusters []*clusterv1alpha1.Cluster) {
+	feasibleClusterSet := sets.Set[string]{}
+	for _, c := range feasibleClusters {
+		feasibleClusterSet.Insert(c.Name)
+	}
+	as.scheduledClusters = []workv1alpha2.TargetCluster{}
+	for _, c := range as.spec.Clusters {
+		if !feasibleClusterSet.Has(c.Name) {
+			continue
+		}
+		as.scheduledClusters = append(as.scheduledClusters, c)
+	}
 	as.assignedReplicas = util.GetSumOfReplicas(as.scheduledClusters)
 }
 
@@ -131,7 +141,7 @@ func (as *assignState) resortAvailableClusters() []workv1alpha2.TargetCluster {
 }
 
 // assignByDuplicatedStrategy assigns replicas by DuplicatedStrategy.
-func assignByDuplicatedStrategy(state *assignState) ([]workv1alpha2.TargetCluster, error) {
+func assignByDuplicatedStrategy(state *assignState, _ []*clusterv1alpha1.Cluster) ([]workv1alpha2.TargetCluster, error) {
 	targetClusters := make([]workv1alpha2.TargetCluster, len(state.candidates))
 	for i, cluster := range state.candidates {
 		targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name, Replicas: state.spec.Replicas}
@@ -149,7 +159,7 @@ func assignByDuplicatedStrategy(state *assignState) ([]workv1alpha2.TargetCluste
 * 1. If any selected cluster which not present on the weight list will be ignored(different with '0' replica).
 * 2. In case of not enough replica for specific cluster which will get '0' replica.
  */
-func assignByStaticWeightStrategy(state *assignState) ([]workv1alpha2.TargetCluster, error) {
+func assignByStaticWeightStrategy(state *assignState, _ []*clusterv1alpha1.Cluster) ([]workv1alpha2.TargetCluster, error) {
 	// If ReplicaDivisionPreference is set to "Weighted" and WeightPreference is not set,
 	// scheduler will weight all clusters averagely.
 	if state.strategy.WeightPreference == nil {
@@ -163,8 +173,8 @@ func assignByStaticWeightStrategy(state *assignState) ([]workv1alpha2.TargetClus
 	return disp.Result, nil
 }
 
-func assignByDynamicStrategy(state *assignState) ([]workv1alpha2.TargetCluster, error) {
-	state.buildScheduledClusters()
+func assignByDynamicStrategy(state *assignState, feasibleClusters []*clusterv1alpha1.Cluster) ([]workv1alpha2.TargetCluster, error) {
+	state.buildScheduledClusters(feasibleClusters)
 	if state.assignedReplicas > state.spec.Replicas {
 		// We need to reduce the replicas in terms of the previous result.
 		result, err := dynamicScaleDown(state)

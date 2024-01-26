@@ -282,7 +282,7 @@ func Test_assignByStaticWeightStrategy(t *testing.T) {
 					WeightPreference:          tt.weightPreference,
 				},
 				spec: &workv1alpha2.ResourceBindingSpec{Replicas: tt.replicas},
-			})
+			}, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("divideReplicasByStaticWeight() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -580,8 +580,37 @@ func Test_dynamicScale(t *testing.T) {
 			},
 			want: []workv1alpha2.TargetCluster{
 				{Name: ClusterMember1, Replicas: 7},
-				{Name: ClusterMember2, Replicas: 8},
-				{Name: ClusterMember4, Replicas: 9},
+				{Name: ClusterMember3, Replicas: 6},
+				{Name: ClusterMember4, Replicas: 11},
+			},
+			wantErr: false,
+		},
+		{
+			name: "replica 12 -> 12, dynamic 1:1, with cluster2 disappeared and cluster4 appeared",
+			candidates: []*clusterv1alpha1.Cluster{
+				helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
+					corev1.ResourcePods: *resource.NewQuantity(12, resource.DecimalSI),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
+				helper.NewClusterWithResource(ClusterMember4, corev1.ResourceList{
+					corev1.ResourcePods: *resource.NewQuantity(12, resource.DecimalSI),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
+			},
+			object: &workv1alpha2.ResourceBindingSpec{
+				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+					ResourceRequest: util.EmptyResource().ResourceList(),
+				},
+				Replicas: 12,
+				Clusters: []workv1alpha2.TargetCluster{
+					{Name: ClusterMember1, Replicas: 6},
+					{Name: ClusterMember2, Replicas: 6},
+				},
+			},
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: dynamicWeightStrategy,
+			},
+			want: []workv1alpha2.TargetCluster{
+				{Name: ClusterMember1, Replicas: 9},
+				{Name: ClusterMember4, Replicas: 3},
 			},
 			wantErr: false,
 		},
@@ -589,7 +618,7 @@ func Test_dynamicScale(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			state := newAssignState(tt.candidates, tt.placement, tt.object)
-			got, err := assignByDynamicStrategy(state)
+			got, err := assignByDynamicStrategy(state, tt.candidates)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("assignByDynamicStrategy() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -789,7 +818,7 @@ func Test_dynamicScaleUp(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			state := newAssignState(tt.candidates, tt.placement, tt.object)
-			state.buildScheduledClusters()
+			state.buildScheduledClusters(tt.candidates)
 			got, err := dynamicScaleUp(state)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("dynamicScaleUp() error = %v, wantErr %v", err, tt.wantErr)
@@ -865,7 +894,7 @@ func Test_assignByDuplicatedStrategy(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := assignByDuplicatedStrategy(tt.state)
+			got, err := assignByDuplicatedStrategy(tt.state, tt.state.candidates)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("assignByDuplicatedStrategy() error = %v, wantErr %v", err, tt.wantErr)
 				return

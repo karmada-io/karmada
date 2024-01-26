@@ -512,7 +512,7 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 				}
 
 				// 2. schedule basing on previous schedule result
-				got, err := g.assignReplicas(tt.clusters, tt.placement, &obj)
+				got, err := g.assignReplicas(tt.clusters, tt.clusters, tt.placement, &obj)
 				if (err != nil) != tt.wantErr {
 					t.Errorf("AssignReplicas() error = %v, wantErr %v", err, tt.wantErr)
 					return

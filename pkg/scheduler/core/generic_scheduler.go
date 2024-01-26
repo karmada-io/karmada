@@ -94,20 +94,20 @@ func (g *genericScheduler) Schedule(
 	}
 	klog.V(4).Infof("Feasible clusters scores: %v", clustersScore)
 
-	clusters, err := g.selectClusters(clustersScore, spec.Placement, spec)
+	candidateClusters, err := g.selectClusters(clustersScore, spec.Placement, spec)
 	if err != nil {
 		return result, fmt.Errorf("failed to select clusters: %w", err)
 	}
-	klog.V(4).Infof("Selected clusters: %v", clusters)
+	klog.V(4).Infof("Selected clusters: %v", candidateClusters)
 
-	clustersWithReplicas, err := g.assignReplicas(clusters, spec.Placement, spec)
+	clustersWithReplicas, err := g.assignReplicas(candidateClusters, feasibleClusters, spec.Placement, spec)
 	if err != nil {
 		return result, fmt.Errorf("failed to assign replicas: %w", err)
 	}
 	klog.V(4).Infof("Assigned Replicas: %v", clustersWithReplicas)
 
 	if scheduleAlgorithmOption.EnableEmptyWorkloadPropagation {
-		clustersWithReplicas = attachZeroReplicasCluster(clusters, clustersWithReplicas)
+		clustersWithReplicas = attachZeroReplicasCluster(candidateClusters, clustersWithReplicas)
 	}
 	result.SuggestedClusters = clustersWithReplicas
 
@@ -179,7 +179,7 @@ func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreLi
 	return SelectClusters(clustersScore, placement, spec)
 }
 
-func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, placement *policyv1alpha1.Placement,
+func (g *genericScheduler) assignReplicas(targetClusters, feasibleClusters []*clusterv1alpha1.Cluster, placement *policyv1alpha1.Placement,
 	object *workv1alpha2.ResourceBindingSpec) ([]workv1alpha2.TargetCluster, error) {
-	return AssignReplicas(clusters, placement, object)
+	return AssignReplicas(targetClusters, feasibleClusters, placement, object)
 }
