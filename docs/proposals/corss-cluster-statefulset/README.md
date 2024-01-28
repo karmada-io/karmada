@@ -97,7 +97,32 @@ type CrossClusterStatefulsetSet struct {
 // CrossClusterStatefulsetSetSpec is the desired state of the CrossClusterStatefulsetSet.
 type CrossClusterStatefulsetSetSpec struct {
 	ResourceSelector policyv1alpha1.ResourceSelector `json:"resourceSelector,omitempty"`
+  // updateStrategy indicates the CrossClusterStatefulsetSetStrategy that will be
+	// employed to update CRs when a revision is made to Template.
+	UpdateStrategy CrossClusterStatefulSetUpdateStrategy
 }
+
+// StatefulSetUpdateStrategy indicates the strategy that the StatefulSet
+// controller will use to perform updates. It includes any additional parameters
+// necessary to perform the update for the indicated strategy.
+type CrossClusterStatefulSetUpdateStrategy struct {
+	// Type indicates the type of the CrossClusterStatefulSetUpdateStrategy.
+	Type CrossClusterStatefulSetUpdateStrategyType
+}
+
+// CrossClusterStatefulSetUpdateStrategyType is a string enumeration type that enumerates
+// all possible update strategies for the CrossClusterStatefulSet controller.
+type CrossClusterStatefulUpdateStrategyType string
+
+const (
+	// RollingUpdateCrossClusterStatefulSetStrategyType indicates that update will be
+	// applied to all CRs in the StatefulSet with respect to the StatefulSet
+	// ordering constraints. When a scale operation is performed with this
+	// strategy, new CR will be created from the specification version indicated
+	// by the CrossClusterStatefulSet's updateRevision.
+	RollingUpdateCrossClusterStatefulSetStrategyType CrossClusterStatefulSetUpdateStrategyType = "RollingUpdate"
+)
+
 ```
 
 ### Two part here for user CRD
@@ -132,7 +157,7 @@ Annotations:
 ...
 ```
 
-The above yaml means the member cluster of member1 have 1 replcas for this resource and member cluster of member2 have 1 replicas of this resource.
+The above yaml means the member cluster of member1 have 1 replcas for this resource and member cluster of member2 have 1 replicas of this resource. The current cluster CR monitored by each member cluster will be different. The annotation of `self` indicates whether it is the number of copies required for the CR resource in the current cluster. It is mainly used to establish the network topology of global resources.
 
 Then the user's operator can use this messgae to init they app cluster at member cluster, Before to really init cluster, they will splice the network so that resources between clusters can access each other, like: `xline-0=xline-0.member1.karmada,xline-1=xline-1.member2.karmada`,It depends on how the user connects to the network of member clusters, which is not within the scope of the API's responsibilities.
 
@@ -178,11 +203,12 @@ spec:
     kind: XlineCluster
     name: xline
     namespace: default
+  updateStrategy:
+    type: RollingUpdate
 ```
 
-In order to check whether the update has been performed, the user must specify a ResourceInterpreterCustomization or webhook corresponding to the resource,And then `cross_cluster_statefulset_controller` will check the InterpretHealth or a new operation.
+In order to check whether the update has been performed, the user must specify a ResourceInterpreterCustomization or webhook corresponding to the resource,And then `cross_cluster_statefulset_controller` will check the InterpretHealth or a new operation of Interpreter if necessarily.
 
-TODO..
 
 ### Test Plan
 
