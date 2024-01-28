@@ -55,8 +55,7 @@ nitty-gritty.
 
 #### As a user, I want to deploy a cross cluster stateful app.
 
-I want to let my kubernetes operator can working for cross cluster stateful with karmada and not need to implement other operator for karmada.
-
+In order to enable my stateful application to achieve disaster recovery in multiple clusters and obtain better regional services,I want to let my kubernetes operator from member cluster can working for cross cluster stateful with karmada and not need to implement other operator for karmada.
 
 #### Story 1
 
