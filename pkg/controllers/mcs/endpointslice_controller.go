@@ -71,6 +71,17 @@ func (c *EndpointSliceController) Reconcile(ctx context.Context, req controllerr
 		return controllerruntime.Result{}, nil
 	}
 
+	// TBD: The work is managed by service-export-controller and endpointslice-collect-controller now,
+	// after the ServiceExport is deleted, the corresponding works' labels will be cleaned, so we should delete the EndpointSlice in control plane.
+	// Once the conflict between service_export_controller.go and endpointslice_collect_controller.go is fixed, the following code should be deleted.
+	if serviceName := util.GetLabelValue(work.Labels, util.ServiceNameLabel); serviceName == "" {
+		err := helper.DeleteEndpointSlice(c.Client, labels.Set{
+			workv1alpha1.WorkNamespaceLabel: req.Namespace,
+			workv1alpha1.WorkNameLabel:      req.Name,
+		})
+		return controllerruntime.Result{}, err
+	}
+
 	return c.collectEndpointSliceFromWork(work)
 }
 
@@ -81,7 +92,10 @@ func (c *EndpointSliceController) SetupWithManager(mgr controllerruntime.Manager
 			return util.GetLabelValue(createEvent.Object.GetLabels(), util.ServiceNameLabel) != ""
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			return util.GetLabelValue(updateEvent.ObjectNew.GetLabels(), util.ServiceNameLabel) != ""
+			// TBD: We care about the work with label util.MultiClusterServiceNameLabel because the work is
+			// managed by service-export-controller and endpointslice-collect-controller now, We should delete this after the conflict is fixed.
+			return (util.GetLabelValue(updateEvent.ObjectNew.GetLabels(), util.ServiceNameLabel) != "" ||
+				util.GetLabelValue(updateEvent.ObjectNew.GetLabels(), util.MultiClusterServiceNameLabel) != "")
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			return util.GetLabelValue(deleteEvent.Object.GetLabels(), util.ServiceNameLabel) != ""

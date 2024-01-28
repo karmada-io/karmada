@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 
 	discoveryv1 "k8s.io/api/discovery/v1"
@@ -31,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -374,18 +376,11 @@ func (c *EndpointSliceCollectController) reportEndpointSliceWithEndpointSliceCre
 // reportEndpointSlice report EndPointSlice objects to control-plane.
 func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructured, clusterName string) error {
 	executionSpace := names.GenerateExecutionSpaceName(clusterName)
+	workName := names.GenerateWorkName(endpointSlice.GetKind(), endpointSlice.GetName(), endpointSlice.GetNamespace())
 
-	workMeta := metav1.ObjectMeta{
-		// Karmada will synchronize this work to other cluster namespaces and add the cluster name to prevent conflicts.
-		Name:      names.GenerateWorkName(endpointSlice.GetKind(), endpointSlice.GetName(), endpointSlice.GetNamespace()),
-		Namespace: executionSpace,
-		Labels: map[string]string{
-			util.MultiClusterServiceNamespaceLabel: endpointSlice.GetNamespace(),
-			util.MultiClusterServiceNameLabel:      endpointSlice.GetLabels()[discoveryv1.LabelServiceName],
-			// indicate the Work should be not propagated since it's collected resource.
-			util.PropagationInstruction: util.PropagationInstructionSuppressed,
-			util.ManagedByKarmadaLabel:  util.ManagedByKarmadaLabelValue,
-		},
+	workMeta, err := getEndpointSliceWorkMeta(c, executionSpace, workName, endpointSlice)
+	if err != nil {
+		return err
 	}
 
 	if err := helper.CreateOrUpdateWork(c, workMeta, endpointSlice); err != nil {
@@ -394,6 +389,41 @@ func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructur
 	}
 
 	return nil
+}
+
+func getEndpointSliceWorkMeta(c client.Client, ns string, workName string, endpointSlice *unstructured.Unstructured) (metav1.ObjectMeta, error) {
+	existWork := &workv1alpha1.Work{}
+	var err error
+	if err = c.Get(context.Background(), types.NamespacedName{
+		Namespace: ns,
+		Name:      workName,
+	}, existWork); err != nil && !apierrors.IsNotFound(err) {
+		klog.Errorf("Get EndpointSlice work(%s/%s) error:%v", ns, workName, err)
+		return metav1.ObjectMeta{}, err
+	}
+
+	labels := map[string]string{
+		util.MultiClusterServiceNamespaceLabel: endpointSlice.GetNamespace(),
+		util.MultiClusterServiceNameLabel:      endpointSlice.GetLabels()[discoveryv1.LabelServiceName],
+		// indicate the Work should be not propagated since it's collected resource.
+		util.PropagationInstruction:          util.PropagationInstructionSuppressed,
+		util.ManagedByKarmadaLabel:           util.ManagedByKarmadaLabelValue,
+		util.EndpointSliceWorkManagedByLabel: util.MultiClusterServiceKind,
+	}
+	if existWork.Labels == nil || (err != nil && apierrors.IsNotFound(err)) {
+		workMeta := metav1.ObjectMeta{Name: workName, Namespace: ns, Labels: labels}
+		return workMeta, nil
+	}
+
+	labels = util.DedupeAndMergeLabels(labels, existWork.Labels)
+	if value, ok := existWork.Labels[util.EndpointSliceWorkManagedByLabel]; ok {
+		controllerSet := sets.New[string]()
+		controllerSet.Insert(strings.Split(value, ".")...)
+		controllerSet.Insert(util.MultiClusterServiceKind)
+		labels[util.EndpointSliceWorkManagedByLabel] = strings.Join(controllerSet.UnsortedList(), ".")
+	}
+	workMeta := metav1.ObjectMeta{Name: workName, Namespace: ns, Labels: labels}
+	return workMeta, nil
 }
 
 func cleanupWorkWithEndpointSliceDelete(c client.Client, endpointSliceKey keys.FederatedKey) error {
@@ -412,8 +442,32 @@ func cleanupWorkWithEndpointSliceDelete(c client.Client, endpointSliceKey keys.F
 		return err
 	}
 
+	return cleanProviderClustersEndpointSliceWork(c, work.DeepCopy())
+}
+
+// TBD: Currently, the EndpointSlice work can be handled by both service-export-controller and endpointslice-collect-controller. To indicate this, we've introduced the label endpointslice.karmada.io/managed-by. Therefore,
+// if managed by both controllers, simply remove each controller's respective labels.
+// If managed solely by its own controller, delete the work accordingly.
+// This logic should be deleted after the conflict is fixed.
+func cleanProviderClustersEndpointSliceWork(c client.Client, work *workv1alpha1.Work) error {
+	controllers := util.GetLabelValue(work.Labels, util.EndpointSliceWorkManagedByLabel)
+	controllerSet := sets.New[string]()
+	controllerSet.Insert(strings.Split(controllers, ".")...)
+	controllerSet.Delete(util.MultiClusterServiceKind)
+	if controllerSet.Len() > 0 {
+		delete(work.Labels, util.MultiClusterServiceNameLabel)
+		delete(work.Labels, util.MultiClusterServiceNamespaceLabel)
+		work.Labels[util.EndpointSliceWorkManagedByLabel] = strings.Join(controllerSet.UnsortedList(), ".")
+
+		if err := c.Update(context.TODO(), work); err != nil {
+			klog.Errorf("Failed to update work(%s/%s): %v", work.Namespace, work.Name, err)
+			return err
+		}
+		return nil
+	}
+
 	if err := c.Delete(context.TODO(), work); err != nil {
-		klog.Errorf("Failed to delete work(%s): %v", workNamespaceKey.String(), err)
+		klog.Errorf("Failed to delete work(%s/%s): %v", work.Namespace, work.Name, err)
 		return err
 	}
 

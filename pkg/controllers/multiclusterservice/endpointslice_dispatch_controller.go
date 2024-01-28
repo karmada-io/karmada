@@ -76,7 +76,8 @@ func (c *EndpointsliceDispatchController) Reconcile(ctx context.Context, req con
 		return controllerruntime.Result{}, nil
 	}
 
-	if !work.DeletionTimestamp.IsZero() {
+	mcsName := util.GetLabelValue(work.Labels, util.MultiClusterServiceNameLabel)
+	if !work.DeletionTimestamp.IsZero() || mcsName == "" {
 		if err := c.cleanupEndpointSliceFromConsumerClusters(ctx, work); err != nil {
 			klog.Errorf("Failed to cleanup EndpointSlice from consumer clusters for work %s/%s:%v", work.Namespace, work.Name, err)
 			return controllerruntime.Result{Requeue: true}, err
@@ -84,7 +85,6 @@ func (c *EndpointsliceDispatchController) Reconcile(ctx context.Context, req con
 		return controllerruntime.Result{}, nil
 	}
 
-	mcsName := util.GetLabelValue(work.Labels, util.MultiClusterServiceNameLabel)
 	mcsNS := util.GetLabelValue(work.Labels, util.MultiClusterServiceNamespaceLabel)
 	mcs := &networkingv1alpha1.MultiClusterService{}
 	if err := c.Client.Get(ctx, types.NamespacedName{Namespace: mcsNS, Name: mcsName}, mcs); err != nil {
@@ -152,7 +152,10 @@ func (c *EndpointsliceDispatchController) SetupWithManager(mgr controllerruntime
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			// We only care about the EndpointSlice work from provider clusters
-			return util.GetLabelValue(updateEvent.ObjectNew.GetLabels(), util.MultiClusterServiceNameLabel) != "" &&
+			// TBD: We care about the work with label util.ServiceNameLabel because now service-export-controller and endpointslice-collect-controller
+			// will manage the work together, should delete this after the conflict is fixed
+			return (util.GetLabelValue(updateEvent.ObjectNew.GetLabels(), util.MultiClusterServiceNameLabel) != "" ||
+				util.GetLabelValue(updateEvent.ObjectNew.GetLabels(), util.ServiceNameLabel) != "") &&
 				util.GetAnnotationValue(updateEvent.ObjectNew.GetAnnotations(), util.EndpointSliceProvisionClusterAnnotation) == ""
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
