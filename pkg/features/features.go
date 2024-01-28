@@ -40,6 +40,9 @@ const (
 
 	// MultiClusterService indicates if enable multi-cluster service function.
 	MultiClusterService featuregate.Feature = "MultiClusterService"
+
+	// ResourceQuotaEstimate indicates if enable resource quota check in estimator
+	ResourceQuotaEstimate featuregate.Feature = "ResourceQuotaEstimate"
 )
 
 var (
@@ -54,6 +57,7 @@ var (
 		CustomizedClusterResourceModeling: {Default: true, PreRelease: featuregate.Beta},
 		PolicyPreemption:                  {Default: false, PreRelease: featuregate.Alpha},
 		MultiClusterService:               {Default: false, PreRelease: featuregate.Alpha},
+		ResourceQuotaEstimate:             {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
 

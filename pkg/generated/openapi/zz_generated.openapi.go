@@ -6184,6 +6184,20 @@ func schema_pkg_apis_work_v1alpha2_ReplicaRequirements(ref common.ReferenceCallb
 							},
 						},
 					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Namespace represents the resources namespaces",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"priorityClassName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PriorityClassName represents the resources priorityClassName",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
