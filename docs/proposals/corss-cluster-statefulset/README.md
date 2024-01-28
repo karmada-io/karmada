@@ -29,10 +29,14 @@ With the development of multi-cluster technology, some users begin to want to mi
 
 Provides a new API for stateful applications across clusters, enabling karmada to adapt to stateful applications across clusters.
 
+An obvious advantage is that karmada natively supports cross-cluster Statefulset, preventing each user from repeatedly implementing his own cross-cluster Statefulset.
+
 ### Goals
 
-- Defining an API(TBD,karmada/StatefulSet?) enables users to implement specific logic for stateful operator applications across clusters.
+- Defining an API(crossClusterStatefulset) enables users to implement specific logic for stateful operator applications across clusters.
 -  Propose the implementation ideas for involved components, including the new controller of `cross_cluster_statefulset_controller` in karmada-controller-manager.
+
+
 
 ### Non-Goals
 
@@ -52,6 +56,7 @@ nitty-gritty.
 #### As a user, I want to deploy a cross cluster stateful app.
 
 I want to let my kubernetes operator can working for cross cluster stateful with karmada and not need to implement other operator for karmada.
+
 
 #### Story 1
 
