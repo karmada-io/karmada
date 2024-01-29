@@ -65,6 +65,9 @@ const (
 
 	// ResourceTemplateClaimedByLabel is added to the ResourceTemplate, indicating which resource is in charge of propagating the ResourceTemplate.
 	ResourceTemplateClaimedByLabel = "resourcetemplate.karmada.io/claimed-by"
+
+	// EndpointSliceWorkManagedByLabel is added to the EndpointSlice work collected from member clusters, represents which manage the endpointslice work
+	EndpointSliceWorkManagedByLabel = "endpointslice.karmada.io/managed-by"
 )
 
 const (

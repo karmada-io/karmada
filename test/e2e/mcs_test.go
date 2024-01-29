@@ -544,9 +544,6 @@ var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
 		ginkgo.AfterEach(func() {
 			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
 			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
-
-			framework.WaitServiceDisappearOnCluster(member1Name, testNamespace, serviceName)
-			framework.WaitServiceDisappearOnCluster(member2Name, testNamespace, serviceName)
 		})
 
 		ginkgo.It("Test dispatch EndpointSlice from the provider clusters to the consumer clusters", func() {
@@ -580,9 +577,6 @@ var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
 		ginkgo.AfterEach(func() {
 			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
 			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
-
-			framework.WaitServiceDisappearOnCluster(member1Name, testNamespace, serviceName)
-			framework.WaitServiceDisappearOnCluster(member2Name, testNamespace, serviceName)
 		})
 
 		ginkgo.It("Test dispatch EndpointSlice from the provider clusters to the consumer clusters", func() {
@@ -618,9 +612,6 @@ var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
 		ginkgo.AfterEach(func() {
 			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
 			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
-
-			framework.WaitServiceDisappearOnCluster(member1Name, testNamespace, serviceName)
-			framework.WaitServiceDisappearOnCluster(member2Name, testNamespace, serviceName)
 		})
 
 		ginkgo.It("Test dispatch EndpointSlice from the provider clusters to the consumer clusters", func() {
@@ -666,8 +657,6 @@ var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
 		ginkgo.AfterEach(func() {
 			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
 			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
-
-			framework.WaitServiceDisappearOnCluster(member2Name, testNamespace, serviceName)
 		})
 
 		ginkgo.It("Test dispatch EndpointSlice from the provider clusters to the consumer clusters", func() {
@@ -701,9 +690,6 @@ var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
 		ginkgo.AfterEach(func() {
 			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
 			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
-
-			framework.WaitServiceDisappearOnCluster(member1Name, testNamespace, serviceName)
-			framework.WaitServiceDisappearOnCluster(member2Name, testNamespace, serviceName)
 		})
 
 		ginkgo.It("Test dispatch EndpointSlice from the provider clusters to the consumer clusters", func() {
@@ -737,9 +723,6 @@ var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
 		ginkgo.AfterEach(func() {
 			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
 			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
-
-			framework.WaitServiceDisappearOnCluster(member1Name, testNamespace, serviceName)
-			framework.WaitServiceDisappearOnCluster(member2Name, testNamespace, serviceName)
 		})
 
 		ginkgo.It("Test dispatch EndpointSlice from the provider clusters to the consumer clusters", func() {

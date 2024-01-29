@@ -193,8 +193,7 @@ func (c *MCSController) cleanProviderEndpointSliceWork(work *workv1alpha1.Work) 
 			continue
 		}
 
-		if err := c.Delete(context.TODO(), work.DeepCopy()); err != nil {
-			klog.Errorf("Failed to delete work(%s/%s), Error: %v", work.Namespace, work.Name, err)
+		if err := cleanProviderClustersEndpointSliceWork(c.Client, work.DeepCopy()); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -366,8 +365,19 @@ func (c *MCSController) retrieveService(mcs *networkingv1alpha1.MultiClusterServ
 		return err
 	}
 
-	if err := c.Client.Delete(context.Background(), rb); err != nil {
-		klog.Errorf("Failed to delete ResourceBinding(%s/%s):%v", mcs.Namespace, names.GenerateBindingName(svc.Kind, svc.Name), err)
+	// MultiClusterService is a specialized instance of PropagationPolicy, and when deleting PropagationPolicy, the resource ResourceBinding
+	// will not be removed to ensure service stability. MultiClusterService should also adhere to this design.
+	rbCopy := rb.DeepCopy()
+	if rbCopy.Annotations != nil {
+		delete(rbCopy.Annotations, networkingv1alpha1.MultiClusterServiceNameAnnotation)
+		delete(rbCopy.Annotations, networkingv1alpha1.MultiClusterServiceNamespaceAnnotation)
+	}
+	if rbCopy.Labels != nil {
+		delete(rbCopy.Labels, workv1alpha2.BindingManagedByLabel)
+		delete(rbCopy.Labels, networkingv1alpha1.MultiClusterServicePermanentIDLabel)
+	}
+	if err := c.Client.Update(context.Background(), rbCopy); err != nil {
+		klog.Errorf("Failed to update ResourceBinding(%s/%s):%v", mcs.Namespace, names.GenerateBindingName(svc.Kind, svc.Name), err)
 		return err
 	}
 
