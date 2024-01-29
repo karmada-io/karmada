@@ -90,7 +90,21 @@ func newAssignState(candidates []*clusterv1alpha1.Cluster, placement *policyv1al
 }
 
 func (as *assignState) buildScheduledClusters() {
-	as.scheduledClusters = as.spec.Clusters
+	candidateClusterSet := sets.Set[string]{}
+	for _, c := range as.candidates {
+		candidateClusterSet.Insert(c.Name)
+	}
+	as.scheduledClusters = []workv1alpha2.TargetCluster{}
+	for _, c := range as.spec.Clusters {
+		// Ignore clusters that are no longer candidates, to ensure we can get real
+		// 'assigned' replicas from the previous schedule result. The ignored replicas
+		// will be treated as scaled-up replicas that will be assigned to other
+		// candidate clusters.
+		if !candidateClusterSet.Has(c.Name) {
+			continue
+		}
+		as.scheduledClusters = append(as.scheduledClusters, c)
+	}
 	as.assignedReplicas = util.GetSumOfReplicas(as.scheduledClusters)
 }
 
