@@ -108,6 +108,7 @@ func (c *Cache) Connect(_ context.Context, request framework.ProxyRequest) (http
 		Convertor:        runtime.NewScheme(),
 		Subresource:      requestInfo.Subresource,
 		MetaGroupVersion: metav1.SchemeGroupVersion,
+		TableConvertor:   r.tableConvertor,
 	}
 
 	var h http.Handler
