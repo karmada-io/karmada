@@ -34,7 +34,7 @@ Thus, karmada should introduce a way such that karmada-agent can run with the le
 Similar to [Kubernetes Node Authorization](https://kubernetes.io/docs/reference/access-authn-authz/node/), Cluster Authorization consists of two components:
 
 - Mutating Admission Webhook:
-  - when a karmada-agent(`system:node:member-1`) creates some resources in control plane, this webhook puts `clusterrestriction.karmada.io/owner: "system:node:member-1"`
+  - when a karmada-agent(`system:node:member-1`) creates some resources in control plane, this webhook puts `clusterrestriction.karmada.io/owner: "system:node:member-1"` annotaion to the resources
   - when a karmada-agent update/delete some resources in control plane, this webhook prevent from modifying the annotations.
 - Authorization Webhook:
   - when a karmada-agent(`system:node:member-1`) reads/writes some resources, this webhook only allows the operation only on resources with owned by itself
