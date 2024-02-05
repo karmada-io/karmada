@@ -32,9 +32,12 @@ import (
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/client-go/kubernetes/scheme"
 
+	"github.com/karmada-io/karmada/pkg/printers"
+	printerstorage "github.com/karmada-io/karmada/pkg/printers/storage"
 	"github.com/karmada-io/karmada/pkg/search/proxy/framework"
 	pluginruntime "github.com/karmada-io/karmada/pkg/search/proxy/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/search/proxy/store"
+	printerslifted "github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
 const (
@@ -83,9 +86,11 @@ func (c *Cache) SupportRequest(request framework.ProxyRequest) bool {
 func (c *Cache) Connect(_ context.Context, request framework.ProxyRequest) (http.Handler, error) {
 	requestInfo := request.RequestInfo
 	r := &rester{
-		store:          c.store,
-		gvr:            request.GroupVersionResource,
-		tableConvertor: rest.NewDefaultTableConvertor(request.GroupVersionResource.GroupResource()),
+		store: c.store,
+		gvr:   request.GroupVersionResource,
+		tableConvertor: printerstorage.NewTableConvertor(
+			rest.NewDefaultTableConvertor(request.GroupVersionResource.GroupResource()),
+			printers.NewTableGenerator().With(printerslifted.AddCoreV1Handlers)),
 	}
 
 	gvk, err := c.restMapper.KindFor(request.GroupVersionResource)
