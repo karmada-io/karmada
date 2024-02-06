@@ -39,3 +39,4 @@ if [[ $ret -ne 0 ]]; then
   echo "!!! Please see hack/.import-aliases for the preferred aliases for imports." >&2
   exit 1
 fi
+echo "Passed import-aliases verification."
