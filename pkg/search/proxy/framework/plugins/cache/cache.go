@@ -129,7 +129,7 @@ func (c *Cache) Connect(_ context.Context, request framework.ProxyRequest) (http
 
 func getNegotiatedSerializer(gvk schema.GroupVersionKind) runtime.NegotiatedSerializer {
 	if scheme.Scheme.Recognizes(gvk) {
-		return scheme.Codecs.WithoutConversion()
+		return scheme.Codecs
 	}
 
 	jsonInfo, _ := runtime.SerializerInfoForMediaType(scheme.Codecs.SupportedMediaTypes(), runtime.ContentTypeJSON)
