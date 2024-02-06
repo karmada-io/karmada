@@ -161,9 +161,11 @@ func findFeasiblePaths(groups []*GroupInfo, minConstraint, maxConstraint, target
 	rootPath := new(dfsPath)
 	var dfsFunc func(int, int)
 	dfsFunc = func(sum, begin int) {
-		if sum >= target && rootPath.length() >= minConstraint && rootPath.length() <= maxConstraint {
-			paths = append(paths, rootPath.next())
-			return
+		if sum >= target && rootPath.length() >= minConstraint {
+			if maxConstraint == 0 || rootPath.length() <= maxConstraint {
+				paths = append(paths, rootPath.next())
+				return
+			}
 		}
 
 		// pruning makes DFS faster
