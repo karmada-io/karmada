@@ -576,131 +576,25 @@ var _ = ginkgo.Describe("[ImplicitPriority] propagation testing", func() {
 				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 				framework.WaitDeploymentDisappearOnClusters(framework.ClusterNames(), deployment.Namespace, deployment.Name)
 			})
-			ginkgo.DeferCleanup(func() {
-				framework.RemovePropagationPolicy(karmadaClient, policyMatchName.Namespace, policyMatchName.Name)
-				framework.RemovePropagationPolicy(karmadaClient, policyMatchLabelSelector.Namespace, policyMatchLabelSelector.Name)
-				framework.RemovePropagationPolicy(karmadaClient, policyPriorityMatchAll.Namespace, policyPriorityMatchAll.Name)
-			})
 		})
 
-		ginkgo.It("priorityMatchName testing", func() {
-			ginkgo.By("check whether the deployment uses the highest priority propagationPolicy", func() {
+		ginkgo.It("priorityMatchName/priorityMatchLabel/priorityMatchAll testing", func() {
+			ginkgo.By("check whether the deployment uses the highest priority propagationPolicy (priorityMatchName)", func() {
+				defer framework.RemovePropagationPolicy(karmadaClient, policyMatchLabelSelector.Namespace, policyMatchName.Name)
 				framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 					func(deployment *appsv1.Deployment) bool {
 						return deployment.GetLabels()[policyv1alpha1.PropagationPolicyNameLabel] == priorityMatchName
 					})
 			})
-		})
-	})
-
-	ginkgo.Context("policyMatchLabelSelector propagation testing", func() {
-		var policyNamespace, priorityMatchLabelSelector, priorityMatchAll string
-		var deploymentNamespace, deploymentName string
-		var deployment *appsv1.Deployment
-		var policyMatchLabelSelector, policyPriorityMatchAll *policyv1alpha1.PropagationPolicy
-		var implicitPriorityLabelKey = "priority"
-		var implicitPriorityLabelValue = "implicit-priority"
-
-		ginkgo.BeforeEach(func() {
-			policyNamespace = testNamespace
-
-			priorityMatchLabelSelector = deploymentNamePrefix + rand.String(RandomStrLength)
-			priorityMatchAll = deploymentNamePrefix + rand.String(RandomStrLength)
-
-			deploymentNamespace = testNamespace
-			deploymentName = deploymentNamePrefix + rand.String(RandomStrLength)
-
-			deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
-			deployment.SetLabels(map[string]string{implicitPriorityLabelKey: implicitPriorityLabelValue})
-			policyMatchLabelSelector = testhelper.NewPropagationPolicy(policyNamespace, priorityMatchLabelSelector, []policyv1alpha1.ResourceSelector{
-				{
-					APIVersion:    deployment.APIVersion,
-					Kind:          deployment.Kind,
-					LabelSelector: metav1.SetAsLabelSelector(labels.Set{implicitPriorityLabelKey: implicitPriorityLabelValue}),
-				},
-			}, policyv1alpha1.Placement{
-				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-					ClusterNames: framework.ClusterNames(),
-				},
-			})
-			policyPriorityMatchAll = testhelper.NewPropagationPolicy(policyNamespace, priorityMatchAll, []policyv1alpha1.ResourceSelector{
-				{
-					APIVersion: deployment.APIVersion,
-					Kind:       deployment.Kind,
-				},
-			}, policyv1alpha1.Placement{
-				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-					ClusterNames: framework.ClusterNames(),
-				},
-			})
-		})
-
-		ginkgo.BeforeEach(func() {
-			framework.CreatePropagationPolicy(karmadaClient, policyMatchLabelSelector)
-			framework.CreatePropagationPolicy(karmadaClient, policyPriorityMatchAll)
-			framework.CreateDeployment(kubeClient, deployment)
-			ginkgo.DeferCleanup(func() {
-				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-				framework.WaitDeploymentDisappearOnClusters(framework.ClusterNames(), deployment.Namespace, deployment.Name)
-			})
-			ginkgo.DeferCleanup(func() {
-				framework.RemovePropagationPolicy(karmadaClient, policyMatchLabelSelector.Namespace, policyMatchLabelSelector.Name)
-				framework.RemovePropagationPolicy(karmadaClient, policyPriorityMatchAll.Namespace, policyPriorityMatchAll.Name)
-			})
-		})
-
-		ginkgo.It("policyMatchLabelSelector testing", func() {
-			ginkgo.By("check whether the deployment uses the highest priority propagationPolicy", func() {
+			ginkgo.By("check whether the deployment uses the highest priority propagationPolicy (priorityMatchLabel)", func() {
+				defer framework.RemovePropagationPolicy(karmadaClient, policyMatchLabelSelector.Namespace, policyMatchLabelSelector.Name)
 				framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 					func(deployment *appsv1.Deployment) bool {
 						return deployment.GetLabels()[policyv1alpha1.PropagationPolicyNameLabel] == priorityMatchLabelSelector
 					})
 			})
-		})
-	})
-
-	ginkgo.Context("priorityMatchAll propagation testing", func() {
-		var policyNamespace, priorityMatchAll string
-		var deploymentNamespace, deploymentName string
-		var deployment *appsv1.Deployment
-		var policyPriorityMatchAll *policyv1alpha1.PropagationPolicy
-		var implicitPriorityLabelKey = "priority"
-		var implicitPriorityLabelValue = "implicit-priority"
-
-		ginkgo.BeforeEach(func() {
-			policyNamespace = testNamespace
-			priorityMatchAll = deploymentNamePrefix + rand.String(RandomStrLength)
-			deploymentNamespace = testNamespace
-			deploymentName = deploymentNamePrefix + rand.String(RandomStrLength)
-
-			deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
-			deployment.SetLabels(map[string]string{implicitPriorityLabelKey: implicitPriorityLabelValue})
-			policyPriorityMatchAll = testhelper.NewPropagationPolicy(policyNamespace, priorityMatchAll, []policyv1alpha1.ResourceSelector{
-				{
-					APIVersion: deployment.APIVersion,
-					Kind:       deployment.Kind,
-				},
-			}, policyv1alpha1.Placement{
-				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-					ClusterNames: framework.ClusterNames(),
-				},
-			})
-		})
-
-		ginkgo.BeforeEach(func() {
-			framework.CreatePropagationPolicy(karmadaClient, policyPriorityMatchAll)
-			framework.CreateDeployment(kubeClient, deployment)
-			ginkgo.DeferCleanup(func() {
-				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-				framework.WaitDeploymentDisappearOnClusters(framework.ClusterNames(), deployment.Namespace, deployment.Name)
-			})
-			ginkgo.DeferCleanup(func() {
-				framework.RemovePropagationPolicy(karmadaClient, policyPriorityMatchAll.Namespace, policyPriorityMatchAll.Name)
-			})
-		})
-
-		ginkgo.It("priorityMatchAll testing", func() {
-			ginkgo.By("check whether the deployment uses the highest priority propagationPolicy", func() {
+			ginkgo.By("check whether the deployment uses the highest priority propagationPolicy (priorityMatchAll)", func() {
+				defer framework.RemovePropagationPolicy(karmadaClient, policyMatchLabelSelector.Namespace, policyPriorityMatchAll.Name)
 				framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 					func(deployment *appsv1.Deployment) bool {
 						return deployment.GetLabels()[policyv1alpha1.PropagationPolicyNameLabel] == priorityMatchAll
