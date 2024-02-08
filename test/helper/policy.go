@@ -38,6 +38,21 @@ func NewPropagationPolicy(ns, name string, rsSelectors []policyv1alpha1.Resource
 	}
 }
 
+// NewLazyPropagationPolicy will build a PropagationPolicy object with Lazy activation.
+func NewLazyPropagationPolicy(ns, name string, rsSelectors []policyv1alpha1.ResourceSelector, placement policyv1alpha1.Placement) *policyv1alpha1.PropagationPolicy {
+	return &policyv1alpha1.PropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: ns,
+			Name:      name,
+		},
+		Spec: policyv1alpha1.PropagationSpec{
+			ActivationPreference: policyv1alpha1.LazyActivation,
+			ResourceSelectors:    rsSelectors,
+			Placement:            placement,
+		},
+	}
+}
+
 // NewExplicitPriorityPropagationPolicy will build a PropagationPolicy object with explicit priority.
 func NewExplicitPriorityPropagationPolicy(ns, name string, rsSelectors []policyv1alpha1.ResourceSelector,
 	placement policyv1alpha1.Placement, priority int32) *policyv1alpha1.PropagationPolicy {
