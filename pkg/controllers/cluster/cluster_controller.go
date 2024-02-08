@@ -422,7 +422,8 @@ func (c *Controller) createExecutionSpace(cluster *clusterv1alpha1.Cluster) erro
 		// create only when not exist
 		executionSpace := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: executionSpaceName,
+				Name:   executionSpaceName,
+				Labels: util.ManagedByKarmadaLabels,
 			},
 		}
 		err = c.Client.Create(context.TODO(), executionSpace)

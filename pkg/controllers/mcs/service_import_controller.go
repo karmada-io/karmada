@@ -103,9 +103,7 @@ func (c *ServiceImportController) deriveServiceFromServiceImport(svcImport *mcsv
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: svcImport.Namespace,
 			Name:      names.GenerateDerivedServiceName(svcImport.Name),
-			Labels: map[string]string{
-				util.ManagedByKarmadaLabel: util.ManagedByKarmadaLabelValue,
-			},
+			Labels:    util.ManagedByKarmadaLabels,
 		},
 		Spec: corev1.ServiceSpec{
 			Type:  corev1.ServiceTypeClusterIP,

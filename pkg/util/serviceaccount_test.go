@@ -329,6 +329,7 @@ func TestWaitForServiceAccountSecretCreation(t *testing.T) {
 			Annotations: map[string]string{
 				corev1.ServiceAccountNameKey: sa.Name,
 			},
+			Labels: ManagedByKarmadaLabels,
 		},
 		Type: corev1.SecretTypeServiceAccountToken,
 		Data: map[string][]byte{

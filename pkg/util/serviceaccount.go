@@ -108,6 +108,7 @@ func WaitForServiceAccountSecretCreation(client kubeclient.Interface, asObj *cor
 					Annotations: map[string]string{
 						corev1.ServiceAccountNameKey: serviceAccount.Name,
 					},
+					Labels: ManagedByKarmadaLabels,
 				},
 				Type: corev1.SecretTypeServiceAccountToken,
 			}

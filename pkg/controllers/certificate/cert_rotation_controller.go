@@ -238,7 +238,8 @@ func (c *CertRotationController) createCSRInControlPlane(clusterName string, pri
 
 	certificateSigningRequest := &certificatesv1.CertificateSigningRequest{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: csrName,
+			Name:   csrName,
+			Labels: util.ManagedByKarmadaLabels,
 		},
 		Spec: certificatesv1.CertificateSigningRequestSpec{
 			Request:           csrData,
