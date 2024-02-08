@@ -52,8 +52,13 @@ const (
 	// FederatedResourceQuotaNameLabel is added to Work to specify associated FederatedResourceQuota's name.
 	FederatedResourceQuotaNameLabel = "federatedresourcequota.karmada.io/name"
 
-	// ManagedByKarmadaLabel is a reserved karmada label to indicate whether resources are managed by karmada controllers.
+	// ManagedByKarmadaLabel is a reserved karmada label to indicate whether resources are member cluster resources
+	// synchronized by karmada controllers.
 	ManagedByKarmadaLabel = "karmada.io/managed"
+
+	// KarmadaSystemLabel is a reserved karmada label to indicate whether resources are system level resources
+	// managed by karmada controllers.
+	KarmadaSystemLabel = "karmada.io/system"
 
 	// EndpointSliceDispatchControllerLabelValue indicates the endpointSlice are controlled by Karmada
 	EndpointSliceDispatchControllerLabelValue = "endpointslice-dispatch-controller.karmada.io"
@@ -71,8 +76,11 @@ const (
 )
 
 const (
-	// ManagedByKarmadaLabelValue indicates that resources are managed by karmada controllers.
+	// ManagedByKarmadaLabelValue indicates that these are workloads in member cluster synchronized by karmada controllers.
 	ManagedByKarmadaLabelValue = "true"
+
+	// KarmadaSystemLabelValue indicates that resources are system level resources managed by karmada controllers.
+	KarmadaSystemLabelValue = "true"
 
 	// RetainReplicasValue is an optional value of RetainReplicasLabel, indicating retain
 	RetainReplicasValue = "true"

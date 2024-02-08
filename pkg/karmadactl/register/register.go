@@ -378,7 +378,7 @@ func (o *CommandRegisterOption) Run(parentCommand string) error {
 
 	// It's necessary to set the label of namespace to make sure that the namespace is created by Karmada.
 	labels := map[string]string{
-		karmadautil.ManagedByKarmadaLabel: karmadautil.ManagedByKarmadaLabelValue,
+		karmadautil.KarmadaSystemLabel: karmadautil.KarmadaSystemLabelValue,
 	}
 	// ensure namespace where the karmada-agent resources be deployed exists in the member cluster
 	if _, err := karmadautil.EnsureNamespaceExistWithLabels(o.memberClusterClient, o.Namespace, o.DryRun, labels); err != nil {
@@ -523,6 +523,9 @@ func (o *CommandRegisterOption) constructKarmadaAgentConfig(bootstrapClient *kub
 	certificateSigningRequest := &certificatesv1.CertificateSigningRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: csrName,
+			Labels: map[string]string{
+				karmadautil.KarmadaSystemLabel: karmadautil.KarmadaSystemLabelValue,
+			},
 		},
 		Spec: certificatesv1.CertificateSigningRequestSpec{
 			Request: pem.EncodeToMemory(&pem.Block{
@@ -591,6 +594,11 @@ func (o *CommandRegisterOption) createSecretAndRBACInMemberCluster(karmadaAgentC
 		return fmt.Errorf("failure while serializing karmada-agent kubeConfig. %w", err)
 	}
 
+	// It's necessary to set the label of namespace to make sure that the namespace is created by Karmada.
+	labels := map[string]string{
+		karmadautil.KarmadaSystemLabel: karmadautil.KarmadaSystemLabelValue,
+	}
+
 	kubeConfigSecret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -599,6 +607,7 @@ func (o *CommandRegisterOption) createSecretAndRBACInMemberCluster(karmadaAgentC
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      KarmadaKubeconfigName,
 			Namespace: o.Namespace,
+			Labels:    labels,
 		},
 		Type:       corev1.SecretTypeOpaque,
 		StringData: map[string]string{KarmadaKubeconfigName: string(configBytes)},
@@ -611,7 +620,8 @@ func (o *CommandRegisterOption) createSecretAndRBACInMemberCluster(karmadaAgentC
 
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: KarmadaAgentName,
+			Name:   KarmadaAgentName,
+			Labels: labels,
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
@@ -635,6 +645,7 @@ func (o *CommandRegisterOption) createSecretAndRBACInMemberCluster(karmadaAgentC
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      KarmadaAgentServiceAccountName,
 			Namespace: o.Namespace,
+			Labels:    labels,
 		},
 	}
 
@@ -646,7 +657,8 @@ func (o *CommandRegisterOption) createSecretAndRBACInMemberCluster(karmadaAgentC
 
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: KarmadaAgentName,
+			Name:   KarmadaAgentName,
+			Labels: labels,
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
