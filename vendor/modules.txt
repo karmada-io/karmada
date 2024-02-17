@@ -1535,6 +1535,9 @@ k8s.io/component-helpers/apimachinery/lease
 k8s.io/component-helpers/node/topology
 k8s.io/component-helpers/scheduling/corev1
 k8s.io/component-helpers/scheduling/corev1/nodeaffinity
+# k8s.io/controller-manager v0.28.5
+## explicit; go 1.20
+k8s.io/controller-manager/pkg/healthz
 # k8s.io/gengo v0.0.0-20220902162205-c0856e24416d
 ## explicit; go 1.13
 k8s.io/gengo/args
