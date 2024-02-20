@@ -56,7 +56,7 @@ linters-settings:
       main:
         deny:
         - pkg: "io/ioutil"
-          desc: "Use corresponding 'os' or 'io' functions instead."
+          desc: "replaced by io and os packages since Go 1.16: https://tip.golang.org/doc/go1.16#ioutil"
   goimports:
     local-prefixes: github.com/karmada-io/karmada
   gocyclo:
