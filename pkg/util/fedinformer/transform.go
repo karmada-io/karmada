@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"reflect"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -114,6 +115,43 @@ func PodTransformFunc(obj interface{}) (interface{}, error) {
 			Phase:      pod.Status.Phase,
 			Conditions: pod.Status.Conditions,
 			StartTime:  pod.Status.StartTime,
+		},
+	}
+	return aggregatedPod, nil
+}
+
+// ReplicaSetTransformFunc is the dedicated transform function for ReplicaSet objects.
+// It cleans up some parts of the object before it will be put into the controller
+// cache to reduce memory usage.
+//
+// Note: this function removes most of the fields, please make sure your controller
+// doesn't care for the removed fields, especially when use in shared informers.
+func ReplicaSetTransformFunc(obj interface{}) (interface{}, error) {
+	var rs *appsv1.ReplicaSet
+	switch t := obj.(type) {
+	case *appsv1.ReplicaSet:
+		rs = t
+	case cache.DeletedFinalStateUnknown:
+		var ok bool
+		rs, ok = t.Obj.(*appsv1.ReplicaSet)
+		if !ok {
+			return obj, fmt.Errorf("expect resource ReplicaSet but got %v", reflect.TypeOf(t.Obj))
+		}
+	default:
+		return obj, fmt.Errorf("expect resource ReplicaSet but got %v", reflect.TypeOf(obj))
+	}
+
+	aggregatedPod := &appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      rs.Name,
+			Namespace: rs.Namespace,
+			Labels:    rs.Labels,
+		},
+		Spec: appsv1.ReplicaSetSpec{
+			Replicas: rs.Spec.Replicas,
+		},
+		Status: appsv1.ReplicaSetStatus{
+			AvailableReplicas: rs.Status.AvailableReplicas,
 		},
 	}
 	return aggregatedPod, nil
