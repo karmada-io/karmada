@@ -48,8 +48,15 @@ linters:
   - misspell
   - whitespace
   - revive
+  - depguard
 
 linters-settings:
+  depguard:
+    rules:
+      main:
+        deny:
+        - pkg: "io/ioutil"
+          desc: "Use corresponding 'os' or 'io' functions instead."
   goimports:
     local-prefixes: github.com/karmada-io/karmada
   gocyclo:
