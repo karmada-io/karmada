@@ -438,3 +438,31 @@ func TestGeneratePolicyName(t *testing.T) {
 		}
 	}
 }
+
+func TestClusteredKey(t *testing.T) {
+	tests := []struct {
+		testName string
+		cluster  string
+		name     string
+		expected string
+	}{
+		{
+			testName: "clusteredKey without cluster",
+			cluster:  "",
+			name:     "foo",
+			expected: "foo",
+		},
+		{
+			testName: "clusteredKey with cluster",
+			cluster:  "member1",
+			name:     "foo",
+			expected: "member1/foo",
+		},
+	}
+	for _, test := range tests {
+		got := ClusteredKey(test.cluster, test.name)
+		if got != test.expected {
+			t.Errorf("Test %s failed: expected %v, but got %v", test.testName, test.expected, got)
+		}
+	}
+}

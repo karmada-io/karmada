@@ -540,7 +540,7 @@ func (c *FHPAController) scaleForTargetCluster(clusters []string, hpa *autoscali
 			klog.Errorf("Failed to get podList for cluster %s.", cluster)
 			continue
 		}
-
+		completePodQuerySourceClusterAnnotations(podList, cluster)
 		multiClusterPodList = append(multiClusterPodList, podList...)
 	}
 
@@ -549,6 +549,18 @@ func (c *FHPAController) scaleForTargetCluster(clusters []string, hpa *autoscali
 	}
 
 	return multiClusterScale, multiClusterPodList, nil
+}
+
+func completePodQuerySourceClusterAnnotations(podList []*corev1.Pod, cluster string) {
+	for _, pod := range podList {
+		if pod.Annotations == nil {
+			pod.Annotations = map[string]string{autoscalingv1alpha1.QuerySourceAnnotationKey: cluster}
+			continue
+		}
+		if pod.Annotations[autoscalingv1alpha1.QuerySourceAnnotationKey] == "" {
+			pod.Annotations[autoscalingv1alpha1.QuerySourceAnnotationKey] = cluster
+		}
+	}
 }
 
 // buildPodInformerForCluster builds informer manager for cluster if it doesn't exist, then constructs informers for pod and start it. If the informer manager exist, return it.

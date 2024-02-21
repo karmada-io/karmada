@@ -27,8 +27,10 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 
+	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 	metricsclient "github.com/karmada-io/karmada/pkg/controllers/federatedhpa/metrics"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 // This file is basically lifted from https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/controller/podautoscaler/replica_calculator.go.
@@ -319,18 +321,18 @@ func groupPods(pods []*corev1.Pod, metrics metricsclient.PodMetricsInfo, resourc
 	ignoredPods = sets.New[string]()
 	for _, pod := range pods {
 		if pod.DeletionTimestamp != nil || pod.Status.Phase == corev1.PodFailed {
-			ignoredPods.Insert(pod.Name)
+			ignoredPods.Insert(names.ClusteredKey(pod.Annotations[autoscalingv1alpha1.QuerySourceAnnotationKey], pod.Name))
 			continue
 		}
 		// Pending pods are ignored.
 		if pod.Status.Phase == corev1.PodPending {
-			unreadyPods.Insert(pod.Name)
+			unreadyPods.Insert(names.ClusteredKey(pod.Annotations[autoscalingv1alpha1.QuerySourceAnnotationKey], pod.Name))
 			continue
 		}
 		// Pods missing metrics.
-		metric, found := metrics[pod.Name]
+		metric, found := metrics[names.ClusteredKey(pod.Annotations[autoscalingv1alpha1.QuerySourceAnnotationKey], pod.Name)]
 		if !found {
-			missingPods.Insert(pod.Name)
+			missingPods.Insert(names.ClusteredKey(pod.Annotations[autoscalingv1alpha1.QuerySourceAnnotationKey], pod.Name))
 			continue
 		}
 		// Unready pods are ignored.
@@ -350,7 +352,7 @@ func groupPods(pods []*corev1.Pod, metrics metricsclient.PodMetricsInfo, resourc
 				}
 			}
 			if unready {
-				unreadyPods.Insert(pod.Name)
+				unreadyPods.Insert(names.ClusteredKey(pod.Annotations[autoscalingv1alpha1.QuerySourceAnnotationKey], pod.Name))
 				continue
 			}
 		}
@@ -372,7 +374,7 @@ func calculatePodRequests(pods []*corev1.Pod, container string, resource corev1.
 				}
 			}
 		}
-		requests[pod.Name] = podSum
+		requests[names.ClusteredKey(pod.Annotations[autoscalingv1alpha1.QuerySourceAnnotationKey], pod.Name)] = podSum
 	}
 	return requests, nil
 }
