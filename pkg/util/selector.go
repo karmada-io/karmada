@@ -43,6 +43,8 @@ const (
 	PriorityMatchLabelSelector
 	// PriorityMatchName means the Name of ResourceSelector matches the resource.
 	PriorityMatchName
+	// wildcardKind indicates that any kinds within an apiGroup can be matched for a policy
+	wildcardKind = "*"
 )
 
 // ResourceMatches tells if the specific resource matches the selector.
@@ -52,9 +54,9 @@ func ResourceMatches(resource *unstructured.Unstructured, rs policyv1alpha1.Reso
 
 // ResourceSelectorPriority tells the priority between the specific resource and the selector.
 func ResourceSelectorPriority(resource *unstructured.Unstructured, rs policyv1alpha1.ResourceSelector) ImplicitPriority {
-	if resource.GetAPIVersion() != rs.APIVersion ||
-		resource.GetKind() != rs.Kind ||
-		(len(rs.Namespace) > 0 && resource.GetNamespace() != rs.Namespace) {
+	if rs.APIVersion != resource.GetAPIVersion() ||
+		(rs.Kind != wildcardKind && rs.Kind != resource.GetKind()) ||
+		(len(rs.Namespace) > 0 && rs.Namespace != resource.GetNamespace()) {
 		return PriorityMisMatch
 	}
 

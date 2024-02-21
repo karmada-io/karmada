@@ -853,6 +853,28 @@ var _ = ginkgo.Describe("[AdvancedPropagation] propagation testing", func() {
 					return true
 				})
 		})
+
+		ginkgo.It("supports wildcard kind", func() {
+			policy.Spec.ResourceSelectors = []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment01.APIVersion,
+					Kind:       "*",
+					Name:       deployment01.Name,
+				},
+				{
+					APIVersion: deployment02.APIVersion,
+					Kind:       "*",
+					Name:       deployment02.Name,
+				},
+			}
+			framework.UpdatePropagationPolicyWithSpec(karmadaClient, policy.Namespace, policy.Name, policy.Spec)
+
+			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment01.Namespace, deployment01.Name,
+				func(deployment *appsv1.Deployment) bool { return true })
+
+			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment02.Namespace, deployment02.Name,
+				func(deployment *appsv1.Deployment) bool { return true })
+		})
 	})
 
 	ginkgo.Context("Edit PropagationPolicy fields other than resourceSelectors", func() {
