@@ -17,7 +17,9 @@ limitations under the License.
 package federatedresourcequota
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -25,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/validation"
 )
 
 func Test_validateOverallAndAssignments(t *testing.T) {
@@ -168,6 +171,33 @@ func Test_validateOverallAndAssignments(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := validateOverallAndAssignments(tt.args.quotaSpec, tt.args.fld); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("validateOverallAndAssignments() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_validateFederatedResourceQuotaName(t *testing.T) {
+	invalidName := strings.Repeat("a", 64)
+	tests := []struct {
+		name string
+		want field.ErrorList
+	}{
+		{
+			name: invalidName,
+			want: field.ErrorList{
+				field.Invalid(field.NewPath("metadata").Child("name"), invalidName, fmt.Sprintf("must be no more than %d characters", validation.LabelValueMaxLength)),
+			},
+		},
+		{
+			name: "name-less-than-63-characters",
+			want: field.ErrorList{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := validateFederatedResourceQuotaName(tt.name, field.NewPath("metadata").Child("name")); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("validateFederatedResourceQuotaName() = %v, want %v", got, tt.want)
 			}
 		})
 	}
