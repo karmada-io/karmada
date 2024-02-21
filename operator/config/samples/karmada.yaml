@@ -4,6 +4,9 @@ metadata:
   name: karmada-demo
   namespace: test
 spec:
+  hostCluster:
+    networking:
+      dnsDomain: cluster.local
   components:
     etcd:
       local:
@@ -61,6 +64,3 @@ spec:
       # imageRepository: docker.io/karmada/karmada-descheduler
       # imageTag: v1.8.0
       # replicas: 1
-  hostCluster:
-    networking:
-      dnsDomain: cluster.local
