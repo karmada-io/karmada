@@ -44,6 +44,8 @@ const (
 	PolicyChanged = "PolicyChanged"
 	// ClusterChanged means binding needs to be rescheduled for the cluster changed
 	ClusterChanged = "ClusterChanged"
+	// ClusterResourcesChanged means binding needs to be rescheduled for the cluster resources changed
+	ClusterResourcesChanged = "ClusterResourcesChanged"
 )
 
 const (
