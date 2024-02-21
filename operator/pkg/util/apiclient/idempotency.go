@@ -250,7 +250,7 @@ func CreateOrUpdateStatefulSet(client clientset.Interface, statefulSet *appsv1.S
 		}
 	}
 
-	klog.V(5).InfoS("Successfully created or updated statefulset", "statefulset", statefulSet.GetName)
+	klog.V(5).InfoS("Successfully created or updated statefulset", "statefulset", statefulSet.GetName())
 	return nil
 }
 
@@ -275,7 +275,7 @@ func CreateOrUpdateClusterRole(client clientset.Interface, clusterrole *rbacv1.C
 		}
 	}
 
-	klog.V(4).InfoS("Successfully created or updated clusterrole", "clusterrole", clusterrole.GetName)
+	klog.V(4).InfoS("Successfully created or updated clusterrole", "clusterrole", clusterrole.GetName())
 	return nil
 }
 
