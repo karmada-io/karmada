@@ -15547,6 +15547,14 @@
           "description": "NodeSummary represents the summary of nodes status in the member cluster.",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.NodeSummary"
         },
+        "remedyActions": {
+          "description": "RemedyActions represents the remedy actions that needs to be performed on the cluster.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "default": ""
+          }
+        },
         "resourceSummary": {
           "description": "ResourceSummary represents the summary of resources in the member cluster.",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.ResourceSummary"
@@ -16142,7 +16150,7 @@
         "status": {
           "description": "Status is the current state of the MultiClusterIngress.",
           "default": {},
-          "$ref": "#/definitions/io.k8s.api.networking.v1.IngressStatus"
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.MultiClusterIngressStatus"
         }
       },
       "x-kubernetes-group-version-kind": [
@@ -16188,6 +16196,33 @@
           "version": "v1alpha1"
         }
       ]
+    },
+    "com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.MultiClusterIngressStatus": {
+      "description": "MultiClusterIngressStatus is the current state of the MultiClusterIngress.",
+      "type": "object",
+      "properties": {
+        "loadBalancer": {
+          "description": "loadBalancer contains the current status of the load-balancer.",
+          "default": {},
+          "$ref": "#/definitions/io.k8s.api.networking.v1.IngressLoadBalancerStatus"
+        },
+        "serviceLocations": {
+          "description": "ServiceLocations records the locations of MulticlusterIngress's backend Service resources. It will be set by the system controller.",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.ServiceLocation"
+          }
+        },
+        "trafficBlockClusters": {
+          "description": "TrafficBlockClusters records the cluster name list that needs to perform traffic block. When the cloud provider implements its multicluster-cloud-provider and refreshes the service backend address to the LoadBalancer Service, it needs to filter out the backend addresses in these clusters.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "default": ""
+          }
+        }
+      }
     },
     "com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.MultiClusterService": {
       "description": "MultiClusterService is a named abstraction of multi-cluster software service. The name field of MultiClusterService is the same as that of Service name. Services with the same name in different clusters are regarded as the same service and are associated with the same MultiClusterService. MultiClusterService can control the exposure of services to outside multiple clusters, and also enable service discovery between clusters.",
@@ -16322,6 +16357,28 @@
             "type": "string",
             "default": ""
           }
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.ServiceLocation": {
+      "description": "ServiceLocation records the locations of MulticlusterIngress's backend Service resources.",
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "clusters": {
+          "description": "Clusters records the cluster list where the Service is located.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "default": ""
+          }
+        },
+        "name": {
+          "description": "name is the referenced service. The service must exist in the same namespace as the MultiClusterService object.",
+          "type": "string",
+          "default": ""
         }
       }
     },
@@ -19194,17 +19251,6 @@
             "$ref": "#/definitions/io.k8s.api.networking.v1.IngressTLS"
           },
           "x-kubernetes-list-type": "atomic"
-        }
-      }
-    },
-    "io.k8s.api.networking.v1.IngressStatus": {
-      "description": "IngressStatus describe the current state of the Ingress.",
-      "type": "object",
-      "properties": {
-        "loadBalancer": {
-          "description": "loadBalancer contains the current status of the load-balancer.",
-          "default": {},
-          "$ref": "#/definitions/io.k8s.api.networking.v1.IngressLoadBalancerStatus"
         }
       }
     },

@@ -68,10 +68,12 @@ func TestValidateIngress(t *testing.T) {
 				},
 			}},
 		},
-		Status: networkingv1.IngressStatus{
-			LoadBalancer: networkingv1.IngressLoadBalancerStatus{
-				Ingress: []networkingv1.IngressLoadBalancerIngress{
-					{IP: "127.0.0.1"},
+		Status: networkingv1alpha1.MultiClusterIngressStatus{
+			IngressStatus: networkingv1.IngressStatus{
+				LoadBalancer: networkingv1.IngressLoadBalancerStatus{
+					Ingress: []networkingv1.IngressLoadBalancerIngress{
+						{IP: "127.0.0.1"},
+					},
 				},
 			},
 		},
@@ -294,10 +296,12 @@ func TestValidateIngressTLS(t *testing.T) {
 					},
 				}},
 			},
-			Status: networkingv1.IngressStatus{
-				LoadBalancer: networkingv1.IngressLoadBalancerStatus{
-					Ingress: []networkingv1.IngressLoadBalancerIngress{
-						{IP: "127.0.0.1"},
+			Status: networkingv1alpha1.MultiClusterIngressStatus{
+				IngressStatus: networkingv1.IngressStatus{
+					LoadBalancer: networkingv1.IngressLoadBalancerStatus{
+						Ingress: []networkingv1.IngressLoadBalancerIngress{
+							{IP: "127.0.0.1"},
+						},
 					},
 				},
 			},
@@ -437,36 +441,45 @@ func TestValidateIngressStatusUpdate(t *testing.T) {
 					},
 				}},
 			},
-			Status: networkingv1.IngressStatus{
-				LoadBalancer: networkingv1.IngressLoadBalancerStatus{
-					Ingress: []networkingv1.IngressLoadBalancerIngress{
-						{IP: "127.0.0.1", Hostname: "foo.bar.com"},
+			Status: networkingv1alpha1.MultiClusterIngressStatus{
+				IngressStatus: networkingv1.IngressStatus{
+					LoadBalancer: networkingv1.IngressLoadBalancerStatus{
+						Ingress: []networkingv1.IngressLoadBalancerIngress{
+							{IP: "127.0.0.1", Hostname: "foo.bar.com"},
+						},
 					},
 				},
 			},
 		}
 	}
 	newValue := newValid()
-	newValue.Status = networkingv1.IngressStatus{
-		LoadBalancer: networkingv1.IngressLoadBalancerStatus{
-			Ingress: []networkingv1.IngressLoadBalancerIngress{
-				{IP: "127.0.0.2", Hostname: "foo.com"},
+	newValue.Status = networkingv1alpha1.MultiClusterIngressStatus{
+		IngressStatus: networkingv1.IngressStatus{
+			LoadBalancer: networkingv1.IngressLoadBalancerStatus{
+				Ingress: []networkingv1.IngressLoadBalancerIngress{
+					{IP: "127.0.0.2", Hostname: "foo.com"},
+				},
 			},
 		},
 	}
+
 	invalidIP := newValid()
-	invalidIP.Status = networkingv1.IngressStatus{
-		LoadBalancer: networkingv1.IngressLoadBalancerStatus{
-			Ingress: []networkingv1.IngressLoadBalancerIngress{
-				{IP: "abcd", Hostname: "foo.com"},
+	invalidIP.Status = networkingv1alpha1.MultiClusterIngressStatus{
+		IngressStatus: networkingv1.IngressStatus{
+			LoadBalancer: networkingv1.IngressLoadBalancerStatus{
+				Ingress: []networkingv1.IngressLoadBalancerIngress{
+					{IP: "abcd", Hostname: "foo.com"},
+				},
 			},
 		},
 	}
 	invalidHostname := newValid()
-	invalidHostname.Status = networkingv1.IngressStatus{
-		LoadBalancer: networkingv1.IngressLoadBalancerStatus{
-			Ingress: []networkingv1.IngressLoadBalancerIngress{
-				{IP: "127.0.0.1", Hostname: "127.0.0.1"},
+	invalidHostname.Status = networkingv1alpha1.MultiClusterIngressStatus{
+		IngressStatus: networkingv1.IngressStatus{
+			LoadBalancer: networkingv1.IngressLoadBalancerStatus{
+				Ingress: []networkingv1.IngressLoadBalancerIngress{
+					{IP: "127.0.0.1", Hostname: "127.0.0.1"},
+				},
 			},
 		},
 	}

@@ -24,6 +24,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	remedyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -43,6 +44,7 @@ var localSchemeBuilder = runtime.SchemeBuilder{
 	configv1alpha1.AddToScheme,
 	networkingv1alpha1.AddToScheme,
 	policyv1alpha1.AddToScheme,
+	remedyv1alpha1.AddToScheme,
 	searchv1alpha1.AddToScheme,
 	workv1alpha1.AddToScheme,
 	workv1alpha2.AddToScheme,

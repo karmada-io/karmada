@@ -245,6 +245,11 @@ func (in *ClusterStatus) DeepCopyInto(out *ClusterStatus) {
 		*out = new(ResourceSummary)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.RemedyActions != nil {
+		in, out := &in.RemedyActions, &out.RemedyActions
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

@@ -353,6 +353,36 @@ spec:
                       type: object
                     type: array
                 type: object
+              serviceLocations:
+                description: ServiceLocations records the locations of MulticlusterIngress's
+                  backend Service resources. It will be set by the system controller.
+                items:
+                  description: ServiceLocation records the locations of MulticlusterIngress's
+                    backend Service resources.
+                  properties:
+                    clusters:
+                      description: Clusters records the cluster list where the Service
+                        is located.
+                      items:
+                        type: string
+                      type: array
+                    name:
+                      description: name is the referenced service. The service must
+                        exist in the same namespace as the MultiClusterService object.
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
+              trafficBlockClusters:
+                description: TrafficBlockClusters records the cluster name list that
+                  needs to perform traffic block. When the cloud provider implements
+                  its multicluster-cloud-provider and refreshes the service backend
+                  address to the LoadBalancer Service, it needs to filter out the
+                  backend addresses in these clusters.
+                items:
+                  type: string
+                type: array
             type: object
         type: object
     served: true

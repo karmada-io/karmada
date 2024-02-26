@@ -302,6 +302,11 @@ type ClusterStatus struct {
 	// ResourceSummary represents the summary of resources in the member cluster.
 	// +optional
 	ResourceSummary *ResourceSummary `json:"resourceSummary,omitempty"`
+
+	// RemedyActions represents the remedy actions that needs to be performed
+	// on the cluster.
+	// +optional
+	RemedyActions []string `json:"remedyActions,omitempty"`
 }
 
 // APIEnablement is a list of API resource, it is used to expose the name of the

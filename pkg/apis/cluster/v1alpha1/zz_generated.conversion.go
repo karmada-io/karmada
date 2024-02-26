@@ -387,6 +387,7 @@ func autoConvert_v1alpha1_ClusterStatus_To_cluster_ClusterStatus(in *ClusterStat
 	out.Conditions = *(*[]metav1.Condition)(unsafe.Pointer(&in.Conditions))
 	out.NodeSummary = (*cluster.NodeSummary)(unsafe.Pointer(in.NodeSummary))
 	out.ResourceSummary = (*cluster.ResourceSummary)(unsafe.Pointer(in.ResourceSummary))
+	out.RemedyActions = *(*[]string)(unsafe.Pointer(&in.RemedyActions))
 	return nil
 }
 
@@ -401,6 +402,7 @@ func autoConvert_cluster_ClusterStatus_To_v1alpha1_ClusterStatus(in *cluster.Clu
 	out.Conditions = *(*[]metav1.Condition)(unsafe.Pointer(&in.Conditions))
 	out.NodeSummary = (*NodeSummary)(unsafe.Pointer(in.NodeSummary))
 	out.ResourceSummary = (*ResourceSummary)(unsafe.Pointer(in.ResourceSummary))
+	out.RemedyActions = *(*[]string)(unsafe.Pointer(&in.RemedyActions))
 	return nil
 }
 
