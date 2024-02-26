@@ -648,7 +648,7 @@ spec:
                         type: string
                       serviceType:
                         description: ServiceType represents the service type of karmada
-                          apiserver. it is NodePort by default.
+                          apiserver. it is ClusterIP by default.
                         type: string
                     type: object
                   karmadaAggregatedAPIServer:

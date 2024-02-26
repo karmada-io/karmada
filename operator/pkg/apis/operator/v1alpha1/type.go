@@ -224,7 +224,7 @@ type KarmadaAPIServer struct {
 	ServiceSubnet *string `json:"serviceSubnet,omitempty"`
 
 	// ServiceType represents the service type of karmada apiserver.
-	// it is NodePort by default.
+	// it is ClusterIP by default.
 	// +optional
 	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`
 
