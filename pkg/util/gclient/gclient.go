@@ -30,6 +30,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	remedyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -50,6 +51,7 @@ func init() {
 	utilruntime.Must(mcsv1alpha1.AddToScheme(aggregatedScheme))         // add mcs-api schemes
 	utilruntime.Must(clusterapiv1beta1.AddToScheme(aggregatedScheme))   // add cluster-api v1beta1 schemes
 	utilruntime.Must(autoscalingv1alpha1.AddToScheme(aggregatedScheme)) // add autoscaling v1alpha1 schemes
+	utilruntime.Must(remedyv1alpha1.AddToScheme(aggregatedScheme))      // add autoscaling v1alpha1 schemes
 }
 
 // NewSchema returns a singleton schema set which aggregated Kubernetes's schemes and extended schemes.

@@ -19823,6 +19823,11 @@
           "version": "v1beta1"
         },
         {
+          "group": "remedy.karmada.io",
+          "kind": "DeleteOptions",
+          "version": "v1alpha1"
+        },
+        {
           "group": "resource.k8s.io",
           "kind": "DeleteOptions",
           "version": "v1alpha2"
@@ -20560,6 +20565,11 @@
           "group": "rbac.authorization.k8s.io",
           "kind": "WatchEvent",
           "version": "v1beta1"
+        },
+        {
+          "group": "remedy.karmada.io",
+          "kind": "WatchEvent",
+          "version": "v1alpha1"
         },
         {
           "group": "resource.k8s.io",

@@ -66,6 +66,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/multiclusterservice"
 	"github.com/karmada-io/karmada/pkg/controllers/namespace"
+	"github.com/karmada-io/karmada/pkg/controllers/remediation"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	"github.com/karmada-io/karmada/pkg/controllers/unifiedauth"
 	"github.com/karmada-io/karmada/pkg/dependenciesdistributor"
@@ -229,6 +230,7 @@ func init() {
 	controllers["multiclusterservice"] = startMCSController
 	controllers["endpointsliceCollect"] = startEndpointSliceCollectController
 	controllers["endpointsliceDispatch"] = startEndpointSliceDispatchController
+	controllers["remedy"] = startRemedyController
 }
 
 func startClusterController(ctx controllerscontext.Context) (enabled bool, err error) {
@@ -684,6 +686,17 @@ func startMCSController(ctx controllerscontext.Context) (enabled bool, err error
 		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err = mcsController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startRemedyController(ctx controllerscontext.Context) (enabled bool, err error) {
+	c := &remediation.RemedyController{
+		Client:           ctx.Mgr.GetClient(),
+		RateLimitOptions: ctx.Opts.RateLimiterOptions,
+	}
+	if err = c.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 	return true, nil
