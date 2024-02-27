@@ -66,6 +66,8 @@ spec:
             mountPath: /crds/bases/networking
           - name: {{ $name }}-crds-policy-bases
             mountPath: /crds/bases/policy
+          - name: {{ $name }}-crds-remedy-bases
+            mountPath: /crds/bases/remedy
           - name: {{ $name }}-crds-work-bases
             mountPath: /crds/bases/work
           - name: {{ $name }}-static-resources
@@ -93,6 +95,9 @@ spec:
         - name: {{ $name }}-crds-policy-bases
           configMap:
             name: {{ $name }}-crds-policy-bases
+        - name: {{ $name }}-crds-remedy-bases
+          configMap:
+            name: {{ $name }}-crds-remedy-bases
         - name: {{ $name }}-crds-work-bases
           configMap:
             name: {{ $name }}-crds-work-bases

@@ -1,0 +1,101 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: remedies.remedy.karmada.io
+spec:
+  group: remedy.karmada.io
+  names:
+    kind: Remedy
+    listKind: RemedyList
+    plural: remedies
+    singular: remedy
+  scope: Cluster
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Remedy represents the cluster-level management strategies based
+          on cluster conditions.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec represents the desired behavior of Remedy.
+            properties:
+              actions:
+                description: Actions specifies the actions that remedy system needs
+                  to perform. If empty, no action will be performed.
+                items:
+                  description: RemedyAction represents the action type the remedy
+                    system needs to preform.
+                  type: string
+                type: array
+              clusterAffinity:
+                description: ClusterAffinity specifies the clusters that Remedy needs
+                  to pay attention to. For clusters that meet the DecisionConditions,
+                  Actions will be preformed. If empty, all clusters will be selected.
+                properties:
+                  clusterNames:
+                    description: ClusterNames is the list of clusters to be selected.
+                    items:
+                      type: string
+                    type: array
+                type: object
+              decisionMatches:
+                description: DecisionMatches indicates the decision matches of triggering
+                  the remedy system to perform the actions. As long as any one DecisionMatch
+                  matches, the Actions will be preformed. If empty, the Actions will
+                  be performed immediately.
+                items:
+                  description: DecisionMatch represents the decision match detail
+                    of activating the remedy system.
+                  properties:
+                    clusterConditionMatch:
+                      description: ClusterConditionMatch describes the cluster condition
+                        requirement.
+                      properties:
+                        conditionStatus:
+                          description: ConditionStatus specifies the ClusterStatue
+                            condition status.
+                          type: string
+                        conditionType:
+                          description: ConditionType specifies the ClusterStatus condition
+                            type.
+                          type: string
+                        operator:
+                          description: Operator represents a conditionType's relationship
+                            to a conditionStatus. Valid operators are Equal, NotEqual.
+                          type: string
+                      required:
+                      - conditionStatus
+                      - conditionType
+                      - operator
+                      type: object
+                  type: object
+                type: array
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

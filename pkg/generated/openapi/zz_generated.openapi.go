@@ -84,9 +84,11 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposureRange":                           schema_pkg_apis_networking_v1alpha1_ExposureRange(ref),
 		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterIngress":                     schema_pkg_apis_networking_v1alpha1_MultiClusterIngress(ref),
 		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterIngressList":                 schema_pkg_apis_networking_v1alpha1_MultiClusterIngressList(ref),
+		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterIngressStatus":               schema_pkg_apis_networking_v1alpha1_MultiClusterIngressStatus(ref),
 		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterService":                     schema_pkg_apis_networking_v1alpha1_MultiClusterService(ref),
 		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterServiceList":                 schema_pkg_apis_networking_v1alpha1_MultiClusterServiceList(ref),
 		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterServiceSpec":                 schema_pkg_apis_networking_v1alpha1_MultiClusterServiceSpec(ref),
+		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ServiceLocation":                         schema_pkg_apis_networking_v1alpha1_ServiceLocation(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ApplicationFailoverBehavior":                 schema_pkg_apis_policy_v1alpha1_ApplicationFailoverBehavior(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity":                             schema_pkg_apis_policy_v1alpha1_ClusterAffinity(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinityTerm":                         schema_pkg_apis_policy_v1alpha1_ClusterAffinityTerm(ref),
@@ -1512,6 +1514,21 @@ func schema_pkg_apis_cluster_v1alpha1_ClusterStatus(ref common.ReferenceCallback
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.ResourceSummary"),
 						},
 					},
+					"remedyActions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RemedyActions represents the remedy actions that needs to be performed on the cluster.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -2805,14 +2822,14 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterIngress(ref common.Referenc
 						SchemaProps: spec.SchemaProps{
 							Description: "Status is the current state of the MultiClusterIngress.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("k8s.io/api/networking/v1.IngressStatus"),
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterIngressStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/api/networking/v1.IngressSpec", "k8s.io/api/networking/v1.IngressStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterIngressStatus", "k8s.io/api/networking/v1.IngressSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -2863,6 +2880,57 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterIngressList(ref common.Refe
 		},
 		Dependencies: []string{
 			"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterIngress", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_networking_v1alpha1_MultiClusterIngressStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MultiClusterIngressStatus is the current state of the MultiClusterIngress.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"loadBalancer": {
+						SchemaProps: spec.SchemaProps{
+							Description: "loadBalancer contains the current status of the load-balancer.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("k8s.io/api/networking/v1.IngressLoadBalancerStatus"),
+						},
+					},
+					"trafficBlockClusters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TrafficBlockClusters records the cluster name list that needs to perform traffic block. When the cloud provider implements its multicluster-cloud-provider and refreshes the service backend address to the LoadBalancer Service, it needs to filter out the backend addresses in these clusters.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"serviceLocations": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ServiceLocations records the locations of MulticlusterIngress's backend Service resources. It will be set by the system controller.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ServiceLocation"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ServiceLocation", "k8s.io/api/networking/v1.IngressLoadBalancerStatus"},
 	}
 }
 
@@ -3073,6 +3141,43 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterServiceSpec(ref common.Refe
 		},
 		Dependencies: []string{
 			"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ClusterSelector", "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposurePort", "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposureRange"},
+	}
+}
+
+func schema_pkg_apis_networking_v1alpha1_ServiceLocation(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ServiceLocation records the locations of MulticlusterIngress's backend Service resources.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "name is the referenced service. The service must exist in the same namespace as the MultiClusterService object.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"clusters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Clusters records the cluster list where the Service is located.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
 	}
 }
 

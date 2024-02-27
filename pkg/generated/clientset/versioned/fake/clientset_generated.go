@@ -30,6 +30,8 @@ import (
 	fakenetworkingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/networking/v1alpha1/fake"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1"
 	fakepolicyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1/fake"
+	remedyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/remedy/v1alpha1"
+	fakeremedyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/remedy/v1alpha1/fake"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/search/v1alpha1"
 	fakesearchv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/search/v1alpha1/fake"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha1"
@@ -116,6 +118,11 @@ func (c *Clientset) NetworkingV1alpha1() networkingv1alpha1.NetworkingV1alpha1In
 // PolicyV1alpha1 retrieves the PolicyV1alpha1Client
 func (c *Clientset) PolicyV1alpha1() policyv1alpha1.PolicyV1alpha1Interface {
 	return &fakepolicyv1alpha1.FakePolicyV1alpha1{Fake: &c.Fake}
+}
+
+// RemedyV1alpha1 retrieves the RemedyV1alpha1Client
+func (c *Clientset) RemedyV1alpha1() remedyv1alpha1.RemedyV1alpha1Interface {
+	return &fakeremedyv1alpha1.FakeRemedyV1alpha1{Fake: &c.Fake}
 }
 
 // SearchV1alpha1 retrieves the SearchV1alpha1Client

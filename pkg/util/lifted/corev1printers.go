@@ -23,11 +23,12 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/duration"
 
-	"github.com/karmada-io/karmada/pkg/printers"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
+
+	"github.com/karmada-io/karmada/pkg/printers"
 )
 
 const (
