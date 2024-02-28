@@ -654,6 +654,7 @@ etcd:
     ## @param image.repository etcd image repository
     ## @param image.tag etcd image tag (immutable tags are recommended)
     ## @param image.pullPolicy etcd image pull policy
+    ## @param image.pullSecrets Specify docker-registry secret names as an array
     ##
     image:
       registry: registry.k8s.io
@@ -661,6 +662,13 @@ etcd:
       tag: "3.5.9-0"
       ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
       pullPolicy: IfNotPresent
+      ## Optionally specify an array of imagePullSecrets.
+      ## Secrets must be manually created in the namespace.
+      ## Example:
+      ## pullSecrets:
+      ##   - myRegistryKeySecretName
+      ##
+      pullSecrets: [ ]
     ## @param etcd.internal.storageType storage type for etcd data
     ## "pvc" means using volumeClaimTemplates
     ## "hostPath" means using hostPath
