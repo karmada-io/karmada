@@ -79,6 +79,9 @@ spec:
                         operator:
                           description: Operator represents a conditionType's relationship
                             to a conditionStatus. Valid operators are Equal, NotEqual.
+                          enum:
+                          - Equal
+                          - NotEqual
                           type: string
                       required:
                       - conditionStatus

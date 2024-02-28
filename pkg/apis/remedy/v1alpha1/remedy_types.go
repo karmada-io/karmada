@@ -70,6 +70,8 @@ type ClusterConditionRequirement struct {
 	ConditionType ConditionType `json:"conditionType"`
 	// Operator represents a conditionType's relationship to a conditionStatus.
 	// Valid operators are Equal, NotEqual.
+	//
+	// +kubebuilder:validation:Enum=Equal;NotEqual
 	// +required
 	Operator ClusterConditionOperator `json:"operator"`
 	// ConditionStatus specifies the ClusterStatue condition status.
