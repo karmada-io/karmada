@@ -13,10 +13,11 @@ import (
 	context "context"
 	reflect "reflect"
 
+	gomock "go.uber.org/mock/gomock"
+
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	v1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	framework "github.com/karmada-io/karmada/pkg/scheduler/framework"
-	gomock "go.uber.org/mock/gomock"
 )
 
 // MockFramework is a mock of Framework interface.
