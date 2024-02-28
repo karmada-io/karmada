@@ -24,6 +24,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -68,8 +70,9 @@ func (h *clusterEventHandler) Generic(_ context.Context, e event.GenericEvent, q
 	}})
 }
 
-func newRemedyEventHandler(clusterChan chan<- event.GenericEvent) handler.EventHandler {
+func newRemedyEventHandler(clusterChan chan<- event.GenericEvent, client client.Client) handler.EventHandler {
 	return &remedyEventHandler{
+		client:      client,
 		clusterChan: clusterChan,
 	}
 }
@@ -77,22 +80,58 @@ func newRemedyEventHandler(clusterChan chan<- event.GenericEvent) handler.EventH
 var _ handler.EventHandler = (*remedyEventHandler)(nil)
 
 type remedyEventHandler struct {
+	client      client.Client
 	clusterChan chan<- event.GenericEvent
 }
 
-func (h *remedyEventHandler) Create(_ context.Context, e event.CreateEvent, _ workqueue.RateLimitingInterface) {
+func (h *remedyEventHandler) Create(ctx context.Context, e event.CreateEvent, _ workqueue.RateLimitingInterface) {
 	remedy := e.Object.(*remedyv1alpha1.Remedy)
-	for _, clusterName := range remedy.Spec.ClusterAffinity.ClusterNames {
+	if remedy.Spec.ClusterAffinity != nil {
+		for _, clusterName := range remedy.Spec.ClusterAffinity.ClusterNames {
+			h.clusterChan <- event.GenericEvent{Object: &clusterv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: clusterName,
+				}}}
+		}
+		return
+	}
+
+	clusterList := &clusterv1alpha1.ClusterList{}
+	err := h.client.List(ctx, clusterList)
+	if err != nil {
+		klog.Errorf("Failed to list cluster: %v", err)
+		return
+	}
+
+	for _, cluster := range clusterList.Items {
 		h.clusterChan <- event.GenericEvent{Object: &clusterv1alpha1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: clusterName,
+				Name: cluster.Name,
 			}}}
 	}
 }
 
-func (h *remedyEventHandler) Update(_ context.Context, e event.UpdateEvent, _ workqueue.RateLimitingInterface) {
+func (h *remedyEventHandler) Update(ctx context.Context, e event.UpdateEvent, _ workqueue.RateLimitingInterface) {
 	oldRemedy := e.ObjectOld.(*remedyv1alpha1.Remedy)
 	newRemedy := e.ObjectNew.(*remedyv1alpha1.Remedy)
+
+	if oldRemedy.Spec.ClusterAffinity == nil || newRemedy.Spec.ClusterAffinity == nil {
+		clusterList := &clusterv1alpha1.ClusterList{}
+		err := h.client.List(ctx, clusterList)
+		if err != nil {
+			klog.Errorf("Failed to list cluster: %v", err)
+			return
+		}
+
+		for _, cluster := range clusterList.Items {
+			h.clusterChan <- event.GenericEvent{Object: &clusterv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: cluster.Name,
+				}}}
+		}
+		return
+	}
+
 	clusters := sets.Set[string]{}
 	for _, clusterName := range oldRemedy.Spec.ClusterAffinity.ClusterNames {
 		clusters.Insert(clusterName)
@@ -108,12 +147,29 @@ func (h *remedyEventHandler) Update(_ context.Context, e event.UpdateEvent, _ wo
 	}
 }
 
-func (h *remedyEventHandler) Delete(_ context.Context, e event.DeleteEvent, _ workqueue.RateLimitingInterface) {
+func (h *remedyEventHandler) Delete(ctx context.Context, e event.DeleteEvent, _ workqueue.RateLimitingInterface) {
 	remedy := e.Object.(*remedyv1alpha1.Remedy)
-	for _, clusterName := range remedy.Spec.ClusterAffinity.ClusterNames {
+	if remedy.Spec.ClusterAffinity != nil {
+		for _, clusterName := range remedy.Spec.ClusterAffinity.ClusterNames {
+			h.clusterChan <- event.GenericEvent{Object: &clusterv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: clusterName,
+				}}}
+		}
+		return
+	}
+
+	clusterList := &clusterv1alpha1.ClusterList{}
+	err := h.client.List(ctx, clusterList)
+	if err != nil {
+		klog.Errorf("Failed to list cluster: %v", err)
+		return
+	}
+
+	for _, cluster := range clusterList.Items {
 		h.clusterChan <- event.GenericEvent{Object: &clusterv1alpha1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: clusterName,
+				Name: cluster.Name,
 			}}}
 	}
 }

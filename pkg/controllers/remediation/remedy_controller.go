@@ -133,7 +133,7 @@ func (c *RemedyController) SetupWithManager(mgr controllerruntime.Manager) error
 func (c *RemedyController) setupWatches(remedyController controller.Controller, mgr controllerruntime.Manager) error {
 	clusterChan := make(chan event.GenericEvent)
 	clusterHandler := newClusterEventHandler()
-	remedyHandler := newRemedyEventHandler(clusterChan)
+	remedyHandler := newRemedyEventHandler(clusterChan, c.Client)
 
 	if err := remedyController.Watch(source.Kind(mgr.GetCache(), &clusterv1alpha1.Cluster{}), clusterHandler); err != nil {
 		return err
