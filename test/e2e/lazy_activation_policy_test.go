@@ -54,9 +54,9 @@ var _ = ginkgo.Describe("Lazy activation policy testing", func() {
 
 	ginkgo.BeforeEach(func() {
 		policyNamespace = testNamespace
+		policyName1 = deploymentNamePrefix + rand.String(RandomStrLength)
 		deploymentNamespace = testNamespace
 		deploymentName = policyName1
-		policyName1 = deploymentNamePrefix + rand.String(RandomStrLength)
 		policyName2 = deploymentNamePrefix + rand.String(RandomStrLength)
 
 		deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
