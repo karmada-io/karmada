@@ -32,23 +32,25 @@ import (
 
 // RegisterSchedulerEstimator will register a SchedulerEstimator.
 func RegisterSchedulerEstimator(se *SchedulerEstimator) {
-	replicaEstimators["scheduler-estimator"] = se
-	unschedulableReplicaEstimators["scheduler-estimator"] = se
+	registerReplicaEstimator("scheduler-estimator", se)
+	registerUnschedulableReplicaEstimator("scheduler-estimator", se)
 }
 
 type getClusterReplicasFunc func(ctx context.Context, cluster string) (int32, error)
 
 // SchedulerEstimator is an estimator that calls karmada-scheduler-estimator for estimation.
 type SchedulerEstimator struct {
-	cache   *SchedulerEstimatorCache
-	timeout time.Duration
+	cache    *SchedulerEstimatorCache
+	timeout  time.Duration
+	priority EstimatorPriority
 }
 
 // NewSchedulerEstimator builds a new SchedulerEstimator.
-func NewSchedulerEstimator(cache *SchedulerEstimatorCache, timeout time.Duration) *SchedulerEstimator {
+func NewSchedulerEstimator(cache *SchedulerEstimatorCache, timeout time.Duration, priority EstimatorPriority) *SchedulerEstimator {
 	return &SchedulerEstimator{
-		cache:   cache,
-		timeout: timeout,
+		cache:    cache,
+		timeout:  timeout,
+		priority: priority,
 	}
 }
 
@@ -65,6 +67,11 @@ func (se *SchedulerEstimator) MaxAvailableReplicas(
 	return getClusterReplicasConcurrently(parentCtx, clusterNames, se.timeout, func(ctx context.Context, cluster string) (int32, error) {
 		return se.maxAvailableReplicas(ctx, cluster, replicaRequirements.DeepCopy())
 	})
+}
+
+// Priority provides the priority of this estimator.
+func (se *SchedulerEstimator) Priority() EstimatorPriority {
+	return se.priority
 }
 
 // GetUnschedulableReplicas gets the unschedulable replicas which belong to a specified workload by calling karmada-scheduler-estimator.

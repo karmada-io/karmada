@@ -262,7 +262,8 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 			ReconcileFunc: sched.reconcileEstimatorConnection,
 		}
 		sched.schedulerEstimatorWorker = util.NewAsyncWorker(schedulerEstimatorWorkerOptions)
-		schedulerEstimator := estimatorclient.NewSchedulerEstimator(sched.schedulerEstimatorCache, options.schedulerEstimatorTimeout.Duration)
+		schedulerEstimator := estimatorclient.NewSchedulerEstimator(sched.schedulerEstimatorCache,
+			options.schedulerEstimatorTimeout.Duration, estimatorclient.Accurate)
 		estimatorclient.RegisterSchedulerEstimator(schedulerEstimator)
 	}
 	sched.enableEmptyWorkloadPropagation = options.enableEmptyWorkloadPropagation

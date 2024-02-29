@@ -52,7 +52,11 @@ func getDefaultWeightPreference(clusters []*clusterv1alpha1.Cluster) *policyv1al
 }
 
 func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
+	// availableTargetClusters stores the result of estimated replicas for each clusters
 	availableTargetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
+	// clusterIndexToEstimatorPriority key refers to index of cluster slice,
+	// value refers to the EstimatorPriority of who gave its estimated result.
+	clusterIndexToEstimatorPriority := make(map[int]estimatorclient.EstimatorPriority)
 
 	// Set the boundary.
 	for i := range availableTargetClusters {
@@ -68,22 +72,51 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 		return availableTargetClusters
 	}
 
-	// Get the minimum value of MaxAvailableReplicas in terms of all estimators.
-	estimators := estimatorclient.GetReplicaEstimators()
+	// Get all replicaEstimators, which are stored in TreeMap.
+	replicaEstimators := estimatorclient.GetReplicaEstimators()
 	ctx := context.WithValue(context.TODO(), util.ContextKeyObject,
 		fmt.Sprintf("kind=%s, name=%s/%s", spec.Resource.Kind, spec.Resource.Namespace, spec.Resource.Name))
-	for _, estimator := range estimators {
-		res, err := estimator.MaxAvailableReplicas(ctx, clusters, spec.ReplicaRequirements)
-		if err != nil {
-			klog.Errorf("Max cluster available replicas error: %v", err)
-			continue
+
+	// List all replicaEstimators in order of descending priority. The estimators are grouped with different priorities,
+	// e.g: [priority:20, {estimators:[es1, es3]}, {priority:10, estimators:[es2, es4]}, ...]
+	estimatorGroups := replicaEstimators.Values()
+
+	// Iterate the estimator groups in order of descending priority
+	for _, estimatorGroup := range estimatorGroups {
+		// if higher-priority estimators have formed a full result of member clusters, no longer to call lower-priority estimator.
+		if len(clusterIndexToEstimatorPriority) == len(clusters) {
+			break
 		}
-		for i := range res {
-			if res[i].Replicas == estimatorclient.UnauthenticReplica {
+		estimatorsWithSamePriority := estimatorGroup.(map[string]estimatorclient.ReplicaEstimator)
+		// iterate through these estimators with the same priority.
+		for _, estimator := range estimatorsWithSamePriority {
+			res, err := estimator.MaxAvailableReplicas(ctx, clusters, spec.ReplicaRequirements)
+			if err != nil {
+				klog.Errorf("Max cluster available replicas error: %v", err)
 				continue
 			}
-			if availableTargetClusters[i].Name == res[i].Name && availableTargetClusters[i].Replicas > res[i].Replicas {
-				availableTargetClusters[i].Replicas = res[i].Replicas
+			for i := range res {
+				// the result of this cluster estimated failed, ignore the corresponding result
+				if res[i].Replicas == estimatorclient.UnauthenticReplica {
+					continue
+				}
+				// the cluster name not match, ignore, which hardly ever happens
+				if res[i].Name != availableTargetClusters[i].Name {
+					klog.Errorf("unexpected cluster name in the result of estimator with %d priority, "+
+						"expected: %s, got: %s", estimator.Priority(), availableTargetClusters[i].Name, res[i].Name)
+					continue
+				}
+				// the result of this cluster has already been estimated by higher-priority estimator,
+				// ignore the corresponding result by this estimator
+				if priority, ok := clusterIndexToEstimatorPriority[i]; ok && estimator.Priority() < priority {
+					continue
+				}
+				// if multiple estimators are called, choose the minimum value of each estimated result,
+				// record the priority of result provider.
+				if res[i].Replicas < availableTargetClusters[i].Replicas {
+					availableTargetClusters[i].Replicas = res[i].Replicas
+					clusterIndexToEstimatorPriority[i] = estimator.Priority()
+				}
 			}
 		}
 	}
