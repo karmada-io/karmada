@@ -25,6 +25,7 @@ metadata:
   name: {{ .DeploymentName }}
   namespace: {{ .Namespace }}
   labels:
+    app.kubernetes.io/managed-by: karmada-operator
     karmada-app: karmada-search
     apiserver: "true"
 spec:
@@ -96,6 +97,7 @@ metadata:
   name: {{ .ServiceName }}
   namespace: {{ .Namespace }}
   labels:
+    app.kubernetes.io/managed-by: karmada-operator
     karmada-app: karmada-search
     apiserver: "true"
 spec:
