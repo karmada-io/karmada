@@ -124,6 +124,12 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SpreadConstraint":                            schema_pkg_apis_policy_v1alpha1_SpreadConstraint(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StaticClusterAssignment":                     schema_pkg_apis_policy_v1alpha1_StaticClusterAssignment(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StaticClusterWeight":                         schema_pkg_apis_policy_v1alpha1_StaticClusterWeight(ref),
+		"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.ClusterAffinity":                             schema_pkg_apis_remedy_v1alpha1_ClusterAffinity(ref),
+		"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.ClusterConditionRequirement":                 schema_pkg_apis_remedy_v1alpha1_ClusterConditionRequirement(ref),
+		"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.DecisionMatch":                               schema_pkg_apis_remedy_v1alpha1_DecisionMatch(ref),
+		"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.Remedy":                                      schema_pkg_apis_remedy_v1alpha1_Remedy(ref),
+		"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.RemedyList":                                  schema_pkg_apis_remedy_v1alpha1_RemedyList(ref),
+		"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.RemedySpec":                                  schema_pkg_apis_remedy_v1alpha1_RemedySpec(ref),
 		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.BackendStoreConfig":                          schema_pkg_apis_search_v1alpha1_BackendStoreConfig(ref),
 		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.OpenSearchConfig":                            schema_pkg_apis_search_v1alpha1_OpenSearchConfig(ref),
 		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.Proxying":                                    schema_pkg_apis_search_v1alpha1_Proxying(ref),
@@ -4819,6 +4825,235 @@ func schema_pkg_apis_policy_v1alpha1_StaticClusterWeight(ref common.ReferenceCal
 		},
 		Dependencies: []string{
 			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity"},
+	}
+}
+
+func schema_pkg_apis_remedy_v1alpha1_ClusterAffinity(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ClusterAffinity represents the filter to select clusters.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"clusterNames": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClusterNames is the list of clusters to be selected.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_remedy_v1alpha1_ClusterConditionRequirement(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ClusterConditionRequirement describes the Cluster condition requirement details.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"conditionType": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConditionType specifies the ClusterStatus condition type.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"operator": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Operator represents a conditionType's relationship to a conditionStatus. Valid operators are Equal, NotEqual.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"conditionStatus": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConditionStatus specifies the ClusterStatue condition status.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"conditionType", "operator", "conditionStatus"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_remedy_v1alpha1_DecisionMatch(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DecisionMatch represents the decision match detail of activating the remedy system.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"clusterConditionMatch": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClusterConditionMatch describes the cluster condition requirement.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.ClusterConditionRequirement"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.ClusterConditionRequirement"},
+	}
+}
+
+func schema_pkg_apis_remedy_v1alpha1_Remedy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Remedy represents the cluster-level management strategies based on cluster conditions.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Spec represents the desired behavior of Remedy.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.RemedySpec"),
+						},
+					},
+				},
+				Required: []string{"spec"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.RemedySpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_remedy_v1alpha1_RemedyList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RemedyList contains a list of Remedy.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.Remedy"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.Remedy", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_remedy_v1alpha1_RemedySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RemedySpec represents the desired behavior of Remedy.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"clusterAffinity": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClusterAffinity specifies the clusters that Remedy needs to pay attention to. For clusters that meet the DecisionConditions, Actions will be preformed. If empty, all clusters will be selected.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.ClusterAffinity"),
+						},
+					},
+					"decisionMatches": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DecisionMatches indicates the decision matches of triggering the remedy system to perform the actions. As long as any one DecisionMatch matches, the Actions will be preformed. If empty, the Actions will be performed immediately.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.DecisionMatch"),
+									},
+								},
+							},
+						},
+					},
+					"actions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Actions specifies the actions that remedy system needs to perform. If empty, no action will be performed.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.ClusterAffinity", "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.DecisionMatch"},
 	}
 }
 
