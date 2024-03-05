@@ -228,6 +228,11 @@ type KarmadaAPIServer struct {
 	// +optional
 	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`
 
+	// ServiceAnnotations is an extra set of annotations for service of karmada apiserver.
+	// more info: https://github.com/karmada-io/karmada/issues/4634
+	// +optional
+	ServiceAnnotations map[string]string `json:"serviceAnnotations,omitempty"`
+
 	// ExtraArgs is an extra set of flags to pass to the kube-apiserver component or
 	// override. A key in this map is the flag name as it appears on the command line except
 	// without leading dash(es).
