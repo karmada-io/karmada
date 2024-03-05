@@ -55,7 +55,7 @@
     "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1": "configv1alpha1",
     "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1": "networkingv1alpha1",
     "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1": "policyv1alpha1",
-    "github.com/karmada-io/karmada/pkg/apis/remediation/v1alpha1": "remediationv1alpha1",
+    "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1": "remedyv1alpha1",
     "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1": "searchv1alpha1",
     "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1": "workv1alpha1",
     "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2": "workv1alpha2",
