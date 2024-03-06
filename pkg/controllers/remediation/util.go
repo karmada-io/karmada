@@ -17,9 +17,12 @@ limitations under the License.
 package remediation
 
 import (
+	"context"
+
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	remedyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1"
@@ -84,4 +87,20 @@ func calculateActions(clusterRelatedRemedies []*remedyv1alpha1.Remedy, cluster *
 		}
 	}
 	return actionSet.List()
+}
+
+func getClusterRelatedRemedies(ctx context.Context, client client.Client, cluster *clusterv1alpha1.Cluster) ([]*remedyv1alpha1.Remedy, error) {
+	remedyList := &remedyv1alpha1.RemedyList{}
+	if err := client.List(ctx, remedyList); err != nil {
+		return nil, err
+	}
+
+	var clusterRelatedRemedies []*remedyv1alpha1.Remedy
+	for index := range remedyList.Items {
+		remedy := remedyList.Items[index]
+		if isRemedyWorkOnCluster(&remedy, cluster) {
+			clusterRelatedRemedies = append(clusterRelatedRemedies, &remedy)
+		}
+	}
+	return clusterRelatedRemedies, nil
 }
