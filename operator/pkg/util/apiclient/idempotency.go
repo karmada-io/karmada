@@ -201,7 +201,7 @@ func CreateOrUpdateAPIService(apiRegistrationClient *aggregator.Clientset, apise
 		}
 	}
 
-	klog.V(5).Infof("Successfully created or updated APIService", "APIService", apiservice.Name)
+	klog.V(5).InfoS("Successfully created or updated APIService", "APIService", apiservice.Name)
 	return nil
 }
 
