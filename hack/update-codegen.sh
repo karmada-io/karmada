@@ -228,6 +228,7 @@ openapi-gen \
   --input-dirs "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1" \
   --input-dirs "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1" \
   --input-dirs "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1" \
+  --input-dirs "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1" \
   --input-dirs "k8s.io/api/core/v1,k8s.io/apimachinery/pkg/api/resource" \
   --input-dirs "k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/apimachinery/pkg/runtime,k8s.io/apimachinery/pkg/version" \
   --input-dirs "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1,k8s.io/api/admissionregistration/v1,k8s.io/api/networking/v1" \
