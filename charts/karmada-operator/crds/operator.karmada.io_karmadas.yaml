@@ -642,6 +642,12 @@ spec:
                               Requests cannot exceed Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                             type: object
                         type: object
+                      serviceAnnotations:
+                        additionalProperties:
+                          type: string
+                        description: 'ServiceAnnotations is an extra set of annotations
+                          for service of karmada apiserver. more info: https://github.com/karmada-io/karmada/issues/4634'
+                        type: object
                       serviceSubnet:
                         description: ServiceSubnet is the subnet used by k8s services.
                           Defaults to "10.96.0.0/12".

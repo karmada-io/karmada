@@ -21,6 +21,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	kuberuntime "k8s.io/apimachinery/pkg/runtime"
 	clientset "k8s.io/client-go/kubernetes"
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
@@ -99,6 +100,9 @@ func createKarmadaAPIServerService(client clientset.Interface, cfg *operatorv1al
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), karmadaApiserverServiceBytes, karmadaApiserverService); err != nil {
 		return fmt.Errorf("error when decoding karmadaApiserver serive: %w", err)
 	}
+
+	// merge annotaions with configuration of karmada apiserver.
+	karmadaApiserverService.Annotations = labels.Merge(karmadaApiserverService.Annotations, cfg.ServiceAnnotations)
 
 	if err := apiclient.CreateOrUpdateService(client, karmadaApiserverService); err != nil {
 		return fmt.Errorf("err when creating service for %s, err: %w", karmadaApiserverService.Name, err)
