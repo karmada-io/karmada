@@ -47,6 +47,12 @@ type ResourceBindingSpec struct {
 	// Clusters represents target member clusters where the resource to be deployed.
 	// +optional
 	Clusters []TargetCluster `json:"clusters,omitempty"`
+	// Suspend will instruct all work objects to pause propagation to member clusters.
+	// Defaults to false.
+	//
+	// +kubebuilder:default=false
+	// +optional
+	Suspend bool `json:"suspend,omitempty"`
 }
 
 // ObjectReference contains enough information to locate the referenced object inside current cluster.

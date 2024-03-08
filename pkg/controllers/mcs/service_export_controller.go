@@ -493,7 +493,7 @@ func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructur
 		return err
 	}
 
-	if err := helper.CreateOrUpdateWork(c, workMeta, endpointSlice); err != nil {
+	if err := helper.CreateOrUpdateWork(c, workMeta, endpointSlice, false); err != nil {
 		return err
 	}
 

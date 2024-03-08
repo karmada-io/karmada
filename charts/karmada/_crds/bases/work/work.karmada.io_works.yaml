@@ -54,6 +54,12 @@ spec:
           spec:
             description: Spec represents the desired behavior of Work.
             properties:
+              suspend:
+                default: false
+                description: |-
+                  Suspend tells the controller to suspend subsequent executions.
+                  Defaults to false.
+                type: boolean
               workload:
                 description: Workload represents the manifest workload to be deployed
                   on managed cluster.

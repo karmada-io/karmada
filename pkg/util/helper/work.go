@@ -38,7 +38,7 @@ import (
 )
 
 // CreateOrUpdateWork creates a Work object if not exist, or updates if it already exists.
-func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resource *unstructured.Unstructured) error {
+func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resource *unstructured.Unstructured, suspend bool) error {
 	if workMeta.Labels[util.PropagationInstruction] != util.PropagationInstructionSuppressed {
 		resource = resource.DeepCopy()
 		// set labels
@@ -61,6 +61,7 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 	work := &workv1alpha1.Work{
 		ObjectMeta: workMeta,
 		Spec: workv1alpha1.WorkSpec{
+			Suspend: suspend,
 			Workload: workv1alpha1.WorkloadTemplate{
 				Manifests: []workv1alpha1.Manifest{
 					{

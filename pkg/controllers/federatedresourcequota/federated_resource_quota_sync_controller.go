@@ -183,7 +183,7 @@ func (c *SyncController) buildWorks(quota *policyv1alpha1.FederatedResourceQuota
 			},
 		}
 
-		err = helper.CreateOrUpdateWork(c.Client, objectMeta, resourceQuotaObj)
+		err = helper.CreateOrUpdateWork(c.Client, objectMeta, resourceQuotaObj, false)
 		if err != nil {
 			errs = append(errs, err)
 		}

@@ -108,6 +108,11 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 		return c.removeFinalizer(work)
 	}
 
+	if work.Spec.Suspend {
+		klog.V(4).Infof("Skip syncing work(%s/%s) for cluster(%s) as work is suspended.", work.Namespace, work.Name, cluster.Name)
+		return controllerruntime.Result{}, nil
+	}
+
 	if !util.IsClusterReady(&cluster.Status) {
 		klog.Errorf("Stop syncing the work(%s/%s) for the cluster(%s) as cluster not ready.", work.Namespace, work.Name, cluster.Name)
 		return controllerruntime.Result{}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
