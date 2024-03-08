@@ -4592,6 +4592,13 @@ func schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"suspend": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Suspend tells the controller to suspend subsequent executions. Defaults to false.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"resourceSelectors"},
 			},
@@ -5773,6 +5780,13 @@ func schema_pkg_apis_work_v1alpha1_ResourceBindingSpec(ref common.ReferenceCallb
 							},
 						},
 					},
+					"suspend": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Suspend tells the controller to suspend subsequent executions. Defaults to false.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"resource"},
 			},
@@ -6034,6 +6048,13 @@ func schema_pkg_apis_work_v1alpha1_WorkSpec(ref common.ReferenceCallback) common
 							Description: "Workload represents the manifest workload to be deployed on managed cluster.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.WorkloadTemplate"),
+						},
+					},
+					"suspend": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Suspend tells the controller to suspend subsequent executions. Defaults to false.",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 				},
@@ -6745,6 +6766,13 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 						SchemaProps: spec.SchemaProps{
 							Description: "ConflictResolution declares how potential conflict should be handled when a resource that is being propagated already exists in the target cluster.\n\nIt defaults to \"Abort\" which means stop propagating to avoid unexpected overwrites. The \"Overwrite\" might be useful when migrating legacy cluster resources to Karmada, in which case conflict is predictable and can be instructed to Karmada take over the resource by overwriting.",
 							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"suspend": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Suspend tells the controller to suspend subsequent executions. Defaults to false.",
+							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},

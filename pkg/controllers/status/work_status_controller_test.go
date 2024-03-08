@@ -294,6 +294,37 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 			expectRes: controllerruntime.Result{},
 			existErr:  true,
 		},
+		{
+			name: "work is suspended, no error, no apply",
+			c: WorkStatusController{
+				Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
+				InformerManager:             genericmanager.GetInstance(),
+				PredicateFunc:               helper.NewClusterPredicateOnAgent("test"),
+				ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+				ClusterCacheSyncTimeout:     metav1.Duration{},
+				RateLimiterOptions:          ratelimiterflag.Options{},
+			},
+			work: &workv1alpha1.Work{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "work",
+					Namespace: "karmada-es-cluster",
+				},
+				Spec: workv1alpha1.WorkSpec{
+					Suspend: true,
+				},
+				Status: workv1alpha1.WorkStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:   workv1alpha1.WorkApplied,
+							Status: metav1.ConditionTrue,
+						},
+					},
+				},
+			},
+			ns:        "karmada-es-cluster",
+			expectRes: controllerruntime.Result{},
+			existErr:  false,
+		},
 	}
 
 	for _, tt := range tests {

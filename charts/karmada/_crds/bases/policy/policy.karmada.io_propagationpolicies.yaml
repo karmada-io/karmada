@@ -769,6 +769,11 @@ spec:
                   scheduler. If not specified, the policy will be dispatched by default
                   scheduler.
                 type: string
+              suspend:
+                default: false
+                description: Suspend tells the controller to suspend subsequent executions.
+                  Defaults to false.
+                type: boolean
             required:
             - resourceSelectors
             type: object

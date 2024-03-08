@@ -57,6 +57,13 @@ type Work struct {
 type WorkSpec struct {
 	// Workload represents the manifest workload to be deployed on managed cluster.
 	Workload WorkloadTemplate `json:"workload,omitempty"`
+
+	// Suspend tells the controller to suspend subsequent executions.
+	// Defaults to false.
+	//
+	// +kubebuilder:default=false
+	// +optional
+	Suspend bool `json:"suspend,omitempty"`
 }
 
 // WorkloadTemplate represents the manifest workload to be deployed on managed cluster.

@@ -101,6 +101,11 @@ spec:
                 - kind
                 - name
                 type: object
+              suspend:
+                default: false
+                description: Suspend tells the controller to suspend subsequent executions.
+                  Defaults to false.
+                type: boolean
             required:
             - resource
             type: object
@@ -1165,6 +1170,11 @@ spec:
                   scheduling. It inherits directly from the associated PropagationPolicy(or
                   ClusterPropagationPolicy).
                 type: string
+              suspend:
+                default: false
+                description: Suspend tells the controller to suspend subsequent executions.
+                  Defaults to false.
+                type: boolean
             required:
             - resource
             type: object

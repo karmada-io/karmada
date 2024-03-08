@@ -95,6 +95,11 @@ func (c *WorkStatusController) Reconcile(ctx context.Context, req controllerrunt
 		return controllerruntime.Result{}, nil
 	}
 
+	if work.Spec.Suspend {
+		klog.V(4).Infof("Skip syncing work(%s/%s) status as it's suspended.", work.Namespace, work.Name)
+		return controllerruntime.Result{}, nil
+	}
+
 	if !helper.IsResourceApplied(&work.Status) {
 		return controllerruntime.Result{}, nil
 	}

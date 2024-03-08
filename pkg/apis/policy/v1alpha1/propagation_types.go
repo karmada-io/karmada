@@ -173,6 +173,13 @@ type PropagationSpec struct {
 	// +kubebuilder:validation:Enum=Lazy
 	// +optional
 	ActivationPreference ActivationPreference `json:"activationPreference,omitempty"`
+
+	// Suspend tells the controller to suspend subsequent executions.
+	// Defaults to false.
+	//
+	// +kubebuilder:default=false
+	// +optional
+	Suspend bool `json:"suspend,omitempty"`
 }
 
 // ResourceSelector the resources will be selected.

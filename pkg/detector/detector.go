@@ -481,6 +481,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 			bindingCopy.Spec.Placement = binding.Spec.Placement
 			bindingCopy.Spec.Failover = binding.Spec.Failover
 			bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
+			bindingCopy.Spec.Suspend = binding.Spec.Suspend
 			excludeClusterPolicy(bindingCopy.Labels)
 			return nil
 		})
@@ -580,6 +581,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 				bindingCopy.Spec.Placement = binding.Spec.Placement
 				bindingCopy.Spec.Failover = binding.Spec.Failover
 				bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
+				bindingCopy.Spec.Suspend = binding.Spec.Suspend
 				return nil
 			})
 			if err != nil {
@@ -632,6 +634,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 				bindingCopy.Spec.Placement = binding.Spec.Placement
 				bindingCopy.Spec.Failover = binding.Spec.Failover
 				bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
+				bindingCopy.Spec.Suspend = binding.Spec.Suspend
 				return nil
 			})
 			return err
@@ -795,6 +798,7 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 			Placement:          &policySpec.Placement,
 			Failover:           policySpec.Failover,
 			ConflictResolution: policySpec.ConflictResolution,
+			Suspend:            policySpec.Suspend,
 			Resource: workv1alpha2.ObjectReference{
 				APIVersion:      object.GetAPIVersion(),
 				Kind:            object.GetKind(),
@@ -839,6 +843,7 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 			Placement:          &policySpec.Placement,
 			Failover:           policySpec.Failover,
 			ConflictResolution: policySpec.ConflictResolution,
+			Suspend:            policySpec.Suspend,
 			Resource: workv1alpha2.ObjectReference{
 				APIVersion:      object.GetAPIVersion(),
 				Kind:            object.GetKind(),

@@ -92,6 +92,8 @@ func ConvertBindingSpecToHub(src *ResourceBindingSpec, dst *workv1alpha2.Resourc
 	for i := range src.Clusters {
 		dst.Clusters = append(dst.Clusters, workv1alpha2.TargetCluster(src.Clusters[i]))
 	}
+
+	dst.Suspend = src.Suspend
 }
 
 // ConvertBindingStatusToHub converts ResourceBindingStatus to the Hub version.
@@ -124,6 +126,8 @@ func ConvertBindingSpecFromHub(src *workv1alpha2.ResourceBindingSpec, dst *Resou
 	for i := range src.Clusters {
 		dst.Clusters = append(dst.Clusters, TargetCluster(src.Clusters[i]))
 	}
+
+	dst.Suspend = src.Suspend
 }
 
 // ConvertBindingStatusFromHub converts ResourceBindingStatus from the Hub version.

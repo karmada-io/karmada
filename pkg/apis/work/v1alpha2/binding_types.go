@@ -136,6 +136,13 @@ type ResourceBindingSpec struct {
 	// +kubebuilder:validation:Enum=Abort;Overwrite
 	// +optional
 	ConflictResolution policyv1alpha1.ConflictResolution `json:"conflictResolution,omitempty"`
+
+	// Suspend tells the controller to suspend subsequent executions.
+	// Defaults to false.
+	//
+	// +kubebuilder:default=false
+	// +optional
+	Suspend bool `json:"suspend,omitempty"`
 }
 
 // ObjectReference contains enough information to locate the referenced object inside current cluster.

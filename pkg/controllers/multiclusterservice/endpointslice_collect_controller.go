@@ -383,7 +383,7 @@ func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructur
 		return err
 	}
 
-	if err := helper.CreateOrUpdateWork(c, workMeta, endpointSlice); err != nil {
+	if err := helper.CreateOrUpdateWork(c, workMeta, endpointSlice, false); err != nil {
 		klog.Errorf("Failed to create or update work(%s/%s), Error: %v", workMeta.Namespace, workMeta.Name, err)
 		return err
 	}
