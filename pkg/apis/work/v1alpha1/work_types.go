@@ -57,6 +57,12 @@ type Work struct {
 type WorkSpec struct {
 	// Workload represents the manifest workload to be deployed on managed cluster.
 	Workload WorkloadTemplate `json:"workload,omitempty"`
+
+	// SuspendDispatching controls whether dispatching should
+	// be suspended, nil means not suspend.
+	// Note: true means stop propagating to all clusters.
+	// +optional
+	SuspendDispatching *bool `json:"suspendDispatching,omitempty"`
 }
 
 // WorkloadTemplate represents the manifest workload to be deployed on managed cluster.

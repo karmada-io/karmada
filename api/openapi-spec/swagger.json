@@ -19118,6 +19118,10 @@
         "schedulerName": {
           "description": "SchedulerName represents which scheduler to proceed the scheduling. If specified, the policy will be dispatched by specified scheduler. If not specified, the policy will be dispatched by default scheduler.",
           "type": "string"
+        },
+        "suspension": {
+          "description": "Suspension declares the policy for suspending different aspects of propagation. nil means no suspension. no default values.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Suspension"
         }
       }
     },
@@ -19253,6 +19257,34 @@
           "type": "integer",
           "format": "int64",
           "default": 0
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.SuspendClusters": {
+      "description": "SuspendClusters represents a group of clusters that should be suspended from propagating. Note: No plan to introduce the label selector or field selector to select clusters yet, as it would make the system unpredictable.",
+      "type": "object",
+      "properties": {
+        "clusterNames": {
+          "description": "ClusterNames is the list of clusters to be selected.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "default": ""
+          }
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Suspension": {
+      "description": "Suspension defines the policy for suspending different aspects of propagation.",
+      "type": "object",
+      "properties": {
+        "dispatching": {
+          "description": "Dispatching controls whether dispatching should be suspended. nil means not suspend, no default value, only accepts 'true'. Note: true means stop propagating to all clusters. Can not co-exist with DispatchingOnClusters which is used to suspend particular clusters.",
+          "type": "boolean"
+        },
+        "dispatchingOnClusters": {
+          "description": "DispatchingOnClusters declares a list of clusters to which the dispatching should be suspended. Note: Can not co-exist with Dispatching which is used to suspend all.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.SuspendClusters"
         }
       }
     },
@@ -19720,6 +19752,10 @@
       "description": "WorkSpec defines the desired state of Work.",
       "type": "object",
       "properties": {
+        "suspendDispatching": {
+          "description": "SuspendDispatching controls whether dispatching should be suspended, nil means not suspend. Note: true means stop propagating to all clusters.",
+          "type": "boolean"
+        },
         "workload": {
           "description": "Workload represents the manifest workload to be deployed on managed cluster.",
           "default": {},
@@ -20171,6 +20207,10 @@
         "schedulerName": {
           "description": "SchedulerName represents which scheduler to proceed the scheduling. It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).",
           "type": "string"
+        },
+        "suspension": {
+          "description": "Suspension declares the policy for suspending different aspects of propagation. nil means no suspension. no default values.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Suspension"
         }
       }
     },

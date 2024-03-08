@@ -146,6 +146,11 @@ type ResourceBindingSpec struct {
 	// It is represented in RFC3339 form (like '2006-01-02T15:04:05Z') and is in UTC.
 	// +optional
 	RescheduleTriggeredAt *metav1.Time `json:"rescheduleTriggeredAt,omitempty"`
+
+	// Suspension declares the policy for suspending different aspects of propagation.
+	// nil means no suspension. no default values.
+	// +optional
+	Suspension *policyv1alpha1.Suspension `json:"suspension,omitempty"`
 }
 
 // ObjectReference contains enough information to locate the referenced object inside current cluster.

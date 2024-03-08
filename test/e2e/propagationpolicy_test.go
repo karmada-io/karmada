@@ -1110,3 +1110,61 @@ var _ = ginkgo.Describe("[AdvancedPropagation] propagation testing", func() {
 		})
 	})
 })
+
+var _ = ginkgo.Describe("[Suspend] PropagationPolicy testing", func() {
+	var policy *policyv1alpha1.PropagationPolicy
+	var deployment *appsv1.Deployment
+	var targetMember string
+
+	ginkgo.BeforeEach(func() {
+		targetMember = framework.ClusterNames()[0]
+		policyNamespace := testNamespace
+		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
+		deployment = testhelper.NewDeployment(testNamespace, policyName+"01")
+		policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: deployment.APIVersion,
+				Kind:       deployment.Kind,
+				Name:       deployment.Name,
+			}}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: []string{targetMember},
+			},
+		})
+	})
+
+	ginkgo.BeforeEach(func() {
+		framework.CreateDeployment(kubeClient, deployment)
+		ginkgo.DeferCleanup(func() {
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+		})
+	})
+
+	ginkgo.Context("suspend the PropagationPolicy dispatching", func() {
+		ginkgo.BeforeEach(func() {
+			policy.Spec.Suspension = &policyv1alpha1.Suspension{
+				Dispatching: ptr.To(true),
+			}
+
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+		})
+
+		ginkgo.It("suspends ResourceBinding", func() {
+			framework.WaitResourceBindingFitWith(karmadaClient, deployment.Namespace, names.GenerateBindingName(deployment.Kind, deployment.Name), func(binding *workv1alpha2.ResourceBinding) bool {
+				return binding.Spec.Suspension != nil && ptr.Deref(binding.Spec.Suspension.Dispatching, false)
+			})
+		})
+
+		ginkgo.It("suspends Work", func() {
+			workName := names.GenerateWorkName(deployment.Kind, deployment.Name, deployment.Namespace)
+			esName := names.GenerateExecutionSpaceName(targetMember)
+			gomega.Eventually(func() bool {
+				work, err := karmadaClient.WorkV1alpha1().Works(esName).Get(context.TODO(), workName, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+				return work != nil && ptr.Deref(work.Spec.SuspendDispatching, false)
+			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+		})
+	})
+})

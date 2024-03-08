@@ -348,6 +348,11 @@ func (in *ResourceBindingSpec) DeepCopyInto(out *ResourceBindingSpec) {
 		in, out := &in.RescheduleTriggeredAt, &out.RescheduleTriggeredAt
 		*out = (*in).DeepCopy()
 	}
+	if in.Suspension != nil {
+		in, out := &in.Suspension, &out.Suspension
+		*out = new(v1alpha1.Suspension)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 

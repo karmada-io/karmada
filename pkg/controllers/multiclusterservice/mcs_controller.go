@@ -256,7 +256,7 @@ func (c *MCSController) handleMultiClusterServiceCreateOrUpdate(mcs *networkingv
 	// 5. make sure service exist
 	svc := &corev1.Service{}
 	err = c.Client.Get(context.Background(), types.NamespacedName{Namespace: mcs.Namespace, Name: mcs.Name}, svc)
-	// If the Service are deleted, the Service's ResourceBinding will be cleaned by GC
+	// If the Service is deleted, the Service's ResourceBinding will be cleaned by GC
 	if err != nil {
 		klog.Errorf("Failed to get service(%s/%s):%v", mcs.Namespace, mcs.Name, err)
 		return err
@@ -309,7 +309,7 @@ func (c *MCSController) propagateMultiClusterService(mcs *networkingv1alpha1.Mul
 			klog.Errorf("Failed to convert MultiClusterService(%s/%s) to unstructured object, err is %v", mcs.Namespace, mcs.Name, err)
 			return err
 		}
-		if err = helper.CreateOrUpdateWork(c, workMeta, mcsObj); err != nil {
+		if err = helper.CreateOrUpdateWork(c, workMeta, mcsObj, nil); err != nil {
 			klog.Errorf("Failed to create or update MultiClusterService(%s/%s) work in the given member cluster %s, err is %v",
 				mcs.Namespace, mcs.Name, clusterName, err)
 			return err
@@ -403,6 +403,7 @@ func (c *MCSController) propagateService(ctx context.Context, mcs *networkingv1a
 			bindingCopy.Spec.Placement = binding.Spec.Placement
 			bindingCopy.Spec.Resource = binding.Spec.Resource
 			bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
+			bindingCopy.Spec.Suspension = binding.Spec.Suspension
 			return nil
 		})
 		if err != nil {
