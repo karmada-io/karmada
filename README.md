@@ -4,7 +4,7 @@
 
 
 [![LICENSE](https://img.shields.io/github/license/karmada-io/karmada.svg)](/LICENSE)
-[![Releases](https://img.shields.io/github/release/karmada-io/karmada/all.svg)](https://github.com/karmada-io/karmada/releases)
+[![Releases](https://img.shields.io/github/v/release/karmada-io/karmada)](https://github.com/karmada-io/karmada/releases/latest)
 [![Slack](https://img.shields.io/badge/slack-join-brightgreen)](https://slack.cncf.io)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5301/badge)](https://bestpractices.coreinfrastructure.org/projects/5301)
 ![build](https://github.com/karmada-io/karmada/actions/workflows/ci.yml/badge.svg)
