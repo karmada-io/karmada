@@ -72,29 +72,13 @@ type ResourceDetector struct {
 	// DynamicClient used to fetch arbitrary resources.
 	DynamicClient                dynamic.Interface
 	InformerManager              genericmanager.SingleClusterInformerManager
+	RESTMapper                   meta.RESTMapper
 	EventHandler                 cache.ResourceEventHandler
-	Processor                    util.AsyncWorker
 	SkippedResourceConfig        *util.SkippedResourceConfig
 	SkippedPropagatingNamespaces []*regexp.Regexp
 	// ResourceInterpreter knows the details of resource structure.
 	ResourceInterpreter resourceinterpreter.ResourceInterpreter
 	EventRecorder       record.EventRecorder
-	// policyReconcileWorker maintains a rate limited queue which used to store PropagationPolicy's key and
-	// a reconcile function to consume the items in queue.
-	policyReconcileWorker   util.AsyncWorker
-	propagationPolicyLister cache.GenericLister
-
-	// clusterPolicyReconcileWorker maintains a rate limited queue which used to store ClusterPropagationPolicy's key and
-	// a reconcile function to consume the items in queue.
-	clusterPolicyReconcileWorker   util.AsyncWorker
-	clusterPropagationPolicyLister cache.GenericLister
-
-	RESTMapper meta.RESTMapper
-
-	// waitingObjects tracks of objects which haven't be propagated yet as lack of appropriate policies.
-	waitingObjects map[keys.ClusterWideKey]struct{}
-	// waitingLock is the lock for waitingObjects operation.
-	waitingLock sync.RWMutex
 	// ConcurrentPropagationPolicySyncs is the number of PropagationPolicy that are allowed to sync concurrently.
 	ConcurrentPropagationPolicySyncs int
 	// ConcurrentClusterPropagationPolicySyncs is the number of ClusterPropagationPolicy that are allowed to sync concurrently.
@@ -102,12 +86,24 @@ type ResourceDetector struct {
 	// ConcurrentResourceTemplateSyncs is the number of resource templates that are allowed to sync concurrently.
 	// Larger number means responsive resource template syncing but more CPU(and network) load.
 	ConcurrentResourceTemplateSyncs int
-
 	// RateLimiterOptions is the configuration for rate limiter which may significantly influence the performance of
 	// the controller.
 	RateLimiterOptions ratelimiterflag.Options
 
-	stopCh <-chan struct{}
+	// policyReconcileWorker maintains a rate limited queue which used to store PropagationPolicy's key and
+	// a reconcile function to consume the items in queue.
+	policyReconcileWorker   util.AsyncWorker
+	propagationPolicyLister cache.GenericLister
+	// clusterPolicyReconcileWorker maintains a rate limited queue which used to store ClusterPropagationPolicy's key and
+	// a reconcile function to consume the items in queue.
+	clusterPolicyReconcileWorker   util.AsyncWorker
+	clusterPropagationPolicyLister cache.GenericLister
+	resourceProcessor              util.AsyncWorker
+	// waitingObjects tracks of objects which haven't be propagated yet as lack of appropriate policies.
+	waitingObjects map[keys.ClusterWideKey]struct{}
+	// waitingLock is the lock for waitingObjects operation.
+	waitingLock sync.RWMutex
+	stopCh      <-chan struct{}
 }
 
 // Start runs the detector, never stop until stopCh closed.
@@ -160,8 +156,8 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 	}
 
 	d.EventHandler = fedinformer.NewFilteringHandlerOnAllEvents(d.EventFilter, d.OnAdd, d.OnUpdate, d.OnDelete)
-	d.Processor = util.NewAsyncWorker(detectorWorkerOptions)
-	d.Processor.Run(d.ConcurrentResourceTemplateSyncs, d.stopCh)
+	d.resourceProcessor = util.NewAsyncWorker(detectorWorkerOptions)
+	d.resourceProcessor.Run(d.ConcurrentResourceTemplateSyncs, d.stopCh)
 	go d.discoverResources(30 * time.Second)
 
 	<-d.stopCh
@@ -233,20 +229,20 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 	}
 
 	clusterWideKey := clusterWideKeyWithConfig.ClusterWideKey
-	resourceChangeByKarmada := clusterWideKeyWithConfig.ResourceChangeByKarmada
 	klog.Infof("Reconciling object: %s", clusterWideKey)
 
 	object, err := d.GetUnstructuredObject(clusterWideKey)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			// The resource may no longer exist, in which case we try (may not exist in waiting list) remove it from waiting list and stop processing.
-			d.RemoveWaiting(clusterWideKey)
+			// The resource may no longer exist, in which case we try (may not exist in waiting list) remove it from
+			// waiting list and stop processing.
+			d.removeWaiting(clusterWideKey)
 
 			// Once resource be deleted, the derived ResourceBinding or ClusterResourceBinding also need to be cleaned up,
 			// currently we do that by setting owner reference to derived objects.
 			return nil
 		}
-		klog.Errorf("Failed to get unstructured object(%s), error: %v", clusterWideKeyWithConfig, err)
+		klog.Errorf("Failed to get unstructured object(%s), error: %v", clusterWideKey, err)
 		return err
 	}
 
@@ -254,11 +250,11 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 	// If the resource lacks this label, it implies that the resource template can be propagated by Policy.
 	// For instance, once MultiClusterService takes over the Service, Policy cannot reclaim it.
 	if resourceTemplateClaimedBy != "" {
-		d.RemoveWaiting(clusterWideKey)
+		d.removeWaiting(clusterWideKey)
 		return nil
 	}
 
-	return d.propagateResource(object, clusterWideKey, resourceChangeByKarmada)
+	return d.propagateResource(object, clusterWideKey, clusterWideKeyWithConfig.ResourceChangeByKarmada)
 }
 
 // EventFilter tells if an object should be taken care of.
@@ -323,7 +319,7 @@ func (d *ResourceDetector) OnAdd(obj interface{}) {
 	if !ok {
 		return
 	}
-	d.Processor.Enqueue(ResourceItem{Obj: runtimeObj})
+	d.resourceProcessor.Enqueue(ResourceItem{Obj: runtimeObj})
 }
 
 // OnUpdate handles object update event and push the object to queue.
@@ -340,25 +336,23 @@ func (d *ResourceDetector) OnUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
-	newRuntimeObj, ok := newObj.(runtime.Object)
-	if !ok {
-		klog.Errorf("Failed to assert newObj as runtime.Object")
-		return
-	}
-
 	if !eventfilter.SpecificationChanged(unstructuredOldObj, unstructuredNewObj) {
 		klog.V(4).Infof("Ignore update event of object (kind=%s, %s/%s) as specification no change", unstructuredOldObj.GetKind(), unstructuredOldObj.GetNamespace(), unstructuredOldObj.GetName())
 		return
 	}
 
+	newRuntimeObj, ok := newObj.(runtime.Object)
+	if !ok {
+		klog.Errorf("Failed to assert newObj as runtime.Object")
+		return
+	}
 	resourceChangeByKarmada := eventfilter.ResourceChangeByKarmada(unstructuredOldObj, unstructuredNewObj)
-
 	resourceItem := ResourceItem{
 		Obj:                     newRuntimeObj,
 		ResourceChangeByKarmada: resourceChangeByKarmada,
 	}
 
-	d.Processor.Enqueue(resourceItem)
+	d.resourceProcessor.Enqueue(resourceItem)
 }
 
 // OnDelete handles object delete event and push the object to queue.
@@ -895,8 +889,8 @@ func (d *ResourceDetector) isWaiting(objectKey keys.ClusterWideKey) bool {
 	return ok
 }
 
-// AddWaiting adds object's key to waiting list.
-func (d *ResourceDetector) AddWaiting(objectKey keys.ClusterWideKey) {
+// addWaiting adds object's key to waiting list.
+func (d *ResourceDetector) addWaiting(objectKey keys.ClusterWideKey) {
 	d.waitingLock.Lock()
 	defer d.waitingLock.Unlock()
 
@@ -904,16 +898,16 @@ func (d *ResourceDetector) AddWaiting(objectKey keys.ClusterWideKey) {
 	klog.V(1).Infof("Add object(%s) to waiting list, length of list is: %d", objectKey.String(), len(d.waitingObjects))
 }
 
-// RemoveWaiting removes object's key from waiting list.
-func (d *ResourceDetector) RemoveWaiting(objectKey keys.ClusterWideKey) {
+// removeWaiting removes object's key from waiting list.
+func (d *ResourceDetector) removeWaiting(objectKey keys.ClusterWideKey) {
 	d.waitingLock.Lock()
 	defer d.waitingLock.Unlock()
 
 	delete(d.waitingObjects, objectKey)
 }
 
-// GetMatching gets objects keys in waiting list that matches one of resource selectors.
-func (d *ResourceDetector) GetMatching(resourceSelectors []policyv1alpha1.ResourceSelector) []keys.ClusterWideKey {
+// getMatching gets objects keys in waiting list that matches one of resource selectors.
+func (d *ResourceDetector) getMatching(resourceSelectors []policyv1alpha1.ResourceSelector) []keys.ClusterWideKey {
 	d.waitingLock.RLock()
 	defer d.waitingLock.RUnlock()
 
@@ -1018,8 +1012,8 @@ func (d *ResourceDetector) OnPropagationPolicyDelete(obj interface{}) {
 }
 
 // ReconcilePropagationPolicy handles PropagationPolicy resource changes.
-// When adding a PropagationPolicy, the detector will pick the objects in waitingObjects list that matches the policy and
-// put the object to queue.
+// When adding a PropagationPolicy, the detector will pick the objects in waitingObjects
+// list that matches the policy and put the object to queue.
 // When removing a PropagationPolicy, the relevant ResourceBinding will be removed and
 // the relevant objects will be put into queue again to try another policy.
 func (d *ResourceDetector) ReconcilePropagationPolicy(key util.QueueKey) error {
@@ -1272,7 +1266,7 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName str
 func (d *ResourceDetector) HandlePropagationPolicyCreationOrUpdate(policy *policyv1alpha1.PropagationPolicy) error {
 	// If the Policy's ResourceSelectors change, causing certain resources to no longer match the Policy, the label marked
 	// on relevant resource template will be removed (which gives the resource template a change to match another policy).
-	err := d.cleanPPUnmatchedResourceBindings(policy.Namespace, policy.Name, policy.Spec.ResourceSelectors)
+	err := d.cleanupUnmatchedRBsWithPP(policy.Namespace, policy.Name, policy.Spec.ResourceSelectors)
 	if err != nil {
 		return err
 	}
@@ -1280,7 +1274,7 @@ func (d *ResourceDetector) HandlePropagationPolicyCreationOrUpdate(policy *polic
 	// When updating fields other than ResourceSelector, should first find the corresponding ResourceBinding
 	// and add the bound object to the processor's queue for reconciliation to make sure that
 	// PropagationPolicy's updates can be synchronized to ResourceBinding.
-	resourceBindings, err := d.listPPDerivedRB(policy.Namespace, policy.Name)
+	resourceBindings, err := d.listPPDerivedRBs(policy.Namespace, policy.Name)
 	if err != nil {
 		return err
 	}
@@ -1289,11 +1283,11 @@ func (d *ResourceDetector) HandlePropagationPolicyCreationOrUpdate(policy *polic
 		if err != nil {
 			return err
 		}
-		d.Processor.Add(keys.ClusterWideKeyWithConfig{ClusterWideKey: resourceKey, ResourceChangeByKarmada: true})
+		d.resourceProcessor.Add(keys.ClusterWideKeyWithConfig{ClusterWideKey: resourceKey, ResourceChangeByKarmada: true})
 	}
 
 	// check whether there are matched RT in waiting list, is so, add it to processor
-	matchedKeys := d.GetMatching(policy.Spec.ResourceSelectors)
+	matchedKeys := d.getMatching(policy.Spec.ResourceSelectors)
 	klog.Infof("Matched %d resources by policy(%s/%s)", len(matchedKeys), policy.Namespace, policy.Name)
 
 	// check dependents only when there at least a real match.
@@ -1306,8 +1300,8 @@ func (d *ResourceDetector) HandlePropagationPolicyCreationOrUpdate(policy *polic
 	}
 
 	for _, key := range matchedKeys {
-		d.RemoveWaiting(key)
-		d.Processor.Add(keys.ClusterWideKeyWithConfig{ClusterWideKey: key, ResourceChangeByKarmada: true})
+		d.removeWaiting(key)
+		d.resourceProcessor.Add(keys.ClusterWideKeyWithConfig{ClusterWideKey: key, ResourceChangeByKarmada: true})
 	}
 
 	// If preemption is enabled, handle the preemption process.
@@ -1329,12 +1323,12 @@ func (d *ResourceDetector) HandlePropagationPolicyCreationOrUpdate(policy *polic
 func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy *policyv1alpha1.ClusterPropagationPolicy) error {
 	// If the Policy's ResourceSelectors change, causing certain resources to no longer match the Policy, the label marked
 	// on relevant resource template will be removed (which gives the resource template a change to match another policy).
-	err := d.cleanCPPUnmatchedResourceBindings(policy.Name, policy.Spec.ResourceSelectors)
+	err := d.cleanupUnmatchedRBsWithCPP(policy.Name, policy.Spec.ResourceSelectors)
 	if err != nil {
 		return err
 	}
 
-	err = d.cleanUnmatchedClusterResourceBinding(policy.Name, policy.Spec.ResourceSelectors)
+	err = d.cleanupUnmatchedCRBs(policy.Name, policy.Spec.ResourceSelectors)
 	if err != nil {
 		return err
 	}
@@ -1342,11 +1336,11 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy
 	// When updating fields other than ResourceSelector, should first find the corresponding ResourceBinding/ClusterResourceBinding
 	// and add the bound object to the processor's queue for reconciliation to make sure that
 	// ClusterPropagationPolicy's updates can be synchronized to ResourceBinding/ClusterResourceBinding.
-	resourceBindings, err := d.listCPPDerivedRB(policy.Name)
+	resourceBindings, err := d.listCPPDerivedRBs(policy.Name)
 	if err != nil {
 		return err
 	}
-	clusterResourceBindings, err := d.listCPPDerivedCRB(policy.Name)
+	clusterResourceBindings, err := d.listCPPDerivedCRBs(policy.Name)
 	if err != nil {
 		return err
 	}
@@ -1355,17 +1349,17 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy
 		if err != nil {
 			return err
 		}
-		d.Processor.Add(keys.ClusterWideKeyWithConfig{ClusterWideKey: resourceKey, ResourceChangeByKarmada: true})
+		d.resourceProcessor.Add(keys.ClusterWideKeyWithConfig{ClusterWideKey: resourceKey, ResourceChangeByKarmada: true})
 	}
 	for _, crb := range clusterResourceBindings.Items {
 		resourceKey, err := helper.ConstructClusterWideKey(crb.Spec.Resource)
 		if err != nil {
 			return err
 		}
-		d.Processor.Add(keys.ClusterWideKeyWithConfig{ClusterWideKey: resourceKey, ResourceChangeByKarmada: true})
+		d.resourceProcessor.Add(keys.ClusterWideKeyWithConfig{ClusterWideKey: resourceKey, ResourceChangeByKarmada: true})
 	}
 
-	matchedKeys := d.GetMatching(policy.Spec.ResourceSelectors)
+	matchedKeys := d.getMatching(policy.Spec.ResourceSelectors)
 	klog.Infof("Matched %d resources by policy(%s)", len(matchedKeys), policy.Name)
 
 	// check dependents only when there at least a real match.
@@ -1378,8 +1372,8 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy
 	}
 
 	for _, key := range matchedKeys {
-		d.RemoveWaiting(key)
-		d.Processor.Add(keys.ClusterWideKeyWithConfig{ClusterWideKey: key, ResourceChangeByKarmada: true})
+		d.removeWaiting(key)
+		d.resourceProcessor.Add(keys.ClusterWideKeyWithConfig{ClusterWideKey: key, ResourceChangeByKarmada: true})
 	}
 
 	// If preemption is enabled, handle the preemption process.
@@ -1396,7 +1390,7 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy
 func (d *ResourceDetector) CleanupLabels(objRef workv1alpha2.ObjectReference, labelKeys ...string) error {
 	workload, err := helper.FetchResourceTemplate(d.DynamicClient, d.InformerManager, d.RESTMapper, objRef)
 	if err != nil {
-		// do nothing if resource template not exist, it might has been removed.
+		// do nothing if resource template not exist, it might have been removed.
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
@@ -1415,7 +1409,7 @@ func (d *ResourceDetector) CleanupLabels(objRef workv1alpha2.ObjectReference, la
 
 	newWorkload, err := d.DynamicClient.Resource(gvr).Namespace(workload.GetNamespace()).Update(context.TODO(), workload, metav1.UpdateOptions{})
 	if err != nil {
-		klog.Errorf("Failed to update resource %v/%v, err is %v ", workload.GetNamespace(), workload.GetName(), err)
+		klog.Errorf("Failed to update resource(kind=%s, %s/%s), err is %v ", workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)
 		return err
 	}
 	klog.V(2).Infof("Updated resource template(kind=%s, %s/%s) successfully", newWorkload.GetKind(), newWorkload.GetNamespace(), newWorkload.GetName())

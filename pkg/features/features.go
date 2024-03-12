@@ -35,7 +35,8 @@ const (
 	// CustomizedClusterResourceModeling indicates if enable cluster resource custom modeling.
 	CustomizedClusterResourceModeling featuregate.Feature = "CustomizedClusterResourceModeling"
 
-	// PolicyPreemption indicates if high-priority PropagationPolicy/ClusterPropagationPolicy could preempt resource templates which are matched by low-priority PropagationPolicy/ClusterPropagationPolicy.
+	// PolicyPreemption indicates if high-priority PropagationPolicy/ClusterPropagationPolicy could preempt resource
+	// templates which are matched by low-priority PropagationPolicy/ClusterPropagationPolicy.
 	PolicyPreemption featuregate.Feature = "PropagationPolicyPreemption"
 
 	// MultiClusterService indicates if enable multi-cluster service function.
