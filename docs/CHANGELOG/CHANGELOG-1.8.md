@@ -2,12 +2,18 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.8.1](#v181)
-  - [Downloads for v1.8.1](#downloads-for-v181)
-  - [Changelog since v1.8.0](#changelog-since-v180)
+- [v1.8.2](#v182)
+  - [Downloads for v1.8.2](#downloads-for-v182)
+  - [Changelog since v1.8.1](#changelog-since-v181)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
+- [v1.8.1](#v181)
+  - [Downloads for v1.8.1](#downloads-for-v181)
+  - [Changelog since v1.8.0](#changelog-since-v180)
+    - [Changes by Kind](#changes-by-kind-1)
+      - [Bug Fixes](#bug-fixes-1)
+      - [Others](#others-1)
 - [v1.8.0](#v180)
   - [Downloads for v1.8.0](#downloads-for-v180)
   - [What's New](#whats-new)
@@ -18,7 +24,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-1)
+    - [Bug Fixes](#bug-fixes-2)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -28,6 +34,20 @@
   - [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.8.2
+## Downloads for v1.8.2
+
+Download v1.8.2 in the [v1.8.2 release page](https://github.com/karmada-io/karmada/releases/tag/v1.8.2).
+
+## Changelog since v1.8.1
+### Changes by Kind
+#### Bug Fixes
+- `karmada-search`: Add the logic of checking whether the resource API to be retrieved is installed in the cluster. ([#4588](https://github.com/karmada-io/karmada/pull/4588), @XiShanYongYe-Chang)
+- `karmada-search`: support accept content type `as=Table` in the proxy global resource function. ([#4594](https://github.com/karmada-io/karmada/pull/4594), @jwcesign)
+
+#### Others
+- The base image `alpine` now has been promoted from `alpine:3.18.5` to `alpine:3.19.1`. ([#4599](https://github.com/karmada-io/karmada/pull/4599), @Fish-pro)
 
 # v1.8.1
 ## Downloads for v1.8.1
