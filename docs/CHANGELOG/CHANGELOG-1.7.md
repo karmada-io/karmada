@@ -2,18 +2,24 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.7.2](#v172)
-  - [Downloads for v1.7.2](#downloads-for-v172)
-  - [Changelog since v1.7.1](#changelog-since-v171)
+- [v1.7.3](#v173)
+  - [Downloads for v1.7.3](#downloads-for-v173)
+  - [Changelog since v1.7.2](#changelog-since-v172)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
-- [v1.7.1](#v171)
-  - [Downloads for v1.7.1](#downloads-for-v171)
-  - [Changelog since v1.7.0](#changelog-since-v170)
+- [v1.7.2](#v172)
+  - [Downloads for v1.7.2](#downloads-for-v172)
+  - [Changelog since v1.7.1](#changelog-since-v171)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
+- [v1.7.1](#v171)
+  - [Downloads for v1.7.1](#downloads-for-v171)
+  - [Changelog since v1.7.0](#changelog-since-v170)
+    - [Changes by Kind](#changes-by-kind-2)
+      - [Bug Fixes](#bug-fixes-2)
+      - [Others](#others-2)
 - [v1.7.0](#v170)
   - [Downloads for v1.7.0](#downloads-for-v170)
   - [What's New](#whats-new)
@@ -25,7 +31,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-2)
+    - [Bug Fixes](#bug-fixes-3)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -34,6 +40,21 @@
     - [Instrumentation](#instrumentation)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.7.3
+## Downloads for v1.7.3
+
+Download v1.7.3 in the [v1.7.3 release page](https://github.com/karmada-io/karmada/releases/tag/v1.7.3).
+
+## Changelog since v1.7.2
+### Changes by Kind
+#### Bug Fixes
+- `karmada-controllr-manager`: concurrency of `binding-status controller` inherit from the concurrency of `binding` declared in global options. ([#4340](https://github.com/karmada-io/karmada/pull/4340), @lxtywypc)
+- `karmada-search`: Add the logic of checking whether the resource API to be retrieved is installed in the cluster. ([#4589](https://github.com/karmada-io/karmada/pull/4589), @XiShanYongYe-Chang)
+- `karmada-search`: support accept content type `as=Table` in the proxy global resource function. ([#4595](https://github.com/karmada-io/karmada/pull/4595), @jwcesign)
+
+#### Others
+- The base image `alpine` now has been promoted from `alpine:3.18.5` to `alpine:3.19.1`. ([#4600](https://github.com/karmada-io/karmada/pull/4600), @Fish-pro)
 
 # v1.7.2
 ## Downloads for v1.7.2

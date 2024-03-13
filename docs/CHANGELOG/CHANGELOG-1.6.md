@@ -2,36 +2,42 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.6.5](#v165)
-  - [Downloads for v1.6.5](#downloads-for-v165)
-  - [Changelog since v1.6.4](#changelog-since-v164)
+- [v1.6.6](#v166)
+  - [Downloads for v1.6.6](#downloads-for-v166)
+  - [Changelog since v1.6.5](#changelog-since-v165)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
-- [v1.6.4](#v164)
-  - [Downloads for v1.6.4](#downloads-for-v164)
-  - [Changelog since v1.6.3](#changelog-since-v163)
+- [v1.6.5](#v165)
+  - [Downloads for v1.6.5](#downloads-for-v165)
+  - [Changelog since v1.6.4](#changelog-since-v164)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
-- [v1.6.3](#v163)
-  - [Downloads for v1.6.3](#downloads-for-v163)
-  - [Changelog since v1.6.2](#changelog-since-v162)
+- [v1.6.4](#v164)
+  - [Downloads for v1.6.4](#downloads-for-v164)
+  - [Changelog since v1.6.3](#changelog-since-v163)
     - [Changes by Kind](#changes-by-kind-2)
       - [Bug Fixes](#bug-fixes-2)
       - [Others](#others-2)
-- [v1.6.2](#v162)
-  - [Downloads for v1.6.2](#downloads-for-v162)
-  - [Changelog since v1.6.1](#changelog-since-v161)
+- [v1.6.3](#v163)
+  - [Downloads for v1.6.3](#downloads-for-v163)
+  - [Changelog since v1.6.2](#changelog-since-v162)
     - [Changes by Kind](#changes-by-kind-3)
       - [Bug Fixes](#bug-fixes-3)
       - [Others](#others-3)
-- [v1.6.1](#v161)
-  - [Downloads for v1.6.1](#downloads-for-v161)
-  - [Changelog since v1.6.0](#changelog-since-v160)
+- [v1.6.2](#v162)
+  - [Downloads for v1.6.2](#downloads-for-v162)
+  - [Changelog since v1.6.1](#changelog-since-v161)
     - [Changes by Kind](#changes-by-kind-4)
       - [Bug Fixes](#bug-fixes-4)
       - [Others](#others-4)
+- [v1.6.1](#v161)
+  - [Downloads for v1.6.1](#downloads-for-v161)
+  - [Changelog since v1.6.0](#changelog-since-v160)
+    - [Changes by Kind](#changes-by-kind-5)
+      - [Bug Fixes](#bug-fixes-5)
+      - [Others](#others-5)
 - [v1.6.0](#v160)
   - [Downloads for v1.6.0](#downloads-for-v160)
   - [What's New](#whats-new)
@@ -41,7 +47,7 @@
     - [Third-party Resource Interpreter](#third-party-resource-interpreter)
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
-    - [Bug Fixes](#bug-fixes-5)
+    - [Bug Fixes](#bug-fixes-6)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -50,6 +56,21 @@
     - [Instrumentation](#instrumentation)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.6.6
+## Downloads for v1.6.6
+
+Download v1.6.6 in the [v1.6.6 release page](https://github.com/karmada-io/karmada/releases/tag/v1.6.6).
+
+## Changelog since v1.6.5
+### Changes by Kind
+#### Bug Fixes
+- `karmada-controllr-manager`: concurrency of `binding-status controller` inherit from the concurrency of `binding` declared in global options. ([#4461](https://github.com/karmada-io/karmada/pull/4461), @XiShanYongYe-Chang)
+- `karmada-search`: Add the logic of checking whether the resource API to be retrieved is installed in the cluster. ([#4590](https://github.com/karmada-io/karmada/pull/4590), @XiShanYongYe-Chang)
+- `karmada-search`: support accept content type `as=Table` in the proxy global resource function. ([#4596](https://github.com/karmada-io/karmada/pull/4596), @jwcesign)
+
+#### Others
+- The base image `alpine` now has been promoted from `alpine:3.18.5` to `alpine:3.19.1`. ([#4601](https://github.com/karmada-io/karmada/pull/4601), @Fish-pro)
 
 # v1.6.5
 ## Downloads for v1.6.5
