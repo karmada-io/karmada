@@ -26,6 +26,7 @@ import (
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -35,6 +36,7 @@ import (
 
 var _ = ginkgo.Describe("hpa replicas synchronization testing", func() {
 	ginkgo.Context("Replicas synchronization testing", func() {
+		var initReplicas = int32(1)
 		var policyNamespace, policyName string
 		var namespace, deploymentName, hpaName string
 		var deployment *appsv1.Deployment
@@ -49,7 +51,7 @@ var _ = ginkgo.Describe("hpa replicas synchronization testing", func() {
 			hpaName = policyName
 
 			deployment = helper.NewDeployment(namespace, deploymentName)
-			deployment.Spec.Replicas = pointer.Int32(1)
+			deployment.Spec.Replicas = pointer.Int32(initReplicas)
 			hpa = helper.NewHPA(namespace, hpaName, deploymentName)
 			hpa.Spec.MinReplicas = pointer.Int32(2)
 
@@ -91,15 +93,16 @@ var _ = ginkgo.Describe("hpa replicas synchronization testing", func() {
 
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 				func(deployment *appsv1.Deployment) bool {
-					return *deployment.Spec.Replicas == *hpa.Spec.MinReplicas
+					return *deployment.Spec.Replicas == initReplicas
 				})
 
-			expectedReplicas := *hpa.Spec.MinReplicas * int32(len(framework.ClusterNames()))
+			expectedReplicas := initReplicas
 			gomega.Eventually(func() bool {
 				deploymentExist, err := kubeClient.AppsV1().Deployments(deployment.Namespace).Get(context.TODO(), deployment.Name, metav1.GetOptions{})
 				if err != nil {
 					return false
 				}
+				klog.Infof("got: %d, expect: %d", *deploymentExist.Spec.Replicas, expectedReplicas)
 				return (*deploymentExist.Spec.Replicas == expectedReplicas) && (deploymentExist.Generation == deploymentExist.Status.ObservedGeneration)
 			}, time.Minute, pollInterval).Should(gomega.Equal(true))
 		})

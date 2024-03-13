@@ -30,7 +30,7 @@ spec:
             - --cluster-status-update-frequency=10s
             - --secure-port=10357
             - --failover-eviction-timeout=30s
-            - --controllers=*,hpaReplicasSyncer
+            - --controllers=*,hpaScaleTargetMarker,deploymentReplicasSyncer
             - --feature-gates=PropagationPolicyPreemption=true,MultiClusterService=true
             - --v=4
           livenessProbe:

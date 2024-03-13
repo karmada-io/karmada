@@ -31,7 +31,6 @@ import (
 	"k8s.io/client-go/informers"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/scale"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
@@ -57,12 +56,13 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	controllerscontext "github.com/karmada-io/karmada/pkg/controllers/context"
 	"github.com/karmada-io/karmada/pkg/controllers/cronfederatedhpa"
+	"github.com/karmada-io/karmada/pkg/controllers/deploymentreplicassyncer"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/controllers/federatedhpa"
 	metricsclient "github.com/karmada-io/karmada/pkg/controllers/federatedhpa/metrics"
 	"github.com/karmada-io/karmada/pkg/controllers/federatedresourcequota"
 	"github.com/karmada-io/karmada/pkg/controllers/gracefuleviction"
-	"github.com/karmada-io/karmada/pkg/controllers/hpareplicassyncer"
+	"github.com/karmada-io/karmada/pkg/controllers/hpascaletargetmarker"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/multiclusterservice"
 	"github.com/karmada-io/karmada/pkg/controllers/namespace"
@@ -206,7 +206,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 var controllers = make(controllerscontext.Initializers)
 
 // controllersDisabledByDefault is the set of controllers which is disabled by default
-var controllersDisabledByDefault = sets.New("hpaReplicasSyncer")
+var controllersDisabledByDefault = sets.New("hpaScaleTargetMarker", "deploymentReplicasSyncer")
 
 func init() {
 	controllers["cluster"] = startClusterController
@@ -226,7 +226,8 @@ func init() {
 	controllers["applicationFailover"] = startApplicationFailoverController
 	controllers["federatedHorizontalPodAutoscaler"] = startFederatedHorizontalPodAutoscalerController
 	controllers["cronFederatedHorizontalPodAutoscaler"] = startCronFederatedHorizontalPodAutoscalerController
-	controllers["hpaReplicasSyncer"] = startHPAReplicasSyncerController
+	controllers["hpaScaleTargetMarker"] = startHPAScaleTargetMarkerController
+	controllers["deploymentReplicasSyncer"] = startDeploymentReplicasSyncerController
 	controllers["multiclusterservice"] = startMCSController
 	controllers["endpointsliceCollect"] = startEndpointSliceCollectController
 	controllers["endpointsliceDispatch"] = startEndpointSliceDispatchController
@@ -655,20 +656,24 @@ func startCronFederatedHorizontalPodAutoscalerController(ctx controllerscontext.
 	return true, nil
 }
 
-func startHPAReplicasSyncerController(ctx controllerscontext.Context) (enabled bool, err error) {
-	scaleKindResolver := scale.NewDiscoveryScaleKindResolver(ctx.KubeClientSet.Discovery())
-	scaleClient, err := scale.NewForConfig(ctx.Mgr.GetConfig(), ctx.Mgr.GetRESTMapper(), dynamic.LegacyAPIPathResolverFunc, scaleKindResolver)
+func startHPAScaleTargetMarkerController(ctx controllerscontext.Context) (enabled bool, err error) {
+	hpaScaleTargetMarker := hpascaletargetmarker.HpaScaleTargetMarker{
+		DynamicClient: ctx.DynamicClientSet,
+		RESTMapper:    ctx.Mgr.GetRESTMapper(),
+	}
+	err = hpaScaleTargetMarker.SetupWithManager(ctx.Mgr)
 	if err != nil {
 		return false, err
 	}
 
-	hpaReplicasSyncer := hpareplicassyncer.HPAReplicasSyncer{
-		Client:        ctx.Mgr.GetClient(),
-		DynamicClient: ctx.DynamicClientSet,
-		RESTMapper:    ctx.Mgr.GetRESTMapper(),
-		ScaleClient:   scaleClient,
+	return true, nil
+}
+
+func startDeploymentReplicasSyncerController(ctx controllerscontext.Context) (enabled bool, err error) {
+	deploymentReplicasSyncer := deploymentreplicassyncer.DeploymentReplicasSyncer{
+		Client: ctx.Mgr.GetClient(),
 	}
-	err = hpaReplicasSyncer.SetupWithManager(ctx.Mgr)
+	err = deploymentReplicasSyncer.SetupWithManager(ctx.Mgr)
 	if err != nil {
 		return false, err
 	}

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package hpareplicassyncer
+package hpascaletargetmarker
 
 import (
 	"context"
@@ -45,7 +45,7 @@ type labelEvent struct {
 	hpa  *autoscalingv2.HorizontalPodAutoscaler
 }
 
-func (r *HPAReplicasSyncer) reconcileScaleRef(key util.QueueKey) (err error) {
+func (r *HpaScaleTargetMarker) reconcileScaleRef(key util.QueueKey) (err error) {
 	event, ok := key.(labelEvent)
 	if !ok {
 		klog.Errorf("Found invalid key when reconciling hpa scale ref: %+v", key)
@@ -68,7 +68,7 @@ func (r *HPAReplicasSyncer) reconcileScaleRef(key util.QueueKey) (err error) {
 	return err
 }
 
-func (r *HPAReplicasSyncer) addHPALabelToScaleRef(ctx context.Context, hpa *autoscalingv2.HorizontalPodAutoscaler) error {
+func (r *HpaScaleTargetMarker) addHPALabelToScaleRef(ctx context.Context, hpa *autoscalingv2.HorizontalPodAutoscaler) error {
 	targetGVK := schema.FromAPIVersionAndKind(hpa.Spec.ScaleTargetRef.APIVersion, hpa.Spec.ScaleTargetRef.Kind)
 	mapping, err := r.RESTMapper.RESTMapping(targetGVK.GroupKind(), targetGVK.Version)
 	if err != nil {
@@ -110,7 +110,7 @@ func (r *HPAReplicasSyncer) addHPALabelToScaleRef(ctx context.Context, hpa *auto
 	return nil
 }
 
-func (r *HPAReplicasSyncer) deleteHPALabelFromScaleRef(ctx context.Context, hpa *autoscalingv2.HorizontalPodAutoscaler) error {
+func (r *HpaScaleTargetMarker) deleteHPALabelFromScaleRef(ctx context.Context, hpa *autoscalingv2.HorizontalPodAutoscaler) error {
 	targetGVK := schema.FromAPIVersionAndKind(hpa.Spec.ScaleTargetRef.APIVersion, hpa.Spec.ScaleTargetRef.Kind)
 	mapping, err := r.RESTMapper.RESTMapping(targetGVK.GroupKind(), targetGVK.Version)
 	if err != nil {

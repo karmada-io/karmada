@@ -48,7 +48,7 @@ var bindingPredicateFn = builder.WithPredicates(predicate.Funcs{
 		// 1. Create Deployment and HPA.
 		// 2. Propagate Deployment with divided policy and propagate HPA with duplicated policy.
 		// 3. HPA scaled up the Deployment in member clusters
-		// 4. hpareplicassyncer update Deployment's replicas based on HPA status in Kamarda control plane.
+		// 4. deploymentreplicassyncer update Deployment's replicas based on Deployment's status in Kamarda control plane.
 		// 5. It will cause the Deployment.status.observedGeneration != Deployment.metadata.generation(this is needed in some workflow cases)
 		switch oldBinding := e.ObjectOld.(type) {
 		case *workv1alpha2.ResourceBinding:
