@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package hpareplicassyncer
+package hpascaletargetmarker
 
 import (
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
@@ -25,10 +25,10 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
-var _ predicate.Predicate = &HPAReplicasSyncer{}
+var _ predicate.Predicate = &HpaScaleTargetMarker{}
 
 // Create implements CreateEvent filter
-func (r *HPAReplicasSyncer) Create(e event.CreateEvent) bool {
+func (r *HpaScaleTargetMarker) Create(e event.CreateEvent) bool {
 	hpa, ok := e.Object.(*autoscalingv2.HorizontalPodAutoscaler)
 	if !ok {
 		klog.Errorf("create predicates in hpa controller called, but obj is not hpa type")
@@ -37,14 +37,14 @@ func (r *HPAReplicasSyncer) Create(e event.CreateEvent) bool {
 
 	// if hpa exist and has been propagated, add label to its scale ref resource
 	if hasBeenPropagated(hpa) {
-		r.scaleRefWorker.Add(labelEvent{addLabelEvent, hpa})
+		r.scaleTargetWorker.Add(labelEvent{addLabelEvent, hpa})
 	}
 
 	return false
 }
 
 // Update implements UpdateEvent filter
-func (r *HPAReplicasSyncer) Update(e event.UpdateEvent) bool {
+func (r *HpaScaleTargetMarker) Update(e event.UpdateEvent) bool {
 	oldHPA, ok := e.ObjectOld.(*autoscalingv2.HorizontalPodAutoscaler)
 	if !ok {
 		klog.Errorf("update predicates in hpa controller called, but old obj is not hpa type")
@@ -60,19 +60,19 @@ func (r *HPAReplicasSyncer) Update(e event.UpdateEvent) bool {
 	// hpa scale ref changed, remove old hpa label and add to new hpa
 	if oldHPA.Spec.ScaleTargetRef.String() != newHPA.Spec.ScaleTargetRef.String() {
 		// if scale ref has label, remove label, otherwise skip
-		r.scaleRefWorker.Add(labelEvent{deleteLabelEvent, oldHPA})
+		r.scaleTargetWorker.Add(labelEvent{deleteLabelEvent, oldHPA})
 	}
 
 	// if new hpa exist and has been propagated, add label to its scale ref resource
 	if hasBeenPropagated(newHPA) {
-		r.scaleRefWorker.Add(labelEvent{addLabelEvent, newHPA})
+		r.scaleTargetWorker.Add(labelEvent{addLabelEvent, newHPA})
 	}
 
 	return oldHPA.Status.DesiredReplicas != newHPA.Status.DesiredReplicas
 }
 
 // Delete implements DeleteEvent filter
-func (r *HPAReplicasSyncer) Delete(e event.DeleteEvent) bool {
+func (r *HpaScaleTargetMarker) Delete(e event.DeleteEvent) bool {
 	hpa, ok := e.Object.(*autoscalingv2.HorizontalPodAutoscaler)
 	if !ok {
 		klog.Errorf("delete predicates in hpa controller called, but obj is not hpa type")
@@ -80,13 +80,13 @@ func (r *HPAReplicasSyncer) Delete(e event.DeleteEvent) bool {
 	}
 
 	// if scale ref has label, remove label, otherwise skip
-	r.scaleRefWorker.Add(labelEvent{deleteLabelEvent, hpa})
+	r.scaleTargetWorker.Add(labelEvent{deleteLabelEvent, hpa})
 
 	return false
 }
 
 // Generic implements default GenericEvent filter
-func (r *HPAReplicasSyncer) Generic(_ event.GenericEvent) bool {
+func (r *HpaScaleTargetMarker) Generic(_ event.GenericEvent) bool {
 	return false
 }
 
