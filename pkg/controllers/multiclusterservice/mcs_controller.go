@@ -448,7 +448,8 @@ func (c *MCSController) buildResourceBinding(svc *corev1.Service, mcs *networkin
 	propagateClusters := providerClusters.Clone().Insert(consumerClusters.Clone().UnsortedList()...)
 	placement := &policyv1alpha1.Placement{
 		ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-			ClusterNames: propagateClusters.UnsortedList(),
+			// always use sorted List for clusterNames to ensure that karmada-scheduler doesn't trigger a placement change
+			ClusterNames: sets.List(propagateClusters),
 		},
 	}
 
