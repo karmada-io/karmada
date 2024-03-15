@@ -98,7 +98,7 @@ const (
 	// The overrides items should be sorted alphabetically in ascending order by ClusterOverridePolicy's name.
 	AppliedClusterOverrides = "policy.karmada.io/applied-cluster-overrides"
 
-	// EndPointSliceProvisionClusterAnnotation is added to work of the dispatch EndpointSlice in consumption clusters's namespace.
+	// EndpointSliceProvisionClusterAnnotation is added to work of the dispatch EndpointSlice in consumption clusters' namespace.
 	EndpointSliceProvisionClusterAnnotation = "endpointslice.karmada.io/provision-cluster"
 )
 
@@ -116,9 +116,6 @@ const (
 	// before ResourceBinding itself is deleted.
 	BindingControllerFinalizer = "karmada.io/binding-controller"
 
-	// MCSEndpointSliceCollectControllerFinalizer is added to mcs to ensure related Works in provider clusters are deleted
-	MCSEndpointSliceCollectControllerFinalizer = "karmada.io/mcs-endpointslice-collect-controller"
-
 	// MCSEndpointSliceDispatchControllerFinalizer is added to mcs to ensure related Works in consumption clusters are deleted
 	MCSEndpointSliceDispatchControllerFinalizer = "karmada.io/mcs-endpointslice-dispatch-controller"
 
@@ -126,7 +123,7 @@ const (
 	// before ClusterResourceBinding itself is deleted.
 	ClusterResourceBindingControllerFinalizer = "karmada.io/cluster-resource-binding-controller"
 
-	// MCSControllerFinalizer is added to Cluster to ensure service work is deleted before itself is deleted.
+	// MCSControllerFinalizer is added to MultiClusterService to ensure service work is deleted before itself is deleted.
 	MCSControllerFinalizer = "karmada.io/multiclusterservice-controller"
 )
 

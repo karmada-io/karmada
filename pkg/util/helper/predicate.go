@@ -24,10 +24,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
+
+var multiClusterServiceGVK = networkingv1alpha1.SchemeGroupVersion.WithKind("MultiClusterService")
 
 // NewExecutionPredicate generates the event filter function to skip events that the controllers are uninterested.
 // Used by controllers:
@@ -129,7 +132,10 @@ func NewPredicateForEndpointSliceCollectController(mgr controllerruntime.Manager
 			klog.Errorf("Failed to get the given member cluster %s", clusterName)
 			return false
 		}
-		return clusterObj.Spec.SyncMode == clusterv1alpha1.Push
+		if clusterObj.Spec.SyncMode != clusterv1alpha1.Push {
+			return false
+		}
+		return IsWorkContains(obj.Spec.Workload.Manifests, multiClusterServiceGVK)
 	}
 
 	return predicate.Funcs{
@@ -202,6 +208,7 @@ func NewPredicateForServiceExportControllerOnAgent(curClusterName string) predic
 
 // NewPredicateForEndpointSliceCollectControllerOnAgent generates an event filter function for EndpointSliceCollectController running by karmada-agent.
 func NewPredicateForEndpointSliceCollectControllerOnAgent(curClusterName string) predicate.Funcs {
+
 	predFunc := func(eventType string, object client.Object) bool {
 		obj := object.(*workv1alpha1.Work)
 		clusterName, err := names.GetClusterName(obj.GetNamespace())
@@ -209,7 +216,12 @@ func NewPredicateForEndpointSliceCollectControllerOnAgent(curClusterName string)
 			klog.Errorf("Failed to get member cluster name for work %s/%s", obj.GetNamespace(), obj.GetName())
 			return false
 		}
-		return clusterName == curClusterName
+
+		if clusterName != curClusterName {
+			return false
+		}
+
+		return IsWorkContains(obj.Spec.Workload.Manifests, multiClusterServiceGVK)
 	}
 
 	return predicate.Funcs{

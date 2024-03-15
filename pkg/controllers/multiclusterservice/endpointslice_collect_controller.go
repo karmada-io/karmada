@@ -63,13 +63,13 @@ type EndpointSliceCollectController struct {
 	WorkerNumber                int                 // WorkerNumber is the number of worker goroutines
 	PredicateFunc               predicate.Predicate // PredicateFunc is the function that filters events before enqueuing the keys.
 	ClusterDynamicClientSetFunc func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
+	ClusterCacheSyncTimeout     metav1.Duration
+
 	// eventHandlers holds the handlers which used to handle events reported from member clusters.
 	// Each handler takes the cluster name as key and takes the handler function as the value, e.g.
 	// "member1": instance of ResourceEventHandler
 	eventHandlers sync.Map
 	worker        util.AsyncWorker // worker process resources periodic from rateLimitingQueue.
-
-	ClusterCacheSyncTimeout metav1.Duration
 }
 
 var (
@@ -86,11 +86,7 @@ func (c *EndpointSliceCollectController) Reconcile(ctx context.Context, req cont
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
-		return controllerruntime.Result{Requeue: true}, err
-	}
-
-	if !helper.IsWorkContains(work.Spec.Workload.Manifests, multiClusterServiceGVK) {
-		return controllerruntime.Result{}, nil
+		return controllerruntime.Result{}, err
 	}
 
 	if !work.DeletionTimestamp.IsZero() {
@@ -101,15 +97,15 @@ func (c *EndpointSliceCollectController) Reconcile(ctx context.Context, req cont
 	clusterName, err := names.GetClusterName(work.Namespace)
 	if err != nil {
 		klog.Errorf("Failed to get cluster name for work %s/%s", work.Namespace, work.Name)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if err = c.buildResourceInformers(clusterName); err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if err = c.collectTargetEndpointSlice(work, clusterName); err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	return controllerruntime.Result{}, nil
@@ -314,10 +310,9 @@ func (c *EndpointSliceCollectController) handleEndpointSliceEvent(endpointSliceK
 		return nil
 	}
 
-	if err = c.reportEndpointSliceWithEndpointSliceCreateOrUpdate(endpointSliceKey.Cluster, endpointSliceObj); err != nil {
-		klog.Errorf("Failed to handle endpointSlice(%s) event, Error: %v",
-			endpointSliceKey.NamespaceKey(), err)
-		return err
+	if err = reportEndpointSlice(c.Client, endpointSliceObj, endpointSliceKey.Cluster); err != nil {
+		return fmt.Errorf("failed to report EndpointSlice(%s/%s) from cluster(%s) to control-plane",
+			endpointSliceObj.GetNamespace(), endpointSliceObj.GetName(), endpointSliceKey.Cluster)
 	}
 
 	return nil
@@ -355,25 +350,16 @@ func (c *EndpointSliceCollectController) collectTargetEndpointSlice(work *workv1
 			klog.Errorf("Failed to convert EndpointSlice %s/%s to unstructured, error: %v", eps.GetNamespace(), eps.GetName(), err)
 			return err
 		}
-		if err := c.reportEndpointSliceWithEndpointSliceCreateOrUpdate(clusterName, epsUnstructured); err != nil {
-			return err
+		if err = reportEndpointSlice(c.Client, epsUnstructured, clusterName); err != nil {
+			return fmt.Errorf("failed to report EndpointSlice(%s/%s) from cluster(%s) to control-plane",
+				epsUnstructured.GetNamespace(), epsUnstructured.GetName(), clusterName)
 		}
 	}
 
 	return nil
 }
 
-// reportEndpointSliceWithEndpointSliceCreateOrUpdate reports the EndpointSlice when referencing service has been exported.
-func (c *EndpointSliceCollectController) reportEndpointSliceWithEndpointSliceCreateOrUpdate(clusterName string, endpointSlice *unstructured.Unstructured) error {
-	if err := reportEndpointSlice(c.Client, endpointSlice, clusterName); err != nil {
-		return fmt.Errorf("failed to report EndpointSlice(%s/%s) from cluster(%s) to control-plane",
-			endpointSlice.GetNamespace(), endpointSlice.GetName(), clusterName)
-	}
-
-	return nil
-}
-
-// reportEndpointSlice report EndPointSlice objects to control-plane.
+// reportEndpointSlice report EndPointSlice objects to Karmada control-plane.
 func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructured, clusterName string) error {
 	executionSpace := names.GenerateExecutionSpaceName(clusterName)
 	workName := names.GenerateWorkName(endpointSlice.GetKind(), endpointSlice.GetName(), endpointSlice.GetNamespace())
@@ -402,7 +388,7 @@ func getEndpointSliceWorkMeta(c client.Client, ns string, workName string, endpo
 		return metav1.ObjectMeta{}, err
 	}
 
-	labels := map[string]string{
+	workLabels := map[string]string{
 		util.MultiClusterServiceNamespaceLabel: endpointSlice.GetNamespace(),
 		util.MultiClusterServiceNameLabel:      endpointSlice.GetLabels()[discoveryv1.LabelServiceName],
 		// indicate the Work should be not propagated since it's collected resource.
@@ -410,19 +396,19 @@ func getEndpointSliceWorkMeta(c client.Client, ns string, workName string, endpo
 		util.ManagedByKarmadaLabel:           util.ManagedByKarmadaLabelValue,
 		util.EndpointSliceWorkManagedByLabel: util.MultiClusterServiceKind,
 	}
-	if existWork.Labels == nil || (err != nil && apierrors.IsNotFound(err)) {
-		workMeta := metav1.ObjectMeta{Name: workName, Namespace: ns, Labels: labels}
+	if existWork.Labels == nil || err != nil {
+		workMeta := metav1.ObjectMeta{Name: workName, Namespace: ns, Labels: workLabels}
 		return workMeta, nil
 	}
 
-	labels = util.DedupeAndMergeLabels(labels, existWork.Labels)
+	workLabels = util.DedupeAndMergeLabels(workLabels, existWork.Labels)
 	if value, ok := existWork.Labels[util.EndpointSliceWorkManagedByLabel]; ok {
 		controllerSet := sets.New[string]()
 		controllerSet.Insert(strings.Split(value, ".")...)
 		controllerSet.Insert(util.MultiClusterServiceKind)
-		labels[util.EndpointSliceWorkManagedByLabel] = strings.Join(controllerSet.UnsortedList(), ".")
+		workLabels[util.EndpointSliceWorkManagedByLabel] = strings.Join(controllerSet.UnsortedList(), ".")
 	}
-	workMeta := metav1.ObjectMeta{Name: workName, Namespace: ns, Labels: labels}
+	workMeta := metav1.ObjectMeta{Name: workName, Namespace: ns, Labels: workLabels}
 	return workMeta, nil
 }
 
@@ -445,7 +431,8 @@ func cleanupWorkWithEndpointSliceDelete(c client.Client, endpointSliceKey keys.F
 	return cleanProviderClustersEndpointSliceWork(c, work.DeepCopy())
 }
 
-// TBD: Currently, the EndpointSlice work can be handled by both service-export-controller and endpointslice-collect-controller. To indicate this, we've introduced the label endpointslice.karmada.io/managed-by. Therefore,
+// TBD: Currently, the EndpointSlice work can be handled by both service-export-controller and endpointslice-collect-controller.
+// To indicate this, we've introduced the label endpointslice.karmada.io/managed-by. Therefore,
 // if managed by both controllers, simply remove each controller's respective labels.
 // If managed solely by its own controller, delete the work accordingly.
 // This logic should be deleted after the conflict is fixed.

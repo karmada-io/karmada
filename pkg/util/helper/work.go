@@ -39,7 +39,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
-// CreateOrUpdateWork creates a Work object if not exist, or updates if it already exist.
+// CreateOrUpdateWork creates a Work object if not exist, or updates if it already exists.
 func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resource *unstructured.Unstructured) error {
 	workload := resource.DeepCopy()
 	if conflictResolution, ok := workMeta.GetAnnotations()[workv1alpha2.ResourceConflictResolutionAnnotation]; ok {

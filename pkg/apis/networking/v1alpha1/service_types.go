@@ -79,20 +79,20 @@ type MultiClusterServiceSpec struct {
 	// If not set and Types contains CrossCluster, all clusters will
 	// be selected, that means the referencing service will be exposed
 	// across all registered clusters.
-	// Deprecated: in favor of ProviderClusters/ConsumerClusters.
+	// Deprecated: in favor of ProviderClusters and ConsumerClusters.
 	// +optional
 	Range ExposureRange `json:"range,omitempty"`
 
 	// ServiceProvisionClusters specifies the clusters which will provision the service backend.
 	// If leave it empty, we will collect the backend endpoints from all clusters and sync
 	// them to the ServiceConsumptionClusters.
-	// Deprecated: in favor of ProviderClusters/ConsumerClusters.
+	// Deprecated: in favor of ProviderClusters.
 	// +optional
 	ServiceProvisionClusters []string `json:"serviceProvisionClusters,omitempty"`
 
 	// ServiceConsumptionClusters specifies the clusters where the service will be exposed, for clients.
 	// If leave it empty, the service will be exposed to all clusters.
-	// Deprecated: in favor of ProviderClusters/ConsumerClusters.
+	// Deprecated: in favor of ConsumerClusters.
 	// +optional
 	ServiceConsumptionClusters []string `json:"serviceConsumptionClusters,omitempty"`
 
@@ -142,6 +142,7 @@ type ExposurePort struct {
 // ExposureRange describes a list of clusters where the service is exposed.
 // Now supports selecting cluster by name, leave the room for extend more methods
 // such as using label selector.
+// Deprecated: ExposureRange is deprecated.
 type ExposureRange struct {
 	// ClusterNames is the list of clusters to be selected.
 	// +optional
