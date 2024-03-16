@@ -63,7 +63,7 @@ func (c *RemedyController) Reconcile(ctx context.Context, req controllerruntime.
 		return controllerruntime.Result{}, nil
 	}
 
-	clusterRelatedRemedies, err := c.getClusterRelatedRemedies(ctx, cluster)
+	clusterRelatedRemedies, err := getClusterRelatedRemedies(ctx, c.Client, cluster)
 	if err != nil {
 		klog.Errorf("Failed to get cluster(%s) related remedies: %v", cluster.Name, err)
 		return controllerruntime.Result{}, err
@@ -95,22 +95,6 @@ func (c *RemedyController) Reconcile(ctx context.Context, req controllerruntime.
 	}
 	klog.V(4).Infof("Success to sync cluster(%s) remedy actions", cluster.Name)
 	return controllerruntime.Result{}, nil
-}
-
-func (c *RemedyController) getClusterRelatedRemedies(ctx context.Context, cluster *clusterv1alpha1.Cluster) ([]*remedyv1alpha1.Remedy, error) {
-	remedyList := &remedyv1alpha1.RemedyList{}
-	if err := c.Client.List(ctx, remedyList); err != nil {
-		return nil, err
-	}
-
-	var clusterRelatedRemedies []*remedyv1alpha1.Remedy
-	for index := range remedyList.Items {
-		remedy := remedyList.Items[index]
-		if isRemedyWorkOnCluster(&remedy, cluster) {
-			clusterRelatedRemedies = append(clusterRelatedRemedies, &remedy)
-		}
-	}
-	return clusterRelatedRemedies, nil
 }
 
 // SetupWithManager creates a controller and register to controller manager.
