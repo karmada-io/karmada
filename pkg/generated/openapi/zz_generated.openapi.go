@@ -6036,6 +6036,13 @@ func schema_pkg_apis_work_v1alpha1_WorkSpec(ref common.ReferenceCallback) common
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.WorkloadTemplate"),
 						},
 					},
+					"suspend": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Suspend tells the controller to suspend subsequent executions. Defaults to false.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

@@ -18710,6 +18710,10 @@
       "description": "WorkSpec defines the desired state of Work.",
       "type": "object",
       "properties": {
+        "suspend": {
+          "description": "Suspend tells the controller to suspend subsequent executions. Defaults to false.",
+          "type": "boolean"
+        },
         "workload": {
           "description": "Workload represents the manifest workload to be deployed on managed cluster.",
           "default": {},
