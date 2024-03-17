@@ -31,17 +31,11 @@ const (
 	// In backup scenarios, when applying the backup resource manifest in a new cluster, the UUID may change.
 	ClusterPropagationPolicyPermanentIDLabel = "clusterpropagationpolicy.karmada.io/permanent-id"
 
-	// PropagationPolicyUIDLabel is the uid of PropagationPolicy object.
-	PropagationPolicyUIDLabel = "propagationpolicy.karmada.io/uid"
-
 	// PropagationPolicyNamespaceAnnotation is added to objects to specify associated PropagationPolicy namespace.
 	PropagationPolicyNamespaceAnnotation = "propagationpolicy.karmada.io/namespace"
 
 	// PropagationPolicyNameAnnotation is added to objects to specify associated PropagationPolicy name.
 	PropagationPolicyNameAnnotation = "propagationpolicy.karmada.io/name"
-
-	// ClusterPropagationPolicyUIDLabel is the uid of ClusterPropagationPolicy object.
-	ClusterPropagationPolicyUIDLabel = "clusterpropagationpolicy.karmada.io/uid"
 
 	// ClusterPropagationPolicyAnnotation is added to objects to specify associated ClusterPropagationPolicy name.
 	ClusterPropagationPolicyAnnotation = "clusterpropagationpolicy.karmada.io/name"
