@@ -17,6 +17,8 @@ limitations under the License.
 package init
 
 import (
+	"fmt"
+
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -62,7 +64,7 @@ func (o *GlobalCommandOptions) AddFlags(flags *pflag.FlagSet) {
 func (o *GlobalCommandOptions) Complete() error {
 	restConfig, err := apiclient.RestConfig(o.Context, o.KubeConfig)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get karmada-host config. error: %v", err)
 	}
 
 	o.KubeClientSet, err = apiclient.NewClientSet(restConfig)
@@ -72,7 +74,7 @@ func (o *GlobalCommandOptions) Complete() error {
 
 	o.KarmadaRestConfig, err = apiclient.RestConfig(o.KarmadaContext, o.KarmadaConfig)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get karmada-apiserver config from %s. please use --karmada-kubeconfig to point the config file. \n error: %v", o.KarmadaConfig, err)
 	}
 
 	o.KarmadaAggregatorClientSet, err = apiclient.NewAPIRegistrationClient(o.KarmadaRestConfig)
