@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/informers"
@@ -35,9 +36,11 @@ import (
 var (
 	nodeGVR    = corev1.SchemeGroupVersion.WithResource("nodes")
 	podGVR     = corev1.SchemeGroupVersion.WithResource("pods")
+	rsGVR      = appsv1.SchemeGroupVersion.WithResource("replicasets")
 	gvrTypeMap = map[reflect.Type]schema.GroupVersionResource{
-		reflect.TypeOf(&corev1.Node{}): nodeGVR,
-		reflect.TypeOf(&corev1.Pod{}):  podGVR,
+		reflect.TypeOf(&corev1.Node{}):       nodeGVR,
+		reflect.TypeOf(&corev1.Pod{}):        podGVR,
+		reflect.TypeOf(&appsv1.ReplicaSet{}): rsGVR,
 	}
 )
 
@@ -218,6 +221,9 @@ func (s *singleClusterInformerManagerImpl) Lister(resource schema.GroupVersionRe
 	}
 	if resource == podGVR {
 		return s.informerFactory.Core().V1().Pods().Lister(), nil
+	}
+	if resource == rsGVR {
+		return s.informerFactory.Apps().V1().ReplicaSets().Lister(), nil
 	}
 
 	return resourceInformer.Lister(), nil

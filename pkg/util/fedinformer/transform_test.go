@@ -20,9 +20,11 @@ import (
 	"reflect"
 	"testing"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 )
@@ -271,6 +273,74 @@ func TestPodTransformFunc(t *testing.T) {
 			got, _ := PodTransformFunc(tt.obj)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("PodTransformFunc: got %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestReplicaSetTransformFunc(t *testing.T) {
+	tests := []struct {
+		name string
+		obj  interface{}
+		want interface{}
+	}{
+		{
+			name: "transform replicaset without status",
+			obj: &appsv1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace:   "foo",
+					Name:        "bar",
+					Labels:      map[string]string{"a": "b"},
+					Annotations: map[string]string{"c": "d"},
+					ManagedFields: []metav1.ManagedFieldsEntry{
+						{
+							Manager: "whatever",
+						},
+					},
+				},
+			},
+			want: &appsv1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "bar",
+					Labels:    map[string]string{"a": "b"},
+				},
+			},
+		},
+		{
+			name: "transform pods with status",
+			obj: &appsv1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "bar",
+				},
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: ptr.To(int32(6)),
+				},
+				Status: appsv1.ReplicaSetStatus{
+					Replicas:          6,
+					AvailableReplicas: 3,
+				},
+			},
+			want: &appsv1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "bar",
+				},
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: ptr.To(int32(6)),
+				},
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 3,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, _ := ReplicaSetTransformFunc(tt.obj)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ReplicaSetTransformFunc: got %v, want %v", got, tt.want)
 			}
 		})
 	}
