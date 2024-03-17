@@ -1,6 +1,6 @@
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
-VERSION ?= '$(shell hack/version.sh)'
+VERSION ?= '$(git describe --tags --dirty)'
 
 # Images management
 REGISTRY?="docker.io/karmada"
@@ -110,7 +110,7 @@ GOTEST=go test
 
 .PHONY: install_gotest
 install_gotest:
-ifdef COLOR_GOTEST_ENABLED 
+ifdef COLOR_GOTEST_ENABLED
 	go install ${COLOR_GOTEST_REGISTRY}@${COLOR_GOTEST_VERSION}
 GOTEST=gotest
 endif
