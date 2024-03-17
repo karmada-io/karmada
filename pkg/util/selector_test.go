@@ -294,6 +294,30 @@ func TestResourceSelectorPriority(t *testing.T) {
 			},
 			want: PriorityMisMatch,
 		},
+		{
+			name: "wildcard Kind, same apiVersion, matched",
+			args: args{
+				rs: policyv1alpha1.ResourceSelector{
+					APIVersion: resource.GetAPIVersion(),
+					Kind:       wildcardKind,
+					Name:       resource.GetName(),
+					Namespace:  resource.GetNamespace(),
+				},
+			},
+			want: PriorityMatchName,
+		},
+		{
+			name: "wildcard Kind, different apiVersion, not matched",
+			args: args{
+				rs: policyv1alpha1.ResourceSelector{
+					APIVersion: "unmatched",
+					Kind:       wildcardKind,
+					Name:       resource.GetName(),
+					Namespace:  resource.GetNamespace(),
+				},
+			},
+			want: PriorityMisMatch,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
