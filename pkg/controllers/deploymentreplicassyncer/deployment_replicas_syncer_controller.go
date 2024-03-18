@@ -57,6 +57,13 @@ var predicateFunc = predicate.Funcs{
 			return false
 		}
 
+		// if old deployment is not labeled `retain-replicas`, but new is labeled, reconcile is needed.
+		// in case of deployment status changed before `retain-replicas` labeled.
+		oldRetainReplicasLabel := util.GetLabelValue(oldObj.GetLabels(), util.RetainReplicasLabel)
+		if oldRetainReplicasLabel != util.RetainReplicasValue {
+			return true
+		}
+
 		if oldObj.Spec.Replicas == nil || newObj.Spec.Replicas == nil {
 			klog.Errorf("spec.replicas field unexpectedly become nil: %+v, %+v", oldObj.Spec.Replicas, newObj.Spec.Replicas)
 			return false
