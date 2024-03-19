@@ -343,6 +343,7 @@ spec:
         app.kubernetes.io/instance: {{ $name | quote }}
         helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     spec:
+      {{- include "karmada.imagePullSecrets" . | nindent 6 }}
       {{- with .Values.preInstallJob.tolerations}}
       tolerations:
       {{- toYaml . | nindent 8 }}
@@ -424,7 +425,6 @@ spec:
           name: {{ $name }}-config
       - name: configs
         emptyDir: {}
-
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -438,6 +438,7 @@ metadata:
   labels:
     {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
   {{- end }}
+{{- include "karmada.imagePullSecrets" .}}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
