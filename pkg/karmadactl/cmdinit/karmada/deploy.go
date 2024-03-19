@@ -161,12 +161,12 @@ func InitKarmadaBootstrapToken(dir string) (string, error) {
 }
 
 func createExtraResources(clientSet *kubernetes.Clientset, dir string) error {
-	// grant view clusterrole with karamda resource permission
+	// grant view clusterrole with karmada resource permission
 	if err := grantKarmadaPermissionToViewClusterRole(clientSet); err != nil {
 		return err
 	}
 
-	// grant edit clusterrole with karamda resource permission
+	// grant edit clusterrole with karmada resource permission
 	if err := grantKarmadaPermissionToEditClusterRole(clientSet); err != nil {
 		return err
 	}

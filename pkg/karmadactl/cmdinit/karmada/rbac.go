@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	karamdaViewClusterRole        = "karmada-view"
+	karmadaViewClusterRole        = "karmada-view"
 	karmadaEditClusterRole        = "karmada-edit"
 	karmadaAgentAccessClusterRole = "system:karmada:agent"
 	karmadaAgentGroup             = "system:nodes"
@@ -142,7 +142,7 @@ func grantAccessPermissionToAgent(clientSet kubernetes.Interface) error {
 	return nil
 }
 
-// grantKarmadaPermissionToViewClusterRole grants view clusterrole with karamda resource permission
+// grantKarmadaPermissionToViewClusterRole grants view clusterrole with karmada resource permission
 func grantKarmadaPermissionToViewClusterRole(clientSet kubernetes.Interface) error {
 	annotations := map[string]string{
 		// refer to https://kubernetes.io/docs/reference/access-authn-authz/rbac/#auto-reconciliation
@@ -155,7 +155,7 @@ func grantKarmadaPermissionToViewClusterRole(clientSet kubernetes.Interface) err
 		// used to aggregate rules to view clusterrole
 		"rbac.authorization.k8s.io/aggregate-to-view": "true",
 	}
-	clusterRole := utils.ClusterRoleFromRules(karamdaViewClusterRole, []rbacv1.PolicyRule{
+	clusterRole := utils.ClusterRoleFromRules(karmadaViewClusterRole, []rbacv1.PolicyRule{
 		{
 			APIGroups: []string{"autoscaling.karmada.io"},
 			Resources: []string{
@@ -213,7 +213,7 @@ func grantKarmadaPermissionToViewClusterRole(clientSet kubernetes.Interface) err
 	return nil
 }
 
-// grantKarmadaPermissionToEditClusterRole grants edit clusterrole with karamda resource permission
+// grantKarmadaPermissionToEditClusterRole grants edit clusterrole with karmada resource permission
 func grantKarmadaPermissionToEditClusterRole(clientSet kubernetes.Interface) error {
 	annotations := map[string]string{
 		// refer to https://kubernetes.io/docs/reference/access-authn-authz/rbac/#auto-reconciliation
