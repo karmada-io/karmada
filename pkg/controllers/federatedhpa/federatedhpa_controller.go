@@ -407,19 +407,14 @@ func (c *FHPAController) getBindingByLabel(resourceLabel map[string]string, reso
 		return nil, fmt.Errorf("Target resource has no label. ")
 	}
 
-	var policyName, policyNameSpace string
 	var selector labels.Selector
-	if _, ok := resourceLabel[policyv1alpha1.PropagationPolicyNameLabel]; ok {
-		policyName = resourceLabel[policyv1alpha1.PropagationPolicyNameLabel]
-		policyNameSpace = resourceLabel[policyv1alpha1.PropagationPolicyNamespaceLabel]
+	if _, ok := resourceLabel[policyv1alpha1.PropagationPolicyPermanentIDLabel]; ok {
 		selector = labels.SelectorFromSet(labels.Set{
-			policyv1alpha1.PropagationPolicyNameLabel:      policyName,
-			policyv1alpha1.PropagationPolicyNamespaceLabel: policyNameSpace,
+			policyv1alpha1.PropagationPolicyPermanentIDLabel: resourceLabel[policyv1alpha1.PropagationPolicyPermanentIDLabel],
 		})
-	} else if _, ok = resourceLabel[policyv1alpha1.ClusterPropagationPolicyLabel]; ok {
-		policyName = resourceLabel[policyv1alpha1.ClusterPropagationPolicyLabel]
+	} else if _, ok = resourceLabel[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]; ok {
 		selector = labels.SelectorFromSet(labels.Set{
-			policyv1alpha1.ClusterPropagationPolicyLabel: policyName,
+			policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: resourceLabel[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel],
 		})
 	} else {
 		return nil, fmt.Errorf("No label of policy found. ")

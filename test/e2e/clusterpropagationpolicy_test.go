@@ -247,11 +247,11 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 					func(deployment *appsv1.Deployment) bool { return true })
 				framework.WaitDeploymentGetByClientFitWith(kubeClient, deployment01.Namespace, deployment01.Name,
 					func(deployment *appsv1.Deployment) bool {
-						if deployment.Labels == nil {
+						if deployment.Annotations == nil {
 							return true
 						}
 
-						_, exist := deployment.Labels[policyv1alpha1.ClusterPropagationPolicyLabel]
+						_, exist := deployment.Annotations[policyv1alpha1.ClusterPropagationPolicyAnnotation]
 						return !exist
 					})
 			})
@@ -332,11 +332,11 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 					})
 				framework.WaitClusterRoleGetByClientFitWith(kubeClient, clusterRole01.Name,
 					func(clusterRole *rbacv1.ClusterRole) bool {
-						if clusterRole.Labels == nil {
+						if clusterRole.Annotations == nil {
 							return true
 						}
 
-						_, exist := clusterRole.Labels[policyv1alpha1.ClusterPropagationPolicyLabel]
+						_, exist := clusterRole.Annotations[policyv1alpha1.ClusterPropagationPolicyAnnotation]
 						return !exist
 					})
 			})
@@ -348,6 +348,7 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 			var policy *policyv1alpha1.ClusterPropagationPolicy
 			var deployment *appsv1.Deployment
 			var targetMember, updatedMember string
+			var policyID string
 
 			ginkgo.BeforeEach(func() {
 				targetMember = framework.ClusterNames()[0]
@@ -377,9 +378,19 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 				})
 
 				gomega.Eventually(func() bool {
+					getPP, err := karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Get(context.TODO(), policy.Name, metav1.GetOptions{})
+					if err != nil {
+						return false
+					}
+
+					policyID = getPP.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]
+					return policyID != ""
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+
+				gomega.Eventually(func() bool {
 					bindings, err := karmadaClient.WorkV1alpha2().ResourceBindings(testNamespace).List(context.TODO(), metav1.ListOptions{
 						LabelSelector: labels.SelectorFromSet(labels.Set{
-							policyv1alpha1.ClusterPropagationPolicyLabel: policy.Name,
+							policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: policyID,
 						}).String(),
 					})
 					if err != nil {
@@ -401,7 +412,7 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 				gomega.Eventually(func() bool {
 					bindings, err := karmadaClient.WorkV1alpha2().ResourceBindings(testNamespace).List(context.TODO(), metav1.ListOptions{
 						LabelSelector: labels.SelectorFromSet(labels.Set{
-							policyv1alpha1.ClusterPropagationPolicyLabel: policy.Name,
+							policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: policyID,
 						}).String(),
 					})
 					if err != nil {
@@ -570,8 +581,8 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 			ginkgo.By("check whether the deployment uses the highest explicit priority ClusterPropagationPolicy", func() {
 				framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 					func(deployment *appsv1.Deployment) bool {
-						klog.Infof("Matched ClusterPropagationPolicy:%s", deployment.GetLabels()[policyv1alpha1.ClusterPropagationPolicyLabel])
-						return deployment.GetLabels()[policyv1alpha1.ClusterPropagationPolicyLabel] == higherPriorityLabelSelector
+						klog.Infof("Matched ClusterPropagationPolicy:%s", deployment.GetAnnotations()[policyv1alpha1.ClusterPropagationPolicyAnnotation])
+						return deployment.GetAnnotations()[policyv1alpha1.ClusterPropagationPolicyAnnotation] == higherPriorityLabelSelector
 					})
 			})
 		})
@@ -640,8 +651,8 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 			ginkgo.By("check whether the deployment uses the ClusterPropagationPolicy with name matched", func() {
 				framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 					func(deployment *appsv1.Deployment) bool {
-						klog.Infof("Matched ClusterPropagationPolicy:%s", deployment.GetLabels()[policyv1alpha1.ClusterPropagationPolicyLabel])
-						return deployment.GetLabels()[policyv1alpha1.ClusterPropagationPolicyLabel] == explicitPriorityMatchName
+						klog.Infof("Matched ClusterPropagationPolicy:%s", deployment.GetAnnotations()[policyv1alpha1.ClusterPropagationPolicyAnnotation])
+						return deployment.GetAnnotations()[policyv1alpha1.ClusterPropagationPolicyAnnotation] == explicitPriorityMatchName
 					})
 			})
 		})
@@ -655,6 +666,7 @@ var _ = ginkgo.Describe("[Delete] clusterPropagation testing", func() {
 		var policy *policyv1alpha1.ClusterPropagationPolicy
 		var deployment *appsv1.Deployment
 		var targetMember string
+		var policyID string
 
 		ginkgo.BeforeEach(func() {
 			targetMember = framework.ClusterNames()[0]
@@ -683,9 +695,19 @@ var _ = ginkgo.Describe("[Delete] clusterPropagation testing", func() {
 			})
 
 			gomega.Eventually(func() bool {
+				getCPP, err := karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Get(context.TODO(), policy.Name, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+
+				policyID = getCPP.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]
+				return policyID != ""
+			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+
+			gomega.Eventually(func() bool {
 				bindings, err := karmadaClient.WorkV1alpha2().ResourceBindings(testNamespace).List(context.TODO(), metav1.ListOptions{
 					LabelSelector: labels.SelectorFromSet(labels.Set{
-						policyv1alpha1.ClusterPropagationPolicyLabel: policy.Name,
+						policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: policyID,
 					}).String(),
 				})
 				if err != nil {
@@ -698,18 +720,20 @@ var _ = ginkgo.Describe("[Delete] clusterPropagation testing", func() {
 		ginkgo.It("delete ClusterPropagationPolicy and check whether labels are deleted correctly", func() {
 			framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
 			framework.WaitDeploymentFitWith(kubeClient, deployment.Namespace, deployment.Name, func(dep *appsv1.Deployment) bool {
-				if dep.Labels == nil {
+				if dep.Labels == nil && dep.Annotations == nil {
 					return true
 				}
-				return dep.Labels[policyv1alpha1.ClusterPropagationPolicyLabel] == "" && dep.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] == ""
+				return dep.Annotations[policyv1alpha1.ClusterPropagationPolicyAnnotation] == "" &&
+					dep.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] == ""
 			})
 
 			resourceBindingName := names.GenerateBindingName(deployment.Kind, deployment.Name)
 			framework.WaitResourceBindingFitWith(karmadaClient, deployment.Namespace, resourceBindingName, func(resourceBinding *workv1alpha2.ResourceBinding) bool {
-				if resourceBinding.Labels == nil {
+				if resourceBinding.Labels == nil && resourceBinding.Annotations == nil {
 					return true
 				}
-				return resourceBinding.Labels[policyv1alpha1.ClusterPropagationPolicyLabel] == "" && resourceBinding.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] == ""
+				return resourceBinding.Annotations[policyv1alpha1.ClusterPropagationPolicyAnnotation] == "" &&
+					resourceBinding.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] == ""
 			})
 		})
 	})
@@ -720,6 +744,7 @@ var _ = ginkgo.Describe("[Delete] clusterPropagation testing", func() {
 		var crdSpecNames apiextensionsv1.CustomResourceDefinitionNames
 		var crd *apiextensionsv1.CustomResourceDefinition
 		var crdPolicy *policyv1alpha1.ClusterPropagationPolicy
+		var policyID string
 
 		ginkgo.BeforeEach(func() {
 			crdGroup = fmt.Sprintf("example-%s.karmada.io", rand.String(RandomStrLength))
@@ -752,10 +777,21 @@ var _ = ginkgo.Describe("[Delete] clusterPropagation testing", func() {
 				framework.RemoveCRD(dynamicClient, crd.Name)
 				framework.WaitCRDDisappearedOnClusters(framework.ClusterNames(), crd.Name)
 			})
+
+			gomega.Eventually(func() bool {
+				getPP, err := karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Get(context.TODO(), crdPolicy.Name, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+
+				policyID = getPP.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]
+				return policyID != ""
+			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+
 			gomega.Eventually(func() bool {
 				bindings, err := karmadaClient.WorkV1alpha2().ClusterResourceBindings().List(context.TODO(), metav1.ListOptions{
 					LabelSelector: labels.SelectorFromSet(labels.Set{
-						policyv1alpha1.ClusterPropagationPolicyLabel: crdPolicy.Name,
+						policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: policyID,
 					}).String(),
 				})
 				if err != nil {
@@ -768,18 +804,20 @@ var _ = ginkgo.Describe("[Delete] clusterPropagation testing", func() {
 		ginkgo.It("delete ClusterPropagationPolicy and check whether labels are deleted correctly", func() {
 			framework.RemoveClusterPropagationPolicy(karmadaClient, crdPolicy.Name)
 			framework.WaitCRDFitWith(dynamicClient, crd.Name, func(crd *apiextensionsv1.CustomResourceDefinition) bool {
-				if crd.Labels == nil {
+				if crd.Labels == nil && crd.Annotations == nil {
 					return true
 				}
-				return crd.Labels[policyv1alpha1.ClusterPropagationPolicyLabel] == "" && crd.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] == ""
+				return crd.Annotations[policyv1alpha1.ClusterPropagationPolicyAnnotation] == "" &&
+					crd.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] == ""
 			})
 
 			resourceBindingName := names.GenerateBindingName(crd.Kind, crd.Name)
 			framework.WaitClusterResourceBindingFitWith(karmadaClient, resourceBindingName, func(crb *workv1alpha2.ClusterResourceBinding) bool {
-				if crb.Labels == nil {
+				if crb.Labels == nil && crd.Annotations == nil {
 					return true
 				}
-				return crb.Labels[policyv1alpha1.ClusterPropagationPolicyLabel] == "" && crb.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] == ""
+				return crb.Annotations[policyv1alpha1.ClusterPropagationPolicyAnnotation] == "" &&
+					crb.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] == ""
 			})
 		})
 	})

@@ -23,6 +23,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
+
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
 // ClusterWideKey is the object key which is a unique identifier under a cluster, across all resources.
@@ -41,6 +43,9 @@ type ClusterWideKey struct {
 
 	// Name is the name of resource being referenced.
 	Name string
+
+	// PermanentID it the permanent id of resource being referenced.
+	PermanentID string
 }
 
 // String returns the key's printable info with format:
@@ -107,8 +112,23 @@ func ClusterWideKeyFunc(obj interface{}) (ClusterWideKey, error) {
 	key.Kind = gvk.Kind
 	key.Namespace = metaInfo.GetNamespace()
 	key.Name = metaInfo.GetName()
+	key.PermanentID = getPermanentID(gvk, metaInfo.GetLabels())
 
 	return key, nil
+}
+
+func getPermanentID(gvk schema.GroupVersionKind, labels map[string]string) string {
+	if labels == nil {
+		return ""
+	}
+	switch gvk {
+	case policyv1alpha1.SchemeGroupVersion.WithKind(policyv1alpha1.ResourceKindPropagationPolicy):
+		return labels[policyv1alpha1.PropagationPolicyPermanentIDLabel]
+	case policyv1alpha1.SchemeGroupVersion.WithKind(policyv1alpha1.ResourceKindClusterPropagationPolicy):
+		return labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]
+	default:
+		return ""
+	}
 }
 
 // ClusterWideKeyWithConfig is the object key which is a unique identifier under a cluster, combined with certain config.

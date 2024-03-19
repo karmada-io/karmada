@@ -54,7 +54,7 @@ func preemptionEnabled(preemption policyv1alpha1.PreemptionBehavior) bool {
 	return true
 }
 
-// handleClusterPropagationPolicyPreemption handles the preemption process of PropagationPolicy.
+// handlePropagationPolicyPreemption handles the preemption process of PropagationPolicy.
 // The preemption rule: high-priority PP > low-priority PP > CPP.
 func (d *ResourceDetector) handlePropagationPolicyPreemption(policy *policyv1alpha1.PropagationPolicy) error {
 	var errs []error
@@ -104,9 +104,8 @@ func (d *ResourceDetector) handleClusterPropagationPolicyPreemption(policy *poli
 
 // preemptPropagationPolicy preempts resource template that is claimed by PropagationPolicy.
 func (d *ResourceDetector) preemptPropagationPolicy(resourceTemplate *unstructured.Unstructured, policy *policyv1alpha1.PropagationPolicy) (err error) {
-	rtLabels := resourceTemplate.GetLabels()
-	claimedPolicyNamespace := util.GetLabelValue(rtLabels, policyv1alpha1.PropagationPolicyNamespaceLabel)
-	claimedPolicyName := util.GetLabelValue(rtLabels, policyv1alpha1.PropagationPolicyNameLabel)
+	claimedPolicyNamespace := resourceTemplate.GetAnnotations()[policyv1alpha1.PropagationPolicyNamespaceAnnotation]
+	claimedPolicyName := resourceTemplate.GetAnnotations()[policyv1alpha1.PropagationPolicyNameAnnotation]
 	if claimedPolicyName == "" || claimedPolicyNamespace == "" {
 		return nil
 	}
@@ -156,8 +155,8 @@ func (d *ResourceDetector) preemptPropagationPolicy(resourceTemplate *unstructur
 
 // preemptClusterPropagationPolicyDirectly directly preempts resource template claimed by ClusterPropagationPolicy regardless of priority.
 func (d *ResourceDetector) preemptClusterPropagationPolicyDirectly(resourceTemplate *unstructured.Unstructured, policy *policyv1alpha1.PropagationPolicy) (err error) {
-	claimedPolicyName := util.GetLabelValue(resourceTemplate.GetLabels(), policyv1alpha1.ClusterPropagationPolicyLabel)
-	if claimedPolicyName == "" {
+	claimedPolicyID, exist := resourceTemplate.GetLabels()[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]
+	if !exist {
 		return nil
 	}
 
@@ -165,11 +164,11 @@ func (d *ResourceDetector) preemptClusterPropagationPolicyDirectly(resourceTempl
 		metrics.CountPolicyPreemption(err)
 		if err != nil {
 			d.EventRecorder.Eventf(resourceTemplate, corev1.EventTypeWarning, events.EventReasonPreemptPolicyFailed,
-				"Propagation policy(%s/%s) failed to preempt cluster propagation policy(%s): %v", policy.Namespace, policy.Name, claimedPolicyName, err)
+				"Propagation policy(%s/%s) failed to preempt cluster propagation policy(%s): %v", policy.Namespace, policy.Name, claimedPolicyID, err)
 			return
 		}
 		d.EventRecorder.Eventf(resourceTemplate, corev1.EventTypeNormal, events.EventReasonPreemptPolicySucceed,
-			"Propagation policy(%s/%s) preempted cluster propagation policy(%s) successfully", policy.Namespace, policy.Name, claimedPolicyName)
+			"Propagation policy(%s/%s) preempted cluster propagation policy(%s) successfully", policy.Namespace, policy.Name, claimedPolicyID)
 	}()
 
 	if _, err = d.ClaimPolicyForObject(resourceTemplate, policy); err != nil {
@@ -178,14 +177,14 @@ func (d *ResourceDetector) preemptClusterPropagationPolicyDirectly(resourceTempl
 		return err
 	}
 	klog.V(4).Infof("Propagation policy(%s/%s) has preempted another cluster propagation policy(%s).",
-		policy.Namespace, policy.Name, claimedPolicyName)
+		policy.Namespace, policy.Name, claimedPolicyID)
 	return nil
 }
 
 // preemptClusterPropagationPolicy preempts resource template that is claimed by ClusterPropagationPolicy.
 func (d *ResourceDetector) preemptClusterPropagationPolicy(resourceTemplate *unstructured.Unstructured, policy *policyv1alpha1.ClusterPropagationPolicy) (err error) {
-	claimedPolicyName := util.GetLabelValue(resourceTemplate.GetLabels(), policyv1alpha1.ClusterPropagationPolicyLabel)
-	if claimedPolicyName == "" {
+	claimedPolicyName, exist := resourceTemplate.GetAnnotations()[policyv1alpha1.ClusterPropagationPolicyAnnotation]
+	if !exist {
 		return nil
 	}
 	// resource template has been claimed by policy itself.
