@@ -17,6 +17,7 @@ limitations under the License.
 package helper
 
 import (
+	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -78,6 +79,26 @@ func NewExplicitPriorityClusterPropagationPolicy(policyName string, rsSelectors 
 			ResourceSelectors: rsSelectors,
 			Priority:          &priority,
 			Placement:         placement,
+		},
+	}
+}
+
+// NewStaticWeightPolicyStrategy create static weight policy strategy with specific weights
+// e.g: @clusters=[member1, member2], @weights=[1, 1], means static weight `member1:member2=1:1`
+func NewStaticWeightPolicyStrategy(clusters []string, weights []int64) *policyv1alpha1.ReplicaSchedulingStrategy {
+	gomega.Expect(len(clusters)).Should(gomega.Equal(len(weights)))
+	staticWeightList := make([]policyv1alpha1.StaticClusterWeight, 0)
+	for i, clusterName := range clusters {
+		staticWeightList = append(staticWeightList, policyv1alpha1.StaticClusterWeight{
+			TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{clusterName}},
+			Weight:        weights[i],
+		})
+	}
+	return &policyv1alpha1.ReplicaSchedulingStrategy{
+		ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+		ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+		WeightPreference: &policyv1alpha1.ClusterPreferences{
+			StaticWeightList: staticWeightList,
 		},
 	}
 }
