@@ -549,15 +549,19 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinities(rb *workv1alpha
 	return scheduleErr
 }
 
-func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alpha2.ResourceBinding, placement string, scheduleResult []workv1alpha2.TargetCluster) error {
-	newBinding := oldBinding.DeepCopy()
-	if newBinding.Annotations == nil {
-		newBinding.Annotations = make(map[string]string)
+func (s *Scheduler) patchScheduleResultForResourceBinding(
+	rb *workv1alpha2.ResourceBinding,
+	placement string,
+	scheduleResult []workv1alpha2.TargetCluster,
+) error {
+	modifiedRB := rb.DeepCopy()
+	if modifiedRB.Annotations == nil {
+		modifiedRB.Annotations = make(map[string]string)
 	}
-	newBinding.Annotations[util.PolicyPlacementAnnotation] = placement
-	newBinding.Spec.Clusters = scheduleResult
+	modifiedRB.Annotations[util.PolicyPlacementAnnotation] = placement
+	modifiedRB.Spec.Clusters = scheduleResult
 
-	patchBytes, err := helper.GenMergePatch(oldBinding, newBinding)
+	patchBytes, err := helper.GenMergePatch(rb, modifiedRB)
 	if err != nil {
 		return err
 	}
@@ -565,13 +569,15 @@ func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alph
 		return nil
 	}
 
-	_, err = s.KarmadaClient.WorkV1alpha2().ResourceBindings(newBinding.Namespace).Patch(context.TODO(), newBinding.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
+	patchedRB, err := s.KarmadaClient.WorkV1alpha2().ResourceBindings(modifiedRB.Namespace).
+		Patch(context.TODO(), modifiedRB.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
-		klog.Errorf("Failed to patch schedule to ResourceBinding(%s/%s): %v", oldBinding.Namespace, oldBinding.Name, err)
+		klog.Errorf("Failed to patch schedule to ResourceBinding(%s/%s): %v", rb.Namespace, rb.Name, err)
 		return err
 	}
 
-	klog.V(4).Infof("Patch schedule to ResourceBinding(%s/%s) succeed", oldBinding.Namespace, oldBinding.Name)
+	rb = patchedRB
+	klog.V(4).Infof("Patch schedule to ResourceBinding(%s/%s) succeed", rb.Namespace, rb.Name)
 	return nil
 }
 
@@ -687,15 +693,19 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinities(crb *wor
 	return scheduleErr
 }
 
-func (s *Scheduler) patchScheduleResultForClusterResourceBinding(oldBinding *workv1alpha2.ClusterResourceBinding, placement string, scheduleResult []workv1alpha2.TargetCluster) error {
-	newBinding := oldBinding.DeepCopy()
-	if newBinding.Annotations == nil {
-		newBinding.Annotations = make(map[string]string)
+func (s *Scheduler) patchScheduleResultForClusterResourceBinding(
+	crb *workv1alpha2.ClusterResourceBinding,
+	placement string,
+	scheduleResult []workv1alpha2.TargetCluster,
+) error {
+	modifiedCRB := crb.DeepCopy()
+	if modifiedCRB.Annotations == nil {
+		modifiedCRB.Annotations = make(map[string]string)
 	}
-	newBinding.Annotations[util.PolicyPlacementAnnotation] = placement
-	newBinding.Spec.Clusters = scheduleResult
+	modifiedCRB.Annotations[util.PolicyPlacementAnnotation] = placement
+	modifiedCRB.Spec.Clusters = scheduleResult
 
-	patchBytes, err := helper.GenMergePatch(oldBinding, newBinding)
+	patchBytes, err := helper.GenMergePatch(crb, modifiedCRB)
 	if err != nil {
 		return err
 	}
@@ -703,13 +713,15 @@ func (s *Scheduler) patchScheduleResultForClusterResourceBinding(oldBinding *wor
 		return nil
 	}
 
-	_, err = s.KarmadaClient.WorkV1alpha2().ClusterResourceBindings().Patch(context.TODO(), newBinding.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
+	patchedCRB, err := s.KarmadaClient.WorkV1alpha2().ClusterResourceBindings().
+		Patch(context.TODO(), modifiedCRB.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
-		klog.Errorf("Failed to patch schedule to ClusterResourceBinding(%s): %v", oldBinding.Name, err)
+		klog.Errorf("Failed to patch schedule to ClusterResourceBinding(%s): %v", crb.Name, err)
 		return err
 	}
 
-	klog.V(4).Infof("Patch schedule to ClusterResourceBinding(%s) succeed", oldBinding.Name)
+	crb = patchedCRB
+	klog.V(4).Infof("Patch schedule to ClusterResourceBinding(%s) succeed", crb.Name)
 	return nil
 }
 
@@ -790,8 +802,8 @@ func patchBindingStatusWithAffinityName(karmadaClient karmadaclientset.Interface
 	return patchBindingStatus(karmadaClient, rb, updateRB)
 }
 
-func patchBindingStatus(karmadaClient karmadaclientset.Interface, rb, updateRB *workv1alpha2.ResourceBinding) error {
-	patchBytes, err := helper.GenMergePatch(rb, updateRB)
+func patchBindingStatus(karmadaClient karmadaclientset.Interface, originalRB, modifiedRB *workv1alpha2.ResourceBinding) error {
+	patchBytes, err := helper.GenMergePatch(originalRB, modifiedRB)
 	if err != nil {
 		return err
 	}
@@ -799,13 +811,15 @@ func patchBindingStatus(karmadaClient karmadaclientset.Interface, rb, updateRB *
 		return nil
 	}
 
-	_, err = karmadaClient.WorkV1alpha2().ResourceBindings(rb.Namespace).Patch(context.TODO(), rb.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
+	patchedRB, err := karmadaClient.WorkV1alpha2().ResourceBindings(originalRB.Namespace).
+		Patch(context.TODO(), originalRB.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
 	if err != nil {
-		klog.Errorf("Failed to patch schedule status ResourceBinding(%s/%s): %v", rb.Namespace, rb.Name, err)
+		klog.Errorf("Failed to patch schedule status ResourceBinding(%s/%s): %v", originalRB.Namespace, originalRB.Name, err)
 		return err
 	}
 
-	klog.V(4).Infof("Patch schedule status to ResourceBinding(%s/%s) succeed", rb.Namespace, rb.Name)
+	originalRB = patchedRB
+	klog.V(4).Infof("Patch schedule status to ResourceBinding(%s/%s) succeed", originalRB.Namespace, originalRB.Name)
 	return nil
 }
 
@@ -839,8 +853,8 @@ func patchClusterBindingStatusWithAffinityName(karmadaClient karmadaclientset.In
 	return patchClusterResourceBindingStatus(karmadaClient, crb, updateCRB)
 }
 
-func patchClusterResourceBindingStatus(karmadaClient karmadaclientset.Interface, crb, updateCRB *workv1alpha2.ClusterResourceBinding) error {
-	patchBytes, err := helper.GenMergePatch(crb, updateCRB)
+func patchClusterResourceBindingStatus(karmadaClient karmadaclientset.Interface, originalCRB, modifiedCRB *workv1alpha2.ClusterResourceBinding) error {
+	patchBytes, err := helper.GenMergePatch(originalCRB, modifiedCRB)
 	if err != nil {
 		return err
 	}
@@ -848,13 +862,15 @@ func patchClusterResourceBindingStatus(karmadaClient karmadaclientset.Interface,
 		return nil
 	}
 
-	_, err = karmadaClient.WorkV1alpha2().ClusterResourceBindings().Patch(context.TODO(), crb.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
+	patchedCRB, err := karmadaClient.WorkV1alpha2().ClusterResourceBindings().
+		Patch(context.TODO(), originalCRB.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
 	if err != nil {
-		klog.Errorf("Failed to patch schedule status to ClusterResourceBinding(%s): %v", crb.Name, err)
+		klog.Errorf("Failed to patch schedule status to ClusterResourceBinding(%s): %v", originalCRB.Name, err)
 		return err
 	}
 
-	klog.V(4).Infof("Patch schedule status to ClusterResourceBinding(%s) succeed", crb.Name)
+	originalCRB = patchedCRB
+	klog.V(4).Infof("Patch schedule status to ClusterResourceBinding(%s) succeed", originalCRB.Name)
 	return nil
 }
 
