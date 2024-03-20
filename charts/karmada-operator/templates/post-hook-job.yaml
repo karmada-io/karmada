@@ -1,0 +1,42 @@
+
+{{- if .Values.installCRDs }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-post-hook-install-crds
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "2"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  template:
+    metadata:
+      name: {{ .Release.Name }}
+      labels:
+        app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}-post-hook-job
+      restartPolicy: Never
+      containers:
+      - name: install-crds
+        image: {{ include "karmada.kubectl.image" . }}
+        imagePullPolicy: IfNotPresent
+        workingDir: /crds
+        command:
+        - /bin/sh
+        - -c
+        - |
+          bash <<'EOF'
+          set -ex
+          kubectl apply --server-side -f /crds --force-conflicts
+          EOF
+        volumeMounts:
+        - name: crds
+          mountPath: /crds
+      volumes:
+      - name: crds
+        configMap:
+          name: {{ .Release.Name }}-post-manifests
+{{- end -}}
+
