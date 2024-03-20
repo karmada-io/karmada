@@ -44,7 +44,7 @@ func getAllDefaultReplicaInterpreter() map[schema.GroupVersionKind]replicaInterp
 func deployReplica(object *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error) {
 	deploy := &appsv1.Deployment{}
 	if err := helper.ConvertToTypedObject(object, deploy); err != nil {
-		klog.Errorf("Failed to convert object(%s), err", object.GroupVersionKind().String(), err)
+		klog.Errorf("Failed to convert object(%s), err %v", object.GroupVersionKind().String(), err)
 		return 0, nil, err
 	}
 
@@ -60,7 +60,7 @@ func deployReplica(object *unstructured.Unstructured) (int32, *workv1alpha2.Repl
 func statefulSetReplica(object *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error) {
 	sts := &appsv1.StatefulSet{}
 	if err := helper.ConvertToTypedObject(object, sts); err != nil {
-		klog.Errorf("Failed to convert object(%s), err", object.GroupVersionKind().String(), err)
+		klog.Errorf("Failed to convert object(%s), err %v", object.GroupVersionKind().String(), err)
 		return 0, nil, err
 	}
 
@@ -77,7 +77,7 @@ func jobReplica(object *unstructured.Unstructured) (int32, *workv1alpha2.Replica
 	job := &batchv1.Job{}
 	err := helper.ConvertToTypedObject(object, job)
 	if err != nil {
-		klog.Errorf("Failed to convert object(%s), err", object.GroupVersionKind().String(), err)
+		klog.Errorf("Failed to convert object(%s), err %v", object.GroupVersionKind().String(), err)
 		return 0, nil, err
 	}
 
@@ -95,7 +95,7 @@ func podReplica(object *unstructured.Unstructured) (int32, *workv1alpha2.Replica
 	pod := &corev1.Pod{}
 	err := helper.ConvertToTypedObject(object, pod)
 	if err != nil {
-		klog.Errorf("Failed to convert object(%s), err", object.GroupVersionKind().String(), err)
+		klog.Errorf("Failed to convert object(%s), err %v", object.GroupVersionKind().String(), err)
 		return 0, nil, err
 	}
 
