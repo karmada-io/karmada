@@ -149,14 +149,14 @@ func (c *ServiceExportController) RunWorkQueue() {
 
 func (c *ServiceExportController) enqueueReportedEpsServiceExport() {
 	workList := &workv1alpha1.WorkList{}
-	err := wait.PollUntilContextCancel(context.TODO(), time.Second, true, func(ctx context.Context) (done bool, err error) {
+	err := wait.PollUntil(1*time.Second, func() (done bool, err error) {
 		err = c.List(context.TODO(), workList, client.MatchingLabels{util.PropagationInstruction: util.PropagationInstructionSuppressed})
 		if err != nil {
 			klog.Errorf("Failed to list collected EndpointSlices Work from member clusters: %v", err)
 			return false, nil
 		}
 		return true, nil
-	})
+	}, context.TODO().Done())
 	if err != nil {
 		return
 	}
@@ -508,27 +508,31 @@ func getEndpointSliceWorkMeta(c client.Client, ns string, workName string, endpo
 		return metav1.ObjectMeta{}, err
 	}
 
-	labels := map[string]string{
-		util.ServiceNamespaceLabel: endpointSlice.GetNamespace(),
-		util.ServiceNameLabel:      endpointSlice.GetLabels()[discoveryv1.LabelServiceName],
-		// indicate the Work should be not propagated since it's collected resource.
-		util.PropagationInstruction:          util.PropagationInstructionSuppressed,
-		util.ManagedByKarmadaLabel:           util.ManagedByKarmadaLabelValue,
-		util.EndpointSliceWorkManagedByLabel: util.ServiceExportKind,
+	workMeta := metav1.ObjectMeta{
+		Name:       workName,
+		Namespace:  ns,
+		Finalizers: []string{util.EndpointSliceControllerFinalizer},
+		Labels: map[string]string{
+			util.ServiceNamespaceLabel: endpointSlice.GetNamespace(),
+			util.ServiceNameLabel:      endpointSlice.GetLabels()[discoveryv1.LabelServiceName],
+			// indicate the Work should be not propagated since it's collected resource.
+			util.PropagationInstruction:          util.PropagationInstructionSuppressed,
+			util.ManagedByKarmadaLabel:           util.ManagedByKarmadaLabelValue,
+			util.EndpointSliceWorkManagedByLabel: util.ServiceExportKind,
+		},
 	}
+
 	if existWork.Labels == nil || (err != nil && apierrors.IsNotFound(err)) {
-		workMeta := metav1.ObjectMeta{Name: workName, Namespace: ns, Labels: labels}
 		return workMeta, nil
 	}
 
-	labels = util.DedupeAndMergeLabels(labels, existWork.Labels)
+	workMeta.Labels = util.DedupeAndMergeLabels(workMeta.Labels, existWork.Labels)
 	if value, ok := existWork.Labels[util.EndpointSliceWorkManagedByLabel]; ok {
 		controllerSet := sets.New[string]()
 		controllerSet.Insert(strings.Split(value, ".")...)
 		controllerSet.Insert(util.ServiceExportKind)
-		labels[util.EndpointSliceWorkManagedByLabel] = strings.Join(controllerSet.UnsortedList(), ".")
+		workMeta.Labels[util.EndpointSliceWorkManagedByLabel] = strings.Join(controllerSet.UnsortedList(), ".")
 	}
-	workMeta := metav1.ObjectMeta{Name: workName, Namespace: ns, Labels: labels}
 	return workMeta, nil
 }
 
