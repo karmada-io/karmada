@@ -61,7 +61,7 @@ func AggregateResourceBindingWorkStatus(
 	resourceTemplate *unstructured.Unstructured,
 	eventRecorder record.EventRecorder,
 ) error {
-	workList, err := GetWorksByBindingNamespaceName(c, binding.Namespace, binding.Name)
+	workList, err := GetWorksByBindingID(c, binding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel], true)
 	if err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func AggregateClusterResourceBindingWorkStatus(
 	resourceTemplate *unstructured.Unstructured,
 	eventRecorder record.EventRecorder,
 ) error {
-	workList, err := GetWorksByBindingNamespaceName(c, "", binding.Name)
+	workList, err := GetWorksByBindingID(c, binding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel], false)
 	if err != nil {
 		return err
 	}

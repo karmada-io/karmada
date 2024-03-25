@@ -26,7 +26,6 @@ import (
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 func Test_mergeTargetClusters(t *testing.T) {
@@ -106,12 +105,11 @@ func Test_mergeLabel(t *testing.T) {
 	rbID := "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"
 
 	tests := []struct {
-		name          string
-		workload      *unstructured.Unstructured
-		workNamespace string
-		binding       metav1.Object
-		scope         v1.ResourceScope
-		want          map[string]string
+		name     string
+		workload *unstructured.Unstructured
+		binding  metav1.Object
+		scope    v1.ResourceScope
+		want     map[string]string
 	}{
 		{
 			name: "NamespaceScoped",
@@ -125,7 +123,6 @@ func Test_mergeLabel(t *testing.T) {
 					},
 				},
 			},
-			workNamespace: namespace,
 			binding: &workv1alpha2.ClusterResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      bindingName,
@@ -138,7 +135,6 @@ func Test_mergeLabel(t *testing.T) {
 			scope: v1.NamespaceScoped,
 			want: map[string]string{
 				workv1alpha2.ResourceBindingPermanentIDLabel: rbID,
-				workv1alpha2.ResourceBindingReferenceKey:     names.GenerateBindingReferenceKey(namespace, bindingName),
 			},
 		},
 		{
@@ -163,13 +159,12 @@ func Test_mergeLabel(t *testing.T) {
 			scope: v1.ClusterScoped,
 			want: map[string]string{
 				workv1alpha2.ClusterResourceBindingPermanentIDLabel: rbID,
-				workv1alpha2.ClusterResourceBindingReferenceKey:     names.GenerateBindingReferenceKey("", bindingName),
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := mergeLabel(tt.workload, tt.workNamespace, tt.binding, tt.scope); !reflect.DeepEqual(got, tt.want) {
+			if got := mergeLabel(tt.workload, tt.binding, tt.scope); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("mergeLabel() = %v, want %v", got, tt.want)
 			}
 		})

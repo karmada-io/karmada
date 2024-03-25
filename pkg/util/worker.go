@@ -92,7 +92,7 @@ func NewAsyncWorker(opt Options) AsyncWorker {
 func (w *asyncWorker) Enqueue(obj interface{}) {
 	key, err := w.keyFunc(obj)
 	if err != nil {
-		klog.Warningf("Failed to generate key for obj: %+v", obj)
+		klog.Errorf("Failed to generate key for obj: %+v, err: %v", obj, err)
 		return
 	}
 

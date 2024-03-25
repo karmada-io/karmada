@@ -22,9 +22,12 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/google/uuid"
+	admissionv1 "k8s.io/api/admission/v1"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/validation"
 )
@@ -78,6 +81,11 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 		if policy.Spec.Failover.Application != nil {
 			helper.SetDefaultGracePeriodSeconds(policy.Spec.Failover.Application)
 		}
+	}
+
+	if req.Operation == admissionv1.Create {
+		// We always generate a unique UUID for newly created policies.
+		policy.Labels = util.DedupeAndMergeLabels(policy.Labels, map[string]string{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: uuid.New().String()})
 	}
 
 	marshaledBytes, err := json.Marshal(policy)

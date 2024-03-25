@@ -19,8 +19,10 @@ package detector
 import (
 	"fmt"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 )
@@ -58,4 +60,34 @@ func ResourceItemKeyFunc(obj interface{}) (util.QueueKey, error) {
 	}
 
 	return key, nil
+}
+
+// PolicyKey is the object key of propagation policy.
+type PolicyKey struct {
+	keys.ClusterWideKey
+	// PermanentID is the permanent ID of the referencing propagation policy.
+	PermanentID string
+}
+
+// PolicyKeyFunc generates a PolicyKey for object.
+func PolicyKeyFunc(obj interface{}) (util.QueueKey, error) {
+	key, err := keys.ClusterWideKeyFunc(obj)
+	if err != nil {
+		return nil, err
+	}
+	metaInfo, err := meta.Accessor(obj)
+	if err != nil { // should not happen
+		return nil, fmt.Errorf("object has no meta: %w", err)
+	}
+
+	var ppID string
+	if len(metaInfo.GetNamespace()) == 0 {
+		ppID = metaInfo.GetLabels()[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]
+	} else {
+		ppID = metaInfo.GetLabels()[policyv1alpha1.PropagationPolicyPermanentIDLabel]
+	}
+	return &PolicyKey{
+		ClusterWideKey: key,
+		PermanentID:    ppID,
+	}, nil
 }

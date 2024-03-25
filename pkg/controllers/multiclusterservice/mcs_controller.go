@@ -413,8 +413,8 @@ func (c *MCSController) propagateService(ctx context.Context, mcs *networkingv1a
 					map[string]string{workv1alpha2.ResourceBindingPermanentIDLabel: uuid.New().String()})
 			}
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
-			bindingCopy.Annotations = binding.Annotations
-			bindingCopy.Labels = binding.Labels
+			bindingCopy.Annotations = util.DedupeAndMergeAnnotations(bindingCopy.Annotations, binding.Annotations)
+			bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
 			bindingCopy.OwnerReferences = binding.OwnerReferences
 			bindingCopy.Finalizers = binding.Finalizers
 			bindingCopy.Spec.Placement = binding.Spec.Placement
@@ -496,10 +496,7 @@ func (c *MCSController) claimMultiClusterServiceForService(svc *corev1.Service, 
 	}
 
 	// cleanup the policy labels
-	delete(svcCopy.Labels, policyv1alpha1.PropagationPolicyNameLabel)
-	delete(svcCopy.Labels, policyv1alpha1.PropagationPolicyNamespaceLabel)
 	delete(svcCopy.Labels, policyv1alpha1.PropagationPolicyPermanentIDLabel)
-	delete(svcCopy.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
 	delete(svcCopy.Labels, policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel)
 
 	svcCopy.Labels[util.ResourceTemplateClaimedByLabel] = util.MultiClusterServiceKind
