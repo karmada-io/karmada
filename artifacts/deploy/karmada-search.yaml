@@ -77,7 +77,8 @@ metadata:
     apiserver: "true"
 spec:
   ports:
-    - port: 443
+    - appProtocol: https
+      port: 443
       protocol: TCP
       targetPort: 443
   selector:

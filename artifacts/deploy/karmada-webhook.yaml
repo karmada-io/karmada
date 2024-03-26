@@ -63,5 +63,7 @@ spec:
   selector:
     app: karmada-webhook
   ports:
-    - port: 443
+    - appProtocol: https
+      port: 443
+      protocol: TCP
       targetPort: 8443
