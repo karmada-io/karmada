@@ -477,9 +477,6 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 					"try again later after binding is garbage collected, see https://github.com/karmada-io/karmada/issues/2090")
 			}
 
-			// TODO: Delete following two lines in release-1.9
-			delete(bindingCopy.Labels, workv1alpha2.ResourceBindingUIDLabel)
-			delete(bindingCopy.Labels, policyv1alpha1.PropagationPolicyUIDLabel)
 			if util.GetLabelValue(bindingCopy.Labels, workv1alpha2.ResourceBindingPermanentIDLabel) == "" {
 				bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels,
 					map[string]string{workv1alpha2.ResourceBindingPermanentIDLabel: uuid.New().String()})
@@ -579,9 +576,6 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 						"try again later after binding is garbage collected, see https://github.com/karmada-io/karmada/issues/2090")
 				}
 
-				// TODO: Delete following two lines in release-1.9
-				delete(bindingCopy.Labels, workv1alpha2.ResourceBindingUIDLabel)
-				delete(bindingCopy.Labels, policyv1alpha1.ClusterPropagationPolicyUIDLabel)
 				if util.GetLabelValue(bindingCopy.Labels, workv1alpha2.ResourceBindingPermanentIDLabel) == "" {
 					bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels,
 						map[string]string{workv1alpha2.ResourceBindingPermanentIDLabel: uuid.New().String()})
@@ -634,9 +628,6 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 					"try again later after binding is garbage collected, see https://github.com/karmada-io/karmada/issues/2090")
 			}
 
-			// TODO: delete following two lines in release-1.9
-			delete(bindingCopy.Labels, workv1alpha2.ClusterResourceBindingUIDLabel)
-			delete(bindingCopy.Labels, policyv1alpha1.ClusterPropagationPolicyUIDLabel)
 			if util.GetLabelValue(bindingCopy.Labels, workv1alpha2.ClusterResourceBindingPermanentIDLabel) == "" {
 				bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels,
 					map[string]string{workv1alpha2.ClusterResourceBindingPermanentIDLabel: uuid.New().String()})
@@ -740,8 +731,6 @@ func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructure
 		}
 	}
 
-	// Delete following line when release-1.9
-	delete(objLabels, policyv1alpha1.PropagationPolicyUIDLabel)
 	objLabels[policyv1alpha1.PropagationPolicyNamespaceLabel] = policy.Namespace
 	objLabels[policyv1alpha1.PropagationPolicyNameLabel] = policy.Name
 	objLabels[policyv1alpha1.PropagationPolicyPermanentIDLabel] = policyID
@@ -787,10 +776,6 @@ func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unst
 	}
 
 	objectCopy := object.DeepCopy()
-	// TODO: delete following 3 lines in release-1.9
-	labels := objectCopy.GetLabels()
-	delete(labels, policyv1alpha1.ClusterPropagationPolicyUIDLabel)
-	objectCopy.SetLabels(labels)
 
 	util.MergeLabel(objectCopy, policyv1alpha1.ClusterPropagationPolicyLabel, policy.Name)
 	util.MergeLabel(objectCopy, policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel, policyID)
