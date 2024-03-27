@@ -17,6 +17,7 @@ limitations under the License.
 package native
 
 import (
+	"bytes"
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -74,7 +75,18 @@ func reflectDeploymentStatus(object *unstructured.Unstructured) (*runtime.RawExt
 		AvailableReplicas:   deploymentStatus.AvailableReplicas,
 		UnavailableReplicas: deploymentStatus.UnavailableReplicas,
 	}
-	return helper.BuildStatusRawExtension(grabStatus)
+
+	grabStatusRaw, err := helper.BuildStatusRawExtension(grabStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	// if status is empty struct, it actually means status haven't been collected from member cluster.
+	if bytes.Equal(grabStatusRaw.Raw, []byte("{}")) {
+		return nil, nil
+	}
+
+	return grabStatusRaw, nil
 }
 
 func reflectServiceStatus(object *unstructured.Unstructured) (*runtime.RawExtension, error) {
