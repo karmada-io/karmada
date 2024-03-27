@@ -1,6 +1,10 @@
 name: image-scanning
 on:
-  push: 
+  push:
+    # Exclude branches created by Dependabot to avoid triggering current workflow
+    # for PRs initiated by Dependabot.
+    branches-ignore:
+      - 'dependabot/**'
 jobs:
   use-trivy-to-scan-image:
     name: image-scanning
