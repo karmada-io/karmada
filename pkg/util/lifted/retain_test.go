@@ -25,7 +25,7 @@ import (
 	"testing"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 // +lifted:source=https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/sync/dispatch/retain_test.go#L91-L174
@@ -93,7 +93,7 @@ func TestRetainHealthCheckNodePortInServiceFields(t *testing.T) {
 				},
 			},
 			true,
-			pointer.Int64(1000),
+			ptr.To[int64](1000),
 		},
 	}
 	for _, test := range tests {
@@ -166,7 +166,7 @@ func TestRetainClusterIPInServiceFields(t *testing.T) {
 				},
 			},
 			true,
-			pointer.String("1.2.3.4"),
+			ptr.To("1.2.3.4"),
 		},
 	}
 	for _, test := range tests {

@@ -27,7 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/test/e2e/framework"
@@ -51,9 +51,9 @@ var _ = ginkgo.Describe("hpa replicas synchronization testing", func() {
 			hpaName = policyName
 
 			deployment = helper.NewDeployment(namespace, deploymentName)
-			deployment.Spec.Replicas = pointer.Int32(initReplicas)
+			deployment.Spec.Replicas = ptr.To[int32](initReplicas)
 			hpa = helper.NewHPA(namespace, hpaName, deploymentName)
-			hpa.Spec.MinReplicas = pointer.Int32(2)
+			hpa.Spec.MinReplicas = ptr.To[int32](2)
 
 			policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{

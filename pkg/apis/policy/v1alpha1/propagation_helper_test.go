@@ -19,7 +19,7 @@ package v1alpha1
 import (
 	"testing"
 
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 func TestPropagationPolicy_ExplicitPriority(t *testing.T) {
@@ -34,7 +34,7 @@ func TestPropagationPolicy_ExplicitPriority(t *testing.T) {
 		},
 		{
 			name:             "expected to be declared priority in pp",
-			declaredPriority: pointer.Int32(20),
+			declaredPriority: ptr.To[int32](20),
 			expectedPriority: 20,
 		},
 	}
@@ -62,7 +62,7 @@ func TestClusterPropagationPolicy_ExplicitPriority(t *testing.T) {
 		},
 		{
 			name:             "expected to be declared priority in cpp",
-			declaredPriority: pointer.Int32(20),
+			declaredPriority: ptr.To[int32](20),
 			expectedPriority: 20,
 		},
 	}

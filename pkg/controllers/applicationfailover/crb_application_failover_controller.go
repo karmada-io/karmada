@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -165,7 +165,7 @@ func (c *CRBApplicationFailoverController) evictBinding(binding *workv1alpha2.Cl
 			}
 		case policyv1alpha1.Never:
 			if features.FeatureGate.Enabled(features.GracefulEviction) {
-				binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(workv1alpha2.WithProducer(CRBApplicationFailoverControllerName), workv1alpha2.WithReason(workv1alpha2.EvictionReasonApplicationFailure), workv1alpha2.WithSuppressDeletion(pointer.Bool(true))))
+				binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(workv1alpha2.WithProducer(CRBApplicationFailoverControllerName), workv1alpha2.WithReason(workv1alpha2.EvictionReasonApplicationFailure), workv1alpha2.WithSuppressDeletion(ptr.To[bool](true))))
 			} else {
 				err := fmt.Errorf("GracefulEviction featureGate must be enabled when purgeMode is %s", policyv1alpha1.Never)
 				klog.Error(err)

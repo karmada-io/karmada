@@ -23,7 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -120,7 +120,7 @@ func TestSpecificationChanged(t *testing.T) {
 					ManagedFields:   []metav1.ManagedFieldsEntry{{}},
 				},
 				Spec: workloadv1alpha1.WorkloadSpec{
-					Replicas: pointer.Int32(3),
+					Replicas: ptr.To[int32](3),
 					Template: corev1.PodTemplateSpec{},
 					Paused:   false,
 				},
@@ -132,7 +132,7 @@ func TestSpecificationChanged(t *testing.T) {
 					ManagedFields:   []metav1.ManagedFieldsEntry{{}},
 				},
 				Spec: workloadv1alpha1.WorkloadSpec{
-					Replicas: pointer.Int32(5),
+					Replicas: ptr.To[int32](5),
 					Template: corev1.PodTemplateSpec{},
 					Paused:   false,
 				},
@@ -148,7 +148,7 @@ func TestSpecificationChanged(t *testing.T) {
 					ManagedFields:   []metav1.ManagedFieldsEntry{{}},
 				},
 				Spec: workloadv1alpha1.WorkloadSpec{
-					Replicas: pointer.Int32(3),
+					Replicas: ptr.To[int32](3),
 					Template: corev1.PodTemplateSpec{},
 					Paused:   false,
 				},
@@ -160,7 +160,7 @@ func TestSpecificationChanged(t *testing.T) {
 					ManagedFields:   []metav1.ManagedFieldsEntry{{}, {}},
 				},
 				Spec: workloadv1alpha1.WorkloadSpec{
-					Replicas: pointer.Int32(3),
+					Replicas: ptr.To[int32](3),
 					Template: corev1.PodTemplateSpec{},
 					Paused:   false,
 				},
@@ -176,7 +176,7 @@ func TestSpecificationChanged(t *testing.T) {
 					ManagedFields:   []metav1.ManagedFieldsEntry{{}},
 				},
 				Spec: workloadv1alpha1.WorkloadSpec{
-					Replicas: pointer.Int32(3),
+					Replicas: ptr.To[int32](3),
 					Template: corev1.PodTemplateSpec{},
 					Paused:   false,
 				},
@@ -188,7 +188,7 @@ func TestSpecificationChanged(t *testing.T) {
 					ManagedFields:   []metav1.ManagedFieldsEntry{{}, {}},
 				},
 				Spec: workloadv1alpha1.WorkloadSpec{
-					Replicas: pointer.Int32(5),
+					Replicas: ptr.To[int32](5),
 					Template: corev1.PodTemplateSpec{},
 					Paused:   false,
 				},

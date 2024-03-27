@@ -25,7 +25,7 @@ import (
 	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -160,12 +160,12 @@ func ValidateSpreadConstraint(spreadConstraints []policyv1alpha1.SpreadConstrain
 
 		if len(constraint.SpreadByField) > 0 {
 			marked := spreadByFieldsWithErrorMark[constraint.SpreadByField]
-			if !pointer.BoolDeref(marked, true) {
+			if !ptr.Deref[bool](marked, true) {
 				allErrs = append(allErrs, field.Invalid(fldPath, spreadConstraints, fmt.Sprintf("multiple %s spread constraints are not allowed", constraint.SpreadByField)))
 				*marked = true
 			}
 			if marked == nil {
-				spreadByFieldsWithErrorMark[constraint.SpreadByField] = pointer.Bool(false)
+				spreadByFieldsWithErrorMark[constraint.SpreadByField] = ptr.To[bool](false)
 			}
 		}
 	}

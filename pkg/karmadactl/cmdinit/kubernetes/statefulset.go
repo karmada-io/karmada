@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/component-base/cli/flag"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
@@ -255,7 +255,7 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 				},
 			},
 		},
-		AutomountServiceAccountToken: pointer.Bool(false),
+		AutomountServiceAccountToken: ptr.To[bool](false),
 		Containers: []corev1.Container{
 			{
 				Name:  etcdStatefulSetAndServiceName,

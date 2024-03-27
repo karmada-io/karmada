@@ -34,7 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -339,7 +339,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 				gomega.Expect(minGroups == len(groupMatchedClusters)).ShouldNot(gomega.BeFalse())
 			})
 
-			patch := map[string]interface{}{"spec": map[string]interface{}{"parallelism": pointer.Int32(updateParallelism)}}
+			patch := map[string]interface{}{"spec": map[string]interface{}{"parallelism": ptr.To[int32](updateParallelism)}}
 			bytes, err := json.Marshal(patch)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			framework.UpdateJobWithPatchBytes(kubeClient, job.Namespace, job.Name, bytes, types.StrategicMergePatchType)
