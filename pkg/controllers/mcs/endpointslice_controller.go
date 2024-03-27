@@ -29,6 +29,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
@@ -63,12 +64,18 @@ func (c *EndpointSliceController) Reconcile(ctx context.Context, req controllerr
 				return controllerruntime.Result{}, nil
 			}
 		}
-
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !work.DeletionTimestamp.IsZero() {
-		return controllerruntime.Result{}, nil
+		err := helper.DeleteEndpointSlice(c.Client, labels.Set{
+			workv1alpha1.WorkNamespaceLabel: req.Namespace,
+			workv1alpha1.WorkNameLabel:      req.Name,
+		})
+		if err != nil {
+			return controllerruntime.Result{}, err
+		}
+		return controllerruntime.Result{}, c.removeFinalizer(work.DeepCopy())
 	}
 
 	// TBD: The work is managed by service-export-controller and endpointslice-collect-controller now,
@@ -79,10 +86,20 @@ func (c *EndpointSliceController) Reconcile(ctx context.Context, req controllerr
 			workv1alpha1.WorkNamespaceLabel: req.Namespace,
 			workv1alpha1.WorkNameLabel:      req.Name,
 		})
-		return controllerruntime.Result{}, err
+		if err != nil {
+			return controllerruntime.Result{}, err
+		}
+		return controllerruntime.Result{}, c.removeFinalizer(work.DeepCopy())
 	}
 
-	return c.collectEndpointSliceFromWork(work)
+	return controllerruntime.Result{}, c.collectEndpointSliceFromWork(work)
+}
+
+func (c *EndpointSliceController) removeFinalizer(work *workv1alpha1.Work) error {
+	if !controllerutil.RemoveFinalizer(work, util.EndpointSliceControllerFinalizer) {
+		return nil
+	}
+	return c.Client.Update(context.TODO(), work)
 }
 
 // SetupWithManager creates a controller and register to controller manager.
@@ -94,8 +111,8 @@ func (c *EndpointSliceController) SetupWithManager(mgr controllerruntime.Manager
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			// TBD: We care about the work with label util.MultiClusterServiceNameLabel because the work is
 			// managed by service-export-controller and endpointslice-collect-controller now, We should delete this after the conflict is fixed.
-			return (util.GetLabelValue(updateEvent.ObjectNew.GetLabels(), util.ServiceNameLabel) != "" ||
-				util.GetLabelValue(updateEvent.ObjectNew.GetLabels(), util.MultiClusterServiceNameLabel) != "")
+			return util.GetLabelValue(updateEvent.ObjectNew.GetLabels(), util.ServiceNameLabel) != "" ||
+				util.GetLabelValue(updateEvent.ObjectNew.GetLabels(), util.MultiClusterServiceNameLabel) != ""
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			return util.GetLabelValue(deleteEvent.Object.GetLabels(), util.ServiceNameLabel) != ""
@@ -107,25 +124,25 @@ func (c *EndpointSliceController) SetupWithManager(mgr controllerruntime.Manager
 	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{}, builder.WithPredicates(serviceImportPredicateFun)).Complete(c)
 }
 
-func (c *EndpointSliceController) collectEndpointSliceFromWork(work *workv1alpha1.Work) (controllerruntime.Result, error) {
+func (c *EndpointSliceController) collectEndpointSliceFromWork(work *workv1alpha1.Work) error {
 	clusterName, err := names.GetClusterName(work.Namespace)
 	if err != nil {
 		klog.Errorf("Failed to get cluster name for work %s/%s", work.Namespace, work.Name)
-		return controllerruntime.Result{Requeue: true}, err
+		return err
 	}
 
 	for _, manifest := range work.Spec.Workload.Manifests {
 		unstructObj := &unstructured.Unstructured{}
 		if err := unstructObj.UnmarshalJSON(manifest.Raw); err != nil {
 			klog.Errorf("Failed to unmarshal workload, error is: %v", err)
-			return controllerruntime.Result{Requeue: true}, err
+			return err
 		}
 
 		endpointSlice := &discoveryv1.EndpointSlice{}
 		err = helper.ConvertToTypedObject(unstructObj, endpointSlice)
 		if err != nil {
 			klog.Errorf("Failed to convert unstructured to typed object: %v", err)
-			return controllerruntime.Result{Requeue: true}, err
+			return err
 		}
 
 		desiredEndpointSlice := deriveEndpointSlice(endpointSlice, clusterName)
@@ -137,11 +154,11 @@ func (c *EndpointSliceController) collectEndpointSliceFromWork(work *workv1alpha
 		}
 
 		if err = helper.CreateOrUpdateEndpointSlice(c.Client, desiredEndpointSlice); err != nil {
-			return controllerruntime.Result{Requeue: true}, err
+			return err
 		}
 	}
 
-	return controllerruntime.Result{}, nil
+	return nil
 }
 
 func deriveEndpointSlice(original *discoveryv1.EndpointSlice, migratedFrom string) *discoveryv1.EndpointSlice {
