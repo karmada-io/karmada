@@ -16,7 +16,11 @@ limitations under the License.
 
 package kubernetes
 
-import "testing"
+import (
+	"testing"
+
+	appsv1 "k8s.io/api/apps/v1"
+)
 
 func TestCommandInitIOption_etcdVolume(t *testing.T) {
 	tests := []struct {
@@ -117,6 +121,17 @@ func TestCommandInitIOption_makeETCDStatefulSet(t *testing.T) {
 				EtcdNodeSelectorLabels:   "",
 			},
 		},
+		{
+			name: "EtcdStsPvcDeletePolicy is Delete",
+			opt: CommandInitOption{
+				EtcdStorageMode:          etcdStorageModePVC,
+				Namespace:                "karmada",
+				StorageClassesName:       "StorageClassesName",
+				EtcdPersistentVolumeSize: "1024",
+				EtcdNodeSelectorLabels:   "",
+				EtcdStsPvcDeletePolicy:   string(appsv1.DeletePersistentVolumeClaimRetentionPolicyType),
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -134,6 +149,11 @@ func TestCommandInitIOption_makeETCDStatefulSet(t *testing.T) {
 
 				if len(etcd.Spec.VolumeClaimTemplates) != 0 {
 					t.Errorf("CommandInitOption.makeETCDStatefulSet() returns non-empty VolumeClaimTemplates")
+				}
+			}
+			if tt.opt.EtcdStsPvcDeletePolicy == string(appsv1.DeletePersistentVolumeClaimRetentionPolicyType) {
+				if tt.opt.EtcdStsPvcDeletePolicy != string(etcd.Spec.PersistentVolumeClaimRetentionPolicy.WhenDeleted) {
+					t.Errorf("CommandInitOption.makeETCDStatefulSet() returns wrong EtcdStsPvcDeletePolicy %v", etcd.Spec.PersistentVolumeClaimRetentionPolicy.WhenDeleted)
 				}
 			}
 		})
