@@ -58,6 +58,13 @@ import (
 // ControllerName is the controller name that will be used when reporting events.
 const ControllerName = "multiclusterservice-controller"
 
+const (
+	serviceAppliedFailedConditionStatus  = "ServiceAppliedFailed"
+	serviceAppliedSucceedConditionStatus = "ServiceAppliedSucceed"
+
+	serviceAppliedSucceedReason = "Service is propagated to target clusters."
+)
+
 // MCSController is to sync MultiClusterService.
 type MCSController struct {
 	client.Client
@@ -69,7 +76,7 @@ type MCSController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *MCSController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling MultiClusterService(%s/%s)", req.Namespace, req.Name)
+	klog.V(4).Infof("Reconciling MultiClusterService(%s)", req.NamespacedName)
 
 	mcs := &networkingv1alpha1.MultiClusterService{}
 	if err := c.Client.Get(ctx, req.NamespacedName, mcs); err != nil {
@@ -88,12 +95,12 @@ func (c *MCSController) Reconcile(ctx context.Context, req controllerruntime.Req
 	var err error
 	defer func() {
 		if err != nil {
-			_ = c.updateMultiClusterServiceStatus(mcs, metav1.ConditionFalse, "ServiceAppliedFailed", err.Error())
+			_ = c.updateMultiClusterServiceStatus(mcs, metav1.ConditionFalse, serviceAppliedFailedConditionStatus, err.Error())
 			c.EventRecorder.Eventf(mcs, corev1.EventTypeWarning, events.EventReasonSyncServiceFailed, err.Error())
 			return
 		}
-		_ = c.updateMultiClusterServiceStatus(mcs, metav1.ConditionTrue, "ServiceAppliedSucceed", "Service is propagated to target clusters.")
-		c.EventRecorder.Eventf(mcs, corev1.EventTypeNormal, events.EventReasonSyncServiceSucceed, "Service is propagated to target clusters.")
+		_ = c.updateMultiClusterServiceStatus(mcs, metav1.ConditionTrue, serviceAppliedSucceedConditionStatus, serviceAppliedSucceedReason)
+		c.EventRecorder.Eventf(mcs, corev1.EventTypeNormal, events.EventReasonSyncServiceSucceed, serviceAppliedSucceedReason)
 	}()
 
 	if err = c.handleMultiClusterServiceCreateOrUpdate(mcs.DeepCopy()); err != nil {
@@ -150,7 +157,7 @@ func (c *MCSController) retrieveMultiClusterService(mcs *networkingv1alpha1.Mult
 			continue
 		}
 
-		if providerClusters.Has(clusterName) && c.IsClusterReady(clusterName) {
+		if providerClusters.Has(clusterName) && c.isClusterReady(clusterName) {
 			continue
 		}
 
@@ -199,14 +206,6 @@ func (c *MCSController) cleanProviderEndpointSliceWork(work *workv1alpha1.Work) 
 	}
 	if err := utilerrors.NewAggregate(errs); err != nil {
 		return err
-	}
-
-	// TBD: This is needed because we add this finalizer in version 1.8.0, delete this in version 1.10.0
-	if controllerutil.RemoveFinalizer(work, util.MCSEndpointSliceCollectControllerFinalizer) {
-		if err := c.Update(context.TODO(), work); err != nil {
-			klog.Errorf("Failed to update work(%s/%s), Error: %v", work.Namespace, work.Name, err)
-			return err
-		}
 	}
 
 	return nil
@@ -268,7 +267,7 @@ func (c *MCSController) handleMultiClusterServiceCreateOrUpdate(mcs *networkingv
 	// 5. make sure service exist
 	svc := &corev1.Service{}
 	err = c.Client.Get(context.Background(), types.NamespacedName{Namespace: mcs.Namespace, Name: mcs.Name}, svc)
-	// If the Serivice are deleted, the Service's ResourceBinding will be cleaned by GC
+	// If the Service are deleted, the Service's ResourceBinding will be cleaned by GC
 	if err != nil {
 		klog.Errorf("Failed to get service(%s/%s):%v", mcs.Namespace, mcs.Name, err)
 		return err
@@ -546,8 +545,8 @@ func (c *MCSController) updateMultiClusterServiceStatus(mcs *networkingv1alpha1.
 	})
 }
 
-// IsClusterReady checks whether the cluster is ready.
-func (c *MCSController) IsClusterReady(clusterName string) bool {
+// isClusterReady checks whether the cluster is ready.
+func (c *MCSController) isClusterReady(clusterName string) bool {
 	cluster := &clusterv1alpha1.Cluster{}
 	if err := c.Client.Get(context.TODO(), types.NamespacedName{Name: clusterName}, cluster); err != nil {
 		klog.Errorf("Failed to get cluster object(%s):%v", clusterName, err)
@@ -585,7 +584,7 @@ func (c *MCSController) SetupWithManager(mgr controllerruntime.Manager) error {
 			return false
 		},
 		GenericFunc: func(event.GenericEvent) bool {
-			return true
+			return false
 		},
 	}
 
@@ -666,43 +665,40 @@ func (c *MCSController) clusterMapFunc() handler.MapFunc {
 
 		var requests []reconcile.Request
 		for index := range mcsList.Items {
-			if need, err := c.needSyncMultiClusterService(&mcsList.Items[index], clusterName); err != nil || !need {
-				continue
+			mcs := &mcsList.Items[index]
+			if c.needSyncMultiClusterService(mcs, clusterName) {
+				requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Namespace: mcs.Namespace,
+					Name: mcs.Name}})
 			}
-
-			requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Namespace: mcsList.Items[index].Namespace,
-				Name: mcsList.Items[index].Name}})
 		}
 
 		return requests
 	}
 }
 
-func (c *MCSController) needSyncMultiClusterService(mcs *networkingv1alpha1.MultiClusterService, clusterName string) (bool, error) {
+func (c *MCSController) needSyncMultiClusterService(mcs *networkingv1alpha1.MultiClusterService, clusterName string) bool {
 	if !helper.MultiClusterServiceCrossClusterEnabled(mcs) {
-		return false, nil
+		return false
 	}
 
 	if len(mcs.Spec.ProviderClusters) == 0 || len(mcs.Spec.ConsumerClusters) == 0 {
-		return true, nil
+		return true
 	}
 
-	providerClusters, err := helper.GetProviderClusters(c.Client, mcs)
-	if err != nil {
-		klog.Errorf("Failed to get provider clusters by MultiClusterService(%s/%s):%v", mcs.Namespace, mcs.Name, err)
-		return false, err
+	providerClusters := sets.New[string]()
+	for _, p := range mcs.Spec.ProviderClusters {
+		providerClusters.Insert(p.Name)
 	}
 	if providerClusters.Has(clusterName) {
-		return true, nil
+		return true
 	}
 
-	consumerClusters, err := helper.GetConsumerClusters(c.Client, mcs)
-	if err != nil {
-		klog.Errorf("Failed to get consumer clusters by MultiClusterService(%s/%s):%v", mcs.Namespace, mcs.Name, err)
-		return false, err
+	consumerClusters := sets.New[string]()
+	for _, c := range mcs.Spec.ConsumerClusters {
+		consumerClusters.Insert(c.Name)
 	}
 	if consumerClusters.Has(clusterName) {
-		return true, nil
+		return true
 	}
-	return false, nil
+	return false
 }
