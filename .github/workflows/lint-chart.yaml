@@ -9,6 +9,10 @@ env:
 
 on:
   push:
+    # Exclude branches created by Dependabot to avoid triggering current workflow
+    # for PRs initiated by Dependabot.
+    branches-ignore:
+      - 'dependabot/**'
   pull_request:
     paths:
       - "charts/**"
