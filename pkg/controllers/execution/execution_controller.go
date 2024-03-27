@@ -110,7 +110,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	}
 
 	if !util.IsClusterReady(&cluster.Status) {
-		klog.Errorf("Stop sync work(%s/%s) for cluster(%s) as cluster not ready.", work.Namespace, work.Name, cluster.Name)
+		klog.Errorf("Stop syncing the work(%s/%s) for the cluster(%s) as cluster not ready.", work.Namespace, work.Name, cluster.Name)
 		return controllerruntime.Result{Requeue: true}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
 	}
 
@@ -133,24 +133,24 @@ func (c *Controller) syncWork(clusterName string, work *workv1alpha1.Work) (cont
 	err := c.syncToClusters(clusterName, work)
 	metrics.ObserveSyncWorkloadLatency(err, start)
 	if err != nil {
-		msg := fmt.Sprintf("Failed to sync work(%s) to cluster(%s): %v", work.Name, clusterName, err)
+		msg := fmt.Sprintf("Failed to sync work(%s/%s) to cluster(%s), err: %v", work.Namespace, work.Name, clusterName, err)
 		klog.Errorf(msg)
 		c.EventRecorder.Event(work, corev1.EventTypeWarning, events.EventReasonSyncWorkloadFailed, msg)
 		return controllerruntime.Result{Requeue: true}, err
 	}
-	msg := fmt.Sprintf("Sync work (%s) to cluster(%s) successful.", work.Name, clusterName)
+	msg := fmt.Sprintf("Sync work(%s/%s) to cluster(%s) successful.", work.Namespace, work.Name, clusterName)
 	klog.V(4).Infof(msg)
 	c.EventRecorder.Event(work, corev1.EventTypeNormal, events.EventReasonSyncWorkloadSucceed, msg)
 	return controllerruntime.Result{}, nil
 }
 
-// tryDeleteWorkload tries to delete resource in the given member cluster.
+// tryDeleteWorkload tries to delete resources in the given member cluster.
 func (c *Controller) tryDeleteWorkload(clusterName string, work *workv1alpha1.Work) error {
 	for _, manifest := range work.Spec.Workload.Manifests {
 		workload := &unstructured.Unstructured{}
 		err := workload.UnmarshalJSON(manifest.Raw)
 		if err != nil {
-			klog.Errorf("Failed to unmarshal workload, error is: %v", err)
+			klog.Errorf("Failed to unmarshal the workload(kind=%s, %s/%s), error is: %v", workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)
 			return err
 		}
 
@@ -165,19 +165,21 @@ func (c *Controller) tryDeleteWorkload(clusterName string, work *workv1alpha1.Wo
 			if apierrors.IsNotFound(err) {
 				return nil
 			}
-			klog.Errorf("Failed to get resource %v from member cluster, err is %v ", workload.GetName(), err)
+			klog.Errorf("Failed to get the resource(kind=%s, %s/%s) from member cluster, err is %v.", workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)
 			return err
 		}
 
 		// Avoid deleting resources that not managed by karmada.
-		if util.GetLabelValue(clusterObj.GetLabels(), workv1alpha1.WorkNameLabel) != util.GetLabelValue(workload.GetLabels(), workv1alpha1.WorkNameLabel) {
-			klog.Infof("Abort deleting the resource(kind=%s, %s/%s) exists in cluster %v but not managed by karmada", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), clusterName)
+		if util.GetLabelValue(clusterObj.GetLabels(), workv1alpha2.WorkPermanentIDLabel) != util.GetLabelValue(workload.GetLabels(), workv1alpha2.WorkPermanentIDLabel) {
+			klog.Warningf("Abort deleting the resource(kind=%s, %s/%s) which is not managed by Karmada in the cluster(%s), cause: (desired: %s=%s, observed: %s=%s).",
+				clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), clusterName,
+				workv1alpha2.WorkPermanentIDLabel, util.GetLabelValue(workload.GetLabels(), workv1alpha2.WorkPermanentIDLabel),
+				workv1alpha2.WorkPermanentIDLabel, util.GetLabelValue(clusterObj.GetLabels(), workv1alpha2.WorkPermanentIDLabel))
 			return nil
 		}
 
 		err = c.ObjectWatcher.Delete(clusterName, workload)
 		if err != nil {
-			klog.Errorf("Failed to delete resource in the given member cluster %v, err is %v", clusterName, err)
 			return err
 		}
 	}
@@ -211,7 +213,6 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 			errs = append(errs, err)
 			continue
 		}
-		util.MergeLabel(workload, workv1alpha2.WorkPermanentIDLabel, util.GetLabelValue(work.Labels, workv1alpha2.WorkPermanentIDLabel))
 
 		if err = c.tryCreateOrUpdateWorkload(clusterName, workload); err != nil {
 			klog.Errorf("Failed to create or update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
@@ -253,12 +254,11 @@ func (c *Controller) tryCreateOrUpdateWorkload(clusterName string, workload *uns
 	clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
-			klog.Errorf("Failed to get resource %v from member cluster, err is %v ", workload.GetName(), err)
+			klog.Errorf("Failed to get the resource(kind=%s, %s/%s) from member cluster(%s), err is %v ", workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)
 			return err
 		}
 		err = c.ObjectWatcher.Create(clusterName, workload)
 		if err != nil {
-			klog.Errorf("Failed to create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
 			return err
 		}
 		return nil
@@ -266,13 +266,12 @@ func (c *Controller) tryCreateOrUpdateWorkload(clusterName string, workload *uns
 
 	err = c.ObjectWatcher.Update(clusterName, workload, clusterObj)
 	if err != nil {
-		klog.Errorf("Failed to update resource in the given member cluster %s, err is %v", clusterName, err)
 		return err
 	}
 	return nil
 }
 
-// updateAppliedCondition update the Applied condition for the given Work
+// updateAppliedCondition updates the applied condition for the given Work.
 func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status metav1.ConditionStatus, reason, message string) error {
 	newWorkAppliedCondition := metav1.Condition{
 		Type:               workv1alpha1.WorkApplied,
@@ -292,7 +291,7 @@ func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status meta
 		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: work.Namespace, Name: work.Name}, updated); err == nil {
 			work = updated
 		} else {
-			klog.Errorf("Failed to get updated work %s/%s: %v", work.Namespace, work.Name, err)
+			klog.Errorf("Failed to get the updated work(%s/%s), err: %v", work.Namespace, work.Name, err)
 		}
 		return updateErr
 	})
@@ -301,7 +300,7 @@ func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status meta
 func (c *Controller) eventf(object *unstructured.Unstructured, eventType, reason, messageFmt string, args ...interface{}) {
 	ref, err := helper.GenEventRef(object)
 	if err != nil {
-		klog.Errorf("ignore event(%s) as failed to build event reference for: kind=%s, %s due to %v", reason, object.GetKind(), klog.KObj(object), err)
+		klog.Errorf("Ignore event(%s) as failed to build event reference for: kind=%s, %s due to %v", reason, object.GetKind(), klog.KObj(object), err)
 		return
 	}
 	c.EventRecorder.Eventf(ref, eventType, reason, messageFmt, args...)

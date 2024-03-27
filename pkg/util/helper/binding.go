@@ -194,9 +194,9 @@ func ObtainBindingSpecExistingClusters(bindingSpec workv1alpha2.ResourceBindingS
 
 // FindOrphanWorks retrieves all works that labeled with current binding(ResourceBinding or ClusterResourceBinding) objects,
 // then pick the works that not meet current binding declaration.
-func FindOrphanWorks(c client.Client, bindingNamespace, bindingName string, expectClusters sets.Set[string]) ([]workv1alpha1.Work, error) {
+func FindOrphanWorks(c client.Client, bindingNamespace, bindingName, bindingID string, expectClusters sets.Set[string]) ([]workv1alpha1.Work, error) {
 	var needJudgeWorks []workv1alpha1.Work
-	workList, err := GetWorksByBindingNamespaceName(c, bindingNamespace, bindingName)
+	workList, err := GetWorksByBindingID(c, bindingID, bindingNamespace != "")
 	if err != nil {
 		klog.Errorf("Failed to get works by binding object (%s/%s): %v", bindingNamespace, bindingName, err)
 		return nil, err
@@ -344,21 +344,11 @@ func GetResourceBindings(c client.Client, ls labels.Set) (*workv1alpha2.Resource
 	return bindings, c.List(context.TODO(), bindings, listOpt)
 }
 
-// DeleteWorkByRBNamespaceAndName will delete all Work objects by ResourceBinding namespace and name.
-func DeleteWorkByRBNamespaceAndName(c client.Client, namespace, name string) error {
-	return DeleteWorks(c, namespace, name)
-}
-
-// DeleteWorkByCRBName will delete all Work objects by ClusterResourceBinding name.
-func DeleteWorkByCRBName(c client.Client, name string) error {
-	return DeleteWorks(c, "", name)
-}
-
 // DeleteWorks will delete all Work objects by labels.
-func DeleteWorks(c client.Client, namespace, name string) error {
-	workList, err := GetWorksByBindingNamespaceName(c, namespace, name)
+func DeleteWorks(c client.Client, namespace, name, bindingID string) error {
+	workList, err := GetWorksByBindingID(c, bindingID, namespace != "")
 	if err != nil {
-		klog.Errorf("Failed to get works by ResourceBinding(%s/%s) : %v", namespace, name, err)
+		klog.Errorf("Failed to get works by (Cluster)ResourceBinding(%s/%s) : %v", namespace, name, err)
 		return err
 	}
 

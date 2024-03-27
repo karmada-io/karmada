@@ -522,10 +522,6 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding 
 	key := client.ObjectKeyFromObject(attachedBinding)
 	err := d.Client.Get(context.TODO(), key, existBinding)
 	if err == nil {
-		if util.GetLabelValue(existBinding.Labels, workv1alpha2.ResourceBindingPermanentIDLabel) == "" {
-			existBinding.Labels = util.DedupeAndMergeLabels(existBinding.Labels,
-				map[string]string{workv1alpha2.ResourceBindingPermanentIDLabel: uuid.New().String()})
-		}
 		existBinding.Spec.RequiredBy = mergeBindingSnapshot(existBinding.Spec.RequiredBy, attachedBinding.Spec.RequiredBy)
 		existBinding.Labels = util.DedupeAndMergeLabels(existBinding.Labels, attachedBinding.Labels)
 		existBinding.Spec.Resource = attachedBinding.Spec.Resource
@@ -544,7 +540,7 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding 
 
 	attachedBinding.Labels = util.DedupeAndMergeLabels(attachedBinding.Labels,
 		map[string]string{workv1alpha2.ResourceBindingPermanentIDLabel: uuid.New().String()})
-	if err := d.Client.Create(context.TODO(), attachedBinding); err != nil {
+	if err := d.Client.Create(context.TODO(), attachedBinding); err != nil && !apierrors.IsAlreadyExists(err) {
 		return err
 	}
 	return nil

@@ -39,6 +39,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
@@ -111,7 +112,7 @@ func (c *WorkStatusController) Reconcile(ctx context.Context, req controllerrunt
 	}
 
 	if !util.IsClusterReady(&cluster.Status) {
-		klog.Errorf("Stop sync work(%s/%s) for cluster(%s) as cluster not ready.", work.Namespace, work.Name, cluster.Name)
+		klog.Errorf("Stop syncing the Work(%s/%s) to the cluster(%s) as not ready.", work.Namespace, work.Name, cluster.Name)
 		return controllerruntime.Result{Requeue: true}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
 	}
 
@@ -165,9 +166,9 @@ func generateKey(obj interface{}) (util.QueueKey, error) {
 
 // getClusterNameFromLabel gets cluster name from ownerLabel, if label not exist, means resource is not created by karmada.
 func getClusterNameFromLabel(resource *unstructured.Unstructured) (string, error) {
-	workNamespace := util.GetLabelValue(resource.GetLabels(), workv1alpha1.WorkNamespaceLabel)
+	workNamespace := util.GetAnnotationValue(resource.GetAnnotations(), workv1alpha2.WorkNamespaceAnnotation)
 	if len(workNamespace) == 0 {
-		klog.V(4).Infof("Ignore resource(%s/%s/%s) which not managed by karmada", resource.GetKind(), resource.GetNamespace(), resource.GetName())
+		klog.V(4).Infof("Ignore resource(kind=%s, %s/%s) which is not managed by Karmada.", resource.GetKind(), resource.GetNamespace(), resource.GetName())
 		return "", nil
 	}
 
@@ -195,16 +196,16 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return err
 	}
 
-	workNamespace := util.GetLabelValue(observedObj.GetLabels(), workv1alpha1.WorkNamespaceLabel)
-	workName := util.GetLabelValue(observedObj.GetLabels(), workv1alpha1.WorkNameLabel)
+	workNamespace := util.GetAnnotationValue(observedObj.GetAnnotations(), workv1alpha2.WorkNamespaceAnnotation)
+	workName := util.GetAnnotationValue(observedObj.GetAnnotations(), workv1alpha2.WorkNameAnnotation)
 	if len(workNamespace) == 0 || len(workName) == 0 {
-		klog.Infof("Ignore object(%s) which not managed by karmada.", fedKey.String())
+		klog.Infof("Ignore object(%s) which not managed by Karmada.", fedKey.String())
 		return nil
 	}
 
 	workObject := &workv1alpha1.Work{}
 	if err := c.Client.Get(context.TODO(), client.ObjectKey{Namespace: workNamespace, Name: workName}, workObject); err != nil {
-		// Stop processing if resource no longer exist.
+		// Stop processing if the resource no longer exists.
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
@@ -213,7 +214,7 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return err
 	}
 
-	// stop update status if Work object in terminating state.
+	// stop updating status if Work object in terminating state.
 	if !workObject.DeletionTimestamp.IsZero() {
 		return nil
 	}
@@ -238,7 +239,7 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 
 	if needUpdate {
 		if err := c.ObjectWatcher.Update(clusterName, desiredObj, observedObj); err != nil {
-			klog.Errorf("Update %s failed: %v", fedKey.String(), err)
+			klog.Errorf("Updating %s failed: %v", fedKey.String(), err)
 			return err
 		}
 		// We can't return even after a success updates, because that might lose the chance to collect status.
@@ -250,7 +251,7 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		// status changes.
 	}
 
-	klog.Infof("reflecting %s(%s/%s) status to Work(%s/%s)", observedObj.GetKind(), observedObj.GetNamespace(), observedObj.GetName(), workNamespace, workName)
+	klog.Infof("Reflecting the resource(kind=%s, %s/%s) status to the Work(%s/%s).", observedObj.GetKind(), observedObj.GetNamespace(), observedObj.GetName(), workNamespace, workName)
 	return c.reflectStatus(workObject, observedObj)
 }
 
@@ -300,7 +301,7 @@ func (c *WorkStatusController) recreateResourceIfNeeded(work *workv1alpha1.Work,
 		if reflect.DeepEqual(desiredGVK, workloadKey.GroupVersionKind()) &&
 			manifest.GetNamespace() == workloadKey.Namespace &&
 			manifest.GetName() == workloadKey.Name {
-			klog.Infof("recreating %s", workloadKey.String())
+			klog.Infof("Recreating resource(%s).", workloadKey.String())
 			err := c.ObjectWatcher.Create(workloadKey.Cluster, manifest)
 			if err != nil {
 				c.eventf(manifest, corev1.EventTypeWarning, events.EventReasonSyncWorkloadFailed, "Failed to create or update resource(%s/%s) in member cluster(%s): %v", manifest.GetNamespace(), manifest.GetName(), workloadKey.Cluster, err)
@@ -549,7 +550,7 @@ func (c *WorkStatusController) SetupWithManager(mgr controllerruntime.Manager) e
 func (c *WorkStatusController) eventf(object *unstructured.Unstructured, eventType, reason, messageFmt string, args ...interface{}) {
 	ref, err := helper.GenEventRef(object)
 	if err != nil {
-		klog.Errorf("ignore event(%s) as failed to build event reference for: kind=%s, %s due to %v", reason, object.GetKind(), klog.KObj(object), err)
+		klog.Errorf("Ignore event(%s) as failing to build event reference for: kind=%s, %s due to %v", reason, object.GetKind(), klog.KObj(object), err)
 		return
 	}
 	c.EventRecorder.Eventf(ref, eventType, reason, messageFmt, args...)
