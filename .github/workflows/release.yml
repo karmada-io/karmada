@@ -35,7 +35,7 @@ jobs:
       run: make package-chart
     - name: Uploading assets...
       if: ${{ !env.ACT }}
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: |
           _output/release/${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz
@@ -56,7 +56,7 @@ jobs:
         files: crds
         outPath: crds.tar.gz
     - name: Uploading crd assets...
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: |
           crds.tar.gz
@@ -71,7 +71,7 @@ jobs:
       run: make package-chart
     - name: Uploading assets...
       if: ${{ !env.ACT }}
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: |
           _output/charts/karmada-chart-${{ github.ref_name }}.tgz
