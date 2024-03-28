@@ -401,7 +401,7 @@ func (c *ServiceExportController) reportEndpointSliceWithServiceExportCreate(ser
 		return err
 	}
 
-	err = c.removeOrphanWork(endpointSliceObjects, serviceExportKey.Cluster)
+	err = c.removeOrphanWork(endpointSliceObjects, serviceExportKey)
 	if err != nil {
 		return err
 	}
@@ -414,7 +414,7 @@ func (c *ServiceExportController) reportEndpointSliceWithServiceExportCreate(ser
 	return utilerrors.NewAggregate(errs)
 }
 
-func (c *ServiceExportController) removeOrphanWork(endpointSliceObjects []runtime.Object, targetCluster string) error {
+func (c *ServiceExportController) removeOrphanWork(endpointSliceObjects []runtime.Object, serviceExportKey keys.FederatedKey) error {
 	willReportWorks := sets.NewString()
 	for index := range endpointSliceObjects {
 		endpointSlice := endpointSliceObjects[index].(*unstructured.Unstructured)
@@ -424,12 +424,15 @@ func (c *ServiceExportController) removeOrphanWork(endpointSliceObjects []runtim
 
 	collectedEpsWorkList := &workv1alpha1.WorkList{}
 	if err := c.List(context.TODO(), collectedEpsWorkList, &client.ListOptions{
-		Namespace: names.GenerateExecutionSpaceName(targetCluster),
+		Namespace: names.GenerateExecutionSpaceName(serviceExportKey.Cluster),
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			util.PropagationInstruction: util.PropagationInstructionSuppressed,
+			util.ServiceNamespaceLabel:  serviceExportKey.Namespace,
+			util.ServiceNameLabel:       serviceExportKey.Name,
 		}),
 	}); err != nil {
-		klog.Errorf("Failed to list suppressed work list under namespace %s: %v", names.GenerateExecutionSpaceName(targetCluster), err)
+		klog.Errorf("Failed to list endpointslice work with serviceExport(%s/%s) under namespace %s: %v",
+			serviceExportKey.Namespace, serviceExportKey.Name, names.GenerateExecutionSpaceName(serviceExportKey.Cluster), err)
 		return err
 	}
 
