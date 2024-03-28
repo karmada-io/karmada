@@ -172,9 +172,9 @@ func TestMergeLabel(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			MergeLabel(tt.obj, tt.labelKey, tt.labelValue)
+			ReplaceLabel(tt.obj, tt.labelKey, tt.labelValue)
 			if !reflect.DeepEqual(tt.obj, tt.expected) {
-				t.Errorf("MergeLabel() = %v, want %v", tt.obj, tt.expected)
+				t.Errorf("ReplaceLabel() = %v, want %v", tt.obj, tt.expected)
 			}
 		})
 	}

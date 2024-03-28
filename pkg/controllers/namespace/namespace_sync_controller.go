@@ -160,9 +160,9 @@ func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv
 				Annotations: annotations,
 			}
 
-			util.MergeLabel(clonedNamespaced, workv1alpha1.WorkNamespaceLabel, workNamespace)
-			util.MergeLabel(clonedNamespaced, workv1alpha1.WorkNameLabel, workName)
-			util.MergeLabel(clonedNamespaced, util.ManagedByKarmadaLabel, util.ManagedByKarmadaLabelValue)
+			util.ReplaceLabel(clonedNamespaced, workv1alpha1.WorkNamespaceLabel, workNamespace)
+			util.ReplaceLabel(clonedNamespaced, workv1alpha1.WorkNameLabel, workName)
+			util.ReplaceLabel(clonedNamespaced, util.ManagedByKarmadaLabel, util.ManagedByKarmadaLabelValue)
 
 			if err = helper.CreateOrUpdateWork(c.Client, objectMeta, clonedNamespaced); err != nil {
 				ch <- fmt.Errorf("sync namespace(%s) to cluster(%s) failed due to: %v", clonedNamespaced.GetName(), cluster.GetName(), err)
