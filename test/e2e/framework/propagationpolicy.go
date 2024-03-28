@@ -23,6 +23,7 @@ import (
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -42,6 +43,22 @@ func CreatePropagationPolicy(client karmada.Interface, policy *policyv1alpha1.Pr
 func RemovePropagationPolicy(client karmada.Interface, namespace, name string) {
 	ginkgo.By(fmt.Sprintf("Removing PropagationPolicy(%s/%s)", namespace, name), func() {
 		err := client.PolicyV1alpha1().PropagationPolicies(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	})
+}
+
+// RemovePropagationPolicyIfExist delete PropagationPolicy if it exists with karmada client.
+func RemovePropagationPolicyIfExist(client karmada.Interface, namespace, name string) {
+	ginkgo.By(fmt.Sprintf("Removing PropagationPolicy(%s/%s) if it exists", namespace, name), func() {
+		_, err := client.PolicyV1alpha1().PropagationPolicies(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return
+			}
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		}
+
+		err = client.PolicyV1alpha1().PropagationPolicies(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	})
 }
@@ -67,4 +84,15 @@ func UpdatePropagationPolicyWithSpec(client karmada.Interface, namespace, name s
 		_, err = client.PolicyV1alpha1().PropagationPolicies(newPolicy.Namespace).Update(context.TODO(), newPolicy, metav1.UpdateOptions{})
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	})
+}
+
+// WaitPropagationPolicyFitWith wait PropagationPolicy sync with fit func.
+func WaitPropagationPolicyFitWith(client karmada.Interface, namespace, name string, fit func(policy *policyv1alpha1.PropagationPolicy) bool) {
+	gomega.Eventually(func() bool {
+		policy, err := client.PolicyV1alpha1().PropagationPolicies(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			return false
+		}
+		return fit(policy)
+	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 }
