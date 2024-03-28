@@ -106,12 +106,11 @@ func Test_mergeLabel(t *testing.T) {
 	rbID := "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"
 
 	tests := []struct {
-		name          string
-		workload      *unstructured.Unstructured
-		workNamespace string
-		binding       metav1.Object
-		scope         v1.ResourceScope
-		want          map[string]string
+		name     string
+		workload *unstructured.Unstructured
+		binding  metav1.Object
+		scope    v1.ResourceScope
+		want     map[string]string
 	}{
 		{
 			name: "NamespaceScoped",
@@ -125,7 +124,6 @@ func Test_mergeLabel(t *testing.T) {
 					},
 				},
 			},
-			workNamespace: namespace,
 			binding: &workv1alpha2.ClusterResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      bindingName,
@@ -169,7 +167,7 @@ func Test_mergeLabel(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := mergeLabel(tt.workload, tt.workNamespace, tt.binding, tt.scope); !reflect.DeepEqual(got, tt.want) {
+			if got := mergeLabel(tt.workload, tt.binding, tt.scope); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("mergeLabel() = %v, want %v", got, tt.want)
 			}
 		})

@@ -39,6 +39,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
@@ -165,8 +166,8 @@ func generateKey(obj interface{}) (util.QueueKey, error) {
 
 // getClusterNameFromLabel gets cluster name from ownerLabel, if label not exist, means resource is not created by karmada.
 func getClusterNameFromLabel(resource *unstructured.Unstructured) (string, error) {
-	workNamespace := util.GetLabelValue(resource.GetLabels(), workv1alpha1.WorkNamespaceLabel)
-	if len(workNamespace) == 0 {
+	workNamespace, exist := resource.GetAnnotations()[workv1alpha2.WorkNamespaceAnnotation]
+	if !exist {
 		klog.V(4).Infof("Ignore resource(%s/%s/%s) which not managed by karmada", resource.GetKind(), resource.GetNamespace(), resource.GetName())
 		return "", nil
 	}
@@ -195,9 +196,9 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return err
 	}
 
-	workNamespace := util.GetLabelValue(observedObj.GetLabels(), workv1alpha1.WorkNamespaceLabel)
-	workName := util.GetLabelValue(observedObj.GetLabels(), workv1alpha1.WorkNameLabel)
-	if len(workNamespace) == 0 || len(workName) == 0 {
+	workNamespace, nsExist := observedObj.GetAnnotations()[workv1alpha2.WorkNamespaceAnnotation]
+	workName, nameExist := observedObj.GetAnnotations()[workv1alpha2.WorkNameAnnotation]
+	if !nsExist || !nameExist {
 		klog.Infof("Ignore object(%s) which not managed by karmada.", fedKey.String())
 		return nil
 	}
