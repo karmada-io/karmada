@@ -50,6 +50,40 @@ func ResourceMatches(resource *unstructured.Unstructured, rs policyv1alpha1.Reso
 	return ResourceSelectorPriority(resource, rs) > PriorityMisMatch
 }
 
+// ResourceExcluded tells if the specific resource matches the exclude selector.
+// nolint: gocyclo
+func ResourceExcluded(resource *unstructured.Unstructured, excluded policyv1alpha1.ExcludedResource) bool {
+	if excluded.APIVersion != "" && resource.GetAPIVersion() != excluded.APIVersion {
+		return false
+	}
+
+	if excluded.Kind != "" && resource.GetKind() != excluded.Kind {
+		return false
+	}
+
+	if excluded.Namespace != "" && resource.GetNamespace() != excluded.Namespace {
+		return false
+	}
+
+	if excluded.Name != "" && resource.GetName() != excluded.Name {
+		return false
+	}
+
+	if excluded.LabelSelector != nil {
+		s, err := metav1.LabelSelectorAsSelector(excluded.LabelSelector)
+		if err != nil {
+			// should not happen because all resource selector should be fully validated by webhook.
+			return false
+		}
+		if !s.Matches(labels.Set(resource.GetLabels())) {
+			return false
+		}
+	}
+
+	// considering that if all exclude condition are empty, resource in this case doesn't match ExcludedResource
+	return !(excluded.APIVersion == "" && excluded.Kind == "" && excluded.Namespace == "" && excluded.Name == "" && excluded.LabelSelector == nil)
+}
+
 // ResourceSelectorPriority tells the priority between the specific resource and the selector.
 func ResourceSelectorPriority(resource *unstructured.Unstructured, rs policyv1alpha1.ResourceSelector) ImplicitPriority {
 	if resource.GetAPIVersion() != rs.APIVersion ||
@@ -62,7 +96,7 @@ func ResourceSelectorPriority(resource *unstructured.Unstructured, rs policyv1al
 	// case ResourceSelector.name   ResourceSelector.labelSelector   Rule
 	// 1    not-empty               not-empty                        match name only and ignore selector
 	// 2    not-empty               empty                            match name only
-	// 3    empty                   not-empty                        match selector only
+	// 3    empty                    not-empty                        match selector only
 	// 4    empty                   empty                            match all
 
 	// case 1, 2: name not empty, don't need to consult selector.
@@ -173,6 +207,16 @@ func ClusterNamesMatches(cluster *clusterv1alpha1.Cluster, clusterNames []string
 func ResourceMatchSelectors(resource *unstructured.Unstructured, selectors ...policyv1alpha1.ResourceSelector) bool {
 	for _, rs := range selectors {
 		if ResourceMatches(resource, rs) {
+			return true
+		}
+	}
+	return false
+}
+
+// ResourceMatchExcluded tells if the specific resource matches the exclude selectors.
+func ResourceMatchExcluded(resource *unstructured.Unstructured, excludedResources ...policyv1alpha1.ExcludedResource) bool {
+	for _, frs := range excludedResources {
+		if ResourceExcluded(resource, frs) {
 			return true
 		}
 	}
