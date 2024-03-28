@@ -37,6 +37,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -168,9 +169,11 @@ func (c *SyncController) buildWorks(quota *policyv1alpha1.FederatedResourceQuota
 		resourceQuota.Namespace = quota.Namespace
 		resourceQuota.Name = quota.Name
 		resourceQuota.Labels = map[string]string{
-			workv1alpha1.WorkNamespaceLabel: workNamespace,
-			workv1alpha1.WorkNameLabel:      workName,
-			util.ManagedByKarmadaLabel:      util.ManagedByKarmadaLabelValue,
+			util.ManagedByKarmadaLabel: util.ManagedByKarmadaLabelValue,
+		}
+		resourceQuota.Annotations = map[string]string{
+			workv1alpha2.WorkNamespaceAnnotation: workNamespace,
+			workv1alpha2.WorkNameAnnotation:      workName,
 		}
 		resourceQuota.Spec.Hard = extractClusterHardResourceList(quota.Spec, cluster.Name)
 

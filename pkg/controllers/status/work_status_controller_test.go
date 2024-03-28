@@ -40,6 +40,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -371,8 +372,8 @@ func TestGenerateKey(t *testing.T) {
 					"metadata": map[string]interface{}{
 						"name":      "test",
 						"namespace": "default",
-						"labels": map[string]interface{}{
-							workv1alpha1.WorkNamespaceLabel: "karmada-es-cluster",
+						"annotations": map[string]interface{}{
+							workv1alpha2.WorkNamespaceAnnotation: "karmada-es-cluster",
 						},
 					},
 				},
@@ -389,8 +390,8 @@ func TestGenerateKey(t *testing.T) {
 					"metadata": map[string]interface{}{
 						"name":      "test",
 						"namespace": "default",
-						"labels": map[string]interface{}{
-							workv1alpha1.WorkNamespaceLabel: "karmada-cluster",
+						"annotations": map[string]interface{}{
+							workv1alpha2.WorkNamespaceAnnotation: "karmada-cluster",
 						},
 					},
 				},
@@ -452,8 +453,8 @@ func TestGetClusterNameFromLabel(t *testing.T) {
 					"metadata": map[string]interface{}{
 						"name":      "test",
 						"namespace": "default",
-						"labels": map[string]interface{}{
-							workv1alpha1.WorkNamespaceLabel: "karmada-es-cluster",
+						"annotations": map[string]interface{}{
+							workv1alpha2.WorkNamespaceAnnotation: "karmada-es-cluster",
 						},
 					},
 				},
@@ -488,8 +489,8 @@ func TestGetClusterNameFromLabel(t *testing.T) {
 					"metadata": map[string]interface{}{
 						"name":      "test",
 						"namespace": "default",
-						"labels": map[string]interface{}{
-							workv1alpha1.WorkNamespaceLabel: "karmada-cluster",
+						"annotations": map[string]interface{}{
+							workv1alpha2.WorkNamespaceAnnotation: "karmada-cluster",
 						},
 					},
 				},
@@ -520,9 +521,9 @@ func newPodObj(namespace string) *unstructured.Unstructured {
 			"metadata": map[string]interface{}{
 				"name":      "pod",
 				"namespace": "default",
-				"labels": map[string]interface{}{
-					workv1alpha1.WorkNamespaceLabel: namespace,
-					workv1alpha1.WorkNameLabel:      "work-name",
+				"annotations": map[string]interface{}{
+					workv1alpha2.WorkNamespaceAnnotation: namespace,
+					workv1alpha2.WorkNameAnnotation:      "work-name",
 				},
 			},
 		},
@@ -530,16 +531,16 @@ func newPodObj(namespace string) *unstructured.Unstructured {
 	return obj
 }
 
-func newPod(workNs, workName string, wrongLabel ...bool) *corev1.Pod {
+func newPod(workNs, workName string, wrongAnnotations ...bool) *corev1.Pod {
 	var pod *corev1.Pod
-	if len(wrongLabel) > 0 && wrongLabel[0] == true {
+	if len(wrongAnnotations) > 0 && wrongAnnotations[0] == true {
 		pod = &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "pod",
 				Namespace: "default",
-				Labels: map[string]string{
-					"test":                     workNs,
-					workv1alpha1.WorkNameLabel: workName,
+				Annotations: map[string]string{
+					"test":                          workNs,
+					workv1alpha2.WorkNameAnnotation: workName,
 				},
 			},
 		}
@@ -548,9 +549,9 @@ func newPod(workNs, workName string, wrongLabel ...bool) *corev1.Pod {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "pod",
 				Namespace: "default",
-				Labels: map[string]string{
-					workv1alpha1.WorkNamespaceLabel: workNs,
-					workv1alpha1.WorkNameLabel:      workName,
+				Annotations: map[string]string{
+					workv1alpha2.WorkNamespaceAnnotation: workNs,
+					workv1alpha2.WorkNameAnnotation:      workName,
 				},
 			},
 		}
@@ -850,8 +851,8 @@ func TestWorkStatusController_recreateResourceIfNeeded(t *testing.T) {
 			"metadata": map[string]interface{}{
 				"name":      "pod1",
 				"namespace": "default",
-				"labels": map[string]interface{}{
-					workv1alpha1.WorkNamespaceLabel: "karmada-es-cluster",
+				"annotations": map[string]interface{}{
+					workv1alpha2.WorkNamespaceAnnotation: "karmada-es-cluster",
 				},
 			},
 		},
