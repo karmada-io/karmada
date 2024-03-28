@@ -33,7 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/endpoints/request"
-	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	utiltrace "k8s.io/utils/trace"
 )
@@ -57,16 +57,16 @@ type MultiClusterCache struct {
 	cachedResources map[schema.GroupVersionResource]struct{}
 	restMapper      meta.RESTMapper
 	// newClientFunc returns a dynamic client for member cluster apiserver
-	newClientFunc func(string) (dynamic.Interface, error)
+	configGetter func(string) (*rest.Config, error)
 }
 
 var _ Store = &MultiClusterCache{}
 
 // NewMultiClusterCache return a cache for resources from member clusters
-func NewMultiClusterCache(newClientFunc func(string) (dynamic.Interface, error), restMapper meta.RESTMapper) *MultiClusterCache {
+func NewMultiClusterCache(configGetter func(string) (*rest.Config, error), restMapper meta.RESTMapper) *MultiClusterCache {
 	return &MultiClusterCache{
 		restMapper:      restMapper,
-		newClientFunc:   newClientFunc,
+		configGetter:    configGetter,
 		cache:           map[string]*clusterCache{},
 		cachedResources: map[schema.GroupVersionResource]struct{}{},
 	}
@@ -94,11 +94,15 @@ func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema
 	}
 
 	// add/update cluster cache
-	for clusterName, resources := range resourcesByCluster {
+	for cluster, resources := range resourcesByCluster {
+		clusterName := cluster
 		cache, exist := c.cache[clusterName]
 		if !exist {
 			klog.Infof("Add cache for cluster %v", clusterName)
-			cache = newClusterCache(clusterName, c.clientForClusterFunc(clusterName), c.restMapper)
+			configGetter := func() (*rest.Config, error) {
+				return c.configGetter(clusterName)
+			}
+			cache = newClusterCache(clusterName, configGetter, c.restMapper)
 			c.cache[clusterName] = cache
 		}
 		err := cache.updateCache(resources)
@@ -230,8 +234,14 @@ func (c *MultiClusterCache) List(ctx context.Context, gvr schema.GroupVersionRes
 			utiltrace.Field{Key: "cluster", Value: cluster},
 			utiltrace.Field{Key: "options", Value: fmt.Sprintf("%#v", options)},
 		)
+		klog.V(4).Infof("List member cluster %v with %#v", cluster, options)
 		obj, err := cache.List(ctx, options)
 		if err != nil {
+			// When resource is not installed in cluster, cacher will return this error.
+			// TODO: handle this error gracefully
+			if err.Error() == "illegal resource version from storage: 0" {
+				return 0, "", nil
+			}
 			return 0, "", err
 		}
 
@@ -292,8 +302,12 @@ func (c *MultiClusterCache) List(ctx context.Context, gvr schema.GroupVersionRes
 		}
 	}
 
-	if err := c.fillMissingClusterResourceVersion(ctx, responseResourceVersion, clusters, gvr); err != nil {
-		return nil, err
+	if o.ResourceVersion == "0" {
+		for _, cluster := range clusters {
+			if _, ok := responseResourceVersion.rvs[cluster]; !ok {
+				responseResourceVersion.rvs[cluster] = "0"
+			}
+		}
 	}
 	responseContinue.RV = responseResourceVersion.String()
 
@@ -425,12 +439,6 @@ func (c *MultiClusterCache) getResourceFromCache(ctx context.Context, gvr schema
 		return nil, "", nil, apierrors.NewConflict(gvr.GroupResource(), name, fmt.Errorf("ambiguous objects in clusters [%v]", strings.Join(clusterNames, ", ")))
 	}
 	return findObjects[0], findCaches[0].clusterName, findCaches[0], nil
-}
-
-func (c *MultiClusterCache) clientForClusterFunc(cluster string) func() (dynamic.Interface, error) {
-	return func() (dynamic.Interface, error) {
-		return c.newClientFunc(cluster)
-	}
 }
 
 func (c *MultiClusterCache) fillMissingClusterResourceVersion(ctx context.Context, mcv *multiClusterResourceVersion, clusters []string, gvr schema.GroupVersionResource) error {

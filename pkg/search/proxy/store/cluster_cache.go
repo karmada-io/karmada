@@ -22,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
+	restclient "k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 )
 
@@ -33,15 +33,15 @@ type clusterCache struct {
 	clusterName string
 	restMapper  meta.RESTMapper
 	// newClientFunc returns a dynamic client for member cluster apiserver
-	newClientFunc func() (dynamic.Interface, error)
+	configGetter func() (*restclient.Config, error)
 }
 
-func newClusterCache(clusterName string, newClientFunc func() (dynamic.Interface, error), restMapper meta.RESTMapper) *clusterCache {
+func newClusterCache(clusterName string, configGetter func() (*restclient.Config, error), restMapper meta.RESTMapper) *clusterCache {
 	return &clusterCache{
-		clusterName:   clusterName,
-		newClientFunc: newClientFunc,
-		restMapper:    restMapper,
-		cache:         map[schema.GroupVersionResource]*resourceCache{},
+		clusterName:  clusterName,
+		configGetter: configGetter,
+		restMapper:   restMapper,
+		cache:        map[schema.GroupVersionResource]*resourceCache{},
 	}
 }
 
@@ -84,7 +84,7 @@ func (c *clusterCache) updateCache(resources map[schema.GroupVersionResource]*Mu
 			}
 
 			klog.Infof("Add cache for %s %s", c.clusterName, resource.String())
-			cache, err := newResourceCache(c.clusterName, resource, kind, singularName, namespaced, multiNS, c.clientForResourceFunc(resource))
+			cache, err := newResourceCache(c.clusterName, resource, kind, singularName, namespaced, multiNS, c.configGetter)
 			if err != nil {
 				return err
 			}
@@ -100,16 +100,6 @@ func (c *clusterCache) stop() {
 
 	for _, cache := range c.cache {
 		cache.stop()
-	}
-}
-
-func (c *clusterCache) clientForResourceFunc(resource schema.GroupVersionResource) func() (dynamic.NamespaceableResourceInterface, error) {
-	return func() (dynamic.NamespaceableResourceInterface, error) {
-		client, err := c.newClientFunc()
-		if err != nil {
-			return nil, err
-		}
-		return client.Resource(resource), nil
 	}
 }
 

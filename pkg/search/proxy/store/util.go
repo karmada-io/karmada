@@ -19,12 +19,16 @@ package store
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"net/url"
 	"sort"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/conversion/queryparams"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/watch"
 
@@ -402,4 +406,19 @@ func BuildMultiClusterResourceVersion(clusterResourceMap map[string]string) stri
 		m.set(cluster, rv)
 	}
 	return m.String()
+}
+
+// noConversionParamCodec is copy lifted from sigs.k8s.io/controller-runtime/pkg/client/codec.go
+var _ runtime.ParameterCodec = noConversionParamCodec{}
+
+// noConversionParamCodec is a no-conversion codec for serializing parameters into URL query strings.
+// it's useful in scenarios with the unstructured client and arbitrary resources.
+type noConversionParamCodec struct{}
+
+func (noConversionParamCodec) EncodeParameters(obj runtime.Object, to schema.GroupVersion) (url.Values, error) {
+	return queryparams.Convert(obj)
+}
+
+func (noConversionParamCodec) DecodeParameters(parameters url.Values, from schema.GroupVersion, into runtime.Object) error {
+	return errors.New("DecodeParameters not implemented on noConversionParamCodec")
 }
