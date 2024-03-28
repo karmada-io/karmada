@@ -293,19 +293,6 @@ func (d *ResourceDetector) EventFilter(obj interface{}) bool {
 		}
 	}
 
-	if unstructObj, ok := obj.(*unstructured.Unstructured); ok {
-		switch unstructObj.GroupVersionKind() {
-		// The secret, with type 'kubernetes.io/service-account-token', is created along with `ServiceAccount` should be
-		// prevented from propagating.
-		// Refer to https://github.com/karmada-io/karmada/pull/1525#issuecomment-1091030659 for more details.
-		case corev1.SchemeGroupVersion.WithKind("Secret"):
-			secretType, found, _ := unstructured.NestedString(unstructObj.Object, "type")
-			if found && secretType == string(corev1.SecretTypeServiceAccountToken) {
-				return false
-			}
-		}
-	}
-
 	// Prevent configmap/extension-apiserver-authentication from propagating as it is generated
 	// and managed by kube-apiserver.
 	// Refer to https://github.com/karmada-io/karmada/issues/4228 for more details.
