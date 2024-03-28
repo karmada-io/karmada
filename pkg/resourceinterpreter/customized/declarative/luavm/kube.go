@@ -81,7 +81,7 @@ func accuratePodRequirements(ls *lua.LState) int {
 
 	v := ls.CheckTable(1)
 	pod := &corev1.PodTemplateSpec{}
-	err := ConvertLuaResultInto(v, pod)
+	err := ConvertLuaResultInto(v, pod, nil)
 	if err != nil {
 		ls.RaiseError("fail to convert lua value %#v to PodTemplateSpec: %v", v, err)
 		return 0
@@ -109,7 +109,7 @@ func getPodDependencies(ls *lua.LState) int {
 	namespace := checkNamespace(ls, 2)
 
 	template := &corev1.PodTemplateSpec{}
-	err := ConvertLuaResultInto(podTemplate, template)
+	err := ConvertLuaResultInto(podTemplate, template, nil)
 	if err != nil {
 		ls.RaiseError("fail to convert lua value %#v to corev1.PodTemplateSpec: %v", podTemplate, err)
 		return 0
