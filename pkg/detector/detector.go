@@ -780,7 +780,7 @@ func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unst
 	util.MergeLabel(objectCopy, policyv1alpha1.ClusterPropagationPolicyLabel, policy.Name)
 	util.MergeLabel(objectCopy, policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel, policyID)
 
-	util.ReplaceAnnotation(objectCopy, policyv1alpha1.ClusterPropagationPolicyAnnotation, policy.Name)
+	util.MergeAnnotation(objectCopy, policyv1alpha1.ClusterPropagationPolicyAnnotation, policy.Name)
 	return policyID, d.Client.Update(context.TODO(), objectCopy)
 }
 
