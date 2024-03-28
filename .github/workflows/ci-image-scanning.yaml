@@ -1,10 +1,13 @@
 name: image-scanning
 on:
   push: 
+  pull_request:
 jobs:
   use-trivy-to-scan-image:
     name: image-scanning
-    if: ${{ github.repository == 'karmada-io/karmada' }}
+    # Trigger by pull_request to work for dependabot, for running github/codeql-action/upload-sarif
+    # Otherwise trigger by push
+    if: ( github.repository == 'karmada-io/karmada' && github.actor == 'dependabot[bot]' && github.event_name == 'pull_request') || ( github.repository == 'karmada-io/karmada' && github.actor != 'dependabot[bot]' && github.event_name == 'push' ) 
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
