@@ -21,6 +21,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -101,10 +102,77 @@ func Test_retainK8sWorkloadReplicas(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := retainWorkloadReplicas(tt.args.desired, tt.args.observed)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("reflectPodDisruptionBudgetStatus() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("retainWorkloadReplicas() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			assert.Equalf(t, tt.want, got, "retainDeploymentFields(%v, %v)", tt.args.desired, tt.args.observed)
+		})
+	}
+}
+
+func Test_retainSecretServiceAccountToken(t *testing.T) {
+	createSecret := func(secretType corev1.SecretType, uuid, key, value string) *unstructured.Unstructured {
+		ret, _ := helper.ToUnstructured(&corev1.Secret{
+			Type: secretType,
+		})
+		return ret
+	}
+
+	type args struct {
+		desired  *unstructured.Unstructured
+		observed *unstructured.Unstructured
+	}
+	tests := []struct {
+		name string
+		args args
+		want *unstructured.Unstructured
+	}{
+		{
+			name: "secret data and uid are retained for type service-account-token",
+			args: args{
+				desired:  createSecret(corev1.SecretTypeServiceAccountToken, "111", corev1.ServiceAccountTokenKey, "desired-token"),
+				observed: createSecret(corev1.SecretTypeServiceAccountToken, "999", corev1.ServiceAccountTokenKey, "observed-token"),
+			},
+			want: createSecret(corev1.SecretTypeServiceAccountToken, "999", corev1.ServiceAccountTokenKey, "observed-token"),
+		},
+		{
+			name: "ignores missing uid and data for type service-account-token",
+			args: args{
+				desired:  &unstructured.Unstructured{Object: map[string]interface{}{"type": string(corev1.SecretTypeServiceAccountToken)}},
+				observed: &unstructured.Unstructured{Object: map[string]interface{}{"type": string(corev1.SecretTypeServiceAccountToken)}},
+			},
+			want: &unstructured.Unstructured{Object: map[string]interface{}{"type": string(corev1.SecretTypeServiceAccountToken)}},
+		},
+		{
+			name: "does not retain for type tls",
+			args: args{
+				desired:  createSecret(corev1.SecretTypeTLS, "111", corev1.TLSCertKey, "desired-cert"),
+				observed: createSecret(corev1.SecretTypeTLS, "999", corev1.TLSCertKey, "observed-cert"),
+			},
+			want: createSecret(corev1.SecretTypeTLS, "111", corev1.TLSCertKey, "desired-cert"),
+		},
+		{
+			name: "does not retain for type basic-auth",
+			args: args{
+				desired:  createSecret(corev1.SecretTypeBasicAuth, "111", corev1.BasicAuthUsernameKey, "desired-user"),
+				observed: createSecret(corev1.SecretTypeBasicAuth, "999", corev1.BasicAuthUsernameKey, "observed-user"),
+			},
+			want: createSecret(corev1.SecretTypeBasicAuth, "111", corev1.BasicAuthUsernameKey, "desired-user"),
+		},
+		{
+			name: "does not retain for type dockercfg",
+			args: args{
+				desired:  createSecret(corev1.SecretTypeDockercfg, "111", corev1.DockerConfigKey, "desired-docker-cfg"),
+				observed: createSecret(corev1.SecretTypeDockercfg, "999", corev1.DockerConfigKey, "observed-docker-cfg"),
+			},
+			want: createSecret(corev1.SecretTypeDockercfg, "111", corev1.DockerConfigKey, "desired-docker-cfg"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := retainSecretServiceAccountToken(tt.args.desired, tt.args.observed)
+			assert.Nil(t, err, "retainSecretServiceAccountToken() error = %v", err)
+			assert.Equalf(t, tt.want, got, "retainSecretServiceAccountToken(%v, %v)", tt.args.desired, tt.args.observed)
 		})
 	}
 }
