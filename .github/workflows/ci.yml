@@ -16,7 +16,7 @@ jobs:
       - name: checkout code
         uses: actions/checkout@v3
       - name: install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: 1.21.8
       - name: verify license
@@ -41,7 +41,7 @@ jobs:
         with:
           path: ${{ env.GOPATH }}/src/github.com/karmada-io/karmada
       - name: install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: 1.21.8
       - name: Install Protoc
@@ -73,7 +73,7 @@ jobs:
           # We need to guess version via git tags.
           fetch-depth: 0
       - name: install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: 1.21.8
       - name: compile
@@ -88,7 +88,7 @@ jobs:
       - name: checkout code
         uses: actions/checkout@v3
       - name: install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: 1.21.8
       - name: make test
@@ -139,7 +139,7 @@ jobs:
           # We need to guess version via git tags.
           fetch-depth: 0
       - name: install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: 1.21.8
       - name: setup e2e test environment
