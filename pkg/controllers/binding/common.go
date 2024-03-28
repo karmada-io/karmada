@@ -154,18 +154,18 @@ func mergeTargetClusters(targetClusters []workv1alpha2.TargetCluster, requiredBy
 
 func mergeLabel(workload *unstructured.Unstructured, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
 	var workLabel = make(map[string]string)
-	util.MergeLabel(workload, util.ManagedByKarmadaLabel, util.ManagedByKarmadaLabelValue)
+	util.ReplaceLabel(workload, util.ManagedByKarmadaLabel, util.ManagedByKarmadaLabelValue)
 	if scope == apiextensionsv1.NamespaceScoped {
 		bindingID := util.GetLabelValue(binding.GetLabels(), workv1alpha2.ResourceBindingPermanentIDLabel)
-		util.MergeLabel(workload, workv1alpha2.ResourceBindingReferenceKey, names.GenerateBindingReferenceKey(binding.GetNamespace(), binding.GetName()))
-		util.MergeLabel(workload, workv1alpha2.ResourceBindingPermanentIDLabel, bindingID)
+		util.ReplaceLabel(workload, workv1alpha2.ResourceBindingReferenceKey, names.GenerateBindingReferenceKey(binding.GetNamespace(), binding.GetName()))
+		util.ReplaceLabel(workload, workv1alpha2.ResourceBindingPermanentIDLabel, bindingID)
 
 		workLabel[workv1alpha2.ResourceBindingReferenceKey] = names.GenerateBindingReferenceKey(binding.GetNamespace(), binding.GetName())
 		workLabel[workv1alpha2.ResourceBindingPermanentIDLabel] = bindingID
 	} else {
 		bindingID := util.GetLabelValue(binding.GetLabels(), workv1alpha2.ClusterResourceBindingPermanentIDLabel)
-		util.MergeLabel(workload, workv1alpha2.ClusterResourceBindingReferenceKey, names.GenerateBindingReferenceKey("", binding.GetName()))
-		util.MergeLabel(workload, workv1alpha2.ClusterResourceBindingPermanentIDLabel, bindingID)
+		util.ReplaceLabel(workload, workv1alpha2.ClusterResourceBindingReferenceKey, names.GenerateBindingReferenceKey("", binding.GetName()))
+		util.ReplaceLabel(workload, workv1alpha2.ClusterResourceBindingPermanentIDLabel, bindingID)
 
 		workLabel[workv1alpha2.ClusterResourceBindingReferenceKey] = names.GenerateBindingReferenceKey("", binding.GetName())
 		workLabel[workv1alpha2.ClusterResourceBindingPermanentIDLabel] = bindingID

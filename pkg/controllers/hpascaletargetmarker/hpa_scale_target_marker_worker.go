@@ -86,7 +86,7 @@ func (r *HpaScaleTargetMarker) addHPALabelToScaleRef(ctx context.Context, hpa *a
 
 	// use patch is better than update, when modification occur after get, patch can still success while update can not
 	newScaleRef := scaleRef.DeepCopy()
-	util.MergeLabel(newScaleRef, util.RetainReplicasLabel, util.RetainReplicasValue)
+	util.ReplaceLabel(newScaleRef, util.RetainReplicasLabel, util.RetainReplicasValue)
 	patchBytes, err := helper.GenMergePatch(scaleRef, newScaleRef)
 	if err != nil {
 		return fmt.Errorf("failed to gen merge patch (%s/%v), err: %+v", hpa.Namespace, hpa.Spec.ScaleTargetRef, err)

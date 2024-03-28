@@ -64,8 +64,8 @@ func RetainLabels(desired *unstructured.Unstructured, observed *unstructured.Uns
 	}
 }
 
-// MergeLabel adds label for the given object.
-func MergeLabel(obj *unstructured.Unstructured, labelKey string, labelValue string) {
+// ReplaceLabel adds label for the given object, replace the value if key exist.
+func ReplaceLabel(obj *unstructured.Unstructured, labelKey string, labelValue string) {
 	labels := obj.GetLabels()
 	if labels == nil {
 		labels = make(map[string]string, 1)
