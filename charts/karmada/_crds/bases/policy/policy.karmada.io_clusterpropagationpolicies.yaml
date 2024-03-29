@@ -3,8 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.13.0
   name: clusterpropagationpolicies.policy.karmada.io
 spec:
   group: policy.karmada.io
@@ -278,6 +277,7 @@ spec:
                                 contains only "value". The requirements are ANDed.
                               type: object
                           type: object
+                          x-kubernetes-map-type: atomic
                       required:
                       - affinityName
                       type: object
@@ -389,6 +389,7 @@ spec:
                               only "value". The requirements are ANDed.
                             type: object
                         type: object
+                        x-kubernetes-map-type: atomic
                     type: object
                   clusterTolerations:
                     description: ClusterTolerations represents the tolerations.
@@ -599,6 +600,7 @@ spec:
                                             only "value". The requirements are ANDed.
                                           type: object
                                       type: object
+                                      x-kubernetes-map-type: atomic
                                   type: object
                                 weight:
                                   description: Weight expressing the preference to
@@ -749,6 +751,7 @@ spec:
                             only "value". The requirements are ANDed.
                           type: object
                       type: object
+                      x-kubernetes-map-type: atomic
                     name:
                       description: Name of the target resource. Default is empty,
                         which means selecting all resources.
@@ -778,9 +781,3 @@ spec:
         type: object
     served: true
     storage: true
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
