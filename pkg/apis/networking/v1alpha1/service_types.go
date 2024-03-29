@@ -39,7 +39,7 @@ const (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName=mcs,categories={karmada-io}
+// +kubebuilder:resource:path=multiclusterservices,scope=Namespaced,shortName=mcs,categories={karmada-io}
 
 // MultiClusterService is a named abstraction of multi-cluster software service.
 // The name field of MultiClusterService is the same as that of Service name.

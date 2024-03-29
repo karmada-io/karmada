@@ -24,7 +24,7 @@ import (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName=fhpa,categories={karmada-io}
+// +kubebuilder:resource:path=federatedhpas,scope=Namespaced,shortName=fhpa,categories={karmada-io}
 // +kubebuilder:printcolumn:JSONPath=`.spec.scaleTargetRef.kind`,name=`REFERENCE-KIND`,type=string
 // +kubebuilder:printcolumn:JSONPath=`.spec.scaleTargetRef.name`,name=`REFERENCE-NAME`,type=string
 // +kubebuilder:printcolumn:JSONPath=`.spec.minReplicas`,name=`MINPODS`,type=integer

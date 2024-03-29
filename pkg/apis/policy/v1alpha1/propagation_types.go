@@ -43,7 +43,7 @@ const (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:shortName=pp,categories={karmada-io}
+// +kubebuilder:resource:path=propagationpolicies,scope=Namespaced,shortName=pp,categories={karmada-io}
 
 // PropagationPolicy represents the policy that propagates a group of resources to one or more clusters.
 type PropagationPolicy struct {
@@ -560,7 +560,7 @@ type PropagationPolicyList struct {
 
 // +genclient
 // +genclient:nonNamespaced
-// +kubebuilder:resource:scope="Cluster",shortName=cpp,categories={karmada-io}
+// +kubebuilder:resource:path=clusterpropagationpolicies,scope="Cluster",shortName=cpp,categories={karmada-io}
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // ClusterPropagationPolicy represents the cluster-wide policy that propagates a group of resources to one or more clusters.

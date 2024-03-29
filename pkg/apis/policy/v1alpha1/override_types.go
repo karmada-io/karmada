@@ -43,7 +43,7 @@ const (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:shortName=op,categories={karmada-io}
+// +kubebuilder:resource:path=overridepolicies,scope=Namespaced,shortName=op,categories={karmada-io}
 
 // OverridePolicy represents the policy that overrides a group of resources to one or more clusters.
 type OverridePolicy struct {
@@ -268,7 +268,7 @@ type OverridePolicyList struct {
 
 // +genclient
 // +genclient:nonNamespaced
-// +kubebuilder:resource:scope="Cluster",shortName=cop,categories={karmada-io}
+// +kubebuilder:resource:path=clusteroverridepolicies,scope="Cluster",shortName=cop,categories={karmada-io}
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // ClusterOverridePolicy represents the cluster-wide policy that overrides a group of resources to one or more clusters.
