@@ -9,6 +9,8 @@ metadata:
 spec:
   group: operator.karmada.io
   names:
+    categories:
+    - karmada-io
     kind: Karmada
     listKind: KarmadaList
     plural: karmadas
