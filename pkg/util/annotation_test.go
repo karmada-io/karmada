@@ -25,118 +25,6 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
-func TestMergeAnnotation(t *testing.T) {
-	tests := []struct {
-		name            string
-		obj             *unstructured.Unstructured
-		annotationKey   string
-		annotationValue string
-		expected        *unstructured.Unstructured
-	}{
-		{
-			name: "nil annotations",
-			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "apps/v1",
-					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
-						"name": "demo-deployment",
-					},
-					"spec": map[string]interface{}{
-						"replicas": 2,
-					},
-				},
-			},
-			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "apps/v1",
-					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
-						"name":        "demo-deployment",
-						"annotations": map[string]interface{}{"foo": "bar"},
-					},
-					"spec": map[string]interface{}{
-						"replicas": 2,
-					},
-				},
-			},
-			annotationKey:   "foo",
-			annotationValue: "bar",
-		},
-		{
-			name: "same annotationKey",
-			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "apps/v1",
-					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
-						"name":        "demo-deployment",
-						"annotations": map[string]interface{}{"foo": "bar"},
-					},
-					"spec": map[string]interface{}{
-						"replicas": 2,
-					},
-				},
-			},
-			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "apps/v1",
-					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
-						"name":        "demo-deployment",
-						"annotations": map[string]interface{}{"foo": "bar"},
-					},
-					"spec": map[string]interface{}{
-						"replicas": 2,
-					},
-				},
-			},
-			annotationKey:   "foo",
-			annotationValue: "bar1",
-		},
-		{
-			name: "new labelKey",
-			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "apps/v1",
-					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
-						"name":        "demo-deployment",
-						"annotations": map[string]interface{}{"foo": "bar"},
-					},
-					"spec": map[string]interface{}{
-						"replicas": 2,
-					},
-				},
-			},
-			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "apps/v1",
-					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
-						"name":        "demo-deployment",
-						"annotations": map[string]interface{}{"foo": "bar", "foo1": "bar1"},
-					},
-					"spec": map[string]interface{}{
-						"replicas": 2,
-					},
-				},
-			},
-			annotationKey:   "foo1",
-			annotationValue: "bar1",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			MergeAnnotation(tt.obj, tt.annotationKey, tt.annotationValue)
-			if !reflect.DeepEqual(tt.obj, tt.expected) {
-				t.Errorf("MergeAnnotation() = %v, want %v", tt.obj, tt.expected)
-			}
-		})
-	}
-}
-
 func TestRetainAnnotations(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -484,7 +372,7 @@ func TestRecordManagedAnnotations(t *testing.T) {
 	}
 }
 
-func TestReplaceAnnotation(t *testing.T) {
+func TestMergeAnnotation(t *testing.T) {
 	workload := unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "apps/v1",
@@ -530,9 +418,9 @@ func TestReplaceAnnotation(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ReplaceAnnotation(tt.obj, tt.annotationKey, tt.annotationValue)
+			MergeAnnotation(tt.obj, tt.annotationKey, tt.annotationValue)
 			if !reflect.DeepEqual(tt.obj.GetAnnotations(), tt.want) {
-				t.Errorf("ReplaceAnnotation(), obj.GetAnnotations = %v, want %v", tt.obj.GetAnnotations(), tt.want)
+				t.Errorf("MergeAnnotation(), obj.GetAnnotations = %v, want %v", tt.obj.GetAnnotations(), tt.want)
 			}
 		})
 	}
