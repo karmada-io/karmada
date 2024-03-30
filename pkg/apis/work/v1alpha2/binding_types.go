@@ -48,7 +48,7 @@ const (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName=rb,categories={karmada-io}
+// +kubebuilder:resource:path=resourcebindings,scope=Namespaced,shortName=rb,categories={karmada-io}
 // +kubebuilder:storageversion
 // +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Scheduled")].status`,name="Scheduled",type=string
 // +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="FullyApplied")].status`,name="FullyApplied",type=string
@@ -391,7 +391,7 @@ const (
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:scope="Cluster",shortName=crb,categories={karmada-io}
+// +kubebuilder:resource:path=clusterresourcebindings,scope="Cluster",shortName=crb,categories={karmada-io}
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 // +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Scheduled")].status`,name="Scheduled",type=string
@@ -411,7 +411,6 @@ type ClusterResourceBinding struct {
 	Status ResourceBindingStatus `json:"status,omitempty"`
 }
 
-// +kubebuilder:resource:scope="Cluster"
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // ClusterResourceBindingList contains a list of ClusterResourceBinding.

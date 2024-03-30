@@ -23,7 +23,7 @@ import (
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:scope="Cluster"
+// +kubebuilder:resource:path=remedies,scope="Cluster",categories={karmada-io}
 
 // Remedy represents the cluster-level management strategies based on cluster conditions.
 type Remedy struct {

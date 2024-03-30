@@ -35,7 +35,7 @@ const (
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:scope="Cluster"
+// +kubebuilder:resource:path=resourceinterpreterwebhookconfigurations,scope="Cluster",categories={karmada-io}
 // +kubebuilder:storageversion
 
 // ResourceInterpreterWebhookConfiguration describes the configuration of webhooks which take the responsibility to

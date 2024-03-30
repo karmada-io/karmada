@@ -9,6 +9,8 @@ metadata:
 spec:
   group: config.karmada.io
   names:
+    categories:
+    - karmada-io
     kind: ResourceInterpreterCustomization
     listKind: ResourceInterpreterCustomizationList
     plural: resourceinterpretercustomizations
