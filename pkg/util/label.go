@@ -23,7 +23,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
@@ -109,18 +108,18 @@ func getDeletedLabelKeys(desired, observed *unstructured.Unstructured) sets.Set[
 
 // RecordManagedLabels sets or updates the annotation(resourcetemplate.karmada.io/managed-labels)
 // to record the label keys.
-func RecordManagedLabels(w *workv1alpha1.Work) {
-	annotations := w.GetAnnotations()
+func RecordManagedLabels(object *unstructured.Unstructured) {
+	annotations := object.GetAnnotations()
 	if annotations == nil {
 		annotations = make(map[string]string, 1)
 	}
 	var managedKeys []string
 	// record labels.
-	labels := w.GetLabels()
+	labels := object.GetLabels()
 	for key := range labels {
 		managedKeys = append(managedKeys, key)
 	}
 	sort.Strings(managedKeys)
 	annotations[workv1alpha2.ManagedLabels] = strings.Join(managedKeys, ",")
-	w.SetAnnotations(annotations)
+	object.SetAnnotations(annotations)
 }

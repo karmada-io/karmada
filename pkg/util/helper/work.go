@@ -47,6 +47,7 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 	}
 	util.MergeAnnotation(workload, workv1alpha2.ResourceTemplateUIDAnnotation, string(workload.GetUID()))
 	util.RecordManagedAnnotations(workload)
+	util.RecordManagedLabels(workload)
 	workloadJSON, err := workload.MarshalJSON()
 	if err != nil {
 		klog.Errorf("Failed to marshal workload(%s/%s), Error: %v", workload.GetNamespace(), workload.GetName(), err)
@@ -82,7 +83,6 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 			if util.GetLabelValue(runtimeObject.Labels, workv1alpha2.WorkPermanentIDLabel) == "" {
 				runtimeObject.Labels = util.DedupeAndMergeLabels(runtimeObject.Labels, map[string]string{workv1alpha2.WorkPermanentIDLabel: uuid.New().String()})
 			}
-			util.RecordManagedLabels(runtimeObject)
 			return nil
 		})
 		if err != nil {
