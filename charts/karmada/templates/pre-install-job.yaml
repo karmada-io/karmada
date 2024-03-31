@@ -343,6 +343,7 @@ spec:
         app.kubernetes.io/instance: {{ $name | quote }}
         helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     spec:
+      {{- include "karmada.imagePullSecrets" . | nindent 6 }}
       {{- with .Values.preInstallJob.tolerations}}
       tolerations:
       {{- toYaml . | nindent 8 }}
