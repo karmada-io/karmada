@@ -351,14 +351,22 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 		Spec: podSpec,
 	}
 
+	var stsPvcRetentionPolicy *appsv1.StatefulSetPersistentVolumeClaimRetentionPolicy
+	if i.EtcdStsPvcDeletePolicy == string(appsv1.DeletePersistentVolumeClaimRetentionPolicyType) {
+		stsPvcRetentionPolicy = &appsv1.StatefulSetPersistentVolumeClaimRetentionPolicy{
+			WhenDeleted: appsv1.DeletePersistentVolumeClaimRetentionPolicyType,
+			WhenScaled:  appsv1.RetainPersistentVolumeClaimRetentionPolicyType,
+		}
+	}
 	// StatefulSetSpec
 	etcd.Spec = appsv1.StatefulSetSpec{
 		Replicas: &i.EtcdReplicas,
 		Selector: &metav1.LabelSelector{
 			MatchLabels: etcdLabels,
 		},
-		Template:    podTemplateSpec,
-		ServiceName: etcdStatefulSetAndServiceName,
+		Template:                             podTemplateSpec,
+		ServiceName:                          etcdStatefulSetAndServiceName,
+		PersistentVolumeClaimRetentionPolicy: stsPvcRetentionPolicy,
 	}
 
 	// PVC

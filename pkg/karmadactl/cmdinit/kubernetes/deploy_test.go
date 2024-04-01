@@ -23,8 +23,11 @@ import (
 	"testing"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/rest"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
@@ -473,6 +476,146 @@ func TestKarmadaSchedulerImage(t *testing.T) {
 
 			if result != tt.expected {
 				t.Errorf("Unexpected result: %s, expected: %s", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestCommandInitOption_validateLocalEtcd(t *testing.T) {
+	type fields struct {
+		ImageRegistry                      string
+		KubeImageRegistry                  string
+		KubeImageMirrorCountry             string
+		KubeImageTag                       string
+		EtcdImage                          string
+		EtcdReplicas                       int32
+		EtcdInitImage                      string
+		EtcdStorageMode                    string
+		EtcdHostDataPath                   string
+		EtcdNodeSelectorLabels             string
+		EtcdPersistentVolumeSize           string
+		EtcdStsPvcDeletePolicy             string
+		ExternalEtcdCACertPath             string
+		ExternalEtcdClientCertPath         string
+		ExternalEtcdClientKeyPath          string
+		ExternalEtcdServers                string
+		ExternalEtcdKeyPrefix              string
+		KarmadaAPIServerImage              string
+		KarmadaAPIServerReplicas           int32
+		KarmadaAPIServerAdvertiseAddress   string
+		KarmadaAPIServerNodePort           int32
+		KarmadaSchedulerImage              string
+		KarmadaSchedulerReplicas           int32
+		KubeControllerManagerImage         string
+		KubeControllerManagerReplicas      int32
+		KarmadaControllerManagerImage      string
+		KarmadaControllerManagerReplicas   int32
+		KarmadaWebhookImage                string
+		KarmadaWebhookReplicas             int32
+		KarmadaAggregatedAPIServerImage    string
+		KarmadaAggregatedAPIServerReplicas int32
+		Namespace                          string
+		KubeConfig                         string
+		Context                            string
+		StorageClassesName                 string
+		KarmadaDataPath                    string
+		KarmadaPkiPath                     string
+		CRDs                               string
+		ExternalIP                         string
+		ExternalDNS                        string
+		PullSecrets                        []string
+		CertValidity                       time.Duration
+		KubeClientSet                      kubernetes.Interface
+		CertAndKeyFileData                 map[string][]byte
+		RestConfig                         *rest.Config
+		KarmadaAPIServerIP                 []net.IP
+		HostClusterDomain                  string
+		WaitComponentReadyTimeout          int
+	}
+	type args struct {
+		parentCommand string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "invalid EtcdStsPvcDeletePolicy",
+			fields: fields{
+				EtcdStorageMode:        etcdStorageModePVC,
+				StorageClassesName:     "local-path",
+				EtcdStsPvcDeletePolicy: "delete",
+			},
+
+			wantErr: true,
+		},
+		{
+			name: "all flag is valid",
+			fields: fields{
+				EtcdStorageMode:        etcdStorageModePVC,
+				StorageClassesName:     "local-path",
+				EtcdStsPvcDeletePolicy: string(appsv1.DeletePersistentVolumeClaimRetentionPolicyType),
+			},
+
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			i := &CommandInitOption{
+				ImageRegistry:                      tt.fields.ImageRegistry,
+				KubeImageRegistry:                  tt.fields.KubeImageRegistry,
+				KubeImageMirrorCountry:             tt.fields.KubeImageMirrorCountry,
+				KubeImageTag:                       tt.fields.KubeImageTag,
+				EtcdImage:                          tt.fields.EtcdImage,
+				EtcdReplicas:                       tt.fields.EtcdReplicas,
+				EtcdInitImage:                      tt.fields.EtcdInitImage,
+				EtcdStorageMode:                    tt.fields.EtcdStorageMode,
+				EtcdHostDataPath:                   tt.fields.EtcdHostDataPath,
+				EtcdNodeSelectorLabels:             tt.fields.EtcdNodeSelectorLabels,
+				EtcdPersistentVolumeSize:           tt.fields.EtcdPersistentVolumeSize,
+				EtcdStsPvcDeletePolicy:             tt.fields.EtcdStsPvcDeletePolicy,
+				ExternalEtcdCACertPath:             tt.fields.ExternalEtcdCACertPath,
+				ExternalEtcdClientCertPath:         tt.fields.ExternalEtcdClientCertPath,
+				ExternalEtcdClientKeyPath:          tt.fields.ExternalEtcdClientKeyPath,
+				ExternalEtcdServers:                tt.fields.ExternalEtcdServers,
+				ExternalEtcdKeyPrefix:              tt.fields.ExternalEtcdKeyPrefix,
+				KarmadaAPIServerImage:              tt.fields.KarmadaAPIServerImage,
+				KarmadaAPIServerReplicas:           tt.fields.KarmadaAPIServerReplicas,
+				KarmadaAPIServerAdvertiseAddress:   tt.fields.KarmadaAPIServerAdvertiseAddress,
+				KarmadaAPIServerNodePort:           tt.fields.KarmadaAPIServerNodePort,
+				KarmadaSchedulerImage:              tt.fields.KarmadaSchedulerImage,
+				KarmadaSchedulerReplicas:           tt.fields.KarmadaSchedulerReplicas,
+				KubeControllerManagerImage:         tt.fields.KubeControllerManagerImage,
+				KubeControllerManagerReplicas:      tt.fields.KubeControllerManagerReplicas,
+				KarmadaControllerManagerImage:      tt.fields.KarmadaControllerManagerImage,
+				KarmadaControllerManagerReplicas:   tt.fields.KarmadaControllerManagerReplicas,
+				KarmadaWebhookImage:                tt.fields.KarmadaWebhookImage,
+				KarmadaWebhookReplicas:             tt.fields.KarmadaWebhookReplicas,
+				KarmadaAggregatedAPIServerImage:    tt.fields.KarmadaAggregatedAPIServerImage,
+				KarmadaAggregatedAPIServerReplicas: tt.fields.KarmadaAggregatedAPIServerReplicas,
+				Namespace:                          tt.fields.Namespace,
+				KubeConfig:                         tt.fields.KubeConfig,
+				Context:                            tt.fields.Context,
+				StorageClassesName:                 tt.fields.StorageClassesName,
+				KarmadaDataPath:                    tt.fields.KarmadaDataPath,
+				KarmadaPkiPath:                     tt.fields.KarmadaPkiPath,
+				CRDs:                               tt.fields.CRDs,
+				ExternalIP:                         tt.fields.ExternalIP,
+				ExternalDNS:                        tt.fields.ExternalDNS,
+				PullSecrets:                        tt.fields.PullSecrets,
+				CertValidity:                       tt.fields.CertValidity,
+				KubeClientSet:                      tt.fields.KubeClientSet,
+				CertAndKeyFileData:                 tt.fields.CertAndKeyFileData,
+				RestConfig:                         tt.fields.RestConfig,
+				KarmadaAPIServerIP:                 tt.fields.KarmadaAPIServerIP,
+				HostClusterDomain:                  tt.fields.HostClusterDomain,
+				WaitComponentReadyTimeout:          tt.fields.WaitComponentReadyTimeout,
+			}
+			if err := i.validateLocalEtcd(tt.args.parentCommand); (err != nil) != tt.wantErr {
+				t.Errorf("validateLocalEtcd() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

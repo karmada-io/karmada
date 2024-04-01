@@ -131,13 +131,14 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	flags.StringVar(&opts.HostClusterDomain, "host-cluster-domain", options.DefaultHostClusterDomain, "The cluster domain of karmada host cluster. (e.g. --host-cluster-domain=host.karmada)")
 	// etcd
 	flags.StringVarP(&opts.EtcdStorageMode, "etcd-storage-mode", "", "hostPath",
-		fmt.Sprintf("etcd data storage mode(%s). value is PVC, specify --storage-classes-name", strings.Join(kubernetes.SupportedStorageMode(), ",")))
+		fmt.Sprintf("etcd data storage mode(%s). value is PVC, specify --storage-classes-name", strings.Join(kubernetes.SupportedStorageMode().UnsortedList(), ",")))
 	flags.StringVarP(&opts.EtcdImage, "etcd-image", "", "", "etcd image")
 	flags.StringVarP(&opts.EtcdInitImage, "etcd-init-image", "", kubernetes.DefaultInitImage, "etcd init container image")
 	flags.Int32VarP(&opts.EtcdReplicas, "etcd-replicas", "", 1, "etcd replica set, cluster 3,5...singular")
 	flags.StringVarP(&opts.EtcdHostDataPath, "etcd-data", "", "/var/lib/karmada-etcd", "etcd data path,valid in hostPath mode.")
 	flags.StringVarP(&opts.EtcdNodeSelectorLabels, "etcd-node-selector-labels", "", "", "etcd pod select the labels of the node. valid in hostPath mode ( e.g. --etcd-node-selector-labels karmada.io/etcd=true)")
 	flags.StringVarP(&opts.EtcdPersistentVolumeSize, "etcd-pvc-size", "", "5Gi", "etcd data path,valid in pvc mode.")
+	flags.StringVarP(&opts.EtcdStsPvcDeletePolicy, "etcd-sts-pvc-delete-policy", "", "Retain", fmt.Sprintf("(%s). retain or delete pvc when their stateful set is deleted. Retain, need k8s >= v1.27", strings.Join(kubernetes.SupportedPvcRetentionPolicyType().UnsortedList(), ",")))
 	flags.StringVar(&opts.ExternalEtcdCACertPath, "external-etcd-ca-cert-path", "", "The path of CA certificate of the external etcd cluster in pem format.")
 	flags.StringVar(&opts.ExternalEtcdClientCertPath, "external-etcd-client-cert-path", "", "The path of client side certificate to the external etcd cluster in pem format.")
 	flags.StringVar(&opts.ExternalEtcdClientKeyPath, "external-etcd-client-key-path", "", "The path of client side private key to the external etcd cluster in pem format.")
