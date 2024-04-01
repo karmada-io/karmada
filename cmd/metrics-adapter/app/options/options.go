@@ -33,6 +33,7 @@ import (
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
 	"github.com/karmada-io/karmada/pkg/metricsadapter"
+	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/version"
 )
 
@@ -41,6 +42,8 @@ type Options struct {
 	CustomMetricsAdapterServerOptions *options.CustomMetricsAdapterServerOptions
 
 	KubeConfig string
+
+	ProfileOpts profileflag.Options
 }
 
 // NewOptions builds a default metrics-adapter options.
@@ -60,6 +63,7 @@ func (o *Options) Complete() error {
 // AddFlags adds flags to the specified FlagSet.
 func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	o.CustomMetricsAdapterServerOptions.AddFlags(fs)
+	o.ProfileOpts.AddFlags(fs)
 
 	fs.StringVar(&o.KubeConfig, "kubeconfig", o.KubeConfig, "Path to karmada control plane kubeconfig file.")
 }
@@ -112,6 +116,8 @@ func (o *Options) Config() (*metricsadapter.MetricsServer, error) {
 // Run runs the metrics-adapter with options. This should never exit.
 func (o *Options) Run(ctx context.Context) error {
 	klog.Infof("karmada-metrics-adapter version: %s", version.Get())
+
+	profileflag.ListenAndServe(o.ProfileOpts)
 
 	metricsServer, err := o.Config()
 	if err != nil {
