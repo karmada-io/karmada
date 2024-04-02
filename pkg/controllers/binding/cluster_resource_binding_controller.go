@@ -77,14 +77,14 @@ func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req co
 			return controllerruntime.Result{}, nil
 		}
 
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !clusterResourceBinding.DeletionTimestamp.IsZero() {
 		klog.V(4).Infof("Begin to delete works owned by binding(%s).", req.NamespacedName.String())
 		if err := helper.DeleteWorkByCRBName(c.Client, req.Name); err != nil {
 			klog.Errorf("Failed to delete works related to %s: %v", clusterResourceBinding.GetName(), err)
-			return controllerruntime.Result{Requeue: true}, err
+			return controllerruntime.Result{}, err
 		}
 		return c.removeFinalizer(clusterResourceBinding)
 	}
@@ -101,7 +101,7 @@ func (c *ClusterResourceBindingController) removeFinalizer(crb *workv1alpha2.Clu
 	controllerutil.RemoveFinalizer(crb, util.ClusterResourceBindingControllerFinalizer)
 	err := c.Client.Update(context.TODO(), crb)
 	if err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	return controllerruntime.Result{}, nil
 }
@@ -109,7 +109,7 @@ func (c *ClusterResourceBindingController) removeFinalizer(crb *workv1alpha2.Clu
 // syncBinding will sync clusterResourceBinding to Works.
 func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.ClusterResourceBinding) (controllerruntime.Result, error) {
 	if err := c.removeOrphanWorks(binding); err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	workload, err := helper.FetchResourceTemplate(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
@@ -121,7 +121,7 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 			return controllerruntime.Result{}, nil
 		}
 		klog.Errorf("Failed to fetch workload for clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	start := time.Now()
@@ -131,7 +131,7 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 		klog.Errorf("Failed to transform clusterResourceBinding(%s) to works. Error: %v.", binding.GetName(), err)
 		c.EventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonSyncWorkFailed, err.Error())
 		c.EventRecorder.Event(workload, corev1.EventTypeWarning, events.EventReasonSyncWorkFailed, err.Error())
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	msg := fmt.Sprintf("Sync work of clusterResourceBinding(%s) successful.", binding.GetName())

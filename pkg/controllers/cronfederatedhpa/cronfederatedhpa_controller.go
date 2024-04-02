@@ -64,7 +64,7 @@ func (c *CronFHPAController) Reconcile(ctx context.Context, req controllerruntim
 		}
 
 		klog.Errorf("Fail to get CronFederatedHPA(%s):%v", req.NamespacedName, err)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	//  If this CronFederatedHPA is deleting, stop all related cron executors
@@ -92,7 +92,7 @@ func (c *CronFHPAController) Reconcile(ctx context.Context, req controllerruntim
 	newRuleSets := sets.New[string]()
 	for _, rule := range cronFHPA.Spec.Rules {
 		if err = c.processCronRule(cronFHPA, rule); err != nil {
-			return controllerruntime.Result{Requeue: true}, err
+			return controllerruntime.Result{}, err
 		}
 		newRuleSets.Insert(rule.Name)
 	}
@@ -104,7 +104,7 @@ func (c *CronFHPAController) Reconcile(ctx context.Context, req controllerruntim
 		}
 		c.CronHandler.StopRuleExecutor(req.NamespacedName.String(), name)
 		if err = c.removeCronFHPAHistory(cronFHPA, name); err != nil {
-			return controllerruntime.Result{Requeue: true}, err
+			return controllerruntime.Result{}, err
 		}
 	}
 

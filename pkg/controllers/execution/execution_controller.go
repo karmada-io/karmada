@@ -79,19 +79,19 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 			return controllerruntime.Result{}, nil
 		}
 
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	clusterName, err := names.GetClusterName(work.Namespace)
 	if err != nil {
 		klog.Errorf("Failed to get member cluster name for work %s/%s", work.Namespace, work.Name)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	cluster, err := util.GetCluster(c.Client, clusterName)
 	if err != nil {
 		klog.Errorf("Failed to get the given member cluster %s", clusterName)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !work.DeletionTimestamp.IsZero() {
@@ -100,10 +100,10 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 			err := c.tryDeleteWorkload(clusterName, work)
 			if err != nil {
 				klog.Errorf("Failed to delete work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
-				return controllerruntime.Result{Requeue: true}, err
+				return controllerruntime.Result{}, err
 			}
 		} else if cluster.DeletionTimestamp.IsZero() { // cluster is unready, but not terminating
-			return controllerruntime.Result{Requeue: true}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
+			return controllerruntime.Result{}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
 		}
 
 		return c.removeFinalizer(work)
@@ -111,7 +111,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 
 	if !util.IsClusterReady(&cluster.Status) {
 		klog.Errorf("Stop sync work(%s/%s) for cluster(%s) as cluster not ready.", work.Namespace, work.Name, cluster.Name)
-		return controllerruntime.Result{Requeue: true}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
+		return controllerruntime.Result{}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
 	}
 
 	return c.syncWork(clusterName, work)
@@ -136,7 +136,7 @@ func (c *Controller) syncWork(clusterName string, work *workv1alpha1.Work) (cont
 		msg := fmt.Sprintf("Failed to sync work(%s) to cluster(%s): %v", work.Name, clusterName, err)
 		klog.Errorf(msg)
 		c.EventRecorder.Event(work, corev1.EventTypeWarning, events.EventReasonSyncWorkloadFailed, msg)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	msg := fmt.Sprintf("Sync work (%s) to cluster(%s) successful.", work.Name, clusterName)
 	klog.V(4).Infof(msg)
@@ -194,7 +194,7 @@ func (c *Controller) removeFinalizer(work *workv1alpha1.Work) (controllerruntime
 	controllerutil.RemoveFinalizer(work, util.ExecutionControllerFinalizer)
 	err := c.Client.Update(context.TODO(), work)
 	if err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	return controllerruntime.Result{}, nil
 }

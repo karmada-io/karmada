@@ -143,7 +143,7 @@ func (c *ClusterStatusController) Reconcile(ctx context.Context, req controllerr
 			return controllerruntime.Result{}, nil
 		}
 
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	// start syncing status only when the finalizer is present on the given Cluster to
@@ -213,7 +213,7 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 
 		err := c.setCurrentClusterStatus(clusterClient, cluster, &currentClusterStatus)
 		if err != nil {
-			return controllerruntime.Result{Requeue: true}, err
+			return controllerruntime.Result{}, err
 		}
 	}
 
@@ -293,7 +293,7 @@ func (c *ClusterStatusController) updateStatusIfNeeded(cluster *clusterv1alpha1.
 		})
 		if err != nil {
 			klog.Errorf("Failed to update health status of the member cluster: %v, err is : %v", cluster.Name, err)
-			return controllerruntime.Result{Requeue: true}, err
+			return controllerruntime.Result{}, err
 		}
 	}
 

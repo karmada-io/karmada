@@ -67,7 +67,7 @@ func (c *RBStatusController) Reconcile(ctx context.Context, req controllerruntim
 			return controllerruntime.Result{}, nil
 		}
 
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	// The rb is being deleted, in which case we stop processing.
@@ -77,7 +77,7 @@ func (c *RBStatusController) Reconcile(ctx context.Context, req controllerruntim
 
 	err := c.syncBindingStatus(binding)
 	if err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	return controllerruntime.Result{}, nil
 }

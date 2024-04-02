@@ -73,7 +73,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 			return controllerruntime.Result{}, nil
 		}
 
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !cluster.DeletionTimestamp.IsZero() {
@@ -91,7 +91,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	if err != nil {
 		klog.Errorf("Failed to sync impersonation config for cluster %s. Error: %v.", cluster.Name, err)
 		c.EventRecorder.Eventf(cluster, corev1.EventTypeWarning, events.EventReasonSyncImpersonationConfigFailed, err.Error())
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	c.EventRecorder.Eventf(cluster, corev1.EventTypeNormal, events.EventReasonSyncImpersonationConfigSucceed, "Sync impersonation config succeed.")
 

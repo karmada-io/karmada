@@ -111,7 +111,7 @@ func TestResourceBindingController_Reconcile(t *testing.T) {
 		},
 		{
 			name:    "RB found without deleting",
-			want:    controllerruntime.Result{Requeue: true},
+			want:    controllerruntime.Result{},
 			wantErr: true,
 			rb: &workv1alpha2.ResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{

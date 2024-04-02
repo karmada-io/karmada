@@ -86,7 +86,7 @@ func (c *EndpointSliceCollectController) Reconcile(ctx context.Context, req cont
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !helper.IsWorkContains(work.Spec.Workload.Manifests, multiClusterServiceGVK) {
@@ -101,15 +101,15 @@ func (c *EndpointSliceCollectController) Reconcile(ctx context.Context, req cont
 	clusterName, err := names.GetClusterName(work.Namespace)
 	if err != nil {
 		klog.Errorf("Failed to get cluster name for work %s/%s", work.Namespace, work.Name)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if err = c.buildResourceInformers(clusterName); err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if err = c.collectTargetEndpointSlice(work, clusterName); err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	return controllerruntime.Result{}, nil

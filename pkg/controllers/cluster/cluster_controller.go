@@ -185,7 +185,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 			return controllerruntime.Result{}, nil
 		}
 
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !cluster.DeletionTimestamp.IsZero() {
@@ -225,13 +225,13 @@ func (c *Controller) syncCluster(ctx context.Context, cluster *clusterv1alpha1.C
 	err := c.createExecutionSpace(cluster)
 	if err != nil {
 		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, events.EventReasonCreateExecutionSpaceFailed, err.Error())
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	// taint cluster by condition
 	err = c.taintClusterByCondition(ctx, cluster)
 	if err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	// ensure finalizer
@@ -242,20 +242,20 @@ func (c *Controller) removeCluster(ctx context.Context, cluster *clusterv1alpha1
 	// add terminating taint before cluster is deleted
 	if err := c.updateClusterTaints(ctx, []*corev1.Taint{TerminatingTaintTemplate}, nil, cluster); err != nil {
 		klog.ErrorS(err, "Failed to update terminating taint", "cluster", cluster.Name)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if err := c.removeExecutionSpace(cluster); err != nil {
 		klog.Errorf("Failed to remove execution space %s: %v", cluster.Name, err)
 		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, events.EventReasonRemoveExecutionSpaceFailed, err.Error())
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	msg := fmt.Sprintf("Removed execution space for cluster(%s).", cluster.Name)
 	c.EventRecorder.Event(cluster, corev1.EventTypeNormal, events.EventReasonRemoveExecutionSpaceSucceed, msg)
 
 	if exist, err := c.ExecutionSpaceExistForCluster(cluster.Name); err != nil {
 		klog.Errorf("Failed to check weather the execution space exist in the given member cluster or not, error is: %v", err)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	} else if exist {
 		klog.Infof("Requeuing operation until the cluster(%s) execution space deleted", cluster.Name)
 		return controllerruntime.Result{RequeueAfter: c.ExecutionSpaceRetryFrequency}, nil
@@ -268,7 +268,7 @@ func (c *Controller) removeCluster(ctx context.Context, cluster *clusterv1alpha1
 	if c.EnableTaintManager {
 		if done, err := c.isTargetClusterRemoved(ctx, cluster); err != nil {
 			klog.ErrorS(err, "Failed to check whether target cluster is removed from bindings", "cluster", cluster.Name)
-			return controllerruntime.Result{Requeue: true}, err
+			return controllerruntime.Result{}, err
 		} else if !done {
 			klog.InfoS("Terminating taint eviction process has not finished yet, will try again later", "cluster", cluster.Name)
 			return controllerruntime.Result{RequeueAfter: c.ClusterTaintEvictionRetryFrequency}, nil
@@ -386,7 +386,7 @@ func (c *Controller) removeFinalizer(cluster *clusterv1alpha1.Cluster) (controll
 	controllerutil.RemoveFinalizer(cluster, util.ClusterControllerFinalizer)
 	err := c.Client.Update(context.TODO(), cluster)
 	if err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	return controllerruntime.Result{}, nil
@@ -400,7 +400,7 @@ func (c *Controller) ensureFinalizer(cluster *clusterv1alpha1.Cluster) (controll
 	controllerutil.AddFinalizer(cluster, util.ClusterControllerFinalizer)
 	err := c.Client.Update(context.TODO(), cluster)
 	if err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	return controllerruntime.Result{}, nil

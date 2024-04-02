@@ -54,7 +54,7 @@ func (c *ServiceImportController) Reconcile(ctx context.Context, req controllerr
 			return c.deleteDerivedService(req.NamespacedName)
 		}
 
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !svcImport.DeletionTimestamp.IsZero() || svcImport.Spec.Type != mcsv1alpha1.ClusterSetIP {
@@ -63,7 +63,7 @@ func (c *ServiceImportController) Reconcile(ctx context.Context, req controllerr
 
 	if err := c.deriveServiceFromServiceImport(svcImport); err != nil {
 		c.EventRecorder.Eventf(svcImport, corev1.EventTypeWarning, events.EventReasonSyncDerivedServiceFailed, err.Error())
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	c.EventRecorder.Eventf(svcImport, corev1.EventTypeNormal, events.EventReasonSyncDerivedServiceSucceed, "Sync derived service for serviceImport(%s) succeed.", svcImport.Name)
 	return controllerruntime.Result{}, nil
@@ -86,13 +86,13 @@ func (c *ServiceImportController) deleteDerivedService(svcImport types.Namespace
 			return controllerruntime.Result{}, nil
 		}
 
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	err = c.Client.Delete(context.TODO(), derivedSvc)
 	if err != nil && !apierrors.IsNotFound(err) {
 		klog.Errorf("Delete derived service(%s) failed, Error: %v", derivedSvcNamespacedName, err)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	return controllerruntime.Result{}, nil

@@ -88,7 +88,7 @@ func (c *WorkStatusController) Reconcile(ctx context.Context, req controllerrunt
 			return controllerruntime.Result{}, nil
 		}
 
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !work.DeletionTimestamp.IsZero() {
@@ -102,18 +102,18 @@ func (c *WorkStatusController) Reconcile(ctx context.Context, req controllerrunt
 	clusterName, err := names.GetClusterName(work.GetNamespace())
 	if err != nil {
 		klog.Errorf("Failed to get member cluster name by %s. Error: %v.", work.GetNamespace(), err)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	cluster, err := util.GetCluster(c.Client, clusterName)
 	if err != nil {
 		klog.Errorf("Failed to the get given member cluster %s", clusterName)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !util.IsClusterReady(&cluster.Status) {
 		klog.Errorf("Stop sync work(%s/%s) for cluster(%s) as cluster not ready.", work.Namespace, work.Name, cluster.Name)
-		return controllerruntime.Result{Requeue: true}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
+		return controllerruntime.Result{}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
 	}
 
 	return c.buildResourceInformers(cluster, work)
@@ -125,7 +125,7 @@ func (c *WorkStatusController) buildResourceInformers(cluster *clusterv1alpha1.C
 	err := c.registerInformersAndStart(cluster, work)
 	if err != nil {
 		klog.Errorf("Failed to register informer for Work %s/%s. Error: %v.", work.GetNamespace(), work.GetName(), err)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	return controllerruntime.Result{}, nil
 }
