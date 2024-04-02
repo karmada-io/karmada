@@ -33,7 +33,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.21.8
+          go-version-file: go.mod
       - uses: helm/kind-action@v1.9.0
         with:
           version: "v0.20.0"
