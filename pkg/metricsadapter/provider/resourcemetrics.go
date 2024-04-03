@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	listv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 	"k8s.io/metrics/pkg/apis/metrics"
@@ -36,6 +37,7 @@ import (
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/typedmanager"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
@@ -59,7 +61,7 @@ var (
 	NodesGVR = corev1.SchemeGroupVersion.WithResource("nodes")
 )
 
-type queryResourceFromClustersFunc func(sci genericmanager.SingleClusterInformerManager, clusterName string) error
+type queryResourceFromClustersFunc func(sci typedmanager.SingleClusterInformerManager, clusterName string) error
 type queryMetricsFromClustersFunc func(sci genericmanager.SingleClusterInformerManager, clusterName string) (interface{}, error)
 
 // ResourceMetricsProvider is a resource metrics provider, to provide cpu/memory metrics
@@ -67,17 +69,19 @@ type ResourceMetricsProvider struct {
 	PodLister  *PodLister
 	NodeLister *NodeLister
 
-	clusterLister   clusterlister.ClusterLister
-	informerManager genericmanager.MultiClusterInformerManager
+	clusterLister        clusterlister.ClusterLister
+	informerManager      genericmanager.MultiClusterInformerManager
+	typedInformerManager typedmanager.MultiClusterInformerManager
 }
 
 // NewResourceMetricsProvider creates a new resource metrics provider
-func NewResourceMetricsProvider(clusterLister clusterlister.ClusterLister, informerManager genericmanager.MultiClusterInformerManager) *ResourceMetricsProvider {
+func NewResourceMetricsProvider(clusterLister clusterlister.ClusterLister, typedInformerManager typedmanager.MultiClusterInformerManager, informerManager genericmanager.MultiClusterInformerManager) *ResourceMetricsProvider {
 	return &ResourceMetricsProvider{
-		clusterLister:   clusterLister,
-		informerManager: informerManager,
-		PodLister:       NewPodLister(clusterLister, informerManager),
-		NodeLister:      NewNodeLister(clusterLister, informerManager),
+		clusterLister:        clusterLister,
+		informerManager:      informerManager,
+		typedInformerManager: typedInformerManager,
+		PodLister:            NewPodLister(clusterLister, typedInformerManager),
+		NodeLister:           NewNodeLister(clusterLister, typedInformerManager),
 	}
 }
 
@@ -93,7 +97,7 @@ func (r *ResourceMetricsProvider) getMetricsParallel(resourceFunc queryResourceF
 	// step 1. Find out the target clusters in lister cache
 	var targetClusters []string
 	for _, cluster := range clusters {
-		sci := r.informerManager.GetSingleClusterManager(cluster.Name)
+		sci := r.typedInformerManager.GetSingleClusterManager(cluster.Name)
 		if sci == nil {
 			klog.Errorf("Failed to get cluster(%s) manager", cluster.Name)
 			continue
@@ -161,8 +165,13 @@ func (r *ResourceMetricsProvider) getMetricsParallel(resourceFunc queryResourceF
 
 // queryPodMetricsByName queries metrics by pod name from target clusters
 func (r *ResourceMetricsProvider) queryPodMetricsByName(name, namespace string) ([]metrics.PodMetrics, error) {
-	resourceQueryFunc := func(sci genericmanager.SingleClusterInformerManager, _ string) error {
-		_, err := sci.Lister(PodsGVR).ByNamespace(namespace).Get(name)
+	resourceQueryFunc := func(sci typedmanager.SingleClusterInformerManager, _ string) error {
+		podInterface, err := sci.Lister(PodsGVR)
+		if err != nil {
+			return err
+		}
+		lister := podInterface.(listv1.PodLister)
+		_, err = lister.Pods(namespace).Get(name)
 		return err
 	}
 	metricsQueryFunc := func(sci genericmanager.SingleClusterInformerManager, clusterName string) (interface{}, error) {
@@ -199,9 +208,13 @@ func (r *ResourceMetricsProvider) queryPodMetricsBySelector(selector, namespace 
 		klog.Errorf("Failed to parse label selector: %v", err)
 		return nil, err
 	}
-
-	resourceQueryFunc := func(sci genericmanager.SingleClusterInformerManager, clusterName string) error {
-		pods, err := sci.Lister(PodsGVR).ByNamespace(namespace).List(labelSelector)
+	resourceQueryFunc := func(sci typedmanager.SingleClusterInformerManager, clusterName string) error {
+		podInterface, err := sci.Lister(PodsGVR)
+		if err != nil {
+			return err
+		}
+		lister := podInterface.(listv1.PodLister)
+		pods, err := lister.Pods(namespace).List(labelSelector)
 		if err != nil {
 			klog.Errorf("Failed to list pods in cluster(%s): %v", clusterName, err)
 			return err
@@ -245,8 +258,13 @@ func (r *ResourceMetricsProvider) queryPodMetricsBySelector(selector, namespace 
 
 // queryNodeMetricsByName queries metrics by node name from target clusters
 func (r *ResourceMetricsProvider) queryNodeMetricsByName(name string) ([]metrics.NodeMetrics, error) {
-	resourceQueryFunc := func(sci genericmanager.SingleClusterInformerManager, _ string) error {
-		_, err := sci.Lister(NodesGVR).Get(name)
+	resourceQueryFunc := func(sci typedmanager.SingleClusterInformerManager, _ string) error {
+		nodeInterface, err := sci.Lister(PodsGVR)
+		if err != nil {
+			return err
+		}
+		lister := nodeInterface.(listv1.NodeLister)
+		_, err = lister.Get(name)
 		return err
 	}
 	metricsQueryFunc := func(sci genericmanager.SingleClusterInformerManager, clusterName string) (interface{}, error) {
@@ -282,9 +300,13 @@ func (r *ResourceMetricsProvider) queryNodeMetricsBySelector(selector string) ([
 		klog.Errorf("Failed to parse label selector: %v", err)
 		return nil, err
 	}
-
-	resourceQueryFunc := func(sci genericmanager.SingleClusterInformerManager, clusterName string) error {
-		nodes, err := sci.Lister(NodesGVR).List(labelSelector)
+	resourceQueryFunc := func(sci typedmanager.SingleClusterInformerManager, clusterName string) error {
+		nodeInterface, err := sci.Lister(NodesGVR)
+		if err != nil {
+			return err
+		}
+		lister := nodeInterface.(listv1.NodeLister)
+		nodes, err := lister.List(labelSelector)
 		if err != nil {
 			klog.Errorf("Failed to list pods in cluster(%s): %v", clusterName, err)
 			return err
@@ -370,11 +392,11 @@ func (r *ResourceMetricsProvider) GetNodeMetrics(nodes ...*corev1.Node) ([]metri
 type PodLister struct {
 	namespaceSpecified string
 	clusterLister      clusterlister.ClusterLister
-	informerManager    genericmanager.MultiClusterInformerManager
+	informerManager    typedmanager.MultiClusterInformerManager
 }
 
 // NewPodLister creates an internal new PodLister
-func NewPodLister(clusterLister clusterlister.ClusterLister, informerManager genericmanager.MultiClusterInformerManager) *PodLister {
+func NewPodLister(clusterLister clusterlister.ClusterLister, informerManager typedmanager.MultiClusterInformerManager) *PodLister {
 	return &PodLister{
 		clusterLister:   clusterLister,
 		informerManager: informerManager,
@@ -396,19 +418,19 @@ func (p *PodLister) List(selector labels.Selector) (ret []runtime.Object, err er
 			klog.Errorf("Failed to get SingleClusterInformerManager for cluster(%s)", cluster.Name)
 			continue
 		}
-		pods, err := sci.Lister(PodsGVR).ByNamespace(p.namespaceSpecified).List(selector)
+		lister, err := sci.Lister(PodsGVR)
+		if err != nil {
+			klog.Errorf("Failed to get lister for cluster(%s): %v", cluster.Name, err)
+			continue
+		}
+		podLister := lister.(listv1.PodLister)
+		pods, err := podLister.Pods(p.namespaceSpecified).List(selector)
 		if err != nil {
 			klog.Errorf("Failed to list pods from cluster(%s) in namespace(%s): %v", cluster.Name, p.namespaceSpecified, err)
 			return nil, err
 		}
-		for _, pod := range pods {
-			podTyped := &corev1.Pod{}
-			err = helper.ConvertToTypedObject(pod, podTyped)
-			if err != nil {
-				klog.Errorf("Failed to convert to typed object: %v", err)
-				return nil, err
-			}
-			podPartial := p.convertToPodPartialData(podTyped, selector.String(), true)
+		for i := range pods {
+			podPartial := p.convertToPodPartialData(pods[i], selector.String(), true)
 			ret = append(ret, podPartial)
 		}
 	}
@@ -454,7 +476,13 @@ func (p *PodLister) Get(name string) (runtime.Object, error) {
 			klog.Errorf("Failed to get SingleClusterInformerManager for cluster(%s)", cluster.Name)
 			continue
 		}
-		pod, err := sci.Lister(PodsGVR).ByNamespace(p.namespaceSpecified).Get(name)
+		sciLister, err := sci.Lister(PodsGVR)
+		if err != nil {
+			klog.Errorf("Failed to get lister for cluster(%s): %v", cluster.Name, err)
+			continue
+		}
+		podLister := sciLister.(listv1.PodLister)
+		pod, err := podLister.Pods(p.namespaceSpecified).Get(name)
 		if err != nil {
 			if !errors.IsNotFound(err) {
 				klog.Errorf("Failed to get pod  from clsuster(%s) in namespace(%s): %v", cluster.Name, p.namespaceSpecified, err)
@@ -466,13 +494,7 @@ func (p *PodLister) Get(name string) (runtime.Object, error) {
 			err := fmt.Errorf("the pod(%s) found in more than one clusters", name)
 			return nil, errors.NewConflict(PodsGVR.GroupResource(), name, err)
 		}
-		podTyped := &corev1.Pod{}
-		err = helper.ConvertToTypedObject(pod, podTyped)
-		if err != nil {
-			klog.Errorf("Failed to convert to typed object: %v", err)
-			return nil, err
-		}
-		podPartial = p.convertToPodPartialData(podTyped, "", false)
+		podPartial = p.convertToPodPartialData(pod, "", false)
 	}
 
 	if podPartial != nil {
@@ -497,11 +519,11 @@ func (p *PodLister) ByNamespace(namespace string) cache.GenericNamespaceLister {
 // NodeLister is an internal lister for nodes
 type NodeLister struct {
 	clusterLister   clusterlister.ClusterLister
-	informerManager genericmanager.MultiClusterInformerManager
+	informerManager typedmanager.MultiClusterInformerManager
 }
 
 // NewNodeLister creates an internal new NodeLister
-func NewNodeLister(clusterLister clusterlister.ClusterLister, informerManager genericmanager.MultiClusterInformerManager) *NodeLister {
+func NewNodeLister(clusterLister clusterlister.ClusterLister, informerManager typedmanager.MultiClusterInformerManager) *NodeLister {
 	return &NodeLister{
 		clusterLister:   clusterLister,
 		informerManager: informerManager,
@@ -523,22 +545,21 @@ func (n *NodeLister) List(selector labels.Selector) (ret []*corev1.Node, err err
 			klog.Errorf("Failed to get SingleClusterInformerManager for cluster(%s)", cluster.Name)
 			continue
 		}
-		nodes, err := sci.Lister(NodesGVR).List(selector)
+		nodeInterface, err := sci.Lister(NodesGVR)
+		if err != nil {
+			klog.Errorf("Failed to get lister for cluster(%s): %v", cluster.Name, err)
+			continue
+		}
+		nodes, err := nodeInterface.(listv1.NodeLister).List(selector)
 		if err != nil {
 			klog.Errorf("Failed to list nodes from cluster(%s): %v", cluster.Name, err)
 			return nil, err
 		}
 		for index := range nodes {
-			nodeTyped := &corev1.Node{}
-			err = helper.ConvertToTypedObject(nodes[index], nodeTyped)
-			if err != nil {
-				klog.Errorf("Failed to convert to typed object: %v", err)
-				return nil, err
-			}
+			nodeTyped := nodes[index]
 			if nodeTyped.Annotations == nil {
 				nodeTyped.Annotations = map[string]string{}
 			}
-
 			// If user sets this annotation, we need to reset it.
 			nodeTyped.Annotations[labelSelectorAnnotationInternal] = selector.String()
 			ret = append(ret, nodeTyped)
@@ -564,7 +585,12 @@ func (n *NodeLister) Get(name string) (*corev1.Node, error) {
 			klog.Errorf("Failed to get SingleClusterInformerManager for cluster(%s)", cluster.Name)
 			continue
 		}
-		node, err := sci.Lister(NodesGVR).Get(name)
+		sciLister, err := sci.Lister(NodesGVR)
+		if err != nil {
+			klog.Errorf("Failed to get lister for cluster(%s): %v", cluster.Name, err)
+			continue
+		}
+		node, err := sciLister.(listv1.NodeLister).Get(name)
 		if err != nil {
 			if !errors.IsNotFound(err) {
 				klog.Errorf("Failed to get node from cluster(%s):%v", cluster.Name, err)
@@ -577,16 +603,10 @@ func (n *NodeLister) Get(name string) (*corev1.Node, error) {
 			return nil, errors.NewConflict(NodesGVR.GroupResource(), name, err)
 		}
 
-		nodeTyped = &corev1.Node{}
-		err = helper.ConvertToTypedObject(node, nodeTyped)
-		if err != nil {
-			klog.Errorf("Failed to convert to typed object: %v", err)
-			return nil, err
-		}
+		nodeTyped = node
 		if nodeTyped.Annotations == nil {
 			nodeTyped.Annotations = map[string]string{}
 		}
-
 		// If user sets this annotation, we need to remove it to avoid parsing wrong next.
 		delete(nodeTyped.Annotations, labelSelectorAnnotationInternal)
 	}

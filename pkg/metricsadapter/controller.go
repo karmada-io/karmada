@@ -18,11 +18,14 @@ package metricsadapter
 
 import (
 	"context"
+	"fmt"
+	"reflect"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/rest"
@@ -37,6 +40,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/metricsadapter/provider"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/typedmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 )
 
@@ -50,6 +54,7 @@ type MetricsController struct {
 	InformerFactory       informerfactory.SharedInformerFactory
 	ClusterLister         clusterlister.ClusterLister
 	InformerManager       genericmanager.MultiClusterInformerManager
+	TypedInformerManager  typedmanager.MultiClusterInformerManager
 	MultiClusterDiscovery multiclient.MultiClusterDiscoveryInterface
 	queue                 workqueue.RateLimitingInterface
 	restConfig            *rest.Config
@@ -63,6 +68,7 @@ func NewMetricsController(restConfig *rest.Config, factory informerfactory.Share
 		ClusterLister:         clusterLister,
 		MultiClusterDiscovery: multiclient.NewMultiClusterDiscoveryClient(clusterLister, kubeFactory),
 		InformerManager:       genericmanager.GetInstance(),
+		TypedInformerManager:  newInstance(),
 		restConfig:            restConfig,
 		queue: workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
 			Name: "metrics-adapter",
@@ -71,6 +77,66 @@ func NewMetricsController(restConfig *rest.Config, factory informerfactory.Share
 	controller.addEventHandler()
 
 	return controller
+}
+
+func nodeTransformFunc(obj interface{}) (interface{}, error) {
+	var node *corev1.Node
+	switch t := obj.(type) {
+	case *corev1.Node:
+		node = t
+	case cache.DeletedFinalStateUnknown:
+		var ok bool
+		node, ok = t.Obj.(*corev1.Node)
+		if !ok {
+			return obj, fmt.Errorf("expect resource Node but got %v", reflect.TypeOf(t.Obj))
+		}
+	default:
+		return obj, fmt.Errorf("expect resource Node but got %v", reflect.TypeOf(obj))
+	}
+
+	aggregatedNode := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              node.Name,
+			Namespace:         node.Namespace,
+			Labels:            node.Labels,
+			DeletionTimestamp: node.DeletionTimestamp,
+		},
+	}
+	return aggregatedNode, nil
+}
+
+func podTransformFunc(obj interface{}) (interface{}, error) {
+	var pod *corev1.Pod
+	switch t := obj.(type) {
+	case *corev1.Pod:
+		pod = t
+	case cache.DeletedFinalStateUnknown:
+		var ok bool
+		pod, ok = t.Obj.(*corev1.Pod)
+		if !ok {
+			return obj, fmt.Errorf("expect resource Pod but got %v", reflect.TypeOf(t.Obj))
+		}
+	default:
+		return obj, fmt.Errorf("expect resource Pod but got %v", reflect.TypeOf(obj))
+	}
+
+	aggregatedPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              pod.Name,
+			Namespace:         pod.Namespace,
+			Labels:            pod.Labels,
+			DeletionTimestamp: pod.DeletionTimestamp,
+		},
+	}
+	return aggregatedPod, nil
+}
+
+func newInstance() typedmanager.MultiClusterInformerManager {
+	transforms := map[schema.GroupVersionResource]cache.TransformFunc{
+		provider.NodesGVR: cache.TransformFunc(nodeTransformFunc),
+		provider.PodsGVR:  cache.TransformFunc(podTransformFunc),
+	}
+	return typedmanager.NewMultiClusterInformerManager(context.TODO().Done(), transforms)
 }
 
 // addEventHandler adds event handler for cluster
@@ -147,6 +213,7 @@ func (m *MetricsController) handleClusters() bool {
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("try to stop cluster informer %s", clusterName)
+			m.TypedInformerManager.Stop(clusterName)
 			m.InformerManager.Stop(clusterName)
 			m.MultiClusterDiscovery.Remove(clusterName)
 			return true
@@ -156,6 +223,7 @@ func (m *MetricsController) handleClusters() bool {
 
 	if !cls.DeletionTimestamp.IsZero() {
 		klog.Infof("try to stop cluster informer %s", clusterName)
+		m.TypedInformerManager.Stop(clusterName)
 		m.InformerManager.Stop(clusterName)
 		m.MultiClusterDiscovery.Remove(clusterName)
 		return true
@@ -163,14 +231,19 @@ func (m *MetricsController) handleClusters() bool {
 
 	if !util.IsClusterReady(&cls.Status) {
 		klog.Warningf("cluster %s is notReady try to stop this cluster informer", clusterName)
+		m.TypedInformerManager.Stop(clusterName)
 		m.InformerManager.Stop(clusterName)
 		m.MultiClusterDiscovery.Remove(clusterName)
 		return false
 	}
 
-	if !m.InformerManager.IsManagerExist(clusterName) {
+	if !m.TypedInformerManager.IsManagerExist(clusterName) {
 		klog.Info("Try to build informer manager for cluster ", clusterName)
 		controlPlaneClient := gclient.NewForConfigOrDie(m.restConfig)
+		clusterClient, err := util.NewClusterClientSet(clusterName, controlPlaneClient, nil)
+		if err != nil {
+			return false
+		}
 		clusterDynamicClient, err := util.NewClusterDynamicClientSet(clusterName, controlPlaneClient)
 		if err != nil {
 			return false
@@ -181,6 +254,7 @@ func (m *MetricsController) handleClusters() bool {
 			klog.Warningf("unable to access cluster %s, Error: %+v", clusterName, err)
 			return true
 		}
+		_ = m.TypedInformerManager.ForCluster(clusterName, clusterClient.KubeClient, 0)
 		_ = m.InformerManager.ForCluster(clusterName, clusterDynamicClient.DynamicClientSet, 0)
 	}
 	err = m.MultiClusterDiscovery.Set(clusterName)
@@ -188,11 +262,15 @@ func (m *MetricsController) handleClusters() bool {
 		klog.Warningf("failed to build discoveryClient for cluster(%s), Error: %+v", clusterName, err)
 		return true
 	}
-	sci := m.InformerManager.GetSingleClusterManager(clusterName)
-	// Just trigger the informer to work
-	_ = sci.Lister(provider.PodsGVR)
-	_ = sci.Lister(provider.NodesGVR)
 
+	typedSci := m.TypedInformerManager.GetSingleClusterManager(clusterName)
+	// Just trigger the informer to work
+	_, _ = typedSci.Lister(provider.PodsGVR)
+	_, _ = typedSci.Lister(provider.NodesGVR)
+
+	typedSci.Start()
+	_ = typedSci.WaitForCacheSync()
+	sci := m.InformerManager.GetSingleClusterManager(clusterName)
 	sci.Start()
 	_ = sci.WaitForCacheSync()
 

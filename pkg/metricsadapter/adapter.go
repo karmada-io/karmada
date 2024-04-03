@@ -34,7 +34,7 @@ type MetricsAdapter struct {
 func NewMetricsAdapter(controller *MetricsController, customMetricsAdapterServerOptions *options.CustomMetricsAdapterServerOptions) *MetricsAdapter {
 	adapter := &MetricsAdapter{}
 	adapter.CustomMetricsAdapterServerOptions = customMetricsAdapterServerOptions
-	adapter.ResourceMetricsProvider = provider.NewResourceMetricsProvider(controller.ClusterLister, controller.InformerManager)
+	adapter.ResourceMetricsProvider = provider.NewResourceMetricsProvider(controller.ClusterLister, controller.TypedInformerManager, controller.InformerManager)
 	customProvider := provider.MakeCustomMetricsProvider(controller.ClusterLister, controller.MultiClusterDiscovery)
 	externalProvider := provider.MakeExternalMetricsProvider()
 	adapter.WithCustomMetrics(customProvider)
