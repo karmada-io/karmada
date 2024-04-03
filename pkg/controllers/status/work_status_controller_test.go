@@ -382,7 +382,7 @@ func TestGenerateKey(t *testing.T) {
 			existErr: false,
 		},
 		{
-			name: "getClusterNameFromLabel failed",
+			name: "getClusterNameFromAnnotation failed",
 			obj: &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "v1",
@@ -437,7 +437,7 @@ func TestGenerateKey(t *testing.T) {
 	}
 }
 
-func TestGetClusterNameFromLabel(t *testing.T) {
+func TestGetClusterNameFromAnnotation(t *testing.T) {
 	tests := []struct {
 		name     string
 		resource *unstructured.Unstructured
@@ -502,7 +502,7 @@ func TestGetClusterNameFromLabel(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actual, err := getClusterNameFromLabel(tt.resource)
+			actual, err := getClusterNameFromAnnotation(tt.resource)
 			assert.Equal(t, tt.expect, actual)
 			if tt.existErr {
 				assert.NotEmpty(t, err)
