@@ -69,7 +69,7 @@ func (c *EndpointsliceDispatchController) Reconcile(ctx context.Context, req con
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !helper.IsWorkContains(work.Spec.Workload.Manifests, util.EndpointSliceGVK) {
@@ -80,7 +80,7 @@ func (c *EndpointsliceDispatchController) Reconcile(ctx context.Context, req con
 	if !work.DeletionTimestamp.IsZero() || mcsName == "" {
 		if err := c.cleanupEndpointSliceFromConsumerClusters(ctx, work); err != nil {
 			klog.Errorf("Failed to cleanup EndpointSlice from consumer clusters for work %s/%s:%v", work.Namespace, work.Name, err)
-			return controllerruntime.Result{Requeue: true}, err
+			return controllerruntime.Result{}, err
 		}
 		return controllerruntime.Result{}, nil
 	}
@@ -92,7 +92,7 @@ func (c *EndpointsliceDispatchController) Reconcile(ctx context.Context, req con
 			klog.Warningf("MultiClusterService %s/%s is not found", mcsNS, mcsName)
 			return controllerruntime.Result{}, nil
 		}
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	var err error
@@ -107,11 +107,11 @@ func (c *EndpointsliceDispatchController) Reconcile(ctx context.Context, req con
 	}()
 
 	if err = c.cleanOrphanDispatchedEndpointSlice(ctx, mcs); err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if err = c.dispatchEndpointSlice(ctx, work.DeepCopy(), mcs); err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	return controllerruntime.Result{}, nil

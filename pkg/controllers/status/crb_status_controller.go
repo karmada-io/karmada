@@ -67,7 +67,7 @@ func (c *CRBStatusController) Reconcile(ctx context.Context, req controllerrunti
 			return controllerruntime.Result{}, nil
 		}
 
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	// The crb is being deleted, in which case we stop processing.
@@ -77,7 +77,7 @@ func (c *CRBStatusController) Reconcile(ctx context.Context, req controllerrunti
 
 	err := c.syncBindingStatus(binding)
 	if err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	return controllerruntime.Result{}, nil
 }

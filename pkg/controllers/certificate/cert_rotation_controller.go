@@ -98,7 +98,7 @@ func (c *CertRotationController) Reconcile(ctx context.Context, req controllerru
 			return controllerruntime.Result{}, nil
 		}
 
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !cluster.DeletionTimestamp.IsZero() {
@@ -109,18 +109,18 @@ func (c *CertRotationController) Reconcile(ctx context.Context, req controllerru
 	c.ClusterClient, err = c.ClusterClientSetFunc(cluster.Name, c.Client, c.ClusterClientOption)
 	if err != nil {
 		klog.Errorf("Failed to create a ClusterClient for the given member cluster: %s, err is: %v", cluster.Name, err)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	secret, err := c.ClusterClient.KubeClient.CoreV1().Secrets(c.KarmadaKubeconfigNamespace).Get(ctx, KarmadaKubeconfigName, metav1.GetOptions{})
 	if err != nil {
 		klog.Errorf("failed to get karmada kubeconfig secret: %v", err)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if err = c.syncCertRotation(secret); err != nil {
 		klog.Errorf("Failed to rotate the certificate of karmada-agent for the given member cluster: %s, err is: %v", cluster.Name, err)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	return controllerruntime.Result{RequeueAfter: c.CertRotationCheckingInterval}, nil

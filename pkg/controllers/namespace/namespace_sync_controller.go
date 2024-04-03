@@ -77,7 +77,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 			return controllerruntime.Result{}, nil
 		}
 
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !namespace.DeletionTimestamp.IsZero() {
@@ -95,13 +95,13 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	clusterList := &clusterv1alpha1.ClusterList{}
 	if err := c.Client.List(ctx, clusterList); err != nil {
 		klog.Errorf("Failed to list clusters, error: %v", err)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	err := c.buildWorks(namespace, clusterList.Items)
 	if err != nil {
 		klog.Errorf("Failed to build work for namespace %s. Error: %v.", namespace.GetName(), err)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	return controllerruntime.Result{}, nil

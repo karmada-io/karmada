@@ -67,7 +67,7 @@ func (tc *NoExecuteTaintManager) Reconcile(ctx context.Context, req reconcile.Re
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	// Check whether the target cluster has no execute taints.
@@ -85,7 +85,7 @@ func (tc *NoExecuteTaintManager) syncCluster(ctx context.Context, cluster *clust
 		Selector: fields.OneTermEqualSelector(rbClusterKeyIndex, cluster.Name),
 	}); err != nil {
 		klog.ErrorS(err, "Failed to list ResourceBindings", "cluster", cluster.Name)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	for i := range rbList.Items {
 		key, err := keys.FederatedKeyFunc(cluster.Name, &rbList.Items[i])
@@ -102,7 +102,7 @@ func (tc *NoExecuteTaintManager) syncCluster(ctx context.Context, cluster *clust
 		Selector: fields.OneTermEqualSelector(crbClusterKeyIndex, cluster.Name),
 	}); err != nil {
 		klog.ErrorS(err, "Failed to list ClusterResourceBindings", "cluster", cluster.Name)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	for i := range crbList.Items {
 		key, err := keys.FederatedKeyFunc(cluster.Name, &crbList.Items[i])

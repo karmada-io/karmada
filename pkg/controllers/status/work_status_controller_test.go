@@ -235,7 +235,7 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 				},
 			},
 			ns:        "karmada-cluster",
-			expectRes: controllerruntime.Result{Requeue: true},
+			expectRes: controllerruntime.Result{},
 			existErr:  true,
 		},
 		{
@@ -263,7 +263,7 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 				},
 			},
 			ns:        "karmada-es-cluster",
-			expectRes: controllerruntime.Result{Requeue: true},
+			expectRes: controllerruntime.Result{},
 			existErr:  true,
 		},
 		{
@@ -291,7 +291,7 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 				},
 			},
 			ns:        "karmada-es-cluster",
-			expectRes: controllerruntime.Result{Requeue: true},
+			expectRes: controllerruntime.Result{},
 			existErr:  true,
 		},
 	}

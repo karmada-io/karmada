@@ -59,7 +59,7 @@ func (c *CRBGracefulEvictionController) Reconcile(ctx context.Context, req contr
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !binding.DeletionTimestamp.IsZero() {
@@ -68,7 +68,7 @@ func (c *CRBGracefulEvictionController) Reconcile(ctx context.Context, req contr
 
 	retryDuration, err := c.syncBinding(binding)
 	if err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	if retryDuration > 0 {
 		klog.V(4).Infof("Retry to evict task after %v minutes.", retryDuration.Minutes())

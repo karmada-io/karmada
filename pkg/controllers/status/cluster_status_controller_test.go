@@ -979,7 +979,7 @@ func TestClusterStatusController_updateStatusIfNeeded(t *testing.T) {
 		}
 
 		actual, err := c.updateStatusIfNeeded(cluster, currentClusterStatus)
-		expect := controllerruntime.Result{Requeue: true}
+		expect := controllerruntime.Result{}
 		assert.Equal(t, expect, actual)
 		assert.NotEmpty(t, err, "updateStatusIfNeeded doesn't return error")
 	})

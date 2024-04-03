@@ -70,7 +70,7 @@ func (c *StatusController) Reconcile(ctx context.Context, req controllerruntime.
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !quota.DeletionTimestamp.IsZero() {
@@ -80,7 +80,7 @@ func (c *StatusController) Reconcile(ctx context.Context, req controllerruntime.
 	if err := c.collectQuotaStatus(quota); err != nil {
 		klog.Errorf("Failed to collect status from works to federatedResourceQuota(%s), error: %v", req.NamespacedName.String(), err)
 		c.EventRecorder.Eventf(quota, corev1.EventTypeWarning, events.EventReasonCollectFederatedResourceQuotaStatusFailed, err.Error())
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	c.EventRecorder.Eventf(quota, corev1.EventTypeNormal, events.EventReasonCollectFederatedResourceQuotaStatusSucceed, "Collect status of FederatedResourceQuota(%s) succeed.", req.NamespacedName.String())
 	return controllerruntime.Result{}, nil

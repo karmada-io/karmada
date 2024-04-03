@@ -71,7 +71,7 @@ func (c *RBApplicationFailoverController) Reconcile(ctx context.Context, req con
 			c.workloadUnhealthyMap.delete(req.NamespacedName)
 			return controllerruntime.Result{}, nil
 		}
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !c.bindingFilter(binding) {
@@ -81,7 +81,7 @@ func (c *RBApplicationFailoverController) Reconcile(ctx context.Context, req con
 
 	retryDuration, err := c.syncBinding(binding)
 	if err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	if retryDuration > 0 {
 		klog.V(4).Infof("Retry to check health status of the workload after %v minutes.", retryDuration.Minutes())
