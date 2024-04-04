@@ -23,6 +23,10 @@ jobs:
         # the same as the End of Life of the Kubernetes release: https://kubernetes.io/releases/
         # Please remember to update the CI Schedule Workflow when we add a new version.
         k8s: [ v1.28.0, v1.29.0, v1.30.0 ]
+        extraEtcdVersion: [ "3.5.9-0", "" ]
+    env:
+      KARMADA_EXTRA_ETCD_VERSION: ${{ matrix.extraEtcdVersion }}
+      CLUSTER_VERSION: kindest/node:${{ matrix.k8s }}
     steps:
       - name: checkout code
         uses: actions/checkout@v4
@@ -39,8 +43,6 @@ jobs:
           version: "v0.22.0"
       - name: run karmadactl init test
         run: |
-          export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
-
           # init e2e environment
           hack/cli-testing-environment.sh
 
@@ -48,6 +50,17 @@ jobs:
           export KUBECONFIG=${HOME}/karmada/karmada-apiserver.config
           GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
           ginkgo -v --race --trace -p  --focus="[BasicPropagation] propagation testing deployment propagation testing"  ./test/e2e/
+      - name: check
+        if: ${{ matrix.extraEtcdVersion != '' }} 
+        run: |
+          kubectl --kubeconfig ~/.kube/karmada-host.config get pod -A -owide
+
+          # would not deploy etcd when useing extra etcd.
+          KARMADA_ETCD_STS_COUNT=`kubectl --kubeconfig ~/.kube/karmada-host.config get sts -n karmada-system -l karmada.io/bootstrapping=app-defaults  -ojson | jq '.items | length'`
+          echo "KARMADA_ETCD_STS_COUNT:"$KARMADA_ETCD_STS_COUNT
+          if [ $KARMADA_ETCD_STS_COUNT -ne 0 ];then
+            exit -1
+          fi
       - uses: chainguard-dev/actions/kind-diag@main
         # Only upload logs on failure.
         if: ${{ failure() }}

@@ -77,6 +77,15 @@ kind load docker-image "${REGISTRY}/karmada-scheduler:${VERSION}" --name="${HOST
 kind load docker-image "${REGISTRY}/karmada-webhook:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 kind load docker-image "${REGISTRY}/karmada-aggregated-apiserver:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 
+export KARMADACTL_INIT_EXTRA_OPTS=${KARMADACTL_INIT_EXTRA_OPTS:-""}
+export KARMADA_EXTRA_ETCD_VERSION=${KARMADA_EXTRA_ETCD_VERSION:-""}
+
+if [ "$KARMADA_EXTRA_ETCD_VERSION" != "" ];then 
+    docker run -p 2379:2379 -it -d --name etcd  registry.k8s.io/etcd:$KARMADA_EXTRA_ETCD_VERSION  etcd --data-dir /var/lib/etcd --listen-client-urls http://0.0.0.0:2379 --advertise-client-urls http://0.0.0.0:2379
+    export CNODE=`hostname`
+    KARMADACTL_INIT_EXTRA_OPTS=--external-etcd-servers=http://$CNODE:2379
+fi
+
 # init Karmada control plane
 echo "Start init karmada control plane..."
 ${BUILD_PATH}/karmadactl init --kubeconfig=${KUBECONFIG_PATH}/${HOST_CLUSTER_NAME}.config \
@@ -86,7 +95,8 @@ ${BUILD_PATH}/karmadactl init --kubeconfig=${KUBECONFIG_PATH}/${HOST_CLUSTER_NAM
     --karmada-aggregated-apiserver-image="${REGISTRY}/karmada-aggregated-apiserver:${VERSION}" \
     --karmada-data=${HOME}/karmada \
     --karmada-pki=${HOME}/karmada/pki \
-    --crds=./crds.tar.gz
+    --crds=./crds.tar.gz \
+    ${KARMADACTL_INIT_EXTRA_OPTS}
 
 # join cluster
 echo "Join member clusters..."

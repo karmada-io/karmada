@@ -85,9 +85,6 @@ func (i *CommandInitOption) karmadaAPIServerContainerCommand() []string {
 		"--authorization-mode=Node,RBAC",
 		fmt.Sprintf("--client-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
 		"--enable-bootstrap-token-auth=true",
-		fmt.Sprintf("--etcd-cafile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName),
-		fmt.Sprintf("--etcd-certfile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
-		fmt.Sprintf("--etcd-keyfile=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
 		fmt.Sprintf("--etcd-servers=%s", etcdServers),
 		"--bind-address=0.0.0.0",
 		fmt.Sprintf("--kubelet-client-certificate=%s/%s.crt", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
@@ -111,6 +108,11 @@ func (i *CommandInitOption) karmadaAPIServerContainerCommand() []string {
 		fmt.Sprintf("--tls-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.ApiserverCertAndKeyName),
 		fmt.Sprintf("--tls-private-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.ApiserverCertAndKeyName),
 		"--tls-min-version=VersionTLS13",
+	}
+	if i.isExternalEtcdTLS() || !i.isExternalEtcdProvided() {
+		command = append(command, fmt.Sprintf("--etcd-cafile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName))
+		command = append(command, fmt.Sprintf("--etcd-certfile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName))
+		command = append(command, fmt.Sprintf("--etcd-keyfile=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName))
 	}
 	if i.ExternalEtcdKeyPrefix != "" {
 		command = append(command, fmt.Sprintf("--etcd-prefix=%s", i.ExternalEtcdKeyPrefix))
@@ -813,15 +815,17 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 		"--authentication-kubeconfig=/etc/kubeconfig",
 		"--authorization-kubeconfig=/etc/kubeconfig",
 		fmt.Sprintf("--etcd-servers=%s", etcdServers),
-		fmt.Sprintf("--etcd-cafile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName),
-		fmt.Sprintf("--etcd-certfile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
-		fmt.Sprintf("--etcd-keyfile=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
 		fmt.Sprintf("--tls-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
 		fmt.Sprintf("--tls-private-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
 		"--tls-min-version=VersionTLS13",
 		"--audit-log-path=-",
 		"--audit-log-maxage=0",
 		"--audit-log-maxbackup=0",
+	}
+	if i.isExternalEtcdTLS() || !i.isExternalEtcdProvided() {
+		command = append(command, fmt.Sprintf("--etcd-cafile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName))
+		command = append(command, fmt.Sprintf("--etcd-certfile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName))
+		command = append(command, fmt.Sprintf("--etcd-keyfile=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName))
 	}
 	if i.ExternalEtcdKeyPrefix != "" {
 		command = append(command, fmt.Sprintf("--etcd-prefix=%s", i.ExternalEtcdKeyPrefix))
