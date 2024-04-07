@@ -24,7 +24,7 @@ import (
 )
 
 func main() {
-	cmd := karmadactl.NewKarmadaCtlCommand("karmada", "kubectl karmada")
+	cmd := karmadactl.NewKarmadaCtlCommand("kubectl-karmada", "kubectl karmada")
 	if err := cli.RunNoErrOutput(cmd); err != nil {
 		util.CheckErr(err)
 	}
