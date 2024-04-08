@@ -157,17 +157,11 @@ func mergeLabel(workload *unstructured.Unstructured, binding metav1.Object, scop
 	util.MergeLabel(workload, util.ManagedByKarmadaLabel, util.ManagedByKarmadaLabelValue)
 	if scope == apiextensionsv1.NamespaceScoped {
 		bindingID := util.GetLabelValue(binding.GetLabels(), workv1alpha2.ResourceBindingPermanentIDLabel)
-		util.MergeLabel(workload, workv1alpha2.ResourceBindingReferenceKey, names.GenerateBindingReferenceKey(binding.GetNamespace(), binding.GetName()))
 		util.MergeLabel(workload, workv1alpha2.ResourceBindingPermanentIDLabel, bindingID)
-
-		workLabel[workv1alpha2.ResourceBindingReferenceKey] = names.GenerateBindingReferenceKey(binding.GetNamespace(), binding.GetName())
 		workLabel[workv1alpha2.ResourceBindingPermanentIDLabel] = bindingID
 	} else {
 		bindingID := util.GetLabelValue(binding.GetLabels(), workv1alpha2.ClusterResourceBindingPermanentIDLabel)
-		util.MergeLabel(workload, workv1alpha2.ClusterResourceBindingReferenceKey, names.GenerateBindingReferenceKey("", binding.GetName()))
 		util.MergeLabel(workload, workv1alpha2.ClusterResourceBindingPermanentIDLabel, bindingID)
-
-		workLabel[workv1alpha2.ClusterResourceBindingReferenceKey] = names.GenerateBindingReferenceKey("", binding.GetName())
 		workLabel[workv1alpha2.ClusterResourceBindingPermanentIDLabel] = bindingID
 	}
 	return workLabel
@@ -234,7 +228,7 @@ func mergeConflictResolution(workload *unstructured.Unstructured, conflictResolu
 		return annotations
 	} else if conflictResolutionInRT != "" {
 		// ignore its value and add logs if conflictResolutionInRT is neither abort nor overwrite.
-		klog.Warningf("ignore the invalid conflict-resolution annotation in ResourceTemplate %s/%s/%s: %s",
+		klog.Warningf("Ignore the invalid conflict-resolution annotation in ResourceTemplate %s/%s/%s: %s",
 			workload.GetKind(), workload.GetNamespace(), workload.GetName(), conflictResolutionInRT)
 	}
 

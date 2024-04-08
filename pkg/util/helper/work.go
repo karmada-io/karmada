@@ -36,7 +36,6 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 // CreateOrUpdateWork creates a Work object if not exist, or updates if it already exist.
@@ -85,10 +84,7 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 			}
 			return nil
 		})
-		if err != nil {
-			return err
-		}
-		return nil
+		return err
 	})
 	if err != nil {
 		klog.Errorf("Failed to create/update work %s/%s. Error: %v", work.GetNamespace(), work.GetName(), err)
@@ -106,7 +102,7 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 	return nil
 }
 
-// GetWorksByLabelsSet get WorkList by matching labels.Set.
+// GetWorksByLabelsSet gets WorkList by matching labels.Set.
 func GetWorksByLabelsSet(c client.Client, ls labels.Set) (*workv1alpha1.WorkList, error) {
 	workList := &workv1alpha1.WorkList{}
 	listOpt := &client.ListOptions{LabelSelector: labels.SelectorFromSet(ls)}
@@ -114,37 +110,16 @@ func GetWorksByLabelsSet(c client.Client, ls labels.Set) (*workv1alpha1.WorkList
 	return workList, c.List(context.TODO(), workList, listOpt)
 }
 
-// GetWorksByBindingNamespaceName get WorkList by matching same Namespace and same Name.
-func GetWorksByBindingNamespaceName(c client.Client, bindingNamespace, bindingName string) (*workv1alpha1.WorkList, error) {
-	referenceKey := names.GenerateBindingReferenceKey(bindingNamespace, bindingName)
+// GetWorksByBindingID gets WorkList by matching same binding's permanent id.
+func GetWorksByBindingID(c client.Client, bindingID string, namespaced bool) (*workv1alpha1.WorkList, error) {
 	var ls labels.Set
-	if bindingNamespace != "" {
-		ls = labels.Set{workv1alpha2.ResourceBindingReferenceKey: referenceKey}
+	if namespaced {
+		ls = labels.Set{workv1alpha2.ResourceBindingPermanentIDLabel: bindingID}
 	} else {
-		ls = labels.Set{workv1alpha2.ClusterResourceBindingReferenceKey: referenceKey}
+		ls = labels.Set{workv1alpha2.ClusterResourceBindingPermanentIDLabel: bindingID}
 	}
 
-	workList, err := GetWorksByLabelsSet(c, ls)
-	if err != nil {
-		return nil, err
-	}
-	retWorkList := &workv1alpha1.WorkList{}
-	// Due to the hash collision problem, we have to filter the Works by annotation.
-	// More details please refer to https://github.com/karmada-io/karmada/issues/2071.
-	for i := range workList.Items {
-		if len(bindingNamespace) > 0 { // filter Works that derived by 'ResourceBinding'
-			if util.GetAnnotationValue(workList.Items[i].GetAnnotations(), workv1alpha2.ResourceBindingNameAnnotationKey) == bindingName &&
-				util.GetAnnotationValue(workList.Items[i].GetAnnotations(), workv1alpha2.ResourceBindingNamespaceAnnotationKey) == bindingNamespace {
-				retWorkList.Items = append(retWorkList.Items, workList.Items[i])
-			}
-		} else { // filter Works that derived by 'ClusterResourceBinding'
-			if util.GetAnnotationValue(workList.Items[i].GetAnnotations(), workv1alpha2.ClusterResourceBindingAnnotationKey) == bindingName {
-				retWorkList.Items = append(retWorkList.Items, workList.Items[i])
-			}
-		}
-	}
-
-	return retWorkList, nil
+	return GetWorksByLabelsSet(c, ls)
 }
 
 // GenEventRef returns the event reference. sets the UID(.spec.uid) that might be missing for fire events.

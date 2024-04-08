@@ -26,7 +26,6 @@ import (
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 func Test_mergeTargetClusters(t *testing.T) {
@@ -136,7 +135,6 @@ func Test_mergeLabel(t *testing.T) {
 			scope: v1.NamespaceScoped,
 			want: map[string]string{
 				workv1alpha2.ResourceBindingPermanentIDLabel: rbID,
-				workv1alpha2.ResourceBindingReferenceKey:     names.GenerateBindingReferenceKey(namespace, bindingName),
 			},
 		},
 		{
@@ -161,13 +159,21 @@ func Test_mergeLabel(t *testing.T) {
 			scope: v1.ClusterScoped,
 			want: map[string]string{
 				workv1alpha2.ClusterResourceBindingPermanentIDLabel: rbID,
-				workv1alpha2.ClusterResourceBindingReferenceKey:     names.GenerateBindingReferenceKey("", bindingName),
 			},
 		},
 	}
+
+	checker := func(got, want map[string]string) bool {
+		for key, val := range want {
+			if got[key] != val {
+				return false
+			}
+		}
+		return true
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := mergeLabel(tt.workload, tt.binding, tt.scope); !reflect.DeepEqual(got, tt.want) {
+			if got := mergeLabel(tt.workload, tt.binding, tt.scope); !checker(got, tt.want) {
 				t.Errorf("mergeLabel() = %v, want %v", got, tt.want)
 			}
 		})

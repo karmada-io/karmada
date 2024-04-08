@@ -40,16 +40,6 @@ const (
 	// WorkNameAnnotation is added to objects to specify associated Work's name.
 	WorkNameAnnotation = "work.karmada.io/name"
 
-	// ResourceBindingReferenceKey is the key of ResourceBinding object.
-	// It is usually a unique hash value of ResourceBinding object's namespace and name, intended to be added to the Work object.
-	// It will be used to retrieve all Works objects that derived from a specific ResourceBinding object.
-	ResourceBindingReferenceKey = "resourcebinding.karmada.io/key"
-
-	// ClusterResourceBindingReferenceKey is the key of ClusterResourceBinding object.
-	// It is usually a unique hash value of ClusterResourceBinding object's namespace and name, intended to be added to the Work object.
-	// It will be used to retrieve all Works objects that derived by a specific ClusterResourceBinding object.
-	ClusterResourceBindingReferenceKey = "clusterresourcebinding.karmada.io/key"
-
 	// ResourceBindingNamespaceAnnotationKey is added to object to describe the associated ResourceBinding's namespace.
 	// It is added to:
 	// - Work object: describes the namespace of ResourceBinding which the Work derived from.

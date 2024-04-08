@@ -61,7 +61,7 @@ func AggregateResourceBindingWorkStatus(
 	resourceTemplate *unstructured.Unstructured,
 	eventRecorder record.EventRecorder,
 ) error {
-	workList, err := GetWorksByBindingNamespaceName(c, binding.Namespace, binding.Name)
+	workList, err := GetWorksByBindingID(c, binding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel], true)
 	if err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func AggregateClusterResourceBindingWorkStatus(
 	resourceTemplate *unstructured.Unstructured,
 	eventRecorder record.EventRecorder,
 ) error {
-	workList, err := GetWorksByBindingNamespaceName(c, "", binding.Name)
+	workList, err := GetWorksByBindingID(c, binding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel], false)
 	if err != nil {
 		return err
 	}
@@ -249,7 +249,7 @@ func assembleWorkStatus(works []workv1alpha1.Work, workload *unstructured.Unstru
 	return statuses, nil
 }
 
-// GetManifestIndex get the index of clusterObj in manifest list, if not exist return -1.
+// GetManifestIndex gets the index of clusterObj in manifest list, if not exist return -1.
 func GetManifestIndex(manifests []workv1alpha1.Manifest, clusterObj *unstructured.Unstructured) (int, error) {
 	for index, rawManifest := range manifests {
 		manifest := &unstructured.Unstructured{}
