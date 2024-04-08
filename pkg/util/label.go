@@ -20,6 +20,7 @@ import (
 	"sort"
 	"strings"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/sets"
 
@@ -74,7 +75,7 @@ func MergeLabel(obj *unstructured.Unstructured, labelKey string, labelValue stri
 }
 
 // RemoveLabels removes the labels from the given object.
-func RemoveLabels(obj *unstructured.Unstructured, labelKeys ...string) {
+func RemoveLabels(obj metav1.Object, labelKeys ...string) {
 	if len(labelKeys) == 0 {
 		return
 	}
