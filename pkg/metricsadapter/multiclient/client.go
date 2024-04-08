@@ -39,17 +39,19 @@ type MultiClusterDiscoveryInterface interface {
 // MultiClusterDiscovery provides DiscoveryClient for multiple clusters.
 type MultiClusterDiscovery struct {
 	sync.RWMutex
-	clients       map[string]*discovery.DiscoveryClient
-	secretLister  listcorev1.SecretLister
-	clusterLister clusterlister.ClusterLister
+	clients             map[string]*discovery.DiscoveryClient
+	clusterClientOption *util.ClientOption
+	secretLister        listcorev1.SecretLister
+	clusterLister       clusterlister.ClusterLister
 }
 
 // NewMultiClusterDiscoveryClient returns a new MultiClusterDiscovery
-func NewMultiClusterDiscoveryClient(clusterLister clusterlister.ClusterLister, KubeFactory informers.SharedInformerFactory) MultiClusterDiscoveryInterface {
+func NewMultiClusterDiscoveryClient(clusterLister clusterlister.ClusterLister, KubeFactory informers.SharedInformerFactory, clusterClientOption *util.ClientOption) MultiClusterDiscoveryInterface {
 	return &MultiClusterDiscovery{
-		clusterLister: clusterLister,
-		secretLister:  KubeFactory.Core().V1().Secrets().Lister(),
-		clients:       map[string]*discovery.DiscoveryClient{},
+		clusterLister:       clusterLister,
+		secretLister:        KubeFactory.Core().V1().Secrets().Lister(),
+		clients:             map[string]*discovery.DiscoveryClient{},
+		clusterClientOption: clusterClientOption,
 	}
 }
 
@@ -72,6 +74,8 @@ func (m *MultiClusterDiscovery) Set(clusterName string) error {
 	if err != nil {
 		return err
 	}
+	clusterConfig.QPS = m.clusterClientOption.QPS
+	clusterConfig.Burst = m.clusterClientOption.Burst
 	m.Lock()
 	defer m.Unlock()
 	m.clients[clusterName] = discovery.NewDiscoveryClientForConfigOrDie(clusterConfig)

@@ -34,6 +34,7 @@ import (
 	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
 	"github.com/karmada-io/karmada/pkg/metricsadapter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/version"
 )
 
@@ -42,8 +43,15 @@ type Options struct {
 	CustomMetricsAdapterServerOptions *options.CustomMetricsAdapterServerOptions
 
 	KubeConfig string
-
-	ProfileOpts profileflag.Options
+	// ClusterAPIQPS is the QPS to use while talking with cluster kube-apiserver.
+	ClusterAPIQPS float32
+	// ClusterAPIBurst is the burst to allow while talking with cluster kube-apiserver.
+	ClusterAPIBurst int
+	// KubeAPIQPS is the QPS to use while talking with karmada-apiserver.
+	KubeAPIQPS float32
+	// KubeAPIBurst is the burst to allow while talking with karmada-apiserver.
+	KubeAPIBurst int
+	ProfileOpts  profileflag.Options
 }
 
 // NewOptions builds a default metrics-adapter options.
@@ -64,7 +72,10 @@ func (o *Options) Complete() error {
 func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	o.CustomMetricsAdapterServerOptions.AddFlags(fs)
 	o.ProfileOpts.AddFlags(fs)
-
+	fs.Float32Var(&o.ClusterAPIQPS, "cluster-api-qps", 40.0, "QPS to use while talking with cluster kube-apiserver.")
+	fs.IntVar(&o.ClusterAPIBurst, "cluster-api-burst", 60, "Burst to use while talking with cluster kube-apiserver.")
+	fs.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver.")
+	fs.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver.")
 	fs.StringVar(&o.KubeConfig, "kubeconfig", o.KubeConfig, "Path to karmada control plane kubeconfig file.")
 }
 
@@ -75,12 +86,13 @@ func (o *Options) Config() (*metricsadapter.MetricsServer, error) {
 		klog.Errorf("Unable to build restConfig: %v", err)
 		return nil, err
 	}
+	restConfig.QPS, restConfig.Burst = o.KubeAPIQPS, o.KubeAPIBurst
 
 	karmadaClient := karmadaclientset.NewForConfigOrDie(restConfig)
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
 	kubeClient := kubernetes.NewForConfigOrDie(restConfig)
 	kubeFactory := informers.NewSharedInformerFactory(kubeClient, 0)
-	metricsController := metricsadapter.NewMetricsController(restConfig, factory, kubeFactory)
+	metricsController := metricsadapter.NewMetricsController(restConfig, factory, kubeFactory, &util.ClientOption{QPS: o.ClusterAPIQPS, Burst: o.ClusterAPIBurst})
 	metricsAdapter := metricsadapter.NewMetricsAdapter(metricsController, o.CustomMetricsAdapterServerOptions)
 	metricsAdapter.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(generatedopenapi.GetOpenAPIDefinitions, openapinamer.NewDefinitionNamer(api.Scheme))
 	metricsAdapter.OpenAPIV3Config = genericapiserver.DefaultOpenAPIV3Config(generatedopenapi.GetOpenAPIDefinitions, openapinamer.NewDefinitionNamer(api.Scheme))

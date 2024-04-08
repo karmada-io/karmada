@@ -61,12 +61,12 @@ type MetricsController struct {
 }
 
 // NewMetricsController creates a new metrics controller
-func NewMetricsController(restConfig *rest.Config, factory informerfactory.SharedInformerFactory, kubeFactory informers.SharedInformerFactory) *MetricsController {
+func NewMetricsController(restConfig *rest.Config, factory informerfactory.SharedInformerFactory, kubeFactory informers.SharedInformerFactory, clusterClientOption *util.ClientOption) *MetricsController {
 	clusterLister := factory.Cluster().V1alpha1().Clusters().Lister()
 	controller := &MetricsController{
 		InformerFactory:       factory,
 		ClusterLister:         clusterLister,
-		MultiClusterDiscovery: multiclient.NewMultiClusterDiscoveryClient(clusterLister, kubeFactory),
+		MultiClusterDiscovery: multiclient.NewMultiClusterDiscoveryClient(clusterLister, kubeFactory, clusterClientOption),
 		InformerManager:       genericmanager.GetInstance(),
 		TypedInformerManager:  newInstance(),
 		restConfig:            restConfig,
@@ -175,7 +175,7 @@ func (m *MetricsController) updateCluster(oldObj, curObj interface{}) {
 	if util.ClusterAccessCredentialChanged(curCluster.Spec, oldCluster.Spec) ||
 		util.IsClusterReady(&curCluster.Status) != util.IsClusterReady(&oldCluster.Status) {
 		// Cluster.Spec or Cluster health state is changed, rebuild informer.
-		m.InformerManager.Stop(curCluster.GetName())
+		m.stopInformerManager(curCluster.GetName())
 		m.queue.Add(curCluster.GetName())
 	}
 }
@@ -213,9 +213,7 @@ func (m *MetricsController) handleClusters() bool {
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("try to stop cluster informer %s", clusterName)
-			m.TypedInformerManager.Stop(clusterName)
-			m.InformerManager.Stop(clusterName)
-			m.MultiClusterDiscovery.Remove(clusterName)
+			m.stopInformerManager(clusterName)
 			return true
 		}
 		return false
@@ -223,17 +221,13 @@ func (m *MetricsController) handleClusters() bool {
 
 	if !cls.DeletionTimestamp.IsZero() {
 		klog.Infof("try to stop cluster informer %s", clusterName)
-		m.TypedInformerManager.Stop(clusterName)
-		m.InformerManager.Stop(clusterName)
-		m.MultiClusterDiscovery.Remove(clusterName)
+		m.stopInformerManager(clusterName)
 		return true
 	}
 
 	if !util.IsClusterReady(&cls.Status) {
 		klog.Warningf("cluster %s is notReady try to stop this cluster informer", clusterName)
-		m.TypedInformerManager.Stop(clusterName)
-		m.InformerManager.Stop(clusterName)
-		m.MultiClusterDiscovery.Remove(clusterName)
+		m.stopInformerManager(clusterName)
 		return false
 	}
 
@@ -275,4 +269,10 @@ func (m *MetricsController) handleClusters() bool {
 	_ = sci.WaitForCacheSync()
 
 	return true
+}
+
+func (m *MetricsController) stopInformerManager(clusterName string) {
+	m.TypedInformerManager.Stop(clusterName)
+	m.InformerManager.Stop(clusterName)
+	m.MultiClusterDiscovery.Remove(clusterName)
 }
