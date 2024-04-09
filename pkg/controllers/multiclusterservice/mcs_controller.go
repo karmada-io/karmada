@@ -409,12 +409,12 @@ func (c *MCSController) propagateService(ctx context.Context, mcs *networkingv1a
 			}
 
 			if util.GetLabelValue(bindingCopy.Labels, workv1alpha2.ResourceBindingPermanentIDLabel) == "" {
-				binding.Labels = util.DedupeAndMergeLabels(binding.Labels,
+				bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels,
 					map[string]string{workv1alpha2.ResourceBindingPermanentIDLabel: uuid.New().String()})
 			}
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
-			bindingCopy.Annotations = binding.Annotations
-			bindingCopy.Labels = binding.Labels
+			bindingCopy.Annotations = util.DedupeAndMergeAnnotations(bindingCopy.Annotations, binding.Annotations)
+			bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
 			bindingCopy.OwnerReferences = binding.OwnerReferences
 			bindingCopy.Finalizers = binding.Finalizers
 			bindingCopy.Spec.Placement = binding.Spec.Placement
