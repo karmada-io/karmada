@@ -26,8 +26,10 @@ import (
 	"strings"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -134,6 +136,7 @@ type CommandInitOption struct {
 	EtcdHostDataPath                   string
 	EtcdNodeSelectorLabels             string
 	EtcdPersistentVolumeSize           string
+	EtcdStsPvcDeletePolicy             string
 	ExternalEtcdCACertPath             string
 	ExternalEtcdClientCertPath         string
 	ExternalEtcdClientKeyPath          string
@@ -194,13 +197,12 @@ func (i *CommandInitOption) validateLocalEtcd(parentCommand string) error {
 	}
 
 	supportedStorageMode := SupportedStorageMode()
-	if i.EtcdStorageMode != "" {
-		for _, mode := range supportedStorageMode {
-			if i.EtcdStorageMode == mode {
-				return nil
-			}
-		}
+	if i.EtcdStorageMode != "" && !supportedStorageMode.Has(i.EtcdStorageMode) {
 		return fmt.Errorf("unsupported etcd-storage-mode %s. See '%s init --help'", i.EtcdStorageMode, parentCommand)
+	}
+	supportedPvcRetentionPolicyType := SupportedPvcRetentionPolicyType()
+	if i.EtcdStsPvcDeletePolicy != "" && !supportedPvcRetentionPolicyType.Has(i.EtcdStsPvcDeletePolicy) {
+		return fmt.Errorf("unsupported etcd-sts-pvc-delete-policy %s. See '%s init --help'", i.EtcdStsPvcDeletePolicy, parentCommand)
 	}
 	return nil
 }
@@ -733,6 +735,11 @@ func generateServerURL(serverIP string, nodePort int32) (string, error) {
 }
 
 // SupportedStorageMode Return install etcd supported storage mode
-func SupportedStorageMode() []string {
-	return []string{etcdStorageModeEmptyDir, etcdStorageModeHostPath, etcdStorageModePVC}
+func SupportedStorageMode() sets.Set[string] {
+	return sets.Set[string](sets.NewString(etcdStorageModeEmptyDir, etcdStorageModeHostPath, etcdStorageModePVC))
+}
+
+// SupportedPvcRetentionPolicyType Return install etcd sts supported pvc retention policy type
+func SupportedPvcRetentionPolicyType() sets.Set[string] {
+	return sets.Set[string](sets.NewString(string(appsv1.RetainPersistentVolumeClaimRetentionPolicyType), string(appsv1.DeletePersistentVolumeClaimRetentionPolicyType)))
 }
