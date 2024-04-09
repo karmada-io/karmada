@@ -620,31 +620,34 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			return err
 		}
 		bindingCopy := binding.DeepCopy()
-		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
-			// If this binding exists and its owner is not the input object, return error and let garbage collector
-			// delete this binding and try again later. See https://github.com/karmada-io/karmada/issues/2090.
-			if ownerRef := metav1.GetControllerOfNoCopy(bindingCopy); ownerRef != nil && ownerRef.UID != object.GetUID() {
-				return fmt.Errorf("failed to update binding due to different owner reference UID, will " +
-					"try again later after binding is garbage collected, see https://github.com/karmada-io/karmada/issues/2090")
-			}
+		err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+			operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
+				// If this binding exists and its owner is not the input object, return error and let garbage collector
+				// delete this binding and try again later. See https://github.com/karmada-io/karmada/issues/2090.
+				if ownerRef := metav1.GetControllerOfNoCopy(bindingCopy); ownerRef != nil && ownerRef.UID != object.GetUID() {
+					return fmt.Errorf("failed to update binding due to different owner reference UID, will " +
+						"try again later after binding is garbage collected, see https://github.com/karmada-io/karmada/issues/2090")
+				}
 
-			if util.GetLabelValue(bindingCopy.Labels, workv1alpha2.ClusterResourceBindingPermanentIDLabel) == "" {
-				bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels,
-					map[string]string{workv1alpha2.ClusterResourceBindingPermanentIDLabel: uuid.New().String()})
-			}
-			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
-			bindingCopy.Annotations = util.DedupeAndMergeAnnotations(bindingCopy.Annotations, binding.Annotations)
-			bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
-			bindingCopy.OwnerReferences = binding.OwnerReferences
-			bindingCopy.Finalizers = binding.Finalizers
-			bindingCopy.Spec.Resource = binding.Spec.Resource
-			bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
-			bindingCopy.Spec.Replicas = binding.Spec.Replicas
-			bindingCopy.Spec.SchedulerName = binding.Spec.SchedulerName
-			bindingCopy.Spec.Placement = binding.Spec.Placement
-			bindingCopy.Spec.Failover = binding.Spec.Failover
-			bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
-			return nil
+				if util.GetLabelValue(bindingCopy.Labels, workv1alpha2.ClusterResourceBindingPermanentIDLabel) == "" {
+					bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels,
+						map[string]string{workv1alpha2.ClusterResourceBindingPermanentIDLabel: uuid.New().String()})
+				}
+				// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
+				bindingCopy.Annotations = util.DedupeAndMergeAnnotations(bindingCopy.Annotations, binding.Annotations)
+				bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
+				bindingCopy.OwnerReferences = binding.OwnerReferences
+				bindingCopy.Finalizers = binding.Finalizers
+				bindingCopy.Spec.Resource = binding.Spec.Resource
+				bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
+				bindingCopy.Spec.Replicas = binding.Spec.Replicas
+				bindingCopy.Spec.SchedulerName = binding.Spec.SchedulerName
+				bindingCopy.Spec.Placement = binding.Spec.Placement
+				bindingCopy.Spec.Failover = binding.Spec.Failover
+				bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
+				return nil
+			})
+			return err
 		})
 		if err != nil {
 			klog.Errorf("Failed to apply cluster policy(%s) for object: %s. error: %v", policy.Name, objectKey, err)
