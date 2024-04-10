@@ -124,6 +124,7 @@ func init() {
 // CommandInitOption holds all flags options for init.
 type CommandInitOption struct {
 	ImageRegistry                      string
+	ImagePullPolicy                    string
 	KubeImageRegistry                  string
 	KubeImageMirrorCountry             string
 	KubeImageTag                       string
@@ -218,13 +219,18 @@ func (i *CommandInitOption) isExternalEtcdProvided() bool {
 }
 
 // Validate Check that there are enough flags to run the command.
-//
-//nolint:gocyclo
 func (i *CommandInitOption) Validate(parentCommand string) error {
 	if i.KarmadaAPIServerAdvertiseAddress != "" {
 		if netutils.ParseIPSloppy(i.KarmadaAPIServerAdvertiseAddress) == nil {
 			return fmt.Errorf("karmada apiserver advertise address is not valid")
 		}
+	}
+
+	switch i.ImagePullPolicy {
+	case string(corev1.PullAlways), string(corev1.PullIfNotPresent), string(corev1.PullNever):
+		// continue
+	default:
+		return fmt.Errorf("invalid image pull policy: %s", i.ImagePullPolicy)
 	}
 
 	if i.isExternalEtcdProvided() {

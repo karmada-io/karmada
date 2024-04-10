@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -75,6 +76,7 @@ func TestCommandInitOption_Validate(t *testing.T) {
 			name: "Invalid KarmadaAPIServerAdvertiseAddress",
 			opt: CommandInitOption{
 				KarmadaAPIServerAdvertiseAddress: "111",
+				ImagePullPolicy:                  string(corev1.PullIfNotPresent),
 			},
 			wantErr:  true,
 			errorMsg: "CommandInitOption.Validate() does not return err when KarmadaAPIServerAdvertiseAddress is wrong",
@@ -85,6 +87,7 @@ func TestCommandInitOption_Validate(t *testing.T) {
 				KarmadaAPIServerAdvertiseAddress: "192.0.2.1",
 				EtcdStorageMode:                  etcdStorageModeHostPath,
 				EtcdHostDataPath:                 "",
+				ImagePullPolicy:                  string(corev1.PullIfNotPresent),
 			},
 			wantErr:  true,
 			errorMsg: "CommandInitOption.Validate() does not return err when EtcdHostDataPath is empty",
@@ -96,6 +99,7 @@ func TestCommandInitOption_Validate(t *testing.T) {
 				EtcdStorageMode:                  etcdStorageModeHostPath,
 				EtcdHostDataPath:                 "/data",
 				EtcdNodeSelectorLabels:           "key",
+				ImagePullPolicy:                  string(corev1.PullIfNotPresent),
 			},
 			wantErr:  true,
 			errorMsg: "CommandInitOption.Validate() does not return err when EtcdNodeSelectorLabels is %v",
@@ -108,6 +112,7 @@ func TestCommandInitOption_Validate(t *testing.T) {
 				EtcdHostDataPath:                 "/data",
 				EtcdNodeSelectorLabels:           "key=value",
 				EtcdReplicas:                     2,
+				ImagePullPolicy:                  string(corev1.PullIfNotPresent),
 			},
 			wantErr:  true,
 			errorMsg: "CommandInitOption.Validate() does not return err when EtcdReplicas is %v",
@@ -121,6 +126,7 @@ func TestCommandInitOption_Validate(t *testing.T) {
 				EtcdNodeSelectorLabels:           "key=value",
 				EtcdReplicas:                     1,
 				StorageClassesName:               "",
+				ImagePullPolicy:                  string(corev1.PullIfNotPresent),
 			},
 			wantErr:  true,
 			errorMsg: "CommandInitOption.Validate() does not return err when StorageClassesName is empty",
@@ -130,6 +136,7 @@ func TestCommandInitOption_Validate(t *testing.T) {
 			opt: CommandInitOption{
 				KarmadaAPIServerAdvertiseAddress: "192.0.2.1",
 				EtcdStorageMode:                  "unknown",
+				ImagePullPolicy:                  string(corev1.PullIfNotPresent),
 			},
 			wantErr:  true,
 			errorMsg: "CommandInitOption.Validate() does not return err when EtcdStorageMode is unknown",
@@ -139,6 +146,7 @@ func TestCommandInitOption_Validate(t *testing.T) {
 			opt: CommandInitOption{
 				KarmadaAPIServerAdvertiseAddress: "192.0.2.1",
 				EtcdStorageMode:                  etcdStorageModeEmptyDir,
+				ImagePullPolicy:                  string(corev1.PullIfNotPresent),
 			},
 			wantErr:  false,
 			errorMsg: "CommandInitOption.Validate() returns err when EtcdStorageMode is emptyDir",
@@ -148,16 +156,27 @@ func TestCommandInitOption_Validate(t *testing.T) {
 			opt: CommandInitOption{
 				KarmadaAPIServerAdvertiseAddress: "192.0.2.1",
 				EtcdStorageMode:                  "",
+				ImagePullPolicy:                  string(corev1.PullIfNotPresent),
 			},
 			wantErr:  false,
 			errorMsg: "CommandInitOption.Validate() returns err when EtcdStorageMode is empty",
+		},
+		{
+			name: "Invalid ImagePullPolicy",
+			opt: CommandInitOption{
+				KarmadaAPIServerAdvertiseAddress: "192.0.2.1",
+				EtcdStorageMode:                  "",
+				ImagePullPolicy:                  "NotExistImagePullPolicy",
+			},
+			wantErr:  true,
+			errorMsg: "CommandInitOption.Validate() returns err when invalid ImagePullPolicy",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := tt.opt.Validate("parentCommand"); (err != nil) != tt.wantErr {
-				t.Errorf(tt.errorMsg)
+				t.Errorf("%s err = %v, want %v", tt.name, err.Error(), tt.errorMsg)
 			}
 		})
 	}

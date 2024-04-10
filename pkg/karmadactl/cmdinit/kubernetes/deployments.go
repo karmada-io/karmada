@@ -444,8 +444,9 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 		},
 		Containers: []corev1.Container{
 			{
-				Name:  schedulerDeploymentNameAndServiceAccountName,
-				Image: i.karmadaSchedulerImage(),
+				Name:            schedulerDeploymentNameAndServiceAccountName,
+				Image:           i.karmadaSchedulerImage(),
+				ImagePullPolicy: corev1.PullPolicy(i.ImagePullPolicy),
 				Command: []string{
 					"/bin/karmada-scheduler",
 					"--kubeconfig=/etc/kubeconfig",
@@ -559,8 +560,9 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 		},
 		Containers: []corev1.Container{
 			{
-				Name:  controllerManagerDeploymentAndServiceName,
-				Image: i.karmadaControllerManagerImage(),
+				Name:            controllerManagerDeploymentAndServiceName,
+				Image:           i.karmadaControllerManagerImage(),
+				ImagePullPolicy: corev1.PullPolicy(i.ImagePullPolicy),
 				Command: []string{
 					"/bin/karmada-controller-manager",
 					"--kubeconfig=/etc/kubeconfig",
@@ -677,8 +679,9 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 		AutomountServiceAccountToken: pointer.Bool(false),
 		Containers: []corev1.Container{
 			{
-				Name:  webhookDeploymentAndServiceAccountAndServiceName,
-				Image: i.karmadaWebhookImage(),
+				Name:            webhookDeploymentAndServiceAccountAndServiceName,
+				Image:           i.karmadaWebhookImage(),
+				ImagePullPolicy: corev1.PullPolicy(i.ImagePullPolicy),
 				Command: []string{
 					"/bin/karmada-webhook",
 					"--kubeconfig=/etc/kubeconfig",
@@ -847,9 +850,10 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 		AutomountServiceAccountToken: pointer.Bool(false),
 		Containers: []corev1.Container{
 			{
-				Name:    karmadaAggregatedAPIServerDeploymentAndServiceName,
-				Image:   i.karmadaAggregatedAPIServerImage(),
-				Command: command,
+				Name:            karmadaAggregatedAPIServerDeploymentAndServiceName,
+				Image:           i.karmadaAggregatedAPIServerImage(),
+				ImagePullPolicy: corev1.PullPolicy(i.ImagePullPolicy),
+				Command:         command,
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      KubeConfigSecretAndMountName,
