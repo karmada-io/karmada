@@ -152,7 +152,7 @@ func (c *WorkStatusController) RunWorkQueue() {
 // generateKey generates a key from obj, the key contains cluster, GVK, namespace and name.
 func generateKey(obj interface{}) (util.QueueKey, error) {
 	resource := obj.(*unstructured.Unstructured)
-	cluster, err := getClusterNameFromLabel(resource)
+	cluster, err := getClusterNameFromAnnotation(resource)
 	if err != nil {
 		return nil, err
 	}
@@ -164,8 +164,8 @@ func generateKey(obj interface{}) (util.QueueKey, error) {
 	return keys.FederatedKeyFunc(cluster, obj)
 }
 
-// getClusterNameFromLabel gets cluster name from ownerLabel, if label not exist, means resource is not created by karmada.
-func getClusterNameFromLabel(resource *unstructured.Unstructured) (string, error) {
+// getClusterNameFromAnnotation gets cluster name from ownerLabel, if label not exist, means resource is not created by karmada.
+func getClusterNameFromAnnotation(resource *unstructured.Unstructured) (string, error) {
 	workNamespace, exist := resource.GetAnnotations()[workv1alpha2.WorkNamespaceAnnotation]
 	if !exist {
 		klog.V(4).Infof("Ignore resource(%s/%s/%s) which not managed by karmada", resource.GetKind(), resource.GetNamespace(), resource.GetName())
