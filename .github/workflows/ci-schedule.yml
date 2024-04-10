@@ -40,7 +40,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.21.8
+          go-version-file: go.mod
       - name: setup e2e test environment
         uses: nick-fields/retry@v2.9.0
         with:

@@ -22,7 +22,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.21.8
+          go-version-file: go.mod
       - name: verify license
         run: hack/verify-license.sh
       - name: vendor
@@ -47,7 +47,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.21.8
+          go-version-file: ${{ env.GOPATH }}/src/github.com/karmada-io/karmada/go.mod
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
         with:
@@ -79,7 +79,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.21.8
+          go-version-file: go.mod
       - name: compile
         run: make all
   test:
@@ -94,7 +94,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.21.8
+          go-version-file: go.mod
       - name: make test
         run: make test
       - name: Upload coverage to Codecov
@@ -145,7 +145,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.21.8
+          go-version-file: go.mod
       - name: setup e2e test environment
         run: |
           export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
