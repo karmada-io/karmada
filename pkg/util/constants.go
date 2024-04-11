@@ -181,6 +181,8 @@ const (
 	ClusterRoleBindingKind = "ClusterRoleBinding"
 	// CRDKind indicates the target resource is a CustomResourceDefinition
 	CRDKind = "CustomResourceDefinition"
+	// SecretKind indicates the target resource is a Secret
+	SecretKind = "Secret"
 
 	// ServiceExportKind indicates the target resource is a serviceexport crd
 	ServiceExportKind = "ServiceExport"

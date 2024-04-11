@@ -29,10 +29,11 @@ import (
 )
 
 // pruneIrrelevantField is the function that prune irrelevant fields from Work Object.
-type irrelevantFieldPruneFunc func(workload *unstructured.Unstructured) error
+type irrelevantFieldPruneFunc func(*unstructured.Unstructured) error
 
 var kindIrrelevantFieldPruners = map[string]irrelevantFieldPruneFunc{
 	util.JobKind:            removeJobIrrelevantField,
+	util.SecretKind:         removeSecretIrrelevantField,
 	util.ServiceAccountKind: removeServiceAccountIrrelevantField,
 	util.ServiceKind:        removeServiceIrrelevantField,
 }
@@ -177,6 +178,15 @@ func removeServiceIrrelevantField(workload *unstructured.Unstructured) error {
 	if exist && clusterIP != corev1.ClusterIPNone {
 		unstructured.RemoveNestedField(workload.Object, "spec", "clusterIP")
 		unstructured.RemoveNestedField(workload.Object, "spec", "clusterIPs")
+	}
+	return nil
+}
+
+// removeSecretIrrelevantField removes the data and service-account uid annotation from service-account token secrets managed by member-cluster controller-manager
+func removeSecretIrrelevantField(workload *unstructured.Unstructured) error {
+	if secretType, exists, _ := unstructured.NestedString(workload.Object, "type"); exists && secretType == string(corev1.SecretTypeServiceAccountToken) {
+		unstructured.RemoveNestedField(workload.Object, "metadata", "annotations", corev1.ServiceAccountUIDKey)
+		_ = unstructured.SetNestedField(workload.Object, nil, "data")
 	}
 	return nil
 }

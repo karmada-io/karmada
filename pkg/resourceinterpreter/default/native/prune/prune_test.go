@@ -21,6 +21,7 @@ import (
 	"strings"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/karmada-io/karmada/pkg/util"
@@ -179,6 +180,46 @@ func TestRemoveIrrelevantField(t *testing.T) {
 					}
 				}
 				return false
+			},
+		},
+		{
+			name: "remove service-account token secret irrelevant fields",
+			workload: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"kind": util.SecretKind,
+					"metadata": map[string]interface{}{
+						corev1.ServiceAccountUIDKey: "123",
+					},
+					"type": string(corev1.SecretTypeServiceAccountToken),
+					"data": map[string]interface{}{
+						corev1.ServiceAccountTokenKey: "abc",
+					},
+				},
+			},
+			unexpectedFields: []field{
+				{"metadata", "annotations", corev1.ServiceAccountUIDKey},
+				{"data", corev1.ServiceAccountTokenKey},
+			},
+		},
+		{
+			name: "retains secret basic-auth fields",
+			workload: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"kind": util.SecretKind,
+					"metadata": map[string]interface{}{
+						"foo": "bar",
+					},
+					"type": string(corev1.SecretTypeBasicAuth),
+					"data": map[string]interface{}{
+						corev1.BasicAuthUsernameKey: "foo",
+						corev1.BasicAuthPasswordKey: "bar",
+					},
+				},
+			},
+			shouldNotRemoveFields: []field{
+				{"metadata", "foo"},
+				{"data", corev1.BasicAuthUsernameKey},
+				{"data", corev1.BasicAuthPasswordKey},
 			},
 		},
 	}
