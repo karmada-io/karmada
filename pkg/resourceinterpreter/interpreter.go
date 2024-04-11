@@ -99,6 +99,7 @@ func (i *customResourceInterpreterImpl) Start(ctx context.Context) (err error) {
 	i.defaultInterpreter = native.NewDefaultInterpreter()
 
 	i.informer.Start()
+	i.informer.WaitForCacheSync()
 	<-ctx.Done()
 	klog.Infof("Stopped as stopCh closed.")
 	return nil
