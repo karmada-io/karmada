@@ -54,7 +54,7 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
       - name: setup e2e test environment
-        uses: nick-fields/retry@v2.9.0
+        uses: nick-fields/retry@v3.0.0
         with:
           max_attempts: 3
           timeout_minutes: 20
