@@ -101,6 +101,7 @@ spec:
         - name: apiserver-cert
           secret:
             secretName: {{ $name }}-cert
+        {{- end }}
         {{ if eq .Values.certs.mode "secrets" }}
         - name: kubeconfig-certs
           projected:
