@@ -143,21 +143,22 @@ func CreateOrUpdateClusterObject(controlPlaneClient karmadaclientset.Interface, 
 		return nil, err
 	}
 	if exist {
-		if reflect.DeepEqual(cluster.Spec, clusterObj.Spec) {
+		clusterCopy := cluster.DeepCopy()
+		mutate(cluster)
+		if reflect.DeepEqual(clusterCopy.Spec, cluster.Spec) {
 			klog.Warningf("Cluster(%s) already exist and newest", clusterObj.Name)
 			return cluster, nil
 		}
-		mutate(cluster)
+
 		cluster, err = updateCluster(controlPlaneClient, cluster)
 		if err != nil {
-			klog.Warningf("Failed to create cluster(%s). error: %v", clusterObj.Name, err)
+			klog.Warningf("Failed to update cluster(%s). error: %v", clusterObj.Name, err)
 			return nil, err
 		}
 		return cluster, nil
 	}
 
 	mutate(clusterObj)
-
 	if cluster, err = createCluster(controlPlaneClient, clusterObj); err != nil {
 		klog.Warningf("Failed to create cluster(%s). error: %v", clusterObj.Name, err)
 		return nil, err
