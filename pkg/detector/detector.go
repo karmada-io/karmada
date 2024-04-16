@@ -138,7 +138,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 		Version:  policyv1alpha1.GroupVersion.Version,
 		Resource: "propagationpolicies",
 	}
-	policyHandler := fedinformer.NewHandlerOnEvents(d.OnPropagationPolicyAdd, d.OnPropagationPolicyUpdate, d.OnPropagationPolicyDelete)
+	policyHandler := fedinformer.NewHandlerOnEvents(d.OnPropagationPolicyAdd, d.OnPropagationPolicyUpdate, nil)
 	d.InformerManager.ForResource(propagationPolicyGVR, policyHandler)
 	d.propagationPolicyLister = d.InformerManager.Lister(propagationPolicyGVR)
 
@@ -148,7 +148,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 		Version:  policyv1alpha1.GroupVersion.Version,
 		Resource: "clusterpropagationpolicies",
 	}
-	clusterPolicyHandler := fedinformer.NewHandlerOnEvents(d.OnClusterPropagationPolicyAdd, d.OnClusterPropagationPolicyUpdate, d.OnClusterPropagationPolicyDelete)
+	clusterPolicyHandler := fedinformer.NewHandlerOnEvents(d.OnClusterPropagationPolicyAdd, d.OnClusterPropagationPolicyUpdate, nil)
 	d.InformerManager.ForResource(clusterPropagationPolicyGVR, clusterPolicyHandler)
 	d.clusterPropagationPolicyLister = d.InformerManager.Lister(clusterPropagationPolicyGVR)
 
@@ -377,6 +377,11 @@ func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructure
 			klog.Errorf("Failed to convert PropagationPolicy from unstructured object: %v", err)
 			return nil, err
 		}
+
+		if !policy.DeletionTimestamp.IsZero() {
+			klog.V(4).Infof("Propagation policy(%s/%s) cannot match any resource template because it's being deleted.", policy.Namespace, policy.Name)
+			continue
+		}
 		policyList = append(policyList, policy)
 	}
 
@@ -402,6 +407,11 @@ func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unst
 		if err = helper.ConvertToTypedObject(policyObjects[index], policy); err != nil {
 			klog.Errorf("Failed to convert ClusterPropagationPolicy from unstructured object: %v", err)
 			return nil, err
+		}
+
+		if !policy.DeletionTimestamp.IsZero() {
+			klog.V(4).Infof("Cluster propagation policy(%s) cannot match any resource template because it's being deleted.", policy.Name)
+			continue
 		}
 		policyList = append(policyList, policy)
 	}
@@ -981,17 +991,6 @@ func (d *ResourceDetector) OnPropagationPolicyUpdate(oldObj, newObj interface{})
 	}
 }
 
-// OnPropagationPolicyDelete handles object delete event and push the object to queue.
-func (d *ResourceDetector) OnPropagationPolicyDelete(obj interface{}) {
-	key, err := ClusterWideKeyFunc(obj)
-	if err != nil {
-		return
-	}
-
-	klog.V(2).Infof("Delete PropagationPolicy(%s)", key)
-	d.policyReconcileWorker.Add(key)
-}
-
 // ReconcilePropagationPolicy handles PropagationPolicy resource changes.
 // When adding a PropagationPolicy, the detector will pick the objects in waitingObjects list that matches the policy and
 // put the object to queue.
@@ -1007,19 +1006,43 @@ func (d *ResourceDetector) ReconcilePropagationPolicy(key util.QueueKey) error {
 	unstructuredObj, err := d.propagationPolicyLister.Get(ckey.NamespaceKey())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("PropagationPolicy(%s) has been removed.", ckey.NamespaceKey())
-			return d.HandlePropagationPolicyDeletion(ckey.Namespace, ckey.Name)
+			return nil
 		}
 		klog.Errorf("Failed to get PropagationPolicy(%s): %v", ckey.NamespaceKey(), err)
 		return err
 	}
 
-	klog.Infof("PropagationPolicy(%s) has been added.", ckey.NamespaceKey())
 	propagationObject := &policyv1alpha1.PropagationPolicy{}
 	if err = helper.ConvertToTypedObject(unstructuredObj, propagationObject); err != nil {
 		klog.Errorf("Failed to convert PropagationPolicy(%s) from unstructured object: %v", ckey.NamespaceKey(), err)
 		return err
 	}
+
+	if !propagationObject.DeletionTimestamp.IsZero() {
+		klog.Infof("PropagationPolicy(%s) is being deleted.", ckey.NamespaceKey())
+		if err = d.HandlePropagationPolicyDeletion(propagationObject.Namespace, propagationObject.Name); err != nil {
+			return err
+		}
+		if controllerutil.RemoveFinalizer(propagationObject, util.PropagationPolicyControllerFinalizer) {
+			if err = d.Client.Update(context.TODO(), propagationObject); err != nil {
+				klog.Errorf("Failed to remove finalizer for PropagationPolicy(%s), err: %v", ckey.NamespaceKey(), err)
+				return err
+			}
+		}
+		return nil
+	}
+
+	// TODO(whitewindmills): In order to adapt to the upgrade scenario, we temporarily add finalizer here.
+	// Transplant it to karmada-webhook in the next release. More info: https://github.com/karmada-io/karmada/pull/4836#discussion_r1568186728.
+	if controllerutil.AddFinalizer(propagationObject, util.PropagationPolicyControllerFinalizer) {
+		if err = d.Client.Update(context.TODO(), propagationObject); err != nil {
+			klog.Errorf("Failed to add finalizer for PropagationPolicy(%s), err: %v", ckey.NamespaceKey(), err)
+			return err
+		}
+		return nil
+	}
+
+	klog.Infof("PropagationPolicy(%s) has been added or updated.", ckey.NamespaceKey())
 	return d.HandlePropagationPolicyCreationOrUpdate(propagationObject)
 }
 
@@ -1091,17 +1114,6 @@ func (d *ResourceDetector) OnClusterPropagationPolicyUpdate(oldObj, newObj inter
 	}
 }
 
-// OnClusterPropagationPolicyDelete handles object delete event and push the object to queue.
-func (d *ResourceDetector) OnClusterPropagationPolicyDelete(obj interface{}) {
-	key, err := ClusterWideKeyFunc(obj)
-	if err != nil {
-		return
-	}
-
-	klog.V(2).Infof("Delete ClusterPropagationPolicy(%s)", key)
-	d.clusterPolicyReconcileWorker.Add(key)
-}
-
 // ReconcileClusterPropagationPolicy handles ClusterPropagationPolicy resource changes.
 // When adding a ClusterPropagationPolicy, the detector will pick the objects in waitingObjects list that matches the policy and
 // put the object to queue.
@@ -1117,20 +1129,44 @@ func (d *ResourceDetector) ReconcileClusterPropagationPolicy(key util.QueueKey) 
 	unstructuredObj, err := d.clusterPropagationPolicyLister.Get(ckey.NamespaceKey())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("ClusterPropagationPolicy(%s) has been removed.", ckey.NamespaceKey())
-			return d.HandleClusterPropagationPolicyDeletion(ckey.Name)
+			return nil
 		}
 
 		klog.Errorf("Failed to get ClusterPropagationPolicy(%s): %v", ckey.NamespaceKey(), err)
 		return err
 	}
 
-	klog.Infof("Policy(%s) has been added", ckey.NamespaceKey())
 	propagationObject := &policyv1alpha1.ClusterPropagationPolicy{}
 	if err = helper.ConvertToTypedObject(unstructuredObj, propagationObject); err != nil {
 		klog.Errorf("Failed to convert ClusterPropagationPolicy(%s) from unstructured object: %v", ckey.NamespaceKey(), err)
 		return err
 	}
+
+	if !propagationObject.DeletionTimestamp.IsZero() {
+		klog.Infof("ClusterPropagationPolicy(%s) is being deleted.", ckey.NamespaceKey())
+		if err = d.HandleClusterPropagationPolicyDeletion(propagationObject.Name); err != nil {
+			return err
+		}
+		if controllerutil.RemoveFinalizer(propagationObject, util.ClusterPropagationPolicyControllerFinalizer) {
+			if err = d.Client.Update(context.TODO(), propagationObject); err != nil {
+				klog.Errorf("Failed to remove finalizer for ClusterPropagationPolicy(%s), err: %v", ckey.NamespaceKey(), err)
+				return err
+			}
+		}
+		return nil
+	}
+
+	// TODO(whitewindmills): In order to adapt to the upgrade scenario, we temporarily add finalizer here.
+	// Transplant it to karmada-webhook in the next release. More info: https://github.com/karmada-io/karmada/pull/4836#discussion_r1568186728.
+	if controllerutil.AddFinalizer(propagationObject, util.ClusterPropagationPolicyControllerFinalizer) {
+		if err = d.Client.Update(context.TODO(), propagationObject); err != nil {
+			klog.Errorf("Failed to add finalizer for ClusterPropagationPolicy(%s), err: %v", ckey.NamespaceKey(), err)
+			return err
+		}
+		return nil
+	}
+
+	klog.Infof("ClusterPropagationPolicy(%s) has been added or updated.", ckey.NamespaceKey())
 	return d.HandleClusterPropagationPolicyCreationOrUpdate(propagationObject)
 }
 
