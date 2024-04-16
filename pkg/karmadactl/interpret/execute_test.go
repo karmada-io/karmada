@@ -63,6 +63,7 @@ spec:
             containers:
                 - image: nginx:alpine
                   name: nginx
+status: {}
 `,
 		},
 		{
