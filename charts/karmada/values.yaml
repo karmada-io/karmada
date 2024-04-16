@@ -175,6 +175,11 @@ certs:
       XXXXXXXXXXXXXXXXXXXXXXXXXXX
       -----END RSA PRIVATE KEY-----
   secrets:
+    # CA certificate PEM. Must still be provided as it's hard-coded in some places that cannot use secrets.
+    caCrt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
     caCrtSecretName: karmada-ca-crt
     crtSecretName: karmada-crt
     frontProxyCrtSecretName: front-proxy-crt

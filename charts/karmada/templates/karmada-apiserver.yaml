@@ -167,8 +167,6 @@ spec:
                   items:
                     - key: tls.crt
                       path: server-ca.crt
-                    - key: tls.key
-                      path: server-ca.key
               - secret:
                   name: {{ .Values.certs.secrets.frontProxyCrtSecretName }}
                   items:

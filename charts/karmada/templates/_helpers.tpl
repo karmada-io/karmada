@@ -279,6 +279,9 @@ caBundle: {{ print "{{ ca_crt }}" }}
 {{- if eq .Values.certs.mode "custom" }}
 caBundle: {{ b64enc .Values.certs.custom.caCrt }}
 {{- end }}
+{{- if eq .Values.certs.mode "secrets" }}
+caBundle: {{ b64enc .Values.certs.secrets.caCrt }}
+{{- end }}
 {{- end -}}
 
 {{- define "karmada.webhook.caBundle" -}}
@@ -287,6 +290,9 @@ caBundle: {{ print "{{ ca_crt }}" }}
 {{- end }}
 {{- if eq .Values.certs.mode "custom" }}
 caBundle: {{ b64enc .Values.certs.custom.caCrt }}
+{{- end }}
+{{- if eq .Values.certs.mode "secrets" }}
+caBundle: {{ b64enc .Values.certs.secrets.caCrt }}
 {{- end }}
 {{- end -}}
 

@@ -88,15 +88,6 @@ spec:
                   path: server-ca.crt
                 - key: tls.key
                   path: server-ca.key
-            - secret:
-              name: {{ .Values.certs.secrets.frontProxyCrtSecretName }}
-              items:
-                - key: tls.crt
-                  path: front-proxy-client.crt
-                - key: tls.key
-                  path: front-proxy-client.key
-                - key: ca.crt
-                  path: front-proxy-ca.crt
       {{- end }}
 ---
 apiVersion: v1

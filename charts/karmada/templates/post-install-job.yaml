@@ -21,6 +21,7 @@ metadata:
 spec:
   parallelism: 1
   completions: 1
+  backoffLimit: 25
   template:
     metadata:
       name: {{ $name }}
@@ -52,11 +53,11 @@ spec:
           set -ex
           kubectl delete job {{ $name }}-static-resource -n {{ $namespace }}
           kubectl delete secret {{ $name }}-hook-job -n {{ $namespace }}
+          kubectl apply -k /crds --kubeconfig /etc/kubeconfig
+          kubectl apply -f /static-resources/system-namespace.yaml --kubeconfig /etc/kubeconfig
+          kubectl apply -f /static-resources --kubeconfig /etc/kubeconfig
           EOF
         volumeMounts:
-          {{ if eq .Values.certs.mode "secrets" }}
-          {{- include "karmada.kubeconfig.certsVolumeMount" . | nindent 10 }}
-          {{- end }}
           - name: {{ $name }}-crds-kustomization
             mountPath: /crds
           - name: {{ $name }}-crds-patches
@@ -80,6 +81,9 @@ spec:
           - name: {{ $name }}-static-resources
             mountPath: /static-resources
           {{ include "karmada.kubeconfig.volumeMount" . | nindent 10 }}
+          {{ if eq .Values.certs.mode "secrets" }}
+          {{- include "karmada.kubeconfig.certsVolumeMount" . | nindent 10 }}
+          {{- end }}
       volumes:
         - name: {{ $name }}-crds-kustomization
           configMap:
@@ -114,8 +118,8 @@ spec:
         - name: {{ $name }}-static-resources
           configMap:
             name: {{ $name }}-static-resources
+        {{ include "karmada.kubeconfig.volume" . | nindent 8 }}
         {{ if eq .Values.certs.mode "secrets" }}
         {{- include "karmada.kubeconfig.certsVolume" . | nindent 8 }}
         {{- end }}
-        {{ include "karmada.kubeconfig.volume" . | nindent 8 }}
 {{- end }}
