@@ -323,7 +323,7 @@ sequenceDiagram
   PP2 ->> Karmada: create PP2 (match nginx, cluster=member2, lazy)
   activate Karmada
   PP1 ->> Karmada: delete PP1
-  Karmada -->> nginx: label of policy name changed, but propagation unchanged
+  Karmada -->> nginx: annotation of policy name changed, but propagation unchanged
   nginx ->> Karmada: update nginx (e.g. update a label: refresh-time=$(date +%s))
   Karmada -->> nginx: propagate it to member2
   deactivate Karmada
@@ -347,7 +347,7 @@ sequenceDiagram
   CPP2 ->> Karmada: create CPP2 (match nginx, cluster=member2, lazy)
   activate Karmada
   CPP1 ->> Karmada: update CPP1 (no longer match nginx)
-  Karmada -->> nginx: label of policy name changed, but propagation unchanged
+  Karmada -->> nginx: annotation of policy name changed, but propagation unchanged
   nginx ->> Karmada: update nginx (e.g. update a label: refresh-time=$(date +%s))
   Karmada -->> nginx: propagate it to member2
   deactivate Karmada
@@ -391,7 +391,7 @@ sequenceDiagram
    
   PP2 ->> Karmada: create PP2 (match nginx, cluster=member2, lazy, priority=2, preemption=true)
   activate Karmada
-  Karmada -->> nginx: label of policy name changed, but propagation unchanged
+  Karmada -->> nginx: annotation of policy name changed, but propagation unchanged
   nginx ->> Karmada: update nginx (e.g. update a label: refresh-time=$(date +%s))
   Karmada -->> nginx: propagate it to member2
   deactivate Karmada
