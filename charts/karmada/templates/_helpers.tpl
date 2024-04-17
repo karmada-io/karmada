@@ -527,6 +527,13 @@ Return the proper karmada kubectl image name
 {{ include "common.images.image" (dict "imageRoot" .Values.kubectl.image "global" .Values.global) }}
 {{- end -}}
 
+{{/*
+Return the proper Docker Image Registry Secret Names
+*/}}
+{{- define "karmada.imagePullSecrets" -}}
+{{ include "common.images.pullSecrets" (dict "images" (list .Values.cfssl.image .Values.kubectl.image .Values.etcd.internal.image .Values.agent.image .Values.apiServer.image .Values.controllerManager.image .Values.descheduler.image .Values.schedulerEstimator.image .Values.scheduler.image .Values.webhook.image .Values.aggregatedApiServer.image .Values.metricsAdapter.image .Values.search.image .Values.kubeControllerManager.image) "global" .Values.global) }}
+{{- end -}}
+
 {{- define "karmada.controllerManager.featureGates" -}}
      {{- if (not (empty .Values.controllerManager.featureGates)) }}
           {{- $featureGatesFlag := "" -}}

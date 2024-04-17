@@ -55,6 +55,7 @@ cfssl:
   ## @param image.registry karmada cfssl image registry
   ## @param image.repository karmada cfssl image repository
   ## @param image.tag karmada cfssl image tag (immutable tags are recommended)
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
   ##
   image:
     registry: docker.io
@@ -62,11 +63,19 @@ cfssl:
     tag: latest
     ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
     pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
 
 kubectl:
   ## @param image.registry karmada kubectl image registry
   ## @param image.repository karmada kubectl image repository
   ## @param image.tag karmada kubectl image tag (immutable tags are recommended)
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
   ##
   image:
     registry: docker.io
@@ -74,6 +83,13 @@ kubectl:
     tag: latest
     ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
     pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
 
 ## pre-install job config
 preInstallJob:

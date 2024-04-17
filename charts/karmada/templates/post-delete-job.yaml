@@ -24,6 +24,7 @@ spec:
       labels:
         helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     spec:
+      {{- include "karmada.imagePullSecrets" . | nindent 6 }}
       {{- with .Values.postDeleteJob.tolerations}}
       tolerations:
       {{- toYaml . | nindent 8 }}
