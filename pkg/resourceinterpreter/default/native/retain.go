@@ -25,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	storagevolume "k8s.io/component-helpers/storage/volume"
 
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -101,6 +102,20 @@ func retainPersistentVolumeClaimFields(desired, observed *unstructured.Unstructu
 			return nil, fmt.Errorf("error setting volumeName for pvc: %w", err)
 		}
 	}
+
+	selectedNodeAnnotationPath := []string{"metadata", "annotations", storagevolume.AnnSelectedNode}
+	selectedNode, ok, err := unstructured.NestedString(observed.Object, selectedNodeAnnotationPath...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get %s from desired.Object: %+v", strings.Join(selectedNodeAnnotationPath, "."), err)
+	}
+	if ok {
+		if err = unstructured.SetNestedField(desired.Object, selectedNode, selectedNodeAnnotationPath...); err != nil {
+			return nil, fmt.Errorf(
+				"failed to set %s for %s %s/%s. %w",
+				strings.Join(selectedNodeAnnotationPath, "."), desired.GetKind(), desired.GetNamespace(), desired.GetName(), err)
+		}
+	}
+
 	return desired, nil
 }
 
@@ -115,6 +130,7 @@ func retainPersistentVolumeFields(desired, observed *unstructured.Unstructured) 
 			return nil, fmt.Errorf("failed to set claimRef for pv: %v", err)
 		}
 	}
+
 	return desired, nil
 }
 

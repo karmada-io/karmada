@@ -23,6 +23,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	storagevolume "k8s.io/component-helpers/storage/volume"
 
 	"github.com/karmada-io/karmada/pkg/util"
 )
@@ -220,6 +221,22 @@ func TestRemoveIrrelevantField(t *testing.T) {
 				{"metadata", "foo"},
 				{"data", corev1.BasicAuthUsernameKey},
 				{"data", corev1.BasicAuthPasswordKey},
+			},
+		},
+		{
+			name: "remove selected-node pvc annotation",
+			workload: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"kind": util.PersistentVolumeClaimKind,
+					"metadata": map[string]interface{}{
+						"annotations": map[string]interface{}{
+							storagevolume.AnnSelectedNode: "node1",
+						},
+					},
+				},
+			},
+			unexpectedFields: []field{
+				{"metadata", "annotations", storagevolume.AnnSelectedNode},
 			},
 		},
 	}

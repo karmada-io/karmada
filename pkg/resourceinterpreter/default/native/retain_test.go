@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	storagevolume "k8s.io/component-helpers/storage/volume"
 
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -173,6 +174,82 @@ func Test_retainSecretServiceAccountToken(t *testing.T) {
 			got, err := retainSecretServiceAccountToken(tt.args.desired, tt.args.observed)
 			assert.Nil(t, err, "retainSecretServiceAccountToken() error = %v", err)
 			assert.Equalf(t, tt.want, got, "retainSecretServiceAccountToken(%v, %v)", tt.args.desired, tt.args.observed)
+		})
+	}
+}
+
+func Test_retainPersistentVolumeFields(t *testing.T) {
+	createPV := func(claimRef *corev1.ObjectReference) *unstructured.Unstructured {
+		ret, _ := helper.ToUnstructured(&corev1.PersistentVolume{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "pv",
+			},
+			Spec: corev1.PersistentVolumeSpec{
+				ClaimRef: claimRef,
+			},
+		})
+		return ret
+	}
+	type args struct {
+		desired  *unstructured.Unstructured
+		observed *unstructured.Unstructured
+	}
+	tests := []struct {
+		name string
+		args args
+		want *unstructured.Unstructured
+	}{
+		{
+			name: "retain claimRef",
+			args: args{
+				desired:  createPV(&corev1.ObjectReference{Name: "pvc-1", Namespace: "default"}),
+				observed: createPV(&corev1.ObjectReference{Name: "pvc-2", Namespace: "default"}),
+			},
+			want: createPV(&corev1.ObjectReference{Name: "pvc-2", Namespace: "default"}),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := retainPersistentVolumeFields(tt.args.desired, tt.args.observed)
+			assert.Nil(t, err, "retainPersistentVolumeFields() error = %v", err)
+			assert.Equalf(t, tt.want, got, "retainPersistentVolumeFields(%v, %v)", tt.args.desired, tt.args.observed)
+		})
+	}
+}
+
+func Test_retainPersistentVolumeClaimFields(t *testing.T) {
+	createPVC := func(annotations map[string]string) *unstructured.Unstructured {
+		ret, _ := helper.ToUnstructured(&corev1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "pvc",
+				Annotations: annotations,
+			},
+		})
+		return ret
+	}
+	type args struct {
+		desired  *unstructured.Unstructured
+		observed *unstructured.Unstructured
+	}
+	tests := []struct {
+		name string
+		args args
+		want *unstructured.Unstructured
+	}{
+		{
+			name: "retain selected node annotation",
+			args: args{
+				desired:  createPVC(map[string]string{storagevolume.AnnSelectedNode: "node1"}),
+				observed: createPVC(map[string]string{storagevolume.AnnSelectedNode: "node2"}),
+			},
+			want: createPVC(map[string]string{storagevolume.AnnSelectedNode: "node2"}),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := retainPersistentVolumeClaimFields(tt.args.desired, tt.args.observed)
+			assert.Nil(t, err, "retainPersistentVolumeClaimFields() error = %v", err)
+			assert.Equalf(t, tt.want, got, "retainPersistentVolumeClaimFields(%v, %v)", tt.args.desired, tt.args.observed)
 		})
 	}
 }
