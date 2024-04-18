@@ -68,6 +68,9 @@ const (
 
 	// ScaleSchedule means the replicas of binding object has been changed.
 	ScaleSchedule ScheduleType = "ScaleSchedule"
+
+	// ResourcesChangeSchedule means the resources of member clusters has been changed.
+	ResourcesChangeSchedule ScheduleType = "ResourcesScaleSchedule"
 )
 
 const (
@@ -93,6 +96,10 @@ type Scheduler struct {
 	// clusterReconcileWorker reconciles cluster changes to trigger corresponding
 	// ResourceBinding/ClusterResourceBinding rescheduling.
 	clusterReconcileWorker util.AsyncWorker
+	// clusterReconcileWorker reconciles cluster resources changes to trigger corresponding
+	// ResourceBinding/ClusterResourceBinding rescheduling.
+	clusterResourcesReconcileWorker util.AsyncWorker
+
 	// TODO: implement a priority scheduling queue
 	queue workqueue.RateLimitingInterface
 
@@ -249,7 +256,11 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 		Name:          "ClusterReconcileWorker",
 		ReconcileFunc: sched.reconcileCluster,
 	})
-
+	sched.clusterResourcesReconcileWorker = util.NewAsyncWorker(util.Options{
+		Name:          "ClusterResourcesReconcileWorker",
+		KeyFunc:       util.MetaNamespaceKeyFunc,
+		ReconcileFunc: sched.reconcileClusterResources,
+	})
 	if options.enableSchedulerEstimator {
 		sched.enableSchedulerEstimator = options.enableSchedulerEstimator
 		sched.disableSchedulerEstimatorInPullMode = options.disableSchedulerEstimatorInPullMode
@@ -357,6 +368,13 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		metrics.BindingSchedule(string(ScaleSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
+	if util.IsUnschedulableBinding(rb.Status) {
+		// unschedulable binding, need reschedule
+		klog.Infof("Reschedule ResourceBinding(%s/%s) as unschedulable", namespace, name)
+		err = s.scheduleResourceBinding(rb)
+		metrics.BindingSchedule(string(ResourcesChangeSchedule), utilmetrics.DurationInSeconds(start), err)
+		return err
+	}
 	if rb.Spec.Replicas == 0 ||
 		rb.Spec.Placement.ReplicaSchedulingType() == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
 		// Duplicated resources should always be scheduled. Note: non-workload is considered as duplicated
@@ -421,6 +439,13 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 		klog.V(3).Infof("Start to schedule ClusterResourceBinding(%s) as scheduling type is duplicated", name)
 		err = s.scheduleClusterResourceBinding(crb)
 		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
+		return err
+	}
+	if util.IsUnschedulableBinding(crb.Status) {
+		// unschedulable binding, need reschedule
+		klog.Infof("Reschedule ClusterResourceBinding(%s) as unschedulable", name)
+		err = s.scheduleClusterResourceBinding(crb)
+		metrics.BindingSchedule(string(ResourcesChangeSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
 	// TODO(dddddai): reschedule bindings on cluster change
