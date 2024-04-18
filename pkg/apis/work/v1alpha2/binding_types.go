@@ -136,6 +136,16 @@ type ResourceBindingSpec struct {
 	// +kubebuilder:validation:Enum=Abort;Overwrite
 	// +optional
 	ConflictResolution policyv1alpha1.ConflictResolution `json:"conflictResolution,omitempty"`
+
+	// RescheduleTriggeredAt is a timestamp representing when the referenced resource is triggered rescheduling.
+	// When this field is updated, it means a rescheduling is manually triggered by user, and the expected behavior
+	// of this action is to do a complete recalculation without referring to last scheduling results.
+	// It works with the status.lastScheduledTime field, and only when this timestamp is later than timestamp in
+	// status.lastScheduledTime will the rescheduling actually execute, otherwise, ignored.
+	//
+	// It is represented in RFC3339 form (like '2006-01-02T15:04:05Z') and is in UTC.
+	// +optional
+	RescheduleTriggeredAt *metav1.Time `json:"rescheduleTriggeredAt,omitempty"`
 }
 
 // ObjectReference contains enough information to locate the referenced object inside current cluster.
@@ -296,6 +306,11 @@ type ResourceBindingStatus struct {
 	// the basis of current scheduling.
 	// +optional
 	SchedulerObservedAffinityName string `json:"schedulerObservingAffinityName,omitempty"`
+
+	// LastScheduledTime representing the latest timestamp when scheduler successfully finished a scheduling.
+	// It is represented in RFC3339 form (like '2006-01-02T15:04:05Z') and is in UTC.
+	// +optional
+	LastScheduledTime *metav1.Time `json:"lastScheduledTime,omitempty"`
 
 	// Conditions contain the different condition statuses.
 	// +optional

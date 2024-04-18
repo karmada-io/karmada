@@ -100,7 +100,7 @@ func (g *genericScheduler) Schedule(
 	}
 	klog.V(4).Infof("Selected clusters: %v", clusters)
 
-	clustersWithReplicas, err := g.assignReplicas(clusters, spec.Placement, spec)
+	clustersWithReplicas, err := g.assignReplicas(clusters, spec, status)
 	if err != nil {
 		return result, fmt.Errorf("failed to assign replicas: %w", err)
 	}
@@ -179,7 +179,7 @@ func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreLi
 	return SelectClusters(clustersScore, placement, spec)
 }
 
-func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, placement *policyv1alpha1.Placement,
-	object *workv1alpha2.ResourceBindingSpec) ([]workv1alpha2.TargetCluster, error) {
-	return AssignReplicas(clusters, placement, object)
+func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec,
+	status *workv1alpha2.ResourceBindingStatus) ([]workv1alpha2.TargetCluster, error) {
+	return AssignReplicas(clusters, spec, status)
 }

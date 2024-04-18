@@ -6748,12 +6748,18 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
+					"rescheduleTriggeredAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RescheduleTriggeredAt is a timestamp representing when the referenced resource is triggered rescheduling. When this field is updated, it means a rescheduling is manually triggered by user, and the expected behavior of this action is to do a complete recalculation without referring to last scheduling results. It works with the status.lastScheduledTime field, and only when this timestamp is later than timestamp in status.lastScheduledTime will the rescheduling actually execute, otherwise, ignored.\n\nIt is represented in RFC3339 form (like '2006-01-02T15:04:05Z') and is in UTC.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
 				},
 				Required: []string{"resource"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.BindingSnapshot", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.GracefulEvictionTask", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ObjectReference", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster"},
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.BindingSnapshot", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.GracefulEvictionTask", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ObjectReference", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -6776,6 +6782,12 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingStatus(ref common.ReferenceCal
 							Description: "SchedulerObservedAffinityName is the name of affinity term that is the basis of current scheduling.",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"lastScheduledTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastScheduledTime representing the latest timestamp when scheduler successfully finished a scheduling. It is represented in RFC3339 form (like '2006-01-02T15:04:05Z') and is in UTC.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
 					"conditions": {
@@ -6810,7 +6822,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingStatus(ref common.ReferenceCal
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.AggregatedStatusItem", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
+			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.AggregatedStatusItem", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

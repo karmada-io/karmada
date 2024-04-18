@@ -31,7 +31,6 @@ type testcase struct {
 	name                      string
 	clusters                  []*clusterv1alpha1.Cluster
 	object                    workv1alpha2.ResourceBindingSpec
-	placement                 *policyv1alpha1.Placement
 	previousResultToNewResult map[string][]string
 	wantErr                   bool
 }
@@ -74,15 +73,15 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 3,
-			},
-			placement: &policyv1alpha1.Placement{
-				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-					WeightPreference: &policyv1alpha1.ClusterPreferences{
-						StaticWeightList: []policyv1alpha1.StaticClusterWeight{
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
+				Placement: &policyv1alpha1.Placement{
+					ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+						ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+						WeightPreference: &policyv1alpha1.ClusterPreferences{
+							StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
+							},
 						},
 					},
 				},
@@ -106,16 +105,16 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 3,
-			},
-			placement: &policyv1alpha1.Placement{
-				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-					WeightPreference: &policyv1alpha1.ClusterPreferences{
-						StaticWeightList: []policyv1alpha1.StaticClusterWeight{
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+				Placement: &policyv1alpha1.Placement{
+					ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+						ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+						WeightPreference: &policyv1alpha1.ClusterPreferences{
+							StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+							},
 						},
 					},
 				},
@@ -134,16 +133,16 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 5, // change replicas from 3 to 5
-			},
-			placement: &policyv1alpha1.Placement{
-				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-					WeightPreference: &policyv1alpha1.ClusterPreferences{
-						StaticWeightList: []policyv1alpha1.StaticClusterWeight{
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+				Placement: &policyv1alpha1.Placement{
+					ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+						ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+						WeightPreference: &policyv1alpha1.ClusterPreferences{
+							StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+							},
 						},
 					},
 				},
@@ -171,17 +170,17 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 7,
-			},
-			placement: &policyv1alpha1.Placement{
-				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-					WeightPreference: &policyv1alpha1.ClusterPreferences{
-						StaticWeightList: []policyv1alpha1.StaticClusterWeight{
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 2},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember4}}, Weight: 1},
+				Placement: &policyv1alpha1.Placement{
+					ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+						ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+						WeightPreference: &policyv1alpha1.ClusterPreferences{
+							StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 2},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember4}}, Weight: 1},
+							},
 						},
 					},
 				},
@@ -201,17 +200,17 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 8, // change replicas from 7 to 8
-			},
-			placement: &policyv1alpha1.Placement{
-				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-					WeightPreference: &policyv1alpha1.ClusterPreferences{
-						StaticWeightList: []policyv1alpha1.StaticClusterWeight{
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 2},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember4}}, Weight: 1},
+				Placement: &policyv1alpha1.Placement{
+					ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+						ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+						WeightPreference: &policyv1alpha1.ClusterPreferences{
+							StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 2},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember4}}, Weight: 1},
+							},
 						},
 					},
 				},
@@ -241,17 +240,17 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 9,
-			},
-			placement: &policyv1alpha1.Placement{
-				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-					WeightPreference: &policyv1alpha1.ClusterPreferences{
-						StaticWeightList: []policyv1alpha1.StaticClusterWeight{
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 2},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember4}}, Weight: 1},
+				Placement: &policyv1alpha1.Placement{
+					ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+						ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+						WeightPreference: &policyv1alpha1.ClusterPreferences{
+							StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 2},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember4}}, Weight: 1},
+							},
 						},
 					},
 				},
@@ -271,17 +270,17 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 8,
-			},
-			placement: &policyv1alpha1.Placement{
-				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-					WeightPreference: &policyv1alpha1.ClusterPreferences{
-						StaticWeightList: []policyv1alpha1.StaticClusterWeight{
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 2},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember4}}, Weight: 1},
+				Placement: &policyv1alpha1.Placement{
+					ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+						ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+						WeightPreference: &policyv1alpha1.ClusterPreferences{
+							StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 2},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember4}}, Weight: 1},
+							},
 						},
 					},
 				},
@@ -308,17 +307,17 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 6,
-			},
-			placement: &policyv1alpha1.Placement{
-				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-					WeightPreference: &policyv1alpha1.ClusterPreferences{
-						StaticWeightList: []policyv1alpha1.StaticClusterWeight{
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember4}}, Weight: 1},
+				Placement: &policyv1alpha1.Placement{
+					ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+						ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+						WeightPreference: &policyv1alpha1.ClusterPreferences{
+							StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember4}}, Weight: 1},
+							},
 						},
 					},
 				},
@@ -338,17 +337,17 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 6,
-			},
-			placement: &policyv1alpha1.Placement{
-				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-					WeightPreference: &policyv1alpha1.ClusterPreferences{
-						StaticWeightList: []policyv1alpha1.StaticClusterWeight{
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 2},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember4}}, Weight: 1},
+				Placement: &policyv1alpha1.Placement{
+					ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+						ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+						WeightPreference: &policyv1alpha1.ClusterPreferences{
+							StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 2},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember4}}, Weight: 1},
+							},
 						},
 					},
 				},
@@ -380,16 +379,16 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 5,
-			},
-			placement: &policyv1alpha1.Placement{
-				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-					WeightPreference: &policyv1alpha1.ClusterPreferences{
-						StaticWeightList: []policyv1alpha1.StaticClusterWeight{
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+				Placement: &policyv1alpha1.Placement{
+					ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+						ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+						WeightPreference: &policyv1alpha1.ClusterPreferences{
+							StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+							},
 						},
 					},
 				},
@@ -409,17 +408,17 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 5,
-			},
-			placement: &policyv1alpha1.Placement{
-				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-					WeightPreference: &policyv1alpha1.ClusterPreferences{
-						StaticWeightList: []policyv1alpha1.StaticClusterWeight{
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember4}}, Weight: 1},
+				Placement: &policyv1alpha1.Placement{
+					ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+						ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+						WeightPreference: &policyv1alpha1.ClusterPreferences{
+							StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember4}}, Weight: 1},
+							},
 						},
 					},
 				},
@@ -449,17 +448,17 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 6,
-			},
-			placement: &policyv1alpha1.Placement{
-				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-					WeightPreference: &policyv1alpha1.ClusterPreferences{
-						StaticWeightList: []policyv1alpha1.StaticClusterWeight{
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember4}}, Weight: 1},
+				Placement: &policyv1alpha1.Placement{
+					ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+						ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+						WeightPreference: &policyv1alpha1.ClusterPreferences{
+							StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember4}}, Weight: 1},
+							},
 						},
 					},
 				},
@@ -478,16 +477,16 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 6,
-			},
-			placement: &policyv1alpha1.Placement{
-				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-					WeightPreference: &policyv1alpha1.ClusterPreferences{
-						StaticWeightList: []policyv1alpha1.StaticClusterWeight{
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
-							{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+				Placement: &policyv1alpha1.Placement{
+					ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+						ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+						WeightPreference: &policyv1alpha1.ClusterPreferences{
+							StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember1}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember2}}, Weight: 1},
+								{TargetCluster: policyv1alpha1.ClusterAffinity{ClusterNames: []string{ClusterMember3}}, Weight: 1},
+							},
 						},
 					},
 				},
@@ -512,7 +511,7 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 				}
 
 				// 2. schedule basing on previous schedule result
-				got, err := g.assignReplicas(tt.clusters, tt.placement, &obj)
+				got, err := g.assignReplicas(tt.clusters, &obj, &workv1alpha2.ResourceBindingStatus{})
 				if (err != nil) != tt.wantErr {
 					t.Errorf("AssignReplicas() error = %v, wantErr %v", err, tt.wantErr)
 					return

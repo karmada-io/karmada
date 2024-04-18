@@ -41,8 +41,8 @@ func SelectClusters(clustersScore framework.ClusterScoreList,
 // AssignReplicas assigns replicas to clusters based on the placement and resource binding spec.
 func AssignReplicas(
 	clusters []*clusterv1alpha1.Cluster,
-	placement *policyv1alpha1.Placement,
-	object *workv1alpha2.ResourceBindingSpec,
+	spec *workv1alpha2.ResourceBindingSpec,
+	status *workv1alpha2.ResourceBindingStatus,
 ) ([]workv1alpha2.TargetCluster, error) {
 	startTime := time.Now()
 	defer metrics.ScheduleStep(metrics.ScheduleStepAssignReplicas, startTime)
@@ -51,13 +51,13 @@ func AssignReplicas(
 		return nil, fmt.Errorf("no clusters available to schedule")
 	}
 
-	if object.Replicas > 0 {
-		state := newAssignState(clusters, placement, object)
+	if spec.Replicas > 0 {
+		state := newAssignState(clusters, spec, status)
 		assignFunc, ok := assignFuncMap[state.strategyType]
 		if !ok {
 			// should never happen at present
 			return nil, fmt.Errorf("unsupported replica scheduling strategy, replicaSchedulingType: %s, replicaDivisionPreference: %s, "+
-				"please try another scheduling strategy", placement.ReplicaSchedulingType(), placement.ReplicaScheduling.ReplicaDivisionPreference)
+				"please try another scheduling strategy", spec.Placement.ReplicaSchedulingType(), spec.Placement.ReplicaScheduling.ReplicaDivisionPreference)
 		}
 		assignResults, err := assignFunc(state)
 		if err != nil {
