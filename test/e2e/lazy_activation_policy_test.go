@@ -33,7 +33,7 @@ import (
 
 const waitIntervalForLazyPolicyTest = 3 * time.Second
 
-// e2e test for https://github.com/karmada-io/karmada/blob/master/docs/proposals/scheduling/activation-preference/lazy-activation-preference.md#test-plan
+// e2e test for https://github.com/karmada-io/karmada/blob/release-1.9/docs/proposals/scheduling/activation-preference/lazy-activation-preference.md#test-plan
 var _ = ginkgo.Describe("Lazy activation policy testing", func() {
 	var namespace string
 	var deploymentName, configMapName, policyName, policyHigherPriorityName string
@@ -92,7 +92,7 @@ var _ = ginkgo.Describe("Lazy activation policy testing", func() {
 		})
 
 		// Simple Case 1 (Policy created before resource)
-		// refer: https://github.com/karmada-io/karmada/blob/master/docs/proposals/scheduling/activation-preference/lazy-activation-preference.md#simple-case-1-policy-created-before-resource
+		// refer: https://github.com/karmada-io/karmada/blob/release-1.9/docs/proposals/scheduling/activation-preference/lazy-activation-preference.md#simple-case-1-policy-created-before-resource
 		ginkgo.It("Simple Case 1 (Policy created before resource)", func() {
 			ginkgo.By("step 1: deployment propagate success when policy created before it", func() {
 				waitDeploymentPresentOnCluster(originalCluster, namespace, deploymentName)
@@ -107,7 +107,7 @@ var _ = ginkgo.Describe("Lazy activation policy testing", func() {
 		})
 
 		// Simple Case 3 (Lazy to immediate)
-		// refer: https://github.com/karmada-io/karmada/blob/master/docs/proposals/scheduling/activation-preference/lazy-activation-preference.md#simple-case-3-lazy-to-immediate
+		// refer: https://github.com/karmada-io/karmada/blob/release-1.9/docs/proposals/scheduling/activation-preference/lazy-activation-preference.md#simple-case-3-lazy-to-immediate
 		ginkgo.It("Simple Case 3 (Lazy to immediate)", func() {
 			ginkgo.By("step 1: deployment propagate success when policy created before it", func() {
 				waitDeploymentPresentOnCluster(originalCluster, namespace, deploymentName)
@@ -131,7 +131,7 @@ var _ = ginkgo.Describe("Lazy activation policy testing", func() {
 			})
 
 			// Simple Case 4 (Immediate to lazy)
-			// refer: https://github.com/karmada-io/karmada/blob/master/docs/proposals/scheduling/activation-preference/lazy-activation-preference.md#simple-case-4-immediate-to-lazy
+			// refer: https://github.com/karmada-io/karmada/blob/release-1.9/docs/proposals/scheduling/activation-preference/lazy-activation-preference.md#simple-case-4-immediate-to-lazy
 			ginkgo.It("Simple Case 4 (Immediate to lazy)", func() {
 				ginkgo.By("step 1: deployment propagate success", func() {
 					waitDeploymentPresentOnCluster(originalCluster, namespace, deploymentName)
@@ -159,7 +159,7 @@ var _ = ginkgo.Describe("Lazy activation policy testing", func() {
 		})
 
 		// Combined Case 4 (Policy preemption)
-		// refer: https://github.com/chaosi-zju/karmada/blob/lazy-proposal/docs/proposals/scheduling/activation-preference/lazy-activation-preference.md#combined-case-4-policy-preemption
+		// refer: https://github.com/karmada-io/karmada/blob/release-1.9/docs/proposals/scheduling/activation-preference/lazy-activation-preference.md#combined-case-4-policy-preemption
 		ginkgo.It("Policy preemption", func() {
 			ginkgo.By("step 1: deployment propagate success when policy created before it", func() {
 				waitDeploymentPresentOnCluster(originalCluster, namespace, deploymentName)
@@ -206,7 +206,7 @@ var _ = ginkgo.Describe("Lazy activation policy testing", func() {
 			})
 
 			// Combined Case 5 (Propagate dependencies)
-			// refer: https://github.com/karmada-io/karmada/blob/master/docs/proposals/scheduling/activation-preference/lazy-activation-preference.md#combined-case-5-propagate-dependencies
+			// refer: https://github.com/karmada-io/karmada/blob/release-1.9/docs/proposals/scheduling/activation-preference/lazy-activation-preference.md#combined-case-5-propagate-dependencies
 			ginkgo.It("Combined Case 5 (Propagate dependencies)", func() {
 				ginkgo.By("step 1: deployment and its dependencies could propagate success.", func() {
 					waitDeploymentPresentOnCluster(originalCluster, namespace, deploymentName)
@@ -244,7 +244,7 @@ var _ = ginkgo.Describe("Lazy activation policy testing", func() {
 		})
 
 		// Simple Case 2 (Policy created after resource)
-		// refer: https://github.com/karmada-io/karmada/blob/master/docs/proposals/scheduling/activation-preference/lazy-activation-preference.md#simple-case-2-policy-created-after-resource
+		// refer: https://github.com/karmada-io/karmada/blob/release-1.9/docs/proposals/scheduling/activation-preference/lazy-activation-preference.md#simple-case-2-policy-created-after-resource
 		ginkgo.It("Simple Case 2 (Policy created after resource)", func() {
 			ginkgo.By("step1: deployment would not propagate when lazy policy created after deployment", func() {
 				// wait to distinguish whether the deployment will not propagate or have no time to propagate
@@ -268,7 +268,7 @@ var _ = ginkgo.Describe("Lazy activation policy testing", func() {
 			})
 
 			// Combined Case 6 (Propagate dependencies)
-			// refer: https://github.com/karmada-io/karmada/blob/master/docs/proposals/scheduling/activation-preference/lazy-activation-preference.md#combined-case-6-propagate-dependencies
+			// refer: https://github.com/karmada-io/karmada/blob/release-1.9/docs/proposals/scheduling/activation-preference/lazy-activation-preference.md#combined-case-6-propagate-dependencies
 			ginkgo.It("Combined Case 6 (Propagate dependencies)", func() {
 				ginkgo.By("step 1: resources would not propagate when lazy policy created after resources", func() {
 					// wait to distinguish whether the resource will not propagate or have no time to propagate
