@@ -16,6 +16,21 @@
 {{- end -}}
 {{- end -}}
 
+{{- define "karmada.customCerts.etcdVolume" -}}
+- name: etcd-cert
+  projected:
+    sources:
+      - secret:
+          name: {{ .Values.certs.secrets.etcdSecretName }}
+          items:
+            - key: tls.crt
+              path: karmada.crt
+            - key: tls.key
+              path: karmada.key
+            - key: ca.crt
+              path: server-ca.crt
+{{- end -}}
+
 {{- define "karmada.apiserver.labels" -}}
 {{- if .Values.apiServer.labels }}
 {{- range $key, $value := .Values.apiServer.labels }}
@@ -110,6 +125,24 @@ app: {{- include "karmada.name" .}}-kube-controller-manager
 {{- end }}
 {{- end -}}
 
+{{- define "karmada.certs.secrets.bundleVolume" -}}
+- name: ca-cert-store
+  configMap:
+    name: {{ .Values.certs.secrets.caBundleConfigMap }}
+    defaultMode: 0644
+    optional: false
+    items:
+    - key: ca-certificates.crt
+      path: ca-certificates.crt
+{{- end -}}
+
+{{- define "karmada.certs.secrets.bundleVolumeMount" -}}
+- mountPath: /etc/ssl/certs/
+  name: ca-cert-store
+  readOnly: true
+{{- end -}}
+
+
 {{- define "karmada.kubeconfig.certsVolumeMount" -}}
 - name: kubeconfig-certs
   mountPath: /etc/kubernetes/pki
@@ -127,10 +160,10 @@ app: {{- include "karmada.name" .}}-kube-controller-manager
               path: karmada.crt
             - key: tls.key
               path: karmada.key
-      - secret:
-          name: {{ .Values.certs.secrets.caCrtSecretName }}
+      - configMap:
+          name: {{ .Values.certs.secrets.rootCaCrtConfigMap }}
           items:
-            - key: tls.crt
+            - key: karmada-root
               path: server-ca.crt
 {{- end -}}
 
@@ -280,7 +313,7 @@ caBundle: {{ print "{{ ca_crt }}" }}
 caBundle: {{ b64enc .Values.certs.custom.caCrt }}
 {{- end }}
 {{- if eq .Values.certs.mode "secrets" }}
-caBundle: {{ b64enc .Values.certs.secrets.caCrt }}
+caBundle: {{ b64enc .Values.certs.secrets.rootCaCrt }}
 {{- end }}
 {{- end -}}
 
@@ -292,7 +325,7 @@ caBundle: {{ print "{{ ca_crt }}" }}
 caBundle: {{ b64enc .Values.certs.custom.caCrt }}
 {{- end }}
 {{- if eq .Values.certs.mode "secrets" }}
-caBundle: {{ b64enc .Values.certs.secrets.caCrt }}
+caBundle: {{ b64enc .Values.certs.secrets.rootCaCrt }}
 {{- end }}
 {{- end -}}
 

@@ -111,6 +111,9 @@ spec:
             - name: etcd-cert
               mountPath: /etc/etcd/pki
               readOnly: true
+            {{ if eq .Values.certs.mode "secrets" }}
+            {{- include "karmada.certs.secrets.bundleVolumeMount" . | nindent 12 }}
+            {{- end }}
       {{- if .Values.apiServer.hostNetwork }}
       dnsPolicy: ClusterFirstWithHostNet
       {{- end }}
@@ -152,6 +155,7 @@ spec:
           {{- end }}
       {{- end }}
       {{ if eq .Values.certs.mode "secrets" }}
+      {{- include "karmada.certs.secrets.bundleVolume" . | nindent 8 }}
         - name: apiserver-cert
           projected:
             sources:
@@ -176,18 +180,7 @@ spec:
                       path: front-proxy-client.key
                     - key: ca.crt
                       path: front-proxy-ca.crt
-        - name: etcd-cert
-          projected:
-            sources:
-              - secret:
-                  name: {{ .Values.certs.secrets.crtSecretName }}
-                  items:
-                    - key: tls.crt
-                      path: karmada.crt
-                    - key: tls.key
-                      path: karmada.key
-                    - key: ca.crt
-                      path: server-ca.crt
+      {{- include "karmada.customCerts.etcdVolume" . | nindent 8 }}
       {{- end }}
 
 

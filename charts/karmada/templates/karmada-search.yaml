@@ -99,6 +99,7 @@ spec:
       {{- include "karmada.search.kubeconfig.volume" . | nindent 8 }}
       {{- include "karmada.search.etcd.cert.volume" . | nindent 8 }}
       {{ if eq .Values.certs.mode "secrets" }}
+      {{- include "karmada.customCerts.etcdVolume" . | nindent 8}}
       {{- include "karmada.kubeconfig.certsVolume" . | nindent 8 }}
       {{- end }}
 ---

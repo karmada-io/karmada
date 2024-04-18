@@ -37,6 +37,9 @@ spec:
           image: {{ template "karmada.metricsAdapter.image" . }}
           imagePullPolicy: {{ .Values.metricsAdapter.image.pullPolicy }}
           volumeMounts:
+            {{ if eq .Values.certs.mode "secrets" }}
+            {{- include "karmada.certs.secrets.bundleVolumeMount" . | nindent 12 }}
+            {{- end }}
             {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
             {{ if eq .Values.certs.mode "secrets" }}
             {{- include "karmada.kubeconfig.certsVolumeMount" . | nindent 12 }}
@@ -90,6 +93,7 @@ spec:
       volumes:
         {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
         {{ if eq .Values.certs.mode "secrets" }}
+        {{- include "karmada.certs.secrets.bundleVolume" . | nindent 8 }}
         {{- include "karmada.kubeconfig.certsVolume" . | nindent 8 }}
         {{- end }}
         {{- include "karmada.kubeconfig.volume" . | nindent 8 }}

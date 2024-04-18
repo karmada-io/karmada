@@ -86,10 +86,11 @@ spec:
               readOnly: true
             {{- end }}
             {{ if eq .Values.certs.mode "secrets" }}
-            - name: kubeconfig-certs
+            {{- include "karmada.certs.secrets.bundleVolumeMount" . | nindent 12 }}
+            - name: certs
               mountPath: /etc/karmada/pki/
               readOnly: true
-            - name: kubeconfig-certs
+            - name: certs
               mountPath: /etc/kubernetes/pki/
               readOnly: true
             {{- end }}
@@ -103,7 +104,8 @@ spec:
             secretName: {{ $name }}-cert
         {{- end }}
         {{ if eq .Values.certs.mode "secrets" }}
-        - name: kubeconfig-certs
+        {{- include "karmada.certs.secrets.bundleVolume" . | nindent 8 }}
+        - name: certs
           projected:
             sources:
               - secret:

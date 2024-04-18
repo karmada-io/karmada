@@ -44,6 +44,7 @@ spec:
       volumes:
       {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
       {{ if eq .Values.certs.mode "secrets" }}
+      {{- include "karmada.certs.secrets.bundleVolume" . | nindent 8 }}
       {{- include "karmada.kubeconfig.certsVolume" . | nindent 8 }}
       {{- end }}
       {{- include "karmada.kubeconfig.volume" . | nindent 8 }}

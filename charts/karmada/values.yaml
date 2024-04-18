@@ -176,13 +176,23 @@ certs:
       -----END RSA PRIVATE KEY-----
   secrets:
     # CA certificate PEM. Must still be provided as it's hard-coded in some places that cannot use secrets.
-    caCrt: |
+    # This should match what's in the Root CA ConfigMap.
+    rootCaCrt: |
       -----BEGIN CERTIFICATE-----
       XXXXXXXXXXXXXXXXXXXXXXXXXXX
       -----END CERTIFICATE-----
-    caCrtSecretName: karmada-ca-crt
-    crtSecretName: karmada-crt
-    frontProxyCrtSecretName: front-proxy-crt
+    # CM containing only the PEM of the Root CA
+    rootCaCrtConfigMap: karmada-root
+    # CM Bundle to pass to all pods, should be created by trust-manager
+    caBundleConfigMap: karmada-bundle
+    # General CA
+    caCrtSecretName: karmada-general-ca
+    # Cluster certificate
+    crtSecretName: karmada-cluster
+    # front proxy certificate
+    frontProxyCrtSecretName: front-proxy-client
+    # etcd certificate
+    etcdSecretName: etcd-cert
 
 ## scheduler config
 scheduler:
