@@ -169,7 +169,7 @@ spec:
               - secret:
                   name: {{ .Values.certs.secrets.caCrtSecretName }}
                   items:
-                    - key: tls.crt
+                    - key: ca.crt
                       path: server-ca.crt
               - secret:
                   name: {{ .Values.certs.secrets.frontProxyCrtSecretName }}
