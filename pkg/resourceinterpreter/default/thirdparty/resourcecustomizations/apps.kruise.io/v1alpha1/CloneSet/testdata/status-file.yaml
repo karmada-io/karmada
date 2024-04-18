@@ -5,6 +5,7 @@ status:
   availableReplicas: 2
   currentRevision: sample-59df6bd888
   expectedUpdatedReplicas: 2
+  labelSelector: app=sample,test=cloneset 
   observedGeneration: 1
   readyReplicas: 2
   replicas: 2
@@ -19,6 +20,7 @@ status:
   availableReplicas: 2
   currentRevision: sample-59df6bd888
   expectedUpdatedReplicas: 2
+  labelSelector: app=sample,test=cloneset 
   observedGeneration: 1
   readyReplicas: 2
   replicas: 2

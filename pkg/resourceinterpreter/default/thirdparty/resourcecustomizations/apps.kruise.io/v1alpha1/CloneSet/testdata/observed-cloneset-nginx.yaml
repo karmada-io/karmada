@@ -11,10 +11,12 @@ spec:
   selector:
     matchLabels:
       app: sample
+      test: cloneset
   template:
     metadata:
       labels:
         app: sample
+        test: cloneset
     spec:
       volumes:
         - name: configmap
@@ -39,7 +41,7 @@ status:
   collisionCount: 0
   currentRevision: sample-59df6bd888
   expectedUpdatedReplicas: 2
-  labelSelector: app=sample
+  labelSelector: app=sample,test=cloneset
   observedGeneration: 1
   readyReplicas: 2
   replicas: 2

@@ -10,10 +10,12 @@ spec:
   selector:
     matchLabels:
       app: sample
+      test: cloneset 
   template:
     metadata:
       labels:
         app: sample
+        test: cloneset 
     spec:
       volumes:
         - name: configmap
