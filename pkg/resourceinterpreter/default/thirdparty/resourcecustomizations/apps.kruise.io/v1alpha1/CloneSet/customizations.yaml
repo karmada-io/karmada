@@ -42,6 +42,7 @@ spec:
           expectedUpdatedReplicas = 0
           updateRevision = ''
           currentRevision = ''
+          labelSelector = ''
           for i = 1, #statusItems do
             if statusItems[i].status ~= nil and statusItems[i].status.replicas ~= nil then
               replicas = replicas + statusItems[i].status.replicas
@@ -70,6 +71,9 @@ spec:
             if statusItems[i].status ~= nil and statusItems[i].status.observedGeneration ~= nil and statusItems[i].status.observedGeneration ~= '' then
               generation = statusItems[i].status.observedGeneration
             end
+            if statusItems[i].status ~= nil and statusItems[i].status.labelSelector ~= nil and statusItems[i].status.labelSelector ~= '' then
+              labelSelector = statusItems[i].status.labelSelector 
+            end
           end
           desiredObj.status.observedGeneration = generation
           desiredObj.status.replicas = replicas
@@ -80,6 +84,7 @@ spec:
           desiredObj.status.expectedUpdatedReplicas = expectedUpdatedReplicas
           desiredObj.status.updateRevision = updateRevision
           desiredObj.status.currentRevision = currentRevision
+          desiredObj.status.labelSelector = labelSelector
           return desiredObj
         end
     statusReflection:
@@ -98,6 +103,7 @@ spec:
           status.updateRevision = observedObj.status.updateRevision
           status.currentRevision = observedObj.status.currentRevision
           status.observedGeneration = observedObj.status.observedGeneration
+          status.labelSelector = observedObj.status.labelSelector
           return status
         end
     healthInterpretation:
