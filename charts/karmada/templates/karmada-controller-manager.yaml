@@ -78,9 +78,6 @@ spec:
             periodSeconds: 15
             timeoutSeconds: 5
           volumeMounts:
-          {{ if eq .Values.certs.mode "secrets" }}
-          {{- include "karmada.certs.secrets.bundleVolumeMount" . | nindent 12 }}
-          {{- end }}
           {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
           resources:
           {{- toYaml .Values.controllerManager.resources | nindent 12 }}

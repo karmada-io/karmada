@@ -186,23 +186,8 @@ certs:
     # CM Bundle to pass to all pods, should be created by trust-manager
     caBundleConfigMap: karmada-bundle
 
-    # Kubelet client cert, should contain the systems:master org
-    kubeletClientSecretName: karmada-kubelet-client
-
-    # Kubeconfig admin certificate to talk to the rest of the cluster
-    kubeconfigAdminSecretName: karmada-kubeconfig-admin
-
-    # etcd cert
-    etcdSecretName: kube-etcd
-
-    # apiserver cert
-    apiServerSecretName: kube-apiserver
-
-    # etcd-peer cert
-    etcdPeerSecretName: kube-etcd-peer
-
-    # kube-apiserver etcd client cert
-    apiserverEtcdClientSecretName: kube-apiserver-etcd-client
+    # Default cluster cert
+    clusterCertSecretName: karmada-cluster-cert
 
     # front-proxy-client cert
     frontProxyClientSecretName: front-proxy-client

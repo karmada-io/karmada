@@ -21,7 +21,6 @@ metadata:
 spec:
   parallelism: 1
   completions: 1
-  backoffLimit: 25
   template:
     metadata:
       name: {{ $name }}
@@ -81,9 +80,6 @@ spec:
           - name: {{ $name }}-static-resources
             mountPath: /static-resources
           {{ include "karmada.kubeconfig.volumeMount" . | nindent 10 }}
-          {{ if eq .Values.certs.mode "secrets" }}
-          {{- include "karmada.certs.secrets.bundleVolumeMount" . | nindent 10 }}
-          {{- end }}
       volumes:
         - name: {{ $name }}-crds-kustomization
           configMap:
@@ -119,7 +115,4 @@ spec:
           configMap:
             name: {{ $name }}-static-resources
         {{ include "karmada.kubeconfig.volume" . | nindent 8 }}
-        {{ if eq .Values.certs.mode "secrets" }}
-        {{- include "karmada.certs.secrets.bundleVolume" . | nindent 8 }}
-        {{- end }}
 {{- end }}

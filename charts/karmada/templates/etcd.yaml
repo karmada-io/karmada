@@ -108,7 +108,7 @@ spec:
             secretName: {{ include "karmada.name" . }}-cert
       {{- end }}
       {{ if eq .Values.certs.mode "secrets" }}
-      {{- include "karmada.customCerts.etcdVolume" . | nindent 8}}
+      {{- include "karmada.certs.secrets.etcdVolume" . | nindent 8}}
       {{- end }}
         {{- if eq .Values.etcd.internal.storageType "hostPath" }}
         - hostPath:

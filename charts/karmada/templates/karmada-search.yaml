@@ -47,7 +47,7 @@ spec:
           image: {{ template "karmada.search.image" . }}
           imagePullPolicy: {{ .Values.search.image.pullPolicy }}
           volumeMounts:
-          {{- include "karmada.search.kubeconfig.volumeMounts" . | nindent 12 }}
+          {{- include "karmada.search.kubeconfig.volumeMount" . | nindent 12 }}
           command:
             - /bin/karmada-search
             - --kubeconfig=/etc/kubeconfig
@@ -88,9 +88,6 @@ spec:
       {{- include "karmada.search.kubeconfig.volume" . | nindent 8 }}
       {{ if ne .Values.certs.mode "secrets" }}
       {{- include "karmada.search.etcd.cert.volume" . | nindent 8 }}
-      {{- end }}
-      {{ if eq .Values.certs.mode "secrets" }}
-      {{- include "karmada.customCerts.etcdClientVolume" . | nindent 8}}
       {{- end }}
 ---
 apiVersion: v1

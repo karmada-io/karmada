@@ -56,9 +56,6 @@ spec:
           ports:
             - containerPort: 8443
           volumeMounts:
-          {{ if eq .Values.certs.mode "secrets" }}
-          {{- include "karmada.certs.secrets.bundleVolumeMount" . | nindent 12 }}
-          {{- end }}
           {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
             - name: {{ $name }}-webhook-cert-secret
               mountPath: /var/serving-cert
@@ -79,10 +76,9 @@ spec:
             secretName: {{ $name }}-webhook-cert
       {{- end }}
       {{ if eq .Values.certs.mode "secrets" }}
-      {{- include "karmada.certs.secrets.bundleVolume" . | nindent 8 }}
         - name: {{ $name }}-webhook-cert-secret
           secret:
-            secretName: {{ .Values.certs.secrets.crtSecretName }}
+            secretName: {{ .Values.certs.secrets.clusterCertSecretName }}
       {{- end }}
 ---
 apiVersion: v1

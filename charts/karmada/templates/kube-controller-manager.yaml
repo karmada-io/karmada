@@ -82,20 +82,9 @@ spec:
           resources:
           {{- toYaml .Values.kubeControllerManager.resources | nindent 12 }}
           volumeMounts:
-            {{ if ne .Values.certs.mode "secrets" }}
             - mountPath: /etc/karmada/pki
               name: apiserver-cert
               readOnly: true
-            {{- end }}
-            {{ if eq .Values.certs.mode "secrets" }}
-            {{- include "karmada.certs.secrets.bundleVolumeMount" . | nindent 12 }}
-            - name: certs
-              mountPath: /etc/karmada/pki/
-              readOnly: true
-            - name: certs
-              mountPath: /etc/kubernetes/pki/
-              readOnly: true
-            {{- end }}
             {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
       priorityClassName: system-node-critical
       volumes:
@@ -104,10 +93,19 @@ spec:
         - name: apiserver-cert
           secret:
             secretName: {{ $name }}-cert
-        {{- end }}
-        {{ if eq .Values.certs.mode "secrets" }}
-        {{- include "karmada.certs.secrets.bundleVolume" . | nindent 8 }}
-        {{- end }}
+      {{- end }}
+      {{ if eq .Values.certs.mode "secrets" }}
+        - name: apiserver-cert
+          projected:
+            sources:
+              - secret:
+                  name: {{ .Values.certs.secrets.clusterCertSecretName }}
+                  items:
+                    - key: tls.key
+                      path: karmada.key
+                    - key: ca.crt
+                      path: server-ca.crt
+      {{- end }}
         {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
 
 {{ if .Values.kubeControllerManager.podDisruptionBudget }}

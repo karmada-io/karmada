@@ -16,36 +16,6 @@
 {{- end -}}
 {{- end -}}
 
-{{- define "karmada.customCerts.etcdVolume" -}}
-- name: etcd-cert
-  projected:
-    sources:
-      - secret:
-          name: {{ .Values.certs.secrets.etcdSecretName }}
-          items:
-            - key: tls.crt
-              path: karmada.crt
-            - key: tls.key
-              path: karmada.key
-            - key: ca.crt
-              path: server-ca.crt
-{{- end -}}
-
-{{- define "karmada.customCerts.etcdClientVolume" -}}
-- name: etcd-cert
-  projected:
-    sources:
-      - secret:
-          name: {{ .Values.certs.secrets.apiserverEtcdClientSecretName }}
-          items:
-            - key: tls.crt
-              path: karmada.crt
-            - key: tls.key
-              path: karmada.key
-            - key: ca.crt
-              path: server-ca.crt
-{{- end -}}
-
 {{- define "karmada.apiserver.labels" -}}
 {{- if .Values.apiServer.labels }}
 {{- range $key, $value := .Values.apiServer.labels }}
@@ -140,7 +110,19 @@ app: {{- include "karmada.name" .}}-kube-controller-manager
 {{- end }}
 {{- end -}}
 
-{{- define "karmada.certs.secrets.bundleVolume" -}}
+{{- define "karmada.kubeconfig.volume" -}}
+{{- $name := include "karmada.name" . -}}
+- name: kubeconfig-secret
+  secret:
+    secretName: {{ $name }}-kubeconfig
+{{- if eq .Values.certs.mode "secrets" }}
+- name: kubeconfig-certs
+  projected:
+    sources:
+      - secret:
+          name: {{ .Values.certs.secrets.clusterCertSecretName }}
+      - configMap:
+          name: {{ .Values.certs.secrets.rootCaCrtConfigMap }}
 - name: ca-cert-store
   configMap:
     name: {{ .Values.certs.secrets.caBundleConfigMap }}
@@ -149,27 +131,6 @@ app: {{- include "karmada.name" .}}-kube-controller-manager
     items:
     - key: ca-certificates.crt
       path: ca-certificates.crt
-{{- end -}}
-
-{{- define "karmada.certs.secrets.bundleVolumeMount" -}}
-- mountPath: /etc/ssl/certs/
-  name: ca-cert-store
-  readOnly: true
-{{- end -}}
-
-{{- define "karmada.kubeconfig.volume" -}}
-{{- $name := include "karmada.name" . -}}
-- name: kubeconfig-secret
-  secret:
-    secretName: {{ $name }}-kubeconfig
-{{ if eq .Values.certs.mode "secrets" }}
-- name: kubeconfig-certs
-  projected:
-    sources:
-      - secret:
-          name: {{ .Values.certs.secrets.kubeconfigAdminSecretName }}
-      - configMap:
-          name: {{ .Values.certs.secrets.rootCaCrtConfigMap }}
 {{- end }}
 {{- end -}}
 
@@ -177,11 +138,11 @@ app: {{- include "karmada.name" .}}-kube-controller-manager
 - name: kubeconfig-secret
   subPath: kubeconfig
   mountPath: /etc/kubeconfig
-{{ if eq .Values.certs.mode "secrets" }}
+{{- if eq .Values.certs.mode "secrets" }}
 - name: kubeconfig-certs
   mountPath: /etc/kubeconfig-certs
   readOnly: true
-{{- end}}
+{{- end }}
 {{- end -}}
 
 {{- define "karmada.kubeconfig.caData" -}}
@@ -190,6 +151,9 @@ certificate-authority-data: {{ print "{{ ca_crt }}" }}
 {{- end }}
 {{- if eq .Values.certs.mode "custom" }}
 certificate-authority-data: {{ b64enc .Values.certs.custom.caCrt }}
+{{- end }}
+{{- if eq .Values.certs.mode "secrets" }}
+caBundle: {{ b64enc .Values.certs.secrets.rootCaCrt }}
 {{- end }}
 {{- end -}}
 
@@ -316,9 +280,6 @@ caBundle: {{ print "{{ ca_crt }}" }}
 {{- if eq .Values.certs.mode "custom" }}
 caBundle: {{ b64enc .Values.certs.custom.caCrt }}
 {{- end }}
-{{- if eq .Values.certs.mode "secrets" }}
-caBundle: {{ b64enc .Values.certs.secrets.rootCaCrt }}
-{{- end }}
 {{- end -}}
 
 {{- define "karmada.webhook.caBundle" -}}
@@ -385,7 +346,6 @@ app: {{- include "karmada.name" .}}-search
 {{- include "karmada.commonLabels" . -}}
 {{- end -}}
 
-
 {{- define "karmada.search.kubeconfig.volumeMount" -}}
 - name: k8s-certs
   mountPath: /etc/kubernetes/pki
@@ -400,6 +360,9 @@ app: {{- include "karmada.name" .}}-search
 - name: kubeconfig-certs
   mountPath: /etc/kubeconfig-certs
   readOnly: true
+- mountPath: /etc/ssl/certs/
+  name: ca-cert-store
+  readOnly: true
 {{- end }}
 {{- end -}}
 
@@ -412,11 +375,6 @@ app: {{- include "karmada.name" .}}-search
 - name: kubeconfig-secret
   secret:
     secretName: {{ $name }}-kubeconfig
-{{ if eq .Values.certs.mode "secrets" }}
-- name: kubeconfig-certs
-  mountPath: /etc/kubeconfig-certs
-  readOnly: true
-{{- end}}
 {{- else -}}
 - name: k8s-certs
   secret:
@@ -425,6 +383,19 @@ app: {{- include "karmada.name" .}}-search
   secret:
     secretName: {{ .Values.search.kubeconfig }}
 {{- end -}}
+{{- if eq .Values.certs.mode "secrets" }}
+- name: kubeconfig-certs
+  mountPath: /etc/kubeconfig-certs
+  readOnly: true
+- name: ca-cert-store
+  configMap:
+    name: {{ .Values.certs.secrets.caBundleConfigMap }}
+    defaultMode: 0644
+    optional: false
+    items:
+    - key: ca-certificates.crt
+      path: ca-certificates.crt
+{{- end }}
 {{- end -}}
 
 {{- define "karmada.search.etcd.cert.volume" -}}
@@ -720,3 +691,18 @@ kubectl config use-context karmada-host-context
   volumeMounts:
     {{- include "karmada.init-sa-secret.volumeMount" .| nindent 4 }}
 {{- end -}}
+{{- define "karmada.certs.secrets.etcdVolume" -}}
+- name: etcd-cert
+  projected:
+    sources:
+      - secret:
+          name: {{ .Values.certs.secrets.clusterCertSecretName }}
+          items:
+            - key: tls.crt
+              path: karmada.crt
+            - key: tls.key
+              path: karmada.key
+            - key: ca.crt
+              path: server-ca.crt
+{{- end -}}
+

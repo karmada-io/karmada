@@ -36,18 +36,13 @@ spec:
           image: {{ template "karmada.aggregatedApiServer.image" . }}
           imagePullPolicy: {{ .Values.aggregatedApiServer.image.pullPolicy }}
           volumeMounts:
-            {{ if eq .Values.certs.mode "secrets" }}
-            {{- include "karmada.certs.secrets.bundleVolumeMount" . | nindent 12 }}
-            {{- end }}
             {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
             - name: etcd-cert
               mountPath: /etc/etcd/pki
               readOnly: true
-            {{ if ne .Values.certs.mode "secrets" }}
             - name: apiserver-cert
               mountPath: /etc/kubernetes/pki
               readOnly: true
-            {{- end }}
           command:
             - /bin/karmada-aggregated-apiserver
             - --kubeconfig=/etc/kubeconfig
@@ -119,8 +114,30 @@ spec:
           {{- end }}
       {{- end }}
       {{ if eq .Values.certs.mode "secrets" }}
-      {{- include "karmada.certs.secrets.bundleVolume" . | nindent 8 }}
-      {{- include "karmada.customCerts.etcdClientVolume" . | nindent 8 }}
+        - name: etcd-cert
+          projected:
+            sources:
+              - secret:
+                  name: {{ .Values.certs.secrets.clusterCertSecretName }}
+                  items:
+                    - key: tls.crt
+                      path: karmada.crt
+                    - key: tls.key
+                      path: karmada.key
+                    - key: ca.crt
+                      path: server-ca.crt
+        - name: apiserver-cert
+          projected:
+            sources:
+              - secret:
+                  name: {{ .Values.certs.secrets.clusterCertSecretName }}
+                  items:
+                    - key: tls.crt
+                      path: karmada.crt
+                    - key: tls.key
+                      path: karmada.key
+                    - key: ca.crt
+                      path: server-ca.crt
       {{- end }}
 ---
 apiVersion: v1

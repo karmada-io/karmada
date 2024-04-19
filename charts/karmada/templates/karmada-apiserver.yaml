@@ -42,7 +42,7 @@ spec:
             - --disable-admission-plugins=StorageObjectInUseProtection,ServiceAccount
             {{- if .Values.apiServer.admissionPlugins }}
             - --enable-admission-plugins={{ .Values.apiServer.admissionPlugins }}
-            {- end }
+            {{- end }}
             - --enable-bootstrap-token-auth=true
             {{- if eq .Values.etcd.mode "external" }}
             - --etcd-cafile=/etc/etcd/pki/ca.crt
@@ -58,14 +58,8 @@ spec:
             - --etcd-servers=https://etcd-client.{{ include "karmada.namespace" . }}.svc.{{ .Values.clusterDomain }}:2379
             {{- end }}
             - --bind-address=0.0.0.0
-            {{ if ne .Values.certs.mode "secrets" }}
             - --kubelet-client-certificate=/etc/kubernetes/pki/karmada.crt
             - --kubelet-client-key=/etc/kubernetes/pki/karmada.key
-            {{- end }}
-            {{ if eq .Values.certs.mode "secrets" }}
-            - --kubelet-client-certificate=/etc/kubernetes/pki/apiserver-kubelet-client.crt
-            - --kubelet-client-key=/etc/kubernetes/pki/apiserver-kubelet-client.key
-            {{- end }}
             - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
             - --runtime-config=
             - --secure-port=5443
@@ -114,15 +108,17 @@ spec:
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           volumeMounts:
+            {{ if eq .Values.certs.mode "secrets" }}
+            - mountPath: /etc/ssl/certs/
+              name: ca-cert-store
+              readOnly: true
+            {{- end }}
             - name: apiserver-cert
               mountPath: /etc/kubernetes/pki
               readOnly: true
             - name: etcd-cert
               mountPath: /etc/etcd/pki
               readOnly: true
-            {{ if eq .Values.certs.mode "secrets" }}
-            {{- include "karmada.certs.secrets.bundleVolumeMount" . | nindent 12 }}
-            {{- end }}
       {{- if .Values.apiServer.hostNetwork }}
       dnsPolicy: ClusterFirstWithHostNet
       {{- end }}
@@ -164,26 +160,38 @@ spec:
           {{- end }}
       {{- end }}
       {{ if eq .Values.certs.mode "secrets" }}
-      {{- include "karmada.certs.secrets.bundleVolume" . | nindent 8 }}
-        - name: apiserver-cert
+        - name: ca-cert-store
+          configMap:
+            name: {{ .Values.certs.secrets.caBundleConfigMap }}
+            defaultMode: 0644
+            optional: false
+            items:
+            - key: ca-certificates.crt
+              path: ca-certificates.crt
+        - name: etcd-cert
           projected:
             sources:
               - secret:
-                  name: {{ .Values.certs.secrets.apiServerSecretName }}
+                  name: {{ .Values.certs.secrets.clusterCertSecretName }}
                   items:
                     - key: tls.crt
-                      path: karamda.crt
+                      path: karmada.crt
                     - key: tls.key
                       path: karmada.key
                     - key: ca.crt
                       path: server-ca.crt
+        - name: apiserver-cert
+          projected:
+            sources:
               - secret:
-                  name: {{ .Values.certs.secrets.kubeletClientSecretName }}
+                  name: {{ .Values.certs.secrets.clusterCertSecretName }}
                   items:
                     - key: tls.crt
-                      path: apiserver-kubelet-client.crt
+                      path: karmada.crt
                     - key: tls.key
-                      path: apiserver-kubelet-client.key
+                      path: karmada.key
+                    - key: ca.crt
+                      path: server-ca.crt
               - secret:
                   name: {{ .Values.certs.secrets.frontProxyClientSecretName }}
                   items:
@@ -193,9 +201,7 @@ spec:
                       path: front-proxy-client.key
                     - key: ca.crt
                       path: front-proxy-ca.crt
-      {{- include "karmada.customCerts.etcdClientVolume" . | nindent 8 }}
       {{- end }}
-
 ---
 apiVersion: v1
 kind: Service
