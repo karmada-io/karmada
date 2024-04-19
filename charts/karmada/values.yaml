@@ -185,14 +185,27 @@ certs:
     rootCaCrtConfigMap: karmada-root
     # CM Bundle to pass to all pods, should be created by trust-manager
     caBundleConfigMap: karmada-bundle
-    # General CA
-    caCrtSecretName: karmada-general-ca
-    # Cluster certificate
-    crtSecretName: karmada-cluster
-    # front proxy certificate
-    frontProxyCrtSecretName: front-proxy-client
-    # etcd certificate
-    etcdSecretName: etcd-cert
+
+    # Kubelet client cert, should contain the systems:master org
+    kubeletClientSecretName: karmada-kubelet-client
+
+    # Kubeconfig admin certificate to talk to the rest of the cluster
+    kubeconfigAdminSecretName: karmada-kubeconfig-admin
+
+    # etcd cert
+    etcdSecretName: kube-etcd
+
+    # apiserver cert
+    apiServerSecretName: kube-apiserver
+
+    # etcd-peer cert
+    etcdPeerSecretName: kube-etcd-peer
+
+    # kube-apiserver etcd client cert
+    apiserverEtcdClientSecretName: kube-apiserver-etcd-client
+
+    # front-proxy-client cert
+    frontProxyClientSecretName: front-proxy-client
 
 ## scheduler config
 scheduler:
@@ -382,6 +395,8 @@ apiServer:
   podAnnotations: {}
   ## @param apiServer.podLabels labels of the karmada-apiserver pods
   podLabels: {}
+  # Additional admission plugins to enable, comma separated.
+  admissionPlugins: ""
   ## @param image.registry keube-apiserver image registry
   ## @param image.repository keube-apiserver image repository
   ## @param image.tag keube-apiserver image tag (immutable tags are recommended)

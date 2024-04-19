@@ -64,17 +64,11 @@ spec:
             timeoutSeconds: 5
           volumeMounts:
           {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
-          {{ if eq .Values.certs.mode "secrets" }}
-          {{- include "karmada.kubeconfig.certsVolumeMount" . | nindent 12 }}
-          {{- end }}
           resources:
           {{- toYaml .Values.scheduler.resources | nindent 12 }}
       volumes:
       {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
       {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
-      {{ if eq .Values.certs.mode "secrets" }}
-      {{- include "karmada.kubeconfig.certsVolume" . | nindent 8 }}
-      {{- end }}
 
 {{ if .Values.scheduler.podDisruptionBudget }}
 ---

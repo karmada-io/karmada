@@ -53,8 +53,10 @@ spec:
             - --client-ca-file=/etc/karmada/pki/server-ca.crt
             - --cluster-cidr=10.244.0.0/16
             - --cluster-name=karmada
+            {{ if ne .Values.certs.mode "secrets" }}
             - --cluster-signing-cert-file=/etc/karmada/pki/server-ca.crt
             - --cluster-signing-key-file=/etc/karmada/pki/server-ca.key
+            {{- end }}
             - --controllers={{ .Values.kubeControllerManager.controllers }}
             - --kubeconfig=/etc/kubeconfig
             - --leader-elect=true
@@ -105,23 +107,6 @@ spec:
         {{- end }}
         {{ if eq .Values.certs.mode "secrets" }}
         {{- include "karmada.certs.secrets.bundleVolume" . | nindent 8 }}
-        - name: certs
-          projected:
-            sources:
-              - secret:
-                  name: {{ .Values.certs.secrets.crtSecretName }}
-                  items:
-                    - key: tls.crt
-                      path: karmada.crt
-                    - key: tls.key
-                      path: karmada.key
-              - secret:
-                  name: {{ .Values.certs.secrets.caCrtSecretName }}
-                  items:
-                    - key: tls.crt
-                      path: server-ca.crt
-                    - key: tls.key
-                      path: server-ca.key
         {{- end }}
         {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
 

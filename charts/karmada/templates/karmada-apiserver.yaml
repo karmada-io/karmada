@@ -40,6 +40,9 @@ spec:
             - --authorization-mode=Node,RBAC
             - --client-ca-file=/etc/kubernetes/pki/server-ca.crt
             - --disable-admission-plugins=StorageObjectInUseProtection,ServiceAccount
+            {{- if .Values.apiServer.admissionPlugins }}
+            - --enable-admission-plugins={{ .Values.apiServer.admissionPlugins }}
+            {- end }
             - --enable-bootstrap-token-auth=true
             {{- if eq .Values.etcd.mode "external" }}
             - --etcd-cafile=/etc/etcd/pki/ca.crt
@@ -55,8 +58,14 @@ spec:
             - --etcd-servers=https://etcd-client.{{ include "karmada.namespace" . }}.svc.{{ .Values.clusterDomain }}:2379
             {{- end }}
             - --bind-address=0.0.0.0
+            {{ if ne .Values.certs.mode "secrets" }}
             - --kubelet-client-certificate=/etc/kubernetes/pki/karmada.crt
             - --kubelet-client-key=/etc/kubernetes/pki/karmada.key
+            {{- end }}
+            {{ if eq .Values.certs.mode "secrets" }}
+            - --kubelet-client-certificate=/etc/kubernetes/pki/apiserver-kubelet-client.crt
+            - --kubelet-client-key=/etc/kubernetes/pki/apiserver-kubelet-client.key
+            {{- end }}
             - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
             - --runtime-config=
             - --secure-port=5443
@@ -160,19 +169,23 @@ spec:
           projected:
             sources:
               - secret:
-                  name: {{ .Values.certs.secrets.crtSecretName }}
+                  name: {{ .Values.certs.secrets.apiServerSecretName }}
                   items:
                     - key: tls.crt
-                      path: karmada.crt
+                      path: karamda.crt
                     - key: tls.key
                       path: karmada.key
-              - secret:
-                  name: {{ .Values.certs.secrets.caCrtSecretName }}
-                  items:
                     - key: ca.crt
                       path: server-ca.crt
               - secret:
-                  name: {{ .Values.certs.secrets.frontProxyCrtSecretName }}
+                  name: {{ .Values.certs.secrets.kubeletClientSecretName }}
+                  items:
+                    - key: tls.crt
+                      path: apiserver-kubelet-client.crt
+                    - key: tls.key
+                      path: apiserver-kubelet-client.key
+              - secret:
+                  name: {{ .Values.certs.secrets.frontProxyClientSecretName }}
                   items:
                     - key: tls.crt
                       path: front-proxy-client.crt
@@ -180,10 +193,8 @@ spec:
                       path: front-proxy-client.key
                     - key: ca.crt
                       path: front-proxy-ca.crt
-      {{- include "karmada.customCerts.etcdVolume" . | nindent 8 }}
+      {{- include "karmada.customCerts.etcdClientVolume" . | nindent 8 }}
       {{- end }}
-
-
 
 ---
 apiVersion: v1

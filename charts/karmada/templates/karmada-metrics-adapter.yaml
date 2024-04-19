@@ -41,9 +41,6 @@ spec:
             {{- include "karmada.certs.secrets.bundleVolumeMount" . | nindent 12 }}
             {{- end }}
             {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
-            {{ if eq .Values.certs.mode "secrets" }}
-            {{- include "karmada.kubeconfig.certsVolumeMount" . | nindent 12 }}
-            {{- end }}
             {{ if ne .Values.certs.mode "secrets" }}
             - name: apiserver-cert
               mountPath: /etc/kubernetes/pki
@@ -94,7 +91,6 @@ spec:
         {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
         {{ if eq .Values.certs.mode "secrets" }}
         {{- include "karmada.certs.secrets.bundleVolume" . | nindent 8 }}
-        {{- include "karmada.kubeconfig.certsVolume" . | nindent 8 }}
         {{- end }}
         {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
         {{ if ne .Values.certs.mode "secrets" }}

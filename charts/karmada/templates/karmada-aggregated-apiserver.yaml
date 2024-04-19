@@ -43,9 +43,11 @@ spec:
             - name: etcd-cert
               mountPath: /etc/etcd/pki
               readOnly: true
+            {{ if ne .Values.certs.mode "secrets" }}
             - name: apiserver-cert
               mountPath: /etc/kubernetes/pki
               readOnly: true
+            {{- end }}
           command:
             - /bin/karmada-aggregated-apiserver
             - --kubeconfig=/etc/kubeconfig
@@ -118,22 +120,7 @@ spec:
       {{- end }}
       {{ if eq .Values.certs.mode "secrets" }}
       {{- include "karmada.certs.secrets.bundleVolume" . | nindent 8 }}
-        - name: apiserver-cert
-          projected:
-            sources:
-            - secret:
-                name: {{ .Values.certs.secrets.crtSecretName }}
-                items:
-                  - key: tls.crt
-                    path: karmada.crt
-                  - key: tls.key
-                    path: karmada.key
-            - secret:
-                name: {{ .Values.certs.secrets.caCrtSecretName }}
-                items:
-                  - key: tls.crt
-                    path: server-ca.crt
-      {{- include "karmada.customCerts.etcdVolume" . | nindent 8 }}
+      {{- include "karmada.customCerts.etcdClientVolume" . | nindent 8 }}
       {{- end }}
 ---
 apiVersion: v1
