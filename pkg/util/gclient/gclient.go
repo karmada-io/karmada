@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
+	appsv1alpha1 "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1"
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -51,7 +52,8 @@ func init() {
 	utilruntime.Must(mcsv1alpha1.AddToScheme(aggregatedScheme))         // add mcs-api schemes
 	utilruntime.Must(clusterapiv1beta1.AddToScheme(aggregatedScheme))   // add cluster-api v1beta1 schemes
 	utilruntime.Must(autoscalingv1alpha1.AddToScheme(aggregatedScheme)) // add autoscaling v1alpha1 schemes
-	utilruntime.Must(remedyv1alpha1.AddToScheme(aggregatedScheme))      // add autoscaling v1alpha1 schemes
+	utilruntime.Must(remedyv1alpha1.AddToScheme(aggregatedScheme))      // add remedy v1alpha1 schemes
+	utilruntime.Must(appsv1alpha1.AddToScheme(aggregatedScheme))        // add apps v1alpha1 schemes
 }
 
 // NewSchema returns a singleton schema set which aggregated Kubernetes's schemes and extended schemes.

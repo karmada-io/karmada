@@ -161,7 +161,27 @@ data:
   {{- (printf "%s: " $name) | nindent 6 }} |-
     {{- $.Files.Get $path | nindent 8 }}
   {{ end }}
-    
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-crds-apps-bases
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
+data:
+  {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/apps/**")}}
+  {{ $name := base $path }}
+  {{- (printf "%s: " $name) | nindent 6 }} |-
+    {{- $.Files.Get $path | nindent 8 }}
+  {{ end }}
+
 {{- if eq .Values.certs.mode "custom" }}
 ---
 apiVersion: v1
