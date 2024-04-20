@@ -17,7 +17,6 @@ limitations under the License.
 package helper
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -541,7 +540,6 @@ func TestGetMinTolerationTime(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := GetMinTolerationTime(tt.noExecuteTaints, tt.usedTolerantion)
-			fmt.Printf("%+v", result)
 			if result > 0 {
 				if result > (tt.wantResult+1)*time.Second || result < (tt.wantResult-1)*time.Second {
 					t.Errorf("GetMinTolerationTime() = %v, want %v", result, tt.wantResult)
