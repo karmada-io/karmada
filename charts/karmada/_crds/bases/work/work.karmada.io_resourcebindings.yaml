@@ -1128,6 +1128,18 @@ spec:
                   - name
                   type: object
                 type: array
+              rescheduleTriggeredAt:
+                description: "RescheduleTriggeredAt is a timestamp representing when
+                  the referenced resource is triggered rescheduling. When this field
+                  is updated, it means a rescheduling is manually triggered by user,
+                  and the expected behavior of this action is to do a complete recalculation
+                  without referring to last scheduling results. It works with the
+                  status.lastScheduledTime field, and only when this timestamp is
+                  later than timestamp in status.lastScheduledTime will the rescheduling
+                  actually execute, otherwise, ignored. \n It is represented in RFC3339
+                  form (like '2006-01-02T15:04:05Z') and is in UTC."
+                format: date-time
+                type: string
               resource:
                 description: Resource represents the Kubernetes resource to be propagated.
                 properties:
@@ -1279,6 +1291,12 @@ spec:
                   - type
                   type: object
                 type: array
+              lastScheduledTime:
+                description: LastScheduledTime representing the latest timestamp when
+                  scheduler successfully finished a scheduling. It is represented
+                  in RFC3339 form (like '2006-01-02T15:04:05Z') and is in UTC.
+                format: date-time
+                type: string
               schedulerObservedGeneration:
                 description: SchedulerObservedGeneration is the generation(.metadata.generation)
                   observed by the scheduler. If SchedulerObservedGeneration is less

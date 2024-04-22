@@ -19151,6 +19151,10 @@
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.BindingSnapshot"
           }
         },
+        "rescheduleTriggeredAt": {
+          "description": "RescheduleTriggeredAt is a timestamp representing when the referenced resource is triggered rescheduling. When this field is updated, it means a rescheduling is manually triggered by user, and the expected behavior of this action is to do a complete recalculation without referring to last scheduling results. It works with the status.lastScheduledTime field, and only when this timestamp is later than timestamp in status.lastScheduledTime will the rescheduling actually execute, otherwise, ignored.\n\nIt is represented in RFC3339 form (like '2006-01-02T15:04:05Z') and is in UTC.",
+          "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
+        },
         "resource": {
           "description": "Resource represents the Kubernetes resource to be propagated.",
           "default": {},
@@ -19181,6 +19185,10 @@
             "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Condition"
           }
+        },
+        "lastScheduledTime": {
+          "description": "LastScheduledTime representing the latest timestamp when scheduler successfully finished a scheduling. It is represented in RFC3339 form (like '2006-01-02T15:04:05Z') and is in UTC.",
+          "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
         },
         "schedulerObservedGeneration": {
           "description": "SchedulerObservedGeneration is the generation(.metadata.generation) observed by the scheduler. If SchedulerObservedGeneration is less than the generation in metadata means the scheduler hasn't confirmed the scheduling result or hasn't done the schedule yet.",

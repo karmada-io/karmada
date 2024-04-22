@@ -19,6 +19,7 @@ package util
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -370,6 +371,50 @@ func TestMergeTargetClusters(t *testing.T) {
 			got := MergeTargetClusters(tt.old, tt.new)
 			if !testhelper.IsScheduleResultEqual(got, tt.expected) {
 				t.Errorf("MergeTargetClusters() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestRescheduleRequired(t *testing.T) {
+	currentTime := metav1.Now()
+	previousTime := metav1.Time{Time: time.Now().Add(-1 * time.Minute)}
+
+	tests := []struct {
+		name                  string
+		rescheduleTriggeredAt *metav1.Time
+		lastScheduledTime     *metav1.Time
+		want                  bool
+	}{
+		{
+			name:                  "rescheduleTriggeredAt is nil",
+			rescheduleTriggeredAt: nil,
+			lastScheduledTime:     &currentTime,
+			want:                  false,
+		},
+		{
+			name:                  "lastScheduledTime is nil",
+			rescheduleTriggeredAt: &currentTime,
+			lastScheduledTime:     nil,
+			want:                  false,
+		},
+		{
+			name:                  "rescheduleTriggeredAt is before than lastScheduledTime",
+			rescheduleTriggeredAt: &previousTime,
+			lastScheduledTime:     &currentTime,
+			want:                  false,
+		},
+		{
+			name:                  "rescheduleTriggeredAt is later than lastScheduledTime",
+			rescheduleTriggeredAt: &currentTime,
+			lastScheduledTime:     &previousTime,
+			want:                  true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := RescheduleRequired(tt.rescheduleTriggeredAt, tt.lastScheduledTime); got != tt.want {
+				t.Errorf("RescheduleRequired() = %v, want %v", got, tt.want)
 			}
 		})
 	}

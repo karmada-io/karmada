@@ -236,6 +236,7 @@ func Test_patchBindingStatusCondition(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			res.Status.LastScheduledTime = nil
 			if !reflect.DeepEqual(res.Status, test.expected.Status) {
 				t.Errorf("expected status: %v, but got: %v", test.expected.Status, res.Status)
 			}
@@ -439,6 +440,7 @@ func Test_patchClusterBindingStatusCondition(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			res.Status.LastScheduledTime = nil
 			if !reflect.DeepEqual(res.Status, test.expected.Status) {
 				t.Errorf("expected status: %v, but got: %v", test.expected.Status, res.Status)
 			}

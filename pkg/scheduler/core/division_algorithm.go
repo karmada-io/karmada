@@ -126,3 +126,27 @@ func dynamicScaleUp(state *assignState) ([]workv1alpha2.TargetCluster, error) {
 	})
 	return dynamicDivideReplicas(state)
 }
+
+// dynamicFreshScale do a complete recalculation without referring to the last scheduling results.
+func dynamicFreshScale(state *assignState) ([]workv1alpha2.TargetCluster, error) {
+	// 1. targetReplicas is set to desired replicas
+	state.targetReplicas = state.spec.Replicas
+	state.buildAvailableClusters(func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
+		clusterAvailableReplicas := calAvailableReplicas(clusters, spec)
+		// 2. clusterAvailableReplicas should take into account the replicas already allocated
+		for _, scheduledCluster := range state.scheduledClusters {
+			for i, availableCluster := range clusterAvailableReplicas {
+				if availableCluster.Name != scheduledCluster.Name {
+					continue
+				}
+				clusterAvailableReplicas[i].Replicas += scheduledCluster.Replicas
+				break
+			}
+		}
+		sort.Sort(TargetClustersList(clusterAvailableReplicas))
+		return clusterAvailableReplicas
+	})
+	// 3. scheduledClusters are not set, which implicates we consider this action as a first schedule.
+	state.scheduledClusters = nil
+	return dynamicDivideReplicas(state)
+}

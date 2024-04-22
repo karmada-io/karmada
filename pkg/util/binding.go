@@ -17,6 +17,7 @@ limitations under the License.
 package util
 
 import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -96,4 +97,16 @@ func MergeTargetClusters(oldCluster, newCluster []workv1alpha2.TargetCluster) []
 		newCluster = append(newCluster, workv1alpha2.TargetCluster{Name: key, Replicas: value})
 	}
 	return newCluster
+}
+
+// RescheduleRequired judges whether reschedule is required.
+func RescheduleRequired(rescheduleTriggeredAt, lastScheduledTime *metav1.Time) bool {
+	if rescheduleTriggeredAt == nil {
+		return false
+	}
+	// lastScheduledTime is nil means first schedule haven't finished or yet keep failing, just wait for this schedule.
+	if lastScheduledTime == nil {
+		return false
+	}
+	return rescheduleTriggeredAt.After(lastScheduledTime.Time)
 }
