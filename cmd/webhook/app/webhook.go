@@ -54,6 +54,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/webhook/resourcedeletionprotection"
 	"github.com/karmada-io/karmada/pkg/webhook/resourceinterpretercustomization"
 	"github.com/karmada-io/karmada/pkg/webhook/work"
+	"github.com/karmada-io/karmada/pkg/webhook/workloadrebalancer"
 )
 
 // NewWebhookCommand creates a *cobra.Command object with default parameters
@@ -176,6 +177,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 	hookServer.Register("/mutate-multiclusterservice", &webhook.Admission{Handler: &multiclusterservice.MutatingAdmission{Decoder: decoder}})
 	hookServer.Register("/mutate-federatedhpa", &webhook.Admission{Handler: &federatedhpa.MutatingAdmission{Decoder: decoder}})
 	hookServer.Register("/validate-resourcedeletionprotection", &webhook.Admission{Handler: &resourcedeletionprotection.ValidatingAdmission{Decoder: decoder}})
+	hookServer.Register("/validate-workloadrebalancer", &webhook.Admission{Handler: &workloadrebalancer.ValidatingAdmission{Decoder: decoder}})
 	hookServer.WebhookMux().Handle("/readyz/", http.StripPrefix("/readyz/", &healthz.Handler{}))
 
 	// blocks until the context is done.
