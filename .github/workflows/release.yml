@@ -49,7 +49,7 @@ jobs:
       run: |
         mv ./charts/karmada/_crds ./charts/karmada/crds
     - name: Tar the crds
-      uses: a7ul/tar-action@v1.1.3
+      uses: a7ul/tar-action@v1.2.0
       with:
         command: c
         cwd: ./charts/karmada/
