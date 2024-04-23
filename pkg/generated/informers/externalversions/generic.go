@@ -21,7 +21,8 @@ package externalversions
 import (
 	"fmt"
 
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
+	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1"
+	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
@@ -60,10 +61,14 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=autoscaling.karmada.io, Version=v1alpha1
-	case v1alpha1.SchemeGroupVersion.WithResource("cronfederatedhpas"):
+	// Group=apps.karmada.io, Version=v1alpha1
+	case v1alpha1.SchemeGroupVersion.WithResource("workloadrebalancers"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Apps().V1alpha1().WorkloadRebalancers().Informer()}, nil
+
+		// Group=autoscaling.karmada.io, Version=v1alpha1
+	case autoscalingv1alpha1.SchemeGroupVersion.WithResource("cronfederatedhpas"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Autoscaling().V1alpha1().CronFederatedHPAs().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("federatedhpas"):
+	case autoscalingv1alpha1.SchemeGroupVersion.WithResource("federatedhpas"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Autoscaling().V1alpha1().FederatedHPAs().Informer()}, nil
 
 		// Group=cluster.karmada.io, Version=v1alpha1

@@ -40,6 +40,852 @@
         }
       }
     },
+    "/apis/apps.karmada.io/": {
+      "get": {
+        "description": "get information of a group",
+        "consumes": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "appsKarmadaIo"
+        ],
+        "operationId": "getAppsKarmadaIoAPIGroup",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.APIGroup"
+            }
+          }
+        }
+      }
+    },
+    "/apis/apps.karmada.io/v1alpha1/": {
+      "get": {
+        "description": "get available resources",
+        "consumes": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "appsKarmadaIo_v1alpha1"
+        ],
+        "operationId": "getAppsKarmadaIoV1alpha1APIResources",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.APIResourceList"
+            }
+          }
+        }
+      }
+    },
+    "/apis/apps.karmada.io/v1alpha1/watch/workloadrebalancers": {
+      "get": {
+        "description": "watch individual changes to a list of WorkloadRebalancer. deprecated: use the 'watch' parameter with a list operation instead.",
+        "consumes": [
+          "*/*"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf",
+          "application/json;stream=watch",
+          "application/vnd.kubernetes.protobuf;stream=watch"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "appsKarmadaIo_v1alpha1"
+        ],
+        "operationId": "watchAppsKarmadaIoV1alpha1WorkloadRebalancerList",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.WatchEvent"
+            }
+          }
+        },
+        "x-kubernetes-action": "watchlist",
+        "x-kubernetes-group-version-kind": {
+          "group": "apps.karmada.io",
+          "version": "v1alpha1",
+          "kind": "WorkloadRebalancer"
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/parameters/allowWatchBookmarks-HC2hJt-J"
+        },
+        {
+          "$ref": "#/parameters/continue-QfD61s0i"
+        },
+        {
+          "$ref": "#/parameters/fieldSelector-xIcQKXFG"
+        },
+        {
+          "$ref": "#/parameters/labelSelector-5Zw57w4C"
+        },
+        {
+          "$ref": "#/parameters/limit-1NfNmdNH"
+        },
+        {
+          "$ref": "#/parameters/pretty-nN7o5FEq"
+        },
+        {
+          "$ref": "#/parameters/resourceVersion-5WAnf1kx"
+        },
+        {
+          "$ref": "#/parameters/resourceVersionMatch-t8XhRHeC"
+        },
+        {
+          "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
+        },
+        {
+          "$ref": "#/parameters/watch-XNNPZGbK"
+        }
+      ]
+    },
+    "/apis/apps.karmada.io/v1alpha1/watch/workloadrebalancers/{name}": {
+      "get": {
+        "description": "watch changes to an object of kind WorkloadRebalancer. deprecated: use the 'watch' parameter with a list operation instead, filtered to a single item with the 'fieldSelector' parameter.",
+        "consumes": [
+          "*/*"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf",
+          "application/json;stream=watch",
+          "application/vnd.kubernetes.protobuf;stream=watch"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "appsKarmadaIo_v1alpha1"
+        ],
+        "operationId": "watchAppsKarmadaIoV1alpha1WorkloadRebalancer",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.WatchEvent"
+            }
+          }
+        },
+        "x-kubernetes-action": "watch",
+        "x-kubernetes-group-version-kind": {
+          "group": "apps.karmada.io",
+          "version": "v1alpha1",
+          "kind": "WorkloadRebalancer"
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/parameters/allowWatchBookmarks-HC2hJt-J"
+        },
+        {
+          "$ref": "#/parameters/continue-QfD61s0i"
+        },
+        {
+          "$ref": "#/parameters/fieldSelector-xIcQKXFG"
+        },
+        {
+          "$ref": "#/parameters/labelSelector-5Zw57w4C"
+        },
+        {
+          "$ref": "#/parameters/limit-1NfNmdNH"
+        },
+        {
+          "uniqueItems": true,
+          "type": "string",
+          "description": "name of the WorkloadRebalancer",
+          "name": "name",
+          "in": "path",
+          "required": true
+        },
+        {
+          "$ref": "#/parameters/pretty-nN7o5FEq"
+        },
+        {
+          "$ref": "#/parameters/resourceVersion-5WAnf1kx"
+        },
+        {
+          "$ref": "#/parameters/resourceVersionMatch-t8XhRHeC"
+        },
+        {
+          "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
+        },
+        {
+          "$ref": "#/parameters/watch-XNNPZGbK"
+        }
+      ]
+    },
+    "/apis/apps.karmada.io/v1alpha1/workloadrebalancers": {
+      "get": {
+        "description": "list or watch objects of kind WorkloadRebalancer",
+        "consumes": [
+          "*/*"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf",
+          "application/json;stream=watch",
+          "application/vnd.kubernetes.protobuf;stream=watch"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "appsKarmadaIo_v1alpha1"
+        ],
+        "operationId": "listAppsKarmadaIoV1alpha1WorkloadRebalancer",
+        "parameters": [
+          {
+            "$ref": "#/parameters/allowWatchBookmarks-HC2hJt-J"
+          },
+          {
+            "$ref": "#/parameters/continue-QfD61s0i"
+          },
+          {
+            "$ref": "#/parameters/fieldSelector-xIcQKXFG"
+          },
+          {
+            "$ref": "#/parameters/labelSelector-5Zw57w4C"
+          },
+          {
+            "$ref": "#/parameters/limit-1NfNmdNH"
+          },
+          {
+            "$ref": "#/parameters/resourceVersion-5WAnf1kx"
+          },
+          {
+            "$ref": "#/parameters/resourceVersionMatch-t8XhRHeC"
+          },
+          {
+            "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
+          },
+          {
+            "$ref": "#/parameters/watch-XNNPZGbK"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancerList"
+            }
+          }
+        },
+        "x-kubernetes-action": "list",
+        "x-kubernetes-group-version-kind": {
+          "group": "apps.karmada.io",
+          "version": "v1alpha1",
+          "kind": "WorkloadRebalancer"
+        }
+      },
+      "post": {
+        "description": "create a WorkloadRebalancer",
+        "consumes": [
+          "*/*"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "appsKarmadaIo_v1alpha1"
+        ],
+        "operationId": "createAppsKarmadaIoV1alpha1WorkloadRebalancer",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancer"
+            }
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+            "name": "dryRun",
+            "in": "query"
+          },
+          {
+            "$ref": "#/parameters/fieldManager-Qy4HdaTW"
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "fieldValidation instructs the server on how to handle objects in the request (POST/PUT/PATCH) containing unknown or duplicate fields. Valid values are: - Ignore: This will ignore any unknown fields that are silently dropped from the object, and will ignore all but the last duplicate field that the decoder encounters. This is the default behavior prior to v1.23. - Warn: This will send a warning via the standard warning response header for each unknown field that is dropped from the object, and for each duplicate field that is encountered. The request will still succeed if there are no other errors, and will only persist the last of any duplicate fields. This is the default in v1.23+ - Strict: This will fail the request with a BadRequest error if any unknown fields would be dropped from the object, or if any duplicate fields are present. The error returned from the server will contain all unknown and duplicate fields encountered.",
+            "name": "fieldValidation",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancer"
+            }
+          },
+          "201": {
+            "description": "Created",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancer"
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancer"
+            }
+          }
+        },
+        "x-kubernetes-action": "post",
+        "x-kubernetes-group-version-kind": {
+          "group": "apps.karmada.io",
+          "version": "v1alpha1",
+          "kind": "WorkloadRebalancer"
+        }
+      },
+      "delete": {
+        "description": "delete collection of WorkloadRebalancer",
+        "consumes": [
+          "*/*"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "appsKarmadaIo_v1alpha1"
+        ],
+        "operationId": "deleteAppsKarmadaIoV1alpha1CollectionWorkloadRebalancer",
+        "parameters": [
+          {
+            "$ref": "#/parameters/body-2Y1dVQaQ"
+          },
+          {
+            "$ref": "#/parameters/continue-QfD61s0i"
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+            "name": "dryRun",
+            "in": "query"
+          },
+          {
+            "$ref": "#/parameters/fieldSelector-xIcQKXFG"
+          },
+          {
+            "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
+          },
+          {
+            "$ref": "#/parameters/labelSelector-5Zw57w4C"
+          },
+          {
+            "$ref": "#/parameters/limit-1NfNmdNH"
+          },
+          {
+            "$ref": "#/parameters/orphanDependents-uRB25kX5"
+          },
+          {
+            "$ref": "#/parameters/propagationPolicy-6jk3prlO"
+          },
+          {
+            "$ref": "#/parameters/resourceVersion-5WAnf1kx"
+          },
+          {
+            "$ref": "#/parameters/resourceVersionMatch-t8XhRHeC"
+          },
+          {
+            "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Status"
+            }
+          }
+        },
+        "x-kubernetes-action": "deletecollection",
+        "x-kubernetes-group-version-kind": {
+          "group": "apps.karmada.io",
+          "version": "v1alpha1",
+          "kind": "WorkloadRebalancer"
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/parameters/pretty-nN7o5FEq"
+        }
+      ]
+    },
+    "/apis/apps.karmada.io/v1alpha1/workloadrebalancers/{name}": {
+      "get": {
+        "description": "read the specified WorkloadRebalancer",
+        "consumes": [
+          "*/*"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "appsKarmadaIo_v1alpha1"
+        ],
+        "operationId": "readAppsKarmadaIoV1alpha1WorkloadRebalancer",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancer"
+            }
+          }
+        },
+        "x-kubernetes-action": "get",
+        "x-kubernetes-group-version-kind": {
+          "group": "apps.karmada.io",
+          "version": "v1alpha1",
+          "kind": "WorkloadRebalancer"
+        }
+      },
+      "put": {
+        "description": "replace the specified WorkloadRebalancer",
+        "consumes": [
+          "*/*"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "appsKarmadaIo_v1alpha1"
+        ],
+        "operationId": "replaceAppsKarmadaIoV1alpha1WorkloadRebalancer",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancer"
+            }
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+            "name": "dryRun",
+            "in": "query"
+          },
+          {
+            "$ref": "#/parameters/fieldManager-Qy4HdaTW"
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "fieldValidation instructs the server on how to handle objects in the request (POST/PUT/PATCH) containing unknown or duplicate fields. Valid values are: - Ignore: This will ignore any unknown fields that are silently dropped from the object, and will ignore all but the last duplicate field that the decoder encounters. This is the default behavior prior to v1.23. - Warn: This will send a warning via the standard warning response header for each unknown field that is dropped from the object, and for each duplicate field that is encountered. The request will still succeed if there are no other errors, and will only persist the last of any duplicate fields. This is the default in v1.23+ - Strict: This will fail the request with a BadRequest error if any unknown fields would be dropped from the object, or if any duplicate fields are present. The error returned from the server will contain all unknown and duplicate fields encountered.",
+            "name": "fieldValidation",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancer"
+            }
+          },
+          "201": {
+            "description": "Created",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancer"
+            }
+          }
+        },
+        "x-kubernetes-action": "put",
+        "x-kubernetes-group-version-kind": {
+          "group": "apps.karmada.io",
+          "version": "v1alpha1",
+          "kind": "WorkloadRebalancer"
+        }
+      },
+      "delete": {
+        "description": "delete a WorkloadRebalancer",
+        "consumes": [
+          "*/*"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "appsKarmadaIo_v1alpha1"
+        ],
+        "operationId": "deleteAppsKarmadaIoV1alpha1WorkloadRebalancer",
+        "parameters": [
+          {
+            "$ref": "#/parameters/body-2Y1dVQaQ"
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+            "name": "dryRun",
+            "in": "query"
+          },
+          {
+            "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
+          },
+          {
+            "$ref": "#/parameters/orphanDependents-uRB25kX5"
+          },
+          {
+            "$ref": "#/parameters/propagationPolicy-6jk3prlO"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Status"
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "schema": {
+              "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Status"
+            }
+          }
+        },
+        "x-kubernetes-action": "delete",
+        "x-kubernetes-group-version-kind": {
+          "group": "apps.karmada.io",
+          "version": "v1alpha1",
+          "kind": "WorkloadRebalancer"
+        }
+      },
+      "patch": {
+        "description": "partially update the specified WorkloadRebalancer",
+        "consumes": [
+          "application/json-patch+json",
+          "application/merge-patch+json",
+          "application/strategic-merge-patch+json",
+          "application/apply-patch+yaml"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "appsKarmadaIo_v1alpha1"
+        ],
+        "operationId": "patchAppsKarmadaIoV1alpha1WorkloadRebalancer",
+        "parameters": [
+          {
+            "$ref": "#/parameters/body-78PwaGsr"
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+            "name": "dryRun",
+            "in": "query"
+          },
+          {
+            "$ref": "#/parameters/fieldManager-7c6nTn1T"
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "fieldValidation instructs the server on how to handle objects in the request (POST/PUT/PATCH) containing unknown or duplicate fields. Valid values are: - Ignore: This will ignore any unknown fields that are silently dropped from the object, and will ignore all but the last duplicate field that the decoder encounters. This is the default behavior prior to v1.23. - Warn: This will send a warning via the standard warning response header for each unknown field that is dropped from the object, and for each duplicate field that is encountered. The request will still succeed if there are no other errors, and will only persist the last of any duplicate fields. This is the default in v1.23+ - Strict: This will fail the request with a BadRequest error if any unknown fields would be dropped from the object, or if any duplicate fields are present. The error returned from the server will contain all unknown and duplicate fields encountered.",
+            "name": "fieldValidation",
+            "in": "query"
+          },
+          {
+            "$ref": "#/parameters/force-tOGGb0Yi"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancer"
+            }
+          },
+          "201": {
+            "description": "Created",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancer"
+            }
+          }
+        },
+        "x-kubernetes-action": "patch",
+        "x-kubernetes-group-version-kind": {
+          "group": "apps.karmada.io",
+          "version": "v1alpha1",
+          "kind": "WorkloadRebalancer"
+        }
+      },
+      "parameters": [
+        {
+          "uniqueItems": true,
+          "type": "string",
+          "description": "name of the WorkloadRebalancer",
+          "name": "name",
+          "in": "path",
+          "required": true
+        },
+        {
+          "$ref": "#/parameters/pretty-nN7o5FEq"
+        }
+      ]
+    },
+    "/apis/apps.karmada.io/v1alpha1/workloadrebalancers/{name}/status": {
+      "get": {
+        "description": "read status of the specified WorkloadRebalancer",
+        "consumes": [
+          "*/*"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "appsKarmadaIo_v1alpha1"
+        ],
+        "operationId": "readAppsKarmadaIoV1alpha1WorkloadRebalancerStatus",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancer"
+            }
+          }
+        },
+        "x-kubernetes-action": "get",
+        "x-kubernetes-group-version-kind": {
+          "group": "apps.karmada.io",
+          "version": "v1alpha1",
+          "kind": "WorkloadRebalancer"
+        }
+      },
+      "put": {
+        "description": "replace status of the specified WorkloadRebalancer",
+        "consumes": [
+          "*/*"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "appsKarmadaIo_v1alpha1"
+        ],
+        "operationId": "replaceAppsKarmadaIoV1alpha1WorkloadRebalancerStatus",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancer"
+            }
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+            "name": "dryRun",
+            "in": "query"
+          },
+          {
+            "$ref": "#/parameters/fieldManager-Qy4HdaTW"
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "fieldValidation instructs the server on how to handle objects in the request (POST/PUT/PATCH) containing unknown or duplicate fields. Valid values are: - Ignore: This will ignore any unknown fields that are silently dropped from the object, and will ignore all but the last duplicate field that the decoder encounters. This is the default behavior prior to v1.23. - Warn: This will send a warning via the standard warning response header for each unknown field that is dropped from the object, and for each duplicate field that is encountered. The request will still succeed if there are no other errors, and will only persist the last of any duplicate fields. This is the default in v1.23+ - Strict: This will fail the request with a BadRequest error if any unknown fields would be dropped from the object, or if any duplicate fields are present. The error returned from the server will contain all unknown and duplicate fields encountered.",
+            "name": "fieldValidation",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancer"
+            }
+          },
+          "201": {
+            "description": "Created",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancer"
+            }
+          }
+        },
+        "x-kubernetes-action": "put",
+        "x-kubernetes-group-version-kind": {
+          "group": "apps.karmada.io",
+          "version": "v1alpha1",
+          "kind": "WorkloadRebalancer"
+        }
+      },
+      "patch": {
+        "description": "partially update status of the specified WorkloadRebalancer",
+        "consumes": [
+          "application/json-patch+json",
+          "application/merge-patch+json",
+          "application/strategic-merge-patch+json",
+          "application/apply-patch+yaml"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "appsKarmadaIo_v1alpha1"
+        ],
+        "operationId": "patchAppsKarmadaIoV1alpha1WorkloadRebalancerStatus",
+        "parameters": [
+          {
+            "$ref": "#/parameters/body-78PwaGsr"
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+            "name": "dryRun",
+            "in": "query"
+          },
+          {
+            "$ref": "#/parameters/fieldManager-7c6nTn1T"
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "fieldValidation instructs the server on how to handle objects in the request (POST/PUT/PATCH) containing unknown or duplicate fields. Valid values are: - Ignore: This will ignore any unknown fields that are silently dropped from the object, and will ignore all but the last duplicate field that the decoder encounters. This is the default behavior prior to v1.23. - Warn: This will send a warning via the standard warning response header for each unknown field that is dropped from the object, and for each duplicate field that is encountered. The request will still succeed if there are no other errors, and will only persist the last of any duplicate fields. This is the default in v1.23+ - Strict: This will fail the request with a BadRequest error if any unknown fields would be dropped from the object, or if any duplicate fields are present. The error returned from the server will contain all unknown and duplicate fields encountered.",
+            "name": "fieldValidation",
+            "in": "query"
+          },
+          {
+            "$ref": "#/parameters/force-tOGGb0Yi"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancer"
+            }
+          },
+          "201": {
+            "description": "Created",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancer"
+            }
+          }
+        },
+        "x-kubernetes-action": "patch",
+        "x-kubernetes-group-version-kind": {
+          "group": "apps.karmada.io",
+          "version": "v1alpha1",
+          "kind": "WorkloadRebalancer"
+        }
+      },
+      "parameters": [
+        {
+          "uniqueItems": true,
+          "type": "string",
+          "description": "name of the WorkloadRebalancer",
+          "name": "name",
+          "in": "path",
+          "required": true
+        },
+        {
+          "$ref": "#/parameters/pretty-nN7o5FEq"
+        }
+      ]
+    },
     "/apis/autoscaling.karmada.io/": {
       "get": {
         "description": "get information of a group",
@@ -15780,6 +16626,163 @@
     }
   },
   "definitions": {
+    "com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.ObjectReference": {
+      "description": "ObjectReference the expected resource.",
+      "type": "object",
+      "required": [
+        "apiVersion",
+        "kind",
+        "name"
+      ],
+      "properties": {
+        "apiVersion": {
+          "description": "APIVersion represents the API version of the target resource.",
+          "type": "string",
+          "default": ""
+        },
+        "kind": {
+          "description": "Kind represents the Kind of the target resource.",
+          "type": "string",
+          "default": ""
+        },
+        "name": {
+          "description": "Name of the target resource.",
+          "type": "string",
+          "default": ""
+        },
+        "namespace": {
+          "description": "Namespace of the target resource. Default is empty, which means it is a non-namespacescoped resource.",
+          "type": "string"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.ObservedWorkload": {
+      "description": "ObservedWorkload the observed resource.",
+      "type": "object",
+      "required": [
+        "workload"
+      ],
+      "properties": {
+        "reason": {
+          "description": "Reason represents a machine-readable description of why this resource rebalanced failed.",
+          "type": "string"
+        },
+        "result": {
+          "description": "Result the observed rebalance result of resource.",
+          "type": "string"
+        },
+        "workload": {
+          "description": "Workload the observed resource.",
+          "default": {},
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.ObjectReference"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancer": {
+      "description": "WorkloadRebalancer represents the desired behavior and status of a job which can enforces a resource rebalance.",
+      "type": "object",
+      "required": [
+        "spec"
+      ],
+      "properties": {
+        "apiVersion": {
+          "description": "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+          "type": "string"
+        },
+        "metadata": {
+          "default": {},
+          "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta"
+        },
+        "spec": {
+          "description": "Spec represents the specification of the desired behavior of WorkloadRebalancer.",
+          "default": {},
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancerSpec"
+        },
+        "status": {
+          "description": "Status represents the status of WorkloadRebalancer.",
+          "default": {},
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancerStatus"
+        }
+      },
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "apps.karmada.io",
+          "kind": "WorkloadRebalancer",
+          "version": "v1alpha1"
+        }
+      ]
+    },
+    "com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancerList": {
+      "description": "WorkloadRebalancerList contains a list of WorkloadRebalancer",
+      "type": "object",
+      "required": [
+        "items"
+      ],
+      "properties": {
+        "apiVersion": {
+          "description": "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+          "type": "string"
+        },
+        "items": {
+          "description": "Items holds a list of WorkloadRebalancer.",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancer"
+          }
+        },
+        "kind": {
+          "description": "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+          "type": "string"
+        },
+        "metadata": {
+          "default": {},
+          "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ListMeta"
+        }
+      },
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "apps.karmada.io",
+          "kind": "WorkloadRebalancerList",
+          "version": "v1alpha1"
+        }
+      ]
+    },
+    "com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancerSpec": {
+      "description": "WorkloadRebalancerSpec represents the specification of the desired behavior of Reschedule.",
+      "type": "object",
+      "required": [
+        "workloads"
+      ],
+      "properties": {
+        "workloads": {
+          "description": "Workloads used to specify the list of expected resource. Nil or empty list is not allowed.",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.ObjectReference"
+          }
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancerStatus": {
+      "description": "WorkloadRebalancerStatus contains information about the current status of a WorkloadRebalancer updated periodically by schedule trigger controller.",
+      "type": "object",
+      "properties": {
+        "observedWorkloads": {
+          "description": "ObservedWorkloads contains information about the execution states and messages of target resources.",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.ObservedWorkload"
+          }
+        }
+      }
+    },
     "com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.CronFederatedHPA": {
       "description": "CronFederatedHPA represents a collection of repeating schedule to scale replica number of a specific workload. It can scale any resource implementing the scale subresource as well as FederatedHPA.",
       "type": "object",
@@ -20601,6 +21604,11 @@
           "version": "v1beta2"
         },
         {
+          "group": "apps.karmada.io",
+          "kind": "DeleteOptions",
+          "version": "v1alpha1"
+        },
+        {
           "group": "authentication.k8s.io",
           "kind": "DeleteOptions",
           "version": "v1"
@@ -21343,6 +22351,11 @@
           "group": "apps",
           "kind": "WatchEvent",
           "version": "v1beta2"
+        },
+        {
+          "group": "apps.karmada.io",
+          "kind": "WatchEvent",
+          "version": "v1alpha1"
         },
         {
           "group": "authentication.k8s.io",

@@ -97,4 +97,7 @@ spec:
       - name: crds-work-base
         configMap:
           name: {{ $name }}-crds-work-bases-config
+      - name: crds-apps-base
+        configMap:
+          name: {{ $name }}-crds-apps-bases-config
 {{- end }}

@@ -33,6 +33,12 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
+		"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.ObjectReference":                               schema_pkg_apis_apps_v1alpha1_ObjectReference(ref),
+		"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.ObservedWorkload":                              schema_pkg_apis_apps_v1alpha1_ObservedWorkload(ref),
+		"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.WorkloadRebalancer":                            schema_pkg_apis_apps_v1alpha1_WorkloadRebalancer(ref),
+		"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.WorkloadRebalancerList":                        schema_pkg_apis_apps_v1alpha1_WorkloadRebalancerList(ref),
+		"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.WorkloadRebalancerSpec":                        schema_pkg_apis_apps_v1alpha1_WorkloadRebalancerSpec(ref),
+		"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.WorkloadRebalancerStatus":                      schema_pkg_apis_apps_v1alpha1_WorkloadRebalancerStatus(ref),
 		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPA":                       schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPA(ref),
 		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPAList":                   schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPAList(ref),
 		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPARule":                   schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPARule(ref),
@@ -543,6 +549,247 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"k8s.io/metrics/pkg/apis/metrics/v1beta1.NodeMetricsList":                                            schema_pkg_apis_metrics_v1beta1_NodeMetricsList(ref),
 		"k8s.io/metrics/pkg/apis/metrics/v1beta1.PodMetrics":                                                 schema_pkg_apis_metrics_v1beta1_PodMetrics(ref),
 		"k8s.io/metrics/pkg/apis/metrics/v1beta1.PodMetricsList":                                             schema_pkg_apis_metrics_v1beta1_PodMetricsList(ref),
+	}
+}
+
+func schema_pkg_apis_apps_v1alpha1_ObjectReference(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ObjectReference the expected resource.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion represents the API version of the target resource.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind represents the Kind of the target resource.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the target resource.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Namespace of the target resource. Default is empty, which means it is a non-namespacescoped resource.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"apiVersion", "kind", "name"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_apps_v1alpha1_ObservedWorkload(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ObservedWorkload the observed resource.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"workload": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Workload the observed resource.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.ObjectReference"),
+						},
+					},
+					"result": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Result the observed rebalance result of resource.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"reason": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Reason represents a machine-readable description of why this resource rebalanced failed.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"workload"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.ObjectReference"},
+	}
+}
+
+func schema_pkg_apis_apps_v1alpha1_WorkloadRebalancer(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WorkloadRebalancer represents the desired behavior and status of a job which can enforces a resource rebalance.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Spec represents the specification of the desired behavior of WorkloadRebalancer.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.WorkloadRebalancerSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Status represents the status of WorkloadRebalancer.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.WorkloadRebalancerStatus"),
+						},
+					},
+				},
+				Required: []string{"spec"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.WorkloadRebalancerSpec", "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.WorkloadRebalancerStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_apps_v1alpha1_WorkloadRebalancerList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WorkloadRebalancerList contains a list of WorkloadRebalancer",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Items holds a list of WorkloadRebalancer.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.WorkloadRebalancer"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.WorkloadRebalancer", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_apps_v1alpha1_WorkloadRebalancerSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WorkloadRebalancerSpec represents the specification of the desired behavior of Reschedule.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"workloads": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Workloads used to specify the list of expected resource. Nil or empty list is not allowed.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.ObjectReference"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"workloads"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.ObjectReference"},
+	}
+}
+
+func schema_pkg_apis_apps_v1alpha1_WorkloadRebalancerStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WorkloadRebalancerStatus contains information about the current status of a WorkloadRebalancer updated periodically by schedule trigger controller.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"observedWorkloads": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ObservedWorkloads contains information about the execution states and messages of target resources.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.ObservedWorkload"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.ObservedWorkload"},
 	}
 }
 

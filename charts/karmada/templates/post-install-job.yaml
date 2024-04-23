@@ -71,6 +71,8 @@ spec:
             mountPath: /crds/bases/remedy
           - name: {{ $name }}-crds-work-bases
             mountPath: /crds/bases/work
+          - name: {{ $name }}-crds-apps-bases
+            mountPath: /crds/bases/apps
           - name: {{ $name }}-static-resources
             mountPath: /static-resources
           {{ include "karmada.kubeconfig.volumeMount" . | nindent 10 }}
@@ -102,6 +104,9 @@ spec:
         - name: {{ $name }}-crds-work-bases
           configMap:
             name: {{ $name }}-crds-work-bases
+        - name: {{ $name }}-crds-apps-bases
+          configMap:
+            name: {{ $name }}-crds-apps-bases
         - name: {{ $name }}-static-resources
           configMap:
             name: {{ $name }}-static-resources

@@ -20,6 +20,8 @@ package fake
 
 import (
 	clientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	appsv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/apps/v1alpha1"
+	fakeappsv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/apps/v1alpha1/fake"
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/autoscaling/v1alpha1"
 	fakeautoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/autoscaling/v1alpha1/fake"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/cluster/v1alpha1"
@@ -94,6 +96,11 @@ var (
 	_ clientset.Interface = &Clientset{}
 	_ testing.FakeClient  = &Clientset{}
 )
+
+// AppsV1alpha1 retrieves the AppsV1alpha1Client
+func (c *Clientset) AppsV1alpha1() appsv1alpha1.AppsV1alpha1Interface {
+	return &fakeappsv1alpha1.FakeAppsV1alpha1{Fake: &c.Fake}
+}
 
 // AutoscalingV1alpha1 retrieves the AutoscalingV1alpha1Client
 func (c *Clientset) AutoscalingV1alpha1() autoscalingv1alpha1.AutoscalingV1alpha1Interface {

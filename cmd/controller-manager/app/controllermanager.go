@@ -69,6 +69,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/remediation"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	"github.com/karmada-io/karmada/pkg/controllers/unifiedauth"
+	"github.com/karmada-io/karmada/pkg/controllers/workloadrebalancer"
 	"github.com/karmada-io/karmada/pkg/dependenciesdistributor"
 	"github.com/karmada-io/karmada/pkg/detector"
 	"github.com/karmada-io/karmada/pkg/features"
@@ -232,6 +233,7 @@ func init() {
 	controllers["endpointsliceCollect"] = startEndpointSliceCollectController
 	controllers["endpointsliceDispatch"] = startEndpointSliceDispatchController
 	controllers["remedy"] = startRemedyController
+	controllers["workloadRebalancer"] = startWorkloadRebalancerController
 }
 
 func startClusterController(ctx controllerscontext.Context) (enabled bool, err error) {
@@ -704,6 +706,18 @@ func startRemedyController(ctx controllerscontext.Context) (enabled bool, err er
 	if err = c.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
+	return true, nil
+}
+
+func startWorkloadRebalancerController(ctx controllerscontext.Context) (enabled bool, err error) {
+	workloadRebalancer := workloadrebalancer.RebalancerController{
+		Client: ctx.Mgr.GetClient(),
+	}
+	err = workloadRebalancer.SetupWithManager(ctx.Mgr)
+	if err != nil {
+		return false, err
+	}
+
 	return true, nil
 }
 
