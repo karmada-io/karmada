@@ -142,6 +142,25 @@ type CommandPromoteOption struct {
 	// ClusterKubeConfig is the cluster's kubeconfig path.
 	ClusterKubeConfig string
 
+	// Portforward tells if portforward the webhook interpreter pod, default to false,
+	// if we want to access the webhook pod in cluster by portforward, we must specify the port, pod name and namespace of the webhook interpreter pod
+	Portforward bool
+
+	// PortforwardContext is the context of cluster which contains the webhook interpreter pod for portforward
+	PortforwardContext string
+
+	// KubeconfigPath is the kubeconfig path of cluster which contains the webhook interpreter pod for portforward
+	PortforwardKubeconfigPath string
+
+	// PortforwardPod is the webhook interpreter pod to portforward
+	PortforwardPod string
+
+	// PortforwardNamespace is the namespace of the webhook interpreter pod to portforward
+	PortforwardNamespace string
+
+	// PortforwardPort is the port of the webhook interpreter pod to portforward
+	PortforwardPort int
+
 	// Deps tells if promote resource with its dependencies automatically, default to false
 	Deps bool
 
@@ -183,7 +202,17 @@ func (o *CommandPromoteOption) AddFlags(flags *pflag.FlagSet) {
 		"Context name of legacy cluster in kubeconfig. Only works when there are multiple contexts in the kubeconfig.")
 	flags.StringVar(&o.ClusterKubeConfig, "cluster-kubeconfig", "",
 		"Path of the legacy cluster's kubeconfig.")
-	flags.BoolVarP(&o.Deps, "dependencies", "d", false, "Promote resource with its dependencies automatically, default to false")
+	flags.BoolVarP(&o.Portforward, "portforward", "p", false, "Portforward the webhook interpreter pod, default to false")
+	flags.StringVar(&o.PortforwardKubeconfigPath, "portforward-kubeconfig", "",
+		"The kubeconfig path of cluster which contains the webhook interpreter pod for portforward.")
+	flags.StringVar(&o.PortforwardContext, "portforward-context", "",
+		"The context of cluster which contains the webhook interpreter pod for portforward.")
+	flags.StringVar(&o.PortforwardNamespace, "portforward-namespace", "",
+		"The namespace of the webhook interpreter pod to portforward")
+	flags.StringVar(&o.PortforwardPod, "portforward-pod", "",
+		"The webhook interpreter pod to portforward")
+	flags.IntVar(&o.PortforwardPort, "portforward-port", 0, "The port of the webhook interpreter pod to portforward")
+	flags.BoolVarP(&o.Deps, "dependencies", "d", false, "Promote resource with its dependencies automatically, default to false.")
 	flags.BoolVar(&o.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 }
 
@@ -237,6 +266,10 @@ func (o *CommandPromoteOption) Validate() error {
 
 	if o.OutputFormat != "" && o.OutputFormat != "yaml" && o.OutputFormat != "json" {
 		return fmt.Errorf("output format is only one of json and yaml")
+	}
+
+	if o.Portforward && (o.PortforwardPort == 0 || o.PortforwardPod == "" || o.PortforwardNamespace == "") {
+		return fmt.Errorf("please specify the port, pod name and namespace of the webhook interpreter pod for portforward")
 	}
 
 	return nil
@@ -432,11 +465,15 @@ func (o *CommandPromoteOption) doPromoteDeps(memberClusterFactory cmdutil.Factor
 	return nil
 }
 
-func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory, obj *unstructured.Unstructured, mapper meta.RESTMapper, gvr schema.GroupVersionResource, config *rest.Config) error {
-	if o.DryRun {
-		return nil
-	}
-	// create resource interpreter
+type interpreter struct {
+	defaultInterpreter      *native.DefaultInterpreter
+	thirdpartyInterpreter   *thirdparty.ConfigurableInterpreter
+	configurableInterpreter *declarative.ConfigurableInterpreter
+	customizedInterpreter1  *webhook.CustomizedInterpreter
+	customizedInterpreter2  *customizedInterpreter
+}
+
+func (o *CommandPromoteOption) setupInterpreters(config *rest.Config) (*interpreter, error) {
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 	dynamicClientSet := dynamic.NewForConfigOrDie(config)
@@ -447,31 +484,84 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 	serviceLister := sharedFactory.Core().V1().Services().Lister()
 	sharedFactory.Start(stopCh)
 	sharedFactory.WaitForCacheSync(stopCh)
-	controlPlaneInformerManager.Start()
-	if sync := controlPlaneInformerManager.WaitForCacheSync(); sync == nil {
-		return fmt.Errorf("informer factory for cluster does not exist")
-	}
 
 	defaultInterpreter := native.NewDefaultInterpreter()
 	thirdpartyInterpreter := thirdparty.NewConfigurableInterpreter()
 	configurableInterpreter := declarative.NewConfigurableInterpreter(controlPlaneInformerManager)
-	customizedInterpreter, err := webhook.NewCustomizedInterpreter(controlPlaneInformerManager, serviceLister)
+	var customizedInterpreter1 *webhook.CustomizedInterpreter
+	var customizedInterpreter2 *customizedInterpreter
+	var err error
+	if !o.Portforward {
+		customizedInterpreter1, err = webhook.NewCustomizedInterpreter(controlPlaneInformerManager, serviceLister)
+	} else {
+		customizedInterpreter2, err = newCustomizedInterpreter(controlPlaneInformerManager, serviceLister)
+	}
 	if err != nil {
-		return fmt.Errorf("failed to create customized interpreter: %v", err)
+		return nil, fmt.Errorf("failed to create customized interpreter: %v", err)
+	}
+
+	// controlPlaneInformerManager.Start() and controlPlaneInformerManager.WaitForCacheSync()
+	// must be called after all informers are registered, so should be called after NewCustomizedInterpreter
+	controlPlaneInformerManager.Start()
+	if sync := controlPlaneInformerManager.WaitForCacheSync(); sync == nil {
+		return nil, fmt.Errorf("informer factory for cluster does not exist")
+	}
+	return &interpreter{
+		defaultInterpreter:      defaultInterpreter,
+		thirdpartyInterpreter:   thirdpartyInterpreter,
+		configurableInterpreter: configurableInterpreter,
+		customizedInterpreter1:  customizedInterpreter1,
+		customizedInterpreter2:  customizedInterpreter2,
+	}, nil
+}
+
+func (o *CommandPromoteOption) checkInterpreters(interpreter *interpreter, obj *unstructured.Unstructured) bool {
+	if !interpreter.defaultInterpreter.HookEnabled(obj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretDependency) &&
+		!interpreter.thirdpartyInterpreter.HookEnabled(obj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretDependency) &&
+		!interpreter.configurableInterpreter.HookEnabled(obj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretDependency) &&
+		(o.Portforward || !interpreter.customizedInterpreter1.HookEnabled(obj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretDependency)) &&
+		(!o.Portforward || !interpreter.customizedInterpreter2.HookEnabled(obj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretDependency)) {
+		return false
+	}
+	return true
+}
+
+func (o *CommandPromoteOption) handleCustomizedInterpret(customizedInterpreter1 *webhook.CustomizedInterpreter, customizedInterpreter2 *customizedInterpreter,
+	obj *unstructured.Unstructured) (dependencies []configv1alpha1.DependentObjectReference, hookEnabled bool, err error) {
+	if !o.Portforward {
+		dependencies, hookEnabled, err = customizedInterpreter1.GetDependencies(context.TODO(), &request.Attributes{
+			Operation: configv1alpha1.InterpreterOperationInterpretDependency,
+			Object:    obj,
+		})
+	} else {
+		dependencies, hookEnabled, err = customizedInterpreter2.getDependencies(context.TODO(), &request.Attributes{
+			Operation: configv1alpha1.InterpreterOperationInterpretDependency,
+			Object:    obj,
+		}, o.PortforwardContext, o.PortforwardKubeconfigPath, o.PortforwardNamespace, o.PortforwardPod, o.PortforwardPort)
+	}
+	return
+}
+
+func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory, obj *unstructured.Unstructured, mapper meta.RESTMapper, gvr schema.GroupVersionResource, config *rest.Config) error {
+	if o.DryRun {
+		return nil
+	}
+
+	// create resource interpreter
+	interpreter, err := o.setupInterpreters(config)
+	if err != nil {
+		return fmt.Errorf("failed to setup resource interpreter: %v", err)
 	}
 
 	// check if the resource interpreter supports to interpret dependencies
-	if !defaultInterpreter.HookEnabled(obj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretDependency) &&
-		!thirdpartyInterpreter.HookEnabled(obj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretDependency) &&
-		!configurableInterpreter.HookEnabled(obj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretDependency) &&
-		!customizedInterpreter.HookEnabled(obj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretDependency) {
+	if !o.checkInterpreters(interpreter, obj) {
 		// if there is no interpreter configured, abort this dependency promotion but continue to promote the resource
 		klog.Warningf("there is no interpreter configured support to interpret dependencies")
 		return nil
 	}
 
 	// configurable interpreter has higher priority than customized interpreter
-	dependencies, hookEnabled, err := configurableInterpreter.GetDependencies(obj)
+	dependencies, hookEnabled, err := interpreter.configurableInterpreter.GetDependencies(obj)
 	if err != nil {
 		return fmt.Errorf("configurable interpreter failed to get dependencies of resource %q(%s/%s): %v", gvr, obj.GetNamespace(), obj.GetName(), err)
 	}
@@ -482,10 +572,7 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 	}
 
 	// customized interpreter has higher priority than thirdparty interpreter
-	dependencies, hookEnabled, err = customizedInterpreter.GetDependencies(context.TODO(), &request.Attributes{
-		Operation: configv1alpha1.InterpreterOperationInterpretDependency,
-		Object:    obj,
-	})
+	dependencies, hookEnabled, err = o.handleCustomizedInterpret(interpreter.customizedInterpreter1, interpreter.customizedInterpreter2, obj)
 	if err != nil {
 		return fmt.Errorf("customized interpreter failed to get dependencies of resource %q(%s/%s): %v", gvr, obj.GetNamespace(), obj.GetName(), err)
 	}
@@ -496,7 +583,7 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 	}
 
 	// thirdparty interpreter has higher priority than default interpreter
-	dependencies, hookEnabled, err = thirdpartyInterpreter.GetDependencies(obj)
+	dependencies, hookEnabled, err = interpreter.thirdpartyInterpreter.GetDependencies(obj)
 	if err != nil {
 		return fmt.Errorf("thirdparty interpreter failed to get dependencies of resource %q(%s/%s): %v", gvr, obj.GetNamespace(), obj.GetName(), err)
 	}
@@ -507,7 +594,7 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 	}
 
 	// default interpreter
-	dependencies, err = defaultInterpreter.GetDependencies(obj)
+	dependencies, err = interpreter.defaultInterpreter.GetDependencies(obj)
 	if err != nil {
 		return fmt.Errorf("default interpreter failed to get dependencies of resource %q(%s/%s): %v", gvr, obj.GetNamespace(), obj.GetName(), err)
 	}
