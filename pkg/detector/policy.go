@@ -34,6 +34,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 func (d *ResourceDetector) propagateResource(object *unstructured.Unstructured,
@@ -119,15 +120,14 @@ func (d *ResourceDetector) getAndApplyPolicy(object *unstructured.Unstructured, 
 		return err
 	}
 
-	// Some resources are available in more than one group in the same kubernetes version.
-	// Therefore, the following scenarios occurs:
-	// In v1.21 kubernetes cluster, Ingress are available in both networking.k8s.io and extensions groups.
-	// When user creates an Ingress(networking.k8s.io/v1) and specifies a PropagationPolicy to propagate it
-	// to the member clusters, the detector will listen two resource creation events:
-	// Ingress(networking.k8s.io/v1) and Ingress(extensions/v1beta1). In order to prevent
-	// Ingress(extensions/v1beta1) from being propagated, we need to ignore it.
+	// if the updated object no longer match to the previously bound propagation policy, unbind them.
+	// in this case, we should remove the policy labels of resource and corresponding binding, and then directly return.
 	if !util.ResourceMatchSelectors(object, matchedPropagationPolicy.Spec.ResourceSelectors...) {
-		return nil
+		removeLabels := []string{
+			policyv1alpha1.PropagationPolicyNamespaceLabel,
+			policyv1alpha1.PropagationPolicyNameLabel,
+		}
+		return d.removeSpecificResourceAndRBLabels(object, removeLabels)
 	}
 
 	// return err when dependents not present, that we can retry at next reconcile.
@@ -158,15 +158,15 @@ func (d *ResourceDetector) getAndApplyClusterPolicy(object *unstructured.Unstruc
 		return err
 	}
 
-	// Some resources are available in more than one group in the same kubernetes version.
-	// Therefore, the following scenarios occurs:
-	// In v1.21 kubernetes cluster, Ingress are available in both networking.k8s.io and extensions groups.
-	// When user creates an Ingress(networking.k8s.io/v1) and specifies a ClusterPropagationPolicy to
-	// propagate it to the member clusters, the detector will listen two resource creation events:
-	// Ingress(networking.k8s.io/v1) and Ingress(extensions/v1beta1). In order to prevent
-	// Ingress(extensions/v1beta1) from being propagated, we need to ignore it.
+	// if the updated object no longer match to the previously bound cluster propagation policy, unbind them.
+	// in this case, we should remove the policy labels of resource and corresponding binding, and then directly return.
 	if !util.ResourceMatchSelectors(object, matchedClusterPropagationPolicy.Spec.ResourceSelectors...) {
-		return nil
+		removeLabels := []string{policyv1alpha1.ClusterPropagationPolicyLabel}
+		// judge whether the object is namespace scoped, which affects determining what type of binding to clean up.
+		if object.GetNamespace() == "" {
+			return d.removeSpecificResourceAndCRBLabels(object, removeLabels)
+		}
+		return d.removeSpecificResourceAndRBLabels(object, removeLabels)
 	}
 
 	// return err when dependents not present, that we can retry at next reconcile.
@@ -176,6 +176,82 @@ func (d *ResourceDetector) getAndApplyClusterPolicy(object *unstructured.Unstruc
 	}
 
 	return d.ApplyClusterPolicy(object, objectKey, resourceChangeByKarmada, matchedClusterPropagationPolicy)
+}
+
+// removeSpecificResourceAndRBLabels remove the propagation policy labels of specific resource and corresponding binding.
+func (d *ResourceDetector) removeSpecificResourceAndRBLabels(resource *unstructured.Unstructured, removeLabels []string) error {
+	// 1. get rb of given resource
+	rbName := names.GenerateBindingName(resource.GetKind(), resource.GetName())
+	rb := &workv1alpha2.ResourceBinding{}
+	if err := d.Client.Get(context.TODO(), client.ObjectKey{Namespace: resource.GetNamespace(), Name: rbName}, rb); err != nil {
+		klog.Errorf("Failed to get ResourceBinding: %s, err: %+v", rbName, err)
+		return err
+	}
+
+	// 2. check whether rb related resource match to the given resource.
+	// the mismatch would never happen under normal circumstances, if it really happened, just print logs and return nil.
+	// this logic is also intended to be compatible with previous versions which talked about the issue of Ingress(networking.k8s.io/v1) and Ingress(extensions/v1beta1).
+	if rb.Spec.Resource.APIVersion != resource.GetAPIVersion() || rb.Spec.Resource.Kind != resource.GetKind() ||
+		rb.Spec.Resource.Name != resource.GetName() || rb.Spec.Resource.Namespace != resource.GetNamespace() {
+		klog.Errorf("The rb (%s) related resource is not match to the given resource: %s/%s", rbName, resource.GetNamespace(), resource.GetName())
+		return nil
+	}
+
+	// 3. clean the labels in binding
+	if err := d.CleanupResourceBindingLabels(rb, removeLabels...); err != nil {
+		klog.Errorf("Failed to remove binding labels, %s/%s, err: %+v", rb.GetNamespace(), rb.GetName(), err)
+		return err
+	}
+
+	// 4. clean the labels in resource
+	resourceCopy := resource.DeepCopy()
+	util.RemoveLabels(resourceCopy, removeLabels...)
+	if err := d.Client.Update(context.TODO(), resourceCopy); err != nil {
+		klog.Errorf("Failed to remove resource labels, %s/%s, err: %+v", resourceCopy, resourceCopy, err)
+		return err
+	}
+
+	klog.Infof("Successfully removed the policy labels in resource (%s/%s) and rb (%s) for policy (%s) no longer matched",
+		resource.GetNamespace(), resource.GetName(), rbName, resource.GetLabels()[policyv1alpha1.PropagationPolicyNameLabel])
+	return nil
+}
+
+// removeSpecificResourceAndCRBLabels remove the cluster propagation policy labels of specific resource and corresponding cluster binding.
+func (d *ResourceDetector) removeSpecificResourceAndCRBLabels(resource *unstructured.Unstructured, removeLabels []string) error {
+	// 1. get crb of given resource
+	crbName := names.GenerateBindingName(resource.GetKind(), resource.GetName())
+	crb := &workv1alpha2.ClusterResourceBinding{}
+	if err := d.Client.Get(context.TODO(), client.ObjectKey{Name: crbName}, crb); err != nil {
+		klog.Errorf("Failed to get ClusterResourceBinding: %s, err: %+v", crbName, err)
+		return err
+	}
+
+	// 2. check whether crb related resource match to the given resource
+	// the mismatch would never happen under normal circumstances, if it really happened, just print logs and return nil.
+	// this logic is also intended to be compatible with previous versions which talked about the issue of Ingress(networking.k8s.io/v1) and Ingress(extensions/v1beta1).
+	if crb.Spec.Resource.APIVersion != resource.GetAPIVersion() || crb.Spec.Resource.Kind != resource.GetKind() ||
+		crb.Spec.Resource.Name != resource.GetName() {
+		klog.Errorf("The crb (%s) related resource is not match to the given resource: %+v/%s", crbName, resource.GroupVersionKind(), resource.GetName())
+		return nil
+	}
+
+	// 3. clean the labels in binding
+	if err := d.CleanupClusterResourceBindingLabels(crb, removeLabels...); err != nil {
+		klog.Errorf("Failed to remove binding labels, %s/%s, err: %+v", crb.GetNamespace(), crb.GetName(), err)
+		return err
+	}
+
+	// 4. clean the labels in resource
+	resourceCopy := resource.DeepCopy()
+	util.RemoveLabels(resourceCopy, removeLabels...)
+	if err := d.Client.Update(context.TODO(), resourceCopy); err != nil {
+		klog.Errorf("Failed to remove resource labels, %+v/%s/%s, err: %+v", resourceCopy.GroupVersionKind(), resourceCopy.GetNamespace(), resourceCopy.GetName(), err)
+		return err
+	}
+
+	klog.Infof("Successfully removed the cluster policy labels in resource (%s) and crb (%s) for policy (%s) no longer matched",
+		resource.GetName(), crbName, resource.GetLabels()[policyv1alpha1.ClusterPropagationPolicyLabel])
+	return nil
 }
 
 func (d *ResourceDetector) cleanPPUnmatchedResourceBindings(policyNamespace, policyName string, selectors []policyv1alpha1.ResourceSelector) error {
