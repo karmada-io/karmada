@@ -126,7 +126,9 @@ func setDefaultsEtcd(obj *KarmadaComponents) {
 		if len(obj.Etcd.Local.Image.ImageTag) == 0 {
 			obj.Etcd.Local.Image.ImageTag = constants.EtcdDefaultVersion
 		}
-
+		if len(obj.Etcd.Local.ImagePullPolicy) == 0 {
+			obj.Etcd.Local.ImagePullPolicy = corev1.PullIfNotPresent
+		}
 		if obj.Etcd.Local.VolumeData == nil {
 			obj.Etcd.Local.VolumeData = &VolumeData{}
 		}
@@ -147,6 +149,9 @@ func setDefaultsKarmadaAPIServer(obj *KarmadaComponents) {
 	}
 	if len(apiserver.Image.ImageTag) == 0 {
 		apiserver.Image.ImageTag = constants.KubeDefaultVersion
+	}
+	if len(apiserver.ImagePullPolicy) == 0 {
+		apiserver.ImagePullPolicy = corev1.PullIfNotPresent
 	}
 	if apiserver.Replicas == nil {
 		apiserver.Replicas = pointer.Int32(1)
@@ -171,6 +176,9 @@ func setDefaultsKarmadaAggregatedAPIServer(obj *KarmadaComponents) {
 	if len(aggregated.Image.ImageTag) == 0 {
 		aggregated.Image.ImageTag = DefaultKarmadaImageVersion
 	}
+	if len(aggregated.ImagePullPolicy) == 0 {
+		aggregated.ImagePullPolicy = corev1.PullIfNotPresent
+	}
 	if aggregated.Replicas == nil {
 		aggregated.Replicas = pointer.Int32(1)
 	}
@@ -187,6 +195,9 @@ func setDefaultsKubeControllerManager(obj *KarmadaComponents) {
 	}
 	if len(kubeControllerManager.Image.ImageTag) == 0 {
 		kubeControllerManager.Image.ImageTag = constants.KubeDefaultVersion
+	}
+	if len(kubeControllerManager.ImagePullPolicy) == 0 {
+		kubeControllerManager.ImagePullPolicy = corev1.PullIfNotPresent
 	}
 	if kubeControllerManager.Replicas == nil {
 		kubeControllerManager.Replicas = pointer.Int32(1)
@@ -205,6 +216,9 @@ func setDefaultsKarmadaControllerManager(obj *KarmadaComponents) {
 	if len(karmadaControllerManager.Image.ImageTag) == 0 {
 		karmadaControllerManager.Image.ImageTag = DefaultKarmadaImageVersion
 	}
+	if len(karmadaControllerManager.ImagePullPolicy) == 0 {
+		karmadaControllerManager.ImagePullPolicy = corev1.PullIfNotPresent
+	}
 	if karmadaControllerManager.Replicas == nil {
 		karmadaControllerManager.Replicas = pointer.Int32(1)
 	}
@@ -221,6 +235,9 @@ func setDefaultsKarmadaScheduler(obj *KarmadaComponents) {
 	}
 	if len(scheduler.Image.ImageTag) == 0 {
 		scheduler.Image.ImageTag = DefaultKarmadaImageVersion
+	}
+	if len(scheduler.ImagePullPolicy) == 0 {
+		scheduler.ImagePullPolicy = corev1.PullIfNotPresent
 	}
 	if scheduler.Replicas == nil {
 		scheduler.Replicas = pointer.Int32(1)
@@ -239,6 +256,9 @@ func setDefaultsKarmadaWebhook(obj *KarmadaComponents) {
 	if len(webhook.Image.ImageTag) == 0 {
 		webhook.Image.ImageTag = DefaultKarmadaImageVersion
 	}
+	if len(webhook.ImagePullPolicy) == 0 {
+		webhook.ImagePullPolicy = corev1.PullIfNotPresent
+	}
 	if webhook.Replicas == nil {
 		webhook.Replicas = pointer.Int32(1)
 	}
@@ -255,6 +275,9 @@ func setDefaultsKarmadaSearch(obj *KarmadaComponents) {
 	}
 	if len(search.Image.ImageTag) == 0 {
 		search.Image.ImageTag = DefaultKarmadaImageVersion
+	}
+	if len(search.ImagePullPolicy) == 0 {
+		search.ImagePullPolicy = corev1.PullIfNotPresent
 	}
 	if search.Replicas == nil {
 		search.Replicas = pointer.Int32(1)
@@ -273,6 +296,9 @@ func setDefaultsKarmadaDescheduler(obj *KarmadaComponents) {
 	if len(descheduler.Image.ImageTag) == 0 {
 		descheduler.Image.ImageTag = DefaultKarmadaImageVersion
 	}
+	if len(descheduler.ImagePullPolicy) == 0 {
+		descheduler.ImagePullPolicy = corev1.PullIfNotPresent
+	}
 	if descheduler.Replicas == nil {
 		descheduler.Replicas = pointer.Int32(1)
 	}
@@ -290,7 +316,9 @@ func setDefaultsKarmadaMetricsAdapter(obj *KarmadaComponents) {
 	if len(metricsAdapter.Image.ImageTag) == 0 {
 		metricsAdapter.Image.ImageTag = DefaultKarmadaImageVersion
 	}
-
+	if len(metricsAdapter.ImagePullPolicy) == 0 {
+		metricsAdapter.ImagePullPolicy = corev1.PullIfNotPresent
+	}
 	if metricsAdapter.Replicas == nil {
 		metricsAdapter.Replicas = pointer.Int32(2)
 	}

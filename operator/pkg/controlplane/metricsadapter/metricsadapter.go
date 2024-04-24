@@ -42,13 +42,14 @@ func EnsureKarmadaMetricAdapter(client clientset.Interface, cfg *operatorv1alpha
 
 func installKarmadaMetricAdapter(client clientset.Interface, cfg *operatorv1alpha1.KarmadaMetricsAdapter, name, namespace string) error {
 	metricAdapterBytes, err := util.ParseTemplate(KarmadaMetricsAdapterDeployment, struct {
-		DeploymentName, Namespace, Image     string
-		KubeconfigSecret, KarmadaCertsSecret string
-		Replicas                             *int32
+		DeploymentName, Namespace, Image, ImagePullPolicy string
+		KubeconfigSecret, KarmadaCertsSecret              string
+		Replicas                                          *int32
 	}{
 		DeploymentName:     util.KarmadaMetricsAdapterName(name),
 		Namespace:          namespace,
 		Image:              cfg.Image.Name(),
+		ImagePullPolicy:    string(cfg.ImagePullPolicy),
 		Replicas:           cfg.Replicas,
 		KubeconfigSecret:   util.AdminKubeconfigSecretName(name),
 		KarmadaCertsSecret: util.KarmadaCertSecretName(name),

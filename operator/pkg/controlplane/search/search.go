@@ -43,14 +43,15 @@ func EnsureKarmadaSearch(client clientset.Interface, cfg *operatorv1alpha1.Karma
 
 func installKarmadaSearch(client clientset.Interface, cfg *operatorv1alpha1.KarmadaSearch, name, namespace string, _ map[string]bool) error {
 	searchDeploymentSetBytes, err := util.ParseTemplate(KarmadaSearchDeployment, struct {
-		DeploymentName, Namespace, Image, KarmadaCertsSecret string
-		KubeconfigSecret, EtcdClientService                  string
-		Replicas                                             *int32
-		EtcdListenClientPort                                 int32
+		DeploymentName, Namespace, Image, ImagePullPolicy, KarmadaCertsSecret string
+		KubeconfigSecret, EtcdClientService                                   string
+		Replicas                                                              *int32
+		EtcdListenClientPort                                                  int32
 	}{
 		DeploymentName:       util.KarmadaSearchName(name),
 		Namespace:            namespace,
 		Image:                cfg.Image.Name(),
+		ImagePullPolicy:      string(cfg.ImagePullPolicy),
 		KarmadaCertsSecret:   util.KarmadaCertSecretName(name),
 		Replicas:             cfg.Replicas,
 		KubeconfigSecret:     util.AdminKubeconfigSecretName(name),

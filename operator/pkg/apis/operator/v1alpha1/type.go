@@ -524,6 +524,11 @@ type CommonSettings struct {
 	// Image allows to customize the image used for the component.
 	Image `json:",inline"`
 
+	// ImagePullPolicy defines the policy for pulling the container image.
+	// If not specified, it defaults to IfNotPresent.
+	// +optional
+	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
+
 	// Number of desired pods. This is a pointer to distinguish between explicit
 	// zero and not specified. Defaults to 1.
 	// +optional

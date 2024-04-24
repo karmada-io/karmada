@@ -41,7 +41,7 @@ spec:
       containers:
       - name: kube-apiserver
         image: {{ .Image }}
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - kube-apiserver
         - --allow-privileged=true
@@ -173,7 +173,7 @@ spec:
       containers:
       - name: karmada-aggregated-apiserver
         image: {{ .Image }}
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - /bin/karmada-aggregated-apiserver
         - --kubeconfig=/etc/karmada/kubeconfig

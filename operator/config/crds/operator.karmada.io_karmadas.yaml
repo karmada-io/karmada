@@ -96,6 +96,11 @@ spec:
                               are not queryable and should be preserved when modifying
                               objects. More info: http://kubernetes.io/docs/user-guide/annotations'
                             type: object
+                          imagePullPolicy:
+                            description: ImagePullPolicy defines the policy for pulling
+                              the container image. If not specified, it defaults to
+                              IfNotPresent.
+                            type: string
                           imageRepository:
                             description: ImageRepository sets the container registry
                               to pull images from. if not set, the ImageRepository
@@ -571,6 +576,10 @@ spec:
                         description: 'FeatureGates enabled by the user. More info:
                           https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/'
                         type: object
+                      imagePullPolicy:
+                        description: ImagePullPolicy defines the policy for pulling
+                          the container image. If not specified, it defaults to IfNotPresent.
+                        type: string
                       imageRepository:
                         description: ImageRepository sets the container registry to
                           pull images from. if not set, the ImageRepository defined
@@ -703,6 +712,10 @@ spec:
                           https://karmada.io/docs/userguide/scheduling/cluster-resources#start-to-use-cluster-resource-models
                           More info: https://github.com/karmada-io/karmada/blob/master/pkg/features/features.go'
                         type: object
+                      imagePullPolicy:
+                        description: ImagePullPolicy defines the policy for pulling
+                          the container image. If not specified, it defaults to IfNotPresent.
+                        type: string
                       imageRepository:
                         description: ImageRepository sets the container registry to
                           pull images from. if not set, the ImageRepository defined
@@ -832,6 +845,10 @@ spec:
                           - CustomizedClusterResourceModeling: https://karmada.io/docs/userguide/scheduling/cluster-resources#start-to-use-cluster-resource-models
                           More info: https://github.com/karmada-io/karmada/blob/master/pkg/features/features.go'
                         type: object
+                      imagePullPolicy:
+                        description: ImagePullPolicy defines the policy for pulling
+                          the container image. If not specified, it defaults to IfNotPresent.
+                        type: string
                       imageRepository:
                         description: ImageRepository sets the container registry to
                           pull images from. if not set, the ImageRepository defined
@@ -937,6 +954,10 @@ spec:
                           For supported flags, please see https://karmada.io/docs/reference/components/karmada-descheduler
                           for details."
                         type: object
+                      imagePullPolicy:
+                        description: ImagePullPolicy defines the policy for pulling
+                          the container image. If not specified, it defaults to IfNotPresent.
+                        type: string
                       imageRepository:
                         description: ImageRepository sets the container registry to
                           pull images from. if not set, the ImageRepository defined
@@ -1042,6 +1063,10 @@ spec:
                           configuration. \n For supported flags, please see https://karmada.io/docs/reference/components/karmada-metrics-adapter
                           for details."
                         type: object
+                      imagePullPolicy:
+                        description: ImagePullPolicy defines the policy for pulling
+                          the container image. If not specified, it defaults to IfNotPresent.
+                        type: string
                       imageRepository:
                         description: ImageRepository sets the container registry to
                           pull images from. if not set, the ImageRepository defined
@@ -1154,6 +1179,10 @@ spec:
                           https://karmada.io/docs/userguide/scheduling/cluster-resources#start-to-use-cluster-resource-models
                           More info: https://github.com/karmada-io/karmada/blob/master/pkg/features/features.go'
                         type: object
+                      imagePullPolicy:
+                        description: ImagePullPolicy defines the policy for pulling
+                          the container image. If not specified, it defaults to IfNotPresent.
+                        type: string
                       imageRepository:
                         description: ImageRepository sets the container registry to
                           pull images from. if not set, the ImageRepository defined
@@ -1259,6 +1288,10 @@ spec:
                           please see https://karmada.io/docs/reference/components/karmada-search
                           for details."
                         type: object
+                      imagePullPolicy:
+                        description: ImagePullPolicy defines the policy for pulling
+                          the container image. If not specified, it defaults to IfNotPresent.
+                        type: string
                       imageRepository:
                         description: ImageRepository sets the container registry to
                           pull images from. if not set, the ImageRepository defined
@@ -1364,6 +1397,10 @@ spec:
                           please see https://karmada.io/docs/reference/components/karmada-webhook
                           for details."
                         type: object
+                      imagePullPolicy:
+                        description: ImagePullPolicy defines the policy for pulling
+                          the container image. If not specified, it defaults to IfNotPresent.
+                        type: string
                       imageRepository:
                         description: ImageRepository sets the container registry to
                           pull images from. if not set, the ImageRepository defined
@@ -1512,6 +1549,10 @@ spec:
                         description: 'FeatureGates enabled by the user. More info:
                           https://kubernetes.io/docs/reference/command-line-tools-reference/kube-controller-manager/'
                         type: object
+                      imagePullPolicy:
+                        description: ImagePullPolicy defines the policy for pulling
+                          the container image. If not specified, it defaults to IfNotPresent.
+                        type: string
                       imageRepository:
                         description: ImageRepository sets the container registry to
                           pull images from. if not set, the ImageRepository defined
