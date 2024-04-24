@@ -19,7 +19,7 @@ jobs:
           - amd64
           - arm64
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
@@ -44,7 +44,7 @@ jobs:
     name: release crds
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Rename the crds directory
       run: |
         mv ./charts/karmada/_crds ./charts/karmada/crds
@@ -64,7 +64,7 @@ jobs:
     name: Release charts
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Making helm charts
       env:
         VERSION: ${{ github.ref_name }}
@@ -83,6 +83,6 @@ jobs:
     name: Update krew-index
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Update new version in krew-index
       uses: rajatjindal/krew-release-bot@v0.0.40
