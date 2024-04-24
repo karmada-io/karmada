@@ -42,6 +42,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
@@ -383,15 +384,15 @@ func (c *EndpointsliceDispatchController) ensureEndpointSliceWork(mcs *networkin
 	endpointSlice.Name = providerCluster + "-" + endpointSlice.Name
 	clusterNamespace := names.GenerateExecutionSpaceName(consumerCluster)
 	endpointSlice.Labels = map[string]string{
-		discoveryv1.LabelServiceName:    mcs.Name,
-		workv1alpha1.WorkNamespaceLabel: clusterNamespace,
-		workv1alpha1.WorkNameLabel:      work.Name,
-		util.ManagedByKarmadaLabel:      util.ManagedByKarmadaLabelValue,
-		discoveryv1.LabelManagedBy:      util.EndpointSliceDispatchControllerLabelValue,
+		discoveryv1.LabelServiceName: mcs.Name,
+		util.ManagedByKarmadaLabel:   util.ManagedByKarmadaLabelValue,
+		discoveryv1.LabelManagedBy:   util.EndpointSliceDispatchControllerLabelValue,
 	}
 	endpointSlice.Annotations = map[string]string{
 		// This annotation is used to identify the source cluster of EndpointSlice and whether the eps are the newest version
 		util.EndpointSliceProvisionClusterAnnotation: providerCluster,
+		workv1alpha2.WorkNamespaceAnnotation:         clusterNamespace,
+		workv1alpha2.WorkNameAnnotation:              work.Name,
 	}
 
 	workMeta := metav1.ObjectMeta{
