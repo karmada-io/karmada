@@ -149,7 +149,8 @@ metadata:
     {{- include "karmada.aggregatedApiServer.labels" . | nindent 4 }}
 spec:
   ports:
-    - port: 443
+    - name: {{ $name }}-aggregated-apiserver
+      port: 443
       protocol: TCP
       targetPort: 443
   selector:

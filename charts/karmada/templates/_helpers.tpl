@@ -110,6 +110,38 @@ app: {{- include "karmada.name" .}}-kube-controller-manager
 {{- end }}
 {{- end -}}
 
+{{- define "karmada.apiServer.serviceMonitor.labels" -}}
+{{- if .Values.serviceMonitor.apiServer.labels }}
+{{- range $key, $value := .Values.serviceMonitor.apiServer.labels }}
+{{ $key }}: {{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.aggregatedApiServer.serviceMonitor.labels" -}}
+{{- if .Values.serviceMonitor.aggregatedApiServer.labels }}
+{{- range $key, $value := .Values.serviceMonitor.aggregatedApiServer.labels }}
+{{ $key }}: {{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.etcd.serviceMonitor.labels" -}}
+{{- if .Values.serviceMonitor.etcd.labels }}
+{{- range $key, $value := .Values.serviceMonitor.etcd.labels }}
+{{ $key }}: {{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.metricsAdapter.serviceMonitor.labels" -}}
+{{- if .Values.serviceMonitor.metricsAdapter.labels }}
+{{- range $key, $value := .Values.serviceMonitor.metricsAdapter.labels }}
+{{ $key }}: {{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
 {{- define "karmada.kubeconfig.volume" -}}
 {{- $name := include "karmada.name" . -}}
 - name: kubeconfig-secret

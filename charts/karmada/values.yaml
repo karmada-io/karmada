@@ -17,6 +17,36 @@ global:
   ##   team: infra
   commonLabels: {}
 
+# ServiceMonitor settings for each component
+serviceMonitor:
+  # Secret name for cert used for the ServiceMonitor
+  certSecret: karmada-servicemonitor
+  apiServer:
+    enabled: false
+    labels: {}
+    namespace: "default"
+    timeout: 30s
+    interval: 1m
+  aggregatedApiServer:
+    enabled: false
+    labels: {}
+    namespace: "default"
+    timeout: 30s
+    interval: 1m
+  etcd:
+    enabled: false
+    labels: {}
+    namespace: "default"
+    timeout: 30s
+    interval: 1m
+  metricsAdapter:
+    enabled: false
+    labels: {}
+    namespace: "default"
+    timeout: 30s
+    interval: 1m
+
+
 ## @karmadaImageVersion the image version of each karmada components
 ## "latest" is a default value for local installation.
 ## If update this anchors("&karmadaImageVersion"), also update hack/package-helm-chart.sh.

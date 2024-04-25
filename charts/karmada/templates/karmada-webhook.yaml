@@ -86,11 +86,15 @@ kind: Service
 metadata:
   name: {{ $name }}-webhook
   namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.webhook.labels" . | nindent 4 }}
 spec:
   selector:
     {{- include "karmada.webhook.labels" . | nindent 8 }}
   ports:
-    - port: 443
+    - name: {{ $name }}-webhook
+      port: 443
+      protocol: TCP
       targetPort: 8443
 
 {{ if .Values.webhook.podDisruptionBudget }}
