@@ -44,7 +44,7 @@ spec:
       containers:
       - name: karmada-metrics-adapter
         image: {{ .Image }}
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - /bin/karmada-metrics-adapter
         - --kubeconfig=/etc/karmada/kubeconfig

@@ -52,14 +52,15 @@ func EnsureKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operatorv
 
 func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaAPIServer, name, namespace string, _ map[string]bool) error {
 	apiserverDeploymentBytes, err := util.ParseTemplate(KarmadaApiserverDeployment, struct {
-		DeploymentName, Namespace, Image, EtcdClientService string
-		ServiceSubnet, KarmadaCertsSecret, EtcdCertsSecret  string
-		Replicas                                            *int32
-		EtcdListenClientPort                                int32
+		DeploymentName, Namespace, Image, ImagePullPolicy, EtcdClientService string
+		ServiceSubnet, KarmadaCertsSecret, EtcdCertsSecret                   string
+		Replicas                                                             *int32
+		EtcdListenClientPort                                                 int32
 	}{
 		DeploymentName:       util.KarmadaAPIServerName(name),
 		Namespace:            namespace,
 		Image:                cfg.Image.Name(),
+		ImagePullPolicy:      string(cfg.ImagePullPolicy),
 		EtcdClientService:    util.KarmadaEtcdClientName(name),
 		ServiceSubnet:        *cfg.ServiceSubnet,
 		KarmadaCertsSecret:   util.KarmadaCertSecretName(name),
@@ -112,14 +113,15 @@ func createKarmadaAPIServerService(client clientset.Interface, cfg *operatorv1al
 
 func installKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaAggregatedAPIServer, name, namespace string, featureGates map[string]bool) error {
 	aggregatedAPIServerDeploymentBytes, err := util.ParseTemplate(KarmadaAggregatedAPIServerDeployment, struct {
-		DeploymentName, Namespace, Image, EtcdClientService   string
-		KubeconfigSecret, KarmadaCertsSecret, EtcdCertsSecret string
-		Replicas                                              *int32
-		EtcdListenClientPort                                  int32
+		DeploymentName, Namespace, Image, ImagePullPolicy, EtcdClientService string
+		KubeconfigSecret, KarmadaCertsSecret, EtcdCertsSecret                string
+		Replicas                                                             *int32
+		EtcdListenClientPort                                                 int32
 	}{
 		DeploymentName:       util.KarmadaAggregatedAPIServerName(name),
 		Namespace:            namespace,
 		Image:                cfg.Image.Name(),
+		ImagePullPolicy:      string(cfg.ImagePullPolicy),
 		EtcdClientService:    util.KarmadaEtcdClientName(name),
 		KubeconfigSecret:     util.AdminKubeconfigSecretName(name),
 		KarmadaCertsSecret:   util.KarmadaCertSecretName(name),

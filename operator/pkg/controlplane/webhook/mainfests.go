@@ -44,7 +44,7 @@ spec:
       containers:
       - name: karmada-webhook
         image: {{ .Image }}
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - /bin/karmada-webhook
         - --kubeconfig=/etc/karmada/kubeconfig

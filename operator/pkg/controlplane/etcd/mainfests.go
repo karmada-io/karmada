@@ -45,7 +45,7 @@ spec:
       containers:
       - name: etcd
         image: {{ .Image }}
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - /usr/local/bin/etcd
         - --name=$(KARMADA_ETCD_NAME)

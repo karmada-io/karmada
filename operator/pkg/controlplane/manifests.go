@@ -51,7 +51,7 @@ spec:
       containers:
       - name: kube-controller-manager
         image: {{ .Image }}
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - kube-controller-manager
         - --allocate-node-cidrs=true
@@ -124,7 +124,7 @@ spec:
       containers:
       - name: karmada-controller-manager
         image: {{ .Image }}
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - /bin/karmada-controller-manager
         - --kubeconfig=/etc/karmada/kubeconfig
@@ -180,7 +180,7 @@ spec:
       containers:
       - name: karmada-scheduler
         image: {{ .Image }}
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - /bin/karmada-scheduler
         - --kubeconfig=/etc/karmada/kubeconfig
@@ -235,7 +235,7 @@ spec:
       containers:
       - name: karmada-descheduler
         image: {{ .Image }}
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - /bin/karmada-descheduler
         - --kubeconfig=/etc/karmada/kubeconfig

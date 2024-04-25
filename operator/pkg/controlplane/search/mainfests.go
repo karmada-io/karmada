@@ -44,7 +44,7 @@ spec:
       containers:
         - name: karmada-search
           image: {{ .Image }}
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: {{ .ImagePullPolicy }}
           volumeMounts:
             - name: k8s-certs
               mountPath: /etc/karmada/pki
