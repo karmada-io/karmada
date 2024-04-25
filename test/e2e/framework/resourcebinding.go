@@ -18,7 +18,11 @@ package framework
 
 import (
 	"context"
+	"fmt"
+	"reflect"
+	"sort"
 
+	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -35,4 +39,44 @@ func WaitResourceBindingFitWith(client karmada.Interface, namespace, name string
 		}
 		return fit(resourceBinding)
 	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+}
+
+// AssertBindingScheduledClusters wait deployment present on member clusters sync with fit func.
+// @expectedResults contains multiple possible results about expected clusters.
+func AssertBindingScheduledClusters(client karmada.Interface, namespace, name string, expectedResults [][]string) {
+	ginkgo.By(fmt.Sprintf("Check ResourceBinding(%s/%s)'s target clusters is as expected", namespace, name), func() {
+		gomega.Eventually(func() error {
+			binding, err := client.WorkV1alpha2().ResourceBindings(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			scheduledClutsers := make([]string, 0, len(binding.Spec.Clusters))
+			for _, scheduledCluster := range binding.Spec.Clusters {
+				scheduledClutsers = append(scheduledClutsers, scheduledCluster.Name)
+			}
+			sort.Strings(scheduledClutsers)
+			for _, expectedClutsers := range expectedResults {
+				if reflect.DeepEqual(scheduledClutsers, expectedClutsers) {
+					return nil
+				}
+			}
+			return fmt.Errorf("scheduled clusters: %+v, expected possible results: %+v", scheduledClutsers, expectedResults)
+		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+	})
+}
+
+// WaitGracefulEvictionTasksDone wait GracefulEvictionTasks of the binding done.
+func WaitGracefulEvictionTasksDone(client karmada.Interface, namespace, name string) {
+	ginkgo.By(fmt.Sprintf("Check ResourceBinding(%s/%s)'s GracefulEvictionTasks has been done", namespace, name), func() {
+		gomega.Eventually(func() error {
+			binding, err := client.WorkV1alpha2().ResourceBindings(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			if len(binding.Spec.GracefulEvictionTasks) > 0 {
+				return fmt.Errorf("%d GracefulEvictionTasks is being precessing", len(binding.Spec.GracefulEvictionTasks))
+			}
+			return nil
+		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+	})
 }
