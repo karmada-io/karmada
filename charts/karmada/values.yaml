@@ -658,7 +658,7 @@ etcd:
     image:
       registry: registry.k8s.io
       repository: etcd
-      tag: "3.5.9-0"
+      tag: "3.5.13-0"
       ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
       pullPolicy: IfNotPresent
     ## @param etcd.internal.storageType storage type for etcd data
