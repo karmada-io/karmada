@@ -20,6 +20,7 @@ import (
 	"sort"
 	"strings"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/sets"
 
@@ -111,4 +112,17 @@ func DedupeAndMergeAnnotations(existAnnotation, newAnnotation map[string]string)
 		existAnnotation[k] = v
 	}
 	return existAnnotation
+}
+
+// RemoveAnnotations removes the annotations from the given object.
+func RemoveAnnotations(obj metav1.Object, keys ...string) {
+	if len(keys) == 0 {
+		return
+	}
+
+	objAnnotations := obj.GetAnnotations()
+	for _, key := range keys {
+		delete(objAnnotations, key)
+	}
+	obj.SetAnnotations(objAnnotations)
 }

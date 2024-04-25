@@ -16,6 +16,7 @@ limitations under the License.
 
 package v1alpha1
 
+// The well-known label key constant.
 const (
 	// PropagationPolicyPermanentIDLabel is the identifier of a PropagationPolicy object.
 	// Karmada generates a unique identifier, such as metadata.UUID, for each PropagationPolicy object.
@@ -31,24 +32,6 @@ const (
 	// In backup scenarios, when applying the backup resource manifest in a new cluster, the UUID may change.
 	ClusterPropagationPolicyPermanentIDLabel = "clusterpropagationpolicy.karmada.io/permanent-id"
 
-	// PropagationPolicyNamespaceAnnotation is added to objects to specify associated PropagationPolicy namespace.
-	PropagationPolicyNamespaceAnnotation = "propagationpolicy.karmada.io/namespace"
-
-	// PropagationPolicyNameAnnotation is added to objects to specify associated PropagationPolicy name.
-	PropagationPolicyNameAnnotation = "propagationpolicy.karmada.io/name"
-
-	// ClusterPropagationPolicyAnnotation is added to objects to specify associated ClusterPropagationPolicy name.
-	ClusterPropagationPolicyAnnotation = "clusterpropagationpolicy.karmada.io/name"
-
-	// PropagationPolicyNamespaceLabel is added to objects to specify associated PropagationPolicy namespace.
-	PropagationPolicyNamespaceLabel = "propagationpolicy.karmada.io/namespace"
-
-	// PropagationPolicyNameLabel is added to objects to specify associated PropagationPolicy's name.
-	PropagationPolicyNameLabel = "propagationpolicy.karmada.io/name"
-
-	// ClusterPropagationPolicyLabel is added to objects to specify associated ClusterPropagationPolicy.
-	ClusterPropagationPolicyLabel = "clusterpropagationpolicy.karmada.io/name"
-
 	// NamespaceSkipAutoPropagationLabel is added to namespace objects to indicate if
 	// the namespace should be skipped from propagating by the namespace controller.
 	// For example, a namespace with the following label will be skipped:
@@ -58,4 +41,31 @@ const (
 	// NOTE: If create a ns without this label, then patch it with this label, the ns will not be
 	// synced to new member clusters, but old member clusters still have it.
 	NamespaceSkipAutoPropagationLabel = "namespace.karmada.io/skip-auto-propagation"
+)
+
+// The well-known annotation key constant.
+const (
+	// PropagationPolicyNamespaceAnnotation is added to objects to specify associated PropagationPolicy namespace.
+	PropagationPolicyNamespaceAnnotation = "propagationpolicy.karmada.io/namespace"
+
+	// PropagationPolicyNameAnnotation is added to objects to specify associated PropagationPolicy name.
+	PropagationPolicyNameAnnotation = "propagationpolicy.karmada.io/name"
+
+	// ClusterPropagationPolicyAnnotation is added to objects to specify associated ClusterPropagationPolicy name.
+	ClusterPropagationPolicyAnnotation = "clusterpropagationpolicy.karmada.io/name"
+)
+
+// TODO(whitewindmills): These deprecated labels will be removed in a future version.
+const (
+	// PropagationPolicyNamespaceLabel is added to objects to specify associated PropagationPolicy namespace.
+	// Deprecated
+	PropagationPolicyNamespaceLabel = "propagationpolicy.karmada.io/namespace"
+
+	// PropagationPolicyNameLabel is added to objects to specify associated PropagationPolicy's name.
+	// Deprecated
+	PropagationPolicyNameLabel = "propagationpolicy.karmada.io/name"
+
+	// ClusterPropagationPolicyLabel is added to objects to specify associated ClusterPropagationPolicy.
+	// Deprecated
+	ClusterPropagationPolicyLabel = "clusterpropagationpolicy.karmada.io/name"
 )

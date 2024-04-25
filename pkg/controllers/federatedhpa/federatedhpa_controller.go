@@ -404,25 +404,20 @@ func (c *FHPAController) reconcileAutoscaler(ctx context.Context, hpa *autoscali
 
 func (c *FHPAController) getBindingByLabel(resourceLabel map[string]string, resourceRef autoscalingv2.CrossVersionObjectReference) (*workv1alpha2.ResourceBinding, error) {
 	if len(resourceLabel) == 0 {
-		return nil, fmt.Errorf("Target resource has no label. ")
+		return nil, errors.New("target resource has no label")
 	}
 
-	var policyName, policyNameSpace string
 	var selector labels.Selector
-	if _, ok := resourceLabel[policyv1alpha1.PropagationPolicyNameLabel]; ok {
-		policyName = resourceLabel[policyv1alpha1.PropagationPolicyNameLabel]
-		policyNameSpace = resourceLabel[policyv1alpha1.PropagationPolicyNamespaceLabel]
+	if policyID, ok := resourceLabel[policyv1alpha1.PropagationPolicyPermanentIDLabel]; ok {
 		selector = labels.SelectorFromSet(labels.Set{
-			policyv1alpha1.PropagationPolicyNameLabel:      policyName,
-			policyv1alpha1.PropagationPolicyNamespaceLabel: policyNameSpace,
+			policyv1alpha1.PropagationPolicyPermanentIDLabel: policyID,
 		})
-	} else if _, ok = resourceLabel[policyv1alpha1.ClusterPropagationPolicyLabel]; ok {
-		policyName = resourceLabel[policyv1alpha1.ClusterPropagationPolicyLabel]
+	} else if policyID, ok = resourceLabel[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]; ok {
 		selector = labels.SelectorFromSet(labels.Set{
-			policyv1alpha1.ClusterPropagationPolicyLabel: policyName,
+			policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: policyID,
 		})
 	} else {
-		return nil, fmt.Errorf("No label of policy found. ")
+		return nil, errors.New("no label of policy permanent-id found")
 	}
 
 	binding := &workv1alpha2.ResourceBinding{}
@@ -432,7 +427,7 @@ func (c *FHPAController) getBindingByLabel(resourceLabel map[string]string, reso
 		return nil, err
 	}
 	if len(bindingList.Items) == 0 {
-		return nil, fmt.Errorf("Length of binding list is zero. ")
+		return nil, errors.New("length of binding list is zero")
 	}
 
 	found := false
@@ -444,7 +439,7 @@ func (c *FHPAController) getBindingByLabel(resourceLabel map[string]string, reso
 		}
 	}
 	if !found {
-		return nil, fmt.Errorf("No binding matches the target resource. ")
+		return nil, errors.New("no binding matches the target resource")
 	}
 
 	return binding, nil
@@ -452,7 +447,7 @@ func (c *FHPAController) getBindingByLabel(resourceLabel map[string]string, reso
 
 func (c *FHPAController) getTargetCluster(binding *workv1alpha2.ResourceBinding) ([]string, error) {
 	if len(binding.Spec.Clusters) == 0 {
-		return nil, fmt.Errorf("Binding has no schedulable clusters. ")
+		return nil, errors.New("binding has no schedulable clusters")
 	}
 
 	var allClusters []string
