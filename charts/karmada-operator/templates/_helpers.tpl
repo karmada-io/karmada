@@ -14,8 +14,16 @@ Return the proper karmada operator image name
 {{- end -}}
 
 {{/*
-Return the proper Docker Image Registry Secret Names
+return the proper docker image registry secret names
 */}}
 {{- define "karmada.operator.imagePullSecrets" -}}
 {{ include "common.images.pullSecrets" (dict "images" (list .Values.operator.image) "global" .Values.global) }}
 {{- end -}}
+
+{{/*
+Return the proper kubectl image name
+*/}}
+{{- define "karmada.kubectl.image" -}}
+{{ include "common.images.image" (dict "imageRoot" .Values.kubectl.image "global" .Values.global) }}
+{{- end -}}
+
