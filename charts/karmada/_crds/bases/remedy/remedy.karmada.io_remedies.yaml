@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.13.0
+    controller-gen.kubebuilder.io/version: v0.14.0
   name: remedies.remedy.karmada.io
 spec:
   group: remedy.karmada.io
@@ -23,14 +23,19 @@ spec:
           on cluster conditions.
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -38,17 +43,19 @@ spec:
             description: Spec represents the desired behavior of Remedy.
             properties:
               actions:
-                description: Actions specifies the actions that remedy system needs
-                  to perform. If empty, no action will be performed.
+                description: |-
+                  Actions specifies the actions that remedy system needs to perform.
+                  If empty, no action will be performed.
                 items:
                   description: RemedyAction represents the action type the remedy
                     system needs to preform.
                   type: string
                 type: array
               clusterAffinity:
-                description: ClusterAffinity specifies the clusters that Remedy needs
-                  to pay attention to. For clusters that meet the DecisionConditions,
-                  Actions will be preformed. If empty, all clusters will be selected.
+                description: |-
+                  ClusterAffinity specifies the clusters that Remedy needs to pay attention to.
+                  For clusters that meet the DecisionConditions, Actions will be preformed.
+                  If empty, all clusters will be selected.
                 properties:
                   clusterNames:
                     description: ClusterNames is the list of clusters to be selected.
@@ -57,10 +64,11 @@ spec:
                     type: array
                 type: object
               decisionMatches:
-                description: DecisionMatches indicates the decision matches of triggering
-                  the remedy system to perform the actions. As long as any one DecisionMatch
-                  matches, the Actions will be preformed. If empty, the Actions will
-                  be performed immediately.
+                description: |-
+                  DecisionMatches indicates the decision matches of triggering the remedy
+                  system to perform the actions. As long as any one DecisionMatch matches,
+                  the Actions will be preformed.
+                  If empty, the Actions will be performed immediately.
                 items:
                   description: DecisionMatch represents the decision match detail
                     of activating the remedy system.
@@ -78,8 +86,9 @@ spec:
                             type.
                           type: string
                         operator:
-                          description: Operator represents a conditionType's relationship
-                            to a conditionStatus. Valid operators are Equal, NotEqual.
+                          description: |-
+                            Operator represents a conditionType's relationship to a conditionStatus.
+                            Valid operators are Equal, NotEqual.
                           enum:
                           - Equal
                           - NotEqual
