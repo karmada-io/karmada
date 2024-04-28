@@ -999,22 +999,27 @@ var _ = ginkgo.Describe("[AdvancedPropagation] propagation testing", func() {
 			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 		})
 
-		ginkgo.It("delete the propagationPolicy and check whether labels are deleted correctly", func() {
+		ginkgo.It("delete the propagationPolicy and check whether labels and annotations are deleted correctly", func() {
 			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 			framework.WaitDeploymentFitWith(kubeClient, deployment.Namespace, deployment.Name, func(dep *appsv1.Deployment) bool {
-				if dep.Labels == nil {
-					return true
+				if dep.Labels != nil && dep.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel] != "" {
+					return false
 				}
-				return dep.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel] == ""
-
+				if dep.Annotations != nil && dep.Annotations[policyv1alpha1.PropagationPolicyNamespaceAnnotation] != "" && dep.Annotations[policyv1alpha1.PropagationPolicyNameAnnotation] != "" {
+					return false
+				}
+				return true
 			})
 
 			resourceBindingName := names.GenerateBindingName(deployment.Kind, deployment.Name)
 			framework.WaitResourceBindingFitWith(karmadaClient, deployment.Namespace, resourceBindingName, func(resourceBinding *workv1alpha2.ResourceBinding) bool {
-				if resourceBinding.Labels == nil {
-					return true
+				if resourceBinding.Labels != nil && resourceBinding.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel] != "" {
+					return false
 				}
-				return resourceBinding.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel] == ""
+				if resourceBinding.Annotations != nil && resourceBinding.Annotations[policyv1alpha1.PropagationPolicyNamespaceAnnotation] != "" && resourceBinding.Annotations[policyv1alpha1.PropagationPolicyNameAnnotation] != "" {
+					return false
+				}
+				return true
 			})
 		})
 	})

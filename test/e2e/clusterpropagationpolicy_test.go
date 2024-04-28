@@ -659,7 +659,7 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 // Delete when delete a clusterPropagationPolicy, and no more clusterPropagationPolicy matches the object, something like
 // labels should be cleaned.
 var _ = ginkgo.Describe("[Delete] clusterPropagation testing", func() {
-	ginkgo.Context("delete clusterPropagation and remove the labels from the resource template and reference binding", func() {
+	ginkgo.Context("delete clusterPropagation and remove the labels and annotations from the resource template and reference binding", func() {
 		var policy *policyv1alpha1.ClusterPropagationPolicy
 		var deployment *appsv1.Deployment
 		var targetMember string
@@ -707,26 +707,32 @@ var _ = ginkgo.Describe("[Delete] clusterPropagation testing", func() {
 			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 		})
 
-		ginkgo.It("delete ClusterPropagationPolicy and check whether labels are deleted correctly", func() {
+		ginkgo.It("delete ClusterPropagationPolicy and check whether labels and annotations are deleted correctly", func() {
 			framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
 			framework.WaitDeploymentFitWith(kubeClient, deployment.Namespace, deployment.Name, func(dep *appsv1.Deployment) bool {
-				if dep.Labels == nil {
-					return true
+				if dep.Labels != nil && dep.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] != "" {
+					return false
 				}
-				return dep.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] == ""
+				if dep.Annotations != nil && dep.Annotations[policyv1alpha1.ClusterPropagationPolicyAnnotation] != "" {
+					return false
+				}
+				return true
 			})
 
 			resourceBindingName := names.GenerateBindingName(deployment.Kind, deployment.Name)
 			framework.WaitResourceBindingFitWith(karmadaClient, deployment.Namespace, resourceBindingName, func(resourceBinding *workv1alpha2.ResourceBinding) bool {
-				if resourceBinding.Labels == nil {
-					return true
+				if resourceBinding.Labels != nil && resourceBinding.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] != "" {
+					return false
 				}
-				return resourceBinding.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] == ""
+				if resourceBinding.Annotations != nil && resourceBinding.Annotations[policyv1alpha1.ClusterPropagationPolicyAnnotation] != "" {
+					return false
+				}
+				return true
 			})
 		})
 	})
 
-	ginkgo.Context("delete clusterPropagation and remove the labels from the resource template and reference clusterBinding", func() {
+	ginkgo.Context("delete clusterPropagation and remove the labels and annotations from the resource template and reference clusterBinding", func() {
 		var crdGroup string
 		var randStr string
 		var crdSpecNames apiextensionsv1.CustomResourceDefinitionNames
@@ -781,21 +787,27 @@ var _ = ginkgo.Describe("[Delete] clusterPropagation testing", func() {
 			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 		})
 
-		ginkgo.It("delete ClusterPropagationPolicy and check whether labels are deleted correctly", func() {
+		ginkgo.It("delete ClusterPropagationPolicy and check whether labels and annotations are deleted correctly", func() {
 			framework.RemoveClusterPropagationPolicy(karmadaClient, crdPolicy.Name)
 			framework.WaitCRDFitWith(dynamicClient, crd.Name, func(crd *apiextensionsv1.CustomResourceDefinition) bool {
-				if crd.Labels == nil {
-					return true
+				if crd.Labels != nil && crd.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] != "" {
+					return false
 				}
-				return crd.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] == ""
+				if crd.Annotations != nil && crd.Annotations[policyv1alpha1.ClusterPropagationPolicyAnnotation] != "" {
+					return false
+				}
+				return true
 			})
 
 			resourceBindingName := names.GenerateBindingName(crd.Kind, crd.Name)
 			framework.WaitClusterResourceBindingFitWith(karmadaClient, resourceBindingName, func(crb *workv1alpha2.ClusterResourceBinding) bool {
-				if crb.Labels == nil {
-					return true
+				if crd.Labels != nil && crd.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] != "" {
+					return false
 				}
-				return crb.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] == ""
+				if crd.Annotations != nil && crd.Annotations[policyv1alpha1.ClusterPropagationPolicyAnnotation] != "" {
+					return false
+				}
+				return true
 			})
 		})
 	})
