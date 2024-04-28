@@ -160,9 +160,6 @@ var _ = framework.SerialDescribe("workload rebalancer testing", func() {
 
 			ginkgo.By("step3: trigger a reschedule by WorkloadRebalancer", func() {
 				framework.CreateWorkloadRebalancer(karmadaClient, rebalancer)
-				ginkgo.DeferCleanup(func() {
-					framework.RemoveWorkloadRebalancer(karmadaClient, rebalancerName)
-				})
 
 				// actual replicas propagation of deployment should reschedule back to `targetClusters`,
 				// which represents rebalancer changed deployment replicas propagation.
@@ -179,7 +176,7 @@ var _ = framework.SerialDescribe("workload rebalancer testing", func() {
 			ginkgo.By("step4: update WorkloadRebalancer spec workloads", func() {
 				// update workload list from {deploy, clusterrole, notExistDeployObjRef} to {clusterroleObjRef, newAddedDeployObjRef}
 				updatedWorkloads := []appsv1alpha1.ObjectReference{clusterroleObjRef, newAddedDeployObjRef}
-				framework.UpdateWorkloadRebalancer(karmadaClient, rebalancerName, updatedWorkloads)
+				framework.UpdateWorkloadRebalancer(karmadaClient, rebalancerName, &updatedWorkloads, nil)
 
 				expectedWorkloads := []appsv1alpha1.ObservedWorkload{
 					{Workload: deployObjRef, Result: appsv1alpha1.RebalanceSuccessful},
@@ -187,6 +184,13 @@ var _ = framework.SerialDescribe("workload rebalancer testing", func() {
 					{Workload: clusterroleObjRef, Result: appsv1alpha1.RebalanceSuccessful},
 				}
 				framework.WaitRebalancerObservedWorkloads(karmadaClient, rebalancerName, expectedWorkloads)
+			})
+
+			ginkgo.By("step5: auto clean WorkloadRebalancer", func() {
+				ttlSecondsAfterFinished := int32(5)
+				framework.UpdateWorkloadRebalancer(karmadaClient, rebalancerName, nil, &ttlSecondsAfterFinished)
+
+				framework.WaitRebalancerDisappear(karmadaClient, rebalancerName)
 			})
 		})
 	})
@@ -223,9 +227,6 @@ var _ = framework.SerialDescribe("workload rebalancer testing", func() {
 
 			ginkgo.By("step3: trigger a reschedule by WorkloadRebalancer", func() {
 				framework.CreateWorkloadRebalancer(karmadaClient, rebalancer)
-				ginkgo.DeferCleanup(func() {
-					framework.RemoveWorkloadRebalancer(karmadaClient, rebalancerName)
-				})
 
 				// actual replicas propagation of deployment should reschedule back to `targetClusters`,
 				// which represents rebalancer changed deployment replicas propagation.
@@ -242,7 +243,7 @@ var _ = framework.SerialDescribe("workload rebalancer testing", func() {
 			ginkgo.By("step4: update WorkloadRebalancer spec workloads", func() {
 				// update workload list from {deploy, clusterrole, notExistDeployObjRef} to {clusterroleObjRef, newAddedDeployObjRef}
 				updatedWorkloads := []appsv1alpha1.ObjectReference{clusterroleObjRef, newAddedDeployObjRef}
-				framework.UpdateWorkloadRebalancer(karmadaClient, rebalancerName, updatedWorkloads)
+				framework.UpdateWorkloadRebalancer(karmadaClient, rebalancerName, &updatedWorkloads, nil)
 
 				expectedWorkloads := []appsv1alpha1.ObservedWorkload{
 					{Workload: deployObjRef, Result: appsv1alpha1.RebalanceSuccessful},
@@ -250,6 +251,13 @@ var _ = framework.SerialDescribe("workload rebalancer testing", func() {
 					{Workload: clusterroleObjRef, Result: appsv1alpha1.RebalanceSuccessful},
 				}
 				framework.WaitRebalancerObservedWorkloads(karmadaClient, rebalancerName, expectedWorkloads)
+			})
+
+			ginkgo.By("step5: auto clean WorkloadRebalancer", func() {
+				ttlSecondsAfterFinished := int32(5)
+				framework.UpdateWorkloadRebalancer(karmadaClient, rebalancerName, nil, &ttlSecondsAfterFinished)
+
+				framework.WaitRebalancerDisappear(karmadaClient, rebalancerName)
 			})
 		})
 	})
@@ -273,9 +281,6 @@ var _ = framework.SerialDescribe("workload rebalancer testing", func() {
 
 			ginkgo.By("step2: trigger a reschedule by WorkloadRebalancer", func() {
 				framework.CreateWorkloadRebalancer(karmadaClient, rebalancer)
-				ginkgo.DeferCleanup(func() {
-					framework.RemoveWorkloadRebalancer(karmadaClient, rebalancerName)
-				})
 
 				expectedWorkloads := []appsv1alpha1.ObservedWorkload{
 					{Workload: deployObjRef, Result: appsv1alpha1.RebalanceSuccessful},
@@ -288,7 +293,7 @@ var _ = framework.SerialDescribe("workload rebalancer testing", func() {
 			ginkgo.By("step3: update WorkloadRebalancer spec workloads", func() {
 				// update workload list from {deploy, clusterrole, notExistDeployObjRef} to {clusterroleObjRef, newAddedDeployObjRef}
 				updatedWorkloads := []appsv1alpha1.ObjectReference{clusterroleObjRef, newAddedDeployObjRef}
-				framework.UpdateWorkloadRebalancer(karmadaClient, rebalancerName, updatedWorkloads)
+				framework.UpdateWorkloadRebalancer(karmadaClient, rebalancerName, &updatedWorkloads, nil)
 
 				expectedWorkloads := []appsv1alpha1.ObservedWorkload{
 					{Workload: deployObjRef, Result: appsv1alpha1.RebalanceSuccessful},
@@ -296,6 +301,13 @@ var _ = framework.SerialDescribe("workload rebalancer testing", func() {
 					{Workload: clusterroleObjRef, Result: appsv1alpha1.RebalanceSuccessful},
 				}
 				framework.WaitRebalancerObservedWorkloads(karmadaClient, rebalancerName, expectedWorkloads)
+			})
+
+			ginkgo.By("step4: auto clean WorkloadRebalancer", func() {
+				ttlSecondsAfterFinished := int32(5)
+				framework.UpdateWorkloadRebalancer(karmadaClient, rebalancerName, nil, &ttlSecondsAfterFinished)
+
+				framework.WaitRebalancerDisappear(karmadaClient, rebalancerName)
 			})
 		})
 	})

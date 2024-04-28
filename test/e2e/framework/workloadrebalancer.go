@@ -23,6 +23,7 @@ import (
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	appsv1alpha1 "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1"
@@ -47,14 +48,20 @@ func RemoveWorkloadRebalancer(client karmada.Interface, name string) {
 }
 
 // UpdateWorkloadRebalancer udpate WorkloadRebalancer with karmada client.
-func UpdateWorkloadRebalancer(client karmada.Interface, name string, workloads []appsv1alpha1.ObjectReference) {
+// if workloads/ttl is a nil pointer, keep previous value unchanged.
+func UpdateWorkloadRebalancer(client karmada.Interface, name string, workloads *[]appsv1alpha1.ObjectReference, ttl *int32) {
 	ginkgo.By(fmt.Sprintf("Updating WorkloadRebalancer(%s)'s workloads", name), func() {
 		gomega.Eventually(func() error {
 			rebalancer, err := client.AppsV1alpha1().WorkloadRebalancers().Get(context.TODO(), name, metav1.GetOptions{})
 			if err != nil {
 				return err
 			}
-			rebalancer.Spec.Workloads = workloads
+			if workloads != nil {
+				rebalancer.Spec.Workloads = *workloads
+			}
+			if ttl != nil {
+				rebalancer.Spec.TTLSecondsAfterFinished = ttl
+			}
 			_, err = client.AppsV1alpha1().WorkloadRebalancers().Update(context.TODO(), rebalancer, metav1.UpdateOptions{})
 			return err
 		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
@@ -73,6 +80,22 @@ func WaitRebalancerObservedWorkloads(client karmada.Interface, name string, expe
 				return fmt.Errorf("observedWorkloads: %+v, expectedWorkloads: %+v", rebalancer.Status.ObservedWorkloads, expectedWorkloads)
 			}
 			return nil
+		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+	})
+}
+
+// WaitRebalancerDisappear wait WorkloadRebalancer disappear until timeout.
+func WaitRebalancerDisappear(client karmada.Interface, name string) {
+	ginkgo.By(fmt.Sprintf("Waiting for WorkloadRebalancer(%s) disappears", name), func() {
+		gomega.Eventually(func() error {
+			rebalancer, err := client.AppsV1alpha1().WorkloadRebalancers().Get(context.TODO(), name, metav1.GetOptions{})
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					return nil
+				}
+				return err
+			}
+			return fmt.Errorf("WorkloadRebalancer %s still exist: %+v", name, rebalancer)
 		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }

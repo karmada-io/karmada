@@ -759,6 +759,13 @@ func schema_pkg_apis_apps_v1alpha1_WorkloadRebalancerSpec(ref common.ReferenceCa
 							},
 						},
 					},
+					"ttlSecondsAfterFinished": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TTLSecondsAfterFinished limits the lifetime of a WorkloadRebalancer that has finished execution (means each target workload is finished with result of Successful or Failed). If this field is set, ttlSecondsAfterFinished after the WorkloadRebalancer finishes, it is eligible to be automatically deleted. If this field is unset, the WorkloadRebalancer won't be automatically deleted. If this field is set to zero, the WorkloadRebalancer becomes eligible to be deleted immediately after it finishes.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 				},
 				Required: []string{"workloads"},
 			},
@@ -789,11 +796,24 @@ func schema_pkg_apis_apps_v1alpha1_WorkloadRebalancerStatus(ref common.Reference
 							},
 						},
 					},
+					"observedGeneration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ObservedGeneration is the generation(.metadata.generation) observed by the controller. If ObservedGeneration is less than the generation in metadata means the controller hasn't confirmed the rebalance result or hasn't done the rebalance yet.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"finishTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FinishTime represents the finish time of rebalancer.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.ObservedWorkload"},
+			"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.ObservedWorkload", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
