@@ -408,7 +408,7 @@ func TestGenerateKey(t *testing.T) {
 					"metadata": map[string]interface{}{
 						"name":      "test",
 						"namespace": "default",
-						"labels": map[string]interface{}{
+						"annotations": map[string]interface{}{
 							"test": "karmada-es-cluster",
 						},
 					},
@@ -471,7 +471,7 @@ func TestGetClusterNameFromAnnotation(t *testing.T) {
 					"metadata": map[string]interface{}{
 						"name":      "test",
 						"namespace": "default",
-						"labels": map[string]interface{}{
+						"annotations": map[string]interface{}{
 							"foo": "karmada-es-cluster",
 						},
 					},

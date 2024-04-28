@@ -226,7 +226,7 @@ func TestRemoveIrrelevantField(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := RemoveIrrelevantField(tt.workload, tt.extraHooks...); err != nil {
+			if err := RemoveIrrelevantFields(tt.workload, tt.extraHooks...); err != nil {
 				t.Fatalf("RemoveIrrelevantField() expects no error but got: %v", err)
 				return
 			}
