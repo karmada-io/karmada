@@ -58,12 +58,6 @@ const (
 	// - Manifest in Work object: describes the name of ClusterResourceBinding which the manifest derived from.
 	ClusterResourceBindingAnnotationKey = "clusterresourcebinding.karmada.io/name"
 
-	// WorkNamespaceLabel is added to objects to specify associated Work's namespace.
-	WorkNamespaceLabel = "work.karmada.io/namespace"
-
-	// WorkNameLabel is added to objects to specify associated Work's name.
-	WorkNameLabel = "work.karmada.io/name"
-
 	// BindingManagedByLabel is added to ResourceBinding to represent what kind of resource manages this Binding.
 	BindingManagedByLabel = "binding.karmada.io/managed-by"
 )

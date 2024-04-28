@@ -46,7 +46,7 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
-	klog.V(2).Infof("Mutating work(%s) for request: %s", work.Name, req.Operation)
+	klog.V(2).Infof("Mutating the work(%s/%s) for request: %s", work.Namespace, work.Name, req.Operation)
 
 	var manifests []workv1alpha1.Manifest
 
@@ -54,19 +54,19 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 		workloadObj := &unstructured.Unstructured{}
 		err := json.Unmarshal(manifest.Raw, workloadObj)
 		if err != nil {
-			klog.Errorf("Failed to unmarshal work(%s) manifest to Unstructured", work.Name)
+			klog.Errorf("Failed to unmarshal the work(%s/%s) manifest to Unstructured, err: %v", work.Namespace, work.Name, err)
 			return admission.Errored(http.StatusInternalServerError, err)
 		}
 
-		err = prune.RemoveIrrelevantField(workloadObj, prune.RemoveJobTTLSeconds)
+		err = prune.RemoveIrrelevantFields(workloadObj, prune.RemoveJobTTLSeconds)
 		if err != nil {
-			klog.Errorf("Failed to remove irrelevant field for work(%s): %v", work.Name, err)
+			klog.Errorf("Failed to remove irrelevant fields for the work(%s/%s), err: %v", work.Namespace, work.Name, err)
 			return admission.Errored(http.StatusInternalServerError, err)
 		}
 
 		workloadJSON, err := workloadObj.MarshalJSON()
 		if err != nil {
-			klog.Errorf("Failed to marshal workload of work(%s)", work.Name)
+			klog.Errorf("Failed to marshal workload of the work(%s/%s), err: %s", work.Namespace, work.Name, err)
 			return admission.Errored(http.StatusInternalServerError, err)
 		}
 		manifests = append(manifests, workv1alpha1.Manifest{RawExtension: runtime.RawExtension{Raw: workloadJSON}})
