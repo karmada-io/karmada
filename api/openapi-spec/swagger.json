@@ -152,7 +152,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -231,7 +231,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -467,7 +467,7 @@
       },
       "parameters": [
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -704,7 +704,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -882,7 +882,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -998,7 +998,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -1069,7 +1069,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -1308,7 +1308,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -1548,7 +1548,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -1729,7 +1729,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -1953,7 +1953,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -2193,7 +2193,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -2374,7 +2374,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -2430,7 +2430,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -2501,7 +2501,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -2575,7 +2575,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -2657,7 +2657,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -2731,7 +2731,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -2813,7 +2813,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -3109,7 +3109,7 @@
       },
       "parameters": [
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -3346,7 +3346,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -3977,7 +3977,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -4033,7 +4033,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -4112,7 +4112,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -4408,7 +4408,7 @@
       },
       "parameters": [
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -4645,7 +4645,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -4823,7 +4823,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -5044,7 +5044,7 @@
       },
       "parameters": [
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -5281,7 +5281,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -5459,7 +5459,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -5515,7 +5515,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -5594,7 +5594,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -5665,7 +5665,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -5744,7 +5744,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -5875,7 +5875,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -5946,7 +5946,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -6185,7 +6185,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -6425,7 +6425,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -6606,7 +6606,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -6830,7 +6830,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -7070,7 +7070,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -7251,7 +7251,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -7307,7 +7307,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -7378,7 +7378,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -7452,7 +7452,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -7534,7 +7534,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -7608,7 +7608,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -7690,7 +7690,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -7986,7 +7986,7 @@
       },
       "parameters": [
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -8223,7 +8223,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -8401,7 +8401,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -8622,7 +8622,7 @@
       },
       "parameters": [
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -8859,7 +8859,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -9037,7 +9037,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -9093,7 +9093,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -9332,7 +9332,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -9572,7 +9572,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -9753,7 +9753,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -9977,7 +9977,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -10217,7 +10217,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -10398,7 +10398,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -10622,7 +10622,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -10862,7 +10862,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -11043,7 +11043,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -11099,7 +11099,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -11170,7 +11170,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -11241,7 +11241,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -11320,7 +11320,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -11391,7 +11391,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -11470,7 +11470,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -11541,7 +11541,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -11615,7 +11615,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -11697,7 +11697,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -11771,7 +11771,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -11853,7 +11853,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -11927,7 +11927,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -12009,7 +12009,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -12080,7 +12080,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -12151,7 +12151,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -12447,7 +12447,7 @@
       },
       "parameters": [
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -12684,7 +12684,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -12862,7 +12862,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -12918,7 +12918,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -12997,7 +12997,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -13293,7 +13293,7 @@
       },
       "parameters": [
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -13530,7 +13530,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -13708,7 +13708,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -13764,7 +13764,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -13843,7 +13843,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -14142,7 +14142,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -14382,7 +14382,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -14563,7 +14563,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -14622,7 +14622,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -14704,7 +14704,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -14775,7 +14775,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -14846,7 +14846,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -15112,7 +15112,7 @@
       },
       "parameters": [
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -15349,7 +15349,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -15527,7 +15527,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -15751,7 +15751,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -15991,7 +15991,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -16172,7 +16172,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         }
       ]
     },
@@ -16228,7 +16228,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -16299,7 +16299,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -16378,7 +16378,7 @@
           "required": true
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -16452,7 +16452,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -16534,7 +16534,7 @@
           "$ref": "#/parameters/namespace-vgWSWtn3"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -16605,7 +16605,7 @@
           "$ref": "#/parameters/limit-1NfNmdNH"
         },
         {
-          "$ref": "#/parameters/pretty-nN7o5FEq"
+          "$ref": "#/parameters/pretty-tJGM1-ng"
         },
         {
           "$ref": "#/parameters/resourceVersion-5WAnf1kx"
@@ -17481,12 +17481,10 @@
       "properties": {
         "max": {
           "description": "Max is the maximum amount of this resource represented by resource name. Special Instructions, for the last ResourceModelRange, which no matter what Max value you pass, the meaning is infinite. Because for the last item, any ResourceModelRange's quota larger than Min will be classified to the last one. Of course, the value of the Max field is always greater than the value of the Min field. It should be true in any case.",
-          "default": {},
           "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity"
         },
         "min": {
           "description": "Min is the minimum amount of this resource represented by resource name. Note: The Min value of first grade(usually 0) always acts as zero. E.g. [1,2) equal to [0,2).",
-          "default": {},
           "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity"
         },
         "name": {
@@ -17504,7 +17502,6 @@
           "description": "Allocatable represents the resources of a cluster that are available for scheduling. Total amount of allocatable resources on all nodes.",
           "type": "object",
           "additionalProperties": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity"
           }
         },
@@ -17520,7 +17517,6 @@
           "description": "Allocated represents the resources of a cluster that have been scheduled. Total amount of required resources of all Pods that have been scheduled to nodes.",
           "type": "object",
           "additionalProperties": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity"
           }
         },
@@ -17528,7 +17524,6 @@
           "description": "Allocating represents the resources of a cluster that are pending for scheduling. Total amount of required resources of all Pods that are waiting for scheduling.",
           "type": "object",
           "additionalProperties": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity"
           }
         }
@@ -18493,7 +18488,6 @@
           "description": "Hard is the set of enforced hard limits for each named resource. More info: https://kubernetes.io/docs/concepts/policy/resource-quotas/",
           "type": "object",
           "additionalProperties": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity"
           }
         },
@@ -18501,7 +18495,6 @@
           "description": "Used is the current observed total usage of the resource in the namespace.",
           "type": "object",
           "additionalProperties": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity"
           }
         }
@@ -18640,7 +18633,6 @@
           "description": "Overall is the set of desired hard limits for each named resource.",
           "type": "object",
           "additionalProperties": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity"
           }
         },
@@ -18670,7 +18662,6 @@
           "description": "Overall is the set of enforced hard limits for each named resource.",
           "type": "object",
           "additionalProperties": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity"
           }
         },
@@ -18678,7 +18669,6 @@
           "description": "OverallUsed is the current observed total usage of the resource in the namespace.",
           "type": "object",
           "additionalProperties": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity"
           }
         }
@@ -18974,7 +18964,6 @@
         },
         "value": {
           "description": "Value to be applied to target field. Must be empty when operator is Remove.",
-          "default": {},
           "$ref": "#/definitions/io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSON"
         }
       }
@@ -19223,7 +19212,6 @@
           "description": "Hard is the set of desired hard limits for each named resource.",
           "type": "object",
           "additionalProperties": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity"
           }
         }
@@ -19750,7 +19738,6 @@
           "description": "Manifests represents a list of Kubernetes resources to be deployed on the managed cluster.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.Manifest"
           }
         }
@@ -20018,7 +20005,6 @@
           "description": "ResourceRequest represents the resources required by each replica.",
           "type": "object",
           "additionalProperties": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity"
           }
         }
@@ -20463,7 +20449,6 @@
       "properties": {
         "lastTransitionTime": {
           "description": "lastTransitionTime is the last time the condition transitioned from one status to another",
-          "default": {},
           "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
         },
         "message": {
@@ -20812,6 +20797,10 @@
         },
         "ip": {
           "description": "IP is set for load-balancer ingress points that are IP based (typically GCE or OpenStack load-balancers)",
+          "type": "string"
+        },
+        "ipMode": {
+          "description": "IPMode specifies how the load-balancer IP behaves, and may only be specified when the ip field is specified. Setting this to \"VIP\" indicates that traffic is delivered to the node with the destination set to the load-balancer's IP and port. Setting this to \"Proxy\" indicates that traffic is delivered to the node or pod with the destination set to the node's IP and node port or the pod's IP and port. Service implementations may use this information to adjust traffic routing.",
           "type": "string"
         },
         "ports": {
@@ -21499,7 +21488,6 @@
       "properties": {
         "lastTransitionTime": {
           "description": "lastTransitionTime is the last time the condition transitioned from one status to another. This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.",
-          "default": {},
           "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
         },
         "message": {
@@ -21736,7 +21724,7 @@
         {
           "group": "flowcontrol.apiserver.k8s.io",
           "kind": "DeleteOptions",
-          "version": "v1alpha1"
+          "version": "v1"
         },
         {
           "group": "flowcontrol.apiserver.k8s.io",
@@ -22031,7 +22019,6 @@
         },
         "creationTimestamp": {
           "description": "CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC.\n\nPopulated by the system. Read-only. Null for lists. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
-          "default": {},
           "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
         },
         "deletionGracePeriodSeconds": {
@@ -22308,7 +22295,6 @@
       "properties": {
         "object": {
           "description": "Object is:\n * If Type is Added or Modified: the new state of the object.\n * If Type is Deleted: the state of the object immediately before deletion.\n * If Type is Error: *Status is recommended; other types may make sense\n   depending on context.",
-          "default": {},
           "$ref": "#/definitions/io.k8s.apimachinery.pkg.runtime.RawExtension"
         },
         "type": {
@@ -22485,7 +22471,7 @@
         {
           "group": "flowcontrol.apiserver.k8s.io",
           "kind": "WatchEvent",
-          "version": "v1alpha1"
+          "version": "v1"
         },
         {
           "group": "flowcontrol.apiserver.k8s.io",
@@ -22747,10 +22733,10 @@
       "in": "path",
       "required": true
     },
-    "pretty-nN7o5FEq": {
+    "pretty-tJGM1-ng": {
       "uniqueItems": true,
       "type": "string",
-      "description": "If 'true', then the output is pretty printed.",
+      "description": "If 'true', then the output is pretty printed. Defaults to 'false' unless the user-agent indicates a browser or command-line HTTP tool (curl and wget).",
       "name": "pretty",
       "in": "query"
     },
