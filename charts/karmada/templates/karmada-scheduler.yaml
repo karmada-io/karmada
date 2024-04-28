@@ -60,6 +60,10 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 15
             timeoutSeconds: 5
+          ports:
+            - containerPort: 10351
+              name: http
+              protocol: TCP
           volumeMounts:
           {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
           resources:
