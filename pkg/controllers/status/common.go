@@ -138,7 +138,7 @@ func updateResourceStatus(
 	_, err = dynamicClient.Resource(gvr).Namespace(resource.GetNamespace()).
 		Patch(context.TODO(), resource.GetName(), types.JSONPatchType, patchBytes, metav1.PatchOptions{}, "status")
 	if err != nil {
-		klog.Error("Failed to update resource(%s/%s/%s), Error: %v", gvr, resource.GetNamespace(), resource.GetName(), err)
+		klog.Errorf("Failed to update resource(%s/%s/%s), Error: %v", gvr, resource.GetNamespace(), resource.GetName(), err)
 		return err
 	}
 	klog.V(3).Infof("Update resource(%s/%s/%s) status successfully.", gvr, resource.GetNamespace(), resource.GetName())

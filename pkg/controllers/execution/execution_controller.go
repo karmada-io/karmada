@@ -232,7 +232,7 @@ func (c *Controller) tryCreateOrUpdateWorkload(clusterName string, workload *uns
 	clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
-			klog.Errorf("Failed to get the resource(kind=%s, %s/%s) from member cluster(%s), err is %v ", workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)
+			klog.Errorf("Failed to get the resource(kind=%s, %s/%s) from member cluster(%s), err is %v ", workload.GetKind(), workload.GetNamespace(), workload.GetName(), clusterName, err)
 			return err
 		}
 		err = c.ObjectWatcher.Create(clusterName, workload)

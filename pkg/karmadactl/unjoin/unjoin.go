@@ -162,8 +162,8 @@ func (j *CommandUnjoinOption) Run(f cmdutil.Factory) error {
 	// Get control plane kube-apiserver client
 	controlPlaneRestConfig, err := f.ToRawKubeConfigLoader().ClientConfig()
 	if err != nil {
-		klog.Errorf("failed to get control plane rest config. context: %s, kube-config: %s, error: %v",
-			options.DefaultConfigFlags.Context, options.DefaultConfigFlags.KubeConfig, err)
+		klog.Errorf("failed to get control plane rest config. karmada-context: %s, kubeconfig: %s, error: %v",
+			*options.DefaultConfigFlags.Context, *options.DefaultConfigFlags.KubeConfig, err)
 		return err
 	}
 

@@ -103,7 +103,7 @@ func (m *interpreterConfigManager) updateConfiguration() {
 	for _, c := range configurations {
 		unstructuredConfig, err := helper.ToUnstructured(c)
 		if err != nil {
-			klog.Errorf("Failed to transform ResourceInterpreterWebhookConfiguration: %w", err)
+			klog.Errorf("Failed to transform ResourceInterpreterWebhookConfiguration: %v", err)
 			return
 		}
 

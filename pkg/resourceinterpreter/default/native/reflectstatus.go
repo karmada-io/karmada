@@ -92,7 +92,7 @@ func reflectDeploymentStatus(object *unstructured.Unstructured) (*runtime.RawExt
 func reflectServiceStatus(object *unstructured.Unstructured) (*runtime.RawExtension, error) {
 	serviceType, exist, err := unstructured.NestedString(object.Object, "spec", "type")
 	if err != nil {
-		klog.Errorf("Failed to get spec.type field from %s(%s/%s)")
+		klog.Errorf("Failed to get spec.type field from %s(%s/%s)", object.GetKind(), object.GetNamespace(), object.GetName())
 	}
 	if !exist {
 		klog.Errorf("Failed to get spec.type from %s(%s/%s) which should have spec.type field.",
