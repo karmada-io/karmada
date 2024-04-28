@@ -225,7 +225,7 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 
 			ginkgo.BeforeEach(func() {
 				pvcName = pvcNamePrefix + rand.String(RandomStrLength)
-				pvc = testhelper.NewPVC(testNamespace, pvcName, corev1.ResourceRequirements{
+				pvc = testhelper.NewPVC(testNamespace, pvcName, corev1.VolumeResourceRequirements{
 					Requests: corev1.ResourceList{
 						corev1.ResourceStorage: resource.MustParse("1Gi"),
 					},

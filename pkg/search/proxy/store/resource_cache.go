@@ -26,7 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/apiserver/pkg/features"
 	"k8s.io/apiserver/pkg/registry/generic"
 	genericregistry "k8s.io/apiserver/pkg/registry/generic/registry"
 	"k8s.io/apiserver/pkg/registry/rest"
@@ -34,7 +33,6 @@ import (
 	cacherstorage "k8s.io/apiserver/pkg/storage/cacher"
 	"k8s.io/apiserver/pkg/storage/storagebackend"
 	"k8s.io/apiserver/pkg/storage/storagebackend/factory"
-	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
@@ -83,8 +81,7 @@ func newResourceCache(clusterName string, gvr schema.GroupVersionResource, gvk s
 		RESTOptions: &generic.RESTOptions{
 			StorageConfig: &storagebackend.ConfigForResource{
 				Config: storagebackend.Config{
-					Paging: utilfeature.DefaultFeatureGate.Enabled(features.APIListChunking),
-					Codec:  unstructured.UnstructuredJSONScheme,
+					Codec: unstructured.UnstructuredJSONScheme,
 				},
 				GroupResource: gvr.GroupResource(),
 			},

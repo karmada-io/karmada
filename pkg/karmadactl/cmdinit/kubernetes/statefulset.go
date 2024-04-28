@@ -93,7 +93,7 @@ func (i *CommandInitOption) etcdVolume() (*[]corev1.Volume, *corev1.PersistentVo
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				StorageClassName: &i.StorageClassesName,
 				VolumeMode:       &mode,
-				Resources: corev1.ResourceRequirements{
+				Resources: corev1.VolumeResourceRequirements{
 					Requests: corev1.ResourceList{
 						corev1.ResourceStorage: resource.MustParse(i.EtcdPersistentVolumeSize),
 					},

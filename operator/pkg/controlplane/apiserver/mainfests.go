@@ -187,7 +187,6 @@ spec:
         - --tls-private-key-file=/etc/karmada/pki/karmada.key
         - --tls-min-version=VersionTLS13
         - --audit-log-path=-
-        - --feature-gates=APIPriorityAndFairness=false
         - --audit-log-maxage=0
         - --audit-log-maxbackup=0
         volumeMounts:
