@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc" //  Register AuthProviderPlugin, using OIDC mode to connect to Kubernetes
 	"k8s.io/component-base/cli"
 	"k8s.io/kubectl/pkg/cmd/util"
 
