@@ -112,7 +112,7 @@ type ResourceDetector struct {
 
 	RESTMapper meta.RESTMapper
 
-	// waitingObjects tracks of objects which haven't be propagated yet as lack of appropriate policies.
+	// waitingObjects tracks of objects which haven't been propagated yet as lack of appropriate policies.
 	waitingObjects map[keys.ClusterWideKey]struct{}
 	// waitingLock is the lock for waitingObjects operation.
 	waitingLock sync.RWMutex
@@ -1242,7 +1242,7 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyID strin
 			}
 
 			// Clean up the marks from the reference binding so that the Karmada scheduler won't reschedule the binding.
-			if err := d.CleanupClusterResourceBindingLabels(&crbs.Items[index], cleanupMarksFun); err != nil {
+			if err := d.CleanupClusterResourceBindingMarks(&crbs.Items[index], cleanupMarksFun); err != nil {
 				klog.Errorf("Failed to clean up marks from clusterResourceBinding(%s) when clusterPropagationPolicy removed, error: %v",
 					binding.Name, err)
 				errs = append(errs, err)
@@ -1459,8 +1459,8 @@ func (d *ResourceDetector) CleanupResourceBindingMarks(rb *workv1alpha2.Resource
 	})
 }
 
-// CleanupClusterResourceBindingLabels removes marks, such as labels and annotations, from cluster resource binding.
-func (d *ResourceDetector) CleanupClusterResourceBindingLabels(crb *workv1alpha2.ClusterResourceBinding, cleanupFunc func(obj metav1.Object)) error {
+// CleanupClusterResourceBindingMarks removes marks, such as labels and annotations, from cluster resource binding.
+func (d *ResourceDetector) CleanupClusterResourceBindingMarks(crb *workv1alpha2.ClusterResourceBinding, cleanupFunc func(obj metav1.Object)) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		cleanupFunc(crb)
 		updateErr := d.Client.Update(context.TODO(), crb)

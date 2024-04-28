@@ -25,10 +25,10 @@
 | Test the same explicit priority propagation for deployment                       | same explicit priority ClusterPropagationPolicy propagation testing                       | [Choose from same-priority PropagationPolicies](https://karmada.io/docs/next/userguide/scheduling/resource-propagating#choose-from-same-priority-propagationpolicies)                                |
 
 #### Delete clusterPropagation testing
-| Test Case                                           | E2E Describe Text                                                                               | Comments   |
-|-----------------------------------------------------|-------------------------------------------------------------------------------------------------|------------|
-| Test delete clusterpropagationpolicy for deployment | delete ClusterPropagationPolicy and check whether labels are deleted correctly(namespace scope) |            |
-| Test delete clusterpropagationpolicy for CRD        | delete ClusterPropagationPolicy and check whether labels are deleted correctly(cluster scope)   |            |
+| Test Case                                           | E2E Describe Text                                                                                               | Comments   |
+|-----------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|------------|
+| Test delete clusterpropagationpolicy for deployment | delete ClusterPropagationPolicy and check whether labels and annotations are deleted correctly(namespace scope) |            |
+| Test delete clusterpropagationpolicy for CRD        | delete ClusterPropagationPolicy and check whether labels and annotations are deleted correctly(cluster scope)   |            |
 
 #### TODO
 1. May need add the test case when the [deployment updates](https://karmada.io/docs/next/userguide/scheduling/resource-propagating#update-deployment).
