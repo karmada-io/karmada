@@ -178,6 +178,27 @@ func (o *objectWatcherImpl) Update(clusterName string, desireObj, clusterObj *un
 }
 
 func (o *objectWatcherImpl) Delete(clusterName string, desireObj *unstructured.Unstructured) error {
+	fedKey, err := keys.FederatedKeyFunc(clusterName, desireObj)
+	if err != nil {
+		klog.Errorf("Failed to get FederatedKey %s, error: %v", desireObj.GetName(), err)
+		return err
+	}
+
+	clusterObj, err := helper.GetObjectFromCache(o.RESTMapper, o.InformerManager, fedKey)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		klog.Errorf("Failed to get the resource(kind=%s, %s/%s) from the member cluster %s, err is %v", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
+		return err
+	}
+
+	// Avoid deleting resources that are not managed by Karmada.
+	if !o.isManagedResource(clusterObj) {
+		klog.Infof("Abort deleting the resource(kind=%s, %s/%s) which exists in the member cluster %s but is not managed by Karmada.", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), clusterName)
+		return nil
+	}
+
 	dynamicClusterClient, err := o.ClusterClientSetFunc(clusterName, o.KubeClientSet)
 	if err != nil {
 		klog.Errorf("Failed to build dynamic cluster client for cluster %s, err: %v.", clusterName, err)

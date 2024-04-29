@@ -154,28 +154,6 @@ func (c *Controller) tryDeleteWorkload(clusterName string, work *workv1alpha1.Wo
 			return err
 		}
 
-		fedKey, err := keys.FederatedKeyFunc(clusterName, workload)
-		if err != nil {
-			klog.Errorf("Failed to get FederatedKey %s, error: %v", workload.GetName(), err)
-			return err
-		}
-
-		clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return nil
-			}
-			klog.Errorf("Failed to get resource %v from member cluster, err is %v ", workload.GetName(), err)
-			return err
-		}
-
-		// Avoid deleting resources that not managed by karmada.
-		if util.GetLabelValue(clusterObj.GetLabels(), util.ManagedByKarmadaLabel) != util.ManagedByKarmadaLabelValue {
-			klog.Infof("Abort deleting the resource(kind=%s, %s/%s) exists in cluster %v but not managed by karmada", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), clusterName)
-			return nil
-		}
-		util.MergeLabel(workload, workv1alpha2.WorkPermanentIDLabel, util.GetLabelValue(work.Labels, workv1alpha2.WorkPermanentIDLabel))
-
 		err = c.ObjectWatcher.Delete(clusterName, workload)
 		if err != nil {
 			klog.Errorf("Failed to delete resource in the given member cluster %v, err is %v", clusterName, err)
