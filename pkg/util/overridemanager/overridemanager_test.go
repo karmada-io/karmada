@@ -29,6 +29,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	utilhelper "github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/test/helper"
@@ -239,7 +240,7 @@ func Test_overrideManagerImpl_ApplyOverridePolicies(t *testing.T) {
 			if !reflect.DeepEqual(tt.args.rawObj.GetLabels(), wantLabels) {
 				t.Errorf("ApplyOverridePolicies() gotLabels = %v, wantLabels %v", tt.args.rawObj.GetLabels(), wantLabels)
 			}
-			wantAnnotations := map[string]string{"testAnnotation": "testAnnotation", "testAddAnnotation": "testAddAnnotation"}
+			wantAnnotations := map[string]string{"testAnnotation": "testAnnotation", "testAddAnnotation": "testAddAnnotation", util.ClusterNameAnnotation: tt.args.clusterName}
 			if !reflect.DeepEqual(tt.args.rawObj.GetAnnotations(), wantAnnotations) {
 				t.Errorf("ApplyOverridePolicies() gotAnnotations = %v, wantAnnotations %v", tt.args.rawObj.GetAnnotations(), wantAnnotations)
 			}

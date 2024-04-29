@@ -100,6 +100,9 @@ const (
 
 	// EndpointSliceProvisionClusterAnnotation is added to work of the dispatch EndpointSlice in consumption clusters' namespace.
 	EndpointSliceProvisionClusterAnnotation = "endpointslice.karmada.io/provision-cluster"
+
+	// ClusterNameAnnotation is added to Workload to specify the cluster name associated with the Work.
+	ClusterNameAnnotation = "cluster.karmada.io/name"
 )
 
 // Define finalizers used by karmada system.
