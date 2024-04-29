@@ -44,6 +44,7 @@ func GetInstance() MultiClusterInformerManager {
 		transforms := map[schema.GroupVersionResource]cache.TransformFunc{
 			nodeGVR: fedinformer.NodeTransformFunc,
 			podGVR:  fedinformer.PodTransformFunc,
+			rsGVR:   fedinformer.ReplicaSetTransformFunc,
 		}
 		instance = NewMultiClusterInformerManager(stopCh, transforms)
 	})
