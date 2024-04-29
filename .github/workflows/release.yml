@@ -85,4 +85,4 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Update new version in krew-index
-      uses: rajatjindal/krew-release-bot@v0.0.40
+      uses: rajatjindal/krew-release-bot@v0.0.46
