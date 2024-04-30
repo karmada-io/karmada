@@ -412,6 +412,8 @@ apiServer:
   podLabels: {}
   # Additional admission plugins to enable, comma separated.
   admissionPlugins: ""
+  # Name of the secret containing audit policy file
+  auditPolicyConfigMap: ""
   ## @param image.registry keube-apiserver image registry
   ## @param image.repository keube-apiserver image repository
   ## @param image.tag keube-apiserver image tag (immutable tags are recommended)
