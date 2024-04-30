@@ -2,24 +2,30 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.7.3](#v173)
-  - [Downloads for v1.7.3](#downloads-for-v173)
-  - [Changelog since v1.7.2](#changelog-since-v172)
+- [v1.7.4](#v174)
+  - [Downloads for v1.7.4](#downloads-for-v174)
+  - [Changelog since v1.7.3](#changelog-since-v173)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
-- [v1.7.2](#v172)
-  - [Downloads for v1.7.2](#downloads-for-v172)
-  - [Changelog since v1.7.1](#changelog-since-v171)
+- [v1.7.3](#v173)
+  - [Downloads for v1.7.3](#downloads-for-v173)
+  - [Changelog since v1.7.2](#changelog-since-v172)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
-- [v1.7.1](#v171)
-  - [Downloads for v1.7.1](#downloads-for-v171)
-  - [Changelog since v1.7.0](#changelog-since-v170)
+- [v1.7.2](#v172)
+  - [Downloads for v1.7.2](#downloads-for-v172)
+  - [Changelog since v1.7.1](#changelog-since-v171)
     - [Changes by Kind](#changes-by-kind-2)
       - [Bug Fixes](#bug-fixes-2)
       - [Others](#others-2)
+- [v1.7.1](#v171)
+  - [Downloads for v1.7.1](#downloads-for-v171)
+  - [Changelog since v1.7.0](#changelog-since-v170)
+    - [Changes by Kind](#changes-by-kind-3)
+      - [Bug Fixes](#bug-fixes-3)
+      - [Others](#others-3)
 - [v1.7.0](#v170)
   - [Downloads for v1.7.0](#downloads-for-v170)
   - [What's New](#whats-new)
@@ -31,7 +37,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-3)
+    - [Bug Fixes](#bug-fixes-4)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -40,6 +46,19 @@
     - [Instrumentation](#instrumentation)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.7.4
+## Downloads for v1.7.4
+
+Download v1.7.4 in the [v1.7.4 release page](https://github.com/karmada-io/karmada/releases/tag/v1.7.4).
+
+## Changelog since v1.7.3
+### Changes by Kind
+#### Bug Fixes
+- `karmada-controller-manager`: Fixed incorrect annotation markup when policy preemption occurs. ([#4770](https://github.com/karmada-io/karmada/pull/4770), @XiShanYongYe-Chang)
+
+#### Others
+None.
 
 # v1.7.3
 ## Downloads for v1.7.3

@@ -2,18 +2,24 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.8.2](#v182)
-  - [Downloads for v1.8.2](#downloads-for-v182)
-  - [Changelog since v1.8.1](#changelog-since-v181)
+- [v1.8.3](#v183)
+  - [Downloads for v1.8.3](#downloads-for-v183)
+  - [Changelog since v1.8.2](#changelog-since-v182)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
-- [v1.8.1](#v181)
-  - [Downloads for v1.8.1](#downloads-for-v181)
-  - [Changelog since v1.8.0](#changelog-since-v180)
+- [v1.8.2](#v182)
+  - [Downloads for v1.8.2](#downloads-for-v182)
+  - [Changelog since v1.8.1](#changelog-since-v181)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
+- [v1.8.1](#v181)
+  - [Downloads for v1.8.1](#downloads-for-v181)
+  - [Changelog since v1.8.0](#changelog-since-v180)
+    - [Changes by Kind](#changes-by-kind-2)
+      - [Bug Fixes](#bug-fixes-2)
+      - [Others](#others-2)
 - [v1.8.0](#v180)
   - [Downloads for v1.8.0](#downloads-for-v180)
   - [What's New](#whats-new)
@@ -24,7 +30,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-2)
+    - [Bug Fixes](#bug-fixes-3)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -34,6 +40,21 @@
   - [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.8.3
+## Downloads for v1.8.3
+
+Download v1.8.3 in the [v1.8.3 release page](https://github.com/karmada-io/karmada/releases/tag/v1.8.3).
+
+## Changelog since v1.8.2
+### Changes by Kind
+#### Bug Fixes
+- `karmada-controller-manager`: Fixed incorrect annotation markup when policy preemption occurs. ([#4770](https://github.com/karmada-io/karmada/pull/4770), @XiShanYongYe-Chang)
+- `karmada-controller-manager`: Fix the problem that labels cannot be deleted via Karmada propagation. ([#4791](https://github.com/karmada-io/karmada/pull/4791), @whitewindmills)
+- `karmada-controller-manager`: Fix the problem that work.karmada.io/permanent-id constantly changes with every update. ([#4820](https://github.com/karmada-io/karmada/pull/4820), @XiShanYongYe-Chang)
+
+#### Others
+None.
 
 # v1.8.2
 ## Downloads for v1.8.2

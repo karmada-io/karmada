@@ -2,6 +2,12 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
+- [v1.9.1](#v191)
+  - [Downloads for v1.9.1](#downloads-for-v191)
+  - [Changelog since v1.9.0](#changelog-since-v190)
+    - [Changes by Kind](#changes-by-kind)
+      - [Bug Fixes](#bug-fixes)
+      - [Others](#others)
 - [v1.9.0](#v190)
   - [Downloads for v1.9.0](#downloads-for-v190)
   - [What's New](#whats-new)
@@ -11,7 +17,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes)
+    - [Bug Fixes](#bug-fixes-1)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -21,6 +27,22 @@
   - [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.9.1
+## Downloads for v1.9.1
+
+Download v1.9.1 in the [v1.9.1 release page](https://github.com/karmada-io/karmada/releases/tag/v1.9.1).
+
+## Changelog since v1.9.0
+### Changes by Kind
+#### Bug Fixes
+- `karmada-controller-manager`: Fixed incorrect annotation markup when policy preemption occurs. ([#4772](https://github.com/karmada-io/karmada/pull/4772), @XiShanYongYe-Chang)
+- `karmada-controller-manager`: Fix the problem that labels cannot be deleted via Karmada propagation. ([#4797](https://github.com/karmada-io/karmada/pull/4797), @whitewindmills)
+- `karmada-controller-manager`: Fix the problem that work.karmada.io/permanent-id constantly changes with every update. ([#4819](https://github.com/karmada-io/karmada/pull/4819), @XiShanYongYe-Chang)
+- `karmada-controller-manager`: Fixed the bug of mcs binding losing resourcebinding.karmada.io/permanent-id label. ([#4822](https://github.com/karmada-io/karmada/pull/4822), @XiShanYongYe-Chang)
+
+#### Others
+None.
 
 # v1.9.0
 ## Downloads for v1.9.0
