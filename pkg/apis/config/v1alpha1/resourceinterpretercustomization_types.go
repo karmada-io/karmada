@@ -34,7 +34,7 @@ const (
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:path=resourceinterpretercustomizations,scope="Cluster",categories={karmada-io}
+// +kubebuilder:resource:path=resourceinterpretercustomizations,scope="Cluster",shortName=ric,categories={karmada-io}
 // +kubebuilder:storageversion
 
 // ResourceInterpreterCustomization describes the configuration of a specific
