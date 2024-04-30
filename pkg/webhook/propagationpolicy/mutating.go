@@ -22,10 +22,12 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/google/uuid"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/validation"
 )
@@ -90,6 +92,10 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 		if policy.Spec.Failover.Application != nil {
 			helper.SetDefaultGracePeriodSeconds(policy.Spec.Failover.Application)
 		}
+	}
+
+	if util.GetLabelValue(policy.Labels, policyv1alpha1.PropagationPolicyPermanentIDLabel) == "" {
+		util.MergeLabel(policy, policyv1alpha1.PropagationPolicyPermanentIDLabel, uuid.New().String())
 	}
 
 	marshaledBytes, err := json.Marshal(policy)

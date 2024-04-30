@@ -52,6 +52,34 @@ webhooks:
     sideEffects: None
     admissionReviewVersions: ["v1"]
     timeoutSeconds: 3
+  - name: resourcebinding.karmada.io
+    rules:
+      - operations: ["CREATE"]
+        apiGroups: ["work.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["resourcebindings"]
+        scope: "Namespaced"
+    clientConfig:
+      url: https://{{ $name }}-webhook.{{ $namespace }}.svc:443/mutate-resourcebinding
+      {{- include "karmada.webhook.caBundle" . | nindent 6 }}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: ["v1"]
+    timeoutSeconds: 3
+  - name: clusterresourcebinding.karmada.io
+    rules:
+      - operations: ["CREATE"]
+        apiGroups: ["work.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["clusterresourcebindings"]
+        scope: "Namespaced"
+    clientConfig:
+      url: https://{{ $name }}-webhook.{{ $namespace }}.svc:443/mutate-clusterresourcebinding
+      {{- include "karmada.webhook.caBundle" . | nindent 6 }}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: ["v1"]
+    timeoutSeconds: 3
   - name: work.karmada.io
     rules:
       - operations: ["CREATE", "UPDATE"]
