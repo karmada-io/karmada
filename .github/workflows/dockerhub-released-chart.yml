@@ -16,7 +16,7 @@ jobs:
           # for `git describe --tags` in Makefile.
           fetch-depth: 0
       - name: login to DockerHub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USER_NAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
