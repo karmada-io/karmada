@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apiserver/pkg/features"
 	"k8s.io/apiserver/pkg/registry/generic"
@@ -35,7 +36,8 @@ import (
 	"k8s.io/apiserver/pkg/storage/storagebackend"
 	"k8s.io/apiserver/pkg/storage/storagebackend/factory"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
-	"k8s.io/client-go/dynamic"
+	kubescheme "k8s.io/client-go/kubernetes/scheme"
+	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 )
@@ -54,23 +56,61 @@ func (c *resourceCache) stop() {
 }
 
 func newResourceCache(clusterName string, gvr schema.GroupVersionResource, gvk schema.GroupVersionKind, singularName string,
-	namespaced bool, multiNS *MultiNamespace, newClientFunc func() (dynamic.NamespaceableResourceInterface, error)) (*resourceCache, error) {
+	namespaced bool, multiNS *MultiNamespace, configGetter func() (*restclient.Config, error)) (*resourceCache, error) {
+
+	// TODO: it's unsafe guesses kind name for resource list
+	listGVK := gvk.GroupVersion().WithKind(gvk.Kind + "List")
+
+	var (
+		isUnstructured bool
+		codecs         serializer.CodecFactory
+		paramCodec     runtime.ParameterCodec
+		codec          runtime.Codec
+		obj, listObj   runtime.Object
+		err            error
+	)
+
+	if kubescheme.Scheme.Recognizes(gvk) {
+		scheme := kubescheme.Scheme
+		codecs = serializer.NewCodecFactory(scheme)
+		codec = codecs.LegacyCodec(gvk.GroupVersion())
+		paramCodec = kubescheme.ParameterCodec
+
+		obj, err = scheme.New(gvk)
+		if err != nil {
+			return nil, err
+		}
+
+		listObj, err = scheme.New(listGVK)
+		if err != nil {
+			return nil, err
+		}
+
+	} else {
+		isUnstructured = true
+		codecs = serializer.NewCodecFactory(kubescheme.Scheme)
+		codec = unstructured.UnstructuredJSONScheme
+		paramCodec = noConversionParamCodec{}
+
+		unstructuredObj := &unstructured.Unstructured{}
+		unstructuredObj.SetGroupVersionKind(gvk)
+		obj = unstructuredObj
+
+		unstructuredList := &unstructured.UnstructuredList{}
+		unstructuredList.SetGroupVersionKind(gvk)
+		listObj = unstructuredList
+	}
+
 	s := &genericregistry.Store{
 		DefaultQualifiedResource:  gvr.GroupResource(),
 		SingularQualifiedResource: schema.GroupResource{Group: gvr.Group, Resource: singularName},
 		NewFunc: func() runtime.Object {
-			o := &unstructured.Unstructured{}
-			o.SetAPIVersion(gvk.GroupVersion().String())
-			o.SetKind(gvk.Kind)
-			return o
+			return obj.DeepCopyObject()
 		},
 		NewListFunc: func() runtime.Object {
-			o := &unstructured.UnstructuredList{}
-			o.SetAPIVersion(gvk.GroupVersion().String())
-			// TODO: it's unsafe guesses kind name for resource list
-			o.SetKind(gvk.Kind + "List")
-			return o
+			return listObj.DeepCopyObject()
 		},
+		// TODO: add typed convertor
 		TableConvertor: rest.NewDefaultTableConvertor(gvr.GroupResource()),
 		// CreateStrategy tells whether the resource is namespaced.
 		// see: vendor/k8s.io/apiserver/pkg/registry/generic/registry/store.go#L1310-L1318
@@ -79,17 +119,17 @@ func newResourceCache(clusterName string, gvr schema.GroupVersionResource, gvk s
 		DeleteStrategy: restDeleteStrategy,
 	}
 
-	err := s.CompleteWithOptions(&generic.StoreOptions{
+	err = s.CompleteWithOptions(&generic.StoreOptions{
 		RESTOptions: &generic.RESTOptions{
 			StorageConfig: &storagebackend.ConfigForResource{
 				Config: storagebackend.Config{
 					Paging: utilfeature.DefaultFeatureGate.Enabled(features.APIListChunking),
-					Codec:  unstructured.UnstructuredJSONScheme,
+					Codec:  codec,
 				},
 				GroupResource: gvr.GroupResource(),
 			},
 			ResourcePrefix: gvr.Group + "/" + gvr.Resource,
-			Decorator:      storageWithCacher(gvr, multiNS, newClientFunc, defaultVersioner),
+			Decorator:      storageWithCacher(gvr, gvk, isUnstructured, codecs, paramCodec, configGetter, multiNS, defaultVersioner),
 		},
 		AttrFunc: getAttrsFunc(namespaced),
 	})
@@ -105,7 +145,9 @@ func newResourceCache(clusterName string, gvr schema.GroupVersionResource, gvk s
 	}, nil
 }
 
-func storageWithCacher(gvr schema.GroupVersionResource, multiNS *MultiNamespace, newClientFunc func() (dynamic.NamespaceableResourceInterface, error), versioner storage.Versioner) generic.StorageDecorator {
+func storageWithCacher(gvr schema.GroupVersionResource, gvk schema.GroupVersionKind, isUnstructured bool,
+	codecs serializer.CodecFactory, paramCodec runtime.ParameterCodec, configGetter func() (*restclient.Config, error),
+	multiNS *MultiNamespace, versioner storage.Versioner) generic.StorageDecorator {
 	return func(
 		storageConfig *storagebackend.ConfigForResource,
 		resourcePrefix string,
@@ -116,7 +158,17 @@ func storageWithCacher(gvr schema.GroupVersionResource, multiNS *MultiNamespace,
 		triggerFuncs storage.IndexerFuncs,
 		indexers *cache.Indexers) (storage.Interface, factory.DestroyFunc, error) {
 		cacherConfig := cacherstorage.Config{
-			Storage:        newStore(gvr, multiNS, newClientFunc, versioner, resourcePrefix),
+			Storage: &store{
+				versioner:      versioner,
+				prefix:         resourcePrefix,
+				configGetter:   configGetter,
+				isUnstructured: isUnstructured,
+				gvk:            gvk,
+				gvr:            gvr,
+				codecs:         codecs,
+				paramCodec:     paramCodec,
+				multiNS:        multiNS,
+			},
 			Versioner:      versioner,
 			GroupResource:  storageConfig.GroupResource,
 			ResourcePrefix: resourcePrefix,
