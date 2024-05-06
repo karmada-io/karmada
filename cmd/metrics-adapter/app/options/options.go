@@ -99,6 +99,13 @@ func (o *Options) Config() (*metricsadapter.MetricsServer, error) {
 	metricsAdapter.OpenAPIConfig.Info.Title = "karmada-metrics-adapter"
 	metricsAdapter.OpenAPIConfig.Info.Version = "1.0.0"
 
+	// Explicitly specify the remote kubeconfig file here to solve the issue that metrics adapter requires to build
+	// informer against karmada-apiserver started from custom-metrics-apiserver@v1.29.0.
+	// See https://github.com/karmada-io/karmada/pull/4884#issuecomment-2095109485 for more details.
+	//
+	// For karmada-metrics-adapter, the kubeconfig file of karmada-apiserver is "remote", not the in-cluster one.
+	metricsAdapter.RemoteKubeConfigFile = o.KubeConfig
+
 	server, err := metricsAdapter.Server()
 	if err != nil {
 		klog.Errorf("Unable to construct metrics adapter: %v", err)
