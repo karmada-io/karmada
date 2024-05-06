@@ -40,7 +40,6 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -147,22 +146,16 @@ func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv
 				return
 			}
 
-			workNamespace := names.GenerateExecutionSpaceName(cluster.Name)
-
 			workName := names.GenerateWorkName(namespaceObj.GetKind(), namespaceObj.GetName(), namespaceObj.GetNamespace())
 			objectMeta := metav1.ObjectMeta{
 				Name:       workName,
-				Namespace:  workNamespace,
+				Namespace:  names.GenerateExecutionSpaceName(cluster.Name),
 				Finalizers: []string{util.ExecutionControllerFinalizer},
 				OwnerReferences: []metav1.OwnerReference{
 					*metav1.NewControllerRef(namespace, namespace.GroupVersionKind()),
 				},
 				Annotations: annotations,
 			}
-
-			util.MergeLabel(clonedNamespaced, util.ManagedByKarmadaLabel, util.ManagedByKarmadaLabelValue)
-			util.MergeAnnotation(clonedNamespaced, workv1alpha2.WorkNamespaceAnnotation, workNamespace)
-			util.MergeAnnotation(clonedNamespaced, workv1alpha2.WorkNameAnnotation, workName)
 
 			if err = helper.CreateOrUpdateWork(c.Client, objectMeta, clonedNamespaced); err != nil {
 				ch <- fmt.Errorf("sync namespace(%s) to cluster(%s) failed due to: %v", clonedNamespaced.GetName(), cluster.GetName(), err)

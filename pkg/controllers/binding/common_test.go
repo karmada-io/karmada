@@ -185,16 +185,14 @@ func Test_mergeAnnotations(t *testing.T) {
 	bindingName := "fake-bindingName"
 
 	tests := []struct {
-		name      string
-		namespace string
-		workload  *unstructured.Unstructured
-		binding   metav1.Object
-		scope     v1.ResourceScope
-		want      map[string]string
+		name     string
+		workload *unstructured.Unstructured
+		binding  metav1.Object
+		scope    v1.ResourceScope
+		want     map[string]string
 	}{
 		{
-			name:      "NamespaceScoped",
-			namespace: "test",
+			name: "NamespaceScoped",
 			workload: &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "apps/v1",
@@ -218,8 +216,7 @@ func Test_mergeAnnotations(t *testing.T) {
 			},
 		},
 		{
-			name:      "ClusterScoped",
-			namespace: "",
+			name: "ClusterScoped",
 			workload: &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "v1",
@@ -242,7 +239,7 @@ func Test_mergeAnnotations(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := mergeAnnotations(tt.workload, tt.namespace, tt.binding, tt.scope); !reflect.DeepEqual(got, tt.want) {
+			if got := mergeAnnotations(tt.workload, tt.binding, tt.scope); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("mergeAnnotations() = %v, want %v", got, tt.want)
 			}
 		})

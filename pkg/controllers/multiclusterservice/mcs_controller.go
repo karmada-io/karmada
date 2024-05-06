@@ -310,7 +310,6 @@ func (c *MCSController) propagateMultiClusterService(mcs *networkingv1alpha1.Mul
 			Labels: map[string]string{
 				// We add this id in mutating webhook, let's just use it
 				networkingv1alpha1.MultiClusterServicePermanentIDLabel: util.GetLabelValue(mcs.Labels, networkingv1alpha1.MultiClusterServicePermanentIDLabel),
-				util.ManagedByKarmadaLabel:                             util.ManagedByKarmadaLabelValue,
 				util.PropagationInstruction:                            util.PropagationInstructionSuppressed,
 				util.MultiClusterServiceNamespaceLabel:                 mcs.Namespace,
 				util.MultiClusterServiceNameLabel:                      mcs.Name,

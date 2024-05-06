@@ -67,6 +67,11 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 			return admission.Errored(http.StatusInternalServerError, err)
 		}
 
+		// Skip label/annotate the workload of Work that is not intended to be propagated.
+		if work.Labels[util.PropagationInstruction] != util.PropagationInstructionSuppressed {
+			setLabelsAndAnnotationsForWorkload(workloadObj, work)
+		}
+
 		workloadJSON, err := workloadObj.MarshalJSON()
 		if err != nil {
 			klog.Errorf("Failed to marshal workload of the work(%s/%s), err: %s", work.Namespace, work.Name, err)
@@ -86,4 +91,23 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 	}
 
 	return admission.PatchResponseFromRaw(req.Object.Raw, marshaledBytes)
+}
+
+// setLabelsAndAnnotationsForWorkload sets the associated work object labels and annotations for workload.
+func setLabelsAndAnnotationsForWorkload(workload *unstructured.Unstructured, work *workv1alpha1.Work) {
+	workload.SetAnnotations(util.DedupeAndMergeAnnotations(workload.GetAnnotations(), map[string]string{
+		workv1alpha2.ResourceTemplateUIDAnnotation: string(workload.GetUID()),
+		workv1alpha2.WorkNamespaceAnnotation:       work.GetNamespace(),
+		workv1alpha2.WorkNameAnnotation:            work.GetName(),
+	}))
+	if conflictResolution, ok := work.Annotations[workv1alpha2.ResourceConflictResolutionAnnotation]; ok {
+		util.MergeAnnotation(workload, workv1alpha2.ResourceConflictResolutionAnnotation, conflictResolution)
+	}
+	util.RecordManagedAnnotations(workload)
+
+	workload.SetLabels(util.DedupeAndMergeLabels(workload.GetLabels(), map[string]string{
+		util.ManagedByKarmadaLabel:        util.ManagedByKarmadaLabelValue,
+		workv1alpha2.WorkPermanentIDLabel: work.Labels[workv1alpha2.WorkPermanentIDLabel],
+	}))
+	util.RecordManagedLabels(workload)
 }

@@ -37,7 +37,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -223,21 +222,14 @@ func (c *Controller) buildImpersonationClusterRoleBinding(cluster *clusterv1alph
 }
 
 func (c *Controller) buildWorks(cluster *clusterv1alpha1.Cluster, obj *unstructured.Unstructured) error {
-	workNamespace := names.GenerateExecutionSpaceName(cluster.Name)
-
-	clusterRoleBindingWorkName := names.GenerateWorkName(obj.GetKind(), obj.GetName(), obj.GetNamespace())
 	objectMeta := metav1.ObjectMeta{
-		Name:       clusterRoleBindingWorkName,
-		Namespace:  workNamespace,
+		Name:       names.GenerateWorkName(obj.GetKind(), obj.GetName(), obj.GetNamespace()),
+		Namespace:  names.GenerateExecutionSpaceName(cluster.Name),
 		Finalizers: []string{util.ExecutionControllerFinalizer},
 		OwnerReferences: []metav1.OwnerReference{
 			*metav1.NewControllerRef(cluster, cluster.GroupVersionKind()),
 		},
 	}
-
-	util.MergeLabel(obj, util.ManagedByKarmadaLabel, util.ManagedByKarmadaLabelValue)
-	util.MergeAnnotation(obj, workv1alpha2.WorkNamespaceAnnotation, workNamespace)
-	util.MergeAnnotation(obj, workv1alpha2.WorkNameAnnotation, clusterRoleBindingWorkName)
 
 	if err := helper.CreateOrUpdateWork(c.Client, objectMeta, obj); err != nil {
 		return err
