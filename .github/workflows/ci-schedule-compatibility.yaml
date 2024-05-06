@@ -18,16 +18,6 @@ jobs:
       matrix:
         kubeapiserver-version: [ v1.23.4, v1.24.2, v1.25.0, v1.26.0, v1.27.3, v1.28.0, v1.29.0 ]
         karmada-version: [ release-1.7, release-1.8, release-1.9 ]
-
-        include:
-        - karmada-version: release-1.7
-          go-version: 1.20.6
-
-        - karmada-version: release-1.8
-          go-version: 1.20.11
-
-        - karmada-version: release-1.9
-          go-version: 1.21.8
     steps:
       # Free up disk space on Ubuntu
       - name: Free Disk Space (Ubuntu)
@@ -52,7 +42,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version-file: go.mod
       - name: setup e2e test environment
         uses: nick-fields/retry@v3.0.0
         with:
@@ -83,7 +73,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: karmada_e2e_log_${{ matrix.k8s }}
+          name: karmada_e2e_log_${{ matrix.kubeapiserver-version }}_${{ matrix.karmada-version }}
           path: ${{ github.workspace }}/karmada-e2e-logs/${{ matrix.kubeapiserver-version }}-${{ matrix.karmada-version }}/
       - name: upload kind logs
         if: always()
