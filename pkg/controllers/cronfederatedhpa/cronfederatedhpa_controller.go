@@ -180,7 +180,7 @@ func (c *CronFHPAController) updateRuleHistory(cronFHPA *autoscalingv1alpha1.Cro
 
 	if err := c.Client.Status().Update(context.Background(), cronFHPA); err != nil {
 		klog.Errorf("Fail to update CronFederatedHPA(%s/%s) rule(%s)'s next execution time:%v",
-			cronFHPA.Namespace, cronFHPA.Name, err)
+			cronFHPA.Namespace, cronFHPA.Name, rule.Name, err)
 		return err
 	}
 

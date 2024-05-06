@@ -210,7 +210,7 @@ func (data *initData) KarmadaClient() clientset.Interface {
 		data.Once.Do(func() {
 			client, err := clientset.NewForConfig(data.controlplaneConfig)
 			if err != nil {
-				klog.Errorf("error when init karmada client, err: %w", err)
+				klog.Errorf("error when init karmada client, err: %v", err)
 			}
 			data.karmadaClient = client
 		})

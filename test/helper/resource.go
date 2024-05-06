@@ -825,7 +825,7 @@ func NewConfigMap(namespace string, name string, data map[string]string) *corev1
 }
 
 // NewPVC will build a new PersistentVolumeClaim.
-func NewPVC(namespace, name string, resources corev1.ResourceRequirements, accessModes ...corev1.PersistentVolumeAccessMode) *corev1.PersistentVolumeClaim {
+func NewPVC(namespace, name string, resources corev1.VolumeResourceRequirements, accessModes ...corev1.PersistentVolumeAccessMode) *corev1.PersistentVolumeClaim {
 	return &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: corev1.PersistentVolumeClaimSpec{

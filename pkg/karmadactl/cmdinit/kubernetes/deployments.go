@@ -820,7 +820,6 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 		fmt.Sprintf("--tls-private-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
 		"--tls-min-version=VersionTLS13",
 		"--audit-log-path=-",
-		"--feature-gates=APIPriorityAndFairness=false",
 		"--audit-log-maxage=0",
 		"--audit-log-maxbackup=0",
 	}

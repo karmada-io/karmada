@@ -106,7 +106,7 @@ func (configManager *interpreterConfigManager) updateConfiguration() {
 	for index, c := range configurations {
 		config := &configv1alpha1.ResourceInterpreterCustomization{}
 		if err = helper.ConvertToTypedObject(c, config); err != nil {
-			klog.Errorf("Failed to transform ResourceInterpreterCustomization: %w", err)
+			klog.Errorf("Failed to transform ResourceInterpreterCustomization: %v", err)
 			return
 		}
 		configs[index] = config

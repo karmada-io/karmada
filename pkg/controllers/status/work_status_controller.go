@@ -354,7 +354,7 @@ func (c *WorkStatusController) updateAppliedCondition(work *workv1alpha1.Work, s
 func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj *unstructured.Unstructured) error {
 	statusRaw, err := c.ResourceInterpreter.ReflectStatus(clusterObj)
 	if err != nil {
-		klog.Errorf("Failed to reflect status for object(%s/%s/%s) with resourceInterpreter.",
+		klog.Errorf("Failed to reflect status for object(%s/%s/%s) with resourceInterpreter, err: %v",
 			clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err)
 		c.EventRecorder.Eventf(work, corev1.EventTypeWarning, events.EventReasonReflectStatusFailed, "Reflect status for object(%s/%s/%s) failed, err: %s.", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err.Error())
 		return err
