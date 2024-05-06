@@ -1,0 +1,59 @@
+name: Operator Installation Test
+on:
+  pull_request:
+    paths:
+      - 'operator/**'
+      - 'charts/karmada/_crds/**'
+jobs:
+  installed-by-operator:
+    name: installation test
+    runs-on: ubuntu-22.04
+    # prevent job running from forked repository
+    if: ${{ github.repository == 'karmada-io/karmada' }}
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+        with:
+          # Number of commits to fetch. 0 indicates all history for all branches and tags.
+          # We need to guess version via git tags.
+          fetch-depth: 0
+      - name: install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: run installation test
+        run: |
+          hack/verify-operator-installed.sh
+      - name: collect logs
+        if: always()
+        run: |
+          ARTIFACTS_PATH=${{ github.workspace }}/karmada-operator-installed-logs
+          mkdir -p "$ARTIFACTS_PATH"
+          export HOST_CLUSTER_NAME="karmada-host"
+          export PULL_MODE_CLUSTER_NAME="member3"
+          
+          # Collect logs
+          echo "Collect logs to $ARTIFACTS_PATH..."
+
+          echo "Collecting $HOST_CLUSTER_NAME logs..."
+          mkdir -p "$ARTIFACTS_PATH/$HOST_CLUSTER_NAME"
+          kind export logs --name="$HOST_CLUSTER_NAME" "$ARTIFACTS_PATH/$HOST_CLUSTER_NAME"
+
+          echo "Collecting $PULL_MODE_CLUSTER_NAME logs..."
+          mkdir -p "$ARTIFACTS_PATH/PULL_MODE_CLUSTER_NAME"
+          kind export logs --name="$PULL_MODE_CLUSTER_NAME" "$ARTIFACTS_PATH/$PULL_MODE_CLUSTER_NAME"
+
+          echo "Collected logs at $ARTIFACTS_PATH:"
+          ls -al "$ARTIFACTS_PATH"
+      - name: upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: karmada_operator_installion_log
+          path: ${{ github.workspace }}/karmada-operator-installed-logs
+      - name: upload kind logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: karmada_kind_log
+          path: /tmp/karmada/
