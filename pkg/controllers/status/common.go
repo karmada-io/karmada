@@ -68,7 +68,7 @@ var bindingPredicateFn = builder.WithPredicates(predicate.Funcs{
 			return false
 		}
 
-		return !reflect.DeepEqual(oldResourceVersion, newResourceVersion)
+		return oldResourceVersion != newResourceVersion
 	},
 	DeleteFunc: func(e event.DeleteEvent) bool { return false },
 })
