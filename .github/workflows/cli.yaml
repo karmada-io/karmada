@@ -36,7 +36,7 @@ jobs:
           go-version-file: go.mod
       - uses: helm/kind-action@v1.10.0
         with:
-          version: "v0.20.0"
+          version: "v0.22.0"
       - name: run karmadactl init test
         run: |
           export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
