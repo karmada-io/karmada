@@ -92,13 +92,14 @@ app: {{- include "karmada.name" .}}-metrics-adapter
 {{- end -}}
 
 {{- define "karmada.kube-cm.labels" -}}
-{{- if .Values.kubeControllerManager.labels }}
+{{ $name :=  include "karmada.name" . }}
+{{- if .Values.kubeControllerManager.labels -}}
 {{- range $key, $value := .Values.kubeControllerManager.labels }}
 {{ $key }}: {{ $value }}
-{{- end }}
-{{- else}}
-app: {{- include "karmada.name" .}}-kube-controller-manager
-{{- end }}
+{{- end -}}
+{{- else -}}
+app: {{$name}}-kube-controller-manager
+{{- end -}}
 {{- include "karmada.commonLabels" . -}}
 {{- end -}}
 
@@ -137,6 +138,22 @@ app: {{- include "karmada.name" .}}-kube-controller-manager
 {{- define "karmada.metricsAdapter.serviceMonitor.labels" -}}
 {{- if .Values.serviceMonitor.metricsAdapter.labels }}
 {{- range $key, $value := .Values.serviceMonitor.metricsAdapter.labels }}
+{{ $key }}: {{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.kubeControllerManager.serviceMonitor.labels" -}}
+{{- if .Values.serviceMonitor.kubeControllerManager.labels }}
+{{- range $key, $value := .Values.serviceMonitor.kubeControllerManager.labels }}
+{{ $key }}: {{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.controllerManager.serviceMonitor.labels" -}}
+{{- if .Values.serviceMonitor.controllerManager.labels }}
+{{- range $key, $value := .Values.serviceMonitor.controllerManager.labels }}
 {{ $key }}: {{ $value }}
 {{- end }}
 {{- end }}

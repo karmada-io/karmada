@@ -1,0 +1,208 @@
+{{- if .Values.serviceMonitor.apiServer.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    {{- include "karmada.apiServer.serviceMonitor.labels" . | nindent 4}}
+  name: {{ include "karmada.name" . }}-apiserver
+  namespace: {{ .Values.serviceMonitor.apiServer.namespace }}
+spec:
+  endpoints:
+  - port: {{ include "karmada.name" . }}-apiserver
+    scheme: https
+    scrapeTimeout: {{ .Values.serviceMonitor.apiServer.scrapeTimeout }}
+    interval: {{ .Values.serviceMonitor.apiServer.interval }}
+    tlsConfig:
+      ca: 
+        secret: 
+          name: {{ .Values.serviceMonitor.certSecret }}
+          key: ca.crt
+      cert:
+        secret:
+          name: {{ .Values.serviceMonitor.certSecret }}
+          key: tls.crt
+      keySecret:
+        name: {{ .Values.serviceMonitor.certSecret }}
+        key: tls.key
+      insecureSkipVerify: false
+      serverName: kubernetes.default.svc
+  jobLabel: component
+  namespaceSelector:
+    matchNames:
+    - {{ .Values.systemNamespace }}
+  selector:
+    matchLabels:
+      {{- include "karmada.apiserver.labels" . | nindent 6 }}
+{{- end }}
+{{- if .Values.serviceMonitor.aggregatedApiServer.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    {{- include "karmada.aggregatedApiServer.serviceMonitor.labels" . | nindent 4}}
+  name: {{ include "karmada.name" . }}-aggregated-api-server
+  namespace: {{ .Values.serviceMonitor.aggregatedApiServer.namespace }}
+spec:
+  endpoints:
+  - port: {{ include "karmada.name" . }}-aggregated-apiserver
+    scheme: https
+    scrapeTimeout: {{ .Values.serviceMonitor.aggregatedApiServer.scrapeTimeout }}
+    interval: {{ .Values.serviceMonitor.aggregatedApiServer.interval }}
+    tlsConfig:
+      ca: 
+        secret: 
+          name: {{ .Values.serviceMonitor.certSecret }}
+          key: ca.crt
+      cert:
+        secret:
+          name: {{ .Values.serviceMonitor.certSecret }}
+          key: tls.crt
+      keySecret:
+        name: {{ .Values.serviceMonitor.certSecret }}
+        key: tls.key
+      insecureSkipVerify: false
+      serverName: kubernetes.default.svc
+  jobLabel: component
+  namespaceSelector:
+    matchNames:
+    - {{ .Values.systemNamespace }}
+  selector:
+    matchLabels:
+      {{- include "karmada.aggregatedApiServer.labels" . | nindent 6 }}
+{{- end }}
+{{- if .Values.serviceMonitor.etcd.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    {{- include "karmada.etcd.serviceMonitor.labels" . | nindent 4}}
+  name: {{ include "karmada.name" . }}-etcd
+  namespace: {{ .Values.serviceMonitor.etcd.namespace }}
+spec:
+  endpoints:
+  - port: client
+    scheme: https
+    scrapeTimeout: {{ .Values.serviceMonitor.etcd.scrapeTimeout }}
+    interval: {{ .Values.serviceMonitor.etcd.interval }}
+    tlsConfig:
+      ca: 
+        secret: 
+          name: {{ .Values.serviceMonitor.certSecret }}
+          key: ca.crt
+      cert:
+        secret:
+          name: {{ .Values.serviceMonitor.certSecret }}
+          key: tls.crt
+      keySecret:
+        name: {{ .Values.serviceMonitor.certSecret }}
+        key: tls.key
+      insecureSkipVerify: false
+      serverName: kubernetes.default.svc
+  jobLabel: component
+  namespaceSelector:
+    matchNames:
+    - {{ .Values.systemNamespace }}
+  selector:
+    matchLabels:
+      {{- include "karmada.etcd.labels" . | nindent 6 }}
+{{- end }}
+{{- if .Values.serviceMonitor.metricsAdapter.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    {{- include "karmada.metricsAdapter.serviceMonitor.labels" . | nindent 4}}
+  name: {{ include "karmada.name" . }}-metrics-adapter
+  namespace: {{ .Values.serviceMonitor.metricsAdapter.namespace }}
+spec:
+  endpoints:
+  - port: {{ include "karmada.name" . }}-metrics-adapter
+    scheme: https
+    scrapeTimeout: {{ .Values.serviceMonitor.metricsAdapter.scrapeTimeout }}
+    interval: {{ .Values.serviceMonitor.metricsAdapter.interval }}
+    tlsConfig:
+      ca: 
+        secret: 
+          name: {{ .Values.serviceMonitor.certSecret }}
+          key: ca.crt
+      cert:
+        secret:
+          name: {{ .Values.serviceMonitor.certSecret }}
+          key: tls.crt
+      keySecret:
+        name: {{ .Values.serviceMonitor.certSecret }}
+        key: tls.key
+      insecureSkipVerify: false
+      serverName: kubernetes.default.svc
+  jobLabel: component
+  namespaceSelector:
+    matchNames:
+    - {{ .Values.systemNamespace }}
+  selector:
+    matchLabels:
+      {{- include "karmada.metricsAdapter.labels" . | nindent 6 }}
+{{- end }}
+{{- if .Values.serviceMonitor.kubeControllerManager.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    {{- include "karmada.kubeControllerManager.serviceMonitor.labels" . | nindent 4}}
+  name: {{ include "karmada.name" . }}-kube-controller-manager
+  namespace: {{ .Values.serviceMonitor.kubeControllerManager.namespace }}
+spec:
+  endpoints:
+  - port: {{ include "karmada.name" . }}-kube-controller-manager
+    scheme: https
+    scrapeTimeout: {{ .Values.serviceMonitor.kubeControllerManager.scrapeTimeout }}
+    interval: {{ .Values.serviceMonitor.kubeControllerManager.interval }}
+    tlsConfig:
+      ca:
+        secret:
+          name: {{ .Values.serviceMonitor.certSecret }}
+          key: ca.crt
+      cert:
+        secret:
+          name: {{ .Values.serviceMonitor.certSecret }}
+          key: tls.crt
+      keySecret:
+        name: {{ .Values.serviceMonitor.certSecret }}
+        key: tls.key
+      insecureSkipVerify: true
+      serverName: localhost
+  jobLabel: component
+  namespaceSelector:
+    matchNames:
+    - {{ .Values.systemNamespace }}
+  selector:
+    matchLabels:
+      {{- include "karmada.kube-cm.labels" . | nindent 6 }}
+{{- end }}
+{{- if .Values.serviceMonitor.controllerManager.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    {{- include "karmada.controllerManager.serviceMonitor.labels" . | nindent 4}}
+  name: {{ include "karmada.name" . }}-controller-manager
+  namespace: {{ .Values.serviceMonitor.controllerManager.namespace }}
+spec:
+  endpoints:
+  - port: {{ include "karmada.name" . }}-controller-manager
+    scheme: http
+    scrapeTimeout: {{ .Values.serviceMonitor.controllerManager.scrapeTimeout }}
+    interval: {{ .Values.serviceMonitor.controllerManager.interval }}
+  jobLabel: component
+  namespaceSelector:
+    matchNames:
+    - {{ .Values.systemNamespace }}
+  selector:
+    matchLabels:
+      {{- include "karmada.cm.labels" . | nindent 6 }}
+{{- end }}

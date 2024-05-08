@@ -17,6 +17,19 @@ global:
   ##   team: infra
   commonLabels: {}
 
+# AutoScaling settings
+autoscaling:
+  apiServer:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    metrics:
+      cpu:
+        targetAverageUtilization: 75
+      memory:
+        targetAverageValue: '1Gi'
+
+
 # ServiceMonitor settings for each component
 serviceMonitor:
   # Secret name for cert used for the ServiceMonitor
@@ -45,7 +58,18 @@ serviceMonitor:
     namespace: "default"
     timeout: 30s
     interval: 1m
-
+  controllerManager:
+    enabled: false
+    labels: {}
+    namespace: "default"
+    timeout: 30s
+    interval: 1m
+  kubeControllerManager:
+    enabled: false
+    labels: {}
+    namespace: "default"
+    timeout: 30s
+    interval: 1m
 
 ## @karmadaImageVersion the image version of each karmada components
 ## "latest" is a default value for local installation.

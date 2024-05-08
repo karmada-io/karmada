@@ -82,6 +82,23 @@ spec:
           resources:
           {{- toYaml .Values.controllerManager.resources | nindent 12 }}
 
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}-controller-manager
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.cm.labels" . | nindent 4 }}
+spec:
+  ports:
+    - name: {{ $name }}-controller-manager
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    {{- include "karmada.cm.labels" . | nindent 4 }}
+
 {{ if .Values.controllerManager.podDisruptionBudget }}
 ---
 apiVersion: policy/v1
