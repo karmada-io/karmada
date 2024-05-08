@@ -293,6 +293,7 @@ func (s *Scheduler) Run(ctx context.Context) {
 	go wait.Until(s.worker, time.Second, stopCh)
 
 	<-stopCh
+	s.queue.ShutDown()
 }
 
 func (s *Scheduler) worker() {

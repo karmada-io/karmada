@@ -61,14 +61,14 @@ type MetricsController struct {
 }
 
 // NewMetricsController creates a new metrics controller
-func NewMetricsController(restConfig *rest.Config, factory informerfactory.SharedInformerFactory, kubeFactory informers.SharedInformerFactory, clusterClientOption *util.ClientOption) *MetricsController {
+func NewMetricsController(stopCh <-chan struct{}, restConfig *rest.Config, factory informerfactory.SharedInformerFactory, kubeFactory informers.SharedInformerFactory, clusterClientOption *util.ClientOption) *MetricsController {
 	clusterLister := factory.Cluster().V1alpha1().Clusters().Lister()
 	controller := &MetricsController{
 		InformerFactory:       factory,
 		ClusterLister:         clusterLister,
 		MultiClusterDiscovery: multiclient.NewMultiClusterDiscoveryClient(clusterLister, kubeFactory, clusterClientOption),
 		InformerManager:       genericmanager.GetInstance(),
-		TypedInformerManager:  newInstance(),
+		TypedInformerManager:  newInstance(stopCh),
 		restConfig:            restConfig,
 		queue: workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
 			Name: "metrics-adapter",
@@ -131,12 +131,12 @@ func podTransformFunc(obj interface{}) (interface{}, error) {
 	return aggregatedPod, nil
 }
 
-func newInstance() typedmanager.MultiClusterInformerManager {
+func newInstance(stopCh <-chan struct{}) typedmanager.MultiClusterInformerManager {
 	transforms := map[schema.GroupVersionResource]cache.TransformFunc{
 		provider.NodesGVR: cache.TransformFunc(nodeTransformFunc),
 		provider.PodsGVR:  cache.TransformFunc(podTransformFunc),
 	}
-	return typedmanager.NewMultiClusterInformerManager(context.TODO().Done(), transforms)
+	return typedmanager.NewMultiClusterInformerManager(stopCh, transforms)
 }
 
 // addEventHandler adds event handler for cluster
@@ -188,6 +188,7 @@ func (m *MetricsController) startController(stopCh <-chan struct{}) {
 
 	go func() {
 		<-stopCh
+		m.queue.ShutDown()
 		genericmanager.StopInstance()
 		klog.Infof("Shutting down karmada-metrics-adapter")
 	}()
