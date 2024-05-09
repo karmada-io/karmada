@@ -61,7 +61,6 @@ func TestCreateOrUpdateEndpointSlice(t *testing.T) {
 				},
 			},
 			want: &discoveryv1.EndpointSlice{
-				TypeMeta: metav1.TypeMeta{APIVersion: "discovery.k8s.io/v1", Kind: "EndpointSlice"},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "eps", Namespace: "ns",
 					Labels: map[string]string{"foo": "foo1"},
@@ -97,7 +96,6 @@ func TestCreateOrUpdateEndpointSlice(t *testing.T) {
 				},
 			},
 			want: &discoveryv1.EndpointSlice{
-				TypeMeta: metav1.TypeMeta{APIVersion: "discovery.k8s.io/v1", Kind: "EndpointSlice"},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "eps", Namespace: "ns",
 					Labels: map[string]string{"foo": "foo1"},
@@ -145,7 +143,6 @@ func TestCreateOrUpdateEndpointSlice(t *testing.T) {
 				},
 			},
 			want: &discoveryv1.EndpointSlice{
-				TypeMeta: metav1.TypeMeta{APIVersion: "discovery.k8s.io/v1", Kind: "EndpointSlice"},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "eps", Namespace: "ns",
 					Labels: map[string]string{"foo": "foo1"},
