@@ -1,6 +1,6 @@
 module github.com/karmada-io/karmada
 
-go 1.21.8
+go 1.21.10
 
 require (
 	github.com/adhocore/gronx v1.6.3
