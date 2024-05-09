@@ -85,7 +85,7 @@ func NewClusterScaleClientSet(clusterName string, client client.Client) (*Cluste
 		if err != nil {
 			return nil, err
 		}
-		mapper, err := apiutil.NewDiscoveryRESTMapper(clusterConfig, httpClient)
+		mapper, err := apiutil.NewDynamicRESTMapper(clusterConfig, httpClient)
 		if err != nil {
 			return nil, err
 		}

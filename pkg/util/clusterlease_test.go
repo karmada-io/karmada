@@ -51,7 +51,7 @@ func TestSetLeaseOwnerFunc(t *testing.T) {
 			},
 			wantErr: false,
 			want: &coordinationv1.Lease{ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{
-				{APIVersion: "cluster.karmada.io/v1alpha1", Kind: "Cluster", Name: "test"}}}},
+				{Name: "test"}}}},
 		},
 		{
 			name: "cluster not found",

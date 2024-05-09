@@ -34,7 +34,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -66,6 +66,15 @@ type Manager interface {
 	// managers, either because it won a leader election or because no leader
 	// election was configured.
 	Elected() <-chan struct{}
+
+	// AddMetricsServerExtraHandler adds an extra handler served on path to the http server that serves metrics.
+	// Might be useful to register some diagnostic endpoints e.g. pprof.
+	//
+	// Note that these endpoints are meant to be sensitive and shouldn't be exposed publicly.
+	//
+	// If the simple path -> handler mapping offered here is not enough,
+	// a new http server/listener should be added as Runnable to the manager via Add method.
+	AddMetricsServerExtraHandler(path string, handler http.Handler) error
 
 	// AddHealthzCheck allows you to add Healthz checker
 	AddHealthzCheck(name string, check healthz.Checker) error
@@ -409,10 +418,10 @@ func New(config *rest.Config, options Options) (Manager, error) {
 		return nil, fmt.Errorf("failed to new pprof listener: %w", err)
 	}
 
-	errChan := make(chan error)
+	errChan := make(chan error, 1)
 	runnables := newRunnables(options.BaseContext, errChan)
 	return &controllerManager{
-		stopProcedureEngaged:          pointer.Int64(0),
+		stopProcedureEngaged:          ptr.To(int64(0)),
 		cluster:                       cluster,
 		runnables:                     runnables,
 		errChan:                       errChan,

@@ -6,7 +6,7 @@ require (
 	github.com/adhocore/gronx v1.6.3
 	github.com/distribution/reference v0.5.0
 	github.com/emirpasic/gods v1.18.1
-	github.com/evanphx/json-patch/v5 v5.6.0
+	github.com/evanphx/json-patch/v5 v5.8.0
 	github.com/go-co-op/gocron v1.30.1
 	github.com/gogo/protobuf v1.3.2
 	github.com/google/go-cmp v0.6.0
@@ -53,7 +53,7 @@ require (
 	k8s.io/utils v0.0.0-20231127182322-b307cd553661
 	layeh.com/gopher-json v0.0.0-20201124131017-552bb3c4c3bf
 	sigs.k8s.io/cluster-api v1.5.0
-	sigs.k8s.io/controller-runtime v0.16.3
+	sigs.k8s.io/controller-runtime v0.17.5
 	sigs.k8s.io/custom-metrics-apiserver v1.29.0
 	sigs.k8s.io/kind v0.22.0
 	sigs.k8s.io/mcs-api v0.1.0
@@ -90,7 +90,7 @@ require (
 	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-logr/zapr v1.2.4 // indirect
+	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.20.2 // indirect
 	github.com/go-openapi/jsonreference v0.20.4 // indirect
 	github.com/go-openapi/swag v0.22.7 // indirect
