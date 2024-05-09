@@ -25,7 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	capierrors "sigs.k8s.io/cluster-api/errors"
 )
@@ -149,6 +149,10 @@ type WorkersTopology struct {
 	// MachineDeployments is a list of machine deployments in the cluster.
 	// +optional
 	MachineDeployments []MachineDeploymentTopology `json:"machineDeployments,omitempty"`
+
+	// MachinePools is a list of machine pools in the cluster.
+	// +optional
+	MachinePools []MachinePoolTopology `json:"machinePools,omitempty"`
 }
 
 // MachineDeploymentTopology specifies the different parameters for a set of worker nodes in the topology.
@@ -240,6 +244,66 @@ type MachineHealthCheckTopology struct {
 	MachineHealthCheckClass `json:",inline"`
 }
 
+// MachinePoolTopology specifies the different parameters for a pool of worker nodes in the topology.
+// This pool of nodes is managed by a MachinePool object whose lifecycle is managed by the Cluster controller.
+type MachinePoolTopology struct {
+	// Metadata is the metadata applied to the MachinePool.
+	// At runtime this metadata is merged with the corresponding metadata from the ClusterClass.
+	// +optional
+	Metadata ObjectMeta `json:"metadata,omitempty"`
+
+	// Class is the name of the MachinePoolClass used to create the pool of worker nodes.
+	// This should match one of the deployment classes defined in the ClusterClass object
+	// mentioned in the `Cluster.Spec.Class` field.
+	Class string `json:"class"`
+
+	// Name is the unique identifier for this MachinePoolTopology.
+	// The value is used with other unique identifiers to create a MachinePool's Name
+	// (e.g. cluster's name, etc). In case the name is greater than the allowed maximum length,
+	// the values are hashed together.
+	Name string `json:"name"`
+
+	// FailureDomains is the list of failure domains the machine pool will be created in.
+	// Must match a key in the FailureDomains map stored on the cluster object.
+	// +optional
+	FailureDomains []string `json:"failureDomains,omitempty"`
+
+	// NodeDrainTimeout is the total amount of time that the controller will spend on draining a node.
+	// The default value is 0, meaning that the node can be drained without any time limitations.
+	// NOTE: NodeDrainTimeout is different from `kubectl drain --timeout`
+	// +optional
+	NodeDrainTimeout *metav1.Duration `json:"nodeDrainTimeout,omitempty"`
+
+	// NodeVolumeDetachTimeout is the total amount of time that the controller will spend on waiting for all volumes
+	// to be detached. The default value is 0, meaning that the volumes can be detached without any time limitations.
+	// +optional
+	NodeVolumeDetachTimeout *metav1.Duration `json:"nodeVolumeDetachTimeout,omitempty"`
+
+	// NodeDeletionTimeout defines how long the controller will attempt to delete the Node that the MachinePool
+	// hosts after the MachinePool is marked for deletion. A duration of 0 will retry deletion indefinitely.
+	// Defaults to 10 seconds.
+	// +optional
+	NodeDeletionTimeout *metav1.Duration `json:"nodeDeletionTimeout,omitempty"`
+
+	// Minimum number of seconds for which a newly created machine pool should
+	// be ready.
+	// Defaults to 0 (machine will be considered available as soon as it
+	// is ready)
+	// +optional
+	MinReadySeconds *int32 `json:"minReadySeconds,omitempty"`
+
+	// Replicas is the number of nodes belonging to this pool.
+	// If the value is nil, the MachinePool is created without the number of Replicas (defaulting to 1)
+	// and it's assumed that an external entity (like cluster autoscaler) is responsible for the management
+	// of this value.
+	// +optional
+	Replicas *int32 `json:"replicas,omitempty"`
+
+	// Variables can be used to customize the MachinePool through patches.
+	// +optional
+	Variables *MachinePoolVariables `json:"variables,omitempty"`
+}
+
 // ClusterVariable can be used to customize the Cluster through patches. Each ClusterVariable is associated with a
 // Variable definition in the ClusterClass `status` variables.
 type ClusterVariable struct {
@@ -265,6 +329,13 @@ type ClusterVariable struct {
 
 // MachineDeploymentVariables can be used to provide variables for a specific MachineDeployment.
 type MachineDeploymentVariables struct {
+	// Overrides can be used to override Cluster level variables.
+	// +optional
+	Overrides []ClusterVariable `json:"overrides,omitempty"`
+}
+
+// MachinePoolVariables can be used to provide variables for a specific MachinePool.
+type MachinePoolVariables struct {
 	// Overrides can be used to override Cluster level variables.
 	// +optional
 	Overrides []ClusterVariable `json:"overrides,omitempty"`
@@ -409,6 +480,7 @@ func (v APIEndpoint) String() string {
 // +kubebuilder:resource:path=clusters,shortName=cl,scope=Namespaced,categories=cluster-api
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="ClusterClass",type="string",JSONPath=".spec.topology.class",description="ClusterClass of this Cluster, empty if the Cluster is not using a ClusterClass"
 // +kubebuilder:printcolumn:name="Phase",type="string",JSONPath=".status.phase",description="Cluster status such as Pending/Provisioning/Provisioned/Deleting/Failed"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Time duration since creation of Cluster"
 // +kubebuilder:printcolumn:name="Version",type="string",JSONPath=".spec.topology.version",description="Kubernetes version associated with this Cluster"
@@ -528,7 +600,7 @@ type ClusterList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&Cluster{}, &ClusterList{})
+	objectTypes = append(objectTypes, &Cluster{}, &ClusterList{})
 }
 
 // FailureDomains is a slice of FailureDomains.
@@ -550,7 +622,7 @@ func (in FailureDomains) FilterControlPlane() FailureDomains {
 func (in FailureDomains) GetIDs() []*string {
 	ids := make([]*string, 0, len(in))
 	for id := range in {
-		ids = append(ids, pointer.String(id))
+		ids = append(ids, ptr.To(id))
 	}
 	return ids
 }

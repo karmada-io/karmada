@@ -569,7 +569,7 @@ func (bts *BootstrapTokenString) UnmarshalJSON(b []byte) error {
 
 // String returns the string representation of the BootstrapTokenString.
 func (bts BootstrapTokenString) String() string {
-	if len(bts.ID) > 0 && len(bts.Secret) > 0 {
+	if bts.ID != "" && bts.Secret != "" {
 		return bootstraputil.TokenFromIDAndSecret(bts.ID, bts.Secret)
 	}
 	return ""
