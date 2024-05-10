@@ -307,5 +307,5 @@ type MachineList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&Machine{}, &MachineList{})
+	objectTypes = append(objectTypes, &Machine{}, &MachineList{})
 }

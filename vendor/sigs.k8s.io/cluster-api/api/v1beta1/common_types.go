@@ -18,7 +18,10 @@ package v1beta1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 const (
@@ -57,9 +60,17 @@ const (
 	// a classy Cluster to define the maximum concurrency while upgrading MachineDeployments.
 	ClusterTopologyUpgradeConcurrencyAnnotation = "topology.cluster.x-k8s.io/upgrade-concurrency"
 
+	// ClusterTopologyMachinePoolNameLabel is the label set on the generated  MachinePool objects
+	// to track the name of the MachinePool topology it represents.
+	ClusterTopologyMachinePoolNameLabel = "topology.cluster.x-k8s.io/pool-name"
+
 	// ClusterTopologyUnsafeUpdateClassNameAnnotation can be used to disable the webhook check on
 	// update that disallows a pre-existing Cluster to be populated with Topology information and Class.
 	ClusterTopologyUnsafeUpdateClassNameAnnotation = "unsafe.topology.cluster.x-k8s.io/disable-update-class-name-check"
+
+	// ClusterTopologyUnsafeUpdateVersionAnnotation can be used to disable the webhook checks on
+	// update that disallows updating the .topology.spec.version on certain conditions.
+	ClusterTopologyUnsafeUpdateVersionAnnotation = "unsafe.topology.cluster.x-k8s.io/disable-update-version-check"
 
 	// ProviderNameLabel is the label set on components in the provider manifest.
 	// This label allows to easily identify all the components belonging to a provider; the clusterctl
@@ -116,6 +127,9 @@ const (
 
 	// MachineSkipRemediationAnnotation is the annotation used to mark the machines that should not be considered for remediation by MachineHealthCheck reconciler.
 	MachineSkipRemediationAnnotation = "cluster.x-k8s.io/skip-remediation"
+
+	// RemediateMachineAnnotation is the annotation used to mark machines that should be remediated by MachineHealthCheck reconciler.
+	RemediateMachineAnnotation = "cluster.x-k8s.io/remediate-machine"
 
 	// MachineSetSkipPreflightChecksAnnotation is the annotation used to provide a comma-separated list of
 	// preflight checks that should be skipped during the MachineSet reconciliation.
@@ -217,6 +231,14 @@ const (
 	MachineSetPreflightCheckControlPlaneIsStable MachineSetPreflightCheck = "ControlPlaneIsStable"
 )
 
+// NodeOutdatedRevisionTaint can be added to Nodes at rolling updates in general triggered by updating MachineDeployment
+// This taint is used to prevent unnecessary pod churn, i.e., as the first node is drained, pods previously running on
+// that node are scheduled onto nodes who have yet to be replaced, but will be torn down soon.
+var NodeOutdatedRevisionTaint = corev1.Taint{
+	Key:    "node.cluster.x-k8s.io/outdated-revision",
+	Effect: corev1.TaintEffectPreferNoSchedule,
+}
+
 // NodeUninitializedTaint can be added to Nodes at creation by the bootstrap provider, e.g. the
 // KubeadmBootstrap provider will add the taint.
 // This taint is used to prevent workloads to be scheduled on Nodes before the node is initialized by Cluster API.
@@ -296,4 +318,17 @@ type ObjectMeta struct {
 	// More info: http://kubernetes.io/docs/user-guide/annotations
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty"`
+}
+
+// Validate validates the labels and annotations in ObjectMeta.
+func (metadata *ObjectMeta) Validate(parent *field.Path) field.ErrorList {
+	allErrs := metav1validation.ValidateLabels(
+		metadata.Labels,
+		parent.Child("labels"),
+	)
+	allErrs = append(allErrs, apivalidation.ValidateAnnotations(
+		metadata.Annotations,
+		parent.Child("annotations"),
+	)...)
+	return allErrs
 }
