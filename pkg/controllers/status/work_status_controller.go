@@ -231,7 +231,6 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return err
 	}
 
-	util.MergeLabel(desiredObj, workv1alpha2.WorkPermanentIDLabel, util.GetLabelValue(workObject.Labels, workv1alpha2.WorkPermanentIDLabel))
 	// we should check if the observed status is consistent with the declaration to prevent accidental changes made
 	// in member clusters.
 	needUpdate, err := c.ObjectWatcher.NeedsUpdate(clusterName, desiredObj, observedObj)

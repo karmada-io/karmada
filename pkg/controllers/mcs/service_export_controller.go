@@ -520,7 +520,6 @@ func getEndpointSliceWorkMeta(c client.Client, ns string, workName string, endpo
 			util.ServiceNameLabel:      endpointSlice.GetLabels()[discoveryv1.LabelServiceName],
 			// indicate the Work should be not propagated since it's collected resource.
 			util.PropagationInstruction:          util.PropagationInstructionSuppressed,
-			util.ManagedByKarmadaLabel:           util.ManagedByKarmadaLabelValue,
 			util.EndpointSliceWorkManagedByLabel: util.ServiceExportKind,
 		},
 	}

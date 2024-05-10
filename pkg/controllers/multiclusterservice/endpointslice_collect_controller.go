@@ -407,7 +407,6 @@ func getEndpointSliceWorkMeta(c client.Client, ns string, workName string, endpo
 		util.MultiClusterServiceNameLabel:      endpointSlice.GetLabels()[discoveryv1.LabelServiceName],
 		// indicate the Work should be not propagated since it's collected resource.
 		util.PropagationInstruction:          util.PropagationInstructionSuppressed,
-		util.ManagedByKarmadaLabel:           util.ManagedByKarmadaLabelValue,
 		util.EndpointSliceWorkManagedByLabel: util.MultiClusterServiceKind,
 	}
 	if existWork.Labels == nil || (err != nil && apierrors.IsNotFound(err)) {
