@@ -51,6 +51,10 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 	}
 	klog.V(2).Infof("Mutating the work(%s/%s) for request: %s", work.Namespace, work.Name, req.Operation)
 
+	if util.GetLabelValue(work.Labels, workv1alpha2.WorkPermanentIDLabel) == "" {
+		util.MergeLabel(work, workv1alpha2.WorkPermanentIDLabel, uuid.New().String())
+	}
+
 	var manifests []workv1alpha1.Manifest
 
 	for _, manifest := range work.Spec.Workload.Manifests {
@@ -84,10 +88,6 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 	marshaledBytes, err := json.Marshal(work)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
-	}
-
-	if util.GetLabelValue(work.Labels, workv1alpha2.WorkPermanentIDLabel) == "" {
-		util.MergeLabel(work, workv1alpha2.WorkPermanentIDLabel, uuid.New().String())
 	}
 
 	return admission.PatchResponseFromRaw(req.Object.Raw, marshaledBytes)
