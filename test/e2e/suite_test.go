@@ -78,6 +78,8 @@ const (
 	cronFedratedHPANamePrefix     = "cronfhpa-"
 	resourceRegistryPrefix        = "rr-"
 	mcsNamePrefix                 = "mcs-"
+	ppNamePrefix                  = "pp-"
+	cppNamePrefix                 = "cpp-"
 
 	updateDeploymentReplicas  = 2
 	updateStatefulSetReplicas = 2
