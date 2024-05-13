@@ -85,7 +85,7 @@ func (c *RBStatusController) Reconcile(ctx context.Context, req controllerruntim
 // SetupWithManager creates a controller and register to controller manager.
 func (c *RBStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
 	workMapFunc := handler.MapFunc(
-		func(ctx context.Context, workObj client.Object) []reconcile.Request {
+		func(_ context.Context, workObj client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 
 			annotations := workObj.GetAnnotations()

@@ -104,7 +104,7 @@ func (g *cachedRESTMapper) RESTMapping(gk schema.GroupKind, versions ...string) 
 			g.mu.Lock()
 			g.restMapper = newMapper
 			g.mu.Unlock()
-			g.gvkToGVR.Range(func(key, value any) bool {
+			g.gvkToGVR.Range(func(key, _ any) bool {
 				g.gvkToGVR.Delete(key)
 				return true
 			})

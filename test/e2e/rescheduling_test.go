@@ -142,7 +142,7 @@ var _ = ginkgo.Describe("[cluster unjoined] reschedule testing", func() {
 			})
 
 			ginkgo.By("check whether the deployment is rescheduled to other available clusters", func() {
-				gomega.Eventually(func(g gomega.Gomega) bool {
+				gomega.Eventually(func(gomega.Gomega) bool {
 					targetClusterNames = framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 					return testhelper.IsExclude(newClusterName, targetClusterNames)
 				}, pollTimeout, pollInterval).Should(gomega.BeTrue())
@@ -257,7 +257,7 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 				})
 
 				ginkgo.By("check whether the deployment is rescheduled to a new cluster")
-				gomega.Eventually(func(g gomega.Gomega) bool {
+				gomega.Eventually(func(gomega.Gomega) bool {
 					targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 					return !testhelper.IsExclude(newClusterName, targetClusterNames)
 				}, pollTimeout, pollInterval).Should(gomega.BeTrue())
@@ -292,7 +292,7 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 					framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 					framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 				})
-				gomega.Eventually(func(g gomega.Gomega) bool {
+				gomega.Eventually(func(gomega.Gomega) bool {
 					targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 					return testhelper.IsExclude(newClusterName, targetClusterNames)
 				}, pollTimeout, pollInterval).Should(gomega.BeTrue())
@@ -314,7 +314,7 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 				})
 
 				ginkgo.By("check whether the deployment is rescheduled to a new cluster")
-				gomega.Eventually(func(g gomega.Gomega) bool {
+				gomega.Eventually(func(gomega.Gomega) bool {
 					targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 					for _, clusterName := range initClusterNames {
 						if testhelper.IsExclude(clusterName, targetClusterNames) {
@@ -324,7 +324,7 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 					return true
 				}, pollTimeout, pollInterval).Should(gomega.BeTrue())
 
-				gomega.Eventually(func(g gomega.Gomega) bool {
+				gomega.Eventually(func(gomega.Gomega) bool {
 					targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 					return testhelper.IsExclude("member3", targetClusterNames)
 				}, pollTimeout, pollInterval).Should(gomega.BeTrue())
@@ -386,7 +386,7 @@ var _ = ginkgo.Describe("[cluster labels changed] reschedule testing while polic
 			})
 
 			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment.Namespace, deployment.Name,
-				func(deployment *appsv1.Deployment) bool { return true })
+				func(*appsv1.Deployment) bool { return true })
 		})
 
 		ginkgo.It("change labels to testing deployment reschedule(PropagationPolicy)", func() {
@@ -397,7 +397,7 @@ var _ = ginkgo.Describe("[cluster labels changed] reschedule testing while polic
 			labelsUpdate = map[string]string{labelKey: "ok"}
 			framework.UpdateClusterLabels(karmadaClient, targetMember, labelsUpdate)
 			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment.Namespace, deployment.Name,
-				func(deployment *appsv1.Deployment) bool { return true })
+				func(*appsv1.Deployment) bool { return true })
 		})
 	})
 
@@ -425,7 +425,7 @@ var _ = ginkgo.Describe("[cluster labels changed] reschedule testing while polic
 				framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
 			})
 			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment.Namespace, deployment.Name,
-				func(deployment *appsv1.Deployment) bool { return true })
+				func(*appsv1.Deployment) bool { return true })
 		})
 
 		ginkgo.It("change labels to testing deployment reschedule(ClusterPropagationPolicy)", func() {
@@ -436,7 +436,7 @@ var _ = ginkgo.Describe("[cluster labels changed] reschedule testing while polic
 			labelsUpdate = map[string]string{labelKey: "ok"}
 			framework.UpdateClusterLabels(karmadaClient, targetMember, labelsUpdate)
 			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment.Namespace, deployment.Name,
-				func(deployment *appsv1.Deployment) bool { return true })
+				func(*appsv1.Deployment) bool { return true })
 		})
 	})
 })

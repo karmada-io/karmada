@@ -187,7 +187,7 @@ func Test_GroupClustersWithScore(t *testing.T) {
 		},
 	}
 
-	calAvailableReplicasFunc := func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
+	calAvailableReplicasFunc := func(clusters []*clusterv1alpha1.Cluster, _ *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
 		availableTargetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
 
 		for i := range availableTargetClusters {

@@ -116,7 +116,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 			ginkgo.By("check if deployment present on right clusters", func() {
 				for _, targetClusterName := range targetClusterNames {
 					framework.WaitDeploymentPresentOnClusterFitWith(targetClusterName, deployment.Namespace, deployment.Name,
-						func(deployment *appsv1.Deployment) bool {
+						func(*appsv1.Deployment) bool {
 							return true
 						})
 					groupMatchedClusters = append(groupMatchedClusters, targetClusterName)
@@ -330,7 +330,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 			ginkgo.By("check if job present on right clusters", func() {
 				for _, targetClusterName := range targetClusterNames {
 					framework.WaitJobPresentOnClusterFitWith(targetClusterName, job.Namespace, job.Name,
-						func(job *batchv1.Job) bool {
+						func(*batchv1.Job) bool {
 							return true
 						})
 					groupMatchedClusters = append(groupMatchedClusters, targetClusterName)
@@ -425,7 +425,7 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 		ginkgo.It("replicas duplicated testing when rescheduling", func() {
 			klog.Infof("make sure deployment has been propagated to member clusters")
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
-				func(deployment *appsv1.Deployment) bool {
+				func(*appsv1.Deployment) bool {
 					return true
 				})
 
@@ -479,7 +479,7 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 
 		ginkgo.It("replicas divided and weighted testing when rescheduling", func() {
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
-				func(deployment *appsv1.Deployment) bool {
+				func(*appsv1.Deployment) bool {
 					return true
 				})
 
@@ -579,7 +579,7 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 
 		ginkgo.It("replicas divided and weighted testing when rescheduling", func() {
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
-				func(deployment *appsv1.Deployment) bool {
+				func(*appsv1.Deployment) bool {
 					return true
 				})
 

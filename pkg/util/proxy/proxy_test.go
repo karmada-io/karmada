@@ -128,7 +128,7 @@ func TestConnectCluster(t *testing.T) {
 						ImpersonatorSecretRef: &clusterapis.LocalSecretReference{Namespace: "ns", Name: "secret"},
 					},
 				},
-				secretGetter: func(_ context.Context, ns string, name string) (*corev1.Secret, error) {
+				secretGetter: func(_ context.Context, _ string, name string) (*corev1.Secret, error) {
 					return nil, apierrors.NewNotFound(corev1.Resource("secrets"), name)
 				},
 			},

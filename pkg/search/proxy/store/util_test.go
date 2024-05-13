@@ -39,7 +39,7 @@ func Test_watchMux_StopBySelf(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		w := newFakeWatcher(wait.NeverStop)
-		m.AddSource(w, func(event watch.Event) {})
+		m.AddSource(w, func(watch.Event) {})
 		go func() {
 			ticker := time.NewTimer(time.Second)
 			for {
@@ -84,7 +84,7 @@ func Test_watchMux_StopBySource(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		w := newFakeWatcher(ctx.Done())
-		m.AddSource(w, func(event watch.Event) {})
+		m.AddSource(w, func(watch.Event) {})
 		go func() {
 			ticker := time.NewTimer(time.Second)
 			for {

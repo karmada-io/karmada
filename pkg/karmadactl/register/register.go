@@ -152,7 +152,7 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 		Example:               fmt.Sprintf(registerExample, parentCommand),
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			if err := opts.Complete(args); err != nil {
 				return err
 			}

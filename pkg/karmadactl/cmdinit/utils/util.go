@@ -145,7 +145,7 @@ func ioCopyN(outFile *os.File, tr *tar.Reader) error {
 // ListFiles traverse directory files
 func ListFiles(path string) []string {
 	var files []string
-	if err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(path, func(path string, info os.FileInfo, _ error) error {
 		if !info.IsDir() {
 			files = append(files, path)
 		}

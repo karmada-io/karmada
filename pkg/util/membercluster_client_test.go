@@ -242,7 +242,7 @@ func TestNewClusterClientSet(t *testing.T) {
 }
 
 func TestNewClusterClientSet_ClientWorks(t *testing.T) {
-	s := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+	s := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
 		rw.Header().Add("Content-Type", "application/json")
 		_, _ = io.WriteString(rw, `
 {
@@ -466,7 +466,7 @@ func TestNewClusterDynamicClientSet(t *testing.T) {
 }
 
 func TestNewClusterDynamicClientSet_ClientWorks(t *testing.T) {
-	s := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+	s := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
 		rw.Header().Add("Content-Type", "application/json")
 		_, _ = io.WriteString(rw, `
 {

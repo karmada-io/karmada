@@ -68,7 +68,7 @@ func init() {
 }
 
 func TestMultiClusterCache_UpdateCache(t *testing.T) {
-	newClientFunc := func(cluster string) (dynamic.Interface, error) {
+	newClientFunc := func(string) (dynamic.Interface, error) {
 		return fakedynamic.NewSimpleDynamicClient(scheme), nil
 	}
 	cache := NewMultiClusterCache(newClientFunc, restMapper)
@@ -104,7 +104,7 @@ func TestMultiClusterCache_UpdateCache(t *testing.T) {
 
 func TestMultiClusterCache_HasResource(t *testing.T) {
 	fakeClient := fakedynamic.NewSimpleDynamicClient(scheme)
-	newClientFunc := func(cluster string) (dynamic.Interface, error) {
+	newClientFunc := func(string) (dynamic.Interface, error) {
 		return fakeClient, nil
 	}
 	cache := NewMultiClusterCache(newClientFunc, restMapper)

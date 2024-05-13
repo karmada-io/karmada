@@ -113,6 +113,10 @@ func Test_retainK8sWorkloadReplicas(t *testing.T) {
 func Test_retainSecretServiceAccountToken(t *testing.T) {
 	createSecret := func(secretType corev1.SecretType, uuid, key, value string) *unstructured.Unstructured {
 		ret, _ := helper.ToUnstructured(&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{corev1.ServiceAccountUIDKey: uuid},
+			},
+			Data: map[string][]byte{key: []byte(value)},
 			Type: secretType,
 		})
 		return ret

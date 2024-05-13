@@ -616,7 +616,7 @@ func (c *MCSController) SetupWithManager(mgr controllerruntime.Manager) error {
 	}
 
 	svcMapFunc := handler.MapFunc(
-		func(ctx context.Context, svcObj client.Object) []reconcile.Request {
+		func(_ context.Context, svcObj client.Object) []reconcile.Request {
 			return []reconcile.Request{{
 				NamespacedName: types.NamespacedName{
 					Namespace: svcObj.GetNamespace(),
@@ -647,7 +647,7 @@ func (c *MCSController) serviceHasCrossClusterMultiClusterService(svc *corev1.Se
 }
 
 func (c *MCSController) clusterMapFunc() handler.MapFunc {
-	return func(ctx context.Context, a client.Object) []reconcile.Request {
+	return func(_ context.Context, a client.Object) []reconcile.Request {
 		var clusterName string
 		switch t := a.(type) {
 		case *clusterv1alpha1.Cluster:

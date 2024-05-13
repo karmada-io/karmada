@@ -116,7 +116,7 @@ func NewCmdTokenCreate(f util.Factory, out io.Writer, tokenOpts *CommandTokenOpt
 		`),
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
-		RunE: func(Cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			// Get control plane kube-apiserver client
 			client, err := f.KubernetesClientSet()
 			if err != nil {
@@ -144,7 +144,7 @@ func NewCmdTokenList(f util.Factory, out io.Writer, errW io.Writer, tokenOpts *C
 		Use:   "list",
 		Short: "List bootstrap tokens on the server",
 		Long:  "This command will list all bootstrap tokens for you.",
-		RunE: func(tokenCmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			// Get control plane kube-apiserver client
 			client, err := f.KubernetesClientSet()
 			if err != nil {
@@ -173,7 +173,7 @@ func NewCmdTokenDelete(f util.Factory, out io.Writer, tokenOpts *CommandTokenOpt
 			The [token-value] is the full Token of the form "[a-z0-9]{6}.[a-z0-9]{16}" or the
 			Token ID of the form "[a-z0-9]{6}" to delete.
 		`),
-		RunE: func(tokenCmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			if len(args) < 1 {
 				return fmt.Errorf("missing subcommand; 'token delete' is missing token of form %q", bootstrapapi.BootstrapTokenIDPattern)
 			}

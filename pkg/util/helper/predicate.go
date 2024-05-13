@@ -68,7 +68,7 @@ func NewExecutionPredicate(mgr controllerruntime.Manager) predicate.Funcs {
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			return predFunc("delete", deleteEvent.Object)
 		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
+		GenericFunc: func(event.GenericEvent) bool {
 			return false
 		},
 	}
@@ -99,16 +99,16 @@ func NewPredicateForServiceExportController(mgr controllerruntime.Manager) predi
 	}
 
 	return predicate.Funcs{
-		CreateFunc: func(createEvent event.CreateEvent) bool {
+		CreateFunc: func(event.CreateEvent) bool {
 			return false
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			return predFunc("update", updateEvent.ObjectNew) || predFunc("update", updateEvent.ObjectOld)
 		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+		DeleteFunc: func(event.DeleteEvent) bool {
 			return false
 		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
+		GenericFunc: func(event.GenericEvent) bool {
 			return false
 		},
 	}
@@ -116,7 +116,7 @@ func NewPredicateForServiceExportController(mgr controllerruntime.Manager) predi
 
 // NewPredicateForEndpointSliceCollectController generates an event filter function for EndpointSliceCollectController running by karmada-controller-manager.
 func NewPredicateForEndpointSliceCollectController(mgr controllerruntime.Manager) predicate.Funcs {
-	predFunc := func(eventType string, object client.Object) bool {
+	predFunc := func(_ string, object client.Object) bool {
 		obj := object.(*workv1alpha1.Work)
 		clusterName, err := names.GetClusterName(obj.GetNamespace())
 		if err != nil {
@@ -142,7 +142,7 @@ func NewPredicateForEndpointSliceCollectController(mgr controllerruntime.Manager
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			return predFunc("delete", deleteEvent.Object)
 		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
+		GenericFunc: func(event.GenericEvent) bool {
 			return false
 		},
 	}
@@ -160,7 +160,7 @@ func NewClusterPredicateOnAgent(clusterName string) predicate.Funcs {
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			return deleteEvent.Object.GetName() == clusterName
 		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
+		GenericFunc: func(event.GenericEvent) bool {
 			return false
 		},
 	}
@@ -185,16 +185,16 @@ func NewPredicateForServiceExportControllerOnAgent(curClusterName string) predic
 	}
 
 	return predicate.Funcs{
-		CreateFunc: func(createEvent event.CreateEvent) bool {
+		CreateFunc: func(event.CreateEvent) bool {
 			return false
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			return predFunc("update", updateEvent.ObjectNew) || predFunc("update", updateEvent.ObjectOld)
 		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+		DeleteFunc: func(event.DeleteEvent) bool {
 			return false
 		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
+		GenericFunc: func(event.GenericEvent) bool {
 			return false
 		},
 	}
@@ -202,7 +202,7 @@ func NewPredicateForServiceExportControllerOnAgent(curClusterName string) predic
 
 // NewPredicateForEndpointSliceCollectControllerOnAgent generates an event filter function for EndpointSliceCollectController running by karmada-agent.
 func NewPredicateForEndpointSliceCollectControllerOnAgent(curClusterName string) predicate.Funcs {
-	predFunc := func(eventType string, object client.Object) bool {
+	predFunc := func(_ string, object client.Object) bool {
 		obj := object.(*workv1alpha1.Work)
 		clusterName, err := names.GetClusterName(obj.GetNamespace())
 		if err != nil {
@@ -222,7 +222,7 @@ func NewPredicateForEndpointSliceCollectControllerOnAgent(curClusterName string)
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			return predFunc("delete", deleteEvent.Object)
 		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
+		GenericFunc: func(event.GenericEvent) bool {
 			return false
 		},
 	}
@@ -255,7 +255,7 @@ func NewExecutionPredicateOnAgent() predicate.Funcs {
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			return predFunc("delete", deleteEvent.Object)
 		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
+		GenericFunc: func(event.GenericEvent) bool {
 			return false
 		},
 	}

@@ -103,7 +103,7 @@ func NewCmdPromote(f util.Factory, parentCommand string) *cobra.Command {
 		Example:               fmt.Sprintf(promoteExample, parentCommand),
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			if err := opts.Complete(f, args); err != nil {
 				return err
 			}
@@ -197,7 +197,7 @@ func (o *CommandPromoteOption) Complete(f util.Factory, args []string) error {
 	o.name = args[1]
 
 	if o.OutputFormat == "yaml" || o.OutputFormat == "json" {
-		o.Printer = func(mapping *meta.RESTMapping, outputObjects *bool, withNamespace bool, withKind bool) (printers.ResourcePrinterFunc, error) {
+		o.Printer = func(_ *meta.RESTMapping, _ *bool, _ bool, _ bool) (printers.ResourcePrinterFunc, error) {
 			printer, err := o.JSONYamlPrintFlags.ToPrinter(o.OutputFormat)
 
 			if genericclioptions.IsNoCompatiblePrinterError(err) {

@@ -32,7 +32,7 @@ import (
 
 func Test_karmadaProxy(t *testing.T) {
 	var gotRequest *http.Request
-	s := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+	s := httptest.NewTLSServer(http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
 		gotRequest = req
 	}))
 	defer s.Close()

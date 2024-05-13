@@ -93,7 +93,7 @@ var _ = ginkgo.Describe("The basic ClusterOverridePolicy testing", func() {
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Waiting for namespace present on cluster(%s)", clusterName)
-					gomega.Eventually(func(g gomega.Gomega) (bool, error) {
+					gomega.Eventually(func(gomega.Gomega) (bool, error) {
 						clusterNs, err := clusterClient.CoreV1().Namespaces().Get(context.TODO(), ns.Name, metav1.GetOptions{})
 						if err != nil {
 							if apierrors.IsNotFound(err) {
@@ -176,7 +176,7 @@ var _ = framework.SerialDescribe("The ClusterOverridePolicy with nil resourceSel
 		ginkgo.It("deployment imageOverride testing", func() {
 			ginkgo.By("Check if deployment have presented on member clusters", func() {
 				framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
-					func(deployment *appsv1.Deployment) bool {
+					func(*appsv1.Deployment) bool {
 						return true
 					})
 			})

@@ -217,7 +217,7 @@ func Test_clusterProxy_connect(t *testing.T) {
 			name: "get cache error",
 			fields: fields{
 				store: &proxytest.MockStore{
-					GetResourceFromCacheFunc: func(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error) {
+					GetResourceFromCacheFunc: func(_ context.Context, _ schema.GroupVersionResource, _, _ string) (runtime.Object, string, error) {
 						return nil, "", errors.New("test error")
 					},
 				},
@@ -233,7 +233,7 @@ func Test_clusterProxy_connect(t *testing.T) {
 			name: "cluster not found",
 			fields: fields{
 				store: &proxytest.MockStore{
-					GetResourceFromCacheFunc: func(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error) {
+					GetResourceFromCacheFunc: func(_ context.Context, _ schema.GroupVersionResource, _, _ string) (runtime.Object, string, error) {
 						return nil, "cluster1", nil
 					},
 				},
@@ -249,7 +249,7 @@ func Test_clusterProxy_connect(t *testing.T) {
 			name: "API endpoint of cluster cluster1 should not be empty",
 			fields: fields{
 				store: &proxytest.MockStore{
-					GetResourceFromCacheFunc: func(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error) {
+					GetResourceFromCacheFunc: func(_ context.Context, _ schema.GroupVersionResource, _, _ string) (runtime.Object, string, error) {
 						return nil, "cluster1", nil
 					},
 				},
@@ -269,7 +269,7 @@ func Test_clusterProxy_connect(t *testing.T) {
 			name: "impersonatorSecretRef is nil",
 			fields: fields{
 				store: &proxytest.MockStore{
-					GetResourceFromCacheFunc: func(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error) {
+					GetResourceFromCacheFunc: func(_ context.Context, _ schema.GroupVersionResource, _, _ string) (runtime.Object, string, error) {
 						return nil, "cluster1", nil
 					},
 				},
@@ -291,7 +291,7 @@ func Test_clusterProxy_connect(t *testing.T) {
 			name: "secret not found",
 			fields: fields{
 				store: &proxytest.MockStore{
-					GetResourceFromCacheFunc: func(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error) {
+					GetResourceFromCacheFunc: func(_ context.Context, _ schema.GroupVersionResource, _, _ string) (runtime.Object, string, error) {
 						return nil, "cluster1", nil
 					},
 				},
@@ -317,7 +317,7 @@ func Test_clusterProxy_connect(t *testing.T) {
 			name: "response ok",
 			fields: fields{
 				store: &proxytest.MockStore{
-					GetResourceFromCacheFunc: func(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error) {
+					GetResourceFromCacheFunc: func(_ context.Context, _ schema.GroupVersionResource, _, _ string) (runtime.Object, string, error) {
 						return nil, "cluster1", nil
 					},
 				},
@@ -354,7 +354,7 @@ func Test_clusterProxy_connect(t *testing.T) {
 			name: "update error",
 			fields: fields{
 				store: &proxytest.MockStore{
-					GetResourceFromCacheFunc: func(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error) {
+					GetResourceFromCacheFunc: func(_ context.Context, _ schema.GroupVersionResource, _, _ string) (runtime.Object, string, error) {
 						return nil, "cluster1", nil
 					},
 				},

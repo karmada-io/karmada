@@ -37,7 +37,7 @@ func NewMetricsAdapterCommand(ctx context.Context) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:  "karmada-metrics-adapter",
 		Long: `The karmada-metrics-adapter is a adapter to aggregate the metrics from member clusters.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			if err := opts.Complete(); err != nil {
 				return err
 			}

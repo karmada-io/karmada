@@ -65,7 +65,7 @@ func NewKarmadaSearchCommand(ctx context.Context, registryOptions ...Option) *co
 		Use: "karmada-search",
 		Long: `The karmada-search starts an aggregated server. It provides 
 capabilities such as global search and resource proxy in a multi-cloud environment.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			if err := opts.Complete(); err != nil {
 				return err
 			}

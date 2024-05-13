@@ -72,7 +72,7 @@ func NewCmdDescribe(f util.Factory, parentCommand string, streams genericiooptio
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		Example:               fmt.Sprintf(describeExample, parentCommand),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			if err := o.Complete(f, args, kubedescribeFlags, parentCommand); err != nil {
 				return err
 			}

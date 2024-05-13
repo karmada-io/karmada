@@ -87,7 +87,7 @@ var _ = ginkgo.Describe("[BasicPropagation] propagation testing", func() {
 
 		ginkgo.It("deployment propagation testing", func() {
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
-				func(deployment *appsv1.Deployment) bool {
+				func(*appsv1.Deployment) bool {
 					return true
 				})
 
@@ -137,7 +137,7 @@ var _ = ginkgo.Describe("[BasicPropagation] propagation testing", func() {
 
 		ginkgo.It("service propagation testing", func() {
 			framework.WaitServicePresentOnClustersFitWith(framework.ClusterNames(), service.Namespace, service.Name,
-				func(service *corev1.Service) bool {
+				func(*corev1.Service) bool {
 					return true
 				})
 
@@ -188,7 +188,7 @@ var _ = ginkgo.Describe("[BasicPropagation] propagation testing", func() {
 
 		ginkgo.It("pod propagation testing", func() {
 			framework.WaitPodPresentOnClustersFitWith(framework.ClusterNames(), pod.Namespace, pod.Name,
-				func(pod *corev1.Pod) bool {
+				func(*corev1.Pod) bool {
 					return true
 				})
 
@@ -406,7 +406,7 @@ var _ = ginkgo.Describe("[BasicPropagation] propagation testing", func() {
 
 		ginkgo.It("job propagation testing", func() {
 			framework.WaitJobPresentOnClustersFitWith(framework.ClusterNames(), job.Namespace, job.Name,
-				func(job *batchv1.Job) bool {
+				func(*batchv1.Job) bool {
 					return true
 				})
 
@@ -461,7 +461,7 @@ var _ = ginkgo.Describe("[BasicPropagation] propagation testing", func() {
 
 		ginkgo.It("role propagation testing", func() {
 			framework.WaitRolePresentOnClustersFitWith(framework.ClusterNames(), role.Namespace, role.Name,
-				func(role *rbacv1.Role) bool {
+				func(*rbacv1.Role) bool {
 					return true
 				})
 		})
@@ -506,7 +506,7 @@ var _ = ginkgo.Describe("[BasicPropagation] propagation testing", func() {
 
 		ginkgo.It("roleBinding propagation testing", func() {
 			framework.WaitRoleBindingPresentOnClustersFitWith(framework.ClusterNames(), roleBinding.Namespace, roleBinding.Name,
-				func(roleBinding *rbacv1.RoleBinding) bool {
+				func(*rbacv1.RoleBinding) bool {
 					return true
 				})
 		})
@@ -803,7 +803,7 @@ var _ = ginkgo.Describe("[AdvancedPropagation] propagation testing", func() {
 			})
 
 			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment01.Namespace, deployment01.Name,
-				func(deployment *appsv1.Deployment) bool { return true })
+				func(*appsv1.Deployment) bool { return true })
 		})
 
 		ginkgo.It("add resourceSelectors item", func() {
@@ -822,7 +822,7 @@ var _ = ginkgo.Describe("[AdvancedPropagation] propagation testing", func() {
 			framework.UpdatePropagationPolicyWithSpec(karmadaClient, policy.Namespace, policy.Name, policy.Spec)
 
 			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment02.Namespace, deployment02.Name,
-				func(deployment *appsv1.Deployment) bool { return true })
+				func(*appsv1.Deployment) bool { return true })
 		})
 
 		ginkgo.It("update resourceSelectors item", func() {
@@ -838,7 +838,7 @@ var _ = ginkgo.Describe("[AdvancedPropagation] propagation testing", func() {
 			framework.UpdatePropagationPolicyWithSpec(karmadaClient, policy.Namespace, policy.Name, policySpec)
 
 			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment02.Namespace, deployment02.Name,
-				func(deployment *appsv1.Deployment) bool { return true })
+				func(*appsv1.Deployment) bool { return true })
 			framework.WaitDeploymentGetByClientFitWith(kubeClient, deployment01.Namespace, deployment01.Name,
 				func(deployment *appsv1.Deployment) bool {
 					if deployment.Annotations == nil {
@@ -946,7 +946,7 @@ var _ = ginkgo.Describe("[AdvancedPropagation] propagation testing", func() {
 			framework.PatchPropagationPolicy(karmadaClient, policy.Namespace, policy.Name, patch, types.JSONPatchType)
 			framework.WaitDeploymentDisappearOnCluster(targetMember, deployment.Namespace, deployment.Name)
 			framework.WaitDeploymentPresentOnClusterFitWith(updatedMember, deployment.Namespace, deployment.Name,
-				func(deployment *appsv1.Deployment) bool { return true })
+				func(*appsv1.Deployment) bool { return true })
 		})
 	})
 
@@ -1071,7 +1071,7 @@ var _ = ginkgo.Describe("[AdvancedPropagation] propagation testing", func() {
 		ginkgo.It("modify the old propagationPolicy to unbind and create a new one", func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy01)
 			framework.WaitConfigMapPresentOnClusterFitWith(member1, configmap.Namespace, configmap.Name,
-				func(configmap *corev1.ConfigMap) bool { return true })
+				func(*corev1.ConfigMap) bool { return true })
 			framework.UpdatePropagationPolicyWithSpec(karmadaClient, policy01.Namespace, policy01.Name, policyv1alpha1.PropagationSpec{
 				ResourceSelectors: []policyv1alpha1.ResourceSelector{
 					{
@@ -1090,7 +1090,7 @@ var _ = ginkgo.Describe("[AdvancedPropagation] propagation testing", func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy02)
 			framework.WaitConfigMapDisappearOnCluster(member1, configmap.Namespace, configmap.Name)
 			framework.WaitConfigMapPresentOnClusterFitWith(member2, configmap.Namespace, configmap.Name,
-				func(configmap *corev1.ConfigMap) bool { return true })
+				func(*corev1.ConfigMap) bool { return true })
 			framework.RemovePropagationPolicy(karmadaClient, policy01.Namespace, policy01.Name)
 			framework.RemovePropagationPolicy(karmadaClient, policy02.Namespace, policy02.Name)
 		})
@@ -1098,13 +1098,13 @@ var _ = ginkgo.Describe("[AdvancedPropagation] propagation testing", func() {
 		ginkgo.It("delete the old propagationPolicy to unbind and create a new one", func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy01)
 			framework.WaitConfigMapPresentOnClusterFitWith(member1, configmap.Namespace, configmap.Name,
-				func(configmap *corev1.ConfigMap) bool { return true })
+				func(*corev1.ConfigMap) bool { return true })
 			framework.RemovePropagationPolicy(karmadaClient, policy01.Namespace, policy01.Name)
 
 			framework.CreatePropagationPolicy(karmadaClient, policy02)
 			framework.WaitConfigMapDisappearOnCluster(member1, configmap.Namespace, configmap.Name)
 			framework.WaitConfigMapPresentOnClusterFitWith(member2, configmap.Namespace, configmap.Name,
-				func(configmap *corev1.ConfigMap) bool { return true })
+				func(*corev1.ConfigMap) bool { return true })
 			framework.RemovePropagationPolicy(karmadaClient, policy02.Namespace, policy02.Name)
 		})
 	})

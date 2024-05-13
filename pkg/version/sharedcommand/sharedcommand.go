@@ -42,7 +42,7 @@ func NewCmdVersion(parentCommand string) *cobra.Command {
 		Short:   versionShort,
 		Long:    versionLong,
 		Example: fmt.Sprintf(versionExample, parentCommand),
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			fmt.Fprintf(os.Stdout, "%s version: %s\n", parentCommand, version.Get())
 		},
 	}

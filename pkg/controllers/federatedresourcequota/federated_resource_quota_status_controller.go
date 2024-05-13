@@ -89,7 +89,7 @@ func (c *StatusController) Reconcile(ctx context.Context, req controllerruntime.
 // SetupWithManager creates a controller and register to controller manager.
 func (c *StatusController) SetupWithManager(mgr controllerruntime.Manager) error {
 	fn := handler.MapFunc(
-		func(ctx context.Context, obj client.Object) []reconcile.Request {
+		func(_ context.Context, obj client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 
 			quotaNamespace, namespaceExist := obj.GetLabels()[util.FederatedResourceQuotaNamespaceLabel]
@@ -108,7 +108,7 @@ func (c *StatusController) SetupWithManager(mgr controllerruntime.Manager) error
 	)
 
 	workPredicate := builder.WithPredicates(predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
+		CreateFunc: func(event.CreateEvent) bool {
 			return false
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
@@ -121,10 +121,10 @@ func (c *StatusController) SetupWithManager(mgr controllerruntime.Manager) error
 			}
 			return !reflect.DeepEqual(objOld.Status, objNew.Status)
 		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
+		DeleteFunc: func(event.DeleteEvent) bool {
 			return false
 		},
-		GenericFunc: func(e event.GenericEvent) bool {
+		GenericFunc: func(event.GenericEvent) bool {
 			return false
 		},
 	})

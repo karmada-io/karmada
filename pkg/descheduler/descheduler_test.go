@@ -492,9 +492,9 @@ func TestDescheduler_worker(t *testing.T) {
 				cluster := c
 				mockClient := &estimatorservice.MockEstimatorClient{}
 				mockResultFn := func(
-					ctx context.Context,
-					in *pb.UnschedulableReplicasRequest,
-					opts ...grpc.CallOption,
+					_ context.Context,
+					_ *pb.UnschedulableReplicasRequest,
+					_ ...grpc.CallOption,
 				) *pb.UnschedulableReplicasResponse {
 					return &pb.UnschedulableReplicasResponse{
 						UnschedulableReplicas: cluster.Replicas,

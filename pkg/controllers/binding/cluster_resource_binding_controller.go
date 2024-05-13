@@ -169,7 +169,7 @@ func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntim
 }
 
 func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.MapFunc {
-	return func(ctx context.Context, a client.Object) []reconcile.Request {
+	return func(_ context.Context, a client.Object) []reconcile.Request {
 		var overrideRS []policyv1alpha1.ResourceSelector
 		switch t := a.(type) {
 		case *policyv1alpha1.ClusterOverridePolicy:

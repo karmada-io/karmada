@@ -143,7 +143,7 @@ func (os *OpenSearch) ResourceEventHandlerFuncs() cache.ResourceEventHandler {
 		AddFunc: func(obj interface{}) {
 			os.upsert(obj)
 		},
-		UpdateFunc: func(oldObj, curObj interface{}) {
+		UpdateFunc: func(_, curObj interface{}) {
 			os.upsert(curObj)
 		},
 		DeleteFunc: func(obj interface{}) {

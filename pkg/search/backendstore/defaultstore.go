@@ -41,7 +41,7 @@ func NewDefaultBackend(cluster string) *Default {
 				klog.V(4).Infof("AddFunc Cluster(%s) GVK(%s) Name(%s/%s)",
 					cluster, us.GroupVersionKind().String(), us.GetNamespace(), us.GetName())
 			},
-			UpdateFunc: func(oldObj, curObj interface{}) {
+			UpdateFunc: func(_, curObj interface{}) {
 				us, ok := curObj.(*unstructured.Unstructured)
 				if !ok {
 					klog.Errorf("unexpected type %T", curObj)

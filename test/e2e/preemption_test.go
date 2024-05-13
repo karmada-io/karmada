@@ -76,17 +76,17 @@ var _ = ginkgo.Describe("[Preemption] propagation policy preemption testing", fu
 
 			ginkgo.It("Propagate the deployment with the low-priority PropagationPolicy and then create the high-priority PropagationPolicy to preempt it", func() {
 				ginkgo.By("Wait for propagating deployment by the low-priority PropagationPolicy", func() {
-					framework.WaitDeploymentPresentOnClusterFitWith(preemptedClusterName, deployment.Namespace, deployment.Name, func(deployment *appsv1.Deployment) bool { return true })
+					framework.WaitDeploymentPresentOnClusterFitWith(preemptedClusterName, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
 				})
 
 				ginkgo.By("Create the high-priority PropagationPolicy to preempt the low-priority PropagationPolicy", func() {
 					framework.CreatePropagationPolicy(karmadaClient, highPriorityPolicy)
-					framework.WaitDeploymentPresentOnClusterFitWith(preemptingClusterName, deployment.Namespace, deployment.Name, func(deployment *appsv1.Deployment) bool { return true })
+					framework.WaitDeploymentPresentOnClusterFitWith(preemptingClusterName, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
 				})
 
 				ginkgo.By("Delete the high-priority PropagationPolicy to let the low-priority PropagationPolicy preempt the deployment", func() {
 					framework.RemovePropagationPolicy(karmadaClient, highPriorityPolicy.Namespace, highPriorityPolicy.Name)
-					framework.WaitDeploymentPresentOnClusterFitWith(preemptedClusterName, deployment.Namespace, deployment.Name, func(deployment *appsv1.Deployment) bool { return true })
+					framework.WaitDeploymentPresentOnClusterFitWith(preemptedClusterName, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
 				})
 			})
 		})
@@ -135,17 +135,17 @@ var _ = ginkgo.Describe("[Preemption] propagation policy preemption testing", fu
 
 			ginkgo.It("Propagate the deployment with the ClusterPropagationPolicy and then create the PropagationPolicy to preempt it", func() {
 				ginkgo.By("Wait for propagating deployment by the ClusterPropagationPolicy", func() {
-					framework.WaitDeploymentPresentOnClusterFitWith(preemptedClusterName, deployment.Namespace, deployment.Name, func(deployment *appsv1.Deployment) bool { return true })
+					framework.WaitDeploymentPresentOnClusterFitWith(preemptedClusterName, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
 				})
 
 				ginkgo.By("Create the PropagationPolicy to preempt the ClusterPropagationPolicy", func() {
 					framework.CreatePropagationPolicy(karmadaClient, propagationPolicy)
-					framework.WaitDeploymentPresentOnClusterFitWith(preemptingClusterName, deployment.Namespace, deployment.Name, func(deployment *appsv1.Deployment) bool { return true })
+					framework.WaitDeploymentPresentOnClusterFitWith(preemptingClusterName, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
 				})
 
 				ginkgo.By("Delete the PropagationPolicy to let the ClusterPropagationPolicy preempt the deployment", func() {
 					framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
-					framework.WaitDeploymentPresentOnClusterFitWith(preemptedClusterName, deployment.Namespace, deployment.Name, func(deployment *appsv1.Deployment) bool { return true })
+					framework.WaitDeploymentPresentOnClusterFitWith(preemptedClusterName, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
 				})
 			})
 		})
@@ -197,7 +197,7 @@ var _ = ginkgo.Describe("[Preemption] propagation policy preemption testing", fu
 
 			ginkgo.It("Propagate the deployment with the high-priority PropagationPolicy and then reduce it's priority to be preempted by the low-priority PropagationPolicy", func() {
 				ginkgo.By("Wait for propagating deployment by the high-priority PropagationPolicy", func() {
-					framework.WaitDeploymentPresentOnClusterFitWith(preemptedClusterName, deployment.Namespace, deployment.Name, func(deployment *appsv1.Deployment) bool { return true })
+					framework.WaitDeploymentPresentOnClusterFitWith(preemptedClusterName, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
 				})
 
 				ginkgo.By("Reduce the priority of the high-priority PropagationPolicy to be preempted by the low-priority PropagationPolicy", func() {
@@ -210,7 +210,7 @@ var _ = ginkgo.Describe("[Preemption] propagation policy preemption testing", fu
 						},
 					}
 					framework.PatchPropagationPolicy(karmadaClient, highPriorityPolicy.Namespace, highPriorityPolicy.Name, patch, types.JSONPatchType)
-					framework.WaitDeploymentPresentOnClusterFitWith(preemptingClusterName, deployment.Namespace, deployment.Name, func(deployment *appsv1.Deployment) bool { return true })
+					framework.WaitDeploymentPresentOnClusterFitWith(preemptingClusterName, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
 				})
 			})
 		})
@@ -260,17 +260,17 @@ var _ = ginkgo.Describe("[Preemption] propagation policy preemption testing", fu
 
 			ginkgo.It("Propagate the deployment with the low-priority ClusterPropagationPolicy and then create the high-priority ClusterPropagationPolicy to preempt it", func() {
 				ginkgo.By("Wait for propagating deployment by the low-priority ClusterPropagationPolicy", func() {
-					framework.WaitDeploymentPresentOnClusterFitWith(preemptedClusterName, deployment.Namespace, deployment.Name, func(deployment *appsv1.Deployment) bool { return true })
+					framework.WaitDeploymentPresentOnClusterFitWith(preemptedClusterName, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
 				})
 
 				ginkgo.By("Create the high-priority ClusterPropagationPolicy to preempt the low-priority ClusterPropagationPolicy", func() {
 					framework.CreateClusterPropagationPolicy(karmadaClient, highPriorityPolicy)
-					framework.WaitDeploymentPresentOnClusterFitWith(preemptingClusterName, deployment.Namespace, deployment.Name, func(deployment *appsv1.Deployment) bool { return true })
+					framework.WaitDeploymentPresentOnClusterFitWith(preemptingClusterName, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
 				})
 
 				ginkgo.By("Delete the high-priority ClusterPropagationPolicy to let the low-priority ClusterPropagationPolicy preempt the deployment", func() {
 					framework.RemoveClusterPropagationPolicy(karmadaClient, highPriorityPolicy.Name)
-					framework.WaitDeploymentPresentOnClusterFitWith(preemptedClusterName, deployment.Namespace, deployment.Name, func(deployment *appsv1.Deployment) bool { return true })
+					framework.WaitDeploymentPresentOnClusterFitWith(preemptedClusterName, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
 				})
 			})
 		})
@@ -322,7 +322,7 @@ var _ = ginkgo.Describe("[Preemption] propagation policy preemption testing", fu
 
 			ginkgo.It("Propagate the deployment with the high-priority ClusterPropagationPolicy and then reduce it's priority to be preempted by the low-priority ClusterPropagationPolicy", func() {
 				ginkgo.By("Wait for propagating deployment by the high-priority ClusterPropagationPolicy", func() {
-					framework.WaitDeploymentPresentOnClusterFitWith(preemptedClusterName, deployment.Namespace, deployment.Name, func(deployment *appsv1.Deployment) bool { return true })
+					framework.WaitDeploymentPresentOnClusterFitWith(preemptedClusterName, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
 				})
 
 				ginkgo.By("Reduce the priority of the high-priority ClusterPropagationPolicy to be preempted by the low-priority ClusterPropagationPolicy", func() {
@@ -335,7 +335,7 @@ var _ = ginkgo.Describe("[Preemption] propagation policy preemption testing", fu
 						},
 					}
 					framework.PatchClusterPropagationPolicy(karmadaClient, highPriorityPolicy.Name, patch, types.JSONPatchType)
-					framework.WaitDeploymentPresentOnClusterFitWith(preemptingClusterName, deployment.Namespace, deployment.Name, func(deployment *appsv1.Deployment) bool { return true })
+					framework.WaitDeploymentPresentOnClusterFitWith(preemptingClusterName, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
 				})
 			})
 		})

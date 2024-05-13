@@ -49,7 +49,7 @@ type DeploymentReplicasSyncer struct {
 }
 
 var predicateFunc = predicate.Funcs{
-	CreateFunc: func(e event.CreateEvent) bool { return false },
+	CreateFunc: func(event.CreateEvent) bool { return false },
 	UpdateFunc: func(e event.UpdateEvent) bool {
 		oldObj := e.ObjectOld.(*appsv1.Deployment)
 		newObj := e.ObjectNew.(*appsv1.Deployment)

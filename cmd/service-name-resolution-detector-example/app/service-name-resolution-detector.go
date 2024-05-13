@@ -48,7 +48,7 @@ func NewDetector(ctx context.Context) *cobra.Command {
 		Use: "service-name-resolution-detector-example",
 		Long: `The service-name-resolution-detector-example is an agent deployed in member clusters. It can periodically detect health 
 condition of components in member cluster(such as coredns), and sync conditions to Karmada control plane.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			if err := opts.Complete(); err != nil {
 				return err
 			}

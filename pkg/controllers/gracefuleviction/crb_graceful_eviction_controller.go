@@ -118,8 +118,8 @@ func (c *CRBGracefulEvictionController) SetupWithManager(mgr controllerruntime.M
 
 			return newObj.Status.SchedulerObservedGeneration == newObj.Generation
 		},
-		DeleteFunc:  func(deleteEvent event.DeleteEvent) bool { return false },
-		GenericFunc: func(genericEvent event.GenericEvent) bool { return false },
+		DeleteFunc:  func(event.DeleteEvent) bool { return false },
+		GenericFunc: func(event.GenericEvent) bool { return false },
 	}
 
 	return controllerruntime.NewControllerManagedBy(mgr).

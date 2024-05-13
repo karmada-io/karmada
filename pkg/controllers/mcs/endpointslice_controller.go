@@ -129,7 +129,7 @@ func (c *EndpointSliceController) SetupWithManager(mgr controllerruntime.Manager
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			return util.GetLabelValue(deleteEvent.Object.GetLabels(), util.ServiceNameLabel) != ""
 		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
+		GenericFunc: func(event.GenericEvent) bool {
 			return false
 		},
 	}

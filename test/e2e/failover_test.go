@@ -513,7 +513,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 			})
 
 			ginkgo.By("check whether the failed deployment is present on the disabledClusters", func() {
-				framework.WaitDeploymentPresentOnClustersFitWith(disabledClusters, deploymentNamespace, deploymentName, func(deployment *appsv1.Deployment) bool { return true })
+				framework.WaitDeploymentPresentOnClustersFitWith(disabledClusters, deploymentNamespace, deploymentName, func(*appsv1.Deployment) bool { return true })
 			})
 
 			ginkgo.By("delete the error op", func() {

@@ -65,7 +65,7 @@ func TestCreateOrUpdateSecret(t *testing.T) {
 			args: args{
 				client: func() kubernetes.Interface {
 					c := fake.NewSimpleClientset()
-					c.PrependReactor("create", "*", func(action coretesting.Action) (handled bool, ret runtime.Object, err error) {
+					c.PrependReactor("create", "*", func(coretesting.Action) (handled bool, ret runtime.Object, err error) {
 						return true, nil, errors.New("create secret error")
 					})
 					return c
@@ -79,7 +79,7 @@ func TestCreateOrUpdateSecret(t *testing.T) {
 			args: args{
 				client: func() kubernetes.Interface {
 					c := fake.NewSimpleClientset(makeSecret("test"))
-					c.PrependReactor("update", "*", func(action coretesting.Action) (handled bool, ret runtime.Object, err error) {
+					c.PrependReactor("update", "*", func(coretesting.Action) (handled bool, ret runtime.Object, err error) {
 						return true, nil, errors.New("update secret error")
 					})
 					return c

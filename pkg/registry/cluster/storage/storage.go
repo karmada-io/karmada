@@ -113,7 +113,7 @@ func (r *REST) ResourceLocation(ctx context.Context, name string) (*url.URL, htt
 		return nil, nil, err
 	}
 
-	secretGetter := func(ctx context.Context, namespace, name string) (*corev1.Secret, error) {
+	secretGetter := func(_ context.Context, namespace, name string) (*corev1.Secret, error) {
 		return r.secretLister.Secrets(namespace).Get(name)
 	}
 	tlsConfig, err := proxy.GetTLSConfigForCluster(ctx, cluster, secretGetter)
