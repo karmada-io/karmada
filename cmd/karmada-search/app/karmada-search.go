@@ -214,6 +214,8 @@ func config(o *options.Options, outOfTreeRegistryOptions ...Option) (*search.Con
 			KarmadaFactory:    factory,
 			MinRequestTimeout: time.Second * time.Duration(serverConfig.Config.MinRequestTimeout),
 			OutOfTreeRegistry: outOfTreeRegistry,
+			MemberClientQPS:   o.MemberClusterKubeAPIQPS,
+			MemberClientBurst: o.MemberClusterKubeAPIBurst,
 		})
 
 		if err != nil {

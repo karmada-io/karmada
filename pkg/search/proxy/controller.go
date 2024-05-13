@@ -79,6 +79,9 @@ type NewControllerOption struct {
 	MinRequestTimeout time.Duration
 
 	OutOfTreeRegistry pluginruntime.Registry
+
+	MemberClientQPS   float32
+	MemberClientBurst int
 }
 
 // NewController create a controller for proxy
@@ -86,7 +89,7 @@ func NewController(option NewControllerOption) (*Controller, error) {
 	secretLister := option.KubeFactory.Core().V1().Secrets().Lister()
 	clusterLister := option.KarmadaFactory.Cluster().V1alpha1().Clusters().Lister()
 
-	clientFactory := dynamicClientForClusterFunc(clusterLister, secretLister)
+	clientFactory := dynamicClientForClusterFunc(clusterLister, secretLister, option.MemberClientQPS, option.MemberClientBurst)
 	multiClusterStore := store.NewMultiClusterCache(clientFactory, option.RestMapper)
 
 	allPlugins, err := newPlugins(option, multiClusterStore)
@@ -296,7 +299,7 @@ func (ctl *Controller) Connect(ctx context.Context, proxyPath string, responder 
 }
 
 func dynamicClientForClusterFunc(clusterLister clusterlisters.ClusterLister,
-	secretLister listcorev1.SecretLister) func(string) (dynamic.Interface, error) {
+	secretLister listcorev1.SecretLister, qps float32, burst int) func(string) (dynamic.Interface, error) {
 	clusterGetter := func(cluster string) (*clusterv1alpha1.Cluster, error) {
 		return clusterLister.Get(cluster)
 	}
@@ -305,7 +308,7 @@ func dynamicClientForClusterFunc(clusterLister clusterlisters.ClusterLister,
 	}
 
 	return func(clusterName string) (dynamic.Interface, error) {
-		clusterConfig, err := util.BuildClusterConfig(clusterName, clusterGetter, secretGetter)
+		clusterConfig, err := util.BuildClusterConfig(clusterName, clusterGetter, secretGetter, &qps, &burst)
 		if err != nil {
 			return nil, err
 		}

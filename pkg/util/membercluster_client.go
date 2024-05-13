@@ -19,8 +19,10 @@ package util
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/runtime"
 	"net/http"
 	"net/url"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -71,7 +73,7 @@ type ClientOption struct {
 
 // NewClusterScaleClientSet returns a ClusterScaleClient for the given member cluster.
 func NewClusterScaleClientSet(clusterName string, client client.Client) (*ClusterScaleClient, error) {
-	clusterConfig, err := BuildClusterConfig(clusterName, clusterGetter(client), secretGetter(client))
+	clusterConfig, err := BuildClusterConfig(clusterName, clusterGetter(client), secretGetter(client), nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +106,7 @@ func NewClusterScaleClientSet(clusterName string, client client.Client) (*Cluste
 
 // NewClusterClientSet returns a ClusterClient for the given member cluster.
 func NewClusterClientSet(clusterName string, client client.Client, clientOption *ClientOption) (*ClusterClient, error) {
-	clusterConfig, err := BuildClusterConfig(clusterName, clusterGetter(client), secretGetter(client))
+	clusterConfig, err := BuildClusterConfig(clusterName, clusterGetter(client), secretGetter(client), nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +144,7 @@ func NewClusterClientSetForAgent(clusterName string, _ client.Client, clientOpti
 
 // NewClusterDynamicClientSet returns a dynamic client for the given member cluster.
 func NewClusterDynamicClientSet(clusterName string, client client.Client) (*DynamicClusterClient, error) {
-	clusterConfig, err := BuildClusterConfig(clusterName, clusterGetter(client), secretGetter(client))
+	clusterConfig, err := BuildClusterConfig(clusterName, clusterGetter(client), secretGetter(client), nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +173,7 @@ func NewClusterDynamicClientSetForAgent(clusterName string, _ client.Client) (*D
 // BuildClusterConfig return rest config for member cluster.
 func BuildClusterConfig(clusterName string,
 	clusterGetter func(string) (*clusterv1alpha1.Cluster, error),
-	secretGetter func(string, string) (*corev1.Secret, error)) (*rest.Config, error) {
+	secretGetter func(string, string) (*corev1.Secret, error), qps *float32, burst *int) (*rest.Config, error) {
 	cluster, err := clusterGetter(clusterName)
 	if err != nil {
 		return nil, err
@@ -225,6 +227,25 @@ func BuildClusterConfig(clusterName string,
 		if len(cluster.Spec.ProxyHeader) != 0 {
 			clusterConfig.Wrap(NewProxyHeaderRoundTripperWrapperConstructor(clusterConfig.WrapTransport, cluster.Spec.ProxyHeader))
 		}
+	}
+
+	if clusterConfig.ContentType != "" {
+		clusterConfig.ContentType = strings.Join([]string{clusterConfig.ContentType, runtime.ContentTypeProtobuf, runtime.ContentTypeJSON}, ",")
+	} else {
+		clusterConfig.ContentType = strings.Join([]string{runtime.ContentTypeProtobuf, runtime.ContentTypeJSON}, ",")
+	}
+
+	if clusterConfig.AcceptContentTypes != "" {
+		clusterConfig.AcceptContentTypes = strings.Join([]string{clusterConfig.AcceptContentTypes, runtime.ContentTypeProtobuf, runtime.ContentTypeJSON}, ",")
+	} else {
+		clusterConfig.AcceptContentTypes = strings.Join([]string{runtime.ContentTypeProtobuf, runtime.ContentTypeJSON}, ",")
+	}
+
+	if qps != nil {
+		clusterConfig.QPS = *qps
+	}
+	if burst != nil {
+		clusterConfig.Burst = *burst
 	}
 
 	return clusterConfig, nil
