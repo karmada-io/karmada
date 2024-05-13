@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -72,9 +71,6 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 			runtimeObject.Spec = work.Spec
 			runtimeObject.Labels = util.DedupeAndMergeLabels(runtimeObject.Labels, work.Labels)
 			runtimeObject.Annotations = util.DedupeAndMergeAnnotations(runtimeObject.Annotations, work.Annotations)
-			if util.GetLabelValue(runtimeObject.Labels, workv1alpha2.WorkPermanentIDLabel) == "" {
-				runtimeObject.Labels = util.DedupeAndMergeLabels(runtimeObject.Labels, map[string]string{workv1alpha2.WorkPermanentIDLabel: uuid.New().String()})
-			}
 			return nil
 		})
 		return err
