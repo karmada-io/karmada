@@ -34,7 +34,7 @@ jobs:
           export REGISTRY="docker.io/karmada"
           make image-${{ matrix.target }}
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.19.0
+        uses: aquasecurity/trivy-action@0.20.0
         with:
           image-ref: 'docker.io/karmada/${{ matrix.target }}:latest'
           format: 'sarif'
@@ -42,7 +42,7 @@ jobs:
           vuln-type: 'os,library'
           output: 'trivy-results.sarif'
       - name: display scan results
-        uses: aquasecurity/trivy-action@0.19.0
+        uses: aquasecurity/trivy-action@0.20.0
         with:
           image-ref: 'docker.io/karmada/${{ matrix.target }}:latest'
           format: 'table'
