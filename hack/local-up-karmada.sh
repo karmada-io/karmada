@@ -61,6 +61,7 @@ MEMBER_CLUSTER_1_TMP_CONFIG="${KUBECONFIG_PATH}/${MEMBER_TMP_CONFIG_PREFIX}-${ME
 MEMBER_CLUSTER_2_TMP_CONFIG="${KUBECONFIG_PATH}/${MEMBER_TMP_CONFIG_PREFIX}-${MEMBER_CLUSTER_2_NAME}.config"
 PULL_MODE_CLUSTER_TMP_CONFIG="${KUBECONFIG_PATH}/${MEMBER_TMP_CONFIG_PREFIX}-${PULL_MODE_CLUSTER_NAME}.config"
 HOST_IPADDRESS=${1:-}
+DOCKER_BUILD_ARGS=${DOCKER_BUILD_ARGS:-}
 
 CLUSTER_VERSION=${CLUSTER_VERSION:-"${DEFAULT_CLUSTER_VERSION}"}
 KIND_LOG_FILE=${KIND_LOG_FILE:-"/tmp/karmada"}
@@ -132,7 +133,7 @@ util::create_cluster "${PULL_MODE_CLUSTER_NAME}" "${PULL_MODE_CLUSTER_TMP_CONFIG
 export VERSION="latest"
 export REGISTRY="docker.io/karmada"
 export KARMADA_IMAGE_LABEL_VALUE="May_be_pruned_in_local-up-karmada.sh"
-export DOCKER_BUILD_ARGS="--label=image.karmada.io=${KARMADA_IMAGE_LABEL_VALUE}"
+export DOCKER_BUILD_ARGS="${DOCKER_BUILD_ARGS} --label=image.karmada.io=${KARMADA_IMAGE_LABEL_VALUE}"
 make images GOOS="linux" --directory="${REPO_ROOT}"
 #clean up dangling images
 docker image prune --force --filter "label=image.karmada.io=${KARMADA_IMAGE_LABEL_VALUE}"
