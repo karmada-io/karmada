@@ -20,8 +20,6 @@ set -o pipefail
 
 KARMADA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
-# Use `hack/generate-proto.sh` to generate proto files.
-
 DEFAULT_GOPATH=$(go env GOPATH | awk -F ':' '{print $1}')
 export GOPATH=${DEFAULT_GOPATH}
 export PATH=$PATH:$GOPATH/bin
@@ -45,7 +43,7 @@ source "${KARMADA_ROOT}"/hack/util.sh
 util:create_gopath_tree "${KARMADA_ROOT}" "${go_path}"
 export GOPATH="${go_path}"
 
-#ref https://github.com/kubernetes/kubernetes/blob/master/hack/update-generated-protobuf-dockerized.sh
+# https://github.com/kubernetes/kubernetes/blob/release-1.23/hack/update-generated-protobuf-dockerized.sh
 if [[ -z "$(which protoc)" || $(protoc --version | sed -r "s/libprotoc ([0-9]+).*/\1/g") -lt 3 ]]; then
   echo "Generating protobuf requires protoc 3.0.0-beta1 or newer. Please download and"
   echo "install the platform appropriate Protobuf package for your OS: "
