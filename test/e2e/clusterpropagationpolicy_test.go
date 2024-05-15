@@ -125,7 +125,7 @@ var _ = ginkgo.Describe("[BasicClusterPropagation] propagation testing", func() 
 
 		ginkgo.It("clusterRole propagation testing", func() {
 			framework.WaitClusterRolePresentOnClustersFitWith(framework.ClusterNames(), clusterRole.Name,
-				func(role *rbacv1.ClusterRole) bool {
+				func(*rbacv1.ClusterRole) bool {
 					return true
 				})
 		})
@@ -169,7 +169,7 @@ var _ = ginkgo.Describe("[BasicClusterPropagation] propagation testing", func() 
 
 		ginkgo.It("clusterRoleBinding propagation testing", func() {
 			framework.WaitClusterRoleBindingPresentOnClustersFitWith(framework.ClusterNames(), clusterRoleBinding.Name,
-				func(binding *rbacv1.ClusterRoleBinding) bool {
+				func(*rbacv1.ClusterRoleBinding) bool {
 					return true
 				})
 		})
@@ -213,7 +213,7 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 				})
 
 				framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment01.Namespace, deployment01.Name,
-					func(deployment *appsv1.Deployment) bool { return true })
+					func(*appsv1.Deployment) bool { return true })
 			})
 
 			ginkgo.It("add resourceSelectors item", func() {
@@ -231,7 +231,7 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 				})
 
 				framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment02.Namespace, deployment02.Name,
-					func(deployment *appsv1.Deployment) bool { return true })
+					func(*appsv1.Deployment) bool { return true })
 			})
 
 			ginkgo.It("update resourceSelectors item", func() {
@@ -244,7 +244,7 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 				})
 
 				framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment02.Namespace, deployment02.Name,
-					func(deployment *appsv1.Deployment) bool { return true })
+					func(*appsv1.Deployment) bool { return true })
 				framework.WaitDeploymentGetByClientFitWith(kubeClient, deployment01.Namespace, deployment01.Name,
 					func(deployment *appsv1.Deployment) bool {
 						if deployment.Labels == nil {
@@ -292,7 +292,7 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 				})
 
 				framework.WaitClusterRolePresentOnClusterFitWith(targetMember, clusterRole01.Name,
-					func(role *rbacv1.ClusterRole) bool {
+					func(*rbacv1.ClusterRole) bool {
 						return true
 					})
 			})
@@ -312,7 +312,7 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 				})
 
 				framework.WaitClusterRolePresentOnClusterFitWith(targetMember, clusterRole02.Name,
-					func(role *rbacv1.ClusterRole) bool {
+					func(*rbacv1.ClusterRole) bool {
 						return true
 					})
 			})
@@ -327,7 +327,7 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 				})
 
 				framework.WaitClusterRolePresentOnClusterFitWith(targetMember, clusterRole02.Name,
-					func(role *rbacv1.ClusterRole) bool {
+					func(*rbacv1.ClusterRole) bool {
 						return true
 					})
 				framework.WaitClusterRoleGetByClientFitWith(kubeClient, clusterRole01.Name,
@@ -434,7 +434,7 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 				framework.PatchClusterPropagationPolicy(karmadaClient, policy.Name, patch, types.JSONPatchType)
 				framework.WaitDeploymentDisappearOnCluster(targetMember, deployment.Namespace, deployment.Name)
 				framework.WaitDeploymentPresentOnClusterFitWith(updatedMember, deployment.Namespace, deployment.Name,
-					func(deployment *appsv1.Deployment) bool { return true })
+					func(*appsv1.Deployment) bool { return true })
 			})
 		})
 
@@ -471,7 +471,7 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 				})
 
 				framework.WaitClusterRolePresentOnClusterFitWith(targetMember, clusterRole.Name,
-					func(role *rbacv1.ClusterRole) bool {
+					func(*rbacv1.ClusterRole) bool {
 						return true
 					})
 			})
@@ -491,7 +491,7 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 				framework.PatchClusterPropagationPolicy(karmadaClient, policy.Name, patch, types.JSONPatchType)
 				framework.WaitClusterRoleDisappearOnCluster(targetMember, clusterRole.Name)
 				framework.WaitClusterRolePresentOnClusterFitWith(updatedMember, clusterRole.Name,
-					func(role *rbacv1.ClusterRole) bool {
+					func(*rbacv1.ClusterRole) bool {
 						return true
 					})
 			})
@@ -800,7 +800,7 @@ var _ = ginkgo.Describe("[Delete] clusterPropagation testing", func() {
 			})
 
 			resourceBindingName := names.GenerateBindingName(crd.Kind, crd.Name)
-			framework.WaitClusterResourceBindingFitWith(karmadaClient, resourceBindingName, func(crb *workv1alpha2.ClusterResourceBinding) bool {
+			framework.WaitClusterResourceBindingFitWith(karmadaClient, resourceBindingName, func(*workv1alpha2.ClusterResourceBinding) bool {
 				if crd.Labels != nil && crd.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel] != "" {
 					return false
 				}

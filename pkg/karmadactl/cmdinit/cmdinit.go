@@ -89,7 +89,7 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 		Example:               initExample(parentCommand),
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			if err := opts.Validate(parentCommand); err != nil {
 				return err
 			}

@@ -357,7 +357,7 @@ func TestSetDefaultClusterResourceModels(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func(*testing.T) {
 			SetDefaultClusterResourceModels(tt.args.cluster)
 		})
 		if !reflect.DeepEqual(tt.args.cluster.Spec.ResourceModels, tt.wantModels) {

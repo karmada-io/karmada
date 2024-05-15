@@ -234,7 +234,7 @@ func Test_frameworkImpl_RunEstimateReplicasPlugins(t *testing.T) {
 			r := make(Registry)
 			for _, p := range tt.plugins {
 				p := p
-				if err := r.Register(p.name, func(fh framework.Handle) (framework.Plugin, error) {
+				if err := r.Register(p.name, func(framework.Handle) (framework.Plugin, error) {
 					return p, nil
 				}); err != nil {
 					t.Fatalf("fail to register PreScorePlugins plugin (%s)", p.Name())

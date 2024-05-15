@@ -62,7 +62,7 @@ func TestDownloadFile(t *testing.T) {
 		return buf
 	}()
 
-	s := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+	s := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
 		if _, err := io.Copy(rw, serverTar); err != nil {
 			t.Fatal(err)
 		}

@@ -178,7 +178,7 @@ var _ = ginkgo.Describe("Seamless migration testing", func() {
 			ginkgo.By(fmt.Sprintf("Verify ClusterResourceBinding %s got Applied by overwriting conflict resource", bindingName), func() {
 				klog.Infof("Waiting to verify ResourceBinding %s got Applied by overwriting conflict resource", bindingName)
 				gomega.Eventually(func() bool {
-					framework.WaitClusterRolePresentOnClusterFitWith(member1, clusterRoleName, func(clusterRole *rbacv1.ClusterRole) bool {
+					framework.WaitClusterRolePresentOnClusterFitWith(member1, clusterRoleName, func(*rbacv1.ClusterRole) bool {
 						return true
 					})
 					_, e1 := kubeClient.RbacV1().ClusterRoles().Get(context.TODO(), clusterRoleName, metav1.GetOptions{})
@@ -236,7 +236,7 @@ var _ = ginkgo.Describe("Seamless migration testing", func() {
 			ginkgo.By(fmt.Sprintf("Verify PropagationPolicy %s got Applied by overwriting conflict resource", bindingName), func() {
 				klog.Infof("Waiting to verify ResourceBinding %s got Applied by overwriting conflict resource", bindingName)
 				gomega.Eventually(func() bool {
-					framework.WaitServicePresentOnClusterFitWith(member1, testNamespace, serviceName, func(service *corev1.Service) bool {
+					framework.WaitServicePresentOnClusterFitWith(member1, testNamespace, serviceName, func(*corev1.Service) bool {
 						return true
 					})
 					_, e1 := kubeClient.CoreV1().Services(testNamespace).Get(context.TODO(), serviceName, metav1.GetOptions{})

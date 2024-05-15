@@ -37,7 +37,7 @@ func NewCmdOptions(parentCommand string, out io.Writer) *cobra.Command {
 		Short:   "Print the list of flags inherited by all commands",
 		Long:    "Print the list of flags inherited by all commands",
 		Example: fmt.Sprintf(optionsExample, parentCommand),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := cmd.Usage(); err != nil {
 				return err
 			}

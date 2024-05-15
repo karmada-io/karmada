@@ -59,7 +59,7 @@ var (
 
 // ValidateCluster tests if required fields in the Cluster are set.
 func ValidateCluster(cluster *api.Cluster) field.ErrorList {
-	allErrs := apimachineryvalidation.ValidateObjectMeta(&cluster.ObjectMeta, false, func(name string, prefix bool) []string { return ValidateClusterName(name) }, field.NewPath("metadata"))
+	allErrs := apimachineryvalidation.ValidateObjectMeta(&cluster.ObjectMeta, false, func(name string, _ bool) []string { return ValidateClusterName(name) }, field.NewPath("metadata"))
 	allErrs = append(allErrs, ValidateClusterSpec(&cluster.Spec, field.NewPath("spec"))...)
 	return allErrs
 }

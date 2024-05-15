@@ -110,7 +110,7 @@ func storageWithCacher(gvr schema.GroupVersionResource, multiNS *MultiNamespace,
 		newFunc func() runtime.Object,
 		newListFunc func() runtime.Object,
 		getAttrsFunc storage.AttrFunc,
-		triggerFuncs storage.IndexerFuncs,
+		_ storage.IndexerFuncs,
 		indexers *cache.Indexers) (storage.Interface, factory.DestroyFunc, error) {
 		cacherConfig := cacherstorage.Config{
 			Storage:        newStore(gvr, multiNS, newClientFunc, versioner, resourcePrefix),

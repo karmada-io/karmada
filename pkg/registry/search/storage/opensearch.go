@@ -24,7 +24,7 @@ import (
 )
 
 func (r *SearchREST) newOpenSearchHandler(_ *genericrequest.RequestInfo, _ rest.Responder) (http.Handler, error) {
-	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+	return http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		// Construct a handler and send the request to the ES.
 	}), nil
 }

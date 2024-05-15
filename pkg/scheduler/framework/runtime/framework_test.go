@@ -139,7 +139,7 @@ func Test_frameworkImpl_RunScorePlugins(t *testing.T) {
 		},
 		{
 			name: "Test score func error",
-			mockFunc: func(mockScorePlugin *frameworktesting.MockScorePlugin, mockScoreExtension *frameworktesting.MockScoreExtensions) {
+			mockFunc: func(mockScorePlugin *frameworktesting.MockScorePlugin, _ *frameworktesting.MockScoreExtensions) {
 				mockScorePlugin.EXPECT().Score(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(int64(-1), framework.NewResult(framework.Error, "foo"))
 				mockScorePlugin.EXPECT().Name().AnyTimes().Return("foo")

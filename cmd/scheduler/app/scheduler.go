@@ -99,7 +99,7 @@ func NewSchedulerCommand(stopChan <-chan struct{}, registryOptions ...Option) *c
 The scheduler determines which clusters are valid placements for each resource in the scheduling queue according to
 constraints and available resources. The scheduler then ranks each valid cluster and binds the resource to
 the most suitable cluster.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()

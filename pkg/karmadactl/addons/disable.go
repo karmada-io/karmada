@@ -60,7 +60,7 @@ func NewCmdAddonsDisable(parentCommand string) *cobra.Command {
 		Example:               fmt.Sprintf(disableExample, parentCommand),
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			if err := opts.Complete(); err != nil {
 				return err
 			}

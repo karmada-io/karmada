@@ -54,7 +54,7 @@ func NewCmdAddonsList(parentCommand string) *cobra.Command {
 		Example:               fmt.Sprintf(listExample, parentCommand),
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			if err := opts.Complete(); err != nil {
 				return err
 			}

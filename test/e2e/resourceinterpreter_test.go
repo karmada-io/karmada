@@ -1027,17 +1027,17 @@ end `,
 			ginkgo.It("DependencyInterpretation testing", func() {
 				ginkgo.By("check if the resources is propagated automatically", func() {
 					framework.WaitDeploymentPresentOnClusterFitWith(targetCluster, deployment.Namespace, deployment.Name,
-						func(deployment *appsv1.Deployment) bool {
+						func(*appsv1.Deployment) bool {
 							return true
 						})
 
 					framework.WaitServiceAccountPresentOnClusterFitWith(targetCluster, sa.Namespace, sa.Name,
-						func(sa *corev1.ServiceAccount) bool {
+						func(*corev1.ServiceAccount) bool {
 							return true
 						})
 
 					framework.WaitConfigMapPresentOnClusterFitWith(targetCluster, configMap.Namespace, configMap.Name,
-						func(configmap *corev1.ConfigMap) bool {
+						func(*corev1.ConfigMap) bool {
 							return true
 						})
 				})

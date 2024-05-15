@@ -102,7 +102,7 @@ func (c *Cluster) Connect(ctx context.Context, request framework.ProxyRequest) (
 		return nil, err
 	}
 
-	secretGetter := func(ctx context.Context, namespace, name string) (*corev1.Secret, error) {
+	secretGetter := func(_ context.Context, namespace, name string) (*corev1.Secret, error) {
 		return c.secretLister.Secrets(namespace).Get(name)
 	}
 

@@ -51,7 +51,7 @@ type RebalancerController struct {
 // SetupWithManager creates a controller and register to controller manager.
 func (c *RebalancerController) SetupWithManager(mgr controllerruntime.Manager) error {
 	var predicateFunc = predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool { return true },
+		CreateFunc: func(event.CreateEvent) bool { return true },
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			oldObj := e.ObjectOld.(*appsv1alpha1.WorkloadRebalancer)
 			newObj := e.ObjectNew.(*appsv1alpha1.WorkloadRebalancer)

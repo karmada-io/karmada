@@ -59,7 +59,7 @@ func NewOperatorCommand(ctx context.Context) *cobra.Command {
 			restclient.SetDefaultWarningHandler(restclient.NoWarnings{})
 			return nil
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			if err := o.Validate(); err != nil {
 				return err
 			}

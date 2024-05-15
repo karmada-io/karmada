@@ -80,9 +80,8 @@ func DoRequest(urlPath string, token string) (int, error) {
 	}
 	res.Header.Add("Authorization", bearToken)
 
-	// #nosec
 	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // nolint:gosec // G402: TLS InsecureSkipVerify set true.
 	}
 	httpClient := &http.Client{Transport: transport}
 	resp, err := httpClient.Do(res)

@@ -226,7 +226,7 @@ func (c *CRBApplicationFailoverController) SetupWithManager(mgr controllerruntim
 			}
 			return true
 		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool { return false },
+		GenericFunc: func(event.GenericEvent) bool { return false },
 	}
 
 	return controllerruntime.NewControllerManagedBy(mgr).

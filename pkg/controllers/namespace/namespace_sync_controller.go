@@ -178,7 +178,7 @@ func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv
 // SetupWithManager creates a controller and register to controller manager.
 func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	clusterNamespaceFn := handler.MapFunc(
-		func(ctx context.Context, a client.Object) []reconcile.Request {
+		func(_ context.Context, _ client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 			namespaceList := &corev1.NamespaceList{}
 			if err := c.Client.List(context.TODO(), namespaceList); err != nil {
@@ -195,10 +195,10 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 		})
 
 	clusterPredicate := builder.WithPredicates(predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
+		CreateFunc: func(event.CreateEvent) bool {
 			return true
 		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
+		UpdateFunc: func(event.UpdateEvent) bool {
 			return false
 		},
 		DeleteFunc: func(event.DeleteEvent) bool {
@@ -210,7 +210,7 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	})
 
 	clusterOverridePolicyNamespaceFn := handler.MapFunc(
-		func(ctx context.Context, obj client.Object) []reconcile.Request {
+		func(_ context.Context, obj client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 			cop, ok := obj.(*policyv1alpha1.ClusterOverridePolicy)
 			if !ok {
@@ -258,10 +258,10 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 		})
 
 	clusterOverridePolicyPredicate := builder.WithPredicates(predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
+		CreateFunc: func(event.CreateEvent) bool {
 			return true
 		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
+		UpdateFunc: func(event.UpdateEvent) bool {
 			return true
 		},
 		DeleteFunc: func(event.DeleteEvent) bool {

@@ -86,7 +86,7 @@ func NewDeschedulerCommand(stopChan <-chan struct{}) *cobra.Command {
 		Long: `The karmada-descheduler evicts replicas from member clusters
 if they are failed to be scheduled for a period of time. It relies on 
 karmada-scheduler-estimator to get replica status.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()

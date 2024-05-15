@@ -101,7 +101,7 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 		Long: `The karmada-controller-manager runs various controllers.
 The controllers watch Karmada objects and then talk to the underlying clusters' API servers
 to create regular Kubernetes resources.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()
@@ -305,7 +305,7 @@ func startClusterStatusController(ctx controllerscontext.Context) (enabled bool,
 
 			return obj.Spec.SyncMode == clusterv1alpha1.Push
 		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
+		GenericFunc: func(event.GenericEvent) bool {
 			return false
 		},
 	}

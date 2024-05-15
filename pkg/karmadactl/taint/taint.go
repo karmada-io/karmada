@@ -84,7 +84,7 @@ func NewCmdTaint(f util.Factory, parentCommand string) *cobra.Command {
 		Example:               fmt.Sprintf(taintExample, parentCommand),
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			if err := opts.Complete(f, args); err != nil {
 				return err
 			}

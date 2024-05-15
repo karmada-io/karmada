@@ -111,7 +111,7 @@ var _ = framework.SerialDescribe("spread-by-region testing", func() {
 		ginkgo.It("multiple region deployment testing", func() {
 			ginkgo.By("check whether deployment is scheduled to multiple regions", func() {
 				framework.WaitDeploymentPresentOnClustersFitWith(regionClusters, deployment.Namespace, deployment.Name,
-					func(deployment *appsv1.Deployment) bool {
+					func(*appsv1.Deployment) bool {
 						return true
 					})
 			})

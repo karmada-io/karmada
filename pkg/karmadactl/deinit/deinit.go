@@ -70,7 +70,7 @@ func NewCmdDeInit(parentCommand string) *cobra.Command {
 		Example:               fmt.Sprintf(deInitExample, parentCommand),
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			if err := opts.Complete(); err != nil {
 				return err
 			}

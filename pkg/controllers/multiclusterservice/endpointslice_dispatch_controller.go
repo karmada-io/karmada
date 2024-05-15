@@ -163,7 +163,7 @@ func (c *EndpointsliceDispatchController) SetupWithManager(mgr controllerruntime
 			return util.GetLabelValue(deleteEvent.Object.GetLabels(), util.MultiClusterServiceNameLabel) != "" &&
 				util.GetAnnotationValue(deleteEvent.Object.GetAnnotations(), util.EndpointSliceProvisionClusterAnnotation) == ""
 		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
+		GenericFunc: func(event.GenericEvent) bool {
 			return false
 		},
 	}
@@ -174,7 +174,7 @@ func (c *EndpointsliceDispatchController) SetupWithManager(mgr controllerruntime
 }
 
 func (c *EndpointsliceDispatchController) newClusterFunc() handler.MapFunc {
-	return func(ctx context.Context, a client.Object) []reconcile.Request {
+	return func(_ context.Context, a client.Object) []reconcile.Request {
 		var clusterName string
 		switch t := a.(type) {
 		case *clusterv1alpha1.Cluster:
@@ -237,7 +237,7 @@ func (c *EndpointsliceDispatchController) getClusterEndpointSliceWorks(mcsNamesp
 }
 
 func (c *EndpointsliceDispatchController) newMultiClusterServiceFunc() handler.MapFunc {
-	return func(ctx context.Context, a client.Object) []reconcile.Request {
+	return func(_ context.Context, a client.Object) []reconcile.Request {
 		var mcsName, mcsNamespace string
 		switch t := a.(type) {
 		case *networkingv1alpha1.MultiClusterService:

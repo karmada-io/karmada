@@ -150,7 +150,7 @@ func ioCopyN(outFile *os.File, tr *tar.Reader) error {
 // ListFiles traverse directory files
 func ListFiles(path string) []os.FileInfo {
 	var files []os.FileInfo
-	if err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(path, func(_ string, info os.FileInfo, _ error) error {
 		if !info.IsDir() {
 			files = append(files, info)
 		}
@@ -171,7 +171,7 @@ type FileExtInfo struct {
 // ListFileWithSuffix traverse directory files with suffix
 func ListFileWithSuffix(path, suffix string) []FileExtInfo {
 	files := []FileExtInfo{}
-	if err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(path, func(path string, info os.FileInfo, _ error) error {
 		if !info.IsDir() && strings.HasSuffix(path, suffix) {
 			files = append(files, FileExtInfo{
 				AbsPath:  path,

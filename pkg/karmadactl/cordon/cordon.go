@@ -68,7 +68,7 @@ func NewCmdCordon(f util.Factory, parentCommand string) *cobra.Command {
 		Example:               fmt.Sprintf(cordonExample, parentCommand),
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			if err := opts.Complete(args); err != nil {
 				return err
 			}
@@ -99,7 +99,7 @@ func NewCmdUncordon(f util.Factory, parentCommand string) *cobra.Command {
 		Example:               fmt.Sprintf(uncordonExample, parentCommand),
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			if err := opts.Complete(args); err != nil {
 				return err
 			}

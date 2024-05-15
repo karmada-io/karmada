@@ -40,7 +40,7 @@ import (
 )
 
 var bindingPredicateFn = builder.WithPredicates(predicate.Funcs{
-	CreateFunc: func(e event.CreateEvent) bool { return false },
+	CreateFunc: func(event.CreateEvent) bool { return false },
 	UpdateFunc: func(e event.UpdateEvent) bool {
 		var oldResourceVersion, newResourceVersion string
 
@@ -70,11 +70,11 @@ var bindingPredicateFn = builder.WithPredicates(predicate.Funcs{
 
 		return oldResourceVersion != newResourceVersion
 	},
-	DeleteFunc: func(e event.DeleteEvent) bool { return false },
+	DeleteFunc: func(event.DeleteEvent) bool { return false },
 })
 
 var workPredicateFn = builder.WithPredicates(predicate.Funcs{
-	CreateFunc: func(e event.CreateEvent) bool { return false },
+	CreateFunc: func(event.CreateEvent) bool { return false },
 	UpdateFunc: func(e event.UpdateEvent) bool {
 		var oldStatus, newStatus workv1alpha1.WorkStatus
 

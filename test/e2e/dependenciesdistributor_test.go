@@ -95,12 +95,12 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 			ginkgo.It("configmap automatically propagation testing", func() {
 				ginkgo.By("check if the configmap is propagated automatically", func() {
 					framework.WaitDeploymentPresentOnClustersFitWith(initClusterNames, deployment.Namespace, deployment.Name,
-						func(deployment *appsv1.Deployment) bool {
+						func(*appsv1.Deployment) bool {
 							return true
 						})
 
 					framework.WaitConfigMapPresentOnClustersFitWith(initClusterNames, configMap.Namespace, configMapName,
-						func(configmap *corev1.ConfigMap) bool {
+						func(*corev1.ConfigMap) bool {
 							return true
 						})
 				})
@@ -116,12 +116,12 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 
 					framework.PatchPropagationPolicy(karmadaClient, policy.Namespace, policyName, patch, types.JSONPatchType)
 					framework.WaitDeploymentPresentOnClustersFitWith(updateClusterNames, deployment.Namespace, deploymentName,
-						func(deployment *appsv1.Deployment) bool {
+						func(*appsv1.Deployment) bool {
 							return true
 						})
 
 					framework.WaitConfigMapPresentOnClustersFitWith(updateClusterNames, configMap.Namespace, configMapName,
-						func(configmap *corev1.ConfigMap) bool {
+						func(*corev1.ConfigMap) bool {
 							return true
 						})
 				})
@@ -189,12 +189,12 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 			ginkgo.It("secret automatically propagation testing", func() {
 				ginkgo.By("check if the secret is propagated automatically", func() {
 					framework.WaitDeploymentPresentOnClustersFitWith(initClusterNames, deployment.Namespace, deployment.Name,
-						func(deployment *appsv1.Deployment) bool {
+						func(*appsv1.Deployment) bool {
 							return true
 						})
 
 					framework.WaitSecretPresentOnClustersFitWith(initClusterNames, secret.Namespace, secretName,
-						func(secret *corev1.Secret) bool {
+						func(*corev1.Secret) bool {
 							return true
 						})
 				})
@@ -264,12 +264,12 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 			ginkgo.It("persistentVolumeClaim automatically propagation testing", func() {
 				ginkgo.By("check if the persistentVolumeClaim is propagated automatically", func() {
 					framework.WaitDeploymentPresentOnClustersFitWith(initClusterNames, deployment.Namespace, deployment.Name,
-						func(deployment *appsv1.Deployment) bool {
+						func(*appsv1.Deployment) bool {
 							return true
 						})
 
 					framework.WaitPVCPresentOnClustersFitWith(initClusterNames, pvc.GetNamespace(), pvc.GetName(),
-						func(pvc *corev1.PersistentVolumeClaim) bool {
+						func(*corev1.PersistentVolumeClaim) bool {
 							return true
 						})
 				})
@@ -325,12 +325,12 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 				})
 				ginkgo.By("check if the serviceAccount is propagated automatically", func() {
 					framework.WaitDeploymentPresentOnClustersFitWith(initClusterNames, deployment.Namespace, deployment.Name,
-						func(deployment *appsv1.Deployment) bool {
+						func(*appsv1.Deployment) bool {
 							return true
 						})
 
 					framework.WaitServiceAccountPresentOnClustersFitWith(initClusterNames, sa.GetNamespace(), sa.GetName(),
-						func(sa *corev1.ServiceAccount) bool {
+						func(*corev1.ServiceAccount) bool {
 							return true
 						})
 				})
@@ -408,12 +408,12 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 			ginkgo.It("configmap automatically propagation testing", func() {
 				ginkgo.By("check if the configmap is propagated automatically", func() {
 					framework.WaitDeploymentPresentOnClustersFitWith(initClusterNames, deployment.Namespace, deployment.Name,
-						func(deployment *appsv1.Deployment) bool {
+						func(*appsv1.Deployment) bool {
 							return true
 						})
 
 					framework.WaitConfigMapPresentOnClustersFitWith(initClusterNames, configMap.Namespace, configMapName,
-						func(configmap *corev1.ConfigMap) bool {
+						func(*corev1.ConfigMap) bool {
 							return true
 						})
 				})
@@ -429,12 +429,12 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 
 					framework.PatchClusterPropagationPolicy(karmadaClient, policyName, patch, types.JSONPatchType)
 					framework.WaitDeploymentPresentOnClustersFitWith(updateClusterNames, deployment.Namespace, deploymentName,
-						func(deployment *appsv1.Deployment) bool {
+						func(*appsv1.Deployment) bool {
 							return true
 						})
 
 					framework.WaitConfigMapPresentOnClustersFitWith(updateClusterNames, configMap.Namespace, configMapName,
-						func(configmap *corev1.ConfigMap) bool {
+						func(*corev1.ConfigMap) bool {
 							return true
 						})
 				})

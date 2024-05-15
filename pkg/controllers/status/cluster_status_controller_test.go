@@ -990,7 +990,7 @@ func NewClusterDynamicClientSetForAgentWithError(_ string, _ client.Client) (*ut
 }
 
 func TestClusterStatusController_initializeGenericInformerManagerForCluster(t *testing.T) {
-	t.Run("failed to create dynamicClient", func(t *testing.T) {
+	t.Run("failed to create dynamicClient", func(*testing.T) {
 		c := &ClusterStatusController{
 			Client:                 fake.NewClientBuilder().WithScheme(gclient.NewSchema()).Build(),
 			GenericInformerManager: genericmanager.GetInstance(),
@@ -1009,7 +1009,7 @@ func TestClusterStatusController_initializeGenericInformerManagerForCluster(t *t
 		c.initializeGenericInformerManagerForCluster(clusterClientSet)
 	})
 
-	t.Run("suc to create dynamicClient", func(t *testing.T) {
+	t.Run("suc to create dynamicClient", func(*testing.T) {
 		c := &ClusterStatusController{
 			Client:                 fake.NewClientBuilder().WithScheme(gclient.NewSchema()).Build(),
 			GenericInformerManager: genericmanager.GetInstance(),
@@ -1096,7 +1096,7 @@ func mockServer(statusCode int, existError bool) *httptest.Server {
 		Body:       io.NopCloser(bytes.NewBufferString(respBody)),
 	}
 	// Create an HTTP test server to handle the request
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		// Write the response to the client
 		if existError {
 			statusCode := statusCode

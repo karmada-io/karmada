@@ -820,7 +820,7 @@ var _ = framework.SerialDescribe("OverrideRules with nil resourceSelector testin
 		ginkgo.It("deployment imageOverride testing", func() {
 			ginkgo.By("Check if deployment have presented on member clusters", func() {
 				framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
-					func(deployment *appsv1.Deployment) bool {
+					func(*appsv1.Deployment) bool {
 						return true
 					})
 			})

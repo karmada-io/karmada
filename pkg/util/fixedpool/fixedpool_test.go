@@ -70,7 +70,7 @@ func TestFixedPool_Get(t *testing.T) {
 				pool:        tt.fields.pool,
 				capacity:    tt.fields.capacity,
 				newFunc:     func() (any, error) { return &struct{}{}, nil },
-				destroyFunc: func(a any) {},
+				destroyFunc: func(any) {},
 			}
 			g, err := p.Get()
 			if err != nil {
@@ -143,7 +143,7 @@ func TestFixedPool_Put(t *testing.T) {
 				pool:        tt.fields.pool,
 				capacity:    tt.fields.capacity,
 				newFunc:     func() (any, error) { return &struct{}{}, nil },
-				destroyFunc: func(a any) { destroyed = true },
+				destroyFunc: func(any) { destroyed = true },
 			}
 			p.Put(&struct{}{})
 			if got := len(p.pool); got != tt.want.len {
