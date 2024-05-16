@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	storagevolume "k8s.io/component-helpers/storage/volume"
+	utildeployment "k8s.io/kubectl/pkg/util/deployment"
 
 	"github.com/karmada-io/karmada/pkg/util"
 )
@@ -237,6 +238,38 @@ func TestRemoveIrrelevantField(t *testing.T) {
 			},
 			unexpectedFields: []field{
 				{"metadata", "annotations", storagevolume.AnnSelectedNode},
+			},
+		},
+		{
+			name: "removes deployment revision annotation",
+			workload: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"kind": util.DeploymentKind,
+					"metadata": map[string]interface{}{
+						"annotations": map[string]interface{}{
+							utildeployment.RevisionAnnotation: 1,
+						},
+					},
+				},
+			},
+			unexpectedFields: []field{
+				{"metadata", "annotations", utildeployment.RevisionAnnotation},
+			},
+		},
+		{
+			name: "removes deployment revision history annotation",
+			workload: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"kind": util.DeploymentKind,
+					"metadata": map[string]interface{}{
+						"annotations": map[string]interface{}{
+							utildeployment.RevisionHistoryAnnotation: "1,2",
+						},
+					},
+				},
+			},
+			unexpectedFields: []field{
+				{"metadata", "annotations", utildeployment.RevisionHistoryAnnotation},
 			},
 		},
 	}
