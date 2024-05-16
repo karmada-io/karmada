@@ -720,26 +720,9 @@ func (d *ResourceDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) 
 	return unstructuredObj, nil
 }
 
-func (d *ResourceDetector) getPropagationPolicyID(policy *policyv1alpha1.PropagationPolicy) (string, error) {
-	id := util.GetLabelValue(policy.GetLabels(), policyv1alpha1.PropagationPolicyPermanentIDLabel)
-	if id == "" {
-		id = uuid.New().String()
-		policy.Labels = util.DedupeAndMergeLabels(policy.Labels, map[string]string{policyv1alpha1.PropagationPolicyPermanentIDLabel: id})
-		if err := d.Client.Update(context.TODO(), policy); err != nil {
-			return id, err
-		}
-	}
-
-	return id, nil
-}
-
 // ClaimPolicyForObject set policy identifier which the object associated with.
 func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructured, policy *policyv1alpha1.PropagationPolicy) (string, error) {
-	policyID, err := d.getPropagationPolicyID(policy)
-	if err != nil {
-		klog.Errorf("Get PropagationPolicy(%s/%s) ID error:%v", policy.Namespace, policy.Name, err)
-		return "", err
-	}
+	policyID := policy.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel]
 
 	objLabels := object.GetLabels()
 	if objLabels == nil {
@@ -770,26 +753,9 @@ func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructure
 	return policyID, d.Client.Update(context.TODO(), objectCopy)
 }
 
-func (d *ResourceDetector) getClusterPropagationPolicyID(policy *policyv1alpha1.ClusterPropagationPolicy) (string, error) {
-	id := util.GetLabelValue(policy.GetLabels(), policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel)
-	if id == "" {
-		id = uuid.New().String()
-		policy.Labels = util.DedupeAndMergeLabels(policy.Labels, map[string]string{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: id})
-		if err := d.Client.Update(context.TODO(), policy); err != nil {
-			return "", err
-		}
-	}
-
-	return id, nil
-}
-
 // ClaimClusterPolicyForObject set cluster identifier which the object associated with
 func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unstructured, policy *policyv1alpha1.ClusterPropagationPolicy) (string, error) {
-	policyID, err := d.getClusterPropagationPolicyID(policy)
-	if err != nil {
-		klog.Errorf("Get ClusterPropagationPolicy(%s) ID error:%v", policy.Name, err)
-		return "", err
-	}
+	policyID := policy.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]
 
 	claimedID := util.GetLabelValue(object.GetLabels(), policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel)
 	// object has been claimed, don't need to claim again
