@@ -234,4 +234,9 @@ const (
 var (
 	// EndpointSliceGVK is the GroupVersionKind of K8s native EndpointSlice.
 	EndpointSliceGVK = discoveryv1.SchemeGroupVersion.WithKind("EndpointSlice")
+
+	// ManagedByKarmadaLabels is map of reserved karmada label to indicate whether resources are managed by karmada controllers.
+	ManagedByKarmadaLabels = map[string]string{
+		ManagedByKarmadaLabel: ManagedByKarmadaLabelValue,
+	}
 )

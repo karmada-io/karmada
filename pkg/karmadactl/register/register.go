@@ -378,11 +378,8 @@ func (o *CommandRegisterOption) Run(parentCommand string) error {
 	}
 
 	// It's necessary to set the label of namespace to make sure that the namespace is created by Karmada.
-	labels := map[string]string{
-		util.ManagedByKarmadaLabel: util.ManagedByKarmadaLabelValue,
-	}
 	// ensure namespace where the karmada-agent resources be deployed exists in the member cluster
-	if _, err := karmadautil.EnsureNamespaceExistWithLabels(o.memberClusterClient, o.Namespace, o.DryRun, labels); err != nil {
+	if _, err := karmadautil.EnsureNamespaceExistWithLabels(o.memberClusterClient, o.Namespace, o.DryRun, util.ManagedByKarmadaLabels); err != nil {
 		return err
 	}
 
