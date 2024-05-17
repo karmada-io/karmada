@@ -235,3 +235,8 @@ var (
 	// EndpointSliceGVK is the GroupVersionKind of K8s native EndpointSlice.
 	EndpointSliceGVK = discoveryv1.SchemeGroupVersion.WithKind("EndpointSlice")
 )
+
+const (
+	// DefaultFilePerm default file perm
+	DefaultFilePerm = 0640
+)

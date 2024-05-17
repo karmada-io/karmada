@@ -29,6 +29,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	pkgutil "github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
@@ -60,7 +61,7 @@ func PrintCLIByTag(cmd *cobra.Command, all []*cobra.Command, tag string) string 
 func GenMarkdownTreeForIndex(cmd *cobra.Command, dir string) error {
 	basename := strings.Replace(cmd.CommandPath(), " ", "_", -1) + "_index" + ".md"
 	filename := filepath.Join(dir, basename)
-	f, err := os.Create(filename)
+	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, pkgutil.DefaultFilePerm)
 	if err != nil {
 		return err
 	}

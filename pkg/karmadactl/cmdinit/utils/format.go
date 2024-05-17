@@ -27,6 +27,8 @@ import (
 	"strings"
 
 	"sigs.k8s.io/yaml"
+
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 const (
@@ -119,7 +121,7 @@ func BytesToFile(path, name string, data []byte) error {
 	}
 
 	// Create kubeconfig
-	f, err := os.Create(filename)
+	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, util.DefaultFilePerm)
 	if err != nil {
 		return err
 	}

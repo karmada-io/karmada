@@ -30,6 +30,8 @@ import (
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/pflag"
+
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 const (
@@ -205,7 +207,7 @@ func (a *analyzer) parseComments(comments []*ast.CommentGroup) (item item, ok bo
 }
 
 func (a *analyzer) dump(path string) {
-	file, err := os.Create(path)
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, util.DefaultFilePerm)
 	if err != nil {
 		a.errorf("open %s error: %v", path, err)
 		return

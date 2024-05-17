@@ -31,6 +31,8 @@ import (
 
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/yaml"
+
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // Downloader Download progress
@@ -71,7 +73,7 @@ func DownloadFile(url, filePath string) error {
 		return fmt.Errorf("failed download file. url: %s code: %v", url, resp.StatusCode)
 	}
 
-	file, err := os.Create(filePath)
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, util.DefaultFilePerm)
 	if err != nil {
 		return err
 	}
@@ -119,7 +121,7 @@ func Unpack(file, targetPath string) error {
 				return err
 			}
 		case tar.TypeReg:
-			outFile, err := os.Create(targetPath + "/" + header.Name)
+			outFile, err := os.OpenFile(targetPath+"/"+header.Name, os.O_CREATE|os.O_RDWR, util.DefaultFilePerm)
 			if err != nil {
 				return err
 			}
