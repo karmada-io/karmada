@@ -19,7 +19,7 @@ package utils
 import (
 	"bytes"
 	"fmt"
-	"text/template"
+	"html/template"
 )
 
 // ParseTemplate validates and parses passed as argument template
