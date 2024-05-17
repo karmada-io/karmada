@@ -149,14 +149,14 @@ func (c *ServiceExportController) RunWorkQueue() {
 
 func (c *ServiceExportController) enqueueReportedEpsServiceExport() {
 	workList := &workv1alpha1.WorkList{}
-	err := wait.PollUntil(1*time.Second, func() (done bool, err error) {
-		err = c.List(context.TODO(), workList, client.MatchingLabels{util.PropagationInstruction: util.PropagationInstructionSuppressed})
+	err := wait.PollUntilContextCancel(context.TODO(), 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		err = c.List(ctx, workList, client.MatchingLabels{util.PropagationInstruction: util.PropagationInstructionSuppressed})
 		if err != nil {
 			klog.Errorf("Failed to list collected EndpointSlices Work from member clusters: %v", err)
 			return false, nil
 		}
 		return true, nil
-	}, context.TODO().Done())
+	})
 	if err != nil {
 		return
 	}

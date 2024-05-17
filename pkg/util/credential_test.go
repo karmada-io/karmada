@@ -57,10 +57,10 @@ func TestObtainCredentialsFromMemberCluster(t *testing.T) {
 					DryRun:           false,
 				},
 				aop: func(t *testing.T, clusterKubeClient kubernetes.Interface) func() {
-					stopChan := make(chan struct{})
+					ctx, cancel := context.WithCancel(context.TODO())
 					go func(clusterKubeClient kubernetes.Interface) {
-						_ = wait.PollUntil(1*time.Second, func() (done bool, err error) {
-							impersonationSA, err := clusterKubeClient.CoreV1().ServiceAccounts("karmada-cluster").Get(context.TODO(), names.GenerateServiceAccountName("impersonator"), metav1.GetOptions{})
+						_ = wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+							impersonationSA, err := clusterKubeClient.CoreV1().ServiceAccounts("karmada-cluster").Get(ctx, names.GenerateServiceAccountName("impersonator"), metav1.GetOptions{})
 							if err != nil {
 								t.Logf("get sa failed, err: %v", err)
 								return false, nil
@@ -73,18 +73,18 @@ func TestObtainCredentialsFromMemberCluster(t *testing.T) {
 								},
 							}
 							impersonationSA.Secrets = []corev1.ObjectReference{{Kind: "Secret", Namespace: impersonatorSecret.Namespace, Name: impersonatorSecret.Name}}
-							_, _ = clusterKubeClient.CoreV1().ServiceAccounts(impersonationSA.Namespace).Update(context.TODO(), impersonationSA, metav1.UpdateOptions{})
-							_, err = clusterKubeClient.CoreV1().Secrets(impersonatorSecret.Namespace).Create(context.TODO(), impersonatorSecret, metav1.CreateOptions{})
+							_, _ = clusterKubeClient.CoreV1().ServiceAccounts(impersonationSA.Namespace).Update(ctx, impersonationSA, metav1.UpdateOptions{})
+							_, err = clusterKubeClient.CoreV1().Secrets(impersonatorSecret.Namespace).Create(ctx, impersonatorSecret, metav1.CreateOptions{})
 							if err != nil && apierrors.IsAlreadyExists(err) {
-								_, _ = clusterKubeClient.CoreV1().Secrets(impersonatorSecret.Namespace).Update(context.TODO(), impersonatorSecret, metav1.UpdateOptions{})
+								_, _ = clusterKubeClient.CoreV1().Secrets(impersonatorSecret.Namespace).Update(ctx, impersonatorSecret, metav1.UpdateOptions{})
 								t.Logf("secret exists and update it")
 							}
 							t.Log("create secret successfully")
 							return true, nil
-						}, stopChan)
+						})
 					}(clusterKubeClient)
 					return func() {
-						close(stopChan)
+						cancel()
 					}
 				},
 			},
@@ -101,10 +101,10 @@ func TestObtainCredentialsFromMemberCluster(t *testing.T) {
 					DryRun:           false,
 				},
 				aop: func(t *testing.T, clusterKubeClient kubernetes.Interface) func() {
-					stopChan := make(chan struct{})
+					ctx, cancel := context.WithCancel(context.TODO())
 					go func(clusterKubeClient kubernetes.Interface) {
-						_ = wait.PollUntil(1*time.Second, func() (done bool, err error) {
-							impersonationSA, err := clusterKubeClient.CoreV1().ServiceAccounts("karmada-cluster").Get(context.TODO(), names.GenerateServiceAccountName("impersonator"), metav1.GetOptions{})
+						_ = wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+							impersonationSA, err := clusterKubeClient.CoreV1().ServiceAccounts("karmada-cluster").Get(ctx, names.GenerateServiceAccountName("impersonator"), metav1.GetOptions{})
 							if err != nil {
 								t.Logf("create impersonationSA failed, err:%v", err)
 								return false, nil
@@ -117,15 +117,15 @@ func TestObtainCredentialsFromMemberCluster(t *testing.T) {
 								},
 							}
 							impersonationSA.Secrets = []corev1.ObjectReference{{Kind: "Secret", Namespace: impersonatorSecret.Namespace, Name: impersonatorSecret.Name}}
-							_, _ = clusterKubeClient.CoreV1().ServiceAccounts(impersonationSA.Namespace).Update(context.TODO(), impersonationSA, metav1.UpdateOptions{})
-							_, err = clusterKubeClient.CoreV1().Secrets(impersonatorSecret.Namespace).Create(context.TODO(), impersonatorSecret, metav1.CreateOptions{})
+							_, _ = clusterKubeClient.CoreV1().ServiceAccounts(impersonationSA.Namespace).Update(ctx, impersonationSA, metav1.UpdateOptions{})
+							_, err = clusterKubeClient.CoreV1().Secrets(impersonatorSecret.Namespace).Create(ctx, impersonatorSecret, metav1.CreateOptions{})
 							if err != nil && apierrors.IsAlreadyExists(err) {
-								_, _ = clusterKubeClient.CoreV1().Secrets(impersonatorSecret.Namespace).Update(context.TODO(), impersonatorSecret, metav1.UpdateOptions{})
+								_, _ = clusterKubeClient.CoreV1().Secrets(impersonatorSecret.Namespace).Update(ctx, impersonatorSecret, metav1.UpdateOptions{})
 								t.Log("impersonatorSecret exists and update it")
 							}
 							t.Log("create impersonatorSecret successfully")
 
-							serviceAccountObj, err := clusterKubeClient.CoreV1().ServiceAccounts("karmada-cluster").Get(context.TODO(), names.GenerateServiceAccountName("member1"), metav1.GetOptions{})
+							serviceAccountObj, err := clusterKubeClient.CoreV1().ServiceAccounts("karmada-cluster").Get(ctx, names.GenerateServiceAccountName("member1"), metav1.GetOptions{})
 							if err != nil {
 								t.Logf("get sa failed, err:%v", err)
 								return false, nil
@@ -138,18 +138,18 @@ func TestObtainCredentialsFromMemberCluster(t *testing.T) {
 								},
 							}
 							serviceAccountObj.Secrets = []corev1.ObjectReference{{Kind: "Secret", Namespace: clusterSecret.Namespace, Name: clusterSecret.Name}}
-							_, _ = clusterKubeClient.CoreV1().ServiceAccounts(serviceAccountObj.Namespace).Update(context.TODO(), serviceAccountObj, metav1.UpdateOptions{})
-							_, err = clusterKubeClient.CoreV1().Secrets(clusterSecret.Namespace).Create(context.TODO(), clusterSecret, metav1.CreateOptions{})
+							_, _ = clusterKubeClient.CoreV1().ServiceAccounts(serviceAccountObj.Namespace).Update(ctx, serviceAccountObj, metav1.UpdateOptions{})
+							_, err = clusterKubeClient.CoreV1().Secrets(clusterSecret.Namespace).Create(ctx, clusterSecret, metav1.CreateOptions{})
 							if err != nil && apierrors.IsAlreadyExists(err) {
-								_, _ = clusterKubeClient.CoreV1().Secrets(clusterSecret.Namespace).Update(context.TODO(), clusterSecret, metav1.UpdateOptions{})
+								_, _ = clusterKubeClient.CoreV1().Secrets(clusterSecret.Namespace).Update(ctx, clusterSecret, metav1.UpdateOptions{})
 								t.Log("secret exist and update it")
 							}
 							t.Log("create clusterSecret successfully")
 							return true, nil
-						}, stopChan)
+						})
 					}(clusterKubeClient)
 					return func() {
-						close(stopChan)
+						cancel()
 					}
 				},
 			},
