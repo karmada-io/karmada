@@ -55,7 +55,6 @@ import (
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	tokenutil "github.com/karmada-io/karmada/pkg/karmadactl/util/bootstraptoken"
-	"github.com/karmada-io/karmada/pkg/util"
 	karmadautil "github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/lifted/pubkeypin"
 	"github.com/karmada-io/karmada/pkg/version"
@@ -379,7 +378,7 @@ func (o *CommandRegisterOption) Run(parentCommand string) error {
 
 	// It's necessary to set the label of namespace to make sure that the namespace is created by Karmada.
 	labels := map[string]string{
-		util.ManagedByKarmadaLabel: util.ManagedByKarmadaLabelValue,
+		karmadautil.ManagedByKarmadaLabel: karmadautil.ManagedByKarmadaLabelValue,
 	}
 	// ensure namespace where the karmada-agent resources be deployed exists in the member cluster
 	if _, err := karmadautil.EnsureNamespaceExistWithLabels(o.memberClusterClient, o.Namespace, o.DryRun, labels); err != nil {
