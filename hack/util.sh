@@ -213,7 +213,7 @@ function util::create_signing_certkey {
     # Create ca
     ${sudo} /usr/bin/env bash -e <<EOF
     rm -f "${dest_dir}/${id}.crt" "${dest_dir}/${id}.key"
-    ${OPENSSL_BIN} req -x509 -sha256 -new -nodes -days 3650 -newkey rsa:2048 -keyout "${dest_dir}/${id}.key" -out "${dest_dir}/${id}.crt" -subj "/CN=${cn}/"
+    ${OPENSSL_BIN} req -x509 -sha256 -new -nodes -days 3650 -newkey rsa:3072 -keyout "${dest_dir}/${id}.key" -out "${dest_dir}/${id}.crt" -subj "/CN=${cn}/"
     echo '{"signing":{"default":{"expiry":"43800h","usages":["signing","key encipherment",${purpose}]}}}' > "${dest_dir}/${id}-config.json"
 EOF
 }
@@ -236,7 +236,7 @@ function util::create_certkey {
     done
     ${sudo} /usr/bin/env bash -e <<EOF
     cd ${dest_dir}
-    echo '{"CN":"${cn}","hosts":[${hosts}],"names":[{"O":"${og}"}],"key":{"algo":"rsa","size":2048}}' | ${CFSSL_BIN} gencert -ca=${ca}.crt -ca-key=${ca}.key -config=${ca}-config.json - | ${CFSSLJSON_BIN} -bare ${id}
+    echo '{"CN":"${cn}","hosts":[${hosts}],"names":[{"O":"${og}"}],"key":{"algo":"rsa","size":3072}}' | ${CFSSL_BIN} gencert -ca=${ca}.crt -ca-key=${ca}.key -config=${ca}-config.json - | ${CFSSLJSON_BIN} -bare ${id}
     mv "${id}-key.pem" "${id}.key"
     mv "${id}.pem" "${id}.crt"
     rm -f "${id}.csr"
