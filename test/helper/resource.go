@@ -36,6 +36,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
+	appsv1alpha1 "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1"
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
@@ -977,4 +978,16 @@ func NewWork(workName, workNs, workUID string, raw []byte) *workv1alpha1.Work {
 	}
 
 	return work
+}
+
+// NewWorkloadRebalancer will build a new WorkloadRebalancer object.
+func NewWorkloadRebalancer(name string, objectReferences []appsv1alpha1.ObjectReference) *appsv1alpha1.WorkloadRebalancer {
+	return &appsv1alpha1.WorkloadRebalancer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: appsv1alpha1.WorkloadRebalancerSpec{
+			Workloads: objectReferences,
+		},
+	}
 }

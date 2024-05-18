@@ -80,6 +80,7 @@ const (
 	mcsNamePrefix                 = "mcs-"
 	ppNamePrefix                  = "pp-"
 	cppNamePrefix                 = "cpp-"
+	workloadRebalancerPrefix      = "rebalancer-"
 
 	updateDeploymentReplicas  = 2
 	updateStatefulSetReplicas = 2
