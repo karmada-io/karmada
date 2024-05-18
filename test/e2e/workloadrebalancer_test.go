@@ -73,7 +73,7 @@ var _ = framework.SerialDescribe("workload rebalancer testing", func() {
 		// sort member clusters in increasing order
 		targetClusters = framework.ClusterNames()[0:2]
 		sort.Strings(targetClusters)
-		taint = corev1.Taint{Key: "workload-rebalancer-test", Effect: corev1.TaintEffectNoExecute}
+		taint = corev1.Taint{Key: "workload-rebalancer-test-" + randomStr, Effect: corev1.TaintEffectNoExecute}
 
 		deploy = helper.NewDeployment(namespace, deployName)
 		notExistDeploy = helper.NewDeployment(namespace, notExistDeployName)
@@ -176,7 +176,116 @@ var _ = framework.SerialDescribe("workload rebalancer testing", func() {
 				checkWorkloadRebalancerResult(expectedWorkloads)
 			})
 
-			ginkgo.By("step4: udpate WorkloadRebalancer spec workloads", func() {
+			ginkgo.By("step4: update WorkloadRebalancer spec workloads", func() {
+				// update workload list from {deploy, clusterrole, notExistDeployObjRef} to {clusterroleObjRef, newAddedDeployObjRef}
+				updatedWorkloads := []appsv1alpha1.ObjectReference{clusterroleObjRef, newAddedDeployObjRef}
+				framework.UpdateWorkloadRebalancer(karmadaClient, rebalancerName, updatedWorkloads)
+
+				expectedWorkloads := []appsv1alpha1.ObservedWorkload{
+					{Workload: deployObjRef, Result: appsv1alpha1.RebalanceSuccessful},
+					{Workload: newAddedDeployObjRef, Result: appsv1alpha1.RebalanceSuccessful},
+					{Workload: clusterroleObjRef, Result: appsv1alpha1.RebalanceSuccessful},
+				}
+				framework.WaitRebalancerObservedWorkloads(karmadaClient, rebalancerName, expectedWorkloads)
+			})
+		})
+	})
+
+	// 2. static weight scheduling
+	ginkgo.Context("static weight schedule type", func() {
+		ginkgo.BeforeEach(func() {
+			policy.Spec.Placement.ReplicaScheduling = helper.NewStaticWeightPolicyStrategy(targetClusters, []int64{2, 1})
+			policy.Spec.Placement.ClusterTolerations = []corev1.Toleration{{
+				Key:               taint.Key,
+				Effect:            taint.Effect,
+				Operator:          corev1.TolerationOpExists,
+				TolerationSeconds: pointer.Int64(0),
+			}}
+		})
+
+		ginkgo.It("reschedule when policy is static weight schedule type", func() {
+			ginkgo.By("step1: check first schedule result", func() {
+				// after first schedule, deployment is assigned as 2:1 in target clusters and clusterrole propagated to each cluster.
+				framework.AssertBindingScheduledClusters(karmadaClient, namespace, deployBindingName, [][]string{targetClusters})
+				framework.WaitClusterRolePresentOnClustersFitWith(targetClusters, clusterroleName, func(_ *rbacv1.ClusterRole) bool { return true })
+			})
+
+			ginkgo.By("step2: add taints to cluster to mock cluster failure", func() {
+				err := taintCluster(controlPlaneClient, targetClusters[0], taint)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+				framework.AssertBindingScheduledClusters(karmadaClient, namespace, deployBindingName, [][]string{targetClusters[1:]})
+				framework.WaitGracefulEvictionTasksDone(karmadaClient, namespace, deployBindingName)
+
+				err = recoverTaintedCluster(controlPlaneClient, targetClusters[0], taint)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			ginkgo.By("step3: trigger a reschedule by WorkloadRebalancer", func() {
+				framework.CreateWorkloadRebalancer(karmadaClient, rebalancer)
+				ginkgo.DeferCleanup(func() {
+					framework.RemoveWorkloadRebalancer(karmadaClient, rebalancerName)
+				})
+
+				// actual replicas propagation of deployment should reschedule back to `targetClusters`,
+				// which represents rebalancer changed deployment replicas propagation.
+				framework.AssertBindingScheduledClusters(karmadaClient, namespace, deployBindingName, [][]string{targetClusters})
+
+				expectedWorkloads := []appsv1alpha1.ObservedWorkload{
+					{Workload: deployObjRef, Result: appsv1alpha1.RebalanceSuccessful},
+					{Workload: notExistDeployObjRef, Result: appsv1alpha1.RebalanceFailed, Reason: appsv1alpha1.RebalanceObjectNotFound},
+					{Workload: clusterroleObjRef, Result: appsv1alpha1.RebalanceSuccessful},
+				}
+				checkWorkloadRebalancerResult(expectedWorkloads)
+			})
+
+			ginkgo.By("step4: update WorkloadRebalancer spec workloads", func() {
+				// update workload list from {deploy, clusterrole, notExistDeployObjRef} to {clusterroleObjRef, newAddedDeployObjRef}
+				updatedWorkloads := []appsv1alpha1.ObjectReference{clusterroleObjRef, newAddedDeployObjRef}
+				framework.UpdateWorkloadRebalancer(karmadaClient, rebalancerName, updatedWorkloads)
+
+				expectedWorkloads := []appsv1alpha1.ObservedWorkload{
+					{Workload: deployObjRef, Result: appsv1alpha1.RebalanceSuccessful},
+					{Workload: newAddedDeployObjRef, Result: appsv1alpha1.RebalanceSuccessful},
+					{Workload: clusterroleObjRef, Result: appsv1alpha1.RebalanceSuccessful},
+				}
+				framework.WaitRebalancerObservedWorkloads(karmadaClient, rebalancerName, expectedWorkloads)
+			})
+		})
+	})
+
+	// 3. aggregated scheduling
+	ginkgo.Context("aggregated schedule type", func() {
+		ginkgo.BeforeEach(func() {
+			policy.Spec.Placement.ReplicaScheduling = &policyv1alpha1.ReplicaSchedulingStrategy{
+				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceAggregated,
+			}
+		})
+
+		ginkgo.It("reschedule when policy is aggregated schedule type", func() {
+			ginkgo.By("step1: check first schedule result", func() {
+				// after first schedule, deployment is assigned to exactly one of the target clusters while clusterrole propagated to each cluster.
+				possibleScheduledClusters := getPossibleClustersInAggregatedScheduling(targetClusters)
+				framework.AssertBindingScheduledClusters(karmadaClient, namespace, deployBindingName, possibleScheduledClusters)
+				framework.WaitClusterRolePresentOnClustersFitWith(targetClusters, clusterroleName, func(_ *rbacv1.ClusterRole) bool { return true })
+			})
+
+			ginkgo.By("step2: trigger a reschedule by WorkloadRebalancer", func() {
+				framework.CreateWorkloadRebalancer(karmadaClient, rebalancer)
+				ginkgo.DeferCleanup(func() {
+					framework.RemoveWorkloadRebalancer(karmadaClient, rebalancerName)
+				})
+
+				expectedWorkloads := []appsv1alpha1.ObservedWorkload{
+					{Workload: deployObjRef, Result: appsv1alpha1.RebalanceSuccessful},
+					{Workload: notExistDeployObjRef, Result: appsv1alpha1.RebalanceFailed, Reason: appsv1alpha1.RebalanceObjectNotFound},
+					{Workload: clusterroleObjRef, Result: appsv1alpha1.RebalanceSuccessful},
+				}
+				checkWorkloadRebalancerResult(expectedWorkloads)
+			})
+
+			ginkgo.By("step3: update WorkloadRebalancer spec workloads", func() {
 				// update workload list from {deploy, clusterrole, notExistDeployObjRef} to {clusterroleObjRef, newAddedDeployObjRef}
 				updatedWorkloads := []appsv1alpha1.ObjectReference{clusterroleObjRef, newAddedDeployObjRef}
 				framework.UpdateWorkloadRebalancer(karmadaClient, rebalancerName, updatedWorkloads)
@@ -199,4 +308,12 @@ func bindingHasRescheduled(spec workv1alpha2.ResourceBindingSpec, status workv1a
 		return false
 	}
 	return true
+}
+
+func getPossibleClustersInAggregatedScheduling(targetClusters []string) [][]string {
+	possibleScheduledClusters := make([][]string, 0)
+	for _, cluster := range targetClusters {
+		possibleScheduledClusters = append(possibleScheduledClusters, []string{cluster})
+	}
+	return possibleScheduledClusters
 }
