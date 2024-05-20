@@ -43,7 +43,7 @@ import (
 //	schedule strategy: static weight, dynamic weight, aggregated
 //	resource type: workload type like deployment, non-workload type like clusterrole
 //	expected result: successful, not found failure
-var _ = ginkgo.Describe("workload rebalancer testing", func() {
+var _ = framework.SerialDescribe("workload rebalancer testing", func() {
 	var namespace string
 	var deployName, newAddedDeployName, notExistDeployName, clusterroleName string
 	var deployObjRef, newAddedDeployObjRef, notExistDeployObjRef, clusterroleObjRef appsv1alpha1.ObjectReference
