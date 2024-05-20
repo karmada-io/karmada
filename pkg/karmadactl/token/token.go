@@ -286,8 +286,11 @@ func (o *CommandTokenOptions) runListTokens(client kubeclient.Interface, out io.
 // runDeleteTokens removes a bootstrap tokens from the server.
 func (o *CommandTokenOptions) runDeleteTokens(out io.Writer, client kubeclient.Interface, tokenIDsOrTokens []string) error {
 	for _, tokenIDOrToken := range tokenIDsOrTokens {
-		// Assume this is a token id and try to parse it
-		tokenID := tokenIDOrToken
+		// Assume this is a token id and try to parse it.
+		// Notes: Bootstrap Tokens take the form of abcdef.0123456789abcdef. The first part of the token is the public
+		// `Token ID` and is considered public information. It is used when referring to a token without leaking the secret
+		// part used for authentication. The second part is the `Token Secret` and should only be shared with trusted parties.
+		id := tokenIDOrToken
 		klog.V(1).Info("[token] parsing token")
 		if !bootstraputil.IsValidBootstrapTokenID(tokenIDOrToken) {
 			// Okay, the full token with both id and secret was probably passed. Parse it and extract the ID only
@@ -296,15 +299,15 @@ func (o *CommandTokenOptions) runDeleteTokens(out io.Writer, client kubeclient.I
 				return fmt.Errorf("given token didn't match pattern %q or %q",
 					bootstrapapi.BootstrapTokenIDPattern, bootstrapapi.BootstrapTokenIDPattern)
 			}
-			tokenID = bts.ID
+			id = bts.ID
 		}
 
-		tokenSecretName := bootstraputil.BootstrapTokenSecretName(tokenID)
-		klog.V(1).Infof("[token] deleting token %q", tokenID)
-		if err := client.CoreV1().Secrets(metav1.NamespaceSystem).Delete(context.TODO(), tokenSecretName, metav1.DeleteOptions{}); err != nil {
-			return fmt.Errorf("failed to delete bootstrap token %q, err: %w", tokenID, err)
+		secretName := bootstraputil.BootstrapTokenSecretName(id)
+		klog.V(1).Infof("[token] deleting secret %s", secretName)
+		if err := client.CoreV1().Secrets(metav1.NamespaceSystem).Delete(context.TODO(), secretName, metav1.DeleteOptions{}); err != nil {
+			return fmt.Errorf("failed to delete secret %q, err: %w", secretName, err)
 		}
-		fmt.Fprintf(out, "bootstrap token %q deleted\n", tokenID)
+		fmt.Fprintf(out, "bootstrap token %q deleted\n", id)
 	}
 	return nil
 }
