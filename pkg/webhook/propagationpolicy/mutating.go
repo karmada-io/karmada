@@ -23,6 +23,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -94,7 +95,7 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 		}
 	}
 
-	if util.GetLabelValue(policy.Labels, policyv1alpha1.PropagationPolicyPermanentIDLabel) == "" {
+	if req.Operation == admissionv1.Create {
 		util.MergeLabel(policy, policyv1alpha1.PropagationPolicyPermanentIDLabel, uuid.New().String())
 	}
 
