@@ -243,11 +243,16 @@ type httpget func(url string) (int, string, io.ReadCloser, error)
 
 // httpgetImpl Implements a function to retrieve a url and return the results.
 func httpgetImpl(url string) (int, string, io.ReadCloser, error) {
-	// nolint:gosec
-	resp, err := http.Get(url)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return 0, "", nil, err
 	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, "", nil, err
+	}
+
 	return resp.StatusCode, resp.Status, resp.Body, nil
 }
 
