@@ -111,13 +111,11 @@ func Test_retainK8sWorkloadReplicas(t *testing.T) {
 }
 
 func Test_retainSecretServiceAccountToken(t *testing.T) {
-	createSecret := func(secretType corev1.SecretType, uuid, key, value string) *unstructured.Unstructured {
+	createSecret := func(secretType corev1.SecretType, dataKey, dataValue string) *unstructured.Unstructured {
 		ret, _ := helper.ToUnstructured(&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Annotations: map[string]string{corev1.ServiceAccountUIDKey: uuid},
-			},
-			Data: map[string][]byte{key: []byte(value)},
-			Type: secretType,
+			ObjectMeta: metav1.ObjectMeta{},
+			Data:       map[string][]byte{dataKey: []byte(dataValue)},
+			Type:       secretType,
 		})
 		return ret
 	}
@@ -134,10 +132,10 @@ func Test_retainSecretServiceAccountToken(t *testing.T) {
 		{
 			name: "secret data and uid are retained for type service-account-token",
 			args: args{
-				desired:  createSecret(corev1.SecretTypeServiceAccountToken, "111", corev1.ServiceAccountTokenKey, "desired-token"),
-				observed: createSecret(corev1.SecretTypeServiceAccountToken, "999", corev1.ServiceAccountTokenKey, "observed-token"),
+				desired:  createSecret(corev1.SecretTypeServiceAccountToken, corev1.ServiceAccountTokenKey, "desired-token"),
+				observed: createSecret(corev1.SecretTypeServiceAccountToken, corev1.ServiceAccountTokenKey, "observed-token"),
 			},
-			want: createSecret(corev1.SecretTypeServiceAccountToken, "999", corev1.ServiceAccountTokenKey, "observed-token"),
+			want: createSecret(corev1.SecretTypeServiceAccountToken, corev1.ServiceAccountTokenKey, "observed-token"),
 		},
 		{
 			name: "ignores missing uid and data for type service-account-token",
@@ -150,26 +148,26 @@ func Test_retainSecretServiceAccountToken(t *testing.T) {
 		{
 			name: "does not retain for type tls",
 			args: args{
-				desired:  createSecret(corev1.SecretTypeTLS, "111", corev1.TLSCertKey, "desired-cert"),
-				observed: createSecret(corev1.SecretTypeTLS, "999", corev1.TLSCertKey, "observed-cert"),
+				desired:  createSecret(corev1.SecretTypeTLS, corev1.TLSCertKey, "desired-cert"),
+				observed: createSecret(corev1.SecretTypeTLS, corev1.TLSCertKey, "observed-cert"),
 			},
-			want: createSecret(corev1.SecretTypeTLS, "111", corev1.TLSCertKey, "desired-cert"),
+			want: createSecret(corev1.SecretTypeTLS, corev1.TLSCertKey, "desired-cert"),
 		},
 		{
 			name: "does not retain for type basic-auth",
 			args: args{
-				desired:  createSecret(corev1.SecretTypeBasicAuth, "111", corev1.BasicAuthUsernameKey, "desired-user"),
-				observed: createSecret(corev1.SecretTypeBasicAuth, "999", corev1.BasicAuthUsernameKey, "observed-user"),
+				desired:  createSecret(corev1.SecretTypeBasicAuth, corev1.BasicAuthUsernameKey, "desired-user"),
+				observed: createSecret(corev1.SecretTypeBasicAuth, corev1.BasicAuthUsernameKey, "observed-user"),
 			},
-			want: createSecret(corev1.SecretTypeBasicAuth, "111", corev1.BasicAuthUsernameKey, "desired-user"),
+			want: createSecret(corev1.SecretTypeBasicAuth, corev1.BasicAuthUsernameKey, "desired-user"),
 		},
 		{
 			name: "does not retain for type dockercfg",
 			args: args{
-				desired:  createSecret(corev1.SecretTypeDockercfg, "111", corev1.DockerConfigKey, "desired-docker-cfg"),
-				observed: createSecret(corev1.SecretTypeDockercfg, "999", corev1.DockerConfigKey, "observed-docker-cfg"),
+				desired:  createSecret(corev1.SecretTypeDockercfg, corev1.DockerConfigKey, "desired-docker-cfg"),
+				observed: createSecret(corev1.SecretTypeDockercfg, corev1.DockerConfigKey, "observed-docker-cfg"),
 			},
-			want: createSecret(corev1.SecretTypeDockercfg, "111", corev1.DockerConfigKey, "desired-docker-cfg"),
+			want: createSecret(corev1.SecretTypeDockercfg, corev1.DockerConfigKey, "desired-docker-cfg"),
 		},
 	}
 	for _, tt := range tests {
