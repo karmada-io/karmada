@@ -60,6 +60,16 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 			klog.Error(err)
 			return admission.Denied(err.Error())
 		}
+
+		if policy.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel] !=
+			oldPolicy.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel] {
+			return admission.Denied(fmt.Sprintf("label %s is immutable, it can only be set by the system during creation",
+				policyv1alpha1.PropagationPolicyPermanentIDLabel))
+		}
+	}
+	if _, exist := policy.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel]; !exist {
+		return admission.Denied(fmt.Sprintf("label %s is required, it should be set by the mutating admission webhook during creation",
+			policyv1alpha1.PropagationPolicyPermanentIDLabel))
 	}
 
 	errs := validation.ValidatePropagationSpec(policy.Spec)
