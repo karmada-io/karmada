@@ -165,3 +165,20 @@ func (s *ResourceBindingSpec) GracefulEvictCluster(name string, options *TaskOpt
 	}
 	s.GracefulEvictionTasks = append(s.GracefulEvictionTasks, evictionTask)
 }
+
+func (s *ResourceBindingSpec) RemoveGracefulEvictionTask(name string) {
+	var i int
+
+	for i = 0; i < len(s.GracefulEvictionTasks); i++ {
+		if s.GracefulEvictionTasks[i].FromCluster == name {
+			break
+		}
+	}
+
+	// not found, do nothing
+	if i >= len(s.GracefulEvictionTasks) {
+		return
+	}
+
+	s.GracefulEvictionTasks = append(s.GracefulEvictionTasks[:i], s.GracefulEvictionTasks[i+1:]...)
+}
