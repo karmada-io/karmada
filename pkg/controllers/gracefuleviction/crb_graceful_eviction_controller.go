@@ -92,6 +92,8 @@ func (c *CRBGracefulEvictionController) syncBinding(binding *workv1alpha2.Cluste
 	}
 
 	for _, cluster := range evictedClusters {
+		klog.V(2).Infof("Success to evict Cluster(%s) from ClusterResourceBinding(%s) gracefulEvictionTasks",
+			cluster, binding.Name)
 		helper.EmitClusterEvictionEventForClusterResourceBinding(binding, cluster, c.EventRecorder, err)
 	}
 	return nextRetry(keptTask, c.GracefulEvictionTimeout, metav1.Now().Time), nil

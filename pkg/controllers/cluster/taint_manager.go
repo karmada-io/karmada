@@ -144,6 +144,8 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 		return fmt.Errorf("invalid key")
 	}
 	cluster := fedKey.Cluster
+	klog.V(4).Infof("Begin to sync ResourceBinding(%s) with taintManager for Cluster(%s)",
+		fedKey.ClusterWideKey.NamespaceKey(), cluster)
 
 	binding := &workv1alpha2.ResourceBinding{}
 	if err := tc.Client.Get(context.TODO(), types.NamespacedName{Namespace: fedKey.Namespace, Name: fedKey.Name}, binding); err != nil {
@@ -179,6 +181,8 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 			klog.ErrorS(err, "Failed to update binding", "binding", klog.KObj(binding))
 			return err
 		}
+		klog.V(2).Infof("Success to evict Cluster(%s) from ResourceBinding(%s) schedule result",
+			fedKey.ClusterWideKey.NamespaceKey(), fedKey.Cluster)
 		if !features.FeatureGate.Enabled(features.GracefulEviction) {
 			helper.EmitClusterEvictionEventForResourceBinding(binding, cluster, tc.EventRecorder, nil)
 		}
@@ -196,6 +200,8 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 		return fmt.Errorf("invalid key")
 	}
 	cluster := fedKey.Cluster
+	klog.V(4).Infof("Begin to sync ClusterResourceBinding(%s) with taintManager for Cluster(%s)",
+		fedKey.ClusterWideKey.NamespaceKey(), cluster)
 
 	binding := &workv1alpha2.ClusterResourceBinding{}
 	if err := tc.Client.Get(context.TODO(), types.NamespacedName{Name: fedKey.Name}, binding); err != nil {
@@ -231,6 +237,8 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 			klog.ErrorS(err, "Failed to update cluster binding", "binding", binding.Name)
 			return err
 		}
+		klog.V(2).Infof("Success to evict Cluster(%s) from ClusterResourceBinding(%s) schedule result",
+			fedKey.ClusterWideKey.NamespaceKey(), fedKey.Cluster)
 		if !features.FeatureGate.Enabled(features.GracefulEviction) {
 			helper.EmitClusterEvictionEventForClusterResourceBinding(binding, cluster, tc.EventRecorder, nil)
 		}
@@ -245,10 +253,16 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 // needEviction returns whether the binding should be evicted from target cluster right now.
 // If a toleration time is found, we return false along with a minimum toleration time as the
 // second return value.
-func (tc *NoExecuteTaintManager) needEviction(clusterName string, appliedPlacement map[string]string) (bool, time.Duration, error) {
-	placement, err := helper.GetAppliedPlacement(appliedPlacement)
+func (tc *NoExecuteTaintManager) needEviction(clusterName string, annotations map[string]string) (bool, time.Duration, error) {
+	placement, err := helper.GetAppliedPlacement(annotations)
 	if err != nil {
 		return false, -1, err
+	}
+	// Under normal circumstances, placement will not be empty,
+	// but when the default scheduler is not used, coordination problems may occur.
+	// Therefore, in order to make the method more robust, add the empty judgement.
+	if placement == nil {
+		return false, -1, fmt.Errorf("the applied placement for ResourceBining can not be empty")
 	}
 
 	cluster := &clusterv1alpha1.Cluster{}
