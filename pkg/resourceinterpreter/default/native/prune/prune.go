@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	storagevolume "k8s.io/component-helpers/storage/volume"
+	utildeployment "k8s.io/kubectl/pkg/util/deployment"
 
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -33,6 +34,7 @@ import (
 type irrelevantFieldPruneFunc func(*unstructured.Unstructured) error
 
 var kindIrrelevantFieldPruners = map[string]irrelevantFieldPruneFunc{
+	util.DeploymentKind:            removeDeploymentIrrelevantField,
 	util.JobKind:                   removeJobIrrelevantField,
 	util.SecretKind:                removeSecretIrrelevantField,
 	util.ServiceAccountKind:        removeServiceAccountIrrelevantField,
@@ -126,6 +128,14 @@ func removeGenerateSelectorOfJob(workload *unstructured.Unstructured) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func removeDeploymentIrrelevantField(workload *unstructured.Unstructured) error {
+	for _, annotation := range []string{utildeployment.RevisionAnnotation, utildeployment.RevisionHistoryAnnotation} {
+		unstructured.RemoveNestedField(workload.Object, "metadata", "annotations", annotation)
+	}
+
 	return nil
 }
 
