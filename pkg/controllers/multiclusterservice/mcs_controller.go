@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -407,10 +406,6 @@ func (c *MCSController) propagateService(ctx context.Context, mcs *networkingv1a
 					"try again later after binding is garbage collected, see https://github.com/karmada-io/karmada/issues/2090")
 			}
 
-			if util.GetLabelValue(bindingCopy.Labels, workv1alpha2.ResourceBindingPermanentIDLabel) == "" {
-				bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels,
-					map[string]string{workv1alpha2.ResourceBindingPermanentIDLabel: uuid.New().String()})
-			}
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
 			bindingCopy.Annotations = util.DedupeAndMergeAnnotations(bindingCopy.Annotations, binding.Annotations)
 			bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)

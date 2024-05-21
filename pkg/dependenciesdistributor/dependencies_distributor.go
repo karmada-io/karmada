@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -538,8 +537,6 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding 
 		return err
 	}
 
-	attachedBinding.Labels = util.DedupeAndMergeLabels(attachedBinding.Labels,
-		map[string]string{workv1alpha2.ResourceBindingPermanentIDLabel: uuid.New().String()})
 	if err := d.Client.Create(context.TODO(), attachedBinding); err != nil {
 		return err
 	}
@@ -653,8 +650,8 @@ func buildAttachedBinding(binding *workv1alpha2.ResourceBinding, object *unstruc
 		Clusters:  binding.Spec.Clusters,
 	})
 
-	policyID := util.GetLabelValue(binding.Labels, workv1alpha2.ResourceBindingPermanentIDLabel)
-	dependedLabels = util.DedupeAndMergeLabels(dependedLabels, map[string]string{bindingDependedIDLabelKey: policyID})
+	bindingID := util.GetLabelValue(binding.Labels, workv1alpha2.ResourceBindingPermanentIDLabel)
+	dependedLabels = util.DedupeAndMergeLabels(dependedLabels, map[string]string{bindingDependedIDLabelKey: bindingID})
 	return &workv1alpha2.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      names.GenerateBindingName(object.GetKind(), object.GetName()),
