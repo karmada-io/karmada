@@ -46,7 +46,7 @@ import (
 const (
 	// CertificateBlockType is a possible value for pem.Block.Type.
 	CertificateBlockType = "CERTIFICATE"
-	rsaKeySize           = 2048
+	rsaKeySize           = 3072
 	keyExtension         = ".key"
 	certExtension        = ".crt"
 )

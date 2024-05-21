@@ -130,6 +130,8 @@ certs:
       "localhost",
       "127.0.0.1"
     ]
+    ## @param certs.auto.rsaSize rsa key size of the certificate
+    rsaSize: 3072
   custom:
     ## @param certs.custom.caCrt ca of the certificate
     caCrt: |

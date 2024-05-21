@@ -761,7 +761,7 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 
 // generateKeyAndCSR generate private key and csr
 func generateKeyAndCSR(clusterName string) (*rsa.PrivateKey, []byte, error) {
-	pk, err := rsa.GenerateKey(rand.Reader, 2048)
+	pk, err := rsa.GenerateKey(rand.Reader, 3072)
 	if err != nil {
 		return nil, nil, err
 	}
