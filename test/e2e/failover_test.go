@@ -142,7 +142,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 					err := recoverCluster(controlPlaneClient, disabledCluster, originalAPIEndpoint)
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 					// wait for the disabled cluster recovered
-					err = wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+					err = wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(_ context.Context) (done bool, err error) {
 						currentCluster, err := util.GetCluster(controlPlaneClient, disabledCluster)
 						if err != nil {
 							return false, err
@@ -525,9 +525,9 @@ var _ = framework.SerialDescribe("failover testing", func() {
 
 // disableCluster will set wrong API endpoint of current cluster
 func disableCluster(c client.Client, clusterName string) error {
-	err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
-		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
+		if err := c.Get(ctx, client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil
 			}
@@ -536,7 +536,7 @@ func disableCluster(c client.Client, clusterName string) error {
 		// set the APIEndpoint of matched cluster to a wrong value
 		unavailableAPIEndpoint := "https://172.19.1.3:6443"
 		clusterObj.Spec.APIEndpoint = unavailableAPIEndpoint
-		if err := c.Update(context.TODO(), clusterObj); err != nil {
+		if err := c.Update(ctx, clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil
 			}
@@ -549,16 +549,16 @@ func disableCluster(c client.Client, clusterName string) error {
 
 // taintCluster will taint cluster
 func taintCluster(c client.Client, clusterName string, taint corev1.Taint) error {
-	err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
-		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
+		if err := c.Get(ctx, client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil
 			}
 			return false, err
 		}
 		clusterObj.Spec.Taints = append(clusterObj.Spec.Taints, taint)
-		if err := c.Update(context.TODO(), clusterObj); err != nil {
+		if err := c.Update(ctx, clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil
 			}
@@ -571,16 +571,16 @@ func taintCluster(c client.Client, clusterName string, taint corev1.Taint) error
 
 // recoverTaintedCluster will recover the taint of the disabled cluster
 func recoverTaintedCluster(c client.Client, clusterName string, taint corev1.Taint) error {
-	err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
-		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
+		if err := c.Get(ctx, client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil
 			}
 			return false, err
 		}
 		clusterObj.Spec.Taints = helper.SetCurrentClusterTaints(nil, []*corev1.Taint{&taint}, clusterObj)
-		if err := c.Update(context.TODO(), clusterObj); err != nil {
+		if err := c.Update(ctx, clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil
 			}
@@ -593,13 +593,13 @@ func recoverTaintedCluster(c client.Client, clusterName string, taint corev1.Tai
 
 // recoverCluster will recover API endpoint of the disable cluster
 func recoverCluster(c client.Client, clusterName string, originalAPIEndpoint string) error {
-	err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
-		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
+		if err := c.Get(ctx, client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
 			return false, err
 		}
 		clusterObj.Spec.APIEndpoint = originalAPIEndpoint
-		if err := c.Update(context.TODO(), clusterObj); err != nil {
+		if err := c.Update(ctx, clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil
 			}

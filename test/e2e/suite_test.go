@@ -241,16 +241,16 @@ func deleteCluster(clusterName, kubeConfigPath string) error {
 
 // deleteClusterLabel delete cluster label of E2E
 func deleteClusterLabel(c client.Client, clusterName string) error {
-	err := wait.PollImmediate(2*time.Second, 10*time.Second, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.TODO(), 2*time.Second, 10*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
-		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
+		if err := c.Get(ctx, client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil
 			}
 			return false, err
 		}
 		delete(clusterObj.Labels, "location")
-		if err := c.Update(context.TODO(), clusterObj); err != nil {
+		if err := c.Update(ctx, clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil
 			}
