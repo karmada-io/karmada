@@ -278,11 +278,11 @@ func FetchResourceTemplate(
 	return unstructuredObj, nil
 }
 
-// FetchResourceTemplateByLabelSelector fetches the resource template by label selector to be propagated.
+// FetchResourceTemplatesByLabelSelector fetches the resource templates by label selector to be propagated.
 // Any updates to this resource template are not recommended as it may come from the informer cache.
 // We should abide by the principle of making a deep copy first and then modifying it.
 // See issue: https://github.com/karmada-io/karmada/issues/3878.
-func FetchResourceTemplateByLabelSelector(
+func FetchResourceTemplatesByLabelSelector(
 	dynamicClient dynamic.Interface,
 	informerManager genericmanager.SingleClusterInformerManager,
 	restMapper meta.RESTMapper,

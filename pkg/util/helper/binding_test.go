@@ -959,7 +959,7 @@ func TestFetchWorkloadByLabelSelector(t *testing.T) {
 			stopCh := make(chan struct{})
 			mgr := tt.args.informerManager(stopCh)
 			selector, _ := metav1.LabelSelectorAsSelector(tt.args.selector)
-			got, err := FetchResourceTemplateByLabelSelector(tt.args.dynamicClient, mgr, tt.args.restMapper, tt.args.resource, selector)
+			got, err := FetchResourceTemplatesByLabelSelector(tt.args.dynamicClient, mgr, tt.args.restMapper, tt.args.resource, selector)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("FetchResourceTemplate() error = %v, wantErr %v", err, tt.wantErr)
 				return
