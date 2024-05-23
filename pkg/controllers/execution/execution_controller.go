@@ -19,6 +19,7 @@ package execution
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -258,7 +259,11 @@ func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status meta
 	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		workCopy := work.Status.DeepCopy()
 		meta.SetStatusCondition(&work.Status.Conditions, newWorkAppliedCondition)
+		if reflect.DeepEqual(*workCopy, work.Status) {
+			return nil
+		}
 		updateErr := c.Status().Update(context.TODO(), work)
 		if updateErr == nil {
 			return nil
