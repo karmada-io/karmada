@@ -11,3 +11,26 @@ updates:
   schedule:
     # Check for updates to GitHub Actions every week
     interval: "weekly"
+    
+- package-ecosystem: docker
+  directory: /cluster/images/
+  schedule:
+    interval: weekly
+
+- package-ecosystem: docker
+  directory: /cluster/images/
+  target-branch: "release-1.9"
+  schedule:
+    interval: weekly
+
+- package-ecosystem: docker
+  directory: /cluster/images/
+  target-branch: "release-1.8"
+  schedule:
+    interval: weekly
+
+- package-ecosystem: docker
+  directory: /cluster/images/
+  target-branch: "release-1.7"
+  schedule:
+    interval: weekly
