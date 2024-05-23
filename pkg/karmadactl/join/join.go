@@ -100,10 +100,6 @@ type CommandJoinOption struct {
 	// ClusterRegion represents the region of the cluster locate in.
 	ClusterRegion string
 
-	// ClusterZone represents the zone of the cluster locate in.
-	// Deprecated: Use ClusterZones instead.
-	ClusterZone string
-
 	// ClusterZones represents the failure zones(also called availability zones) of the
 	// member cluster. The zones are presented as a slice to support the case
 	// that cluster runs across multiple failure zones.
@@ -141,9 +137,6 @@ func (j *CommandJoinOption) Validate(args []string) error {
 		klog.Warningf("karmada-system is always reserved for Karmada control plane. We do not recommend using karmada-system to store secrets of member clusters. It may cause mistaken cleanup of resources.")
 	}
 
-	if j.ClusterZone != "" && len(j.ClusterZones) > 0 {
-		return fmt.Errorf("--cluster-zone and --cluster-zones can not co-exist")
-	}
 	return nil
 }
 
@@ -156,9 +149,6 @@ func (j *CommandJoinOption) AddFlags(flags *pflag.FlagSet) {
 		"Path of the cluster's kubeconfig.")
 	flags.StringVar(&j.ClusterProvider, "cluster-provider", "", "Provider of the joining cluster. The Karmada scheduler can use this information to spread workloads across providers for higher availability.")
 	flags.StringVar(&j.ClusterRegion, "cluster-region", "", "The region of the joining cluster. The Karmada scheduler can use this information to spread workloads across regions for higher availability.")
-	flags.StringVar(&j.ClusterZone, "cluster-zone", "", "The zone of the joining cluster.")
-	// nolint: errcheck
-	flags.MarkDeprecated("cluster-zone", "This flag is deprecated and will be removed in future releases. Use --cluster-zones instead.")
 	flags.StringSliceVar(&j.ClusterZones, "cluster-zones", nil, "The zones of the joining cluster. The Karmada scheduler can use this information to spread workloads across zones for higher availability.")
 	flags.BoolVar(&j.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 }
@@ -198,7 +188,6 @@ func (j *CommandJoinOption) RunJoinCluster(controlPlaneRestConfig, clusterConfig
 		ReportSecrets:      []string{util.KubeCredentials, util.KubeImpersonator},
 		ClusterProvider:    j.ClusterProvider,
 		ClusterRegion:      j.ClusterRegion,
-		ClusterZone:        j.ClusterZone,
 		ClusterZones:       j.ClusterZones,
 		DryRun:             j.DryRun,
 		ControlPlaneConfig: controlPlaneRestConfig,
@@ -257,10 +246,6 @@ func generateClusterInControllerPlane(opts util.ClusterRegisterOption) (*cluster
 
 	if opts.ClusterProvider != "" {
 		clusterObj.Spec.Provider = opts.ClusterProvider
-	}
-
-	if opts.ClusterZone != "" {
-		clusterObj.Spec.Zone = opts.ClusterZone
 	}
 
 	if len(opts.ClusterZones) > 0 {
