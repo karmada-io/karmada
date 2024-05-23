@@ -23,6 +23,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	admissionv1 "k8s.io/api/admission/v1"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -82,7 +83,7 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 		}
 	}
 
-	if util.GetLabelValue(policy.Labels, policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel) == "" {
+	if req.Operation == admissionv1.Create {
 		util.MergeLabel(policy, policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel, uuid.New().String())
 	}
 
