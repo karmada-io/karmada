@@ -160,20 +160,11 @@ func (c *StatusController) collectQuotaStatus(quota *policyv1alpha1.FederatedRes
 	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		quota.Status = *quotaStatus
-		updateErr := c.Status().Update(context.TODO(), quota)
-		if updateErr == nil {
+		_, err = helper.UpdateStatus(context.Background(), c.Client, quota, func() error {
+			quota.Status = *quotaStatus
 			return nil
-		}
-
-		updated := &policyv1alpha1.FederatedResourceQuota{}
-		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: quota.Namespace, Name: quota.Name}, updated); err == nil {
-			quota = updated
-		} else {
-			klog.Errorf("Failed to get updated  federatedResourceQuota(%s): %v", klog.KObj(quota).String(), err)
-		}
-
-		return updateErr
+		})
+		return err
 	})
 }
 

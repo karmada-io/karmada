@@ -18,10 +18,8 @@ package remediation
 
 import (
 	"context"
-	"reflect"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -33,6 +31,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	remedyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 // ControllerName is the controller name that will be used when reporting events.
@@ -70,26 +69,13 @@ func (c *RemedyController) Reconcile(ctx context.Context, req controllerruntime.
 	}
 
 	actions := calculateActions(clusterRelatedRemedies, cluster)
-	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		if reflect.DeepEqual(actions, cluster.Status.RemedyActions) {
+	if err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		_, err = helper.UpdateStatus(ctx, c.Client, cluster, func() error {
+			cluster.Status.RemedyActions = actions
 			return nil
-		}
-		cluster.Status.RemedyActions = actions
-		updateErr := c.Client.Status().Update(ctx, cluster)
-		if updateErr == nil {
-			return nil
-		}
-
-		updatedCluster := &clusterv1alpha1.Cluster{}
-		err = c.Client.Get(ctx, types.NamespacedName{Name: cluster.Name}, updatedCluster)
-		if err == nil {
-			cluster = updatedCluster
-		} else {
-			klog.Errorf("Failed to get updated cluster(%s): %v", cluster.Name, err)
-		}
-		return updateErr
-	})
-	if err != nil {
+		})
+		return err
+	}); err != nil {
 		klog.Errorf("Failed to sync cluster(%s) remedy actions: %v", cluster.Name, err)
 		return controllerruntime.Result{}, err
 	}
