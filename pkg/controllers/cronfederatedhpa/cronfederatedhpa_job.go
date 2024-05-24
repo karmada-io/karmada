@@ -32,6 +32,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/metrics"
@@ -226,52 +227,55 @@ func (c *ScalingJob) addFailedExecutionHistory(
 	cronFHPA *autoscalingv1alpha1.CronFederatedHPA, errMsg string) error {
 	_, nextExecutionTime := c.scheduler.NextRun()
 
-	// Add success history record, return false if there is no such rule
-	addFailedHistoryFunc := func() bool {
-		exists := false
-		for index, rule := range cronFHPA.Status.ExecutionHistories {
-			if rule.RuleName != c.rule.Name {
-				continue
-			}
-			failedExecution := autoscalingv1alpha1.FailedExecution{
-				ScheduleTime:  rule.NextExecutionTime,
-				ExecutionTime: &metav1.Time{Time: time.Now()},
-				Message:       errMsg,
-			}
-			historyLimits := helper.GetCronFederatedHPAFailedHistoryLimits(c.rule)
-			if len(rule.FailedExecutions) > historyLimits-1 {
-				rule.FailedExecutions = rule.FailedExecutions[:historyLimits-1]
-			}
-			cronFHPA.Status.ExecutionHistories[index].FailedExecutions =
-				append([]autoscalingv1alpha1.FailedExecution{failedExecution}, rule.FailedExecutions...)
-			cronFHPA.Status.ExecutionHistories[index].NextExecutionTime = &metav1.Time{Time: nextExecutionTime}
-			exists = true
-			break
+	// Add failed history record
+	addFailedHistoryFunc := func(index int) {
+		failedExecution := autoscalingv1alpha1.FailedExecution{
+			ScheduleTime:  cronFHPA.Status.ExecutionHistories[index].NextExecutionTime,
+			ExecutionTime: &metav1.Time{Time: time.Now()},
+			Message:       errMsg,
 		}
-
-		return exists
+		historyLimits := helper.GetCronFederatedHPAFailedHistoryLimits(c.rule)
+		if len(cronFHPA.Status.ExecutionHistories[index].FailedExecutions) > historyLimits-1 {
+			cronFHPA.Status.ExecutionHistories[index].FailedExecutions = cronFHPA.Status.ExecutionHistories[index].FailedExecutions[:historyLimits-1]
+		}
+		cronFHPA.Status.ExecutionHistories[index].FailedExecutions =
+			append([]autoscalingv1alpha1.FailedExecution{failedExecution}, cronFHPA.Status.ExecutionHistories[index].FailedExecutions...)
+		cronFHPA.Status.ExecutionHistories[index].NextExecutionTime = &metav1.Time{Time: nextExecutionTime}
 	}
 
-	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		// If this history not exist, it means the rule is suspended or deleted, so just ignore it.
-		if exists := addFailedHistoryFunc(); !exists {
-			return nil
-		}
+	index := c.findExecutionHistory(cronFHPA.Status.ExecutionHistories)
+	if index < 0 {
+		// The failed history does not exist, it means the rule deleted, so just ignore it.
+		return nil
+	}
 
-		updateErr := c.client.Status().Update(context.Background(), cronFHPA)
-		if updateErr == nil {
-			klog.V(4).Infof("CronFederatedHPA(%s/%s) status has been updated successfully", cronFHPA.Namespace, cronFHPA.Name)
+	var operationResult controllerutil.OperationResult
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		operationResult, err = helper.UpdateStatus(context.Background(), c.client, cronFHPA, func() error {
+			addFailedHistoryFunc(index)
 			return nil
-		}
+		})
+		return err
+	}); err != nil {
+		klog.Errorf("Failed to add failed history record to CronFederatedHPA(%s/%s): %v", cronFHPA.Namespace, cronFHPA.Name, err)
+		return err
+	}
 
-		updated := &autoscalingv1alpha1.CronFederatedHPA{}
-		if err = c.client.Get(context.Background(), client.ObjectKey{Namespace: cronFHPA.Namespace, Name: cronFHPA.Name}, updated); err == nil {
-			cronFHPA = updated
-		} else {
-			klog.Errorf("Get CronFederatedHPA(%s/%s) failed: %v", cronFHPA.Namespace, cronFHPA.Name, err)
+	if operationResult == controllerutil.OperationResultUpdatedStatusOnly {
+		klog.V(4).Infof("CronFederatedHPA(%s/%s) status has been updated successfully", cronFHPA.Namespace, cronFHPA.Name)
+	}
+
+	return nil
+}
+
+// findExecutionHistory finds the history record, returns -1 if there is no such rule.
+func (c *ScalingJob) findExecutionHistory(histories []autoscalingv1alpha1.ExecutionHistory) int {
+	for index, rule := range histories {
+		if rule.RuleName == c.rule.Name {
+			return index
 		}
-		return updateErr
-	})
+	}
+	return -1
 }
 
 func (c *ScalingJob) addSuccessExecutionHistory(
@@ -279,52 +283,45 @@ func (c *ScalingJob) addSuccessExecutionHistory(
 	appliedReplicas, appliedMinReplicas, appliedMaxReplicas *int32) error {
 	_, nextExecutionTime := c.scheduler.NextRun()
 
-	// Add success history record, return false if there is no such rule
-	addSuccessHistoryFunc := func() bool {
-		exists := false
-		for index, rule := range cronFHPA.Status.ExecutionHistories {
-			if rule.RuleName != c.rule.Name {
-				continue
-			}
-			successExecution := autoscalingv1alpha1.SuccessfulExecution{
-				ScheduleTime:       rule.NextExecutionTime,
-				ExecutionTime:      &metav1.Time{Time: time.Now()},
-				AppliedReplicas:    appliedReplicas,
-				AppliedMaxReplicas: appliedMaxReplicas,
-				AppliedMinReplicas: appliedMinReplicas,
-			}
-			historyLimits := helper.GetCronFederatedHPASuccessHistoryLimits(c.rule)
-			if len(rule.SuccessfulExecutions) > historyLimits-1 {
-				rule.SuccessfulExecutions = rule.SuccessfulExecutions[:historyLimits-1]
-			}
-			cronFHPA.Status.ExecutionHistories[index].SuccessfulExecutions =
-				append([]autoscalingv1alpha1.SuccessfulExecution{successExecution}, rule.SuccessfulExecutions...)
-			cronFHPA.Status.ExecutionHistories[index].NextExecutionTime = &metav1.Time{Time: nextExecutionTime}
-			exists = true
-			break
+	// Add success history record
+	addSuccessHistoryFunc := func(index int) {
+		successExecution := autoscalingv1alpha1.SuccessfulExecution{
+			ScheduleTime:       cronFHPA.Status.ExecutionHistories[index].NextExecutionTime,
+			ExecutionTime:      &metav1.Time{Time: time.Now()},
+			AppliedReplicas:    appliedReplicas,
+			AppliedMaxReplicas: appliedMaxReplicas,
+			AppliedMinReplicas: appliedMinReplicas,
 		}
-
-		return exists
+		historyLimits := helper.GetCronFederatedHPASuccessHistoryLimits(c.rule)
+		if len(cronFHPA.Status.ExecutionHistories[index].SuccessfulExecutions) > historyLimits-1 {
+			cronFHPA.Status.ExecutionHistories[index].SuccessfulExecutions = cronFHPA.Status.ExecutionHistories[index].SuccessfulExecutions[:historyLimits-1]
+		}
+		cronFHPA.Status.ExecutionHistories[index].SuccessfulExecutions =
+			append([]autoscalingv1alpha1.SuccessfulExecution{successExecution}, cronFHPA.Status.ExecutionHistories[index].SuccessfulExecutions...)
+		cronFHPA.Status.ExecutionHistories[index].NextExecutionTime = &metav1.Time{Time: nextExecutionTime}
 	}
 
-	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		// If this history not exist, it means the rule deleted, so just ignore it.
-		if exists := addSuccessHistoryFunc(); !exists {
+	index := c.findExecutionHistory(cronFHPA.Status.ExecutionHistories)
+	if index < 0 {
+		// The success history does not exist, it means the rule deleted, so just ignore it.
+		return nil
+	}
+
+	var operationResult controllerutil.OperationResult
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		operationResult, err = helper.UpdateStatus(context.Background(), c.client, cronFHPA, func() error {
+			addSuccessHistoryFunc(index)
 			return nil
-		}
+		})
+		return err
+	}); err != nil {
+		klog.Errorf("Failed to add success history record to CronFederatedHPA(%s/%s): %v", cronFHPA.Namespace, cronFHPA.Name, err)
+		return err
+	}
 
-		updateErr := c.client.Status().Update(context.Background(), cronFHPA)
-		if updateErr == nil {
-			klog.V(4).Infof("CronFederatedHPA(%s/%s) status has been updated successfully", cronFHPA.Namespace, cronFHPA.Name)
-			return err
-		}
+	if operationResult == controllerutil.OperationResultUpdatedStatusOnly {
+		klog.V(4).Infof("CronFederatedHPA(%s/%s) status has been updated successfully", cronFHPA.Namespace, cronFHPA.Name)
+	}
 
-		updated := &autoscalingv1alpha1.CronFederatedHPA{}
-		if err = c.client.Get(context.Background(), client.ObjectKey{Namespace: cronFHPA.Namespace, Name: cronFHPA.Name}, updated); err == nil {
-			cronFHPA = updated
-		} else {
-			klog.Errorf("Get CronFederatedHPA(%s/%s) failed: %v", cronFHPA.Namespace, cronFHPA.Name, err)
-		}
-		return updateErr
-	})
+	return nil
 }
