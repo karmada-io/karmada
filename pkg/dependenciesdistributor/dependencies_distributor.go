@@ -38,6 +38,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -243,9 +244,9 @@ func (d *DependenciesDistributor) Reconcile(ctx context.Context, request reconci
 	bindingObject := &workv1alpha2.ResourceBinding{}
 	err := d.Client.Get(ctx, request.NamespacedName, bindingObject)
 	if err != nil {
+		// The resource may no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
-			klog.V(4).Infof("ResourceBinding(%s) has been removed.", request.NamespacedName)
-			return reconcile.Result{}, d.handleIndependentBindingDeletion(request.Namespace, request.Name)
+			return reconcile.Result{}, nil
 		}
 		klog.Errorf("Failed to get ResourceBinding(%s): %v", request.NamespacedName, err)
 		return reconcile.Result{}, err
@@ -253,12 +254,17 @@ func (d *DependenciesDistributor) Reconcile(ctx context.Context, request reconci
 
 	// in case users set PropagateDeps field from "true" to "false"
 	if !bindingObject.Spec.PropagateDeps || !bindingObject.DeletionTimestamp.IsZero() {
-		return reconcile.Result{}, d.handleIndependentBindingDeletion(request.Namespace, request.Name)
+		err = d.handleIndependentBindingDeletion(request.Namespace, request.Name)
+		if err != nil {
+			klog.Errorf("Failed to cleanup attached bindings for independent binding(%s): %v", request.NamespacedName, err)
+			return reconcile.Result{}, err
+		}
+		return reconcile.Result{}, d.removeFinalizer(ctx, bindingObject)
 	}
 
 	workload, err := helper.FetchResourceTemplate(d.DynamicClient, d.InformerManager, d.RESTMapper, bindingObject.Spec.Resource)
 	if err != nil {
-		klog.Errorf("Failed to fetch workload for resourceBinding(%s/%s). Error: %v.", bindingObject.Namespace, bindingObject.Name, err)
+		klog.Errorf("Failed to fetch workload for resourceBinding(%s): %v.", request.NamespacedName, err)
 		return reconcile.Result{}, err
 	}
 
@@ -273,7 +279,26 @@ func (d *DependenciesDistributor) Reconcile(ctx context.Context, request reconci
 		return reconcile.Result{}, err
 	}
 	d.EventRecorder.Eventf(workload, corev1.EventTypeNormal, events.EventReasonGetDependenciesSucceed, "Get dependencies(%+v) succeed.", dependencies)
+
+	if err = d.addFinalizer(ctx, bindingObject); err != nil {
+		klog.Errorf("Failed to add finalizer(%s) for ResourceBinding(%s): %v", util.BindingDependenciesDistributorFinalizer, request.NamespacedName, err)
+		return reconcile.Result{}, err
+	}
 	return reconcile.Result{}, d.syncScheduleResultToAttachedBindings(bindingObject, dependencies)
+}
+
+func (d *DependenciesDistributor) addFinalizer(ctx context.Context, independentBinding *workv1alpha2.ResourceBinding) error {
+	if controllerutil.AddFinalizer(independentBinding, util.BindingDependenciesDistributorFinalizer) {
+		return d.Client.Update(ctx, independentBinding)
+	}
+	return nil
+}
+
+func (d *DependenciesDistributor) removeFinalizer(ctx context.Context, independentBinding *workv1alpha2.ResourceBinding) error {
+	if controllerutil.RemoveFinalizer(independentBinding, util.BindingDependenciesDistributorFinalizer) {
+		return d.Client.Update(ctx, independentBinding)
+	}
+	return nil
 }
 
 func (d *DependenciesDistributor) handleIndependentBindingDeletion(namespace, name string) error {

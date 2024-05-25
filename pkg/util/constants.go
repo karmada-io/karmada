@@ -138,6 +138,10 @@ const (
 
 	// ClusterPropagationPolicyControllerFinalizer is added to ClusterPropagationPolicy to ensure the related resources have been unbound before itself is deleted.
 	ClusterPropagationPolicyControllerFinalizer = "karmada.io/cluster-propagation-policy-controller"
+
+	// BindingDependenciesDistributorFinalizer is added to independent binding to ensure
+	// the attached binding have been removed or cleaned up before itself is deleted.
+	BindingDependenciesDistributorFinalizer = "karmada.io/binding-dependencies-distributor"
 )
 
 const (
