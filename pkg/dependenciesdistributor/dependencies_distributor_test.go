@@ -60,7 +60,7 @@ func Test_dependentObjectReferenceMatches(t *testing.T) {
 				},
 				referenceBinding: &workv1alpha2.ResourceBinding{
 					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
-						bindingDependenciesAnnotationKey: "[{\"apiVersion\":\"example-stgzr.karmada.io/v1alpha1\",\"kind\":\"Foot5zmh\",\"namespace\":\"karmadatest-vpvll\",\"name\":\"cr-fxzq6\"}]",
+						dependenciesAnnotationKey: "[{\"apiVersion\":\"example-stgzr.karmada.io/v1alpha1\",\"kind\":\"Foot5zmh\",\"namespace\":\"karmadatest-vpvll\",\"name\":\"cr-fxzq6\"}]",
 					}},
 				},
 			},
@@ -81,7 +81,7 @@ func Test_dependentObjectReferenceMatches(t *testing.T) {
 				},
 				referenceBinding: &workv1alpha2.ResourceBinding{
 					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
-						bindingDependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"namespace\":\"karmadatest-h46wh\",\"name\":\"configmap-8w426\"}]",
+						dependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"namespace\":\"karmadatest-h46wh\",\"name\":\"configmap-8w426\"}]",
 					}},
 				},
 			},
@@ -103,7 +103,7 @@ func Test_dependentObjectReferenceMatches(t *testing.T) {
 				},
 				referenceBinding: &workv1alpha2.ResourceBinding{
 					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
-						bindingDependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"namespace\":\"test\",\"labelSelector\":{\"matchExpressions\":[{\"key\":\"app\",\"operator\":\"In\",\"values\":[\"test\"]}]}}]",
+						dependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"namespace\":\"test\",\"labelSelector\":{\"matchExpressions\":[{\"key\":\"app\",\"operator\":\"In\",\"values\":[\"test\"]}]}}]",
 					}},
 				},
 			},
@@ -112,9 +112,9 @@ func Test_dependentObjectReferenceMatches(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := dependentObjectReferenceMatches(tt.args.objectKey, tt.args.referenceBinding)
+			got := matchesWithBindingDependencies(tt.args.objectKey, tt.args.referenceBinding)
 			if got != tt.want {
-				t.Errorf("dependentObjectReferenceMatches() got = %v, want %v", got, tt.want)
+				t.Errorf("matchesWithBindingDependencies() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
