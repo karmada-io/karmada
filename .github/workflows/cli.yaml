@@ -23,7 +23,7 @@ jobs:
         # the same as the End of Life of the Kubernetes release: https://kubernetes.io/releases/
         # Please remember to update the CI Schedule Workflow when we add a new version.
         k8s: [ v1.28.0, v1.29.0, v1.30.0 ]
-        extraEtcdVersion: [ "3.5.9-0", "" ]
+        extraEtcdVersion: [ "3.5.13-0", "" ]
     env:
       KARMADA_EXTRA_ETCD_VERSION: ${{ matrix.extraEtcdVersion }}
       CLUSTER_VERSION: kindest/node:${{ matrix.k8s }}
