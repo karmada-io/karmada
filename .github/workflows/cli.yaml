@@ -56,7 +56,7 @@ jobs:
           kubectl --kubeconfig ~/.kube/karmada-host.config get pod -A -owide
 
           # would not deploy etcd when useing extra etcd.
-          KARMADA_ETCD_STS_COUNT=`kubectl --kubeconfig ~/.kube/karmada-host.config get sts -n karmada-system -l karmada.io/bootstrapping=app-defaults  -ojson | jq '.items | length'`
+          KARMADA_ETCD_STS_COUNT=`kubectl --kubeconfig ~/.kube/karmada-host.config get sts -n karmada-system -l karmada.io/bootstrapping=app-defaults,app=etcd  -ojson | jq '.items | length'`
           echo "KARMADA_ETCD_STS_COUNT:"$KARMADA_ETCD_STS_COUNT
           if [ $KARMADA_ETCD_STS_COUNT -ne 0 ];then
             exit -1

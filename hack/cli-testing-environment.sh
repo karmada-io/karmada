@@ -80,10 +80,10 @@ kind load docker-image "${REGISTRY}/karmada-aggregated-apiserver:${VERSION}" --n
 export KARMADACTL_INIT_EXTRA_OPTS=${KARMADACTL_INIT_EXTRA_OPTS:-""}
 export KARMADA_EXTRA_ETCD_VERSION=${KARMADA_EXTRA_ETCD_VERSION:-""}
 
+# test for external etcd.
 if [ "$KARMADA_EXTRA_ETCD_VERSION" != "" ];then 
     docker run -p 2379:2379 -it -d --name etcd  registry.k8s.io/etcd:$KARMADA_EXTRA_ETCD_VERSION  etcd --data-dir /var/lib/etcd --listen-client-urls http://0.0.0.0:2379 --advertise-client-urls http://0.0.0.0:2379
-    export CNODE=`hostname`
-    KARMADACTL_INIT_EXTRA_OPTS=--external-etcd-servers=http://$CNODE:2379
+    KARMADACTL_INIT_EXTRA_OPTS=--external-etcd-servers=http://hostname:2379
 fi
 
 # init Karmada control plane
