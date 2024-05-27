@@ -106,5 +106,5 @@ ${BUILD_PATH}/karmadactl --kubeconfig ${HOME}/karmada/karmada-apiserver.config  
 kubectl wait --for=condition=Ready clusters --all --timeout=800s  --kubeconfig=${HOME}/karmada/karmada-apiserver.config
 
 # enable addon of karmada-search
-karmadactl addons enable --kubeconfig ${KUBECONFIG_PATH}/${HOST_CLUSTER_NAME}.config --karmada-kubeconfig=${HOME}/karmada/karmada-apiserver.config karmada-search
+${BUILD_PATH}/karmadactl addons enable --kubeconfig ${KUBECONFIG_PATH}/${HOST_CLUSTER_NAME}.config --karmada-kubeconfig=${HOME}/karmada/karmada-apiserver.config karmada-search
 kubectl wait pods --all --for condition=ready --timeout=800s --kubeconfig ${KUBECONFIG_PATH}/${HOST_CLUSTER_NAME}.config
