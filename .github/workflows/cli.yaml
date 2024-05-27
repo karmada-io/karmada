@@ -50,7 +50,7 @@ jobs:
           export KUBECONFIG=${HOME}/karmada/karmada-apiserver.config
           GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
           ginkgo -v --race --trace -p  --focus="[BasicPropagation] propagation testing deployment propagation testing"  ./test/e2e/
-      - name: check
+      - name: verify
         if: ${{ matrix.extraEtcdVersion != '' }} 
         run: |
           kubectl --kubeconfig ~/.kube/karmada-host.config get pod -A -owide

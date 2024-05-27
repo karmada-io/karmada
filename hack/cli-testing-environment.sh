@@ -76,14 +76,15 @@ kind load docker-image "${REGISTRY}/karmada-controller-manager:${VERSION}" --nam
 kind load docker-image "${REGISTRY}/karmada-scheduler:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 kind load docker-image "${REGISTRY}/karmada-webhook:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 kind load docker-image "${REGISTRY}/karmada-aggregated-apiserver:${VERSION}" --name="${HOST_CLUSTER_NAME}"
+kind load docker-image "${REGISTRY}/karmada-search:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 
 export KARMADACTL_INIT_EXTRA_OPTS=${KARMADACTL_INIT_EXTRA_OPTS:-""}
 export KARMADA_EXTRA_ETCD_VERSION=${KARMADA_EXTRA_ETCD_VERSION:-""}
 
 # test for external etcd.
 if [ "$KARMADA_EXTRA_ETCD_VERSION" != "" ];then 
-    docker run -p 2379:2379 -it -d --name etcd  registry.k8s.io/etcd:$KARMADA_EXTRA_ETCD_VERSION  etcd --data-dir /var/lib/etcd --listen-client-urls http://0.0.0.0:2379 --advertise-client-urls http://0.0.0.0:2379
-    KARMADACTL_INIT_EXTRA_OPTS=--external-etcd-servers=http://hostname:2379
+    docker run -p 2379:2379 -it -d --name etcd1  registry.k8s.io/etcd:$KARMADA_EXTRA_ETCD_VERSION  etcd --data-dir /var/lib/etcd --listen-client-urls http://0.0.0.0:2379 --advertise-client-urls http://0.0.0.0:2379
+    KARMADACTL_INIT_EXTRA_OPTS="--external-etcd-servers=http://`hostname`:2379"
 fi
 
 # init Karmada control plane
@@ -103,3 +104,7 @@ echo "Join member clusters..."
 ${BUILD_PATH}/karmadactl --kubeconfig ${HOME}/karmada/karmada-apiserver.config  join ${MEMBER_CLUSTER_1_NAME} --cluster-kubeconfig=${KUBECONFIG_PATH}/${MEMBER_CLUSTER_1_NAME}.config
 ${BUILD_PATH}/karmadactl --kubeconfig ${HOME}/karmada/karmada-apiserver.config  join ${MEMBER_CLUSTER_2_NAME} --cluster-kubeconfig=${KUBECONFIG_PATH}/${MEMBER_CLUSTER_2_NAME}.config
 kubectl wait --for=condition=Ready clusters --all --timeout=800s  --kubeconfig=${HOME}/karmada/karmada-apiserver.config
+
+# enable addon of karmada-search
+karmadactl addons enable --kubeconfig ${KUBECONFIG_PATH}/${HOST_CLUSTER_NAME}.config --karmada-kubeconfig=${HOME}/karmada/karmada-apiserver.config karmada-search
+kubectl wait pods --all --for condition=ready --timeout=800s
