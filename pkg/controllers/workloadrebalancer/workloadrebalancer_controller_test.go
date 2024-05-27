@@ -23,8 +23,10 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -121,6 +123,22 @@ var (
 			},
 		},
 	}
+	ttlFinishedRebalancer = &appsv1alpha1.WorkloadRebalancer{
+		ObjectMeta: metav1.ObjectMeta{Name: "ttl-finished-rebalancer", CreationTimestamp: oneHourAgo},
+		Spec: appsv1alpha1.WorkloadRebalancerSpec{
+			TTLSecondsAfterFinished: pointer.Int32(5),
+			Workloads:               []appsv1alpha1.ObjectReference{deploy1Obj},
+		},
+		Status: appsv1alpha1.WorkloadRebalancerStatus{
+			FinishTime: &oneHourAgo,
+			ObservedWorkloads: []appsv1alpha1.ObservedWorkload{
+				{
+					Workload: deploy1Obj,
+					Result:   appsv1alpha1.RebalanceSuccessful,
+				},
+			},
+		},
+	}
 )
 
 func TestRebalancerController_Reconcile(t *testing.T) {
@@ -131,6 +149,7 @@ func TestRebalancerController_Reconcile(t *testing.T) {
 		existObjsWithStatus []client.Object
 		wantErr             bool
 		wantStatus          appsv1alpha1.WorkloadRebalancerStatus
+		needsCleanup        bool
 	}{
 		{
 			name: "reconcile pendingRebalancer",
@@ -222,6 +241,15 @@ func TestRebalancerController_Reconcile(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "reconcile ttlFinishedRebalancer",
+			req: controllerruntime.Request{
+				NamespacedName: types.NamespacedName{Name: ttlFinishedRebalancer.Name},
+			},
+			existObjects:        []client.Object{deploy1, binding1, ttlFinishedRebalancer},
+			existObjsWithStatus: []client.Object{ttlFinishedRebalancer},
+			needsCleanup:        true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -238,8 +266,14 @@ func TestRebalancerController_Reconcile(t *testing.T) {
 			// 2. check final WorkloadRebalancer status
 			rebalancerGet := &appsv1alpha1.WorkloadRebalancer{}
 			if err := c.Client.Get(context.TODO(), tt.req.NamespacedName, rebalancerGet); err != nil {
+				if apierrors.IsNotFound(err) && tt.needsCleanup {
+					t.Logf("WorkloadRebalancer %s has be cleaned up as expected", tt.req.NamespacedName)
+					return
+				}
 				t.Fatalf("get WorkloadRebalancer failed: %+v", err)
 			}
+			// we can't predict `FinishTime` in `wantStatus`, so not compare this field.
+			tt.wantStatus.FinishTime = rebalancerGet.Status.FinishTime
 			if !reflect.DeepEqual(rebalancerGet.Status, tt.wantStatus) {
 				t.Fatalf("update WorkloadRebalancer failed, got: %+v, want: %+v", rebalancerGet.Status, tt.wantStatus)
 			}
@@ -288,17 +322,17 @@ func TestRebalancerController_updateWorkloadRebalancerStatus(t *testing.T) {
 					WithObjects(tt.rebalancer, tt.modifiedRebalancer).
 					WithStatusSubresource(tt.rebalancer, tt.modifiedRebalancer).Build(),
 			}
-			newStatus := tt.modifiedRebalancer.Status
-			err := c.updateWorkloadRebalancerStatus(context.TODO(), tt.rebalancer, &newStatus)
+			wantStatus := tt.modifiedRebalancer.Status
+			err := c.updateWorkloadRebalancerStatus(context.TODO(), tt.rebalancer, &wantStatus)
 			if (err == nil && tt.wantErr) || (err != nil && !tt.wantErr) {
 				t.Fatalf("updateWorkloadRebalancerStatus() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			rebalancerGet := &appsv1alpha1.WorkloadRebalancer{}
-			if err := c.Client.Get(context.TODO(), client.ObjectKey{Name: tt.modifiedRebalancer.Name}, rebalancerGet); err != nil {
+			if err := c.Client.Get(context.TODO(), client.ObjectKey{Name: tt.rebalancer.Name}, rebalancerGet); err != nil {
 				t.Fatalf("get WorkloadRebalancer failed: %+v", err)
 			}
-			if !reflect.DeepEqual(rebalancerGet.Status, newStatus) {
-				t.Fatalf("update WorkloadRebalancer failed, got: %+v, want: %+v", rebalancerGet.Status, tt.modifiedRebalancer.Status)
+			if !reflect.DeepEqual(rebalancerGet.Status, wantStatus) {
+				t.Fatalf("update WorkloadRebalancer failed, got: %+v, want: %+v", rebalancerGet.Status, wantStatus)
 			}
 		})
 	}

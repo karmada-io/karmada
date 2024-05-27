@@ -57,6 +57,14 @@ type WorkloadRebalancerSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	// +required
 	Workloads []ObjectReference `json:"workloads"`
+
+	// TTLSecondsAfterFinished limits the lifetime of a WorkloadRebalancer that has finished execution (means each
+	// target workload is finished with result of Successful or Failed).
+	// If this field is set, ttlSecondsAfterFinished after the WorkloadRebalancer finishes, it is eligible to be automatically deleted.
+	// If this field is unset, the WorkloadRebalancer won't be automatically deleted.
+	// If this field is set to zero, the WorkloadRebalancer becomes eligible to be deleted immediately after it finishes.
+	// +optional
+	TTLSecondsAfterFinished *int32 `json:"ttlSecondsAfterFinished,omitempty"`
 }
 
 // ObjectReference the expected resource.
@@ -85,6 +93,16 @@ type WorkloadRebalancerStatus struct {
 	// ObservedWorkloads contains information about the execution states and messages of target resources.
 	// +optional
 	ObservedWorkloads []ObservedWorkload `json:"observedWorkloads,omitempty"`
+
+	// ObservedGeneration is the generation(.metadata.generation) observed by the controller.
+	// If ObservedGeneration is less than the generation in metadata means the controller hasn't confirmed
+	// the rebalance result or hasn't done the rebalance yet.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// FinishTime represents the finish time of rebalancer.
+	// +optional
+	FinishTime *metav1.Time `json:"finishTime,omitempty"`
 }
 
 // ObservedWorkload the observed resource.
@@ -117,7 +135,7 @@ type RebalanceFailedReason string
 
 const (
 	// RebalanceObjectNotFound the resource referenced binding not found.
-	RebalanceObjectNotFound RebalanceFailedReason = "NotFound"
+	RebalanceObjectNotFound RebalanceFailedReason = "ReferencedBindingNotFound"
 )
 
 // +kubebuilder:resource:scope="Cluster"
