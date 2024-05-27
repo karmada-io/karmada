@@ -254,7 +254,7 @@ func (d *DependenciesDistributor) Reconcile(ctx context.Context, request reconci
 
 	// in case users set PropagateDeps field from "true" to "false"
 	if !bindingObject.Spec.PropagateDeps || !bindingObject.DeletionTimestamp.IsZero() {
-		err = d.handleIndependentBindingDeletion(request.Namespace, request.Name)
+		err = d.handleIndependentBindingDeletion(bindingObject.Labels[workv1alpha2.ResourceBindingPermanentIDLabel], request.Namespace, request.Name)
 		if err != nil {
 			klog.Errorf("Failed to cleanup attached bindings for independent binding(%s): %v", request.NamespacedName, err)
 			return reconcile.Result{}, err
@@ -301,8 +301,8 @@ func (d *DependenciesDistributor) removeFinalizer(ctx context.Context, independe
 	return nil
 }
 
-func (d *DependenciesDistributor) handleIndependentBindingDeletion(namespace, name string) error {
-	attachedBindings, err := d.listAttachedBindings(namespace, name)
+func (d *DependenciesDistributor) handleIndependentBindingDeletion(id, namespace, name string) error {
+	attachedBindings, err := d.listAttachedBindings(id, namespace, name)
 	if err != nil {
 		return err
 	}
@@ -448,7 +448,8 @@ func (d *DependenciesDistributor) recordDependencies(independentBinding *workv1a
 }
 
 func (d *DependenciesDistributor) findOrphanAttachedBindings(independentBinding *workv1alpha2.ResourceBinding, dependencies []configv1alpha1.DependentObjectReference) ([]*workv1alpha2.ResourceBinding, error) {
-	attachedBindings, err := d.listAttachedBindings(independentBinding.Namespace, independentBinding.Name)
+	attachedBindings, err := d.listAttachedBindings(independentBinding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel],
+		independentBinding.Namespace, independentBinding.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -519,8 +520,8 @@ func (d *DependenciesDistributor) isOrphanAttachedBindings(
 	return true, nil
 }
 
-func (d *DependenciesDistributor) listAttachedBindings(bindingNamespace, bindingName string) (res []*workv1alpha2.ResourceBinding, err error) {
-	labelSet := generateBindingDependedLabels(bindingNamespace, bindingName)
+func (d *DependenciesDistributor) listAttachedBindings(bindingID, bindingNamespace, bindingName string) (res []*workv1alpha2.ResourceBinding, err error) {
+	labelSet := generateBindingDependedLabels(bindingID, bindingNamespace, bindingName)
 	selector := labels.SelectorFromSet(labelSet)
 	bindingList := &workv1alpha2.ResourceBindingList{}
 	err = d.Client.List(context.TODO(), bindingList, &client.ListOptions{
@@ -658,15 +659,13 @@ func (d *DependenciesDistributor) SetupWithManager(mgr controllerruntime.Manager
 	})
 }
 
-func generateBindingDependedLabels(bindingNamespace, bindingName string) map[string]string {
+func generateBindingDependedLabels(bindingID, bindingNamespace, bindingName string) map[string]string {
 	labelKey := generateBindingDependedLabelKey(bindingNamespace, bindingName)
-	labelValue := fmt.Sprintf(bindingNamespace + "_" + bindingName)
-	return map[string]string{labelKey: labelValue}
+	return map[string]string{labelKey: bindingID}
 }
 
 func generateBindingDependedLabelKey(bindingNamespace, bindingName string) string {
-	bindHashKey := names.GenerateBindingReferenceKey(bindingNamespace, bindingName)
-	return fmt.Sprintf(dependedByLabelKeyPrefix + bindHashKey)
+	return dependedByLabelKeyPrefix + names.GenerateBindingReferenceKey(bindingNamespace, bindingName)
 }
 
 func generateDependencyKey(kind, apiVersion, namespace string) string {
@@ -678,7 +677,8 @@ func generateDependencyKey(kind, apiVersion, namespace string) string {
 }
 
 func buildAttachedBinding(independentBinding *workv1alpha2.ResourceBinding, object *unstructured.Unstructured) *workv1alpha2.ResourceBinding {
-	dependedLabels := generateBindingDependedLabels(independentBinding.Namespace, independentBinding.Name)
+	dependedLabels := generateBindingDependedLabels(independentBinding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel],
+		independentBinding.Namespace, independentBinding.Name)
 
 	var result []workv1alpha2.BindingSnapshot
 	result = append(result, workv1alpha2.BindingSnapshot{
