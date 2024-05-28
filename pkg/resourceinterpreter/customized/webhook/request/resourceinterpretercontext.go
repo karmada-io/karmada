@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/interpreter/validation"
 )
 
 // CreateResourceInterpreterContext returns the unique request uid, the ResourceInterpreterContext object to send the webhook,
@@ -114,6 +115,10 @@ func verifyResourceInterpreterContext(operation configv1alpha1.InterpreterOperat
 		res.ReplicaRequirements = response.ReplicaRequirements
 		return res, nil
 	case configv1alpha1.InterpreterOperationInterpretDependency:
+		err := validation.VerifyDependencies(response.Dependencies)
+		if err != nil {
+			return nil, err
+		}
 		res.Dependencies = response.Dependencies
 		return res, nil
 	case configv1alpha1.InterpreterOperationPrune, configv1alpha1.InterpreterOperationReviseReplica,
