@@ -27,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
@@ -35,7 +36,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
@@ -73,6 +76,7 @@ type WorkStatusController struct {
 	ClusterCacheSyncTimeout     metav1.Duration
 	RateLimiterOptions          ratelimiterflag.Options
 	ResourceInterpreter         resourceinterpreter.ResourceInterpreter
+	ClusterName                 string
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -545,7 +549,39 @@ func (c *WorkStatusController) SetupWithManager(mgr controllerruntime.Manager) e
 		For(&workv1alpha1.Work{}, builder.WithPredicates(c.PredicateFunc)).
 		WithOptions(controller.Options{
 			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions),
-		}).Complete(c)
+		}).
+		Watches(&clusterv1alpha1.Cluster{}, handler.EnqueueRequestsFromMapFunc(c.clusterMapFunc())).
+		Complete(c)
+}
+
+func (c *WorkStatusController) clusterMapFunc() handler.MapFunc {
+	return func(_ context.Context, a client.Object) []reconcile.Request {
+		switch cluster := a.(type) {
+		case *clusterv1alpha1.Cluster:
+			klog.V(4).Infof("Begin to sync work with cluster %s.", cluster.Name)
+			if len(c.ClusterName) != 0 && c.ClusterName != cluster.Name {
+				klog.V(4).Infof("Skip to sync work with cluster %s, which is not the responsibility of this agent.", cluster.Name)
+				return nil
+			}
+			if !util.IsClusterReady(&cluster.Status) {
+				klog.V(4).Infof("Skip to sync work with cluster %s, which is not ready.", cluster.Name)
+				return nil
+			}
+
+			workList := &workv1alpha1.WorkList{}
+			if err := c.Client.List(context.TODO(), workList, &client.ListOptions{Namespace: names.GenerateExecutionSpaceName(cluster.Name)}); err != nil {
+				klog.Errorf("Failed to list Work, error: %v", err)
+				return nil
+			}
+			var requests []reconcile.Request
+			for _, work := range workList.Items {
+				requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Namespace: work.Namespace, Name: work.Name}})
+			}
+			return requests
+		default:
+			return nil
+		}
+	}
 }
 
 func (c *WorkStatusController) eventf(object *unstructured.Unstructured, eventType, reason, messageFmt string, args ...interface{}) {
