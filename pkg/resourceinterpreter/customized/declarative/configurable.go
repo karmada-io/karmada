@@ -30,6 +30,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/declarative/configmanager"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/declarative/luavm"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/interpreter/validation"
 )
 
 // ConfigurableInterpreter interprets resources with resource interpreter customizations.
@@ -176,6 +177,10 @@ func (c *ConfigurableInterpreter) GetDependencies(object *unstructured.Unstructu
 		if err != nil {
 			klog.Errorf("Failed to get DependentObjectReferences from object: %v %s/%s, error: %v",
 				object.GroupVersionKind(), object.GetNamespace(), object.GetName(), err)
+			return
+		}
+		err = validation.VerifyDependencies(references)
+		if err != nil {
 			return
 		}
 		refs.Insert(references...)
