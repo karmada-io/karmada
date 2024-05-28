@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -57,7 +57,7 @@ func TestGetReplicas(t *testing.T) {
 					Name:      "bar",
 				},
 				Spec: appsv1.DeploymentSpec{
-					Replicas: pointer.Int32(1),
+					Replicas: ptr.To[int32](1),
 					Template: corev1.PodTemplateSpec{
 						Spec: corev1.PodSpec{
 							NodeSelector: map[string]string{"foo": "foo1"},
@@ -108,7 +108,7 @@ end`,
 					Name:      "bar",
 				},
 				Spec: appsv1.DeploymentSpec{
-					Replicas: pointer.Int32(1),
+					Replicas: ptr.To[int32](1),
 					Template: corev1.PodTemplateSpec{
 						Spec: corev1.PodSpec{
 							NodeSelector: map[string]string{"foo": "foo1"},
@@ -641,7 +641,7 @@ func Test_decodeValue(t *testing.T) {
 		{
 			name: "int pointer",
 			args: args{
-				value: pointer.Int(1),
+				value: ptr.To[int](1),
 			},
 			want: lua.LNumber(1),
 		},

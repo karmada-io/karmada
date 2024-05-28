@@ -37,7 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -117,7 +117,7 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 				gomega.Eventually(func(g gomega.Gomega) error {
 					curWorkload := framework.GetWorkload(dynamicClient, workloadNamespace, workloadName)
 					// construct two values that need to be changed, and only one value is retained.
-					curWorkload.Spec.Replicas = pointer.Int32(2)
+					curWorkload.Spec.Replicas = ptr.To[int32](2)
 					curWorkload.Spec.Paused = true
 
 					newUnstructuredObj, err := helper.ToUnstructured(curWorkload)
@@ -152,7 +152,7 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 				sumWeight += index + 1
 				staticWeightLists = append(staticWeightLists, staticWeightList)
 			}
-			workload.Spec.Replicas = pointer.Int32(int32(sumWeight))
+			workload.Spec.Replicas = ptr.To[int32](int32(sumWeight))
 			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: workload.APIVersion,
@@ -696,7 +696,7 @@ var _ = framework.SerialDescribe("Resource interpreter customization testing", f
 					sumWeight += index + 1
 					staticWeightLists = append(staticWeightLists, staticWeightList)
 				}
-				deployment.Spec.Replicas = pointer.Int32(int32(sumWeight))
+				deployment.Spec.Replicas = ptr.To[int32](int32(sumWeight))
 				policy.Spec.Placement = policyv1alpha1.Placement{
 					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
 						ClusterNames: framework.ClusterNames(),

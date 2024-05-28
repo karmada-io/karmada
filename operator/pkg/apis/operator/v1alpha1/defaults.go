@@ -22,7 +22,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/pkg/version"
@@ -103,7 +103,7 @@ func setDefaultsHostCluster(obj *Karmada) {
 		hc.Networking = &Networking{}
 	}
 	if hc.Networking.DNSDomain == nil {
-		hc.Networking.DNSDomain = pointer.String(constants.KarmadaDefaultDNSDomain)
+		hc.Networking.DNSDomain = ptr.To[string](constants.KarmadaDefaultDNSDomain)
 	}
 }
 
@@ -118,7 +118,7 @@ func setDefaultsEtcd(obj *KarmadaComponents) {
 		}
 
 		if obj.Etcd.Local.Replicas == nil {
-			obj.Etcd.Local.Replicas = pointer.Int32(1)
+			obj.Etcd.Local.Replicas = ptr.To[int32](1)
 		}
 		if len(obj.Etcd.Local.Image.ImageRepository) == 0 {
 			obj.Etcd.Local.Image.ImageRepository = etcdImageRepository
@@ -154,10 +154,10 @@ func setDefaultsKarmadaAPIServer(obj *KarmadaComponents) {
 		apiserver.ImagePullPolicy = corev1.PullIfNotPresent
 	}
 	if apiserver.Replicas == nil {
-		apiserver.Replicas = pointer.Int32(1)
+		apiserver.Replicas = ptr.To[int32](1)
 	}
 	if apiserver.ServiceSubnet == nil {
-		apiserver.ServiceSubnet = pointer.String(constants.KarmadaDefaultServiceSubnet)
+		apiserver.ServiceSubnet = ptr.To[string](constants.KarmadaDefaultServiceSubnet)
 	}
 	if len(apiserver.ServiceType) == 0 {
 		apiserver.ServiceType = corev1.ServiceTypeClusterIP
@@ -180,7 +180,7 @@ func setDefaultsKarmadaAggregatedAPIServer(obj *KarmadaComponents) {
 		aggregated.ImagePullPolicy = corev1.PullIfNotPresent
 	}
 	if aggregated.Replicas == nil {
-		aggregated.Replicas = pointer.Int32(1)
+		aggregated.Replicas = ptr.To[int32](1)
 	}
 }
 
@@ -200,7 +200,7 @@ func setDefaultsKubeControllerManager(obj *KarmadaComponents) {
 		kubeControllerManager.ImagePullPolicy = corev1.PullIfNotPresent
 	}
 	if kubeControllerManager.Replicas == nil {
-		kubeControllerManager.Replicas = pointer.Int32(1)
+		kubeControllerManager.Replicas = ptr.To[int32](1)
 	}
 }
 
@@ -220,7 +220,7 @@ func setDefaultsKarmadaControllerManager(obj *KarmadaComponents) {
 		karmadaControllerManager.ImagePullPolicy = corev1.PullIfNotPresent
 	}
 	if karmadaControllerManager.Replicas == nil {
-		karmadaControllerManager.Replicas = pointer.Int32(1)
+		karmadaControllerManager.Replicas = ptr.To[int32](1)
 	}
 }
 
@@ -240,7 +240,7 @@ func setDefaultsKarmadaScheduler(obj *KarmadaComponents) {
 		scheduler.ImagePullPolicy = corev1.PullIfNotPresent
 	}
 	if scheduler.Replicas == nil {
-		scheduler.Replicas = pointer.Int32(1)
+		scheduler.Replicas = ptr.To[int32](1)
 	}
 }
 
@@ -260,7 +260,7 @@ func setDefaultsKarmadaWebhook(obj *KarmadaComponents) {
 		webhook.ImagePullPolicy = corev1.PullIfNotPresent
 	}
 	if webhook.Replicas == nil {
-		webhook.Replicas = pointer.Int32(1)
+		webhook.Replicas = ptr.To[int32](1)
 	}
 }
 
@@ -280,7 +280,7 @@ func setDefaultsKarmadaSearch(obj *KarmadaComponents) {
 		search.ImagePullPolicy = corev1.PullIfNotPresent
 	}
 	if search.Replicas == nil {
-		search.Replicas = pointer.Int32(1)
+		search.Replicas = ptr.To[int32](1)
 	}
 }
 
@@ -300,7 +300,7 @@ func setDefaultsKarmadaDescheduler(obj *KarmadaComponents) {
 		descheduler.ImagePullPolicy = corev1.PullIfNotPresent
 	}
 	if descheduler.Replicas == nil {
-		descheduler.Replicas = pointer.Int32(1)
+		descheduler.Replicas = ptr.To[int32](1)
 	}
 }
 
@@ -320,6 +320,6 @@ func setDefaultsKarmadaMetricsAdapter(obj *KarmadaComponents) {
 		metricsAdapter.ImagePullPolicy = corev1.PullIfNotPresent
 	}
 	if metricsAdapter.Replicas == nil {
-		metricsAdapter.Replicas = pointer.Int32(2)
+		metricsAdapter.Replicas = ptr.To[int32](2)
 	}
 }

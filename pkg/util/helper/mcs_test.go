@@ -24,7 +24,7 @@ import (
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -56,7 +56,7 @@ func TestCreateOrUpdateEndpointSlice(t *testing.T) {
 						Addresses: []string{"1.1.1.1"},
 					}},
 					Ports: []discoveryv1.EndpointPort{{
-						Port: pointer.Int32(80),
+						Port: ptr.To[int32](80),
 					}},
 				},
 			},
@@ -71,7 +71,7 @@ func TestCreateOrUpdateEndpointSlice(t *testing.T) {
 					Conditions: discoveryv1.EndpointConditions{},
 				}},
 				Ports: []discoveryv1.EndpointPort{{
-					Port: pointer.Int32(80),
+					Port: ptr.To[int32](80),
 				}},
 			},
 			wantErr: false,
@@ -91,7 +91,7 @@ func TestCreateOrUpdateEndpointSlice(t *testing.T) {
 						Addresses: []string{"1.1.1.1"},
 					}},
 					Ports: []discoveryv1.EndpointPort{{
-						Port: pointer.Int32(80),
+						Port: ptr.To[int32](80),
 					}},
 				},
 			},
@@ -106,7 +106,7 @@ func TestCreateOrUpdateEndpointSlice(t *testing.T) {
 					Conditions: discoveryv1.EndpointConditions{},
 				}},
 				Ports: []discoveryv1.EndpointPort{{
-					Port: pointer.Int32(80),
+					Port: ptr.To[int32](80),
 				}},
 			},
 			wantErr: false,
@@ -125,7 +125,7 @@ func TestCreateOrUpdateEndpointSlice(t *testing.T) {
 							Addresses: []string{"1.1.1.1"},
 						}},
 						Ports: []discoveryv1.EndpointPort{{
-							Port: pointer.Int32(80),
+							Port: ptr.To[int32](80),
 						}},
 					}).Build(),
 				endpointSlice: &discoveryv1.EndpointSlice{
@@ -138,7 +138,7 @@ func TestCreateOrUpdateEndpointSlice(t *testing.T) {
 						Addresses: []string{"1.1.1.1"},
 					}},
 					Ports: []discoveryv1.EndpointPort{{
-						Port: pointer.Int32(80),
+						Port: ptr.To[int32](80),
 					}},
 				},
 			},
@@ -153,7 +153,7 @@ func TestCreateOrUpdateEndpointSlice(t *testing.T) {
 					Conditions: discoveryv1.EndpointConditions{},
 				}},
 				Ports: []discoveryv1.EndpointPort{{
-					Port: pointer.Int32(80),
+					Port: ptr.To[int32](80),
 				}},
 			},
 			wantErr: false,

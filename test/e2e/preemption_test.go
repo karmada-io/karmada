@@ -21,7 +21,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/test/e2e/framework"
@@ -201,7 +201,7 @@ var _ = ginkgo.Describe("[Preemption] propagation policy preemption testing", fu
 				})
 
 				ginkgo.By("Reduce the priority of the high-priority PropagationPolicy to be preempted by the low-priority PropagationPolicy", func() {
-					highPriorityPolicy.Spec.Priority = pointer.Int32(4)
+					highPriorityPolicy.Spec.Priority = ptr.To[int32](4)
 					patch := []map[string]interface{}{
 						{
 							"path":  "/spec/priority",
@@ -326,7 +326,7 @@ var _ = ginkgo.Describe("[Preemption] propagation policy preemption testing", fu
 				})
 
 				ginkgo.By("Reduce the priority of the high-priority ClusterPropagationPolicy to be preempted by the low-priority ClusterPropagationPolicy", func() {
-					highPriorityPolicy.Spec.Priority = pointer.Int32(4)
+					highPriorityPolicy.Spec.Priority = ptr.To[int32](4)
 					patch := []map[string]interface{}{
 						{
 							"path":  "/spec/priority",
