@@ -25,7 +25,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	utilpointer "k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 )
@@ -177,7 +177,7 @@ func TestValidateIngress(t *testing.T) {
 							Backend: networkingv1.IngressBackend{
 								Service: serviceBackend,
 								Resource: &corev1.TypedLocalObjectReference{
-									APIGroup: utilpointer.String("example.com"),
+									APIGroup: ptr.To("example.com"),
 									Kind:     "foo",
 									Name:     "bar",
 								},
@@ -200,7 +200,7 @@ func TestValidateIngress(t *testing.T) {
 							Backend: networkingv1.IngressBackend{
 								Service: serviceBackend,
 								Resource: &corev1.TypedLocalObjectReference{
-									APIGroup: utilpointer.String("example.com"),
+									APIGroup: ptr.To("example.com"),
 									Kind:     "foo",
 									Name:     "bar",
 								},
@@ -218,7 +218,7 @@ func TestValidateIngress(t *testing.T) {
 				mci.Spec.DefaultBackend = &networkingv1.IngressBackend{
 					Service: serviceBackend,
 					Resource: &corev1.TypedLocalObjectReference{
-						APIGroup: utilpointer.String("example.com"),
+						APIGroup: ptr.To("example.com"),
 						Kind:     "foo",
 						Name:     "bar",
 					},
@@ -233,7 +233,7 @@ func TestValidateIngress(t *testing.T) {
 				mci.Spec.DefaultBackend = &networkingv1.IngressBackend{
 					Service: serviceBackend,
 					Resource: &corev1.TypedLocalObjectReference{
-						APIGroup: utilpointer.String("example.com"),
+						APIGroup: ptr.To("example.com"),
 						Kind:     "foo",
 						Name:     "bar",
 					},

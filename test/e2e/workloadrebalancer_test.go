@@ -27,7 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	appsv1alpha1 "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -136,7 +136,7 @@ var _ = framework.SerialDescribe("workload rebalancer testing", func() {
 				Key:               taint.Key,
 				Effect:            taint.Effect,
 				Operator:          corev1.TolerationOpExists,
-				TolerationSeconds: pointer.Int64(0),
+				TolerationSeconds: ptr.To[int64](0),
 			}}
 		})
 
@@ -203,7 +203,7 @@ var _ = framework.SerialDescribe("workload rebalancer testing", func() {
 				Key:               taint.Key,
 				Effect:            taint.Effect,
 				Operator:          corev1.TolerationOpExists,
-				TolerationSeconds: pointer.Int64(0),
+				TolerationSeconds: ptr.To[int64](0),
 			}}
 		})
 

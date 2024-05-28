@@ -33,7 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
 	appsv1alpha1 "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1"
@@ -107,7 +107,7 @@ func NewCronFederatedHPARule(name, cron string, suspend bool, targetReplicas, ta
 		TargetReplicas:    targetReplicas,
 		TargetMinReplicas: targetMinReplicas,
 		TargetMaxReplicas: targetMaxReplicas,
-		Suspend:           pointer.Bool(suspend),
+		Suspend:           ptr.To[bool](suspend),
 	}
 }
 
@@ -130,10 +130,10 @@ func NewFederatedHPA(namespace, name, scaleTargetDeployment string) *autoscaling
 			},
 			Behavior: &autoscalingv2.HorizontalPodAutoscalerBehavior{
 				ScaleDown: &autoscalingv2.HPAScalingRules{
-					StabilizationWindowSeconds: pointer.Int32(10),
+					StabilizationWindowSeconds: ptr.To[int32](10),
 				},
 			},
-			MinReplicas: pointer.Int32(1),
+			MinReplicas: ptr.To[int32](1),
 			MaxReplicas: 1,
 			Metrics: []autoscalingv2.MetricSpec{
 				{
@@ -142,7 +142,7 @@ func NewFederatedHPA(namespace, name, scaleTargetDeployment string) *autoscaling
 						Name: corev1.ResourceCPU,
 						Target: autoscalingv2.MetricTarget{
 							Type:               autoscalingv2.UtilizationMetricType,
-							AverageUtilization: pointer.Int32(80),
+							AverageUtilization: ptr.To[int32](80),
 						},
 					},
 				},
@@ -168,7 +168,7 @@ func NewHPA(namespace, name, scaleDeployment string) *autoscalingv2.HorizontalPo
 				Name:       scaleDeployment,
 				APIVersion: "apps/v1",
 			},
-			MinReplicas: pointer.Int32(4),
+			MinReplicas: ptr.To[int32](4),
 			MaxReplicas: 6,
 			Metrics: []autoscalingv2.MetricSpec{
 				{
@@ -177,7 +177,7 @@ func NewHPA(namespace, name, scaleDeployment string) *autoscalingv2.HorizontalPo
 						Name: corev1.ResourceCPU,
 						Target: autoscalingv2.MetricTarget{
 							Type:               autoscalingv2.UtilizationMetricType,
-							AverageUtilization: pointer.Int32(80),
+							AverageUtilization: ptr.To[int32](80),
 						},
 					},
 				},
@@ -200,7 +200,7 @@ func NewDeployment(namespace string, name string) *appsv1.Deployment {
 			Name:      name,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: pointer.Int32(3),
+			Replicas: ptr.To[int32](3),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: podLabels,
 			},
@@ -305,7 +305,7 @@ func NewStatefulSet(namespace string, name string) *appsv1.StatefulSet {
 			Name:      name,
 		},
 		Spec: appsv1.StatefulSetSpec{
-			Replicas: pointer.Int32(3),
+			Replicas: ptr.To[int32](3),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: podLabels,
 			},
@@ -518,7 +518,7 @@ func NewJob(namespace string, name string) *batchv1.Job {
 					RestartPolicy: corev1.RestartPolicyNever,
 				},
 			},
-			BackoffLimit: pointer.Int32(4),
+			BackoffLimit: ptr.To[int32](4),
 		},
 	}
 }
@@ -710,7 +710,7 @@ func NewWorkload(namespace, name string) *workloadv1alpha1.Workload {
 			Name:      name,
 		},
 		Spec: workloadv1alpha1.WorkloadSpec{
-			Replicas: pointer.Int32(3),
+			Replicas: ptr.To[int32](3),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: podLabels,
@@ -740,7 +740,7 @@ func NewDeploymentWithVolumes(namespace, deploymentName string, volumes []corev1
 			Name:      deploymentName,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: pointer.Int32(3),
+			Replicas: ptr.To[int32](3),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: podLabels,
 			},
@@ -775,7 +775,7 @@ func NewDeploymentWithServiceAccount(namespace, deploymentName string, serviceAc
 		},
 		Spec: appsv1.DeploymentSpec{
 
-			Replicas: pointer.Int32(3),
+			Replicas: ptr.To[int32](3),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: podLabels,
 			},

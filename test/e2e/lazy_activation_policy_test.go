@@ -23,7 +23,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -73,7 +73,7 @@ var _ = ginkgo.Describe("Lazy activation policy testing", func() {
 				ClusterNames: []string{modifiedCluster},
 			},
 		})
-		policyHigherPriority.Spec.Priority = pointer.Int32(2)
+		policyHigherPriority.Spec.Priority = ptr.To[int32](2)
 		policyHigherPriority.Spec.Preemption = policyv1alpha1.PreemptAlways
 	})
 

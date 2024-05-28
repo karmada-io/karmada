@@ -22,7 +22,7 @@ import (
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -377,11 +377,11 @@ func TestSetDefaultGracePeriodSeconds(t *testing.T) {
 			name: "purgeMode is graciously and gracePeriodSeconds is set",
 			behavior: &policyv1alpha1.ApplicationFailoverBehavior{
 				PurgeMode:          policyv1alpha1.Graciously,
-				GracePeriodSeconds: pointer.Int32(200),
+				GracePeriodSeconds: ptr.To[int32](200),
 			},
 			expectBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
 				PurgeMode:          policyv1alpha1.Graciously,
-				GracePeriodSeconds: pointer.Int32(200),
+				GracePeriodSeconds: ptr.To[int32](200),
 			},
 		},
 		{
@@ -391,7 +391,7 @@ func TestSetDefaultGracePeriodSeconds(t *testing.T) {
 			},
 			expectBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
 				PurgeMode:          policyv1alpha1.Graciously,
-				GracePeriodSeconds: pointer.Int32(600),
+				GracePeriodSeconds: ptr.To[int32](600),
 			},
 		},
 	}

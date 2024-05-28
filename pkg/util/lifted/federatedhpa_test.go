@@ -21,7 +21,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
-	utilpointer "k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 // This code is lifted from the Kubernetes codebase in order to avoid relying on the k8s.io/kubernetes package.
@@ -59,13 +59,13 @@ func TestGenerateScaleDownRules(t *testing.T) {
 			rateDownPodsPeriodSeconds:    2,
 			rateDownPercent:              3,
 			rateDownPercentPeriodSeconds: 4,
-			stabilizationSeconds:         utilpointer.Int32(25),
+			stabilizationSeconds:         ptr.To[int32](25),
 			selectPolicy:                 &maxPolicy,
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
 				{Type: autoscalingv2.PodsScalingPolicy, Value: 1, PeriodSeconds: 2},
 				{Type: autoscalingv2.PercentScalingPolicy, Value: 3, PeriodSeconds: 4},
 			},
-			expectedStabilization: utilpointer.Int32(25),
+			expectedStabilization: ptr.To[int32](25),
 			expectedSelectPolicy:  string(autoscalingv2.MaxChangePolicySelect),
 		},
 		{
@@ -141,7 +141,7 @@ func TestGenerateScaleUpRules(t *testing.T) {
 				{Type: autoscalingv2.PodsScalingPolicy, Value: 4, PeriodSeconds: 15},
 				{Type: autoscalingv2.PercentScalingPolicy, Value: 100, PeriodSeconds: 15},
 			},
-			expectedStabilization: utilpointer.Int32(0),
+			expectedStabilization: ptr.To[int32](0),
 			expectedSelectPolicy:  string(autoscalingv2.MaxChangePolicySelect),
 		},
 		{
@@ -150,13 +150,13 @@ func TestGenerateScaleUpRules(t *testing.T) {
 			rateUpPodsPeriodSeconds:    2,
 			rateUpPercent:              3,
 			rateUpPercentPeriodSeconds: 4,
-			stabilizationSeconds:       utilpointer.Int32(25),
+			stabilizationSeconds:       ptr.To[int32](25),
 			selectPolicy:               &maxPolicy,
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
 				{Type: autoscalingv2.PodsScalingPolicy, Value: 1, PeriodSeconds: 2},
 				{Type: autoscalingv2.PercentScalingPolicy, Value: 3, PeriodSeconds: 4},
 			},
-			expectedStabilization: utilpointer.Int32(25),
+			expectedStabilization: ptr.To[int32](25),
 			expectedSelectPolicy:  string(autoscalingv2.MaxChangePolicySelect),
 		},
 		{
@@ -167,7 +167,7 @@ func TestGenerateScaleUpRules(t *testing.T) {
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
 				{Type: autoscalingv2.PodsScalingPolicy, Value: 1, PeriodSeconds: 2},
 			},
-			expectedStabilization: utilpointer.Int32(0),
+			expectedStabilization: ptr.To[int32](0),
 			expectedSelectPolicy:  string(autoscalingv2.MinChangePolicySelect),
 		},
 		{
@@ -177,29 +177,29 @@ func TestGenerateScaleUpRules(t *testing.T) {
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
 				{Type: autoscalingv2.PercentScalingPolicy, Value: 7, PeriodSeconds: 10},
 			},
-			expectedStabilization: utilpointer.Int32(0),
+			expectedStabilization: ptr.To[int32](0),
 			expectedSelectPolicy:  string(autoscalingv2.MaxChangePolicySelect),
 		},
 		{
 			annotation:              "Pod policy and stabilization window are specified",
 			rateUpPodsPeriodSeconds: 2,
-			stabilizationSeconds:    utilpointer.Int32(25),
+			stabilizationSeconds:    ptr.To[int32](25),
 			rateUpPods:              4,
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
 				{Type: autoscalingv2.PodsScalingPolicy, Value: 4, PeriodSeconds: 2},
 			},
-			expectedStabilization: utilpointer.Int32(25),
+			expectedStabilization: ptr.To[int32](25),
 			expectedSelectPolicy:  string(autoscalingv2.MaxChangePolicySelect),
 		},
 		{
 			annotation:                 "Percent policy and stabilization window are specified",
 			rateUpPercent:              7,
 			rateUpPercentPeriodSeconds: 60,
-			stabilizationSeconds:       utilpointer.Int32(25),
+			stabilizationSeconds:       ptr.To[int32](25),
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
 				{Type: autoscalingv2.PercentScalingPolicy, Value: 7, PeriodSeconds: 60},
 			},
-			expectedStabilization: utilpointer.Int32(25),
+			expectedStabilization: ptr.To[int32](25),
 			expectedSelectPolicy:  string(autoscalingv2.MaxChangePolicySelect),
 		},
 	}

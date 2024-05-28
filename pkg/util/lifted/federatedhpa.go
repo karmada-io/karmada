@@ -19,7 +19,7 @@ package lifted
 import (
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 )
@@ -75,7 +75,7 @@ var (
 
 func SetDefaultsFederatedHPA(obj *autoscalingv1alpha1.FederatedHPA) {
 	if obj.Spec.MinReplicas == nil {
-		obj.Spec.MinReplicas = pointer.Int32(1)
+		obj.Spec.MinReplicas = ptr.To[int32](1)
 	}
 
 	if len(obj.Spec.Metrics) == 0 {

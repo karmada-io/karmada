@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -59,7 +59,7 @@ var _ = ginkgo.Describe("deployment replicas syncer testing", func() {
 
 		deployment = helper.NewDeployment(namespace, deploymentName)
 		hpa = helper.NewHPA(namespace, hpaName, deploymentName)
-		hpa.Spec.MinReplicas = pointer.Int32(2)
+		hpa.Spec.MinReplicas = ptr.To[int32](2)
 		policy = helper.NewPropagationPolicy(namespace, policyName, []policyv1alpha1.ResourceSelector{
 			{APIVersion: deployment.APIVersion, Kind: deployment.Kind, Name: deployment.Name},
 			{APIVersion: hpa.APIVersion, Kind: hpa.Kind, Name: hpa.Name},
@@ -85,7 +85,7 @@ var _ = ginkgo.Describe("deployment replicas syncer testing", func() {
 
 	ginkgo.Context("when policy is Duplicated schedule type", func() {
 		ginkgo.BeforeEach(func() {
-			deployment.Spec.Replicas = pointer.Int32(2)
+			deployment.Spec.Replicas = ptr.To[int32](2)
 		})
 
 		// Case 1: Deployment(replicas=2) | Policy(Duplicated, two clusters) | HPA(minReplicas=2)
@@ -119,7 +119,7 @@ var _ = ginkgo.Describe("deployment replicas syncer testing", func() {
 	ginkgo.Context("when policy is Divided schedule type, each cluster have more that one replica", func() {
 		ginkgo.BeforeEach(func() {
 			policy.Spec.Placement.ReplicaScheduling = helper.NewStaticWeightPolicyStrategy(targetClusters, []int64{1, 1})
-			deployment.Spec.Replicas = pointer.Int32(4)
+			deployment.Spec.Replicas = ptr.To[int32](4)
 		})
 
 		// Case 2: Deployment(replicas=4) | Policy(Divided, two clusters 1:1) | HPA(minReplicas=2)
@@ -153,8 +153,8 @@ var _ = ginkgo.Describe("deployment replicas syncer testing", func() {
 	ginkgo.Context("when policy is Divided schedule type, one cluster have no replica", func() {
 		ginkgo.BeforeEach(func() {
 			policy.Spec.Placement.ReplicaScheduling = helper.NewStaticWeightPolicyStrategy(targetClusters, []int64{1, 1})
-			deployment.Spec.Replicas = pointer.Int32(1)
-			hpa.Spec.MinReplicas = pointer.Int32(1)
+			deployment.Spec.Replicas = ptr.To[int32](1)
+			hpa.Spec.MinReplicas = ptr.To[int32](1)
 		})
 
 		// Case 3: Deployment(replicas=1) | Policy(Divided, two clusters 1:1) | HPA(minReplicas=1)
@@ -175,8 +175,8 @@ var _ = ginkgo.Describe("deployment replicas syncer testing", func() {
 	ginkgo.Context("when policy is Divided schedule type, remove one cluster's replicas", func() {
 		ginkgo.BeforeEach(func() {
 			policy.Spec.Placement.ReplicaScheduling = helper.NewStaticWeightPolicyStrategy(targetClusters, []int64{1, 1})
-			deployment.Spec.Replicas = pointer.Int32(2)
-			hpa.Spec.MinReplicas = pointer.Int32(1)
+			deployment.Spec.Replicas = ptr.To[int32](2)
+			hpa.Spec.MinReplicas = ptr.To[int32](1)
 		})
 
 		// Case 4: Deployment(replicas=2) | Policy(Divided, two clusters 1:1) | HPA(minReplicas=1)
@@ -200,8 +200,8 @@ var _ = ginkgo.Describe("deployment replicas syncer testing", func() {
 	ginkgo.Context("when policy is Divided schedule type, propagate 1 replica but hpa minReplicas is 2", func() {
 		ginkgo.BeforeEach(func() {
 			policy.Spec.Placement.ReplicaScheduling = helper.NewStaticWeightPolicyStrategy(targetClusters, []int64{1, 1})
-			deployment.Spec.Replicas = pointer.Int32(1)
-			hpa.Spec.MinReplicas = pointer.Int32(2)
+			deployment.Spec.Replicas = ptr.To[int32](1)
+			hpa.Spec.MinReplicas = ptr.To[int32](2)
 		})
 
 		// Case 5: Deployment(replicas=1) | Policy(Divided, two clusters 1:1) | HPA(minReplicas=2)
