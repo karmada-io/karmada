@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -196,7 +196,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 						Key:               "fail-test",
 						Effect:            corev1.TaintEffectNoExecute,
 						Operator:          corev1.TolerationOpExists,
-						TolerationSeconds: pointer.Int64(3),
+						TolerationSeconds: ptr.To[int64](3),
 					},
 				},
 				SpreadConstraints: []policyv1alpha1.SpreadConstraint{
@@ -312,10 +312,10 @@ var _ = framework.SerialDescribe("failover testing", func() {
 					Failover: &policyv1alpha1.FailoverBehavior{
 						Application: &policyv1alpha1.ApplicationFailoverBehavior{
 							DecisionConditions: policyv1alpha1.DecisionConditions{
-								TolerationSeconds: pointer.Int32(30),
+								TolerationSeconds: ptr.To[int32](30),
 							},
 							PurgeMode:          policyv1alpha1.Graciously,
-							GracePeriodSeconds: pointer.Int32(30),
+							GracePeriodSeconds: ptr.To[int32](30),
 						},
 					},
 				},
@@ -440,7 +440,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 					Failover: &policyv1alpha1.FailoverBehavior{
 						Application: &policyv1alpha1.ApplicationFailoverBehavior{
 							DecisionConditions: policyv1alpha1.DecisionConditions{
-								TolerationSeconds: pointer.Int32(30),
+								TolerationSeconds: ptr.To[int32](30),
 							},
 							PurgeMode: policyv1alpha1.Never,
 						},

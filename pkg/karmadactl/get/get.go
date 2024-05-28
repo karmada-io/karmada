@@ -46,7 +46,7 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/interrupt"
 	"k8s.io/kubectl/pkg/util/templates"
-	utilpointer "k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
@@ -627,7 +627,7 @@ func (g *CommandGetOptions) watch(watchObjs []WatchObj) error {
 
 	info := infos[0]
 	mapping := info.ResourceMapping()
-	outputObjects := utilpointer.Bool(!g.WatchOnly)
+	outputObjects := ptr.To[bool](!g.WatchOnly)
 
 	printer, err := g.ToPrinter(mapping, outputObjects, g.AllNamespaces, false)
 	if err != nil {

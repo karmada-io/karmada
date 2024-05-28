@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
@@ -129,6 +129,6 @@ func SetReplicaDivisionPreferenceWeighted(placement *policyv1alpha1.Placement) {
 // SetDefaultGracePeriodSeconds sets the default value of GracePeriodSeconds in ApplicationFailoverBehavior
 func SetDefaultGracePeriodSeconds(behavior *policyv1alpha1.ApplicationFailoverBehavior) {
 	if behavior.PurgeMode == policyv1alpha1.Graciously && behavior.GracePeriodSeconds == nil {
-		behavior.GracePeriodSeconds = pointer.Int32(600)
+		behavior.GracePeriodSeconds = ptr.To[int32](600)
 	}
 }

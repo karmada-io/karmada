@@ -19,7 +19,7 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -82,8 +82,8 @@ var _ = ginkgo.Describe("[CronFederatedHPA] CronFederatedHPA testing", func() {
 
 	// case 1: Scale FederatedHPA.
 	ginkgo.Context("Scale FederatedHPA", func() {
-		targetMinReplicas := pointer.Int32(2)
-		targetMaxReplicas := pointer.Int32(100)
+		targetMinReplicas := ptr.To[int32](2)
+		targetMaxReplicas := ptr.To[int32](100)
 
 		ginkgo.BeforeEach(func() {
 			// */1 * * * * means the rule will be triggered every 1 minute
@@ -112,7 +112,7 @@ var _ = ginkgo.Describe("[CronFederatedHPA] CronFederatedHPA testing", func() {
 
 	// case 2. Scale deployment.
 	ginkgo.Context("Test scale Deployment", func() {
-		targetReplicas := pointer.Int32(4)
+		targetReplicas := ptr.To[int32](4)
 
 		ginkgo.BeforeEach(func() {
 			// */1 * * * * means the rule will be executed every 1 minute
@@ -138,7 +138,7 @@ var _ = ginkgo.Describe("[CronFederatedHPA] CronFederatedHPA testing", func() {
 	ginkgo.Context("Test suspend rule in CronFederatedHPA", func() {
 		ginkgo.BeforeEach(func() {
 			// */1 * * * * means the rule will be executed every 1 minute
-			rule := helper.NewCronFederatedHPARule("scale-up", "*/1 * * * *", true, pointer.Int32(30), nil, nil)
+			rule := helper.NewCronFederatedHPARule("scale-up", "*/1 * * * *", true, ptr.To[int32](30), nil, nil)
 			cronFHPA = helper.NewCronFederatedHPAWithScalingDeployment(testNamespace, cronFHPAName, deploymentName, rule)
 		})
 
@@ -162,7 +162,7 @@ var _ = ginkgo.Describe("[CronFederatedHPA] CronFederatedHPA testing", func() {
 	// case 4. Test unsuspend rule then suspend it in CronFederatedHPA
 	ginkgo.Context("Test unsuspend rule then suspend it in CronFederatedHPA", func() {
 		rule := autoscalingv1alpha1.CronFederatedHPARule{}
-		targetReplicas := pointer.Int32(4)
+		targetReplicas := ptr.To[int32](4)
 
 		ginkgo.BeforeEach(func() {
 			// */1 * * * * means the rule will be executed every 1 minute
@@ -186,7 +186,7 @@ var _ = ginkgo.Describe("[CronFederatedHPA] CronFederatedHPA testing", func() {
 			framework.UpdateDeploymentReplicas(kubeClient, deployment, *deployment.Spec.Replicas)
 
 			// Step 4. Suspend rule
-			rule.Suspend = pointer.Bool(true)
+			rule.Suspend = ptr.To[bool](true)
 			framework.UpdateCronFederatedHPAWithRule(karmadaClient, testNamespace, cronFHPAName, []autoscalingv1alpha1.CronFederatedHPARule{rule})
 
 			// Step 5. Check the replicas, which should not be changed

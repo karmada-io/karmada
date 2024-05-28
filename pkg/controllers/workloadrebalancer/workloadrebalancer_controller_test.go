@@ -26,7 +26,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -126,7 +126,7 @@ var (
 	ttlFinishedRebalancer = &appsv1alpha1.WorkloadRebalancer{
 		ObjectMeta: metav1.ObjectMeta{Name: "ttl-finished-rebalancer", CreationTimestamp: oneHourAgo},
 		Spec: appsv1alpha1.WorkloadRebalancerSpec{
-			TTLSecondsAfterFinished: pointer.Int32(5),
+			TTLSecondsAfterFinished: ptr.To[int32](5),
 			Workloads:               []appsv1alpha1.ObjectReference{deploy1Obj},
 		},
 		Status: appsv1alpha1.WorkloadRebalancerStatus{

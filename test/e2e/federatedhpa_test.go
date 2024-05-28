@@ -21,7 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -82,9 +82,9 @@ var _ = ginkgo.Describe("testing for FederatedHPA and metrics-adapter", func() {
 		})
 		federatedHPA = testhelper.NewFederatedHPA(namespace, federatedHPAName, deploymentName)
 		federatedHPA.Spec.MaxReplicas = 6
-		federatedHPA.Spec.Behavior.ScaleUp = &autoscalingv2.HPAScalingRules{StabilizationWindowSeconds: pointer.Int32(3)}
-		federatedHPA.Spec.Behavior.ScaleDown = &autoscalingv2.HPAScalingRules{StabilizationWindowSeconds: pointer.Int32(3)}
-		federatedHPA.Spec.Metrics[0].Resource.Target.AverageUtilization = pointer.Int32(10)
+		federatedHPA.Spec.Behavior.ScaleUp = &autoscalingv2.HPAScalingRules{StabilizationWindowSeconds: ptr.To[int32](3)}
+		federatedHPA.Spec.Behavior.ScaleDown = &autoscalingv2.HPAScalingRules{StabilizationWindowSeconds: ptr.To[int32](3)}
+		federatedHPA.Spec.Metrics[0].Resource.Target.AverageUtilization = ptr.To[int32](10)
 
 		pressureJob = testhelper.NewJob(namespace, pressureJobName)
 		pressureJob.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyOnFailure
@@ -141,7 +141,7 @@ var _ = ginkgo.Describe("testing for FederatedHPA and metrics-adapter", func() {
 	// 1. duplicated scheduling
 	ginkgo.Context("FederatedHPA scale Deployment in Duplicated schedule type", func() {
 		ginkgo.BeforeEach(func() {
-			deployment.Spec.Replicas = pointer.Int32(1)
+			deployment.Spec.Replicas = ptr.To[int32](1)
 		})
 
 		ginkgo.It("do scale when metrics of cpu/mem utilization up in Duplicated schedule type", func() {

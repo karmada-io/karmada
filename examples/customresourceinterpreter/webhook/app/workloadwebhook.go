@@ -24,7 +24,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -142,9 +142,9 @@ func (e *workloadInterpreter) responseWithExploreAggregateStatus(workload *workl
 }
 
 func (e *workloadInterpreter) responseWithExploreInterpretHealth(workload *workloadv1alpha1.Workload) interpreter.Response {
-	healthy := pointer.Bool(false)
+	healthy := ptr.To[bool](false)
 	if workload.Status.ReadyReplicas == *workload.Spec.Replicas {
-		healthy = pointer.Bool(true)
+		healthy = ptr.To[bool](true)
 	}
 
 	res := interpreter.Succeeded("")

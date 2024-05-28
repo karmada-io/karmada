@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apiserver/pkg/storage/names"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 // +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/controller/deployment/util/deployment_util_test.go#L40-L49
@@ -203,7 +203,7 @@ func TestListReplicaSetsByDeployment(t *testing.T) {
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					UID:        "test",
-					Controller: pointer.Bool(true),
+					Controller: ptr.To[bool](true),
 				},
 			},
 		},
@@ -307,7 +307,7 @@ func TestListPodsByRS(t *testing.T) {
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					UID:        "test",
-					Controller: pointer.Bool(true),
+					Controller: ptr.To[bool](true),
 				},
 			},
 		},
@@ -345,7 +345,7 @@ func TestListPodsByRS(t *testing.T) {
 						OwnerReferences: []metav1.OwnerReference{
 							{
 								UID:        "test",
-								Controller: pointer.Bool(true),
+								Controller: ptr.To[bool](true),
 							},
 						},
 					},
@@ -385,7 +385,7 @@ func TestListPodsByRS(t *testing.T) {
 						OwnerReferences: []metav1.OwnerReference{
 							{
 								UID:        "test",
-								Controller: pointer.Bool(true),
+								Controller: ptr.To[bool](true),
 							},
 						},
 					},
@@ -421,7 +421,7 @@ func TestListPodsByRS(t *testing.T) {
 						OwnerReferences: []metav1.OwnerReference{
 							{
 								UID:        "test",
-								Controller: pointer.Bool(true),
+								Controller: ptr.To[bool](true),
 							},
 						},
 					},
@@ -551,7 +551,7 @@ func TestGetNewReplicaSet(t *testing.T) {
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					UID:        "test",
-					Controller: pointer.Bool(true),
+					Controller: ptr.To[bool](true),
 				},
 			},
 		},
