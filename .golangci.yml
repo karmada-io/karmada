@@ -82,10 +82,6 @@ linters-settings:
       - name: unexported-return
       - name: time-naming
       - name: empty-block
-  staticcheck:
-    checks:
-      - all
-      - '-SA1019' # disable deprecation check. Tracked by https://github.com/karmada-io/karmada/issues/3835.
 
 issues:
   # The list of ids of default excludes to include or disable. By default it's empty.
