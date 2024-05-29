@@ -322,13 +322,13 @@ type DependencyInterpretation struct {
 	//   luaScript: >
 	//       function GetDependencies(desiredObj)
 	//           dependencies = {}
-	//           if desiredObj.spec.serviceAccountName ~= nil and desiredObj.spec.serviceAccountName ~= "default" then
+	//           serviceAccountName = desiredObj.spec.template.spec.serviceAccountName
+	//           if serviceAccountName ~= nil and serviceAccountName ~= "default" then
 	//               dependency = {}
 	//               dependency.apiVersion = "v1"
 	//               dependency.kind = "ServiceAccount"
-	//               dependency.name = desiredObj.spec.serviceAccountName
-	//               dependency.namespace = desiredObj.namespace
-	//               dependencies[1] = {}
+	//               dependency.name = serviceAccountName
+	//               dependency.namespace = desiredObj.metadata.namespace
 	//               dependencies[1] = dependency
 	//           end
 	//           return dependencies
