@@ -95,18 +95,8 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 
 // setLabelsAndAnnotationsForWorkload sets the associated work object labels and annotations for workload.
 func setLabelsAndAnnotationsForWorkload(workload *unstructured.Unstructured, work *workv1alpha1.Work) {
-	workload.SetAnnotations(util.DedupeAndMergeAnnotations(workload.GetAnnotations(), map[string]string{
-		workv1alpha2.ResourceTemplateUIDAnnotation: string(workload.GetUID()),
-		workv1alpha2.WorkNamespaceAnnotation:       work.GetNamespace(),
-		workv1alpha2.WorkNameAnnotation:            work.GetName(),
-	}))
-	if conflictResolution, ok := work.Annotations[workv1alpha2.ResourceConflictResolutionAnnotation]; ok {
-		util.MergeAnnotation(workload, workv1alpha2.ResourceConflictResolutionAnnotation, conflictResolution)
-	}
 	util.RecordManagedAnnotations(workload)
-
 	workload.SetLabels(util.DedupeAndMergeLabels(workload.GetLabels(), map[string]string{
-		util.ManagedByKarmadaLabel:        util.ManagedByKarmadaLabelValue,
 		workv1alpha2.WorkPermanentIDLabel: work.Labels[workv1alpha2.WorkPermanentIDLabel],
 	}))
 	util.RecordManagedLabels(workload)

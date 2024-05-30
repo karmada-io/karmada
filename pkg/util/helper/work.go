@@ -37,8 +37,21 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
-// CreateOrUpdateWork creates a Work object if not exist, or updates if it already exist.
+// CreateOrUpdateWork creates a Work object if not exist, or updates if it already exists.
 func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resource *unstructured.Unstructured) error {
+	if workMeta.Labels[util.PropagationInstruction] != util.PropagationInstructionSuppressed {
+		resource = resource.DeepCopy()
+		// set labels
+		util.MergeLabel(resource, util.ManagedByKarmadaLabel, util.ManagedByKarmadaLabelValue)
+		// set annotations
+		util.MergeAnnotation(resource, workv1alpha2.ResourceTemplateUIDAnnotation, string(resource.GetUID()))
+		util.MergeAnnotation(resource, workv1alpha2.WorkNameAnnotation, workMeta.Name)
+		util.MergeAnnotation(resource, workv1alpha2.WorkNamespaceAnnotation, workMeta.Namespace)
+		if conflictResolution, ok := workMeta.GetAnnotations()[workv1alpha2.ResourceConflictResolutionAnnotation]; ok {
+			util.MergeAnnotation(resource, workv1alpha2.ResourceConflictResolutionAnnotation, conflictResolution)
+		}
+	}
+
 	workloadJSON, err := resource.MarshalJSON()
 	if err != nil {
 		klog.Errorf("Failed to marshal workload(%s/%s), error: %v", resource.GetNamespace(), resource.GetName(), err)
