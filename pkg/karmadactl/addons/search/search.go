@@ -155,7 +155,7 @@ func installComponentsOnHostCluster(opts *addoninit.CommandAddonsEnableOption) e
 		return fmt.Errorf("create karmada search service error: %v", err)
 	}
 
-	etcdServers, keyPrefix, err := etcdServers(opts)
+	etcdServerConfig, err := etcdServers(opts)
 	if err != nil {
 		return err
 	}
@@ -166,9 +166,10 @@ func installComponentsOnHostCluster(opts *addoninit.CommandAddonsEnableOption) e
 	karmadaSearchDeploymentBytes, err := addonutils.ParseTemplate(karmadaSearchDeployment, DeploymentReplace{
 		Namespace:  opts.Namespace,
 		Replicas:   &opts.KarmadaSearchReplicas,
-		ETCDSevers: etcdServers,
-		KeyPrefix:  keyPrefix,
+		ETCDSevers: etcdServerConfig.servers,
+		KeyPrefix:  etcdServerConfig.keyPrefix,
 		Image:      addoninit.KarmadaSearchImage(opts),
+		EtcdSSL:    etcdServerConfig.ssl,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing karmada search deployment template :%v", err)
@@ -246,10 +247,14 @@ const (
 	etcdServerArgPrefixLength    = len(etcdServerArgPrefix)
 	etcdKeyPrefixArgPrefix       = "--etcd-prefix="
 	etcdKeyPrefixArgPrefixLength = len(etcdKeyPrefixArgPrefix)
+	etcdCafileArgPrefix          = "--etcd-cafile="
+	etcdCertfileArgPrefix        = "--etcd-certfile="
+	etcdKeyFileArgPrefix         = "--etcd-keyfile="
 )
 
-func getExternalEtcdServerConfig(ctx context.Context, host kubernetes.Interface, namespace string) (servers, prefix string, err error) {
+func getExternalEtcdServerConfig(ctx context.Context, host kubernetes.Interface, namespace string) (etcdServerConfig *EtcdServerConfig, err error) {
 	var apiserver *appsv1.Deployment
+	etcdServerConfig = &EtcdServerConfig{}
 	if apiserver, err = host.AppsV1().Deployments(namespace).Get(
 		ctx, karmadaAPIServerDeploymentAndServiceName, metav1.GetOptions{}); err != nil {
 		return
@@ -266,31 +271,45 @@ func getExternalEtcdServerConfig(ctx context.Context, host kubernetes.Interface,
 	if apiServerContainer == nil {
 		return
 	}
+	etcdEnabledSSL := false
 	for _, cmd := range apiServerContainer.Command {
 		if strings.HasPrefix(cmd, etcdServerArgPrefix) {
-			servers = cmd[etcdServerArgPrefixLength:]
+			etcdServerConfig.servers = cmd[etcdServerArgPrefixLength:]
 		} else if strings.HasPrefix(cmd, etcdKeyPrefixArgPrefix) {
-			prefix = cmd[etcdKeyPrefixArgPrefixLength:]
+			etcdServerConfig.keyPrefix = cmd[etcdKeyPrefixArgPrefixLength:]
+		} else if strings.HasPrefix(cmd, etcdCafileArgPrefix) {
+			etcdEnabledSSL = true
+		} else if strings.HasPrefix(cmd, etcdCertfileArgPrefix) {
+			etcdEnabledSSL = true
+		} else if strings.HasPrefix(cmd, etcdKeyFileArgPrefix) {
+			etcdEnabledSSL = true
 		}
-		if servers != "" && prefix != "" {
+		if etcdServerConfig.servers != "" && etcdServerConfig.keyPrefix != "" && etcdEnabledSSL {
 			break
 		}
 	}
+	etcdServerConfig.ssl=etcdEnabledSSL
 	return
 }
 
-func etcdServers(opts *addoninit.CommandAddonsEnableOption) (string, string, error) {
+type EtcdServerConfig struct {
+	servers   string
+	keyPrefix string
+	ssl       bool
+}
+
+func etcdServers(opts *addoninit.CommandAddonsEnableOption) (*EtcdServerConfig, error) {
 	ctx := context.TODO()
 	sts, err := opts.KubeClientSet.AppsV1().StatefulSets(opts.Namespace).Get(ctx, etcdStatefulSetAndServiceName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			if servers, prefix, cfgErr := getExternalEtcdServerConfig(ctx, opts.KubeClientSet, opts.Namespace); cfgErr != nil {
-				return "", "", cfgErr
-			} else if servers != "" {
-				return servers, prefix, nil
+			if etcdServerConfig, cfgErr := getExternalEtcdServerConfig(ctx, opts.KubeClientSet, opts.Namespace); cfgErr != nil {
+				return nil, cfgErr
+			} else if etcdServerConfig.servers != "" {
+				return etcdServerConfig, nil
 			}
 		}
-		return "", "", err
+		return nil, err
 	}
 
 	etcdReplicas := *sts.Spec.Replicas
@@ -299,6 +318,9 @@ func etcdServers(opts *addoninit.CommandAddonsEnableOption) (string, string, err
 	for v := int32(0); v < etcdReplicas; v++ {
 		etcdServers += fmt.Sprintf("https://%s-%v.%s.%s.svc.%s:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, opts.Namespace, opts.HostClusterDomain, etcdContainerClientPort) + ","
 	}
+	etcdServerConfig := &EtcdServerConfig{}
+	etcdServerConfig.servers = strings.TrimRight(etcdServers, ",")
+	etcdServerConfig.ssl = true
 
-	return strings.TrimRight(etcdServers, ","), "", nil
+	return etcdServerConfig, nil
 }

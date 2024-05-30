@@ -44,9 +44,11 @@ spec:
           image: {{ .Image }}
           imagePullPolicy: IfNotPresent
           volumeMounts:
+          {{ if .EtcdSSL }}
             - name: k8s-certs
               mountPath: /etc/karmada/pki
               readOnly: true
+          {{ end }}
             - name: kubeconfig
               subPath: kubeconfig
               mountPath: /etc/kubeconfig
@@ -56,9 +58,11 @@ spec:
             - --authentication-kubeconfig=/etc/kubeconfig
             - --authorization-kubeconfig=/etc/kubeconfig
             - --etcd-servers={{ .ETCDSevers }}
+            {{ if .EtcdSSL }}
             - --etcd-cafile=/etc/karmada/pki/etcd-ca.crt
             - --etcd-certfile=/etc/karmada/pki/etcd-client.crt
             - --etcd-keyfile=/etc/karmada/pki/etcd-client.key
+            {{ end }}
             - --tls-cert-file=/etc/karmada/pki/karmada.crt
             - --tls-private-key-file=/etc/karmada/pki/karmada.key
             - --tls-min-version=VersionTLS13
@@ -144,6 +148,7 @@ type DeploymentReplace struct {
 	Image      string
 	ETCDSevers string
 	KeyPrefix  string
+	EtcdSSL    bool
 }
 
 // ServiceReplace is a struct to help to concrete
