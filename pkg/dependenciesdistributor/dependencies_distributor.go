@@ -63,10 +63,6 @@ import (
 
 // well-know labels
 const (
-	// dependedIDLabelKey is added to the attached binding, it describes the
-	// resource id of the independent binding which the attached binding depends on.
-	dependedIDLabelKey = "resourcebinding.karmada.io/depended-id"
-
 	// dependedByLabelKeyPrefix is added to the attached binding, it is the
 	// prefix of the label key which specifying the current attached binding
 	// referred by which independent binding.
@@ -687,8 +683,6 @@ func buildAttachedBinding(independentBinding *workv1alpha2.ResourceBinding, obje
 		Clusters:  independentBinding.Spec.Clusters,
 	})
 
-	bindingID := util.GetLabelValue(independentBinding.Labels, workv1alpha2.ResourceBindingPermanentIDLabel)
-	dependedLabels = util.DedupeAndMergeLabels(dependedLabels, map[string]string{dependedIDLabelKey: bindingID})
 	return &workv1alpha2.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      names.GenerateBindingName(object.GetKind(), object.GetName()),
