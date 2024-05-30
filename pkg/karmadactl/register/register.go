@@ -708,6 +708,7 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 					fmt.Sprintf("--controllers=%s", strings.Join(controllers, ",")),
 					fmt.Sprintf("--proxy-server-address=%s", o.ProxyServerAddress),
 					fmt.Sprintf("--leader-elect-resource-namespace=%s", o.Namespace),
+					fmt.Sprintf("--cluster-namespace=%s", o.ClusterNamespace),
 					"--cluster-status-update-frequency=10s",
 					"--bind-address=0.0.0.0",
 					"--secure-port=10357",
