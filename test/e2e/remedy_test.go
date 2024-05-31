@@ -18,12 +18,14 @@ package e2e
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	remedyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1"
@@ -31,12 +33,12 @@ import (
 	karmadaresource "github.com/karmada-io/karmada/test/e2e/framework/resource/karmada"
 )
 
-var _ = ginkgo.Describe("remedy testing", func() {
-	ginkgo.Context("remedy.spec.decisionMatches is not empty", func() {
-		var remedyName string
-		var remedy *remedyv1alpha1.Remedy
-		var targetCluster string
+var _ = framework.SerialDescribe("remedy testing", func() {
+	var remedyName string
+	var remedy *remedyv1alpha1.Remedy
+	var targetCluster string
 
+	ginkgo.Context("remedy.spec.decisionMatches is not empty", func() {
 		ginkgo.BeforeEach(func() {
 			targetCluster = framework.ClusterNames()[0]
 			remedyName = remedyNamePrefix + rand.String(RandomStrLength)
@@ -59,8 +61,8 @@ var _ = ginkgo.Describe("remedy testing", func() {
 			karmadaresource.CreateRemedy(karmadaClient, remedy)
 		})
 
-		ginkgo.It("The domain name resolution function of the cluster encounters an exception and recover", func() {
-			ginkgo.By("update cluster ServiceDomainNameResolutionReady condition to false", func() {
+		ginkgo.It("Cluster domain name resolution function encounters an exception and recover", func() {
+			ginkgo.By(fmt.Sprintf("update Cluster(%s) %s condition to false", targetCluster, remedyv1alpha1.ServiceDomainNameResolutionReady), func() {
 				clusterObj, err := karmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), targetCluster, metav1.GetOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
@@ -74,16 +76,37 @@ var _ = ginkgo.Describe("remedy testing", func() {
 
 			ginkgo.By("wait cluster status has TrafficControl RemedyAction", func() {
 				framework.WaitClusterFitWith(controlPlaneClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
-					for _, action := range cluster.Status.RemedyActions {
-						if action == string(remedyv1alpha1.TrafficControl) {
-							return true
-						}
-					}
-					return false
+					actions := sets.NewString(cluster.Status.RemedyActions...)
+					return actions.Has(string(remedyv1alpha1.TrafficControl))
 				})
 			})
 
-			ginkgo.By("recover cluster ServiceDomainNameResolutionReady to true", func() {
+			ginkgo.By(fmt.Sprintf("recover Cluster(%s) %s condition to true", targetCluster, remedyv1alpha1.ServiceDomainNameResolutionReady), func() {
+				clusterObj, err := karmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), targetCluster, metav1.GetOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+				meta.SetStatusCondition(&clusterObj.Status.Conditions, metav1.Condition{
+					Type:   string(remedyv1alpha1.ServiceDomainNameResolutionReady),
+					Status: metav1.ConditionTrue,
+				})
+				_, err = karmadaClient.ClusterV1alpha1().Clusters().UpdateStatus(context.TODO(), clusterObj, metav1.UpdateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			ginkgo.By("wait cluster status doesn't has TrafficControl RemedyAction", func() {
+				framework.WaitClusterFitWith(controlPlaneClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
+					actions := sets.NewString(cluster.Status.RemedyActions...)
+					return !actions.Has(string(remedyv1alpha1.TrafficControl))
+				})
+			})
+
+			ginkgo.By("cleanup: remove Remedy resource", func() {
+				karmadaresource.RemoveRemedy(karmadaClient, remedyName)
+			})
+		})
+
+		ginkgo.It("Cluster domain name resolution function encounters an exception, then remove the remedy resource", func() {
+			ginkgo.By(fmt.Sprintf("update Cluster(%s) %s condition to false", targetCluster, remedyv1alpha1.ServiceDomainNameResolutionReady), func() {
 				clusterObj, err := karmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), targetCluster, metav1.GetOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
@@ -94,12 +117,74 @@ var _ = ginkgo.Describe("remedy testing", func() {
 				_, err = karmadaClient.ClusterV1alpha1().Clusters().UpdateStatus(context.TODO(), clusterObj, metav1.UpdateOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
-		})
 
-		ginkgo.It("The domain name resolution function of the cluster encounters an exception, then remove the remedy resource", func() {})
+			ginkgo.By("wait cluster status has TrafficControl RemedyAction", func() {
+				framework.WaitClusterFitWith(controlPlaneClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
+					actions := sets.NewString(cluster.Status.RemedyActions...)
+					return actions.Has(string(remedyv1alpha1.TrafficControl))
+				})
+			})
+
+			ginkgo.By("remove Remedy resource", func() {
+				karmadaresource.RemoveRemedy(karmadaClient, remedyName)
+			})
+
+			ginkgo.By("wait cluster status doesn't has TrafficControl RemedyAction", func() {
+				framework.WaitClusterFitWith(controlPlaneClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
+					actions := sets.NewString(cluster.Status.RemedyActions...)
+					return !actions.Has(string(remedyv1alpha1.TrafficControl))
+				})
+			})
+
+			ginkgo.By(fmt.Sprintf("cleanup: recover Cluster(%s) %s to true", targetCluster, remedyv1alpha1.ServiceDomainNameResolutionReady), func() {
+				clusterObj, err := karmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), targetCluster, metav1.GetOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+				meta.SetStatusCondition(&clusterObj.Status.Conditions, metav1.Condition{
+					Type:   string(remedyv1alpha1.ServiceDomainNameResolutionReady),
+					Status: metav1.ConditionTrue,
+				})
+				_, err = karmadaClient.ClusterV1alpha1().Clusters().UpdateStatus(context.TODO(), clusterObj, metav1.UpdateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
 	})
 
 	ginkgo.Context("test with nil decision matches remedy", func() {
+		ginkgo.BeforeEach(func() {
+			targetCluster = framework.ClusterNames()[0]
+			remedyName = remedyNamePrefix + rand.String(RandomStrLength)
+			remedy = &remedyv1alpha1.Remedy{
+				ObjectMeta: metav1.ObjectMeta{Name: remedyName},
+				Spec: remedyv1alpha1.RemedySpec{
+					Actions: []remedyv1alpha1.RemedyAction{remedyv1alpha1.TrafficControl},
+				},
+			}
 
+		})
+
+		ginkgo.It("Create an immediately type remedy, then remove it", func() {
+			ginkgo.By("create Remedy resource", func() {
+				karmadaresource.CreateRemedy(karmadaClient, remedy)
+			})
+
+			ginkgo.By("wait cluster status has TrafficControl RemedyAction", func() {
+				framework.WaitClusterFitWith(controlPlaneClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
+					actions := sets.NewString(cluster.Status.RemedyActions...)
+					return actions.Has(string(remedyv1alpha1.TrafficControl))
+				})
+			})
+
+			ginkgo.By("remove Remedy resource", func() {
+				karmadaresource.RemoveRemedy(karmadaClient, remedyName)
+			})
+
+			ginkgo.By("wait cluster status doesn't has TrafficControl RemedyAction", func() {
+				framework.WaitClusterFitWith(controlPlaneClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
+					actions := sets.NewString(cluster.Status.RemedyActions...)
+					return !actions.Has(string(remedyv1alpha1.TrafficControl))
+				})
+			})
+		})
 	})
 })
