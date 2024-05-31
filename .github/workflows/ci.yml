@@ -7,7 +7,11 @@ on:
     # for PRs initiated by Dependabot.
     branches-ignore:
       - 'dependabot/**'
+    paths-ignore:
+      - 'docs/**'
   pull_request:
+    paths-ignore:
+      - 'docs/**'
 # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#concurrency
 concurrency:
   group: ${{ github.workflow }}-${{ github.actor }}-${{ github.head_ref || github.run_id }}

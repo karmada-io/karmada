@@ -5,6 +5,8 @@ on:
     # for PRs initiated by Dependabot.
     branches-ignore:
       - 'dependabot/**'
+    paths-ignore:
+      - 'docs/**'
 jobs:
   use-trivy-to-scan-image:
     name: image-scanning
