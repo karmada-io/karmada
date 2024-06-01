@@ -62,9 +62,10 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 
 	// For non-workload, like ServiceAccount, ConfigMap, Secret and etc, it's unnecessary to calculate available replicas in member clusters.
 	// See issue: https://github.com/karmada-io/karmada/issues/3743.
+	namespacedKey := names.NamespacedKey(spec.Resource.Namespace, spec.Resource.Name)
 	if spec.Replicas == 0 {
 		klog.V(4).Infof("Do not calculate available replicas for non-workload(%s, kind=%s, %s).", spec.Resource.APIVersion,
-			spec.Resource.Kind, names.NamespacedKey(spec.Resource.Namespace, spec.Resource.Name))
+			spec.Resource.Kind, namespacedKey)
 		return availableTargetClusters
 	}
 
@@ -72,12 +73,14 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 	estimators := estimatorclient.GetReplicaEstimators()
 	ctx := context.WithValue(context.TODO(), util.ContextKeyObject,
 		fmt.Sprintf("kind=%s, name=%s/%s", spec.Resource.Kind, spec.Resource.Namespace, spec.Resource.Name))
-	for _, estimator := range estimators {
+	for name, estimator := range estimators {
 		res, err := estimator.MaxAvailableReplicas(ctx, clusters, spec.ReplicaRequirements)
 		if err != nil {
 			klog.Errorf("Max cluster available replicas error: %v", err)
 			continue
 		}
+		klog.V(4).Infof("Invoked MaxAvailableReplicas of estimator %s for workload(%s, kind=%s, %s): %v", name,
+			spec.Resource.APIVersion, spec.Resource.Kind, namespacedKey, res)
 		for i := range res {
 			if res[i].Replicas == estimatorclient.UnauthenticReplica {
 				continue
