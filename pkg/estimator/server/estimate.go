@@ -76,6 +76,12 @@ func (es *AccurateSchedulerEstimatorServer) estimateReplicas(
 
 	var res int32
 	replicas, ret := es.estimateFramework.RunEstimateReplicasPlugins(ctx, snapshot, &requirements)
+
+	// No replicas can be scheduled on the cluster, skip further checks and return 0
+	if ret.IsUnschedulable() {
+		return 0, nil
+	}
+
 	if !ret.IsSuccess() && !ret.IsNoOperation() {
 		return replicas, fmt.Errorf(fmt.Sprintf("estimate replice plugins fails with %s", ret.Reasons()))
 	}

@@ -125,7 +125,7 @@ func (frw *frameworkImpl) RunEstimateReplicasPlugins(ctx context.Context, snapsh
 	results := make(framework.PluginToResult)
 	for _, pl := range frw.estimateReplicasPlugins {
 		plReplica, ret := frw.runEstimateReplicasPlugins(ctx, pl, snapshot, replicaRequirements)
-		if ret.IsSuccess() && plReplica < replica {
+		if (ret.IsSuccess() || ret.IsUnschedulable()) && plReplica < replica {
 			replica = plReplica
 		}
 		results[pl.Name()] = ret
