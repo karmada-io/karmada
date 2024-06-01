@@ -155,7 +155,12 @@ func (s *Result) IsSuccess() bool {
 	return s == nil || s.code == Success
 }
 
-// IsNoOperation return true if "Result" is not nil and Code is "Nooperation"
+// IsUnschedulable returns true if "Result" is not nil and Code is "Unschedulable".
+func (s *Result) IsUnschedulable() bool {
+	return s != nil && s.code == Unschedulable
+}
+
+// IsNoOperation returns true if "Result" is not nil and Code is "Nooperation"
 // ToDo (wengyao04): we can remove it once we include node resource estimation as the default plugin in the future
 func (s *Result) IsNoOperation() bool {
 	return s != nil && s.code == Noopperation
