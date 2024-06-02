@@ -2,30 +2,36 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.7.4](#v174)
-  - [Downloads for v1.7.4](#downloads-for-v174)
-  - [Changelog since v1.7.3](#changelog-since-v173)
+- [v1.7.5](#v175)
+  - [Downloads for v1.7.5](#downloads-for-v175)
+  - [Changelog since v1.7.4](#changelog-since-v174)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
-- [v1.7.3](#v173)
-  - [Downloads for v1.7.3](#downloads-for-v173)
-  - [Changelog since v1.7.2](#changelog-since-v172)
+- [v1.7.4](#v174)
+  - [Downloads for v1.7.4](#downloads-for-v174)
+  - [Changelog since v1.7.3](#changelog-since-v173)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
-- [v1.7.2](#v172)
-  - [Downloads for v1.7.2](#downloads-for-v172)
-  - [Changelog since v1.7.1](#changelog-since-v171)
+- [v1.7.3](#v173)
+  - [Downloads for v1.7.3](#downloads-for-v173)
+  - [Changelog since v1.7.2](#changelog-since-v172)
     - [Changes by Kind](#changes-by-kind-2)
       - [Bug Fixes](#bug-fixes-2)
       - [Others](#others-2)
-- [v1.7.1](#v171)
-  - [Downloads for v1.7.1](#downloads-for-v171)
-  - [Changelog since v1.7.0](#changelog-since-v170)
+- [v1.7.2](#v172)
+  - [Downloads for v1.7.2](#downloads-for-v172)
+  - [Changelog since v1.7.1](#changelog-since-v171)
     - [Changes by Kind](#changes-by-kind-3)
       - [Bug Fixes](#bug-fixes-3)
       - [Others](#others-3)
+- [v1.7.1](#v171)
+  - [Downloads for v1.7.1](#downloads-for-v171)
+  - [Changelog since v1.7.0](#changelog-since-v170)
+    - [Changes by Kind](#changes-by-kind-4)
+      - [Bug Fixes](#bug-fixes-4)
+      - [Others](#others-4)
 - [v1.7.0](#v170)
   - [Downloads for v1.7.0](#downloads-for-v170)
   - [What's New](#whats-new)
@@ -37,7 +43,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-4)
+    - [Bug Fixes](#bug-fixes-5)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -46,6 +52,19 @@
     - [Instrumentation](#instrumentation)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.7.5
+## Downloads for v1.7.5
+
+Download v1.7.5 in the [v1.7.5 release page](https://github.com/karmada-io/karmada/releases/tag/v1.7.5).
+
+## Changelog since v1.7.4
+### Changes by Kind
+#### Bug Fixes
+None.
+
+#### Others
+- The base image `alpine` now has been promoted from `alpine:3.19.1` to `alpine:3.20.0`.
 
 # v1.7.4
 ## Downloads for v1.7.4
