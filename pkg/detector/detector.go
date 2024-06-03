@@ -65,9 +65,6 @@ import (
 var (
 	propagationPolicyMarkedLabels = []string{
 		policyv1alpha1.PropagationPolicyPermanentIDLabel,
-		// TODO(whitewindmills): Delete the following two lines in a future version.
-		policyv1alpha1.PropagationPolicyNamespaceLabel,
-		policyv1alpha1.PropagationPolicyNameLabel,
 	}
 	propagationPolicyMarkedAnnotations = []string{
 		policyv1alpha1.PropagationPolicyNamespaceAnnotation,
@@ -75,8 +72,6 @@ var (
 	}
 	clusterPropagationPolicyMarkedLabels = []string{
 		policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel,
-		// TODO(whitewindmills): Delete the following line in a future version.
-		policyv1alpha1.ClusterPropagationPolicyLabel,
 	}
 	clusterPropagationPolicyMarkedAnnotations = []string{
 		policyv1alpha1.ClusterPropagationPolicyAnnotation,
@@ -470,9 +465,6 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 	}
 
 	policyLabels := map[string]string{
-		// TODO(whitewindmills): Delete the following two lines in a future version.
-		policyv1alpha1.PropagationPolicyNamespaceLabel:   policy.GetNamespace(),
-		policyv1alpha1.PropagationPolicyNameLabel:        policy.GetName(),
 		policyv1alpha1.PropagationPolicyPermanentIDLabel: policyID,
 	}
 	policyAnnotations := map[string]string{
@@ -564,8 +556,6 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 	}
 
 	policyLabels := map[string]string{
-		// TODO(whitewindmills): Delete the following line in a future version.
-		policyv1alpha1.ClusterPropagationPolicyLabel:            policy.GetName(),
 		policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: policyID,
 	}
 	policyAnnotations := map[string]string{
@@ -722,9 +712,6 @@ func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructure
 		}
 	}
 
-	// TODO(whitewindmills): Delete the following two lines in a future version.
-	objLabels[policyv1alpha1.PropagationPolicyNamespaceLabel] = policy.Namespace
-	objLabels[policyv1alpha1.PropagationPolicyNameLabel] = policy.Name
 	objLabels[policyv1alpha1.PropagationPolicyPermanentIDLabel] = policyID
 
 	objectAnnotations := object.GetAnnotations()
@@ -751,8 +738,6 @@ func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unst
 	}
 
 	objectCopy := object.DeepCopy()
-	// TODO(whitewindmills): Delete the following line in a future version.
-	util.MergeLabel(objectCopy, policyv1alpha1.ClusterPropagationPolicyLabel, policy.Name)
 	util.MergeLabel(objectCopy, policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel, policyID)
 
 	util.MergeAnnotation(objectCopy, policyv1alpha1.ClusterPropagationPolicyAnnotation, policy.Name)

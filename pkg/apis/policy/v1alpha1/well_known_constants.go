@@ -54,18 +54,3 @@ const (
 	// ClusterPropagationPolicyAnnotation is added to objects to specify associated ClusterPropagationPolicy name.
 	ClusterPropagationPolicyAnnotation = "clusterpropagationpolicy.karmada.io/name"
 )
-
-// TODO(whitewindmills): These deprecated labels will be removed in a future version.
-const (
-	// PropagationPolicyNamespaceLabel is added to objects to specify associated PropagationPolicy namespace.
-	// Deprecated
-	PropagationPolicyNamespaceLabel = "propagationpolicy.karmada.io/namespace"
-
-	// PropagationPolicyNameLabel is added to objects to specify associated PropagationPolicy's name.
-	// Deprecated
-	PropagationPolicyNameLabel = "propagationpolicy.karmada.io/name"
-
-	// ClusterPropagationPolicyLabel is added to objects to specify associated ClusterPropagationPolicy.
-	// Deprecated
-	ClusterPropagationPolicyLabel = "clusterpropagationpolicy.karmada.io/name"
-)
