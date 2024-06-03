@@ -489,11 +489,7 @@ func (c *MCSController) claimMultiClusterServiceForService(svc *corev1.Service, 
 		svcCopy.Annotations = map[string]string{}
 	}
 
-	// cleanup the policy labels
-	delete(svcCopy.Labels, policyv1alpha1.PropagationPolicyNameLabel)
-	delete(svcCopy.Labels, policyv1alpha1.PropagationPolicyNamespaceLabel)
 	delete(svcCopy.Labels, policyv1alpha1.PropagationPolicyPermanentIDLabel)
-	delete(svcCopy.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
 	delete(svcCopy.Labels, policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel)
 
 	svcCopy.Labels[util.ResourceTemplateClaimedByLabel] = util.MultiClusterServiceKind
