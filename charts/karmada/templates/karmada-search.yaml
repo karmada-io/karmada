@@ -40,6 +40,8 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       automountServiceAccountToken: false
+      initContainers:
+        {{- include "karmada.initContainer.waitStaticResource" . | nindent 8 }}
       containers:
         - name: {{ $name }}-search
           image: {{ template "karmada.search.image" . }}
@@ -90,6 +92,7 @@ spec:
           resources:
           {{- toYaml .Values.apiServer.resources | nindent 12 }}
       volumes:
+      {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
       {{- include "karmada.search.kubeconfig.volume" . | nindent 8 }}
       {{- include "karmada.search.etcd.cert.volume" . | nindent 8 }}
 ---

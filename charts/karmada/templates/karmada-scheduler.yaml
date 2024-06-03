@@ -41,6 +41,8 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       automountServiceAccountToken: false
+      initContainers:
+        {{- include "karmada.initContainer.waitStaticResource" . | nindent 8 }}
       containers:
         - name: {{ $name }}-scheduler
           image: {{ template "karmada.scheduler.image" .}}
@@ -65,6 +67,7 @@ spec:
           resources:
           {{- toYaml .Values.scheduler.resources | nindent 12 }}
       volumes:
+      {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
       {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
 
 {{ if .Values.scheduler.podDisruptionBudget }}

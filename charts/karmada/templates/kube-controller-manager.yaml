@@ -41,6 +41,8 @@ spec:
       tolerations:
       {{- toYaml . | nindent 8 }}
       {{- end }}
+      initContainers:
+        {{- include "karmada.initContainer.waitStaticResource" . | nindent 8 }}
       containers:
         - command:
             - kube-controller-manager
@@ -87,6 +89,7 @@ spec:
         - name: apisever-cert
           secret:
             secretName: {{ $name }}-cert
+        {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
         {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
 
 {{ if .Values.kubeControllerManager.podDisruptionBudget }}

@@ -98,6 +98,11 @@ preInstallJob:
   ## Define policies that determine when to delete corresponding hook resources: before-hook-creation,hook-succeeded,hook-failed
   hookDeletePolicy: "hook-succeeded"
 
+## static-resource job config
+staticResourceJob:
+  tolerations: []
+  nodeSelector: {}
+
 ## post-install job config
 postInstallJob:
   tolerations: []

@@ -29,6 +29,8 @@ spec:
     spec:
       {{- include "karmada.aggregatedApiServer.imagePullSecrets" . | nindent 6 }}
       automountServiceAccountToken: false
+      initContainers:
+        {{- include "karmada.initContainer.waitStaticResource" . | nindent 8 }}
       containers:
         - name: {{ $name }}-aggregated-apiserver
           image: {{ template "karmada.aggregatedApiServer.image" . }}
@@ -96,6 +98,7 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
+        {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
         {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
         - name: apiserver-cert
           secret:
