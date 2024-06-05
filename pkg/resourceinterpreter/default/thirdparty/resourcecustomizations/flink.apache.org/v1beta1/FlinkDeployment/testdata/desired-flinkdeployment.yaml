@@ -1,0 +1,25 @@
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: basic-example
+  namespace: test-namespace
+spec:
+  flinkConfiguration:
+    taskmanager.numberOfTaskSlots: "2"
+  flinkVersion: v1_17
+  image: flink:1.17
+  job:
+    jarURI: local:///opt/flink/examples/streaming/StateMachineExample.jar
+    parallelism: 2
+    upgradeMode: stateless
+  jobManager:
+    replicas: 1
+    resource:
+      cpu: 1
+      memory: 2048m
+  mode: native
+  serviceAccount: flink
+  taskManager:
+    resource:
+      cpu: 1
+      memory: 2048m
