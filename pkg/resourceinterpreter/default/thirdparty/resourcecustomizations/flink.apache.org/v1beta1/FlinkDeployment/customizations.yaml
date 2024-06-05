@@ -1,0 +1,110 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: declarative-configuration-flinkdeployment
+spec:
+  target:
+    apiVersion: flink.apache.org/v1beta1
+    kind: FlinkDeployment
+  customizations:
+    healthInterpretation:
+      luaScript: >
+        function InterpretHealth(observedObj)
+          if observedObj.status ~= nil and observedObj.status.jobStatus ~= nil then
+            return observedObj.status.jobStatus.state ~= 'CREATED' and observedObj.status.jobStatus.state ~= 'RECONCILING'
+          end
+          return false
+        end
+    replicaResource:
+      luaScript: >
+        local kube = require("kube")
+
+        local function isempty(s)
+          return s == nil or s == ''
+        end
+
+        function GetReplicas(observedObj)
+          -- FlinkDeployments presently will not be subdivided among clusters, replica should be 1
+          replica = 1
+          requires = {
+            resourceRequest = {},
+          }
+          -- Add jobmanager resources into replica requirement
+
+          jm_replicas = observedObj.spec.jobManager.replicas
+          if isempty(jm_replicas) then
+            jm_replicas = 1
+          end
+
+          for i = 1, jm_replicas do
+            requires.resourceRequest.cpu = kube.resourceAdd(requires.resourceRequest.cpu, tostring(observedObj.spec.jobManager.resource.cpu))
+            requires.resourceRequest.memory = kube.resourceAdd(requires.resourceRequest.memory, observedObj.spec.jobManager.resource.memory)
+          end
+
+          -- Add task manager resources into replica requirement
+
+          parallelism = observedObj.spec.job.parallelism
+          tms = math.ceil(parallelism / observedObj.spec.flinkConfiguration['taskmanager.numberOfTaskSlots'])
+
+          for i = 1, tms do
+            requires.resourceRequest.cpu = kube.resourceAdd(requires.resourceRequest.cpu, tostring(observedObj.spec.taskManager.resource.cpu))
+            requires.resourceRequest.memory = kube.resourceAdd(requires.resourceRequest.memory, observedObj.spec.taskManager.resource.memory)
+          end
+
+          return replica, requires
+        end
+    statusAggregation:
+      luaScript: >
+        function AggregateStatus(desiredObj, statusItems)
+          if statusItems == nil then
+            return desiredObj
+          end
+          if desiredObj.status == nil then
+            desiredObj.status = {}
+          end
+          clusterInfo = {}
+          jobManagerDeploymentStatus = ''
+          jobStatus = {}
+          lifecycleState = ''
+          observedGeneration = 0
+          reconciliationStatus = {}
+          taskManager = {}
+
+          for i = 1, #statusItems do
+            currentStatus = statusItems[i].status
+            if currentStatus ~= nil then
+              clusterInfo = currentStatus.clusterInfo
+              jobManagerDeploymentStatus = currentStatus.jobManagerDeploymentStatus
+              jobStatus = currentStatus.jobStatus
+              observedGeneration = currentStatus.observedGeneration
+              lifecycleState = currentStatus.lifecycleState
+              reconciliationStatus = currentStatus.reconciliationStatus
+              taskManager = currentStatus.taskManager
+            end
+          end
+
+          desiredObj.status.clusterInfo = clusterInfo
+          desiredObj.status.jobManagerDeploymentStatus = jobManagerDeploymentStatus
+          desiredObj.status.jobStatus = jobStatus
+          desiredObj.status.lifecycleState = lifecycleState
+          desiredObj.status.observedGeneration = observedGeneration
+          desiredObj.status.reconciliationStatus = reconciliationStatus
+          desiredObj.status.taskManager = taskManager
+          return desiredObj
+        end
+    statusReflection:
+      luaScript: >
+        function ReflectStatus(observedObj)
+          status = {}
+          if observedObj == nil or observedObj.status == nil then
+            return status
+          end
+          status.clusterInfo = observedObj.status.clusterInfo
+          status.jobManagerDeploymentStatus = observedObj.status.jobManagerDeploymentStatus
+          status.jobStatus = observedObj.status.jobStatus
+          status.observedGeneration = observedObj.status.observedGeneration
+          status.lifecycleState = observedObj.status.lifecycleState
+          status.reconciliationStatus = observedObj.status.reconciliationStatus
+          status.taskManager = observedObj.status.taskManager
+          return status
+        end
