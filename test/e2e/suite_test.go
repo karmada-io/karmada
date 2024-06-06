@@ -81,6 +81,7 @@ const (
 	ppNamePrefix                  = "pp-"
 	cppNamePrefix                 = "cpp-"
 	workloadRebalancerPrefix      = "rebalancer-"
+	remedyNamePrefix              = "remedy-"
 
 	updateDeploymentReplicas  = 2
 	updateStatefulSetReplicas = 2
