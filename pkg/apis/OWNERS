@@ -1,14 +1,12 @@
 reviewers:
 - chaunceyjiang
 - Garrybest
-- jwcesign
-- Poor12
+- kevin-wangzefeng
 - RainbowMango
 - whitewindmills
 - XiShanYongYe-Chang
 approvers:
-- chaunceyjiang
-- Garrybest
 - kevin-wangzefeng
 - RainbowMango
-- XiShanYongYe-Chang
+options:
+  no_parent_owners: true
