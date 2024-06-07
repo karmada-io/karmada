@@ -345,7 +345,5 @@ func excludeClusterPolicy(objLabels map[string]string) bool {
 		return false
 	}
 	delete(objLabels, policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel)
-	// TODO(whitewindmills): Delete the following line in a future version.
-	delete(objLabels, policyv1alpha1.ClusterPropagationPolicyLabel)
 	return true
 }
