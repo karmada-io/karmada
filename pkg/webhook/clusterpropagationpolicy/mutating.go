@@ -19,7 +19,6 @@ package clusterpropagationpolicy
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -30,7 +29,6 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/validation"
 )
 
 // MutatingAdmission mutates API request if necessary.
@@ -66,10 +64,6 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 	helper.SetDefaultSpreadConstraints(policy.Spec.Placement.SpreadConstraints)
 	helper.AddTolerations(&policy.Spec.Placement, helper.NewNotReadyToleration(a.DefaultNotReadyTolerationSeconds),
 		helper.NewUnreachableToleration(a.DefaultUnreachableTolerationSeconds))
-
-	if len(policy.Name) > validation.LabelValueMaxLength {
-		return admission.Errored(http.StatusBadRequest, fmt.Errorf("ClusterPropagationPolicy's name should be no more than %d characters", validation.LabelValueMaxLength))
-	}
 
 	if helper.ContainsServiceImport(policy.Spec.ResourceSelectors) {
 		policy.Spec.PropagateDeps = true
