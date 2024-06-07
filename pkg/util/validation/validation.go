@@ -31,9 +31,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
-// LabelValueMaxLength is a label's max length
-const LabelValueMaxLength int = 63
-
 // ValidatePropagationSpec validates a PropagationSpec before creation or update.
 func ValidatePropagationSpec(spec policyv1alpha1.PropagationSpec) field.ErrorList {
 	var allErrs field.ErrorList
