@@ -119,7 +119,7 @@ postDeleteJob:
 
 ## karmada certificate config
 certs:
-  ## @param certs.mode "auto", "custom" and "secret" are provided
+  ## @param certs.mode "auto", "custom" and "secrets" are provided
   ## "auto" means auto generate certificate
   ## "custom" means use user certificate
   ## "secrets" will read the certs/private key from a secret name provided
