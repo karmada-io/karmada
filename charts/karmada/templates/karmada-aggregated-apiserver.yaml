@@ -100,6 +100,7 @@ spec:
       volumes:
         {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
         {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
+      {{ if ne .Values.certs.mode "secrets" }}
         - name: apiserver-cert
           secret:
             secretName: {{ $name }}-cert
@@ -111,6 +112,36 @@ spec:
           {{- if eq .Values.etcd.mode "external" }}
             secretName: {{ $name }}-external-etcd-cert
           {{- end }}
+      {{- end }}
+      {{ if eq .Values.certs.mode "secrets" }}
+        - name: apiserver-cert
+          projected:
+            sources:
+            - secret:
+                name: {{ .Values.certs.secrets.crtSecretName }}
+                items:
+                  - key: tls.crt
+                    path: karmada.crt
+                  - key: tls.key
+                    path: karmada.key
+            - secret:
+                name: {{ .Values.certs.secrets.caCrtSecretName }}
+                items:
+                  - key: tls.crt
+                    path: server-ca.crt
+        - name: etcd-cert
+          projected:
+            sources:
+              - secret:
+                  name: {{ .Values.certs.secrets.crtSecretName }}
+                  items:
+                    - key: tls.crt
+                      path: karmada.crt
+                    - key: tls.key
+                      path: karmada.key
+                    - key: ca.crt
+                      path: server-ca.crt
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service

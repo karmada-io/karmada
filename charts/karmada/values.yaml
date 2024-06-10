@@ -119,9 +119,10 @@ postDeleteJob:
 
 ## karmada certificate config
 certs:
-  ## @param certs.mode "auto" and "custom" are provided
+  ## @param certs.mode "auto", "custom" and "secret" are provided
   ## "auto" means auto generate certificate
   ## "custom" means use user certificate
+  ## "secrets" will read the certs/private key from a secret name provided
   mode: auto
   auto:
     ## @param certs.auto.expiry expiry of the certificate
@@ -173,6 +174,10 @@ certs:
       -----BEGIN RSA PRIVATE KEY-----
       XXXXXXXXXXXXXXXXXXXXXXXXXXX
       -----END RSA PRIVATE KEY-----
+  secrets:
+    caCrtSecretName: karmada-ca-crt
+    crtSecretName: karmada-crt
+    frontProxyCrtSecretName: front-proxy-crt
 
 ## scheduler config
 scheduler:

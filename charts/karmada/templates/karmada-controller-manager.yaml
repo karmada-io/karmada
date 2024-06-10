@@ -43,6 +43,9 @@ spec:
       {{- end }}
       volumes:
       {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
+      {{ if eq .Values.certs.mode "secrets" }}
+      {{- include "karmada.kubeconfig.certsVolume" . | nindent 8 }}
+      {{- end }}
       {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
       initContainers:
         {{- include "karmada.initContainer.waitStaticResource" . | nindent 8 }}
@@ -75,6 +78,9 @@ spec:
             periodSeconds: 15
             timeoutSeconds: 5
           volumeMounts:
+          {{ if eq .Values.certs.mode "secrets" }}
+          {{- include "karmada.kubeconfig.certsVolumeMount" . | nindent 12 }}
+          {{- end }}
           {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
           resources:
           {{- toYaml .Values.controllerManager.resources | nindent 12 }}

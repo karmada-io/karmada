@@ -161,7 +161,6 @@ data:
   {{- (printf "%s: " $name) | nindent 6 }} |-
     {{- $.Files.Get $path | nindent 8 }}
   {{ end }}
-
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -182,7 +181,7 @@ data:
     {{- $.Files.Get $path | nindent 8 }}
   {{ end }}
 
-{{- if eq .Values.certs.mode "custom" }}
+{{- if or (eq .Values.certs.mode "custom") (eq .Values.certs.mode "secrets") }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -205,6 +204,8 @@ data:
     {{- include "karmada.apiservice" . | nindent 8 }}
   {{- print "cluster-proxy-admin-rbac.yaml: " | nindent 6 }} |-
     {{- include "karmada.proxyRbac" . | nindent 8 }}
+  {{- print "service-monitor-rbac.yaml: " | nindent 6 }} |-
+    {{- include "karmada.serviceMonitorRbac" . | nindent 8 }}
   {{- print "bootstrap-token-configuration.yaml: " | nindent 6 }} |-
     {{- include "karmada.bootstrapToken.configuration" . | nindent 8 }}
   {{- print "clusterrole.yaml: " | nindent 6 }} |-

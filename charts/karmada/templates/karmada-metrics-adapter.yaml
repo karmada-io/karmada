@@ -38,9 +38,14 @@ spec:
           imagePullPolicy: {{ .Values.metricsAdapter.image.pullPolicy }}
           volumeMounts:
             {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
+            {{ if eq .Values.certs.mode "secrets" }}
+            {{- include "karmada.kubeconfig.certsVolumeMount" . | nindent 12 }}
+            {{- end }}
+            {{ if ne .Values.certs.mode "secrets" }}
             - name: apiserver-cert
               mountPath: /etc/kubernetes/pki
               readOnly: true
+            {{- end }}
           command:
             - /bin/karmada-metrics-adapter
             - --kubeconfig=/etc/kubeconfig
@@ -84,10 +89,15 @@ spec:
       {{- end }}
       volumes:
         {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
+        {{ if eq .Values.certs.mode "secrets" }}
+        {{- include "karmada.kubeconfig.certsVolume" . | nindent 8 }}
+        {{- end }}
         {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
+        {{ if ne .Values.certs.mode "secrets" }}
         - name: apiserver-cert
           secret:
             secretName: {{ $name }}-cert
+        {{- end }}
 ---
 apiVersion: v1
 kind: Service

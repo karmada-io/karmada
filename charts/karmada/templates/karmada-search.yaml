@@ -56,6 +56,9 @@ spec:
             - name: kubeconfig-secret
               subPath: kubeconfig
               mountPath: /etc/kubeconfig
+            {{ if eq .Values.certs.mode "secrets" }}
+            {{- include "karmada.kubeconfig.certsVolumeMount" . | nindent 12 }}
+            {{- end }}
           command:
             - /bin/karmada-search
             - --kubeconfig=/etc/kubeconfig
@@ -95,6 +98,9 @@ spec:
       {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
       {{- include "karmada.search.kubeconfig.volume" . | nindent 8 }}
       {{- include "karmada.search.etcd.cert.volume" . | nindent 8 }}
+      {{ if eq .Values.certs.mode "secrets" }}
+      {{- include "karmada.kubeconfig.certsVolume" . | nindent 8 }}
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service

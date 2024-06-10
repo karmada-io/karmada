@@ -110,6 +110,30 @@ app: {{- include "karmada.name" .}}-kube-controller-manager
 {{- end }}
 {{- end -}}
 
+{{- define "karmada.kubeconfig.certsVolumeMount" -}}
+- name: kubeconfig-certs
+  mountPath: /etc/kubernetes/pki
+  readOnly: true
+{{- end -}}
+
+{{- define "karmada.kubeconfig.certsVolume" -}}
+- name: kubeconfig-certs
+  projected:
+    sources:
+      - secret:
+          name: {{ .Values.certs.secrets.crtSecretName }}
+          items:
+            - key: tls.crt
+              path: karmada.crt
+            - key: tls.key
+              path: karmada.key
+      - secret:
+          name: {{ .Values.certs.secrets.caCrtSecretName }}
+          items:
+            - key: tls.crt
+              path: server-ca.crt
+{{- end -}}
+
 {{- define "karmada.kubeconfig.volume" -}}
 {{- $name := include "karmada.name" . -}}
 - name: kubeconfig-secret
