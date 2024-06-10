@@ -1,0 +1,33 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: karmada-cluster-cert
+  namespace: karmada-system
+spec:
+  commonName: karmada-cluster-cert
+  dnsNames:
+  - kubernetes.default.svc
+  - '*.etcd.karmada-system.svc.cluster.local'
+  - '*.karmada-system.svc.cluster.local'
+  - '*.karmada-system.svc'
+  - localhost
+  duration: 720h0m0s
+  ipAddresses:
+  - 127.0.0.1
+  issuerRef:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: karmada-general
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  renewBefore: 168h0m0s
+  secretName: karmada-cluster-cert
+  subject:
+    organizations:
+    - system:masters
+  usages:
+  - digital signature
+  - key encipherment
+  - client auth
+  - server auth

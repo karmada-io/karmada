@@ -1,0 +1,22 @@
+apiVersion: trust.cert-manager.io/v1alpha1
+kind: Bundle
+metadata:
+  name: karmada-bundle
+spec:
+  sources:
+  - useDefaultCAs: true
+  - secret:
+      key: tls.crt
+      name: karmada-root
+  - secret:
+      key: tls.crt
+      name: karmada-general-ca
+  - secret:
+      key: tls.crt
+      name: karmada-front-proxy-ca
+  target:
+    configMap:
+      key: ca-certificates.crt
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: karmada-system

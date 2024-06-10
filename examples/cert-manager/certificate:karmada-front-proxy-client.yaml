@@ -1,0 +1,21 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: karmada-front-proxy-client
+  namespace: karmada-system
+spec:
+  commonName: front-proxy-client
+  duration: 720h0m0s
+  issuerRef:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: karmada-front-proxy
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  renewBefore: 168h0m0s
+  secretName: front-proxy-client
+  usages:
+  - digital signature
+  - key encipherment
+  - client auth

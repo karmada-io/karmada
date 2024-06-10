@@ -1,0 +1,17 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: karmada-servicemonitor-cert
+  namespace: karmada-system
+spec:
+  commonName: servicemonitor
+  duration: 720h0m0s
+  issuerRef:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: karmada-general
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  renewBefore: 168h0m0s
+  secretName: karmada-servicemonitor

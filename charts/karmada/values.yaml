@@ -176,7 +176,7 @@ certs:
   ## @param certs.mode "auto", "custom" and "secrets" are provided
   ## "auto" means auto generate certificate
   ## "custom" means use user certificate
-  ## "secrets" will read the certs/private key from a secret name provided
+  ## "secrets" will read the certs/private key from the provided secret/ConfigMap names
   mode: auto
   auto:
     ## @param certs.auto.expiry expiry of the certificate
@@ -436,7 +436,7 @@ apiServer:
   podLabels: {}
   # Additional admission plugins to enable, comma separated.
   admissionPlugins: ""
-  # Name of the secret containing audit policy file
+  # Name of the ConfigMap containing audit policy file
   auditPolicyConfigMap: ""
   ## @param image.registry keube-apiserver image registry
   ## @param image.repository keube-apiserver image repository
