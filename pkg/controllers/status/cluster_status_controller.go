@@ -277,7 +277,11 @@ func (c *ClusterStatusController) updateStatusIfNeeded(cluster *clusterv1alpha1.
 	if !equality.Semantic.DeepEqual(cluster.Status, currentClusterStatus) {
 		klog.V(4).Infof("Start to update cluster status: %s", cluster.Name)
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-			cluster.Status = currentClusterStatus
+			cluster.Status.KubernetesVersion = currentClusterStatus.KubernetesVersion
+			cluster.Status.APIEnablements = currentClusterStatus.APIEnablements
+			cluster.Status.Conditions = currentClusterStatus.Conditions
+			cluster.Status.NodeSummary = currentClusterStatus.NodeSummary
+			cluster.Status.ResourceSummary = currentClusterStatus.ResourceSummary
 			updateErr := c.Status().Update(context.TODO(), cluster)
 			if updateErr == nil {
 				return nil
