@@ -79,7 +79,7 @@ func (c *RemedyController) Reconcile(ctx context.Context, req controllerruntime.
 		klog.Errorf("Failed to sync cluster(%s) remedy actions: %v", cluster.Name, err)
 		return controllerruntime.Result{}, err
 	}
-	klog.V(4).Infof("Success to sync cluster(%s) remedy actions", cluster.Name)
+	klog.V(4).Infof("Success to sync cluster(%s) remedy actions: %v", cluster.Name, actions)
 	return controllerruntime.Result{}, nil
 }
 

@@ -45,6 +45,9 @@ var _ = framework.SerialDescribe("remedy testing", func() {
 			remedy = &remedyv1alpha1.Remedy{
 				ObjectMeta: metav1.ObjectMeta{Name: remedyName},
 				Spec: remedyv1alpha1.RemedySpec{
+					ClusterAffinity: &remedyv1alpha1.ClusterAffinity{
+						ClusterNames: []string{targetCluster},
+					},
 					DecisionMatches: []remedyv1alpha1.DecisionMatch{
 						{
 							ClusterConditionMatch: &remedyv1alpha1.ClusterConditionRequirement{
@@ -74,9 +77,10 @@ var _ = framework.SerialDescribe("remedy testing", func() {
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
-			ginkgo.By("wait cluster status has TrafficControl RemedyAction", func() {
+			ginkgo.By(fmt.Sprintf("wait Cluster(%s) status has TrafficControl RemedyAction", targetCluster), func() {
 				framework.WaitClusterFitWith(controlPlaneClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
 					actions := sets.NewString(cluster.Status.RemedyActions...)
+					fmt.Printf("Cluster(%s) remedyActions: %v\n", cluster.Name, actions)
 					return actions.Has(string(remedyv1alpha1.TrafficControl))
 				})
 			})
@@ -93,9 +97,10 @@ var _ = framework.SerialDescribe("remedy testing", func() {
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
-			ginkgo.By("wait cluster status doesn't has TrafficControl RemedyAction", func() {
+			ginkgo.By(fmt.Sprintf("wait Cluster(%s) status doesn't has TrafficControl RemedyAction", targetCluster), func() {
 				framework.WaitClusterFitWith(controlPlaneClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
 					actions := sets.NewString(cluster.Status.RemedyActions...)
+					fmt.Printf("Cluster(%s) remedyActions: %v\n", cluster.Name, actions)
 					return !actions.Has(string(remedyv1alpha1.TrafficControl))
 				})
 			})
@@ -118,9 +123,10 @@ var _ = framework.SerialDescribe("remedy testing", func() {
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
-			ginkgo.By("wait cluster status has TrafficControl RemedyAction", func() {
+			ginkgo.By(fmt.Sprintf("wait Cluster(%s) status has TrafficControl RemedyAction", targetCluster), func() {
 				framework.WaitClusterFitWith(controlPlaneClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
 					actions := sets.NewString(cluster.Status.RemedyActions...)
+					fmt.Printf("Cluster(%s) remedyActions: %v\n", cluster.Name, actions)
 					return actions.Has(string(remedyv1alpha1.TrafficControl))
 				})
 			})
@@ -129,9 +135,10 @@ var _ = framework.SerialDescribe("remedy testing", func() {
 				karmadaresource.RemoveRemedy(karmadaClient, remedyName)
 			})
 
-			ginkgo.By("wait cluster status doesn't has TrafficControl RemedyAction", func() {
+			ginkgo.By(fmt.Sprintf("wait Cluster(%s) status doesn't has TrafficControl RemedyAction", targetCluster), func() {
 				framework.WaitClusterFitWith(controlPlaneClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
 					actions := sets.NewString(cluster.Status.RemedyActions...)
+					fmt.Printf("Cluster(%s) remedyActions: %v\n", cluster.Name, actions)
 					return !actions.Has(string(remedyv1alpha1.TrafficControl))
 				})
 			})
@@ -157,10 +164,12 @@ var _ = framework.SerialDescribe("remedy testing", func() {
 			remedy = &remedyv1alpha1.Remedy{
 				ObjectMeta: metav1.ObjectMeta{Name: remedyName},
 				Spec: remedyv1alpha1.RemedySpec{
+					ClusterAffinity: &remedyv1alpha1.ClusterAffinity{
+						ClusterNames: []string{targetCluster},
+					},
 					Actions: []remedyv1alpha1.RemedyAction{remedyv1alpha1.TrafficControl},
 				},
 			}
-
 		})
 
 		ginkgo.It("Create an immediately type remedy, then remove it", func() {
@@ -168,9 +177,10 @@ var _ = framework.SerialDescribe("remedy testing", func() {
 				karmadaresource.CreateRemedy(karmadaClient, remedy)
 			})
 
-			ginkgo.By("wait cluster status has TrafficControl RemedyAction", func() {
+			ginkgo.By(fmt.Sprintf("wait Cluster(%s) status has TrafficControl RemedyAction", targetCluster), func() {
 				framework.WaitClusterFitWith(controlPlaneClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
 					actions := sets.NewString(cluster.Status.RemedyActions...)
+					fmt.Printf("Cluster(%s) remedyActions: %v\n", cluster.Name, actions)
 					return actions.Has(string(remedyv1alpha1.TrafficControl))
 				})
 			})
@@ -179,9 +189,10 @@ var _ = framework.SerialDescribe("remedy testing", func() {
 				karmadaresource.RemoveRemedy(karmadaClient, remedyName)
 			})
 
-			ginkgo.By("wait cluster status doesn't has TrafficControl RemedyAction", func() {
+			ginkgo.By(fmt.Sprintf("wait Cluster(%s) status doesn't has TrafficControl RemedyAction", targetCluster), func() {
 				framework.WaitClusterFitWith(controlPlaneClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
 					actions := sets.NewString(cluster.Status.RemedyActions...)
+					fmt.Printf("Cluster(%s) remedyActions: %v\n", cluster.Name, actions)
 					return !actions.Has(string(remedyv1alpha1.TrafficControl))
 				})
 			})
