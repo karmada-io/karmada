@@ -278,7 +278,11 @@ func (c *ClusterStatusController) updateStatusIfNeeded(cluster *clusterv1alpha1.
 		klog.V(4).Infof("Start to update cluster status: %s", cluster.Name)
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 			_, err = helper.UpdateStatus(context.Background(), c.Client, cluster, func() error {
-				cluster.Status = currentClusterStatus
+				cluster.Status.KubernetesVersion = currentClusterStatus.KubernetesVersion
+				cluster.Status.APIEnablements = currentClusterStatus.APIEnablements
+				cluster.Status.Conditions = currentClusterStatus.Conditions
+				cluster.Status.NodeSummary = currentClusterStatus.NodeSummary
+				cluster.Status.ResourceSummary = currentClusterStatus.ResourceSummary
 				return nil
 			})
 			return err
