@@ -258,18 +258,11 @@ func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status meta
 	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		meta.SetStatusCondition(&work.Status.Conditions, newWorkAppliedCondition)
-		updateErr := c.Status().Update(context.TODO(), work)
-		if updateErr == nil {
+		_, err = helper.UpdateStatus(context.Background(), c.Client, work, func() error {
+			meta.SetStatusCondition(&work.Status.Conditions, newWorkAppliedCondition)
 			return nil
-		}
-		updated := &workv1alpha1.Work{}
-		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: work.Namespace, Name: work.Name}, updated); err == nil {
-			work = updated
-		} else {
-			klog.Errorf("Failed to get the updated work(%s/%s), err: %v", work.Namespace, work.Name, err)
-		}
-		return updateErr
+		})
+		return err
 	})
 }
 

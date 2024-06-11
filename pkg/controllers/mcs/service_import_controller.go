@@ -32,6 +32,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -153,24 +154,15 @@ func (c *ServiceImportController) updateServiceStatus(svcImport *mcsv1alpha1.Ser
 	}
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		derivedService.Status = corev1.ServiceStatus{
-			LoadBalancer: corev1.LoadBalancerStatus{
-				Ingress: ingress,
-			},
-		}
-		updateErr := c.Status().Update(context.TODO(), derivedService)
-		if updateErr == nil {
+		_, err = helper.UpdateStatus(context.Background(), c.Client, derivedService, func() error {
+			derivedService.Status = corev1.ServiceStatus{
+				LoadBalancer: corev1.LoadBalancerStatus{
+					Ingress: ingress,
+				},
+			}
 			return nil
-		}
-
-		updated := &corev1.Service{}
-		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: derivedService.Namespace, Name: derivedService.Name}, updated); err == nil {
-			derivedService = updated
-		} else {
-			klog.Errorf("Failed to get updated service %s/%s: %v", derivedService.Namespace, derivedService.Name, err)
-		}
-
-		return updateErr
+		})
+		return err
 	})
 
 	if err != nil {

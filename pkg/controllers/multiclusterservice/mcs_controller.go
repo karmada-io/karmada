@@ -521,18 +521,11 @@ func (c *MCSController) updateMultiClusterServiceStatus(mcs *networkingv1alpha1.
 	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		meta.SetStatusCondition(&mcs.Status.Conditions, serviceAppliedCondition)
-		updateErr := c.Status().Update(context.TODO(), mcs)
-		if updateErr == nil {
+		_, err = helper.UpdateStatus(context.Background(), c.Client, mcs, func() error {
+			meta.SetStatusCondition(&mcs.Status.Conditions, serviceAppliedCondition)
 			return nil
-		}
-		updated := &networkingv1alpha1.MultiClusterService{}
-		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: mcs.Namespace, Name: mcs.Name}, updated); err == nil {
-			mcs = updated
-		} else {
-			klog.Errorf("Failed to get updated MultiClusterService %s/%s: %v", mcs.Namespace, mcs.Name, err)
-		}
-		return updateErr
+		})
+		return err
 	})
 }
 

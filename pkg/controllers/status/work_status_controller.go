@@ -326,22 +326,11 @@ func (c *WorkStatusController) updateAppliedCondition(work *workv1alpha1.Work, s
 	}
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		workStatus := work.Status.DeepCopy()
-		meta.SetStatusCondition(&work.Status.Conditions, newWorkAppliedCondition)
-		if reflect.DeepEqual(*workStatus, work.Status) {
+		_, err = helper.UpdateStatus(context.Background(), c.Client, work, func() error {
+			meta.SetStatusCondition(&work.Status.Conditions, newWorkAppliedCondition)
 			return nil
-		}
-		updateErr := c.Status().Update(context.TODO(), work)
-		if updateErr == nil {
-			return nil
-		}
-		updated := &workv1alpha1.Work{}
-		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: work.Namespace, Name: work.Name}, updated); err == nil {
-			work = updated
-		} else {
-			klog.Errorf("Failed to get updated work %s/%s: %s", work.Namespace, work.Name, err.Error())
-		}
-		return updateErr
+		})
+		return err
 	})
 
 	if err != nil {
@@ -386,25 +375,12 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 		Health:     resourceHealth,
 	}
 
-	workCopy := work.DeepCopy()
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		manifestStatuses := c.mergeStatus(workCopy.Status.ManifestStatuses, manifestStatus)
-		if reflect.DeepEqual(workCopy.Status.ManifestStatuses, manifestStatuses) {
+		_, err = helper.UpdateStatus(context.Background(), c.Client, work, func() error {
+			work.Status.ManifestStatuses = c.mergeStatus(work.Status.ManifestStatuses, manifestStatus)
 			return nil
-		}
-		workCopy.Status.ManifestStatuses = manifestStatuses
-		updateErr := c.Status().Update(context.TODO(), workCopy)
-		if updateErr == nil {
-			return nil
-		}
-
-		updated := &workv1alpha1.Work{}
-		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: workCopy.Namespace, Name: workCopy.Name}, updated); err == nil {
-			workCopy = updated
-		} else {
-			klog.Errorf("Failed to get updated work %s/%s: %v", workCopy.Namespace, workCopy.Name, err)
-		}
-		return updateErr
+		})
+		return err
 	})
 }
 
