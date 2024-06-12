@@ -111,15 +111,15 @@ func main() {
 	// Set environment variables used by karmadactl so the output is consistent,
 	// regardless of where we run.
 	os.Setenv("HOME", "/home/username")
-	karmadactl := karmadactl.NewKarmadaCtlCommand("karmadactl", "karmadactl")
-	karmadactl.DisableAutoGenTag = true
-	err = doc.GenMarkdownTree(karmadactl, outDir)
+	karmadactlCmd := karmadactl.NewKarmadaCtlCommand("karmadactl", "karmadactl")
+	karmadactlCmd.DisableAutoGenTag = true
+	err = doc.GenMarkdownTree(karmadactlCmd, outDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to generate docs: %v\n", err)
 		os.Exit(1)
 	}
 
-	err = GenMarkdownTreeForIndex(karmadactl, outDir)
+	err = GenMarkdownTreeForIndex(karmadactlCmd, outDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to generate index docs: %v\n", err)
 		os.Exit(1)
@@ -153,8 +153,8 @@ func main() {
 		newlines := []string{"---", "title: " + title}
 
 		newlines = append(newlines, lines...)
-		newcontent := strings.Join(newlines, "\n")
-		return os.WriteFile(path, []byte(newcontent), info.Mode())
+		newContent := strings.Join(newlines, "\n")
+		return os.WriteFile(path, []byte(newContent), info.Mode())
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to process docs: %v\n", err)

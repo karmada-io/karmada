@@ -292,7 +292,7 @@ func (h *UpgradeAwareHandler) tryUpgrade(w http.ResponseWriter, req *http.Reques
 	if len(rawResponse) > 0 {
 		klog.V(6).Infof("Writing %d bytes to hijacked connection", len(rawResponse))
 		if _, err = requestHijackedConn.Write(rawResponse); err != nil {
-			utilruntime.HandleError(fmt.Errorf("Error proxying response from backend to client: %v", err))
+			utilruntime.HandleError(fmt.Errorf("error proxying response from backend to client: %v", err))
 		}
 	}
 
