@@ -67,13 +67,10 @@ spec:
           resources:
           {{- toYaml .Values.descheduler.resources | nindent 12 }}
       volumes:
-<<<<<<< HEAD
       {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
       {{ if eq .Values.certs.mode "secrets" }}
       {{- include "karmada.certs.secrets.bundleVolume" . | nindent 8 }}
       {{- end }}
-=======
->>>>>>> 18bd5e7e1 (simplify kubeconfig approach)
       {{- include "karmada.descheduler.kubeconfig.volume" . | nindent 8 }}
 
 {{ if .Values.descheduler.podDisruptionBudget }}
