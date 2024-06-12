@@ -27,5 +27,5 @@ import (
 // ensuring the hash does not change when a pointer changes.
 func DeepHashObject(hasher hash.Hash, objectToWrite interface{}) {
 	hasher.Reset()
-	pretty.Fprintf(hasher, "%# v", objectToWrite)
+	pretty.Fprintf(hasher, "%v", objectToWrite)
 }

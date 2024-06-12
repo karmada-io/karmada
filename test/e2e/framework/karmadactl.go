@@ -64,7 +64,7 @@ func NewTestKubeconfig(kubeConfig, karmadaContext, karmadactlpath, namespace str
 
 // KarmadactlCmd runs the karmadactl executable through the wrapper script.
 func (tk *TestKubeconfig) KarmadactlCmd(args ...string) *exec.Cmd {
-	defaultArgs := []string{}
+	var defaultArgs []string
 
 	if tk.KubeConfig != "" {
 		defaultArgs = append(defaultArgs, "--"+clientcmd.RecommendedConfigPathFlag+"="+tk.KubeConfig)
@@ -116,7 +116,7 @@ func (k *KarmadactlBuilder) exec() (string, error) {
 }
 
 // execWithFullOutput runs the karmadactl executable, and returns the stdout and stderr.
-func (k KarmadactlBuilder) execWithFullOutput() (string, string, error) {
+func (k *KarmadactlBuilder) execWithFullOutput() (string, string, error) {
 	var stdout, stderr bytes.Buffer
 	cmd := k.cmd
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
@@ -133,7 +133,7 @@ func (k KarmadactlBuilder) execWithFullOutput() (string, string, error) {
 		if err != nil {
 			var rc = 127
 			if ee, ok := err.(*exec.ExitError); ok {
-				rc = int(ee.Sys().(syscall.WaitStatus).ExitStatus())
+				rc = ee.Sys().(syscall.WaitStatus).ExitStatus()
 			}
 			return stdout.String(), stderr.String(), uexec.CodeExitError{
 				Err:  fmt.Errorf("error running %v:\nCommand stdout:\n%v\nstderr:\n%v\nerror:\n%v", cmd, cmd.Stdout, cmd.Stderr, err),

@@ -402,7 +402,7 @@ func getEndpointSliceWorkMeta(c client.Client, ns string, workName string, endpo
 		return metav1.ObjectMeta{}, err
 	}
 
-	labels := map[string]string{
+	ls := map[string]string{
 		util.MultiClusterServiceNamespaceLabel: endpointSlice.GetNamespace(),
 		util.MultiClusterServiceNameLabel:      endpointSlice.GetLabels()[discoveryv1.LabelServiceName],
 		// indicate the Work should be not propagated since it's collected resource.
@@ -410,18 +410,18 @@ func getEndpointSliceWorkMeta(c client.Client, ns string, workName string, endpo
 		util.EndpointSliceWorkManagedByLabel: util.MultiClusterServiceKind,
 	}
 	if existWork.Labels == nil || (err != nil && apierrors.IsNotFound(err)) {
-		workMeta := metav1.ObjectMeta{Name: workName, Namespace: ns, Labels: labels}
+		workMeta := metav1.ObjectMeta{Name: workName, Namespace: ns, Labels: ls}
 		return workMeta, nil
 	}
 
-	labels = util.DedupeAndMergeLabels(labels, existWork.Labels)
+	ls = util.DedupeAndMergeLabels(ls, existWork.Labels)
 	if value, ok := existWork.Labels[util.EndpointSliceWorkManagedByLabel]; ok {
 		controllerSet := sets.New[string]()
 		controllerSet.Insert(strings.Split(value, ".")...)
 		controllerSet.Insert(util.MultiClusterServiceKind)
-		labels[util.EndpointSliceWorkManagedByLabel] = strings.Join(controllerSet.UnsortedList(), ".")
+		ls[util.EndpointSliceWorkManagedByLabel] = strings.Join(controllerSet.UnsortedList(), ".")
 	}
-	workMeta := metav1.ObjectMeta{Name: workName, Namespace: ns, Labels: labels}
+	workMeta := metav1.ObjectMeta{Name: workName, Namespace: ns, Labels: ls}
 	return workMeta, nil
 }
 
