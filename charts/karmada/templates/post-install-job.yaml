@@ -44,6 +44,7 @@ spec:
       - name: post-install
         image: {{ template "karmada.kubectl.image" . }}
         imagePullPolicy: {{ .Values.kubectl.image.pullPolicy }}
+        {{ include "karmada.kubeconfig.volume" . | nindent 8 }}
         command:
         - /bin/sh
         - -c
@@ -53,5 +54,4 @@ spec:
           kubectl delete job {{ $name }}-static-resource -n {{ $namespace }}
           kubectl delete secret {{ $name }}-hook-job -n {{ $namespace }}
           EOF
-        {{ include "karmada.kubeconfig.volume" . | nindent 8 }}
 {{- end }}
