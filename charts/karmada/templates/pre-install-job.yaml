@@ -372,7 +372,7 @@ spec:
       nodeSelector:
       {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ $name }}-pre-job
+      serviceAccountName: {{ $name }}-hook-job
       restartPolicy: Never
       initContainers:
       - name: init
@@ -445,12 +445,11 @@ spec:
           name: {{ $name }}-config
       - name: configs
         emptyDir: {}
-
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ $name }}-pre-job
+  name: {{ $name }}-hook-job
   namespace: {{ $namespace }}
   annotations:
     "helm.sh/hook": pre-install
@@ -460,10 +459,25 @@ metadata:
     {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
   {{- end }}
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $name }}-hook-job
+  namespace: {{ $namespace }}
+  annotations:
+    "kubernetes.io/service-account.name": {{ $name }}-hook-job
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "1"
+    {{- if "karmada.preInstallJob.labels" }}
+    labels:
+      {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+    {{- end }}
+type: kubernetes.io/service-account-token
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ $name }}-pre-job
+  name: {{ $name }}-hook-job
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "1"
@@ -481,7 +495,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ $name }}-pre-job
+  name: {{ $name }}-hook-job
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "1"
@@ -492,10 +506,10 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ $name }}-pre-job
+  name: {{ $name }}-hook-job
 subjects:
   - kind: ServiceAccount
-    name: {{ $name }}-pre-job
+    name: {{ $name }}-hook-job
     namespace: {{ $namespace }}
 ---
 {{- end }}

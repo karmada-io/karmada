@@ -306,6 +306,10 @@ app: {{- include "karmada.name" .}}-search
 {{- include "karmada.commonLabels" . -}}
 {{- end -}}
 
+{{- define "karmada.staticResourceJob.labels" -}}
+{{- include "karmada.commonLabels" . -}}
+{{- end -}}
+
 {{- define "karmada.postInstallJob.labels" -}}
 {{- include "karmada.commonLabels" . -}}
 {{- end -}}
@@ -573,4 +577,56 @@ Return the proper Docker Image Registry Secret Names
 - --{{ $key }}={{ $value }}
 {{- end }}
 {{- end }}
+{{- end -}}
+
+{{- define "karmada.init-sa-secret.volume" -}}
+{{- $name := include "karmada.name" . -}}
+- name: init-sa-secret
+  secret:
+    secretName: {{ $name }}-hook-job
+{{- end -}}
+
+{{- define "karmada.init-sa-secret.volumeMount" -}}
+- name: init-sa-secret
+  mountPath: /opt/mount
+{{- end -}}
+
+{{- define "karmada.initContainer.build-kubeconfig" -}}
+TOKEN=$(cat /opt/mount/token)
+kubectl config set-cluster karmada-host --server=https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT} --certificate-authority=/opt/mount/ca.crt
+kubectl config set-credentials default --token=$TOKEN
+kubectl config set-context karmada-host-context --cluster=karmada-host --user=default --namespace=default
+kubectl config use-context karmada-host-context
+{{- end -}}
+
+{{- define "karmada.initContainer.waitEtcd" -}}
+- name: wait
+  image: {{ include "karmada.kubectl.image" . }}
+  imagePullPolicy: {{ .Values.kubectl.image.pullPolicy }}
+  command:
+    - /bin/sh
+    - -c
+    - |
+      bash <<'EOF'
+      {{- include "karmada.initContainer.build-kubeconfig" . | nindent 6 }}
+      kubectl rollout status statefulset etcd -n {{ include "karmada.namespace" . }}
+      EOF
+  volumeMounts:
+    {{- include "karmada.init-sa-secret.volumeMount" .| nindent 4 }}
+{{- end -}}
+
+{{- define "karmada.initContainer.waitStaticResource" -}}
+- name: wait
+  image: {{ include "karmada.kubectl.image" . }}
+  imagePullPolicy: {{ .Values.kubectl.image.pullPolicy }}
+  command:
+    - /bin/sh
+    - -c
+    - |
+      bash <<'EOF'
+      {{- include "karmada.initContainer.build-kubeconfig" . | nindent 6 }}
+      kubectl wait --for=condition=complete job {{ include "karmada.name" . }}-static-resource -n {{ include "karmada.namespace" . }}
+      EOF
+  volumeMounts:
+    {{- include "karmada.init-sa-secret.volumeMount" .| nindent 4 }}
 {{- end -}}
