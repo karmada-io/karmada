@@ -150,8 +150,7 @@ func modifyRequest(req *http.Request, cluster string) error {
 		return nil
 	}
 
-	changed := false
-	changed = store.RemoveCacheSourceAnnotation(obj) || changed
+	changed := store.RemoveCacheSourceAnnotation(obj)
 	changed = store.RecoverClusterResourceVersion(obj, cluster) || changed
 
 	if changed {

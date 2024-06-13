@@ -22,7 +22,7 @@ package lifted
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	validation "k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	netutils "k8s.io/utils/net"
 )
