@@ -106,6 +106,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterQuotaStatus":                          schema_pkg_apis_policy_v1alpha1_ClusterQuotaStatus(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.CommandArgsOverrider":                        schema_pkg_apis_policy_v1alpha1_CommandArgsOverrider(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.DecisionConditions":                          schema_pkg_apis_policy_v1alpha1_DecisionConditions(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ExcludedResource":                            schema_pkg_apis_policy_v1alpha1_ExcludedResource(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior":                            schema_pkg_apis_policy_v1alpha1_FailoverBehavior(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FederatedResourceQuota":                      schema_pkg_apis_policy_v1alpha1_FederatedResourceQuota(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FederatedResourceQuotaList":                  schema_pkg_apis_policy_v1alpha1_FederatedResourceQuotaList(ref),
@@ -3950,6 +3951,55 @@ func schema_pkg_apis_policy_v1alpha1_DecisionConditions(ref common.ReferenceCall
 	}
 }
 
+func schema_pkg_apis_policy_v1alpha1_ExcludedResource(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ExcludedResource specifies which resources need to be excluded.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion represents the API version of the target resources. If not empty, resources under this API group will be excluded.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind represents the Kind of the target resources. If not empty, resources with this Kind will be excluded.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Namespace of the target resource. If not empty, resources under this namespace will be excluded.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the target resource. If not empty, resources with this name will be excluded.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"labelSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A label query over a set of resources. If not empty, resources match the label query will be excluded.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+	}
+}
+
 func schema_pkg_apis_policy_v1alpha1_FailoverBehavior(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -4773,6 +4823,20 @@ func schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref common.ReferenceCallbac
 							},
 						},
 					},
+					"excludedResources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExcludedResources used to exclude resources. It consists of a slice of exclusion rules and a resource will be excluded if it matches any of the rules.\n\nNote that, if a resource has been propagated and then excluded, its behavior is equivalent to the deletion of PropagationPolicy or ClusterPropagationPolicy. That is the propagated resource will continue to exist in member cluster(s) until it is removed or took over by another policy.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ExcludedResource"),
+									},
+								},
+							},
+						},
+					},
 					"association": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Association tells if relevant resources should be selected automatically. e.g. a ConfigMap referred by a Deployment. default false. Deprecated: in favor of PropagateDeps.",
@@ -4856,7 +4920,7 @@ func schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref common.ReferenceCallbac
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ResourceSelector"},
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ExcludedResource", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ResourceSelector"},
 	}
 }
 

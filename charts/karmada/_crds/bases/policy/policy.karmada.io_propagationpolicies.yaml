@@ -105,6 +105,82 @@ spec:
                 items:
                   type: string
                 type: array
+              excludedResources:
+                description: "ExcludedResources used to exclude resources. It consists
+                  of a slice of exclusion rules and a resource will be excluded if
+                  it matches any of the rules. \n Note that, if a resource has been
+                  propagated and then excluded, its behavior is equivalent to the
+                  deletion of PropagationPolicy or ClusterPropagationPolicy. That
+                  is the propagated resource will continue to exist in member cluster(s)
+                  until it is removed or took over by another policy."
+                items:
+                  description: ExcludedResource specifies which resources need to
+                    be excluded.
+                  properties:
+                    apiVersion:
+                      description: APIVersion represents the API version of the target
+                        resources. If not empty, resources under this API group will
+                        be excluded.
+                      type: string
+                    kind:
+                      description: Kind represents the Kind of the target resources.
+                        If not empty, resources with this Kind will be excluded.
+                      type: string
+                    labelSelector:
+                      description: A label query over a set of resources. If not empty,
+                        resources match the label query will be excluded.
+                      properties:
+                        matchExpressions:
+                          description: matchExpressions is a list of label selector
+                            requirements. The requirements are ANDed.
+                          items:
+                            description: A label selector requirement is a selector
+                              that contains values, a key, and an operator that relates
+                              the key and values.
+                            properties:
+                              key:
+                                description: key is the label key that the selector
+                                  applies to.
+                                type: string
+                              operator:
+                                description: operator represents a key's relationship
+                                  to a set of values. Valid operators are In, NotIn,
+                                  Exists and DoesNotExist.
+                                type: string
+                              values:
+                                description: values is an array of string values.
+                                  If the operator is In or NotIn, the values array
+                                  must be non-empty. If the operator is Exists or
+                                  DoesNotExist, the values array must be empty. This
+                                  array is replaced during a strategic merge patch.
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                            - key
+                            - operator
+                            type: object
+                          type: array
+                        matchLabels:
+                          additionalProperties:
+                            type: string
+                          description: matchLabels is a map of {key,value} pairs.
+                            A single {key,value} in the matchLabels map is equivalent
+                            to an element of matchExpressions, whose key field is
+                            "key", the operator is "In", and the values array contains
+                            only "value". The requirements are ANDed.
+                          type: object
+                      type: object
+                    name:
+                      description: Name of the target resource. If not empty, resources
+                        with this name will be excluded.
+                      type: string
+                    namespace:
+                      description: Namespace of the target resource. If not empty,
+                        resources under this namespace will be excluded.
+                      type: string
+                  type: object
+                type: array
               failover:
                 description: |-
                   Failover indicates how Karmada migrates applications in case of failures.
