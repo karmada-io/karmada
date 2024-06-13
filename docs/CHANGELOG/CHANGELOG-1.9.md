@@ -2,18 +2,24 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.9.2](#v192)
-  - [Downloads for v1.9.2](#downloads-for-v192)
-  - [Changelog since v1.9.1](#changelog-since-v191)
+- [v1.9.3](#v193)
+  - [Downloads for v1.9.3](#downloads-for-v193)
+  - [Changelog since v1.9.2](#changelog-since-v192)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
-- [v1.9.1](#v191)
-  - [Downloads for v1.9.1](#downloads-for-v191)
-  - [Changelog since v1.9.0](#changelog-since-v190)
+- [v1.9.2](#v192)
+  - [Downloads for v1.9.2](#downloads-for-v192)
+  - [Changelog since v1.9.1](#changelog-since-v191)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
+- [v1.9.1](#v191)
+  - [Downloads for v1.9.1](#downloads-for-v191)
+  - [Changelog since v1.9.0](#changelog-since-v190)
+    - [Changes by Kind](#changes-by-kind-2)
+      - [Bug Fixes](#bug-fixes-2)
+      - [Others](#others-2)
 - [v1.9.0](#v190)
   - [Downloads for v1.9.0](#downloads-for-v190)
   - [What's New](#whats-new)
@@ -23,7 +29,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-2)
+    - [Bug Fixes](#bug-fixes-3)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -33,6 +39,20 @@
   - [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.9.3
+## Downloads for v1.9.3
+
+Download v1.9.3 in the [v1.9.3 release page](https://github.com/karmada-io/karmada/releases/tag/v1.9.3).
+
+## Changelog since v1.9.2
+### Changes by Kind
+#### Bug Fixes
+- `karmada-scheduler-estimator`: Fixed the `Unschedulable` result returned by plugins to be treated as an exception issue. ([#5026](https://github.com/karmada-io/karmada/pull/5026), @RainbowMango)
+- `karmada-controller-manager`: Fixed an issue that the cluster-status-controller overwrites the remedyActions field. ([#5045](https://github.com/karmada-io/karmada/pull/5045), @XiShanYongYe-Chang)
+
+#### Others
+None.
 
 # v1.9.2
 ## Downloads for v1.9.2
