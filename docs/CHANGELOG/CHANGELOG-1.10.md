@@ -2,6 +2,12 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
+- [v1.10.1](#v1101)
+  - [Downloads for v1.10.1](#downloads-for-v1101)
+  - [Changelog since v1.10.0](#changelog-since-v1100)
+    - [Changes by Kind](#changes-by-kind)
+      - [Bug Fixes](#bug-fixes)
+      - [Others](#others)
 - [v1.10.0](#v1100)
   - [Downloads for v1.10.0](#downloads-for-v1100)
   - [What's New](#whats-new)
@@ -10,7 +16,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes)
+    - [Bug Fixes](#bug-fixes-1)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -20,6 +26,20 @@
   - [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.10.1
+## Downloads for v1.10.1
+
+Download v1.10.1 in the [v1.10.1 release page](https://github.com/karmada-io/karmada/releases/tag/v1.10.1).
+
+## Changelog since v1.10.0
+### Changes by Kind
+#### Bug Fixes
+- `karmada-scheduler-estimator`: Fixed the `Unschedulable` result returned by plugins to be treated as an exception issue. ([#5027](https://github.com/karmada-io/karmada/pull/5027), @RainbowMango)
+- `karmada-controller-manager`: Fixed an issue that the cluster-status-controller overwrites the remedyActions field. ([#5043](https://github.com/karmada-io/karmada/pull/5043), @XiShanYongYe-Chang)
+
+#### Others
+None.
 
 # v1.10.0
 ## Downloads for v1.10.0
