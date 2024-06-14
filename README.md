@@ -12,6 +12,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/karmada-io/karmada)](https://goreportcard.com/report/github.com/karmada-io/karmada)
 [![codecov](https://codecov.io/gh/karmada-io/karmada/branch/master/graph/badge.svg?token=ROM8CMPXZ6)](https://codecov.io/gh/karmada-io/karmada)
 [![FOSSA Status](https://app.fossa.com/api/projects/custom%2B28176%2Fgithub.com%2Fkarmada-io%2Fkarmada.svg?type=shield)](https://app.fossa.com/projects/custom%2B28176%2Fgithub.com%2Fkarmada-io%2Fkarmada?ref=badge_shield)
+[![Artifact HUB](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/karmada)](https://artifacthub.io/packages/krew/krew-index/karmada)
 
 ## Karmada: Open, Multi-Cloud, Multi-Cluster Kubernetes Orchestration
 
