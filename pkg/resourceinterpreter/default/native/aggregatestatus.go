@@ -65,27 +65,39 @@ func aggregateDeploymentStatus(object *unstructured.Unstructured, aggregatedStat
 
 	oldStatus := &deploy.Status
 	newStatus := &appsv1.DeploymentStatus{}
+	observedLatestResourceTemplateGenerationCount := 0
 	for _, item := range aggregatedStatusItems {
 		if item.Status == nil {
 			continue
 		}
-		temp := &appsv1.DeploymentStatus{}
-		if err = json.Unmarshal(item.Status.Raw, temp); err != nil {
+		member := &WrappedDeploymentStatus{}
+		if err = json.Unmarshal(item.Status.Raw, member); err != nil {
 			return nil, err
 		}
 		klog.V(3).Infof("Grab deployment(%s/%s) status from cluster(%s), replicas: %d, ready: %d, updated: %d, available: %d, unavailable: %d",
-			deploy.Namespace, deploy.Name, item.ClusterName, temp.Replicas, temp.ReadyReplicas, temp.UpdatedReplicas, temp.AvailableReplicas, temp.UnavailableReplicas)
+			deploy.Namespace, deploy.Name, item.ClusterName, member.Replicas, member.ReadyReplicas, member.UpdatedReplicas, member.AvailableReplicas, member.UnavailableReplicas)
 
-		// always set 'observedGeneration' with current generation(.metadata.generation)
-		// which is the generation Karmada 'observed'.
-		// The 'observedGeneration' is mainly used by GitOps tools(like 'Argo CD') to assess the health status.
-		// For more details, please refer to https://argo-cd.readthedocs.io/en/stable/operator-manual/health/.
+		// `memberStatus.ObservedGeneration >= memberStatus.Generation` means the member's status corresponds the latest spec revision of the member deployment.
+		// `memberStatus.ResourceTemplateGeneration >= deploy.Generation` means the member deployment has been aligned with the latest spec revision of federated deployment.
+		// If both conditions are met, we consider the member's status corresponds the latest spec revision of federated deployment.
+		if member.ObservedGeneration >= member.Generation &&
+			member.ResourceTemplateGeneration >= deploy.Generation {
+			observedLatestResourceTemplateGenerationCount++
+		}
+
+		newStatus.Replicas += member.Replicas
+		newStatus.ReadyReplicas += member.ReadyReplicas
+		newStatus.UpdatedReplicas += member.UpdatedReplicas
+		newStatus.AvailableReplicas += member.AvailableReplicas
+		newStatus.UnavailableReplicas += member.UnavailableReplicas
+	}
+
+	// The 'observedGeneration' is mainly used by GitOps tools(like 'Argo CD') to assess the health status.
+	// For more details, please refer to https://argo-cd.readthedocs.io/en/stable/operator-manual/health/.
+	if observedLatestResourceTemplateGenerationCount == len(aggregatedStatusItems) {
 		newStatus.ObservedGeneration = deploy.Generation
-		newStatus.Replicas += temp.Replicas
-		newStatus.ReadyReplicas += temp.ReadyReplicas
-		newStatus.UpdatedReplicas += temp.UpdatedReplicas
-		newStatus.AvailableReplicas += temp.AvailableReplicas
-		newStatus.UnavailableReplicas += temp.UnavailableReplicas
+	} else {
+		newStatus.ObservedGeneration = oldStatus.ObservedGeneration
 	}
 
 	if oldStatus.ObservedGeneration == newStatus.ObservedGeneration &&

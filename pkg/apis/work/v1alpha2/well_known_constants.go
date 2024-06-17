@@ -60,6 +60,17 @@ const (
 
 	// BindingManagedByLabel is added to ResourceBinding to represent what kind of resource manages this Binding.
 	BindingManagedByLabel = "binding.karmada.io/managed-by"
+
+	// ResourceTemplateGenerationAnnotationKey records the generation of resource template in Karmada APIServer,
+	// It will be injected into the resource when propagating to member clusters, to denote the specific version of
+	// the resource template from which the resource is derived. It might be helpful in the following cases:
+	// 1. Facilitating observation from member clusters to ascertain if the most recent resource template has been
+	//    completely synced.
+	// 2. The annotation will be synced back to Karmada during the process of syncing resource status,
+	//    by leveraging this annotation, Karmada can infer if the most recent resource template has been completely
+	//    synced on member clusters, then generates accurate observed generation(like Deployment's .status.observedGeneration)
+	//    which might be required by the release system.
+	ResourceTemplateGenerationAnnotationKey = "resourcetemplate.karmada.io/generation"
 )
 
 // Define resource conflict resolution

@@ -17,6 +17,8 @@ limitations under the License.
 package binding
 
 import (
+	"strconv"
+
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -168,6 +170,9 @@ func mergeLabel(workload *unstructured.Unstructured, binding metav1.Object, scop
 
 func mergeAnnotations(workload *unstructured.Unstructured, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
 	annotations := make(map[string]string)
+	if workload.GetGeneration() > 0 {
+		util.MergeAnnotation(workload, workv1alpha2.ResourceTemplateGenerationAnnotationKey, strconv.FormatInt(workload.GetGeneration(), 10))
+	}
 
 	if scope == apiextensionsv1.NamespaceScoped {
 		util.MergeAnnotation(workload, workv1alpha2.ResourceBindingNamespaceAnnotationKey, binding.GetNamespace())

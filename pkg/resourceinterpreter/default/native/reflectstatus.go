@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 
+	"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
@@ -68,12 +69,25 @@ func reflectDeploymentStatus(object *unstructured.Unstructured) (*runtime.RawExt
 		return nil, fmt.Errorf("failed to convert DeploymentStatus from map[string]interface{}: %v", err)
 	}
 
-	grabStatus := appsv1.DeploymentStatus{
-		Replicas:            deploymentStatus.Replicas,
-		UpdatedReplicas:     deploymentStatus.UpdatedReplicas,
-		ReadyReplicas:       deploymentStatus.ReadyReplicas,
-		AvailableReplicas:   deploymentStatus.AvailableReplicas,
-		UnavailableReplicas: deploymentStatus.UnavailableReplicas,
+	resourceTemplateGenerationInt := int64(0)
+	resourceTemplateGenerationStr := util.GetAnnotationValue(object.GetAnnotations(), v1alpha2.ResourceTemplateGenerationAnnotationKey)
+	err = runtime.Convert_string_To_int64(&resourceTemplateGenerationStr, &resourceTemplateGenerationInt, nil)
+	if err != nil {
+		klog.Errorf("Failed to parse Deployment(%s/%s) generation from annotation(%s:%s): %v", object.GetNamespace(), object.GetName(), v1alpha2.ResourceTemplateGenerationAnnotationKey, resourceTemplateGenerationStr, err)
+		return nil, err
+	}
+
+	grabStatus := &WrappedDeploymentStatus{
+		Generation:                 object.GetGeneration(),
+		ResourceTemplateGeneration: resourceTemplateGenerationInt,
+		DeploymentStatus: appsv1.DeploymentStatus{
+			Replicas:            deploymentStatus.Replicas,
+			UpdatedReplicas:     deploymentStatus.UpdatedReplicas,
+			ReadyReplicas:       deploymentStatus.ReadyReplicas,
+			AvailableReplicas:   deploymentStatus.AvailableReplicas,
+			UnavailableReplicas: deploymentStatus.UnavailableReplicas,
+			ObservedGeneration:  deploymentStatus.ObservedGeneration,
+		},
 	}
 
 	grabStatusRaw, err := helper.BuildStatusRawExtension(grabStatus)
