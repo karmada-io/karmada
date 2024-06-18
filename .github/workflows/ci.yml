@@ -12,6 +12,8 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.actor }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
+permissions:
+  contents: read  # for actions/checkout to fetch code  
 jobs:
   golangci:
     name: lint
