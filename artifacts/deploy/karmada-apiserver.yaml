@@ -64,7 +64,7 @@ spec:
             - --tls-private-key-file=/etc/karmada/pki/apiserver.key
             - --tls-min-version=VersionTLS13
           name: karmada-apiserver
-          image: registry.k8s.io/kube-apiserver:v1.27.11
+          image: registry.k8s.io/kube-apiserver:{{karmada_apiserver_version}}
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 8
