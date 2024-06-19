@@ -40,6 +40,13 @@ spec:
             - --authorization-mode=Node,RBAC
             - --client-ca-file=/etc/kubernetes/pki/server-ca.crt
             - --disable-admission-plugins=StorageObjectInUseProtection,ServiceAccount
+            {{- if .Values.apiServer.admissionPlugins }}
+            - --enable-admission-plugins={{ .Values.apiServer.admissionPlugins }}
+            {{- end }}
+            {{- if .Values.apiServer.auditPolicyConfigMap }}
+            - --audit-policy-file=/etc/kubernetes/audit/policy.yaml
+            - --audit-log-path=-
+            {{- end }}
             - --enable-bootstrap-token-auth=true
             {{- if eq .Values.etcd.mode "external" }}
             - --etcd-cafile=/etc/etcd/pki/ca.crt
@@ -105,6 +112,16 @@ spec:
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           volumeMounts:
+            {{ if eq .Values.certs.mode "secrets" }}
+            - mountPath: /etc/ssl/certs/
+              name: ca-cert-store
+              readOnly: true
+            {{- end }}
+            {{ if .Values.apiServer.auditPolicyConfigMap }}
+            - mountPath: /etc/kubernetes/audit/
+              name: kubernetes-audit
+              readOnly: true
+            {{- end }}
             - name: apiserver-cert
               mountPath: /etc/kubernetes/pki
               readOnly: true
@@ -138,6 +155,14 @@ spec:
       {{- end }}
       volumes:
       {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
+      {{ if .Values.apiServer.auditPolicyConfigMap }}
+        - name: kubernetes-audit
+          configMap:
+            name: {{ .Values.apiServer.auditPolicyConfigMap }}
+            defaultMode: 0644
+            optional: false
+      {{- end }}
+      {{ if ne .Values.certs.mode "secrets" }}
         - name: apiserver-cert
           secret:
             secretName: {{ $name }}-cert
@@ -149,6 +174,50 @@ spec:
           {{- if eq .Values.etcd.mode "external" }}
             secretName: {{ $name }}-external-etcd-cert
           {{- end }}
+      {{- end }}
+      {{ if eq .Values.certs.mode "secrets" }}
+        - name: ca-cert-store
+          configMap:
+            name: {{ .Values.certs.secrets.caBundleConfigMap }}
+            defaultMode: 0644
+            optional: false
+            items:
+            - key: ca-certificates.crt
+              path: ca-certificates.crt
+        - name: etcd-cert
+          projected:
+            sources:
+              - secret:
+                  name: {{ .Values.certs.secrets.clusterCertSecretName }}
+                  items:
+                    - key: tls.crt
+                      path: karmada.crt
+                    - key: tls.key
+                      path: karmada.key
+                    - key: ca.crt
+                      path: server-ca.crt
+        - name: apiserver-cert
+          projected:
+            sources:
+              - secret:
+                  name: {{ .Values.certs.secrets.clusterCertSecretName }}
+                  items:
+                    - key: tls.crt
+                      path: karmada.crt
+                    - key: tls.key
+                      path: karmada.key
+                    - key: ca.crt
+                      path: server-ca.crt
+              - secret:
+                  name: {{ .Values.certs.secrets.frontProxyClientSecretName }}
+                  items:
+                    - key: tls.crt
+                      path: front-proxy-client.crt
+                    - key: tls.key
+                      path: front-proxy-client.key
+                    - key: ca.crt
+                      path: front-proxy-ca.crt
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service

@@ -17,6 +17,60 @@ global:
   ##   team: infra
   commonLabels: {}
 
+# AutoScaling settings
+autoscaling:
+  apiServer:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    metrics:
+      cpu:
+        targetAverageUtilization: 75
+      memory:
+        targetAverageValue: '1Gi'
+
+
+# ServiceMonitor settings for each component
+serviceMonitor:
+  # Secret name for cert used for the ServiceMonitor
+  certSecret: karmada-servicemonitor
+  apiServer:
+    enabled: false
+    labels: {}
+    namespace: "default"
+    timeout: 30s
+    interval: 1m
+  aggregatedApiServer:
+    enabled: false
+    labels: {}
+    namespace: "default"
+    timeout: 30s
+    interval: 1m
+  etcd:
+    enabled: false
+    labels: {}
+    namespace: "default"
+    timeout: 30s
+    interval: 1m
+  metricsAdapter:
+    enabled: false
+    labels: {}
+    namespace: "default"
+    timeout: 30s
+    interval: 1m
+  controllerManager:
+    enabled: false
+    labels: {}
+    namespace: "default"
+    timeout: 30s
+    interval: 1m
+  kubeControllerManager:
+    enabled: false
+    labels: {}
+    namespace: "default"
+    timeout: 30s
+    interval: 1m
+
 ## @karmadaImageVersion the image version of each karmada components
 ## "latest" is a default value for local installation.
 ## If update this anchors("&karmadaImageVersion"), also update hack/package-helm-chart.sh.
@@ -119,9 +173,10 @@ postDeleteJob:
 
 ## karmada certificate config
 certs:
-  ## @param certs.mode "auto" and "custom" are provided
+  ## @param certs.mode "auto", "custom" and "secrets" are provided
   ## "auto" means auto generate certificate
   ## "custom" means use user certificate
+  ## "secrets" will read the certs/private key from the provided secret/ConfigMap names
   mode: auto
   auto:
     ## @param certs.auto.expiry expiry of the certificate
@@ -173,6 +228,23 @@ certs:
       -----BEGIN RSA PRIVATE KEY-----
       XXXXXXXXXXXXXXXXXXXXXXXXXXX
       -----END RSA PRIVATE KEY-----
+  secrets:
+    # CA certificate PEM. Must still be provided as it's hard-coded in some places that cannot use secrets.
+    # This should match what's in the Root CA ConfigMap.
+    rootCaCrt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    # CM containing only the PEM of the Root CA
+    rootCaCrtConfigMap: karmada-root
+    # CM Bundle to pass to all pods, should be created by trust-manager
+    caBundleConfigMap: karmada-bundle
+
+    # Default cluster cert
+    clusterCertSecretName: karmada-cluster-cert
+
+    # front-proxy-client cert
+    frontProxyClientSecretName: front-proxy-client
 
 ## scheduler config
 scheduler:
@@ -362,6 +434,10 @@ apiServer:
   podAnnotations: {}
   ## @param apiServer.podLabels labels of the karmada-apiserver pods
   podLabels: {}
+  # Additional admission plugins to enable, comma separated.
+  admissionPlugins: ""
+  # Name of the ConfigMap containing audit policy file
+  auditPolicyConfigMap: ""
   ## @param image.registry keube-apiserver image registry
   ## @param image.repository keube-apiserver image repository
   ## @param image.tag keube-apiserver image tag (immutable tags are recommended)

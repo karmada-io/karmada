@@ -70,20 +70,31 @@ spec:
       volumes:
       {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
       {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
+      {{ if ne .Values.certs.mode "secrets" }}
         - name: {{ $name }}-webhook-cert-secret
           secret:
             secretName: {{ $name }}-webhook-cert
+      {{- end }}
+      {{ if eq .Values.certs.mode "secrets" }}
+        - name: {{ $name }}-webhook-cert-secret
+          secret:
+            secretName: {{ .Values.certs.secrets.clusterCertSecretName }}
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ $name }}-webhook
   namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.webhook.labels" . | nindent 4 }}
 spec:
   selector:
     {{- include "karmada.webhook.labels" . | nindent 8 }}
   ports:
-    - port: 443
+    - name: {{ $name }}-webhook
+      port: 443
+      protocol: TCP
       targetPort: 8443
 
 {{ if .Values.webhook.podDisruptionBudget }}

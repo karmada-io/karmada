@@ -92,13 +92,14 @@ app: {{- include "karmada.name" .}}-metrics-adapter
 {{- end -}}
 
 {{- define "karmada.kube-cm.labels" -}}
-{{- if .Values.kubeControllerManager.labels }}
+{{ $name :=  include "karmada.name" . }}
+{{- if .Values.kubeControllerManager.labels -}}
 {{- range $key, $value := .Values.kubeControllerManager.labels }}
 {{ $key }}: {{ $value }}
-{{- end }}
-{{- else}}
-app: {{- include "karmada.name" .}}-kube-controller-manager
-{{- end }}
+{{- end -}}
+{{- else -}}
+app: {{$name}}-kube-controller-manager
+{{- end -}}
 {{- include "karmada.commonLabels" . -}}
 {{- end -}}
 
@@ -110,17 +111,87 @@ app: {{- include "karmada.name" .}}-kube-controller-manager
 {{- end }}
 {{- end -}}
 
+{{- define "karmada.apiServer.serviceMonitor.labels" -}}
+{{- if .Values.serviceMonitor.apiServer.labels }}
+{{- range $key, $value := .Values.serviceMonitor.apiServer.labels }}
+{{ $key }}: {{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.aggregatedApiServer.serviceMonitor.labels" -}}
+{{- if .Values.serviceMonitor.aggregatedApiServer.labels }}
+{{- range $key, $value := .Values.serviceMonitor.aggregatedApiServer.labels }}
+{{ $key }}: {{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.etcd.serviceMonitor.labels" -}}
+{{- if .Values.serviceMonitor.etcd.labels }}
+{{- range $key, $value := .Values.serviceMonitor.etcd.labels }}
+{{ $key }}: {{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.metricsAdapter.serviceMonitor.labels" -}}
+{{- if .Values.serviceMonitor.metricsAdapter.labels }}
+{{- range $key, $value := .Values.serviceMonitor.metricsAdapter.labels }}
+{{ $key }}: {{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.kubeControllerManager.serviceMonitor.labels" -}}
+{{- if .Values.serviceMonitor.kubeControllerManager.labels }}
+{{- range $key, $value := .Values.serviceMonitor.kubeControllerManager.labels }}
+{{ $key }}: {{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.controllerManager.serviceMonitor.labels" -}}
+{{- if .Values.serviceMonitor.controllerManager.labels }}
+{{- range $key, $value := .Values.serviceMonitor.controllerManager.labels }}
+{{ $key }}: {{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
 {{- define "karmada.kubeconfig.volume" -}}
 {{- $name := include "karmada.name" . -}}
 - name: kubeconfig-secret
   secret:
     secretName: {{ $name }}-kubeconfig
+{{- if eq .Values.certs.mode "secrets" }}
+- name: kubeconfig-certs
+  projected:
+    sources:
+      - secret:
+          name: {{ .Values.certs.secrets.clusterCertSecretName }}
+      - configMap:
+          name: {{ .Values.certs.secrets.rootCaCrtConfigMap }}
+- name: ca-cert-store
+  configMap:
+    name: {{ .Values.certs.secrets.caBundleConfigMap }}
+    defaultMode: 0644
+    optional: false
+    items:
+    - key: ca-certificates.crt
+      path: ca-certificates.crt
+{{- end }}
 {{- end -}}
 
 {{- define "karmada.kubeconfig.volumeMount" -}}
 - name: kubeconfig-secret
   subPath: kubeconfig
   mountPath: /etc/kubeconfig
+{{- if eq .Values.certs.mode "secrets" }}
+- name: kubeconfig-certs
+  mountPath: /etc/kubeconfig-certs
+  readOnly: true
+{{- end }}
 {{- end -}}
 
 {{- define "karmada.kubeconfig.caData" -}}
@@ -129,6 +200,9 @@ certificate-authority-data: {{ print "{{ ca_crt }}" }}
 {{- end }}
 {{- if eq .Values.certs.mode "custom" }}
 certificate-authority-data: {{ b64enc .Values.certs.custom.caCrt }}
+{{- end }}
+{{- if eq .Values.certs.mode "secrets" }}
+caBundle: {{ b64enc .Values.certs.secrets.rootCaCrt }}
 {{- end }}
 {{- end -}}
 
@@ -264,6 +338,9 @@ caBundle: {{ print "{{ ca_crt }}" }}
 {{- if eq .Values.certs.mode "custom" }}
 caBundle: {{ b64enc .Values.certs.custom.caCrt }}
 {{- end }}
+{{- if eq .Values.certs.mode "secrets" }}
+caBundle: {{ b64enc .Values.certs.secrets.rootCaCrt }}
+{{- end }}
 {{- end -}}
 
 {{- define "karmada.schedulerEstimator.podLabels" -}}
@@ -318,6 +395,26 @@ app: {{- include "karmada.name" .}}-search
 {{- include "karmada.commonLabels" . -}}
 {{- end -}}
 
+{{- define "karmada.search.kubeconfig.volumeMount" -}}
+- name: k8s-certs
+  mountPath: /etc/kubernetes/pki
+  readOnly: true
+- name: etcd-cert
+  mountPath: /etc/etcd/pki
+  readOnly: true
+- name: kubeconfig-secret
+  subPath: kubeconfig
+  mountPath: /etc/kubeconfig
+{{- if eq .Values.certs.mode "secrets" }}
+- name: kubeconfig-certs
+  mountPath: /etc/kubeconfig-certs
+  readOnly: true
+- mountPath: /etc/ssl/certs/
+  name: ca-cert-store
+  readOnly: true
+{{- end }}
+{{- end -}}
+
 {{- define "karmada.search.kubeconfig.volume" -}}
 {{ $name :=  include "karmada.name" . }}
 {{- if eq .Values.installMode "host" -}}
@@ -335,11 +432,24 @@ app: {{- include "karmada.name" .}}-search
   secret:
     secretName: {{ .Values.search.kubeconfig }}
 {{- end -}}
+{{- if eq .Values.certs.mode "secrets" }}
+- name: kubeconfig-certs
+  mountPath: /etc/kubeconfig-certs
+  readOnly: true
+- name: ca-cert-store
+  configMap:
+    name: {{ .Values.certs.secrets.caBundleConfigMap }}
+    defaultMode: 0644
+    optional: false
+    items:
+    - key: ca-certificates.crt
+      path: ca-certificates.crt
+{{- end }}
 {{- end -}}
 
 {{- define "karmada.search.etcd.cert.volume" -}}
 {{ $name :=  include "karmada.name" . }}
-- name: etcd-certs
+- name: etcd-cert
   secret:
   {{- if eq .Values.etcd.mode "internal" }}
     secretName: {{ $name }}-cert
@@ -630,3 +740,18 @@ kubectl config use-context karmada-host-context
   volumeMounts:
     {{- include "karmada.init-sa-secret.volumeMount" .| nindent 4 }}
 {{- end -}}
+{{- define "karmada.certs.secrets.etcdVolume" -}}
+- name: etcd-cert
+  projected:
+    sources:
+      - secret:
+          name: {{ .Values.certs.secrets.clusterCertSecretName }}
+          items:
+            - key: tls.crt
+              path: karmada.crt
+            - key: tls.key
+              path: karmada.key
+            - key: ca.crt
+              path: server-ca.crt
+{{- end -}}
+

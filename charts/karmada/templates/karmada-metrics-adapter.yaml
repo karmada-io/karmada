@@ -84,10 +84,28 @@ spec:
       {{- end }}
       volumes:
         {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
+        {{ if eq .Values.certs.mode "secrets" }}
+        {{- include "karmada.certs.secrets.bundleVolume" . | nindent 8 }}
+        {{- end }}
         {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
+        {{ if ne .Values.certs.mode "secrets" }}
         - name: apiserver-cert
           secret:
             secretName: {{ $name }}-cert
+        {{- end }}
+        {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
+        {{ if eq .Values.certs.mode "secrets" }}        
+        - name: apiserver-cert
+          projected:
+            sources:
+              - secret:
+                  name: {{ .Values.certs.secrets.clusterCertSecretName }}
+                  items:
+                    - key: tls.crt
+                      path: karmada.crt
+                    - key: tls.key
+                      path: karmada.key
+        {{- end }}
 ---
 apiVersion: v1
 kind: Service
@@ -98,7 +116,8 @@ metadata:
     {{- include "karmada.metricsAdapter.labels" . | nindent 4 }}
 spec:
   ports:
-    - port: 443
+    - name: {{ $name }}-metrics-adapter
+      port: 443
       protocol: TCP
       targetPort: 443
   selector:

@@ -1,0 +1,20 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: karmada-intermediate
+  namespace: cert-manager
+spec:
+  commonName: Karmada Intermediate
+  duration: 43800h0m0s
+  isCA: true
+  issuerRef:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: karmada-root-ca
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  renewBefore: 2190h0m0s
+  secretName: karmada-intermediate
+  usages:
+  - signing

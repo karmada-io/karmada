@@ -53,8 +53,10 @@ spec:
             - --client-ca-file=/etc/karmada/pki/server-ca.crt
             - --cluster-cidr=10.244.0.0/16
             - --cluster-name=karmada
+            {{ if ne .Values.certs.mode "secrets" }}
             - --cluster-signing-cert-file=/etc/karmada/pki/server-ca.crt
             - --cluster-signing-key-file=/etc/karmada/pki/server-ca.key
+            {{- end }}
             - --controllers={{ .Values.kubeControllerManager.controllers }}
             - --kubeconfig=/etc/kubeconfig
             - --leader-elect=true
@@ -81,16 +83,47 @@ spec:
           {{- toYaml .Values.kubeControllerManager.resources | nindent 12 }}
           volumeMounts:
             - mountPath: /etc/karmada/pki
-              name: apisever-cert
+              name: apiserver-cert
               readOnly: true
             {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
       priorityClassName: system-node-critical
       volumes:
-        - name: apisever-cert
+        {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
+        {{ if ne .Values.certs.mode "secrets" }}
+        - name: apiserver-cert
           secret:
             secretName: {{ $name }}-cert
-        {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
+      {{- end }}
+      {{ if eq .Values.certs.mode "secrets" }}
+        - name: apiserver-cert
+          projected:
+            sources:
+              - secret:
+                  name: {{ .Values.certs.secrets.clusterCertSecretName }}
+                  items:
+                    - key: tls.key
+                      path: karmada.key
+                    - key: ca.crt
+                      path: server-ca.crt
+      {{- end }}
         {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}-kube-controller-manager
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.kube-cm.labels" . | nindent 4 }}
+spec:
+  ports:
+    - name: {{ $name }}-kube-controller-manager
+      port: 10257
+      protocol: TCP
+      targetPort: 10257
+  selector:
+    {{- include "karmada.kube-cm.labels" . | nindent 4 }}
 
 {{ if .Values.kubeControllerManager.podDisruptionBudget }}
 ---

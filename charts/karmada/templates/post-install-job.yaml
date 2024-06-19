@@ -53,4 +53,5 @@ spec:
           kubectl delete job {{ $name }}-static-resource -n {{ $namespace }}
           kubectl delete secret {{ $name }}-hook-job -n {{ $namespace }}
           EOF
+      {{ include "karmada.kubeconfig.volume" . | nindent 6 }}
 {{- end }}

@@ -47,15 +47,7 @@ spec:
           image: {{ template "karmada.search.image" . }}
           imagePullPolicy: {{ .Values.search.image.pullPolicy }}
           volumeMounts:
-            - name: k8s-certs
-              mountPath: /etc/kubernetes/pki
-              readOnly: true
-            - name: etcd-certs
-              mountPath: /etc/etcd/pki
-              readOnly: true
-            - name: kubeconfig-secret
-              subPath: kubeconfig
-              mountPath: /etc/kubeconfig
+          {{- include "karmada.search.kubeconfig.volumeMount" . | nindent 12 }}
           command:
             - /bin/karmada-search
             - --kubeconfig=/etc/kubeconfig
@@ -94,7 +86,9 @@ spec:
       volumes:
       {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
       {{- include "karmada.search.kubeconfig.volume" . | nindent 8 }}
+      {{ if ne .Values.certs.mode "secrets" }}
       {{- include "karmada.search.etcd.cert.volume" . | nindent 8 }}
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service
