@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -50,6 +51,12 @@ const (
 	condType                          = "ServiceDomainNameResolutionReady"
 	serviceDomainNameResolutionReady  = "ServiceDomainNameResolutionReady"
 	serviceDomainNameResolutionFailed = "ServiceDomainNameResolutionFailed"
+)
+
+const (
+	loadCorednsConditionFailed  = "LoadCorednsConditionFailed"
+	storeCorednsConditionFailed = "StoreCorednsConditionFailed"
+	reportConditionFailed       = "ReportCorednsConditionToControlPlaneFailed"
 )
 
 var localReference = &corev1.ObjectReference{
@@ -86,6 +93,9 @@ type Detector struct {
 	queue            workqueue.RateLimitingInterface
 	eventBroadcaster record.EventBroadcaster
 	eventRecorder    record.EventRecorder
+
+	errorEventMap  map[string]time.Time
+	errorEventLock sync.Mutex
 }
 
 // NewCorednsDetector returns an instance of coredns detector.
@@ -123,6 +133,7 @@ func NewCorednsDetector(memberClusterClient kubernetes.Interface, karmadaClient 
 		eventBroadcaster:    broadcaster,
 		eventRecorder:       recorder,
 		queue:               workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{Name: name}),
+		errorEventMap:       map[string]time.Time{},
 		lec: leaderelection.LeaderElectionConfig{
 			Lock:          rl,
 			LeaseDuration: baselec.LeaseDuration.Duration,
@@ -156,13 +167,13 @@ func (d *Detector) Run(ctx context.Context) {
 			observed := lookupOnce(logger)
 			curr, err := d.conditionStore.Load(d.nodeName)
 			if err != nil {
-				d.eventRecorder.Eventf(localReference, corev1.EventTypeWarning, "LoadCorednsConditionFailed", "failed to load condition: %v", err)
+				d.reportErrorEvent(corev1.EventTypeWarning, loadCorednsConditionFailed, "failed to load condition: %v", err)
 				return
 			}
 
 			cond := d.conditionCache.ThresholdAdjustedCondition(d.nodeName, curr, observed)
 			if err = d.conditionStore.Store(d.nodeName, cond); err != nil {
-				d.eventRecorder.Eventf(localReference, corev1.EventTypeWarning, "StoreCorednsConditionFailed", "failed to store condition: %v", err)
+				d.reportErrorEvent(corev1.EventTypeWarning, storeCorednsConditionFailed, "failed to store condition: %v", err)
 				return
 			}
 			d.queue.Add(0)
@@ -199,11 +210,32 @@ func (d *Detector) processNextWorkItem(ctx context.Context) bool {
 
 	if err := d.sync(ctx); err != nil {
 		runtime.HandleError(fmt.Errorf("failed to sync corendns condition to control plane, requeuing: %v", err))
+		if apierrors.IsUnauthorized(err) {
+			d.reportErrorEvent(corev1.EventTypeWarning, reportConditionFailed, "failed to sync condition to control plane, kubeconfig may be invalid or expired: %v", err)
+		} else {
+			d.reportErrorEvent(corev1.EventTypeWarning, reportConditionFailed, "failed to sync condition to control plane: %v", err)
+		}
 		d.queue.AddRateLimited(key)
 	} else {
 		d.queue.Forget(key)
 	}
 	return true
+}
+
+func (d *Detector) reportErrorEvent(eventType string, reason string, messageFmt string, args ...interface{}) {
+	key := fmt.Sprintf("%s-%s-"+messageFmt, eventType, reason, args)
+	now := time.Now()
+
+	d.errorEventLock.Lock()
+	lastReportTime, ok := d.errorEventMap[key]
+	if ok && !lastReportTime.IsZero() && now.Sub(lastReportTime) < time.Hour {
+		d.errorEventLock.Unlock()
+		return
+	}
+	d.errorEventMap[key] = now
+	d.errorEventLock.Unlock()
+
+	d.eventRecorder.Eventf(localReference, eventType, reason, messageFmt, args)
 }
 
 func lookupOnce(logger klog.Logger) *metav1.Condition {
@@ -270,7 +302,7 @@ func (d *Detector) newClusterCondition(alarm bool) (*metav1.Condition, error) {
 func (d *Detector) shouldAlarm() (skip bool, alarm bool, err error) {
 	conditions, err := d.conditionStore.ListAll()
 	if err != nil {
-		return false, false, err
+		return false, false, fmt.Errorf("failed to list all node conditions: %v", err)
 	}
 	if len(conditions) == 0 {
 		return true, false, nil
