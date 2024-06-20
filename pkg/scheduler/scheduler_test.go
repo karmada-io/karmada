@@ -106,6 +106,7 @@ func Test_patchBindingStatusCondition(t *testing.T) {
 		name                  string
 		binding               *workv1alpha2.ResourceBinding
 		newScheduledCondition metav1.Condition
+		ignoreErr             bool
 		expected              *workv1alpha2.ResourceBinding
 	}{
 		{
@@ -116,6 +117,7 @@ func Test_patchBindingStatusCondition(t *testing.T) {
 				Status:     workv1alpha2.ResourceBindingStatus{},
 			},
 			newScheduledCondition: successCondition,
+			ignoreErr:             true,
 			expected: &workv1alpha2.ResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{Name: "rb-1", Namespace: "default", Generation: 1},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
@@ -125,11 +127,12 @@ func Test_patchBindingStatusCondition(t *testing.T) {
 		{
 			name: "add failure condition",
 			binding: &workv1alpha2.ResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "rb-2", Namespace: "default"},
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-2", Namespace: "default", Generation: 1},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
 				Status:     workv1alpha2.ResourceBindingStatus{},
 			},
 			newScheduledCondition: failureCondition,
+			ignoreErr:             false,
 			expected: &workv1alpha2.ResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{Name: "rb-2", Namespace: "default"},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
@@ -139,25 +142,27 @@ func Test_patchBindingStatusCondition(t *testing.T) {
 		{
 			name: "add no cluster available condition",
 			binding: &workv1alpha2.ResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "rb-3", Namespace: "default"},
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-3", Namespace: "default", Generation: 1},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
 				Status:     workv1alpha2.ResourceBindingStatus{},
 			},
 			newScheduledCondition: noClusterFitCondition,
+			ignoreErr:             true,
 			expected: &workv1alpha2.ResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{Name: "rb-3", Namespace: "default"},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
-				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{noClusterFitCondition}},
+				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{noClusterFitCondition}, SchedulerObservedGeneration: 1},
 			},
 		},
 		{
 			name: "add unschedulable condition",
 			binding: &workv1alpha2.ResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "rb-4", Namespace: "default"},
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-4", Namespace: "default", Generation: 1},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
 				Status:     workv1alpha2.ResourceBindingStatus{},
 			},
 			newScheduledCondition: unschedulableCondition,
+			ignoreErr:             false,
 			expected: &workv1alpha2.ResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{Name: "rb-4", Namespace: "default"},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
@@ -172,6 +177,7 @@ func Test_patchBindingStatusCondition(t *testing.T) {
 				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{failureCondition}, SchedulerObservedGeneration: 2},
 			},
 			newScheduledCondition: successCondition,
+			ignoreErr:             true,
 			expected: &workv1alpha2.ResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{Name: "rb-5", Namespace: "default"},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
@@ -181,11 +187,12 @@ func Test_patchBindingStatusCondition(t *testing.T) {
 		{
 			name: "replace failure condition",
 			binding: &workv1alpha2.ResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "rb-6", Namespace: "default"},
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-6", Namespace: "default", Generation: 1},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
 				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{successCondition}},
 			},
 			newScheduledCondition: failureCondition,
+			ignoreErr:             false,
 			expected: &workv1alpha2.ResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{Name: "rb-6", Namespace: "default"},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
@@ -195,11 +202,12 @@ func Test_patchBindingStatusCondition(t *testing.T) {
 		{
 			name: "replace to unschedulable condition",
 			binding: &workv1alpha2.ResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "rb-7", Namespace: "default"},
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-7", Namespace: "default", Generation: 1},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
 				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{failureCondition}},
 			},
 			newScheduledCondition: unschedulableCondition,
+			ignoreErr:             false,
 			expected: &workv1alpha2.ResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{Name: "rb-7", Namespace: "default"},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
@@ -209,15 +217,16 @@ func Test_patchBindingStatusCondition(t *testing.T) {
 		{
 			name: "replace to no cluster fit condition",
 			binding: &workv1alpha2.ResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "rb-8", Namespace: "default"},
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-8", Namespace: "default", Generation: 1},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
 				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{failureCondition}},
 			},
 			newScheduledCondition: noClusterFitCondition,
+			ignoreErr:             true,
 			expected: &workv1alpha2.ResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{Name: "rb-8", Namespace: "default"},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
-				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{noClusterFitCondition}},
+				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{noClusterFitCondition}, SchedulerObservedGeneration: 1},
 			},
 		},
 	}
@@ -228,7 +237,7 @@ func Test_patchBindingStatusCondition(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			err = patchBindingStatusCondition(karmadaClient, test.binding, test.newScheduledCondition)
+			err = patchBindingStatusCondition(karmadaClient, test.binding, test.newScheduledCondition, test.ignoreErr)
 			if err != nil {
 				t.Error(err)
 			}
@@ -310,6 +319,7 @@ func Test_patchClusterBindingStatusCondition(t *testing.T) {
 		name                  string
 		binding               *workv1alpha2.ClusterResourceBinding
 		newScheduledCondition metav1.Condition
+		ignoreErr             bool
 		expected              *workv1alpha2.ClusterResourceBinding
 	}{
 		{
@@ -320,6 +330,7 @@ func Test_patchClusterBindingStatusCondition(t *testing.T) {
 				Status:     workv1alpha2.ResourceBindingStatus{},
 			},
 			newScheduledCondition: successCondition,
+			ignoreErr:             true,
 			expected: &workv1alpha2.ClusterResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{Name: "rb-1"},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
@@ -329,11 +340,12 @@ func Test_patchClusterBindingStatusCondition(t *testing.T) {
 		{
 			name: "add failure condition",
 			binding: &workv1alpha2.ClusterResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "rb-2"},
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-2", Generation: 1},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
 				Status:     workv1alpha2.ResourceBindingStatus{},
 			},
 			newScheduledCondition: failureCondition,
+			ignoreErr:             false,
 			expected: &workv1alpha2.ClusterResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{Name: "rb-2"},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
@@ -343,11 +355,12 @@ func Test_patchClusterBindingStatusCondition(t *testing.T) {
 		{
 			name: "add unschedulable condition",
 			binding: &workv1alpha2.ClusterResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "rb-3"},
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-3", Generation: 1},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
 				Status:     workv1alpha2.ResourceBindingStatus{},
 			},
 			newScheduledCondition: unschedulableCondition,
+			ignoreErr:             false,
 			expected: &workv1alpha2.ClusterResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{Name: "rb-3"},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
@@ -357,15 +370,16 @@ func Test_patchClusterBindingStatusCondition(t *testing.T) {
 		{
 			name: "add no cluster fit condition",
 			binding: &workv1alpha2.ClusterResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "rb-4"},
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-4", Generation: 1},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
 				Status:     workv1alpha2.ResourceBindingStatus{},
 			},
 			newScheduledCondition: noClusterFitCondition,
+			ignoreErr:             true,
 			expected: &workv1alpha2.ClusterResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{Name: "rb-4"},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
-				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{noClusterFitCondition}},
+				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{noClusterFitCondition}, SchedulerObservedGeneration: 1},
 			},
 		},
 		{
@@ -376,6 +390,7 @@ func Test_patchClusterBindingStatusCondition(t *testing.T) {
 				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{failureCondition}, SchedulerObservedGeneration: 2},
 			},
 			newScheduledCondition: successCondition,
+			ignoreErr:             true,
 			expected: &workv1alpha2.ClusterResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{Name: "rb-5"},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
@@ -385,11 +400,12 @@ func Test_patchClusterBindingStatusCondition(t *testing.T) {
 		{
 			name: "replace failure condition",
 			binding: &workv1alpha2.ClusterResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "rb-6"},
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-6", Generation: 1},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
 				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{successCondition}},
 			},
 			newScheduledCondition: failureCondition,
+			ignoreErr:             false,
 			expected: &workv1alpha2.ClusterResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{Name: "rb-6"},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
@@ -399,11 +415,12 @@ func Test_patchClusterBindingStatusCondition(t *testing.T) {
 		{
 			name: "replace to unschedulable condition",
 			binding: &workv1alpha2.ClusterResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "rb-7"},
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-7", Generation: 1},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
 				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{failureCondition}},
 			},
 			newScheduledCondition: unschedulableCondition,
+			ignoreErr:             false,
 			expected: &workv1alpha2.ClusterResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{Name: "rb-7"},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
@@ -413,15 +430,16 @@ func Test_patchClusterBindingStatusCondition(t *testing.T) {
 		{
 			name: "replace to no cluster fit condition",
 			binding: &workv1alpha2.ClusterResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "rb-8"},
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-8", Generation: 1},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
 				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{failureCondition}},
 			},
 			newScheduledCondition: noClusterFitCondition,
+			ignoreErr:             true,
 			expected: &workv1alpha2.ClusterResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{Name: "rb-8"},
 				Spec:       workv1alpha2.ResourceBindingSpec{},
-				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{noClusterFitCondition}},
+				Status:     workv1alpha2.ResourceBindingStatus{Conditions: []metav1.Condition{noClusterFitCondition}, SchedulerObservedGeneration: 1},
 			},
 		},
 	}
@@ -432,7 +450,7 @@ func Test_patchClusterBindingStatusCondition(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			err = patchClusterBindingStatusCondition(karmadaClient, test.binding, test.newScheduledCondition)
+			err = patchClusterBindingStatusCondition(karmadaClient, test.binding, test.newScheduledCondition, test.ignoreErr)
 			if err != nil {
 				t.Error(err)
 			}
