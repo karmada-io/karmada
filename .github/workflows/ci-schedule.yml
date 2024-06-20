@@ -3,6 +3,9 @@ on:
   schedule:
     # Run this workflow "At 18:00 UTC on Sunday and Saturday"
     - cron: '0 18 * * 0,6'
+
+permissions:
+  contents: read 
     
 jobs:
   e2e:
