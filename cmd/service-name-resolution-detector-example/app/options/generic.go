@@ -37,8 +37,8 @@ import (
 
 // GenericOptions contains some generic options.
 type GenericOptions struct {
-	KarmadaKubeConfig   string
-	KarmadaContext      string
+	HostKubeConfig      string
+	HostContext         string
 	KarmadaConfig       *rest.Config
 	MemberClusterConfig *rest.Config
 
@@ -70,8 +70,10 @@ func NewGenericOptions() *GenericOptions {
 
 // AddFlags adds flags of generic options to the specified FlagSet.
 func (o *GenericOptions) AddFlags(fs *pflag.FlagSet, allDetectors []string) {
-	fs.StringVar(&o.KarmadaKubeConfig, "karmada-kubeconfig", o.KarmadaKubeConfig, "Path to karmada control plane kubeconfig file.")
-	fs.StringVar(&o.KarmadaContext, "karmada-context", "", "Name of the cluster context in karmada control plane kubeconfig file.")
+	fs.StringVar(&o.HostKubeConfig, "host-kubeconfig", o.HostKubeConfig, "Path to karmada control plane kubeconfig file.")
+	fs.StringVar(&o.HostKubeConfig, "karmada-kubeconfig", o.HostKubeConfig, "DEPRECATED: use host-kubeconfig -- Path to karmada control plane kubeconfig file.")
+	fs.StringVar(&o.HostContext, "host-context", "", "DEPRECATED: use host-context -- Name of the cluster context in karmada control plane kubeconfig file.")
+	fs.StringVar(&o.HostContext, "karmada-context", "", "Name of the cluster context in karmada control plane kubeconfig file.")
 
 	fs.StringVar(&o.ClusterName, "cluster-name", o.ClusterName, "Name of member cluster that the agent serves for.")
 	fs.StringVar(&o.Hostname, "host-name", o.Hostname, "Name of host that the agent runs on, used as lock holder identity.")
@@ -93,7 +95,7 @@ func (o *GenericOptions) Complete() error {
 		return nil
 	}
 
-	controlPlaneRestConfig, err := apiclient.RestConfig(o.KarmadaContext, o.KarmadaKubeConfig)
+	controlPlaneRestConfig, err := apiclient.RestConfig(o.HostContext, o.HostKubeConfig)
 	if err != nil {
 		return fmt.Errorf("failed to build kubeconfig of karmada control plane: %v", err)
 	}

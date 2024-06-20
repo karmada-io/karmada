@@ -35,8 +35,8 @@ spec:
           name: service-name-resolution-detector
           command:
             - service-name-resolution-detector
-              --karmada-kubeconfig=/tmp/config
-              --karmada-context=<context-of-control-plane>
+              --host-kubeconfig=/tmp/config
+              --host-context=<context-of-control-plane>
               --cluster-name=<your-cluster-name>
               --host-name=${HOST_NAME}
               --bind-address=${POD_ADDRESS}
