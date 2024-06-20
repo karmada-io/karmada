@@ -128,6 +128,7 @@ func NewInitJob(opt *InitOptions) *workflow.Job {
 	initJob.AppendTask(tasks.NewRBACTask())
 	initJob.AppendTask(tasks.NewComponentTask())
 	initJob.AppendTask(tasks.NewWaitControlPlaneTask())
+	initJob.AppendTask(tasks.NewWaitAddonTask())
 
 	initJob.SetDataInitializer(func() (workflow.RunData, error) {
 		return newRunData(opt)
