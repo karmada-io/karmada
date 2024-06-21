@@ -27,6 +27,7 @@ import (
 
 	estimatorservice "github.com/karmada-io/karmada/pkg/estimator/service"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/grpcconnection"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -96,19 +97,19 @@ func (c *SchedulerEstimatorCache) GetClient(name string) (estimatorservice.Estim
 }
 
 // EstablishConnection establishes a new gRPC connection with the specified cluster scheduler estimator.
-func EstablishConnection(kubeClient kubernetes.Interface, name string, estimatorCache *SchedulerEstimatorCache, estimatorServicePrefix string, port int) error {
+func EstablishConnection(kubeClient kubernetes.Interface, name string, estimatorCache *SchedulerEstimatorCache, estimatorServicePrefix string, grpcConfig *grpcconnection.ClientConfig) error {
 	if estimatorCache.IsEstimatorExist(name) {
 		return nil
 	}
 
 	serverAddr, err := resolveCluster(kubeClient, util.NamespaceKarmadaSystem,
-		names.GenerateEstimatorServiceName(estimatorServicePrefix, name), int32(port))
+		names.GenerateEstimatorServiceName(estimatorServicePrefix, name), int32(grpcConfig.TargetPort))
 	if err != nil {
 		return err
 	}
 
 	klog.Infof("Start dialing estimator server(%s) of cluster(%s).", serverAddr, name)
-	cc, err := util.Dial(serverAddr, 5*time.Second)
+	cc, err := grpcConfig.DialWithTimeOut(serverAddr, 5*time.Second)
 	if err != nil {
 		klog.Errorf("Failed to dial cluster(%s): %v.", name, err)
 		return err
