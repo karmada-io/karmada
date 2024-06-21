@@ -41,7 +41,7 @@ func resolveCluster(kubeClient kubernetes.Interface, namespace, id string, port 
 			 * But the Service resource is defined in Host Kubernetes Cluster. So we cannot get its content here.
 			 * The best thing we can do is just glue host:port together, and try to connect to it.
 			 */
-			return net.JoinHostPort(id, fmt.Sprintf("%d", port)), nil
+			return net.JoinHostPort(fmt.Sprintf("%s.%s.svc.cluster.local", id, namespace), fmt.Sprintf("%d", port)), nil
 		}
 
 		return "", err

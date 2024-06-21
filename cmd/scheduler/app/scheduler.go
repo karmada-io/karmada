@@ -170,7 +170,7 @@ func run(opts *options.Options, stopChan <-chan struct{}, registryOptions ...Opt
 		scheduler.WithEnableSchedulerEstimator(opts.EnableSchedulerEstimator),
 		scheduler.WithDisableSchedulerEstimatorInPullMode(opts.DisableSchedulerEstimatorInPullMode),
 		scheduler.WithSchedulerEstimatorServicePrefix(opts.SchedulerEstimatorServicePrefix),
-		scheduler.WithSchedulerEstimatorPort(opts.SchedulerEstimatorPort),
+		scheduler.WithSchedulerEstimatorConnection(opts.SchedulerEstimatorPort, opts.SchedulerEstimatorCertFile, opts.SchedulerEstimatorKeyFile, opts.SchedulerEstimatorCaFile, opts.InsecureSkipEstimatorVerify),
 		scheduler.WithSchedulerEstimatorTimeout(opts.SchedulerEstimatorTimeout),
 		scheduler.WithEnableEmptyWorkloadPropagation(opts.EnableEmptyWorkloadPropagation),
 		scheduler.WithEnableSchedulerPlugin(opts.Plugins),

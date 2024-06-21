@@ -53,16 +53,16 @@ func TestCreateScheduler(t *testing.T) {
 			name: "scheduler with enableSchedulerEstimator enabled",
 			opts: []Option{
 				WithEnableSchedulerEstimator(true),
-				WithSchedulerEstimatorPort(port),
+				WithSchedulerEstimatorConnection(port, "", "", "", false),
 			},
 			enableSchedulerEstimator: true,
 			schedulerEstimatorPort:   port,
 		},
 		{
-			name: "scheduler with enableSchedulerEstimator disabled, WithSchedulerEstimatorPort enabled",
+			name: "scheduler with enableSchedulerEstimator disabled, WithSchedulerEstimatorConnection enabled",
 			opts: []Option{
 				WithEnableSchedulerEstimator(false),
-				WithSchedulerEstimatorPort(port),
+				WithSchedulerEstimatorConnection(port, "", "", "", false),
 			},
 			enableSchedulerEstimator: false,
 		},
@@ -79,8 +79,8 @@ func TestCreateScheduler(t *testing.T) {
 				t.Errorf("unexpected enableSchedulerEstimator want %v, got %v", tc.enableSchedulerEstimator, sche.enableSchedulerEstimator)
 			}
 
-			if tc.schedulerEstimatorPort != sche.schedulerEstimatorPort {
-				t.Errorf("unexpected schedulerEstimatorPort want %v, got %v", tc.schedulerEstimatorPort, sche.schedulerEstimatorPort)
+			if tc.enableSchedulerEstimator && tc.schedulerEstimatorPort != sche.schedulerEstimatorClientConfig.TargetPort {
+				t.Errorf("unexpected schedulerEstimatorPort want %v, got %v", tc.schedulerEstimatorPort, sche.schedulerEstimatorClientConfig.TargetPort)
 			}
 		})
 	}

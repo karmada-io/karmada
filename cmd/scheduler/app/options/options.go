@@ -71,6 +71,14 @@ type Options struct {
 	SchedulerEstimatorServicePrefix string
 	// SchedulerEstimatorPort is the port that the accurate scheduler estimator server serves at.
 	SchedulerEstimatorPort int
+	// InsecureSkipEstimatorVerify controls whether verifies the grpc server's certificate chain and host name.
+	InsecureSkipEstimatorVerify bool
+	// SchedulerEstimatorCertFile SSL certification file used to secure scheduler estimator communication.
+	SchedulerEstimatorCertFile string
+	// SchedulerEstimatorKeyFile SSL key file used to secure scheduler estimator communication.
+	SchedulerEstimatorKeyFile string
+	// SchedulerEstimatorCaFile SSL Certificate Authority file used to secure scheduler estimator communication.
+	SchedulerEstimatorCaFile string
 
 	// EnableEmptyWorkloadPropagation represents whether workload with 0 replicas could be propagated to member clusters.
 	EnableEmptyWorkloadPropagation bool
@@ -138,6 +146,10 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&o.SchedulerEstimatorTimeout.Duration, "scheduler-estimator-timeout", 3*time.Second, "Specifies the timeout period of calling the scheduler estimator service.")
 	fs.StringVar(&o.SchedulerEstimatorServicePrefix, "scheduler-estimator-service-prefix", "karmada-scheduler-estimator", "The prefix of scheduler estimator service name")
 	fs.IntVar(&o.SchedulerEstimatorPort, "scheduler-estimator-port", defaultEstimatorPort, "The secure port on which to connect the accurate scheduler estimator.")
+	fs.StringVar(&o.SchedulerEstimatorCertFile, "scheduler-estimator-cert-file", "", "SSL certification file used to secure scheduler estimator communication.")
+	fs.StringVar(&o.SchedulerEstimatorKeyFile, "scheduler-estimator-key-file", "", "SSL key file used to secure scheduler estimator communication.")
+	fs.StringVar(&o.SchedulerEstimatorCaFile, "scheduler-estimator-ca-file", "", "SSL Certificate Authority file used to secure scheduler estimator communication.")
+	fs.BoolVar(&o.InsecureSkipEstimatorVerify, "insecure-skip-estimator-verify", false, "Controls whether verifies the scheduler estimator's certificate chain and host name.")
 	fs.BoolVar(&o.EnableEmptyWorkloadPropagation, "enable-empty-workload-propagation", false, "Enable workload with replicas 0 to be propagated to member clusters.")
 	fs.StringSliceVar(&o.Plugins, "plugins", []string{"*"},
 		fmt.Sprintf("A list of plugins to enable. '*' enables all build-in and customized plugins, 'foo' enables the plugin named 'foo', '*,-foo' disables the plugin named 'foo'.\nAll build-in plugins: %s.", strings.Join(frameworkplugins.NewInTreeRegistry().FactoryNames(), ",")))
