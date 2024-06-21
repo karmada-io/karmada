@@ -188,6 +188,9 @@ spec:
         - --secure-port=10351
         - --enable-scheduler-estimator=true
         - --leader-elect-resource-namespace={{ .SystemNamespace }}
+        - --scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt
+        - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt
+        - --scheduler-estimator-key-file=/etc/karmada/pki/karmada.key
         - --v=4
         livenessProbe:
           httpGet:
@@ -199,10 +202,16 @@ spec:
           periodSeconds: 15
           timeoutSeconds: 5
         volumeMounts:
+        - name: karmada-certs
+          mountPath: /etc/karmada/pki
+          readOnly: true
         - name: kubeconfig
           subPath: kubeconfig
           mountPath: /etc/karmada/kubeconfig
       volumes:
+        - name: karmada-certs
+          secret:
+            secretName: {{ .KarmadaCertsSecret }}
         - name: kubeconfig
           secret:
             secretName: {{ .KubeconfigSecret }}
@@ -241,6 +250,9 @@ spec:
         - --kubeconfig=/etc/karmada/kubeconfig
         - --bind-address=0.0.0.0
         - --leader-elect-resource-namespace={{ .SystemNamespace }}
+        - --scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt
+        - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt
+        - --scheduler-estimator-key-file=/etc/karmada/pki/karmada.key
         - --v=4
         livenessProbe:
           httpGet:
@@ -252,10 +264,16 @@ spec:
           periodSeconds: 15
           timeoutSeconds: 5
         volumeMounts:
+        - name: karmada-certs
+          mountPath: /etc/karmada/pki
+          readOnly: true
         - name: kubeconfig
           subPath: kubeconfig
           mountPath: /etc/karmada/kubeconfig
       volumes:
+        - name: karmada-certs
+          secret:
+            secretName: {{ .KarmadaCertsSecret }}
         - name: kubeconfig
           secret:
             secretName: {{ .KubeconfigSecret }}

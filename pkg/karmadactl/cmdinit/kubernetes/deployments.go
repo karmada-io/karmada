@@ -454,6 +454,9 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 					"--secure-port=10351",
 					"--enable-scheduler-estimator=true",
 					"--leader-elect=true",
+					"--scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt",
+					"--scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt",
+					"--scheduler-estimator-key-file=/etc/karmada/pki/karmada.key",
 					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
 					"--v=4",
 				},
@@ -465,6 +468,11 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 						MountPath: kubeConfigContainerMountPath,
 						SubPath:   KubeConfigSecretAndMountName,
 					},
+					{
+						Name:      globaloptions.KarmadaCertsName,
+						ReadOnly:  true,
+						MountPath: karmadaCertsVolumeMountPath,
+					},
 				},
 			},
 		},
@@ -474,6 +482,14 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
 						SecretName: KubeConfigSecretAndMountName,
+					},
+				},
+			},
+			{
+				Name: globaloptions.KarmadaCertsName,
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: globaloptions.KarmadaCertsName,
 					},
 				},
 			},
