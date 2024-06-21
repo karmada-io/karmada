@@ -18,7 +18,16 @@ spec:
     singular: clusterpropagationpolicy
   scope: Cluster
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.conflictResolution
+      name: CONFLICT-RESOLUTION
+      priority: 1
+      type: string
+    - jsonPath: .spec.priority
+      name: PRIORITY
+      priority: 1
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: |-
@@ -793,3 +802,4 @@ spec:
         type: object
     served: true
     storage: true
+    subresources: {}
