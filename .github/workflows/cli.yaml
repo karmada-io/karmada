@@ -12,6 +12,9 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.actor }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
+permissions:
+  contents: read  # Required to check out the code
+  id-token: write # Required for  authentication methods 
 jobs:
   init:
     name: init
@@ -55,4 +58,3 @@ jobs:
           cluster-resources: nodes,namespaces,
           namespace-resources: configmaps,pods,svc
           artifact-name: logs-${{ matrix.k8s}}
-
