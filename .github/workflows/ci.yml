@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 permissions:
   contents: read  # Adjust permissions as necessary
-  id-token: write # For OIDC tokens, adjust if needed
+  id-token: write # For OIDC tokens
 jobs:
   golangci:
     name: lint
