@@ -12,6 +12,9 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.actor }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
+permissions:
+  contents: read  # Adjust permissions as necessary
+  id-token: write # For OIDC tokens, adjust if needed
 jobs:
   golangci:
     name: lint
