@@ -5,6 +5,10 @@ on:
     # for PRs initiated by Dependabot.
     branches-ignore:
       - 'dependabot/**'
+
+permissions:
+  contents: read # Required by actions/checkout@v4 to fetch the repository contents.
+  
 jobs:
   fossa:
     name: FOSSA
