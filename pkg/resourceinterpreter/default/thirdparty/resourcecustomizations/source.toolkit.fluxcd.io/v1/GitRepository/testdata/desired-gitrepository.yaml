@@ -1,6 +1,7 @@
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata:
+  generation: 1
   name: sample
   namespace: test-gitrepository
 spec:

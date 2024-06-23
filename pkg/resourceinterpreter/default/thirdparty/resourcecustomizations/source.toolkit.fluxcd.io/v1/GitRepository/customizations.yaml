@@ -22,19 +22,37 @@ spec:
     statusAggregation:
       luaScript: >
         function AggregateStatus(desiredObj, statusItems)
+          if desiredObj.status == nil then
+            desiredObj.status = {}
+          end
+          if desiredObj.metadata.generation == nil then
+            desiredObj.metadata.generation = 0
+          end
+          if desiredObj.status.observedGeneration == nil then
+            desiredObj.status.observedGeneration = 0
+          end
+
+          -- Initialize status fields if status doest not exist
+          -- If the GitRepository is not spread to any cluster, its status also should be aggregated
           if statusItems == nil then
+            desiredObj.status.artifact = {}
+            desiredObj.status.conditions = {}
+            desiredObj.status.observedGeneration = desiredObj.metadata.generation
             return desiredObj
           end
-          desiredObj.status = {}
-          desiredObj.status.conditions = {}
-          conditions = {}          
+
+          local artifact = {}
+          local conditions = {}
           local conditionsIndex = 1
+          local generation = desiredObj.metadata.generation
+          local observedGeneration = desiredObj.status.observedGeneration
+
+          -- Count all members that their status is updated to the latest generation
+          local observedResourceTemplateGenerationCount = 0
+
           for i = 1, #statusItems do
             if statusItems[i].status ~= nil and statusItems[i].status.artifact ~= nil then
-              desiredObj.status.artifact = statusItems[i].status.artifact
-            end
-            if statusItems[i].status ~= nil and statusItems[i].status.lastHandledReconcileAt ~= nil and statusItems[i].status.lastHandledReconcileAt ~='' then
-              desiredObj.status.lastHandledReconcileAt = statusItems[i].status.lastHandledReconcileAt
+              artifact = statusItems[i].status.artifact
             end
             if statusItems[i].status ~= nil and statusItems[i].status.conditions ~= nil then
               for conditionIndex = 1, #statusItems[i].status.conditions do
@@ -53,8 +71,33 @@ spec:
                 end
               end
             end
+
+            -- Check if the member's status is updated to the latest generation
+            local resourceTemplateGeneration = 0
+            if statusItems[i].status ~= nil and statusItems[i].status.resourceTemplateGeneration ~= nil then 
+              resourceTemplateGeneration = statusItems[i].status.resourceTemplateGeneration
+            end
+            local memberGeneration = 0
+            if statusItems[i].status ~= nil and statusItems[i].status.generation ~= nil then
+              memberGeneration = statusItems[i].status.generation
+            end
+            local memberObservedGeneration = 0
+            if statusItems[i].status ~= nil and statusItems[i].status.observedGeneration ~= nil then
+              memberObservedGeneration = statusItems[i].status.observedGeneration
+            end
+            if resourceTemplateGeneration == generation and memberGeneration == memberObservedGeneration then
+              observedResourceTemplateGenerationCount = observedResourceTemplateGenerationCount + 1
+            end
           end
-          desiredObj.status.observedGeneration = desiredObj.metadata.generation
+
+          -- Update the observed generation based on the observedResourceTemplateGenerationCount
+          if observedResourceTemplateGenerationCount == #statusItems then
+            desiredObj.status.observedGeneration = generation
+          else
+            desiredObj.status.observedGeneration = observedGeneration 
+          end
+
+          desiredObj.status.artifact = artifact
           desiredObj.status.conditions = conditions
           return desiredObj
         end
@@ -69,15 +112,29 @@ spec:
     statusReflection:
       luaScript: >
         function ReflectStatus (observedObj)
-          status = {}
-          if observedObj == nil or observedObj.status == nil then 
+          local status = {}
+          if observedObj == nil or observedObj.status == nil then
             return status
           end
           status.conditions = observedObj.status.conditions
           status.artifact = observedObj.status.artifact
+          status.observedGeneration = observedObj.status.observedGeneration
           status.observedIgnore = observedObj.status.observedIgnore
           status.observedRecurseSubmodules = observedObj.status.observedRecurseSubmodules
-          status.lastHandledReconcileAt = observedObj.status.lastHandledReconcileAt
+
+          -- handle resource generation report
+          if observedObj.metadata == nil then
+            return status
+          end
+          status.generation = observedObj.metadata.generation
+          if observedObj.metadata.annotations == nil then
+            return status
+          end
+          local resourceTemplateGeneration = tonumber(observedObj.metadata.annotations["resourcetemplate.karmada.io/generation"])
+          if resourceTemplateGeneration ~= nil then
+              status.resourceTemplateGeneration = resourceTemplateGeneration
+          end
+
           return status
         end
     dependencyInterpretation:
