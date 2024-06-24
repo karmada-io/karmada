@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -85,6 +86,13 @@ func jobReplica(object *unstructured.Unstructured) (int32, *workv1alpha2.Replica
 	// parallelism might never be nil as the kube-apiserver will set it to 1 by default if not specified.
 	if job.Spec.Parallelism != nil {
 		replica = *job.Spec.Parallelism
+	}
+	// For fixed completion count Jobs, the actual number of pods running in parallel will not exceed the number of remaining completions.
+	// Higher values of .spec.parallelism are effectively ignored.
+	// More info: https://kubernetes.io/docs/concepts/workloads/controllers/job/
+	completions := ptr.Deref[int32](job.Spec.Completions, replica)
+	if replica > completions {
+		replica = completions
 	}
 	requirement := helper.GenerateReplicaRequirements(&job.Spec.Template)
 
