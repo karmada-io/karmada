@@ -5,10 +5,12 @@ status:
   availableReplicas: 2
   currentRevision: sample-59df6bd888
   expectedUpdatedReplicas: 2
-  labelSelector: app=sample,test=cloneset 
+  generation: 2
+  labelSelector: app=sample,test=cloneset
   observedGeneration: 1
   readyReplicas: 2
   replicas: 2
+  resourceTemplateGeneration: 3
   updateRevision: sample-59df6bd888
   updatedReadyReplicas: 2
   updatedReplicas: 2
@@ -20,10 +22,12 @@ status:
   availableReplicas: 2
   currentRevision: sample-59df6bd888
   expectedUpdatedReplicas: 2
-  labelSelector: app=sample,test=cloneset 
+  generation: 2
+  labelSelector: app=sample,test=cloneset
   observedGeneration: 1
   readyReplicas: 2
   replicas: 2
+  resourceTemplateGeneration: 3
   updateRevision: sample-59df6bd888
   updatedReadyReplicas: 2
   updatedReplicas: 2
