@@ -53,6 +53,9 @@ spec:
             - --bind-address=0.0.0.0
             - --secure-port=10351
             - --leader-elect-resource-namespace={{ $systemNamespace }}
+            - --scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt
+            - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt
+            - --scheduler-estimator-key-file=/etc/karmada/pki/karmada.key
           livenessProbe:
             httpGet:
               path: /healthz
@@ -63,12 +66,16 @@ spec:
             periodSeconds: 15
             timeoutSeconds: 5
           volumeMounts:
+            - name: karmada-certs
+              mountPath: /etc/karmada/pki
+              readOnly: true
           {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
           resources:
           {{- toYaml .Values.scheduler.resources | nindent 12 }}
       volumes:
       {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
       {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
+      {{- include "karmada.scheduler.cert.volume" . | nindent 8 }}
 
 {{ if .Values.scheduler.podDisruptionBudget }}
 ---

@@ -349,6 +349,13 @@ app: {{- include "karmada.name" .}}-search
   {{- end }}
 {{- end -}}
 
+{{- define "karmada.scheduler.cert.volume" -}}
+{{ $name :=  include "karmada.name" . }}
+- name: karmada-certs
+  secret:
+    secretName: {{ $name }}-cert
+{{- end -}}
+
 {{/*
 Return the proper karmada internal etcd image name
 */}}
