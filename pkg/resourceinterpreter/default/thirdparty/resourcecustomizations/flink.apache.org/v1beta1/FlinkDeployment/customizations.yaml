@@ -56,8 +56,10 @@ spec:
 
           -- Until multiple podTemplates are supported, interpreter will only take affinity and toleration input to common podTemplate
 
-          requires.nodeClaim.nodeSelector = observedObj.spec.podTemplate.spec.nodeSelector
-          requires.nodeClaim.tolerations = observedObj.spec.podTemplate.spec.tolerations
+          if observedObj.spec.podTemplate ~= nil and observedObj.spec.podTemplate.spec ~= nil then
+            requires.nodeClaim.nodeSelector = observedObj.spec.podTemplate.spec.nodeSelector
+            requires.nodeClaim.tolerations = observedObj.spec.podTemplate.spec.tolerations
+          end
 
           return replica, requires
         end
