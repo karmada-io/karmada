@@ -107,14 +107,14 @@ type CommandJoinOption struct {
 	// more details about running Kubernetes in multiple zones.
 	ClusterZones []string
 
-	// HostAs represents the host cluster username to impersonate for the operation. User could be a regular user or a service account in a namespace
-	HostAs string
+	// KarmadaAs represents the username to impersonate for the operation in karmada control plane. User could be a regular user or a service account in a namespace
+	KarmadaAs string
 
-	// HostAsGroups represents the host cluster group to impersonate for the operation, this flag can be repeated to specify multiple groups
-	HostAsGroups []string
+	// KarmadaAsGroups represents groups to impersonate for the operation in karmada control plane, this flag can be repeated to specify multiple groups
+	KarmadaAsGroups []string
 
-	// HostAsUID represents the host cluster UID to impersonate for the operation.
-	HostAsUID string
+	// KarmadaAsUID represents the UID to impersonate for the operation in karmada control plane.
+	KarmadaAsUID string
 
 	// DryRun tells if run the command in dry-run mode, without making any server requests.
 	DryRun bool
@@ -159,12 +159,12 @@ func (j *CommandJoinOption) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&j.ClusterProvider, "cluster-provider", "", "Provider of the joining cluster. The Karmada scheduler can use this information to spread workloads across providers for higher availability.")
 	flags.StringVar(&j.ClusterRegion, "cluster-region", "", "The region of the joining cluster. The Karmada scheduler can use this information to spread workloads across regions for higher availability.")
 	flags.StringSliceVar(&j.ClusterZones, "cluster-zones", nil, "The zones of the joining cluster. The Karmada scheduler can use this information to spread workloads across zones for higher availability.")
-	flags.StringVar(&j.HostAs, "host-as", "",
-		"Host cluster username to impersonate for the operation. User could be a regular user or a service account in a namespace.")
-	flags.StringArrayVar(&j.HostAsGroups, "host-as-group", []string{},
-		"Host cluster group to impersonate for the operation, this flag can be repeated to specify multiple groups.")
-	flags.StringVar(&j.HostAsUID, "host-as-uid", "",
-		"Host cluster UID to impersonate for the operation.")
+	flags.StringVar(&j.KarmadaAs, "karmada-as", "",
+		"Username to impersonate for the operation in karmada control plane. User could be a regular user or a service account in a namespace.")
+	flags.StringArrayVar(&j.KarmadaAsGroups, "karmada-as-group", []string{},
+		"Group to impersonate for the operation in karmada control plane, this flag can be repeated to specify multiple groups.")
+	flags.StringVar(&j.KarmadaAsUID, "karmada-as-uid", "",
+		"UID to impersonate for the operation in karmada control plane.")
 	flags.BoolVar(&j.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 }
 
@@ -181,9 +181,9 @@ func (j *CommandJoinOption) Run(f cmdutil.Factory) error {
 	}
 
 	// Configure impersonation
-	controlPlaneRestConfig.Impersonate.UserName = j.HostAs
-	controlPlaneRestConfig.Impersonate.Groups = j.HostAsGroups
-	controlPlaneRestConfig.Impersonate.UID = j.HostAsUID
+	controlPlaneRestConfig.Impersonate.UserName = j.KarmadaAs
+	controlPlaneRestConfig.Impersonate.Groups = j.KarmadaAsGroups
+	controlPlaneRestConfig.Impersonate.UID = j.KarmadaAsUID
 
 	// Get cluster config
 	clusterConfig, err := apiclient.RestConfig(j.ClusterContext, j.ClusterKubeConfig)
