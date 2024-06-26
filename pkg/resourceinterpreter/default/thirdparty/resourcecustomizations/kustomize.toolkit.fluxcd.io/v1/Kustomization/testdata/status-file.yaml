@@ -9,8 +9,11 @@ status:
     reason: ReconciliationSucceeded
     status: "True"
     type: Ready
+  generation: 1
   lastAppliedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
   lastAttemptedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+  observedGeneration: 1
+  resourceTemplateGeneration: 1
 ---
 applied: true
 clusterName: member3
@@ -23,5 +26,8 @@ status:
     reason: ReconciliationSucceeded
     status: "True"
     type: Ready
+  generation: 1
   lastAppliedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
   lastAttemptedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+  observedGeneration: 1
+  resourceTemplateGeneration: 1

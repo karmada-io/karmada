@@ -3,6 +3,7 @@ kind: Kustomization
 metadata:
   name: sample
   namespace: test-kustomization
+  generation: 1
 spec:
   interval: 10m
   targetNamespace: test-kustomization
