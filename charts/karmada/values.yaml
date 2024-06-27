@@ -511,10 +511,7 @@ metricsAdapter:
     registry: docker.io
     repository: karmada/karmada-metrics-adapter
     tag: *karmadaImageVersion
-    ## Specify a imagePullPolicy
-    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
-    ##
-    pullPolicy: Always
+    pullPolicy: *karmadaImagePullPolicy
     ## Optionally specify an array of imagePullSecrets.
     ## Secrets must be manually created in the namespace.
     ## Example:
