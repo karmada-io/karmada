@@ -38,8 +38,18 @@ spec:
             jm_replicas = 1
           end
 
-          parallelism = observedObj.spec.job.parallelism
-          tm_replicas = math.ceil(parallelism / observedObj.spec.flinkConfiguration['taskmanager.numberOfTaskSlots'])
+          -- TaskManager replica setting takes precedence over parallelism setting
+
+          tm_replicas = observedObj.spec.taskManager.replicas
+          if isempty(tm_replicas) then
+            parallelism = observedObj.spec.job.parallelism
+            task_slots = observedObj.spec.flinkConfiguration['taskmanager.numberOfTaskSlots']
+            if isempty(parallelism) or isempty(task_slots) then
+              tm_replicas = 1
+            else
+              tm_replicas = math.ceil(parallelism / observedObj.spec.flinkConfiguration['taskmanager.numberOfTaskSlots'])
+            end
+          end
 
           replica = jm_replicas + tm_replicas
 
