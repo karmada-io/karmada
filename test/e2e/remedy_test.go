@@ -17,12 +17,9 @@ limitations under the License.
 package e2e
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/onsi/ginkgo/v2"
-	"github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -66,15 +63,10 @@ var _ = framework.SerialDescribe("remedy testing", func() {
 
 		ginkgo.It("Cluster domain name resolution function encounters an exception and recover", func() {
 			ginkgo.By(fmt.Sprintf("update Cluster(%s) %s condition to false", targetCluster, remedyv1alpha1.ServiceDomainNameResolutionReady), func() {
-				clusterObj, err := karmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), targetCluster, metav1.GetOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				meta.SetStatusCondition(&clusterObj.Status.Conditions, metav1.Condition{
+				framework.UpdateClusterStatusCondition(karmadaClient, targetCluster, metav1.Condition{
 					Type:   string(remedyv1alpha1.ServiceDomainNameResolutionReady),
 					Status: metav1.ConditionFalse,
 				})
-				_, err = karmadaClient.ClusterV1alpha1().Clusters().UpdateStatus(context.TODO(), clusterObj, metav1.UpdateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
 			ginkgo.By(fmt.Sprintf("wait Cluster(%s) status has TrafficControl RemedyAction", targetCluster), func() {
@@ -86,15 +78,10 @@ var _ = framework.SerialDescribe("remedy testing", func() {
 			})
 
 			ginkgo.By(fmt.Sprintf("recover Cluster(%s) %s condition to true", targetCluster, remedyv1alpha1.ServiceDomainNameResolutionReady), func() {
-				clusterObj, err := karmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), targetCluster, metav1.GetOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				meta.SetStatusCondition(&clusterObj.Status.Conditions, metav1.Condition{
+				framework.UpdateClusterStatusCondition(karmadaClient, targetCluster, metav1.Condition{
 					Type:   string(remedyv1alpha1.ServiceDomainNameResolutionReady),
 					Status: metav1.ConditionTrue,
 				})
-				_, err = karmadaClient.ClusterV1alpha1().Clusters().UpdateStatus(context.TODO(), clusterObj, metav1.UpdateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
 			ginkgo.By(fmt.Sprintf("wait Cluster(%s) status doesn't has TrafficControl RemedyAction", targetCluster), func() {
@@ -112,15 +99,10 @@ var _ = framework.SerialDescribe("remedy testing", func() {
 
 		ginkgo.It("Cluster domain name resolution function encounters an exception, then remove the remedy resource", func() {
 			ginkgo.By(fmt.Sprintf("update Cluster(%s) %s condition to false", targetCluster, remedyv1alpha1.ServiceDomainNameResolutionReady), func() {
-				clusterObj, err := karmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), targetCluster, metav1.GetOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				meta.SetStatusCondition(&clusterObj.Status.Conditions, metav1.Condition{
+				framework.UpdateClusterStatusCondition(karmadaClient, targetCluster, metav1.Condition{
 					Type:   string(remedyv1alpha1.ServiceDomainNameResolutionReady),
 					Status: metav1.ConditionFalse,
 				})
-				_, err = karmadaClient.ClusterV1alpha1().Clusters().UpdateStatus(context.TODO(), clusterObj, metav1.UpdateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
 			ginkgo.By(fmt.Sprintf("wait Cluster(%s) status has TrafficControl RemedyAction", targetCluster), func() {
@@ -144,15 +126,10 @@ var _ = framework.SerialDescribe("remedy testing", func() {
 			})
 
 			ginkgo.By(fmt.Sprintf("cleanup: recover Cluster(%s) %s to true", targetCluster, remedyv1alpha1.ServiceDomainNameResolutionReady), func() {
-				clusterObj, err := karmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), targetCluster, metav1.GetOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				meta.SetStatusCondition(&clusterObj.Status.Conditions, metav1.Condition{
+				framework.UpdateClusterStatusCondition(karmadaClient, targetCluster, metav1.Condition{
 					Type:   string(remedyv1alpha1.ServiceDomainNameResolutionReady),
 					Status: metav1.ConditionTrue,
 				})
-				_, err = karmadaClient.ClusterV1alpha1().Clusters().UpdateStatus(context.TODO(), clusterObj, metav1.UpdateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 		})
 	})
