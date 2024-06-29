@@ -78,6 +78,26 @@ jobs:
           _output/charts/karmada-chart-${{ github.ref_name }}.tgz.sha256
           _output/charts/karmada-operator-chart-${{ github.ref_name }}.tgz
           _output/charts/karmada-operator-chart-${{ github.ref_name }}.tgz.sha256
+  sbom-assests:
+    name: Release sbom
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: Generate sbom for karmada file system
+      uses: aquasecurity/trivy-action@0.23.0
+      with:
+        scan-type: 'fs'
+        format: 'spdx'
+        output: 'sbom-karmada.spdx'
+        scan-ref: "/github/workspace/"
+    - name: Tar the sbom files
+      run: |
+        tar -zcf sbom.tar.gz *.spdx
+    - name: Uploading sbom assets...
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          sbom.tar.gz
   update-krew-index:
     needs: release-assests
     name: Update krew-index
