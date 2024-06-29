@@ -1,6 +1,8 @@
 apiVersion: apps.kruise.io/v1beta1
 kind: StatefulSet
 metadata:
+  annotations:
+    resourcetemplate.karmada.io/generation: "1"
   name: sample
   namespace: test-statefulset
   generation: 1

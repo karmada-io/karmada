@@ -3,6 +3,7 @@ kind: StatefulSet
 metadata:
   name: sample
   namespace: test-statefulset
+  generation: 1
 spec:
   replicas: 2
   serviceName: sample-statefulset-headless-service

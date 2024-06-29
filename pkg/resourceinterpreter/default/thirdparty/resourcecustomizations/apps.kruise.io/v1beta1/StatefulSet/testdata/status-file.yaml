@@ -5,6 +5,8 @@ status:
   availableReplicas: 2
   currentReplicas: 2
   currentRevision: sample-5675547df7
+  generation: 1
+  resourceTemplateGeneration: 1
   observedGeneration: 1
   readyReplicas: 2
   replicas: 2
@@ -19,7 +21,9 @@ status:
   availableReplicas: 2
   currentReplicas: 2
   currentRevision: sample-5675547df7
+  generation: 1
   observedGeneration: 1
+  resourceTemplateGeneration: 1
   readyReplicas: 2
   replicas: 2
   updateRevision: sample-5675547df7
