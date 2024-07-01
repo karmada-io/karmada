@@ -63,16 +63,59 @@ and provide precise resourceRequirements.
 
 ### API change
 
-The main changes of this proposal are to the API definition of the ReplicaRequirements struct. The proposed change will
-add an optional `Components` field, which can be defined by the user via a ResourceInterpreterCustomization.
+The main changes of this proposal are to the API definition of the ReplicaRequirements struct. We currently include the replicaCount and
+replicaRequirements as root level attributes to the ResourceBindingSpec. The limitation here is that we are unable to define unique
+replicaRequirements in the case that the resource has more than one podTemplate.
 
-Each `Component` will have a `Name`, an optional `PodCount` (this may not be required depending on the accurate estimator implementation), and
-a `resourceRequest`. These basic fields are necessary to allow the accurate estimator to determine whether all components of the CRD replica
+To address this, we can move the concept of replicas and replicaRequirements into a struct related to the individual resource's `Components`.
+
+Each `Component` will have a `Name`, the number of `Replicas`, and corresponding `replicaRequirements`.
+These basic fields are necessary to allow the accurate estimator to determine whether all components of the CRD replica
 will be able to fit on the destination namespace.
 
+The definition of ReplicaRequirements will stay the same - with the drawback that the user will need to define how Karmada
+interprets the individual components of the CRD. Karmada should also support a default component which will use one of the resource's
+podTemplates to find requirements.
+
 ```go
+
+type ResourceBindingSpec struct {
+
+    . . .
+
+    // The total number of replicas scheduled by this resource. Each replica will represented by exactly one component of the resource.
+	TotalReplicas int32 `json:"totalReplicas,omitempty"`
+
+    // Defines the requirements of an individual component of the resource.
+	// +optional
+	Components []Components `json:"components,omitempty"`
+
+	. . .
+}
+
+// A component is a unique representation of a resource's replica. For simple resources, like Deployments, there will only be
+// one component, associated with the podTemplate in the Deployment definition.
+//
+// Complex resources can have multiple components controlled through different podTemplates.
+// Each replica for the resource will fall into a component type with requirements defined by its relevant podTemplate.
+type ComponentRequirements struct {
+
+    // Name of this component
+	Name string `json:"name,omitempty"`
+
+	// Replicas represents the replica number of the resource's component
+	// +optional
+	Replicas int32 `json:"replicas,omitempty"`
+
+    // ReplicaRequirements represents the requirements required by each replica for this component.
+	// +optional
+	ReplicaRequirements *ReplicaRequirements `json:"replicaRequirements,omitempty"`
+
+}
+
 // ReplicaRequirements represents the requirements required by each replica.
 type ReplicaRequirements struct {
+
 	// NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.
 	// +optional
 	NodeClaim *NodeClaim `json:"nodeClaim,omitempty"`
@@ -81,32 +124,14 @@ type ReplicaRequirements struct {
 	// +optional
 	ResourceRequest corev1.ResourceList `json:"resourceRequest,omitempty"`
 
-	// A replica's total resource request may be subdivided into multiple components.
-	// These components can be optionally defined in order to make scheduling estimation more precise.
-	// +optional
-	Components []Components `json:"components,omitempty"`
-
 	// Namespace represents the resources namespaces
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
 
-	// PriorityClassName represents the resources priorityClassName
+	// PriorityClassName represents the components priorityClassName
 	// +optional
 	PriorityClassName string `json:"priorityClassName,omitempty"`
-}
 
-type Components struct {
-
-	// Name of the component
-    Name string `json:"name"`
-
-	// Number of total pods needed by the replica's component
-	// +optional
-	PodCount int32 `json:"podCount,omitempty"`
-
-	// ResourceRequest of an individual pod of the component
-	// +optional
-	ResourceRequest corev1.ResourceList `json:"resourceRequest,omitempty"`
 }
 ```
 
