@@ -5,33 +5,34 @@ metadata:
     app: sample
   name: sample
   namespace: test-cloneset
+  generation: 3
 spec:
   replicas: 4
   selector:
     matchLabels:
       app: sample
-      test: cloneset 
+      test: cloneset
   template:
     metadata:
       labels:
         app: sample
-        test: cloneset 
+        test: cloneset
     spec:
       volumes:
         - name: configmap
           configMap:
-            name: my-sample-config    
+            name: my-sample-config
       containers:
         - name: nginx
           image: nginx:alpine
-          env: 
-          - name: logData
-            valueFrom: 
-              configMapKeyRef:
-                name: mysql-config
-                key: log
-          - name: lowerData
-            valueFrom:
-              configMapKeyRef:
-                name: mysql-config
-                key: lower
+          env:
+            - name: logData
+              valueFrom:
+                configMapKeyRef:
+                  name: mysql-config
+                  key: log
+            - name: lowerData
+              valueFrom:
+                configMapKeyRef:
+                  name: mysql-config
+                  key: lowerr
