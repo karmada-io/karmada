@@ -1,0 +1,130 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: declarative-configuration-flinkdeployment
+spec:
+  target:
+    apiVersion: flink.apache.org/v1beta1
+    kind: FlinkDeployment
+  customizations:
+    healthInterpretation:
+      luaScript: >
+        function InterpretHealth(observedObj)
+          if observedObj.status ~= nil and observedObj.status.jobStatus ~= nil then
+            if observedObj.status.jobStatus.state ~= 'CREATED' and observedObj.status.jobStatus.state ~= 'RECONCILING' then
+              return true
+            else
+              return observedObj.status.jobManagerDeploymentStatus == 'ERROR'
+            end
+          end
+          return false
+        end
+    replicaResource:
+      luaScript: >
+        local kube = require("kube")
+
+        local function isempty(s)
+          return s == nil or s == ''
+        end
+
+        function GetReplicas(observedObj)
+          requires = {
+            resourceRequest = {},
+            nodeClaim = {},
+          }
+
+          jm_replicas = observedObj.spec.jobManager.replicas
+          if isempty(jm_replicas) then
+            jm_replicas = 1
+          end
+
+          -- TaskManager replica setting takes precedence over parallelism setting
+
+          tm_replicas = observedObj.spec.taskManager.replicas
+          if isempty(tm_replicas) then
+            parallelism = observedObj.spec.job.parallelism
+            task_slots = observedObj.spec.flinkConfiguration['taskmanager.numberOfTaskSlots']
+            if isempty(parallelism) or isempty(task_slots) then
+              tm_replicas = 1
+            else
+              tm_replicas = math.ceil(parallelism / observedObj.spec.flinkConfiguration['taskmanager.numberOfTaskSlots'])
+            end
+          end
+
+          replica = jm_replicas + tm_replicas
+
+          -- Until multiple podTemplates are supported in replicaRequirements, take max of cpu + memory values as requirement
+
+          requires.resourceRequest.cpu = math.max(observedObj.spec.taskManager.resource.cpu, observedObj.spec.jobManager.resource.cpu)
+          jm_memory_value = kube.getResourceQuantity(observedObj.spec.jobManager.resource.memory)
+          tm_memory_value = kube.getResourceQuantity(observedObj.spec.taskManager.resource.memory)
+          if jm_memory_value > tm_memory_value then
+            requires.resourceRequest.memory = observedObj.spec.jobManager.resource.memory
+          else
+            requires.resourceRequest.memory = observedObj.spec.taskManager.resource.memory
+          end
+
+          -- Until multiple podTemplates are supported, interpreter will only take affinity and toleration input to common podTemplate
+
+          if observedObj.spec.podTemplate ~= nil and observedObj.spec.podTemplate.spec ~= nil then
+            requires.nodeClaim.nodeSelector = observedObj.spec.podTemplate.spec.nodeSelector
+            requires.nodeClaim.tolerations = observedObj.spec.podTemplate.spec.tolerations
+          end
+
+          return replica, requires
+        end
+    statusAggregation:
+      luaScript: >
+        function AggregateStatus(desiredObj, statusItems)
+          if statusItems == nil then
+            return desiredObj
+          end
+          if desiredObj.status == nil then
+            desiredObj.status = {}
+          end
+          clusterInfo = {}
+          jobManagerDeploymentStatus = ''
+          jobStatus = {}
+          lifecycleState = ''
+          observedGeneration = 0
+          reconciliationStatus = {}
+          taskManager = {}
+
+          for i = 1, #statusItems do
+            currentStatus = statusItems[i].status
+            if currentStatus ~= nil then
+              clusterInfo = currentStatus.clusterInfo
+              jobManagerDeploymentStatus = currentStatus.jobManagerDeploymentStatus
+              jobStatus = currentStatus.jobStatus
+              observedGeneration = currentStatus.observedGeneration
+              lifecycleState = currentStatus.lifecycleState
+              reconciliationStatus = currentStatus.reconciliationStatus
+              taskManager = currentStatus.taskManager
+            end
+          end
+
+          desiredObj.status.clusterInfo = clusterInfo
+          desiredObj.status.jobManagerDeploymentStatus = jobManagerDeploymentStatus
+          desiredObj.status.jobStatus = jobStatus
+          desiredObj.status.lifecycleState = lifecycleState
+          desiredObj.status.observedGeneration = observedGeneration
+          desiredObj.status.reconciliationStatus = reconciliationStatus
+          desiredObj.status.taskManager = taskManager
+          return desiredObj
+        end
+    statusReflection:
+      luaScript: >
+        function ReflectStatus(observedObj)
+          status = {}
+          if observedObj == nil or observedObj.status == nil then
+            return status
+          end
+          status.clusterInfo = observedObj.status.clusterInfo
+          status.jobManagerDeploymentStatus = observedObj.status.jobManagerDeploymentStatus
+          status.jobStatus = observedObj.status.jobStatus
+          status.observedGeneration = observedObj.status.observedGeneration
+          status.lifecycleState = observedObj.status.lifecycleState
+          status.reconciliationStatus = observedObj.status.reconciliationStatus
+          status.taskManager = observedObj.status.taskManager
+          return status
+        end

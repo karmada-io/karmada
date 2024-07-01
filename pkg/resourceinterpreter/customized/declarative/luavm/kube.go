@@ -17,6 +17,8 @@ limitations under the License.
 package luavm
 
 import (
+	"math"
+
 	lua "github.com/yuin/gopher-lua"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -57,6 +59,7 @@ var kubeFuncs = map[string]lua.LGFunction{
 	"resourceAdd":             resourceAdd,
 	"accuratePodRequirements": accuratePodRequirements,
 	"getPodDependencies":      getPodDependencies,
+	"getResourceQuantity":     getResourceQuantity,
 }
 
 func resourceAdd(ls *lua.LState) int {
@@ -124,6 +127,30 @@ func getPodDependencies(ls *lua.LState) int {
 	}
 
 	ls.Push(retValue)
+	return 1
+}
+
+func getResourceQuantity(ls *lua.LState) int {
+	n := ls.GetTop()
+	if n != 1 {
+		ls.RaiseError("getResourceQuantity only accepts one argument")
+		return 0
+	}
+
+	q := checkResourceQuantity(ls, n)
+	num := q.AsApproximateFloat64()
+
+	if num < 0 {
+		ls.RaiseError("int approximation unexpectedly returned a negative value: %#v,", q)
+		return 0
+	}
+
+	if math.IsInf(num, 1) {
+		ls.RaiseError("int approximation unexpectedly returned an infinite value: %#v,", q)
+		return 0
+	}
+
+	ls.Push(lua.LNumber(num))
 	return 1
 }
 
