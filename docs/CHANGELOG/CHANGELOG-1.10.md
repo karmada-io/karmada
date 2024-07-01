@@ -2,12 +2,18 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.10.1](#v1101)
-  - [Downloads for v1.10.1](#downloads-for-v1101)
-  - [Changelog since v1.10.0](#changelog-since-v1100)
+- [v1.10.2](#v1102)
+  - [Downloads for v1.10.2](#downloads-for-v1102)
+  - [Changelog since v1.10.1](#changelog-since-v1101)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
+- [v1.10.1](#v1101)
+  - [Downloads for v1.10.1](#downloads-for-v1101)
+  - [Changelog since v1.10.0](#changelog-since-v1100)
+    - [Changes by Kind](#changes-by-kind-1)
+      - [Bug Fixes](#bug-fixes-1)
+      - [Others](#others-1)
 - [v1.10.0](#v1100)
   - [Downloads for v1.10.0](#downloads-for-v1100)
   - [What's New](#whats-new)
@@ -16,7 +22,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-1)
+    - [Bug Fixes](#bug-fixes-2)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -26,6 +32,19 @@
   - [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.10.2
+## Downloads for v1.10.2
+
+Download v1.10.2 in the [v1.10.2 release page](https://github.com/karmada-io/karmada/releases/tag/v1.10.2).
+
+## Changelog since v1.10.1
+### Changes by Kind
+#### Bug Fixes
+- `karmada-controller-manager`: Fixed the issue that the default resource interpreter doesn't accurately interpret the numbers of replicas. ([#5108](https://github.com/karmada-io/karmada/pull/5108), @whitewindmills)
+
+#### Others
+- The base image `alpine` now has been promoted from `alpine:3.20.0` to `alpine:3.20.1`. ([#5093](https://github.com/karmada-io/karmada/pull/5093))
 
 # v1.10.1
 ## Downloads for v1.10.1
