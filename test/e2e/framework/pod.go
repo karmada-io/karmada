@@ -75,7 +75,7 @@ func WaitPodMetricsReady(kubeClient kubernetes.Interface, karmadaClient karmada.
 	secretGetter := func(namespace string, name string) (*corev1.Secret, error) {
 		return kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	}
-	config, err := util.BuildClusterConfig(cluster, clusterGetter, secretGetter)
+	config, err := util.BuildClusterConfig(cluster, clusterGetter, secretGetter, nil, nil)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	metricsClient, err := metricsclientset.NewForConfig(config)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())

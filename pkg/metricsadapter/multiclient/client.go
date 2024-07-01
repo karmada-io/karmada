@@ -70,7 +70,7 @@ func (m *MultiClusterDiscovery) Set(clusterName string) error {
 	secretGetter := func(namespace string, name string) (*corev1.Secret, error) {
 		return m.secretLister.Secrets(namespace).Get(name)
 	}
-	clusterConfig, err := util.BuildClusterConfig(clusterName, clusterGetter, secretGetter)
+	clusterConfig, err := util.BuildClusterConfig(clusterName, clusterGetter, secretGetter, nil, nil)
 	if err != nil {
 		return err
 	}
