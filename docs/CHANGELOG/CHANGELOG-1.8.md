@@ -2,30 +2,36 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.8.4](#v184)
-  - [Downloads for v1.8.4](#downloads-for-v184)
-  - [Changelog since v1.8.3](#changelog-since-v183)
+- [v1.8.5](#v185)
+  - [Downloads for v1.8.5](#downloads-for-v185)
+  - [Changelog since v1.8.4](#changelog-since-v184)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
-- [v1.8.3](#v183)
-  - [Downloads for v1.8.3](#downloads-for-v183)
-  - [Changelog since v1.8.2](#changelog-since-v182)
+- [v1.8.4](#v184)
+  - [Downloads for v1.8.4](#downloads-for-v184)
+  - [Changelog since v1.8.3](#changelog-since-v183)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
-- [v1.8.2](#v182)
-  - [Downloads for v1.8.2](#downloads-for-v182)
-  - [Changelog since v1.8.1](#changelog-since-v181)
+- [v1.8.3](#v183)
+  - [Downloads for v1.8.3](#downloads-for-v183)
+  - [Changelog since v1.8.2](#changelog-since-v182)
     - [Changes by Kind](#changes-by-kind-2)
       - [Bug Fixes](#bug-fixes-2)
       - [Others](#others-2)
-- [v1.8.1](#v181)
-  - [Downloads for v1.8.1](#downloads-for-v181)
-  - [Changelog since v1.8.0](#changelog-since-v180)
+- [v1.8.2](#v182)
+  - [Downloads for v1.8.2](#downloads-for-v182)
+  - [Changelog since v1.8.1](#changelog-since-v181)
     - [Changes by Kind](#changes-by-kind-3)
       - [Bug Fixes](#bug-fixes-3)
       - [Others](#others-3)
+- [v1.8.1](#v181)
+  - [Downloads for v1.8.1](#downloads-for-v181)
+  - [Changelog since v1.8.0](#changelog-since-v180)
+    - [Changes by Kind](#changes-by-kind-4)
+      - [Bug Fixes](#bug-fixes-4)
+      - [Others](#others-4)
 - [v1.8.0](#v180)
   - [Downloads for v1.8.0](#downloads-for-v180)
   - [What's New](#whats-new)
@@ -36,7 +42,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-4)
+    - [Bug Fixes](#bug-fixes-5)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -46,6 +52,19 @@
   - [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.8.5
+## Downloads for v1.8.5
+
+Download v1.8.5 in the [v1.8.5 release page](https://github.com/karmada-io/karmada/releases/tag/v1.8.5).
+
+## Changelog since v1.8.4
+### Changes by Kind
+#### Bug Fixes
+- `karmada-controller-manager`: Fixed the issue that the default resource interpreter doesn't accurately interpret the numbers of replicas. ([#5106](https://github.com/karmada-io/karmada/pull/5108), @whitewindmills)
+
+#### Others
+- The base image `alpine` now has been promoted from `alpine:3.20.0` to `alpine:3.20.1`. ([#5088](https://github.com/karmada-io/karmada/pull/5093))
 
 # v1.8.4
 ## Downloads for v1.8.4
