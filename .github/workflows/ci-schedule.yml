@@ -3,6 +3,10 @@ on:
   schedule:
     # Run this workflow "At 18:00 UTC on Sunday and Saturday"
     - cron: '0 18 * * 0,6'
+
+permissions:
+  actions: write # Required for dynamic workflow control, enabling retrying of job steps in case of failure (actions: nick-fields/retry@v3.0.0).
+  contents: read # Necessary for fetching the repository contents, enabling actions like actions/checkout@v4 to work properly.    
     
 jobs:
   e2e:
