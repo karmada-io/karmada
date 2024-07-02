@@ -785,6 +785,12 @@ spec:
                   If specified, the policy will be dispatched by specified scheduler.
                   If not specified, the policy will be dispatched by default scheduler.
                 type: string
+              suspend:
+                default: false
+                description: |-
+                  Suspend will instruct all work objects to pause propagation to member clusters.
+                  Defaults to false.
+                type: boolean
             required:
             - resourceSelectors
             type: object

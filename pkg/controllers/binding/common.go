@@ -45,6 +45,7 @@ func ensureWork(
 	var requiredByBindingSnapshot []workv1alpha2.BindingSnapshot
 	var replicas int32
 	var conflictResolutionInBinding policyv1alpha1.ConflictResolution
+	var suspend bool
 	switch scope {
 	case apiextensionsv1.NamespaceScoped:
 		bindingObj := binding.(*workv1alpha2.ResourceBinding)
@@ -53,6 +54,7 @@ func ensureWork(
 		placement = bindingObj.Spec.Placement
 		replicas = bindingObj.Spec.Replicas
 		conflictResolutionInBinding = bindingObj.Spec.ConflictResolution
+		suspend = bindingObj.Spec.Suspend
 	case apiextensionsv1.ClusterScoped:
 		bindingObj := binding.(*workv1alpha2.ClusterResourceBinding)
 		targetClusters = bindingObj.Spec.Clusters
@@ -60,6 +62,7 @@ func ensureWork(
 		placement = bindingObj.Spec.Placement
 		replicas = bindingObj.Spec.Replicas
 		conflictResolutionInBinding = bindingObj.Spec.ConflictResolution
+		suspend = bindingObj.Spec.Suspend
 	}
 
 	targetClusters = mergeTargetClusters(targetClusters, requiredByBindingSnapshot)
@@ -128,7 +131,7 @@ func ensureWork(
 			Annotations: annotations,
 		}
 
-		if err = helper.CreateOrUpdateWork(c, workMeta, clonedWorkload); err != nil {
+		if err = helper.CreateOrUpdateWork(c, workMeta, clonedWorkload, suspend); err != nil {
 			return err
 		}
 	}

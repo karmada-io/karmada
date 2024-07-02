@@ -157,7 +157,7 @@ func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv
 				Annotations: annotations,
 			}
 
-			if err = helper.CreateOrUpdateWork(c.Client, objectMeta, clonedNamespaced); err != nil {
+			if err = helper.CreateOrUpdateWork(c.Client, objectMeta, clonedNamespaced, false); err != nil {
 				ch <- fmt.Errorf("sync namespace(%s) to cluster(%s) failed due to: %v", clonedNamespaced.GetName(), cluster.GetName(), err)
 				return
 			}

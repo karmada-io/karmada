@@ -146,6 +146,13 @@ type ResourceBindingSpec struct {
 	// It is represented in RFC3339 form (like '2006-01-02T15:04:05Z') and is in UTC.
 	// +optional
 	RescheduleTriggeredAt *metav1.Time `json:"rescheduleTriggeredAt,omitempty"`
+
+	// Suspend tells the controller to suspend subsequent executions.
+	// Defaults to false.
+	//
+	// +kubebuilder:default=false
+	// +optional
+	Suspend bool `json:"suspend,omitempty"`
 }
 
 // ObjectReference contains enough information to locate the referenced object inside current cluster.
