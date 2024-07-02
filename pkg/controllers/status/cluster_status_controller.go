@@ -193,6 +193,15 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 	if !online && readyCondition.Status != metav1.ConditionTrue {
 		klog.V(2).Infof("Cluster(%s) still offline after %s, ensuring offline is set.",
 			cluster.Name, c.ClusterFailureThreshold.Duration)
+		c.GenericInformerManager.Stop(cluster.Name)
+		c.TypedInformerManager.Stop(cluster.Name)
+		c.clusterConditionCache.delete(cluster.Name)
+		canceller, exists := c.ClusterLeaseControllers.LoadAndDelete(cluster.Name)
+		if exists {
+			if cf, ok := canceller.(context.CancelFunc); ok {
+				cf()
+			}
+		}
 		meta.SetStatusCondition(&currentClusterStatus.Conditions, *readyCondition)
 		return c.updateStatusIfNeeded(cluster, currentClusterStatus)
 	}
