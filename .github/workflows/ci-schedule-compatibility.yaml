@@ -4,6 +4,12 @@ on:
     # Run this workflow "At 20:00 UTC on Sunday and Saturday"
     - cron: '0 20 * * 0,6'
 
+permissions:
+  actions: write # Used by nick-fields/retry@v3.0.0 to retry job steps if needed.
+  contents: read # Required by actions/checkout@v4 to fetch the repository contents.
+  deployments: write # Needed to manage deployments for setting up the test environment.
+  statuses: read # Necessary to check the status of deployments before running tests.
+
 jobs:
   e2e:
     name: e2e test
