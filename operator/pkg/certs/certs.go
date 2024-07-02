@@ -347,10 +347,8 @@ func NewSignedCert(cc *CertConfig, key crypto.Signer, caCert *x509.Certificate, 
 	}
 
 	RemoveDuplicateAltNames(&cc.Config.AltNames)
-	notAfter := time.Now().Add(constants.CertificateValidity).UTC()
-	if cc.NotAfter != nil {
-		notAfter = *cc.NotAfter
-	}
+
+	cc.defaultNotAfter()
 
 	certTmpl := x509.Certificate{
 		Subject: pkix.Name{
@@ -361,7 +359,7 @@ func NewSignedCert(cc *CertConfig, key crypto.Signer, caCert *x509.Certificate, 
 		IPAddresses:           cc.Config.AltNames.IPs,
 		SerialNumber:          serial,
 		NotBefore:             caCert.NotBefore,
-		NotAfter:              notAfter,
+		NotAfter:              cc.NotAfter.UTC(),
 		KeyUsage:              keyUsage,
 		ExtKeyUsage:           cc.Config.Usages,
 		BasicConstraintsValid: true,
