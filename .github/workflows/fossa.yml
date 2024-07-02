@@ -5,6 +5,11 @@ on:
     # for PRs initiated by Dependabot.
     branches-ignore:
       - 'dependabot/**'
+
+permissions:
+  contents: read # Required by actions/checkout@v4 to fetch the repository contents.
+  security-events: write # Required by fossas/fossa-action@v1 to upload scan results.      
+
 jobs:
   fossa:
     name: FOSSA
