@@ -3,6 +3,8 @@ on:
   release:
     types:
       - published
+permissions:
+  contents: read
 jobs:
   release-image:
     name: release images
