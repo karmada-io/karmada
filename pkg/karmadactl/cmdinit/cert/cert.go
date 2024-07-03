@@ -22,6 +22,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -261,11 +262,12 @@ func NewCertConfig(cn string, org []string, altNames certutil.AltNames, notAfter
 }
 
 // GenCerts Create CA certificate and sign etcd karmada certificate.
-func GenCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg, karmadaCertCfg, apiserverCertCfg, frontProxyClientCertCfg *CertsConfig) error {
-	caCert, caKey, err := NewCACertAndKey("karmada")
+func GenCerts(pkiPath, caCertFile, caKeyFile string, etcdServerCertCfg, etcdClientCertCfg, karmadaCertCfg, apiserverCertCfg, frontProxyClientCertCfg *CertsConfig) error {
+	caCert, caKey, err := getCACertAndKey(caCertFile, caKeyFile)
 	if err != nil {
 		return err
 	}
+
 	if err = WriteCertAndKey(pkiPath, globaloptions.CaCertAndKeyName, caCert, caKey); err != nil {
 		return err
 	}
@@ -307,6 +309,27 @@ func GenCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg, karmadaCertC
 		return nil
 	}
 	return genEtcdCerts(pkiPath, etcdServerCertCfg, etcdClientCertCfg)
+}
+
+func getCACertAndKey(caCertFile, caKeyFile string) (caCert *x509.Certificate, caKey *crypto.Signer, err error) {
+	if caKeyFile != "" && caCertFile != "" {
+		certificate, err := tls.LoadX509KeyPair(caCertFile, caKeyFile)
+		if err != nil {
+			return nil, nil, err
+		}
+		caCert, err = x509.ParseCertificate(certificate.Certificate[0])
+		if err != nil {
+			return nil, nil, err
+		}
+		key := certificate.PrivateKey.(crypto.Signer)
+		caKey = &key
+	} else {
+		caCert, caKey, err = NewCACertAndKey("karmada")
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	return caCert, caKey, nil
 }
 
 func genEtcdCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg *CertsConfig) error {

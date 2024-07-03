@@ -171,6 +171,8 @@ type CommandInitOption struct {
 	KarmadaAPIServerIP                 []net.IP
 	HostClusterDomain                  string
 	WaitComponentReadyTimeout          int
+	CaCertFile                         string
+	CaKeyFile                          string
 }
 
 func (i *CommandInitOption) validateLocalEtcd(parentCommand string) error {
@@ -224,6 +226,9 @@ func (i *CommandInitOption) Validate(parentCommand string) error {
 		if netutils.ParseIPSloppy(i.KarmadaAPIServerAdvertiseAddress) == nil {
 			return fmt.Errorf("karmada apiserver advertise address is not valid")
 		}
+	}
+	if (i.CaCertFile != "") != (i.CaKeyFile != "") {
+		return fmt.Errorf("ca-cert-file and ca-key-file must be used together")
 	}
 
 	switch i.ImagePullPolicy {
@@ -353,7 +358,7 @@ func (i *CommandInitOption) genCerts() error {
 	apiserverCertCfg := cert.NewCertConfig("karmada-apiserver", []string{""}, karmadaAltNames, &notAfter)
 
 	frontProxyClientCertCfg := cert.NewCertConfig("front-proxy-client", []string{}, certutil.AltNames{}, &notAfter)
-	if err = cert.GenCerts(i.KarmadaPkiPath, etcdServerCertConfig, etcdClientCertCfg, karmadaCertCfg, apiserverCertCfg, frontProxyClientCertCfg); err != nil {
+	if err = cert.GenCerts(i.KarmadaPkiPath, i.CaCertFile, i.CaKeyFile, etcdServerCertConfig, etcdClientCertCfg, karmadaCertCfg, apiserverCertCfg, frontProxyClientCertCfg); err != nil {
 		return err
 	}
 	return nil
