@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - master
+
+permissions: read-all      
+
 jobs:
   publish-chart-to-dockerhub:
     name: publish to DockerHub
