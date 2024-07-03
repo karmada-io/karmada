@@ -148,6 +148,10 @@ type Options struct {
 	// in scenario of dynamic replica assignment based on cluster free resources.
 	// Disable if it does not fit your cases for better performance.
 	EnableClusterResourceModeling bool
+	// EnableStsStartOrdinal indicates whether to enable the startOrdinal feature for statefulset.
+	// and it's required that the k8s version grater than 1.27 [beta], refer to
+	// https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#start-ordinal
+	EnableStsStartOrdinal bool
 }
 
 // NewOptions builds an empty options.

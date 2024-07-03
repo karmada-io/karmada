@@ -176,6 +176,7 @@ func run(opts *options.Options, stopChan <-chan struct{}, registryOptions ...Opt
 		scheduler.WithEnableSchedulerPlugin(opts.Plugins),
 		scheduler.WithSchedulerName(opts.SchedulerName),
 		scheduler.WithRateLimiterOptions(opts.RateLimiterOpts),
+		scheduler.WithEnableStsStartOrdinal(opts.EnableStsStartOrdinal),
 	)
 	if err != nil {
 		return fmt.Errorf("couldn't create scheduler: %w", err)

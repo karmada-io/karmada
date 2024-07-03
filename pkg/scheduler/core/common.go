@@ -18,7 +18,12 @@ package core
 
 import (
 	"fmt"
+	"strings"
 	"time"
+
+	"k8s.io/klog/v2"
+
+	"github.com/karmada-io/karmada/pkg/util"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -43,6 +48,7 @@ func AssignReplicas(
 	clusters []*clusterv1alpha1.Cluster,
 	spec *workv1alpha2.ResourceBindingSpec,
 	status *workv1alpha2.ResourceBindingStatus,
+	enableStsStartOrdinal bool,
 ) ([]workv1alpha2.TargetCluster, error) {
 	startTime := time.Now()
 	defer metrics.ScheduleStep(metrics.ScheduleStepAssignReplicas, startTime)
@@ -71,5 +77,15 @@ func AssignReplicas(
 	for i, cluster := range clusters {
 		targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name}
 	}
+
+	stsGVR := util.GetStsGroupVersionKind()
+	stsAPIVersion := fmt.Sprintf("%s/%s", stsGVR.Group, stsGVR.Version)
+	if strings.ToLower(spec.Resource.Kind) == stsGVR.Kind && spec.Resource.APIVersion == stsAPIVersion && enableStsStartOrdinal {
+		klog.Infof("found enable start ordinal for statefulset")
+		targetClusters = assignStartOrdinal(targetClusters, spec.Replicas)
+
+		klog.Infof("assign target cluster info, clusters: %v", targetClusters)
+	}
+
 	return targetClusters, nil
 }

@@ -85,6 +85,11 @@ type ObjectReference struct {
 type TargetCluster struct {
 	// Name of target cluster.
 	Name string `json:"name"`
+	// StartOrdinal is allows you to configure the integer ordinals to each Pod
+	// It's must enable the StatefulSetStartOrdinal in the feature gate, and
+	// required to be greater than v1.27 [beta], refer to https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#start-ordinal
+	// +optional
+	StartOrdinal int32 `json:"startOrdinal,omitempty"`
 	// Replicas in target cluster
 	// +optional
 	Replicas int32 `json:"replicas,omitempty"`

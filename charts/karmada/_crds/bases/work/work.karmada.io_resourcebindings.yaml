@@ -58,6 +58,13 @@ spec:
                       description: Replicas in target cluster
                       format: int32
                       type: integer
+                    startOrdinal:
+                      description: |-
+                        StartOrdinal is allows you to configure the integer ordinals to each Pod
+                        It's must enable the StatefulSetStartOrdinal in the feature gate, and
+                        required to be greater than v1.27 [beta], refer to https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#start-ordinal
+                      format: int32
+                      type: integer
                   required:
                   - name
                   type: object
@@ -268,6 +275,14 @@ spec:
                       type: string
                     replicas:
                       description: Replicas in target cluster
+                      format: int32
+                      type: integer
+                    startOrdinal:
+                      description: |-
+                        StartOrdinal is allows you to configure the integer ordinals to each Pod
+                        It's must enable the StatefulSetStartOrdinal in the feature gate, and
+                        required to be greater than v1.27 [beta], refer to
+                        https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#start-ordinal
                       format: int32
                       type: integer
                   required:
@@ -1105,6 +1120,14 @@ spec:
                             type: string
                           replicas:
                             description: Replicas in target cluster
+                            format: int32
+                            type: integer
+                          startOrdinal:
+                            description: |-
+                              StartOrdinal is allows you to configure the integer ordinals to each Pod
+                              It's must enable the StatefulSetStartOrdinal in the feature gate, and
+                              required to be greater than v1.27 [beta], refer to
+                              https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#start-ordinal
                             format: int32
                             type: integer
                         required:
