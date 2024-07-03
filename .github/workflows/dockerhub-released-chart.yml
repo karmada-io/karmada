@@ -3,6 +3,8 @@ on:
   release:
     types:
       - published
+permissions:
+  contents: read
 jobs:
   publish-chart-to-dockerhub:
     name: publish to DockerHub

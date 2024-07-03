@@ -3,6 +3,8 @@ on:
   push:
     branches:
       - master
+permissions:
+  contents: read
 jobs:
   publish-image:
     name: publish images

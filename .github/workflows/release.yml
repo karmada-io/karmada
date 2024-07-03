@@ -3,8 +3,12 @@ on:
     types:
     - published
 name: Build Release
+permissions:
+  contents: read
 jobs:
   release-assests:
+    permissions:
+      contents: write  # for softprops/action-gh-release to create GitHub release
     name: release kubectl-karmada
     runs-on: ubuntu-22.04
     strategy:
@@ -41,6 +45,8 @@ jobs:
           _output/release/${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz
           _output/release/${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz.sha256
   release-crds-assests:
+    permissions:
+      contents: write  # for softprops/action-gh-release to create GitHub release
     name: release crds
     runs-on: ubuntu-22.04
     steps:
@@ -61,6 +67,8 @@ jobs:
         files: |
           crds.tar.gz
   release-charts:
+    permissions:
+      contents: write  # for softprops/action-gh-release to create GitHub release
     name: Release charts
     runs-on: ubuntu-22.04
     steps:
@@ -79,6 +87,8 @@ jobs:
           _output/charts/karmada-operator-chart-${{ github.ref_name }}.tgz
           _output/charts/karmada-operator-chart-${{ github.ref_name }}.tgz.sha256
   sbom-assests:
+    permissions:
+      contents: write  # for softprops/action-gh-release to create GitHub release
     name: Release sbom
     runs-on: ubuntu-22.04
     steps:
