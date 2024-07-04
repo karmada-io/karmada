@@ -36,8 +36,9 @@ const (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=resourceinterpretercustomizations,scope="Cluster",shortName=ric,categories={karmada-io}
 // +kubebuilder:storageversion
-// +kubebuilder:printcolumn:JSONPath=`.spec.target.apiVersion`,name="TARGET-API-VERSION",type=string,priority=1
-// +kubebuilder:printcolumn:JSONPath=`.spec.target.kind`,name="TARGET-KIND",type=string,priority=1
+// +kubebuilder:printcolumn:JSONPath=`.spec.target.apiVersion`,name="TARGET-API-VERSION",type=string
+// +kubebuilder:printcolumn:JSONPath=`.spec.target.kind`,name="TARGET-KIND",type=string
+// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="AGE",type=date
 
 // ResourceInterpreterCustomization describes the configuration of a specific
 // resource for Karmada to get the structure.
