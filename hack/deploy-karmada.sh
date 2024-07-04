@@ -200,8 +200,10 @@ fi
 # deploy karmada apiserver
 TEMP_PATH_APISERVER=$(mktemp -d)
 trap '{ rm -rf ${TEMP_PATH_APISERVER}; }' EXIT
+KARMADA_APISERVER_VERSION=${KARMADA_APISERVER_VERSION:-"v1.25.4"}
 cp "${REPO_ROOT}"/artifacts/deploy/karmada-apiserver.yaml "${TEMP_PATH_APISERVER}"/karmada-apiserver.yaml
 sed -i'' -e "s/{{service_type}}/${KARMADA_APISERVER_SERVICE_TYPE}/g" "${TEMP_PATH_APISERVER}"/karmada-apiserver.yaml
+sed -i'' -e "s/{{karmada_apiserver_version}}/${KARMADA_APISERVER_VERSION}/g" "${TEMP_PATH_APISERVER}"/karmada-apiserver.yaml
 echo -e "\nApply dynamic rendered apiserver service in ${TEMP_PATH_APISERVER}/karmada-apiserver.yaml."
 kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${TEMP_PATH_APISERVER}"/karmada-apiserver.yaml
 
@@ -238,7 +240,9 @@ fi
 util::append_client_kubeconfig "${HOST_CLUSTER_KUBECONFIG}" "${CERT_DIR}/karmada.crt" "${CERT_DIR}/karmada.key" "${KARMADA_APISERVER_IP}" "${KARMADA_APISERVER_SECURE_PORT}" karmada-apiserver
 
 # deploy kube controller manager
-kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/kube-controller-manager.yaml"
+cp "${REPO_ROOT}"/artifacts/deploy/kube-controller-manager.yaml "${TEMP_PATH_APISERVER}"/kube-controller-manager.yaml
+sed -i'' -e "s/{{karmada_apiserver_version}}/${KARMADA_APISERVER_VERSION}/g" "${TEMP_PATH_APISERVER}"/kube-controller-manager.yaml
+kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${TEMP_PATH_APISERVER}"/kube-controller-manager.yaml
 # deploy aggregated-apiserver on host cluster
 kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/karmada-aggregated-apiserver.yaml"
 util::wait_pod_ready "${HOST_CLUSTER_NAME}" "${KARMADA_AGGREGATION_APISERVER_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
