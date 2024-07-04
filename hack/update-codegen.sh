@@ -28,7 +28,7 @@ GO111MODULE=on go install k8s.io/code-generator/cmd/conversion-gen
 GO111MODULE=on go install k8s.io/code-generator/cmd/client-gen
 GO111MODULE=on go install k8s.io/code-generator/cmd/lister-gen
 GO111MODULE=on go install k8s.io/code-generator/cmd/informer-gen
-GO111MODULE=on go install k8s.io/code-generator/cmd/openapi-gen
+GO111MODULE=on go install k8s.io/kube-openapi/cmd/openapi-gen
 export GOPATH=$(go env GOPATH | awk -F ':' '{print $1}')
 export PATH=$PATH:$GOPATH/bin
 
