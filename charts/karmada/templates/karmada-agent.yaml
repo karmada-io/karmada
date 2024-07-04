@@ -122,6 +122,10 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 15
             timeoutSeconds: 5
+          ports:
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
           volumeMounts:
             - name: kubeconfig
               mountPath: /etc/kubeconfig
