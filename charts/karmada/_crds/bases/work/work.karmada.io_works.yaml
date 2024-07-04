@@ -20,13 +20,13 @@ spec:
   versions:
   - additionalPrinterColumns:
     - jsonPath: .spec.workload.manifests[*].kind
-      name: Workload-Kind
+      name: WORKLOAD-KIND
       type: string
     - jsonPath: .status.conditions[?(@.type=="Applied")].status
-      name: Applied
+      name: APPLIED
       type: string
     - jsonPath: .metadata.creationTimestamp
-      name: Age
+      name: AGE
       type: date
     name: v1alpha1
     schema:

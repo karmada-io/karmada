@@ -222,13 +222,13 @@ spec:
       status: {}
   - additionalPrinterColumns:
     - jsonPath: .status.conditions[?(@.type=="Scheduled")].status
-      name: Scheduled
+      name: SCHEDULED
       type: string
     - jsonPath: .status.conditions[?(@.type=="FullyApplied")].status
-      name: FullyApplied
+      name: FULLYAPPLIED
       type: string
     - jsonPath: .metadata.creationTimestamp
-      name: Age
+      name: AGE
       type: date
     name: v1alpha2
     schema:
