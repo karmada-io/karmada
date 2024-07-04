@@ -17,6 +17,9 @@ on:
     paths:
       - "charts/**"
 
+permissions:
+  contents: read
+
 jobs:
   chart-lint-test:
     runs-on: ubuntu-22.04
