@@ -36,9 +36,9 @@ const (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=works,scope=Namespaced,shortName=wk,categories={karmada-io}
-// +kubebuilder:printcolumn:JSONPath=`.spec.workload.manifests[*].kind`,name="Workload-Kind",type=string
-// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Applied")].status`,name="Applied",type=string
-// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="Age",type=date
+// +kubebuilder:printcolumn:JSONPath=`.spec.workload.manifests[*].kind`,name="WORKLOAD-KIND",type=string
+// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Applied")].status`,name="APPLIED",type=string
+// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="AGE",type=date
 
 // Work defines a list of resources to be deployed on the member cluster.
 type Work struct {

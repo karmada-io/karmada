@@ -18,10 +18,10 @@ spec:
   versions:
   - additionalPrinterColumns:
     - jsonPath: .status.conditions[?(@.type=="Ready")].status
-      name: Ready
+      name: READY
       type: string
     - jsonPath: .metadata.creationTimestamp
-      name: Age
+      name: AGE
       type: date
     name: v1alpha1
     schema:

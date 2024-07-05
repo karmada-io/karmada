@@ -44,8 +44,9 @@ const (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=propagationpolicies,scope=Namespaced,shortName=pp,categories={karmada-io}
-// +kubebuilder:printcolumn:JSONPath=`.spec.conflictResolution`,name="CONFLICT-RESOLUTION",type=string,priority=1
-// +kubebuilder:printcolumn:JSONPath=`.spec.priority`,name="PRIORITY",type=string,priority=1
+// +kubebuilder:printcolumn:JSONPath=`.spec.conflictResolution`,name="CONFLICT-RESOLUTION",type=string
+// +kubebuilder:printcolumn:JSONPath=`.spec.priority`,name="PRIORITY",type=string
+// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="AGE",type=date
 
 // PropagationPolicy represents the policy that propagates a group of resources to one or more clusters.
 type PropagationPolicy struct {
@@ -564,8 +565,9 @@ type PropagationPolicyList struct {
 // +genclient:nonNamespaced
 // +kubebuilder:resource:path=clusterpropagationpolicies,scope="Cluster",shortName=cpp,categories={karmada-io}
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:printcolumn:JSONPath=`.spec.conflictResolution`,name="CONFLICT-RESOLUTION",type=string,priority=1
-// +kubebuilder:printcolumn:JSONPath=`.spec.priority`,name="PRIORITY",type=string,priority=1
+// +kubebuilder:printcolumn:JSONPath=`.spec.conflictResolution`,name="CONFLICT-RESOLUTION",type=string
+// +kubebuilder:printcolumn:JSONPath=`.spec.priority`,name="PRIORITY",type=string
+// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="AGE",type=date
 
 // ClusterPropagationPolicy represents the cluster-wide policy that propagates a group of resources to one or more clusters.
 // Different with PropagationPolicy that could only propagate resources in its own namespace, ClusterPropagationPolicy
