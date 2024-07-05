@@ -17,6 +17,7 @@ limitations under the License.
 package util
 
 import (
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"sort"
 	"strings"
 
@@ -25,6 +26,29 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+)
+
+var (
+	// KarmadaLabels indicates workload labels added by karmada
+	KarmadaLabels = []string{
+		ManagedByKarmadaLabel,
+		policyv1alpha1.PropagationPolicyPermanentIDLabel,
+		workv1alpha2.ResourceBindingPermanentIDLabel,
+		workv1alpha2.WorkPermanentIDLabel,
+	}
+	// KarmadaAnnotations indicates workload annotations added by karmada
+	KarmadaAnnotations = []string{
+		policyv1alpha1.ClusterPropagationPolicyAnnotation, policyv1alpha1.PropagationPolicyNameAnnotation,
+		policyv1alpha1.PropagationPolicyNamespaceAnnotation,
+		workv1alpha2.ResourceBindingNameAnnotationKey,
+		workv1alpha2.ResourceBindingNamespaceAnnotationKey,
+		workv1alpha2.ManagedAnnotation,
+		workv1alpha2.ResourceTemplateUIDAnnotation,
+		workv1alpha2.ResourceConflictResolutionAnnotation,
+		workv1alpha2.WorkNameAnnotation,
+		workv1alpha2.WorkNamespaceAnnotation,
+		workv1alpha2.ManagedLabels,
+	}
 )
 
 // GetLabelValue retrieves the value via 'labelKey' if exist, otherwise returns an empty string.
@@ -123,4 +147,22 @@ func RecordManagedLabels(object *unstructured.Unstructured) {
 	sort.Strings(managedKeys)
 	annotations[workv1alpha2.ManagedLabels] = strings.Join(managedKeys, ",")
 	object.SetAnnotations(annotations)
+}
+
+// CleanUpLabelAnnotation CleanUp Karmada labels and annotations for given object
+func CleanUpLabelAnnotation(obj *unstructured.Unstructured) {
+	labels := obj.GetLabels()
+	if labels != nil {
+		for _, labelKey := range KarmadaLabels {
+			delete(labels, labelKey)
+		}
+		obj.SetLabels(labels)
+	}
+	annotations := obj.GetAnnotations()
+	if annotations != nil {
+		for _, annotationKey := range KarmadaAnnotations {
+			delete(annotations, annotationKey)
+		}
+		obj.SetAnnotations(annotations)
+	}
 }

@@ -18,21 +18,31 @@ package dependenciesdistributor
 
 import (
 	"context"
-	"reflect"
-	"testing"
-
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
+	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
+	"github.com/karmada-io/karmada/pkg/util/restmapper"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
-
-	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
-	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
-	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
+	"reflect"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	fakecontrollerruntimeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"testing"
+	"time"
 )
 
 func Test_dependentObjectReferenceMatches(t *testing.T) {
@@ -253,6 +263,198 @@ func TestDependenciesDistributor_findOrphanAttachedBindingsByDependencies(t *tes
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("findOrphanAttachedBindingsByDependencies() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDependenciesDistributor_PatchDeletionPolicy(t *testing.T) {
+	type fields struct {
+		Client              client.Client
+		DynamicClient       dynamic.Interface
+		InformerManager     genericmanager.SingleClusterInformerManager
+		EventRecorder       record.EventRecorder
+		RESTMapper          meta.RESTMapper
+		ResourceInterpreter resourceinterpreter.ResourceInterpreter
+		RateLimiterOptions  ratelimiterflag.Options
+		eventHandler        cache.ResourceEventHandler
+		resourceProcessor   util.AsyncWorker
+		genericEvent        chan event.GenericEvent
+		stopCh              <-chan struct{}
+	}
+	type args struct {
+		workload     *unstructured.Unstructured
+		dependencies []configv1alpha1.DependentObjectReference
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		aop     func(dynamicClient dynamic.Interface, client client.Client, dependencies []configv1alpha1.DependentObjectReference, restMapper meta.RESTMapper) func()
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "have dependency resource configmap, workload's deletionpolicy.karmada.io = complate",
+			fields: fields{
+				Client:        fakecontrollerruntimeclient.NewFakeClient(),
+				DynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme),
+				RESTMapper: func() meta.RESTMapper {
+					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
+					m.Add(schema.GroupVersionKind{Version: "v1", Kind: "ConfigMap"}, meta.RESTScopeNamespace)
+					return m
+				}(),
+			},
+			args: args{
+				workload: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":        "demo-deployment",
+							"namespace":   "default",
+							"labels":      map[string]interface{}{},
+							"annotations": map[string]interface{}{workv1alpha1.DeletionPolicyAnnotation: workv1alpha1.DeletionCompleteAnnotation},
+						},
+						"spec": map[string]interface{}{
+							"replicas": 2,
+						}}},
+				dependencies: []configv1alpha1.DependentObjectReference{
+					{
+						APIVersion: "v1",
+						Kind:       "ConfigMap",
+						Namespace:  "default",
+						Name:       "demo-configmap",
+					},
+				},
+			},
+			aop: func(dynamicClient dynamic.Interface, client client.Client, dependencies []configv1alpha1.DependentObjectReference, restMapper meta.RESTMapper) func() {
+				for _, dependent := range dependencies {
+					gvr, err := restmapper.GetGroupVersionResource(restMapper, schema.FromAPIVersionAndKind(dependent.APIVersion, dependent.Kind))
+					if err != nil {
+						panic(err)
+					}
+					configmapObj := &unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "v1",
+							"kind":       "ConfigMap",
+							"metadata": map[string]interface{}{
+								"name":      "demo-configmap",
+								"namespace": "default",
+								"labels":    map[string]interface{}{},
+							}}}
+					_, err = dynamicClient.Resource(gvr).Namespace(dependent.Namespace).Create(context.TODO(), configmapObj, metav1.CreateOptions{})
+					if err != nil {
+						panic(err)
+					}
+					err = client.Create(context.TODO(), configmapObj)
+					if err != nil {
+						panic(err)
+					}
+					time.Sleep(time.Second)
+				}
+				return func() {}
+			},
+			want: workv1alpha1.DeletionCompleteAnnotation,
+		},
+		{
+			name: "have dependency resource configmap, workload's deletionpolicy.karmada.io = nil",
+			fields: fields{
+				Client:        fakecontrollerruntimeclient.NewFakeClient(),
+				DynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme),
+				RESTMapper: func() meta.RESTMapper {
+					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
+					m.Add(schema.GroupVersionKind{Version: "v1", Kind: "ConfigMap"}, meta.RESTScopeNamespace)
+					return m
+				}(),
+			},
+			args: args{
+				workload: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":        "demo-deployment1",
+							"namespace":   "default",
+							"labels":      map[string]interface{}{},
+							"annotations": map[string]interface{}{},
+						},
+						"spec": map[string]interface{}{
+							"replicas": 2,
+						}}},
+				dependencies: []configv1alpha1.DependentObjectReference{
+					{
+						APIVersion: "v1",
+						Kind:       "ConfigMap",
+						Namespace:  "default",
+						Name:       "demo-configmap1",
+					},
+				},
+			},
+			aop: func(dynamicClient dynamic.Interface, client client.Client, dependencies []configv1alpha1.DependentObjectReference, restMapper meta.RESTMapper) func() {
+				for _, dependent := range dependencies {
+					gvr, err := restmapper.GetGroupVersionResource(restMapper, schema.FromAPIVersionAndKind(dependent.APIVersion, dependent.Kind))
+					if err != nil {
+						panic(err)
+					}
+					configmapObj := &unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "v1",
+							"kind":       "ConfigMap",
+							"metadata": map[string]interface{}{
+								"name":      "demo-configmap1",
+								"namespace": "default",
+								"labels":    map[string]interface{}{},
+								"annotations": map[string]interface{}{
+									workv1alpha1.DeletionPolicyAnnotation: workv1alpha1.DeletionCompleteAnnotation,
+								},
+							}}}
+					_, err = dynamicClient.Resource(gvr).Namespace(dependent.Namespace).Create(context.TODO(), configmapObj, metav1.CreateOptions{})
+					if err != nil {
+						panic(err)
+					}
+					err = client.Create(context.TODO(), configmapObj)
+					if err != nil {
+						panic(err)
+					}
+					time.Sleep(time.Second)
+				}
+				return func() {}
+			},
+			want: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &DependenciesDistributor{
+				Client:              tt.fields.Client,
+				DynamicClient:       tt.fields.DynamicClient,
+				InformerManager:     tt.fields.InformerManager,
+				EventRecorder:       tt.fields.EventRecorder,
+				RESTMapper:          tt.fields.RESTMapper,
+				ResourceInterpreter: tt.fields.ResourceInterpreter,
+				RateLimiterOptions:  tt.fields.RateLimiterOptions,
+				eventHandler:        tt.fields.eventHandler,
+				resourceProcessor:   tt.fields.resourceProcessor,
+				genericEvent:        tt.fields.genericEvent,
+				stopCh:              tt.fields.stopCh,
+			}
+			if tt.aop != nil {
+				cancel := tt.aop(d.DynamicClient, d.Client, tt.args.dependencies, d.RESTMapper)
+				defer cancel()
+			}
+			if err := d.PatchDeletionPolicy(tt.args.workload, tt.args.dependencies); (err != nil) != tt.wantErr {
+				t.Errorf("PatchDeletionPolicy() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			for _, dep := range tt.args.dependencies {
+				depObj := &corev1.ConfigMap{}
+				err := d.Client.Get(context.TODO(), client.ObjectKey{Namespace: dep.Namespace, Name: dep.Name}, depObj)
+				if err != nil {
+					panic(err)
+				}
+				if depObj.GetAnnotations()[workv1alpha1.DeletionPolicyAnnotation] != tt.want {
+					t.Errorf("PatchDeletionPolicy() expect = %v, want %v", depObj.GetAnnotations()[workv1alpha1.DeletionPolicyAnnotation], tt.want)
+				}
 			}
 		})
 	}

@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -276,6 +277,11 @@ func (d *DependenciesDistributor) Reconcile(ctx context.Context, request reconci
 	}
 	d.EventRecorder.Eventf(workload, corev1.EventTypeNormal, events.EventReasonGetDependenciesSucceed, "Get dependencies(%+v) succeed.", dependencies)
 
+	err = d.PatchDeletionPolicy(workload, dependencies)
+	if err != nil {
+		klog.Errorf("Failed to patch deletion policy for dependencies %s(%s), %v", workload.GroupVersionKind(), workload.GetName(), err)
+		return reconcile.Result{}, err
+	}
 	if err = d.addFinalizer(ctx, bindingObject); err != nil {
 		klog.Errorf("Failed to add finalizer(%s) for ResourceBinding(%s): %v", util.BindingDependenciesDistributorFinalizer, request.NamespacedName, err)
 		return reconcile.Result{}, err
@@ -737,4 +743,47 @@ func deleteBindingFromSnapshot(bindingNamespace, bindingName string, existSnapsh
 		}
 	}
 	return existSnapshot
+}
+
+// PatchDeletionPolicy
+// keep the dependency deletion policy same as workload
+func (d *DependenciesDistributor) PatchDeletionPolicy(workload *unstructured.Unstructured, dependencies []configv1alpha1.DependentObjectReference) error {
+	var workloadDeletionPolicy string
+	if workload.GetAnnotations() != nil {
+		workloadDeletionPolicy = workload.GetAnnotations()[workv1alpha1.DeletionPolicyAnnotation]
+	}
+	for _, dependent := range dependencies {
+		gvr, err := restmapper.GetGroupVersionResource(d.RESTMapper, schema.FromAPIVersionAndKind(dependent.APIVersion, dependent.Kind))
+		if err != nil {
+			return err
+		}
+		var dependencyDeletionPolicy string
+		dependencyObject, err := d.DynamicClient.Resource(gvr).Namespace(dependent.Namespace).Get(context.TODO(), dependent.Name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		if dependencyObject.GetAnnotations() != nil {
+			dependencyDeletionPolicy = dependencyObject.GetAnnotations()[workv1alpha1.DeletionPolicyAnnotation]
+		}
+		if dependencyDeletionPolicy != workloadDeletionPolicy {
+			dependencyAnnotation := dependencyObject.GetAnnotations()
+			if dependencyAnnotation == nil {
+				dependencyAnnotation = map[string]string{}
+			}
+			switch len(workloadDeletionPolicy) {
+			case 0: // case1: workload has no annotation deletionpolicy.karmada.io
+				delete(dependencyAnnotation, workv1alpha1.DeletionPolicyAnnotation)
+				dependencyObject.SetAnnotations(dependencyAnnotation)
+			default: // case2: workload has annotation deletionpolicy.karmada.io
+				dependencyAnnotation[workv1alpha1.DeletionPolicyAnnotation] = workloadDeletionPolicy
+				dependencyObject.SetAnnotations(dependencyAnnotation)
+			}
+			err = d.Client.Update(context.TODO(), dependencyObject)
+			if err != nil {
+				return err
+			}
+			klog.V(4).Infof("patch dependency (%s/%s) for (%s/%s) successfully", dependent.Namespace, dependent.Name, workload.GetNamespace(), workload.GetName())
+		}
+	}
+	return nil
 }

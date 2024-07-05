@@ -30,6 +30,13 @@ const (
 	ResourcePluralWork = "works"
 	// ResourceNamespaceScopedWork indicates if Work is NamespaceScoped.
 	ResourceNamespaceScopedWork = true
+
+	// DeletionPolicyAnnotation is added to resource template annotation to indicates how removal action of managed resources.
+	DeletionPolicyAnnotation = "deletionpolicy.karmada.io"
+
+	// DeletionCompleteAnnotation means that the resource in member clusters completely independent of karmada
+	// Not only cleanup the labels/annotations from the resource on member clusters, but also delete work object in control plane
+	DeletionCompleteAnnotation = "complete"
 )
 
 // +genclient

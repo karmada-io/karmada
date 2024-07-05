@@ -152,11 +152,21 @@ func (c *Controller) tryDeleteWorkload(clusterName string, work *workv1alpha1.Wo
 			klog.Errorf("Failed to unmarshal workload, error is: %v", err)
 			return err
 		}
-
-		err = c.ObjectWatcher.Delete(clusterName, workload)
-		if err != nil {
-			klog.Errorf("Failed to delete resource in the given member cluster %v, err is %v", clusterName, err)
-			return err
+		deletionPolicy := workload.GetAnnotations()[workv1alpha1.DeletionPolicyAnnotation]
+		switch deletionPolicy {
+		case workv1alpha1.DeletionCompleteAnnotation:
+			klog.V(4).Infof("Found deletionPolicy (%s) on %s. cluster is %s, Removing label/annotation.", deletionPolicy, work.Name, clusterName)
+			err = c.cleanUpLabelAnnotation(clusterName, work)
+			if err != nil {
+				klog.Errorf("failed to remove the label/annotation from all resources previously managed by work %s/%q", work.Namespace, work.Name)
+				return err
+			}
+		default:
+			err = c.ObjectWatcher.Delete(clusterName, workload)
+			if err != nil {
+				klog.Errorf("Failed to delete resource in the given member cluster %v, err is %v", clusterName, err)
+				return err
+			}
 		}
 	}
 
@@ -273,4 +283,21 @@ func (c *Controller) eventf(object *unstructured.Unstructured, eventType, reason
 		return
 	}
 	c.EventRecorder.Eventf(ref, eventType, reason, messageFmt, args...)
+}
+
+func (c *Controller) cleanUpLabelAnnotation(clusterName string, work *workv1alpha1.Work) error {
+	for _, manifest := range work.Spec.Workload.Manifests {
+		workload := &unstructured.Unstructured{}
+		err := workload.UnmarshalJSON(manifest.Raw)
+		if err != nil {
+			klog.Errorf("Failed to unmarshal workload, error is: %v", err)
+			return err
+		}
+		util.CleanUpLabelAnnotation(workload)
+		if err = c.tryCreateOrUpdateWorkload(clusterName, workload); err != nil {
+			klog.Errorf("Failed to create or update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
+			return err
+		}
+	}
+	return nil
 }
