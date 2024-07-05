@@ -100,9 +100,9 @@ func Test_retainK8sWorkloadReplicas(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := retainWorkloadReplicas(tt.args.desired, tt.args.observed)
+			got, err := retainWorkloadFields(tt.args.desired, tt.args.observed)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("retainWorkloadReplicas() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("retainWorkloadFields() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			assert.Equalf(t, tt.want, got, "retainDeploymentFields(%v, %v)", tt.args.desired, tt.args.observed)
@@ -253,6 +253,102 @@ func Test_retainPersistentVolumeClaimFields(t *testing.T) {
 			got, err := retainPersistentVolumeClaimFields(tt.args.desired, tt.args.observed)
 			assert.Nil(t, err, "retainPersistentVolumeClaimFields() error = %v", err)
 			assert.Equalf(t, tt.want, got, "retainPersistentVolumeClaimFields(%v, %v)", tt.args.desired, tt.args.observed)
+		})
+	}
+}
+
+func Test_retainK8sRestartedAtAnnotation(t *testing.T) {
+	observed, _ := helper.ToUnstructured(&appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "nginx",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{},
+		},
+	})
+	restartedObserved, _ := helper.ToUnstructured(&appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "nginx",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kubectl.kubernetes.io/restartedAt": "2021-08-01T00:00:00Z",
+					},
+				},
+			},
+		},
+	})
+	desired, _ := helper.ToUnstructured(&appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "nginx",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{},
+		},
+	})
+	restartedDesired, _ := helper.ToUnstructured(&appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "nginx",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kubectl.kubernetes.io/restartedAt": "2021-08-02T00:00:00Z",
+					},
+				},
+			},
+		},
+	})
+
+	type args struct {
+		desired  *unstructured.Unstructured
+		observed *unstructured.Unstructured
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *unstructured.Unstructured
+		wantErr bool
+	}{
+		{
+			name: "deployment is restarted on member cluster",
+			args: args{
+				desired:  desired,
+				observed: restartedObserved,
+			},
+			want:    restartedObserved,
+			wantErr: false,
+		},
+		{
+			name: "deployment is restarted on karmada cluster",
+			args: args{
+				desired:  restartedDesired,
+				observed: observed,
+			},
+			want:    restartedDesired,
+			wantErr: false,
+		},
+		{
+			name: "deployment is restarted on karmada cluster after it was restarted on member cluster",
+			args: args{
+				desired:  restartedDesired,
+				observed: restartedObserved,
+			},
+			want:    restartedDesired,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := retainWorkloadFields(tt.args.desired, tt.args.observed)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("retainWorkloadFields() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			assert.Equalf(t, tt.want, got, "retainDeploymentFields(%v, %v)", tt.args.desired, tt.args.observed)
 		})
 	}
 }
