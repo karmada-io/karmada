@@ -161,7 +161,6 @@ func (c *EndpointSliceController) collectEndpointSliceFromWork(work *workv1alpha
 		desiredEndpointSlice.Labels = util.DedupeAndMergeLabels(desiredEndpointSlice.Labels, map[string]string{
 			workv1alpha2.WorkPermanentIDLabel: work.Labels[workv1alpha2.WorkPermanentIDLabel],
 			discoveryv1.LabelServiceName:      names.GenerateDerivedServiceName(work.Labels[util.ServiceNameLabel]),
-			util.ManagedByKarmadaLabel:        util.ManagedByKarmadaLabelValue,
 		})
 		desiredEndpointSlice.Annotations = util.DedupeAndMergeAnnotations(desiredEndpointSlice.Annotations, map[string]string{
 			workv1alpha2.WorkNamespaceAnnotation: work.Namespace,
