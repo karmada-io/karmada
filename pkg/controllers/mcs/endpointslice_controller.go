@@ -24,7 +24,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -57,24 +56,7 @@ func (c *EndpointSliceController) Reconcile(ctx context.Context, req controllerr
 	work := &workv1alpha1.Work{}
 	if err := c.Client.Get(ctx, req.NamespacedName, work); err != nil {
 		if apierrors.IsNotFound(err) {
-			// Clean up derived EndpointSlices after work has been removed.
-			endpointSlices := &discoveryv1.EndpointSliceList{}
-			if err = c.List(context.TODO(), endpointSlices, client.HasLabels{workv1alpha2.WorkPermanentIDLabel}); err != nil {
-				return controllerruntime.Result{}, err
-			}
-
-			var errs []error
-			for i, es := range endpointSlices.Items {
-				if es.Annotations[workv1alpha2.WorkNamespaceAnnotation] == req.Namespace &&
-					es.Annotations[workv1alpha2.WorkNameAnnotation] == req.Name {
-					if err := c.Delete(context.TODO(), &endpointSlices.Items[i]); err != nil && !apierrors.IsNotFound(err) {
-						klog.Errorf("Failed to delete endpointslice(%s/%s) after the work(%s/%s) has been removed, err: %v",
-							es.Namespace, es.Name, req.Namespace, req.Name, err)
-						errs = append(errs, err)
-					}
-				}
-			}
-			return controllerruntime.Result{}, utilerrors.NewAggregate(errs)
+			return controllerruntime.Result{}, nil
 		}
 		return controllerruntime.Result{}, err
 	}
