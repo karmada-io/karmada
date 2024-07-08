@@ -17,7 +17,9 @@ jobs:
       fail-fast: false
       matrix:
         kubeapiserver-version: [ v1.23.4, v1.24.2, v1.25.0, v1.26.0, v1.27.3, v1.28.0, v1.29.0, v1.30.0 ]
-        karmada-version: [ release-1.10, release-1.9, release-1.8 ]
+        karmada-version: [ master, release-1.10, release-1.9, release-1.8 ]
+    env:
+      KARMADA_APISERVER_VERSION: ${{ matrix.kubeapiserver-version }}
     steps:
       # Free up disk space on Ubuntu
       - name: Free Disk Space (Ubuntu)
@@ -50,21 +52,6 @@ jobs:
           timeout_minutes: 20
           command: |
             hack/local-up-karmada.sh
-      - name: change kube-apiserver and kube-controller-manager version
-        run: |
-          # Update images
-          kubectl --kubeconfig=${HOME}/.kube/karmada.config --context=karmada-host \
-            set image deployment/karmada-apiserver -nkarmada-system \
-            karmada-apiserver=registry.k8s.io/kube-apiserver:${{ matrix.kubeapiserver-version }}
-          kubectl --kubeconfig=${HOME}/.kube/karmada.config --context=karmada-host \
-            set image deployment/karmada-kube-controller-manager -nkarmada-system \
-            kube-controller-manager=registry.k8s.io/kube-controller-manager:${{ matrix.kubeapiserver-version }}
-
-          # Wait ready
-          kubectl --kubeconfig=${HOME}/.kube/karmada.config --context=karmada-host \
-            rollout status deployment/karmada-kube-controller-manager -nkarmada-system --timeout=5m
-          kubectl --kubeconfig=${HOME}/.kube/karmada.config --context=karmada-host \
-            rollout status deployment/karmada-apiserver -nkarmada-system --timeout=5m
       - name: run e2e
         run: |
           export ARTIFACTS_PATH=${{ github.workspace }}/karmada-e2e-logs/${{ matrix.kubeapiserver-version }}-${{ matrix.karmada-version }}/
