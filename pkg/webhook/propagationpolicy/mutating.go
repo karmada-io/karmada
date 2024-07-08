@@ -25,6 +25,7 @@ import (
 	"github.com/google/uuid"
 	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -97,6 +98,7 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 
 	if req.Operation == admissionv1.Create {
 		util.MergeLabel(policy, policyv1alpha1.PropagationPolicyPermanentIDLabel, uuid.New().String())
+		controllerutil.AddFinalizer(policy, util.PropagationPolicyControllerFinalizer)
 	}
 
 	marshaledBytes, err := json.Marshal(policy)
