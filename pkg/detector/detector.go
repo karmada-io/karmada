@@ -980,16 +980,6 @@ func (d *ResourceDetector) ReconcilePropagationPolicy(key util.QueueKey) error {
 		return nil
 	}
 
-	// TODO(whitewindmills): In order to adapt to the upgrade scenario, we temporarily add finalizer here.
-	// Transplant it to karmada-webhook in the next release. More info: https://github.com/karmada-io/karmada/pull/4836#discussion_r1568186728.
-	if controllerutil.AddFinalizer(propagationObject, util.PropagationPolicyControllerFinalizer) {
-		if err = d.Client.Update(context.TODO(), propagationObject); err != nil {
-			klog.Errorf("Failed to add finalizer for PropagationPolicy(%s), err: %v", ckey.NamespaceKey(), err)
-			return err
-		}
-		return nil
-	}
-
 	klog.Infof("PropagationPolicy(%s) has been added or updated.", ckey.NamespaceKey())
 	return d.HandlePropagationPolicyCreationOrUpdate(propagationObject)
 }
@@ -1088,16 +1078,6 @@ func (d *ResourceDetector) ReconcileClusterPropagationPolicy(key util.QueueKey) 
 				klog.Errorf("Failed to remove finalizer for ClusterPropagationPolicy(%s), err: %v", ckey.NamespaceKey(), err)
 				return err
 			}
-		}
-		return nil
-	}
-
-	// TODO(whitewindmills): In order to adapt to the upgrade scenario, we temporarily add finalizer here.
-	// Transplant it to karmada-webhook in the next release. More info: https://github.com/karmada-io/karmada/pull/4836#discussion_r1568186728.
-	if controllerutil.AddFinalizer(propagationObject, util.ClusterPropagationPolicyControllerFinalizer) {
-		if err = d.Client.Update(context.TODO(), propagationObject); err != nil {
-			klog.Errorf("Failed to add finalizer for ClusterPropagationPolicy(%s), err: %v", ckey.NamespaceKey(), err)
-			return err
 		}
 		return nil
 	}
