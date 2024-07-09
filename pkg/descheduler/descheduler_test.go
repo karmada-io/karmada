@@ -505,7 +505,7 @@ func TestDescheduler_worker(t *testing.T) {
 					mock.MatchedBy(func(context.Context) bool { return true }),
 					mock.MatchedBy(func(in *pb.UnschedulableReplicasRequest) bool { return in.Cluster == cluster.Name }),
 				).Return(mockResultFn, nil)
-				desched.schedulerEstimatorCache.AddCluster(cluster.Name, nil, mockClient)
+				desched.schedulerEstimatorCache.AddOrUpdateCluster(cluster.Name, nil, mockClient)
 			}
 
 			desched.informerFactory.Start(ctx.Done())

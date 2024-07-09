@@ -57,15 +57,13 @@ func (c *SchedulerEstimatorCache) IsEstimatorExist(name string) bool {
 	return exist
 }
 
-// AddCluster adds a grpc connection and associated client into the cache.
-func (c *SchedulerEstimatorCache) AddCluster(name string, connection *grpc.ClientConn, client estimatorservice.EstimatorClient) {
+// AddOrUpdateCluster adds or updates a grpc connection and associated client into the cache.
+func (c *SchedulerEstimatorCache) AddOrUpdateCluster(name string, connection *grpc.ClientConn, client estimatorservice.EstimatorClient) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	// If more than one worker have established connections at the same time,
-	// only the first one will be used. The ladder ones would be abandoned.
+
 	if _, exist := c.estimator[name]; exist {
-		_ = connection.Close()
-		return
+		_ = c.estimator[name].connection.Close()
 	}
 	c.estimator[name] = &clientWrapper{
 		connection: connection,
@@ -98,10 +96,6 @@ func (c *SchedulerEstimatorCache) GetClient(name string) (estimatorservice.Estim
 
 // EstablishConnection establishes a new gRPC connection with the specified cluster scheduler estimator.
 func EstablishConnection(kubeClient kubernetes.Interface, name string, estimatorCache *SchedulerEstimatorCache, estimatorServicePrefix string, grpcConfig *grpcconnection.ClientConfig) error {
-	if estimatorCache.IsEstimatorExist(name) {
-		return nil
-	}
-
 	serverAddr, err := resolveCluster(kubeClient, util.NamespaceKarmadaSystem,
 		names.GenerateEstimatorServiceName(estimatorServicePrefix, name), int32(grpcConfig.TargetPort))
 	if err != nil {
@@ -115,7 +109,7 @@ func EstablishConnection(kubeClient kubernetes.Interface, name string, estimator
 		return err
 	}
 	c := estimatorservice.NewEstimatorClient(cc)
-	estimatorCache.AddCluster(name, cc, c)
+	estimatorCache.AddOrUpdateCluster(name, cc, c)
 	klog.Infof("Connection with estimator server(%s) of cluster(%s) has been established.", serverAddr, name)
 	return nil
 }
