@@ -14,7 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Given mockgen does not group imports according to our project's conventions.
+// Following the mockgen command, we run 'goimports', which reformats the
+// generated file to ensure that all imports are properly grouped and sorted,
+// maintaining consistency with the rest of our codebase.
 //go:generate mockgen -source=interface.go -destination=testing/mock_interface.go -package=testing FilterPlugin ScorePlugin ScoreExtensions
+//go:generate goimports -local "github.com/karmada-io/karmada" -w testing/mock_interface.go
 
 package framework
 

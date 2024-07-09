@@ -22,7 +22,7 @@ SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 cd "${SCRIPT_ROOT}"
 ROOT_PATH=$(pwd)
 
-GO111MODULE=on go install "golang.org/x/tools/cmd/goimports@v0.1.5"
+GO111MODULE=on go install "golang.org/x/tools/cmd/goimports"
 
 IMPORT_ALIASES_PATH="${ROOT_PATH}/hack/.import-aliases"
 INCLUDE_PATH="(${ROOT_PATH}/cmd|${ROOT_PATH}/test/e2e|${ROOT_PATH}/test/helper|\
