@@ -40,6 +40,7 @@ To add support for stateful application failover:
 ## Proposal
 
 Stateful applications need a way to read the last saved state to resume processing from that state after failover. 
+The idea is to provide a way to persist the metadata related to the last saved state so that this state can then be retrieved from some durable storage before processing continues. 
 
 To enable this we split this proposal into two sections: 
 - A mechanism for when a failover happened so that stateful applications can load the previous state first before resuming processing.
@@ -47,11 +48,9 @@ To enable this we split this proposal into two sections:
 
 Since stateful applications have different implementations of how to retrieve the last state given this the job metadata we would then rely on those individual implementations to fetch all the details related to the last state. 
 
-**NOTE: To be discussed with Karmada community**
-
 One important detail is that if all the replicas of the stateful application are not migrated together, it is not clear when the state needs to be restored. In this proposal we focus on the use case where all the replicas of a stateful application are migrated together. One way to ensure this is to make all the replicas scheduled together using spreadConstraints.
 
-```
+```yaml
 spreadConstraints:
   - spreadByField: cluster
     maxGroups: 1
@@ -92,7 +91,7 @@ To summarize, we currently resume from the last state with some custom changes a
 
 We can extend the ResourceBindingStatus with a new field "FailoverHistory", which would be added by the cluster + application failover controller to keep track when the replica has been failed-over. 
 
-```
+```go
 // ResourceBindingStatus represents the overall status of the strategy as well as the referenced resources.
 type ResourceBindingStatus struct {
 	// SchedulerObservedGeneration is the generation(.metadata.generation) observed by the scheduler.
@@ -122,7 +121,7 @@ type ResourceBindingStatus struct {
 
 The FailoverHistory is a list of FailoverHistoryItem objects and is updated every time a failover happens until a certain limit. The limit is set by another field persistedFields.maxHistory which is defined in the propogation policy.
 
-```
+```go
 type FailoverHistoryItem struct {
 
     // FailoverTime represents the timestamp when the workload failed over
@@ -142,20 +141,22 @@ type FailoverHistoryItem struct {
 
 The FailoverHistoryItem object contains information relevant to a failover and an additional object called "PersistedDuringFailover" which keeps track of the metadata (both the fields that need to be persisted and how to access those fields) that is required by the stateful operation to resume processing from that state.
 
-```
+```go
 type PersistedDuringFailover struct {
 	
     // LabelName represents the name of the line that will be persisted for the replica
     // in case there is a failover to a new cluster.
 	LabelName string `json:"labelName,omitempty"`
 
-    // PersistedItem is a pointer to the status item that should be persisted to the rescheduled 
-    // replica during a failover. This should be input in the form: obj.status.<path-to-item> 
-	PersistedStatusItem string `json:"persistedStatusItem,omitempty"`
+    // PersistedStatusItemValue is the value of the status item that should be persisted to the rescheduled
+    // replica during a failover. This should be the value at the location obj.status.path-to-item
+	PersistedStatusItemValue string `json:"persistedStatusItemValue,omitempty"`
 }
 ```
 
-The PersistedDuringFailover object keeps track of the value of a field during failover so that this information can be used to resume processing from this point onward. This object consists of two fields, LabelName and PersistedStatusItem which are both defined in the propogation policy.
+The PersistedDuringFailover object keeps track of the value of a field during failover so that this information can be used to resume processing from this point onward. This object consists of two fields, LabelName and PersistedStatusItemValue which are both defined in the propogation policy.
+
+Both the LabelName and PersistedStatusItemValue will be of type string and less than 64 characters long as they are obtained from the key and value of a label respectively.
 
 #### PropagationPolicy API Change
 
@@ -163,9 +164,11 @@ We propose to add two fields to a propogation policy to enable stateful failover
 1. persistedFields.maxHistory: This sets the max limit on the amount of stateful failover history that is persisted before the older entries are overwritten. If this is set to 5, the resourcebinding will store a maximum of 5 failover entries in FailoverHistory before it overwrites the older history.
 2. persistedFields.fields: This is a list of the fields that are required by the stateful application to be persisted during failover to resume processing from a particular case. This takes in a list of field names as well as how to access them from the spec. 
 
+A limitation of 
+
 Example propagation policy for Flink jobs that uses the persistedFields.maxHistory and persistedFields.fields:
 
-```
+```yaml
 apiVersion: policy.karmada.io/v1alpha1
 kind: PropagationPolicy
 metadata:
@@ -177,10 +180,11 @@ spec:
         tolerationSeconds: 90
       purgeMode: Graciously
       gracePeriodSeconds: 10
-    persistedFields.maxHistory: 5
-    persistedFields.fields:
-      - LabelName: jobID
-        PersistedStatusItem: obj.status.jobStatus.jobID
+    persistedFields:
+      maxHistory: 5
+      fields:
+        - LabelName: jobID
+          PersistedStatusItem: obj.status.jobStatus.jobID
   resourceSelectors:
     - apiVersion: flink.apache.org/v1beta1
       kind: FlinkDeployment
