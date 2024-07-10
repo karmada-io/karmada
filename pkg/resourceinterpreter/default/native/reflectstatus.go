@@ -78,8 +78,10 @@ func reflectDeploymentStatus(object *unstructured.Unstructured) (*runtime.RawExt
 	}
 
 	grabStatus := &WrappedDeploymentStatus{
-		Generation:                 object.GetGeneration(),
-		ResourceTemplateGeneration: resourceTemplateGenerationInt,
+		FederatedGeneration: FederatedGeneration{
+			Generation:                 object.GetGeneration(),
+			ResourceTemplateGeneration: resourceTemplateGenerationInt,
+		},
 		DeploymentStatus: appsv1.DeploymentStatus{
 			Replicas:            deploymentStatus.Replicas,
 			UpdatedReplicas:     deploymentStatus.UpdatedReplicas,
@@ -194,15 +196,31 @@ func reflectDaemonSetStatus(object *unstructured.Unstructured) (*runtime.RawExte
 		return nil, fmt.Errorf("failed to convert DaemonSetStatus from map[string]interface{}: %v", err)
 	}
 
-	grabStatus := appsv1.DaemonSetStatus{
-		CurrentNumberScheduled: daemonSetStatus.CurrentNumberScheduled,
-		DesiredNumberScheduled: daemonSetStatus.DesiredNumberScheduled,
-		NumberAvailable:        daemonSetStatus.NumberAvailable,
-		NumberMisscheduled:     daemonSetStatus.NumberMisscheduled,
-		NumberReady:            daemonSetStatus.NumberReady,
-		UpdatedNumberScheduled: daemonSetStatus.UpdatedNumberScheduled,
-		NumberUnavailable:      daemonSetStatus.NumberUnavailable,
+	resourceTemplateGenerationInt := int64(0)
+	resourceTemplateGenerationStr := util.GetAnnotationValue(object.GetAnnotations(), v1alpha2.ResourceTemplateGenerationAnnotationKey)
+	err = runtime.Convert_string_To_int64(&resourceTemplateGenerationStr, &resourceTemplateGenerationInt, nil)
+	if err != nil {
+		klog.Errorf("Failed to parse DaemonSet(%s/%s) generation from annotation(%s:%s): %v", object.GetNamespace(), object.GetName(), v1alpha2.ResourceTemplateGenerationAnnotationKey, resourceTemplateGenerationStr, err)
+		return nil, err
 	}
+
+	grabStatus := &WrappedDaemonSetStatus{
+		FederatedGeneration: FederatedGeneration{
+			Generation:                 object.GetGeneration(),
+			ResourceTemplateGeneration: resourceTemplateGenerationInt,
+		},
+		DaemonSetStatus: appsv1.DaemonSetStatus{
+			CurrentNumberScheduled: daemonSetStatus.CurrentNumberScheduled,
+			DesiredNumberScheduled: daemonSetStatus.DesiredNumberScheduled,
+			NumberAvailable:        daemonSetStatus.NumberAvailable,
+			NumberMisscheduled:     daemonSetStatus.NumberMisscheduled,
+			NumberReady:            daemonSetStatus.NumberReady,
+			UpdatedNumberScheduled: daemonSetStatus.UpdatedNumberScheduled,
+			NumberUnavailable:      daemonSetStatus.NumberUnavailable,
+			ObservedGeneration:     daemonSetStatus.ObservedGeneration,
+		},
+	}
+
 	return helper.BuildStatusRawExtension(grabStatus)
 }
 
