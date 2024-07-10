@@ -55,6 +55,9 @@ spec:
             - --cert-dir=/var/serving-cert
           ports:
             - containerPort: 8443
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
           volumeMounts:
           {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
             - name: {{ $name }}-webhook-cert-secret
