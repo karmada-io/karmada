@@ -18,13 +18,24 @@ package native
 
 import appsv1 "k8s.io/api/apps/v1"
 
-// WrappedDeploymentStatus is a wrapper for appsv1.DeploymentStatus.
-type WrappedDeploymentStatus struct {
-	appsv1.DeploymentStatus `json:",inline"`
-
+// FederatedGeneration holds the generation of the same resource in the member cluster and the Karmada control plane.
+type FederatedGeneration struct {
 	// Generation holds the generation(.metadata.generation) of resource running on member cluster.
 	Generation int64 `json:"generation,omitempty"`
+
 	// ResourceTemplateGeneration holds the value of annotation resourcetemplate.karmada.io/generation grabbed
 	// from resource running on member cluster.
 	ResourceTemplateGeneration int64 `json:"resourceTemplateGeneration,omitempty"`
+}
+
+// WrappedDeploymentStatus is a wrapper for appsv1.DeploymentStatus.
+type WrappedDeploymentStatus struct {
+	FederatedGeneration     `json:",inline"`
+	appsv1.DeploymentStatus `json:",inline"`
+}
+
+// WrappedDaemonSetStatus is a wrapper for appsv1.DaemonSetStatus.
+type WrappedDaemonSetStatus struct {
+	FederatedGeneration    `json:",inline"`
+	appsv1.DaemonSetStatus `json:",inline"`
 }
