@@ -48,6 +48,8 @@ spec:
             - /bin/karmada-scheduler-estimator
             - --kubeconfig=/etc/{{ .MemberClusterName}}-kubeconfig
             - --cluster-name={{ .MemberClusterName}}
+            - --bind-address=0.0.0.0
+            - --secure-port=10351
             - --grpc-auth-cert-file=/etc/karmada/pki/karmada.crt
             - --grpc-auth-key-file=/etc/karmada/pki/karmada.key
             - --client-cert-auth=true
@@ -61,6 +63,10 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 15
             timeoutSeconds: 5
+          ports:
+            - containerPort: 10351
+              name: metrics
+              protocol: TCP
           volumeMounts:
             - name: k8s-certs
               mountPath: /etc/karmada/pki

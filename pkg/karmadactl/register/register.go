@@ -711,8 +711,16 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 					fmt.Sprintf("--cluster-namespace=%s", o.ClusterNamespace),
 					"--cluster-status-update-frequency=10s",
 					"--bind-address=0.0.0.0",
+					"--metrics-bind-address=:8080",
 					"--secure-port=10357",
 					"--v=4",
+				},
+				Ports: []corev1.ContainerPort{
+					{
+						Name:          "metrics",
+						ContainerPort: 8080,
+						Protocol:      corev1.ProtocolTCP,
+					},
 				},
 				VolumeMounts: []corev1.VolumeMount{
 					{

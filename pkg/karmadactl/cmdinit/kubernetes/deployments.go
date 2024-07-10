@@ -35,6 +35,8 @@ const (
 	deploymentAPIVersion = "apps/v1"
 	deploymentKind       = "Deployment"
 	portName             = "server"
+	metricsPortName      = "metrics"
+	defaultMetricsPort   = 8080
 
 	// KubeConfigSecretAndMountName is the secret and volume mount name of karmada kubeconfig
 	KubeConfigSecretAndMountName                                = "kubeconfig"
@@ -461,6 +463,13 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 					"--v=4",
 				},
 				LivenessProbe: livenessProbe,
+				Ports: []corev1.ContainerPort{
+					{
+						Name:          metricsPortName,
+						ContainerPort: 10351,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				},
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      KubeConfigSecretAndMountName,
@@ -583,6 +592,7 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 					"/bin/karmada-controller-manager",
 					"--kubeconfig=/etc/kubeconfig",
 					"--bind-address=0.0.0.0",
+					"--metrics-bind-address=:8080",
 					"--cluster-status-update-frequency=10s",
 					"--secure-port=10357",
 					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
@@ -593,6 +603,11 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 					{
 						Name:          portName,
 						ContainerPort: controllerManagerSecurePort,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          metricsPortName,
+						ContainerPort: defaultMetricsPort,
 						Protocol:      corev1.ProtocolTCP,
 					},
 				},
@@ -702,6 +717,7 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 					"/bin/karmada-webhook",
 					"--kubeconfig=/etc/kubeconfig",
 					"--bind-address=0.0.0.0",
+					"--metrics-bind-address=:8080",
 					fmt.Sprintf("--secure-port=%v", webhookTargetPort),
 					fmt.Sprintf("--cert-dir=%s", webhookCertVolumeMountPath),
 					"--v=4",
@@ -710,6 +726,11 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 					{
 						Name:          webhookPortName,
 						ContainerPort: webhookTargetPort,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          metricsPortName,
+						ContainerPort: defaultMetricsPort,
 						Protocol:      corev1.ProtocolTCP,
 					},
 				},
