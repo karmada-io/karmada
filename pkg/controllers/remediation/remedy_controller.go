@@ -101,17 +101,17 @@ func (c *RemedyController) SetupWithManager(mgr controllerruntime.Manager) error
 }
 
 func (c *RemedyController) setupWatches(remedyController controller.Controller, mgr controllerruntime.Manager) error {
-	clusterChan := make(chan event.GenericEvent)
+	clusterChan := make(chan event.TypedGenericEvent[*clusterv1alpha1.Cluster])
 	clusterHandler := newClusterEventHandler()
 	remedyHandler := newRemedyEventHandler(clusterChan, c.Client)
 
-	if err := remedyController.Watch(source.Kind(mgr.GetCache(), &clusterv1alpha1.Cluster{}), clusterHandler); err != nil {
+	if err := remedyController.Watch(source.Kind[*clusterv1alpha1.Cluster](mgr.GetCache(), &clusterv1alpha1.Cluster{}, clusterHandler)); err != nil {
 		return err
 	}
-	if err := remedyController.Watch(&source.Channel{Source: clusterChan}, clusterHandler); err != nil {
+	if err := remedyController.Watch(source.Channel(clusterChan, clusterHandler)); err != nil {
 		return err
 	}
-	if err := remedyController.Watch(source.Kind(mgr.GetCache(), &remedyv1alpha1.Remedy{}), remedyHandler); err != nil {
+	if err := remedyController.Watch(source.Kind(mgr.GetCache(), &remedyv1alpha1.Remedy{}, remedyHandler)); err != nil {
 		return err
 	}
 	return nil

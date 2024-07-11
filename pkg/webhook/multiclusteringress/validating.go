@@ -32,7 +32,7 @@ import (
 
 // ValidatingAdmission validates MultiClusterIngress object when creating/updating.
 type ValidatingAdmission struct {
-	Decoder *admission.Decoder
+	Decoder admission.Decoder
 }
 
 // Check if our ValidatingAdmission implements necessary interface

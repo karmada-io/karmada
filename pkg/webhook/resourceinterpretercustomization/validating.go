@@ -30,7 +30,7 @@ import (
 // ValidatingAdmission validates ResourceInterpreterCustomization object when creating/updating.
 type ValidatingAdmission struct {
 	client.Client
-	Decoder *admission.Decoder
+	Decoder admission.Decoder
 }
 
 // Check if our ValidatingAdmission implements necessary interface
