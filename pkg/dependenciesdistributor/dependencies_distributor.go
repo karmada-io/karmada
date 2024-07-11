@@ -103,7 +103,7 @@ type DependenciesDistributor struct {
 
 	eventHandler      cache.ResourceEventHandler
 	resourceProcessor util.AsyncWorker
-	genericEvent      chan event.GenericEvent
+	genericEvent      chan event.TypedGenericEvent[*workv1alpha2.ResourceBinding]
 	stopCh            <-chan struct{}
 }
 
@@ -184,7 +184,7 @@ func (d *DependenciesDistributor) reconcileResourceTemplate(key util.QueueKey) e
 		}
 
 		klog.V(4).Infof("ResourceBinding(%s/%s) is matched for resource(%s/%s)", binding.Namespace, binding.Name, resourceTemplateKey.Namespace, resourceTemplateKey.Name)
-		d.genericEvent <- event.GenericEvent{Object: binding}
+		d.genericEvent <- event.TypedGenericEvent[*workv1alpha2.ResourceBinding]{Object: binding}
 	}
 
 	return nil
@@ -610,7 +610,7 @@ func (d *DependenciesDistributor) Start(ctx context.Context) error {
 
 // SetupWithManager creates a controller and register to controller manager.
 func (d *DependenciesDistributor) SetupWithManager(mgr controllerruntime.Manager) error {
-	d.genericEvent = make(chan event.GenericEvent)
+	d.genericEvent = make(chan event.TypedGenericEvent[*workv1alpha2.ResourceBinding])
 	return utilerrors.NewAggregate([]error{
 		mgr.Add(d),
 		controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha2.ResourceBinding{}).
@@ -650,7 +650,7 @@ func (d *DependenciesDistributor) SetupWithManager(mgr controllerruntime.Manager
 				RateLimiter:             ratelimiterflag.DefaultControllerRateLimiter(d.RateLimiterOptions),
 				MaxConcurrentReconciles: 2,
 			}).
-			WatchesRawSource(&source.Channel{Source: d.genericEvent}, &handler.EnqueueRequestForObject{}).
+			WatchesRawSource(source.Channel(d.genericEvent, &handler.TypedEnqueueRequestForObject[*workv1alpha2.ResourceBinding]{})).
 			Complete(d),
 	})
 }

@@ -30,7 +30,7 @@ import (
 
 // MutatingAdmission mutates API request if necessary.
 type MutatingAdmission struct {
-	Decoder *admission.Decoder
+	Decoder admission.Decoder
 }
 
 // Check if our MutatingAdmission implements necessary interface
