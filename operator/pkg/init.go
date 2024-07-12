@@ -48,7 +48,7 @@ type InitOptions struct {
 	Namespace      string
 	Kubeconfig     *rest.Config
 	KarmadaVersion string
-	CRDRemoteURL   string
+	CRDTarball     operatorv1alpha1.CRDTarball
 	KarmadaDataDir string
 	Karmada        *operatorv1alpha1.Karmada
 }
@@ -60,9 +60,9 @@ func (opt *InitOptions) Validate() error {
 	if len(opt.Name) == 0 || len(opt.Namespace) == 0 {
 		return errors.New("unexpected empty name or namespace")
 	}
-	if len(opt.CRDRemoteURL) > 0 {
-		if _, err := url.Parse(opt.CRDRemoteURL); err != nil {
-			return fmt.Errorf("unexpected invalid crds remote url %s", opt.CRDRemoteURL)
+	if opt.CRDTarball.HTTPSource != nil {
+		if _, err := url.Parse(opt.CRDTarball.HTTPSource.URL); err != nil {
+			return fmt.Errorf("unexpected invalid crds remote url %s", opt.CRDTarball.HTTPSource.URL)
 		}
 	}
 	if !util.IsInCluster(opt.Karmada.Spec.HostCluster) && opt.Karmada.Spec.Components.KarmadaAPIServer.ServiceType == corev1.ServiceTypeClusterIP {
@@ -102,7 +102,7 @@ type initData struct {
 	remoteClient        clientset.Interface
 	karmadaClient       clientset.Interface
 	dnsDomain           string
-	CRDRemoteURL        string
+	CRDTarball          operatorv1alpha1.CRDTarball
 	karmadaDataDir      string
 	privateRegistry     string
 	featureGates        map[string]bool
@@ -183,7 +183,7 @@ func newRunData(opt *InitOptions) (*initData, error) {
 		karmadaVersion:      version,
 		controlplaneAddress: address,
 		remoteClient:        remoteClient,
-		CRDRemoteURL:        opt.CRDRemoteURL,
+		CRDTarball:          opt.CRDTarball,
 		karmadaDataDir:      opt.KarmadaDataDir,
 		privateRegistry:     privateRegistry,
 		components:          opt.Karmada.Spec.Components,
@@ -235,8 +235,8 @@ func (data *initData) DataDir() string {
 	return data.karmadaDataDir
 }
 
-func (data *initData) CrdsRemoteURL() string {
-	return data.CRDRemoteURL
+func (data *initData) CrdTarball() operatorv1alpha1.CRDTarball {
+	return data.CRDTarball
 }
 
 func (data *initData) KarmadaVersion() string {
@@ -268,8 +268,14 @@ func defaultJobInitOptions() *InitOptions {
 	// set defaults for karmada.
 	operatorscheme.Scheme.Default(karmada)
 
+	defaultDownloadPolicy := operatorv1alpha1.DownloadIfNotPresent
 	return &InitOptions{
-		CRDRemoteURL:   fmt.Sprintf(defaultCrdURL, operatorv1alpha1.DefaultKarmadaImageVersion),
+		CRDTarball: operatorv1alpha1.CRDTarball{
+			CRDDownloadPolicy: &defaultDownloadPolicy,
+			HTTPSource: &operatorv1alpha1.HTTPSource{
+				URL: fmt.Sprintf(defaultCrdURL, operatorv1alpha1.DefaultKarmadaImageVersion),
+			},
+		},
 		KarmadaVersion: operatorv1alpha1.DefaultKarmadaImageVersion,
 		KarmadaDataDir: constants.KarmadaDataDir,
 		Karmada:        karmada,
@@ -282,6 +288,9 @@ func NewInitOptWithKarmada(karmada *operatorv1alpha1.Karmada) InitOpt {
 		o.Karmada = karmada
 		o.Name = karmada.GetName()
 		o.Namespace = karmada.GetNamespace()
+		if karmada.Spec.CRDTarball != nil {
+			o.CRDTarball = *karmada.Spec.CRDTarball
+		}
 	}
 }
 
