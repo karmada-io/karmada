@@ -101,12 +101,12 @@ func runCrds(r workflow.RunData) error {
 		return errors.New("crds task invoked with an invalid data struct")
 	}
 
-	var (
-		crdsDir       = path.Join(data.DataDir(), data.KarmadaVersion())
-		crdsPath      = path.Join(crdsDir, "crds/bases")
-		crdsPatchPath = path.Join(crdsDir, "crds/patches")
-	)
-
+	crdsDir, err := getCrdsDir(data)
+	if err != nil {
+		return fmt.Errorf("failed to get CRD dir, err: %w", err)
+	}
+	crdsPath := path.Join(crdsDir, "crds/bases")
+	crdsPatchPath := path.Join(crdsDir, "crds/patches")
 	crdsClient, err := apiclient.NewCRDsClient(data.ControlplaneConfig())
 	if err != nil {
 		return err

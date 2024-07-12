@@ -44,6 +44,38 @@ type Karmada struct {
 	Status KarmadaStatus `json:"status,omitempty"`
 }
 
+// CRDDownloadPolicy specifies a policy for how the operator will download the Karmada CRD tarball
+type CRDDownloadPolicy string
+
+const (
+	// DownloadAlways instructs the Karmada operator to always download the CRD tarball from a remote location.
+	DownloadAlways CRDDownloadPolicy = "Always"
+
+	// DownloadIfNotPresent instructs the Karmada operator to download the CRDs tarball from a remote location only if it is not yet present in the local cache.
+	DownloadIfNotPresent CRDDownloadPolicy = "IfNotPresent"
+)
+
+// HTTPSource specifies how to download the CRD tarball via either HTTP or HTTPS protocol.
+type HTTPSource struct {
+	// URL specifies the URL of the CRD tarball resource.
+	URL string `json:"url,omitempty"`
+}
+
+// CRDTarball specifies the source from which the Karmada CRD tarball should be downloaded, along with the download policy to use.
+type CRDTarball struct {
+	// HTTPSource specifies how to download the CRD tarball via either HTTP or HTTPS protocol.
+	// +optional
+	HTTPSource *HTTPSource `json:"httpSource,omitempty"`
+
+	// CRDDownloadPolicy specifies a policy that should be used to download the CRD tarball.
+	// Valid values are "Always" and "IfNotPresent".
+	// Defaults to "IfNotPresent".
+	// +kubebuilder:validation:Enum=Always;IfNotPresent
+	// +kubebuilder:default=IfNotPresent
+	// +optional
+	CRDDownloadPolicy *CRDDownloadPolicy `json:"crdDownloadPolicy,omitempty"`
+}
+
 // KarmadaSpec is the specification of the desired behavior of the Karmada.
 type KarmadaSpec struct {
 	// HostCluster represents the cluster where to install the Karmada control plane.
@@ -72,6 +104,15 @@ type KarmadaSpec struct {
 	// More info: https://github.com/karmada-io/karmada/blob/master/pkg/features/features.go
 	// +optional
 	FeatureGates map[string]bool `json:"featureGates,omitempty"`
+
+	// CRDTarball specifies the source from which the Karmada CRD tarball should be downloaded, along with the download policy to use.
+	// If not set, the operator will download the tarball from a GitHub release.
+	// By default, it will download the tarball of the same version as the operator itself.
+	// For instance, if the operator's version is v1.10.0, the tarball will be downloaded from the following location:
+	// https://github.com/karmada-io/karmada/releases/download/v1.10.0/crds.tar.gz
+	// By default, the operator will only attempt to download the tarball if it's not yet present in the local cache.
+	// +optional
+	CRDTarball *CRDTarball `json:"crdTarball,omitempty"`
 }
 
 // ImageRegistry represents an image registry as well as the
