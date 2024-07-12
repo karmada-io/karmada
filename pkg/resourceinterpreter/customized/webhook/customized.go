@@ -53,8 +53,13 @@ type CustomizedInterpreter struct {
 // NewCustomizedInterpreter return a new CustomizedInterpreter.
 func NewCustomizedInterpreter(informer genericmanager.SingleClusterInformerManager, serviceLister corev1.ServiceLister) (*CustomizedInterpreter, error) {
 	cm, err := webhookutil.NewClientManager(
-		[]schema.GroupVersion{configv1alpha1.SchemeGroupVersion},
-		configv1alpha1.AddToScheme,
+		[]schema.GroupVersion{
+			{
+				Group:   configv1alpha1.GroupVersion.Group,
+				Version: configv1alpha1.GroupVersion.Version,
+			},
+		},
+		configv1alpha1.Install,
 	)
 	if err != nil {
 		return nil, err

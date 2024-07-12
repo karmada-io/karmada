@@ -41,19 +41,19 @@ import (
 var aggregatedScheme = runtime.NewScheme()
 
 func init() {
-	utilruntime.Must(scheme.AddToScheme(aggregatedScheme))              // add Kubernetes schemes
-	utilruntime.Must(clusterv1alpha1.AddToScheme(aggregatedScheme))     // add cluster schemes
-	utilruntime.Must(configv1alpha1.AddToScheme(aggregatedScheme))      // add config v1alpha1 schemes
-	utilruntime.Must(networkingv1alpha1.AddToScheme(aggregatedScheme))  // add network v1alpha1 schemes
-	utilruntime.Must(policyv1alpha1.AddToScheme(aggregatedScheme))      // add propagation schemes
-	utilruntime.Must(workv1alpha1.AddToScheme(aggregatedScheme))        // add work v1alpha1 schemes
-	utilruntime.Must(workv1alpha2.AddToScheme(aggregatedScheme))        // add work v1alpha2 schemes
-	utilruntime.Must(searchv1alpha1.AddToScheme(aggregatedScheme))      // add search v1alpha1 schemes
-	utilruntime.Must(mcsv1alpha1.AddToScheme(aggregatedScheme))         // add mcs-api schemes
-	utilruntime.Must(clusterapiv1beta1.AddToScheme(aggregatedScheme))   // add cluster-api v1beta1 schemes
-	utilruntime.Must(autoscalingv1alpha1.AddToScheme(aggregatedScheme)) // add autoscaling v1alpha1 schemes
-	utilruntime.Must(remedyv1alpha1.AddToScheme(aggregatedScheme))      // add remedy v1alpha1 schemes
-	utilruntime.Must(appsv1alpha1.AddToScheme(aggregatedScheme))        // add apps v1alpha1 schemes
+	utilruntime.Must(scheme.AddToScheme(aggregatedScheme))            // add Kubernetes schemes
+	utilruntime.Must(clusterv1alpha1.Install(aggregatedScheme))       // add cluster schemes
+	utilruntime.Must(configv1alpha1.Install(aggregatedScheme))        // add config v1alpha1 schemes
+	utilruntime.Must(networkingv1alpha1.Install(aggregatedScheme))    // add network v1alpha1 schemes
+	utilruntime.Must(policyv1alpha1.Install(aggregatedScheme))        // add propagation schemes
+	utilruntime.Must(workv1alpha1.Install(aggregatedScheme))          // add work v1alpha1 schemes
+	utilruntime.Must(workv1alpha2.Install(aggregatedScheme))          // add work v1alpha2 schemes
+	utilruntime.Must(searchv1alpha1.Install(aggregatedScheme))        // add search v1alpha1 schemes
+	utilruntime.Must(mcsv1alpha1.Install(aggregatedScheme))           // add mcs-api schemes
+	utilruntime.Must(autoscalingv1alpha1.Install(aggregatedScheme))   // add autoscaling v1alpha1 schemes
+	utilruntime.Must(remedyv1alpha1.Install(aggregatedScheme))        // add remedy v1alpha1 schemes
+	utilruntime.Must(appsv1alpha1.Install(aggregatedScheme))          // add apps v1alpha1 schemes
+	utilruntime.Must(clusterapiv1beta1.AddToScheme(aggregatedScheme)) // add cluster-api v1beta1 schemes
 }
 
 // NewSchema returns a singleton schema set which aggregated Kubernetes's schemes and extended schemes.
