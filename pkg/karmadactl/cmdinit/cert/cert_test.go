@@ -29,10 +29,12 @@ import (
 )
 
 const (
-	TestCertsTmp = "./test-certs-tmp"
+	TestCertsTmp   = "./test-certs-tmp"
+	TestCaCertPath = "./test-certs-tmp/ca.crt"
+	TestCaKeyPath  = "./test-certs-tmp/ca.key"
 )
 
-func TestGenCerts(_ *testing.T) {
+func TestGenCerts(t *testing.T) {
 	defer os.RemoveAll(TestCertsTmp)
 
 	notAfter := time.Now().Add(Duration365d * 10).UTC()
@@ -101,7 +103,10 @@ func TestGenCerts(_ *testing.T) {
 	apiserverCertCfg := NewCertConfig("karmada-apiserver", []string{""}, karmadaAltNames, &notAfter)
 	frontProxyClientCertCfg := NewCertConfig("front-proxy-client", []string{}, certutil.AltNames{}, &notAfter)
 
-	if err := GenCerts(TestCertsTmp, etcdServerCertConfig, etcdClientCertCfg, karmadaCertCfg, apiserverCertCfg, frontProxyClientCertCfg); err != nil {
+	if err := GenCerts(TestCertsTmp, "", "", etcdServerCertConfig, etcdClientCertCfg, karmadaCertCfg, apiserverCertCfg, frontProxyClientCertCfg); err != nil {
+		t.Fatal(err)
+	}
+	if err := GenCerts(TestCertsTmp, TestCaCertPath, TestCaKeyPath, etcdServerCertConfig, etcdClientCertCfg, karmadaCertCfg, apiserverCertCfg, frontProxyClientCertCfg); err != nil {
 		fmt.Println(err)
 	}
 }

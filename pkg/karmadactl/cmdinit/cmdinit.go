@@ -125,6 +125,8 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	flags.StringVar(&opts.ExternalIP, "cert-external-ip", "", "the external IP of Karmada certificate (e.g 192.168.1.2,172.16.1.2)")
 	flags.StringVar(&opts.ExternalDNS, "cert-external-dns", "", "the external DNS of Karmada certificate (e.g localhost,localhost.com)")
 	flags.DurationVar(&opts.CertValidity, "cert-validity-period", cert.Duration365d, "the validity period of Karmada certificate (e.g 8760h0m0s, that is 365 days)")
+	flags.StringVarP(&opts.CaCertFile, "ca-cert-file", "", "", "The root CA certificate file which will be used to issue new certificates for Karmada components. If not set, a new self-signed root CA certificate will be generated. This must be used together with --ca-key-file.")
+	flags.StringVarP(&opts.CaKeyFile, "ca-key-file", "", "", "The root CA private key file which will be used to issue new certificates for Karmada components. If not set, a new self-signed root CA key will be generated. This must be used together with --ca-cert-file.")
 	// Kubernetes
 	flags.StringVarP(&opts.Namespace, "namespace", "n", "karmada-system", "Kubernetes namespace")
 	flags.StringVar(&opts.StorageClassesName, "storage-classes-name", "", "Kubernetes StorageClasses Name")
