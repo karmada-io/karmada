@@ -767,3 +767,24 @@ var _ = ginkgo.Describe("Karmadactl logs testing", func() {
 		})
 	})
 })
+
+var _ = ginkgo.Describe("Karmadactl version testing", func() {
+	ginkgo.Context("Test karmadactl version command", func() {
+		ginkgo.It("should return the version information successfully", func() {
+			cmd := framework.NewKarmadactlCommand(kubeconfig, "", karmadactlPath, "", karmadactlTimeout, "version")
+			output, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			gomega.Expect(strings.Contains(output, "karmadactl version")).Should(gomega.BeTrue())
+			gomega.Expect(strings.Contains(output, "GitVersion")).Should(gomega.BeTrue())
+			gomega.Expect(strings.Contains(output, "GoVersion")).Should(gomega.BeTrue())
+			gomega.Expect(strings.Contains(output, "Platform")).Should(gomega.BeTrue())
+		})
+
+		ginkgo.It("should return error for invalid flag", func() {
+			cmd := framework.NewKarmadactlCommand(kubeconfig, "", karmadactlPath, "", karmadactlTimeout, "version", "--invalidflag")
+			_, err := cmd.ExecOrDie()
+			gomega.Expect(err).Should(gomega.HaveOccurred())
+			gomega.Expect(strings.Contains(err.Error(), "unknown flag: --invalidflag")).Should(gomega.BeTrue())
+		})
+	})
+})
