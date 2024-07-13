@@ -158,11 +158,11 @@ func run(ctx context.Context, o *options.Options, registryOptions ...Option) err
 // `config` returns config for the api server given Options
 func config(o *options.Options, outOfTreeRegistryOptions ...Option) (*search.Config, error) {
 	// TODO have a "real" external address
-	if err := o.RecommendedOptions.SecureServing.MaybeDefaultWithSelfSignedCerts("localhost", nil, []net.IP{netutils.ParseIPSloppy("127.0.0.1")}); err != nil {
+	if err := o.SecureServing.MaybeDefaultWithSelfSignedCerts("localhost", nil, []net.IP{netutils.ParseIPSloppy("127.0.0.1")}); err != nil {
 		return nil, fmt.Errorf("error creating self-signed certificates: %v", err)
 	}
 
-	o.RecommendedOptions.Features = &genericoptions.FeatureOptions{EnableProfiling: false}
+	o.Features = &genericoptions.FeatureOptions{EnableProfiling: false}
 
 	serverConfig := genericapiserver.NewRecommendedConfig(searchscheme.Codecs)
 	serverConfig.LongRunningFunc = customLongRunningRequestCheck(
@@ -171,7 +171,7 @@ func config(o *options.Options, outOfTreeRegistryOptions ...Option) (*search.Con
 	serverConfig.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(generatedopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(searchscheme.Scheme))
 	serverConfig.OpenAPIV3Config = genericapiserver.DefaultOpenAPIV3Config(generatedopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(searchscheme.Scheme))
 	serverConfig.OpenAPIConfig.Info.Title = "karmada-search"
-	if err := o.RecommendedOptions.ApplyTo(serverConfig); err != nil {
+	if err := o.ApplyTo(serverConfig); err != nil {
 		return nil, err
 	}
 
