@@ -84,6 +84,7 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 			runtimeObject.Spec = work.Spec
 			runtimeObject.Labels = util.DedupeAndMergeLabels(runtimeObject.Labels, work.Labels)
 			runtimeObject.Annotations = util.DedupeAndMergeAnnotations(runtimeObject.Annotations, work.Annotations)
+			runtimeObject.Finalizers = work.Finalizers
 			return nil
 		})
 		return err
