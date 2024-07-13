@@ -439,6 +439,7 @@ func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructur
 			util.PropagationInstruction: util.PropagationInstructionSuppressed,
 			util.ManagedByKarmadaLabel:  util.ManagedByKarmadaLabelValue,
 		},
+		Finalizers: []string{util.MCSEndpointSliceDispatchControllerFinalizer},
 	}
 
 	if err := helper.CreateOrUpdateWork(c, workMeta, endpointSlice); err != nil {
