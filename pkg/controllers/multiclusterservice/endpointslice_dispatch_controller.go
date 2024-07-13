@@ -292,7 +292,7 @@ func (c *EndpointsliceDispatchController) cleanOrphanDispatchedEndpointSlice(ctx
 			continue
 		}
 
-		if err := c.Client.Delete(ctx, work.DeepCopy()); err != nil {
+		if err = c.Client.Delete(ctx, work.DeepCopy()); err != nil {
 			klog.Errorf("Failed to delete work %s/%s, error is: %v", work.Namespace, work.Name, err)
 			return err
 		}
@@ -336,7 +336,7 @@ func (c *EndpointsliceDispatchController) dispatchEndpointSlice(_ context.Contex
 			continue
 		}
 
-		if err := c.ensureEndpointSliceWork(mcs, work, epsSourceCluster, clusterName); err != nil {
+		if err = c.ensureEndpointSliceWork(mcs, work, epsSourceCluster, clusterName); err != nil {
 			return err
 		}
 	}

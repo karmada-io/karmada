@@ -116,8 +116,7 @@ func (c *MCSController) handleMultiClusterServiceDelete(mcs *networkingv1alpha1.
 		return controllerruntime.Result{}, err
 	}
 
-	finalizersUpdated := controllerutil.RemoveFinalizer(mcs, util.MCSControllerFinalizer)
-	if finalizersUpdated {
+	if controllerutil.RemoveFinalizer(mcs, util.MCSControllerFinalizer) {
 		err := c.Client.Update(context.Background(), mcs)
 		if err != nil {
 			klog.Errorf("Failed to update MultiClusterService(%s/%s) with finalizer:%v", mcs.Namespace, mcs.Name, err)
@@ -135,7 +134,7 @@ func (c *MCSController) retrieveMultiClusterService(mcs *networkingv1alpha1.Mult
 		networkingv1alpha1.MultiClusterServicePermanentIDLabel: mcsID,
 	})
 	if err != nil {
-		klog.Errorf("Failed to list work by MultiClusterService(%s/%s):%v", mcs.Namespace, mcs.Name, err)
+		klog.Errorf("Failed to list work by MultiClusterService(%s/%s): %v", mcs.Namespace, mcs.Name, err)
 		return err
 	}
 
@@ -153,7 +152,7 @@ func (c *MCSController) retrieveMultiClusterService(mcs *networkingv1alpha1.Mult
 			continue
 		}
 
-		if err := c.cleanProviderEndpointSliceWork(work.DeepCopy()); err != nil {
+		if err = c.cleanProviderEndpointSliceWork(work.DeepCopy()); err != nil {
 			klog.Errorf("Failed to clean provider EndpointSlice work(%s/%s):%v", work.Namespace, work.Name, err)
 			return err
 		}
@@ -164,7 +163,7 @@ func (c *MCSController) retrieveMultiClusterService(mcs *networkingv1alpha1.Mult
 		}
 	}
 
-	klog.V(4).Infof("Success to delete MultiClusterService(%s/%s) work:%v", mcs.Namespace, mcs.Name, err)
+	klog.V(4).Infof("Success to clean up MultiClusterService(%s/%s) work: %v", mcs.Namespace, mcs.Name, err)
 	return nil
 }
 
@@ -200,14 +199,6 @@ func (c *MCSController) cleanProviderEndpointSliceWork(work *workv1alpha1.Work) 
 		return err
 	}
 
-	// TBD: This is needed because we add this finalizer in version 1.8.0, delete this in version 1.10.0
-	if controllerutil.RemoveFinalizer(work, util.MCSEndpointSliceCollectControllerFinalizer) {
-		if err := c.Update(context.TODO(), work); err != nil {
-			klog.Errorf("Failed to update work(%s/%s), Error: %v", work.Namespace, work.Name, err)
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -227,14 +218,13 @@ func (c *MCSController) handleMultiClusterServiceCreateOrUpdate(mcs *networkingv
 
 	// 1. if mcs not contain CrossCluster type, delete service work if needed
 	if !helper.MultiClusterServiceCrossClusterEnabled(mcs) {
-		if err := c.retrieveService(mcs); err != nil {
+		if err = c.retrieveService(mcs); err != nil {
 			return err
 		}
-		if err := c.retrieveMultiClusterService(mcs, providerClusters); err != nil {
+		if err = c.retrieveMultiClusterService(mcs, providerClusters); err != nil {
 			return err
 		}
-		finalizersUpdated := controllerutil.RemoveFinalizer(mcs, util.MCSControllerFinalizer)
-		if finalizersUpdated {
+		if controllerutil.RemoveFinalizer(mcs, util.MCSControllerFinalizer) {
 			err := c.Client.Update(context.Background(), mcs)
 			if err != nil {
 				klog.Errorf("Failed to remove finalizer(%s) from MultiClusterService(%s/%s):%v", util.MCSControllerFinalizer, mcs.Namespace, mcs.Name, err)
@@ -245,36 +235,35 @@ func (c *MCSController) handleMultiClusterServiceCreateOrUpdate(mcs *networkingv
 	}
 
 	// 2. add finalizer if needed
-	finalizersUpdated := controllerutil.AddFinalizer(mcs, util.MCSControllerFinalizer)
-	if finalizersUpdated {
-		err := c.Client.Update(context.Background(), mcs)
+	if controllerutil.AddFinalizer(mcs, util.MCSControllerFinalizer) {
+		err = c.Client.Update(context.Background(), mcs)
 		if err != nil {
-			klog.Errorf("Failed to add finalizer(%s) to MultiClusterService(%s/%s):%v ", util.MCSControllerFinalizer, mcs.Namespace, mcs.Name, err)
+			klog.Errorf("Failed to add finalizer(%s) to MultiClusterService(%s/%s): %v ", util.MCSControllerFinalizer, mcs.Namespace, mcs.Name, err)
 			return err
 		}
 	}
 
 	// 3. Generate the MCS work in target clusters' namespace
-	if err := c.propagateMultiClusterService(mcs, providerClusters); err != nil {
+	if err = c.propagateMultiClusterService(mcs, providerClusters); err != nil {
 		return err
 	}
 
 	// 4. delete MultiClusterService work not in provider clusters and in the unready clusters
-	if err := c.retrieveMultiClusterService(mcs, providerClusters); err != nil {
+	if err = c.retrieveMultiClusterService(mcs, providerClusters); err != nil {
 		return err
 	}
 
 	// 5. make sure service exist
 	svc := &corev1.Service{}
 	err = c.Client.Get(context.Background(), types.NamespacedName{Namespace: mcs.Namespace, Name: mcs.Name}, svc)
-	// If the Serivice are deleted, the Service's ResourceBinding will be cleaned by GC
+	// If the Service are deleted, the Service's ResourceBinding will be cleaned by GC
 	if err != nil {
 		klog.Errorf("Failed to get service(%s/%s):%v", mcs.Namespace, mcs.Name, err)
 		return err
 	}
 
 	// 6. if service exists, create or update corresponding ResourceBinding
-	if err := c.propagateService(context.Background(), mcs, svc, providerClusters, consumerClusters); err != nil {
+	if err = c.propagateService(context.Background(), mcs, svc, providerClusters, consumerClusters); err != nil {
 		return err
 	}
 
