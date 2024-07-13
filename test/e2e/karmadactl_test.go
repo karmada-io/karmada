@@ -610,3 +610,160 @@ var _ = ginkgo.Describe("Karmadactl top testing", ginkgo.Labels{NeedCreateCluste
 		})
 	})
 })
+
+var _ = ginkgo.Describe("Karmadactl logs testing", func() {
+	var member1 string
+	var member1Client kubernetes.Interface
+
+	ginkgo.BeforeEach(func() {
+		member1 = "member1"
+		member1Client = framework.GetClusterClient(member1)
+	})
+
+	waitForPodReady := func(namespace, podName string) {
+		framework.WaitPodPresentOnClusterFitWith(member1, namespace, podName, func(pod *corev1.Pod) bool {
+			return pod.Status.Phase == corev1.PodRunning
+		})
+	}
+
+	ginkgo.Context("Test karmadactl logs for existing pod", func() {
+		var (
+			namespace, podName string
+			ns                 *corev1.Namespace
+			pod                *corev1.Pod
+		)
+
+		ginkgo.BeforeEach(func() {
+			namespace = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
+			podName = podNamePrefix + rand.String(RandomStrLength)
+			pod = helper.NewPod(namespace, podName)
+			ns = helper.NewNamespace(namespace)
+
+			// Create the namespace and pod in the member cluster.
+			_, err := member1Client.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+			_, err = member1Client.CoreV1().Pods(namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+			waitForPodReady(namespace, podName)
+		})
+
+		ginkgo.AfterEach(func() {
+			err := member1Client.CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+
+		ginkgo.It("should get logs of the existing pod successfully", func() {
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, namespace, karmadactlTimeout, "logs", podName, "-C", member1)
+			output, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			gomega.Expect(output).ShouldNot(gomega.BeEmpty())
+		})
+
+		ginkgo.It("should get logs from a specific container in the pod", func() {
+			containerName := pod.Spec.Containers[0].Name
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, namespace, karmadactlTimeout, "logs", podName, "-c", containerName, "-C", member1)
+			output, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			gomega.Expect(output).ShouldNot(gomega.BeEmpty())
+		})
+
+		ginkgo.It("should return error for non-existing container in an existing pod", func() {
+			nonExistentContainer := "non-existent-container"
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, namespace, karmadactlTimeout, "logs", podName, "-c", nonExistentContainer, "-C", member1)
+			_, err := cmd.ExecOrDie()
+			gomega.Expect(err).Should(gomega.HaveOccurred())
+			gomega.Expect(strings.Contains(err.Error(), fmt.Sprintf("container %s is not valid for pod %s", nonExistentContainer, podName))).Should(gomega.BeTrue())
+		})
+	})
+
+	ginkgo.Context("Test karmadactl logs for non-existing pod", func() {
+		var namespace, podName string
+		var ns *corev1.Namespace
+
+		ginkgo.BeforeEach(func() {
+			namespace = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
+			podName = podNamePrefix + rand.String(RandomStrLength)
+			ns = helper.NewNamespace(namespace)
+
+			// Create the namespace in the member cluster.
+			_, err := member1Client.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+
+		ginkgo.AfterEach(func() {
+			err := member1Client.CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+
+		ginkgo.It("should return not found error for non-existing pod", func() {
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, namespace, karmadactlTimeout, "logs", podName, "-C", member1)
+			_, err := cmd.ExecOrDie()
+			gomega.Expect(err).Should(gomega.HaveOccurred())
+			gomega.Expect(strings.Contains(err.Error(), fmt.Sprintf("pods \"%s\" not found", podName))).Should(gomega.BeTrue())
+		})
+
+		ginkgo.It("should return not found error for non-existing container in non-existing pod", func() {
+			nonExistentContainer := "non-existent-container"
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, namespace, karmadactlTimeout, "logs", podName, "-c", nonExistentContainer, "-C", member1)
+			_, err := cmd.ExecOrDie()
+			gomega.Expect(err).Should(gomega.HaveOccurred())
+			gomega.Expect(strings.Contains(err.Error(), fmt.Sprintf("pods \"%s\" not found", podName))).Should(gomega.BeTrue())
+		})
+	})
+
+	ginkgo.Context("Test karmadactl logs for non-existing pod in non-existing cluster", func() {
+		var nonExistentCluster string
+		var namespace, podName string
+
+		ginkgo.BeforeEach(func() {
+			namespace = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
+			podName = podNamePrefix + rand.String(RandomStrLength)
+			nonExistentCluster = "non-existent-cluster"
+		})
+
+		ginkgo.It("should return error for non-existing cluster", func() {
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, namespace, karmadactlTimeout, "logs", podName, "-C", nonExistentCluster)
+			_, err := cmd.ExecOrDie()
+			gomega.Expect(err).Should(gomega.HaveOccurred())
+			gomega.Expect(strings.Contains(err.Error(), fmt.Sprintf("clusters.cluster.karmada.io \"%s\" not found", nonExistentCluster))).Should(gomega.BeTrue())
+		})
+	})
+
+	ginkgo.Context("Test karmadactl logs with invalid input", func() {
+		var (
+			namespace, podName string
+			ns                 *corev1.Namespace
+			pod                *corev1.Pod
+		)
+
+		ginkgo.BeforeEach(func() {
+			namespace = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
+			podName = podNamePrefix + rand.String(RandomStrLength)
+			ns = helper.NewNamespace(namespace)
+
+			// Create the namespace and pod in the member cluster.
+			_, err := member1Client.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+			pod = helper.NewPod(namespace, podName)
+			_, err = member1Client.CoreV1().Pods(namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+			waitForPodReady(namespace, podName)
+		})
+
+		ginkgo.AfterEach(func() {
+			err := member1Client.CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+
+		ginkgo.It("should return error for invalid flag", func() {
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, namespace, karmadactlTimeout, "logs", podName, "--invalidflag", "-C", member1)
+			_, err := cmd.ExecOrDie()
+			gomega.Expect(err).Should(gomega.HaveOccurred())
+			gomega.Expect(strings.Contains(err.Error(), "unknown flag: --invalidflag")).Should(gomega.BeTrue())
+		})
+	})
+})
