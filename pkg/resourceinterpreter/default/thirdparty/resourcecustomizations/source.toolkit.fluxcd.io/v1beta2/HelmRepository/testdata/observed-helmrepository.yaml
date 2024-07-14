@@ -1,8 +1,11 @@
 apiVersion: source.toolkit.fluxcd.io/v1beta2
 kind: HelmRepository
 metadata:
+  annotations:
+    resourcetemplate.karmada.io/generation: "1"
   name: podinfo
   namespace: test-helmrepository
+  generation: 1
 spec:
   interval: 5m0s
   provider: generic
