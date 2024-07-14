@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package multiclient
 
 import (
@@ -23,17 +39,19 @@ type MultiClusterDiscoveryInterface interface {
 // MultiClusterDiscovery provides DiscoveryClient for multiple clusters.
 type MultiClusterDiscovery struct {
 	sync.RWMutex
-	clients       map[string]*discovery.DiscoveryClient
-	secretLister  listcorev1.SecretLister
-	clusterLister clusterlister.ClusterLister
+	clients             map[string]*discovery.DiscoveryClient
+	clusterClientOption *util.ClientOption
+	secretLister        listcorev1.SecretLister
+	clusterLister       clusterlister.ClusterLister
 }
 
 // NewMultiClusterDiscoveryClient returns a new MultiClusterDiscovery
-func NewMultiClusterDiscoveryClient(clusterLister clusterlister.ClusterLister, KubeFactory informers.SharedInformerFactory) MultiClusterDiscoveryInterface {
+func NewMultiClusterDiscoveryClient(clusterLister clusterlister.ClusterLister, KubeFactory informers.SharedInformerFactory, clusterClientOption *util.ClientOption) MultiClusterDiscoveryInterface {
 	return &MultiClusterDiscovery{
-		clusterLister: clusterLister,
-		secretLister:  KubeFactory.Core().V1().Secrets().Lister(),
-		clients:       map[string]*discovery.DiscoveryClient{},
+		clusterLister:       clusterLister,
+		secretLister:        KubeFactory.Core().V1().Secrets().Lister(),
+		clients:             map[string]*discovery.DiscoveryClient{},
+		clusterClientOption: clusterClientOption,
 	}
 }
 
@@ -56,6 +74,8 @@ func (m *MultiClusterDiscovery) Set(clusterName string) error {
 	if err != nil {
 		return err
 	}
+	clusterConfig.QPS = m.clusterClientOption.QPS
+	clusterConfig.Burst = m.clusterClientOption.Burst
 	m.Lock()
 	defer m.Unlock()
 	m.clients[clusterName] = discovery.NewDiscoveryClientForConfigOrDie(clusterConfig)

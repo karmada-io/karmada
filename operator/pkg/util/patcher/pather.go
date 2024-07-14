@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package patcher
 
 import (
@@ -24,6 +40,7 @@ type Patcher struct {
 	extraArgs    map[string]string
 	featureGates map[string]bool
 	volume       *operatorv1alpha1.VolumeData
+	resources    corev1.ResourceRequirements
 }
 
 // NewPatcher returns a patcher.
@@ -61,6 +78,12 @@ func (p *Patcher) WithVolumeData(volume *operatorv1alpha1.VolumeData) *Patcher {
 	return p
 }
 
+// WithResources sets resources to the patcher.
+func (p *Patcher) WithResources(resources corev1.ResourceRequirements) *Patcher {
+	p.resources = resources
+	return p
+}
+
 // ForDeployment patches the deployment manifest.
 func (p *Patcher) ForDeployment(deployment *appsv1.Deployment) {
 	deployment.Labels = labels.Merge(deployment.Labels, p.labels)
@@ -69,6 +92,10 @@ func (p *Patcher) ForDeployment(deployment *appsv1.Deployment) {
 	deployment.Annotations = labels.Merge(deployment.Annotations, p.annotations)
 	deployment.Spec.Template.Annotations = labels.Merge(deployment.Spec.Template.Annotations, p.annotations)
 
+	if p.resources.Size() > 0 {
+		// It's considered the first container is the karmada component by default.
+		deployment.Spec.Template.Spec.Containers[0].Resources = p.resources
+	}
 	if len(p.extraArgs) != 0 || len(p.featureGates) != 0 {
 		// It's considered the first container is the karmada component by default.
 		baseArguments := deployment.Spec.Template.Spec.Containers[0].Command
@@ -76,7 +103,7 @@ func (p *Patcher) ForDeployment(deployment *appsv1.Deployment) {
 
 		overrideArgs := map[string]string{}
 
-		// merge featureGates and build to an argurment.
+		// merge featureGates and build to an argument.
 		if len(p.featureGates) != 0 {
 			baseFeatureGates := map[string]bool{}
 
@@ -109,6 +136,10 @@ func (p *Patcher) ForStatefulSet(sts *appsv1.StatefulSet) {
 		patchVolumeForStatefulSet(sts, p.volume)
 	}
 
+	if p.resources.Size() > 0 {
+		// It's considered the first container is the karmada component by default.
+		sts.Spec.Template.Spec.Containers[0].Resources = p.resources
+	}
 	if len(p.extraArgs) != 0 {
 		// It's considered the first container is the karmada component by default.
 		baseArguments := sts.Spec.Template.Spec.Containers[0].Command
@@ -147,7 +178,7 @@ func parseFeatrueGatesArgumentToMap(featureGates string) map[string]bool {
 
 	featureGatesMap := map[string]bool{}
 	for _, featureGate := range featureGateSlice {
-		key, val, err := parseFeatrueGate(featureGate)
+		key, val, err := parseFeatureGate(featureGate)
 		if err != nil {
 			continue
 		}
@@ -221,7 +252,7 @@ func parseArgument(arg string) (string, string, error) {
 	return keyvalSlice[0], keyvalSlice[1], nil
 }
 
-func parseFeatrueGate(featureGate string) (string, bool, error) {
+func parseFeatureGate(featureGate string) (string, bool, error) {
 	if !strings.Contains(featureGate, "=") {
 		return "", false, errors.New("the featureGate should have a '=' between the flag and the value")
 	}

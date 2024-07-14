@@ -22,19 +22,26 @@ import (
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 )
 
+// ActionLabel represents an action taken by HPA controller.
 type ActionLabel string
+
+// ErrorLabel represents an error type.
 type ErrorLabel string
 
 const (
-	ActionLabelScaleUp   ActionLabel = "scale_up"
+	// ActionLabelScaleUp represents a scale up action.
+	ActionLabelScaleUp ActionLabel = "scale_up"
+	// ActionLabelScaleDown represents a scale down action.
 	ActionLabelScaleDown ActionLabel = "scale_down"
-	ActionLabelNone      ActionLabel = "none"
+	// ActionLabelNone represents no action.
+	ActionLabelNone ActionLabel = "none"
 
 	// ErrorLabelSpec represents an error due to an invalid spec of HPA object.
 	ErrorLabelSpec ErrorLabel = "spec"
 	// ErrorLabelInternal represents an error from an internal computation or communication with other component.
 	ErrorLabelInternal ErrorLabel = "internal"
-	ErrorLabelNone     ErrorLabel = "none"
+	// ErrorLabelNone represents no error.
+	ErrorLabelNone ErrorLabel = "none"
 )
 
 // Monitor records some metrics so that people can monitor HPA controller.
@@ -45,6 +52,7 @@ type Monitor interface {
 
 type monitor struct{}
 
+// New creates a new Monitor.
 func New() Monitor {
 	return &monitor{}
 }

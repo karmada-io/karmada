@@ -1,0 +1,36 @@
+
+{{- if .Values.installCRDs }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}-post-hook-job
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+rules:
+  - apiGroups: ['apiextensions.k8s.io']
+    resources: ['customresourcedefinitions']
+    verbs: ["get", "watch", "list", "create", "update", "patch", "delete"]
+  - nonResourceURLs: ['*']
+    verbs: ["get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-post-hook-job
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    helm.sh/hook-weight: "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Release.Name }}-post-hook-job
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-post-hook-job
+    namespace: {{ .Release.Namespace }}
+{{- end -}}
+

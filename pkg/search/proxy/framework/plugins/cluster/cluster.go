@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package cluster
 
 import (
@@ -86,7 +102,7 @@ func (c *Cluster) Connect(ctx context.Context, request framework.ProxyRequest) (
 		return nil, err
 	}
 
-	secretGetter := func(ctx context.Context, namespace, name string) (*corev1.Secret, error) {
+	secretGetter := func(_ context.Context, namespace, name string) (*corev1.Secret, error) {
 		return c.secretLister.Secrets(namespace).Get(name)
 	}
 
@@ -99,7 +115,7 @@ func (c *Cluster) Connect(ctx context.Context, request framework.ProxyRequest) (
 		return h, nil
 	}
 
-	// Objects get by client via proxy are edited some fields, different from objets in member clusters.
+	// Objects get by client via proxy are edited some fields, different from objects in member clusters.
 	// So before update, we shall recover these fields.
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		if err = modifyRequest(req, clusterName); err != nil {
@@ -134,8 +150,7 @@ func modifyRequest(req *http.Request, cluster string) error {
 		return nil
 	}
 
-	changed := false
-	changed = store.RemoveCacheSourceAnnotation(obj) || changed
+	changed := store.RemoveCacheSourceAnnotation(obj)
 	changed = store.RecoverClusterResourceVersion(obj, cluster) || changed
 
 	if changed {

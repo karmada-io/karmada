@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package estimator
 
 const (
@@ -32,6 +48,12 @@ spec:
             - /bin/karmada-scheduler-estimator
             - --kubeconfig=/etc/{{ .MemberClusterName}}-kubeconfig
             - --cluster-name={{ .MemberClusterName}}
+            - --bind-address=0.0.0.0
+            - --secure-port=10351
+            - --grpc-auth-cert-file=/etc/karmada/pki/karmada.crt
+            - --grpc-auth-key-file=/etc/karmada/pki/karmada.key
+            - --client-cert-auth=true
+            - --grpc-client-ca-file=/etc/karmada/pki/ca.crt
           livenessProbe:
             httpGet:
               path: /healthz
@@ -41,11 +63,21 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 15
             timeoutSeconds: 5
+          ports:
+            - containerPort: 10351
+              name: metrics
+              protocol: TCP
           volumeMounts:
+            - name: k8s-certs
+              mountPath: /etc/karmada/pki
+              readOnly: true
             - name: member-kubeconfig
               subPath: {{ .MemberClusterName}}-kubeconfig
               mountPath: /etc/{{ .MemberClusterName}}-kubeconfig
       volumes:
+        - name: k8s-certs
+          secret:
+            secretName: karmada-cert
         - name: member-kubeconfig
           secret:
             secretName: {{ .MemberClusterName}}-kubeconfig

@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package register
 
 import (
@@ -34,11 +50,11 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/karmada-io/karmada/pkg/apis/cluster/validation"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	tokenutil "github.com/karmada-io/karmada/pkg/karmadactl/util/bootstraptoken"
-	"github.com/karmada-io/karmada/pkg/util"
 	karmadautil "github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/lifted/pubkeypin"
 	"github.com/karmada-io/karmada/pkg/version"
@@ -135,7 +151,7 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 		Example:               fmt.Sprintf(registerExample, parentCommand),
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			if err := opts.Complete(args); err != nil {
 				return err
 			}
@@ -169,6 +185,7 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 	flags.StringVar(&opts.ClusterNamespace, "cluster-namespace", options.DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster secrets are stored.")
 	flags.StringVar(&opts.ClusterProvider, "cluster-provider", "", "Provider of the joining cluster. The Karmada scheduler can use this information to spread workloads across providers for higher availability.")
 	flags.StringVar(&opts.ClusterRegion, "cluster-region", "", "The region of the joining cluster. The Karmada scheduler can use this information to spread workloads across regions for higher availability.")
+	flags.StringSliceVar(&opts.ClusterZones, "cluster-zones", []string{}, "The zones of the joining cluster. The Karmada scheduler can use this information to spread workloads across zones for higher availability.")
 	flags.BoolVar(&opts.EnableCertRotation, "enable-cert-rotation", false, "Enable means controller would rotate certificate for karmada-agent when the certificate is about to expire.")
 	flags.StringVar(&opts.CACertPath, "ca-cert-path", CACertPath, "The path to the SSL certificate authority used to secure communications between member cluster and karmada-control-plane.")
 	flags.StringVar(&opts.BootstrapToken.Token, "token", "", "For token-based discovery, the token used to validate cluster information fetched from the API server.")
@@ -179,6 +196,7 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 	flags.Int32Var(&opts.KarmadaAgentReplicas, "karmada-agent-replicas", 1, "Karmada agent replicas.")
 	flags.Int32Var(&opts.CertExpirationSeconds, "cert-expiration-seconds", DefaultCertExpirationSeconds, "The expiration time of certificate.")
 	flags.BoolVar(&opts.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
+	flags.StringVar(&opts.ProxyServerAddress, "proxy-server-address", "", "Address of the proxy server that is used to proxy to the cluster.")
 
 	return cmd
 }
@@ -207,11 +225,14 @@ type CommandRegisterOption struct {
 	// ClusterRegion represents the region of the cluster locate in.
 	ClusterRegion string
 
+	// ClusterZones represents the zones of the cluster locate in.
+	ClusterZones []string
+
 	// EnableCertRotation indicates if enable certificate rotation for karmada-agent.
 	EnableCertRotation bool
 
 	// CACertPath is the path to the SSL certificate authority used to
-	// secure comunications between member cluster and karmada-control-plane.
+	// secure communications between member cluster and karmada-control-plane.
 	// Defaults to "/etc/karmada/pki/ca.crt".
 	CACertPath string
 
@@ -232,6 +253,9 @@ type CommandRegisterOption struct {
 
 	// DryRun tells if run the command in dry-run mode, without making any server requests.
 	DryRun bool
+
+	// ProxyServerAddress holds the proxy server address that is used to proxy to the cluster.
+	ProxyServerAddress string
 
 	memberClusterEndpoint string
 	memberClusterClient   *kubeclient.Clientset
@@ -284,7 +308,7 @@ func (o *CommandRegisterOption) Validate() error {
 	}
 
 	if !o.BootstrapToken.UnsafeSkipCAVerification && len(o.BootstrapToken.CACertHashes) == 0 {
-		return fmt.Errorf("need to varify CACertHashes, or set --discovery-token-unsafe-skip-ca-verification=true")
+		return fmt.Errorf("need to verify CACertHashes, or set --discovery-token-unsafe-skip-ca-verification=true")
 	}
 
 	if !filepath.IsAbs(o.CACertPath) || !strings.HasSuffix(o.CACertPath, ".crt") {
@@ -310,7 +334,7 @@ func (o *CommandRegisterOption) Run(parentCommand string) error {
 		fmt.Printf("\n[preflight] Please check the above errors\n")
 		return nil
 	}
-	fmt.Println("[prefligt] All pre-flight checks were passed")
+	fmt.Println("[preflight] All pre-flight checks were passed")
 
 	if o.DryRun {
 		return nil
@@ -340,9 +364,21 @@ func (o *CommandRegisterOption) Run(parentCommand string) error {
 		return err
 	}
 
+	fmt.Println("[karmada-agent-start] Waiting to check cluster exists")
+	karmadaClient, err := ToKarmadaClient(karmadaAgentCfg)
+	if err != nil {
+		return err
+	}
+	_, exist, err := karmadautil.GetClusterWithKarmadaClient(karmadaClient, o.ClusterName)
+	if err != nil {
+		return err
+	} else if exist {
+		return fmt.Errorf("failed to register as cluster with name %s already exists", o.ClusterName)
+	}
+
 	// It's necessary to set the label of namespace to make sure that the namespace is created by Karmada.
 	labels := map[string]string{
-		util.ManagedByKarmadaLabel: util.ManagedByKarmadaLabelValue,
+		karmadautil.KarmadaSystemLabel: karmadautil.KarmadaSystemLabelValue,
 	}
 	// ensure namespace where the karmada-agent resources be deployed exists in the member cluster
 	if _, err := karmadautil.EnsureNamespaceExistWithLabels(o.memberClusterClient, o.Namespace, o.DryRun, labels); err != nil {
@@ -472,7 +508,7 @@ func (o *CommandRegisterOption) discoveryBootstrapConfigAndClusterInfo(bootstrap
 func (o *CommandRegisterOption) constructKarmadaAgentConfig(bootstrapClient *kubeclient.Clientset, karmadaClusterInfo *clientcmdapi.Cluster) (*clientcmdapi.Config, error) {
 	var cert []byte
 
-	pk, csr, err := generatKeyAndCSR(o.ClusterName)
+	pk, csr, err := generateKeyAndCSR(o.ClusterName)
 	if err != nil {
 		return nil, err
 	}
@@ -487,6 +523,9 @@ func (o *CommandRegisterOption) constructKarmadaAgentConfig(bootstrapClient *kub
 	certificateSigningRequest := &certificatesv1.CertificateSigningRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: csrName,
+			Labels: map[string]string{
+				karmadautil.KarmadaSystemLabel: karmadautil.KarmadaSystemLabelValue,
+			},
 		},
 		Spec: certificatesv1.CertificateSigningRequestSpec{
 			Request: pem.EncodeToMemory(&pem.Block{
@@ -509,7 +548,7 @@ func (o *CommandRegisterOption) constructKarmadaAgentConfig(bootstrapClient *kub
 	}
 
 	klog.V(1).Infof("Waiting for the client certificate to be issued")
-	err = wait.Poll(1*time.Second, o.Timeout, func() (done bool, err error) {
+	err = wait.PollUntilContextTimeout(context.TODO(), 1*time.Second, o.Timeout, false, func(context.Context) (done bool, err error) {
 		csrOK, err := bootstrapClient.CertificatesV1().CertificateSigningRequests().Get(context.TODO(), csrName, metav1.GetOptions{})
 		if err != nil {
 			return false, fmt.Errorf("failed to get the cluster csr %s. err: %v", o.ClusterName, err)
@@ -555,6 +594,11 @@ func (o *CommandRegisterOption) createSecretAndRBACInMemberCluster(karmadaAgentC
 		return fmt.Errorf("failure while serializing karmada-agent kubeConfig. %w", err)
 	}
 
+	// It's necessary to set the label of namespace to make sure that the namespace is created by Karmada.
+	labels := map[string]string{
+		karmadautil.KarmadaSystemLabel: karmadautil.KarmadaSystemLabelValue,
+	}
+
 	kubeConfigSecret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -563,19 +607,21 @@ func (o *CommandRegisterOption) createSecretAndRBACInMemberCluster(karmadaAgentC
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      KarmadaKubeconfigName,
 			Namespace: o.Namespace,
+			Labels:    labels,
 		},
 		Type:       corev1.SecretTypeOpaque,
 		StringData: map[string]string{KarmadaKubeconfigName: string(configBytes)},
 	}
 
-	// cerate karmada-kubeconfig secret to be used by karmada-agent component.
+	// create karmada-kubeconfig secret to be used by karmada-agent component.
 	if err := cmdutil.CreateOrUpdateSecret(o.memberClusterClient, kubeConfigSecret); err != nil {
 		return fmt.Errorf("create secret %s failed: %v", kubeConfigSecret.Name, err)
 	}
 
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: KarmadaAgentName,
+			Name:   KarmadaAgentName,
+			Labels: labels,
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
@@ -599,6 +645,7 @@ func (o *CommandRegisterOption) createSecretAndRBACInMemberCluster(karmadaAgentC
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      KarmadaAgentServiceAccountName,
 			Namespace: o.Namespace,
+			Labels:    labels,
 		},
 	}
 
@@ -610,7 +657,8 @@ func (o *CommandRegisterOption) createSecretAndRBACInMemberCluster(karmadaAgentC
 
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: KarmadaAgentName,
+			Name:   KarmadaAgentName,
+			Labels: labels,
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
@@ -668,11 +716,23 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 					fmt.Sprintf("--cluster-api-endpoint=%s", o.memberClusterEndpoint),
 					fmt.Sprintf("--cluster-provider=%s", o.ClusterProvider),
 					fmt.Sprintf("--cluster-region=%s", o.ClusterRegion),
+					fmt.Sprintf("--cluster-zones=%s", strings.Join(o.ClusterZones, ",")),
 					fmt.Sprintf("--controllers=%s", strings.Join(controllers, ",")),
+					fmt.Sprintf("--proxy-server-address=%s", o.ProxyServerAddress),
+					fmt.Sprintf("--leader-elect-resource-namespace=%s", o.Namespace),
+					fmt.Sprintf("--cluster-namespace=%s", o.ClusterNamespace),
 					"--cluster-status-update-frequency=10s",
 					"--bind-address=0.0.0.0",
+					"--metrics-bind-address=:8080",
 					"--secure-port=10357",
 					"--v=4",
+				},
+				Ports: []corev1.ContainerPort{
+					{
+						Name:          "metrics",
+						ContainerPort: 8080,
+						Protocol:      corev1.ProtocolTCP,
+					},
 				},
 				VolumeMounts: []corev1.VolumeMount{
 					{
@@ -720,9 +780,9 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 	return karmadaAgent
 }
 
-// generatKeyAndCSR generate private key and csr
-func generatKeyAndCSR(clusterName string) (*rsa.PrivateKey, []byte, error) {
-	pk, err := rsa.GenerateKey(rand.Reader, 2048)
+// generateKeyAndCSR generate private key and csr
+func generateKeyAndCSR(clusterName string) (*rsa.PrivateKey, []byte, error) {
+	pk, err := rsa.GenerateKey(rand.Reader, 3072)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -993,4 +1053,20 @@ func ToClientSet(config *clientcmdapi.Config) (*kubeclient.Clientset, error) {
 		return nil, fmt.Errorf("failed to create API client: %w", err)
 	}
 	return client, nil
+}
+
+// ToKarmadaClient converts a KubeConfig object to a client
+func ToKarmadaClient(config *clientcmdapi.Config) (*karmadaclientset.Clientset, error) {
+	overrides := clientcmd.ConfigOverrides{Timeout: "10s"}
+	clientConfig, err := clientcmd.NewDefaultClientConfig(*config, &overrides).ClientConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create API client configuration from kubeconfig: %w", err)
+	}
+
+	karmadaClient, err := karmadaclientset.NewForConfig(clientConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return karmadaClient, nil
 }

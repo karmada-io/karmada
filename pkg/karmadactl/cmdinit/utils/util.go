@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package utils
 
 import (
@@ -10,6 +26,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // Downloader Download progress
@@ -50,7 +68,7 @@ func DownloadFile(url, filePath string) error {
 		return fmt.Errorf("failed download file. url: %s code: %v", url, resp.StatusCode)
 	}
 
-	file, err := os.Create(filePath)
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, util.DefaultFilePerm)
 	if err != nil {
 		return err
 	}
@@ -94,11 +112,11 @@ func DeCompress(file, targetPath string) error {
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if err := os.Mkdir(targetPath+"/"+header.Name, 0755); err != nil {
+			if err := os.Mkdir(targetPath+"/"+header.Name, 0700); err != nil {
 				return err
 			}
 		case tar.TypeReg:
-			outFile, err := os.Create(targetPath + "/" + header.Name)
+			outFile, err := os.OpenFile(targetPath+"/"+header.Name, os.O_CREATE|os.O_RDWR, util.DefaultFilePerm)
 			if err != nil {
 				return err
 			}
@@ -107,7 +125,7 @@ func DeCompress(file, targetPath string) error {
 			}
 			outFile.Close()
 		default:
-			fmt.Printf("uknown type: %v in %s\n", header.Typeflag, header.Name)
+			fmt.Printf("unknown type: %v in %s\n", header.Typeflag, header.Name)
 		}
 	}
 	return nil
@@ -129,7 +147,7 @@ func ioCopyN(outFile *os.File, tr *tar.Reader) error {
 // ListFiles traverse directory files
 func ListFiles(path string) []string {
 	var files []string
-	if err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(path, func(path string, info os.FileInfo, _ error) error {
 		if !info.IsDir() {
 			files = append(files, path)
 		}

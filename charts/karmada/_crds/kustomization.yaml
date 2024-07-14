@@ -15,6 +15,8 @@ resources:
 - bases/networking/networking.karmada.io_multiclusterservices.yaml
 - bases/autoscaling/autoscaling.karmada.io_federatedhpas.yaml
 - bases/autoscaling/autoscaling.karmada.io_cronfederatedhpas.yaml
+- bases/remedy/remedy.karmada.io_remedies.yaml
+- bases/apps/apps.karmada.io_workloadrebalancers.yaml
 
 patchesStrategicMerge:
 - patches/webhook_in_resourcebindings.yaml

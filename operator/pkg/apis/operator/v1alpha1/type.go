@@ -24,9 +24,9 @@ import (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status
-// +kubebuilder:path=karmadas,scope=Namespaced,categories={karmada-io}
-// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Ready")].status`,name="Ready",type=string
-// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="Age",type=date
+// +kubebuilder:resource:path=karmadas,scope=Namespaced,categories={karmada-io}
+// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Ready")].status`,name="READY",type=string
+// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="AGE",type=date
 
 // Karmada enables declarative installation of karmada.
 type Karmada struct {
@@ -123,6 +123,10 @@ type KarmadaComponents struct {
 	// KarmadaSearch holds settings to karmada search component of the karmada.
 	// +optional
 	KarmadaSearch *KarmadaSearch `json:"karmadaSearch,omitempty"`
+
+	// KarmadaMetricsAdapter holds settings to karmada metrics adapter component of the karmada.
+	// +optional
+	KarmadaMetricsAdapter *KarmadaMetricsAdapter `json:"karmadaMetricsAdapter,omitempty"`
 }
 
 // Networking contains elements describing cluster's networking configuration
@@ -220,9 +224,14 @@ type KarmadaAPIServer struct {
 	ServiceSubnet *string `json:"serviceSubnet,omitempty"`
 
 	// ServiceType represents the service type of karmada apiserver.
-	// it is NodePort by default.
+	// it is ClusterIP by default.
 	// +optional
 	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`
+
+	// ServiceAnnotations is an extra set of annotations for service of karmada apiserver.
+	// more info: https://github.com/karmada-io/karmada/issues/4634
+	// +optional
+	ServiceAnnotations map[string]string `json:"serviceAnnotations,omitempty"`
 
 	// ExtraArgs is an extra set of flags to pass to the kube-apiserver component or
 	// override. A key in this map is the flag name as it appears on the command line except
@@ -266,7 +275,7 @@ type KarmadaAggregatedAPIServer struct {
 	// state. Before you do it, please confirm that you understand the risks of this configuration.
 	//
 	// For supported flags, please see
-	// https://github.com/karmada-io/karmada/blob/master/cmd/aggregated-apiserver/app/options/options.go
+	// https://karmada.io/docs/reference/components/karmada-aggregated-apiserver
 	// for details.
 	// +optional
 	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
@@ -379,7 +388,7 @@ type KarmadaControllerManager struct {
 	// state. Before you do it, please confirm that you understand the risks of this configuration.
 	//
 	// For supported flags, please see
-	// https://github.com/karmada-io/karmada/blob/master/cmd/controller-manager/app/options/options.go
+	// https://karmada.io/docs/reference/components/karmada-controller-manager
 	// for details.
 	// +optional
 	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
@@ -410,7 +419,7 @@ type KarmadaScheduler struct {
 	// state. Before you do it, please confirm that you understand the risks of this configuration.
 	//
 	// For supported flags, please see
-	// https://github.com/karmada-io/karmada/blob/master/cmd/scheduler/app/options/options.go
+	// https://karmada.io/docs/reference/components/karmada-scheduler
 	// for details.
 	// +optional
 	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
@@ -438,7 +447,7 @@ type KarmadaDescheduler struct {
 	// state. Before you do it, please confirm that you understand the risks of this configuration.
 	//
 	// For supported flags, please see
-	// https://github.com/karmada-io/karmada/blob/master/cmd/descheduler/app/options/options.go
+	// https://karmada.io/docs/reference/components/karmada-descheduler
 	// for details.
 	// +optional
 	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
@@ -449,18 +458,40 @@ type KarmadaSearch struct {
 	// CommonSettings holds common settings to karmada search.
 	CommonSettings `json:",inline"`
 
-	// ExtraArgs is an extra set of flags to pass to the karmada-descheduler component or override.
+	// ExtraArgs is an extra set of flags to pass to the karmada-search component or override.
 	// A key in this map is the flag name as it appears on the command line except without
 	// leading dash(es).
 	//
-	// Note: This is a temporary solution to allow for the configuration of the karmada-descheduler
+	// Note: This is a temporary solution to allow for the configuration of the karmada-search
 	// component. In the future, we will provide a more structured way to configure the component.
 	// Once that is done, this field will be discouraged to be used.
 	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
 	// state. Before you do it, please confirm that you understand the risks of this configuration.
 	//
 	// For supported flags, please see
-	// https://github.com/karmada-io/karmada/blob/master/cmd/descheduler/app/options/options.go
+	// https://karmada.io/docs/reference/components/karmada-search
+	// for details.
+	// +optional
+	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
+}
+
+// KarmadaMetricsAdapter holds settings to karmada-metrics-adapter component of the karmada.
+type KarmadaMetricsAdapter struct {
+	// CommonSettings holds common settings to karmada metrics adapter.
+	CommonSettings `json:",inline"`
+
+	// ExtraArgs is an extra set of flags to pass to the karmada-metrics-adapter component or override.
+	// A key in this map is the flag name as it appears on the command line except without
+	// leading dash(es).
+	//
+	// Note: This is a temporary solution to allow for the configuration of the karmada-metrics-adapter
+	// component. In the future, we will provide a more structured way to configure the component.
+	// Once that is done, this field will be discouraged to be used.
+	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
+	// state. Before you do it, please confirm that you understand the risks of this configuration.
+	//
+	// For supported flags, please see
+	// https://karmada.io/docs/reference/components/karmada-metrics-adapter
 	// for details.
 	// +optional
 	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
@@ -482,7 +513,7 @@ type KarmadaWebhook struct {
 	// state. Before you do it, please confirm that you understand the risks of this configuration.
 	//
 	// For supported flags, please see
-	// https://github.com/karmada-io/karmada/blob/master/cmd/webhook/app/options/options.go
+	// https://karmada.io/docs/reference/components/karmada-webhook
 	// for details.
 	// +optional
 	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
@@ -492,6 +523,11 @@ type KarmadaWebhook struct {
 type CommonSettings struct {
 	// Image allows to customize the image used for the component.
 	Image `json:",inline"`
+
+	// ImagePullPolicy defines the policy for pulling the container image.
+	// If not specified, it defaults to IfNotPresent.
+	// +optional
+	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
 
 	// Number of desired pods. This is a pointer to distinguish between explicit
 	// zero and not specified. Defaults to 1.

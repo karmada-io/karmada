@@ -1,3 +1,19 @@
+/*
+Copyright 2014 The Kubernetes Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package lifted
 
 import (
@@ -9,7 +25,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	utilpointer "k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 )
@@ -52,10 +68,12 @@ func TestValidateIngress(t *testing.T) {
 				},
 			}},
 		},
-		Status: networkingv1.IngressStatus{
-			LoadBalancer: networkingv1.IngressLoadBalancerStatus{
-				Ingress: []networkingv1.IngressLoadBalancerIngress{
-					{IP: "127.0.0.1"},
+		Status: networkingv1alpha1.MultiClusterIngressStatus{
+			IngressStatus: networkingv1.IngressStatus{
+				LoadBalancer: networkingv1.IngressLoadBalancerStatus{
+					Ingress: []networkingv1.IngressLoadBalancerIngress{
+						{IP: "127.0.0.1"},
+					},
 				},
 			},
 		},
@@ -159,7 +177,7 @@ func TestValidateIngress(t *testing.T) {
 							Backend: networkingv1.IngressBackend{
 								Service: serviceBackend,
 								Resource: &corev1.TypedLocalObjectReference{
-									APIGroup: utilpointer.String("example.com"),
+									APIGroup: ptr.To("example.com"),
 									Kind:     "foo",
 									Name:     "bar",
 								},
@@ -182,7 +200,7 @@ func TestValidateIngress(t *testing.T) {
 							Backend: networkingv1.IngressBackend{
 								Service: serviceBackend,
 								Resource: &corev1.TypedLocalObjectReference{
-									APIGroup: utilpointer.String("example.com"),
+									APIGroup: ptr.To("example.com"),
 									Kind:     "foo",
 									Name:     "bar",
 								},
@@ -200,7 +218,7 @@ func TestValidateIngress(t *testing.T) {
 				mci.Spec.DefaultBackend = &networkingv1.IngressBackend{
 					Service: serviceBackend,
 					Resource: &corev1.TypedLocalObjectReference{
-						APIGroup: utilpointer.String("example.com"),
+						APIGroup: ptr.To("example.com"),
 						Kind:     "foo",
 						Name:     "bar",
 					},
@@ -215,7 +233,7 @@ func TestValidateIngress(t *testing.T) {
 				mci.Spec.DefaultBackend = &networkingv1.IngressBackend{
 					Service: serviceBackend,
 					Resource: &corev1.TypedLocalObjectReference{
-						APIGroup: utilpointer.String("example.com"),
+						APIGroup: ptr.To("example.com"),
 						Kind:     "foo",
 						Name:     "bar",
 					},
@@ -278,10 +296,12 @@ func TestValidateIngressTLS(t *testing.T) {
 					},
 				}},
 			},
-			Status: networkingv1.IngressStatus{
-				LoadBalancer: networkingv1.IngressLoadBalancerStatus{
-					Ingress: []networkingv1.IngressLoadBalancerIngress{
-						{IP: "127.0.0.1"},
+			Status: networkingv1alpha1.MultiClusterIngressStatus{
+				IngressStatus: networkingv1.IngressStatus{
+					LoadBalancer: networkingv1.IngressLoadBalancerStatus{
+						Ingress: []networkingv1.IngressLoadBalancerIngress{
+							{IP: "127.0.0.1"},
+						},
 					},
 				},
 			},
@@ -421,36 +441,45 @@ func TestValidateIngressStatusUpdate(t *testing.T) {
 					},
 				}},
 			},
-			Status: networkingv1.IngressStatus{
-				LoadBalancer: networkingv1.IngressLoadBalancerStatus{
-					Ingress: []networkingv1.IngressLoadBalancerIngress{
-						{IP: "127.0.0.1", Hostname: "foo.bar.com"},
+			Status: networkingv1alpha1.MultiClusterIngressStatus{
+				IngressStatus: networkingv1.IngressStatus{
+					LoadBalancer: networkingv1.IngressLoadBalancerStatus{
+						Ingress: []networkingv1.IngressLoadBalancerIngress{
+							{IP: "127.0.0.1", Hostname: "foo.bar.com"},
+						},
 					},
 				},
 			},
 		}
 	}
 	newValue := newValid()
-	newValue.Status = networkingv1.IngressStatus{
-		LoadBalancer: networkingv1.IngressLoadBalancerStatus{
-			Ingress: []networkingv1.IngressLoadBalancerIngress{
-				{IP: "127.0.0.2", Hostname: "foo.com"},
+	newValue.Status = networkingv1alpha1.MultiClusterIngressStatus{
+		IngressStatus: networkingv1.IngressStatus{
+			LoadBalancer: networkingv1.IngressLoadBalancerStatus{
+				Ingress: []networkingv1.IngressLoadBalancerIngress{
+					{IP: "127.0.0.2", Hostname: "foo.com"},
+				},
 			},
 		},
 	}
+
 	invalidIP := newValid()
-	invalidIP.Status = networkingv1.IngressStatus{
-		LoadBalancer: networkingv1.IngressLoadBalancerStatus{
-			Ingress: []networkingv1.IngressLoadBalancerIngress{
-				{IP: "abcd", Hostname: "foo.com"},
+	invalidIP.Status = networkingv1alpha1.MultiClusterIngressStatus{
+		IngressStatus: networkingv1.IngressStatus{
+			LoadBalancer: networkingv1.IngressLoadBalancerStatus{
+				Ingress: []networkingv1.IngressLoadBalancerIngress{
+					{IP: "abcd", Hostname: "foo.com"},
+				},
 			},
 		},
 	}
 	invalidHostname := newValid()
-	invalidHostname.Status = networkingv1.IngressStatus{
-		LoadBalancer: networkingv1.IngressLoadBalancerStatus{
-			Ingress: []networkingv1.IngressLoadBalancerIngress{
-				{IP: "127.0.0.1", Hostname: "127.0.0.1"},
+	invalidHostname.Status = networkingv1alpha1.MultiClusterIngressStatus{
+		IngressStatus: networkingv1.IngressStatus{
+			LoadBalancer: networkingv1.IngressLoadBalancerStatus{
+				Ingress: []networkingv1.IngressLoadBalancerIngress{
+					{IP: "127.0.0.1", Hostname: "127.0.0.1"},
+				},
 			},
 		},
 	}

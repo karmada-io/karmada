@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package apiclient
 
 import (
@@ -18,9 +34,6 @@ import (
 const (
 	// APICallRetryInterval defines how long kubeadm should wait before retrying a failed API operation
 	APICallRetryInterval = 500 * time.Millisecond
-
-	// APIServiceName defines the karmada aggregated apiserver APISerivce resource name.
-	APIServiceName = "v1alpha1.cluster.karmada.io"
 )
 
 // Waiter is an interface for waiting for criteria in Karmada to happen
@@ -28,7 +41,7 @@ type Waiter interface {
 	// WaitForAPI waits for the API Server's /healthz endpoint to become "ok"
 	WaitForAPI() error
 	// WaitForAPIService waits for the APIService condition to become "true"
-	WaitForAPIService() error
+	WaitForAPIService(name string) error
 	// WaitForPods waits for Pods in the namespace to become Ready
 	WaitForPods(label, namespace string) error
 	// WaitForSomePods waits for the specified number of Pods in the namespace to become Ready
@@ -44,7 +57,7 @@ type KarmadaWaiter struct {
 	timeout       time.Duration
 }
 
-// NewKarmadaWaiter reurn a karmada waiter, the rest config is to create crd client or aggregate client.
+// NewKarmadaWaiter returns a karmada waiter, the rest config is to create crd client or aggregate client.
 func NewKarmadaWaiter(config *rest.Config, client clientset.Interface, timeout time.Duration) Waiter {
 	return &KarmadaWaiter{
 		karmadaConfig: config,
@@ -55,9 +68,9 @@ func NewKarmadaWaiter(config *rest.Config, client clientset.Interface, timeout t
 
 // WaitForAPI waits for the API Server's /healthz endpoint to report "ok"
 func (w *KarmadaWaiter) WaitForAPI() error {
-	return wait.PollImmediate(APICallRetryInterval, w.timeout, func() (bool, error) {
+	return wait.PollUntilContextTimeout(context.TODO(), APICallRetryInterval, w.timeout, true, func(ctx context.Context) (bool, error) {
 		healthStatus := 0
-		w.client.Discovery().RESTClient().Get().AbsPath("/healthz").Do(context.TODO()).StatusCode(&healthStatus)
+		w.client.Discovery().RESTClient().Get().AbsPath("/healthz").Do(ctx).StatusCode(&healthStatus)
 		if healthStatus != http.StatusOK {
 			return false, nil
 		}
@@ -67,14 +80,14 @@ func (w *KarmadaWaiter) WaitForAPI() error {
 }
 
 // WaitForAPIService waits for the APIService condition to become "true"
-func (w *KarmadaWaiter) WaitForAPIService() error {
+func (w *KarmadaWaiter) WaitForAPIService(name string) error {
 	aggregateClient, err := aggregator.NewForConfig(w.karmadaConfig)
 	if err != nil {
 		return err
 	}
 
-	err = wait.PollImmediate(APICallRetryInterval, w.timeout, func() (done bool, err error) {
-		apiService, err := aggregateClient.ApiregistrationV1().APIServices().Get(context.TODO(), APIServiceName, metav1.GetOptions{})
+	err = wait.PollUntilContextTimeout(context.TODO(), APICallRetryInterval, w.timeout, true, func(ctx context.Context) (done bool, err error) {
+		apiService, err := aggregateClient.ApiregistrationV1().APIServices().Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return false, nil
 		}
@@ -95,9 +108,9 @@ func (w *KarmadaWaiter) WaitForAPIService() error {
 // reporting status as running.
 func (w *KarmadaWaiter) WaitForPods(label, namespace string) error {
 	lastKnownPodNumber := -1
-	return wait.PollImmediate(APICallRetryInterval, w.timeout, func() (bool, error) {
+	return wait.PollUntilContextTimeout(context.TODO(), APICallRetryInterval, w.timeout, true, func(ctx context.Context) (bool, error) {
 		listOpts := metav1.ListOptions{LabelSelector: label}
-		pods, err := w.client.CoreV1().Pods(namespace).List(context.TODO(), listOpts)
+		pods, err := w.client.CoreV1().Pods(namespace).List(ctx, listOpts)
 		if err != nil {
 			return false, nil
 		}
@@ -123,9 +136,9 @@ func (w *KarmadaWaiter) WaitForPods(label, namespace string) error {
 // WaitForSomePods lookup pods with the given label and wait until desired number of pods
 // reporting status as running.
 func (w *KarmadaWaiter) WaitForSomePods(label, namespace string, podNum int32) error {
-	return wait.PollImmediate(APICallRetryInterval, w.timeout, func() (bool, error) {
+	return wait.PollUntilContextTimeout(context.TODO(), APICallRetryInterval, w.timeout, true, func(ctx context.Context) (bool, error) {
 		listOpts := metav1.ListOptions{LabelSelector: label}
-		pods, err := w.client.CoreV1().Pods(namespace).List(context.TODO(), listOpts)
+		pods, err := w.client.CoreV1().Pods(namespace).List(ctx, listOpts)
 		if err != nil {
 			return false, nil
 		}
@@ -172,8 +185,8 @@ func isPodRunning(pod corev1.Pod) bool {
 		return false
 	}
 
-	for _, condtion := range pod.Status.Conditions {
-		if condtion.Type == corev1.PodReady && condtion.Status == corev1.ConditionTrue {
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionTrue {
 			return true
 		}
 	}

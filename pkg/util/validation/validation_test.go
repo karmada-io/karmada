@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package validation
 
 import (
@@ -6,7 +22,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -586,7 +602,7 @@ func TestValidateApplicationFailover(t *testing.T) {
 			name: "the tolerationSeconds is less than zero",
 			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
 				DecisionConditions: policyv1alpha1.DecisionConditions{
-					TolerationSeconds: pointer.Int32(-100),
+					TolerationSeconds: ptr.To[int32](-100),
 				},
 			},
 			expectedErr: "spec.failover.application.decisionConditions.tolerationSeconds: Invalid value: -100: must be greater than or equal to 0",
@@ -595,10 +611,10 @@ func TestValidateApplicationFailover(t *testing.T) {
 			name: "the gracePeriodSeconds is declared when purgeMode is not graciously",
 			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
 				DecisionConditions: policyv1alpha1.DecisionConditions{
-					TolerationSeconds: pointer.Int32(100),
+					TolerationSeconds: ptr.To[int32](100),
 				},
 				PurgeMode:          policyv1alpha1.Immediately,
-				GracePeriodSeconds: pointer.Int32(100),
+				GracePeriodSeconds: ptr.To[int32](100),
 			},
 			expectedErr: "spec.failover.application.gracePeriodSeconds: Invalid value: 100: only takes effect when purgeMode is graciously",
 		},
@@ -606,10 +622,10 @@ func TestValidateApplicationFailover(t *testing.T) {
 			name: "the gracePeriodSeconds is less than 0 when purgeMode is graciously",
 			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
 				DecisionConditions: policyv1alpha1.DecisionConditions{
-					TolerationSeconds: pointer.Int32(100),
+					TolerationSeconds: ptr.To[int32](100),
 				},
 				PurgeMode:          policyv1alpha1.Graciously,
-				GracePeriodSeconds: pointer.Int32(-100),
+				GracePeriodSeconds: ptr.To[int32](-100),
 			},
 			expectedErr: "spec.failover.application.gracePeriodSeconds: Invalid value: -100: must be greater than 0",
 		},
@@ -617,7 +633,7 @@ func TestValidateApplicationFailover(t *testing.T) {
 			name: "the gracePeriodSeconds is empty when purgeMode is graciously",
 			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
 				DecisionConditions: policyv1alpha1.DecisionConditions{
-					TolerationSeconds: pointer.Int32(100),
+					TolerationSeconds: ptr.To[int32](100),
 				},
 				PurgeMode: policyv1alpha1.Graciously,
 			},
@@ -627,7 +643,7 @@ func TestValidateApplicationFailover(t *testing.T) {
 			name: "application behavior is correctly declared",
 			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
 				DecisionConditions: policyv1alpha1.DecisionConditions{
-					TolerationSeconds: pointer.Int32(100),
+					TolerationSeconds: ptr.To[int32](100),
 				},
 			},
 			expectedErr: "",

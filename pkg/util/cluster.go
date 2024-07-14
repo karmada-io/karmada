@@ -1,3 +1,19 @@
+/*
+Copyright 2020 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package util
 
 import (
@@ -11,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -40,7 +57,7 @@ type ClusterRegisterOption struct {
 	ProxyServerAddress string
 	ClusterProvider    string
 	ClusterRegion      string
-	ClusterZone        string
+	ClusterZones       []string
 	DryRun             bool
 
 	ControlPlaneConfig *rest.Config
@@ -84,6 +101,19 @@ func GetCluster(hostClient client.Client, clusterName string) (*clusterv1alpha1.
 	return cluster, nil
 }
 
+// GetClusterSet returns the given Clusters name set
+func GetClusterSet(hostClient client.Client) (sets.Set[string], error) {
+	clusterList := &clusterv1alpha1.ClusterList{}
+	if err := hostClient.List(context.Background(), clusterList); err != nil {
+		return nil, err
+	}
+	clusterSet := sets.New[string]()
+	for _, cluster := range clusterList.Items {
+		clusterSet.Insert(cluster.Name)
+	}
+	return clusterSet, nil
+}
+
 // CreateClusterObject create cluster object in karmada control plane
 func CreateClusterObject(controlPlaneClient karmadaclientset.Interface, clusterObj *clusterv1alpha1.Cluster) (*clusterv1alpha1.Cluster, error) {
 	cluster, exist, err := GetClusterWithKarmadaClient(controlPlaneClient, clusterObj.Name)
@@ -111,21 +141,22 @@ func CreateOrUpdateClusterObject(controlPlaneClient karmadaclientset.Interface, 
 		return nil, err
 	}
 	if exist {
-		if reflect.DeepEqual(cluster.Spec, clusterObj.Spec) {
+		clusterCopy := cluster.DeepCopy()
+		mutate(cluster)
+		if reflect.DeepEqual(clusterCopy.Spec, cluster.Spec) {
 			klog.Warningf("Cluster(%s) already exist and newest", clusterObj.Name)
 			return cluster, nil
 		}
-		mutate(cluster)
+
 		cluster, err = updateCluster(controlPlaneClient, cluster)
 		if err != nil {
-			klog.Warningf("Failed to create cluster(%s). error: %v", clusterObj.Name, err)
+			klog.Warningf("Failed to update cluster(%s). error: %v", clusterObj.Name, err)
 			return nil, err
 		}
 		return cluster, nil
 	}
 
 	mutate(clusterObj)
-
 	if cluster, err = createCluster(controlPlaneClient, clusterObj); err != nil {
 		klog.Warningf("Failed to create cluster(%s). error: %v", clusterObj.Name, err)
 		return nil, err
@@ -192,7 +223,7 @@ func IsClusterIdentifyUnique(controlPlaneClient karmadaclientset.Interface, id s
 	return true, "", nil
 }
 
-// ClusterAccessCredentialChanged checks whether the cluster a ccess credential changed
+// ClusterAccessCredentialChanged checks whether the cluster access credential changed
 func ClusterAccessCredentialChanged(newSpec, oldSpec clusterv1alpha1.ClusterSpec) bool {
 	if oldSpec.APIEndpoint == newSpec.APIEndpoint &&
 		oldSpec.InsecureSkipTLSVerification == newSpec.InsecureSkipTLSVerification &&

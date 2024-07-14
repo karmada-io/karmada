@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package federatedresourcequota
 
 import (
@@ -54,7 +70,7 @@ func (c *StatusController) Reconcile(ctx context.Context, req controllerruntime.
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !quota.DeletionTimestamp.IsZero() {
@@ -64,7 +80,7 @@ func (c *StatusController) Reconcile(ctx context.Context, req controllerruntime.
 	if err := c.collectQuotaStatus(quota); err != nil {
 		klog.Errorf("Failed to collect status from works to federatedResourceQuota(%s), error: %v", req.NamespacedName.String(), err)
 		c.EventRecorder.Eventf(quota, corev1.EventTypeWarning, events.EventReasonCollectFederatedResourceQuotaStatusFailed, err.Error())
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	c.EventRecorder.Eventf(quota, corev1.EventTypeNormal, events.EventReasonCollectFederatedResourceQuotaStatusSucceed, "Collect status of FederatedResourceQuota(%s) succeed.", req.NamespacedName.String())
 	return controllerruntime.Result{}, nil
@@ -73,7 +89,7 @@ func (c *StatusController) Reconcile(ctx context.Context, req controllerruntime.
 // SetupWithManager creates a controller and register to controller manager.
 func (c *StatusController) SetupWithManager(mgr controllerruntime.Manager) error {
 	fn := handler.MapFunc(
-		func(ctx context.Context, obj client.Object) []reconcile.Request {
+		func(_ context.Context, obj client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 
 			quotaNamespace, namespaceExist := obj.GetLabels()[util.FederatedResourceQuotaNamespaceLabel]
@@ -92,7 +108,7 @@ func (c *StatusController) SetupWithManager(mgr controllerruntime.Manager) error
 	)
 
 	workPredicate := builder.WithPredicates(predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
+		CreateFunc: func(event.CreateEvent) bool {
 			return false
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
@@ -105,10 +121,10 @@ func (c *StatusController) SetupWithManager(mgr controllerruntime.Manager) error
 			}
 			return !reflect.DeepEqual(objOld.Status, objNew.Status)
 		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
+		DeleteFunc: func(event.DeleteEvent) bool {
 			return false
 		},
-		GenericFunc: func(e event.GenericEvent) bool {
+		GenericFunc: func(event.GenericEvent) bool {
 			return false
 		},
 	})
@@ -144,20 +160,11 @@ func (c *StatusController) collectQuotaStatus(quota *policyv1alpha1.FederatedRes
 	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		quota.Status = *quotaStatus
-		updateErr := c.Status().Update(context.TODO(), quota)
-		if updateErr == nil {
+		_, err = helper.UpdateStatus(context.Background(), c.Client, quota, func() error {
+			quota.Status = *quotaStatus
 			return nil
-		}
-
-		updated := &policyv1alpha1.FederatedResourceQuota{}
-		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: quota.Namespace, Name: quota.Name}, updated); err == nil {
-			quota = updated
-		} else {
-			klog.Errorf("Failed to get updated  federatedResourceQuota(%s): %v", klog.KObj(quota).String(), err)
-		}
-
-		return updateErr
+		})
+		return err
 	})
 }
 

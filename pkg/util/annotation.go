@@ -1,30 +1,34 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package util
 
 import (
 	"sort"
 	"strings"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
-// MergeAnnotation adds annotation for the given object, keep the value unchanged if key exist.
+// MergeAnnotation adds annotation for the given object, replace the value if key exist.
 func MergeAnnotation(obj *unstructured.Unstructured, annotationKey string, annotationValue string) {
-	objectAnnotation := obj.GetAnnotations()
-	if objectAnnotation == nil {
-		objectAnnotation = make(map[string]string, 1)
-	}
-
-	if _, exist := objectAnnotation[annotationKey]; !exist {
-		objectAnnotation[annotationKey] = annotationValue
-		obj.SetAnnotations(objectAnnotation)
-	}
-}
-
-// ReplaceAnnotation adds annotation for the given object, replace the value if key exist.
-func ReplaceAnnotation(obj *unstructured.Unstructured, annotationKey string, annotationValue string) {
 	objectAnnotation := obj.GetAnnotations()
 	if objectAnnotation == nil {
 		objectAnnotation = make(map[string]string, 1)
@@ -96,4 +100,29 @@ func RecordManagedAnnotations(object *unstructured.Unstructured) {
 	sort.Strings(managedKeys)
 	annotations[workv1alpha2.ManagedAnnotation] = strings.Join(managedKeys, ",")
 	object.SetAnnotations(annotations)
+}
+
+// DedupeAndMergeAnnotations merges the new annotations into exist annotations.
+func DedupeAndMergeAnnotations(existAnnotation, newAnnotation map[string]string) map[string]string {
+	if existAnnotation == nil {
+		return newAnnotation
+	}
+
+	for k, v := range newAnnotation {
+		existAnnotation[k] = v
+	}
+	return existAnnotation
+}
+
+// RemoveAnnotations removes the annotations from the given object.
+func RemoveAnnotations(obj metav1.Object, keys ...string) {
+	if len(keys) == 0 {
+		return
+	}
+
+	objAnnotations := obj.GetAnnotations()
+	for _, key := range keys {
+		delete(objAnnotations, key)
+	}
+	obj.SetAnnotations(objAnnotations)
 }

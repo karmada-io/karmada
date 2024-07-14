@@ -1,3 +1,19 @@
+/*
+Copyright 2020 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package app
 
 import (
@@ -27,6 +43,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	crtlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/karmada-io/karmada/cmd/controller-manager/app/options"
@@ -39,15 +56,20 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	controllerscontext "github.com/karmada-io/karmada/pkg/controllers/context"
 	"github.com/karmada-io/karmada/pkg/controllers/cronfederatedhpa"
+	"github.com/karmada-io/karmada/pkg/controllers/deploymentreplicassyncer"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/controllers/federatedhpa"
 	metricsclient "github.com/karmada-io/karmada/pkg/controllers/federatedhpa/metrics"
 	"github.com/karmada-io/karmada/pkg/controllers/federatedresourcequota"
 	"github.com/karmada-io/karmada/pkg/controllers/gracefuleviction"
+	"github.com/karmada-io/karmada/pkg/controllers/hpascaletargetmarker"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
+	"github.com/karmada-io/karmada/pkg/controllers/multiclusterservice"
 	"github.com/karmada-io/karmada/pkg/controllers/namespace"
+	"github.com/karmada-io/karmada/pkg/controllers/remediation"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	"github.com/karmada-io/karmada/pkg/controllers/unifiedauth"
+	"github.com/karmada-io/karmada/pkg/controllers/workloadrebalancer"
 	"github.com/karmada-io/karmada/pkg/dependenciesdistributor"
 	"github.com/karmada-io/karmada/pkg/detector"
 	"github.com/karmada-io/karmada/pkg/features"
@@ -77,9 +99,9 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "karmada-controller-manager",
 		Long: `The karmada-controller-manager runs various controllers.
-The controllers watch Karmada objects and then talk to the underlying clusters' API servers 
+The controllers watch Karmada objects and then talk to the underlying clusters' API servers
 to create regular Kubernetes resources.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()
@@ -126,7 +148,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 	controllerManager, err := controllerruntime.NewManager(controlPlaneRestConfig, controllerruntime.Options{
 		Logger:                     klog.Background(),
 		Scheme:                     gclient.NewSchema(),
-		SyncPeriod:                 &opts.ResyncPeriod.Duration,
+		Cache:                      cache.Options{SyncPeriod: &opts.ResyncPeriod.Duration},
 		LeaderElection:             opts.LeaderElection.LeaderElect,
 		LeaderElectionID:           opts.LeaderElection.ResourceName,
 		LeaderElectionNamespace:    opts.LeaderElection.ResourceNamespace,
@@ -136,7 +158,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 		LeaderElectionResourceLock: opts.LeaderElection.ResourceLock,
 		HealthProbeBindAddress:     net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)),
 		LivenessEndpointName:       "/healthz",
-		MetricsBindAddress:         opts.MetricsBindAddress,
+		Metrics:                    metricsserver.Options{BindAddress: opts.MetricsBindAddress},
 		MapperProvider:             restmapper.MapperProvider,
 		BaseContext: func() context.Context {
 			return ctx
@@ -185,7 +207,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 var controllers = make(controllerscontext.Initializers)
 
 // controllersDisabledByDefault is the set of controllers which is disabled by default
-var controllersDisabledByDefault = sets.New("")
+var controllersDisabledByDefault = sets.New("hpaScaleTargetMarker", "deploymentReplicasSyncer")
 
 func init() {
 	controllers["cluster"] = startClusterController
@@ -205,6 +227,13 @@ func init() {
 	controllers["applicationFailover"] = startApplicationFailoverController
 	controllers["federatedHorizontalPodAutoscaler"] = startFederatedHorizontalPodAutoscalerController
 	controllers["cronFederatedHorizontalPodAutoscaler"] = startCronFederatedHorizontalPodAutoscalerController
+	controllers["hpaScaleTargetMarker"] = startHPAScaleTargetMarkerController
+	controllers["deploymentReplicasSyncer"] = startDeploymentReplicasSyncerController
+	controllers["multiclusterservice"] = startMCSController
+	controllers["endpointsliceCollect"] = startEndpointSliceCollectController
+	controllers["endpointsliceDispatch"] = startEndpointSliceDispatchController
+	controllers["remedy"] = startRemedyController
+	controllers["workloadRebalancer"] = startWorkloadRebalancerController
 }
 
 func startClusterController(ctx controllerscontext.Context) (enabled bool, err error) {
@@ -276,7 +305,7 @@ func startClusterStatusController(ctx controllerscontext.Context) (enabled bool,
 
 			return obj.Spec.SyncMode == clusterv1alpha1.Push
 		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
+		GenericFunc: func(event.GenericEvent) bool {
 			return false
 		},
 	}
@@ -440,6 +469,44 @@ func startServiceExportController(ctx controllerscontext.Context) (enabled bool,
 	return true, nil
 }
 
+func startEndpointSliceCollectController(ctx controllerscontext.Context) (enabled bool, err error) {
+	if !features.FeatureGate.Enabled(features.MultiClusterService) {
+		return false, nil
+	}
+	opts := ctx.Opts
+	endpointSliceCollectController := &multiclusterservice.EndpointSliceCollectController{
+		Client:                      ctx.Mgr.GetClient(),
+		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
+		InformerManager:             genericmanager.GetInstance(),
+		StopChan:                    ctx.StopChan,
+		WorkerNumber:                3,
+		PredicateFunc:               helper.NewPredicateForEndpointSliceCollectController(ctx.Mgr),
+		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
+		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,
+	}
+	endpointSliceCollectController.RunWorkQueue()
+	if err := endpointSliceCollectController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startEndpointSliceDispatchController(ctx controllerscontext.Context) (enabled bool, err error) {
+	if !features.FeatureGate.Enabled(features.MultiClusterService) {
+		return false, nil
+	}
+	endpointSliceSyncController := &multiclusterservice.EndpointsliceDispatchController{
+		Client:          ctx.Mgr.GetClient(),
+		EventRecorder:   ctx.Mgr.GetEventRecorderFor(multiclusterservice.EndpointsliceDispatchControllerName),
+		RESTMapper:      ctx.Mgr.GetRESTMapper(),
+		InformerManager: genericmanager.GetInstance(),
+	}
+	if err := endpointSliceSyncController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func startEndpointSliceController(ctx controllerscontext.Context) (enabled bool, err error) {
 	endpointSliceController := &mcs.EndpointSliceController{
 		Client:        ctx.Mgr.GetClient(),
@@ -561,12 +628,12 @@ func startFederatedHorizontalPodAutoscalerController(ctx controllerscontext.Cont
 		ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerTolerance,
 		ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerCPUInitializationPeriod.Duration,
 		ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerInitialReadinessDelay.Duration)
-	federatedHPAController := federatedhpa.FederatedHPAController{
+	federatedHPAController := federatedhpa.FHPAController{
 		Client:                            ctx.Mgr.GetClient(),
 		EventRecorder:                     ctx.Mgr.GetEventRecorderFor(federatedhpa.ControllerName),
 		RESTMapper:                        ctx.Mgr.GetRESTMapper(),
 		DownscaleStabilisationWindow:      ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerDownscaleStabilizationWindow.Duration,
-		HorizontalPodAutoscalerSyncPeroid: ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerSyncPeriod.Duration,
+		HorizontalPodAutoscalerSyncPeriod: ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerSyncPeriod.Duration,
 		ReplicaCalc:                       replicaCalculator,
 		ClusterScaleClientSetFunc:         util.NewClusterScaleClientSet,
 		TypedInformerManager:              typedmanager.GetInstance(),
@@ -591,6 +658,69 @@ func startCronFederatedHorizontalPodAutoscalerController(ctx controllerscontext.
 	return true, nil
 }
 
+func startHPAScaleTargetMarkerController(ctx controllerscontext.Context) (enabled bool, err error) {
+	hpaScaleTargetMarker := hpascaletargetmarker.HpaScaleTargetMarker{
+		DynamicClient: ctx.DynamicClientSet,
+		RESTMapper:    ctx.Mgr.GetRESTMapper(),
+	}
+	err = hpaScaleTargetMarker.SetupWithManager(ctx.Mgr)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func startDeploymentReplicasSyncerController(ctx controllerscontext.Context) (enabled bool, err error) {
+	deploymentReplicasSyncer := deploymentreplicassyncer.DeploymentReplicasSyncer{
+		Client: ctx.Mgr.GetClient(),
+	}
+	err = deploymentReplicasSyncer.SetupWithManager(ctx.Mgr)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func startMCSController(ctx controllerscontext.Context) (enabled bool, err error) {
+	if !features.FeatureGate.Enabled(features.MultiClusterService) {
+		return false, nil
+	}
+	mcsController := &multiclusterservice.MCSController{
+		Client:             ctx.Mgr.GetClient(),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(multiclusterservice.ControllerName),
+		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
+	}
+	if err = mcsController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startRemedyController(ctx controllerscontext.Context) (enabled bool, err error) {
+	c := &remediation.RemedyController{
+		Client:           ctx.Mgr.GetClient(),
+		RateLimitOptions: ctx.Opts.RateLimiterOptions,
+	}
+	if err = c.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startWorkloadRebalancerController(ctx controllerscontext.Context) (enabled bool, err error) {
+	workloadRebalancer := workloadrebalancer.RebalancerController{
+		Client: ctx.Mgr.GetClient(),
+	}
+	err = workloadRebalancer.SetupWithManager(ctx.Mgr)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
 // setupControllers initialize controllers and setup one by one.
 func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) {
 	restConfig := mgr.GetConfig()
@@ -605,10 +735,10 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		return
 	}
 
-	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
+	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, opts.ResyncPeriod.Duration, stopChan)
 	// We need a service lister to build a resource interpreter with `ClusterIPServiceResolver`
 	// witch allows connection to the customized interpreter webhook without a cluster DNS service.
-	sharedFactory := informers.NewSharedInformerFactory(kubeClientSet, 0)
+	sharedFactory := informers.NewSharedInformerFactory(kubeClientSet, opts.ResyncPeriod.Duration)
 	serviceLister := sharedFactory.Core().V1().Services().Lister()
 	sharedFactory.Start(stopChan)
 	sharedFactory.WaitForCacheSync(stopChan)

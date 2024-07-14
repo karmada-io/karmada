@@ -1,10 +1,28 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package mcs
 
 import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
+	"time"
 
 	discoveryv1 "k8s.io/api/discovery/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -16,6 +34,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -48,19 +68,21 @@ type ServiceExportController struct {
 	WorkerNumber                int                 // WorkerNumber is the number of worker goroutines
 	PredicateFunc               predicate.Predicate // PredicateFunc is the function that filters events before enqueuing the keys.
 	ClusterDynamicClientSetFunc func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
+	ClusterCacheSyncTimeout     metav1.Duration
+
 	// eventHandlers holds the handlers which used to handle events reported from member clusters.
 	// Each handler takes the cluster name as key and takes the handler function as the value, e.g.
 	// "member1": instance of ResourceEventHandler
 	eventHandlers sync.Map
-	worker        util.AsyncWorker // worker process resources periodic from rateLimitingQueue.
-
-	ClusterCacheSyncTimeout metav1.Duration
+	// worker process resources periodic from rateLimitingQueue.
+	worker util.AsyncWorker
 }
 
 var (
 	serviceExportGVR = mcsv1alpha1.SchemeGroupVersion.WithResource("serviceexports")
-	serviceExportGVK = mcsv1alpha1.SchemeGroupVersion.WithKind("ServiceExport")
+	serviceExportGVK = mcsv1alpha1.SchemeGroupVersion.WithKind(util.ServiceExportKind)
 	endpointSliceGVR = discoveryv1.SchemeGroupVersion.WithResource("endpointslices")
+	endpointSliceGVK = discoveryv1.SchemeGroupVersion.WithKind(util.EndpointSliceKind)
 )
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -72,7 +94,7 @@ func (c *ServiceExportController) Reconcile(ctx context.Context, req controllerr
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !work.DeletionTimestamp.IsZero() {
@@ -83,45 +105,28 @@ func (c *ServiceExportController) Reconcile(ctx context.Context, req controllerr
 		return controllerruntime.Result{}, nil
 	}
 
-	if !isWorkContains(work.Spec.Workload.Manifests, serviceExportGVK) {
+	if !helper.IsWorkContains(work.Spec.Workload.Manifests, serviceExportGVK) {
 		return controllerruntime.Result{}, nil
 	}
 
 	clusterName, err := names.GetClusterName(work.Namespace)
 	if err != nil {
 		klog.Errorf("Failed to get member cluster name for work %s/%s", work.Namespace, work.Name)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	cluster, err := util.GetCluster(c.Client, clusterName)
 	if err != nil {
 		klog.Errorf("Failed to get the given member cluster %s", clusterName)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !util.IsClusterReady(&cluster.Status) {
 		klog.Errorf("Stop sync work(%s/%s) for cluster(%s) as cluster not ready.", work.Namespace, work.Name, cluster.Name)
-		return controllerruntime.Result{Requeue: true}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
+		return controllerruntime.Result{}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
 	}
 
-	return c.buildResourceInformers(cluster)
-}
-
-// isWorkContains checks if the target resource exists in a work.spec.workload.manifests.
-func isWorkContains(manifests []workv1alpha1.Manifest, targetResource schema.GroupVersionKind) bool {
-	for index := range manifests {
-		workload := &unstructured.Unstructured{}
-		err := workload.UnmarshalJSON(manifests[index].Raw)
-		if err != nil {
-			klog.Errorf("Failed to unmarshal work manifests index %d, error is: %v", index, err)
-			continue
-		}
-
-		if targetResource == workload.GroupVersionKind() {
-			return true
-		}
-	}
-	return false
+	return controllerruntime.Result{}, c.buildResourceInformers(cluster)
 }
 
 // SetupWithManager creates a controller and register to controller manager.
@@ -138,6 +143,52 @@ func (c *ServiceExportController) RunWorkQueue() {
 	}
 	c.worker = util.NewAsyncWorker(workerOptions)
 	c.worker.Run(c.WorkerNumber, c.StopChan)
+
+	go c.enqueueReportedEpsServiceExport()
+}
+
+func (c *ServiceExportController) enqueueReportedEpsServiceExport() {
+	workList := &workv1alpha1.WorkList{}
+	err := wait.PollUntilContextCancel(context.TODO(), 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		err = c.List(ctx, workList, client.MatchingLabels{util.PropagationInstruction: util.PropagationInstructionSuppressed})
+		if err != nil {
+			klog.Errorf("Failed to list collected EndpointSlices Work from member clusters: %v", err)
+			return false, nil
+		}
+		return true, nil
+	})
+	if err != nil {
+		return
+	}
+
+	for index := range workList.Items {
+		work := workList.Items[index]
+		if !helper.IsWorkContains(work.Spec.Workload.Manifests, endpointSliceGVK) {
+			continue
+		}
+
+		managedByStr := work.Labels[util.EndpointSliceWorkManagedByLabel]
+		if !strings.Contains(managedByStr, serviceExportGVK.Kind) {
+			continue
+		}
+
+		clusterName, err := names.GetClusterName(work.GetNamespace())
+		if err != nil {
+			continue
+		}
+
+		key := keys.FederatedKey{
+			Cluster: clusterName,
+			ClusterWideKey: keys.ClusterWideKey{
+				Group:     serviceExportGVK.Group,
+				Version:   serviceExportGVK.Version,
+				Kind:      serviceExportGVK.Kind,
+				Namespace: work.Labels[util.ServiceNamespaceLabel],
+				Name:      work.Labels[util.ServiceNameLabel],
+			},
+		}
+		c.worker.Add(key)
+	}
 }
 
 func (c *ServiceExportController) syncServiceExportOrEndpointSlice(key util.QueueKey) error {
@@ -147,7 +198,7 @@ func (c *ServiceExportController) syncServiceExportOrEndpointSlice(key util.Queu
 		return fmt.Errorf("invalid key")
 	}
 
-	klog.V(4).Infof("Begin to sync %s %s.", fedKey.Kind, fedKey.NamespaceKey())
+	klog.V(4).Infof("Begin to sync %s", fedKey)
 
 	switch fedKey.Kind {
 	case util.ServiceExportKind:
@@ -167,13 +218,13 @@ func (c *ServiceExportController) syncServiceExportOrEndpointSlice(key util.Queu
 	return nil
 }
 
-func (c *ServiceExportController) buildResourceInformers(cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
+func (c *ServiceExportController) buildResourceInformers(cluster *clusterv1alpha1.Cluster) error {
 	err := c.registerInformersAndStart(cluster)
 	if err != nil {
 		klog.Errorf("Failed to register informer for Cluster %s. Error: %v.", cluster.Name, err)
-		return controllerruntime.Result{Requeue: true}, err
+		return err
 	}
-	return controllerruntime.Result{}, nil
+	return nil
 }
 
 // registerInformersAndStart builds informer manager for cluster if it doesn't exist, then constructs informers for gvr
@@ -350,8 +401,59 @@ func (c *ServiceExportController) reportEndpointSliceWithServiceExportCreate(ser
 		return err
 	}
 
+	err = c.removeOrphanWork(endpointSliceObjects, serviceExportKey)
+	if err != nil {
+		return err
+	}
+
 	for index := range endpointSliceObjects {
 		if err = reportEndpointSlice(c.Client, endpointSliceObjects[index].(*unstructured.Unstructured), serviceExportKey.Cluster); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return utilerrors.NewAggregate(errs)
+}
+
+func (c *ServiceExportController) removeOrphanWork(endpointSliceObjects []runtime.Object, serviceExportKey keys.FederatedKey) error {
+	willReportWorks := sets.NewString()
+	for index := range endpointSliceObjects {
+		endpointSlice := endpointSliceObjects[index].(*unstructured.Unstructured)
+		workName := names.GenerateWorkName(endpointSlice.GetKind(), endpointSlice.GetName(), endpointSlice.GetNamespace())
+		willReportWorks.Insert(workName)
+	}
+
+	collectedEpsWorkList := &workv1alpha1.WorkList{}
+	if err := c.List(context.TODO(), collectedEpsWorkList, &client.ListOptions{
+		Namespace: names.GenerateExecutionSpaceName(serviceExportKey.Cluster),
+		LabelSelector: labels.SelectorFromSet(labels.Set{
+			util.PropagationInstruction: util.PropagationInstructionSuppressed,
+			util.ServiceNamespaceLabel:  serviceExportKey.Namespace,
+			util.ServiceNameLabel:       serviceExportKey.Name,
+		}),
+	}); err != nil {
+		klog.Errorf("Failed to list endpointslice work with serviceExport(%s/%s) under namespace %s: %v",
+			serviceExportKey.Namespace, serviceExportKey.Name, names.GenerateExecutionSpaceName(serviceExportKey.Cluster), err)
+		return err
+	}
+
+	var errs []error
+	for index := range collectedEpsWorkList.Items {
+		work := collectedEpsWorkList.Items[index]
+		if !helper.IsWorkContains(work.Spec.Workload.Manifests, endpointSliceGVK) {
+			continue
+		}
+
+		managedByStr := work.Labels[util.EndpointSliceWorkManagedByLabel]
+		if !strings.Contains(managedByStr, serviceExportGVK.Kind) {
+			continue
+		}
+
+		if willReportWorks.Has(work.Name) {
+			continue
+		}
+
+		err := cleanEndpointSliceWork(c.Client, &work)
+		if err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -384,17 +486,11 @@ func (c *ServiceExportController) reportEndpointSliceWithEndpointSliceCreateOrUp
 // reportEndpointSlice report EndPointSlice objects to control-plane.
 func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructured, clusterName string) error {
 	executionSpace := names.GenerateExecutionSpaceName(clusterName)
+	workName := names.GenerateWorkName(endpointSlice.GetKind(), endpointSlice.GetName(), endpointSlice.GetNamespace())
 
-	workMeta := metav1.ObjectMeta{
-		Name:      names.GenerateWorkName(endpointSlice.GetKind(), endpointSlice.GetName(), endpointSlice.GetNamespace()),
-		Namespace: executionSpace,
-		Labels: map[string]string{
-			util.ServiceNamespaceLabel: endpointSlice.GetNamespace(),
-			util.ServiceNameLabel:      endpointSlice.GetLabels()[discoveryv1.LabelServiceName],
-			// indicate the Work should be not propagated since it's collected resource.
-			util.PropagationInstruction: util.PropagationInstructionSuppressed,
-			util.ManagedByKarmadaLabel:  util.ManagedByKarmadaLabelValue,
-		},
+	workMeta, err := getEndpointSliceWorkMeta(c, executionSpace, workName, endpointSlice)
+	if err != nil {
+		return err
 	}
 
 	if err := helper.CreateOrUpdateWork(c, workMeta, endpointSlice); err != nil {
@@ -402,6 +498,44 @@ func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructur
 	}
 
 	return nil
+}
+
+func getEndpointSliceWorkMeta(c client.Client, ns string, workName string, endpointSlice *unstructured.Unstructured) (metav1.ObjectMeta, error) {
+	existWork := &workv1alpha1.Work{}
+	var err error
+	if err = c.Get(context.Background(), types.NamespacedName{
+		Namespace: ns,
+		Name:      workName,
+	}, existWork); err != nil && !apierrors.IsNotFound(err) {
+		klog.Errorf("Get EndpointSlice work(%s/%s) error:%v", ns, workName, err)
+		return metav1.ObjectMeta{}, err
+	}
+
+	workMeta := metav1.ObjectMeta{
+		Name:       workName,
+		Namespace:  ns,
+		Finalizers: []string{util.EndpointSliceControllerFinalizer},
+		Labels: map[string]string{
+			util.ServiceNamespaceLabel: endpointSlice.GetNamespace(),
+			util.ServiceNameLabel:      endpointSlice.GetLabels()[discoveryv1.LabelServiceName],
+			// indicate the Work should be not propagated since it's collected resource.
+			util.PropagationInstruction:          util.PropagationInstructionSuppressed,
+			util.EndpointSliceWorkManagedByLabel: util.ServiceExportKind,
+		},
+	}
+
+	if existWork.Labels == nil || (err != nil && apierrors.IsNotFound(err)) {
+		return workMeta, nil
+	}
+
+	workMeta.Labels = util.DedupeAndMergeLabels(workMeta.Labels, existWork.Labels)
+	if value, ok := existWork.Labels[util.EndpointSliceWorkManagedByLabel]; ok {
+		controllerSet := sets.New[string]()
+		controllerSet.Insert(strings.Split(value, ".")...)
+		controllerSet.Insert(util.ServiceExportKind)
+		workMeta.Labels[util.EndpointSliceWorkManagedByLabel] = strings.Join(controllerSet.UnsortedList(), ".")
+	}
+	return workMeta, nil
 }
 
 func cleanupWorkWithServiceExportDelete(c client.Client, serviceExportKey keys.FederatedKey) error {
@@ -421,9 +555,8 @@ func cleanupWorkWithServiceExportDelete(c client.Client, serviceExportKey keys.F
 	}
 
 	var errs []error
-	for index, work := range workList.Items {
-		if err := c.Delete(context.TODO(), &workList.Items[index]); err != nil {
-			klog.Errorf("Failed to delete work(%s/%s), Error: %v", work.Namespace, work.Name, err)
+	for _, work := range workList.Items {
+		if err := cleanEndpointSliceWork(c, work.DeepCopy()); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -447,8 +580,32 @@ func cleanupWorkWithEndpointSliceDelete(c client.Client, endpointSliceKey keys.F
 		return err
 	}
 
+	return cleanEndpointSliceWork(c, work.DeepCopy())
+}
+
+// TBD: Currently, the EndpointSlice work can be handled by both service-export-controller and endpointslice-collect-controller. To indicate this, we've introduced the label endpointslice.karmada.io/managed-by. Therefore,
+// if managed by both controllers, simply remove each controller's respective labels.
+// If managed solely by its own controller, delete the work accordingly.
+// This logic should be deleted after the conflict is fixed.
+func cleanEndpointSliceWork(c client.Client, work *workv1alpha1.Work) error {
+	controllers := util.GetLabelValue(work.Labels, util.EndpointSliceWorkManagedByLabel)
+	controllerSet := sets.New[string]()
+	controllerSet.Insert(strings.Split(controllers, ".")...)
+	controllerSet.Delete(util.ServiceExportKind)
+	if controllerSet.Len() > 0 {
+		delete(work.Labels, util.ServiceNameLabel)
+		delete(work.Labels, util.ServiceNamespaceLabel)
+		work.Labels[util.EndpointSliceWorkManagedByLabel] = strings.Join(controllerSet.UnsortedList(), ".")
+
+		if err := c.Update(context.TODO(), work); err != nil {
+			klog.Errorf("Failed to update work(%s/%s): %v", work.Namespace, work.Name, err)
+			return err
+		}
+		return nil
+	}
+
 	if err := c.Delete(context.TODO(), work); err != nil {
-		klog.Errorf("Failed to delete work(%s), Error: %v", workNamespaceKey, err)
+		klog.Errorf("Failed to delete work(%s/%s), Error: %v", work.Namespace, work.Name, err)
 		return err
 	}
 

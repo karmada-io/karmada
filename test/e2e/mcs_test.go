@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package e2e
 
 import (
@@ -11,17 +27,21 @@ import (
 	discoveryv1 "k8s.io/api/discovery/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
+	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
+	"github.com/karmada-io/karmada/test/helper"
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
@@ -310,8 +330,8 @@ var _ = ginkgo.Describe("Multi-Cluster Service testing", func() {
 			framework.CreatePropagationPolicy(karmadaClient, importPolicy)
 
 			ginkgo.By(fmt.Sprintf("Wait derived-service(%s/%s) exist in %s cluster", demoService.Namespace, names.GenerateDerivedServiceName(demoService.Name), serviceImportClusterName), func() {
-				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-					_, err = importClusterClient.CoreV1().Services(demoService.Namespace).Get(context.TODO(), names.GenerateDerivedServiceName(demoService.Name), metav1.GetOptions{})
+				err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
+					_, err = importClusterClient.CoreV1().Services(demoService.Namespace).Get(ctx, names.GenerateDerivedServiceName(demoService.Name), metav1.GetOptions{})
 					if err != nil {
 						if apierrors.IsNotFound(err) {
 							return false, nil
@@ -439,3 +459,353 @@ var _ = ginkgo.Describe("Multi-Cluster Service testing", func() {
 		})
 	})
 })
+
+/*
+MultiClusterService with CrossCluster type focus on syncing Services' EndpointSlice to other clusters.
+Test Case Overview:
+
+	case 1:
+		ProviderClusters field is [member1], ConsumerClusters field is [member2]
+		The endpointSlice in member1 will be synced to member1, with prefix member1-
+	case 2:
+		ProviderClusters field is [member1,member2], ConsumerClusters field is [member2]
+		The endpointSlice in member1 will be synced to member1, with prefix member1-, and do not sync member2's endpointslice to member2 again
+	case 3:
+		fist, ProviderClusters field is [member1,member2], ConsumerClusters field is [member2]
+		The endpointSlice in member1 will be synced to member1, with prefix member1-, and do not sync member2's endpointslice to member2 again
+		then, ProviderClusters field changes to [member2], ConsumerClusters field is [member1]
+		The endpointSlice in member2 will be synced to member1, with prefix member2-
+	case 4:
+		ProviderClusters field is empty, ConsumerClusters field is [member2]
+		The endpointSlice in all member clusters(except member2) will be synced to member2
+	case 5:
+		ProviderClusters field is [member1], ConsumerClusters field is empty
+		The endpointSlice in member1 will be synced to all member clusters(except member1)
+	case 6:
+		ProviderClusters field is empty, ConsumerClusters field is empty
+		The endpointSlice in all member clusters will be synced to all member clusters
+*/
+var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
+	var mcsName, serviceName, policyName, deploymentName string
+	var deployment *appsv1.Deployment
+	var policy *policyv1alpha1.PropagationPolicy
+	var service *corev1.Service
+	var member1Name, member2Name string
+	var member2Client kubernetes.Interface
+
+	ginkgo.BeforeEach(func() {
+		mcsName = mcsNamePrefix + rand.String(RandomStrLength)
+		serviceName = mcsName
+		policyName = mcsNamePrefix + rand.String(RandomStrLength)
+		deploymentName = policyName
+		member1Name = framework.ClusterNames()[0]
+		member2Name = framework.ClusterNames()[1]
+
+		member2Client = framework.GetClusterClient(member2Name)
+		gomega.Expect(member2Client).ShouldNot(gomega.BeNil())
+
+		service = helper.NewService(testNamespace, serviceName, corev1.ServiceTypeClusterIP)
+		deployment = helper.NewDeployment(testNamespace, deploymentName)
+		policy = helper.NewPropagationPolicy(testNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: deployment.APIVersion,
+				Kind:       deployment.Kind,
+				Name:       deploymentName,
+			},
+		}, policyv1alpha1.Placement{
+			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+				ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDuplicated,
+			},
+		})
+	})
+
+	ginkgo.JustBeforeEach(func() {
+		framework.CreateDeployment(kubeClient, deployment)
+		framework.CreateService(kubeClient, service)
+		ginkgo.DeferCleanup(func() {
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			framework.RemoveService(kubeClient, service.Namespace, service.Name)
+		})
+	})
+
+	// case 1: ProviderClusters field is [member1], ConsumerClusters field is [member2]
+	ginkgo.Context("ProviderClusters field is [member1], ConsumerClusters field is [member2]", func() {
+		var mcs *networkingv1alpha1.MultiClusterService
+
+		ginkgo.BeforeEach(func() {
+			mcs = helper.NewCrossClusterMultiClusterService(testNamespace, mcsName, []string{member1Name}, []string{member2Name})
+			policy.Spec.Placement.ClusterAffinity = &policyv1alpha1.ClusterAffinity{
+				ClusterNames: []string{member1Name},
+			}
+			framework.CreateMultiClusterService(karmadaClient, mcs)
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+		})
+
+		ginkgo.AfterEach(func() {
+			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
+			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
+		})
+
+		ginkgo.It("Test dispatch EndpointSlice from the provider clusters to the consumer clusters", func() {
+			framework.WaitDeploymentPresentOnClustersFitWith([]string{member1Name}, testNamespace, deploymentName, func(deployment *appsv1.Deployment) bool {
+				return deployment.Status.ReadyReplicas == *deployment.Spec.Replicas
+			})
+
+			framework.WaitMultiClusterServicePresentOnClustersFitWith(karmadaClient, testNamespace, mcsName, func(mcs *networkingv1alpha1.MultiClusterService) bool {
+				return meta.IsStatusConditionTrue(mcs.Status.Conditions, networkingv1alpha1.EndpointSliceDispatched)
+			})
+
+			gomega.Eventually(func() bool {
+				return checkEndpointSliceWithMultiClusterService(testNamespace, mcsName, mcs.Spec.ProviderClusters, mcs.Spec.ConsumerClusters)
+			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
+		})
+	})
+
+	// case 2: ProviderClusters field is [member1,member2], ConsumerClusters field is [member2]
+	ginkgo.Context("ProviderClusters field is [member1,member2], ConsumerClusters field is [member2]", func() {
+		var mcs *networkingv1alpha1.MultiClusterService
+
+		ginkgo.BeforeEach(func() {
+			mcs = helper.NewCrossClusterMultiClusterService(testNamespace, mcsName, []string{member1Name, member2Name}, []string{member2Name})
+			policy.Spec.Placement.ClusterAffinity = &policyv1alpha1.ClusterAffinity{
+				ClusterNames: []string{member1Name, member2Name},
+			}
+			framework.CreateMultiClusterService(karmadaClient, mcs)
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+		})
+
+		ginkgo.AfterEach(func() {
+			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
+			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
+		})
+
+		ginkgo.It("Test dispatch EndpointSlice from the provider clusters to the consumer clusters", func() {
+			framework.WaitDeploymentPresentOnClustersFitWith([]string{member1Name, member2Name}, testNamespace, deploymentName, func(deployment *appsv1.Deployment) bool {
+				return deployment.Status.ReadyReplicas == *deployment.Spec.Replicas
+			})
+
+			framework.WaitMultiClusterServicePresentOnClustersFitWith(karmadaClient, testNamespace, mcsName, func(mcs *networkingv1alpha1.MultiClusterService) bool {
+				return meta.IsStatusConditionTrue(mcs.Status.Conditions, networkingv1alpha1.EndpointSliceDispatched)
+			})
+
+			gomega.Eventually(func() bool {
+				return checkEndpointSliceWithMultiClusterService(testNamespace, mcsName, mcs.Spec.ProviderClusters, mcs.Spec.ConsumerClusters)
+			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
+		})
+	})
+
+	// case 3:
+	//	fist, ProviderClusters field is [member1,member2], ConsumerClusters field is [member2]
+	//	then, ProviderClusters field changes to [member2], ConsumerClusters field is [member1]
+	ginkgo.Context("Update ProviderClusters/ConsumerClusters field", func() {
+		var mcs *networkingv1alpha1.MultiClusterService
+
+		ginkgo.BeforeEach(func() {
+			mcs = helper.NewCrossClusterMultiClusterService(testNamespace, mcsName, []string{member1Name, member2Name}, []string{member2Name})
+			policy.Spec.Placement.ClusterAffinity = &policyv1alpha1.ClusterAffinity{
+				ClusterNames: []string{member1Name, member2Name},
+			}
+			framework.CreateMultiClusterService(karmadaClient, mcs)
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+		})
+
+		ginkgo.AfterEach(func() {
+			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
+			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
+		})
+
+		ginkgo.It("Test dispatch EndpointSlice from the provider clusters to the consumer clusters", func() {
+			framework.WaitDeploymentPresentOnClustersFitWith([]string{member1Name, member2Name}, testNamespace, deploymentName, func(deployment *appsv1.Deployment) bool {
+				return deployment.Status.ReadyReplicas == *deployment.Spec.Replicas
+			})
+
+			framework.WaitMultiClusterServicePresentOnClustersFitWith(karmadaClient, testNamespace, mcsName, func(mcs *networkingv1alpha1.MultiClusterService) bool {
+				return meta.IsStatusConditionTrue(mcs.Status.Conditions, networkingv1alpha1.EndpointSliceDispatched)
+			})
+
+			gomega.Eventually(func() bool {
+				return checkEndpointSliceWithMultiClusterService(testNamespace, mcsName, mcs.Spec.ProviderClusters, mcs.Spec.ConsumerClusters)
+			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
+
+			mcs.Spec.ProviderClusters = []networkingv1alpha1.ClusterSelector{
+				{Name: member2Name},
+			}
+			mcs.Spec.ConsumerClusters = []networkingv1alpha1.ClusterSelector{
+				{Name: member1Name},
+			}
+			framework.UpdateMultiClusterService(karmadaClient, mcs)
+
+			framework.WaitMultiClusterServicePresentOnClustersFitWith(karmadaClient, testNamespace, mcsName, func(mcs *networkingv1alpha1.MultiClusterService) bool {
+				return meta.IsStatusConditionTrue(mcs.Status.Conditions, networkingv1alpha1.EndpointSliceDispatched)
+			})
+		})
+	})
+
+	// case 4: ProviderClusters field is empty, ConsumerClusters field is [member2]
+	ginkgo.Context("ProviderClusters field is empty, ConsumerClusters field is [member2]", func() {
+		var mcs *networkingv1alpha1.MultiClusterService
+
+		ginkgo.BeforeEach(func() {
+			mcs = helper.NewCrossClusterMultiClusterService(testNamespace, mcsName, []string{}, []string{member2Name})
+			policy.Spec.Placement.ClusterAffinity = &policyv1alpha1.ClusterAffinity{
+				ClusterNames: []string{member1Name},
+			}
+			framework.CreateMultiClusterService(karmadaClient, mcs)
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+		})
+
+		ginkgo.AfterEach(func() {
+			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
+			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
+		})
+
+		ginkgo.It("Test dispatch EndpointSlice from the provider clusters to the consumer clusters", func() {
+			framework.WaitDeploymentPresentOnClustersFitWith([]string{member1Name}, testNamespace, deploymentName, func(deployment *appsv1.Deployment) bool {
+				return deployment.Status.ReadyReplicas == *deployment.Spec.Replicas
+			})
+
+			framework.WaitMultiClusterServicePresentOnClustersFitWith(karmadaClient, testNamespace, mcsName, func(mcs *networkingv1alpha1.MultiClusterService) bool {
+				return meta.IsStatusConditionTrue(mcs.Status.Conditions, networkingv1alpha1.EndpointSliceDispatched)
+			})
+
+			gomega.Eventually(func() bool {
+				return checkEndpointSliceWithMultiClusterService(testNamespace, mcsName, mcs.Spec.ProviderClusters, mcs.Spec.ConsumerClusters)
+			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
+		})
+	})
+
+	// case 5: ProviderClusters field is [member1], ConsumerClusters field is empty
+	ginkgo.Context("ProviderClusters field is [member1], ConsumerClusters field is empty", func() {
+		var mcs *networkingv1alpha1.MultiClusterService
+
+		ginkgo.BeforeEach(func() {
+			mcs = helper.NewCrossClusterMultiClusterService(testNamespace, mcsName, []string{member1Name}, []string{})
+			policy.Spec.Placement.ClusterAffinity = &policyv1alpha1.ClusterAffinity{
+				ClusterNames: []string{member1Name},
+			}
+			framework.CreateMultiClusterService(karmadaClient, mcs)
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+		})
+
+		ginkgo.AfterEach(func() {
+			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
+			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
+		})
+
+		ginkgo.It("Test dispatch EndpointSlice from the provider clusters to the consumer clusters", func() {
+			framework.WaitDeploymentPresentOnClustersFitWith([]string{member1Name}, testNamespace, deploymentName, func(deployment *appsv1.Deployment) bool {
+				return deployment.Status.ReadyReplicas == *deployment.Spec.Replicas
+			})
+
+			framework.WaitMultiClusterServicePresentOnClustersFitWith(karmadaClient, testNamespace, mcsName, func(mcs *networkingv1alpha1.MultiClusterService) bool {
+				return meta.IsStatusConditionTrue(mcs.Status.Conditions, networkingv1alpha1.EndpointSliceDispatched)
+			})
+
+			gomega.Eventually(func() bool {
+				return checkEndpointSliceWithMultiClusterService(testNamespace, mcsName, mcs.Spec.ProviderClusters, mcs.Spec.ConsumerClusters)
+			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
+		})
+	})
+
+	// case 6: ProviderClusters field is empty, ConsumerClusters field is empty
+	ginkgo.Context("ProviderClusters field is empty, ConsumerClusters field is empty", func() {
+		var mcs *networkingv1alpha1.MultiClusterService
+
+		ginkgo.BeforeEach(func() {
+			mcs = helper.NewCrossClusterMultiClusterService(testNamespace, mcsName, []string{}, []string{})
+			policy.Spec.Placement.ClusterAffinity = &policyv1alpha1.ClusterAffinity{
+				ClusterNames: []string{member1Name},
+			}
+			framework.CreateMultiClusterService(karmadaClient, mcs)
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+		})
+
+		ginkgo.AfterEach(func() {
+			framework.RemoveMultiClusterService(karmadaClient, testNamespace, mcsName)
+			framework.RemovePropagationPolicy(karmadaClient, testNamespace, policyName)
+		})
+
+		ginkgo.It("Test dispatch EndpointSlice from the provider clusters to the consumer clusters", func() {
+			framework.WaitDeploymentPresentOnClustersFitWith([]string{member1Name}, testNamespace, deploymentName, func(deployment *appsv1.Deployment) bool {
+				return deployment.Status.ReadyReplicas == *deployment.Spec.Replicas
+			})
+
+			framework.WaitMultiClusterServicePresentOnClustersFitWith(karmadaClient, testNamespace, mcsName, func(mcs *networkingv1alpha1.MultiClusterService) bool {
+				return meta.IsStatusConditionTrue(mcs.Status.Conditions, networkingv1alpha1.EndpointSliceDispatched)
+			})
+
+			gomega.Eventually(func() bool {
+				return checkEndpointSliceWithMultiClusterService(testNamespace, mcsName, mcs.Spec.ProviderClusters, mcs.Spec.ConsumerClusters)
+			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
+		})
+	})
+})
+
+func checkEndpointSliceWithMultiClusterService(mcsNamespace, mcsName string, providerClusters, consumerClusters []networkingv1alpha1.ClusterSelector) bool {
+	providerClusterNames := framework.ClusterNames()
+	if len(providerClusters) != 0 {
+		providerClusterNames = []string{}
+		for _, providerCluster := range providerClusters {
+			providerClusterNames = append(providerClusterNames, providerCluster.Name)
+		}
+	}
+
+	consumerClusterNames := framework.ClusterNames()
+	if len(consumerClusters) != 0 {
+		consumerClusterNames = []string{}
+		for _, consumerCluster := range consumerClusters {
+			consumerClusterNames = append(consumerClusterNames, consumerCluster.Name)
+		}
+	}
+
+	for _, clusterName := range providerClusterNames {
+		providerClusterClient := framework.GetClusterClient(clusterName)
+		gomega.Expect(providerClusterClient).ShouldNot(gomega.BeNil())
+
+		providerEPSList, err := providerClusterClient.DiscoveryV1().EndpointSlices(mcsNamespace).List(context.TODO(), metav1.ListOptions{
+			LabelSelector: labels.Set{discoveryv1.LabelServiceName: mcsName}.AsSelector().String(),
+		})
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+		for _, consumerCluster := range consumerClusterNames {
+			consumerClusterClient := framework.GetClusterClient(consumerCluster)
+			gomega.Expect(consumerClusterClient).ShouldNot(gomega.BeNil())
+
+			consumerEPSList, err := consumerClusterClient.DiscoveryV1().EndpointSlices(mcsNamespace).List(context.TODO(), metav1.ListOptions{
+				LabelSelector: labels.Set{discoveryv1.LabelServiceName: mcsName}.AsSelector().String(),
+			})
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+			if !checkEndpointSliceSynced(providerEPSList, consumerEPSList, clusterName, consumerCluster) {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func checkEndpointSliceSynced(providerEPSList, consumerEPSList *discoveryv1.EndpointSliceList, provisonCluster, consumerCluster string) bool {
+	if provisonCluster == consumerCluster {
+		return true
+	}
+
+	for _, item := range providerEPSList.Items {
+		if item.GetLabels()[discoveryv1.LabelManagedBy] == util.EndpointSliceDispatchControllerLabelValue {
+			continue
+		}
+		synced := false
+		for _, consumerItem := range consumerEPSList.Items {
+			if consumerItem.Name == provisonCluster+"-"+item.Name && len(consumerItem.Endpoints) == len(item.Endpoints) {
+				synced = true
+				break
+			}
+			synced = false
+		}
+		if !synced {
+			return false
+		}
+	}
+
+	return true
+}

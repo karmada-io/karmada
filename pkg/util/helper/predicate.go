@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package helper
 
 import (
@@ -52,7 +68,7 @@ func NewExecutionPredicate(mgr controllerruntime.Manager) predicate.Funcs {
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			return predFunc("delete", deleteEvent.Object)
 		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
+		GenericFunc: func(event.GenericEvent) bool {
 			return false
 		},
 	}
@@ -83,16 +99,50 @@ func NewPredicateForServiceExportController(mgr controllerruntime.Manager) predi
 	}
 
 	return predicate.Funcs{
-		CreateFunc: func(createEvent event.CreateEvent) bool {
+		CreateFunc: func(event.CreateEvent) bool {
 			return false
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			return predFunc("update", updateEvent.ObjectNew) || predFunc("update", updateEvent.ObjectOld)
 		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+		DeleteFunc: func(event.DeleteEvent) bool {
 			return false
 		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
+		GenericFunc: func(event.GenericEvent) bool {
+			return false
+		},
+	}
+}
+
+// NewPredicateForEndpointSliceCollectController generates an event filter function for EndpointSliceCollectController running by karmada-controller-manager.
+func NewPredicateForEndpointSliceCollectController(mgr controllerruntime.Manager) predicate.Funcs {
+	predFunc := func(_ string, object client.Object) bool {
+		obj := object.(*workv1alpha1.Work)
+		clusterName, err := names.GetClusterName(obj.GetNamespace())
+		if err != nil {
+			klog.Errorf("Failed to get member cluster name for work %s/%s", obj.GetNamespace(), obj.GetName())
+			return false
+		}
+
+		clusterObj, err := util.GetCluster(mgr.GetClient(), clusterName)
+		if err != nil {
+			klog.Errorf("Failed to get the given member cluster %s", clusterName)
+			return false
+		}
+		return clusterObj.Spec.SyncMode == clusterv1alpha1.Push
+	}
+
+	return predicate.Funcs{
+		CreateFunc: func(createEvent event.CreateEvent) bool {
+			return predFunc("create", createEvent.Object)
+		},
+		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+			return predFunc("update", updateEvent.ObjectNew) || predFunc("update", updateEvent.ObjectOld)
+		},
+		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+			return predFunc("delete", deleteEvent.Object)
+		},
+		GenericFunc: func(event.GenericEvent) bool {
 			return false
 		},
 	}
@@ -110,7 +160,7 @@ func NewClusterPredicateOnAgent(clusterName string) predicate.Funcs {
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			return deleteEvent.Object.GetName() == clusterName
 		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
+		GenericFunc: func(event.GenericEvent) bool {
 			return false
 		},
 	}
@@ -135,16 +185,44 @@ func NewPredicateForServiceExportControllerOnAgent(curClusterName string) predic
 	}
 
 	return predicate.Funcs{
-		CreateFunc: func(createEvent event.CreateEvent) bool {
+		CreateFunc: func(event.CreateEvent) bool {
 			return false
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			return predFunc("update", updateEvent.ObjectNew) || predFunc("update", updateEvent.ObjectOld)
 		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+		DeleteFunc: func(event.DeleteEvent) bool {
 			return false
 		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
+		GenericFunc: func(event.GenericEvent) bool {
+			return false
+		},
+	}
+}
+
+// NewPredicateForEndpointSliceCollectControllerOnAgent generates an event filter function for EndpointSliceCollectController running by karmada-agent.
+func NewPredicateForEndpointSliceCollectControllerOnAgent(curClusterName string) predicate.Funcs {
+	predFunc := func(_ string, object client.Object) bool {
+		obj := object.(*workv1alpha1.Work)
+		clusterName, err := names.GetClusterName(obj.GetNamespace())
+		if err != nil {
+			klog.Errorf("Failed to get member cluster name for work %s/%s", obj.GetNamespace(), obj.GetName())
+			return false
+		}
+		return clusterName == curClusterName
+	}
+
+	return predicate.Funcs{
+		CreateFunc: func(createEvent event.CreateEvent) bool {
+			return predFunc("create", createEvent.Object)
+		},
+		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+			return predFunc("update", updateEvent.ObjectNew) || predFunc("update", updateEvent.ObjectOld)
+		},
+		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+			return predFunc("delete", deleteEvent.Object)
+		},
+		GenericFunc: func(event.GenericEvent) bool {
 			return false
 		},
 	}
@@ -177,7 +255,7 @@ func NewExecutionPredicateOnAgent() predicate.Funcs {
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			return predFunc("delete", deleteEvent.Object)
 		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
+		GenericFunc: func(event.GenericEvent) bool {
 			return false
 		},
 	}

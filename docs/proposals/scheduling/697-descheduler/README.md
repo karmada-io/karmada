@@ -65,7 +65,7 @@ Now we add a new cluster member4. We may want to reschedule some replicas toward
 
 ### Architecture
 
-It is noticed that this design only focus on User Story 1, which means that only unscheduable pods are included for descheduling, usually happening when cluster resources are insufficient. Other stragety is not considered in this proposal because it needs more discussion.
+It is noticed that this design only focus on User Story 1, which means that only unscheduable pods are included for descheduling, usually happening when cluster resources are insufficient. Other strategy is not considered in this proposal because it needs more discussion.
 
 Here is the descheduler workflow. 
 

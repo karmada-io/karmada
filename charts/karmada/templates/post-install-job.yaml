@@ -11,12 +11,13 @@ metadata:
     app.kubernetes.io/instance: {{ $name | quote }}
     app.kubernetes.io/version: {{ .Chart.AppVersion }}
     helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    {{- include "karmada.postInstallJob.labels" . | nindent 4 }}
   annotations:
     # This is what defines this resource as a hook. Without this line, the
     # job is considered part of the release.
     "helm.sh/hook": post-install
     "helm.sh/hook-weight": "0"
-    "helm.sh/hook-delete-policy": hook-succeeded
+    "helm.sh/hook-delete-policy": {{ .Values.postInstallJob.hookDeletePolicy }}
 spec:
   parallelism: 1
   completions: 1
@@ -28,6 +29,7 @@ spec:
         app.kubernetes.io/instance: {{ $name | quote }}
         helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     spec:
+      {{- include "karmada.imagePullSecrets" . | nindent 6 }}
       {{- with .Values.postInstallJob.tolerations}}
       tolerations:
       {{- toYaml . | nindent 8 }}
@@ -36,6 +38,7 @@ spec:
       nodeSelector:
       {{- toYaml . | nindent 8 }}
       {{- end }}
+      serviceAccountName: {{ $name }}-hook-job
       restartPolicy: Never
       containers:
       - name: post-install
@@ -47,56 +50,14 @@ spec:
         - |
           bash <<'EOF'
           set -ex
-          kubectl apply -k /crds --kubeconfig /etc/kubeconfig
-          kubectl apply -f /static-resources --kubeconfig /etc/kubeconfig
+
+          # The `post-install hook job` may be applied before all karmada components are ready that rely on `static-resource job` and `hook-job secret`.
+          # So, we have to postpone the deletion of the `static-resource job` and `hook-job secret` until all karmada components are up and running.
+          while [[ $(kubectl get pods -n {{ $namespace }} --field-selector=status.phase!=Running,status.phase!=Succeeded -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | wc -l) > 0 ]]; do
+            echo "waiting for all pods of karmada control plane ready..."; sleep 1;
+          done
+
+          kubectl delete job {{ $name }}-static-resource -n {{ $namespace }}
+          kubectl delete secret {{ $name }}-hook-job -n {{ $namespace }}
           EOF
-        volumeMounts:
-          - name: {{ $name }}-crds-kustomization
-            mountPath: /crds
-          - name: {{ $name }}-crds-patches
-            mountPath: /crds/patches
-          - name: {{ $name }}-crds-autoscaling-bases
-            mountPath: /crds/bases/autoscaling
-          - name: {{ $name }}-crds-config-bases
-            mountPath: /crds/bases/config
-          - name: {{ $name }}-crds-multicluster-bases
-            mountPath: /crds/bases/multicluster
-          - name: {{ $name }}-crds-networking-bases
-            mountPath: /crds/bases/networking
-          - name: {{ $name }}-crds-policy-bases
-            mountPath: /crds/bases/policy
-          - name: {{ $name }}-crds-work-bases
-            mountPath: /crds/bases/work
-          - name: {{ $name }}-static-resources
-            mountPath: /static-resources
-          {{ include "karmada.kubeconfig.volumeMount" . | nindent 10 }}
-      volumes:
-        - name: {{ $name }}-crds-kustomization
-          configMap:
-            name: {{ $name }}-crds-kustomization
-        - name: {{ $name }}-crds-patches
-          configMap:
-            name: {{ $name }}-crds-patches
-        - name: {{ $name }}-crds-autoscaling-bases
-          configMap:
-            name: {{ $name }}-crds-autoscaling-bases
-        - name: {{ $name }}-crds-config-bases
-          configMap:
-            name: {{ $name }}-crds-config-bases
-        - name: {{ $name }}-crds-multicluster-bases
-          configMap:
-            name: {{ $name }}-crds-multicluster-bases
-        - name: {{ $name }}-crds-networking-bases
-          configMap:
-            name: {{ $name }}-crds-networking-bases
-        - name: {{ $name }}-crds-policy-bases
-          configMap:
-            name: {{ $name }}-crds-policy-bases
-        - name: {{ $name }}-crds-work-bases
-          configMap:
-            name: {{ $name }}-crds-work-bases
-        - name: {{ $name }}-static-resources
-          configMap:
-            name: {{ $name }}-static-resources
-        {{ include "karmada.kubeconfig.volume" . | nindent 8 }}
 {{- end }}

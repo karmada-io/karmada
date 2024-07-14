@@ -77,10 +77,12 @@ type CacheOptions struct {
 	// Reader is a cache-backed reader that will be used to read objects from the cache.
 	// +required
 	Reader Reader
-	// DisableFor is a list of objects that should not be read from the cache.
+	// DisableFor is a list of objects that should never be read from the cache.
+	// Objects configured here always result in a live lookup.
 	DisableFor []Object
 	// Unstructured is a flag that indicates whether the cache-backed client should
 	// read unstructured objects or lists from the cache.
+	// If false, unstructured objects will always result in a live lookup.
 	Unstructured bool
 }
 
@@ -88,11 +90,18 @@ type CacheOptions struct {
 type NewClientFunc func(config *rest.Config, options Options) (Client, error)
 
 // New returns a new Client using the provided config and Options.
-// The returned client reads *and* writes directly from the server
-// (it doesn't use object caches).  It understands how to work with
-// normal types (both custom resources and aggregated/built-in resources),
-// as well as unstructured types.
 //
+// The client's read behavior is determined by Options.Cache.
+// If either Options.Cache or Options.Cache.Reader is nil,
+// the client reads directly from the API server.
+// If both Options.Cache and Options.Cache.Reader are non-nil,
+// the client reads from a local cache. However, specific
+// resources can still be configured to bypass the cache based
+// on Options.Cache.Unstructured and Options.Cache.DisableFor.
+// Write operations are always performed directly on the API server.
+//
+// The client understands how to work with normal types (both custom resources
+// and aggregated/built-in resources), as well as unstructured types.
 // In the case of normal types, the scheme will be used to look up the
 // corresponding group, version, and kind for the given type.  In the
 // case of unstructured types, the group, version, and kind will be extracted
@@ -110,6 +119,11 @@ func newClient(config *rest.Config, options Options) (*client, error) {
 		return nil, fmt.Errorf("must provide non-nil rest.Config to client.New")
 	}
 
+	config = rest.CopyConfig(config)
+	if config.UserAgent == "" {
+		config.UserAgent = rest.DefaultKubernetesUserAgent()
+	}
+
 	if !options.WarningHandler.SuppressWarnings {
 		// surface warnings
 		logger := log.Log.WithName("KubeAPIWarningLogger")
@@ -117,7 +131,6 @@ func newClient(config *rest.Config, options Options) (*client, error) {
 		// is log.KubeAPIWarningLogger with deduplication enabled.
 		// See log.KubeAPIWarningLoggerOptions for considerations
 		// regarding deduplication.
-		config = rest.CopyConfig(config)
 		config.WarningHandler = log.NewKubeAPIWarningLogger(
 			logger,
 			log.KubeAPIWarningLoggerOptions{
@@ -160,7 +173,7 @@ func newClient(config *rest.Config, options Options) (*client, error) {
 		unstructuredResourceByType: make(map[schema.GroupVersionKind]*resourceMeta),
 	}
 
-	rawMetaClient, err := metadata.NewForConfigAndClient(config, options.HTTPClient)
+	rawMetaClient, err := metadata.NewForConfigAndClient(metadata.ConfigFor(config), options.HTTPClient)
 	if err != nil {
 		return nil, fmt.Errorf("unable to construct metadata-only client for use as part of client: %w", err)
 	}
@@ -204,7 +217,8 @@ func newClient(config *rest.Config, options Options) (*client, error) {
 
 var _ Client = &client{}
 
-// client is a client.Client that reads and writes directly from/to an API server.
+// client is a client.Client configured to either read from a local cache or directly from the API server.
+// Write operations are always performed directly on the API server.
 // It lazily initializes new clients at the time they are used.
 type client struct {
 	typedClient        typedClient
@@ -338,9 +352,11 @@ func (c *client) Get(ctx context.Context, key ObjectKey, obj Object, opts ...Get
 	if isUncached, err := c.shouldBypassCache(obj); err != nil {
 		return err
 	} else if !isUncached {
+		// Attempt to get from the cache.
 		return c.cache.Get(ctx, key, obj, opts...)
 	}
 
+	// Perform a live lookup.
 	switch obj.(type) {
 	case runtime.Unstructured:
 		return c.unstructuredClient.Get(ctx, key, obj, opts...)
@@ -358,9 +374,11 @@ func (c *client) List(ctx context.Context, obj ObjectList, opts ...ListOption) e
 	if isUncached, err := c.shouldBypassCache(obj); err != nil {
 		return err
 	} else if !isUncached {
+		// Attempt to get from the cache.
 		return c.cache.List(ctx, obj, opts...)
 	}
 
+	// Perform a live lookup.
 	switch x := obj.(type) {
 	case runtime.Unstructured:
 		return c.unstructuredClient.List(ctx, obj, opts...)

@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package app
 
 import (
@@ -15,8 +31,10 @@ import (
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/karmada-io/karmada/operator/cmd/operator/app/options"
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
@@ -25,6 +43,8 @@ import (
 	"github.com/karmada-io/karmada/operator/pkg/scheme"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
+	"github.com/karmada-io/karmada/pkg/version"
+	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
 
 // NewOperatorCommand creates a *cobra.Command object with default parameters
@@ -39,7 +59,7 @@ func NewOperatorCommand(ctx context.Context) *cobra.Command {
 			restclient.SetDefaultWarningHandler(restclient.NoWarnings{})
 			return nil
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			if err := o.Validate(); err != nil {
 				return err
 			}
@@ -67,6 +87,7 @@ func NewOperatorCommand(ctx context.Context) *cobra.Command {
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
 
+	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-operator"))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 
@@ -77,6 +98,7 @@ func NewOperatorCommand(ctx context.Context) *cobra.Command {
 
 // Run runs the karmada-operator. This should never exit.
 func Run(ctx context.Context, o *options.Options) error {
+	klog.Infof("karmada-operator version: %s", version.Get())
 	klog.InfoS("Golang settings", "GOGC", os.Getenv("GOGC"), "GOMAXPROCS", os.Getenv("GOMAXPROCS"), "GOTRACEBACK", os.Getenv("GOTRACEBACK"))
 
 	manager, err := createControllerManager(ctx, o)
@@ -144,7 +166,7 @@ func createControllerManager(ctx context.Context, o *options.Options) (controlle
 		BaseContext: func() context.Context {
 			return ctx
 		},
-		SyncPeriod:                 &o.ResyncPeriod.Duration,
+		Cache:                      cache.Options{SyncPeriod: &o.ResyncPeriod.Duration},
 		LeaderElection:             o.LeaderElection.LeaderElect,
 		LeaderElectionID:           o.LeaderElection.ResourceName,
 		LeaderElectionNamespace:    o.LeaderElection.ResourceNamespace,
@@ -154,7 +176,7 @@ func createControllerManager(ctx context.Context, o *options.Options) (controlle
 		LeaderElectionResourceLock: o.LeaderElection.ResourceLock,
 		HealthProbeBindAddress:     net.JoinHostPort(o.BindAddress, strconv.Itoa(o.SecurePort)),
 		LivenessEndpointName:       "/healthz",
-		MetricsBindAddress:         o.MetricsBindAddress,
+		Metrics:                    metricsserver.Options{BindAddress: o.MetricsBindAddress},
 		Controller: config.Controller{
 			GroupKindConcurrency: map[string]int{
 				operatorv1alpha1.SchemeGroupVersion.WithKind("Karmada").GroupKind().String(): o.ConcurrentKarmadaSyncs,

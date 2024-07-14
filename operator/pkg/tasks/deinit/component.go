@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package tasks
 
 import (
@@ -19,11 +35,13 @@ func NewRemoveComponentTask() workflow.Task {
 		Run:         runRemoveComponent,
 		RunSubTasks: true,
 		Tasks: []workflow.Task{
+			newRemoveComponentWithServiceSubTask(constants.KarmadaMetricsAdapterComponent, util.KarmadaMetricsAdapterName),
 			newRemoveComponentSubTask(constants.KarmadaDeschedulerComponent, util.KarmadaDeschedulerName),
 			newRemoveComponentSubTask(constants.KarmadaSchedulerComponent, util.KarmadaSchedulerName),
 			newRemoveComponentSubTask(constants.KarmadaControllerManagerComponent, util.KarmadaControllerManagerName),
 			newRemoveComponentSubTask(constants.KubeControllerManagerComponent, util.KubeControllerManagerName),
 			newRemoveComponentWithServiceSubTask(constants.KarmadaWebhookComponent, util.KarmadaWebhookName),
+			newRemoveComponentWithServiceSubTask(constants.KarmadaSearchComponent, util.KarmadaSearchName),
 			newRemoveComponentWithServiceSubTask(constants.KarmadaAggregatedAPIServerComponent, util.KarmadaAggregatedAPIServerName),
 			newRemoveComponentWithServiceSubTask(constants.KarmadaAPIserverComponent, util.KarmadaAPIServerName),
 			{
@@ -87,7 +105,7 @@ func runRemoveComponentSubTask(component string, workloadNameFunc util.Namefunc,
 				constants.KarmadaOperatorLabel,
 			)
 			if err != nil {
-				return fmt.Errorf("failed to cleanup serivce of component %s, err: %w", component, err)
+				return fmt.Errorf("failed to cleanup service of component %s, err: %w", component, err)
 			}
 		}
 

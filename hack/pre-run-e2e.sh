@@ -1,4 +1,18 @@
 #!/usr/bin/env bash
+# Copyright 2021 The Karmada Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 set -o errexit
 set -o nounset
 set -o pipefail
@@ -76,8 +90,8 @@ util::deploy_webhook_configuration "${KARMADA_APISERVER}" "${ROOT_CA_FILE}" "${R
 rm -rf "${REPO_ROOT}/examples/customresourceinterpreter/webhook-configuration-temp.yaml"
 
 # install interpreter example workload CRD in karmada-apiserver and member clusters
-kubectl --context="${KARMADA_APISERVER}" apply -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"
+kubectl --context="${KARMADA_APISERVER}" apply --server-side=true -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"
 export KUBECONFIG="${MEMBER_CLUSTER_KUBECONFIG}"
-kubectl --context="${MEMBER_CLUSTER_1_NAME}" apply -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"
-kubectl --context="${MEMBER_CLUSTER_2_NAME}" apply -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"
-kubectl --context="${PULL_MODE_CLUSTER_NAME}" apply -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"
+kubectl --context="${MEMBER_CLUSTER_1_NAME}" apply --server-side=true -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"
+kubectl --context="${MEMBER_CLUSTER_2_NAME}" apply --server-side=true -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"
+kubectl --context="${PULL_MODE_CLUSTER_NAME}" apply --server-side=true -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"

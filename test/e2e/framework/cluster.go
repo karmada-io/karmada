@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package framework
 
 import (
@@ -9,6 +25,7 @@ import (
 
 	"github.com/onsi/gomega"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
@@ -204,9 +221,9 @@ func newClusterClientSet(controlPlaneClient client.Client, c *clusterv1alpha1.Cl
 
 // setClusterLabel set cluster label of E2E
 func setClusterLabel(c client.Client, clusterName string) error {
-	err := wait.PollImmediate(2*time.Second, 10*time.Second, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.TODO(), 2*time.Second, 10*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
-		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
+		if err := c.Get(ctx, client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil
 			}
@@ -219,7 +236,7 @@ func setClusterLabel(c client.Client, clusterName string) error {
 		if clusterObj.Spec.SyncMode == clusterv1alpha1.Push {
 			clusterObj.Labels["sync-mode"] = "Push"
 		}
-		if err := c.Update(context.TODO(), clusterObj); err != nil {
+		if err := c.Update(ctx, clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil
 			}
@@ -317,9 +334,9 @@ func LoadRESTClientConfig(kubeconfig string, context string) (*rest.Config, erro
 
 // SetClusterRegion sets .Spec.Region field for Cluster object.
 func SetClusterRegion(c client.Client, clusterName string, regionName string) error {
-	return wait.PollImmediate(2*time.Second, 10*time.Second, func() (done bool, err error) {
+	return wait.PollUntilContextTimeout(context.TODO(), 2*time.Second, 10*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
-		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
+		if err := c.Get(ctx, client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil
 			}
@@ -327,7 +344,7 @@ func SetClusterRegion(c client.Client, clusterName string, regionName string) er
 		}
 
 		clusterObj.Spec.Region = regionName
-		if err := c.Update(context.TODO(), clusterObj); err != nil {
+		if err := c.Update(ctx, clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil
 			}
@@ -335,4 +352,21 @@ func SetClusterRegion(c client.Client, clusterName string, regionName string) er
 		}
 		return true, nil
 	})
+}
+
+// UpdateClusterStatusCondition updates the target cluster status condition.
+func UpdateClusterStatusCondition(client karmada.Interface, clusterName string, condition metav1.Condition) {
+	gomega.Eventually(func() (bool, error) {
+		cluster, err := client.ClusterV1alpha1().Clusters().Get(context.TODO(), clusterName, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+
+		meta.SetStatusCondition(&cluster.Status.Conditions, condition)
+		_, err = client.ClusterV1alpha1().Clusters().UpdateStatus(context.TODO(), cluster, metav1.UpdateOptions{})
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 }

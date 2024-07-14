@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package helper
 
 import (
@@ -5,9 +21,8 @@ import (
 	"reflect"
 	"testing"
 
-	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -177,11 +192,11 @@ func TestIsDependentClusterOverridesPresent(t *testing.T) {
 	}
 }
 
-func TestGetFollowedResourceSelectorsWhenMatchServiceImport(t *testing.T) {
+func TestCheckMatchServiceImport(t *testing.T) {
 	tests := []struct {
 		name              string
 		resourceSelectors []policyv1alpha1.ResourceSelector
-		expected          []policyv1alpha1.ResourceSelector
+		expected          bool
 	}{
 		{
 			name: " get followed resource selector",
@@ -196,78 +211,19 @@ func TestGetFollowedResourceSelectorsWhenMatchServiceImport(t *testing.T) {
 					Kind:      util.ServiceKind,
 				},
 				{
-					Name:      "foo3",
-					Namespace: "bar",
-					Kind:      util.ServiceImportKind,
+					Name:       "foo3",
+					Namespace:  "bar",
+					Kind:       util.ServiceImportKind,
+					APIVersion: "multicluster.x-k8s.io/v1alpha1",
 				},
 			},
-			expected: []policyv1alpha1.ResourceSelector{
-				{
-					APIVersion: "v1",
-					Kind:       util.ServiceKind,
-					Namespace:  "bar",
-					Name:       "derived-foo3",
-				},
-				{
-					APIVersion: "discovery.k8s.io/v1",
-					Kind:       util.EndpointSliceKind,
-					Namespace:  "bar",
-					LabelSelector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							discoveryv1.LabelServiceName: "derived-foo3",
-						},
-					},
-				},
-			},
+			expected: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res := GetFollowedResourceSelectorsWhenMatchServiceImport(tt.resourceSelectors)
-			if !reflect.DeepEqual(res, tt.expected) {
-				t.Errorf("expected %v, but got %v", tt.expected, res)
-			}
-		})
-	}
-}
-
-func TestGenerateResourceSelectorForServiceImport(t *testing.T) {
-	tests := []struct {
-		name      string
-		svcImport policyv1alpha1.ResourceSelector
-		expected  []policyv1alpha1.ResourceSelector
-	}{
-		{
-			name: "generate resource selector",
-			svcImport: policyv1alpha1.ResourceSelector{
-				Name:      "foo",
-				Namespace: "bar",
-			},
-			expected: []policyv1alpha1.ResourceSelector{
-				{
-					APIVersion: "v1",
-					Kind:       util.ServiceKind,
-					Namespace:  "bar",
-					Name:       "derived-foo",
-				},
-				{
-					APIVersion: "discovery.k8s.io/v1",
-					Kind:       util.EndpointSliceKind,
-					Namespace:  "bar",
-					LabelSelector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							discoveryv1.LabelServiceName: "derived-foo",
-						},
-					},
-				},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			res := GenerateResourceSelectorForServiceImport(tt.svcImport)
+			res := ContainsServiceImport(tt.resourceSelectors)
 			if !reflect.DeepEqual(res, tt.expected) {
 				t.Errorf("expected %v, but got %v", tt.expected, res)
 			}
@@ -421,11 +377,11 @@ func TestSetDefaultGracePeriodSeconds(t *testing.T) {
 			name: "purgeMode is graciously and gracePeriodSeconds is set",
 			behavior: &policyv1alpha1.ApplicationFailoverBehavior{
 				PurgeMode:          policyv1alpha1.Graciously,
-				GracePeriodSeconds: pointer.Int32(200),
+				GracePeriodSeconds: ptr.To[int32](200),
 			},
 			expectBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
 				PurgeMode:          policyv1alpha1.Graciously,
-				GracePeriodSeconds: pointer.Int32(200),
+				GracePeriodSeconds: ptr.To[int32](200),
 			},
 		},
 		{
@@ -435,7 +391,7 @@ func TestSetDefaultGracePeriodSeconds(t *testing.T) {
 			},
 			expectBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
 				PurgeMode:          policyv1alpha1.Graciously,
-				GracePeriodSeconds: pointer.Int32(600),
+				GracePeriodSeconds: ptr.To[int32](600),
 			},
 		},
 	}

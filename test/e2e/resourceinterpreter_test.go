@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package e2e
 
 import (
@@ -21,7 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -101,7 +117,7 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 				gomega.Eventually(func(g gomega.Gomega) error {
 					curWorkload := framework.GetWorkload(dynamicClient, workloadNamespace, workloadName)
 					// construct two values that need to be changed, and only one value is retained.
-					curWorkload.Spec.Replicas = pointer.Int32(2)
+					curWorkload.Spec.Replicas = ptr.To[int32](2)
 					curWorkload.Spec.Paused = true
 
 					newUnstructuredObj, err := helper.ToUnstructured(curWorkload)
@@ -136,7 +152,7 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 				sumWeight += index + 1
 				staticWeightLists = append(staticWeightLists, staticWeightList)
 			}
-			workload.Spec.Replicas = pointer.Int32(int32(sumWeight))
+			workload.Spec.Replicas = ptr.To[int32](int32(sumWeight))
 			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: workload.APIVersion,
@@ -181,7 +197,7 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 
 				wantedReplicas := *workload.Spec.Replicas * int32(len(framework.Clusters()))
 				klog.Infof("Waiting for workload(%s/%s) collecting correctly status", workloadNamespace, workloadName)
-				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+				err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(_ context.Context) (done bool, err error) {
 					currentWorkload := framework.GetWorkload(dynamicClient, workloadNamespace, workloadName)
 
 					klog.Infof("workload(%s/%s) readyReplicas: %d, wanted replicas: %d", workloadNamespace, workloadName, currentWorkload.Status.ReadyReplicas, wantedReplicas)
@@ -225,10 +241,7 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 					// not collect status.conditions in webhook
 					klog.Infof("work(%s/%s) length of conditions: %v, want: %v", workNamespace, workName, len(observedStatus.Conditions), 0)
 
-					if observedStatus.ReadyReplicas == *workload.Spec.Replicas && len(observedStatus.Conditions) == 0 {
-						return true, nil
-					}
-					return false, nil
+					return observedStatus.ReadyReplicas == *workload.Spec.Replicas && len(observedStatus.Conditions) == 0, nil
 				}, pollTimeout, pollInterval).Should(gomega.BeTrue())
 			}
 		})
@@ -443,7 +456,7 @@ end
 			})
 		})
 
-		ginkgo.It("dependency cr propagation testing", func() {
+		ginkgo.It("Dependency cr propagation testing", func() {
 			framework.GetCRD(dynamicClient, crd.Name)
 			framework.WaitCRDPresentOnClusters(karmadaClient, framework.ClusterNames(),
 				fmt.Sprintf("%s/%s", crd.Spec.Group, "v1alpha1"), crd.Spec.Names.Kind)
@@ -471,8 +484,8 @@ end
 					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Waiting for dependency cr(%s/%s) present on cluster(%s)", crNamespaceDep, crNameDep, cluster.Name)
-					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-						_, err = clusterDynamicClient.Resource(crGVRDep).Namespace(crNamespaceDep).Get(context.TODO(), crNameDep, metav1.GetOptions{})
+					err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
+						_, err = clusterDynamicClient.Resource(crGVRDep).Namespace(crNamespaceDep).Get(ctx, crNameDep, metav1.GetOptions{})
 						if err != nil {
 							if apierrors.IsNotFound(err) {
 								return false, nil
@@ -506,8 +519,8 @@ end
 					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Waiting for cr(%s/%s) synced on cluster(%s)", crNamespaceDep, crNameDep, cluster.Name)
-					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-						cr, err := clusterDynamicClient.Resource(crGVRDep).Namespace(crNamespaceDep).Get(context.TODO(), crNameDep, metav1.GetOptions{})
+					err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
+						cr, err := clusterDynamicClient.Resource(crGVRDep).Namespace(crNamespaceDep).Get(ctx, crNameDep, metav1.GetOptions{})
 						if err != nil {
 							return false, err
 						}
@@ -537,8 +550,8 @@ end
 					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Waiting for dependency cr(%s/%s) disappear on cluster(%s)", crNamespaceDep, crNameDep, cluster.Name)
-					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-						_, err = clusterDynamicClient.Resource(crGVRDep).Namespace(crNamespaceDep).Get(context.TODO(), crNameDep, metav1.GetOptions{})
+					err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
+						_, err = clusterDynamicClient.Resource(crGVRDep).Namespace(crNamespaceDep).Get(ctx, crNameDep, metav1.GetOptions{})
 						if err != nil {
 							if apierrors.IsNotFound(err) {
 								return true, nil
@@ -683,7 +696,7 @@ var _ = framework.SerialDescribe("Resource interpreter customization testing", f
 					sumWeight += index + 1
 					staticWeightLists = append(staticWeightLists, staticWeightList)
 				}
-				deployment.Spec.Replicas = pointer.Int32(int32(sumWeight))
+				deployment.Spec.Replicas = ptr.To[int32](int32(sumWeight))
 				policy.Spec.Placement = policyv1alpha1.Placement{
 					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
 						ClusterNames: framework.ClusterNames(),
@@ -769,7 +782,7 @@ var _ = framework.SerialDescribe("Resource interpreter customization testing", f
 		end
 		replicas = 0
 		for i = 1, #statusItems do
-			if statusItems[i].status ~= nil and statusItems[i].status.replicas ~= nil  then
+			if statusItems[i].status ~= nil and statusItems[i].status.replicas ~= nil then
 				replicas = replicas + statusItems[i].status.replicas + 1
 			end 
 		end
@@ -935,7 +948,7 @@ var _ = framework.SerialDescribe("Resource interpreter customization testing", f
 function GetDependencies(desiredObj)
 	dependentSas = {}
 	refs = {}
-	if desiredObj.spec.template.spec.serviceAccountName ~= '' and desiredObj.spec.template.spec.serviceAccountName ~= 'default' then
+	if desiredObj.spec.template.spec.serviceAccountName ~= nil and desiredObj.spec.template.spec.serviceAccountName ~= 'default' then
 		dependentSas[desiredObj.spec.template.spec.serviceAccountName] = true
 	end
 	local idx = 1
@@ -1014,22 +1027,21 @@ end `,
 			ginkgo.It("DependencyInterpretation testing", func() {
 				ginkgo.By("check if the resources is propagated automatically", func() {
 					framework.WaitDeploymentPresentOnClusterFitWith(targetCluster, deployment.Namespace, deployment.Name,
-						func(deployment *appsv1.Deployment) bool {
+						func(*appsv1.Deployment) bool {
 							return true
 						})
 
 					framework.WaitServiceAccountPresentOnClusterFitWith(targetCluster, sa.Namespace, sa.Name,
-						func(sa *corev1.ServiceAccount) bool {
+						func(*corev1.ServiceAccount) bool {
 							return true
 						})
 
 					framework.WaitConfigMapPresentOnClusterFitWith(targetCluster, configMap.Namespace, configMap.Name,
-						func(configmap *corev1.ConfigMap) bool {
+						func(*corev1.ConfigMap) bool {
 							return true
 						})
 				})
 			})
-
 		})
 	})
 })

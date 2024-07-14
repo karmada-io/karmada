@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package core
 
 import (
@@ -33,6 +49,22 @@ const (
 	DynamicWeightStrategy = "DynamicWeight"
 )
 
+// assignmentMode indicates how to assign replicas, especially in case of re-assignment.
+type assignmentMode string
+
+const (
+	// Steady represents a steady, incremental approach to re-assign replicas
+	// across clusters. It aims to maintain the exist replicas distribution as
+	// closely as possible, only making minimal adjustments when necessary.
+	// It minimizes disruptions and preserves the balance across clusters.
+	Steady assignmentMode = "Steady"
+
+	// Fresh means that disregards the previous assignment entirely and
+	// seeks to establish an entirely new replica distribution across clusters.
+	// It is willing to accept significant changes even if it involves disruption.
+	Fresh assignmentMode = "Fresh"
+)
+
 // assignState is a wrapper of the input for assigning function.
 type assignState struct {
 	candidates []*clusterv1alpha1.Cluster
@@ -41,6 +73,9 @@ type assignState struct {
 
 	// fields below are indirect results
 	strategyType string
+
+	// assignmentMode represents the mode how to assign replicas
+	assignmentMode assignmentMode
 
 	scheduledClusters []workv1alpha2.TargetCluster
 	assignedReplicas  int32
@@ -51,18 +86,19 @@ type assignState struct {
 	targetReplicas int32
 }
 
-func newAssignState(candidates []*clusterv1alpha1.Cluster, placement *policyv1alpha1.Placement, obj *workv1alpha2.ResourceBindingSpec) *assignState {
+func newAssignState(candidates []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec,
+	status *workv1alpha2.ResourceBindingStatus) *assignState {
 	var strategyType string
 
-	switch placement.ReplicaSchedulingType() {
+	switch spec.Placement.ReplicaSchedulingType() {
 	case policyv1alpha1.ReplicaSchedulingTypeDuplicated:
 		strategyType = DuplicatedStrategy
 	case policyv1alpha1.ReplicaSchedulingTypeDivided:
-		switch placement.ReplicaScheduling.ReplicaDivisionPreference {
+		switch spec.Placement.ReplicaScheduling.ReplicaDivisionPreference {
 		case policyv1alpha1.ReplicaDivisionPreferenceAggregated:
 			strategyType = AggregatedStrategy
 		case policyv1alpha1.ReplicaDivisionPreferenceWeighted:
-			if placement.ReplicaScheduling.WeightPreference != nil && len(placement.ReplicaScheduling.WeightPreference.DynamicWeight) != 0 {
+			if spec.Placement.ReplicaScheduling.WeightPreference != nil && len(spec.Placement.ReplicaScheduling.WeightPreference.DynamicWeight) != 0 {
 				strategyType = DynamicWeightStrategy
 			} else {
 				strategyType = StaticWeightStrategy
@@ -70,11 +106,33 @@ func newAssignState(candidates []*clusterv1alpha1.Cluster, placement *policyv1al
 		}
 	}
 
-	return &assignState{candidates: candidates, strategy: placement.ReplicaScheduling, spec: obj, strategyType: strategyType}
+	// the assignment mode is defaults to Steady to minimizes disruptions and preserves the balance across clusters.
+	expectAssignmentMode := Steady
+	// when spec.rescheduleTriggeredAt is updated, it represents a rescheduling is manually triggered by user, and the
+	// expected behavior of this action is to do a complete recalculation without referring to last scheduling results.
+	if util.RescheduleRequired(spec.RescheduleTriggeredAt, status.LastScheduledTime) {
+		expectAssignmentMode = Fresh
+	}
+
+	return &assignState{candidates: candidates, strategy: spec.Placement.ReplicaScheduling, spec: spec, strategyType: strategyType, assignmentMode: expectAssignmentMode}
 }
 
 func (as *assignState) buildScheduledClusters() {
-	as.scheduledClusters = as.spec.Clusters
+	candidateClusterSet := sets.Set[string]{}
+	for _, c := range as.candidates {
+		candidateClusterSet.Insert(c.Name)
+	}
+	as.scheduledClusters = []workv1alpha2.TargetCluster{}
+	for _, c := range as.spec.Clusters {
+		// Ignore clusters that are no longer candidates, to ensure we can get real
+		// 'assigned' replicas from the previous schedule result. The ignored replicas
+		// will be treated as scaled-up replicas that will be assigned to other
+		// candidate clusters.
+		if !candidateClusterSet.Has(c.Name) {
+			continue
+		}
+		as.scheduledClusters = append(as.scheduledClusters, c)
+	}
 	as.assignedReplicas = util.GetSumOfReplicas(as.scheduledClusters)
 }
 
@@ -139,7 +197,7 @@ func assignByStaticWeightStrategy(state *assignState) ([]workv1alpha2.TargetClus
 	if state.strategy.WeightPreference == nil {
 		state.strategy.WeightPreference = getDefaultWeightPreference(state.candidates)
 	}
-	weightList := getStaticWeightInfoList(state.candidates, state.strategy.WeightPreference.StaticWeightList)
+	weightList := getStaticWeightInfoList(state.candidates, state.strategy.WeightPreference.StaticWeightList, state.spec.Clusters)
 
 	disp := helper.NewDispenser(state.spec.Replicas, nil)
 	disp.TakeByWeight(weightList)
@@ -149,6 +207,17 @@ func assignByStaticWeightStrategy(state *assignState) ([]workv1alpha2.TargetClus
 
 func assignByDynamicStrategy(state *assignState) ([]workv1alpha2.TargetCluster, error) {
 	state.buildScheduledClusters()
+
+	// 1. when Fresh mode expected, do a complete recalculation without referring to the last scheduling results.
+	if state.assignmentMode == Fresh {
+		result, err := dynamicFreshScale(state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to do fresh scale: %v", err)
+		}
+		return result, nil
+	}
+
+	// 2. when Steady mode expected, try minimizing large changes in scheduling results.
 	if state.assignedReplicas > state.spec.Replicas {
 		// We need to reduce the replicas in terms of the previous result.
 		result, err := dynamicScaleDown(state)
@@ -164,7 +233,7 @@ func assignByDynamicStrategy(state *assignState) ([]workv1alpha2.TargetCluster, 
 			return nil, fmt.Errorf("failed to scale up: %v", err)
 		}
 		return result, nil
-	} else {
-		return state.scheduledClusters, nil
 	}
+
+	return state.scheduledClusters, nil
 }

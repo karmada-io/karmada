@@ -28,6 +28,8 @@ spec:
     spec:
       {{- include "karmada.apiServer.imagePullSecrets" . | nindent 6 }}
       automountServiceAccountToken: false
+      initContainers:
+        {{- include "karmada.initContainer.waitEtcd" . | nindent 8 }}
       containers:
         - name: {{ $name }}-apiserver
           image: {{ template "karmada.apiServer.image" . }}
@@ -73,6 +75,7 @@ spec:
             - --tls-private-key-file=/etc/kubernetes/pki/karmada.key
             - --max-requests-inflight={{ .Values.apiServer.maxRequestsInflight }}
             - --max-mutating-requests-inflight={{ .Values.apiServer.maxMutatingRequestsInflight }}
+            - --tls-min-version=VersionTLS13
           ports:
             - name: http
               containerPort: 5443
@@ -134,6 +137,7 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
+      {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
         - name: apiserver-cert
           secret:
             secretName: {{ $name }}-cert
@@ -169,5 +173,21 @@ spec:
       targetPort: 5443
   selector:
   {{- include "karmada.apiserver.labels" . | nindent 4}}
+
+{{ if .Values.apiServer.podDisruptionBudget }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}-apiserver
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.apiserver.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "karmada.apiserver.labels" . | nindent 6}}
+  {{ toYaml .Values.apiServer.podDisruptionBudget | nindent 2 }}
+{{- end -}}
 
 {{- end }}

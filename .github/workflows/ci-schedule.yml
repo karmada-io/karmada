@@ -3,6 +3,10 @@ on:
   schedule:
     # Run this workflow "At 18:00 UTC on Sunday and Saturday"
     - cron: '0 18 * * 0,6'
+
+permissions:
+  contents: read 
+    
 jobs:
   e2e:
     name: e2e test
@@ -10,30 +14,57 @@ jobs:
     if: ${{ github.repository == 'karmada-io/karmada' }}
     runs-on: ubuntu-22.04
     strategy:
+      # max-parallel limits the max number of jobs running at the same time.
+      # We set it to 5 to avoid too many jobs running at the same time, causing the CI to fail because of resource limitations.
+      max-parallel: 5
+      fail-fast: false
       matrix:
-        k8s: [ v1.21.10, v1.22.7, v1.23.4, v1.24.2, v1.25.0, v1.26.0, v1.27.3 ]
+        k8s: [ v1.23.4, v1.24.2, v1.25.0, v1.26.0, v1.27.3, v1.28.0, v1.29.0, v1.30.0 ]
     steps:
+      # Free up disk space on Ubuntu
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed, if set to "true" but frees about 6 GB
+          tool-cache: false
+          # all of these default to true, but feel free to set to "false" if necessary for your workflow
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: false
+          swap-storage: false
       - name: checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           # Number of commits to fetch. 0 indicates all history for all branches and tags.
           # We need to guess version via git tags.
           fetch-depth: 0
       - name: install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.20.6
+          go-version-file: go.mod
       - name: setup e2e test environment
-        run: |
-          export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
-          hack/local-up-karmada.sh
+        uses: nick-fields/retry@v3.0.0
+        with:
+          max_attempts: 3
+          timeout_minutes: 20
+          command: |
+            export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
+            hack/local-up-karmada.sh
       - name: run e2e
         run: |
           export ARTIFACTS_PATH=${{ github.workspace }}/karmada-e2e-logs/${{ matrix.k8s }}/
           hack/run-e2e.sh
       - name: upload logs
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: karmada_e2e_log_${{ matrix.k8s }}
           path: ${{ github.workspace }}/karmada-e2e-logs/${{ matrix.k8s }}/
+      - name: upload kind logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: karmada_kind_log_${{ matrix.k8s }}
+          path: /tmp/karmada/

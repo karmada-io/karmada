@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package apiserver
 
 const (
@@ -25,7 +41,7 @@ spec:
       containers:
       - name: kube-apiserver
         image: {{ .Image }}
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - kube-apiserver
         - --allow-privileged=true
@@ -56,9 +72,11 @@ spec:
         - --requestheader-username-headers=X-Remote-User
         - --tls-cert-file=/etc/karmada/pki/apiserver.crt
         - --tls-private-key-file=/etc/karmada/pki/apiserver.key
+        - --tls-min-version=VersionTLS13
         - --max-requests-inflight=1500
         - --max-mutating-requests-inflight=500
         - --v=4
+
         livenessProbe:
           failureThreshold: 8
           httpGet:
@@ -155,26 +173,26 @@ spec:
       containers:
       - name: karmada-aggregated-apiserver
         image: {{ .Image }}
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - /bin/karmada-aggregated-apiserver
-        - --kubeconfig=/etc/karmada/config
-        - --authentication-kubeconfig=/etc/karmada/config
-        - --authorization-kubeconfig=/etc/karmada/config
+        - --kubeconfig=/etc/karmada/kubeconfig
+        - --authentication-kubeconfig=/etc/karmada/kubeconfig
+        - --authorization-kubeconfig=/etc/karmada/kubeconfig
         - --etcd-cafile=/etc/etcd/pki/etcd-ca.crt
         - --etcd-certfile=/etc/etcd/pki/etcd-client.crt
         - --etcd-keyfile=/etc/etcd/pki/etcd-client.key
         - --etcd-servers=https://{{ .EtcdClientService }}.{{ .Namespace }}.svc.cluster.local:{{ .EtcdListenClientPort }}
         - --tls-cert-file=/etc/karmada/pki/karmada.crt
         - --tls-private-key-file=/etc/karmada/pki/karmada.key
+        - --tls-min-version=VersionTLS13
         - --audit-log-path=-
-        - --feature-gates=APIPriorityAndFairness=false
         - --audit-log-maxage=0
         - --audit-log-maxbackup=0
         volumeMounts:
-        - mountPath: /etc/karmada/config
+        - mountPath: /etc/karmada/kubeconfig
           name: kubeconfig
-          subPath: config
+          subPath: kubeconfig
         - mountPath: /etc/etcd/pki
           name: etcd-cert
           readOnly: true

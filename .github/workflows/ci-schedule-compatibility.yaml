@@ -11,56 +11,60 @@ jobs:
     if: ${{ github.repository == 'karmada-io/karmada' }}
     runs-on: ubuntu-22.04
     strategy:
+      # max-parallel limits the max number of jobs running at the same time.
+      # We set it to 5 to avoid too many jobs running at the same time, causing the CI to fail because of resource limitations.
+      max-parallel: 5
+      fail-fast: false
       matrix:
-        kubeapiserver-version: [ v1.21.10, v1.22.7, v1.23.4, v1.24.2, v1.25.0, v1.26.0, v1.27.3 ]
-        karmada-version: [ release-1.4, release-1.5, release-1.6 ]
-
-        include:
-        - karmada-version: release-1.4
-          go-version: 1.19.5
-
-        - karmada-version: release-1.5
-          go-version: 1.19.5
-
-        - karmada-version: release-1.6
-          go-version: 1.20.5
-
+        kubeapiserver-version: [ v1.23.4, v1.24.2, v1.25.0, v1.26.0, v1.27.3, v1.28.0, v1.29.0, v1.30.0 ]
+        karmada-version: [ master, release-1.10, release-1.9, release-1.8 ]
+    env:
+      KARMADA_APISERVER_VERSION: ${{ matrix.kubeapiserver-version }}
     steps:
+      # Free up disk space on Ubuntu
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed, if set to "true" but frees about 6 GB
+          tool-cache: false
+          # all of these default to true, but feel free to set to "false" if necessary for your workflow
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: false
+          swap-storage: false
       - name: checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           # Number of commits to fetch. 0 indicates all history for all branches and tags.
           # We need to guess version via git tags.
           fetch-depth: 0
           ref: ${{ matrix.karmada-version }}
       - name: install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version-file: go.mod
       - name: setup e2e test environment
-        run: |
-          hack/local-up-karmada.sh
-
-          # Update images
-          kubectl --kubeconfig=${HOME}/.kube/karmada.config --context=karmada-host \
-            set image deployment/karmada-apiserver -nkarmada-system \
-            karmada-apiserver=registry.k8s.io/kube-apiserver:${{ matrix.kubeapiserver-version }}
-          kubectl --kubeconfig=${HOME}/.kube/karmada.config --context=karmada-host \
-            set image deployment/karmada-kube-controller-manager -nkarmada-system \
-            kube-controller-manager=registry.k8s.io/kube-controller-manager:${{ matrix.kubeapiserver-version }}
-
-          # Wait ready
-          kubectl --kubeconfig=${HOME}/.kube/karmada.config --context=karmada-host \
-            rollout status deployment/karmada-kube-controller-manager -nkarmada-system --timeout=5m
-          kubectl --kubeconfig=${HOME}/.kube/karmada.config --context=karmada-host \
-            rollout status deployment/karmada-apiserver -nkarmada-system --timeout=5m
+        uses: nick-fields/retry@v3.0.0
+        with:
+          max_attempts: 3
+          timeout_minutes: 20
+          command: |
+            hack/local-up-karmada.sh
       - name: run e2e
         run: |
           export ARTIFACTS_PATH=${{ github.workspace }}/karmada-e2e-logs/${{ matrix.kubeapiserver-version }}-${{ matrix.karmada-version }}/
           hack/run-e2e.sh
       - name: upload logs
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: karmada_e2e_log_${{ matrix.k8s }}
+          name: karmada_e2e_log_${{ matrix.kubeapiserver-version }}_${{ matrix.karmada-version }}
           path: ${{ github.workspace }}/karmada-e2e-logs/${{ matrix.kubeapiserver-version }}-${{ matrix.karmada-version }}/
+      - name: upload kind logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: karmada_kind_log_${{ matrix.kubeapiserver-version }}_${{ matrix.karmada-version }}
+          path: /tmp/karmada/

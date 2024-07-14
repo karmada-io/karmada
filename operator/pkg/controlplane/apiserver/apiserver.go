@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package apiserver
 
 import (
@@ -5,6 +21,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	kuberuntime "k8s.io/apimachinery/pkg/runtime"
 	clientset "k8s.io/client-go/kubernetes"
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
@@ -33,16 +50,17 @@ func EnsureKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operatorv
 	return createKarmadaAggregatedAPIServerService(client, name, namespace)
 }
 
-func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaAPIServer, name, namespace string, featureGates map[string]bool) error {
+func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaAPIServer, name, namespace string, _ map[string]bool) error {
 	apiserverDeploymentBytes, err := util.ParseTemplate(KarmadaApiserverDeployment, struct {
-		DeploymentName, Namespace, Image, EtcdClientService string
-		ServiceSubnet, KarmadaCertsSecret, EtcdCertsSecret  string
-		Replicas                                            *int32
-		EtcdListenClientPort                                int32
+		DeploymentName, Namespace, Image, ImagePullPolicy, EtcdClientService string
+		ServiceSubnet, KarmadaCertsSecret, EtcdCertsSecret                   string
+		Replicas                                                             *int32
+		EtcdListenClientPort                                                 int32
 	}{
 		DeploymentName:       util.KarmadaAPIServerName(name),
 		Namespace:            namespace,
 		Image:                cfg.Image.Name(),
+		ImagePullPolicy:      string(cfg.ImagePullPolicy),
 		EtcdClientService:    util.KarmadaEtcdClientName(name),
 		ServiceSubnet:        *cfg.ServiceSubnet,
 		KarmadaCertsSecret:   util.KarmadaCertSecretName(name),
@@ -59,7 +77,7 @@ func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.K
 		return fmt.Errorf("error when decoding karmadaApiserver deployment: %w", err)
 	}
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
-		WithExtraArgs(cfg.ExtraArgs).ForDeployment(apiserverDeployment)
+		WithExtraArgs(cfg.ExtraArgs).WithResources(cfg.Resources).ForDeployment(apiserverDeployment)
 
 	if err := apiclient.CreateOrUpdateDeployment(client, apiserverDeployment); err != nil {
 		return fmt.Errorf("error when creating deployment for %s, err: %w", apiserverDeployment.Name, err)
@@ -84,6 +102,9 @@ func createKarmadaAPIServerService(client clientset.Interface, cfg *operatorv1al
 		return fmt.Errorf("error when decoding karmadaApiserver serive: %w", err)
 	}
 
+	// merge annotaions with configuration of karmada apiserver.
+	karmadaApiserverService.Annotations = labels.Merge(karmadaApiserverService.Annotations, cfg.ServiceAnnotations)
+
 	if err := apiclient.CreateOrUpdateService(client, karmadaApiserverService); err != nil {
 		return fmt.Errorf("err when creating service for %s, err: %w", karmadaApiserverService.Name, err)
 	}
@@ -92,14 +113,15 @@ func createKarmadaAPIServerService(client clientset.Interface, cfg *operatorv1al
 
 func installKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaAggregatedAPIServer, name, namespace string, featureGates map[string]bool) error {
 	aggregatedAPIServerDeploymentBytes, err := util.ParseTemplate(KarmadaAggregatedAPIServerDeployment, struct {
-		DeploymentName, Namespace, Image, EtcdClientService   string
-		KubeconfigSecret, KarmadaCertsSecret, EtcdCertsSecret string
-		Replicas                                              *int32
-		EtcdListenClientPort                                  int32
+		DeploymentName, Namespace, Image, ImagePullPolicy, EtcdClientService string
+		KubeconfigSecret, KarmadaCertsSecret, EtcdCertsSecret                string
+		Replicas                                                             *int32
+		EtcdListenClientPort                                                 int32
 	}{
 		DeploymentName:       util.KarmadaAggregatedAPIServerName(name),
 		Namespace:            namespace,
 		Image:                cfg.Image.Name(),
+		ImagePullPolicy:      string(cfg.ImagePullPolicy),
 		EtcdClientService:    util.KarmadaEtcdClientName(name),
 		KubeconfigSecret:     util.AdminKubeconfigSecretName(name),
 		KarmadaCertsSecret:   util.KarmadaCertSecretName(name),
@@ -117,7 +139,7 @@ func installKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operator
 	}
 
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
-		WithExtraArgs(cfg.ExtraArgs).WithFeatureGates(featureGates).ForDeployment(aggregatedAPIServerDeployment)
+		WithExtraArgs(cfg.ExtraArgs).WithFeatureGates(featureGates).WithResources(cfg.Resources).ForDeployment(aggregatedAPIServerDeployment)
 
 	if err := apiclient.CreateOrUpdateDeployment(client, aggregatedAPIServerDeployment); err != nil {
 		return fmt.Errorf("error when creating deployment for %s, err: %w", aggregatedAPIServerDeployment.Name, err)

@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package cronfederatedhpa
 
 import (
@@ -7,7 +23,7 @@ import (
 
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 )
@@ -32,7 +48,7 @@ func Test_validateCronFederatedHPASpec(t *testing.T) {
 					{
 						Name:           "bar",
 						Schedule:       "0 0 13 * 5",
-						TargetReplicas: pointer.Int32(1),
+						TargetReplicas: ptr.To[int32](1),
 					},
 				},
 			},
@@ -50,9 +66,9 @@ func Test_validateCronFederatedHPASpec(t *testing.T) {
 					{
 						Name:              "foo",
 						Schedule:          "0 0 13 * 1",
-						TargetReplicas:    pointer.Int32(2),
-						TargetMinReplicas: pointer.Int32(1),
-						TargetMaxReplicas: pointer.Int32(3),
+						TargetReplicas:    ptr.To[int32](2),
+						TargetMinReplicas: ptr.To[int32](1),
+						TargetMaxReplicas: ptr.To[int32](3),
 					},
 				},
 			},
@@ -70,7 +86,7 @@ func Test_validateCronFederatedHPASpec(t *testing.T) {
 					{
 						Name:           "bar",
 						Schedule:       "0 0 13 * 5",
-						TargetReplicas: pointer.Int32(1),
+						TargetReplicas: ptr.To[int32](1),
 					},
 				},
 			},
@@ -86,7 +102,7 @@ func Test_validateCronFederatedHPASpec(t *testing.T) {
 					{
 						Name:           "bar",
 						Schedule:       "0 0 13 * 5",
-						TargetReplicas: pointer.Int32(1),
+						TargetReplicas: ptr.To[int32](1),
 					},
 				},
 			},
@@ -102,7 +118,7 @@ func Test_validateCronFederatedHPASpec(t *testing.T) {
 					{
 						Name:           "bar",
 						Schedule:       "0 0 13 * 5",
-						TargetReplicas: pointer.Int32(1),
+						TargetReplicas: ptr.To[int32](1),
 					},
 				},
 			},
@@ -119,12 +135,12 @@ func Test_validateCronFederatedHPASpec(t *testing.T) {
 					{
 						Name:           "bar",
 						Schedule:       "0 0 13 * 5",
-						TargetReplicas: pointer.Int32(1),
+						TargetReplicas: ptr.To[int32](1),
 					},
 					{
 						Name:           "bar",
 						Schedule:       "0 0 13 * 5",
-						TargetReplicas: pointer.Int32(1),
+						TargetReplicas: ptr.To[int32](1),
 					},
 				},
 			},
@@ -141,7 +157,7 @@ func Test_validateCronFederatedHPASpec(t *testing.T) {
 					{
 						Name:           "bar",
 						Schedule:       "0 0 13 *",
-						TargetReplicas: pointer.Int32(1),
+						TargetReplicas: ptr.To[int32](1),
 					},
 				},
 			},
@@ -158,8 +174,8 @@ func Test_validateCronFederatedHPASpec(t *testing.T) {
 					{
 						Name:           "bar",
 						Schedule:       "0 0 13 * 1",
-						TimeZone:       pointer.String("A/B"),
-						TargetReplicas: pointer.Int32(1),
+						TimeZone:       ptr.To("A/B"),
+						TargetReplicas: ptr.To[int32](1),
 					},
 				},
 			},
@@ -192,7 +208,7 @@ func Test_validateCronFederatedHPASpec(t *testing.T) {
 					{
 						Name:           "bar",
 						Schedule:       "0 0 13 * 1",
-						TargetReplicas: pointer.Int32(-1),
+						TargetReplicas: ptr.To[int32](-1),
 					},
 				},
 			},
@@ -210,7 +226,7 @@ func Test_validateCronFederatedHPASpec(t *testing.T) {
 					{
 						Name:           "bar",
 						Schedule:       "0 0 13 * 1",
-						TargetReplicas: pointer.Int32(-1),
+						TargetReplicas: ptr.To[int32](-1),
 					},
 				},
 			},
@@ -228,8 +244,8 @@ func Test_validateCronFederatedHPASpec(t *testing.T) {
 					{
 						Name:              "bar",
 						Schedule:          "0 0 13 * 1",
-						TargetMinReplicas: pointer.Int32(-1),
-						TargetReplicas:    pointer.Int32(1),
+						TargetMinReplicas: ptr.To[int32](-1),
+						TargetReplicas:    ptr.To[int32](1),
 					},
 				},
 			},
@@ -247,8 +263,8 @@ func Test_validateCronFederatedHPASpec(t *testing.T) {
 					{
 						Name:              "bar",
 						Schedule:          "0 0 13 * 1",
-						TargetMaxReplicas: pointer.Int32(-1),
-						TargetReplicas:    pointer.Int32(1),
+						TargetMaxReplicas: ptr.To[int32](-1),
+						TargetReplicas:    ptr.To[int32](1),
 					},
 				},
 			},
@@ -266,9 +282,9 @@ func Test_validateCronFederatedHPASpec(t *testing.T) {
 					{
 						Name:              "bar",
 						Schedule:          "0 0 13 * 1",
-						TargetMinReplicas: pointer.Int32(3),
-						TargetMaxReplicas: pointer.Int32(1),
-						TargetReplicas:    pointer.Int32(1),
+						TargetMinReplicas: ptr.To[int32](3),
+						TargetMaxReplicas: ptr.To[int32](1),
+						TargetReplicas:    ptr.To[int32](1),
 					},
 				},
 			},

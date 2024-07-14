@@ -1,8 +1,25 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package e2e
 
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -12,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -72,7 +89,7 @@ var _ = ginkgo.Describe("[cluster unjoined] reschedule testing", func() {
 			deploymentNamespace = testNamespace
 			deploymentName = policyName
 			deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
-			deployment.Spec.Replicas = pointer.Int32(10)
+			deployment.Spec.Replicas = ptr.To[int32](10)
 
 			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
@@ -89,7 +106,7 @@ var _ = ginkgo.Describe("[cluster unjoined] reschedule testing", func() {
 		})
 
 		ginkgo.It("deployment reschedule testing", func() {
-			ginkgo.By(fmt.Sprintf("Joinning cluster: %s", newClusterName), func() {
+			ginkgo.By(fmt.Sprintf("Joining cluster: %s", newClusterName), func() {
 				opts := join.CommandJoinOption{
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
@@ -120,13 +137,14 @@ var _ = ginkgo.Describe("[cluster unjoined] reschedule testing", func() {
 				opts := unjoin.CommandUnjoinOption{
 					ClusterNamespace: "karmada-cluster",
 					ClusterName:      newClusterName,
+					Wait:             60 * time.Second,
 				}
 				err := opts.Run(f)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
 			ginkgo.By("check whether the deployment is rescheduled to other available clusters", func() {
-				gomega.Eventually(func(g gomega.Gomega) bool {
+				gomega.Eventually(func(gomega.Gomega) bool {
 					targetClusterNames = framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 					return testhelper.IsExclude(newClusterName, targetClusterNames)
 				}, pollTimeout, pollInterval).Should(gomega.BeTrue())
@@ -178,6 +196,7 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 				opts := unjoin.CommandUnjoinOption{
 					ClusterNamespace: "karmada-cluster",
 					ClusterName:      newClusterName,
+					Wait:             60 * time.Second,
 				}
 				err := opts.Run(f)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -200,7 +219,7 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 				deploymentNamespace = testNamespace
 				deploymentName = policyName
 				deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
-				deployment.Spec.Replicas = pointer.Int32(1)
+				deployment.Spec.Replicas = ptr.To[int32](1)
 				// set ReplicaSchedulingType=Duplicated.
 				policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 					{
@@ -224,7 +243,7 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 					framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 				})
 
-				ginkgo.By(fmt.Sprintf("Joinning cluster: %s", newClusterName))
+				ginkgo.By(fmt.Sprintf("Joining cluster: %s", newClusterName))
 				opts := join.CommandJoinOption{
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
@@ -241,7 +260,7 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 				})
 
 				ginkgo.By("check whether the deployment is rescheduled to a new cluster")
-				gomega.Eventually(func(g gomega.Gomega) bool {
+				gomega.Eventually(func(gomega.Gomega) bool {
 					targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 					return !testhelper.IsExclude(newClusterName, targetClusterNames)
 				}, pollTimeout, pollInterval).Should(gomega.BeTrue())
@@ -256,7 +275,7 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 				deploymentNamespace = testNamespace
 				deploymentName = policyName
 				deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
-				deployment.Spec.Replicas = pointer.Int32(1)
+				deployment.Spec.Replicas = ptr.To[int32](1)
 				// set clusterAffinity for Placement.
 				policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 					{
@@ -270,20 +289,18 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 			})
 			ginkgo.It("when the ReplicaScheduling of the policy is nil, reschedule testing", func() {
 				ginkgo.By("create deployment and policy")
-
 				framework.CreatePropagationPolicy(karmadaClient, policy)
-
 				framework.CreateDeployment(kubeClient, deployment)
 				ginkgo.DeferCleanup(func() {
 					framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 					framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 				})
-				gomega.Eventually(func(g gomega.Gomega) bool {
+				gomega.Eventually(func(gomega.Gomega) bool {
 					targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 					return testhelper.IsExclude(newClusterName, targetClusterNames)
 				}, pollTimeout, pollInterval).Should(gomega.BeTrue())
 
-				ginkgo.By(fmt.Sprintf("Joinning cluster: %s", newClusterName))
+				ginkgo.By(fmt.Sprintf("Joining cluster: %s", newClusterName))
 				opts := join.CommandJoinOption{
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
@@ -300,7 +317,7 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 				})
 
 				ginkgo.By("check whether the deployment is rescheduled to a new cluster")
-				gomega.Eventually(func(g gomega.Gomega) bool {
+				gomega.Eventually(func(gomega.Gomega) bool {
 					targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 					for _, clusterName := range initClusterNames {
 						if testhelper.IsExclude(clusterName, targetClusterNames) {
@@ -310,7 +327,7 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 					return true
 				}, pollTimeout, pollInterval).Should(gomega.BeTrue())
 
-				gomega.Eventually(func(g gomega.Gomega) bool {
+				gomega.Eventually(func(gomega.Gomega) bool {
 					targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 					return testhelper.IsExclude("member3", targetClusterNames)
 				}, pollTimeout, pollInterval).Should(gomega.BeTrue())
@@ -372,10 +389,10 @@ var _ = ginkgo.Describe("[cluster labels changed] reschedule testing while polic
 			})
 
 			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment.Namespace, deployment.Name,
-				func(deployment *appsv1.Deployment) bool { return true })
+				func(*appsv1.Deployment) bool { return true })
 		})
 
-		ginkgo.It("change labels to testing deployment reschedule", func() {
+		ginkgo.It("change labels to testing deployment reschedule(PropagationPolicy)", func() {
 			labelsUpdate := map[string]string{labelKey: "not_ok"}
 			framework.UpdateClusterLabels(karmadaClient, targetMember, labelsUpdate)
 			framework.WaitDeploymentDisappearOnCluster(targetMember, deployment.Namespace, deployment.Name)
@@ -383,7 +400,7 @@ var _ = ginkgo.Describe("[cluster labels changed] reschedule testing while polic
 			labelsUpdate = map[string]string{labelKey: "ok"}
 			framework.UpdateClusterLabels(karmadaClient, targetMember, labelsUpdate)
 			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment.Namespace, deployment.Name,
-				func(deployment *appsv1.Deployment) bool { return true })
+				func(*appsv1.Deployment) bool { return true })
 		})
 	})
 
@@ -407,16 +424,14 @@ var _ = ginkgo.Describe("[cluster labels changed] reschedule testing while polic
 
 		ginkgo.BeforeEach(func() {
 			framework.CreateClusterPropagationPolicy(karmadaClient, policy)
-
 			ginkgo.DeferCleanup(func() {
 				framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
 			})
-
 			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment.Namespace, deployment.Name,
-				func(deployment *appsv1.Deployment) bool { return true })
+				func(*appsv1.Deployment) bool { return true })
 		})
 
-		ginkgo.It("change labels to testing deployment reschedule", func() {
+		ginkgo.It("change labels to testing deployment reschedule(ClusterPropagationPolicy)", func() {
 			labelsUpdate := map[string]string{labelKey: "not_ok"}
 			framework.UpdateClusterLabels(karmadaClient, targetMember, labelsUpdate)
 			framework.WaitDeploymentDisappearOnCluster(targetMember, deployment.Namespace, deployment.Name)
@@ -424,7 +439,7 @@ var _ = ginkgo.Describe("[cluster labels changed] reschedule testing while polic
 			labelsUpdate = map[string]string{labelKey: "ok"}
 			framework.UpdateClusterLabels(karmadaClient, targetMember, labelsUpdate)
 			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment.Namespace, deployment.Name,
-				func(deployment *appsv1.Deployment) bool { return true })
+				func(*appsv1.Deployment) bool { return true })
 		})
 	})
 })

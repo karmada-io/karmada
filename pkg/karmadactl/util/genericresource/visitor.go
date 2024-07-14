@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package genericresource
 
 import (
@@ -227,11 +243,16 @@ type httpget func(url string) (int, string, io.ReadCloser, error)
 
 // httpgetImpl Implements a function to retrieve a url and return the results.
 func httpgetImpl(url string) (int, string, io.ReadCloser, error) {
-	// nolint:gosec
-	resp, err := http.Get(url)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return 0, "", nil, err
 	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, "", nil, err
+	}
+
 	return resp.StatusCode, resp.Status, resp.Body, nil
 }
 
@@ -269,10 +290,9 @@ func readHTTPWithRetries(get httpget, duration time.Duration, u string, attempts
 		if statusCode >= 500 && statusCode < 600 {
 			// Retry 500's
 			continue
-		} else {
-			// Don't retry other StatusCodes
-			break
 		}
+		// Don't retry other StatusCodes
+		break
 	}
 	return nil, err
 }

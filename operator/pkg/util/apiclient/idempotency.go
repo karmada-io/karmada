@@ -1,13 +1,31 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package apiclient
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	crdsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -25,7 +43,7 @@ import (
 
 var errAllocated = errors.New("provided port is already allocated")
 
-// NewCRDsClient is to create a clientset ClientSet
+// NewCRDsClient is to create a Clientset
 func NewCRDsClient(c *rest.Config) (*crdsclient.Clientset, error) {
 	return crdsclient.NewForConfig(c)
 }
@@ -73,19 +91,27 @@ func CreateOrUpdateSecret(client clientset.Interface, secret *corev1.Secret) err
 func CreateOrUpdateService(client clientset.Interface, service *corev1.Service) error {
 	_, err := client.CoreV1().Services(service.GetNamespace()).Create(context.TODO(), service, metav1.CreateOptions{})
 	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			_, err := client.CoreV1().Services(service.GetNamespace()).Update(context.TODO(), service, metav1.UpdateOptions{})
+		if !apierrors.IsAlreadyExists(err) {
+			// Ignore if the Service is invalid with this error message:
+			// Service "apiserver" is invalid: provided Port is already allocated.
+			if apierrors.IsInvalid(err) && strings.Contains(err.Error(), errAllocated.Error()) {
+				klog.V(2).ErrorS(err, "failed to create or update service", "service", klog.KObj(service))
+				return nil
+			}
+			return fmt.Errorf("unable to create Service: %v", err)
+		}
+
+		older, err := client.CoreV1().Services(service.GetNamespace()).Get(context.TODO(), service.GetName(), metav1.GetOptions{})
+		if err != nil {
 			return err
 		}
 
-		// Ignore if the Service is invalid with this error message:
-		// Service "apiserver" is invalid: provided Port is already allocated.
-		if apierrors.IsInvalid(err) && strings.Contains(err.Error(), errAllocated.Error()) {
-			klog.V(2).ErrorS(err, "failed to create or update serivce", "service", klog.KObj(service))
-			return nil
+		service.ResourceVersion = older.ResourceVersion
+		service.Spec.ClusterIP = older.Spec.ClusterIP
+		service.Spec.ClusterIPs = older.Spec.ClusterIPs
+		if _, err := client.CoreV1().Services(service.GetNamespace()).Update(context.TODO(), service, metav1.UpdateOptions{}); err != nil {
+			return fmt.Errorf("unable to update Service: %v", err)
 		}
-
-		return err
 	}
 
 	klog.V(5).InfoS("Successfully created or updated service", "service", service.GetName())
@@ -175,7 +201,7 @@ func CreateOrUpdateAPIService(apiRegistrationClient *aggregator.Clientset, apise
 		}
 	}
 
-	klog.V(5).Infof("Successfully created or updated APIService", "APIService", apiservice.Name)
+	klog.V(5).InfoS("Successfully created or updated APIService", "APIService", apiservice.Name)
 	return nil
 }
 
@@ -195,7 +221,7 @@ func CreateCustomResourceDefinitionIfNeed(client *crdsclient.Clientset, obj *api
 	return nil
 }
 
-// PatchCustomResourceDefinition patchs a crd resource.
+// PatchCustomResourceDefinition patches a crd resource.
 func PatchCustomResourceDefinition(client *crdsclient.Clientset, name string, data []byte) error {
 	crd := client.ApiextensionsV1().CustomResourceDefinitions()
 	if _, err := crd.Patch(context.TODO(), name, types.StrategicMergePatchType, data, metav1.PatchOptions{}); err != nil {
@@ -207,26 +233,51 @@ func PatchCustomResourceDefinition(client *crdsclient.Clientset, name string, da
 }
 
 // CreateOrUpdateStatefulSet creates a StatefulSet if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
-func CreateOrUpdateStatefulSet(client clientset.Interface, statefuleSet *appsv1.StatefulSet) error {
-	_, err := client.AppsV1().StatefulSets(statefuleSet.GetNamespace()).Create(context.TODO(), statefuleSet, metav1.CreateOptions{})
+func CreateOrUpdateStatefulSet(client clientset.Interface, statefulSet *appsv1.StatefulSet) error {
+	_, err := client.AppsV1().StatefulSets(statefulSet.GetNamespace()).Create(context.TODO(), statefulSet, metav1.CreateOptions{})
 	if err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return err
 		}
 
-		older, err := client.AppsV1().StatefulSets(statefuleSet.GetNamespace()).Get(context.TODO(), statefuleSet.GetName(), metav1.GetOptions{})
+		older, err := client.AppsV1().StatefulSets(statefulSet.GetNamespace()).Get(context.TODO(), statefulSet.GetName(), metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 
-		statefuleSet.ResourceVersion = older.ResourceVersion
-		_, err = client.AppsV1().StatefulSets(statefuleSet.GetNamespace()).Update(context.TODO(), statefuleSet, metav1.UpdateOptions{})
+		statefulSet.ResourceVersion = older.ResourceVersion
+		_, err = client.AppsV1().StatefulSets(statefulSet.GetNamespace()).Update(context.TODO(), statefulSet, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
 	}
 
-	klog.V(5).InfoS("Successfully created or updated statefulset", "statefulset", statefuleSet.GetName)
+	klog.V(5).InfoS("Successfully created or updated statefulset", "statefulset", statefulSet.GetName())
+	return nil
+}
+
+// CreateOrUpdateClusterRole creates a Clusterrole if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
+func CreateOrUpdateClusterRole(client clientset.Interface, clusterrole *rbacv1.ClusterRole) error {
+	_, err := client.RbacV1().ClusterRoles().Create(context.TODO(), clusterrole, metav1.CreateOptions{})
+
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+
+		older, err := client.RbacV1().ClusterRoles().Get(context.TODO(), clusterrole.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		clusterrole.ResourceVersion = older.ResourceVersion
+		_, err = client.RbacV1().ClusterRoles().Update(context.TODO(), clusterrole, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	klog.V(4).InfoS("Successfully created or updated clusterrole", "clusterrole", clusterrole.GetName())
 	return nil
 }
 
@@ -248,7 +299,7 @@ func DeleteDeploymentIfHasLabels(client clientset.Interface, name, namespace str
 	return client.AppsV1().Deployments(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
 
-// DeleteStatefulSetIfHasLabels deletes a StatefuleSet that exists the given labels.
+// DeleteStatefulSetIfHasLabels deletes a StatefulSet that exists the given labels.
 func DeleteStatefulSetIfHasLabels(client clientset.Interface, name, namespace string, ls labels.Set) error {
 	sts, err := client.AppsV1().StatefulSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {

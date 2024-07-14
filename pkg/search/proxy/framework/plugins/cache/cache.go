@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package cache
 
 import (
@@ -16,9 +32,12 @@ import (
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/client-go/kubernetes/scheme"
 
+	"github.com/karmada-io/karmada/pkg/printers"
+	printerstorage "github.com/karmada-io/karmada/pkg/printers/storage"
 	"github.com/karmada-io/karmada/pkg/search/proxy/framework"
 	pluginruntime "github.com/karmada-io/karmada/pkg/search/proxy/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/search/proxy/store"
+	printerslifted "github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
 const (
@@ -67,9 +86,11 @@ func (c *Cache) SupportRequest(request framework.ProxyRequest) bool {
 func (c *Cache) Connect(_ context.Context, request framework.ProxyRequest) (http.Handler, error) {
 	requestInfo := request.RequestInfo
 	r := &rester{
-		store:          c.store,
-		gvr:            request.GroupVersionResource,
-		tableConvertor: rest.NewDefaultTableConvertor(request.GroupVersionResource.GroupResource()),
+		store: c.store,
+		gvr:   request.GroupVersionResource,
+		tableConvertor: printerstorage.NewTableConvertor(
+			rest.NewDefaultTableConvertor(request.GroupVersionResource.GroupResource()),
+			printers.NewTableGenerator().With(printerslifted.AddCoreV1Handlers)),
 	}
 
 	gvk, err := c.restMapper.KindFor(request.GroupVersionResource)
@@ -92,6 +113,7 @@ func (c *Cache) Connect(_ context.Context, request framework.ProxyRequest) (http
 		Convertor:        runtime.NewScheme(),
 		Subresource:      requestInfo.Subresource,
 		MetaGroupVersion: metav1.SchemeGroupVersion,
+		TableConvertor:   r.tableConvertor,
 	}
 
 	var h http.Handler

@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package binding
 
 import (
@@ -10,7 +26,6 @@ import (
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 func Test_mergeTargetClusters(t *testing.T) {
@@ -87,14 +102,14 @@ func Test_mergeTargetClusters(t *testing.T) {
 func Test_mergeLabel(t *testing.T) {
 	namespace := "fake-ns"
 	bindingName := "fake-bindingName"
+	rbID := "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"
 
 	tests := []struct {
-		name          string
-		workload      *unstructured.Unstructured
-		workNamespace string
-		binding       metav1.Object
-		scope         v1.ResourceScope
-		want          map[string]string
+		name     string
+		workload *unstructured.Unstructured
+		binding  metav1.Object
+		scope    v1.ResourceScope
+		want     map[string]string
 	}{
 		{
 			name: "NamespaceScoped",
@@ -108,16 +123,18 @@ func Test_mergeLabel(t *testing.T) {
 					},
 				},
 			},
-			workNamespace: namespace,
 			binding: &workv1alpha2.ClusterResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      bindingName,
 					Namespace: namespace,
+					Labels: map[string]string{
+						workv1alpha2.ResourceBindingPermanentIDLabel: rbID,
+					},
 				},
 			},
 			scope: v1.NamespaceScoped,
 			want: map[string]string{
-				workv1alpha2.ResourceBindingReferenceKey: names.GenerateBindingReferenceKey(namespace, bindingName),
+				workv1alpha2.ResourceBindingPermanentIDLabel: rbID,
 			},
 		},
 		{
@@ -134,17 +151,29 @@ func Test_mergeLabel(t *testing.T) {
 			binding: &workv1alpha2.ClusterResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: bindingName,
+					Labels: map[string]string{
+						workv1alpha2.ClusterResourceBindingPermanentIDLabel: rbID,
+					},
 				},
 			},
 			scope: v1.ClusterScoped,
 			want: map[string]string{
-				workv1alpha2.ClusterResourceBindingReferenceKey: names.GenerateBindingReferenceKey("", bindingName),
+				workv1alpha2.ClusterResourceBindingPermanentIDLabel: rbID,
 			},
 		},
 	}
+
+	checker := func(got, want map[string]string) bool {
+		for key, val := range want {
+			if got[key] != val {
+				return false
+			}
+		}
+		return true
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := mergeLabel(tt.workload, tt.workNamespace, tt.binding, tt.scope); !reflect.DeepEqual(got, tt.want) {
+			if got := mergeLabel(tt.workload, tt.binding, tt.scope); !checker(got, tt.want) {
 				t.Errorf("mergeLabel() = %v, want %v", got, tt.want)
 			}
 		})

@@ -1,9 +1,25 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package interpret
 
 import (
 	"testing"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 
 	cmdtesting "github.com/karmada-io/karmada/pkg/karmadactl/util/testing"
@@ -47,6 +63,7 @@ spec:
             containers:
                 - image: nginx:alpine
                   name: nginx
+status: {}
 `,
 		},
 		{
@@ -188,7 +205,7 @@ status:
 			tf := cmdtesting.NewTestFactory()
 			defer tf.Cleanup()
 
-			streams, _, buf, _ := genericclioptions.NewTestIOStreams()
+			streams, _, buf, _ := genericiooptions.NewTestIOStreams()
 			tt.options.IOStreams = streams
 			if err := tt.options.Complete(tf, nil, nil); err != nil {
 				t.Fatal(err)

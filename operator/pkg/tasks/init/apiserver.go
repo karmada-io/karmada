@@ -1,9 +1,24 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package tasks
 
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"k8s.io/klog/v2"
 
@@ -104,7 +119,7 @@ func runWaitKarmadaAPIServer(r workflow.RunData) error {
 		return errors.New("wait-KarmadaAPIServer task invoked with an invalid data struct")
 	}
 
-	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConfig(), data.RemoteClient(), time.Second*30)
+	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConfig(), data.RemoteClient(), componentBeReadyTimeout)
 
 	err := waiter.WaitForSomePods(karmadaApiserverLabels.String(), data.GetNamespace(), 1)
 	if err != nil {
@@ -147,11 +162,11 @@ func runWaitKarmadaAggregatedAPIServer(r workflow.RunData) error {
 		return errors.New("wait-KarmadaAggregatedAPIServer task invoked with an invalid data struct")
 	}
 
-	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConfig(), data.RemoteClient(), time.Second*30)
+	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConfig(), data.RemoteClient(), componentBeReadyTimeout)
 
 	err := waiter.WaitForSomePods(karmadaAggregatedAPIServerLabels.String(), data.GetNamespace(), 1)
 	if err != nil {
-		return fmt.Errorf("waiting for karmada-apiserver to ready timeout, err: %w", err)
+		return fmt.Errorf("waiting for karmada-aggregated-apiserver to ready timeout, err: %w", err)
 	}
 
 	klog.V(2).InfoS("[wait-KarmadaAggregatedAPIServer] the karmada-aggregated-apiserver is ready", "karmada", klog.KObj(data))

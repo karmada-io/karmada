@@ -1,3 +1,19 @@
+/*
+Copyright 2020 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package v1alpha1
 
 import (
@@ -27,7 +43,10 @@ const (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:shortName=pp,categories={karmada-io}
+// +kubebuilder:resource:path=propagationpolicies,scope=Namespaced,shortName=pp,categories={karmada-io}
+// +kubebuilder:printcolumn:JSONPath=`.spec.conflictResolution`,name="CONFLICT-RESOLUTION",type=string
+// +kubebuilder:printcolumn:JSONPath=`.spec.priority`,name="PRIORITY",type=string
+// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="AGE",type=date
 
 // PropagationPolicy represents the policy that propagates a group of resources to one or more clusters.
 type PropagationPolicy struct {
@@ -136,6 +155,27 @@ type PropagationSpec struct {
 	// +kubebuilder:validation:Enum=Abort;Overwrite
 	// +optional
 	ConflictResolution ConflictResolution `json:"conflictResolution,omitempty"`
+
+	// ActivationPreference indicates how the referencing resource template will
+	// be propagated, in case of policy changes.
+	//
+	// If empty, the resource template will respond to policy changes
+	// immediately, in other words, any policy changes will drive the resource
+	// template to be propagated immediately as per the current propagation rules.
+	//
+	// If the value is 'Lazy' means the policy changes will not take effect for now
+	// but defer to the resource template changes, in other words, the resource
+	// template will not be propagated as per the current propagation rules until
+	// there is an update on it.
+	// This is an experimental feature that might help in a scenario where a policy
+	// manages huge amount of resource templates, changes to a policy typically
+	// affect numerous applications simultaneously. A minor misconfiguration
+	// could lead to widespread failures. With this feature, the change can be
+	// gradually rolled out through iterative modifications of resource templates.
+	//
+	// +kubebuilder:validation:Enum=Lazy
+	// +optional
+	ActivationPreference ActivationPreference `json:"activationPreference,omitempty"`
 }
 
 // ResourceSelector the resources will be selected.
@@ -502,6 +542,16 @@ const (
 	ConflictAbort ConflictResolution = "Abort"
 )
 
+// ActivationPreference indicates how the referencing resource template will be propagated, in case of policy changes.
+type ActivationPreference string
+
+const (
+	// LazyActivation means the policy changes will not take effect for now but defer to the resource template changes,
+	// in other words, the resource template will not be propagated as per the current propagation rules until
+	// there is an update on it.
+	LazyActivation ActivationPreference = "Lazy"
+)
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // PropagationPolicyList contains a list of PropagationPolicy.
@@ -513,8 +563,11 @@ type PropagationPolicyList struct {
 
 // +genclient
 // +genclient:nonNamespaced
-// +kubebuilder:resource:scope="Cluster",shortName=cpp,categories={karmada-io}
+// +kubebuilder:resource:path=clusterpropagationpolicies,scope="Cluster",shortName=cpp,categories={karmada-io}
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:printcolumn:JSONPath=`.spec.conflictResolution`,name="CONFLICT-RESOLUTION",type=string
+// +kubebuilder:printcolumn:JSONPath=`.spec.priority`,name="PRIORITY",type=string
+// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="AGE",type=date
 
 // ClusterPropagationPolicy represents the cluster-wide policy that propagates a group of resources to one or more clusters.
 // Different with PropagationPolicy that could only propagate resources in its own namespace, ClusterPropagationPolicy

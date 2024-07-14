@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package store
 
 import (
@@ -195,9 +211,21 @@ func (w *watchMux) AddSource(watcher watch.Interface, decorator func(watch.Event
 
 // Start run the watcher
 func (w *watchMux) Start() {
-	for _, source := range w.sources {
-		go w.startWatchSource(source.watcher, source.decorator)
+	wg := sync.WaitGroup{}
+	for i := range w.sources {
+		source := w.sources[i]
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			w.startWatchSource(source.watcher, source.decorator)
+		}()
 	}
+
+	go func() {
+		// close result chan after all goroutines exit, avoiding data race.
+		defer close(w.result)
+		wg.Wait()
+	}()
 }
 
 // ResultChan implements watch.Interface
@@ -220,7 +248,6 @@ func (w *watchMux) Stop() {
 	case <-w.done:
 	default:
 		close(w.done)
-		close(w.result)
 	}
 }
 
@@ -246,19 +273,8 @@ func (w *watchMux) startWatchSource(source watch.Interface, decorator func(watch
 		select {
 		case <-w.done:
 			return
-		default:
+		case w.result <- copyEvent:
 		}
-
-		func() {
-			w.lock.RLock()
-			defer w.lock.RUnlock()
-			select {
-			case <-w.done:
-				return
-			default:
-				w.result <- copyEvent
-			}
-		}()
 	}
 }
 
@@ -299,9 +315,9 @@ func (n *MultiNamespace) Single() (string, bool) {
 	if n.allNamespaces || n.namespaces.Len() != 1 {
 		return "", false
 	}
-	var ns string
-	for ns = range n.namespaces {
-	}
+
+	// reach here means there is exactly one namespace, so we can safely get it.
+	ns := sets.List(n.namespaces)[0]
 	return ns, true
 }
 

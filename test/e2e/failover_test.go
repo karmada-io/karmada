@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package e2e
 
 import (
@@ -13,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -126,7 +142,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 					err := recoverCluster(controlPlaneClient, disabledCluster, originalAPIEndpoint)
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 					// wait for the disabled cluster recovered
-					err = wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+					err = wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(_ context.Context) (done bool, err error) {
 						currentCluster, err := util.GetCluster(controlPlaneClient, disabledCluster)
 						if err != nil {
 							return false, err
@@ -139,6 +155,10 @@ var _ = framework.SerialDescribe("failover testing", func() {
 					})
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				}
+			})
+
+			ginkgo.By("check whether the deployment disappears in the recovered clusters", func() {
+				framework.WaitDeploymentDisappearOnClusters(disabledClusters, deploymentNamespace, deploymentName)
 			})
 		})
 	})
@@ -176,7 +196,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 						Key:               "fail-test",
 						Effect:            corev1.TaintEffectNoExecute,
 						Operator:          corev1.TolerationOpExists,
-						TolerationSeconds: pointer.Int64(3),
+						TolerationSeconds: ptr.To[int64](3),
 					},
 				},
 				SpreadConstraints: []policyv1alpha1.SpreadConstraint{
@@ -219,7 +239,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 				}
 			})
 
-			ginkgo.By("check whether deployment of failed cluster is rescheduled to other available cluster", func() {
+			ginkgo.By("check whether deployment of taint cluster is rescheduled to other available cluster", func() {
 				gomega.Eventually(func() int {
 					targetClusterNames = framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 					for _, targetClusterName := range targetClusterNames {
@@ -239,6 +259,10 @@ var _ = framework.SerialDescribe("failover testing", func() {
 					err := recoverTaintedCluster(controlPlaneClient, disabledCluster, taint)
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				}
+			})
+
+			ginkgo.By("check whether the deployment disappears in the recovered clusters", func() {
+				framework.WaitDeploymentDisappearOnClusters(disabledClusters, deploymentNamespace, deploymentName)
 			})
 		})
 	})
@@ -288,10 +312,10 @@ var _ = framework.SerialDescribe("failover testing", func() {
 					Failover: &policyv1alpha1.FailoverBehavior{
 						Application: &policyv1alpha1.ApplicationFailoverBehavior{
 							DecisionConditions: policyv1alpha1.DecisionConditions{
-								TolerationSeconds: pointer.Int32(30),
+								TolerationSeconds: ptr.To[int32](30),
 							},
 							PurgeMode:          policyv1alpha1.Graciously,
-							GracePeriodSeconds: pointer.Int32(30),
+							GracePeriodSeconds: ptr.To[int32](30),
 						},
 					},
 				},
@@ -307,7 +331,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 			})
 		})
 
-		ginkgo.It("application failover", func() {
+		ginkgo.It("application failover with purgeMode graciously", func() {
 			disabledClusters := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 			ginkgo.By("create an error op", func() {
 				overridePolicy = testhelper.NewOverridePolicyByOverrideRules(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
@@ -369,7 +393,6 @@ var _ = framework.SerialDescribe("failover testing", func() {
 				framework.RemoveOverridePolicy(karmadaClient, policyNamespace, policyName)
 			})
 		})
-
 	})
 
 	ginkgo.Context("Application failover testing with purgeMode never", func() {
@@ -417,7 +440,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 					Failover: &policyv1alpha1.FailoverBehavior{
 						Application: &policyv1alpha1.ApplicationFailoverBehavior{
 							DecisionConditions: policyv1alpha1.DecisionConditions{
-								TolerationSeconds: pointer.Int32(30),
+								TolerationSeconds: ptr.To[int32](30),
 							},
 							PurgeMode: policyv1alpha1.Never,
 						},
@@ -435,7 +458,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 			})
 		})
 
-		ginkgo.It("application failover", func() {
+		ginkgo.It("application failover with purgeMode never", func() {
 			disabledClusters := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 			ginkgo.By("create an error op", func() {
 				overridePolicy = testhelper.NewOverridePolicyByOverrideRules(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
@@ -490,23 +513,21 @@ var _ = framework.SerialDescribe("failover testing", func() {
 			})
 
 			ginkgo.By("check whether the failed deployment is present on the disabledClusters", func() {
-				framework.WaitDeploymentPresentOnClustersFitWith(disabledClusters, deploymentNamespace, deploymentName, func(deployment *appsv1.Deployment) bool { return true })
+				framework.WaitDeploymentPresentOnClustersFitWith(disabledClusters, deploymentNamespace, deploymentName, func(*appsv1.Deployment) bool { return true })
 			})
 
 			ginkgo.By("delete the error op", func() {
 				framework.RemoveOverridePolicy(karmadaClient, policyNamespace, policyName)
 			})
 		})
-
 	})
-
 })
 
 // disableCluster will set wrong API endpoint of current cluster
 func disableCluster(c client.Client, clusterName string) error {
-	err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
-		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
+		if err := c.Get(ctx, client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil
 			}
@@ -515,7 +536,7 @@ func disableCluster(c client.Client, clusterName string) error {
 		// set the APIEndpoint of matched cluster to a wrong value
 		unavailableAPIEndpoint := "https://172.19.1.3:6443"
 		clusterObj.Spec.APIEndpoint = unavailableAPIEndpoint
-		if err := c.Update(context.TODO(), clusterObj); err != nil {
+		if err := c.Update(ctx, clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil
 			}
@@ -528,16 +549,16 @@ func disableCluster(c client.Client, clusterName string) error {
 
 // taintCluster will taint cluster
 func taintCluster(c client.Client, clusterName string, taint corev1.Taint) error {
-	err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
-		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
+		if err := c.Get(ctx, client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil
 			}
 			return false, err
 		}
 		clusterObj.Spec.Taints = append(clusterObj.Spec.Taints, taint)
-		if err := c.Update(context.TODO(), clusterObj); err != nil {
+		if err := c.Update(ctx, clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil
 			}
@@ -550,16 +571,16 @@ func taintCluster(c client.Client, clusterName string, taint corev1.Taint) error
 
 // recoverTaintedCluster will recover the taint of the disabled cluster
 func recoverTaintedCluster(c client.Client, clusterName string, taint corev1.Taint) error {
-	err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
-		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
+		if err := c.Get(ctx, client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil
 			}
 			return false, err
 		}
 		clusterObj.Spec.Taints = helper.SetCurrentClusterTaints(nil, []*corev1.Taint{&taint}, clusterObj)
-		if err := c.Update(context.TODO(), clusterObj); err != nil {
+		if err := c.Update(ctx, clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil
 			}
@@ -572,13 +593,13 @@ func recoverTaintedCluster(c client.Client, clusterName string, taint corev1.Tai
 
 // recoverCluster will recover API endpoint of the disable cluster
 func recoverCluster(c client.Client, clusterName string, originalAPIEndpoint string) error {
-	err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
-		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
+		if err := c.Get(ctx, client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
 			return false, err
 		}
 		clusterObj.Spec.APIEndpoint = originalAPIEndpoint
-		if err := c.Update(context.TODO(), clusterObj); err != nil {
+		if err := c.Update(ctx, clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil
 			}

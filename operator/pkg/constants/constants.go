@@ -1,9 +1,26 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package constants
 
 import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 const (
@@ -12,11 +29,9 @@ const (
 	// KarmadaDefaultRepository defines the default of the karmada image repository
 	KarmadaDefaultRepository = "docker.io/karmada"
 	// EtcdDefaultVersion defines the default of the karmada etcd image tag
-	EtcdDefaultVersion = "3.5.9-0"
-	// KarmadaDefaultVersion defines the default of the karmada components image tag
-	KarmadaDefaultVersion = "v1.6.0"
+	EtcdDefaultVersion = "3.5.13-0"
 	// KubeDefaultVersion defines the default of the karmada apiserver and kubeControllerManager image tag
-	KubeDefaultVersion = "v1.25.4"
+	KubeDefaultVersion = "v1.28.9"
 	// KarmadaDefaultServiceSubnet defines the default of the subnet used by k8s services.
 	KarmadaDefaultServiceSubnet = "10.96.0.0/12"
 	// KarmadaDefaultDNSDomain defines the default of the DNSDomain
@@ -40,8 +55,12 @@ const (
 	KarmadaScheduler = "karmada-scheduler"
 	// KarmadaWebhook defines the name of the karmada-webhook component
 	KarmadaWebhook = "karmada-webhook"
+	// KarmadaSearch defines the name of the karmada-search component
+	KarmadaSearch = "karmada-search"
 	// KarmadaDescheduler defines the name of the karmada-descheduler component
 	KarmadaDescheduler = "karmada-descheduler"
+	// KarmadaMetricsAdapter defines the name of the karmada-metrics-adapter component
+	KarmadaMetricsAdapter = "karmada-metrics-adapter"
 
 	// KarmadaSystemNamespace defines the leader selection namespace for karmada components
 	KarmadaSystemNamespace = "karmada-system"
@@ -94,14 +113,33 @@ const (
 	KarmadaSchedulerComponent = "KarmadaScheduler"
 	// KarmadaWebhookComponent defines the name of the karmada-webhook component
 	KarmadaWebhookComponent = "KarmadaWebhook"
+	// KarmadaSearchComponent defines the name of the karmada-search component
+	KarmadaSearchComponent = "KarmadaSearch"
 	// KarmadaDeschedulerComponent defines the name of the karmada-descheduler component
 	KarmadaDeschedulerComponent = "KarmadaDescheduler"
+	// KarmadaMetricsAdapterComponent defines the name of the karmada-metrics-adapter component
+	KarmadaMetricsAdapterComponent = "KarmadaMetricsAdapter"
 
 	// KarmadaOperatorLabelKeyName defines a label key used by all resources created by karmada operator
 	KarmadaOperatorLabelKeyName = "app.kubernetes.io/managed-by"
+
+	// APIServiceName defines the karmada aggregated apiserver APIService resource name.
+	APIServiceName = "v1alpha1.cluster.karmada.io"
 )
 
 var (
 	// KarmadaOperatorLabel defines the default labels in the resource create by karmada operator
 	KarmadaOperatorLabel = labels.Set{KarmadaOperatorLabelKeyName: KarmadaOperator}
+
+	// KarmadaMetricsAdapterAPIServices defines the GroupVersions of all karmada-metrics-adapter APIServices
+	KarmadaMetricsAdapterAPIServices = []schema.GroupVersion{
+		{Group: "metrics.k8s.io", Version: "v1beta1"},
+		{Group: "custom.metrics.k8s.io", Version: "v1beta1"},
+		{Group: "custom.metrics.k8s.io", Version: "v1beta2"},
+	}
+
+	// KarmadaSearchAPIServices defines the GroupVersions of all karmada-search APIServices
+	KarmadaSearchAPIServices = []schema.GroupVersion{
+		{Group: "search.karmada.io", Version: "v1alpha1"},
+	}
 )

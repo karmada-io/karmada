@@ -1,8 +1,13 @@
 reviewers:
-- lfbear
-- mrlihanbo
+- chaosi-zju
 - ikaven1024
+- lfbear
+- liangyuanpeng
+- mrlihanbo
+- zhzhuang-zju
 approvers:
 - ikaven1024
+- liangyuanpeng
 - lfbear
 - mrlihanbo
+- zhzhuang-zju

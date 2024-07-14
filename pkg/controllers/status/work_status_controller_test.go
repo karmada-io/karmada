@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package status
 
 import (
@@ -24,6 +40,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -32,6 +49,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
+	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
 func newCluster(name string, clusterType string, clusterStatus metav1.ConditionStatus) *clusterv1alpha1.Cluster {
@@ -67,9 +85,8 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 					&clusterv1alpha1.Cluster{
 						ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
 						Spec: clusterv1alpha1.ClusterSpec{
-							APIEndpoint:                 "https://127.0.0.1",
-							SecretRef:                   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
-							InsecureSkipTLSVerification: true,
+							APIEndpoint: "https://127.0.0.1",
+							SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
 						},
 						Status: clusterv1alpha1.ClusterStatus{
 							Conditions: []metav1.Condition{
@@ -82,7 +99,7 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 					},
 					&corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
-						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token")},
+						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
 					}).Build(),
 				InformerManager:             genericmanager.GetInstance(),
 				PredicateFunc:               helper.NewClusterPredicateOnAgent("test"),
@@ -218,7 +235,7 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 				},
 			},
 			ns:        "karmada-cluster",
-			expectRes: controllerruntime.Result{Requeue: true},
+			expectRes: controllerruntime.Result{},
 			existErr:  true,
 		},
 		{
@@ -246,7 +263,7 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 				},
 			},
 			ns:        "karmada-es-cluster",
-			expectRes: controllerruntime.Result{Requeue: true},
+			expectRes: controllerruntime.Result{},
 			existErr:  true,
 		},
 		{
@@ -274,7 +291,7 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 				},
 			},
 			ns:        "karmada-es-cluster",
-			expectRes: controllerruntime.Result{Requeue: true},
+			expectRes: controllerruntime.Result{},
 			existErr:  true,
 		},
 	}
@@ -325,7 +342,7 @@ func TestWorkStatusController_getEventHandler(t *testing.T) {
 	assert.NotEmpty(t, eventHandler)
 }
 
-func TestWorkStatusController_RunWorkQueue(t *testing.T) {
+func TestWorkStatusController_RunWorkQueue(_ *testing.T) {
 	c := WorkStatusController{
 		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)).Build(),
 		InformerManager:             genericmanager.GetInstance(),
@@ -355,8 +372,8 @@ func TestGenerateKey(t *testing.T) {
 					"metadata": map[string]interface{}{
 						"name":      "test",
 						"namespace": "default",
-						"labels": map[string]interface{}{
-							workv1alpha1.WorkNamespaceLabel: "karmada-es-cluster",
+						"annotations": map[string]interface{}{
+							workv1alpha2.WorkNamespaceAnnotation: "karmada-es-cluster",
 						},
 					},
 				},
@@ -365,7 +382,7 @@ func TestGenerateKey(t *testing.T) {
 			existErr: false,
 		},
 		{
-			name: "getClusterNameFromLabel failed",
+			name: "getClusterNameFromAnnotation failed",
 			obj: &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "v1",
@@ -373,8 +390,8 @@ func TestGenerateKey(t *testing.T) {
 					"metadata": map[string]interface{}{
 						"name":      "test",
 						"namespace": "default",
-						"labels": map[string]interface{}{
-							workv1alpha1.WorkNamespaceLabel: "karmada-cluster",
+						"annotations": map[string]interface{}{
+							workv1alpha2.WorkNamespaceAnnotation: "karmada-cluster",
 						},
 					},
 				},
@@ -391,7 +408,7 @@ func TestGenerateKey(t *testing.T) {
 					"metadata": map[string]interface{}{
 						"name":      "test",
 						"namespace": "default",
-						"labels": map[string]interface{}{
+						"annotations": map[string]interface{}{
 							"test": "karmada-es-cluster",
 						},
 					},
@@ -420,7 +437,7 @@ func TestGenerateKey(t *testing.T) {
 	}
 }
 
-func TestGetClusterNameFromLabel(t *testing.T) {
+func TestGetClusterNameFromAnnotation(t *testing.T) {
 	tests := []struct {
 		name     string
 		resource *unstructured.Unstructured
@@ -436,8 +453,8 @@ func TestGetClusterNameFromLabel(t *testing.T) {
 					"metadata": map[string]interface{}{
 						"name":      "test",
 						"namespace": "default",
-						"labels": map[string]interface{}{
-							workv1alpha1.WorkNamespaceLabel: "karmada-es-cluster",
+						"annotations": map[string]interface{}{
+							workv1alpha2.WorkNamespaceAnnotation: "karmada-es-cluster",
 						},
 					},
 				},
@@ -454,7 +471,7 @@ func TestGetClusterNameFromLabel(t *testing.T) {
 					"metadata": map[string]interface{}{
 						"name":      "test",
 						"namespace": "default",
-						"labels": map[string]interface{}{
+						"annotations": map[string]interface{}{
 							"foo": "karmada-es-cluster",
 						},
 					},
@@ -472,8 +489,8 @@ func TestGetClusterNameFromLabel(t *testing.T) {
 					"metadata": map[string]interface{}{
 						"name":      "test",
 						"namespace": "default",
-						"labels": map[string]interface{}{
-							workv1alpha1.WorkNamespaceLabel: "karmada-cluster",
+						"annotations": map[string]interface{}{
+							workv1alpha2.WorkNamespaceAnnotation: "karmada-cluster",
 						},
 					},
 				},
@@ -485,7 +502,7 @@ func TestGetClusterNameFromLabel(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actual, err := getClusterNameFromLabel(tt.resource)
+			actual, err := getClusterNameFromAnnotation(tt.resource)
 			assert.Equal(t, tt.expect, actual)
 			if tt.existErr {
 				assert.NotEmpty(t, err)
@@ -504,9 +521,9 @@ func newPodObj(namespace string) *unstructured.Unstructured {
 			"metadata": map[string]interface{}{
 				"name":      "pod",
 				"namespace": "default",
-				"labels": map[string]interface{}{
-					workv1alpha1.WorkNamespaceLabel: namespace,
-					workv1alpha1.WorkNameLabel:      "work-name",
+				"annotations": map[string]interface{}{
+					workv1alpha2.WorkNamespaceAnnotation: namespace,
+					workv1alpha2.WorkNameAnnotation:      "work-name",
 				},
 			},
 		},
@@ -514,16 +531,16 @@ func newPodObj(namespace string) *unstructured.Unstructured {
 	return obj
 }
 
-func newPod(workNs, workName string, wrongLabel ...bool) *corev1.Pod {
+func newPod(workNs, workName string, wrongAnnotations ...bool) *corev1.Pod {
 	var pod *corev1.Pod
-	if len(wrongLabel) > 0 && wrongLabel[0] == true {
+	if len(wrongAnnotations) > 0 && wrongAnnotations[0] == true {
 		pod = &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "pod",
 				Namespace: "default",
-				Labels: map[string]string{
-					"test":                     workNs,
-					workv1alpha1.WorkNameLabel: workName,
+				Annotations: map[string]string{
+					"test":                          workNs,
+					workv1alpha2.WorkNameAnnotation: workName,
 				},
 			},
 		}
@@ -532,9 +549,9 @@ func newPod(workNs, workName string, wrongLabel ...bool) *corev1.Pod {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "pod",
 				Namespace: "default",
-				Labels: map[string]string{
-					workv1alpha1.WorkNamespaceLabel: workNs,
-					workv1alpha1.WorkNameLabel:      workName,
+				Annotations: map[string]string{
+					workv1alpha2.WorkNamespaceAnnotation: workNs,
+					workv1alpha2.WorkNameAnnotation:      workName,
 				},
 			},
 		}
@@ -546,6 +563,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 	cluster := newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)
 	workName := "work"
 	workNs := "karmada-es-cluster"
+	workUID := "92345678-1234-5678-1234-567812345678"
 
 	tests := []struct {
 		name                      string
@@ -553,7 +571,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 		pod                       *corev1.Pod
 		raw                       []byte
 		controllerWithoutInformer bool
-		workWithRigntNS           bool
+		workWithRightNS           bool
 		expectedError             bool
 		workWithDeletionTimestamp bool
 		wrongWorkNS               bool
@@ -564,7 +582,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRigntNS:           true,
+			workWithRightNS:           true,
 			expectedError:             true,
 		},
 		{
@@ -573,7 +591,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRigntNS:           true,
+			workWithRightNS:           true,
 			expectedError:             true,
 		},
 		{
@@ -582,7 +600,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: false,
-			workWithRigntNS:           true,
+			workWithRightNS:           true,
 			expectedError:             true,
 		},
 		{
@@ -590,7 +608,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			obj:                       newPodObj("karmada-es-cluster"),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRigntNS:           true,
+			workWithRightNS:           true,
 			expectedError:             false,
 		},
 		{
@@ -599,7 +617,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName, true),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRigntNS:           true,
+			workWithRightNS:           true,
 			expectedError:             false,
 		},
 		{
@@ -608,7 +626,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRigntNS:           false,
+			workWithRightNS:           false,
 			expectedError:             false,
 		},
 		{
@@ -617,7 +635,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod1","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRigntNS:           true,
+			workWithRightNS:           true,
 			expectedError:             true,
 		},
 		{
@@ -626,7 +644,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRigntNS:           true,
+			workWithRightNS:           true,
 			expectedError:             true,
 			wrongWorkNS:               true,
 		},
@@ -654,14 +672,10 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			}
 
 			var work *workv1alpha1.Work
-			if tt.workWithRigntNS {
-				work = newWork(workName, workNs, tt.raw)
+			if tt.workWithRightNS {
+				work = testhelper.NewWork(workName, workNs, workUID, tt.raw)
 			} else {
-				work = newWork(workName, fmt.Sprintf("%v-test", workNs), tt.raw)
-			}
-
-			if tt.workWithDeletionTimestamp {
-				work = newWork(workName, workNs, tt.raw, false)
+				work = testhelper.NewWork(workName, fmt.Sprintf("%v-test", workNs), workUID, tt.raw)
 			}
 
 			key, _ := generateKey(tt.obj)
@@ -720,31 +734,6 @@ func newWorkStatusController(cluster *clusterv1alpha1.Cluster, dynamicClientSets
 	}
 
 	return c
-}
-
-func newWork(workName, workNs string, raw []byte, deletionTimestampIsZero ...bool) *workv1alpha1.Work {
-	work := &workv1alpha1.Work{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      workName,
-			Namespace: workNs,
-		},
-		Spec: workv1alpha1.WorkSpec{
-			Workload: workv1alpha1.WorkloadTemplate{
-				Manifests: []workv1alpha1.Manifest{
-					{RawExtension: runtime.RawExtension{
-						Raw: raw,
-					},
-					},
-				},
-			},
-		},
-	}
-
-	if len(deletionTimestampIsZero) > 0 && !deletionTimestampIsZero[0] {
-		work.DeletionTimestamp = &metav1.Time{Time: time.Now()}
-	}
-
-	return work
 }
 
 func TestWorkStatusController_getSingleClusterManager(t *testing.T) {
@@ -806,9 +795,8 @@ func TestWorkStatusController_getSingleClusterManager(t *testing.T) {
 					&clusterv1alpha1.Cluster{
 						ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
 						Spec: clusterv1alpha1.ClusterSpec{
-							APIEndpoint:                 "https://127.0.0.1",
-							SecretRef:                   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
-							InsecureSkipTLSVerification: true,
+							APIEndpoint: "https://127.0.0.1",
+							SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
 						},
 						Status: clusterv1alpha1.ClusterStatus{
 							Conditions: []metav1.Condition{
@@ -821,7 +809,7 @@ func TestWorkStatusController_getSingleClusterManager(t *testing.T) {
 					},
 					&corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
-						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token")},
+						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
 					}).Build()
 			}
 
@@ -852,8 +840,9 @@ func TestWorkStatusController_recreateResourceIfNeeded(t *testing.T) {
 		RateLimiterOptions:          ratelimiterflag.Options{},
 	}
 
+	workUID := "92345678-1234-5678-1234-567812345678"
 	raw := []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`)
-	work := newWork("work", "default", raw)
+	work := testhelper.NewWork("work", "default", workUID, raw)
 
 	obj := &unstructured.Unstructured{
 		Object: map[string]interface{}{
@@ -862,8 +851,8 @@ func TestWorkStatusController_recreateResourceIfNeeded(t *testing.T) {
 			"metadata": map[string]interface{}{
 				"name":      "pod1",
 				"namespace": "default",
-				"labels": map[string]interface{}{
-					workv1alpha1.WorkNamespaceLabel: "karmada-es-cluster",
+				"annotations": map[string]interface{}{
+					workv1alpha2.WorkNamespaceAnnotation: "karmada-es-cluster",
 				},
 			},
 		},
@@ -922,12 +911,12 @@ func TestWorkStatusController_buildStatusIdentifier(t *testing.T) {
 		Status: clusterv1alpha1.ClusterStatus{},
 	}
 	clusterObj, _ := helper.ToUnstructured(cluster)
-	clusterJson, _ := json.Marshal(clusterObj)
+	clusterJSON, _ := json.Marshal(clusterObj)
 
 	t.Run("normal case", func(t *testing.T) {
 		work.Spec.Workload.Manifests = []workv1alpha1.Manifest{
 			{
-				RawExtension: runtime.RawExtension{Raw: clusterJson},
+				RawExtension: runtime.RawExtension{Raw: clusterJSON},
 			},
 		}
 		idf, err := c.buildStatusIdentifier(work, clusterObj)
@@ -937,10 +926,10 @@ func TestWorkStatusController_buildStatusIdentifier(t *testing.T) {
 
 	t.Run("failed to GetManifestIndex", func(t *testing.T) {
 		wrongClusterObj, _ := helper.ToUnstructured(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue))
-		wrongClusterJson, _ := json.Marshal(wrongClusterObj)
+		wrongClusterJSON, _ := json.Marshal(wrongClusterObj)
 		work.Spec.Workload.Manifests = []workv1alpha1.Manifest{
 			{
-				RawExtension: runtime.RawExtension{Raw: wrongClusterJson},
+				RawExtension: runtime.RawExtension{Raw: wrongClusterJSON},
 			},
 		}
 		idf, err := c.buildStatusIdentifier(work, clusterObj)
@@ -982,8 +971,9 @@ func TestWorkStatusController_registerInformersAndStart(t *testing.T) {
 	}
 	c.worker = util.NewAsyncWorker(opt)
 
+	workUID := "92345678-1234-5678-1234-567812345678"
 	raw := []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`)
-	work := newWork("work", "default", raw)
+	work := testhelper.NewWork("work", "default", workUID, raw)
 
 	t.Run("normal case", func(t *testing.T) {
 		m := genericmanager.NewMultiClusterInformerManager(stopCh)

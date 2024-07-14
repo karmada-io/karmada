@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package status
 
 import (
@@ -51,7 +67,7 @@ func (c *RBStatusController) Reconcile(ctx context.Context, req controllerruntim
 			return controllerruntime.Result{}, nil
 		}
 
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	// The rb is being deleted, in which case we stop processing.
@@ -61,7 +77,7 @@ func (c *RBStatusController) Reconcile(ctx context.Context, req controllerruntim
 
 	err := c.syncBindingStatus(binding)
 	if err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	return controllerruntime.Result{}, nil
 }
@@ -69,7 +85,7 @@ func (c *RBStatusController) Reconcile(ctx context.Context, req controllerruntim
 // SetupWithManager creates a controller and register to controller manager.
 func (c *RBStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
 	workMapFunc := handler.MapFunc(
-		func(ctx context.Context, workObj client.Object) []reconcile.Request {
+		func(_ context.Context, workObj client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 
 			annotations := workObj.GetAnnotations()
@@ -88,6 +104,7 @@ func (c *RBStatusController) SetupWithManager(mgr controllerruntime.Manager) err
 		})
 
 	return controllerruntime.NewControllerManagedBy(mgr).Named("resourceBinding_status_controller").
+		For(&workv1alpha2.ResourceBinding{}, bindingPredicateFn).
 		Watches(&workv1alpha1.Work{}, handler.EnqueueRequestsFromMapFunc(workMapFunc), workPredicateFn).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
 		Complete(c)

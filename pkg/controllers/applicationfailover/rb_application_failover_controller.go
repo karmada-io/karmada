@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package applicationfailover
 
 import (
@@ -12,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -55,7 +71,7 @@ func (c *RBApplicationFailoverController) Reconcile(ctx context.Context, req con
 			c.workloadUnhealthyMap.delete(req.NamespacedName)
 			return controllerruntime.Result{}, nil
 		}
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !c.bindingFilter(binding) {
@@ -65,7 +81,7 @@ func (c *RBApplicationFailoverController) Reconcile(ctx context.Context, req con
 
 	retryDuration, err := c.syncBinding(binding)
 	if err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	if retryDuration > 0 {
 		klog.V(4).Infof("Retry to check health status of the workload after %v minutes.", retryDuration.Minutes())
@@ -151,7 +167,7 @@ func (c *RBApplicationFailoverController) evictBinding(binding *workv1alpha2.Res
 		case policyv1alpha1.Never:
 			if features.FeatureGate.Enabled(features.GracefulEviction) {
 				binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(workv1alpha2.WithProducer(RBApplicationFailoverControllerName),
-					workv1alpha2.WithReason(workv1alpha2.EvictionReasonApplicationFailure), workv1alpha2.WithSuppressDeletion(pointer.Bool(true))))
+					workv1alpha2.WithReason(workv1alpha2.EvictionReasonApplicationFailure), workv1alpha2.WithSuppressDeletion(ptr.To[bool](true))))
 			} else {
 				err := fmt.Errorf("GracefulEviction featureGate must be enabled when purgeMode is %s", policyv1alpha1.Never)
 				klog.Error(err)
@@ -212,7 +228,7 @@ func (c *RBApplicationFailoverController) SetupWithManager(mgr controllerruntime
 			}
 			return true
 		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool { return false },
+		GenericFunc: func(event.GenericEvent) bool { return false },
 	}
 
 	return controllerruntime.NewControllerManagedBy(mgr).

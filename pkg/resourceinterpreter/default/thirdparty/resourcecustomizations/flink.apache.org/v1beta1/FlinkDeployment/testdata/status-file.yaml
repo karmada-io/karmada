@@ -1,0 +1,31 @@
+applied: true
+clusterName: member1
+health: Healthy
+status:
+  clusterInfo:
+    flink-revision: 2750d5c @ 2023-05-19T10:45:46+02:00
+    flink-version: 1.17.1
+    total-cpu: "2.0"
+    total-memory: "4294967296"
+  jobManagerDeploymentStatus: READY
+  jobStatus:
+    checkpointInfo:
+      lastPeriodicCheckpointTimestamp: 0
+    jobId: 44cc5573945d1d4925732d915c70b9ac
+    jobName: Minimal Spec Example
+    savepointInfo:
+      lastPeriodicSavepointTimestamp: 0
+      savepointHistory: []
+    startTime: "1717599166365"
+    state: RUNNING
+    updateTime: "1717599182544"
+  lifecycleState: STABLE
+  observedGeneration: 1
+  reconciliationStatus:
+    lastReconciledSpec: '{"spec":{"job":{"jarURI":"local:///opt/flink/examples/streaming/StateMachineExample.jar","parallelism":2,"entryClass":null,"args":[],"state":"running","savepointTriggerNonce":null,"initialSavepointPath":null,"checkpointTriggerNonce":null,"upgradeMode":"stateless","allowNonRestoredState":null,"savepointRedeployNonce":null},"restartNonce":null,"flinkConfiguration":{"taskmanager.numberOfTaskSlots":"2"},"image":"flink:1.17","imagePullPolicy":null,"serviceAccount":"flink","flinkVersion":"v1_17","ingress":null,"podTemplate":null,"jobManager":{"resource":{"cpu":1.0,"memory":"2048m","ephemeralStorage":null},"replicas":1,"podTemplate":null},"taskManager":{"resource":{"cpu":1.0,"memory":"2048m","ephemeralStorage":null},"replicas":null,"podTemplate":null},"logConfiguration":null,"mode":null},"resource_metadata":{"apiVersion":"flink.apache.org/v1beta1","metadata":{"generation":2},"firstDeployment":true}}'
+    lastStableSpec: '{"spec":{"job":{"jarURI":"local:///opt/flink/examples/streaming/StateMachineExample.jar","parallelism":2,"entryClass":null,"args":[],"state":"running","savepointTriggerNonce":null,"initialSavepointPath":null,"checkpointTriggerNonce":null,"upgradeMode":"stateless","allowNonRestoredState":null,"savepointRedeployNonce":null},"restartNonce":null,"flinkConfiguration":{"taskmanager.numberOfTaskSlots":"2"},"image":"flink:1.17","imagePullPolicy":null,"serviceAccount":"flink","flinkVersion":"v1_17","ingress":null,"podTemplate":null,"jobManager":{"resource":{"cpu":1.0,"memory":"2048m","ephemeralStorage":null},"replicas":1,"podTemplate":null},"taskManager":{"resource":{"cpu":1.0,"memory":"2048m","ephemeralStorage":null},"replicas":null,"podTemplate":null},"logConfiguration":null,"mode":null},"resource_metadata":{"apiVersion":"flink.apache.org/v1beta1","metadata":{"generation":2},"firstDeployment":true}}'
+    reconciliationTimestamp: 1717599148930
+    state: DEPLOYED
+  taskManager:
+    labelSelector: component=taskmanager,app=basic-example
+    replicas: 1

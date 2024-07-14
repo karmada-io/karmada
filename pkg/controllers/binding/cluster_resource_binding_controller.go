@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package binding
 
 import (
@@ -61,14 +77,14 @@ func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req co
 			return controllerruntime.Result{}, nil
 		}
 
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !clusterResourceBinding.DeletionTimestamp.IsZero() {
 		klog.V(4).Infof("Begin to delete works owned by binding(%s).", req.NamespacedName.String())
-		if err := helper.DeleteWorkByCRBName(c.Client, req.Name); err != nil {
+		if err := helper.DeleteWorks(c.Client, "", req.Name, clusterResourceBinding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel]); err != nil {
 			klog.Errorf("Failed to delete works related to %s: %v", clusterResourceBinding.GetName(), err)
-			return controllerruntime.Result{Requeue: true}, err
+			return controllerruntime.Result{}, err
 		}
 		return c.removeFinalizer(clusterResourceBinding)
 	}
@@ -85,7 +101,7 @@ func (c *ClusterResourceBindingController) removeFinalizer(crb *workv1alpha2.Clu
 	controllerutil.RemoveFinalizer(crb, util.ClusterResourceBindingControllerFinalizer)
 	err := c.Client.Update(context.TODO(), crb)
 	if err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	return controllerruntime.Result{}, nil
 }
@@ -93,7 +109,7 @@ func (c *ClusterResourceBindingController) removeFinalizer(crb *workv1alpha2.Clu
 // syncBinding will sync clusterResourceBinding to Works.
 func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.ClusterResourceBinding) (controllerruntime.Result, error) {
 	if err := c.removeOrphanWorks(binding); err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	workload, err := helper.FetchResourceTemplate(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
@@ -105,7 +121,7 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 			return controllerruntime.Result{}, nil
 		}
 		klog.Errorf("Failed to fetch workload for clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	start := time.Now()
@@ -115,7 +131,7 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 		klog.Errorf("Failed to transform clusterResourceBinding(%s) to works. Error: %v.", binding.GetName(), err)
 		c.EventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonSyncWorkFailed, err.Error())
 		c.EventRecorder.Event(workload, corev1.EventTypeWarning, events.EventReasonSyncWorkFailed, err.Error())
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	msg := fmt.Sprintf("Sync work of clusterResourceBinding(%s) successful.", binding.GetName())
@@ -126,7 +142,7 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 }
 
 func (c *ClusterResourceBindingController) removeOrphanWorks(binding *workv1alpha2.ClusterResourceBinding) error {
-	works, err := helper.FindOrphanWorks(c.Client, "", binding.Name, helper.ObtainBindingSpecExistingClusters(binding.Spec))
+	works, err := helper.FindOrphanWorks(c.Client, "", binding.Name, binding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel], helper.ObtainBindingSpecExistingClusters(binding.Spec))
 	if err != nil {
 		klog.Errorf("Failed to find orphan works by ClusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
 		c.EventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonCleanupWorkFailed, err.Error())
@@ -153,7 +169,7 @@ func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntim
 }
 
 func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.MapFunc {
-	return func(ctx context.Context, a client.Object) []reconcile.Request {
+	return func(_ context.Context, a client.Object) []reconcile.Request {
 		var overrideRS []policyv1alpha1.ResourceSelector
 		switch t := a.(type) {
 		case *policyv1alpha1.ClusterOverridePolicy:

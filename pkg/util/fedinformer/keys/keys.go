@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package keys
 
 import (
@@ -93,6 +109,21 @@ func ClusterWideKeyFunc(obj interface{}) (ClusterWideKey, error) {
 	key.Name = metaInfo.GetName()
 
 	return key, nil
+}
+
+// ClusterWideKeyWithConfig is the object key which is a unique identifier under a cluster, combined with certain config.
+type ClusterWideKeyWithConfig struct {
+	// ClusterWideKey is the object key which is a unique identifier under a cluster, across all resources.
+	ClusterWideKey ClusterWideKey
+
+	// ResourceChangeByKarmada defines whether resource is changed by Karmada
+	ResourceChangeByKarmada bool
+}
+
+// String returns the key's printable info with format:
+// "<GroupVersion>, kind=<Kind>, <NamespaceKey>, ResourceChangeByKarmada=<ResourceChangeByKarmada>"
+func (k ClusterWideKeyWithConfig) String() string {
+	return fmt.Sprintf("%s, ResourceChangeByKarmada=%v", k.ClusterWideKey.String(), k.ResourceChangeByKarmada)
 }
 
 // FederatedKey is the object key which is a unique identifier across all clusters in federation.

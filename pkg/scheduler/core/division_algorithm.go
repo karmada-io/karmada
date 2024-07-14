@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package core
 
 import (
@@ -19,19 +35,28 @@ func (a TargetClustersList) Len() int           { return len(a) }
 func (a TargetClustersList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a TargetClustersList) Less(i, j int) bool { return a[i].Replicas > a[j].Replicas }
 
-func getStaticWeightInfoList(clusters []*clusterv1alpha1.Cluster, weightList []policyv1alpha1.StaticClusterWeight) helper.ClusterWeightInfoList {
+func getStaticWeightInfoList(clusters []*clusterv1alpha1.Cluster, weightList []policyv1alpha1.StaticClusterWeight,
+	lastTargetClusters []workv1alpha2.TargetCluster) helper.ClusterWeightInfoList {
 	list := make(helper.ClusterWeightInfoList, 0)
 	for _, cluster := range clusters {
 		var weight int64
+		var lastReplicas int32
 		for _, staticWeightRule := range weightList {
 			if util.ClusterMatches(cluster, staticWeightRule.TargetCluster) {
 				weight = util.MaxInt64(weight, staticWeightRule.Weight)
 			}
 		}
+		for _, lastTargetCluster := range lastTargetClusters {
+			if cluster.Name == lastTargetCluster.Name {
+				lastReplicas = lastTargetCluster.Replicas
+				break
+			}
+		}
 		if weight > 0 {
 			list = append(list, helper.ClusterWeightInfo{
-				ClusterName: cluster.Name,
-				Weight:      weight,
+				ClusterName:  cluster.Name,
+				Weight:       weight,
+				LastReplicas: lastReplicas,
 			})
 		}
 	}
@@ -99,5 +124,29 @@ func dynamicScaleUp(state *assignState) ([]workv1alpha2.TargetCluster, error) {
 		sort.Sort(TargetClustersList(clusterAvailableReplicas))
 		return clusterAvailableReplicas
 	})
+	return dynamicDivideReplicas(state)
+}
+
+// dynamicFreshScale do a complete recalculation without referring to the last scheduling results.
+func dynamicFreshScale(state *assignState) ([]workv1alpha2.TargetCluster, error) {
+	// 1. targetReplicas is set to desired replicas
+	state.targetReplicas = state.spec.Replicas
+	state.buildAvailableClusters(func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
+		clusterAvailableReplicas := calAvailableReplicas(clusters, spec)
+		// 2. clusterAvailableReplicas should take into account the replicas already allocated
+		for _, scheduledCluster := range state.scheduledClusters {
+			for i, availableCluster := range clusterAvailableReplicas {
+				if availableCluster.Name != scheduledCluster.Name {
+					continue
+				}
+				clusterAvailableReplicas[i].Replicas += scheduledCluster.Replicas
+				break
+			}
+		}
+		sort.Sort(TargetClustersList(clusterAvailableReplicas))
+		return clusterAvailableReplicas
+	})
+	// 3. scheduledClusters are not set, which implicates we consider this action as a first schedule.
+	state.scheduledClusters = nil
 	return dynamicDivideReplicas(state)
 }

@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package cmdinit
 
 import (
@@ -5,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -50,7 +67,7 @@ var (
 		%[1]s init --etcd-storage-mode hostPath --etcd-node-selector-labels karmada.io/etcd=true
 
 		# Private registry can be specified for all images
-		%[1]s init --etcd-image local.registry.com/library/etcd:3.5.9-0
+		%[1]s init --etcd-image local.registry.com/library/etcd:3.5.13-0
 
 		# Specify Karmada API Server IP address. If not set, the address on the master node will be used.
 		%[1]s init --karmada-apiserver-advertise-address 192.168.1.2
@@ -72,7 +89,7 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 		Example:               initExample(parentCommand),
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			if err := opts.Validate(parentCommand); err != nil {
 				return err
 			}
@@ -98,15 +115,18 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	}
 	flags := cmd.Flags()
 	flags.StringVarP(&opts.ImageRegistry, "private-image-registry", "", "", "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.  In addition, you still can use --kube-image-registry to specify the registry for Kubernetes's images.")
+	flags.StringVarP(&opts.ImagePullPolicy, "image-pull-policy", "", string(corev1.PullIfNotPresent), "The image pull policy for all Karmada components container. One of Always, Never, IfNotPresent. Defaults to IfNotPresent.")
 	flags.StringSliceVar(&opts.PullSecrets, "image-pull-secrets", nil, "Image pull secrets are used to pull images from the private registry, could be secret list separated by comma (e.g '--image-pull-secrets PullSecret1,PullSecret2', the secrets should be pre-settled in the namespace declared by '--namespace')")
 	// kube image registry
 	flags.StringVarP(&opts.KubeImageMirrorCountry, "kube-image-mirror-country", "", "", "Country code of the kube image registry to be used. For Chinese mainland users, set it to cn")
 	flags.StringVarP(&opts.KubeImageRegistry, "kube-image-registry", "", "", "Kube image registry. For Chinese mainland users, you may use local gcr.io mirrors such as registry.cn-hangzhou.aliyuncs.com/google_containers to override default kube image registry")
-	flags.StringVar(&opts.KubeImageTag, "kube-image-tag", "v1.25.4", "Choose a specific Kubernetes version for the control plane.")
+	flags.StringVar(&opts.KubeImageTag, "kube-image-tag", "v1.28.9", "Choose a specific Kubernetes version for the control plane.")
 	// cert
 	flags.StringVar(&opts.ExternalIP, "cert-external-ip", "", "the external IP of Karmada certificate (e.g 192.168.1.2,172.16.1.2)")
 	flags.StringVar(&opts.ExternalDNS, "cert-external-dns", "", "the external DNS of Karmada certificate (e.g localhost,localhost.com)")
 	flags.DurationVar(&opts.CertValidity, "cert-validity-period", cert.Duration365d, "the validity period of Karmada certificate (e.g 8760h0m0s, that is 365 days)")
+	flags.StringVarP(&opts.CaCertFile, "ca-cert-file", "", "", "The root CA certificate file which will be used to issue new certificates for Karmada components. If not set, a new self-signed root CA certificate will be generated. This must be used together with --ca-key-file.")
+	flags.StringVarP(&opts.CaKeyFile, "ca-key-file", "", "", "The root CA private key file which will be used to issue new certificates for Karmada components. If not set, a new self-signed root CA key will be generated. This must be used together with --ca-cert-file.")
 	// Kubernetes
 	flags.StringVarP(&opts.Namespace, "namespace", "n", "karmada-system", "Kubernetes namespace")
 	flags.StringVar(&opts.StorageClassesName, "storage-classes-name", "", "Kubernetes StorageClasses Name")
@@ -122,6 +142,11 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	flags.StringVarP(&opts.EtcdHostDataPath, "etcd-data", "", "/var/lib/karmada-etcd", "etcd data path,valid in hostPath mode.")
 	flags.StringVarP(&opts.EtcdNodeSelectorLabels, "etcd-node-selector-labels", "", "", "etcd pod select the labels of the node. valid in hostPath mode ( e.g. --etcd-node-selector-labels karmada.io/etcd=true)")
 	flags.StringVarP(&opts.EtcdPersistentVolumeSize, "etcd-pvc-size", "", "5Gi", "etcd data path,valid in pvc mode.")
+	flags.StringVar(&opts.ExternalEtcdCACertPath, "external-etcd-ca-cert-path", "", "The path of CA certificate of the external etcd cluster in pem format.")
+	flags.StringVar(&opts.ExternalEtcdClientCertPath, "external-etcd-client-cert-path", "", "The path of client side certificate to the external etcd cluster in pem format.")
+	flags.StringVar(&opts.ExternalEtcdClientKeyPath, "external-etcd-client-key-path", "", "The path of client side private key to the external etcd cluster in pem format.")
+	flags.StringVar(&opts.ExternalEtcdServers, "external-etcd-servers", "", "The server urls of external etcd cluster, to be used by kube-apiserver through --etcd-servers.")
+	flags.StringVar(&opts.ExternalEtcdKeyPrefix, "external-etcd-key-prefix", "", "The key prefix to be configured to kube-apiserver through --etcd-prefix.")
 	// karmada
 	flags.StringVar(&opts.CRDs, "crds", kubernetes.DefaultCrdURL, "Karmada crds resource.(local file e.g. --crds /root/crds.tar.gz)")
 	flags.StringVarP(&opts.KarmadaAPIServerAdvertiseAddress, "karmada-apiserver-advertise-address", "", "", "The IP address the Karmada API Server will advertise it's listening on. If not set, the address on the master node will be used.")
@@ -136,7 +161,7 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	flags.Int32VarP(&opts.KubeControllerManagerReplicas, "karmada-kube-controller-manager-replicas", "", 1, "Karmada kube controller manager replica set")
 	flags.StringVarP(&opts.KarmadaControllerManagerImage, "karmada-controller-manager-image", "", kubernetes.DefaultKarmadaControllerManagerImage, "Karmada controller manager image")
 	flags.Int32VarP(&opts.KarmadaControllerManagerReplicas, "karmada-controller-manager-replicas", "", 1, "Karmada controller manager replica set")
-	flags.StringVarP(&opts.KarmadaWebhookImage, "karmada-webhook-image", "", kubernetes.DefualtKarmadaWebhookImage, "Karmada webhook image")
+	flags.StringVarP(&opts.KarmadaWebhookImage, "karmada-webhook-image", "", kubernetes.DefaultKarmadaWebhookImage, "Karmada webhook image")
 	flags.Int32VarP(&opts.KarmadaWebhookReplicas, "karmada-webhook-replicas", "", 1, "Karmada webhook replica set")
 	flags.StringVarP(&opts.KarmadaAggregatedAPIServerImage, "karmada-aggregated-apiserver-image", "", kubernetes.DefaultKarmadaAggregatedAPIServerImage, "Karmada aggregated apiserver image")
 	flags.Int32VarP(&opts.KarmadaAggregatedAPIServerReplicas, "karmada-aggregated-apiserver-replicas", "", 1, "Karmada aggregated apiserver replica set")

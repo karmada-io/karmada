@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package main
 
 import (
@@ -13,6 +29,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	pkgutil "github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
@@ -44,7 +61,7 @@ func PrintCLIByTag(cmd *cobra.Command, all []*cobra.Command, tag string) string 
 func GenMarkdownTreeForIndex(cmd *cobra.Command, dir string) error {
 	basename := strings.Replace(cmd.CommandPath(), " ", "_", -1) + "_index" + ".md"
 	filename := filepath.Join(dir, basename)
-	f, err := os.Create(filename)
+	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, pkgutil.DefaultFilePerm)
 	if err != nil {
 		return err
 	}
@@ -94,15 +111,15 @@ func main() {
 	// Set environment variables used by karmadactl so the output is consistent,
 	// regardless of where we run.
 	os.Setenv("HOME", "/home/username")
-	karmadactl := karmadactl.NewKarmadaCtlCommand("karmadactl", "karmadactl")
-	karmadactl.DisableAutoGenTag = true
-	err = doc.GenMarkdownTree(karmadactl, outDir)
+	karmadactlCmd := karmadactl.NewKarmadaCtlCommand("karmadactl", "karmadactl")
+	karmadactlCmd.DisableAutoGenTag = true
+	err = doc.GenMarkdownTree(karmadactlCmd, outDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to generate docs: %v\n", err)
 		os.Exit(1)
 	}
 
-	err = GenMarkdownTreeForIndex(karmadactl, outDir)
+	err = GenMarkdownTreeForIndex(karmadactlCmd, outDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to generate index docs: %v\n", err)
 		os.Exit(1)
@@ -136,8 +153,8 @@ func main() {
 		newlines := []string{"---", "title: " + title}
 
 		newlines = append(newlines, lines...)
-		newcontent := strings.Join(newlines, "\n")
-		return os.WriteFile(path, []byte(newcontent), info.Mode())
+		newContent := strings.Join(newlines, "\n")
+		return os.WriteFile(path, []byte(newContent), info.Mode())
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to process docs: %v\n", err)

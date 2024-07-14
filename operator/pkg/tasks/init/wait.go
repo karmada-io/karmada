@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package tasks
 
 import (
@@ -14,13 +30,18 @@ import (
 )
 
 var (
+	// The timeout for wait each component be ready
+	// It includes the time for pulling the component image.
+	componentBeReadyTimeout = 120 * time.Second
+
 	etcdLabels                       = labels.Set{"karmada-app": constants.Etcd}
 	karmadaApiserverLabels           = labels.Set{"karmada-app": constants.KarmadaAPIServer}
 	karmadaAggregatedAPIServerLabels = labels.Set{"karmada-app": constants.KarmadaAggregatedAPIServer}
 	kubeControllerManagerLabels      = labels.Set{"karmada-app": constants.KubeControllerManager}
 	karmadaControllerManagerLabels   = labels.Set{"karmada-app": constants.KarmadaControllerManager}
-	karmadaSchedulerLablels          = labels.Set{"karmada-app": constants.KarmadaScheduler}
+	karmadaSchedulerLabels           = labels.Set{"karmada-app": constants.KarmadaScheduler}
 	karmadaWebhookLabels             = labels.Set{"karmada-app": constants.KarmadaWebhook}
+	karmadaMetricAdapterLabels       = labels.Set{"karmada-app": constants.KarmadaMetricsAdapter}
 )
 
 // NewCheckApiserverHealthTask init wait-apiserver task
@@ -38,7 +59,7 @@ func runWaitApiserver(r workflow.RunData) error {
 	}
 	klog.V(4).InfoS("[check-apiserver-health] Running task", "karmada", klog.KObj(data))
 
-	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConfig(), data.RemoteClient(), time.Second*30)
+	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConfig(), data.RemoteClient(), componentBeReadyTimeout)
 
 	// check whether the karmada apiserver is health.
 	if err := apiclient.TryRunCommand(waiter.WaitForAPI, 3); err != nil {
@@ -57,7 +78,7 @@ func NewWaitControlPlaneTask() workflow.Task {
 		Tasks: []workflow.Task{
 			newWaitControlPlaneSubTask("KubeControllerManager", kubeControllerManagerLabels),
 			newWaitControlPlaneSubTask("KarmadaControllerManager", karmadaControllerManagerLabels),
-			newWaitControlPlaneSubTask("KarmadaScheduler", karmadaSchedulerLablels),
+			newWaitControlPlaneSubTask("KarmadaScheduler", karmadaSchedulerLabels),
 			newWaitControlPlaneSubTask("KarmadaWebhook", karmadaWebhookLabels),
 		},
 	}
@@ -73,22 +94,22 @@ func runWaitControlPlane(r workflow.RunData) error {
 	return nil
 }
 
-func newWaitControlPlaneSubTask(component string, lables labels.Set) workflow.Task {
+func newWaitControlPlaneSubTask(component string, ls labels.Set) workflow.Task {
 	return workflow.Task{
 		Name: component,
-		Run:  runWaitControlPlaneSubTask(component, lables),
+		Run:  runWaitControlPlaneSubTask(component, ls),
 	}
 }
 
-func runWaitControlPlaneSubTask(component string, lables labels.Set) func(r workflow.RunData) error {
+func runWaitControlPlaneSubTask(component string, ls labels.Set) func(r workflow.RunData) error {
 	return func(r workflow.RunData) error {
 		data, ok := r.(InitData)
 		if !ok {
 			return errors.New("wait-controlPlane task invoked with an invalid data struct")
 		}
 
-		waiter := apiclient.NewKarmadaWaiter(nil, data.RemoteClient(), time.Second*120)
-		if err := waiter.WaitForSomePods(lables.String(), data.GetNamespace(), 1); err != nil {
+		waiter := apiclient.NewKarmadaWaiter(nil, data.RemoteClient(), componentBeReadyTimeout)
+		if err := waiter.WaitForSomePods(ls.String(), data.GetNamespace(), 1); err != nil {
 			return fmt.Errorf("waiting for %s to ready timeout, err: %w", component, err)
 		}
 

@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package util
 
 import (
@@ -19,8 +35,7 @@ func GetControlplaneEndpoint(address, port string) (string, error) {
 	if ip == nil {
 		return "", fmt.Errorf("invalid value `%s` given for address", address)
 	}
-	url := formatURL(ip.String(), port)
-	return url.String(), nil
+	return formatURL(ip.String(), port).String(), nil
 }
 
 // formatURL takes a host and a port string and creates a net.URL using https scheme

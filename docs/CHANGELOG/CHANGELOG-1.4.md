@@ -2,30 +2,36 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.4.4](#v144)
-  - [Downloads for v1.4.4](#downloads-for-v144)
-  - [Changelog since v1.4.3](#changelog-since-v143)
+- [v1.4.5](#v145)
+  - [Downloads for v1.4.5](#downloads-for-v145)
+  - [Changelog since v1.4.4](#changelog-since-v144)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
-- [v1.4.3](#v143)
-  - [Downloads for v1.4.3](#downloads-for-v143)
-  - [Changelog since v1.4.2](#changelog-since-v142)
+- [v1.4.4](#v144)
+  - [Downloads for v1.4.4](#downloads-for-v144)
+  - [Changelog since v1.4.3](#changelog-since-v143)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
-- [v1.4.2](#v142)
-  - [Downloads for v1.4.2](#downloads-for-v142)
-  - [Changelog since v1.4.1](#changelog-since-v141)
+- [v1.4.3](#v143)
+  - [Downloads for v1.4.3](#downloads-for-v143)
+  - [Changelog since v1.4.2](#changelog-since-v142)
     - [Changes by Kind](#changes-by-kind-2)
       - [Bug Fixes](#bug-fixes-2)
       - [Others](#others-2)
-- [v1.4.1](#v141)
-  - [Downloads for v1.4.1](#downloads-for-v141)
-  - [Changelog since v1.4.0](#changelog-since-v140)
+- [v1.4.2](#v142)
+  - [Downloads for v1.4.2](#downloads-for-v142)
+  - [Changelog since v1.4.1](#changelog-since-v141)
     - [Changes by Kind](#changes-by-kind-3)
       - [Bug Fixes](#bug-fixes-3)
       - [Others](#others-3)
+- [v1.4.1](#v141)
+  - [Downloads for v1.4.1](#downloads-for-v141)
+  - [Changelog since v1.4.0](#changelog-since-v140)
+    - [Changes by Kind](#changes-by-kind-4)
+      - [Bug Fixes](#bug-fixes-4)
+      - [Others](#others-4)
 - [v1.4.0](#v140)
   - [Downloads for v1.4.0](#downloads-for-v140)
   - [Karmada v1.4 Release Notes](#karmada-v14-release-notes)
@@ -35,7 +41,7 @@
       - [Instrumentation improvement](#instrumentation-improvement)
     - [Other Notable Changes](#other-notable-changes)
       - [API Changes](#api-changes)
-      - [Bug Fixes](#bug-fixes-4)
+      - [Bug Fixes](#bug-fixes-5)
       - [Security](#security)
       - [Features & Enhancements](#features--enhancements)
     - [Other](#other)
@@ -51,6 +57,20 @@
         * [1.4 What's New](#whats-new)
         * [Other Notable Changes](#other-notable-changes)
         * [Other](#other)
+
+# v1.4.5
+## Downloads for v1.4.5
+
+Download v1.4.5 in the [v1.4.5 release page](https://github.com/karmada-io/karmada/releases/tag/v1.4.5).
+
+## Changelog since v1.4.4
+### Changes by Kind
+#### Bug Fixes
+- `karmada-search`: Fixed a panic due to concurrent mutating objects in the informer cache. ([#3976](https://github.com/karmada-io/karmada/pull/3976), @chaosi-zju)
+- `karmada-controller-manager`: Avoid updating directly cached resource templates. ([#3895](https://github.com/karmada-io/karmada/pull/3895), @whitewindmills)
+
+#### Others
+None.
 
 # v1.4.4
 ## Downloads for v1.4.4

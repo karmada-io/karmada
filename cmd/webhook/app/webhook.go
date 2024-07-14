@@ -1,7 +1,24 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package app
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"net/http"
@@ -12,6 +29,7 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/conversion"
@@ -25,6 +43,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 	"github.com/karmada-io/karmada/pkg/webhook/clusteroverridepolicy"
 	"github.com/karmada-io/karmada/pkg/webhook/clusterpropagationpolicy"
+	"github.com/karmada-io/karmada/pkg/webhook/clusterresourcebinding"
 	"github.com/karmada-io/karmada/pkg/webhook/configuration"
 	"github.com/karmada-io/karmada/pkg/webhook/cronfederatedhpa"
 	"github.com/karmada-io/karmada/pkg/webhook/federatedhpa"
@@ -33,6 +52,8 @@ import (
 	"github.com/karmada-io/karmada/pkg/webhook/multiclusterservice"
 	"github.com/karmada-io/karmada/pkg/webhook/overridepolicy"
 	"github.com/karmada-io/karmada/pkg/webhook/propagationpolicy"
+	"github.com/karmada-io/karmada/pkg/webhook/resourcebinding"
+	"github.com/karmada-io/karmada/pkg/webhook/resourcedeletionprotection"
 	"github.com/karmada-io/karmada/pkg/webhook/resourceinterpretercustomization"
 	"github.com/karmada-io/karmada/pkg/webhook/work"
 )
@@ -45,7 +66,7 @@ func NewWebhookCommand(ctx context.Context) *cobra.Command {
 		Use: "karmada-webhook",
 		Long: `The karmada-webhook starts a webhook server and manages policies about how to mutate and validate
 Karmada resources including 'PropagationPolicy', 'OverridePolicy' and so on.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()
@@ -100,15 +121,31 @@ func Run(ctx context.Context, opts *options.Options) error {
 		Logger: klog.Background(),
 		Scheme: gclient.NewSchema(),
 		WebhookServer: webhook.NewServer(webhook.Options{
-			Host:          opts.BindAddress,
-			Port:          opts.SecurePort,
-			CertDir:       opts.CertDir,
-			CertName:      opts.CertName,
-			KeyName:       opts.KeyName,
-			TLSMinVersion: opts.TLSMinVersion,
+			Host:     opts.BindAddress,
+			Port:     opts.SecurePort,
+			CertDir:  opts.CertDir,
+			CertName: opts.CertName,
+			KeyName:  opts.KeyName,
+			TLSOpts: []func(*tls.Config){
+				func(config *tls.Config) {
+					// Just transform the valid options as opts.TLSMinVersion
+					// can only accept "1.0", "1.1", "1.2", "1.3" and has default
+					// value,
+					switch opts.TLSMinVersion {
+					case "1.0":
+						config.MinVersion = tls.VersionTLS10
+					case "1.1":
+						config.MinVersion = tls.VersionTLS11
+					case "1.2":
+						config.MinVersion = tls.VersionTLS12
+					case "1.3":
+						config.MinVersion = tls.VersionTLS13
+					}
+				},
+			},
 		}),
 		LeaderElection:         false,
-		MetricsBindAddress:     opts.MetricsBindAddress,
+		Metrics:                metricsserver.Options{BindAddress: opts.MetricsBindAddress},
 		HealthProbeBindAddress: opts.HealthProbeBindAddress,
 	})
 	if err != nil {
@@ -138,7 +175,11 @@ func Run(ctx context.Context, opts *options.Options) error {
 	hookServer.Register("/validate-resourceinterpretercustomization", &webhook.Admission{Handler: &resourceinterpretercustomization.ValidatingAdmission{Client: hookManager.GetClient(), Decoder: decoder}})
 	hookServer.Register("/validate-multiclusteringress", &webhook.Admission{Handler: &multiclusteringress.ValidatingAdmission{Decoder: decoder}})
 	hookServer.Register("/validate-multiclusterservice", &webhook.Admission{Handler: &multiclusterservice.ValidatingAdmission{Decoder: decoder}})
+	hookServer.Register("/mutate-multiclusterservice", &webhook.Admission{Handler: &multiclusterservice.MutatingAdmission{Decoder: decoder}})
 	hookServer.Register("/mutate-federatedhpa", &webhook.Admission{Handler: &federatedhpa.MutatingAdmission{Decoder: decoder}})
+	hookServer.Register("/validate-resourcedeletionprotection", &webhook.Admission{Handler: &resourcedeletionprotection.ValidatingAdmission{Decoder: decoder}})
+	hookServer.Register("/mutate-resourcebinding", &webhook.Admission{Handler: &resourcebinding.MutatingAdmission{Decoder: decoder}})
+	hookServer.Register("/mutate-clusterresourcebinding", &webhook.Admission{Handler: &clusterresourcebinding.MutatingAdmission{Decoder: decoder}})
 	hookServer.WebhookMux().Handle("/readyz/", http.StripPrefix("/readyz/", &healthz.Handler{}))
 
 	// blocks until the context is done.

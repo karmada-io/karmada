@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package cert
 
 import (
@@ -6,6 +22,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -23,12 +40,13 @@ import (
 	"k8s.io/kube-openapi/pkg/util/sets"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
+	globaloptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
 )
 
 const (
 	// certificateBlockType is a possible value for pem.Block.Type.
 	certificateBlockType = "CERTIFICATE"
-	rsaKeySize           = 2048
+	rsaKeySize           = 3072
 	// Duration365d Certificate validity period
 	Duration365d = time.Hour * 24 * 365
 )
@@ -244,12 +262,13 @@ func NewCertConfig(cn string, org []string, altNames certutil.AltNames, notAfter
 }
 
 // GenCerts Create CA certificate and sign etcd karmada certificate.
-func GenCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg, karmadaCertCfg, apiserverCertCfg, frontProxyClientCertCfg *CertsConfig) error {
-	caCert, caKey, err := NewCACertAndKey("karmada")
+func GenCerts(pkiPath, caCertFile, caKeyFile string, etcdServerCertCfg, etcdClientCertCfg, karmadaCertCfg, apiserverCertCfg, frontProxyClientCertCfg *CertsConfig) error {
+	caCert, caKey, err := getCACertAndKey(caCertFile, caKeyFile)
 	if err != nil {
 		return err
 	}
-	if err = WriteCertAndKey(pkiPath, options.CaCertAndKeyName, caCert, caKey); err != nil {
+
+	if err = WriteCertAndKey(pkiPath, globaloptions.CaCertAndKeyName, caCert, caKey); err != nil {
 		return err
 	}
 
@@ -285,7 +304,32 @@ func GenCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg, karmadaCertC
 		return err
 	}
 
+	if etcdServerCertCfg == nil && etcdClientCertCfg == nil {
+		// use external etcd
+		return nil
+	}
 	return genEtcdCerts(pkiPath, etcdServerCertCfg, etcdClientCertCfg)
+}
+
+func getCACertAndKey(caCertFile, caKeyFile string) (caCert *x509.Certificate, caKey *crypto.Signer, err error) {
+	if caKeyFile != "" && caCertFile != "" {
+		certificate, err := tls.LoadX509KeyPair(caCertFile, caKeyFile)
+		if err != nil {
+			return nil, nil, err
+		}
+		caCert, err = x509.ParseCertificate(certificate.Certificate[0])
+		if err != nil {
+			return nil, nil, err
+		}
+		key := certificate.PrivateKey.(crypto.Signer)
+		caKey = &key
+	} else {
+		caCert, caKey, err = NewCACertAndKey("karmada")
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	return caCert, caKey, nil
 }
 
 func genEtcdCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg *CertsConfig) error {

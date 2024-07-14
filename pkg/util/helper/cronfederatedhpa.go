@@ -1,5 +1,6 @@
 /*
 Copyright 2023 The Karmada Authors.
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -21,6 +22,7 @@ import (
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 )
 
+// IsCronFederatedHPARuleSuspend returns true if the CronFederatedHPA is suspended.
 func IsCronFederatedHPARuleSuspend(rule autoscalingv1alpha1.CronFederatedHPARule) bool {
 	if rule.Suspend == nil {
 		return false
@@ -28,6 +30,7 @@ func IsCronFederatedHPARuleSuspend(rule autoscalingv1alpha1.CronFederatedHPARule
 	return *rule.Suspend
 }
 
+// GetCronFederatedHPASuccessHistoryLimits returns the successful history limits of the CronFederatedHPA.
 func GetCronFederatedHPASuccessHistoryLimits(rule autoscalingv1alpha1.CronFederatedHPARule) int {
 	if rule.SuccessfulHistoryLimit == nil {
 		return 3
@@ -35,6 +38,7 @@ func GetCronFederatedHPASuccessHistoryLimits(rule autoscalingv1alpha1.CronFedera
 	return int(*rule.SuccessfulHistoryLimit)
 }
 
+// GetCronFederatedHPAFailedHistoryLimits returns the failed history limits of the CronFederatedHPA.
 func GetCronFederatedHPAFailedHistoryLimits(rule autoscalingv1alpha1.CronFederatedHPARule) int {
 	if rule.FailedHistoryLimit == nil {
 		return 3
@@ -42,6 +46,7 @@ func GetCronFederatedHPAFailedHistoryLimits(rule autoscalingv1alpha1.CronFederat
 	return int(*rule.FailedHistoryLimit)
 }
 
+// GetCronFederatedHPAKey returns the key of the CronFederatedHPA.
 func GetCronFederatedHPAKey(cronFHPA *autoscalingv1alpha1.CronFederatedHPA) string {
 	namespacedName := types.NamespacedName{Namespace: cronFHPA.Namespace, Name: cronFHPA.Name}
 	return namespacedName.String()

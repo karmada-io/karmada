@@ -1,8 +1,25 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package util
 
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -60,11 +77,11 @@ func TestGetBindingClusterNames(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := GetBindingClusterNames(&tt.binding.Spec)
-			if !reflect.DeepEqual(got, tt.expected) {
-				t.Errorf("GetBindingClusterNames() = %v, want %v", got, tt.expected)
+	for i := range tests {
+		t.Run(tests[i].name, func(t *testing.T) {
+			got := GetBindingClusterNames(&tests[i].binding.Spec)
+			if !reflect.DeepEqual(got, tests[i].expected) {
+				t.Errorf("GetBindingClusterNames() = %v, want %v", got, tests[i].expected)
 			}
 		})
 	}
@@ -354,6 +371,50 @@ func TestMergeTargetClusters(t *testing.T) {
 			got := MergeTargetClusters(tt.old, tt.new)
 			if !testhelper.IsScheduleResultEqual(got, tt.expected) {
 				t.Errorf("MergeTargetClusters() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestRescheduleRequired(t *testing.T) {
+	currentTime := metav1.Now()
+	previousTime := metav1.Time{Time: time.Now().Add(-1 * time.Minute)}
+
+	tests := []struct {
+		name                  string
+		rescheduleTriggeredAt *metav1.Time
+		lastScheduledTime     *metav1.Time
+		want                  bool
+	}{
+		{
+			name:                  "rescheduleTriggeredAt is nil",
+			rescheduleTriggeredAt: nil,
+			lastScheduledTime:     &currentTime,
+			want:                  false,
+		},
+		{
+			name:                  "lastScheduledTime is nil",
+			rescheduleTriggeredAt: &currentTime,
+			lastScheduledTime:     nil,
+			want:                  false,
+		},
+		{
+			name:                  "rescheduleTriggeredAt is before than lastScheduledTime",
+			rescheduleTriggeredAt: &previousTime,
+			lastScheduledTime:     &currentTime,
+			want:                  false,
+		},
+		{
+			name:                  "rescheduleTriggeredAt is later than lastScheduledTime",
+			rescheduleTriggeredAt: &currentTime,
+			lastScheduledTime:     &previousTime,
+			want:                  true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := RescheduleRequired(tt.rescheduleTriggeredAt, tt.lastScheduledTime); got != tt.want {
+				t.Errorf("RescheduleRequired() = %v, want %v", got, tt.want)
 			}
 		})
 	}

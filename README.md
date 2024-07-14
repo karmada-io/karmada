@@ -4,12 +4,16 @@
 
 
 [![LICENSE](https://img.shields.io/github/license/karmada-io/karmada.svg)](/LICENSE)
-[![Releases](https://img.shields.io/github/release/karmada-io/karmada/all.svg)](https://github.com/karmada-io/karmada/releases)
+[![Releases](https://img.shields.io/github/v/release/karmada-io/karmada)](https://github.com/karmada-io/karmada/releases/latest)
 [![Slack](https://img.shields.io/badge/slack-join-brightgreen)](https://slack.cncf.io)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5301/badge)](https://bestpractices.coreinfrastructure.org/projects/5301)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/karmada-io/karmada/badge)](https://securityscorecards.dev/viewer/?uri=github.com/karmada-io/karmada)
 ![build](https://github.com/karmada-io/karmada/actions/workflows/ci.yml/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/karmada-io/karmada)](https://goreportcard.com/report/github.com/karmada-io/karmada)
 [![codecov](https://codecov.io/gh/karmada-io/karmada/branch/master/graph/badge.svg?token=ROM8CMPXZ6)](https://codecov.io/gh/karmada-io/karmada)
+[![FOSSA Status](https://app.fossa.com/api/projects/custom%2B28176%2Fgithub.com%2Fkarmada-io%2Fkarmada.svg?type=shield)](https://app.fossa.com/projects/custom%2B28176%2Fgithub.com%2Fkarmada-io%2Fkarmada?ref=badge_shield)
+[![Artifact HUB](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/karmada)](https://artifacthub.io/packages/krew/krew-index/karmada)
+[![CLOMonitor](https://img.shields.io/endpoint?url=https://clomonitor.io/api/projects/cncf/karmada/badge)](https://clomonitor.io/projects/cncf/karmada)
 
 ## Karmada: Open, Multi-Cloud, Multi-Cluster Kubernetes Orchestration
 
@@ -20,7 +24,7 @@ with key features such as centralized multi-cloud management, high availability,
 
 ![cncf_logo](docs/images/cncf-logo.png)
 
-Karmada is a sandbox project of the [Cloud Native Computing Foundation](https://cncf.io/) (CNCF).
+Karmada is an incubation project of the [Cloud Native Computing Foundation](https://cncf.io/) (CNCF).
 
 ## Why Karmada:
 - __K8s Native API Compatible__
@@ -98,7 +102,7 @@ This guide will cover:
 - Propagate an application by using `karmada`.
 
 ### Prerequisites
-- [Go](https://golang.org/) version v1.20+
+- [Go](https://golang.org/) version v1.22.4+
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) version v1.19+
 - [kind](https://kind.sigs.k8s.io/) version v0.14.0+
 
@@ -182,18 +186,12 @@ nginx   2/2     2            2           20s
 
 ## Kubernetes compatibility
 
-|                        | Kubernetes 1.16 | Kubernetes 1.17 | Kubernetes 1.18 | Kubernetes 1.19 | Kubernetes 1.20 | Kubernetes 1.21 | Kubernetes 1.22 | Kubernetes 1.23 | Kubernetes 1.24 | Kubernetes 1.25 | Kubernetes 1.26 |
-|------------------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|
-| Karmada v0.9           | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |
-| Karmada v0.10          | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |
-| Karmada v1.0           | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |
-| Karmada v1.1           | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |
-| Karmada v1.2           | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |
-| Karmada v1.3           | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |
-| Karmada v1.4           | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |
-| Karmada v1.5           | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |
-| Karmada v1.6           | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |
-| Karmada HEAD (master)  | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |
+|                       | Kubernetes 1.16 | Kubernetes 1.17 | Kubernetes 1.18 | Kubernetes 1.19 | Kubernetes 1.20 | Kubernetes 1.21 | Kubernetes 1.22 | Kubernetes 1.23 | Kubernetes 1.24 | Kubernetes 1.25 | Kubernetes 1.26 | Kubernetes 1.27 | Kubernetes 1.28 | Kubernetes 1.29 |
+|-----------------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|
+| Karmada v1.7          | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |
+| Karmada v1.8          | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |
+| Karmada v1.9          | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |
+| Karmada HEAD (master) | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |
 
 Key:
 * `✓` Karmada and the Kubernetes version are exactly compatible.
@@ -226,6 +224,10 @@ If you have questions, feel free to reach out to us in the following ways:
 | KubeCon(EU 2021) | [Beyond federation: automating multi-cloud workloads with K8s native APIs](https://www.youtube.com/watch?v=LJJoaGszBVk) |
 | KubeCon(EU 2022) | [Sailing Multi Cloud Traffic Management With Karmada](https://youtu.be/rzFbxeZQHWI)                                     |
 | KubeDay(Israel 2023)| [Simplifying Multi-cluster Kubernetes Management with Karmada](https://www.youtube.com/watch?v=WCrIhRNBZ9I) |
+| KubeCon(China 2023) | [Multi-Cloud Multi-Cluster HPA Helps Trip.com Group Deal with Business Downturn and Rapid Recovery](https://www.youtube.com/watch?v=uninSyVBKO4) |
+| KubeCon(China 2023) | [Break Through Cluster Boundaries to Autoscale Workloads Across Them on a Large Scale](https://www.youtube.com/watch?v=22W1yrEJjtQ) |
+| KubeCon(China 2023) | [Cross-Cluster Traffic Orchestration with eBPF](https://www.youtube.com/watch?v=e4GA5e-C7n0) |
+| KubeCon(China 2023) | [Non-Intrusively Enable OpenKruise and Argo Workflow in a Multi-Cluster Federation](https://www.youtube.com/watch?v=gcllTXRkz-E) |
 
 For blogs, please refer to [website](https://karmada.io/blog/).
 

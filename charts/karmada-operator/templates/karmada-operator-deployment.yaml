@@ -36,6 +36,10 @@ spec:
       - name: {{ include "karmada.operator.fullname" . }}
         image: {{ template "karmada.operator.image" . }}
         imagePullPolicy: {{ .Values.operator.image.pullPolicy }}
+        ports:
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
         command:
         - /bin/karmada-operator
         - --leader-elect-resource-namespace={{ .Release.Namespace }}

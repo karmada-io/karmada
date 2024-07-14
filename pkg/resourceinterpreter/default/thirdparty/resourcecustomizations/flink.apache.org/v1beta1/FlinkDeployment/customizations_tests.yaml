@@ -1,0 +1,10 @@
+tests:
+  - desiredInputPath: testdata/desired-flinkdeployment.yaml
+    statusInputPath: testdata/status-file.yaml
+    operation: AggregateStatus
+  - observedInputPath: testdata/observed-flinkdeployment.yaml
+    operation: InterpretReplica
+  - observedInputPath: testdata/observed-flinkdeployment.yaml
+    operation: InterpretHealth
+  - observedInputPath: testdata/observed-flinkdeployment.yaml
+    operation: InterpretStatus

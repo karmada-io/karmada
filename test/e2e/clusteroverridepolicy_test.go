@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package e2e
 
 import (
@@ -19,7 +35,7 @@ import (
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
-var _ = ginkgo.Describe("[BasicClusterOverridePolicy] basic cluster override policy testing", func() {
+var _ = ginkgo.Describe("The basic ClusterOverridePolicy testing", func() {
 	ginkgo.Context("Namespace propagation testing", func() {
 		var (
 			randNamespace string
@@ -70,23 +86,22 @@ var _ = ginkgo.Describe("[BasicClusterOverridePolicy] basic cluster override pol
 			})
 		})
 
-		ginkgo.It("Namespace testing", func() {
+		ginkgo.It("Namespace labelOverride testing", func() {
 			ginkgo.By(fmt.Sprintf("Check if namespace(%s) present on member clusters", ns.Name), func() {
 				for _, clusterName := range framework.ClusterNames() {
 					clusterClient := framework.GetClusterClient(clusterName)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Waiting for namespace present on cluster(%s)", clusterName)
-					gomega.Eventually(func(g gomega.Gomega) (bool, error) {
+					gomega.Eventually(func(gomega.Gomega) (bool, error) {
 						clusterNs, err := clusterClient.CoreV1().Namespaces().Get(context.TODO(), ns.Name, metav1.GetOptions{})
 						if err != nil {
 							if apierrors.IsNotFound(err) {
 								return false, nil
 							}
-
 							return false, err
 						}
-
+						// Check if the cluster's customLabel is correct value
 						v, ok := clusterNs.Labels[customLabelKey]
 						if ok && v == customLabelVal {
 							return true, nil
@@ -99,7 +114,7 @@ var _ = ginkgo.Describe("[BasicClusterOverridePolicy] basic cluster override pol
 	})
 })
 
-var _ = framework.SerialDescribe("Test clusterOverridePolicy with nil resourceSelectors", func() {
+var _ = framework.SerialDescribe("The ClusterOverridePolicy with nil resourceSelectors testing", func() {
 	var deploymentNamespace, deploymentName string
 	var propagationPolicyNamespace, propagationPolicyName string
 	var clusterOverridePolicyName string
@@ -161,7 +176,7 @@ var _ = framework.SerialDescribe("Test clusterOverridePolicy with nil resourceSe
 		ginkgo.It("deployment imageOverride testing", func() {
 			ginkgo.By("Check if deployment have presented on member clusters", func() {
 				framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
-					func(deployment *appsv1.Deployment) bool {
+					func(*appsv1.Deployment) bool {
 						return true
 					})
 			})

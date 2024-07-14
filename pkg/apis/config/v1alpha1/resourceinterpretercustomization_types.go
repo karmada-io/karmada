@@ -1,14 +1,44 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// ResourceKindResourceInterpreterCustomization is kind name of ResourceInterpreterCustomization.
+	ResourceKindResourceInterpreterCustomization = "ResourceInterpreterCustomization"
+	// ResourceSingularResourceInterpreterCustomization is singular name of ResourceInterpreterCustomization.
+	ResourceSingularResourceInterpreterCustomization = "resourceinterpretercustomization"
+	// ResourcePluralResourceInterpreterCustomization is plural name of ResourceInterpreterCustomization.
+	ResourcePluralResourceInterpreterCustomization = "resourceinterpretercustomizations"
+	// ResourceNamespaceScopedResourceInterpreterCustomization indicates if ResourceInterpreterCustomization is NamespaceScoped.
+	ResourceNamespaceScopedResourceInterpreterCustomization = false
+)
+
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:scope="Cluster"
+// +kubebuilder:resource:path=resourceinterpretercustomizations,scope="Cluster",shortName=ric,categories={karmada-io}
 // +kubebuilder:storageversion
+// +kubebuilder:printcolumn:JSONPath=`.spec.target.apiVersion`,name="TARGET-API-VERSION",type=string
+// +kubebuilder:printcolumn:JSONPath=`.spec.target.kind`,name="TARGET-KIND",type=string
+// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="AGE",type=date
 
 // ResourceInterpreterCustomization describes the configuration of a specific
 // resource for Karmada to get the structure.
@@ -112,11 +142,14 @@ type LocalValueRetention struct {
 	// to the desired specification.
 	//
 	// The script should implement a function as follows:
-	//     luaScript: >
-	//         function Retain(desiredObj, observedObj)
-	//             desiredObj.spec.fieldFoo = observedObj.spec.fieldFoo
-	//             return desiredObj
-	//         end
+	//
+	// ```
+	//   luaScript: >
+	//       function Retain(desiredObj, observedObj)
+	//           desiredObj.spec.fieldFoo = observedObj.spec.fieldFoo
+	//           return desiredObj
+	//       end
+	// ```
 	//
 	// The content of the LuaScript needs to be a whole function including both
 	// declaration and implementation.
@@ -140,16 +173,19 @@ type ReplicaResourceRequirement struct {
 	// replica as well as resource requirements
 	//
 	// The script should implement a function as follows:
-	//     luaScript: >
-	//         function GetReplicas(desiredObj)
-	//             replica = desiredObj.spec.replicas
-	//             requirement = {}
-	//             requirement.nodeClaim = {}
-	//             requirement.nodeClaim.nodeSelector = desiredObj.spec.template.spec.nodeSelector
-	//             requirement.nodeClaim.tolerations = desiredObj.spec.template.spec.tolerations
-	//             requirement.resourceRequest = desiredObj.spec.template.spec.containers[1].resources.limits
-	//             return replica, requirement
-	//         end
+	//
+	// ```
+	//   luaScript: >
+	//       function GetReplicas(desiredObj)
+	//           replica = desiredObj.spec.replicas
+	//           requirement = {}
+	//           requirement.nodeClaim = {}
+	//           requirement.nodeClaim.nodeSelector = desiredObj.spec.template.spec.nodeSelector
+	//           requirement.nodeClaim.tolerations = desiredObj.spec.template.spec.tolerations
+	//           requirement.resourceRequest = desiredObj.spec.template.spec.containers[1].resources.limits
+	//           return replica, requirement
+	//       end
+	// ```
 	//
 	// The content of the LuaScript needs to be a whole function including both
 	// declaration and implementation.
@@ -171,11 +207,14 @@ type ReplicaResourceRequirement struct {
 type ReplicaRevision struct {
 	// LuaScript holds the Lua script that is used to revise replicas in the desired specification.
 	// The script should implement a function as follows:
-	//     luaScript: >
-	//         function ReviseReplica(desiredObj, desiredReplica)
-	//             desiredObj.spec.replicas = desiredReplica
-	//             return desiredObj
-	//         end
+	//
+	// ```
+	//   luaScript: >
+	//       function ReviseReplica(desiredObj, desiredReplica)
+	//           desiredObj.spec.replicas = desiredReplica
+	//           return desiredObj
+	//       end
+	// ```
 	//
 	// The content of the LuaScript needs to be a whole function including both
 	// declaration and implementation.
@@ -195,12 +234,15 @@ type ReplicaRevision struct {
 type StatusReflection struct {
 	// LuaScript holds the Lua script that is used to get the status from the observed specification.
 	// The script should implement a function as follows:
-	//     luaScript: >
-	//         function ReflectStatus(observedObj)
-	//             status = {}
-	//             status.readyReplicas = observedObj.status.observedObj
-	//             return status
-	//         end
+	//
+	// ```
+	//   luaScript: >
+	//       function ReflectStatus(observedObj)
+	//           status = {}
+	//           status.readyReplicas = observedObj.status.observedObj
+	//           return status
+	//       end
+	// ```
 	//
 	// The content of the LuaScript needs to be a whole function including both
 	// declaration and implementation.
@@ -220,13 +262,16 @@ type StatusAggregation struct {
 	// LuaScript holds the Lua script that is used to aggregate decentralized statuses
 	// to the desired specification.
 	// The script should implement a function as follows:
-	//     luaScript: >
-	//         function AggregateStatus(desiredObj, statusItems)
-	//             for i = 1, #statusItems do
-	//                 desiredObj.status.readyReplicas = desiredObj.status.readyReplicas + items[i].readyReplicas
-	//             end
-	//             return desiredObj
-	//         end
+	//
+	// ```
+	//   luaScript: >
+	//       function AggregateStatus(desiredObj, statusItems)
+	//           for i = 1, #statusItems do
+	//               desiredObj.status.readyReplicas = desiredObj.status.readyReplicas + items[i].readyReplicas
+	//           end
+	//           return desiredObj
+	//       end
+	// ```
 	//
 	// The content of the LuaScript needs to be a whole function including both
 	// declaration and implementation.
@@ -246,12 +291,15 @@ type HealthInterpretation struct {
 	// LuaScript holds the Lua script that is used to assess the health state of
 	// a specific resource.
 	// The script should implement a function as follows:
-	//     luaScript: >
-	//         function InterpretHealth(observedObj)
-	//             if observedObj.status.readyReplicas == observedObj.spec.replicas then
-	//                 return true
-	//             end
-	//         end
+	//
+	// ```
+	//   luaScript: >
+	//       function InterpretHealth(observedObj)
+	//           if observedObj.status.readyReplicas == observedObj.spec.replicas then
+	//               return true
+	//           end
+	//       end
+	// ```
 	//
 	// The content of the LuaScript needs to be a whole function including both
 	// declaration and implementation.
@@ -272,20 +320,23 @@ type DependencyInterpretation struct {
 	// LuaScript holds the Lua script that is used to interpret the dependencies of
 	// a specific resource.
 	// The script should implement a function as follows:
-	//     luaScript: >
-	//         function GetDependencies(desiredObj)
-	//             dependencies = {}
-	//             if desiredObj.spec.serviceAccountName ~= "" and desiredObj.spec.serviceAccountName ~= "default" then
-	//                 dependency = {}
-	//                 dependency.apiVersion = "v1"
-	//                 dependency.kind = "ServiceAccount"
-	//                 dependency.name = desiredObj.spec.serviceAccountName
-	//                 dependency.namespace = desiredObj.namespace
-	//                 dependencies[1] = {}
-	//                 dependencies[1] = dependency
-	//             end
-	//             return dependencies
-	//         end
+	//
+	// ```
+	//   luaScript: >
+	//       function GetDependencies(desiredObj)
+	//           dependencies = {}
+	//           serviceAccountName = desiredObj.spec.template.spec.serviceAccountName
+	//           if serviceAccountName ~= nil and serviceAccountName ~= "default" then
+	//               dependency = {}
+	//               dependency.apiVersion = "v1"
+	//               dependency.kind = "ServiceAccount"
+	//               dependency.name = serviceAccountName
+	//               dependency.namespace = desiredObj.metadata.namespace
+	//               dependencies[1] = dependency
+	//           end
+	//           return dependencies
+	//       end
+	// ```
 	//
 	// The content of the LuaScript needs to be a whole function including both
 	// declaration and implementation.

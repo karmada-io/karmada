@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package controlplane
 
 const (
@@ -35,20 +51,20 @@ spec:
       containers:
       - name: kube-controller-manager
         image: {{ .Image }}
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - kube-controller-manager
         - --allocate-node-cidrs=true
-        - --kubeconfig=/etc/karmada/config
-        - --authentication-kubeconfig=/etc/karmada/config
-        - --authorization-kubeconfig=/etc/karmada/config
+        - --kubeconfig=/etc/karmada/kubeconfig
+        - --authentication-kubeconfig=/etc/karmada/kubeconfig
+        - --authorization-kubeconfig=/etc/karmada/kubeconfig
         - --bind-address=0.0.0.0
         - --client-ca-file=/etc/karmada/pki/ca.crt
         - --cluster-cidr=10.244.0.0/16
         - --cluster-name=karmada
         - --cluster-signing-cert-file=/etc/karmada/pki/ca.crt
         - --cluster-signing-key-file=/etc/karmada/pki/ca.key
-        - --controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,csrapproving,csrcleaner,csrsigning
+        - --controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,csrapproving,csrcleaner,csrsigning,clusterrole-aggregation
         - --leader-elect=true
         - --node-cidr-mask-size=24
         - --root-ca-file=/etc/karmada/pki/ca.crt
@@ -71,8 +87,8 @@ spec:
           mountPath: /etc/karmada/pki
           readOnly: true
         - name: kubeconfig
-          mountPath: /etc/karmada/config
-          subPath: config
+          mountPath: /etc/karmada/kubeconfig
+          subPath: kubeconfig
       volumes:
         - name: karmada-certs
           secret:
@@ -108,10 +124,10 @@ spec:
       containers:
       - name: karmada-controller-manager
         image: {{ .Image }}
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - /bin/karmada-controller-manager
-        - --kubeconfig=/etc/karmada/config
+        - --kubeconfig=/etc/karmada/kubeconfig
         - --bind-address=0.0.0.0
         - --cluster-status-update-frequency=10s
         - --secure-port=10357
@@ -129,8 +145,8 @@ spec:
           timeoutSeconds: 5
         volumeMounts:
         - name: kubeconfig
-          subPath: config
-          mountPath: /etc/karmada/config
+          subPath: kubeconfig
+          mountPath: /etc/karmada/kubeconfig
       volumes:
       - name: kubeconfig
         secret:
@@ -164,14 +180,17 @@ spec:
       containers:
       - name: karmada-scheduler
         image: {{ .Image }}
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - /bin/karmada-scheduler
-        - --kubeconfig=/etc/karmada/config
+        - --kubeconfig=/etc/karmada/kubeconfig
         - --bind-address=0.0.0.0
         - --secure-port=10351
         - --enable-scheduler-estimator=true
         - --leader-elect-resource-namespace={{ .SystemNamespace }}
+        - --scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt
+        - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt
+        - --scheduler-estimator-key-file=/etc/karmada/pki/karmada.key
         - --v=4
         livenessProbe:
           httpGet:
@@ -183,10 +202,16 @@ spec:
           periodSeconds: 15
           timeoutSeconds: 5
         volumeMounts:
+        - name: karmada-certs
+          mountPath: /etc/karmada/pki
+          readOnly: true
         - name: kubeconfig
-          subPath: config
-          mountPath: /etc/karmada/config
+          subPath: kubeconfig
+          mountPath: /etc/karmada/kubeconfig
       volumes:
+        - name: karmada-certs
+          secret:
+            secretName: {{ .KarmadaCertsSecret }}
         - name: kubeconfig
           secret:
             secretName: {{ .KubeconfigSecret }}
@@ -219,12 +244,15 @@ spec:
       containers:
       - name: karmada-descheduler
         image: {{ .Image }}
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - /bin/karmada-descheduler
-        - --kubeconfig=/etc/karmada/config
+        - --kubeconfig=/etc/karmada/kubeconfig
         - --bind-address=0.0.0.0
         - --leader-elect-resource-namespace={{ .SystemNamespace }}
+        - --scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt
+        - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt
+        - --scheduler-estimator-key-file=/etc/karmada/pki/karmada.key
         - --v=4
         livenessProbe:
           httpGet:
@@ -236,10 +264,16 @@ spec:
           periodSeconds: 15
           timeoutSeconds: 5
         volumeMounts:
+        - name: karmada-certs
+          mountPath: /etc/karmada/pki
+          readOnly: true
         - name: kubeconfig
-          subPath: config
-          mountPath: /etc/karmada/config
+          subPath: kubeconfig
+          mountPath: /etc/karmada/kubeconfig
       volumes:
+        - name: karmada-certs
+          secret:
+            secretName: {{ .KarmadaCertsSecret }}
         - name: kubeconfig
           secret:
             secretName: {{ .KubeconfigSecret }}

@@ -1,6 +1,24 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package spreadconstraint
 
 import (
+	"k8s.io/utils/ptr"
+
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -72,7 +90,7 @@ func GroupClustersWithScore(
 	calAvailableReplicasFunc func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster,
 ) *GroupClustersInfo {
 	if isTopologyIgnored(placement) {
-		return groupClustersIngoreTopology(clustersScore, spec, calAvailableReplicasFunc)
+		return groupClustersIgnoringTopology(clustersScore, spec, calAvailableReplicasFunc)
 	}
 
 	return groupClustersBasedTopology(clustersScore, spec, placement.SpreadConstraints, calAvailableReplicasFunc)
@@ -98,7 +116,7 @@ func groupClustersBasedTopology(
 	return groupClustersInfo
 }
 
-func groupClustersIngoreTopology(
+func groupClustersIgnoringTopology(
 	clustersScore framework.ClusterScoreList,
 	rbSpec *workv1alpha2.ResourceBindingSpec,
 	calAvailableReplicasFunc func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster,
@@ -127,7 +145,12 @@ func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.Clus
 		info.Clusters[i].AvailableReplicas += int64(rbSpec.AssignedReplicasForCluster(clustersReplica.Name))
 	}
 
-	sortClusters(info.Clusters)
+	sortClusters(info.Clusters, func(i *ClusterDetailInfo, j *ClusterDetailInfo) *bool {
+		if i.AvailableReplicas != j.AvailableReplicas {
+			return ptr.To(i.AvailableReplicas > j.AvailableReplicas)
+		}
+		return nil
+	})
 }
 
 func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
@@ -136,22 +159,23 @@ func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alph
 	}
 
 	for _, clusterInfo := range info.Clusters {
-		zone := clusterInfo.Cluster.Spec.Zone
-		if zone == "" {
+		zones := clusterInfo.Cluster.Spec.Zones
+		if len(zones) == 0 {
 			continue
 		}
 
-		zoneInfo, ok := info.Zones[zone]
-		if !ok {
-			zoneInfo = ZoneInfo{
-				Name:     zone,
-				Clusters: make([]ClusterDetailInfo, 0),
+		for _, zone := range zones {
+			zoneInfo, ok := info.Zones[zone]
+			if !ok {
+				zoneInfo = ZoneInfo{
+					Name:     zone,
+					Clusters: make([]ClusterDetailInfo, 0),
+				}
 			}
+			zoneInfo.Clusters = append(zoneInfo.Clusters, clusterInfo)
+			zoneInfo.AvailableReplicas += clusterInfo.AvailableReplicas
+			info.Zones[zone] = zoneInfo
 		}
-
-		zoneInfo.Clusters = append(zoneInfo.Clusters, clusterInfo)
-		zoneInfo.AvailableReplicas += clusterInfo.AvailableReplicas
-		info.Zones[zone] = zoneInfo
 	}
 
 	for zone, zoneInfo := range info.Zones {

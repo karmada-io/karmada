@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package util
 
 import (
@@ -43,7 +59,7 @@ func ObtainCredentialsFromMemberCluster(clusterKubeClient kubeclient.Interface, 
 	var err error
 	// It's necessary to set the label of namespace to make sure that the namespace is created by Karmada.
 	labels := map[string]string{
-		ManagedByKarmadaLabel: ManagedByKarmadaLabelValue,
+		KarmadaSystemLabel: KarmadaSystemLabelValue,
 	}
 	// ensure namespace where the karmada control plane credential be stored exists in cluster.
 	if _, err = EnsureNamespaceExistWithLabels(clusterKubeClient, opts.ClusterNamespace, opts.DryRun, labels); err != nil {
@@ -52,9 +68,13 @@ func ObtainCredentialsFromMemberCluster(clusterKubeClient kubeclient.Interface, 
 
 	if opts.IsKubeImpersonatorEnabled() {
 		// create a ServiceAccount for impersonation in cluster.
-		impersonationSA := &corev1.ServiceAccount{}
-		impersonationSA.Namespace = opts.ClusterNamespace
-		impersonationSA.Name = names.GenerateServiceAccountName("impersonator")
+		impersonationSA := &corev1.ServiceAccount{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: opts.ClusterNamespace,
+				Name:      names.GenerateServiceAccountName("impersonator"),
+				Labels:    labels,
+			},
+		}
 		if impersonationSA, err = EnsureServiceAccountExist(clusterKubeClient, impersonationSA, opts.DryRun); err != nil {
 			return nil, nil, err
 		}
@@ -66,26 +86,38 @@ func ObtainCredentialsFromMemberCluster(clusterKubeClient kubeclient.Interface, 
 	}
 	if opts.IsKubeCredentialsEnabled() {
 		// create a ServiceAccount in cluster.
-		serviceAccountObj := &corev1.ServiceAccount{}
-		serviceAccountObj.Namespace = opts.ClusterNamespace
-		serviceAccountObj.Name = names.GenerateServiceAccountName(opts.ClusterName)
+		serviceAccountObj := &corev1.ServiceAccount{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: opts.ClusterNamespace,
+				Name:      names.GenerateServiceAccountName(opts.ClusterName),
+				Labels:    labels,
+			},
+		}
 		if serviceAccountObj, err = EnsureServiceAccountExist(clusterKubeClient, serviceAccountObj, opts.DryRun); err != nil {
 			return nil, nil, err
 		}
 
 		// create a ClusterRole in cluster.
-		clusterRole := &rbacv1.ClusterRole{}
-		clusterRole.Name = names.GenerateRoleName(serviceAccountObj.Name)
-		clusterRole.Rules = ClusterPolicyRules
+		clusterRole := &rbacv1.ClusterRole{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   names.GenerateRoleName(serviceAccountObj.Name),
+				Labels: labels,
+			},
+			Rules: ClusterPolicyRules,
+		}
 		if _, err = EnsureClusterRoleExist(clusterKubeClient, clusterRole, opts.DryRun); err != nil {
 			return nil, nil, err
 		}
 
 		// create a ClusterRoleBinding in cluster.
-		clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
-		clusterRoleBinding.Name = clusterRole.Name
-		clusterRoleBinding.Subjects = BuildRoleBindingSubjects(serviceAccountObj.Name, serviceAccountObj.Namespace)
-		clusterRoleBinding.RoleRef = BuildClusterRoleReference(clusterRole.Name)
+		clusterRoleBinding := &rbacv1.ClusterRoleBinding{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   clusterRole.Name,
+				Labels: labels,
+			},
+			Subjects: BuildRoleBindingSubjects(serviceAccountObj.Name, serviceAccountObj.Namespace),
+			RoleRef:  BuildClusterRoleReference(clusterRole.Name),
+		}
 		if _, err = EnsureClusterRoleBindingExist(clusterKubeClient, clusterRoleBinding, opts.DryRun); err != nil {
 			return nil, nil, err
 		}
@@ -104,7 +136,7 @@ func ObtainCredentialsFromMemberCluster(clusterKubeClient kubeclient.Interface, 
 func RegisterClusterInControllerPlane(opts ClusterRegisterOption, controlPlaneKubeClient kubeclient.Interface, generateClusterInControllerPlane generateClusterInControllerPlaneFunc) error {
 	// It's necessary to set the label of namespace to make sure that the namespace is created by Karmada.
 	labels := map[string]string{
-		ManagedByKarmadaLabel: ManagedByKarmadaLabelValue,
+		KarmadaSystemLabel: KarmadaSystemLabelValue,
 	}
 	// ensure namespace where the cluster object be stored exists in control plane.
 	if _, err := EnsureNamespaceExistWithLabels(controlPlaneKubeClient, opts.ClusterNamespace, opts.DryRun, labels); err != nil {
@@ -121,6 +153,7 @@ func RegisterClusterInControllerPlane(opts ClusterRegisterOption, controlPlaneKu
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: opts.ClusterNamespace,
 				Name:      names.GenerateImpersonationSecretName(opts.ClusterName),
+				Labels:    labels,
 			},
 			Data: map[string][]byte{
 				clusterv1alpha1.SecretTokenKey: opts.ImpersonatorSecret.Data[clusterv1alpha1.SecretTokenKey],
@@ -138,6 +171,7 @@ func RegisterClusterInControllerPlane(opts ClusterRegisterOption, controlPlaneKu
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: opts.ClusterNamespace,
 				Name:      opts.ClusterName,
+				Labels:    labels,
 			},
 			Data: map[string][]byte{
 				clusterv1alpha1.SecretCADataKey: opts.Secret.Data["ca.crt"],

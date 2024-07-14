@@ -1,6 +1,24 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package binding
 
 import (
+	"strconv"
+
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -9,7 +27,6 @@ import (
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -93,7 +110,7 @@ func ensureWork(
 			klog.Errorf("Failed to apply overrides for %s/%s/%s, err is: %v", clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), err)
 			return err
 		}
-		workLabel := mergeLabel(clonedWorkload, workNamespace, binding, scope)
+		workLabel := mergeLabel(clonedWorkload, binding, scope)
 
 		annotations := mergeAnnotations(clonedWorkload, binding, scope)
 		annotations = mergeConflictResolution(clonedWorkload, conflictResolutionInBinding, annotations)
@@ -137,23 +154,26 @@ func mergeTargetClusters(targetClusters []workv1alpha2.TargetCluster, requiredBy
 	return targetClusters
 }
 
-func mergeLabel(workload *unstructured.Unstructured, workNamespace string, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
+func mergeLabel(workload *unstructured.Unstructured, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
 	var workLabel = make(map[string]string)
-	util.MergeLabel(workload, workv1alpha1.WorkNamespaceLabel, workNamespace)
-	util.MergeLabel(workload, workv1alpha1.WorkNameLabel, names.GenerateWorkName(workload.GetKind(), workload.GetName(), workload.GetNamespace()))
-	util.MergeLabel(workload, util.ManagedByKarmadaLabel, util.ManagedByKarmadaLabelValue)
 	if scope == apiextensionsv1.NamespaceScoped {
-		util.MergeLabel(workload, workv1alpha2.ResourceBindingReferenceKey, names.GenerateBindingReferenceKey(binding.GetNamespace(), binding.GetName()))
-		workLabel[workv1alpha2.ResourceBindingReferenceKey] = names.GenerateBindingReferenceKey(binding.GetNamespace(), binding.GetName())
+		bindingID := util.GetLabelValue(binding.GetLabels(), workv1alpha2.ResourceBindingPermanentIDLabel)
+		util.MergeLabel(workload, workv1alpha2.ResourceBindingPermanentIDLabel, bindingID)
+		workLabel[workv1alpha2.ResourceBindingPermanentIDLabel] = bindingID
 	} else {
-		util.MergeLabel(workload, workv1alpha2.ClusterResourceBindingReferenceKey, names.GenerateBindingReferenceKey("", binding.GetName()))
-		workLabel[workv1alpha2.ClusterResourceBindingReferenceKey] = names.GenerateBindingReferenceKey("", binding.GetName())
+		bindingID := util.GetLabelValue(binding.GetLabels(), workv1alpha2.ClusterResourceBindingPermanentIDLabel)
+		util.MergeLabel(workload, workv1alpha2.ClusterResourceBindingPermanentIDLabel, bindingID)
+		workLabel[workv1alpha2.ClusterResourceBindingPermanentIDLabel] = bindingID
 	}
 	return workLabel
 }
 
 func mergeAnnotations(workload *unstructured.Unstructured, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
 	annotations := make(map[string]string)
+	if workload.GetGeneration() > 0 {
+		util.MergeAnnotation(workload, workv1alpha2.ResourceTemplateGenerationAnnotationKey, strconv.FormatInt(workload.GetGeneration(), 10))
+	}
+
 	if scope == apiextensionsv1.NamespaceScoped {
 		util.MergeAnnotation(workload, workv1alpha2.ResourceBindingNamespaceAnnotationKey, binding.GetNamespace())
 		util.MergeAnnotation(workload, workv1alpha2.ResourceBindingNameAnnotationKey, binding.GetName())
@@ -210,7 +230,7 @@ func mergeConflictResolution(workload *unstructured.Unstructured, conflictResolu
 		return annotations
 	} else if conflictResolutionInRT != "" {
 		// ignore its value and add logs if conflictResolutionInRT is neither abort nor overwrite.
-		klog.Warningf("ignore the invalid conflict-resolution annotation in ResourceTemplate %s/%s/%s: %s",
+		klog.Warningf("Ignore the invalid conflict-resolution annotation in ResourceTemplate %s/%s/%s: %s",
 			workload.GetKind(), workload.GetNamespace(), workload.GetName(), conflictResolutionInRT)
 	}
 

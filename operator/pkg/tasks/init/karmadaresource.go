@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package tasks
 
 import (
@@ -8,7 +24,6 @@ import (
 	"path"
 	"regexp"
 	"strings"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -69,14 +84,14 @@ func runSystemNamespace(r workflow.RunData) error {
 
 	err := apiclient.CreateNamespace(data.KarmadaClient(), &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: data.GetNamespace(),
+			Name: constants.KarmadaSystemNamespace,
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create namespace %s, err: %w", data.GetNamespace(), err)
+		return fmt.Errorf("failed to create namespace %s, err: %w", constants.KarmadaSystemNamespace, err)
 	}
 
-	klog.V(2).InfoS("[systemName] Successfully created karmada system namespace", "namespace", data.GetNamespace(), "karmada", klog.KObj(data))
+	klog.V(2).InfoS("[systemName] Successfully created karmada system namespace", "namespace", constants.KarmadaSystemNamespace, "karmada", klog.KObj(data))
 	return nil
 }
 
@@ -103,7 +118,7 @@ func runCrds(r workflow.RunData) error {
 
 	cert := data.GetCert(constants.CaCertAndKeyName)
 	if len(cert.CertData()) == 0 {
-		return errors.New("unexpect empty ca cert data")
+		return errors.New("unexpected empty ca cert data")
 	}
 
 	caBase64 := base64.StdEncoding.EncodeToString(cert.CertData())
@@ -116,12 +131,8 @@ func runCrds(r workflow.RunData) error {
 }
 
 func createCrds(crdsClient *crdsclient.Clientset, crdsPath string) error {
-	for _, file := range util.ListFiles(crdsPath) {
-		if file.IsDir() || path.Ext(file.Name()) != ".yaml" {
-			continue
-		}
-
-		crdBytes, err := util.ReadYamlFile(path.Join(crdsPath, file.Name()))
+	for _, file := range util.ListFileWithSuffix(crdsPath, ".yaml") {
+		crdBytes, err := util.ReadYamlFile(file.AbsPath)
 		if err != nil {
 			return err
 		}
@@ -139,18 +150,13 @@ func createCrds(crdsClient *crdsclient.Clientset, crdsPath string) error {
 }
 
 func patchCrds(crdsClient *crdsclient.Clientset, patchPath string, caBundle string) error {
-	for _, file := range util.ListFiles(patchPath) {
-		if file.IsDir() || path.Ext(file.Name()) != ".yaml" {
-			continue
-		}
-
+	for _, file := range util.ListFileWithSuffix(patchPath, ".yaml") {
 		reg, err := regexp.Compile("{{caBundle}}")
 		if err != nil {
 			return err
 		}
 
-		crdPath := path.Join(patchPath, file.Name())
-		crdBytes, err := util.RelpaceYamlForReg(crdPath, caBundle, reg)
+		crdBytes, err := util.ReplaceYamlForReg(file.AbsPath, caBundle, reg)
 		if err != nil {
 			return err
 		}
@@ -172,11 +178,11 @@ func runWebhookConfiguration(r workflow.RunData) error {
 
 	cert := data.GetCert(constants.CaCertAndKeyName)
 	if len(cert.CertData()) == 0 {
-		return errors.New("unexpect empty ca cert data for webhookConfiguration")
+		return errors.New("unexpected empty ca cert data for webhookConfiguration")
 	}
 
 	caBase64 := base64.StdEncoding.EncodeToString(cert.CertData())
-	return webhookconfiguration.EnsureWebhookconfiguration(
+	return webhookconfiguration.EnsureWebhookConfiguration(
 		data.KarmadaClient(),
 		data.GetNamespace(),
 		data.GetName(),
@@ -195,13 +201,19 @@ func runAPIService(r workflow.RunData) error {
 		return err
 	}
 
-	err = apiservice.EnsureAggregatedAPIService(client, data.KarmadaClient(), data.GetName(), data.GetNamespace())
+	cert := data.GetCert(constants.CaCertAndKeyName)
+	if len(cert.CertData()) == 0 {
+		return errors.New("unexpected empty ca cert data for aggregatedAPIService")
+	}
+	caBase64 := base64.StdEncoding.EncodeToString(cert.CertData())
+
+	err = apiservice.EnsureAggregatedAPIService(client, data.KarmadaClient(), data.GetName(), constants.KarmadaSystemNamespace, data.GetName(), data.GetNamespace(), caBase64)
 	if err != nil {
 		return fmt.Errorf("failed to apply aggregated APIService resource to karmada controlplane, err: %w", err)
 	}
 
-	waiter := apiclient.NewKarmadaWaiter(config, nil, time.Second*20)
-	if err := apiclient.TryRunCommand(waiter.WaitForAPIService, 3); err != nil {
+	waiter := apiclient.NewKarmadaWaiter(config, nil, componentBeReadyTimeout)
+	if err := waiter.WaitForAPIService(constants.APIServiceName); err != nil {
 		return fmt.Errorf("the APIService is unhealthy, err: %w", err)
 	}
 

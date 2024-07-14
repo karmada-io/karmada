@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package storage
 
 import (
@@ -13,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/endpoints/request"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -31,6 +48,7 @@ func TestProxyREST_Connect(t *testing.T) {
 	defer s.Close()
 
 	type fields struct {
+		secret        *corev1.Secret
 		kubeClient    kubernetes.Interface
 		clusterGetter func(ctx context.Context, name string) (*clusterapis.Cluster, error)
 	}
@@ -48,6 +66,10 @@ func TestProxyREST_Connect(t *testing.T) {
 		{
 			name: "options is invalid",
 			fields: fields{
+				secret: &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{Name: "secret", Namespace: "ns"},
+					Data:       map[string][]byte{clusterapis.SecretTokenKey: []byte("token")},
+				},
 				kubeClient: fake.NewSimpleClientset(&corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{Name: "secret", Namespace: "ns"},
 					Data:       map[string][]byte{clusterapis.SecretTokenKey: []byte("token")},
@@ -56,8 +78,9 @@ func TestProxyREST_Connect(t *testing.T) {
 					return &clusterapis.Cluster{
 						ObjectMeta: metav1.ObjectMeta{Name: name},
 						Spec: clusterapis.ClusterSpec{
-							APIEndpoint:           s.URL,
-							ImpersonatorSecretRef: &clusterapis.LocalSecretReference{Namespace: "ns", Name: "secret"},
+							APIEndpoint:                 s.URL,
+							ImpersonatorSecretRef:       &clusterapis.LocalSecretReference{Namespace: "ns", Name: "secret"},
+							InsecureSkipTLSVerification: true,
 						},
 					}, nil
 				},
@@ -72,6 +95,10 @@ func TestProxyREST_Connect(t *testing.T) {
 		{
 			name: "cluster not found",
 			fields: fields{
+				secret: &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{Name: "secret", Namespace: "ns"},
+					Data:       map[string][]byte{clusterapis.SecretTokenKey: []byte("token")},
+				},
 				kubeClient: fake.NewSimpleClientset(&corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{Name: "secret", Namespace: "ns"},
 					Data:       map[string][]byte{clusterapis.SecretTokenKey: []byte("token")},
@@ -88,8 +115,9 @@ func TestProxyREST_Connect(t *testing.T) {
 			want:    "",
 		},
 		{
-			name: "proxy success",
+			name: "proxy success without secret cache",
 			fields: fields{
+				secret: &corev1.Secret{},
 				kubeClient: fake.NewSimpleClientset(&corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{Name: "secret", Namespace: "ns"},
 					Data:       map[string][]byte{clusterapis.SecretTokenKey: []byte("token")},
@@ -98,8 +126,35 @@ func TestProxyREST_Connect(t *testing.T) {
 					return &clusterapis.Cluster{
 						ObjectMeta: metav1.ObjectMeta{Name: name},
 						Spec: clusterapis.ClusterSpec{
-							APIEndpoint:           s.URL,
-							ImpersonatorSecretRef: &clusterapis.LocalSecretReference{Namespace: "ns", Name: "secret"},
+							APIEndpoint:                 s.URL,
+							ImpersonatorSecretRef:       &clusterapis.LocalSecretReference{Namespace: "ns", Name: "secret"},
+							InsecureSkipTLSVerification: true,
+						},
+					}, nil
+				},
+			},
+			args: args{
+				id:      "cluster",
+				options: &clusterapis.ClusterProxyOptions{Path: "/proxy"},
+			},
+			wantErr: false,
+			want:    "ok",
+		},
+		{
+			name: "proxy success with secret cache",
+			fields: fields{
+				secret: &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{Name: "secret", Namespace: "ns"},
+					Data:       map[string][]byte{clusterapis.SecretTokenKey: []byte("token")},
+				},
+				kubeClient: fake.NewSimpleClientset(),
+				clusterGetter: func(_ context.Context, name string) (*clusterapis.Cluster, error) {
+					return &clusterapis.Cluster{
+						ObjectMeta: metav1.ObjectMeta{Name: name},
+						Spec: clusterapis.ClusterSpec{
+							APIEndpoint:                 s.URL,
+							ImpersonatorSecretRef:       &clusterapis.LocalSecretReference{Namespace: "ns", Name: "secret"},
+							InsecureSkipTLSVerification: true,
 						},
 					}, nil
 				},
@@ -114,16 +169,25 @@ func TestProxyREST_Connect(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			stopCh := make(chan struct{})
+			defer close(stopCh)
+
 			req, err := http.NewRequestWithContext(request.WithUser(request.NewContext(), &user.DefaultInfo{}), http.MethodGet, "http://127.0.0.1/xxx", nil)
 			if err != nil {
 				t.Fatal(err)
 			}
 			resp := httptest.NewRecorder()
 
+			kubeFactory := informers.NewSharedInformerFactory(fake.NewSimpleClientset(tt.fields.secret), 0)
 			r := &ProxyREST{
+				secretLister:  kubeFactory.Core().V1().Secrets().Lister(),
 				kubeClient:    tt.fields.kubeClient,
 				clusterGetter: tt.fields.clusterGetter,
 			}
+
+			kubeFactory.Start(stopCh)
+			kubeFactory.WaitForCacheSync(stopCh)
+
 			h, err := r.Connect(req.Context(), tt.args.id, tt.args.options, utiltest.NewResponder(resp))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Connect() error = %v, wantErr %v", err, tt.wantErr)

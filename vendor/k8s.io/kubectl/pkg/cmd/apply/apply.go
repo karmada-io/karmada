@@ -35,9 +35,11 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/openapi3"
 	"k8s.io/client-go/util/csaupgrade"
 	"k8s.io/component-base/version"
 	"k8s.io/klog/v2"
@@ -75,7 +77,7 @@ type ApplyFlags struct {
 	PruneWhitelist []string // TODO: Remove this in kubectl 1.28 or later
 	PruneAllowlist []string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 // ApplyOptions defines flags and other configuration parameters for the `apply` command
@@ -104,12 +106,13 @@ type ApplyOptions struct {
 	Builder             *resource.Builder
 	Mapper              meta.RESTMapper
 	DynamicClient       dynamic.Interface
-	OpenAPISchema       openapi.Resources
+	OpenAPIGetter       openapi.OpenAPIResourcesGetter
+	OpenAPIV3Root       openapi3.Root
 
 	Namespace        string
 	EnforceNamespace bool
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 
 	// Objects (and some denormalized data) which are to be
 	// applied. The standard way to fill in this structure
@@ -159,7 +162,7 @@ var (
 		# Apply the JSON passed into stdin to a pod
 		cat pod.json | kubectl apply -f -
 
-		# Apply the configuration from all files that end with '.json' - i.e. expand wildcard characters in file names
+		# Apply the configuration from all files that end with '.json'
 		kubectl apply -f '*.json'
 
 		# Note: --prune is still in Alpha
@@ -179,7 +182,7 @@ var (
 var ApplySetToolVersion = version.Get().GitVersion
 
 // NewApplyFlags returns a default ApplyFlags
-func NewApplyFlags(streams genericclioptions.IOStreams) *ApplyFlags {
+func NewApplyFlags(streams genericiooptions.IOStreams) *ApplyFlags {
 	return &ApplyFlags{
 		RecordFlags: genericclioptions.NewRecordFlags(),
 		DeleteFlags: delete.NewDeleteFlags("The files that contain the configurations to apply."),
@@ -193,7 +196,7 @@ func NewApplyFlags(streams genericclioptions.IOStreams) *ApplyFlags {
 }
 
 // NewCmdApply creates the `apply` command
-func NewCmdApply(baseName string, f cmdutil.Factory, ioStreams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdApply(baseName string, f cmdutil.Factory, ioStreams genericiooptions.IOStreams) *cobra.Command {
 	flags := NewApplyFlags(ioStreams)
 
 	cmd := &cobra.Command{
@@ -281,7 +284,15 @@ func (flags *ApplyFlags) ToOptions(f cmdutil.Factory, cmd *cobra.Command, baseNa
 		return nil, err
 	}
 
-	openAPISchema, _ := f.OpenAPISchema()
+	var openAPIV3Root openapi3.Root
+	if !cmdutil.OpenAPIV3Patch.IsDisabled() {
+		openAPIV3Client, err := f.OpenAPIV3Client()
+		if err == nil {
+			openAPIV3Root = openapi3.NewRoot(openAPIV3Client)
+		} else {
+			klog.V(4).Infof("warning: OpenAPI V3 Patch is enabled but is unable to be loaded. Will fall back to OpenAPI V2")
+		}
+	}
 
 	validationDirective, err := cmdutil.GetValidationDirective(cmd)
 	if err != nil {
@@ -359,7 +370,8 @@ func (flags *ApplyFlags) ToOptions(f cmdutil.Factory, cmd *cobra.Command, baseNa
 		Builder:             builder,
 		Mapper:              mapper,
 		DynamicClient:       dynamicClient,
-		OpenAPISchema:       openAPISchema,
+		OpenAPIGetter:       f,
+		OpenAPIV3Root:       openAPIV3Root,
 
 		IOStreams: flags.IOStreams,
 

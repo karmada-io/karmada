@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package app
 
 import (
@@ -40,6 +56,22 @@ const (
 	// References:
 	// - https://en.wikipedia.org/wiki/Slowloris_(computer_security)
 	ReadHeaderTimeout = 32 * time.Second
+	// WriteTimeout is the amount of time allowed to write the
+	// request data.
+	// HTTP timeouts are necessary to expire inactive connections
+	// and failing to do so might make the application vulnerable
+	// to attacks like slowloris which work by sending data very slow,
+	// which in case of no timeout will keep the connection active
+	// eventually leading to a denial-of-service (DoS) attack.
+	WriteTimeout = 5 * time.Minute
+	// ReadTimeout is the amount of time allowed to read
+	// response data.
+	// HTTP timeouts are necessary to expire inactive connections
+	// and failing to do so might make the application vulnerable
+	// to attacks like slowloris which work by sending data very slow,
+	// which in case of no timeout will keep the connection active
+	// eventually leading to a denial-of-service (DoS) attack.
+	ReadTimeout = 5 * time.Minute
 )
 
 // NewSchedulerEstimatorCommand creates a *cobra.Command object with default parameters
@@ -50,7 +82,7 @@ func NewSchedulerEstimatorCommand(ctx context.Context) *cobra.Command {
 		Use: "karmada-scheduler-estimator",
 		Long: `The karmada-scheduler-estimator runs an accurate scheduler estimator of a cluster. It 
 provides the scheduler with more accurate cluster resource information.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()
@@ -96,9 +128,14 @@ func run(ctx context.Context, opts *options.Options) error {
 	dynamicClient := dynamic.NewForConfigOrDie(restConfig)
 	discoveryClient := discovery.NewDiscoveryClientForConfigOrDie(restConfig)
 
-	e := server.NewEstimatorServer(kubeClient, dynamicClient, discoveryClient, opts, ctx.Done())
+	e, err := server.NewEstimatorServer(kubeClient, dynamicClient, discoveryClient, opts, ctx.Done())
+	if err != nil {
+		klog.Errorf("Fail to create estimator server: %v", err)
+		return err
+	}
+
 	if err = e.Start(ctx); err != nil {
-		klog.Errorf("estimator server exits unexpectedly: %v", err)
+		klog.Errorf("Estimator server exits unexpectedly: %v", err)
 		return err
 	}
 
@@ -121,6 +158,8 @@ func serveHealthzAndMetrics(address string) {
 		Addr:              address,
 		Handler:           mux,
 		ReadHeaderTimeout: ReadHeaderTimeout,
+		WriteTimeout:      WriteTimeout,
+		ReadTimeout:       ReadTimeout,
 	}
 	if err := httpServer.ListenAndServe(); err != nil {
 		klog.Errorf("Failed to serve healthz and metrics: %v", err)

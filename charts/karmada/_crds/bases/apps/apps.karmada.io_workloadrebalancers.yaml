@@ -1,0 +1,146 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.14.0
+  name: workloadrebalancers.apps.karmada.io
+spec:
+  group: apps.karmada.io
+  names:
+    kind: WorkloadRebalancer
+    listKind: WorkloadRebalancerList
+    plural: workloadrebalancers
+    singular: workloadrebalancer
+  scope: Cluster
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: WorkloadRebalancer represents the desired behavior and status
+          of a job which can enforces a resource rebalance.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec represents the specification of the desired behavior
+              of WorkloadRebalancer.
+            properties:
+              ttlSecondsAfterFinished:
+                description: |-
+                  TTLSecondsAfterFinished limits the lifetime of a WorkloadRebalancer that has finished execution (means each
+                  target workload is finished with result of Successful or Failed).
+                  If this field is set, ttlSecondsAfterFinished after the WorkloadRebalancer finishes, it is eligible to be automatically deleted.
+                  If this field is unset, the WorkloadRebalancer won't be automatically deleted.
+                  If this field is set to zero, the WorkloadRebalancer becomes eligible to be deleted immediately after it finishes.
+                format: int32
+                type: integer
+              workloads:
+                description: |-
+                  Workloads used to specify the list of expected resource.
+                  Nil or empty list is not allowed.
+                items:
+                  description: ObjectReference the expected resource.
+                  properties:
+                    apiVersion:
+                      description: APIVersion represents the API version of the target
+                        resource.
+                      type: string
+                    kind:
+                      description: Kind represents the Kind of the target resource.
+                      type: string
+                    name:
+                      description: Name of the target resource.
+                      type: string
+                    namespace:
+                      description: |-
+                        Namespace of the target resource.
+                        Default is empty, which means it is a non-namespacescoped resource.
+                      type: string
+                  required:
+                  - apiVersion
+                  - kind
+                  - name
+                  type: object
+                minItems: 1
+                type: array
+            required:
+            - workloads
+            type: object
+          status:
+            description: Status represents the status of WorkloadRebalancer.
+            properties:
+              finishTime:
+                description: FinishTime represents the finish time of rebalancer.
+                format: date-time
+                type: string
+              observedGeneration:
+                description: |-
+                  ObservedGeneration is the generation(.metadata.generation) observed by the controller.
+                  If ObservedGeneration is less than the generation in metadata means the controller hasn't confirmed
+                  the rebalance result or hasn't done the rebalance yet.
+                format: int64
+                type: integer
+              observedWorkloads:
+                description: ObservedWorkloads contains information about the execution
+                  states and messages of target resources.
+                items:
+                  description: ObservedWorkload the observed resource.
+                  properties:
+                    reason:
+                      description: Reason represents a machine-readable description
+                        of why this resource rebalanced failed.
+                      type: string
+                    result:
+                      description: Result the observed rebalance result of resource.
+                      type: string
+                    workload:
+                      description: Workload the observed resource.
+                      properties:
+                        apiVersion:
+                          description: APIVersion represents the API version of the
+                            target resource.
+                          type: string
+                        kind:
+                          description: Kind represents the Kind of the target resource.
+                          type: string
+                        name:
+                          description: Name of the target resource.
+                          type: string
+                        namespace:
+                          description: |-
+                            Namespace of the target resource.
+                            Default is empty, which means it is a non-namespacescoped resource.
+                          type: string
+                      required:
+                      - apiVersion
+                      - kind
+                      - name
+                      type: object
+                  required:
+                  - workload
+                  type: object
+                type: array
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

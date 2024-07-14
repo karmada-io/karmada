@@ -42,7 +42,10 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
+      {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
       {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
+      initContainers:
+        {{- include "karmada.initContainer.waitStaticResource" . | nindent 8 }}
       containers:
         - name: {{ $name }}-controller-manager
           image: {{ template "karmada.controllerManager.image" . }}
@@ -71,9 +74,29 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 15
             timeoutSeconds: 5
+          ports:
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
           volumeMounts:
           {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
           resources:
           {{- toYaml .Values.controllerManager.resources | nindent 12 }}
+
+{{ if .Values.controllerManager.podDisruptionBudget }}
 ---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}-controller-manager
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.cm.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "karmada.cm.labels" . | nindent 6 }}
+  {{ toYaml .Values.controllerManager.podDisruptionBudget | nindent 2 }}
+{{- end -}}
+
 {{- end }}

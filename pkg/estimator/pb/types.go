@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package pb
 
 import (
@@ -41,6 +57,15 @@ type ReplicaRequirements struct {
 	// ResourceRequest represents the resources required by each replica.
 	// +optional
 	ResourceRequest corev1.ResourceList `json:"resourceRequest,omitempty" protobuf:"bytes,2,rep,name=resourceRequest,casttype=k8s.io/api/core/v1.ResourceList,castkey=k8s.io/api/core/v1.ResourceName"`
+	// Namespace represents the namespaces belonged to a ResourceRequest
+	// +optional
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,3,opt,name=namespace"`
+	// PriorityClassName represents the priority class name for a given ResourceRequest
+	// Resource quotas are introduced for multi tenants sharing a cluster
+	// Besides estimate the replica based on nodes' resources, we need to consider the resource quota of a ResourceRequest
+	// ResourceQuota have an associated set of scopes, one of them is priority class
+	// +optional
+	PriorityClassName string `json:"priorityClassName,omitempty" protobuf:"bytes,4,opt,name=priorityClassName"`
 }
 
 // MaxAvailableReplicasResponse represents the response that sent by gRPC server to calculate max available replicas.

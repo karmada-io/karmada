@@ -1,15 +1,44 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package v1alpha2
 
 const (
-	// ResourceBindingReferenceKey is the key of ResourceBinding object.
-	// It is usually a unique hash value of ResourceBinding object's namespace and name, intended to be added to the Work object.
-	// It will be used to retrieve all Works objects that derived from a specific ResourceBinding object.
-	ResourceBindingReferenceKey = "resourcebinding.karmada.io/key"
+	// ResourceBindingPermanentIDLabel is the identifier of a ResourceBinding object.
+	// Karmada generates a unique identifier, such as metadata.UUID, for each ResourceBinding object.
+	// This identifier will be used as a label selector to locate corresponding resources, such as Work.
+	// The reason for generating a new unique identifier instead of simply using metadata.UUID is because:
+	// In backup scenarios, when applying the backup resource manifest in a new cluster, the UUID may change.
+	ResourceBindingPermanentIDLabel = "resourcebinding.karmada.io/permanent-id"
 
-	// ClusterResourceBindingReferenceKey is the key of ClusterResourceBinding object.
-	// It is usually a unique hash value of ClusterResourceBinding object's namespace and name, intended to be added to the Work object.
-	// It will be used to retrieve all Works objects that derived by a specific ClusterResourceBinding object.
-	ClusterResourceBindingReferenceKey = "clusterresourcebinding.karmada.io/key"
+	// ClusterResourceBindingPermanentIDLabel is the identifier of a ClusterResourceBinding object.
+	// Karmada generates a unique identifier, such as metadata.UUID, for each ClusterResourceBinding object.
+	// This identifier will be used as a label selector to locate corresponding resources, such as Work.
+	// The reason for generating a new unique identifier instead of simply using metadata.UUID is because:
+	// In backup scenarios, when applying the backup resource manifest in a new cluster, the UUID may change.
+	ClusterResourceBindingPermanentIDLabel = "clusterresourcebinding.karmada.io/permanent-id"
+
+	// WorkPermanentIDLabel is the ID of Work object.
+	WorkPermanentIDLabel = "work.karmada.io/permanent-id"
+
+	// WorkNamespaceAnnotation is added to objects to specify associated Work's namespace.
+	WorkNamespaceAnnotation = "work.karmada.io/namespace"
+
+	// WorkNameAnnotation is added to objects to specify associated Work's name.
+	WorkNameAnnotation = "work.karmada.io/name"
 
 	// ResourceBindingNamespaceAnnotationKey is added to object to describe the associated ResourceBinding's namespace.
 	// It is added to:
@@ -29,11 +58,19 @@ const (
 	// - Manifest in Work object: describes the name of ClusterResourceBinding which the manifest derived from.
 	ClusterResourceBindingAnnotationKey = "clusterresourcebinding.karmada.io/name"
 
-	// WorkNamespaceLabel is added to objects to specify associated Work's namespace.
-	WorkNamespaceLabel = "work.karmada.io/namespace"
+	// BindingManagedByLabel is added to ResourceBinding to represent what kind of resource manages this Binding.
+	BindingManagedByLabel = "binding.karmada.io/managed-by"
 
-	// WorkNameLabel is added to objects to specify associated Work's name.
-	WorkNameLabel = "work.karmada.io/name"
+	// ResourceTemplateGenerationAnnotationKey records the generation of resource template in Karmada APIServer,
+	// It will be injected into the resource when propagating to member clusters, to denote the specific version of
+	// the resource template from which the resource is derived. It might be helpful in the following cases:
+	// 1. Facilitating observation from member clusters to ascertain if the most recent resource template has been
+	//    completely synced.
+	// 2. The annotation will be synced back to Karmada during the process of syncing resource status,
+	//    by leveraging this annotation, Karmada can infer if the most recent resource template has been completely
+	//    synced on member clusters, then generates accurate observed generation(like Deployment's .status.observedGeneration)
+	//    which might be required by the release system.
+	ResourceTemplateGenerationAnnotationKey = "resourcetemplate.karmada.io/generation"
 )
 
 // Define resource conflict resolution
@@ -79,6 +116,14 @@ const (
 	// E.g. "resourcetemplate.karmada.io/managed-annotations: bar,foo".
 	// Note: the keys will be sorted in alphabetical order.
 	ManagedAnnotation = "resourcetemplate.karmada.io/managed-annotations"
+
+	// DeletionProtectionLabelKey If a user assigns the DeletionProtectionLabelKey label to a specific resource,
+	// and the value of this label is DeletionProtectionAlways, then deletion requests
+	// for this resource will be denied.
+	// In the current design, only the Value set to 'Always' will be protected,
+	// Additional options will be added here in the future.
+	DeletionProtectionLabelKey = "resourcetemplate.karmada.io/deletion-protected"
+	DeletionProtectionAlways   = "Always"
 )
 
 // Define eviction reasons.

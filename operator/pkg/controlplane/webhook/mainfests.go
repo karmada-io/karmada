@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package webhook
 
 const (
@@ -28,10 +44,10 @@ spec:
       containers:
       - name: karmada-webhook
         image: {{ .Image }}
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - /bin/karmada-webhook
-        - --kubeconfig=/etc/karmada/config
+        - --kubeconfig=/etc/karmada/kubeconfig
         - --bind-address=0.0.0.0
         - --default-not-ready-toleration-seconds=30
         - --default-unreachable-toleration-seconds=30
@@ -42,8 +58,8 @@ spec:
         - containerPort: 8443
         volumeMounts:
         - name: kubeconfig
-          subPath: config
-          mountPath: /etc/karmada/config
+          subPath: kubeconfig
+          mountPath: /etc/karmada/kubeconfig
         - name: cert
           mountPath: /var/serving-cert
           readOnly: true

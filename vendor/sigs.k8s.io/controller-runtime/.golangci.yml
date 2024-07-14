@@ -5,7 +5,6 @@ linters:
     - asciicheck
     - bidichk
     - bodyclose
-    - depguard
     - dogsled
     - dupl
     - errcheck
@@ -13,6 +12,7 @@ linters:
     - errorlint
     - exhaustive
     - exportloopref
+    - ginkgolinter
     - goconst
     - gocritic
     - gocyclo
@@ -59,13 +59,9 @@ linters-settings:
       - pkg: sigs.k8s.io/controller-runtime
         alias: ctrl
   staticcheck:
-    go: "1.20"
+    go: "1.21"
   stylecheck:
-    go: "1.20"
-  depguard:
-    include-go-root: true
-    packages:
-      - io/ioutil # https://go.dev/doc/go1.16#ioutil
+    go: "1.21"
   revive:
     rules:
       # The following rules are recommended https://github.com/mgechev/revive#recommended-configuration

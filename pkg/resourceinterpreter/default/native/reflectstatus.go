@@ -1,9 +1,27 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package native
 
 import (
+	"bytes"
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -13,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 
+	"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
@@ -28,6 +47,7 @@ func getAllDefaultReflectStatusInterpreter() map[schema.GroupVersionKind]reflect
 	s[appsv1.SchemeGroupVersion.WithKind(util.DaemonSetKind)] = reflectDaemonSetStatus
 	s[appsv1.SchemeGroupVersion.WithKind(util.StatefulSetKind)] = reflectStatefulSetStatus
 	s[policyv1.SchemeGroupVersion.WithKind(util.PodDisruptionBudgetKind)] = reflectPodDisruptionBudgetStatus
+	s[autoscalingv2.SchemeGroupVersion.WithKind(util.HorizontalPodAutoscalerKind)] = reflectHorizontalPodAutoscalerStatus
 	return s
 }
 
@@ -49,20 +69,46 @@ func reflectDeploymentStatus(object *unstructured.Unstructured) (*runtime.RawExt
 		return nil, fmt.Errorf("failed to convert DeploymentStatus from map[string]interface{}: %v", err)
 	}
 
-	grabStatus := appsv1.DeploymentStatus{
-		Replicas:            deploymentStatus.Replicas,
-		UpdatedReplicas:     deploymentStatus.UpdatedReplicas,
-		ReadyReplicas:       deploymentStatus.ReadyReplicas,
-		AvailableReplicas:   deploymentStatus.AvailableReplicas,
-		UnavailableReplicas: deploymentStatus.UnavailableReplicas,
+	resourceTemplateGenerationInt := int64(0)
+	resourceTemplateGenerationStr := util.GetAnnotationValue(object.GetAnnotations(), v1alpha2.ResourceTemplateGenerationAnnotationKey)
+	err = runtime.Convert_string_To_int64(&resourceTemplateGenerationStr, &resourceTemplateGenerationInt, nil)
+	if err != nil {
+		klog.Errorf("Failed to parse Deployment(%s/%s) generation from annotation(%s:%s): %v", object.GetNamespace(), object.GetName(), v1alpha2.ResourceTemplateGenerationAnnotationKey, resourceTemplateGenerationStr, err)
+		return nil, err
 	}
-	return helper.BuildStatusRawExtension(grabStatus)
+
+	grabStatus := &WrappedDeploymentStatus{
+		FederatedGeneration: FederatedGeneration{
+			Generation:                 object.GetGeneration(),
+			ResourceTemplateGeneration: resourceTemplateGenerationInt,
+		},
+		DeploymentStatus: appsv1.DeploymentStatus{
+			Replicas:            deploymentStatus.Replicas,
+			UpdatedReplicas:     deploymentStatus.UpdatedReplicas,
+			ReadyReplicas:       deploymentStatus.ReadyReplicas,
+			AvailableReplicas:   deploymentStatus.AvailableReplicas,
+			UnavailableReplicas: deploymentStatus.UnavailableReplicas,
+			ObservedGeneration:  deploymentStatus.ObservedGeneration,
+		},
+	}
+
+	grabStatusRaw, err := helper.BuildStatusRawExtension(grabStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	// if status is empty struct, it actually means status haven't been collected from member cluster.
+	if bytes.Equal(grabStatusRaw.Raw, []byte("{}")) {
+		return nil, nil
+	}
+
+	return grabStatusRaw, nil
 }
 
 func reflectServiceStatus(object *unstructured.Unstructured) (*runtime.RawExtension, error) {
 	serviceType, exist, err := unstructured.NestedString(object.Object, "spec", "type")
 	if err != nil {
-		klog.Errorf("Failed to get spec.type field from %s(%s/%s)")
+		klog.Errorf("Failed to get spec.type field from %s(%s/%s)", object.GetKind(), object.GetNamespace(), object.GetName())
 	}
 	if !exist {
 		klog.Errorf("Failed to get spec.type from %s(%s/%s) which should have spec.type field.",
@@ -150,15 +196,31 @@ func reflectDaemonSetStatus(object *unstructured.Unstructured) (*runtime.RawExte
 		return nil, fmt.Errorf("failed to convert DaemonSetStatus from map[string]interface{}: %v", err)
 	}
 
-	grabStatus := appsv1.DaemonSetStatus{
-		CurrentNumberScheduled: daemonSetStatus.CurrentNumberScheduled,
-		DesiredNumberScheduled: daemonSetStatus.DesiredNumberScheduled,
-		NumberAvailable:        daemonSetStatus.NumberAvailable,
-		NumberMisscheduled:     daemonSetStatus.NumberMisscheduled,
-		NumberReady:            daemonSetStatus.NumberReady,
-		UpdatedNumberScheduled: daemonSetStatus.UpdatedNumberScheduled,
-		NumberUnavailable:      daemonSetStatus.NumberUnavailable,
+	resourceTemplateGenerationInt := int64(0)
+	resourceTemplateGenerationStr := util.GetAnnotationValue(object.GetAnnotations(), v1alpha2.ResourceTemplateGenerationAnnotationKey)
+	err = runtime.Convert_string_To_int64(&resourceTemplateGenerationStr, &resourceTemplateGenerationInt, nil)
+	if err != nil {
+		klog.Errorf("Failed to parse DaemonSet(%s/%s) generation from annotation(%s:%s): %v", object.GetNamespace(), object.GetName(), v1alpha2.ResourceTemplateGenerationAnnotationKey, resourceTemplateGenerationStr, err)
+		return nil, err
 	}
+
+	grabStatus := &WrappedDaemonSetStatus{
+		FederatedGeneration: FederatedGeneration{
+			Generation:                 object.GetGeneration(),
+			ResourceTemplateGeneration: resourceTemplateGenerationInt,
+		},
+		DaemonSetStatus: appsv1.DaemonSetStatus{
+			CurrentNumberScheduled: daemonSetStatus.CurrentNumberScheduled,
+			DesiredNumberScheduled: daemonSetStatus.DesiredNumberScheduled,
+			NumberAvailable:        daemonSetStatus.NumberAvailable,
+			NumberMisscheduled:     daemonSetStatus.NumberMisscheduled,
+			NumberReady:            daemonSetStatus.NumberReady,
+			UpdatedNumberScheduled: daemonSetStatus.UpdatedNumberScheduled,
+			NumberUnavailable:      daemonSetStatus.NumberUnavailable,
+			ObservedGeneration:     daemonSetStatus.ObservedGeneration,
+		},
+	}
+
 	return helper.BuildStatusRawExtension(grabStatus)
 }
 
@@ -216,6 +278,32 @@ func reflectPodDisruptionBudgetStatus(object *unstructured.Unstructured) (*runti
 		DesiredHealthy:     pdbStatus.DesiredHealthy,
 		CurrentHealthy:     pdbStatus.CurrentHealthy,
 		DisruptedPods:      pdbStatus.DisruptedPods,
+	}
+	return helper.BuildStatusRawExtension(grabStatus)
+}
+
+func reflectHorizontalPodAutoscalerStatus(object *unstructured.Unstructured) (*runtime.RawExtension, error) {
+	statusMap, exist, err := unstructured.NestedMap(object.Object, "status")
+	if err != nil {
+		klog.Errorf("Failed to get status field from %s(%s/%s), error: %v",
+			object.GetKind(), object.GetNamespace(), object.GetName(), err)
+		return nil, err
+	}
+	if !exist {
+		klog.Errorf("Failed to grab status from %s(%s/%s) which should have status field.",
+			object.GetKind(), object.GetNamespace(), object.GetName())
+		return nil, nil
+	}
+
+	hpaStatus := &autoscalingv2.HorizontalPodAutoscalerStatus{}
+	err = helper.ConvertToTypedObject(statusMap, hpaStatus)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert HorizontalPodAutoscaler from map[string]interface{}: %v", err)
+	}
+
+	grabStatus := autoscalingv2.HorizontalPodAutoscalerStatus{
+		CurrentReplicas: hpaStatus.CurrentReplicas,
+		DesiredReplicas: hpaStatus.DesiredReplicas,
 	}
 	return helper.BuildStatusRawExtension(grabStatus)
 }

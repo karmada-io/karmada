@@ -1,10 +1,25 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package helper
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"sort"
 
 	corev1 "k8s.io/api/core/v1"
@@ -18,6 +33,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -45,9 +61,7 @@ func AggregateResourceBindingWorkStatus(
 	resourceTemplate *unstructured.Unstructured,
 	eventRecorder record.EventRecorder,
 ) error {
-	binding.GetName()
-
-	workList, err := GetWorksByBindingNamespaceName(c, binding.Namespace, binding.Name)
+	workList, err := GetWorksByBindingID(c, binding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel], true)
 	if err != nil {
 		return err
 	}
@@ -59,42 +73,28 @@ func AggregateResourceBindingWorkStatus(
 
 	fullyAppliedCondition := generateFullyAppliedCondition(binding.Spec, aggregatedStatuses)
 
-	currentBindingStatus := binding.Status.DeepCopy()
-	currentBindingStatus.AggregatedStatus = aggregatedStatuses
-	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		// set binding status with the newest condition
-		currentBindingStatus.Conditions = binding.Status.Conditions
-		meta.SetStatusCondition(&currentBindingStatus.Conditions, fullyAppliedCondition)
-		if reflect.DeepEqual(binding.Status, *currentBindingStatus) {
-			klog.V(4).Infof("New aggregatedStatuses are equal with old resourceBinding(%s/%s) AggregatedStatus, no update required.",
-				binding.Namespace, binding.Name)
+	var operationResult controllerutil.OperationResult
+	if err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		operationResult, err = UpdateStatus(context.Background(), c, binding, func() error {
+			binding.Status.AggregatedStatus = aggregatedStatuses
+			// set binding status with the newest condition
+			meta.SetStatusCondition(&binding.Status.Conditions, fullyAppliedCondition)
 			return nil
-		}
-
-		binding.Status = *currentBindingStatus
-		updateErr := c.Status().Update(context.TODO(), binding)
-		if updateErr == nil {
-			return nil
-		}
-
-		updated := &workv1alpha2.ResourceBinding{}
-		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: binding.Namespace, Name: binding.Name}, updated); err == nil {
-			binding = updated
-		} else {
-			klog.Errorf("Failed to get updated binding %s/%s: %v", binding.Namespace, binding.Name, err)
-		}
-
-		return updateErr
-	})
-	if err != nil {
+		})
+		return err
+	}); err != nil {
 		eventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonAggregateStatusFailed, err.Error())
 		eventRecorder.Event(resourceTemplate, corev1.EventTypeWarning, events.EventReasonAggregateStatusFailed, err.Error())
 		return err
 	}
 
-	msg := fmt.Sprintf("Update resourceBinding(%s/%s) with AggregatedStatus successfully.", binding.Namespace, binding.Name)
-	eventRecorder.Event(binding, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
-	eventRecorder.Event(resourceTemplate, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
+	if operationResult == controllerutil.OperationResultUpdatedStatusOnly {
+		msg := fmt.Sprintf("Update ResourceBinding(%s/%s) with AggregatedStatus successfully.", binding.Namespace, binding.Name)
+		eventRecorder.Event(binding, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
+		eventRecorder.Event(resourceTemplate, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
+	} else {
+		klog.Infof("New aggregatedStatuses are equal with old ResourceBinding(%s/%s) AggregatedStatus, no update required.", binding.Namespace, binding.Name)
+	}
 	return nil
 }
 
@@ -106,7 +106,7 @@ func AggregateClusterResourceBindingWorkStatus(
 	resourceTemplate *unstructured.Unstructured,
 	eventRecorder record.EventRecorder,
 ) error {
-	workList, err := GetWorksByBindingNamespaceName(c, "", binding.Name)
+	workList, err := GetWorksByBindingID(c, binding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel], false)
 	if err != nil {
 		return err
 	}
@@ -118,41 +118,29 @@ func AggregateClusterResourceBindingWorkStatus(
 
 	fullyAppliedCondition := generateFullyAppliedCondition(binding.Spec, aggregatedStatuses)
 
-	currentBindingStatus := binding.Status.DeepCopy()
-	currentBindingStatus.AggregatedStatus = aggregatedStatuses
-	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		// set binding status with the newest condition
-		currentBindingStatus.Conditions = binding.Status.Conditions
-		meta.SetStatusCondition(&currentBindingStatus.Conditions, fullyAppliedCondition)
-		if reflect.DeepEqual(binding.Status, *currentBindingStatus) {
-			klog.Infof("New aggregatedStatuses are equal with old clusterResourceBinding(%s) AggregatedStatus, no update required.", binding.Name)
+	var operationResult controllerutil.OperationResult
+	if err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		operationResult, err = UpdateStatus(context.Background(), c, binding, func() error {
+			binding.Status.AggregatedStatus = aggregatedStatuses
+			// set binding status with the newest condition
+			meta.SetStatusCondition(&binding.Status.Conditions, fullyAppliedCondition)
 			return nil
-		}
-
-		binding.Status = *currentBindingStatus
-		updateErr := c.Status().Update(context.TODO(), binding)
-		if updateErr == nil {
-			return nil
-		}
-
-		updated := &workv1alpha2.ClusterResourceBinding{}
-		if err = c.Get(context.TODO(), client.ObjectKey{Name: binding.Name}, updated); err == nil {
-			binding = updated
-		} else {
-			klog.Errorf("Failed to get updated binding %s/%s: %v", binding.Namespace, binding.Name, err)
-		}
-
-		return updateErr
-	})
-	if err != nil {
+		})
+		return err
+	}); err != nil {
 		eventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonAggregateStatusFailed, err.Error())
 		eventRecorder.Event(resourceTemplate, corev1.EventTypeWarning, events.EventReasonAggregateStatusFailed, err.Error())
 		return err
 	}
 
-	msg := fmt.Sprintf("Update clusterResourceBinding(%s) with AggregatedStatus successfully.", binding.Name)
-	eventRecorder.Event(binding, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
-	eventRecorder.Event(resourceTemplate, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
+	if operationResult == controllerutil.OperationResultUpdatedStatusOnly {
+		msg := fmt.Sprintf("Update ClusterResourceBinding(%s) with AggregatedStatus successfully.", binding.Name)
+		eventRecorder.Event(binding, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
+		eventRecorder.Event(resourceTemplate, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
+	} else {
+		klog.Infof("New aggregatedStatuses are equal with old ClusterResourceBinding(%s) AggregatedStatus, no update required.", binding.Name)
+	}
+
 	return nil
 }
 
@@ -217,14 +205,14 @@ func assembleWorkStatus(works []workv1alpha1.Work, workload *unstructured.Unstru
 			Health:      workv1alpha2.ResourceUnknown,
 		}
 
-		for _, manifestStatus := range work.Status.ManifestStatuses {
-			equal, err := equalIdentifier(&manifestStatus.Identifier, identifierIndex, workload)
+		for i := range work.Status.ManifestStatuses {
+			equal, err := equalIdentifier(&work.Status.ManifestStatuses[i].Identifier, identifierIndex, workload)
 			if err != nil {
 				return nil, err
 			}
 			if equal {
-				aggregatedStatus.Status = manifestStatus.Status
-				aggregatedStatus.Health = workv1alpha2.ResourceHealth(manifestStatus.Health)
+				aggregatedStatus.Status = work.Status.ManifestStatuses[i].Status
+				aggregatedStatus.Health = workv1alpha2.ResourceHealth(work.Status.ManifestStatuses[i].Health)
 				break
 			}
 		}
@@ -237,7 +225,7 @@ func assembleWorkStatus(works []workv1alpha1.Work, workload *unstructured.Unstru
 	return statuses, nil
 }
 
-// GetManifestIndex get the index of clusterObj in manifest list, if not exist return -1.
+// GetManifestIndex gets the index of clusterObj in manifest list, if not exist return -1.
 func GetManifestIndex(manifests []workv1alpha1.Manifest, clusterObj *unstructured.Unstructured) (int, error) {
 	for index, rawManifest := range manifests {
 		manifest := &unstructured.Unstructured{}

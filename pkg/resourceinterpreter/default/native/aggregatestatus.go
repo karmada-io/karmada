@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package native
 
 import (
@@ -5,10 +21,12 @@ import (
 	"reflect"
 
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -35,6 +53,7 @@ func getAllDefaultAggregateStatusInterpreter() map[schema.GroupVersionKind]aggre
 	s[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeKind)] = aggregatePersistentVolumeStatus
 	s[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeClaimKind)] = aggregatePersistentVolumeClaimStatus
 	s[policyv1.SchemeGroupVersion.WithKind(util.PodDisruptionBudgetKind)] = aggregatePodDisruptionBudgetStatus
+	s[autoscalingv2.SchemeGroupVersion.WithKind(util.HorizontalPodAutoscalerKind)] = aggregateHorizontalPodAutoscalerStatus
 	return s
 }
 
@@ -47,27 +66,39 @@ func aggregateDeploymentStatus(object *unstructured.Unstructured, aggregatedStat
 
 	oldStatus := &deploy.Status
 	newStatus := &appsv1.DeploymentStatus{}
+	observedLatestResourceTemplateGenerationCount := 0
 	for _, item := range aggregatedStatusItems {
 		if item.Status == nil {
 			continue
 		}
-		temp := &appsv1.DeploymentStatus{}
-		if err = json.Unmarshal(item.Status.Raw, temp); err != nil {
+		member := &WrappedDeploymentStatus{}
+		if err = json.Unmarshal(item.Status.Raw, member); err != nil {
 			return nil, err
 		}
 		klog.V(3).Infof("Grab deployment(%s/%s) status from cluster(%s), replicas: %d, ready: %d, updated: %d, available: %d, unavailable: %d",
-			deploy.Namespace, deploy.Name, item.ClusterName, temp.Replicas, temp.ReadyReplicas, temp.UpdatedReplicas, temp.AvailableReplicas, temp.UnavailableReplicas)
+			deploy.Namespace, deploy.Name, item.ClusterName, member.Replicas, member.ReadyReplicas, member.UpdatedReplicas, member.AvailableReplicas, member.UnavailableReplicas)
 
-		// always set 'observedGeneration' with current generation(.metadata.generation)
-		// which is the generation Karmada 'observed'.
-		// The 'observedGeneration' is mainly used by GitOps tools(like 'Argo CD') to assess the health status.
-		// For more details, please refer to https://argo-cd.readthedocs.io/en/stable/operator-manual/health/.
+		// `memberStatus.ObservedGeneration >= memberStatus.Generation` means the member's status corresponds the latest spec revision of the member deployment.
+		// `memberStatus.ResourceTemplateGeneration >= deploy.Generation` means the member deployment has been aligned with the latest spec revision of federated deployment.
+		// If both conditions are met, we consider the member's status corresponds the latest spec revision of federated deployment.
+		if member.ObservedGeneration >= member.Generation &&
+			member.ResourceTemplateGeneration >= deploy.Generation {
+			observedLatestResourceTemplateGenerationCount++
+		}
+
+		newStatus.Replicas += member.Replicas
+		newStatus.ReadyReplicas += member.ReadyReplicas
+		newStatus.UpdatedReplicas += member.UpdatedReplicas
+		newStatus.AvailableReplicas += member.AvailableReplicas
+		newStatus.UnavailableReplicas += member.UnavailableReplicas
+	}
+
+	// The 'observedGeneration' is mainly used by GitOps tools(like 'Argo CD') to assess the health status.
+	// For more details, please refer to https://argo-cd.readthedocs.io/en/stable/operator-manual/health/.
+	if observedLatestResourceTemplateGenerationCount == len(aggregatedStatusItems) {
 		newStatus.ObservedGeneration = deploy.Generation
-		newStatus.Replicas += temp.Replicas
-		newStatus.ReadyReplicas += temp.ReadyReplicas
-		newStatus.UpdatedReplicas += temp.UpdatedReplicas
-		newStatus.AvailableReplicas += temp.AvailableReplicas
-		newStatus.UnavailableReplicas += temp.UnavailableReplicas
+	} else {
+		newStatus.ObservedGeneration = oldStatus.ObservedGeneration
 	}
 
 	if oldStatus.ObservedGeneration == newStatus.ObservedGeneration &&
@@ -249,39 +280,44 @@ func aggregateDaemonSetStatus(object *unstructured.Unstructured, aggregatedStatu
 
 	oldStatus := &daemonSet.Status
 	newStatus := &appsv1.DaemonSetStatus{}
+	observedLatestResourceTemplateGenerationCount := 0
 	for _, item := range aggregatedStatusItems {
 		if item.Status == nil {
 			continue
 		}
-		temp := &appsv1.DaemonSetStatus{}
-		if err = json.Unmarshal(item.Status.Raw, temp); err != nil {
+		member := &WrappedDaemonSetStatus{}
+		if err = json.Unmarshal(item.Status.Raw, member); err != nil {
 			return nil, err
 		}
 		klog.V(3).Infof("Grab daemonSet(%s/%s) status from cluster(%s), currentNumberScheduled: %d, desiredNumberScheduled: %d, numberAvailable: %d, numberMisscheduled: %d, numberReady: %d, updatedNumberScheduled: %d, numberUnavailable: %d",
-			daemonSet.Namespace, daemonSet.Name, item.ClusterName, temp.CurrentNumberScheduled, temp.DesiredNumberScheduled, temp.NumberAvailable, temp.NumberMisscheduled, temp.NumberReady, temp.UpdatedNumberScheduled, temp.NumberUnavailable)
+			daemonSet.Namespace, daemonSet.Name, item.ClusterName, member.CurrentNumberScheduled, member.DesiredNumberScheduled, member.NumberAvailable, member.NumberMisscheduled, member.NumberReady, member.UpdatedNumberScheduled, member.NumberUnavailable)
 
-		// always set 'observedGeneration' with current generation(.metadata.generation)
-		// which is the generation Karmada 'observed'.
-		// The 'observedGeneration' is mainly used by GitOps tools(like 'Argo CD') to assess the health status.
-		// For more details, please refer to https://argo-cd.readthedocs.io/en/stable/operator-manual/health/.
-		newStatus.ObservedGeneration = daemonSet.Generation
-		newStatus.CurrentNumberScheduled += temp.CurrentNumberScheduled
-		newStatus.DesiredNumberScheduled += temp.DesiredNumberScheduled
-		newStatus.NumberAvailable += temp.NumberAvailable
-		newStatus.NumberMisscheduled += temp.NumberMisscheduled
-		newStatus.NumberReady += temp.NumberReady
-		newStatus.UpdatedNumberScheduled += temp.UpdatedNumberScheduled
-		newStatus.NumberUnavailable += temp.NumberUnavailable
+		// `memberStatus.ObservedGeneration >= memberStatus.Generation` means the member's status corresponds the latest spec revision of the member DaemonSet.
+		// `memberStatus.ResourceTemplateGeneration >= daemonSet.Generation` means the member DaemonSet has been aligned with the latest spec revision of federated DaemonSet.
+		// If both conditions are met, we consider the member's status corresponds the latest spec revision of federated DaemonSet.
+		if member.ObservedGeneration >= member.Generation &&
+			member.ResourceTemplateGeneration >= daemonSet.Generation {
+			observedLatestResourceTemplateGenerationCount++
+		}
+
+		newStatus.CurrentNumberScheduled += member.CurrentNumberScheduled
+		newStatus.DesiredNumberScheduled += member.DesiredNumberScheduled
+		newStatus.NumberAvailable += member.NumberAvailable
+		newStatus.NumberMisscheduled += member.NumberMisscheduled
+		newStatus.NumberReady += member.NumberReady
+		newStatus.UpdatedNumberScheduled += member.UpdatedNumberScheduled
+		newStatus.NumberUnavailable += member.NumberUnavailable
 	}
 
-	if oldStatus.ObservedGeneration == newStatus.ObservedGeneration &&
-		oldStatus.CurrentNumberScheduled == newStatus.CurrentNumberScheduled &&
-		oldStatus.DesiredNumberScheduled == newStatus.DesiredNumberScheduled &&
-		oldStatus.NumberAvailable == newStatus.NumberAvailable &&
-		oldStatus.NumberMisscheduled == newStatus.NumberMisscheduled &&
-		oldStatus.NumberReady == newStatus.NumberReady &&
-		oldStatus.UpdatedNumberScheduled == newStatus.UpdatedNumberScheduled &&
-		oldStatus.NumberUnavailable == newStatus.NumberUnavailable {
+	// The 'observedGeneration' is mainly used by GitOps tools(like 'Argo CD') to assess the health status.
+	// For more details, please refer to https://argo-cd.readthedocs.io/en/stable/operator-manual/health/.
+	if observedLatestResourceTemplateGenerationCount == len(aggregatedStatusItems) {
+		newStatus.ObservedGeneration = daemonSet.Generation
+	} else {
+		newStatus.ObservedGeneration = oldStatus.ObservedGeneration
+	}
+
+	if equality.Semantic.DeepEqual(oldStatus, newStatus) {
 		klog.V(3).Infof("Ignore update daemonSet(%s/%s) status as up to date", daemonSet.Namespace, daemonSet.Name)
 		return object, nil
 	}
@@ -553,4 +589,37 @@ func aggregatePodDisruptionBudgetStatus(object *unstructured.Unstructured, aggre
 
 	pdb.Status = *newStatus
 	return helper.ToUnstructured(pdb)
+}
+
+func aggregateHorizontalPodAutoscalerStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
+	hpa := &autoscalingv2.HorizontalPodAutoscaler{}
+	err := helper.ConvertToTypedObject(object, hpa)
+	if err != nil {
+		return nil, err
+	}
+
+	newStatus := &autoscalingv2.HorizontalPodAutoscalerStatus{}
+	for _, item := range aggregatedStatusItems {
+		if item.Status == nil {
+			continue
+		}
+
+		temp := &autoscalingv2.HorizontalPodAutoscalerStatus{}
+		if err = json.Unmarshal(item.Status.Raw, temp); err != nil {
+			return nil, err
+		}
+		klog.V(3).Infof("Grab hpa(%s/%s) status from cluster(%s), CurrentReplicas: %d, DesiredReplicas: %d",
+			hpa.Namespace, hpa.Name, item.ClusterName, temp.CurrentReplicas, temp.DesiredReplicas)
+
+		newStatus.CurrentReplicas += temp.CurrentReplicas
+		newStatus.DesiredReplicas += temp.DesiredReplicas
+	}
+
+	if reflect.DeepEqual(hpa.Status, *newStatus) {
+		klog.V(3).Infof("ignore update hpa(%s/%s) status as up to date", hpa.Namespace, hpa.Name)
+		return object, nil
+	}
+
+	hpa.Status = *newStatus
+	return helper.ToUnstructured(hpa)
 }

@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package util
 
 import (
@@ -10,10 +26,13 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/yaml"
+
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // Downloader Download progress
@@ -54,7 +73,7 @@ func DownloadFile(url, filePath string) error {
 		return fmt.Errorf("failed download file. url: %s code: %v", url, resp.StatusCode)
 	}
 
-	file, err := os.Create(filePath)
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, util.DefaultFilePerm)
 	if err != nil {
 		return err
 	}
@@ -98,11 +117,11 @@ func Unpack(file, targetPath string) error {
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if err := os.Mkdir(targetPath+"/"+header.Name, 0755); err != nil {
+			if err := os.Mkdir(targetPath+"/"+header.Name, 0700); err != nil {
 				return err
 			}
 		case tar.TypeReg:
-			outFile, err := os.Create(targetPath + "/" + header.Name)
+			outFile, err := os.OpenFile(targetPath+"/"+header.Name, os.O_CREATE|os.O_RDWR, util.DefaultFilePerm)
 			if err != nil {
 				return err
 			}
@@ -111,7 +130,7 @@ func Unpack(file, targetPath string) error {
 			}
 			outFile.Close()
 		default:
-			fmt.Printf("uknown type: %v in %s\n", header.Typeflag, header.Name)
+			fmt.Printf("unknown type: %v in %s\n", header.Typeflag, header.Name)
 		}
 	}
 	return nil
@@ -133,9 +152,33 @@ func ioCopyN(outFile *os.File, tr *tar.Reader) error {
 // ListFiles traverse directory files
 func ListFiles(path string) []os.FileInfo {
 	var files []os.FileInfo
-	if err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(path, func(_ string, info os.FileInfo, _ error) error {
 		if !info.IsDir() {
 			files = append(files, info)
+		}
+		return nil
+	}); err != nil {
+		fmt.Println(err)
+	}
+
+	return files
+}
+
+// FileExtInfo file info with absolute path
+type FileExtInfo struct {
+	os.FileInfo
+	AbsPath string
+}
+
+// ListFileWithSuffix traverse directory files with suffix
+func ListFileWithSuffix(path, suffix string) []FileExtInfo {
+	files := []FileExtInfo{}
+	if err := filepath.Walk(path, func(path string, info os.FileInfo, _ error) error {
+		if !info.IsDir() && strings.HasSuffix(path, suffix) {
+			files = append(files, FileExtInfo{
+				AbsPath:  path,
+				FileInfo: info,
+			})
 		}
 		return nil
 	}); err != nil {
@@ -169,8 +212,8 @@ func ReadYamlFile(path string) ([]byte, error) {
 	return yaml.YAMLToJSON(data)
 }
 
-// RelpaceYamlForReg replace content of yaml file with a Regexp
-func RelpaceYamlForReg(path, destResource string, reg *regexp.Regexp) ([]byte, error) {
+// ReplaceYamlForReg replace content of yaml file with a Regexp
+func ReplaceYamlForReg(path, destResource string, reg *regexp.Regexp) ([]byte, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err

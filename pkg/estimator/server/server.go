@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package server
 
 import (
@@ -7,7 +23,6 @@ import (
 	"time"
 
 	"github.com/kr/pretty"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -27,6 +42,9 @@ import (
 
 	"github.com/karmada-io/karmada/cmd/scheduler-estimator/app/options"
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
+	"github.com/karmada-io/karmada/pkg/estimator/server/framework"
+	frameworkplugins "github.com/karmada-io/karmada/pkg/estimator/server/framework/plugins"
+	frameworkruntime "github.com/karmada-io/karmada/pkg/estimator/server/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/estimator/server/metrics"
 	"github.com/karmada-io/karmada/pkg/estimator/server/replica"
 	estimatorservice "github.com/karmada-io/karmada/pkg/estimator/service"
@@ -34,6 +52,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
+	"github.com/karmada-io/karmada/pkg/util/grpcconnection"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	schedcache "github.com/karmada-io/karmada/pkg/util/lifted/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/util/lifted/scheduler/framework/parallelize"
@@ -54,17 +73,19 @@ var (
 // AccurateSchedulerEstimatorServer is the gRPC server of a cluster accurate scheduler estimator.
 // Please see https://github.com/karmada-io/karmada/pull/580 (#580).
 type AccurateSchedulerEstimatorServer struct {
-	port            int
-	clusterName     string
-	kubeClient      kubernetes.Interface
-	restMapper      meta.RESTMapper
-	informerFactory informers.SharedInformerFactory
-	nodeLister      listv1.NodeLister
-	replicaLister   *replica.ListerWrapper
-	informerManager genericmanager.SingleClusterInformerManager
-	parallelizer    parallelize.Parallelizer
+	clusterName       string
+	kubeClient        kubernetes.Interface
+	restMapper        meta.RESTMapper
+	informerFactory   informers.SharedInformerFactory
+	nodeLister        listv1.NodeLister
+	replicaLister     *replica.ListerWrapper
+	informerManager   genericmanager.SingleClusterInformerManager
+	parallelizer      parallelize.Parallelizer
+	estimateFramework framework.Framework
 
 	Cache schedcache.Cache
+
+	GrpcConfig *grpcconnection.ServerConfig
 }
 
 // NewEstimatorServer creates an instance of AccurateSchedulerEstimatorServer.
@@ -74,14 +95,13 @@ func NewEstimatorServer(
 	discoveryClient discovery.DiscoveryInterface,
 	opts *options.Options,
 	stopChan <-chan struct{},
-) *AccurateSchedulerEstimatorServer {
+) (*AccurateSchedulerEstimatorServer, error) {
 	cachedDiscoClient := cacheddiscovery.NewMemCacheClient(discoveryClient)
 	restMapper := restmapper.NewDeferredDiscoveryRESTMapper(cachedDiscoClient)
 	informerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
 	informerFactory.InformerFor(&corev1.Pod{}, newPodInformer)
 
 	es := &AccurateSchedulerEstimatorServer{
-		port:            opts.ServerPort,
 		clusterName:     opts.ClusterName,
 		kubeClient:      kubeClient,
 		restMapper:      restMapper,
@@ -93,6 +113,13 @@ func NewEstimatorServer(
 		},
 		parallelizer: parallelize.NewParallelizer(opts.Parallelism),
 		Cache:        schedcache.New(durationToExpireAssumedPod, stopChan),
+		GrpcConfig: &grpcconnection.ServerConfig{
+			InsecureSkipClientVerify: opts.InsecureSkipGrpcClientVerify,
+			ClientAuthCAFile:         opts.GrpcClientCaFile,
+			CertFile:                 opts.GrpcAuthCertFile,
+			KeyFile:                  opts.GrpcAuthKeyFile,
+			ServerPort:               opts.ServerPort,
+		},
 	}
 	// ignore the error here because the informers haven't been started
 	_ = informerFactory.Core().V1().Nodes().Informer().SetTransform(fedinformer.StripUnusedFields)
@@ -104,9 +131,19 @@ func NewEstimatorServer(
 		es.informerManager.Lister(gvr)
 	}
 
+	registry := frameworkplugins.NewInTreeRegistry()
+	estimateFramework, err := frameworkruntime.NewFramework(registry,
+		frameworkruntime.WithClientSet(kubeClient),
+		frameworkruntime.WithInformerFactory(informerFactory),
+	)
+	if err != nil {
+		return es, err
+	}
+	es.estimateFramework = estimateFramework
+
 	addAllEventHandlers(es, informerFactory)
 
-	return es
+	return es, nil
 }
 
 // Start runs the accurate replica estimator server.
@@ -124,14 +161,17 @@ func (es *AccurateSchedulerEstimatorServer) Start(ctx context.Context) error {
 	}
 
 	// Listen a port and register the gRPC server.
-	l, err := net.Listen("tcp", fmt.Sprintf(":%d", es.port))
+	l, err := net.Listen("tcp", fmt.Sprintf(":%d", es.GrpcConfig.ServerPort))
 	if err != nil {
-		return fmt.Errorf("failed to listen port %d: %v", es.port, err)
+		return fmt.Errorf("failed to listen port %d: %v", es.GrpcConfig.ServerPort, err)
 	}
-	klog.Infof("Listening port: %d", es.port)
+	klog.Infof("Listening port: %d", es.GrpcConfig.ServerPort)
 	defer l.Close()
 
-	s := grpc.NewServer()
+	s, err := es.GrpcConfig.NewServer()
+	if err != nil {
+		return fmt.Errorf("failed to create grpc server: %v", err)
+	}
 	estimatorservice.RegisterEstimatorServer(s, es)
 
 	// Graceful stop when the context is cancelled.
@@ -177,7 +217,6 @@ func (es *AccurateSchedulerEstimatorServer) MaxAvailableReplicas(ctx context.Con
 	if request.Cluster != es.clusterName {
 		return nil, fmt.Errorf("cluster name does not match, got: %s, desire: %s", request.Cluster, es.clusterName)
 	}
-
 	maxReplicas, err := es.EstimateReplicas(ctx, object, request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to estimate replicas: %v", err)

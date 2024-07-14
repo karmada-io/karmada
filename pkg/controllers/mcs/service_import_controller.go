@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package mcs
 
 import (
@@ -15,7 +31,7 @@ import (
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
 	"github.com/karmada-io/karmada/pkg/events"
-	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -38,7 +54,7 @@ func (c *ServiceImportController) Reconcile(ctx context.Context, req controllerr
 			return c.deleteDerivedService(req.NamespacedName)
 		}
 
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !svcImport.DeletionTimestamp.IsZero() || svcImport.Spec.Type != mcsv1alpha1.ClusterSetIP {
@@ -47,7 +63,7 @@ func (c *ServiceImportController) Reconcile(ctx context.Context, req controllerr
 
 	if err := c.deriveServiceFromServiceImport(svcImport); err != nil {
 		c.EventRecorder.Eventf(svcImport, corev1.EventTypeWarning, events.EventReasonSyncDerivedServiceFailed, err.Error())
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	c.EventRecorder.Eventf(svcImport, corev1.EventTypeNormal, events.EventReasonSyncDerivedServiceSucceed, "Sync derived service for serviceImport(%s) succeed.", svcImport.Name)
 	return controllerruntime.Result{}, nil
@@ -70,13 +86,13 @@ func (c *ServiceImportController) deleteDerivedService(svcImport types.Namespace
 			return controllerruntime.Result{}, nil
 		}
 
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	err = c.Client.Delete(context.TODO(), derivedSvc)
 	if err != nil && !apierrors.IsNotFound(err) {
 		klog.Errorf("Delete derived service(%s) failed, Error: %v", derivedSvcNamespacedName, err)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	return controllerruntime.Result{}, nil
@@ -87,9 +103,6 @@ func (c *ServiceImportController) deriveServiceFromServiceImport(svcImport *mcsv
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: svcImport.Namespace,
 			Name:      names.GenerateDerivedServiceName(svcImport.Name),
-			Labels: map[string]string{
-				util.ManagedByKarmadaLabel: util.ManagedByKarmadaLabelValue,
-			},
 		},
 		Spec: corev1.ServiceSpec{
 			Type:  corev1.ServiceTypeClusterIP,
@@ -137,24 +150,15 @@ func (c *ServiceImportController) updateServiceStatus(svcImport *mcsv1alpha1.Ser
 	}
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		derivedService.Status = corev1.ServiceStatus{
-			LoadBalancer: corev1.LoadBalancerStatus{
-				Ingress: ingress,
-			},
-		}
-		updateErr := c.Status().Update(context.TODO(), derivedService)
-		if updateErr == nil {
+		_, err = helper.UpdateStatus(context.Background(), c.Client, derivedService, func() error {
+			derivedService.Status = corev1.ServiceStatus{
+				LoadBalancer: corev1.LoadBalancerStatus{
+					Ingress: ingress,
+				},
+			}
 			return nil
-		}
-
-		updated := &corev1.Service{}
-		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: derivedService.Namespace, Name: derivedService.Name}, updated); err == nil {
-			derivedService = updated
-		} else {
-			klog.Errorf("Failed to get updated service %s/%s: %v", derivedService.Namespace, derivedService.Name, err)
-		}
-
-		return updateErr
+		})
+		return err
 	})
 
 	if err != nil {

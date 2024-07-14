@@ -1,12 +1,31 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package metricsadapter
 
 import (
 	"context"
+	"fmt"
+	"reflect"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/rest"
@@ -21,6 +40,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/metricsadapter/provider"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/typedmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 )
 
@@ -34,25 +54,89 @@ type MetricsController struct {
 	InformerFactory       informerfactory.SharedInformerFactory
 	ClusterLister         clusterlister.ClusterLister
 	InformerManager       genericmanager.MultiClusterInformerManager
+	TypedInformerManager  typedmanager.MultiClusterInformerManager
 	MultiClusterDiscovery multiclient.MultiClusterDiscoveryInterface
 	queue                 workqueue.RateLimitingInterface
 	restConfig            *rest.Config
 }
 
 // NewMetricsController creates a new metrics controller
-func NewMetricsController(restConfig *rest.Config, factory informerfactory.SharedInformerFactory, kubeFactory informers.SharedInformerFactory) *MetricsController {
+func NewMetricsController(stopCh <-chan struct{}, restConfig *rest.Config, factory informerfactory.SharedInformerFactory, kubeFactory informers.SharedInformerFactory, clusterClientOption *util.ClientOption) *MetricsController {
 	clusterLister := factory.Cluster().V1alpha1().Clusters().Lister()
 	controller := &MetricsController{
 		InformerFactory:       factory,
 		ClusterLister:         clusterLister,
-		MultiClusterDiscovery: multiclient.NewMultiClusterDiscoveryClient(clusterLister, kubeFactory),
+		MultiClusterDiscovery: multiclient.NewMultiClusterDiscoveryClient(clusterLister, kubeFactory, clusterClientOption),
 		InformerManager:       genericmanager.GetInstance(),
+		TypedInformerManager:  newInstance(stopCh),
 		restConfig:            restConfig,
-		queue:                 workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "metrics-adapter"),
+		queue: workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
+			Name: "metrics-adapter",
+		}),
 	}
 	controller.addEventHandler()
 
 	return controller
+}
+
+func nodeTransformFunc(obj interface{}) (interface{}, error) {
+	var node *corev1.Node
+	switch t := obj.(type) {
+	case *corev1.Node:
+		node = t
+	case cache.DeletedFinalStateUnknown:
+		var ok bool
+		node, ok = t.Obj.(*corev1.Node)
+		if !ok {
+			return obj, fmt.Errorf("expect resource Node but got %v", reflect.TypeOf(t.Obj))
+		}
+	default:
+		return obj, fmt.Errorf("expect resource Node but got %v", reflect.TypeOf(obj))
+	}
+
+	aggregatedNode := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              node.Name,
+			Namespace:         node.Namespace,
+			Labels:            node.Labels,
+			DeletionTimestamp: node.DeletionTimestamp,
+		},
+	}
+	return aggregatedNode, nil
+}
+
+func podTransformFunc(obj interface{}) (interface{}, error) {
+	var pod *corev1.Pod
+	switch t := obj.(type) {
+	case *corev1.Pod:
+		pod = t
+	case cache.DeletedFinalStateUnknown:
+		var ok bool
+		pod, ok = t.Obj.(*corev1.Pod)
+		if !ok {
+			return obj, fmt.Errorf("expect resource Pod but got %v", reflect.TypeOf(t.Obj))
+		}
+	default:
+		return obj, fmt.Errorf("expect resource Pod but got %v", reflect.TypeOf(obj))
+	}
+
+	aggregatedPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              pod.Name,
+			Namespace:         pod.Namespace,
+			Labels:            pod.Labels,
+			DeletionTimestamp: pod.DeletionTimestamp,
+		},
+	}
+	return aggregatedPod, nil
+}
+
+func newInstance(stopCh <-chan struct{}) typedmanager.MultiClusterInformerManager {
+	transforms := map[schema.GroupVersionResource]cache.TransformFunc{
+		provider.NodesGVR: cache.TransformFunc(nodeTransformFunc),
+		provider.PodsGVR:  cache.TransformFunc(podTransformFunc),
+	}
+	return typedmanager.NewMultiClusterInformerManager(stopCh, transforms)
 }
 
 // addEventHandler adds event handler for cluster
@@ -91,7 +175,7 @@ func (m *MetricsController) updateCluster(oldObj, curObj interface{}) {
 	if util.ClusterAccessCredentialChanged(curCluster.Spec, oldCluster.Spec) ||
 		util.IsClusterReady(&curCluster.Status) != util.IsClusterReady(&oldCluster.Status) {
 		// Cluster.Spec or Cluster health state is changed, rebuild informer.
-		m.InformerManager.Stop(curCluster.GetName())
+		m.stopInformerManager(curCluster.GetName())
 		m.queue.Add(curCluster.GetName())
 	}
 }
@@ -104,6 +188,7 @@ func (m *MetricsController) startController(stopCh <-chan struct{}) {
 
 	go func() {
 		<-stopCh
+		m.queue.ShutDown()
 		genericmanager.StopInstance()
 		klog.Infof("Shutting down karmada-metrics-adapter")
 	}()
@@ -129,8 +214,7 @@ func (m *MetricsController) handleClusters() bool {
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("try to stop cluster informer %s", clusterName)
-			m.InformerManager.Stop(clusterName)
-			m.MultiClusterDiscovery.Remove(clusterName)
+			m.stopInformerManager(clusterName)
 			return true
 		}
 		return false
@@ -138,21 +222,23 @@ func (m *MetricsController) handleClusters() bool {
 
 	if !cls.DeletionTimestamp.IsZero() {
 		klog.Infof("try to stop cluster informer %s", clusterName)
-		m.InformerManager.Stop(clusterName)
-		m.MultiClusterDiscovery.Remove(clusterName)
+		m.stopInformerManager(clusterName)
 		return true
 	}
 
 	if !util.IsClusterReady(&cls.Status) {
 		klog.Warningf("cluster %s is notReady try to stop this cluster informer", clusterName)
-		m.InformerManager.Stop(clusterName)
-		m.MultiClusterDiscovery.Remove(clusterName)
+		m.stopInformerManager(clusterName)
 		return false
 	}
 
-	if !m.InformerManager.IsManagerExist(clusterName) {
+	if !m.TypedInformerManager.IsManagerExist(clusterName) {
 		klog.Info("Try to build informer manager for cluster ", clusterName)
 		controlPlaneClient := gclient.NewForConfigOrDie(m.restConfig)
+		clusterClient, err := util.NewClusterClientSet(clusterName, controlPlaneClient, nil)
+		if err != nil {
+			return false
+		}
 		clusterDynamicClient, err := util.NewClusterDynamicClientSet(clusterName, controlPlaneClient)
 		if err != nil {
 			return false
@@ -163,6 +249,7 @@ func (m *MetricsController) handleClusters() bool {
 			klog.Warningf("unable to access cluster %s, Error: %+v", clusterName, err)
 			return true
 		}
+		_ = m.TypedInformerManager.ForCluster(clusterName, clusterClient.KubeClient, 0)
 		_ = m.InformerManager.ForCluster(clusterName, clusterDynamicClient.DynamicClientSet, 0)
 	}
 	err = m.MultiClusterDiscovery.Set(clusterName)
@@ -170,13 +257,23 @@ func (m *MetricsController) handleClusters() bool {
 		klog.Warningf("failed to build discoveryClient for cluster(%s), Error: %+v", clusterName, err)
 		return true
 	}
-	sci := m.InformerManager.GetSingleClusterManager(clusterName)
-	// Just trigger the informer to work
-	_ = sci.Lister(provider.PodsGVR)
-	_ = sci.Lister(provider.NodesGVR)
 
+	typedSci := m.TypedInformerManager.GetSingleClusterManager(clusterName)
+	// Just trigger the informer to work
+	_, _ = typedSci.Lister(provider.PodsGVR)
+	_, _ = typedSci.Lister(provider.NodesGVR)
+
+	typedSci.Start()
+	_ = typedSci.WaitForCacheSync()
+	sci := m.InformerManager.GetSingleClusterManager(clusterName)
 	sci.Start()
 	_ = sci.WaitForCacheSync()
 
 	return true
+}
+
+func (m *MetricsController) stopInformerManager(clusterName string) {
+	m.TypedInformerManager.Stop(clusterName)
+	m.InformerManager.Stop(clusterName)
+	m.MultiClusterDiscovery.Remove(clusterName)
 }

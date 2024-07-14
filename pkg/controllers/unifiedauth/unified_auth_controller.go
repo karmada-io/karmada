@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package unifiedauth
 
 import (
@@ -21,7 +37,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -57,7 +72,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 			return controllerruntime.Result{}, nil
 		}
 
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !cluster.DeletionTimestamp.IsZero() {
@@ -75,7 +90,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	if err != nil {
 		klog.Errorf("Failed to sync impersonation config for cluster %s. Error: %v.", cluster.Name, err)
 		c.EventRecorder.Eventf(cluster, corev1.EventTypeWarning, events.EventReasonSyncImpersonationConfigFailed, err.Error())
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	c.EventRecorder.Eventf(cluster, corev1.EventTypeNormal, events.EventReasonSyncImpersonationConfigSucceed, "Sync impersonation config succeed.")
 
@@ -207,21 +222,14 @@ func (c *Controller) buildImpersonationClusterRoleBinding(cluster *clusterv1alph
 }
 
 func (c *Controller) buildWorks(cluster *clusterv1alpha1.Cluster, obj *unstructured.Unstructured) error {
-	workNamespace := names.GenerateExecutionSpaceName(cluster.Name)
-
-	clusterRoleBindingWorkName := names.GenerateWorkName(obj.GetKind(), obj.GetName(), obj.GetNamespace())
 	objectMeta := metav1.ObjectMeta{
-		Name:       clusterRoleBindingWorkName,
-		Namespace:  workNamespace,
+		Name:       names.GenerateWorkName(obj.GetKind(), obj.GetName(), obj.GetNamespace()),
+		Namespace:  names.GenerateExecutionSpaceName(cluster.Name),
 		Finalizers: []string{util.ExecutionControllerFinalizer},
 		OwnerReferences: []metav1.OwnerReference{
 			*metav1.NewControllerRef(cluster, cluster.GroupVersionKind()),
 		},
 	}
-
-	util.MergeLabel(obj, workv1alpha1.WorkNamespaceLabel, workNamespace)
-	util.MergeLabel(obj, workv1alpha1.WorkNameLabel, clusterRoleBindingWorkName)
-	util.MergeLabel(obj, util.ManagedByKarmadaLabel, util.ManagedByKarmadaLabelValue)
 
 	if err := helper.CreateOrUpdateWork(c.Client, objectMeta, obj); err != nil {
 		return err
@@ -248,14 +256,14 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 }
 
 func (c *Controller) newClusterRoleMapFunc() handler.MapFunc {
-	return func(ctx context.Context, a client.Object) []reconcile.Request {
+	return func(_ context.Context, a client.Object) []reconcile.Request {
 		clusterRole := a.(*rbacv1.ClusterRole)
 		return c.generateRequestsFromClusterRole(clusterRole)
 	}
 }
 
 func (c *Controller) newClusterRoleBindingMapFunc() handler.MapFunc {
-	return func(ctx context.Context, a client.Object) []reconcile.Request {
+	return func(_ context.Context, a client.Object) []reconcile.Request {
 		clusterRoleBinding := a.(*rbacv1.ClusterRoleBinding)
 		if clusterRoleBinding.RoleRef.Kind != util.ClusterRoleKind {
 			return nil

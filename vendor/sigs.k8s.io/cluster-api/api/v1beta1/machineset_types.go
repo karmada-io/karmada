@@ -41,9 +41,22 @@ type MachineSetSpec struct {
 
 	// Replicas is the number of desired replicas.
 	// This is a pointer to distinguish between explicit zero and unspecified.
-	// Defaults to 1.
+	//
+	// Defaults to:
+	// * if the Kubernetes autoscaler min size and max size annotations are set:
+	//   - if it's a new MachineSet, use min size
+	//   - if the replicas field of the old MachineSet is < min size, use min size
+	//   - if the replicas field of the old MachineSet is > max size, use max size
+	//   - if the replicas field of the old MachineSet is in the (min size, max size) range, keep the value from the oldMS
+	// * otherwise use 1
+	// Note: Defaulting will be run whenever the replicas field is not set:
+	// * A new MachineSet is created with replicas not set.
+	// * On an existing MachineSet the replicas field was first set and is now unset.
+	// Those cases are especially relevant for the following Kubernetes autoscaler use cases:
+	// * A new MachineSet is created and replicas should be managed by the autoscaler
+	// * An existing MachineSet which initially wasn't controlled by the autoscaler
+	//   should be later controlled by the autoscaler
 	// +optional
-	// +kubebuilder:default=1
 	Replicas *int32 `json:"replicas,omitempty"`
 
 	// MinReadySeconds is the minimum number of seconds for which a Node for a newly created machine should be ready before considering the replica available.
@@ -240,5 +253,5 @@ type MachineSetList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&MachineSet{}, &MachineSetList{})
+	objectTypes = append(objectTypes, &MachineSet{}, &MachineSetList{})
 }

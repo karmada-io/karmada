@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package luavm
 
 import (
@@ -16,7 +32,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util/fixedpool"
-	"github.com/karmada-io/karmada/pkg/util/lifted"
+	lualifted "github.com/karmada-io/karmada/pkg/util/lifted/lua"
 )
 
 // VM Defines a struct that implements the luaVM.
@@ -49,8 +65,6 @@ func (vm *VM) NewLuaState() (*lua.LState, error) {
 	if err != nil {
 		return nil, err
 	}
-	// preload our 'safe' version of the OS library. Allows the 'local os = require("os")' to work
-	l.PreloadModule(lua.OsLibName, lifted.SafeOsLoader)
 	// preload kube library. Allows the 'local kube = require("kube")' to work
 	l.PreloadModule(KubeLibName, KubeLoader)
 	return l, err
@@ -126,7 +140,7 @@ func (vm *VM) GetReplicas(obj *unstructured.Unstructured, script string) (replic
 	replicaRequirementResult := results[1]
 	requires = &workv1alpha2.ReplicaRequirements{}
 	if replicaRequirementResult.Type() == lua.LTTable {
-		err = ConvertLuaResultInto(replicaRequirementResult, requires)
+		err = ConvertLuaResultInto(replicaRequirementResult.(*lua.LTable), requires)
 		if err != nil {
 			klog.Errorf("ConvertLuaResultToReplicaRequirements err %v", err.Error())
 			return 0, nil, err
@@ -150,7 +164,7 @@ func (vm *VM) ReviseReplica(object *unstructured.Unstructured, replica int64, sc
 	luaResult := results[0]
 	reviseReplicaResult := &unstructured.Unstructured{}
 	if luaResult.Type() == lua.LTTable {
-		err := ConvertLuaResultInto(luaResult, reviseReplicaResult)
+		err := ConvertLuaResultInto(luaResult.(*lua.LTable), reviseReplicaResult, object)
 		if err != nil {
 			return nil, err
 		}
@@ -165,13 +179,13 @@ func (vm *VM) setLib(l *lua.LState) error {
 		n string
 		f lua.LGFunction
 	}{
-		{lua.LoadLibName, lua.OpenPackage},
+		{lua.LoadLibName, lualifted.OpenPackage},
 		{lua.BaseLibName, lua.OpenBase},
 		{lua.TabLibName, lua.OpenTable},
 		{lua.StringLibName, lua.OpenString},
 		{lua.MathLibName, lua.OpenMath},
 		// load our 'safe' version of the OS library
-		{lua.OsLibName, lifted.OpenSafeOs},
+		{lua.OsLibName, lualifted.OpenSafeOs},
 	} {
 		if err := l.CallByParam(lua.P{
 			Fn:      l.NewFunction(pair.f),
@@ -181,6 +195,35 @@ func (vm *VM) setLib(l *lua.LState) error {
 			return err
 		}
 	}
+
+	// Set potentially unsafe basic functions to nil, prohibiting users from
+	// calling these functions in custom Lua scripts.
+	// For the safety analysis of Sandbox in Lua, please refer to http://lua-users.org/wiki/SandBoxes
+	// For users, these functions are not needed for parsing resource templates,
+	// so disabling these functions has no impact on functionality.
+	for _, value := range []string{
+		"collectgarbage",
+		"dofile",
+		"getfenv",
+		"getmetatable",
+		"load",
+		"loadfile",
+		"loadstring",
+		"rawequal",
+		"rawget",
+		"rawset",
+		"setfenv",
+		"setmetatable",
+		"module",
+		"newproxy",
+	} {
+		overrideFunc := "function %s() error('call function %s is not supported in karmada customized resourceinterpreter.') end"
+		err := l.DoString(fmt.Sprintf(overrideFunc, value, value))
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -194,7 +237,7 @@ func (vm *VM) Retain(desired *unstructured.Unstructured, observed *unstructured.
 	luaResult := results[0]
 	retainResult := &unstructured.Unstructured{}
 	if luaResult.Type() == lua.LTTable {
-		err := ConvertLuaResultInto(luaResult, retainResult)
+		err := ConvertLuaResultInto(luaResult.(*lua.LTable), retainResult, desired, observed)
 		if err != nil {
 			return nil, err
 		}
@@ -213,7 +256,7 @@ func (vm *VM) AggregateStatus(object *unstructured.Unstructured, items []workv1a
 	luaResult := results[0]
 	aggregateStatus := &unstructured.Unstructured{}
 	if luaResult.Type() == lua.LTTable {
-		err := ConvertLuaResultInto(luaResult, aggregateStatus)
+		err := ConvertLuaResultInto(luaResult.(*lua.LTable), aggregateStatus)
 		if err != nil {
 			return nil, err
 		}
@@ -250,7 +293,7 @@ func (vm *VM) ReflectStatus(object *unstructured.Unstructured, script string) (s
 	}
 
 	status = &runtime.RawExtension{}
-	err = ConvertLuaResultInto(luaStatusResult, status)
+	err = ConvertLuaResultInto(luaStatusResult.(*lua.LTable), status)
 	return status, err
 }
 
@@ -266,7 +309,7 @@ func (vm *VM) GetDependencies(object *unstructured.Unstructured, script string) 
 	if luaResult.Type() != lua.LTTable {
 		return nil, fmt.Errorf("expect the returned requires type is table but got %s", luaResult.Type())
 	}
-	err = ConvertLuaResultInto(luaResult, &dependencies)
+	err = ConvertLuaResultInto(luaResult.(*lua.LTable), &dependencies)
 	return
 }
 
@@ -281,8 +324,6 @@ func NewWithContext(ctx context.Context) (*lua.LState, error) {
 	if err != nil {
 		return nil, err
 	}
-	// preload our 'safe' version of the OS library. Allows the 'local os = require("os")' to work
-	l.PreloadModule(lua.OsLibName, lifted.SafeOsLoader)
 	// preload kube library. Allows the 'local kube = require("kube")' to work
 	l.PreloadModule(KubeLibName, KubeLoader)
 	if ctx != nil {

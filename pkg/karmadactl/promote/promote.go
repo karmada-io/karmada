@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package promote
 
 import (
@@ -16,17 +32,28 @@ import (
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/informers"
+	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog/v2"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/get"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/declarative"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/webhook"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/webhook/request"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native/prune"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/thirdparty"
+	u "github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -54,6 +81,9 @@ var (
 		# Promote secret(default/default-token) from cluster1 to Karmada
 		%[1]s promote secret default-token -n default -C cluster1
 
+		# Support to use '--dependencies=true' or '-d=true' to promote resource with its dependencies automatically, default to false
+		%[1]s promote deployment nginx -n default -C cluster1 -d=true
+
 		# Support to use '--cluster-kubeconfig' to specify the configuration of member cluster
 		%[1]s promote deployment nginx -n default -C cluster1 --cluster-kubeconfig=<CLUSTER_KUBECONFIG_PATH>
 
@@ -73,7 +103,7 @@ func NewCmdPromote(f util.Factory, parentCommand string) *cobra.Command {
 		Example:               fmt.Sprintf(promoteExample, parentCommand),
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			if err := opts.Complete(f, args); err != nil {
 				return err
 			}
@@ -111,6 +141,9 @@ type CommandPromoteOption struct {
 	// ClusterKubeConfig is the cluster's kubeconfig path.
 	ClusterKubeConfig string
 
+	// Deps tells if promote resource with its dependencies automatically, default to false
+	Deps bool
+
 	// DryRun tells if run the command in dry-run mode, without making any server requests.
 	DryRun bool
 
@@ -121,7 +154,7 @@ type CommandPromoteOption struct {
 
 	// PolicyName is the name of the PropagationPolicy(or ClusterPropagationPolicy),
 	// It defaults to the promoting resource name with a random hash suffix.
-	// It will be ingnored if AutoCreatePolicy is false.
+	// It will be ignored if AutoCreatePolicy is false.
 	PolicyName string
 
 	resource.FilenameOptions
@@ -149,6 +182,7 @@ func (o *CommandPromoteOption) AddFlags(flags *pflag.FlagSet) {
 		"Context name of legacy cluster in kubeconfig. Only works when there are multiple contexts in the kubeconfig.")
 	flags.StringVar(&o.ClusterKubeConfig, "cluster-kubeconfig", "",
 		"Path of the legacy cluster's kubeconfig.")
+	flags.BoolVarP(&o.Deps, "dependencies", "d", false, "Promote resource with its dependencies automatically, default to false")
 	flags.BoolVar(&o.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 }
 
@@ -163,7 +197,7 @@ func (o *CommandPromoteOption) Complete(f util.Factory, args []string) error {
 	o.name = args[1]
 
 	if o.OutputFormat == "yaml" || o.OutputFormat == "json" {
-		o.Printer = func(mapping *meta.RESTMapping, outputObjects *bool, withNamespace bool, withKind bool) (printers.ResourcePrinterFunc, error) {
+		o.Printer = func(_ *meta.RESTMapping, _ *bool, _ bool, _ bool) (printers.ResourcePrinterFunc, error) {
 			printer, err := o.JSONYamlPrintFlags.ToPrinter(o.OutputFormat)
 
 			if genericclioptions.IsNoCompatiblePrinterError(err) {
@@ -249,10 +283,238 @@ func (o *CommandPromoteOption) Run(f util.Factory, args []string) error {
 		return fmt.Errorf("failed to get gvr from %q: %v", o.gvk, err)
 	}
 
-	return o.promote(controlPlaneRestConfig, obj, gvr)
+	if o.Deps {
+		err := o.promoteDeps(memberClusterFactory, obj, mapper, gvr, controlPlaneRestConfig)
+		if err != nil {
+			return fmt.Errorf("failed to promote dependencies of resource %q(%s/%s) automatically: %v", gvr, o.Namespace, o.name, err)
+		}
+	}
+
+	return o.promote(controlPlaneRestConfig, obj, gvr, o.Deps)
 }
 
-func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj *unstructured.Unstructured, gvr schema.GroupVersionResource) error {
+// revertPromotedDeps reverts promoted dependencies of the resource
+func (o *CommandPromoteOption) revertPromotedDeps(memberClusterFactory cmdutil.Factory, dependencies []configv1alpha1.DependentObjectReference, mapper meta.RESTMapper, controlPlaneDynamicClient *dynamic.DynamicClient, index int) {
+	memberDynamicClient, err := memberClusterFactory.DynamicClient()
+	if err != nil {
+		klog.Errorf("revertPromotedDeps failed to get dynamic client of member cluster: %v", err)
+		return
+	}
+	for i := 0; i < index; i++ {
+		dep := dependencies[i]
+		depInfo, err := o.getObjInfo(memberClusterFactory, o.Cluster, []string{dep.Kind, dep.Name})
+		if err != nil {
+			klog.Errorf("revertPromotedDeps failed to get dependency %q(%s/%s) in cluster(%s): %v", dep.Kind, dep.Namespace, dep.Name, o.Cluster, err)
+			return
+		}
+
+		depObj := depInfo.Info.Object.(*unstructured.Unstructured)
+		depGvk := depObj.GetObjectKind().GroupVersionKind()
+		depGvr, err := restmapper.GetGroupVersionResource(mapper, depGvk)
+		if err != nil {
+			klog.Errorf("revertPromotedDeps failed to get dependency gvr from %q: %v", depGvk, err)
+			return
+		}
+		// remove the karmada label of dependency resource in member cluster to avoid deleting it when deleting the resource in control plane
+		u.RemoveLabels(depObj, workv1alpha2.WorkPermanentIDLabel, u.ManagedByKarmadaLabel)
+		if len(depObj.GetNamespace()) != 0 {
+			// update the dependency resource in member cluster
+			_, err := memberDynamicClient.Resource(depGvr).Namespace(depObj.GetNamespace()).Update(context.Background(), depObj, metav1.UpdateOptions{})
+			if err != nil {
+				klog.Errorf("revertPromotedDeps failed to update dependency resource %q(%s/%s) in member cluster: %v", depGvr, depObj.GetNamespace(), depObj.GetName(), err)
+				return
+			}
+			_, err = controlPlaneDynamicClient.Resource(depGvr).Namespace(depObj.GetNamespace()).Get(context.Background(), depObj.GetName(), metav1.GetOptions{})
+			if err != nil {
+				klog.Errorf("revertPromotedDeps failed to get dependency resource %q(%s/%s) in control plane: %v", depGvr, depObj.GetNamespace(), depObj.GetName(), err)
+				return
+			}
+			// delete the dependency resource in control plane
+			err = controlPlaneDynamicClient.Resource(depGvr).Namespace(depObj.GetNamespace()).Delete(context.Background(), depObj.GetName(), metav1.DeleteOptions{})
+			if err != nil {
+				klog.Errorf("revertPromotedDeps failed to delete dependency resource %q(%s/%s) in control plane: %v", depGvr, depObj.GetNamespace(), depObj.GetName(), err)
+				return
+			}
+		} else {
+			// update the dependency resource in member cluster
+			_, err := memberDynamicClient.Resource(depGvr).Update(context.Background(), depObj, metav1.UpdateOptions{})
+			if err != nil {
+				klog.Errorf("revertPromotedDeps failed to update dependency resource %q(%s) in member cluster: %v", depGvr, depObj.GetName(), err)
+				return
+			}
+			_, err = controlPlaneDynamicClient.Resource(depGvr).Get(context.TODO(), depObj.GetName(), metav1.GetOptions{})
+			if err != nil {
+				klog.Errorf("revertPromotedDeps failed to get dependency resource %q(%s) in control plane: %v", depGvr, depObj.GetName(), err)
+				return
+			}
+			// delete the dependency resource in control plane
+			err = controlPlaneDynamicClient.Resource(depGvr).Delete(context.Background(), depObj.GetName(), metav1.DeleteOptions{})
+			if err != nil {
+				klog.Errorf("revertPromotedDeps failed to delete dependency resource %q(%s) in control plane: %v", depGvr, depObj.GetName(), err)
+				return
+			}
+		}
+		fmt.Printf("Dependency resource %q(%s/%s) is reverted successfully\n", depGvr, depObj.GetNamespace(), depObj.GetName())
+	}
+}
+
+// doPromoteDeps promotes dependencies of the resource
+func (o *CommandPromoteOption) doPromoteDeps(memberClusterFactory cmdutil.Factory, dependencies []configv1alpha1.DependentObjectReference, mapper meta.RESTMapper, config *rest.Config) error {
+	controlPlaneDynamicClient := dynamic.NewForConfigOrDie(config)
+	for i, dep := range dependencies {
+		depInfo, err := o.getObjInfo(memberClusterFactory, o.Cluster, []string{dep.Kind, dep.Name})
+		if err != nil {
+			o.revertPromotedDeps(memberClusterFactory, dependencies, mapper, controlPlaneDynamicClient, i)
+			return fmt.Errorf("failed to get dependency %q(%s/%s) in cluster(%s): %v", dep.Kind, dep.Namespace, dep.Name, o.Cluster, err)
+		}
+
+		depObj := depInfo.Info.Object.(*unstructured.Unstructured)
+		depGvk := depObj.GetObjectKind().GroupVersionKind()
+		depGvr, err := restmapper.GetGroupVersionResource(mapper, depGvk)
+		if err != nil {
+			o.revertPromotedDeps(memberClusterFactory, dependencies, mapper, controlPlaneDynamicClient, i)
+			return fmt.Errorf("failed to get dependency gvr from %q: %v", depGvk, err)
+		}
+
+		if err := preprocessResource(depObj); err != nil {
+			o.revertPromotedDeps(memberClusterFactory, dependencies, mapper, controlPlaneDynamicClient, i)
+			return fmt.Errorf("failed to preprocess resource %q(%s/%s) in control plane: %v", depGvr, depObj.GetNamespace(), depObj.GetName(), err)
+		}
+
+		if len(depObj.GetNamespace()) != 0 {
+			_, err := controlPlaneDynamicClient.Resource(depGvr).Namespace(depObj.GetNamespace()).Get(context.TODO(), depObj.GetName(), metav1.GetOptions{})
+			if err == nil {
+				o.revertPromotedDeps(memberClusterFactory, dependencies, mapper, controlPlaneDynamicClient, i)
+				// if dependency already exist in control plane, abort this dependency promotion
+				klog.Warningf("Dependency resource %q(%s/%s) already exist in karmada control plane, you can edit PropagationPolicy and OverridePolicy to propagate it\n",
+					depGvr, depObj.GetNamespace(), depObj.GetName())
+				return nil
+			}
+
+			if !apierrors.IsNotFound(err) {
+				o.revertPromotedDeps(memberClusterFactory, dependencies, mapper, controlPlaneDynamicClient, i)
+				return fmt.Errorf("failed to get dependency resource %q(%s/%s) in control plane: %v", depGvr, depObj.GetNamespace(), depObj.GetName(), err)
+			}
+
+			_, err = controlPlaneDynamicClient.Resource(depGvr).Namespace(depObj.GetNamespace()).Create(context.TODO(), depObj, metav1.CreateOptions{})
+			if err != nil {
+				o.revertPromotedDeps(memberClusterFactory, dependencies, mapper, controlPlaneDynamicClient, i)
+				return fmt.Errorf("failed to create dependency resource %q(%s/%s) in control plane: %v", depGvr, depObj.GetNamespace(), depObj.GetName(), err)
+			}
+
+			fmt.Printf("Dependency resource %q(%s/%s) is promoted successfully\n", depGvr, depObj.GetNamespace(), depObj.GetName())
+		} else {
+			_, err := controlPlaneDynamicClient.Resource(depGvr).Get(context.TODO(), depObj.GetName(), metav1.GetOptions{})
+			if err == nil {
+				o.revertPromotedDeps(memberClusterFactory, dependencies, mapper, controlPlaneDynamicClient, i)
+				// if dependency already exist in control plane, abort this dependency promotion
+				fmt.Printf("Dependency resource %q(%s) already exist in karmada control plane, you can edit PropagationPolicy and OverridePolicy to propagate it\n",
+					depGvr, depObj.GetName())
+				return nil
+			}
+
+			if !apierrors.IsNotFound(err) {
+				o.revertPromotedDeps(memberClusterFactory, dependencies, mapper, controlPlaneDynamicClient, i)
+				return fmt.Errorf("failed to get dependency resource %q(%s) in control plane: %v", depGvr, depObj.GetName(), err)
+			}
+
+			_, err = controlPlaneDynamicClient.Resource(depGvr).Create(context.TODO(), depObj, metav1.CreateOptions{})
+			if err != nil {
+				o.revertPromotedDeps(memberClusterFactory, dependencies, mapper, controlPlaneDynamicClient, i)
+				return fmt.Errorf("failed to create dependency resource %q(%s) in control plane: %v", depGvr, depObj.GetName(), err)
+			}
+
+			fmt.Printf("Dependency resource %q(%s) is promoted successfully\n", depGvr, depObj.GetName())
+		}
+	}
+	return nil
+}
+
+func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory, obj *unstructured.Unstructured, mapper meta.RESTMapper, gvr schema.GroupVersionResource, config *rest.Config) error {
+	if o.DryRun {
+		return nil
+	}
+	// create resource interpreter
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+	dynamicClientSet := dynamic.NewForConfigOrDie(config)
+
+	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopCh)
+	controlPlaneKubeClientSet := kubeclientset.NewForConfigOrDie(config)
+	sharedFactory := informers.NewSharedInformerFactory(controlPlaneKubeClientSet, 0)
+	serviceLister := sharedFactory.Core().V1().Services().Lister()
+	sharedFactory.Start(stopCh)
+	sharedFactory.WaitForCacheSync(stopCh)
+	controlPlaneInformerManager.Start()
+	if sync := controlPlaneInformerManager.WaitForCacheSync(); sync == nil {
+		return fmt.Errorf("informer factory for cluster does not exist")
+	}
+
+	defaultInterpreter := native.NewDefaultInterpreter()
+	thirdpartyInterpreter := thirdparty.NewConfigurableInterpreter()
+	configurableInterpreter := declarative.NewConfigurableInterpreter(controlPlaneInformerManager)
+	customizedInterpreter, err := webhook.NewCustomizedInterpreter(controlPlaneInformerManager, serviceLister)
+	if err != nil {
+		return fmt.Errorf("failed to create customized interpreter: %v", err)
+	}
+
+	// check if the resource interpreter supports to interpret dependencies
+	if !defaultInterpreter.HookEnabled(obj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretDependency) &&
+		!thirdpartyInterpreter.HookEnabled(obj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretDependency) &&
+		!configurableInterpreter.HookEnabled(obj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretDependency) &&
+		!customizedInterpreter.HookEnabled(obj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretDependency) {
+		// if there is no interpreter configured, abort this dependency promotion but continue to promote the resource
+		klog.Warningf("there is no interpreter configured support to interpret dependencies")
+		return nil
+	}
+
+	// configurable interpreter has higher priority than customized interpreter
+	dependencies, hookEnabled, err := configurableInterpreter.GetDependencies(obj)
+	if err != nil {
+		return fmt.Errorf("configurable interpreter failed to get dependencies of resource %q(%s/%s): %v", gvr, obj.GetNamespace(), obj.GetName(), err)
+	}
+	if hookEnabled {
+		fmt.Printf("use configurable interpreter\n")
+		err := o.doPromoteDeps(memberClusterFactory, dependencies, mapper, config)
+		return err
+	}
+
+	// customized interpreter has higher priority than thirdparty interpreter
+	dependencies, hookEnabled, err = customizedInterpreter.GetDependencies(context.TODO(), &request.Attributes{
+		Operation: configv1alpha1.InterpreterOperationInterpretDependency,
+		Object:    obj,
+	})
+	if err != nil {
+		return fmt.Errorf("customized interpreter failed to get dependencies of resource %q(%s/%s): %v", gvr, obj.GetNamespace(), obj.GetName(), err)
+	}
+	if hookEnabled {
+		fmt.Printf("use customized interpreter\n")
+		err := o.doPromoteDeps(memberClusterFactory, dependencies, mapper, config)
+		return err
+	}
+
+	// thirdparty interpreter has higher priority than default interpreter
+	dependencies, hookEnabled, err = thirdpartyInterpreter.GetDependencies(obj)
+	if err != nil {
+		return fmt.Errorf("thirdparty interpreter failed to get dependencies of resource %q(%s/%s): %v", gvr, obj.GetNamespace(), obj.GetName(), err)
+	}
+	if hookEnabled {
+		fmt.Printf("use thirdparty interpreter\n")
+		err := o.doPromoteDeps(memberClusterFactory, dependencies, mapper, config)
+		return err
+	}
+
+	// default interpreter
+	dependencies, err = defaultInterpreter.GetDependencies(obj)
+	if err != nil {
+		return fmt.Errorf("default interpreter failed to get dependencies of resource %q(%s/%s): %v", gvr, obj.GetNamespace(), obj.GetName(), err)
+	}
+	fmt.Printf("use default interpreter\n")
+	err = o.doPromoteDeps(memberClusterFactory, dependencies, mapper, config)
+	return err
+}
+
+func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj *unstructured.Unstructured, gvr schema.GroupVersionResource, isDep bool) error {
 	if err := preprocessResource(obj); err != nil {
 		return fmt.Errorf("failed to preprocess resource %q(%s/%s) in control plane: %v", gvr, o.Namespace, o.name, err)
 	}
@@ -275,7 +537,7 @@ func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj 
 	if len(obj.GetNamespace()) == 0 {
 		_, err := controlPlaneDynamicClient.Resource(gvr).Get(context.TODO(), o.name, metav1.GetOptions{})
 		if err == nil {
-			fmt.Printf("Resource %q(%s) already exist in karmada control plane, you can edit PropagationPolicy and OverridePolicy to propagate it\n",
+			klog.Warningf("Resource %q(%s) already exist in karmada control plane, you can edit PropagationPolicy and OverridePolicy to propagate it\n",
 				gvr, o.name)
 			return nil
 		}
@@ -290,7 +552,7 @@ func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj 
 		}
 
 		if o.AutoCreatePolicy {
-			err = o.createClusterPropagationPolicy(karmadaClient, gvr)
+			err = o.createClusterPropagationPolicy(karmadaClient, gvr, isDep)
 			if err != nil {
 				return err
 			}
@@ -300,7 +562,7 @@ func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj 
 	} else {
 		_, err := controlPlaneDynamicClient.Resource(gvr).Namespace(o.Namespace).Get(context.TODO(), o.name, metav1.GetOptions{})
 		if err == nil {
-			fmt.Printf("Resource %q(%s/%s) already exist in karmada control plane, you can edit PropagationPolicy and OverridePolicy to propagate it\n",
+			klog.Warningf("Resource %q(%s/%s) already exist in karmada control plane, you can edit PropagationPolicy and OverridePolicy to propagate it\n",
 				gvr, o.Namespace, o.name)
 			return nil
 		}
@@ -315,7 +577,7 @@ func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj 
 		}
 
 		if o.AutoCreatePolicy {
-			err = o.createPropagationPolicy(karmadaClient, gvr)
+			err = o.createPropagationPolicy(karmadaClient, gvr, isDep)
 			if err != nil {
 				return err
 			}
@@ -377,12 +639,12 @@ func (o *CommandPromoteOption) printObjectAndPolicy(obj *unstructured.Unstructur
 			policyName = o.PolicyName
 		}
 		if len(obj.GetNamespace()) == 0 {
-			cpp := buildClusterPropagationPolicy(o.name, policyName, o.Cluster, gvr, o.gvk)
+			cpp := buildClusterPropagationPolicy(o.name, policyName, o.Cluster, gvr, o.gvk, o.Deps)
 			if err = printer.PrintObj(cpp, os.Stdout); err != nil {
 				return fmt.Errorf("failed to print the ClusterPropagationPolicy. err: %v", err)
 			}
 		} else {
-			pp := buildPropagationPolicy(o.name, policyName, o.Namespace, o.Cluster, gvr, o.gvk)
+			pp := buildPropagationPolicy(o.name, policyName, o.Namespace, o.Cluster, gvr, o.gvk, o.Deps)
 			if err = printer.PrintObj(pp, os.Stdout); err != nil {
 				return fmt.Errorf("failed to print the PropagationPolicy. err: %v", err)
 			}
@@ -393,7 +655,7 @@ func (o *CommandPromoteOption) printObjectAndPolicy(obj *unstructured.Unstructur
 }
 
 // createPropagationPolicy create PropagationPolicy in karmada control plane
-func (o *CommandPromoteOption) createPropagationPolicy(karmadaClient *karmadaclientset.Clientset, gvr schema.GroupVersionResource) error {
+func (o *CommandPromoteOption) createPropagationPolicy(karmadaClient *karmadaclientset.Clientset, gvr schema.GroupVersionResource, isDep bool) error {
 	var policyName string
 	if o.PolicyName == "" {
 		policyName = names.GeneratePolicyName(o.Namespace, o.name, o.gvk.String())
@@ -403,7 +665,7 @@ func (o *CommandPromoteOption) createPropagationPolicy(karmadaClient *karmadacli
 
 	_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(o.Namespace).Get(context.TODO(), policyName, metav1.GetOptions{})
 	if err != nil && apierrors.IsNotFound(err) {
-		pp := buildPropagationPolicy(o.name, policyName, o.Namespace, o.Cluster, gvr, o.gvk)
+		pp := buildPropagationPolicy(o.name, policyName, o.Namespace, o.Cluster, gvr, o.gvk, isDep)
 		_, err = karmadaClient.PolicyV1alpha1().PropagationPolicies(o.Namespace).Create(context.TODO(), pp, metav1.CreateOptions{})
 
 		return err
@@ -417,7 +679,7 @@ func (o *CommandPromoteOption) createPropagationPolicy(karmadaClient *karmadacli
 }
 
 // createClusterPropagationPolicy create ClusterPropagationPolicy in karmada control plane
-func (o *CommandPromoteOption) createClusterPropagationPolicy(karmadaClient *karmadaclientset.Clientset, gvr schema.GroupVersionResource) error {
+func (o *CommandPromoteOption) createClusterPropagationPolicy(karmadaClient *karmadaclientset.Clientset, gvr schema.GroupVersionResource, isDep bool) error {
 	var policyName string
 	if o.PolicyName == "" {
 		policyName = names.GeneratePolicyName("", o.name, o.gvk.String())
@@ -427,7 +689,7 @@ func (o *CommandPromoteOption) createClusterPropagationPolicy(karmadaClient *kar
 
 	_, err := karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Get(context.TODO(), policyName, metav1.GetOptions{})
 	if err != nil && apierrors.IsNotFound(err) {
-		cpp := buildClusterPropagationPolicy(o.name, policyName, o.Cluster, gvr, o.gvk)
+		cpp := buildClusterPropagationPolicy(o.name, policyName, o.Cluster, gvr, o.gvk, isDep)
 		_, err = karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Create(context.TODO(), cpp, metav1.CreateOptions{})
 
 		return err
@@ -443,7 +705,7 @@ func (o *CommandPromoteOption) createClusterPropagationPolicy(karmadaClient *kar
 // preprocessResource delete redundant fields to convert resource as template
 func preprocessResource(obj *unstructured.Unstructured) error {
 	// remove fields that generated by kube-apiserver and no need(or can't) propagate to member clusters.
-	if err := prune.RemoveIrrelevantField(obj); err != nil {
+	if err := prune.RemoveIrrelevantFields(obj); err != nil {
 		return err
 	}
 
@@ -465,13 +727,14 @@ func addOverwriteAnnotation(obj *unstructured.Unstructured) {
 }
 
 // buildPropagationPolicy build PropagationPolicy according to resource and cluster
-func buildPropagationPolicy(resourceName, policyName, namespace, cluster string, gvr schema.GroupVersionResource, gvk schema.GroupVersionKind) *policyv1alpha1.PropagationPolicy {
+func buildPropagationPolicy(resourceName, policyName, namespace, cluster string, gvr schema.GroupVersionResource, gvk schema.GroupVersionKind, deps bool) *policyv1alpha1.PropagationPolicy {
 	pp := &policyv1alpha1.PropagationPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      policyName,
 			Namespace: namespace,
 		},
 		Spec: policyv1alpha1.PropagationSpec{
+			PropagateDeps: deps,
 			ResourceSelectors: []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: gvr.GroupVersion().String(),
@@ -490,12 +753,13 @@ func buildPropagationPolicy(resourceName, policyName, namespace, cluster string,
 }
 
 // buildClusterPropagationPolicy build ClusterPropagationPolicy according to resource and cluster
-func buildClusterPropagationPolicy(resourceName, policyName, cluster string, gvr schema.GroupVersionResource, gvk schema.GroupVersionKind) *policyv1alpha1.ClusterPropagationPolicy {
+func buildClusterPropagationPolicy(resourceName, policyName, cluster string, gvr schema.GroupVersionResource, gvk schema.GroupVersionKind, deps bool) *policyv1alpha1.ClusterPropagationPolicy {
 	cpp := &policyv1alpha1.ClusterPropagationPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: policyName,
 		},
 		Spec: policyv1alpha1.PropagationSpec{
+			PropagateDeps: deps,
 			ResourceSelectors: []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: gvr.GroupVersion().String(),

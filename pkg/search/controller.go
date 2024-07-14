@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package search
 
 import (
@@ -30,6 +46,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
@@ -385,10 +402,18 @@ func (c *Controller) doCacheCluster(cluster string) error {
 
 	sci := c.InformerManager.GetSingleClusterManager(cluster)
 	for gvr := range cr.resources {
+		gvk, err := c.restMapper.KindFor(gvr)
+		if err != nil {
+			klog.Errorf("Failed to get gvk: %v", err)
+			continue
+		}
+		if !helper.IsAPIEnabled(cls.Status.APIEnablements, gvk.GroupVersion().String(), gvk.Kind) {
+			klog.Warningf("Resource %s is not enabled for cluster %s", gvr.String(), cluster)
+			continue
+		}
 		klog.Infof("Add informer for %s, %v", cluster, gvr)
 		sci.ForResource(gvr, handler)
 	}
-
 	klog.Infof("Start informer for %s", cluster)
 	sci.Start()
 	_ = sci.WaitForCacheSync()
@@ -470,7 +495,8 @@ func (c *Controller) updateCluster(oldObj, curObj interface{}) {
 		c.queue.Add(curCluster.GetName())
 	}
 
-	if !reflect.DeepEqual(curCluster.Spec, oldCluster.Spec) || !reflect.DeepEqual(curCluster.Labels, oldCluster.Labels) {
+	if !reflect.DeepEqual(curCluster.Spec, oldCluster.Spec) || !reflect.DeepEqual(curCluster.Labels, oldCluster.Labels) ||
+		!reflect.DeepEqual(curCluster.Status.APIEnablements, oldCluster.Status.APIEnablements) {
 		c.queue.Add(curCluster.GetName())
 	}
 }

@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package validation
 
 import (
@@ -9,7 +25,7 @@ import (
 	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -78,17 +94,17 @@ func ValidateClusterAffinities(affinities []policyv1alpha1.ClusterAffinityTerm, 
 	var allErrs field.ErrorList
 
 	affinityNames := make(map[string]bool)
-	for index, term := range affinities {
-		for _, err := range validation.IsQualifiedName(term.AffinityName) {
-			allErrs = append(allErrs, field.Invalid(fldPath.Index(index), term.AffinityName, err))
+	for index := range affinities {
+		for _, err := range validation.IsQualifiedName(affinities[index].AffinityName) {
+			allErrs = append(allErrs, field.Invalid(fldPath.Index(index), affinities[index].AffinityName, err))
 		}
-		if _, exist := affinityNames[term.AffinityName]; exist {
+		if _, exist := affinityNames[affinities[index].AffinityName]; exist {
 			allErrs = append(allErrs, field.Invalid(fldPath, affinities, "each affinity term in a policy must have a unique name"))
 		} else {
-			affinityNames[term.AffinityName] = true
+			affinityNames[affinities[index].AffinityName] = true
 		}
 
-		allErrs = append(allErrs, ValidateClusterAffinity(&term.ClusterAffinity, fldPath.Index(index))...)
+		allErrs = append(allErrs, ValidateClusterAffinity(&affinities[index].ClusterAffinity, fldPath.Index(index))...)
 	}
 	return allErrs
 }
@@ -144,12 +160,12 @@ func ValidateSpreadConstraint(spreadConstraints []policyv1alpha1.SpreadConstrain
 
 		if len(constraint.SpreadByField) > 0 {
 			marked := spreadByFieldsWithErrorMark[constraint.SpreadByField]
-			if !pointer.BoolDeref(marked, true) {
+			if !ptr.Deref[bool](marked, true) {
 				allErrs = append(allErrs, field.Invalid(fldPath, spreadConstraints, fmt.Sprintf("multiple %s spread constraints are not allowed", constraint.SpreadByField)))
 				*marked = true
 			}
 			if marked == nil {
-				spreadByFieldsWithErrorMark[constraint.SpreadByField] = pointer.Bool(false)
+				spreadByFieldsWithErrorMark[constraint.SpreadByField] = ptr.To[bool](false)
 			}
 		}
 	}

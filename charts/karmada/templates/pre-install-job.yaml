@@ -10,6 +10,10 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 data:
   {{ range $path, $bytes := .Files.Glob (printf "_crds/kustomization.yaml")}}
   {{ $name := base $path }}
@@ -26,6 +30,10 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 data:
   {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/autoscaling/**")}}
   {{ $name := base $path }}
@@ -42,6 +50,10 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 data:
   {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/config/**")}}
   {{ $name := base $path }}
@@ -58,6 +70,10 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 data:
   {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/multicluster/**")}}
   {{ $name := base $path }}
@@ -74,6 +90,10 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 data:
   {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/networking/**")}}
   {{ $name := base $path }}
@@ -91,8 +111,32 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 data:
   {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/policy/**")}}
+  {{ $name := base $path }}
+  {{- (printf "%s: " $name) | nindent 6 }} |-
+    {{- $.Files.Get $path | nindent 8 }}
+  {{ end }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-crds-remedy-bases
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
+data:
+  {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/remedy/**")}}
   {{ $name := base $path }}
   {{- (printf "%s: " $name) | nindent 6 }} |-
     {{- $.Files.Get $path | nindent 8 }}
@@ -107,13 +151,37 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 data:
   {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/work/**")}}
   {{ $name := base $path }}
   {{- (printf "%s: " $name) | nindent 6 }} |-
     {{- $.Files.Get $path | nindent 8 }}
   {{ end }}
-    
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-crds-apps-bases
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
+data:
+  {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/apps/**")}}
+  {{ $name := base $path }}
+  {{- (printf "%s: " $name) | nindent 6 }} |-
+    {{- $.Files.Get $path | nindent 8 }}
+  {{ end }}
+
 {{- if eq .Values.certs.mode "custom" }}
 ---
 apiVersion: v1
@@ -124,6 +192,10 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 data:
   {{- print "webhook-configuration.yaml: " | nindent 6 }} |-
     {{- include "karmada.webhook.configuration" . | nindent 8 }}
@@ -135,7 +207,8 @@ data:
     {{- include "karmada.proxyRbac" . | nindent 8 }}
   {{- print "bootstrap-token-configuration.yaml: " | nindent 6 }} |-
     {{- include "karmada.bootstrapToken.configuration" . | nindent 8 }}
-
+  {{- print "clusterrole.yaml: " | nindent 6 }} |-
+    {{- include "karmada.clusterrole" . | nindent 8 }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -145,12 +218,16 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 data:
   {{- print "webhook_in_clusterresourcebindings.yaml: " | nindent 6 }} |-
     {{- include "karmada.crd.patch.webhook.clusterresourcebinding" . | nindent 8 }}
   {{- print "webhook_in_resourcebindings.yaml: " | nindent 6 }} |-
     {{- include "karmada.crd.patch.webhook.resourcebinding" . | nindent 8 }}
- ---   
+---   
 {{- end}}
 
 {{- if eq .Values.certs.mode "auto" }}
@@ -163,6 +240,10 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "2"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 data:
   cert.yaml: |-
     apiVersion: v1
@@ -211,7 +292,6 @@ data:
         clusters:
           - cluster:
               certificate-authority-data: {{ print "{{ ca_crt }}" }}
-              insecure-skip-tls-verify: false
               server: https://{{ $name }}-apiserver.{{ $namespace }}.svc.{{ .Values.clusterDomain }}:5443
             name: {{ $name }}-apiserver
         users:
@@ -242,6 +322,8 @@ data:
         {{- include "karmada.proxyRbac" . | nindent 8 }}
       {{- print "bootstrap-token-configuration.yaml: " | nindent 6 }} |-
         {{- include "karmada.bootstrapToken.configuration" . | nindent 8 }}
+      {{- print "clusterrole.yaml: " | nindent 6 }} |-
+        {{- include "karmada.clusterrole" . | nindent 8 }}
   crds-patches-configmaps.yaml: |-
     apiVersion: v1
     kind: ConfigMap
@@ -265,7 +347,11 @@ metadata:
     # job is considered part of the release.
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "3"
-    "helm.sh/hook-delete-policy": hook-succeeded
+    "helm.sh/hook-delete-policy": {{ .Values.preInstallJob.hookDeletePolicy }}
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 spec:
   parallelism: 1
   completions: 1
@@ -277,6 +363,7 @@ spec:
         app.kubernetes.io/instance: {{ $name | quote }}
         helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     spec:
+      {{- include "karmada.imagePullSecrets" . | nindent 6 }}
       {{- with .Values.preInstallJob.tolerations}}
       tolerations:
       {{- toYaml . | nindent 8 }}
@@ -285,7 +372,7 @@ spec:
       nodeSelector:
       {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ $name }}-pre-job
+      serviceAccountName: {{ $name }}-hook-job
       restartPolicy: Never
       initContainers:
       - name: init
@@ -301,12 +388,12 @@ spec:
           mkdir -p /opt/configs
           mkdir -p /opt/certs
           cp -r -L /opt/mount/* /opt/configs/
-          openssl req -x509 -sha256 -new -nodes -days 365 -newkey rsa:2048 -keyout "/opt/certs/server-ca.key" -out "/opt/certs/server-ca.crt" -subj "/C=xx/ST=x/L=x/O=x/OU=x/CN=ca/emailAddress=x/"
-          openssl req -x509 -sha256 -new -nodes -days 365 -newkey rsa:2048 -keyout "/opt/certs/front-proxy-ca.key" -out "/opt/certs/front-proxy-ca.crt" -subj "/C=xx/ST=x/L=x/O=x/OU=x/CN=ca/emailAddress=x/"
+          openssl req -x509 -sha256 -new -nodes -days 365 -newkey rsa:{{ .Values.certs.auto.rsaSize }} -keyout "/opt/certs/server-ca.key" -out "/opt/certs/server-ca.crt" -subj "/C=xx/ST=x/L=x/O=x/OU=x/CN=ca/emailAddress=x/"
+          openssl req -x509 -sha256 -new -nodes -days 365 -newkey rsa:{{ .Values.certs.auto.rsaSize }} -keyout "/opt/certs/front-proxy-ca.key" -out "/opt/certs/front-proxy-ca.crt" -subj "/C=xx/ST=x/L=x/O=x/OU=x/CN=ca/emailAddress=x/"
           echo '{"signing":{"default":{"expiry":{{ printf `"%s"` .Values.certs.auto.expiry }},"usages":["signing","key encipherment","client auth","server auth"]}}}' > "/opt/certs/server-ca-config.json"
-          echo '{"CN":"system:admin","hosts":{{ tpl (toJson .Values.certs.auto.hosts) . }},"names":[{"O":"system:masters"}],"key":{"algo":"rsa","size":2048}}' | cfssl gencert -ca=/opt/certs/server-ca.crt -ca-key=/opt/certs/server-ca.key -config=/opt/certs/server-ca-config.json - | cfssljson -bare /opt/certs/karmada
+          echo '{"CN":"system:admin","hosts":{{ tpl (toJson .Values.certs.auto.hosts) . }},"names":[{"O":"system:masters"}],"key":{"algo":"rsa","size":{{ .Values.certs.auto.rsaSize }}}}' | cfssl gencert -ca=/opt/certs/server-ca.crt -ca-key=/opt/certs/server-ca.key -config=/opt/certs/server-ca-config.json - | cfssljson -bare /opt/certs/karmada
           echo '{"signing":{"default":{"expiry":{{ printf `"%s"` .Values.certs.auto.expiry }},"usages":["signing","key encipherment","client auth","server auth"]}}}' > "/opt/certs/front-proxy-ca-config.json"
-          echo '{"CN":"front-proxy-client","hosts":{{ tpl (toJson .Values.certs.auto.hosts) . }},"names":[{"O":"system:masters"}],"key":{"algo":"rsa","size":2048}}' | cfssl gencert -ca=/opt/certs/front-proxy-ca.crt -ca-key=/opt/certs/front-proxy-ca.key -config=/opt/certs/front-proxy-ca-config.json - | cfssljson -bare /opt/certs/front-proxy-client
+          echo '{"CN":"front-proxy-client","hosts":{{ tpl (toJson .Values.certs.auto.hosts) . }},"names":[{"O":"system:masters"}],"key":{"algo":"rsa","size":{{ .Values.certs.auto.rsaSize }}}}' | cfssl gencert -ca=/opt/certs/front-proxy-ca.crt -ca-key=/opt/certs/front-proxy-ca.key -config=/opt/certs/front-proxy-ca-config.json - | cfssljson -bare /opt/certs/front-proxy-client
           karmada_ca=$(base64 /opt/certs/server-ca.crt | tr -d '\r\n')
           karmada_ca_key=$(base64 /opt/certs/server-ca.key | tr -d '\r\n')
           karmada_crt=$(base64 /opt/certs/karmada.pem | tr -d '\r\n')
@@ -358,24 +445,46 @@ spec:
           name: {{ $name }}-config
       - name: configs
         emptyDir: {}
-
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ $name }}-pre-job
+  name: {{ $name }}-hook-job
   namespace: {{ $namespace }}
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "1"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $name }}-hook-job
+  namespace: {{ $namespace }}
+  annotations:
+    "kubernetes.io/service-account.name": {{ $name }}-hook-job
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "1"
+    {{- if "karmada.preInstallJob.labels" }}
+    labels:
+      {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+    {{- end }}
+type: kubernetes.io/service-account-token
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ $name }}-pre-job
+  name: {{ $name }}-hook-job
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "1"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 rules:
   - apiGroups: ['*']
     resources: ['*']
@@ -386,17 +495,21 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ $name }}-pre-job
+  name: {{ $name }}-hook-job
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "1"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ $name }}-pre-job
+  name: {{ $name }}-hook-job
 subjects:
   - kind: ServiceAccount
-    name: {{ $name }}-pre-job
+    name: {{ $name }}-hook-job
     namespace: {{ $namespace }}
 ---
 {{- end }}

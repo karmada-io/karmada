@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package dependenciesdistributor
 
 import (
@@ -44,7 +60,7 @@ func Test_dependentObjectReferenceMatches(t *testing.T) {
 				},
 				referenceBinding: &workv1alpha2.ResourceBinding{
 					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
-						bindingDependenciesAnnotationKey: "[{\"apiVersion\":\"example-stgzr.karmada.io/v1alpha1\",\"kind\":\"Foot5zmh\",\"namespace\":\"karmadatest-vpvll\",\"name\":\"cr-fxzq6\"}]",
+						dependenciesAnnotationKey: "[{\"apiVersion\":\"example-stgzr.karmada.io/v1alpha1\",\"kind\":\"Foot5zmh\",\"namespace\":\"karmadatest-vpvll\",\"name\":\"cr-fxzq6\"}]",
 					}},
 				},
 			},
@@ -65,7 +81,7 @@ func Test_dependentObjectReferenceMatches(t *testing.T) {
 				},
 				referenceBinding: &workv1alpha2.ResourceBinding{
 					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
-						bindingDependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"namespace\":\"karmadatest-h46wh\",\"name\":\"configmap-8w426\"}]",
+						dependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"namespace\":\"karmadatest-h46wh\",\"name\":\"configmap-8w426\"}]",
 					}},
 				},
 			},
@@ -87,7 +103,7 @@ func Test_dependentObjectReferenceMatches(t *testing.T) {
 				},
 				referenceBinding: &workv1alpha2.ResourceBinding{
 					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
-						bindingDependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"namespace\":\"test\",\"labelSelector\":{\"matchExpressions\":[{\"key\":\"app\",\"operator\":\"In\",\"values\":[\"test\"]}]}}]",
+						dependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"namespace\":\"test\",\"labelSelector\":{\"matchExpressions\":[{\"key\":\"app\",\"operator\":\"In\",\"values\":[\"test\"]}]}}]",
 					}},
 				},
 			},
@@ -96,9 +112,9 @@ func Test_dependentObjectReferenceMatches(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := dependentObjectReferenceMatches(tt.args.objectKey, tt.args.referenceBinding)
+			got := matchesWithBindingDependencies(tt.args.objectKey, tt.args.referenceBinding)
 			if got != tt.want {
-				t.Errorf("dependentObjectReferenceMatches() got = %v, want %v", got, tt.want)
+				t.Errorf("matchesWithBindingDependencies() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

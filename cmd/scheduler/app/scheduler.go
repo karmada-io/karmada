@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package app
 
 import (
@@ -45,6 +61,22 @@ const (
 	// References:
 	// - https://en.wikipedia.org/wiki/Slowloris_(computer_security)
 	ReadHeaderTimeout = 32 * time.Second
+	// WriteTimeout is the amount of time allowed to write the
+	// request data.
+	// HTTP timeouts are necessary to expire inactive connections
+	// and failing to do so might make the application vulnerable
+	// to attacks like slowloris which work by sending data very slow,
+	// which in case of no timeout will keep the connection active
+	// eventually leading to a denial-of-service (DoS) attack.
+	WriteTimeout = 5 * time.Minute
+	// ReadTimeout is the amount of time allowed to read
+	// response data.
+	// HTTP timeouts are necessary to expire inactive connections
+	// and failing to do so might make the application vulnerable
+	// to attacks like slowloris which work by sending data very slow,
+	// which in case of no timeout will keep the connection active
+	// eventually leading to a denial-of-service (DoS) attack.
+	ReadTimeout = 5 * time.Minute
 )
 
 // Option configures a framework.Registry.
@@ -67,7 +99,7 @@ func NewSchedulerCommand(stopChan <-chan struct{}, registryOptions ...Option) *c
 The scheduler determines which clusters are valid placements for each resource in the scheduling queue according to
 constraints and available resources. The scheduler then ranks each valid cluster and binds the resource to
 the most suitable cluster.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()
@@ -138,11 +170,12 @@ func run(opts *options.Options, stopChan <-chan struct{}, registryOptions ...Opt
 		scheduler.WithEnableSchedulerEstimator(opts.EnableSchedulerEstimator),
 		scheduler.WithDisableSchedulerEstimatorInPullMode(opts.DisableSchedulerEstimatorInPullMode),
 		scheduler.WithSchedulerEstimatorServicePrefix(opts.SchedulerEstimatorServicePrefix),
-		scheduler.WithSchedulerEstimatorPort(opts.SchedulerEstimatorPort),
+		scheduler.WithSchedulerEstimatorConnection(opts.SchedulerEstimatorPort, opts.SchedulerEstimatorCertFile, opts.SchedulerEstimatorKeyFile, opts.SchedulerEstimatorCaFile, opts.InsecureSkipEstimatorVerify),
 		scheduler.WithSchedulerEstimatorTimeout(opts.SchedulerEstimatorTimeout),
 		scheduler.WithEnableEmptyWorkloadPropagation(opts.EnableEmptyWorkloadPropagation),
 		scheduler.WithEnableSchedulerPlugin(opts.Plugins),
 		scheduler.WithSchedulerName(opts.SchedulerName),
+		scheduler.WithRateLimiterOptions(opts.RateLimiterOpts),
 	)
 	if err != nil {
 		return fmt.Errorf("couldn't create scheduler: %w", err)
@@ -207,6 +240,8 @@ func serveHealthzAndMetrics(address string) {
 		Addr:              address,
 		Handler:           mux,
 		ReadHeaderTimeout: ReadHeaderTimeout,
+		WriteTimeout:      WriteTimeout,
+		ReadTimeout:       ReadTimeout,
 	}
 	if err := httpServer.ListenAndServe(); err != nil {
 		klog.Errorf("Failed to serve healthz and metrics: %v", err)

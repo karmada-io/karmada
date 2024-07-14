@@ -1,6 +1,14 @@
 name: FOSSA
 on:
   push:
+    # Exclude branches created by Dependabot to avoid triggering current workflow
+    # for PRs initiated by Dependabot.
+    branches-ignore:
+      - 'dependabot/**'
+
+permissions:
+  contents: read # Required by actions/checkout@v4 to fetch the repository contents.
+  
 jobs:
   fossa:
     name: FOSSA
@@ -11,7 +19,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Run FOSSA scan and upload build data
         uses: fossas/fossa-action@v1
         with:

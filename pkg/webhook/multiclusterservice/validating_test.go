@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package multiclusterservice
 
 import (
@@ -35,14 +51,51 @@ func TestValidateMultiClusterServiceSpec(t *testing.T) {
 					},
 					Types: []networkingv1alpha1.ExposureType{
 						networkingv1alpha1.ExposureTypeLoadBalancer,
-						networkingv1alpha1.ExposureTypeCrossCluster,
 					},
-					Range: networkingv1alpha1.ExposureRange{
-						ClusterNames: []string{"member1", "member2"},
+					ProviderClusters: []networkingv1alpha1.ClusterSelector{
+						{Name: "member1"},
+						{Name: "member2"},
+					},
+					ConsumerClusters: []networkingv1alpha1.ClusterSelector{
+						{Name: "member1"},
+						{Name: "member2"},
 					},
 				},
 			},
 			expectedErr: field.ErrorList{},
+		},
+		{
+			name: "multiple exposure type mcs",
+			mcs: &networkingv1alpha1.MultiClusterService{
+				Spec: networkingv1alpha1.MultiClusterServiceSpec{
+					Ports: []networkingv1alpha1.ExposurePort{
+						{
+							Name: "foo",
+							Port: 16312,
+						},
+						{
+							Name: "bar",
+							Port: 16313,
+						},
+					},
+					Types: []networkingv1alpha1.ExposureType{
+						networkingv1alpha1.ExposureTypeLoadBalancer,
+						networkingv1alpha1.ExposureTypeCrossCluster,
+					},
+					ProviderClusters: []networkingv1alpha1.ClusterSelector{
+						{Name: "member1"},
+						{Name: "member2"},
+					},
+					ConsumerClusters: []networkingv1alpha1.ClusterSelector{
+						{Name: "member1"},
+						{Name: "member2"},
+					},
+				},
+			},
+			expectedErr: field.ErrorList{field.Invalid(specFld.Child("types"), []networkingv1alpha1.ExposureType{
+				networkingv1alpha1.ExposureTypeLoadBalancer,
+				networkingv1alpha1.ExposureTypeCrossCluster,
+			}, "MultiClusterService types should not contain more than one type")},
 		},
 		{
 			name: "duplicated svc name",
@@ -62,8 +115,13 @@ func TestValidateMultiClusterServiceSpec(t *testing.T) {
 						networkingv1alpha1.ExposureTypeLoadBalancer,
 						networkingv1alpha1.ExposureTypeLoadBalancer,
 					},
-					Range: networkingv1alpha1.ExposureRange{
-						ClusterNames: []string{"member1"},
+					ProviderClusters: []networkingv1alpha1.ClusterSelector{
+						{Name: "member1"},
+						{Name: "member2"},
+					},
+					ConsumerClusters: []networkingv1alpha1.ClusterSelector{
+						{Name: "member1"},
+						{Name: "member2"},
 					},
 				},
 			},
@@ -82,8 +140,13 @@ func TestValidateMultiClusterServiceSpec(t *testing.T) {
 					Types: []networkingv1alpha1.ExposureType{
 						networkingv1alpha1.ExposureTypeLoadBalancer,
 					},
-					Range: networkingv1alpha1.ExposureRange{
-						ClusterNames: []string{"member1"},
+					ProviderClusters: []networkingv1alpha1.ClusterSelector{
+						{Name: "member1"},
+						{Name: "member2"},
+					},
+					ConsumerClusters: []networkingv1alpha1.ClusterSelector{
+						{Name: "member1"},
+						{Name: "member2"},
 					},
 				},
 			},
@@ -102,8 +165,13 @@ func TestValidateMultiClusterServiceSpec(t *testing.T) {
 					Types: []networkingv1alpha1.ExposureType{
 						"",
 					},
-					Range: networkingv1alpha1.ExposureRange{
-						ClusterNames: []string{"member1"},
+					ProviderClusters: []networkingv1alpha1.ClusterSelector{
+						{Name: "member1"},
+						{Name: "member2"},
+					},
+					ConsumerClusters: []networkingv1alpha1.ClusterSelector{
+						{Name: "member1"},
+						{Name: "member2"},
 					},
 				},
 			},
@@ -122,12 +190,13 @@ func TestValidateMultiClusterServiceSpec(t *testing.T) {
 					Types: []networkingv1alpha1.ExposureType{
 						networkingv1alpha1.ExposureTypeCrossCluster,
 					},
-					Range: networkingv1alpha1.ExposureRange{
-						ClusterNames: []string{"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+					ProviderClusters: []networkingv1alpha1.ClusterSelector{
+						{Name: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
 					},
+					ConsumerClusters: []networkingv1alpha1.ClusterSelector{},
 				},
 			},
-			expectedErr: field.ErrorList{field.Invalid(specFld.Child("range").Child("clusterNames").Index(0), "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "must be no more than 48 characters")},
+			expectedErr: field.ErrorList{field.Invalid(specFld.Child("range").Child("providerClusters").Index(0), "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "must be no more than 48 characters")},
 		},
 	}
 	for _, tt := range tests {

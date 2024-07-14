@@ -1,4 +1,18 @@
 #!/usr/bin/env bash
+# Copyright 2020 The Karmada Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 
 set -o errexit
 set -o nounset
@@ -16,7 +30,7 @@ KARMADA_APISERVER_SECURE_PORT=${KARMADA_APISERVER_SECURE_PORT:-5443}
 HOST_CLUSTER_NAME=${HOST_CLUSTER_NAME:-"karmada-host"}
 ROOT_CA_FILE=${CERT_DIR}/ca.crt
 ROOT_CA_KEY=${CERT_DIR}/ca.key
-CFSSL_VERSION="v1.6.2"
+CFSSL_VERSION="v1.6.5"
 LOAD_BALANCER=${LOAD_BALANCER:-false} # whether create a 'LoadBalancer' type service for karmada apiserver
 source "${REPO_ROOT}"/hack/util.sh
 
@@ -186,8 +200,10 @@ fi
 # deploy karmada apiserver
 TEMP_PATH_APISERVER=$(mktemp -d)
 trap '{ rm -rf ${TEMP_PATH_APISERVER}; }' EXIT
+KARMADA_APISERVER_VERSION=${KARMADA_APISERVER_VERSION:-"v1.28.9"}
 cp "${REPO_ROOT}"/artifacts/deploy/karmada-apiserver.yaml "${TEMP_PATH_APISERVER}"/karmada-apiserver.yaml
 sed -i'' -e "s/{{service_type}}/${KARMADA_APISERVER_SERVICE_TYPE}/g" "${TEMP_PATH_APISERVER}"/karmada-apiserver.yaml
+sed -i'' -e "s/{{karmada_apiserver_version}}/${KARMADA_APISERVER_VERSION}/g" "${TEMP_PATH_APISERVER}"/karmada-apiserver.yaml
 echo -e "\nApply dynamic rendered apiserver service in ${TEMP_PATH_APISERVER}/karmada-apiserver.yaml."
 kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${TEMP_PATH_APISERVER}"/karmada-apiserver.yaml
 
@@ -224,7 +240,9 @@ fi
 util::append_client_kubeconfig "${HOST_CLUSTER_KUBECONFIG}" "${CERT_DIR}/karmada.crt" "${CERT_DIR}/karmada.key" "${KARMADA_APISERVER_IP}" "${KARMADA_APISERVER_SECURE_PORT}" karmada-apiserver
 
 # deploy kube controller manager
-kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/kube-controller-manager.yaml"
+cp "${REPO_ROOT}"/artifacts/deploy/kube-controller-manager.yaml "${TEMP_PATH_APISERVER}"/kube-controller-manager.yaml
+sed -i'' -e "s/{{karmada_apiserver_version}}/${KARMADA_APISERVER_VERSION}/g" "${TEMP_PATH_APISERVER}"/kube-controller-manager.yaml
+kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${TEMP_PATH_APISERVER}"/kube-controller-manager.yaml
 # deploy aggregated-apiserver on host cluster
 kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/karmada-aggregated-apiserver.yaml"
 util::wait_pod_ready "${HOST_CLUSTER_NAME}" "${KARMADA_AGGREGATION_APISERVER_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
@@ -250,21 +268,31 @@ util::fill_cabundle "${ROOT_CA_FILE}" "${TEMP_PATH_CRDS}/_crds/patches/webhook_i
 util::fill_cabundle "${ROOT_CA_FILE}" "${TEMP_PATH_CRDS}/_crds/patches/webhook_in_clusterresourcebindings.yaml"
 installCRDs "karmada-apiserver" "${TEMP_PATH_CRDS}"
 
+# render the caBundle in these apiservice with root ca, then karmada-apiserver can use caBundle to verify corresponding AA's server-cert
+TEMP_PATH_APISERVICE=$(mktemp -d)
+trap '{ rm -rf ${TEMP_PATH_APISERVICE}; }' EXIT
+cp -rf "${REPO_ROOT}"/artifacts/deploy/karmada-aggregated-apiserver-apiservice.yaml "${TEMP_PATH_APISERVICE}"/karmada-aggregated-apiserver-apiservice.yaml
+cp -rf "${REPO_ROOT}"/artifacts/deploy/karmada-metrics-adapter-apiservice.yaml "${TEMP_PATH_APISERVICE}"/karmada-metrics-adapter-apiservice.yaml
+cp -rf "${REPO_ROOT}"/artifacts/deploy/karmada-search-apiservice.yaml "${TEMP_PATH_APISERVICE}"/karmada-search-apiservice.yaml
+util::fill_cabundle "${ROOT_CA_FILE}" "${TEMP_PATH_APISERVICE}"/karmada-aggregated-apiserver-apiservice.yaml
+util::fill_cabundle "${ROOT_CA_FILE}" "${TEMP_PATH_APISERVICE}"/karmada-metrics-adapter-apiservice.yaml
+util::fill_cabundle "${ROOT_CA_FILE}" "${TEMP_PATH_APISERVICE}"/karmada-search-apiservice.yaml
+
 # deploy webhook configurations on karmada apiserver
 util::deploy_webhook_configuration "karmada-apiserver" "${ROOT_CA_FILE}" "${REPO_ROOT}/artifacts/deploy/webhook-configuration.yaml"
 
 # deploy APIService on karmada apiserver for karmada-aggregated-apiserver
-kubectl --context="karmada-apiserver" apply -f "${REPO_ROOT}/artifacts/deploy/karmada-aggregated-apiserver-apiservice.yaml"
+kubectl --context="karmada-apiserver" apply -f "${TEMP_PATH_APISERVICE}"/karmada-aggregated-apiserver-apiservice.yaml
 # make sure apiservice for v1alpha1.cluster.karmada.io is Available
 util::wait_apiservice_ready "karmada-apiserver" "${KARMADA_AGGREGATION_APISERVER_LABEL}"
 
 # deploy APIService on karmada apiserver for karmada-search
-kubectl --context="karmada-apiserver" apply -f "${REPO_ROOT}/artifacts/deploy/karmada-search-apiservice.yaml"
+kubectl --context="karmada-apiserver" apply -f "${TEMP_PATH_APISERVICE}"/karmada-search-apiservice.yaml
 # make sure apiservice for v1alpha1.search.karmada.io is Available
 util::wait_apiservice_ready "karmada-apiserver" "${KARMADA_SEARCH_LABEL}"
 
 # deploy APIService on karmada apiserver for karmada-metrics-adapter
-kubectl --context="karmada-apiserver" apply -f "${REPO_ROOT}/artifacts/deploy/karmada-metrics-adapter-apiservice.yaml"
+kubectl --context="karmada-apiserver" apply -f "${TEMP_PATH_APISERVICE}"/karmada-metrics-adapter-apiservice.yaml
 # make sure apiservice for karmada metrics adapter is Available
 util::wait_apiservice_ready "karmada-apiserver" "${KARMADA_METRICS_ADAPTER_LABEL}"
 

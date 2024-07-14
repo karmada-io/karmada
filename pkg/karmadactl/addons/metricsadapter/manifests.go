@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package metricsadapter
 
 const (
@@ -43,6 +59,7 @@ spec:
             - --audit-log-path=-
             - --audit-log-maxage=0
             - --audit-log-maxbackup=0
+            - --tls-min-version=VersionTLS13
           readinessProbe:
             httpGet:
               path: /readyz
@@ -102,7 +119,7 @@ spec:
     namespace:  {{ .Namespace }}
   group: {{ .Group }}
   version:  {{ .Version }}
-  insecureSkipTLSVerify: true
+  caBundle: {{ .CABundle }}
   groupPriorityMinimum: 100
   versionPriority: 200
 `
@@ -140,6 +157,7 @@ type AAApiServiceReplace struct {
 	Namespace string
 	Group     string
 	Version   string
+	CABundle  string
 }
 
 // AAServiceReplace is a struct to help to concrete

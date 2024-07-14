@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package store
 
 import (
@@ -10,7 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/apiserver/pkg/features"
 	"k8s.io/apiserver/pkg/registry/generic"
 	genericregistry "k8s.io/apiserver/pkg/registry/generic/registry"
 	"k8s.io/apiserver/pkg/registry/rest"
@@ -18,7 +33,6 @@ import (
 	cacherstorage "k8s.io/apiserver/pkg/storage/cacher"
 	"k8s.io/apiserver/pkg/storage/storagebackend"
 	"k8s.io/apiserver/pkg/storage/storagebackend/factory"
-	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
@@ -67,8 +81,7 @@ func newResourceCache(clusterName string, gvr schema.GroupVersionResource, gvk s
 		RESTOptions: &generic.RESTOptions{
 			StorageConfig: &storagebackend.ConfigForResource{
 				Config: storagebackend.Config{
-					Paging: utilfeature.DefaultFeatureGate.Enabled(features.APIListChunking),
-					Codec:  unstructured.UnstructuredJSONScheme,
+					Codec: unstructured.UnstructuredJSONScheme,
 				},
 				GroupResource: gvr.GroupResource(),
 			},
@@ -97,7 +110,7 @@ func storageWithCacher(gvr schema.GroupVersionResource, multiNS *MultiNamespace,
 		newFunc func() runtime.Object,
 		newListFunc func() runtime.Object,
 		getAttrsFunc storage.AttrFunc,
-		triggerFuncs storage.IndexerFuncs,
+		_ storage.IndexerFuncs,
 		indexers *cache.Indexers) (storage.Interface, factory.DestroyFunc, error) {
 		cacherConfig := cacherstorage.Config{
 			Storage:        newStore(gvr, multiNS, newClientFunc, versioner, resourcePrefix),

@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package federatedhpa
 
 import (
@@ -23,14 +39,14 @@ import (
 
 // ReplicaCalculator bundles all needed information to calculate the target amount of replicas
 type ReplicaCalculator struct {
-	metricsClient                 metricsclient.MetricsClient
+	metricsClient                 metricsclient.QueryClient
 	tolerance                     float64
 	cpuInitializationPeriod       time.Duration
 	delayOfInitialReadinessStatus time.Duration
 }
 
 // NewReplicaCalculator creates a new ReplicaCalculator and passes all necessary information to the new instance
-func NewReplicaCalculator(metricsClient metricsclient.MetricsClient, tolerance float64, cpuInitializationPeriod, delayOfInitialReadinessStatus time.Duration) *ReplicaCalculator {
+func NewReplicaCalculator(metricsClient metricsclient.QueryClient, tolerance float64, cpuInitializationPeriod, delayOfInitialReadinessStatus time.Duration) *ReplicaCalculator {
 	return &ReplicaCalculator{
 		metricsClient:                 metricsClient,
 		tolerance:                     tolerance,

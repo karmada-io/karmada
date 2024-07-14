@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package interpret
 
 import (
@@ -8,7 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/cmd/util/editor"
@@ -74,7 +90,7 @@ const (
 )
 
 // NewCmdInterpret new interpret command.
-func NewCmdInterpret(f util.Factory, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdInterpret(f util.Factory, parentCommand string, streams genericiooptions.IOStreams) *cobra.Command {
 	editorFlags := editor.NewEditOptions(editor.NormalEditMode, streams)
 	editorFlags.PrintFlags = editorFlags.PrintFlags.WithTypeSetter(gclient.NewSchema())
 
@@ -141,7 +157,7 @@ type Options struct {
 
 	Rules interpreter.Rules
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 // Complete ensures that options are valid and marshals them if necessary

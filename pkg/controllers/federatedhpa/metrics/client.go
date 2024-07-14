@@ -32,13 +32,16 @@ import (
 	resourceclient "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
 	customclient "k8s.io/metrics/pkg/client/custom_metrics"
 	externalclient "k8s.io/metrics/pkg/client/external_metrics"
+
+	"github.com/karmada-io/karmada/pkg/metrics"
 )
 
 const (
 	metricServerDefaultMetricWindow = time.Minute
 )
 
-func NewRESTMetricsClient(resourceClient resourceclient.PodMetricsesGetter, customClient customclient.CustomMetricsClient, externalClient externalclient.ExternalMetricsClient) MetricsClient {
+// NewRESTMetricsClient creates a new MetricsClient which uses the given
+func NewRESTMetricsClient(resourceClient resourceclient.PodMetricsesGetter, customClient customclient.CustomMetricsClient, externalClient externalclient.ExternalMetricsClient) QueryClient {
 	return &restMetricsClient{
 		&resourceMetricsClient{resourceClient},
 		&customMetricsClient{customClient},
@@ -64,24 +67,29 @@ type resourceMetricsClient struct {
 // GetResourceMetric gets the given resource metric (and an associated oldest timestamp)
 // for all pods matching the specified selector in the given namespace
 func (c *resourceMetricsClient) GetResourceMetric(ctx context.Context, resource corev1.ResourceName, namespace string, selector labels.Selector, container string) (PodMetricsInfo, time.Time, error) {
-	metrics, err := c.client.PodMetricses(namespace).List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
+	// observe pull ResourceMetric latency
+	var err error
+	startTime := time.Now()
+	defer metrics.ObserveFederatedHPAPullMetricsLatency(err, "ResourceMetric", startTime)
+
+	podMetrics, err := c.client.PodMetricses(namespace).List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return nil, time.Time{}, fmt.Errorf("unable to fetch metrics from resource metrics API: %v", err)
 	}
 
-	if len(metrics.Items) == 0 {
+	if len(podMetrics.Items) == 0 {
 		return nil, time.Time{}, fmt.Errorf("no metrics returned from resource metrics API")
 	}
 	var res PodMetricsInfo
 	if container != "" {
-		res, err = getContainerMetrics(metrics.Items, resource, container)
+		res, err = getContainerMetrics(podMetrics.Items, resource, container)
 		if err != nil {
 			return nil, time.Time{}, fmt.Errorf("failed to get container metrics: %v", err)
 		}
 	} else {
-		res = getPodMetrics(metrics.Items, resource)
+		res = getPodMetrics(podMetrics.Items, resource)
 	}
-	timestamp := metrics.Items[0].Timestamp.Time
+	timestamp := podMetrics.Items[0].Timestamp.Time
 	return res, timestamp, nil
 }
 
@@ -143,17 +151,22 @@ type customMetricsClient struct {
 // GetRawMetric gets the given metric (and an associated oldest timestamp)
 // for all pods matching the specified selector in the given namespace
 func (c *customMetricsClient) GetRawMetric(metricName string, namespace string, selector labels.Selector, metricSelector labels.Selector) (PodMetricsInfo, time.Time, error) {
-	metrics, err := c.client.NamespacedMetrics(namespace).GetForObjects(schema.GroupKind{Kind: "Pod"}, selector, metricName, metricSelector)
+	// observe pull RawMetric latency
+	var err error
+	startTime := time.Now()
+	defer metrics.ObserveFederatedHPAPullMetricsLatency(err, "RawMetric", startTime)
+
+	metricList, err := c.client.NamespacedMetrics(namespace).GetForObjects(schema.GroupKind{Kind: "Pod"}, selector, metricName, metricSelector)
 	if err != nil {
 		return nil, time.Time{}, fmt.Errorf("unable to fetch metrics from custom metrics API: %v", err)
 	}
 
-	if len(metrics.Items) == 0 {
+	if len(metricList.Items) == 0 {
 		return nil, time.Time{}, fmt.Errorf("no metrics returned from custom metrics API")
 	}
 
-	res := make(PodMetricsInfo, len(metrics.Items))
-	for _, m := range metrics.Items {
+	res := make(PodMetricsInfo, len(metricList.Items))
+	for _, m := range metricList.Items {
 		window := metricServerDefaultMetricWindow
 		if m.WindowSeconds != nil {
 			window = time.Duration(*m.WindowSeconds) * time.Second
@@ -161,13 +174,13 @@ func (c *customMetricsClient) GetRawMetric(metricName string, namespace string, 
 		res[m.DescribedObject.Name] = PodMetric{
 			Timestamp: m.Timestamp.Time,
 			Window:    window,
-			Value:     int64(m.Value.MilliValue()),
+			Value:     m.Value.MilliValue(),
 		}
 
 		m.Value.MilliValue()
 	}
 
-	timestamp := metrics.Items[0].Timestamp.Time
+	timestamp := metricList.Items[0].Timestamp.Time
 
 	return res, timestamp, nil
 }
@@ -175,9 +188,13 @@ func (c *customMetricsClient) GetRawMetric(metricName string, namespace string, 
 // GetObjectMetric gets the given metric (and an associated timestamp) for the given
 // object in the given namespace
 func (c *customMetricsClient) GetObjectMetric(metricName string, namespace string, objectRef *autoscalingv2.CrossVersionObjectReference, metricSelector labels.Selector) (int64, time.Time, error) {
+	// observe pull ObjectMetric latency
+	var err error
+	startTime := time.Now()
+	defer metrics.ObserveFederatedHPAPullMetricsLatency(err, "ObjectMetric", startTime)
+
 	gvk := schema.FromAPIVersionAndKind(objectRef.APIVersion, objectRef.Kind)
 	var metricValue *customapi.MetricValue
-	var err error
 	if gvk.Kind == "Namespace" && gvk.Group == "" {
 		// handle namespace separately
 		// NB: we ignore namespace name here, since CrossVersionObjectReference isn't
@@ -203,19 +220,24 @@ type externalMetricsClient struct {
 // GetExternalMetric gets all the values of a given external metric
 // that match the specified selector.
 func (c *externalMetricsClient) GetExternalMetric(metricName, namespace string, selector labels.Selector) ([]int64, time.Time, error) {
-	metrics, err := c.client.NamespacedMetrics(namespace).List(metricName, selector)
+	// observe pull ExternalMetric latency
+	var err error
+	startTime := time.Now()
+	defer metrics.ObserveFederatedHPAPullMetricsLatency(err, "ExternalMetric", startTime)
+
+	externalMetrics, err := c.client.NamespacedMetrics(namespace).List(metricName, selector)
 	if err != nil {
 		return []int64{}, time.Time{}, fmt.Errorf("unable to fetch metrics from external metrics API: %v", err)
 	}
 
-	if len(metrics.Items) == 0 {
+	if len(externalMetrics.Items) == 0 {
 		return nil, time.Time{}, fmt.Errorf("no metrics returned from external metrics API")
 	}
 
 	res := make([]int64, 0)
-	for _, m := range metrics.Items {
+	for _, m := range externalMetrics.Items {
 		res = append(res, m.Value.MilliValue())
 	}
-	timestamp := metrics.Items[0].Timestamp.Time
+	timestamp := externalMetrics.Items[0].Timestamp.Time
 	return res, timestamp, nil
 }

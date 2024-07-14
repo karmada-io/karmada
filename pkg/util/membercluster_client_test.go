@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package util
 
 import (
@@ -164,16 +180,14 @@ func TestNewClusterClientSet(t *testing.T) {
 					&clusterv1alpha1.Cluster{
 						ObjectMeta: metav1.ObjectMeta{Name: "test"},
 						Spec: clusterv1alpha1.ClusterSpec{
-							APIEndpoint:                 "https://127.0.0.1",
-							SecretRef:                   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
-							InsecureSkipTLSVerification: true,
-							ProxyURL:                    "://",
+							APIEndpoint: "https://127.0.0.1",
+							SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
+							ProxyURL:    "://",
 						},
 					},
 					&corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
-						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token")},
-					}).Build(),
+						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA}}).Build(),
 				clientOption: &ClientOption{QPS: 100, Burst: 200},
 			},
 			wantErr: true,
@@ -186,15 +200,14 @@ func TestNewClusterClientSet(t *testing.T) {
 					&clusterv1alpha1.Cluster{
 						ObjectMeta: metav1.ObjectMeta{Name: "test"},
 						Spec: clusterv1alpha1.ClusterSpec{
-							APIEndpoint:                 "https://127.0.0.1",
-							SecretRef:                   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
-							InsecureSkipTLSVerification: true,
-							ProxyURL:                    "http://1.1.1.1",
+							APIEndpoint: "https://127.0.0.1",
+							SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
+							ProxyURL:    "http://1.1.1.1",
 						},
 					},
 					&corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
-						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token")},
+						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
 					}).Build(),
 				clientOption: &ClientOption{QPS: 100, Burst: 200},
 			},
@@ -229,7 +242,7 @@ func TestNewClusterClientSet(t *testing.T) {
 }
 
 func TestNewClusterClientSet_ClientWorks(t *testing.T) {
-	s := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+	s := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
 		rw.Header().Add("Content-Type", "application/json")
 		_, _ = io.WriteString(rw, `
 {
@@ -247,16 +260,13 @@ func TestNewClusterClientSet_ClientWorks(t *testing.T) {
 		&clusterv1alpha1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{Name: clusterName},
 			Spec: clusterv1alpha1.ClusterSpec{
-				APIEndpoint:                 s.URL,
-				SecretRef:                   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
-				InsecureSkipTLSVerification: true,
+				APIEndpoint: s.URL,
+				SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
 			},
 		},
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
-			Data: map[string][]byte{
-				clusterv1alpha1.SecretTokenKey: []byte("token"),
-			},
+			Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
 		}).Build()
 
 	clusterClient, err := NewClusterClientSet(clusterName, hostClient, nil)
@@ -376,14 +386,13 @@ func TestNewClusterDynamicClientSet(t *testing.T) {
 					&clusterv1alpha1.Cluster{
 						ObjectMeta: metav1.ObjectMeta{Name: "test"},
 						Spec: clusterv1alpha1.ClusterSpec{
-							APIEndpoint:                 "https://127.0.0.1",
-							SecretRef:                   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
-							InsecureSkipTLSVerification: true,
+							APIEndpoint: "https://127.0.0.1",
+							SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
 						},
 					},
 					&corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
-						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token")},
+						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
 					}).Build(),
 			},
 			wantErr: false,
@@ -396,15 +405,14 @@ func TestNewClusterDynamicClientSet(t *testing.T) {
 					&clusterv1alpha1.Cluster{
 						ObjectMeta: metav1.ObjectMeta{Name: "test"},
 						Spec: clusterv1alpha1.ClusterSpec{
-							APIEndpoint:                 "https://127.0.0.1",
-							SecretRef:                   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
-							InsecureSkipTLSVerification: true,
-							ProxyURL:                    "://",
+							APIEndpoint: "https://127.0.0.1",
+							SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
+							ProxyURL:    "://",
 						},
 					},
 					&corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
-						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token")},
+						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
 					}).Build(),
 			},
 			wantErr: true,
@@ -417,15 +425,14 @@ func TestNewClusterDynamicClientSet(t *testing.T) {
 					&clusterv1alpha1.Cluster{
 						ObjectMeta: metav1.ObjectMeta{Name: "test"},
 						Spec: clusterv1alpha1.ClusterSpec{
-							APIEndpoint:                 "https://127.0.0.1",
-							SecretRef:                   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
-							InsecureSkipTLSVerification: true,
-							ProxyURL:                    "http://1.1.1.1",
+							APIEndpoint: "https://127.0.0.1",
+							SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
+							ProxyURL:    "http://1.1.1.1",
 						},
 					},
 					&corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
-						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token")},
+						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
 					}).Build(),
 			},
 			wantErr: false,
@@ -459,7 +466,7 @@ func TestNewClusterDynamicClientSet(t *testing.T) {
 }
 
 func TestNewClusterDynamicClientSet_ClientWorks(t *testing.T) {
-	s := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+	s := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
 		rw.Header().Add("Content-Type", "application/json")
 		_, _ = io.WriteString(rw, `
 {
@@ -477,16 +484,13 @@ func TestNewClusterDynamicClientSet_ClientWorks(t *testing.T) {
 		&clusterv1alpha1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{Name: clusterName},
 			Spec: clusterv1alpha1.ClusterSpec{
-				APIEndpoint:                 s.URL,
-				SecretRef:                   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
-				InsecureSkipTLSVerification: true,
+				APIEndpoint: s.URL,
+				SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
 			},
 		},
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
-			Data: map[string][]byte{
-				clusterv1alpha1.SecretTokenKey: []byte("token"),
-			},
+			Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
 		}).Build()
 
 	clusterClient, err := NewClusterDynamicClientSet(clusterName, hostClient)

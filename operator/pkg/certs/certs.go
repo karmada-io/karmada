@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package certs
 
 import (
@@ -30,7 +46,7 @@ import (
 const (
 	// CertificateBlockType is a possible value for pem.Block.Type.
 	CertificateBlockType = "CERTIFICATE"
-	rsaKeySize           = 2048
+	rsaKeySize           = 3072
 	keyExtension         = ".key"
 	certExtension        = ".crt"
 )
@@ -331,10 +347,6 @@ func NewSignedCert(cc *CertConfig, key crypto.Signer, caCert *x509.Certificate, 
 	}
 
 	RemoveDuplicateAltNames(&cc.Config.AltNames)
-	notAfter := time.Now().Add(constants.CertificateValidity).UTC()
-	if cc.NotAfter != nil {
-		notAfter = *cc.NotAfter
-	}
 
 	certTmpl := x509.Certificate{
 		Subject: pkix.Name{
@@ -345,7 +357,7 @@ func NewSignedCert(cc *CertConfig, key crypto.Signer, caCert *x509.Certificate, 
 		IPAddresses:           cc.Config.AltNames.IPs,
 		SerialNumber:          serial,
 		NotBefore:             caCert.NotBefore,
-		NotAfter:              notAfter,
+		NotAfter:              cc.NotAfter.UTC(),
 		KeyUsage:              keyUsage,
 		ExtKeyUsage:           cc.Config.Usages,
 		BasicConstraintsValid: true,
@@ -457,12 +469,23 @@ func apiServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, e
 			"kubernetes",
 			"kubernetes.default",
 			"kubernetes.default.svc",
-			fmt.Sprintf("*.%s.svc.cluster.local", cfg.Namespace),
-			fmt.Sprintf("*.%s.svc", cfg.Namespace),
+			fmt.Sprintf("*.%s.svc.cluster.local", constants.KarmadaSystemNamespace),
+			fmt.Sprintf("*.%s.svc", constants.KarmadaSystemNamespace),
 		},
 		IPs: []net.IP{
 			net.IPv4(127, 0, 0, 1),
 		},
+	}
+
+	// When deploying a karmada under a namespace other than 'karmada-system', like 'test', there are two scenarios below：
+	// 1.When karmada-apiserver access APIService, the cert of 'karmada-demo-aggregated-apiserver' will be verified to see
+	// if its altNames contains 'karmada-demo-aggregated-apiserver.karmada-system.svc';
+	// 2.When karmada-apiserver access webhook, the cert of 'karmada-demo-webhook' will be verified to see
+	// if its altNames contains 'karmada-demo-webhook.test.svc'.
+	// Therefore, the certificate's altNames should contain both 'karmada-system.svc.cluster.local' and 'test.svc.cluster.local'.
+	if cfg.Namespace != constants.KarmadaSystemNamespace {
+		appendSANsToAltNames(altNames, []string{fmt.Sprintf("*.%s.svc.cluster.local", cfg.Namespace),
+			fmt.Sprintf("*.%s.svc", cfg.Namespace)})
 	}
 
 	if len(cfg.Components.KarmadaAPIServer.CertSANs) > 0 {

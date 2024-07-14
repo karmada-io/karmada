@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package descheduler
 
 import (
@@ -29,6 +45,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	"github.com/karmada-io/karmada/pkg/util/grpcconnection"
 )
 
 const (
@@ -49,7 +66,7 @@ type Descheduler struct {
 
 	schedulerEstimatorCache         *estimatorclient.SchedulerEstimatorCache
 	schedulerEstimatorServicePrefix string
-	schedulerEstimatorPort          int
+	schedulerEstimatorClientConfig  *grpcconnection.ClientConfig
 	schedulerEstimatorWorker        util.AsyncWorker
 
 	unschedulableThreshold time.Duration
@@ -61,15 +78,21 @@ type Descheduler struct {
 func NewDescheduler(karmadaClient karmadaclientset.Interface, kubeClient kubernetes.Interface, opts *options.Options) *Descheduler {
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
 	desched := &Descheduler{
-		KarmadaClient:                   karmadaClient,
-		KubeClient:                      kubeClient,
-		informerFactory:                 factory,
-		bindingInformer:                 factory.Work().V1alpha2().ResourceBindings().Informer(),
-		bindingLister:                   factory.Work().V1alpha2().ResourceBindings().Lister(),
-		clusterInformer:                 factory.Cluster().V1alpha1().Clusters().Informer(),
-		clusterLister:                   factory.Cluster().V1alpha1().Clusters().Lister(),
-		schedulerEstimatorCache:         estimatorclient.NewSchedulerEstimatorCache(),
-		schedulerEstimatorPort:          opts.SchedulerEstimatorPort,
+		KarmadaClient:           karmadaClient,
+		KubeClient:              kubeClient,
+		informerFactory:         factory,
+		bindingInformer:         factory.Work().V1alpha2().ResourceBindings().Informer(),
+		bindingLister:           factory.Work().V1alpha2().ResourceBindings().Lister(),
+		clusterInformer:         factory.Cluster().V1alpha1().Clusters().Informer(),
+		clusterLister:           factory.Cluster().V1alpha1().Clusters().Lister(),
+		schedulerEstimatorCache: estimatorclient.NewSchedulerEstimatorCache(),
+		schedulerEstimatorClientConfig: &grpcconnection.ClientConfig{
+			InsecureSkipServerVerify: opts.InsecureSkipEstimatorVerify,
+			ServerAuthCAFile:         opts.SchedulerEstimatorCaFile,
+			CertFile:                 opts.SchedulerEstimatorCertFile,
+			KeyFile:                  opts.SchedulerEstimatorKeyFile,
+			TargetPort:               opts.SchedulerEstimatorPort,
+		},
 		schedulerEstimatorServicePrefix: opts.SchedulerEstimatorServicePrefix,
 		unschedulableThreshold:          opts.UnschedulableThreshold.Duration,
 		deschedulingInterval:            opts.DeschedulingInterval.Duration,
@@ -257,7 +280,7 @@ func (d *Descheduler) establishEstimatorConnections() {
 		return
 	}
 	for i := range clusterList.Items {
-		if err = estimatorclient.EstablishConnection(d.KubeClient, clusterList.Items[i].Name, d.schedulerEstimatorCache, d.schedulerEstimatorServicePrefix, d.schedulerEstimatorPort); err != nil {
+		if err = estimatorclient.EstablishConnection(d.KubeClient, clusterList.Items[i].Name, d.schedulerEstimatorCache, d.schedulerEstimatorServicePrefix, d.schedulerEstimatorClientConfig); err != nil {
 			klog.Error(err)
 		}
 	}
@@ -277,7 +300,7 @@ func (d *Descheduler) reconcileEstimatorConnection(key util.QueueKey) error {
 		}
 		return err
 	}
-	return estimatorclient.EstablishConnection(d.KubeClient, name, d.schedulerEstimatorCache, d.schedulerEstimatorServicePrefix, d.schedulerEstimatorPort)
+	return estimatorclient.EstablishConnection(d.KubeClient, name, d.schedulerEstimatorCache, d.schedulerEstimatorServicePrefix, d.schedulerEstimatorClientConfig)
 }
 
 func (d *Descheduler) recordDescheduleResultEventForResourceBinding(rb *workv1alpha2.ResourceBinding, message string, err error) {

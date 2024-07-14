@@ -1,7 +1,24 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package karmada
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -100,11 +117,11 @@ func InitKarmadaResources(dir, caBase64, systemNamespace string) error {
 
 	// karmada-aggregated-apiserver
 	klog.Info("Create Service 'karmada-aggregated-apiserver' and APIService 'v1alpha1.cluster.karmada.io'.")
-	if err = initAggregatedAPIService(clientSet, restConfig, systemNamespace); err != nil {
+	if err = initAggregatedAPIService(clientSet, restConfig, systemNamespace, caBase64); err != nil {
 		klog.Exitln(err)
 	}
 
-	if err = createExtralResources(clientSet, dir); err != nil {
+	if err = createExtraResources(clientSet, dir); err != nil {
 		klog.Exitln(err)
 	}
 
@@ -143,7 +160,17 @@ func InitKarmadaBootstrapToken(dir string) (string, error) {
 	return registerCommand, nil
 }
 
-func createExtralResources(clientSet *kubernetes.Clientset, dir string) error {
+func createExtraResources(clientSet *kubernetes.Clientset, dir string) error {
+	// grant view clusterrole with karmada resource permission
+	if err := grantKarmadaPermissionToViewClusterRole(clientSet); err != nil {
+		return err
+	}
+
+	// grant edit clusterrole with karmada resource permission
+	if err := grantKarmadaPermissionToEditClusterRole(clientSet); err != nil {
+		return err
+	}
+
 	// grant proxy permission to "system:admin".
 	if err := grantProxyPermissionToAdmin(clientSet); err != nil {
 		return err
@@ -250,8 +277,12 @@ func getName(str, start, end string) string {
 	return str
 }
 
-func initAggregatedAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config, systemNamespace string) error {
+func initAggregatedAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config, systemNamespace, caBase64 string) error {
 	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/karmada-aggregated-apiserver-apiservice.yaml
+	caBytes, err := base64.StdEncoding.DecodeString(caBase64)
+	if err != nil {
+		return fmt.Errorf("failed to decode caBase64: %+v", err)
+	}
 	aaService := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -287,9 +318,9 @@ func initAggregatedAPIService(clientSet *kubernetes.Clientset, restConfig *rest.
 			Labels: map[string]string{"app": "karmada-aggregated-apiserver", "apiserver": "true"},
 		},
 		Spec: apiregistrationv1.APIServiceSpec{
-			InsecureSkipTLSVerify: true,
-			Group:                 clusterv1alpha1.GroupName,
-			GroupPriorityMinimum:  2000,
+			CABundle:             caBytes,
+			Group:                clusterv1alpha1.GroupName,
+			GroupPriorityMinimum: 2000,
 			Service: &apiregistrationv1.ServiceReference{
 				Name:      aaService.Name,
 				Namespace: aaService.Namespace,

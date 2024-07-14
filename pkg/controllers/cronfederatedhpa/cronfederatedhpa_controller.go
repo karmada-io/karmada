@@ -1,9 +1,12 @@
 /*
 Copyright 2023 The Karmada Authors.
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
+
     http://www.apache.org/licenses/LICENSE-2.0
+
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,6 +18,7 @@ package cronfederatedhpa
 
 import (
 	"context"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -26,8 +30,10 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
@@ -61,7 +67,7 @@ func (c *CronFHPAController) Reconcile(ctx context.Context, req controllerruntim
 		}
 
 		klog.Errorf("Fail to get CronFederatedHPA(%s):%v", req.NamespacedName, err)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	//  If this CronFederatedHPA is deleting, stop all related cron executors
@@ -69,6 +75,10 @@ func (c *CronFHPAController) Reconcile(ctx context.Context, req controllerruntim
 		c.CronHandler.StopCronFHPAExecutor(req.NamespacedName.String())
 		return controllerruntime.Result{}, nil
 	}
+
+	var err error
+	startTime := time.Now()
+	defer metrics.ObserveProcessCronFederatedHPALatency(err, startTime)
 
 	origRuleSets := sets.New[string]()
 	for _, history := range cronFHPA.Status.ExecutionHistories {
@@ -84,8 +94,8 @@ func (c *CronFHPAController) Reconcile(ctx context.Context, req controllerruntim
 
 	newRuleSets := sets.New[string]()
 	for _, rule := range cronFHPA.Spec.Rules {
-		if err := c.processCronRule(cronFHPA, rule); err != nil {
-			return controllerruntime.Result{Requeue: true}, err
+		if err = c.processCronRule(cronFHPA, rule); err != nil {
+			return controllerruntime.Result{}, err
 		}
 		newRuleSets.Insert(rule.Name)
 	}
@@ -96,8 +106,8 @@ func (c *CronFHPAController) Reconcile(ctx context.Context, req controllerruntim
 			continue
 		}
 		c.CronHandler.StopRuleExecutor(req.NamespacedName.String(), name)
-		if err := c.removeCronFHPAHistory(cronFHPA, name); err != nil {
-			return controllerruntime.Result{Requeue: true}, err
+		if err = c.removeCronFHPAHistory(cronFHPA, name); err != nil {
+			return controllerruntime.Result{}, err
 		}
 	}
 
@@ -110,6 +120,7 @@ func (c *CronFHPAController) SetupWithManager(mgr controllerruntime.Manager) err
 	return controllerruntime.NewControllerManagedBy(mgr).
 		For(&autoscalingv1alpha1.CronFederatedHPA{}).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Complete(c)
 }
 
@@ -172,7 +183,7 @@ func (c *CronFHPAController) updateRuleHistory(cronFHPA *autoscalingv1alpha1.Cro
 
 	if err := c.Client.Status().Update(context.Background(), cronFHPA); err != nil {
 		klog.Errorf("Fail to update CronFederatedHPA(%s/%s) rule(%s)'s next execution time:%v",
-			cronFHPA.Namespace, cronFHPA.Name, err)
+			cronFHPA.Namespace, cronFHPA.Name, rule.Name, err)
 		return err
 	}
 

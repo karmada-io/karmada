@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package get
 
 import (
@@ -20,7 +36,7 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/rest"
@@ -30,7 +46,7 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/interrupt"
 	"k8s.io/kubectl/pkg/util/templates"
-	utilpointer "k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
@@ -90,7 +106,7 @@ var (
 )
 
 // NewCmdGet New get command
-func NewCmdGet(f util.Factory, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdGet(f util.Factory, parentCommand string, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewCommandGetOptions(streams)
 	cmd := &cobra.Command{
 		Use:                   "get [NAME | -l label | -n namespace]",
@@ -162,13 +178,13 @@ type CommandGetOptions struct {
 	IgnoreNotFound bool
 	Export         bool
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 
 	karmadaClient karmadaclientset.Interface
 }
 
 // NewCommandGetOptions returns a CommandGetOptions with default chunk size 500.
-func NewCommandGetOptions(streams genericclioptions.IOStreams) *CommandGetOptions {
+func NewCommandGetOptions(streams genericiooptions.IOStreams) *CommandGetOptions {
 	return &CommandGetOptions{
 		PrintFlags:  get.NewGetPrintFlags(),
 		IOStreams:   streams,
@@ -254,20 +270,7 @@ func (g *CommandGetOptions) Validate(cmd *cobra.Command) error {
 		if err != nil {
 			return err
 		}
-		clusterSet := sets.NewString()
-		for _, cluster := range clusters.Items {
-			clusterSet.Insert(cluster.Name)
-		}
-
-		var noneExistClusters []string
-		for _, cluster := range g.Clusters {
-			if !clusterSet.Has(cluster) {
-				noneExistClusters = append(noneExistClusters, cluster)
-			}
-		}
-		if len(noneExistClusters) != 0 {
-			return fmt.Errorf("clusters don't exist: " + strings.Join(noneExistClusters, ","))
-		}
+		return util.VerifyClustersExist(g.Clusters, clusters)
 	}
 	return nil
 }
@@ -624,7 +627,7 @@ func (g *CommandGetOptions) watch(watchObjs []WatchObj) error {
 
 	info := infos[0]
 	mapping := info.ResourceMapping()
-	outputObjects := utilpointer.Bool(!g.WatchOnly)
+	outputObjects := ptr.To[bool](!g.WatchOnly)
 
 	printer, err := g.ToPrinter(mapping, outputObjects, g.AllNamespaces, false)
 	if err != nil {
@@ -767,7 +770,7 @@ func (g *CommandGetOptions) printGeneric(r *resource.Result) error {
 
 	var obj runtime.Object
 	if !singleItemImplied || len(infos) != 1 {
-		// we have zero or multple items, so coerce all items into a list.
+		// we have zero or multiple items, so coerce all items into a list.
 		// we don't want an *unstructured.Unstructured list yet, as we
 		// may be dealing with non-unstructured objects. Compose all items
 		// into an corev1.List, and then decode using an unstructured scheme.

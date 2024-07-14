@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package provider
 
 import (
@@ -52,7 +68,7 @@ func (c *CustomMetricsProvider) GetMetricByName(ctx context.Context, name types.
 		return nil, err
 	}
 	metricValueList := &custom_metrics.MetricValueList{}
-	metricsChanel := make(chan *custom_metrics.MetricValueList)
+	metricsChannel := make(chan *custom_metrics.MetricValueList)
 	wg := sync.WaitGroup{}
 	for _, cluster := range clusters {
 		wg.Add(1)
@@ -63,15 +79,15 @@ func (c *CustomMetricsProvider) GetMetricByName(ctx context.Context, name types.
 				klog.Warningf("query %s's %s metric from cluster %s failed, err: %+v", info.GroupResource.String(), info.Metric, clusterName, err)
 				return
 			}
-			metricsChanel <- metrics
+			metricsChannel <- metrics
 		}(cluster.Name)
 	}
 	go func() {
 		wg.Wait()
-		close(metricsChanel)
+		close(metricsChannel)
 	}()
 	for {
-		metrics, ok := <-metricsChanel
+		metrics, ok := <-metricsChannel
 		if !ok {
 			break
 		}
@@ -103,7 +119,7 @@ func (c *CustomMetricsProvider) GetMetricBySelector(ctx context.Context, namespa
 	}
 	metricValueList := &custom_metrics.MetricValueList{}
 	wg := sync.WaitGroup{}
-	metricsChanel := make(chan *custom_metrics.MetricValueList)
+	metricsChannel := make(chan *custom_metrics.MetricValueList)
 	for _, cluster := range clusters {
 		wg.Add(1)
 		go func(clusterName string) {
@@ -113,16 +129,16 @@ func (c *CustomMetricsProvider) GetMetricBySelector(ctx context.Context, namespa
 				klog.Warningf("query %s's %s metric from cluster %s failed", info.GroupResource.String(), info.Metric, clusterName)
 				return
 			}
-			metricsChanel <- metrics
+			metricsChannel <- metrics
 		}(cluster.Name)
 	}
 	go func() {
 		wg.Wait()
-		close(metricsChanel)
+		close(metricsChannel)
 	}()
 	sameMetrics := make(map[string]custom_metrics.MetricValue)
 	for {
-		metrics, ok := <-metricsChanel
+		metrics, ok := <-metricsChannel
 		if !ok {
 			break
 		}

@@ -1,3 +1,19 @@
+/*
+Copyright 2020 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package binding
 
 import (
@@ -61,14 +77,14 @@ func (c *ResourceBindingController) Reconcile(ctx context.Context, req controlle
 			return controllerruntime.Result{}, nil
 		}
 
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if !binding.DeletionTimestamp.IsZero() {
 		klog.V(4).Infof("Begin to delete works owned by binding(%s).", req.NamespacedName.String())
-		if err := helper.DeleteWorkByRBNamespaceAndName(c.Client, req.Namespace, req.Name); err != nil {
+		if err := helper.DeleteWorks(c.Client, req.Namespace, req.Name, binding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel]); err != nil {
 			klog.Errorf("Failed to delete works related to %s/%s: %v", binding.GetNamespace(), binding.GetName(), err)
-			return controllerruntime.Result{Requeue: true}, err
+			return controllerruntime.Result{}, err
 		}
 		return c.removeFinalizer(binding)
 	}
@@ -85,7 +101,7 @@ func (c *ResourceBindingController) removeFinalizer(rb *workv1alpha2.ResourceBin
 	controllerutil.RemoveFinalizer(rb, util.BindingControllerFinalizer)
 	err := c.Client.Update(context.TODO(), rb)
 	if err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	return controllerruntime.Result{}, nil
 }
@@ -93,7 +109,7 @@ func (c *ResourceBindingController) removeFinalizer(rb *workv1alpha2.ResourceBin
 // syncBinding will sync resourceBinding to Works.
 func (c *ResourceBindingController) syncBinding(binding *workv1alpha2.ResourceBinding) (controllerruntime.Result, error) {
 	if err := c.removeOrphanWorks(binding); err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	workload, err := helper.FetchResourceTemplate(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
@@ -106,7 +122,7 @@ func (c *ResourceBindingController) syncBinding(binding *workv1alpha2.ResourceBi
 		}
 		klog.Errorf("Failed to fetch workload for resourceBinding(%s/%s). Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	start := time.Now()
 	err = ensureWork(c.Client, c.ResourceInterpreter, workload, c.OverrideManager, binding, apiextensionsv1.NamespaceScoped)
@@ -116,7 +132,7 @@ func (c *ResourceBindingController) syncBinding(binding *workv1alpha2.ResourceBi
 			binding.GetNamespace(), binding.GetName(), err)
 		c.EventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonSyncWorkFailed, err.Error())
 		c.EventRecorder.Event(workload, corev1.EventTypeWarning, events.EventReasonSyncWorkFailed, err.Error())
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	msg := fmt.Sprintf("Sync work of resourceBinding(%s/%s) successful.", binding.Namespace, binding.Name)
@@ -127,7 +143,8 @@ func (c *ResourceBindingController) syncBinding(binding *workv1alpha2.ResourceBi
 }
 
 func (c *ResourceBindingController) removeOrphanWorks(binding *workv1alpha2.ResourceBinding) error {
-	works, err := helper.FindOrphanWorks(c.Client, binding.Namespace, binding.Name, helper.ObtainBindingSpecExistingClusters(binding.Spec))
+	works, err := helper.FindOrphanWorks(c.Client, binding.Namespace, binding.Name,
+		binding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel], helper.ObtainBindingSpecExistingClusters(binding.Spec))
 	if err != nil {
 		klog.Errorf("Failed to find orphan works by resourceBinding(%s/%s). Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
@@ -157,7 +174,7 @@ func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manag
 }
 
 func (c *ResourceBindingController) newOverridePolicyFunc() handler.MapFunc {
-	return func(ctx context.Context, a client.Object) []reconcile.Request {
+	return func(_ context.Context, a client.Object) []reconcile.Request {
 		var overrideRS []policyv1alpha1.ResourceSelector
 		var namespace string
 		switch t := a.(type) {

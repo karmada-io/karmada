@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package util
 
 import (
@@ -31,7 +47,7 @@ var _ Factory = &factoryImpl{}
 type factoryImpl struct {
 	cmdutil.Factory
 
-	// kubeConfigFlags holds all the flags specificed by user.
+	// kubeConfigFlags holds all the flags specified by user.
 	// These flags will be inherited by the member cluster's client.
 	kubeConfigFlags *genericclioptions.ConfigFlags
 }
@@ -96,8 +112,8 @@ func (f *factoryImpl) FactoryForMemberCluster(clusterName string) (cmdutil.Facto
 		WrapConfigFn:     f.kubeConfigFlags.WrapConfigFn,
 	}
 	// Override the kube-apiserver address.
-	memberAPIserver := karmadaAPIServer + fmt.Sprintf(proxyURL, clusterName)
-	kubeConfigFlags.APIServer = &memberAPIserver
+	memberAPIServer := karmadaAPIServer + fmt.Sprintf(proxyURL, clusterName)
+	kubeConfigFlags.APIServer = &memberAPIServer
 	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
 	return cmdutil.NewFactory(matchVersionKubeConfigFlags), nil
 }

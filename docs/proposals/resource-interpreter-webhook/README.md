@@ -29,7 +29,7 @@ This proposal aims to provide a solution for users to teach Karmada to learn the
 
 ## Motivation
 
-Nowadays, lots of people or projects extend Kubernetes by `Custom Resource Defination`. In order to propagate the 
+Nowadays, lots of people or projects extend Kubernetes by `Custom Resource Definition`. In order to propagate the 
 custom resources, Karmada has to learn the structure of the custom resource.
 
 ### Goals
@@ -181,7 +181,7 @@ type Rule struct {
 	//  ["apps", "batch", "example.io"] means matches 3 groups.
 	//  ["*"] means matches all group
 	//
-	// Note: The group cloud be empty, e.g the 'core' group of kubernetes, in that case use [""].
+	// Note: The group could be empty, e.g the 'core' group of kubernetes, in that case use [""].
 	// +required
 	APIGroups []string `json:"apiGroups"`
 

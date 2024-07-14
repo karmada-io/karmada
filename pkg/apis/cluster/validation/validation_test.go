@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package validation
 
 import (
@@ -62,7 +78,15 @@ func TestValidateCluster(t *testing.T) {
 			expectError: true,
 		},
 		"invalid zone": {
-			cluster:     api.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "foo"}, Spec: api.ClusterSpec{SyncMode: api.Push, Provider: "Invalid Zone"}},
+			cluster:     api.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "foo"}, Spec: api.ClusterSpec{SyncMode: api.Push, Zone: "Invalid Zone"}},
+			expectError: true,
+		},
+		"invalid zones": {
+			cluster:     api.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "foo"}, Spec: api.ClusterSpec{SyncMode: api.Push, Zones: []string{"Invalid Zone", "Zone2"}}},
+			expectError: true,
+		},
+		"co-exist zones and zone": {
+			cluster:     api.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "foo"}, Spec: api.ClusterSpec{SyncMode: api.Push, Zone: "Zone", Zones: []string{"Zones"}}},
 			expectError: true,
 		},
 		"unsupported taint effect": {
@@ -90,7 +114,7 @@ func TestValidateCluster(t *testing.T) {
 							Grade: 1,
 							Ranges: []api.ResourceModelRange{
 								{
-									Name: api.ResourceCPU,
+									Name: corev1.ResourceCPU,
 									Min:  *resource.NewQuantity(0, resource.DecimalSI),
 									Max:  *resource.NewQuantity(2, resource.DecimalSI),
 								},
@@ -100,7 +124,7 @@ func TestValidateCluster(t *testing.T) {
 							Grade: 2,
 							Ranges: []api.ResourceModelRange{
 								{
-									Name: api.ResourceCPU,
+									Name: corev1.ResourceCPU,
 									Min:  *resource.NewQuantity(2, resource.DecimalSI),
 									Max:  *resource.NewQuantity(math.MaxInt64, resource.DecimalSI),
 								},
@@ -120,7 +144,7 @@ func TestValidateCluster(t *testing.T) {
 							Grade: 1,
 							Ranges: []api.ResourceModelRange{
 								{
-									Name: api.ResourceCPU,
+									Name: corev1.ResourceCPU,
 									Min:  *resource.NewQuantity(0, resource.DecimalSI),
 									Max:  *resource.NewQuantity(2, resource.DecimalSI),
 								},
@@ -130,12 +154,12 @@ func TestValidateCluster(t *testing.T) {
 							Grade: 2,
 							Ranges: []api.ResourceModelRange{
 								{
-									Name: api.ResourceCPU,
+									Name: corev1.ResourceCPU,
 									Min:  *resource.NewQuantity(2, resource.DecimalSI),
 									Max:  *resource.NewQuantity(math.MaxInt64, resource.DecimalSI),
 								},
 								{
-									Name: api.ResourceMemory,
+									Name: corev1.ResourceMemory,
 									Min:  *resource.NewQuantity(2, resource.DecimalSI),
 									Max:  *resource.NewQuantity(math.MaxInt64, resource.DecimalSI),
 								},
@@ -155,7 +179,7 @@ func TestValidateCluster(t *testing.T) {
 							Grade: 1,
 							Ranges: []api.ResourceModelRange{
 								{
-									Name: api.ResourceCPU,
+									Name: corev1.ResourceCPU,
 									Min:  *resource.NewQuantity(2, resource.DecimalSI),
 									Max:  *resource.NewQuantity(0, resource.DecimalSI),
 								},
@@ -175,7 +199,7 @@ func TestValidateCluster(t *testing.T) {
 							Grade: 1,
 							Ranges: []api.ResourceModelRange{
 								{
-									Name: api.ResourceCPU,
+									Name: corev1.ResourceCPU,
 									Min:  *resource.NewQuantity(1, resource.DecimalSI),
 									Max:  *resource.NewQuantity(math.MaxInt64, resource.DecimalSI),
 								},
@@ -195,7 +219,7 @@ func TestValidateCluster(t *testing.T) {
 							Grade: 1,
 							Ranges: []api.ResourceModelRange{
 								{
-									Name: api.ResourceCPU,
+									Name: corev1.ResourceCPU,
 									Min:  *resource.NewQuantity(0, resource.DecimalSI),
 									Max:  *resource.NewQuantity(2, resource.DecimalSI),
 								},
@@ -215,7 +239,7 @@ func TestValidateCluster(t *testing.T) {
 							Grade: 1,
 							Ranges: []api.ResourceModelRange{
 								{
-									Name: api.ResourceCPU,
+									Name: corev1.ResourceCPU,
 									Min:  *resource.NewQuantity(0, resource.DecimalSI),
 									Max:  *resource.NewQuantity(2, resource.DecimalSI),
 								},
@@ -225,7 +249,7 @@ func TestValidateCluster(t *testing.T) {
 							Grade: 2,
 							Ranges: []api.ResourceModelRange{
 								{
-									Name: api.ResourceMemory,
+									Name: corev1.ResourceMemory,
 									Min:  *resource.NewQuantity(2, resource.DecimalSI),
 									Max:  *resource.NewQuantity(math.MaxInt64, resource.DecimalSI),
 								},
@@ -245,7 +269,7 @@ func TestValidateCluster(t *testing.T) {
 							Grade: 1,
 							Ranges: []api.ResourceModelRange{
 								{
-									Name: api.ResourceCPU,
+									Name: corev1.ResourceCPU,
 									Min:  *resource.NewQuantity(0, resource.DecimalSI),
 									Max:  *resource.NewQuantity(2, resource.DecimalSI),
 								},
@@ -255,7 +279,7 @@ func TestValidateCluster(t *testing.T) {
 							Grade: 2,
 							Ranges: []api.ResourceModelRange{
 								{
-									Name: api.ResourceCPU,
+									Name: corev1.ResourceCPU,
 									Min:  *resource.NewQuantity(1, resource.DecimalSI),
 									Max:  *resource.NewQuantity(math.MaxInt64, resource.DecimalSI),
 								},
@@ -289,12 +313,13 @@ func TestValidateCluster(t *testing.T) {
 	}
 
 	for name, testCase := range testCases {
-		errs := ValidateCluster(&testCase.cluster)
-		if len(errs) == 0 && testCase.expectError {
+		pinedCase := testCase
+		errs := ValidateCluster(&pinedCase.cluster)
+		if len(errs) == 0 && pinedCase.expectError {
 			t.Errorf("expected failure for %q, but there were none", name)
 			return
 		}
-		if len(errs) != 0 && !testCase.expectError {
+		if len(errs) != 0 && !pinedCase.expectError {
 			t.Errorf("expected success for %q, but there were errors: %v", name, errs)
 			return
 		}

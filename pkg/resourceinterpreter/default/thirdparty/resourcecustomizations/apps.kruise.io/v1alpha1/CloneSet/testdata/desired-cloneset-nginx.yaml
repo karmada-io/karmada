@@ -5,15 +5,18 @@ metadata:
     app: sample
   name: sample
   namespace: test-cloneset
+  generation: 1
 spec:
   replicas: 4
   selector:
     matchLabels:
       app: sample
+      test: cloneset 
   template:
     metadata:
       labels:
         app: sample
+        test: cloneset 
     spec:
       volumes:
         - name: configmap

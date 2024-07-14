@@ -3,6 +3,10 @@ on:
   # Run this workflow every time a new commit pushed to upstream/fork repository.
   # Run workflow on fork repository will help contributors find and resolve issues before sending a PR.
   push:
+    # Exclude branches created by Dependabot to avoid triggering current workflow
+    # for PRs initiated by Dependabot.
+    branches-ignore:
+      - 'dependabot/**'
   pull_request:
 # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#concurrency
 concurrency:
@@ -13,25 +17,26 @@ jobs:
     name: init
     runs-on: ubuntu-22.04
     strategy:
+      fail-fast: false
       matrix:
         # Here support the latest three minor releases of Kubernetes, this can be considered to be roughly
         # the same as the End of Life of the Kubernetes release: https://kubernetes.io/releases/
         # Please remember to update the CI Schedule Workflow when we add a new version.
-        k8s: [ v1.25.0, v1.26.0, v1.27.3 ]
+        k8s: [ v1.28.0, v1.29.0, v1.30.0 ]
     steps:
       - name: checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           # Number of commits to fetch. 0 indicates all history for all branches and tags.
           # We need to guess version via git tags.
           fetch-depth: 0
       - name: install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.20.6
-      - uses: engineerd/setup-kind@v0.5.0
+          go-version-file: go.mod
+      - uses: helm/kind-action@v1.10.0
         with:
-          version: "v0.20.0"
+          version: "v0.22.0"
       - name: run karmadactl init test
         run: |
           export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}

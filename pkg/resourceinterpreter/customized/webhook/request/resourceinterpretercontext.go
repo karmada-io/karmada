@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package request
 
 import (
@@ -9,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/interpreter/validation"
 )
 
 // CreateResourceInterpreterContext returns the unique request uid, the ResourceInterpreterContext object to send the webhook,
@@ -60,7 +77,7 @@ func VerifyResourceInterpreterContext(uid types.UID, operation configv1alpha1.In
 	switch r := interpreterContext.(type) {
 	case *configv1alpha1.ResourceInterpreterContext:
 		if r.Response == nil {
-			return nil, fmt.Errorf("webhook resonse was absent")
+			return nil, fmt.Errorf("webhook response was absent")
 		}
 
 		if r.Response.UID != uid {
@@ -98,6 +115,10 @@ func verifyResourceInterpreterContext(operation configv1alpha1.InterpreterOperat
 		res.ReplicaRequirements = response.ReplicaRequirements
 		return res, nil
 	case configv1alpha1.InterpreterOperationInterpretDependency:
+		err := validation.VerifyDependencies(response.Dependencies)
+		if err != nil {
+			return nil, err
+		}
 		res.Dependencies = response.Dependencies
 		return res, nil
 	case configv1alpha1.InterpreterOperationPrune, configv1alpha1.InterpreterOperationReviseReplica,

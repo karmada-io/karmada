@@ -1,7 +1,24 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package metricsadapter
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"time"
@@ -19,6 +36,7 @@ import (
 	addoninit "github.com/karmada-io/karmada/pkg/karmadactl/addons/init"
 	addonutils "github.com/karmada-io/karmada/pkg/karmadactl/addons/utils"
 	initkarmada "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/karmada"
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
@@ -169,6 +187,12 @@ func installComponentsOnKarmadaControlPlane(opts *addoninit.CommandAddonsEnableO
 		return fmt.Errorf("error when parsing karmada metrics adapter AA service template :%v", err)
 	}
 
+	caCertName := fmt.Sprintf("%s.crt", options.CaCertAndKeyName)
+	karmadaCerts, err := opts.KubeClientSet.CoreV1().Secrets(opts.Namespace).Get(context.TODO(), options.KarmadaCertsName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("error when getting Secret %s/%s, which is used to fetch CaCert for building APIService: %+v", opts.Namespace, options.KarmadaCertsName, err)
+	}
+
 	aaService := &corev1.Service{}
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), aaServiceBytes, aaService); err != nil {
 		return fmt.Errorf("decode karmada metrics adapter AA service error: %v", err)
@@ -184,6 +208,7 @@ func installComponentsOnKarmadaControlPlane(opts *addoninit.CommandAddonsEnableO
 			Namespace: opts.Namespace,
 			Group:     gv[1],
 			Version:   gv[0],
+			CABundle:  base64.StdEncoding.EncodeToString(karmadaCerts.Data[caCertName]),
 		})
 		if err != nil {
 			return fmt.Errorf("error when parsing karmada metrics adapter AA apiservice template :%v", err)

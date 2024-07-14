@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package validation
 
 import (
@@ -38,13 +54,12 @@ func ValidateClusterName(name string) []string {
 }
 
 var (
-	supportedSyncModes     = sets.NewString(string(api.Pull), string(api.Push))
-	supportedResourceNames = sets.NewString(string(api.ResourceCPU), string(api.ResourceMemory), string(api.ResourceStorage), string(api.ResourceEphemeralStorage))
+	supportedSyncModes = sets.NewString(string(api.Pull), string(api.Push))
 )
 
 // ValidateCluster tests if required fields in the Cluster are set.
 func ValidateCluster(cluster *api.Cluster) field.ErrorList {
-	allErrs := apimachineryvalidation.ValidateObjectMeta(&cluster.ObjectMeta, false, func(name string, prefix bool) []string { return ValidateClusterName(name) }, field.NewPath("metadata"))
+	allErrs := apimachineryvalidation.ValidateObjectMeta(&cluster.ObjectMeta, false, func(name string, _ bool) []string { return ValidateClusterName(name) }, field.NewPath("metadata"))
 	allErrs = append(allErrs, ValidateClusterSpec(&cluster.Spec, field.NewPath("spec"))...)
 	return allErrs
 }
@@ -157,9 +172,26 @@ func validateClusterSpecForFieldSelector(spec *api.ClusterSpec, fldPath *field.P
 	if errs := kubevalidation.IsValidLabelValue(spec.Region); len(errs) != 0 {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("region"), spec.Region, strings.Join(errs, "; ")))
 	}
-	if errs := kubevalidation.IsValidLabelValue(spec.Zone); len(errs) != 0 {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("zone"), spec.Zone, strings.Join(errs, "; ")))
+
+	// Zone and Zones cannot co-exist.
+	// see https://github.com/karmada-io/karmada/issues/3952
+	if spec.Zone != "" && len(spec.Zones) != 0 {
+		return append(allErrs, field.TypeInvalid(fldPath.Child("spec"), spec, "Zone and Zones cannot co-exist"))
 	}
+
+	if spec.Zone != "" {
+		if errs := kubevalidation.IsValidLabelValue(spec.Zone); len(errs) != 0 {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("Zone"), spec.Zone, strings.Join(errs, "; ")))
+		}
+		return allErrs
+	}
+
+	for _, zoneValue := range spec.Zones {
+		if errs := kubevalidation.IsValidLabelValue(zoneValue); len(errs) != 0 {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("Zones"), zoneValue, strings.Join(errs, "; ")))
+		}
+	}
+
 	return allErrs
 }
 
@@ -175,9 +207,6 @@ func ValidateClusterResourceModels(fldPath *field.Path, models []api.ResourceMod
 		}
 
 		for j, resourceModelRange := range resourceModel.Ranges {
-			if !supportedResourceNames.Has(string(resourceModelRange.Name)) {
-				return field.NotSupported(fldPath.Child("ranges").Child("name"), resourceModelRange.Name, supportedResourceNames.List())
-			}
 			if resourceModelRange.Max.Cmp(resourceModelRange.Min) <= 0 {
 				return field.Invalid(fldPath, models, "The max value of each resource must be greater than the min value")
 			}

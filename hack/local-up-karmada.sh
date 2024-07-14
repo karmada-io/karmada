@@ -1,4 +1,18 @@
 #!/usr/bin/env bash
+# Copyright 2020 The Karmada Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 set -o errexit
 set -o nounset
 set -o pipefail
@@ -48,7 +62,7 @@ MEMBER_CLUSTER_2_TMP_CONFIG="${KUBECONFIG_PATH}/${MEMBER_TMP_CONFIG_PREFIX}-${ME
 PULL_MODE_CLUSTER_TMP_CONFIG="${KUBECONFIG_PATH}/${MEMBER_TMP_CONFIG_PREFIX}-${PULL_MODE_CLUSTER_NAME}.config"
 HOST_IPADDRESS=${1:-}
 
-CLUSTER_VERSION=${CLUSTER_VERSION:-"kindest/node:v1.27.3"}
+CLUSTER_VERSION=${CLUSTER_VERSION:-"${DEFAULT_CLUSTER_VERSION}"}
 KIND_LOG_FILE=${KIND_LOG_FILE:-"/tmp/karmada"}
 
 #step0: prepare
@@ -61,11 +75,11 @@ fi
 util::cmd_must_exist "go"
 util::verify_go_version
 
-# Make sure docker exists
-util::cmd_must_exist "docker"
+# Make sure docker is available
+util::verify_docker
 
 # install kind and kubectl
-kind_version=v0.20.0
+kind_version=v0.22.0
 echo -n "Preparing: 'kind' existence check - "
 if util::cmd_exist kind; then
   echo "passed"
@@ -97,8 +111,9 @@ trap '{ rm -rf ${TEMP_PATH}; }' EXIT
 echo -e "Preparing kindClusterConfig in path: ${TEMP_PATH}"
 cp -rf "${REPO_ROOT}"/artifacts/kindClusterConfig/member1.yaml "${TEMP_PATH}"/member1.yaml
 cp -rf "${REPO_ROOT}"/artifacts/kindClusterConfig/member2.yaml "${TEMP_PATH}"/member2.yaml
+cp -rf "${REPO_ROOT}"/artifacts/kindClusterConfig/member3.yaml "${TEMP_PATH}"/member3.yaml
 
-util::delete_all_clusters "${MAIN_KUBECONFIG}" "${MEMBER_CLUSTER_KUBECONFIG}" "${KIND_LOG_FILE}"
+util::delete_necessary_resources "${MAIN_KUBECONFIG},${MEMBER_CLUSTER_KUBECONFIG}" "${HOST_CLUSTER_NAME},${MEMBER_CLUSTER_1_NAME},${MEMBER_CLUSTER_2_NAME},${PULL_MODE_CLUSTER_NAME}" "${KIND_LOG_FILE}"
 
 if [[ -n "${HOST_IPADDRESS}" ]]; then # If bind the port of clusters(karmada-host, member1 and member2) to the host IP
   util::verify_ip_address "${HOST_IPADDRESS}"
@@ -106,18 +121,23 @@ if [[ -n "${HOST_IPADDRESS}" ]]; then # If bind the port of clusters(karmada-hos
   sed -i'' -e "s/{{host_ipaddress}}/${HOST_IPADDRESS}/g" "${TEMP_PATH}"/karmada-host.yaml
   sed -i'' -e 's/networking:/&\'$'\n''  apiServerAddress: "'${HOST_IPADDRESS}'"/' "${TEMP_PATH}"/member1.yaml
   sed -i'' -e 's/networking:/&\'$'\n''  apiServerAddress: "'${HOST_IPADDRESS}'"/' "${TEMP_PATH}"/member2.yaml
+  sed -i'' -e 's/networking:/&\'$'\n''  apiServerAddress: "'${HOST_IPADDRESS}'"/' "${TEMP_PATH}"/member3.yaml
   util::create_cluster "${HOST_CLUSTER_NAME}" "${MAIN_KUBECONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}" "${TEMP_PATH}"/karmada-host.yaml
 else
   util::create_cluster "${HOST_CLUSTER_NAME}" "${MAIN_KUBECONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}"
 fi
 util::create_cluster "${MEMBER_CLUSTER_1_NAME}" "${MEMBER_CLUSTER_1_TMP_CONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}" "${TEMP_PATH}"/member1.yaml
 util::create_cluster "${MEMBER_CLUSTER_2_NAME}" "${MEMBER_CLUSTER_2_TMP_CONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}" "${TEMP_PATH}"/member2.yaml
-util::create_cluster "${PULL_MODE_CLUSTER_NAME}" "${PULL_MODE_CLUSTER_TMP_CONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}"
+util::create_cluster "${PULL_MODE_CLUSTER_NAME}" "${PULL_MODE_CLUSTER_TMP_CONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}" "${TEMP_PATH}"/member3.yaml
 
 #step2. make images and get karmadactl
 export VERSION="latest"
 export REGISTRY="docker.io/karmada"
+export KARMADA_IMAGE_LABEL_VALUE="May_be_pruned_in_local-up-karmada.sh"
+export DOCKER_BUILD_ARGS="${DOCKER_BUILD_ARGS:-} --label=image.karmada.io=${KARMADA_IMAGE_LABEL_VALUE}"
 make images GOOS="linux" --directory="${REPO_ROOT}"
+#clean up dangling images
+docker image prune --force --filter "label=image.karmada.io=${KARMADA_IMAGE_LABEL_VALUE}"
 
 GO111MODULE=on go install "github.com/karmada-io/karmada/cmd/karmadactl"
 GOPATH=$(go env GOPATH | awk -F ':' '{print $1}')
@@ -170,7 +190,7 @@ kind load docker-image "${REGISTRY}/karmada-agent:${VERSION}" --name="${PULL_MOD
 #step7. deploy karmada agent in pull mode member clusters
 "${REPO_ROOT}"/hack/deploy-agent-and-estimator.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${MAIN_KUBECONFIG}" "${KARMADA_APISERVER_CLUSTER_NAME}" "${PULL_MODE_CLUSTER_TMP_CONFIG}" "${PULL_MODE_CLUSTER_NAME}"
 
-#step8. deploy metrics adapter in member clusters
+#step8. deploy metrics-server in member clusters
 "${REPO_ROOT}"/hack/deploy-k8s-metrics-server.sh "${MEMBER_CLUSTER_1_TMP_CONFIG}" "${MEMBER_CLUSTER_1_NAME}"
 "${REPO_ROOT}"/hack/deploy-k8s-metrics-server.sh "${MEMBER_CLUSTER_2_TMP_CONFIG}" "${MEMBER_CLUSTER_2_NAME}"
 "${REPO_ROOT}"/hack/deploy-k8s-metrics-server.sh "${PULL_MODE_CLUSTER_TMP_CONFIG}" "${PULL_MODE_CLUSTER_NAME}"

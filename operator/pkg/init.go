@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package karmada
 
 import (
@@ -7,6 +23,7 @@ import (
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	utilversion "k8s.io/apimachinery/pkg/util/version"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -31,9 +48,40 @@ type InitOptions struct {
 	Namespace      string
 	Kubeconfig     *rest.Config
 	KarmadaVersion string
-	CrdRemoteURL   string
+	CRDRemoteURL   string
 	KarmadaDataDir string
 	Karmada        *operatorv1alpha1.Karmada
+}
+
+// Validate is used to validate the initOptions before creating initJob.
+func (opt *InitOptions) Validate() error {
+	var errs []error
+
+	if len(opt.Name) == 0 || len(opt.Namespace) == 0 {
+		return errors.New("unexpected empty name or namespace")
+	}
+	if len(opt.CRDRemoteURL) > 0 {
+		if _, err := url.Parse(opt.CRDRemoteURL); err != nil {
+			return fmt.Errorf("unexpected invalid crds remote url %s", opt.CRDRemoteURL)
+		}
+	}
+	if !util.IsInCluster(opt.Karmada.Spec.HostCluster) && opt.Karmada.Spec.Components.KarmadaAPIServer.ServiceType == corev1.ServiceTypeClusterIP {
+		return fmt.Errorf("if karmada is installed in a remote cluster, the service type of karmada-apiserver must be either NodePort or LoadBalancer")
+	}
+	_, err := utilversion.ParseGeneric(opt.KarmadaVersion)
+	if err != nil {
+		return fmt.Errorf("unexpected karmada invalid version %s", opt.KarmadaVersion)
+	}
+
+	if opt.Karmada.Spec.Components.Etcd.Local != nil && opt.Karmada.Spec.Components.Etcd.Local.CommonSettings.Replicas != nil {
+		replicas := *opt.Karmada.Spec.Components.Etcd.Local.CommonSettings.Replicas
+
+		if (replicas % 2) == 0 {
+			klog.Warningf("invalid etcd replicas %d, expected an odd number", replicas)
+		}
+	}
+
+	return utilerrors.NewAggregate(errs)
 }
 
 // InitOpt defines a type of function to set InitOptions values.
@@ -42,7 +90,7 @@ type InitOpt func(o *InitOptions)
 var _ tasks.InitData = &initData{}
 
 // initData defines all the runtime information used when ruing init workflow;
-// this data is shared across all the tasks tha are included in the workflow.
+// this data is shared across all the tasks that are included in the workflow.
 type initData struct {
 	sync.Once
 	certs.CertStore
@@ -54,7 +102,7 @@ type initData struct {
 	remoteClient        clientset.Interface
 	karmadaClient       clientset.Interface
 	dnsDomain           string
-	crdRemoteURL        string
+	CRDRemoteURL        string
 	karmadaDataDir      string
 	privateRegistry     string
 	featureGates        map[string]bool
@@ -77,6 +125,7 @@ func NewInitJob(opt *InitOptions) *workflow.Job {
 	initJob.AppendTask(tasks.NewKarmadaAggregatedApiserverTask())
 	initJob.AppendTask(tasks.NewCheckApiserverHealthTask())
 	initJob.AppendTask(tasks.NewKarmadaResourcesTask())
+	initJob.AppendTask(tasks.NewRBACTask())
 	initJob.AppendTask(tasks.NewComponentTask())
 	initJob.AppendTask(tasks.NewWaitControlPlaneTask())
 
@@ -88,16 +137,25 @@ func NewInitJob(opt *InitOptions) *workflow.Job {
 }
 
 func newRunData(opt *InitOptions) (*initData, error) {
-	// if there is no endpoint info, we are consider that the local cluster
+	if err := opt.Validate(); err != nil {
+		return nil, err
+	}
+
+	localClusterClient, err := clientset.NewForConfig(opt.Kubeconfig)
+	if err != nil {
+		return nil, fmt.Errorf("error when creating local cluster client, err: %w", err)
+	}
+
+	// if there is no endpoint message, we are consider that the local cluster
 	// is remote cluster to install karmada.
 	var remoteClient clientset.Interface
-	if opt.Karmada.Spec.HostCluster.SecretRef == nil && len(opt.Karmada.Spec.HostCluster.APIEndpoint) == 0 {
-		client, err := clientset.NewForConfig(opt.Kubeconfig)
+	if util.IsInCluster(opt.Karmada.Spec.HostCluster) {
+		remoteClient = localClusterClient
+	} else {
+		remoteClient, err = util.BuildClientFromSecretRef(localClusterClient, opt.Karmada.Spec.HostCluster.SecretRef)
 		if err != nil {
-			return nil, fmt.Errorf("error when create cluster client to install karmada, err: %w", err)
+			return nil, fmt.Errorf("error when creating cluster client to install karmada, err: %w", err)
 		}
-
-		remoteClient = client
 	}
 
 	var privateRegistry string
@@ -105,27 +163,9 @@ func newRunData(opt *InitOptions) (*initData, error) {
 		privateRegistry = opt.Karmada.Spec.PrivateRegistry.Registry
 	}
 
-	if len(opt.Name) == 0 || len(opt.Namespace) == 0 {
-		return nil, errors.New("unexpected empty name or namespace")
-	}
-
 	version, err := utilversion.ParseGeneric(opt.KarmadaVersion)
 	if err != nil {
 		return nil, fmt.Errorf("unexpected karmada invalid version %s", opt.KarmadaVersion)
-	}
-
-	if len(opt.CrdRemoteURL) > 0 {
-		if _, err := url.Parse(opt.CrdRemoteURL); err != nil {
-			return nil, fmt.Errorf("unexpected invalid crds remote url %s", opt.CrdRemoteURL)
-		}
-	}
-
-	if opt.Karmada.Spec.Components.Etcd.Local != nil && opt.Karmada.Spec.Components.Etcd.Local.CommonSettings.Replicas != nil {
-		replicas := *opt.Karmada.Spec.Components.Etcd.Local.CommonSettings.Replicas
-
-		if (replicas % 2) == 0 {
-			klog.Warningf("invalid etcd replicas %d, expected an odd number", replicas)
-		}
 	}
 
 	// TODO: Verify whether important values of initData is valid
@@ -143,7 +183,7 @@ func newRunData(opt *InitOptions) (*initData, error) {
 		karmadaVersion:      version,
 		controlplaneAddress: address,
 		remoteClient:        remoteClient,
-		crdRemoteURL:        opt.CrdRemoteURL,
+		CRDRemoteURL:        opt.CRDRemoteURL,
 		karmadaDataDir:      opt.KarmadaDataDir,
 		privateRegistry:     privateRegistry,
 		components:          opt.Karmada.Spec.Components,
@@ -170,7 +210,7 @@ func (data *initData) KarmadaClient() clientset.Interface {
 		data.Once.Do(func() {
 			client, err := clientset.NewForConfig(data.controlplaneConfig)
 			if err != nil {
-				klog.Errorf("error when init karmada client, err: %w", err)
+				klog.Errorf("error when init karmada client, err: %v", err)
 			}
 			data.karmadaClient = client
 		})
@@ -196,7 +236,7 @@ func (data *initData) DataDir() string {
 }
 
 func (data *initData) CrdsRemoteURL() string {
-	return data.crdRemoteURL
+	return data.CRDRemoteURL
 }
 
 func (data *initData) KarmadaVersion() string {
@@ -229,8 +269,8 @@ func defaultJobInitOptions() *InitOptions {
 	operatorscheme.Scheme.Default(karmada)
 
 	return &InitOptions{
-		CrdRemoteURL:   fmt.Sprintf(defaultCrdURL, constants.KarmadaDefaultVersion),
-		KarmadaVersion: constants.KarmadaDefaultVersion,
+		CRDRemoteURL:   fmt.Sprintf(defaultCrdURL, operatorv1alpha1.DefaultKarmadaImageVersion),
+		KarmadaVersion: operatorv1alpha1.DefaultKarmadaImageVersion,
 		KarmadaDataDir: constants.KarmadaDataDir,
 		Karmada:        karmada,
 	}

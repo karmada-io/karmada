@@ -1,3 +1,19 @@
+/*
+Copyright 2020 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package status
 
 import (
@@ -127,7 +143,7 @@ func (c *ClusterStatusController) Reconcile(ctx context.Context, req controllerr
 			return controllerruntime.Result{}, nil
 		}
 
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	// start syncing status only when the finalizer is present on the given Cluster to
@@ -197,7 +213,7 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 
 		err := c.setCurrentClusterStatus(clusterClient, cluster, &currentClusterStatus)
 		if err != nil {
-			return controllerruntime.Result{Requeue: true}, err
+			return controllerruntime.Result{}, err
 		}
 	}
 
@@ -261,23 +277,19 @@ func (c *ClusterStatusController) updateStatusIfNeeded(cluster *clusterv1alpha1.
 	if !equality.Semantic.DeepEqual(cluster.Status, currentClusterStatus) {
 		klog.V(4).Infof("Start to update cluster status: %s", cluster.Name)
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-			cluster.Status = currentClusterStatus
-			updateErr := c.Status().Update(context.TODO(), cluster)
-			if updateErr == nil {
+			_, err = helper.UpdateStatus(context.Background(), c.Client, cluster, func() error {
+				cluster.Status.KubernetesVersion = currentClusterStatus.KubernetesVersion
+				cluster.Status.APIEnablements = currentClusterStatus.APIEnablements
+				cluster.Status.Conditions = currentClusterStatus.Conditions
+				cluster.Status.NodeSummary = currentClusterStatus.NodeSummary
+				cluster.Status.ResourceSummary = currentClusterStatus.ResourceSummary
 				return nil
-			}
-
-			updated := &clusterv1alpha1.Cluster{}
-			if err = c.Get(context.TODO(), client.ObjectKey{Namespace: cluster.Namespace, Name: cluster.Name}, updated); err == nil {
-				cluster = updated
-			} else {
-				klog.Errorf("Failed to get updated cluster %s: %v", cluster.Name, err)
-			}
-			return updateErr
+			})
+			return err
 		})
 		if err != nil {
 			klog.Errorf("Failed to update health status of the member cluster: %v, err is : %v", cluster.Name, err)
-			return controllerruntime.Result{Requeue: true}, err
+			return controllerruntime.Result{}, err
 		}
 	}
 
@@ -618,8 +630,8 @@ func getAllocatableModelings(cluster *clusterv1alpha1.Cluster, nodes []*corev1.N
 		modelingSummary.AddToResourceSummary(modeling.NewClusterResourceNode(nodeAvailable))
 	}
 
-	m := make([]clusterv1alpha1.AllocatableModeling, len(modelingSummary))
-	for index, resourceModel := range modelingSummary {
+	m := make([]clusterv1alpha1.AllocatableModeling, len(modelingSummary.RMs))
+	for index, resourceModel := range modelingSummary.RMs {
 		m[index].Grade = cluster.Spec.ResourceModels[index].Grade
 		m[index].Count = resourceModel.Quantity
 	}

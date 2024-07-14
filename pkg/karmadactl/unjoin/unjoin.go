@@ -1,3 +1,19 @@
+/*
+Copyright 2020 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package unjoin
 
 import (
@@ -49,7 +65,7 @@ func NewCmdUnjoin(f cmdutil.Factory, parentCommand string) *cobra.Command {
 		Example:               fmt.Sprintf(unjoinExample, parentCommand),
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			if err := opts.Complete(args); err != nil {
 				return err
 			}
@@ -78,10 +94,10 @@ type CommandUnjoinOption struct {
 	// ClusterNamespace holds namespace where the member cluster secrets are stored
 	ClusterNamespace string
 
-	// ClusterName is the cluster's name that we are going to join with.
+	// ClusterName is the cluster's name that we are going to unjoin with.
 	ClusterName string
 
-	// ClusterContext is the cluster's context that we are going to join with.
+	// ClusterContext is the cluster's context that we are going to unjoin with.
 	ClusterContext string
 
 	// ClusterKubeConfig is the cluster's kubeconfig path.
@@ -146,8 +162,8 @@ func (j *CommandUnjoinOption) Run(f cmdutil.Factory) error {
 	// Get control plane kube-apiserver client
 	controlPlaneRestConfig, err := f.ToRawKubeConfigLoader().ClientConfig()
 	if err != nil {
-		klog.Errorf("failed to get control plane rest config. context: %s, kube-config: %s, error: %v",
-			options.DefaultConfigFlags.Context, options.DefaultConfigFlags.KubeConfig, err)
+		klog.Errorf("failed to get control plane rest config. karmada-context: %s, kubeconfig: %s, error: %v",
+			*options.DefaultConfigFlags.Context, *options.DefaultConfigFlags.KubeConfig, err)
 		return err
 	}
 
@@ -223,7 +239,7 @@ func (j *CommandUnjoinOption) deleteClusterObject(controlPlaneKarmadaClient *kar
 	}
 
 	// make sure the given cluster object has been deleted
-	err = wait.Poll(1*time.Second, j.Wait, func() (done bool, err error) {
+	err = wait.PollUntilContextTimeout(context.TODO(), 1*time.Second, j.Wait, false, func(context.Context) (done bool, err error) {
 		_, err = controlPlaneKarmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), j.ClusterName, metav1.GetOptions{})
 		if apierrors.IsNotFound(err) {
 			return true, nil

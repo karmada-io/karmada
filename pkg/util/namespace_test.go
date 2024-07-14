@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package util
 
 import (
@@ -32,7 +48,7 @@ func TestIsNamespaceExist(t *testing.T) {
 			args: args{
 				client:    fake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}),
 				namespace: metav1.NamespaceDefault,
-				reactor: func(action coretesting.Action) (handled bool, ret runtime.Object, err error) {
+				reactor: func(_ coretesting.Action) (handled bool, ret runtime.Object, err error) {
 					return true, &corev1.Namespace{}, errors.New("failed to get namespace")
 				},
 			},
@@ -114,7 +130,7 @@ func TestCreateNamespace(t *testing.T) {
 			args: args{
 				client:       fake.NewSimpleClientset(),
 				namespaceObj: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}},
-				reactor: func(action coretesting.Action) (handled bool, ret runtime.Object, err error) {
+				reactor: func(_ coretesting.Action) (handled bool, ret runtime.Object, err error) {
 					return true, nil, errors.New("failed to create namespace")
 				},
 			},
@@ -164,7 +180,7 @@ func TestDeleteNamespace(t *testing.T) {
 			args: args{
 				client:    fake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}),
 				namespace: "default",
-				reactor: func(action coretesting.Action) (handled bool, ret runtime.Object, err error) {
+				reactor: func(_ coretesting.Action) (handled bool, ret runtime.Object, err error) {
 					return true, nil, errors.New("failed to delete namespaces")
 				},
 			},
@@ -221,7 +237,7 @@ func TestEnsureNamespaceExist(t *testing.T) {
 			args: args{
 				client:    fake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}),
 				namespace: "default",
-				reactorCreate: func(action coretesting.Action) (handled bool, ret runtime.Object, err error) {
+				reactorCreate: func(_ coretesting.Action) (handled bool, ret runtime.Object, err error) {
 					return true, nil, apierrors.NewAlreadyExists(schema.ParseGroupResource("namespaces"), "default")
 				},
 			},
@@ -232,7 +248,7 @@ func TestEnsureNamespaceExist(t *testing.T) {
 			args: args{
 				client:    fake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}),
 				namespace: metav1.NamespaceDefault,
-				reactorGet: func(action coretesting.Action) (handled bool, ret runtime.Object, err error) {
+				reactorGet: func(_ coretesting.Action) (handled bool, ret runtime.Object, err error) {
 					return true, nil, errors.New("failed to get namespace")
 				},
 			},
@@ -243,7 +259,7 @@ func TestEnsureNamespaceExist(t *testing.T) {
 			args: args{
 				client:    fake.NewSimpleClientset(),
 				namespace: metav1.NamespaceDefault,
-				reactorCreate: func(action coretesting.Action) (handled bool, ret runtime.Object, err error) {
+				reactorCreate: func(_ coretesting.Action) (handled bool, ret runtime.Object, err error) {
 					return true, nil, errors.New("failed to create namespace")
 				},
 			},
@@ -299,7 +315,7 @@ func TestEnsureNamespaceExistWithLabels(t *testing.T) {
 				client:    fake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}),
 				namespace: "default",
 				labels:    map[string]string{"testkey": "testvalue"},
-				reactorCreate: func(action coretesting.Action) (handled bool, ret runtime.Object, err error) {
+				reactorCreate: func(_ coretesting.Action) (handled bool, ret runtime.Object, err error) {
 					return true, nil, apierrors.NewAlreadyExists(schema.ParseGroupResource("namespaces"), "default")
 				},
 			},
@@ -311,7 +327,7 @@ func TestEnsureNamespaceExistWithLabels(t *testing.T) {
 				client:    fake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}),
 				namespace: metav1.NamespaceDefault,
 				labels:    map[string]string{"testkey": "testvalue"},
-				reactorGet: func(action coretesting.Action) (handled bool, ret runtime.Object, err error) {
+				reactorGet: func(_ coretesting.Action) (handled bool, ret runtime.Object, err error) {
 					return true, nil, errors.New("failed to get namespace")
 				},
 			},
@@ -323,7 +339,7 @@ func TestEnsureNamespaceExistWithLabels(t *testing.T) {
 				client:    fake.NewSimpleClientset(),
 				namespace: metav1.NamespaceDefault,
 				labels:    map[string]string{"testkey": "testvalue"},
-				reactorCreate: func(action coretesting.Action) (handled bool, ret runtime.Object, err error) {
+				reactorCreate: func(_ coretesting.Action) (handled bool, ret runtime.Object, err error) {
 					return true, nil, errors.New("failed to create namespace")
 				},
 			},

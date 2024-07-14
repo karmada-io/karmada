@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package scheduler
 
 import (
@@ -37,16 +53,16 @@ func TestCreateScheduler(t *testing.T) {
 			name: "scheduler with enableSchedulerEstimator enabled",
 			opts: []Option{
 				WithEnableSchedulerEstimator(true),
-				WithSchedulerEstimatorPort(port),
+				WithSchedulerEstimatorConnection(port, "", "", "", false),
 			},
 			enableSchedulerEstimator: true,
 			schedulerEstimatorPort:   port,
 		},
 		{
-			name: "scheduler with enableSchedulerEstimator disabled, WithSchedulerEstimatorPort enabled",
+			name: "scheduler with enableSchedulerEstimator disabled, WithSchedulerEstimatorConnection enabled",
 			opts: []Option{
 				WithEnableSchedulerEstimator(false),
-				WithSchedulerEstimatorPort(port),
+				WithSchedulerEstimatorConnection(port, "", "", "", false),
 			},
 			enableSchedulerEstimator: false,
 		},
@@ -63,8 +79,8 @@ func TestCreateScheduler(t *testing.T) {
 				t.Errorf("unexpected enableSchedulerEstimator want %v, got %v", tc.enableSchedulerEstimator, sche.enableSchedulerEstimator)
 			}
 
-			if tc.schedulerEstimatorPort != sche.schedulerEstimatorPort {
-				t.Errorf("unexpected schedulerEstimatorPort want %v, got %v", tc.schedulerEstimatorPort, sche.schedulerEstimatorPort)
+			if tc.enableSchedulerEstimator && tc.schedulerEstimatorPort != sche.schedulerEstimatorClientConfig.TargetPort {
+				t.Errorf("unexpected schedulerEstimatorPort want %v, got %v", tc.schedulerEstimatorPort, sche.schedulerEstimatorClientConfig.TargetPort)
 			}
 		})
 	}
@@ -220,6 +236,7 @@ func Test_patchBindingStatusCondition(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			res.Status.LastScheduledTime = nil
 			if !reflect.DeepEqual(res.Status, test.expected.Status) {
 				t.Errorf("expected status: %v, but got: %v", test.expected.Status, res.Status)
 			}
@@ -423,6 +440,7 @@ func Test_patchClusterBindingStatusCondition(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			res.Status.LastScheduledTime = nil
 			if !reflect.DeepEqual(res.Status, test.expected.Status) {
 				t.Errorf("expected status: %v, but got: %v", test.expected.Status, res.Status)
 			}

@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package app
 
 import (
@@ -49,7 +65,7 @@ func NewKarmadaSearchCommand(ctx context.Context, registryOptions ...Option) *co
 		Use: "karmada-search",
 		Long: `The karmada-search starts an aggregated server. It provides 
 capabilities such as global search and resource proxy in a multi-cloud environment.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			if err := opts.Complete(); err != nil {
 				return err
 			}
@@ -142,19 +158,20 @@ func run(ctx context.Context, o *options.Options, registryOptions ...Option) err
 // `config` returns config for the api server given Options
 func config(o *options.Options, outOfTreeRegistryOptions ...Option) (*search.Config, error) {
 	// TODO have a "real" external address
-	if err := o.RecommendedOptions.SecureServing.MaybeDefaultWithSelfSignedCerts("localhost", nil, []net.IP{netutils.ParseIPSloppy("127.0.0.1")}); err != nil {
+	if err := o.SecureServing.MaybeDefaultWithSelfSignedCerts("localhost", nil, []net.IP{netutils.ParseIPSloppy("127.0.0.1")}); err != nil {
 		return nil, fmt.Errorf("error creating self-signed certificates: %v", err)
 	}
 
-	o.RecommendedOptions.Features = &genericoptions.FeatureOptions{EnableProfiling: false}
+	o.Features = &genericoptions.FeatureOptions{EnableProfiling: false}
 
 	serverConfig := genericapiserver.NewRecommendedConfig(searchscheme.Codecs)
 	serverConfig.LongRunningFunc = customLongRunningRequestCheck(
 		sets.NewString("watch", "proxy"),
 		sets.NewString("attach", "exec", "proxy", "log", "portforward"))
 	serverConfig.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(generatedopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(searchscheme.Scheme))
+	serverConfig.OpenAPIV3Config = genericapiserver.DefaultOpenAPIV3Config(generatedopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(searchscheme.Scheme))
 	serverConfig.OpenAPIConfig.Info.Title = "karmada-search"
-	if err := o.RecommendedOptions.ApplyTo(serverConfig); err != nil {
+	if err := o.ApplyTo(serverConfig); err != nil {
 		return nil, err
 	}
 

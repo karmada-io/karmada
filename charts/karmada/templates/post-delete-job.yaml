@@ -8,12 +8,13 @@ metadata:
   namespace: {{ $namespace }}
   labels:
     helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    {{- include "karmada.postDeleteJob.labels" . | nindent 4 }}
   annotations:
     # This is what defines this resource as a hook. Without this line, the
     # job is considered part of the release.
     "helm.sh/hook": post-delete
     "helm.sh/hook-weight": "0"
-    "helm.sh/hook-delete-policy": hook-succeeded
+    "helm.sh/hook-delete-policy": {{ .Values.postDeleteJob.hookDeletePolicy }}
 spec:
   parallelism: 1
   completions: 1
@@ -23,6 +24,7 @@ spec:
       labels:
         helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     spec:
+      {{- include "karmada.imagePullSecrets" . | nindent 6 }}
       {{- with .Values.postDeleteJob.tolerations}}
       tolerations:
       {{- toYaml . | nindent 8 }}
@@ -31,7 +33,7 @@ spec:
       nodeSelector:
       {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ $name }}-pre-job
+      serviceAccountName: {{ $name }}-hook-job
       restartPolicy: Never
       containers:
         - name: post-delete
@@ -45,14 +47,13 @@ spec:
               set -ex
               kubectl delete -f /opt/mount/ --ignore-not-found=true
               kubectl delete -f /opt/crds/ --ignore-not-found=true -R
+              kubectl delete -f /opt/static-resources/ --ignore-not-found=true -R
               kubectl delete cm/{{ $name }}-config -n {{ $namespace }} --ignore-not-found=true
               kubectl delete deployment/{{ $name }}-controller-manager -n {{ $namespace }} --ignore-not-found=true
               EOF
           volumeMounts:
             - name: mount
               mountPath: /opt/mount
-            - name: crds
-              mountPath: /opt/crds
             - name: crds-autoscaling-base
               mountPath: /opt/crds/base/autoscaling
             - name: crds-config-base
@@ -63,31 +64,41 @@ spec:
               mountPath: /opt/crds/base/networking
             - name: crds-policy-base
               mountPath: /opt/crds/base/policy
+            - name: crds-remedy-base
+              mountPath: /opt/crds/base/remedy
             - name: crds-work-base
               mountPath: /opt/crds/base/work
+            - name: static-resources
+              mountPath: /opt/static-resources
       volumes:
       - name: mount
         configMap:
           name: {{ $name }}-config
-      - name: crds
-        configMap:
-          name: {{ $name }}-crds-config
       - name: crds-autoscaling-base
         configMap:
-          name: {{ $name }}-crds-autoscaling-bases-config
+          name: {{ $name }}-crds-autoscaling-bases
       - name: crds-config-base
         configMap:
-          name: {{ $name }}-crds-config-bases-config
+          name: {{ $name }}-crds-config-bases
       - name: crds-multicluster-base
         configMap:
-          name: {{ $name }}-crds-multicluster-bases-config
+          name: {{ $name }}-crds-multicluster-bases
       - name: crds-networking-base
         configMap:
-          name: {{ $name }}-crds-networking-bases-config
+          name: {{ $name }}-crds-networking-bases
       - name: crds-policy-base
         configMap:
-          name: {{ $name }}-crds-policy-bases-config
+          name: {{ $name }}-crds-policy-bases
+      - name: crds-remedy-base
+        configMap:
+          name: {{ $name }}-crds-remedy-bases
       - name: crds-work-base
         configMap:
-          name: {{ $name }}-crds-work-bases-config
+          name: {{ $name }}-crds-work-bases
+      - name: crds-apps-base
+        configMap:
+          name: {{ $name }}-crds-apps-bases
+      - name: static-resources
+        configMap:
+          name: {{ $name }}-static-resources
 {{- end }}

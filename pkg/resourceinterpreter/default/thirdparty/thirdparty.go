@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package thirdparty
 
 import (
@@ -13,6 +29,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/declarative/configmanager"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/declarative/luavm"
+	"github.com/karmada-io/karmada/pkg/util/interpreter/validation"
 )
 
 // ConfigurableInterpreter interprets resources with third party resource interpreter.
@@ -146,6 +163,10 @@ func (p *ConfigurableInterpreter) GetDependencies(object *unstructured.Unstructu
 		if err != nil {
 			klog.Errorf("Failed to get DependentObjectReferences from object: %v %s/%s, error: %v",
 				object.GroupVersionKind(), object.GetNamespace(), object.GetName(), err)
+			return
+		}
+		err = validation.VerifyDependencies(references)
+		if err != nil {
 			return
 		}
 		refs.Insert(references...)

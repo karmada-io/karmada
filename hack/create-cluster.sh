@@ -1,9 +1,25 @@
 #!/usr/bin/env bash
-# This script only fits for Linux, macOS adaptation will come soon
+# Copyright 2020 The Karmada Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
+# This script works for both linux and macOS.
 set -o errexit
 set -o nounset
 set -o pipefail
+
+REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+source "${REPO_ROOT}"/hack/util.sh
 
 function usage() {
   echo "This script starts a kube cluster by kind."
@@ -11,7 +27,7 @@ function usage() {
   echo "Example: hack/create-cluster.sh host /root/.kube/karmada.config"
 }
 
-CLUSTER_VERSION=${CLUSTER_VERSION:-"kindest/node:v1.27.3"}
+CLUSTER_VERSION=${CLUSTER_VERSION:-"${DEFAULT_CLUSTER_VERSION}"}
 
 if [[ $# -lt 1 ]]; then
   usage
@@ -53,7 +69,7 @@ fi
 function rand() {
     min=$1
     max=$(($2-$min+1))
-    num=$(date +%s%N)
+    num=$(date +%s)
     echo $(($num%$max+$min))
 }
 
@@ -79,7 +95,8 @@ cp -rf "${REPO_ROOT}"/artifacts/kindClusterConfig/general-config.yaml "${TEMP_PA
 sed -i'' -e "s#{{pod_cidr}}#${POD_CIDR}#g" "${TEMP_PATH}"/"${CLUSTER_NAME}"-config.yaml
 sed -i'' -e "s#{{service_cidr}}#${SERVICE_CIDR}#g" "${TEMP_PATH}"/"${CLUSTER_NAME}"-config.yaml
 
-kind_log="$(mktemp --suffix=-kind.log)"
+mkdir -p /tmp/kind-log/
+kind_log="/tmp/kind-log/$(date +%s)"
 echo "Creating cluster \"${CLUSTER_NAME}\" ..."
 kind create cluster --name "${CLUSTER_NAME}" --kubeconfig="${KUBECONFIG}" --image="${CLUSTER_VERSION}" --config="${TEMP_PATH}"/"${CLUSTER_NAME}"-config.yaml > ${kind_log} 2>&1 || (
   echo "Creating cluster ${CLUSTER_NAME} failed, see detail log in ${kind_log}."

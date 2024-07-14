@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package modeling
 
 import (
@@ -19,12 +35,12 @@ func TestInitSummary(t *testing.T) {
 			Grade: 0,
 			Ranges: []clusterapis.ResourceModelRange{
 				{
-					Name: clusterapis.ResourceCPU,
+					Name: corev1.ResourceCPU,
 					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
 					Max:  *resource.NewQuantity(1, resource.DecimalSI),
 				},
 				{
-					Name: clusterapis.ResourceMemory,
+					Name: corev1.ResourceMemory,
 					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
 					Max:  *resource.NewQuantity(1024, resource.DecimalSI),
 				},
@@ -34,12 +50,12 @@ func TestInitSummary(t *testing.T) {
 			Grade: 1,
 			Ranges: []clusterapis.ResourceModelRange{
 				{
-					Name: clusterapis.ResourceCPU,
+					Name: corev1.ResourceCPU,
 					Min:  *resource.NewMilliQuantity(1, resource.DecimalSI),
 					Max:  *resource.NewQuantity(2, resource.DecimalSI),
 				},
 				{
-					Name: clusterapis.ResourceMemory,
+					Name: corev1.ResourceMemory,
 					Min:  *resource.NewMilliQuantity(1024, resource.DecimalSI),
 					Max:  *resource.NewQuantity(1024*2, resource.DecimalSI),
 				},
@@ -48,7 +64,7 @@ func TestInitSummary(t *testing.T) {
 	}
 
 	rs, err := InitSummary(rms)
-	if actualValue := len(rs); actualValue != 2 {
+	if actualValue := len(rs.RMs); actualValue != 2 {
 		t.Errorf("Got %v expected %v", actualValue, 2)
 	}
 
@@ -63,12 +79,12 @@ func TestInitSummaryError(t *testing.T) {
 			Grade: 0,
 			Ranges: []clusterapis.ResourceModelRange{
 				{
-					Name: clusterapis.ResourceCPU,
+					Name: corev1.ResourceCPU,
 					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
 					Max:  *resource.NewQuantity(1, resource.DecimalSI),
 				},
 				{
-					Name: clusterapis.ResourceMemory,
+					Name: corev1.ResourceMemory,
 					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
 					Max:  *resource.NewQuantity(1024, resource.DecimalSI),
 				},
@@ -78,7 +94,7 @@ func TestInitSummaryError(t *testing.T) {
 			Grade: 1,
 			Ranges: []clusterapis.ResourceModelRange{
 				{
-					Name: clusterapis.ResourceCPU,
+					Name: corev1.ResourceCPU,
 					Min:  *resource.NewMilliQuantity(1, resource.DecimalSI),
 					Max:  *resource.NewQuantity(2, resource.DecimalSI),
 				},
@@ -87,7 +103,7 @@ func TestInitSummaryError(t *testing.T) {
 	}
 
 	rs, err := InitSummary(rms)
-	if actualValue := len(rs); actualValue != 0 {
+	if actualValue := len(rs.RMs); actualValue != 0 {
 		t.Errorf("Got %v expected %v", actualValue, 0)
 	}
 
@@ -102,12 +118,12 @@ func TestInitSummaryWithOneGrade(t *testing.T) {
 			Grade: 0,
 			Ranges: []clusterapis.ResourceModelRange{
 				{
-					Name: clusterapis.ResourceCPU,
+					Name: corev1.ResourceCPU,
 					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
 					Max:  *resource.NewQuantity(1, resource.DecimalSI),
 				},
 				{
-					Name: clusterapis.ResourceMemory,
+					Name: corev1.ResourceMemory,
 					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
 					Max:  *resource.NewQuantity(1024, resource.DecimalSI),
 				},
@@ -116,7 +132,7 @@ func TestInitSummaryWithOneGrade(t *testing.T) {
 	}
 
 	rs, err := InitSummary(rms)
-	if actualValue := len(rs); actualValue != 1 {
+	if actualValue := len(rs.RMs); actualValue != 1 {
 		t.Errorf("Got %v expected %v", actualValue, 1)
 	}
 
@@ -168,12 +184,12 @@ func TestGetIndex(t *testing.T) {
 			Grade: 0,
 			Ranges: []clusterapis.ResourceModelRange{
 				{
-					Name: clusterapis.ResourceCPU,
+					Name: corev1.ResourceCPU,
 					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
 					Max:  *resource.NewQuantity(1, resource.DecimalSI),
 				},
 				{
-					Name: clusterapis.ResourceMemory,
+					Name: corev1.ResourceMemory,
 					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
 					Max:  *resource.NewQuantity(1024, resource.DecimalSI),
 				},
@@ -183,12 +199,12 @@ func TestGetIndex(t *testing.T) {
 			Grade: 1,
 			Ranges: []clusterapis.ResourceModelRange{
 				{
-					Name: clusterapis.ResourceCPU,
+					Name: corev1.ResourceCPU,
 					Min:  *resource.NewMilliQuantity(1, resource.DecimalSI),
 					Max:  *resource.NewQuantity(2, resource.DecimalSI),
 				},
 				{
-					Name: clusterapis.ResourceMemory,
+					Name: corev1.ResourceMemory,
 					Min:  *resource.NewMilliQuantity(1024, resource.DecimalSI),
 					Max:  *resource.NewQuantity(1024*2, resource.DecimalSI),
 				},
@@ -197,16 +213,15 @@ func TestGetIndex(t *testing.T) {
 	}
 
 	rs, err := InitSummary(rms)
-
 	if err != nil {
 		t.Errorf("Got %v expected %v", err, nil)
 	}
 
 	crn := ClusterResourceNode{
 		quantity: 1,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024, resource.DecimalSI),
+		resourceList: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(1024, resource.DecimalSI),
 		},
 	}
 	index := rs.getIndex(crn)
@@ -217,9 +232,9 @@ func TestGetIndex(t *testing.T) {
 
 	crn = ClusterResourceNode{
 		quantity: 1,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(20, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*100, resource.DecimalSI),
+		resourceList: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(20, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(1024*100, resource.DecimalSI),
 		},
 	}
 	index = rs.getIndex(crn)
@@ -230,60 +245,98 @@ func TestGetIndex(t *testing.T) {
 }
 
 func TestClusterResourceNodeComparator(t *testing.T) {
+	rms := []clusterapis.ResourceModel{
+		{
+			Grade: 0,
+			Ranges: []clusterapis.ResourceModelRange{
+				{
+					Name: corev1.ResourceCPU,
+					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
+					Max:  *resource.NewQuantity(1, resource.DecimalSI),
+				},
+				{
+					Name: corev1.ResourceMemory,
+					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
+					Max:  *resource.NewQuantity(1024, resource.DecimalSI),
+				},
+			},
+		},
+		{
+			Grade: 1,
+			Ranges: []clusterapis.ResourceModelRange{
+				{
+					Name: corev1.ResourceCPU,
+					Min:  *resource.NewMilliQuantity(1, resource.DecimalSI),
+					Max:  *resource.NewQuantity(2, resource.DecimalSI),
+				},
+				{
+					Name: corev1.ResourceMemory,
+					Min:  *resource.NewMilliQuantity(1024, resource.DecimalSI),
+					Max:  *resource.NewQuantity(1024*2, resource.DecimalSI),
+				},
+			},
+		},
+	}
+
+	rs, err := InitSummary(rms)
+	if err != nil {
+		t.Errorf("Got %v expected %v", err, nil)
+	}
+
 	crn1 := ClusterResourceNode{
 		quantity: 10,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(10, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024, resource.DecimalSI),
+		resourceList: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(10, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(1024, resource.DecimalSI),
 		},
 	}
 
 	crn2 := ClusterResourceNode{
 		quantity: 789,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(2, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024, resource.DecimalSI),
+		resourceList: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(2, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(1024, resource.DecimalSI),
 		},
 	}
-	if res := clusterResourceNodeComparator(crn1, crn2); res != 1 {
+	if res := rs.clusterResourceNodeComparator(crn1, crn2); res != 1 {
 		t.Errorf("Got %v expected %v", res, 1)
 	}
 
 	crn1 = ClusterResourceNode{
 		quantity: 10,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(6, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024, resource.DecimalSI),
+		resourceList: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(6, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(1024, resource.DecimalSI),
 		},
 	}
 
 	crn2 = ClusterResourceNode{
 		quantity: 789,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(6, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024, resource.DecimalSI),
+		resourceList: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(6, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(1024, resource.DecimalSI),
 		},
 	}
-	if res := clusterResourceNodeComparator(crn1, crn2); res != 0 {
+	if res := rs.clusterResourceNodeComparator(crn1, crn2); res != 0 {
 		t.Errorf("Got %v expected %v", res, 0)
 	}
 
 	crn1 = ClusterResourceNode{
 		quantity: 10,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(6, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024, resource.DecimalSI),
+		resourceList: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(6, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(1024, resource.DecimalSI),
 		},
 	}
 
 	crn2 = ClusterResourceNode{
 		quantity: 789,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(6, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*10, resource.DecimalSI),
+		resourceList: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(6, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(1024*10, resource.DecimalSI),
 		},
 	}
-	if res := clusterResourceNodeComparator(crn1, crn2); res != -1 {
+	if res := rs.clusterResourceNodeComparator(crn1, crn2); res != -1 {
 		t.Errorf("Got %v expected %v", res, -1)
 	}
 }
@@ -294,12 +347,12 @@ func TestGetNodeNumFromModel(t *testing.T) {
 			Grade: 0,
 			Ranges: []clusterapis.ResourceModelRange{
 				{
-					Name: clusterapis.ResourceCPU,
+					Name: corev1.ResourceCPU,
 					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
 					Max:  *resource.NewQuantity(1, resource.DecimalSI),
 				},
 				{
-					Name: clusterapis.ResourceMemory,
+					Name: corev1.ResourceMemory,
 					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
 					Max:  *resource.NewQuantity(1024, resource.DecimalSI),
 				},
@@ -309,12 +362,12 @@ func TestGetNodeNumFromModel(t *testing.T) {
 			Grade: 1,
 			Ranges: []clusterapis.ResourceModelRange{
 				{
-					Name: clusterapis.ResourceCPU,
+					Name: corev1.ResourceCPU,
 					Min:  *resource.NewMilliQuantity(1, resource.DecimalSI),
 					Max:  *resource.NewQuantity(2, resource.DecimalSI),
 				},
 				{
-					Name: clusterapis.ResourceMemory,
+					Name: corev1.ResourceMemory,
 					Min:  *resource.NewMilliQuantity(1024, resource.DecimalSI),
 					Max:  *resource.NewQuantity(1024*2, resource.DecimalSI),
 				},
@@ -323,7 +376,7 @@ func TestGetNodeNumFromModel(t *testing.T) {
 	}
 
 	rs, err := InitSummary(rms)
-	if actualValue := len(rs); actualValue != 2 {
+	if actualValue := len(rs.RMs); actualValue != 2 {
 		t.Errorf("Got %v expected %v", actualValue, 2)
 	}
 
@@ -333,25 +386,25 @@ func TestGetNodeNumFromModel(t *testing.T) {
 
 	crn1 := ClusterResourceNode{
 		quantity: 3,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(8, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*3, resource.DecimalSI),
+		resourceList: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(8, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(1024*3, resource.DecimalSI),
 		},
 	}
 
 	crn2 := ClusterResourceNode{
 		quantity: 1,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*6, resource.DecimalSI),
+		resourceList: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(1024*6, resource.DecimalSI),
 		},
 	}
 
 	crn3 := ClusterResourceNode{
 		quantity: 2,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*6, resource.DecimalSI),
+		resourceList: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(1024*6, resource.DecimalSI),
 		},
 	}
 
@@ -359,8 +412,8 @@ func TestGetNodeNumFromModel(t *testing.T) {
 	rs.AddToResourceSummary(crn2)
 	rs.AddToResourceSummary(crn3)
 
-	for index := range rs {
-		num := rs.GetNodeNumFromModel(&rs[index])
+	for index := range rs.RMs {
+		num := rs.GetNodeNumFromModel(&rs.RMs[index])
 		if index == 0 {
 			if num != 0 {
 				t.Errorf("Got %v expected %v", num, 0)
@@ -375,64 +428,101 @@ func TestGetNodeNumFromModel(t *testing.T) {
 }
 
 func TestConvertToResourceList(t *testing.T) {
-	rslist := corev1.ResourceList{
+	rsl := corev1.ResourceList{
 		corev1.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
 		corev1.ResourceMemory: *resource.NewQuantity(1024*6, resource.DecimalSI),
 	}
-	rsl := ConvertToResourceList(rslist)
 	for name := range rsl {
-		if reflect.TypeOf(name).String() != "v1alpha1.ResourceName" {
-			t.Errorf("Got %v expected %v", reflect.TypeOf(name), "v1alpha1.ResourceName")
+		if reflect.TypeOf(name).String() != "v1.ResourceName" {
+			t.Errorf("Got %v expected %v", reflect.TypeOf(name), "v1.ResourceName")
 		}
 	}
 }
 
 func TestLlConvertToRbt(t *testing.T) {
+	rms := []clusterapis.ResourceModel{
+		{
+			Grade: 0,
+			Ranges: []clusterapis.ResourceModelRange{
+				{
+					Name: corev1.ResourceCPU,
+					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
+					Max:  *resource.NewQuantity(1, resource.DecimalSI),
+				},
+				{
+					Name: corev1.ResourceMemory,
+					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
+					Max:  *resource.NewQuantity(1024, resource.DecimalSI),
+				},
+			},
+		},
+		{
+			Grade: 1,
+			Ranges: []clusterapis.ResourceModelRange{
+				{
+					Name: corev1.ResourceCPU,
+					Min:  *resource.NewMilliQuantity(1, resource.DecimalSI),
+					Max:  *resource.NewQuantity(2, resource.DecimalSI),
+				},
+				{
+					Name: corev1.ResourceMemory,
+					Min:  *resource.NewMilliQuantity(1024, resource.DecimalSI),
+					Max:  *resource.NewQuantity(1024*2, resource.DecimalSI),
+				},
+			},
+		},
+	}
+
+	rs, err := InitSummary(rms)
+	if err != nil {
+		t.Errorf("Got %v expected %v", err, nil)
+	}
+
 	crn1 := ClusterResourceNode{
 		quantity: 6,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(2, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*7, resource.DecimalSI),
+		resourceList: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(2, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(1024*7, resource.DecimalSI),
 		},
 	}
 
 	crn2 := ClusterResourceNode{
 		quantity: 5,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(6, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*3, resource.DecimalSI),
+		resourceList: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(6, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(1024*3, resource.DecimalSI),
 		},
 	}
 
 	crn3 := ClusterResourceNode{
 		quantity: 4,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(5, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*8, resource.DecimalSI),
+		resourceList: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(5, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(1024*8, resource.DecimalSI),
 		},
 	}
 
 	crn4 := ClusterResourceNode{
 		quantity: 3,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(8, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*3, resource.DecimalSI),
+		resourceList: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(8, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(1024*3, resource.DecimalSI),
 		},
 	}
 
 	crn5 := ClusterResourceNode{
 		quantity: 2,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*6, resource.DecimalSI),
+		resourceList: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(1024*6, resource.DecimalSI),
 		},
 	}
 
 	crn6 := ClusterResourceNode{
 		quantity: 1,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(2, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*12, resource.DecimalSI),
+		resourceList: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(2, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(1024*12, resource.DecimalSI),
 		},
 	}
 	mylist := list.New()
@@ -443,7 +533,7 @@ func TestLlConvertToRbt(t *testing.T) {
 	mylist.PushBack(crn2)
 	mylist.PushBack(crn4)
 
-	rbt := llConvertToRbt(mylist)
+	rbt := rs.llConvertToRbt(mylist)
 	fmt.Println(rbt)
 	if actualValue := rbt.Size(); actualValue != 6 {
 		t.Errorf("Got %v expected %v", actualValue, 6)
@@ -469,120 +559,51 @@ func TestLlConvertToRbt(t *testing.T) {
 }
 
 func TestRbtConvertToLl(t *testing.T) {
-	crn1 := ClusterResourceNode{
-		quantity: 6,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(2, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*7, resource.DecimalSI),
+	rms := []clusterapis.ResourceModel{
+		{
+			Grade: 0,
+			Ranges: []clusterapis.ResourceModelRange{
+				{
+					Name: corev1.ResourceCPU,
+					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
+					Max:  *resource.NewQuantity(1, resource.DecimalSI),
+				},
+				{
+					Name: corev1.ResourceMemory,
+					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
+					Max:  *resource.NewQuantity(1024, resource.DecimalSI),
+				},
+			},
+		},
+		{
+			Grade: 1,
+			Ranges: []clusterapis.ResourceModelRange{
+				{
+					Name: corev1.ResourceCPU,
+					Min:  *resource.NewMilliQuantity(1, resource.DecimalSI),
+					Max:  *resource.NewQuantity(2, resource.DecimalSI),
+				},
+				{
+					Name: corev1.ResourceMemory,
+					Min:  *resource.NewMilliQuantity(1024, resource.DecimalSI),
+					Max:  *resource.NewQuantity(1024*2, resource.DecimalSI),
+				},
+			},
 		},
 	}
 
-	crn2 := ClusterResourceNode{
-		quantity: 5,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(6, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*3, resource.DecimalSI),
-		},
+	rs, err := InitSummary(rms)
+	if err != nil {
+		t.Errorf("Got %v expected %v", err, nil)
 	}
 
-	crn3 := ClusterResourceNode{
-		quantity: 4,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(5, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*8, resource.DecimalSI),
-		},
-	}
-
-	crn4 := ClusterResourceNode{
-		quantity: 3,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(8, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*3, resource.DecimalSI),
-		},
-	}
-
-	crn5 := ClusterResourceNode{
-		quantity: 2,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*6, resource.DecimalSI),
-		},
-	}
-
-	crn6 := ClusterResourceNode{
-		quantity: 1,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(2, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*12, resource.DecimalSI),
-		},
-	}
-	tree := redblacktree.NewWith(clusterResourceNodeComparator)
+	tree := redblacktree.NewWith(rs.clusterResourceNodeComparator)
 
 	if actualValue := tree.Size(); actualValue != 0 {
 		t.Errorf("Got %v expected %v", actualValue, 0)
 	}
 
 	if actualValue := tree.GetNode(2).Size(); actualValue != 0 {
-		t.Errorf("Got %v expected %v", actualValue, 0)
-	}
-
-	tree.Put(crn2, crn2.quantity)
-	tree.Put(crn1, crn1.quantity)
-	tree.Put(crn6, crn6.quantity)
-	tree.Put(crn3, crn3.quantity)
-	tree.Put(crn5, crn5.quantity)
-	tree.Put(crn4, crn4.quantity)
-
-	ll := rbtConvertToLl(tree)
-	fmt.Println(ll)
-
-	for element := ll.Front(); element != nil; element = element.Next() {
-		fmt.Println(element.Value)
-	}
-
-	actualValue := ll.Front()
-	node := actualValue.Value.(ClusterResourceNode)
-	if quantity := node.quantity; quantity != 2 {
-		t.Errorf("Got %v expected %v", actualValue, 2)
-	}
-	ll.Remove(actualValue)
-
-	actualValue = ll.Front()
-	node = actualValue.Value.(ClusterResourceNode)
-	if quantity := node.quantity; quantity != 6 {
-		t.Errorf("Got %v expected %v", actualValue, 6)
-	}
-	ll.Remove(actualValue)
-
-	actualValue = ll.Front()
-	node = actualValue.Value.(ClusterResourceNode)
-	if quantity := node.quantity; quantity != 1 {
-		t.Errorf("Got %v expected %v", actualValue, 1)
-	}
-	ll.Remove(actualValue)
-
-	actualValue = ll.Front()
-	node = actualValue.Value.(ClusterResourceNode)
-	if quantity := node.quantity; quantity != 4 {
-		t.Errorf("Got %v expected %v", actualValue, 4)
-	}
-	ll.Remove(actualValue)
-
-	actualValue = ll.Front()
-	node = actualValue.Value.(ClusterResourceNode)
-	if quantity := node.quantity; quantity != 5 {
-		t.Errorf("Got %v expected %v", actualValue, 5)
-	}
-	ll.Remove(actualValue)
-
-	actualValue = ll.Front()
-	node = actualValue.Value.(ClusterResourceNode)
-	if quantity := node.quantity; quantity != 3 {
-		t.Errorf("Got %v expected %v", actualValue, 3)
-	}
-	ll.Remove(actualValue)
-
-	if actualValue := ll.Len(); actualValue != 0 {
 		t.Errorf("Got %v expected %v", actualValue, 0)
 	}
 }
@@ -593,12 +614,12 @@ func TestAddToResourceSummary(t *testing.T) {
 			Grade: 0,
 			Ranges: []clusterapis.ResourceModelRange{
 				{
-					Name: clusterapis.ResourceCPU,
+					Name: corev1.ResourceCPU,
 					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
 					Max:  *resource.NewQuantity(1, resource.DecimalSI),
 				},
 				{
-					Name: clusterapis.ResourceMemory,
+					Name: corev1.ResourceMemory,
 					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
 					Max:  *resource.NewQuantity(1024, resource.DecimalSI),
 				},
@@ -608,12 +629,12 @@ func TestAddToResourceSummary(t *testing.T) {
 			Grade: 1,
 			Ranges: []clusterapis.ResourceModelRange{
 				{
-					Name: clusterapis.ResourceCPU,
+					Name: corev1.ResourceCPU,
 					Min:  *resource.NewMilliQuantity(1, resource.DecimalSI),
 					Max:  *resource.NewQuantity(2, resource.DecimalSI),
 				},
 				{
-					Name: clusterapis.ResourceMemory,
+					Name: corev1.ResourceMemory,
 					Min:  *resource.NewMilliQuantity(1024, resource.DecimalSI),
 					Max:  *resource.NewQuantity(1024*2, resource.DecimalSI),
 				},
@@ -622,7 +643,7 @@ func TestAddToResourceSummary(t *testing.T) {
 	}
 
 	rs, err := InitSummary(rms)
-	if actualValue := len(rs); actualValue != 2 {
+	if actualValue := len(rs.RMs); actualValue != 2 {
 		t.Errorf("Got %v expected %v", actualValue, 2)
 	}
 
@@ -632,25 +653,25 @@ func TestAddToResourceSummary(t *testing.T) {
 
 	crn1 := ClusterResourceNode{
 		quantity: 3,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(8, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*3, resource.DecimalSI),
+		resourceList: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(8, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(1024*3, resource.DecimalSI),
 		},
 	}
 
 	crn2 := ClusterResourceNode{
 		quantity: 1,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*6, resource.DecimalSI),
+		resourceList: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(1024*6, resource.DecimalSI),
 		},
 	}
 
 	crn3 := ClusterResourceNode{
 		quantity: 2,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*6, resource.DecimalSI),
+		resourceList: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(1024*6, resource.DecimalSI),
 		},
 	}
 
@@ -658,8 +679,8 @@ func TestAddToResourceSummary(t *testing.T) {
 	rs.AddToResourceSummary(crn2)
 	rs.AddToResourceSummary(crn3)
 
-	for index, v := range rs {
-		num := rs.GetNodeNumFromModel(&rs[index])
+	for index, v := range rs.RMs {
+		num := rs.GetNodeNumFromModel(&rs.RMs[index])
 		if index == 0 && num != 0 {
 			t.Errorf("Got %v expected %v", num, 0)
 		}
@@ -676,247 +697,19 @@ func TestAddToResourceSummary(t *testing.T) {
 
 	crn4 := ClusterResourceNode{
 		quantity: 2,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(0, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(19, resource.DecimalSI),
+		resourceList: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(0, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(19, resource.DecimalSI),
 		},
 	}
 
 	rs.AddToResourceSummary(crn4)
 
-	if actualValue := rs[0]; actualValue.Quantity != 2 {
+	if actualValue := rs.RMs[0]; actualValue.Quantity != 2 {
 		t.Errorf("Got %v expected %v", actualValue, 2)
 	}
 
-	if actualValue := rs[0]; rs.GetNodeNumFromModel(&actualValue) != 1 {
+	if actualValue := rs.RMs[0]; rs.GetNodeNumFromModel(&actualValue) != 1 {
 		t.Errorf("Got %v expected %v", actualValue, 1)
-	}
-}
-
-func TestDeleteFromResourceSummary(t *testing.T) {
-	rms := []clusterapis.ResourceModel{
-		{
-			Grade: 0,
-			Ranges: []clusterapis.ResourceModelRange{
-				{
-					Name: clusterapis.ResourceCPU,
-					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
-					Max:  *resource.NewQuantity(1, resource.DecimalSI),
-				},
-				{
-					Name: clusterapis.ResourceMemory,
-					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
-					Max:  *resource.NewQuantity(1024, resource.DecimalSI),
-				},
-			},
-		},
-		{
-			Grade: 1,
-			Ranges: []clusterapis.ResourceModelRange{
-				{
-					Name: clusterapis.ResourceCPU,
-					Min:  *resource.NewMilliQuantity(1, resource.DecimalSI),
-					Max:  *resource.NewQuantity(2, resource.DecimalSI),
-				},
-				{
-					Name: clusterapis.ResourceMemory,
-					Min:  *resource.NewMilliQuantity(1024, resource.DecimalSI),
-					Max:  *resource.NewQuantity(1024*2, resource.DecimalSI),
-				},
-			},
-		},
-	}
-
-	rs, err := InitSummary(rms)
-	if actualValue := len(rs); actualValue != 2 {
-		t.Errorf("Got %v expected %v", actualValue, 2)
-	}
-
-	if err != nil {
-		t.Errorf("Got %v expected %v", err, nil)
-	}
-
-	crn1 := ClusterResourceNode{
-		quantity: 3,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(8, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*3, resource.DecimalSI),
-		},
-	}
-
-	crn2 := ClusterResourceNode{
-		quantity: 1,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*6, resource.DecimalSI),
-		},
-	}
-
-	crn3 := ClusterResourceNode{
-		quantity: 2,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*6, resource.DecimalSI),
-		},
-	}
-
-	rs.AddToResourceSummary(crn1)
-	rs.AddToResourceSummary(crn2)
-	rs.AddToResourceSummary(crn3)
-
-	for index := range rs {
-		num := rs.GetNodeNumFromModel(&rs[index])
-		if index == 0 && num != 0 {
-			t.Errorf("Got %v expected %v", num, 0)
-		}
-		if index == 1 && num != 2 {
-			t.Errorf("Got %v expected %v", num, 2)
-		}
-		if index == 0 && rs[index].Quantity != 0 {
-			t.Errorf("Got %v expected %v", rs[index].Quantity, 0)
-		}
-		if index == 1 && rs[index].Quantity != 6 {
-			t.Errorf("Got %v expected %v", rs[index].Quantity, 6)
-		}
-	}
-
-	crn4 := ClusterResourceNode{
-		quantity: 2,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(19, resource.DecimalSI),
-		},
-	}
-
-	err = rs.DeleteFromResourceSummary(crn4)
-
-	if err == nil {
-		t.Errorf("Got %v expected %v", err, nil)
-	}
-
-	if actualValue := rs[1]; actualValue.Quantity != 6 {
-		t.Errorf("Got %v expected %v", actualValue, 6)
-	}
-
-	if actualValue := rs[0]; rs.GetNodeNumFromModel(&actualValue) != 0 {
-		t.Errorf("Got %v expected %v", actualValue, 0)
-	}
-}
-
-func TestUpdateSummary(t *testing.T) {
-	rms := []clusterapis.ResourceModel{
-		{
-			Grade: 0,
-			Ranges: []clusterapis.ResourceModelRange{
-				{
-					Name: clusterapis.ResourceCPU,
-					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
-					Max:  *resource.NewQuantity(1, resource.DecimalSI),
-				},
-				{
-					Name: clusterapis.ResourceMemory,
-					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
-					Max:  *resource.NewQuantity(1024, resource.DecimalSI),
-				},
-			},
-		},
-		{
-			Grade: 1,
-			Ranges: []clusterapis.ResourceModelRange{
-				{
-					Name: clusterapis.ResourceCPU,
-					Min:  *resource.NewMilliQuantity(1, resource.DecimalSI),
-					Max:  *resource.NewQuantity(2, resource.DecimalSI),
-				},
-				{
-					Name: clusterapis.ResourceMemory,
-					Min:  *resource.NewMilliQuantity(1024, resource.DecimalSI),
-					Max:  *resource.NewQuantity(1024*2, resource.DecimalSI),
-				},
-			},
-		},
-	}
-
-	rs, err := InitSummary(rms)
-	if actualValue := len(rs); actualValue != 2 {
-		t.Errorf("Got %v expected %v", actualValue, 2)
-	}
-
-	if err != nil {
-		t.Errorf("Got %v expected %v", err, nil)
-	}
-
-	crn1 := ClusterResourceNode{
-		quantity: 3,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(8, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*3, resource.DecimalSI),
-		},
-	}
-
-	crn2 := ClusterResourceNode{
-		quantity: 1,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*6, resource.DecimalSI),
-		},
-	}
-
-	crn3 := ClusterResourceNode{
-		quantity: 2,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*6, resource.DecimalSI),
-		},
-	}
-
-	rs.AddToResourceSummary(crn1)
-	rs.AddToResourceSummary(crn2)
-	rs.AddToResourceSummary(crn3)
-
-	for index := range rs {
-		num := rs.GetNodeNumFromModel(&rs[index])
-		if index == 0 && num != 0 {
-			t.Errorf("Got %v expected %v", num, 0)
-		}
-		if index == 1 && num != 2 {
-			t.Errorf("Got %v expected %v", num, 2)
-		}
-		if index == 0 && rs[index].Quantity != 0 {
-			t.Errorf("Got %v expected %v", rs[index].Quantity, 0)
-		}
-		if index == 1 && rs[index].Quantity != 6 {
-			t.Errorf("Got %v expected %v", rs[index].Quantity, 6)
-		}
-	}
-
-	crn2 = ClusterResourceNode{
-		quantity: 1,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(1024*6, resource.DecimalSI),
-		},
-	}
-
-	crn4 := ClusterResourceNode{
-		quantity: 2,
-		resourceList: ResourceList{
-			clusterapis.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
-			clusterapis.ResourceMemory: *resource.NewQuantity(19, resource.DecimalSI),
-		},
-	}
-
-	err = rs.UpdateInResourceSummary(crn2, crn4)
-
-	if err != nil {
-		t.Errorf("Got %v expected %v", err, nil)
-	}
-
-	if actualValue := rs[1]; actualValue.Quantity != 7 {
-		t.Errorf("Got %v expected %v", actualValue, 7)
-	}
-
-	if actualValue := rs[1]; rs.GetNodeNumFromModel(&actualValue) != 3 {
-		t.Errorf("Got %v expected %v", rs.GetNodeNumFromModel(&actualValue), 3)
 	}
 }

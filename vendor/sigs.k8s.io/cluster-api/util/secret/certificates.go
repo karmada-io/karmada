@@ -25,7 +25,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/hex"
 	"math/big"
-	"path/filepath"
+	"path"
 	"strings"
 	"time"
 
@@ -73,25 +73,25 @@ func NewCertificatesForInitialControlPlane(config *bootstrapv1.ClusterConfigurat
 	certificates := Certificates{
 		&Certificate{
 			Purpose:  ClusterCA,
-			CertFile: filepath.Join(certificatesDir, "ca.crt"),
-			KeyFile:  filepath.Join(certificatesDir, "ca.key"),
+			CertFile: path.Join(certificatesDir, "ca.crt"),
+			KeyFile:  path.Join(certificatesDir, "ca.key"),
 		},
 		&Certificate{
 			Purpose:  ServiceAccount,
-			CertFile: filepath.Join(certificatesDir, "sa.pub"),
-			KeyFile:  filepath.Join(certificatesDir, "sa.key"),
+			CertFile: path.Join(certificatesDir, "sa.pub"),
+			KeyFile:  path.Join(certificatesDir, "sa.key"),
 		},
 		&Certificate{
 			Purpose:  FrontProxyCA,
-			CertFile: filepath.Join(certificatesDir, "front-proxy-ca.crt"),
-			KeyFile:  filepath.Join(certificatesDir, "front-proxy-ca.key"),
+			CertFile: path.Join(certificatesDir, "front-proxy-ca.crt"),
+			KeyFile:  path.Join(certificatesDir, "front-proxy-ca.key"),
 		},
 	}
 
 	etcdCert := &Certificate{
 		Purpose:  EtcdCA,
-		CertFile: filepath.Join(certificatesDir, "etcd", "ca.crt"),
-		KeyFile:  filepath.Join(certificatesDir, "etcd", "ca.key"),
+		CertFile: path.Join(certificatesDir, "etcd", "ca.crt"),
+		KeyFile:  path.Join(certificatesDir, "etcd", "ca.key"),
 	}
 
 	// TODO make sure all the fields are actually defined and return an error if not
@@ -124,24 +124,24 @@ func NewControlPlaneJoinCerts(config *bootstrapv1.ClusterConfiguration) Certific
 	certificates := Certificates{
 		&Certificate{
 			Purpose:  ClusterCA,
-			CertFile: filepath.Join(certificatesDir, "ca.crt"),
-			KeyFile:  filepath.Join(certificatesDir, "ca.key"),
+			CertFile: path.Join(certificatesDir, "ca.crt"),
+			KeyFile:  path.Join(certificatesDir, "ca.key"),
 		},
 		&Certificate{
 			Purpose:  ServiceAccount,
-			CertFile: filepath.Join(certificatesDir, "sa.pub"),
-			KeyFile:  filepath.Join(certificatesDir, "sa.key"),
+			CertFile: path.Join(certificatesDir, "sa.pub"),
+			KeyFile:  path.Join(certificatesDir, "sa.key"),
 		},
 		&Certificate{
 			Purpose:  FrontProxyCA,
-			CertFile: filepath.Join(certificatesDir, "front-proxy-ca.crt"),
-			KeyFile:  filepath.Join(certificatesDir, "front-proxy-ca.key"),
+			CertFile: path.Join(certificatesDir, "front-proxy-ca.crt"),
+			KeyFile:  path.Join(certificatesDir, "front-proxy-ca.key"),
 		},
 	}
 	etcdCert := &Certificate{
 		Purpose:  EtcdCA,
-		CertFile: filepath.Join(certificatesDir, "etcd", "ca.crt"),
-		KeyFile:  filepath.Join(certificatesDir, "etcd", "ca.key"),
+		CertFile: path.Join(certificatesDir, "etcd", "ca.crt"),
+		KeyFile:  path.Join(certificatesDir, "etcd", "ca.key"),
 	}
 
 	// TODO make sure all the fields are actually defined and return an error if not
@@ -167,7 +167,7 @@ func NewControlPlaneJoinCerts(config *bootstrapv1.ClusterConfiguration) Certific
 // NewCertificatesForWorker return an initialized but empty set of CA certificates needed to bootstrap a cluster.
 func NewCertificatesForWorker(caCertPath string) Certificates {
 	if caCertPath == "" {
-		caCertPath = filepath.Join(DefaultCertificatesDir, "ca.crt")
+		caCertPath = path.Join(DefaultCertificatesDir, "ca.crt")
 	}
 
 	return Certificates{
@@ -371,6 +371,10 @@ func (c *Certificate) AsSecret(clusterName client.ObjectKey, owner metav1.OwnerR
 // AsFiles converts the certificate to a slice of Files that may have 0, 1 or 2 Files.
 func (c *Certificate) AsFiles() []bootstrapv1.File {
 	out := make([]bootstrapv1.File, 0)
+	if c.KeyPair == nil {
+		return out
+	}
+
 	if len(c.KeyPair.Cert) > 0 {
 		out = append(out, bootstrapv1.File{
 			Path:        c.CertFile,

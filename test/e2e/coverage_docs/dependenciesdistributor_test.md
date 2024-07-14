@@ -1,0 +1,9 @@
+### dependencies distributor e2e test coverage analysis
+
+| Test Case                                            | E2E Describe Text                                       | Comments                                                                                                                                      |
+|------------------------------------------------------|---------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
+| Test the configmap will propagate automatically      | configmap automatically propagation testing             | [Propagate Dependencies](https://karmada.io/docs/next/userguide/scheduling/propagate-dependencies)                                            |
+| Test the secret will propagate automatically         | secret automatically propagation testing                | [Dependencies distributor](https://github.com/karmada-io/karmada/blob/master/docs/proposals/dependencies-automatically-propagation/README.md) |
+| Test the PVC will propagate automatically            | persistentVolumeClaim automatically propagation testing |                                                                                                                                               |
+| Test the serviceAccount will propagate automatically | serviceAccount automatically propagation testing        |                                                                                                                                               |
+| Test the configmap will propagate automatically      | configmap propagate automatically testing               |                                                                                                                                               |

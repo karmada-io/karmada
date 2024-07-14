@@ -41,6 +41,8 @@ spec:
       tolerations:
       {{- toYaml . | nindent 8 }}
       {{- end }}
+      initContainers:
+        {{- include "karmada.initContainer.waitStaticResource" . | nindent 8 }}
       containers:
         - name: {{ $name }}-webhook
           image: {{ template "karmada.webhook.image" . }}
@@ -53,6 +55,9 @@ spec:
             - --cert-dir=/var/serving-cert
           ports:
             - containerPort: 8443
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
           volumeMounts:
           {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
             - name: {{ $name }}-webhook-cert-secret
@@ -63,7 +68,10 @@ spec:
               path: /readyz
               port: 8443
               scheme: HTTPS
+          resources:
+          {{- toYaml .Values.webhook.resources | nindent 12 }}
       volumes:
+      {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
       {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
         - name: {{ $name }}-webhook-cert-secret
           secret:
@@ -80,5 +88,21 @@ spec:
   ports:
     - port: 443
       targetPort: 8443
+
+{{ if .Values.webhook.podDisruptionBudget }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}-webhook
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.webhook.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "karmada.webhook.labels" . | nindent 6 }}
+  {{ toYaml .Values.webhook.podDisruptionBudget | nindent 2 }}
+{{- end -}}
 
 {{- end }}

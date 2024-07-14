@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package etcd
 
 import (
@@ -9,6 +25,7 @@ import (
 	kuberuntime "k8s.io/apimachinery/pkg/runtime"
 	clientset "k8s.io/client-go/kubernetes"
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/component-base/cli/flag"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
@@ -45,19 +62,21 @@ func installKarmadaEtcd(client clientset.Interface, name, namespace string, cfg 
 	}
 
 	etcdStatefulSetBytes, err := util.ParseTemplate(KarmadaEtcdStatefulSet, struct {
-		StatefulSetName, Namespace, Image, EtcdClientService string
-		CertsSecretName, EtcdPeerServiceName                 string
-		InitialCluster, EtcdDataVolumeName                   string
-		Replicas, EtcdListenClientPort, EtcdListenPeerPort   int32
+		StatefulSetName, Namespace, Image, ImagePullPolicy, EtcdClientService string
+		CertsSecretName, EtcdPeerServiceName                                  string
+		InitialCluster, EtcdDataVolumeName, EtcdCipherSuites                  string
+		Replicas, EtcdListenClientPort, EtcdListenPeerPort                    int32
 	}{
 		StatefulSetName:      util.KarmadaEtcdName(name),
 		Namespace:            namespace,
 		Image:                cfg.Image.Name(),
+		ImagePullPolicy:      string(cfg.ImagePullPolicy),
 		EtcdClientService:    util.KarmadaEtcdClientName(name),
 		CertsSecretName:      util.EtcdCertSecretName(name),
 		EtcdPeerServiceName:  util.KarmadaEtcdName(name),
 		EtcdDataVolumeName:   constants.EtcdDataVolumeName,
 		InitialCluster:       strings.Join(initialClusters, ","),
+		EtcdCipherSuites:     genEtcdCipherSuites(),
 		Replicas:             *cfg.Replicas,
 		EtcdListenClientPort: constants.EtcdListenClientPort,
 		EtcdListenPeerPort:   constants.EtcdListenPeerPort,
@@ -72,7 +91,7 @@ func installKarmadaEtcd(client clientset.Interface, name, namespace string, cfg 
 	}
 
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
-		WithVolumeData(cfg.VolumeData).ForStatefulSet(etcdStatefulSet)
+		WithVolumeData(cfg.VolumeData).WithResources(cfg.Resources).ForStatefulSet(etcdStatefulSet)
 
 	if err := apiclient.CreateOrUpdateStatefulSet(client, etcdStatefulSet); err != nil {
 		return fmt.Errorf("error when creating Etcd statefulset, err: %w", err)
@@ -126,4 +145,11 @@ func createEtcdService(client clientset.Interface, name, namespace string) error
 	}
 
 	return nil
+}
+
+// Setting Golang's secure cipher suites as etcd's cipher suites.
+// They are obtained by the return value of the function CipherSuites() under the go/src/crypto/tls/cipher_suites.go package.
+// Consistent with the Preferred values of k8s’s default cipher suites.
+func genEtcdCipherSuites() string {
+	return strings.Join(flag.PreferredTLSCipherNames(), ",")
 }

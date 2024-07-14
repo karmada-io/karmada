@@ -1,9 +1,12 @@
 /*
 Copyright 2023 The Karmada Authors.
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
+
     http://www.apache.org/licenses/LICENSE-2.0
+
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,7 +20,7 @@ import (
 	"fmt"
 	"sync"
 	"time"
-	_ "time/tzdata"
+	_ "time/tzdata" // import tzdata to support time zone parsing, this is needed by function time.LoadLocation
 
 	"github.com/go-co-op/gocron"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
@@ -30,11 +33,13 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
+// RuleCron is the wrapper of gocron.Scheduler and CronFederatedHPARule
 type RuleCron struct {
 	*gocron.Scheduler
 	autoscalingv1alpha1.CronFederatedHPARule
 }
 
+// CronHandler is the handler for CronFederatedHPA
 type CronHandler struct {
 	client        client.Client
 	eventRecorder record.EventRecorder
@@ -84,6 +89,7 @@ func (c *CronHandler) AddCronExecutorIfNotExist(cronFHPAKey string) {
 	c.cronExecutorMap[cronFHPAKey] = make(map[string]RuleCron)
 }
 
+// RuleCronExecutorExists checks if the executor for specific CronFederatedHPA rule exists
 func (c *CronHandler) RuleCronExecutorExists(cronFHPAKey string,
 	ruleName string) (autoscalingv1alpha1.CronFederatedHPARule, bool) {
 	c.executorLock.RLock()
@@ -159,6 +165,7 @@ func (c *CronHandler) CreateCronJobForExecutor(cronFHPA *autoscalingv1alpha1.Cro
 	return nil
 }
 
+// GetRuleNextExecuteTime returns the next execute time of a rule of CronFederatedHPA
 func (c *CronHandler) GetRuleNextExecuteTime(cronFHPA *autoscalingv1alpha1.CronFederatedHPA, ruleName string) (time.Time, error) {
 	c.executorLock.RLock()
 	defer c.executorLock.RUnlock()

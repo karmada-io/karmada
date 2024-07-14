@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package federatedresourcequota
 
 import (
@@ -50,23 +66,23 @@ func (c *SyncController) Reconcile(ctx context.Context, req controllerruntime.Re
 			klog.V(4).Infof("Begin to cleanup works created by federatedResourceQuota(%s)", req.NamespacedName.String())
 			if err = c.cleanUpWorks(req.Namespace, req.Name); err != nil {
 				klog.Errorf("Failed to cleanup works created by federatedResourceQuota(%s)", req.NamespacedName.String())
-				return controllerruntime.Result{Requeue: true}, err
+				return controllerruntime.Result{}, err
 			}
 			return controllerruntime.Result{}, nil
 		}
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	clusterList := &clusterv1alpha1.ClusterList{}
 	if err := c.Client.List(ctx, clusterList); err != nil {
 		klog.Errorf("Failed to list clusters, error: %v", err)
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 
 	if err := c.buildWorks(quota, clusterList.Items); err != nil {
 		klog.Errorf("Failed to build works for federatedResourceQuota(%s), error: %v", req.NamespacedName.String(), err)
 		c.EventRecorder.Eventf(quota, corev1.EventTypeWarning, events.EventReasonSyncFederatedResourceQuotaFailed, err.Error())
-		return controllerruntime.Result{Requeue: true}, err
+		return controllerruntime.Result{}, err
 	}
 	c.EventRecorder.Eventf(quota, corev1.EventTypeNormal, events.EventReasonSyncFederatedResourceQuotaSucceed, "Sync works for FederatedResourceQuota(%s) succeed.", req.NamespacedName.String())
 
@@ -98,16 +114,16 @@ func (c *SyncController) SetupWithManager(mgr controllerruntime.Manager) error {
 	)
 
 	clusterPredicate := builder.WithPredicates(predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
+		CreateFunc: func(event.CreateEvent) bool {
 			return true
 		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
+		UpdateFunc: func(event.UpdateEvent) bool {
 			return false
 		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
+		DeleteFunc: func(event.DeleteEvent) bool {
 			return false
 		},
-		GenericFunc: func(e event.GenericEvent) bool {
+		GenericFunc: func(event.GenericEvent) bool {
 			return false
 		},
 	})
@@ -143,19 +159,11 @@ func (c *SyncController) cleanUpWorks(namespace, name string) error {
 func (c *SyncController) buildWorks(quota *policyv1alpha1.FederatedResourceQuota, clusters []clusterv1alpha1.Cluster) error {
 	var errs []error
 	for _, cluster := range clusters {
-		workNamespace := names.GenerateExecutionSpaceName(cluster.Name)
-		workName := names.GenerateWorkName("ResourceQuota", quota.Name, quota.Namespace)
-
 		resourceQuota := &corev1.ResourceQuota{}
 		resourceQuota.APIVersion = "v1"
 		resourceQuota.Kind = "ResourceQuota"
 		resourceQuota.Namespace = quota.Namespace
 		resourceQuota.Name = quota.Name
-		resourceQuota.Labels = map[string]string{
-			workv1alpha1.WorkNamespaceLabel: workNamespace,
-			workv1alpha1.WorkNameLabel:      workName,
-			util.ManagedByKarmadaLabel:      util.ManagedByKarmadaLabelValue,
-		}
 		resourceQuota.Spec.Hard = extractClusterHardResourceList(quota.Spec, cluster.Name)
 
 		resourceQuotaObj, err := helper.ToUnstructured(resourceQuota)
@@ -166,13 +174,12 @@ func (c *SyncController) buildWorks(quota *policyv1alpha1.FederatedResourceQuota
 		}
 
 		objectMeta := metav1.ObjectMeta{
-			Namespace:  workNamespace,
-			Name:       workName,
+			Namespace:  names.GenerateExecutionSpaceName(cluster.Name),
+			Name:       names.GenerateWorkName(resourceQuota.Kind, quota.Name, quota.Namespace),
 			Finalizers: []string{util.ExecutionControllerFinalizer},
 			Labels: map[string]string{
 				util.FederatedResourceQuotaNamespaceLabel: quota.Namespace,
 				util.FederatedResourceQuotaNameLabel:      quota.Name,
-				util.ManagedByKarmadaLabel:                util.ManagedByKarmadaLabelValue,
 			},
 		}
 
