@@ -73,6 +73,6 @@ go-to-protobuf \
   --packages=$(IFS=, ; echo "${PACKAGES[*]}") \
   --proto-import="${KARMADA_ROOT}/vendor" \
   --proto-import="${KARMADA_ROOT}/third_party/protobuf" \
-  --output-base="${GOPATH}/src"
+  --output-dir="${GOPATH}/src"
 
 go generate ./pkg/estimator/service

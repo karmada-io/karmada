@@ -31,7 +31,7 @@ import (
 
 // ValidatingAdmission validates resource templates to ensure those protected resources are not delectable.
 type ValidatingAdmission struct {
-	Decoder *admission.Decoder
+	Decoder admission.Decoder
 }
 
 // Check if our ValidatingAdmission implements necessary interface

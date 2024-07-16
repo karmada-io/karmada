@@ -35,7 +35,7 @@ import (
 
 // MutatingAdmission mutates API request if necessary.
 type MutatingAdmission struct {
-	Decoder *admission.Decoder
+	Decoder admission.Decoder
 
 	DefaultNotReadyTolerationSeconds    int64
 	DefaultUnreachableTolerationSeconds int64
@@ -45,7 +45,7 @@ type MutatingAdmission struct {
 var _ admission.Handler = &MutatingAdmission{}
 
 // NewMutatingHandler builds a new admission.Handler.
-func NewMutatingHandler(notReadyTolerationSeconds, unreachableTolerationSeconds int64, decoder *admission.Decoder) admission.Handler {
+func NewMutatingHandler(notReadyTolerationSeconds, unreachableTolerationSeconds int64, decoder admission.Decoder) admission.Handler {
 	return &MutatingAdmission{
 		DefaultNotReadyTolerationSeconds:    notReadyTolerationSeconds,
 		DefaultUnreachableTolerationSeconds: unreachableTolerationSeconds,
