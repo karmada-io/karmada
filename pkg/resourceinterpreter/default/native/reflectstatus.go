@@ -237,18 +237,32 @@ func reflectStatefulSetStatus(object *unstructured.Unstructured) (*runtime.RawEx
 		return nil, nil
 	}
 
+	resourceTemplateGenerationInt := int64(0)
+	resourceTemplateGenerationStr := util.GetAnnotationValue(object.GetAnnotations(), v1alpha2.ResourceTemplateGenerationAnnotationKey)
+	err = runtime.Convert_string_To_int64(&resourceTemplateGenerationStr, &resourceTemplateGenerationInt, nil)
+	if err != nil {
+		klog.Errorf("Failed to parse StatefulSet(%s/%s) generation from annotation(%s:%s): %v", object.GetNamespace(), object.GetName(), v1alpha2.ResourceTemplateGenerationAnnotationKey, resourceTemplateGenerationStr, err)
+		return nil, err
+	}
+
 	statefulSetStatus := &appsv1.StatefulSetStatus{}
 	err = helper.ConvertToTypedObject(statusMap, statefulSetStatus)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert StatefulSetStatus from map[string]interface{}: %v", err)
 	}
 
-	grabStatus := appsv1.StatefulSetStatus{
-		AvailableReplicas: statefulSetStatus.AvailableReplicas,
-		CurrentReplicas:   statefulSetStatus.CurrentReplicas,
-		ReadyReplicas:     statefulSetStatus.ReadyReplicas,
-		Replicas:          statefulSetStatus.Replicas,
-		UpdatedReplicas:   statefulSetStatus.UpdatedReplicas,
+	grabStatus := &WrappedStatefulSetStatus{
+		FederatedGeneration: FederatedGeneration{
+			Generation:                 object.GetGeneration(),
+			ResourceTemplateGeneration: resourceTemplateGenerationInt,
+		},
+		StatefulSetStatus: appsv1.StatefulSetStatus{
+			AvailableReplicas: statefulSetStatus.AvailableReplicas,
+			CurrentReplicas:   statefulSetStatus.CurrentReplicas,
+			ReadyReplicas:     statefulSetStatus.ReadyReplicas,
+			Replicas:          statefulSetStatus.Replicas,
+			UpdatedReplicas:   statefulSetStatus.UpdatedReplicas,
+		},
 	}
 	return helper.BuildStatusRawExtension(grabStatus)
 }
