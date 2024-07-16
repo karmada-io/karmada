@@ -211,7 +211,7 @@ You can change it to `NodePort`:
 ...
 karmadaAPIServer:
   imageRepository: registry.k8s.io/kube-apiserver
-  imageTag: v1.28.9
+  imageTag: v1.29.6
   replicas: 1
   serviceType: NodePort
   serviceSubnet: 10.96.0.0/12
@@ -226,7 +226,7 @@ You can add more SANs to karmada-apiserver certificate:
 ...
 karmadaAPIServer:
   imageRepository: registry.k8s.io/kube-apiserver
-  imageTag: v1.28.9
+  imageTag: v1.29.6
   replicas: 1
   serviceSubnet: 10.96.0.0/12
   certSANs:
