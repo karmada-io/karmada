@@ -421,8 +421,12 @@ func getEndpointSliceWorkMeta(c client.Client, ns string, workName string, endpo
 		controllerSet.Insert(util.MultiClusterServiceKind)
 		labels[util.EndpointSliceWorkManagedByLabel] = strings.Join(controllerSet.UnsortedList(), ".")
 	}
-	workMeta := metav1.ObjectMeta{Name: workName, Namespace: ns, Labels: labels}
-	return workMeta, nil
+	return metav1.ObjectMeta{
+		Name:       workName,
+		Namespace:  ns,
+		Labels:     labels,
+		Finalizers: []string{util.MCSEndpointSliceDispatchControllerFinalizer},
+	}, nil
 }
 
 func cleanupWorkWithEndpointSliceDelete(c client.Client, endpointSliceKey keys.FederatedKey) error {
