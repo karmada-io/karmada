@@ -301,7 +301,7 @@ func (c *EndpointsliceDispatchController) cleanOrphanDispatchedEndpointSlice(ctx
 	return nil
 }
 
-func (c *EndpointsliceDispatchController) dispatchEndpointSlice(ctx context.Context, work *workv1alpha1.Work, mcs *networkingv1alpha1.MultiClusterService) error {
+func (c *EndpointsliceDispatchController) dispatchEndpointSlice(_ context.Context, work *workv1alpha1.Work, mcs *networkingv1alpha1.MultiClusterService) error {
 	epsSourceCluster, err := names.GetClusterName(work.Namespace)
 	if err != nil {
 		klog.Errorf("Failed to get EndpointSlice source cluster name for work %s/%s", work.Namespace, work.Name)
@@ -340,14 +340,6 @@ func (c *EndpointsliceDispatchController) dispatchEndpointSlice(ctx context.Cont
 			return err
 		}
 	}
-
-	if controllerutil.AddFinalizer(work, util.MCSEndpointSliceDispatchControllerFinalizer) {
-		if err := c.Client.Update(ctx, work); err != nil {
-			klog.Errorf("Failed to add finalizer %s for work %s/%s:%v", util.MCSEndpointSliceDispatchControllerFinalizer, work.Namespace, work.Name, err)
-			return err
-		}
-	}
-
 	return nil
 }
 
