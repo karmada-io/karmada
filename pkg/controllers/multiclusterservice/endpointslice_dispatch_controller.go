@@ -327,14 +327,6 @@ func (c *EndpointsliceDispatchController) syncEndpointSlice(ctx context.Context,
 			return err
 		}
 	}
-
-	if controllerutil.AddFinalizer(work, util.MCSEndpointSliceDispatchControllerFinalizer) {
-		if err := c.Client.Update(ctx, work); err != nil {
-			klog.Errorf("Failed to add finalizer %s for work %s/%s:%v", util.MCSEndpointSliceDispatchControllerFinalizer, work.Namespace, work.Name, err)
-			return err
-		}
-	}
-
 	return nil
 }
 

@@ -85,6 +85,7 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 			if util.GetLabelValue(runtimeObject.Labels, workv1alpha2.WorkPermanentIDLabel) == "" {
 				runtimeObject.Labels = util.DedupeAndMergeLabels(runtimeObject.Labels, map[string]string{workv1alpha2.WorkPermanentIDLabel: uuid.New().String()})
 			}
+			runtimeObject.Finalizers = work.Finalizers
 			return nil
 		})
 		if err != nil {
