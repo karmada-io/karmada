@@ -172,6 +172,17 @@ func mergeTargetClusters(targetClusters []workv1alpha2.TargetCluster, requiredBy
 func mergeLabel(workload *unstructured.Unstructured, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
 	var workLabel = make(map[string]string)
 	if scope == apiextensionsv1.NamespaceScoped {
+		namespaceBindingObj := binding.(*workv1alpha2.ResourceBinding)
+		failoverReason := checkFailoverHistory(namespaceBindingObj)
+		if failoverReason != "" {
+			if failoverReason == workv1alpha2.EvictionReasonApplicationFailure {
+				util.MergeLabel(workload, workv1alpha2.ResourceBindingFailoverLabel, "application")
+				workLabel[workv1alpha2.ResourceBindingFailoverLabel] = "application"
+			} else if failoverReason == workv1alpha2.EvictionReasonTaintUntolerated {
+				util.MergeLabel(workload, workv1alpha2.ResourceBindingFailoverLabel, "cluster")
+				workLabel[workv1alpha2.ResourceBindingFailoverLabel] = "cluster"
+			}
+		}
 		bindingID := util.GetLabelValue(binding.GetLabels(), workv1alpha2.ResourceBindingPermanentIDLabel)
 		util.MergeLabel(workload, workv1alpha2.ResourceBindingPermanentIDLabel, bindingID)
 		workLabel[workv1alpha2.ResourceBindingPermanentIDLabel] = bindingID
@@ -181,6 +192,23 @@ func mergeLabel(workload *unstructured.Unstructured, binding metav1.Object, scop
 		workLabel[workv1alpha2.ClusterResourceBindingPermanentIDLabel] = bindingID
 	}
 	return workLabel
+}
+
+// Check if resourcebinding contains failover history, used to determine whether we attach failover label to cloned workload
+// Return failover reason
+func checkFailoverHistory(resourceBinding *workv1alpha2.ResourceBinding) string {
+	failoverHistory := resourceBinding.Status.FailoverHistory
+	if len(failoverHistory) == 0 {
+		return ""
+	}
+	lastFailover := failoverHistory[len(failoverHistory)-1]
+	if lastFailover.Reason == "ClusterFailover" {
+		return workv1alpha2.EvictionReasonTaintUntolerated
+	}
+	if lastFailover.Reason == "ApplicationFailover" {
+		return workv1alpha2.EvictionReasonApplicationFailure
+	}
+	return ""
 }
 
 func mergeAnnotations(workload *unstructured.Unstructured, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {

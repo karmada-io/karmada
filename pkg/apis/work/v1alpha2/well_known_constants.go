@@ -124,6 +124,12 @@ const (
 	// Additional options will be added here in the future.
 	DeletionProtectionLabelKey = "resourcetemplate.karmada.io/deletion-protected"
 	DeletionProtectionAlways   = "Always"
+
+	// ResourceBindingFailoverLabel If a resource is failed over by karmada, this label will be attached
+	// to the rescheduled workload. The value will denote the type of failover that occurred, either cluster or application.
+	// This can be useful if applications are stateful and need to know when they have been failed over by Karmada,
+	// as opposed to being scheduled fresh.
+	ResourceBindingFailoverLabel = "resourcebinding.karmada.io/failover-type"
 )
 
 // Define eviction reasons.

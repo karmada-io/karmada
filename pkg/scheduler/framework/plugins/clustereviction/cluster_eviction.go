@@ -18,6 +18,7 @@ package clustereviction
 
 import (
 	"context"
+	"fmt"
 
 	"k8s.io/klog/v2"
 
@@ -47,7 +48,16 @@ func (p *ClusterEviction) Name() string {
 }
 
 // Filter checks if the target cluster is in the GracefulEvictionTasks which means it is in the process of eviction.
-func (p *ClusterEviction) Filter(_ context.Context, bindingSpec *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, cluster *clusterv1alpha1.Cluster) *framework.Result {
+func (p *ClusterEviction) Filter(_ context.Context, bindingSpec *workv1alpha2.ResourceBindingSpec, bindingStatus *workv1alpha2.ResourceBindingStatus, cluster *clusterv1alpha1.Cluster) *framework.Result {
+	failoverHistory := bindingStatus.FailoverHistory
+	if len(failoverHistory) != 0 {
+		lastFailover := failoverHistory[len(failoverHistory)-1]
+		if lastFailover.OriginCluster == cluster.Name {
+			klog.V(2).Infof("Workload has been failed over from this cluster %s.", cluster.Name)
+			return framework.NewResult(framework.Unschedulable, fmt.Sprintf("workload has been failed over from this cluster %s", cluster.Name))
+		}
+	}
+
 	if bindingSpec.ClusterInGracefulEvictionTasks(cluster.Name) {
 		klog.V(2).Infof("Cluster(%s) is in the process of eviction.", cluster.Name)
 		return framework.NewResult(framework.Unschedulable, "cluster(s) is in the process of eviction")
