@@ -1,0 +1,22 @@
+<mxfile host="drawio-plugin" modified="2024-07-17T19:30:51.927Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" version="22.1.22" etag="lEM8DeFymebEeGOr3-G-" type="embed">
+  <diagram id="UMdVGJplGLxzZ043lmqs" name="Page-1">
+    <mxGraphModel dx="1175" dy="1934" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" background="#FFFFFF" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="18" value="Pool" style="swimlane;childLayout=stackLayout;resizeParent=1;resizeParentMax=0;startSize=20;html=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="-70" width="360" height="590" as="geometry" />
+        </mxCell>
+        <mxCell id="19" value="Available&amp;nbsp;Clusters" style="swimlane;startSize=20;html=1;" vertex="1" parent="18">
+          <mxGeometry y="20" width="120" height="570" as="geometry" />
+        </mxCell>
+        <mxCell id="20" value="Lane 2" style="swimlane;startSize=20;html=1;" vertex="1" parent="18">
+          <mxGeometry x="120" y="20" width="120" height="570" as="geometry" />
+        </mxCell>
+        <mxCell id="21" value="Lane 3" style="swimlane;startSize=20;html=1;" vertex="1" parent="18">
+          <mxGeometry x="240" y="20" width="120" height="570" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
