@@ -19,6 +19,7 @@ package apienablement
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -54,10 +55,19 @@ func (p *APIEnablement) Filter(
 	_ *workv1alpha2.ResourceBindingStatus,
 	cluster *clusterv1alpha1.Cluster,
 ) *framework.Result {
-	if !helper.IsAPIEnabled(cluster.Status.APIEnablements, bindingSpec.Resource.APIVersion, bindingSpec.Resource.Kind) {
-		klog.V(2).Infof("Cluster(%s) not fit as missing API(%s, kind=%s)", cluster.Name, bindingSpec.Resource.APIVersion, bindingSpec.Resource.Kind)
-		return framework.NewResult(framework.Unschedulable, "cluster(s) did not have the API resource")
+	if helper.IsAPIEnabled(cluster.Status.APIEnablements, bindingSpec.Resource.APIVersion, bindingSpec.Resource.Kind) {
+		return framework.NewResult(framework.Success)
 	}
 
-	return framework.NewResult(framework.Success)
+	// Let the cluster pass if it is already on the list of schedule result and the cluster's
+	// API enablements is incomplete, to avoid the issue that cluster be accidentally removed
+	// due to untrusted API enablements.
+	if bindingSpec.TargetContains(cluster.Name) &&
+		!meta.IsStatusConditionTrue(cluster.Status.Conditions, clusterv1alpha1.ClusterConditionCompleteAPIEnablements) {
+		return framework.NewResult(framework.Success)
+	}
+
+	klog.V(2).Infof("Cluster(%s) not fit as missing API(%s, kind=%s)", cluster.Name, bindingSpec.Resource.APIVersion, bindingSpec.Resource.Kind)
+
+	return framework.NewResult(framework.Unschedulable, "cluster(s) did not have the API resource")
 }
