@@ -39,3 +39,9 @@ type WrappedDaemonSetStatus struct {
 	FederatedGeneration    `json:",inline"`
 	appsv1.DaemonSetStatus `json:",inline"`
 }
+
+// WrappedStatefulSetStatus is a wrapper for appsv1.StatefulSetStatus.
+type WrappedStatefulSetStatus struct {
+	FederatedGeneration      `json:",inline"`
+	appsv1.StatefulSetStatus `json:",inline"`
+}
