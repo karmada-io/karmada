@@ -5,6 +5,7 @@ metadata:
     app: sample-daemonset
   name: sample
   namespace: test-kruise-daemonset
+  generation: 1
 spec:
   selector:
     matchLabels:
