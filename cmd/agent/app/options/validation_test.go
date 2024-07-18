@@ -35,7 +35,6 @@ func New(modifyOptions ModifyOptions) Options {
 			LeaderElect: false,
 		},
 		ClusterName:                       "demo",
-		SecurePort:                        8090,
 		ClusterStatusUpdateFrequency:      metav1.Duration{Duration: 10 * time.Second},
 		ClusterLeaseDuration:              metav1.Duration{Duration: 40 * time.Second},
 		ClusterLeaseRenewIntervalFraction: 0.25,
@@ -71,12 +70,6 @@ func TestValidateKarmadaAgentConfiguration(t *testing.T) {
 				options.ClusterName = ""
 			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterName"), "", "must be not empty")},
-		},
-		"invalid SecurePort": {
-			opt: New(func(options *Options) {
-				options.SecurePort = -10
-			}),
-			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("SecurePort"), -10, "must be between 0 and 65535 inclusive")},
 		},
 		"invalid ClusterStatusUpdateFrequency": {
 			opt: New(func(options *Options) {
