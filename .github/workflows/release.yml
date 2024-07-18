@@ -108,8 +108,29 @@ jobs:
       with:
         files: |
           sbom.tar.gz
+
+  get-stable-tag:
+    name: Get Stable tag
+    runs-on: ubuntu-22.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+    outputs:
+      stableTag: ${{ steps.get.outputs.stableTag }}
+    steps:
+    - name: get
+      id: get
+      run: |  
+        # get the max version from tags list and filter versions of alpha,beta,preview,rc
+        export STABLE_TAG=`gh api repos/karmada-io/karmada/tags --paginate | jq -r '.[].name' | grep -Ev "alpha|beta|preview|rc" | sort -Vr | head -n 1`
+        echo "Got the stabe tag:$STABLE_TAG"
+        echo "event.tag:"${{ github.event.release.tag_name }}
+        echo "stableTag=$STABLE_TAG" >> "$GITHUB_OUTPUT"
+
   update-krew-index:
-    needs: release-assests
+    needs: 
+    - release-assests
+    - get-stable-tag
+    if: needs.get-stable-tag.outputs.stableTag == github.event.release.tag_name
     name: Update krew-index
     runs-on: ubuntu-22.04
     steps:
