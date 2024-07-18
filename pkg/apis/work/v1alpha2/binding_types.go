@@ -319,6 +319,22 @@ type ResourceBindingStatus struct {
 	// AggregatedStatus represents status list of the resource running in each member cluster.
 	// +optional
 	AggregatedStatus []AggregatedStatusItem `json:"aggregatedStatus,omitempty"`
+
+	// FailoverHistory represents history of the previous failovers of this resource
+	// + optional
+	FailoverHistory []FailoverHistoryItem `json:"failoverHistory,omitempty"`
+}
+
+type FailoverHistoryItem struct {
+	// FailoverTime represents the timestamp when the workload failed over.
+	// It is represented in RFC3339 form(like '2021-04-25T10:02:10Z') and is in UTC.
+	FailoverTime *metav1.Time `json:"failoverTime,omitempty"`
+
+	// OriginCluster denotes the name of the cluster from which the workload was failed over.
+	OriginCluster string `json:"originCluster,omitempty"`
+
+	// Reason denotes the reason why the workload failed over.
+	Reason string `json:"reason,omitempty"`
 }
 
 // AggregatedStatusItem represents status of the resource running in a member cluster.

@@ -154,9 +154,43 @@ func mergeTargetClusters(targetClusters []workv1alpha2.TargetCluster, requiredBy
 	return targetClusters
 }
 
+func checkFailoverCondition(resourceBinding *workv1alpha2.ResourceBinding) string {
+	failoverHistory := resourceBinding.Status.FailoverHistory
+	klog.V(4).Infof("Failover History is %+v", failoverHistory)
+	if len(failoverHistory) == 0 {
+		return ""
+	}
+
+	lastFailover := failoverHistory[len(failoverHistory)-1]
+	klog.V(4).Infof("Latest failover item is %+v", lastFailover) // AD: check
+	if lastFailover.Reason == "ClusterFailover" {
+		klog.V(4).Info("The latest failover was due to a ClusterFailover.")
+		return workv1alpha2.EvictionReasonTaintUntolerated
+	}
+	if lastFailover.Reason == "ApplicationFailover" {
+		klog.V(4).Info("The latest failover was due to a ApplicationFailover.")
+		return workv1alpha2.EvictionReasonApplicationFailure
+	}
+	return ""
+}
+
 func mergeLabel(workload *unstructured.Unstructured, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
 	var workLabel = make(map[string]string)
 	if scope == apiextensionsv1.NamespaceScoped {
+		klog.V(4).Info("Checking for failover condition.")
+		namespaceBindingObj := binding.(*workv1alpha2.ResourceBinding)
+		failoverReason := checkFailoverCondition(namespaceBindingObj)
+		if failoverReason != "" {
+			if failoverReason == workv1alpha2.EvictionReasonApplicationFailure {
+				klog.V(4).Info("Appending application failover label")
+				util.MergeLabel(workload, workv1alpha2.ResourceBindingFailoverLabel, "application")
+				workLabel[workv1alpha2.ResourceBindingFailoverLabel] = "application"
+			} else if failoverReason == workv1alpha2.EvictionReasonTaintUntolerated {
+				klog.V(4).Info("Appending cluster failover label")
+				util.MergeLabel(workload, workv1alpha2.ResourceBindingFailoverLabel, "cluster")
+				workLabel[workv1alpha2.ResourceBindingFailoverLabel] = "cluster"
+			}
+		}
 		bindingID := util.GetLabelValue(binding.GetLabels(), workv1alpha2.ResourceBindingPermanentIDLabel)
 		util.MergeLabel(workload, workv1alpha2.ResourceBindingPermanentIDLabel, bindingID)
 		workLabel[workv1alpha2.ResourceBindingPermanentIDLabel] = bindingID
