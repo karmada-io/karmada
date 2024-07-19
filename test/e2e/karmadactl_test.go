@@ -1136,6 +1136,24 @@ var _ = ginkgo.Describe("Karmadactl token testing", func() {
 	})
 })
 
+var _ = ginkgo.Describe("Karmadactl options testing", func() {
+	ginkgo.Context("Test karmadactl options command", func() {
+		ginkgo.It("should list available options successfully", func() {
+			cmd := framework.NewKarmadactlCommand(kubeconfig, "", karmadactlPath, "", karmadactlTimeout, "options")
+			output, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			gomega.Expect(strings.Contains(output, "The following options can be passed to any command")).Should(gomega.BeTrue())
+		})
+
+		ginkgo.It("should return error for invalid flag in options", func() {
+			cmd := framework.NewKarmadactlCommand(kubeconfig, "", karmadactlPath, "", karmadactlTimeout, "options", "--invalidflag")
+			_, err := cmd.ExecOrDie()
+			gomega.Expect(err).Should(gomega.HaveOccurred())
+			gomega.Expect(strings.Contains(err.Error(), "unknown flag: --invalidflag")).Should(gomega.BeTrue())
+		})
+	})
+})
+
 // extractTokenIDAndSecret extracts the token ID and Secret from the output string.
 // It assumes the output format is "tokenID.tokenSecret".
 //
