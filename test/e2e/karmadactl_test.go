@@ -60,7 +60,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 	var member1Client kubernetes.Interface
 
 	ginkgo.BeforeEach(func() {
-		member1 = "member1"
+		member1 = framework.ClusterNames()[0]
 		member1Client = framework.GetClusterClient(member1)
 		defaultConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
 		defaultConfigFlags.Context = &karmadaContext
@@ -616,7 +616,7 @@ var _ = ginkgo.Describe("Karmadactl logs testing", func() {
 	var member1Client kubernetes.Interface
 
 	ginkgo.BeforeEach(func() {
-		member1 = "member1"
+		member1 = framework.ClusterNames()[0]
 		member1Client = framework.GetClusterClient(member1)
 	})
 
@@ -794,7 +794,7 @@ var _ = ginkgo.Describe("Karmadactl get testing", func() {
 	var member1Client kubernetes.Interface
 
 	ginkgo.BeforeEach(func() {
-		member1 = "member1"
+		member1 = framework.ClusterNames()[0]
 		member1Client = framework.GetClusterClient(member1)
 	})
 
@@ -898,7 +898,7 @@ var _ = ginkgo.Describe("Karmadactl describe testing", func() {
 	var member1Client kubernetes.Interface
 
 	ginkgo.BeforeEach(func() {
-		member1 = "member1"
+		member1 = framework.ClusterNames()[0]
 		member1Client = framework.GetClusterClient(member1)
 	})
 

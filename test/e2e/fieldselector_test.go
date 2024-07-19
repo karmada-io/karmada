@@ -56,7 +56,7 @@ var _ = ginkgo.Describe("propagation with fieldSelector testing", func() {
 			originalClusterRegionInfo = make(map[string]string)
 			desiredProvider = []string{"huaweicloud"}
 			undesiredRegion = []string{"cn-north-1"}
-			desiredScheduleResult = "member1"
+			desiredScheduleResult = framework.ClusterNames()[0]
 
 			// desire to schedule to clusters of huaweicloud but not in cn-north-1 region
 			filedSelector = &policyv1alpha1.FieldSelector{
