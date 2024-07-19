@@ -70,7 +70,7 @@ var _ = framework.SerialDescribe("remedy testing", func() {
 			})
 
 			ginkgo.By(fmt.Sprintf("wait Cluster(%s) status has TrafficControl RemedyAction", targetCluster), func() {
-				framework.WaitClusterFitWith(controlPlaneClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
+				framework.WaitClusterFitWithKarmadaClient(karmadaClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
 					actions := sets.NewString(cluster.Status.RemedyActions...)
 					fmt.Printf("Cluster(%s) remedyActions: %v\n", cluster.Name, actions)
 					return actions.Has(string(remedyv1alpha1.TrafficControl))
@@ -85,7 +85,7 @@ var _ = framework.SerialDescribe("remedy testing", func() {
 			})
 
 			ginkgo.By(fmt.Sprintf("wait Cluster(%s) status doesn't has TrafficControl RemedyAction", targetCluster), func() {
-				framework.WaitClusterFitWith(controlPlaneClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
+				framework.WaitClusterFitWithKarmadaClient(karmadaClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
 					actions := sets.NewString(cluster.Status.RemedyActions...)
 					fmt.Printf("Cluster(%s) remedyActions: %v\n", cluster.Name, actions)
 					return !actions.Has(string(remedyv1alpha1.TrafficControl))
@@ -106,7 +106,7 @@ var _ = framework.SerialDescribe("remedy testing", func() {
 			})
 
 			ginkgo.By(fmt.Sprintf("wait Cluster(%s) status has TrafficControl RemedyAction", targetCluster), func() {
-				framework.WaitClusterFitWith(controlPlaneClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
+				framework.WaitClusterFitWithKarmadaClient(karmadaClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
 					actions := sets.NewString(cluster.Status.RemedyActions...)
 					fmt.Printf("Cluster(%s) remedyActions: %v\n", cluster.Name, actions)
 					return actions.Has(string(remedyv1alpha1.TrafficControl))
@@ -118,7 +118,7 @@ var _ = framework.SerialDescribe("remedy testing", func() {
 			})
 
 			ginkgo.By(fmt.Sprintf("wait Cluster(%s) status doesn't has TrafficControl RemedyAction", targetCluster), func() {
-				framework.WaitClusterFitWith(controlPlaneClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
+				framework.WaitClusterFitWithKarmadaClient(karmadaClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
 					actions := sets.NewString(cluster.Status.RemedyActions...)
 					fmt.Printf("Cluster(%s) remedyActions: %v\n", cluster.Name, actions)
 					return !actions.Has(string(remedyv1alpha1.TrafficControl))
@@ -155,7 +155,7 @@ var _ = framework.SerialDescribe("remedy testing", func() {
 			})
 
 			ginkgo.By(fmt.Sprintf("wait Cluster(%s) status has TrafficControl RemedyAction", targetCluster), func() {
-				framework.WaitClusterFitWith(controlPlaneClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
+				framework.WaitClusterFitWithKarmadaClient(karmadaClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
 					actions := sets.NewString(cluster.Status.RemedyActions...)
 					fmt.Printf("Cluster(%s) remedyActions: %v\n", cluster.Name, actions)
 					return actions.Has(string(remedyv1alpha1.TrafficControl))
@@ -167,7 +167,7 @@ var _ = framework.SerialDescribe("remedy testing", func() {
 			})
 
 			ginkgo.By(fmt.Sprintf("wait Cluster(%s) status doesn't has TrafficControl RemedyAction", targetCluster), func() {
-				framework.WaitClusterFitWith(controlPlaneClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
+				framework.WaitClusterFitWithKarmadaClient(karmadaClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
 					actions := sets.NewString(cluster.Status.RemedyActions...)
 					fmt.Printf("Cluster(%s) remedyActions: %v\n", cluster.Name, actions)
 					return !actions.Has(string(remedyv1alpha1.TrafficControl))
