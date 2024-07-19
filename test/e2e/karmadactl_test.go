@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -35,6 +36,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	bootstrapapi "k8s.io/cluster-bootstrap/token/api"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -992,3 +994,181 @@ var _ = ginkgo.Describe("Karmadactl describe testing", func() {
 		})
 	})
 })
+
+var _ = ginkgo.Describe("Karmadactl token testing", func() {
+	ginkgo.Context("Test creating a bootstrap token", func() {
+		var (
+			token string
+			err   error
+		)
+
+		ginkgo.AfterEach(func() {
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "token", "delete", token)
+			_, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+
+		ginkgo.It("should create a token successfully and validate its format", func() {
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "token", "create")
+			token, err = cmd.ExecOrDie()
+			token = strings.TrimSpace(token)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+			// Validate the token format.
+			tokenID, tokenSecret := extractTokenIDAndSecret(token)
+			gomega.Expect(validateTokenFormat(tokenID, tokenSecret)).Should(gomega.BeTrue(), "Token format is invalid")
+		})
+	})
+
+	ginkgo.Context("Test deleting a bootstrap token", func() {
+		var tokenID, tokenSecret string
+
+		ginkgo.BeforeEach(func() {
+			// Create a token to be deleted in the test.
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "token", "create")
+			token, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			tokenID, tokenSecret = extractTokenIDAndSecret(token)
+		})
+
+		ginkgo.It("should delete a token successfully by ID", func() {
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "token", "delete", tokenID)
+			output, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			gomega.Expect(strings.Contains(output, fmt.Sprintf("bootstrap token %q deleted", tokenID))).Should(gomega.BeTrue())
+		})
+
+		ginkgo.It("should delete a token successfully by both ID and Secret", func() {
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "token", "delete", fmt.Sprintf("%s.%s", tokenID, tokenSecret))
+			output, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			gomega.Expect(strings.Contains(output, fmt.Sprintf("bootstrap token %q deleted", tokenID))).Should(gomega.BeTrue())
+		})
+
+		ginkgo.It("Invalid delete operation", func() {
+			ginkgo.By("should fail to delete a token by secret only", func() {
+				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "token", "delete", tokenSecret)
+				_, err := cmd.ExecOrDie()
+				gomega.Expect(err).Should(gomega.HaveOccurred())
+				gomega.Expect(strings.Contains(err.Error(), "given token didn't match pattern")).Should(gomega.BeTrue())
+			})
+
+			ginkgo.By("should fail to delete a valid token already deleted before", func() {
+				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "token", "delete", tokenID)
+				output, err := cmd.ExecOrDie()
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				gomega.Expect(strings.Contains(output, fmt.Sprintf("bootstrap token %q deleted", tokenID))).Should(gomega.BeTrue())
+
+				cmd = framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "token", "delete", tokenID)
+				_, err = cmd.ExecOrDie()
+				gomega.Expect(err).Should(gomega.HaveOccurred())
+				gomega.Expect(strings.Contains(err.Error(), fmt.Sprintf("err: secrets \"bootstrap-token-%s\" not found", tokenID))).Should(gomega.BeTrue())
+			})
+		})
+	})
+
+	ginkgo.Context("Test listing bootstrap tokens", func() {
+		var (
+			token string
+			err   error
+		)
+
+		ginkgo.BeforeEach(func() {
+			// Create a token to be deleted in the test.
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "token", "create")
+			token, err = cmd.ExecOrDie()
+			token = strings.TrimSpace(token)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+
+		ginkgo.AfterEach(func() {
+			// Check if the previous test case failed.
+			if ginkgo.CurrentSpecReport().Failed() {
+				// Attempt to delete the token to ensure clean state for subsequent tests,
+				// regardless of whether it exists or not.
+				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "token", "delete", token)
+				_, _ = cmd.ExecOrDie()
+			}
+		})
+
+		ginkgo.It("list operation test", func() {
+			ginkgo.By("Listing tokens successfully", func() {
+				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "token", "list")
+				output, err := cmd.ExecOrDie()
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				gomega.Expect(strings.Contains(output, token)).Should(gomega.BeTrue())
+			})
+
+			ginkgo.By("Deleting the token and verifying the token is not listed", func() {
+				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "token", "delete", token)
+				_, err = cmd.ExecOrDie()
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+				cmd = framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "token", "list")
+				output, err := cmd.ExecOrDie()
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				gomega.Expect(strings.Contains(output, token)).Should(gomega.BeFalse())
+			})
+		})
+	})
+
+	ginkgo.Context("Test invalid flags", func() {
+		ginkgo.It("should return error for invalid flag in create", func() {
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "token", "create", "--invalidflag")
+			_, err := cmd.ExecOrDie()
+			gomega.Expect(err).Should(gomega.HaveOccurred())
+			gomega.Expect(strings.Contains(err.Error(), "unknown flag: --invalidflag")).Should(gomega.BeTrue())
+		})
+
+		ginkgo.It("should return error for invalid flag in delete", func() {
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "token", "delete", "--invalidflag")
+			_, err := cmd.ExecOrDie()
+			gomega.Expect(err).Should(gomega.HaveOccurred())
+			gomega.Expect(strings.Contains(err.Error(), "unknown flag: --invalidflag")).Should(gomega.BeTrue())
+		})
+
+		ginkgo.It("should return error for invalid flag in list", func() {
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "token", "list", "--invalidflag")
+			_, err := cmd.ExecOrDie()
+			gomega.Expect(err).Should(gomega.HaveOccurred())
+			gomega.Expect(strings.Contains(err.Error(), "unknown flag: --invalidflag")).Should(gomega.BeTrue())
+		})
+	})
+})
+
+// extractTokenIDAndSecret extracts the token ID and Secret from the output string.
+// It assumes the output format is "tokenID.tokenSecret".
+//
+// Parameters:
+// - output: The string containing the token information.
+//
+// Returns:
+// - tokenID: The extracted token ID.
+// - tokenSecret: The extracted token Secret.
+// If the output format is incorrect, both return values will be empty strings.
+func extractTokenIDAndSecret(output string) (string, string) {
+	parts := strings.Split(output, ".")
+	if len(parts) == 2 {
+		tokenID := strings.TrimSpace(parts[0])
+		tokenSecret := strings.TrimSpace(parts[1])
+		return tokenID, tokenSecret
+	}
+	return "", ""
+}
+
+// validateTokenFormat validates the format of the token ID and Secret.
+//
+// Parameters:
+// - tokenID: The token ID to be validated.
+// - tokenSecret: The token Secret to be validated.
+//
+// Returns:
+// - bool: True if both the token ID and token Secret match their respective patterns, otherwise false.
+//
+// The token ID should be a lowercase alphanumeric string of exactly 6 characters.
+// The token Secret should be a lowercase alphanumeric string of exactly 16 characters.
+func validateTokenFormat(tokenID, tokenSecret string) bool {
+	token := fmt.Sprintf("%s.%s", tokenID, tokenSecret)
+	bootstrapTokenRegex := regexp.MustCompile(bootstrapapi.BootstrapTokenPattern)
+	return bootstrapTokenRegex.MatchString(token)
+}
