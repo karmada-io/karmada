@@ -1,16 +1,16 @@
 ---
-title: Karmada distributes the replicas evenly based on spread constraint
+title: Average Assign replicas strategy for Karmada
 authors:
 - ipsum-0320
 reviewers:
-- whitewindmills
+- TBD
 approvers:
-- whitewindmills
+- RainbowMango
 creation-date: 2024-06-28
 
 ---
 
-# Karmada distributes the replicas evenly based on spread constraint
+# Average Assign replicas strategy for Karmada
 
 ## Summary
 
@@ -29,7 +29,7 @@ However, for more complex scheduling scenarios, such as ensuring that the worklo
 Therefore, we plan to introduce a new replica allocation strategy called AverageReplicas for Karmada's scheduler. This strategy will support evenly distributing the target replicas among the selected clusters, and it will:
 
 1. Adhere to spread constraints.
-2. Consider the available resources in the working clusters.
+2. Consider the available resources in the member clusters.
 
 <!--
 因此我们计划为 Karmada 的调度器引入一种新的副本分配策略 AverageReplicas，该策略能够支持在选定的集群中均匀分配目标副本，并且该策略将：
@@ -39,7 +39,7 @@ Therefore, we plan to introduce a new replica allocation strategy called Average
 
 ## Motivation
 
-By adding the AverageReplicas replica allocation strategy, Karmada can distribute the target replicas as evenly as possible across the working clusters. At the same time, this even distribution will adhere to spread constraints and consider the available resources in the working clusters.
+By adding the AverageReplicas replica allocation strategy, Karmada can distribute the target replicas as evenly as possible across the member clusters. At the same time, this even distribution will adhere to spread constraints and consider the available resources in the member clusters.
 
 <!--
 通过添加 AverageReplicas 副本分配策略，Karmada 能够尽可能平均地将目标副本分配到工作集群中。同时，这种平均是遵守传播约束（spread constraint）且考虑工作集群中的可用资源的。
@@ -53,15 +53,10 @@ Such an allocation strategy can significantly improve the system's disaster reco
 
 ### Goals
 
-By adding the AverageReplicas replica allocation strategy, we ensure that replicas can be evenly distributed among the selected clusters as much as possible. This even distribution means:
-
-1. The allocation results adhere to the spread constraint (Selection phase).
-2. The assigned workloads can be successfully deployed, with the allocation results considering the available resources in the working clusters.
+By adding the AverageReplicas replica allocation strategy, we ensure that replicas can be evenly distributed among the selected clusters as much as possible. 
 
 <!--
-添加 AverageReplicas 副本分配策略，保证副本可以被均匀分配到所选择的集群中，这里的均匀分配是尽力的，并且：
-1.分配结果遵循 spread constraint（Select 阶段）。
-2.被分配的负载能够被顺利地拉起，分配结果考虑了工作集群中的可用资源。
+添加 AverageReplicas 副本分配策略，保证副本可以被均匀分配到所选择的集群中，这里的均匀分配是尽力的。
 -->
 
 ### Non-Goals
@@ -90,7 +85,7 @@ Based on the existing Karmada scheduling semantics, if a new replica allocation 
 
 ![assignFuncMa-](assignFuncMap.png)
 
-In the assignFuncMap, we need to add an AverageReplicas allocation strategy. This strategy can utilize the capabilities provided by the estimator to sense how much available resources each working cluster currently has. Based on this information, it will strive to evenly distribute the replicas among the selected clusters.
+In the assignFuncMap, we need to add an AverageReplicas allocation strategy. This strategy can utilize the capabilities provided by the estimator to sense how much available resources each member cluster currently has. Based on this information, it will strive to evenly distribute the replicas among the selected clusters.
 
 <!--
 在 assignFuncMap 中，我们需要添加一个 AverageReplicas 分配策略，其能够借助 estimator 提供的能力感知目前各个工作集群还有多少资源可用，同时在此基础上尽力将副本平均分配给各个所选出的集群。
@@ -143,26 +138,43 @@ apiVersion: policy.karmada.io/v1alpha1
 kind: PropagationPolicy 
 metadata:
 spec:
-	placement:
-		replicaScheduling: 
-			replicaDivisionPreference: Average
+  placement:
+    replicaScheduling: 
+      replicaDivisionPreference: Average
 ```
 
-As we can see, to add an AverageReplicas replica allocation strategy, we can consider adding a new value, "Average," to the replicaDivisionPreference.
+As we can see, to add an AverageReplicas replica allocation strategy, we can consider adding a new value, "Average," to the replicaDivisionPreference. Here is an example.
 
 <!--
-可以看到，如果要添加一个 AverageReplicas 副本分配策略，可以考虑给 replicaDivisionPreference 添加一个新的取值 Average。
+可以看到，如果要添加一个 AverageReplicas 副本分配策略，可以考虑给 replicaDivisionPreference 添加一个新的取值 Average。下面是一个例子：
 -->
 
-Note that `replicaDivisionPreference == Average` will only be effective when `replicaSchedulingType == Divided`. Additionally, since `selectBestClustersByRegion` currently does not consider whether the selected clusters can accommodate the corresponding number of replica resources, **the AverageReplicas strategy is only applicable to `selectBestClustersByCluster`.**
+```yaml
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: foo
+  namespace: bar
+spec:
+  resourceSelectors:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: foo
+  placement:
+    replicaScheduling:
+      replicaSchedulingType: Divided
+      replicaDivisionPreference: Average
+```
+
+Note that `replicaDivisionPreference == Average` will only be effective when `replicaSchedulingType == Divided`.
 
 <!--
-注意，replicaDivisionPreference == Average 只有在 replicaSchedulingType == Divided 时才会生效。此外，由于目前 selectBestClustersByRegion 没有考虑选出来的 Cluster 是否能容纳相应的个数的资源 replica，因此，AverageReplicas 只针对 selectBestClustersByCluster 有效。
+注意，replicaDivisionPreference == Average 只有在 replicaSchedulingType == Divided 时才会生效。
 -->
 
 ### Process Design
 
-Currently, Karmada's scheduling process consists of four phases: Filter, Score, Select, and Assign. To achieve an even distribution of replicas across the clusters as much as possible, it is necessary to implement the allocation of replicas to each working cluster in an as-even-as-possible manner during the Assign phase.
+Currently, Karmada's scheduling process consists of four phases: Filter, Score, Select, and Assign. To achieve an even distribution of replicas across the clusters as much as possible, it is necessary to implement the allocation of replicas to each member cluster in an as-even-as-possible manner during the Assign phase.
 
 <!--
 目前 Karmada 的调度分为四个阶段 Filter、Score、Select、Assign。为了能够尽可能地满足将副本平均分配到各个集群上，需要在 Assign 阶段，实现对各个工作集群进行尽力平均地副本分配。
@@ -200,7 +212,7 @@ After calculating the average number of replicas to be allocated to each cluster
 在计算出每个保存每个 Cluster 的平均待分配实例数 avg_rep 之后，开始遍历被选出的 Cluster，并使用已经定义好的 TargetCluster 结构体定义分配结果。
 -->
 
-It is important to note that to ensure the allocated workloads can be successfully deployed, we also need to consider the current available resources of each working cluster. This can be obtained through the `karmada-scheduler-estimator`.
+It is important to note that to ensure the allocated workloads can be successfully deployed, we also need to consider the current available resources of each member cluster. This can be obtained through the `karmada-scheduler-estimator`.
 
 <!--
 需要注意的是，为了保证被分配的负载能够被顺利地拉起，因此还需要考虑各个工作集群目前的可用资源，这可以通过 karmada-scheduler-estimator 获取。
