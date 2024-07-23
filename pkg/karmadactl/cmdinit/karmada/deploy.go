@@ -105,12 +105,12 @@ func InitKarmadaResources(dir, caBase64, systemNamespace string) error {
 
 	// create webhook configuration
 	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/webhook-configuration.yaml
-	klog.Info("Create MutatingWebhookConfiguration mutating-config.")
+	klog.Info("Create MutatingWebhookConfiguration karmada-mutations.")
 	if err = createOrUpdateMutatingWebhookConfiguration(clientSet, mutatingConfig(caBase64, systemNamespace)); err != nil {
 		klog.Exitln(err)
 	}
 
-	klog.Info("Create ValidatingWebhookConfiguration validating-config.")
+	klog.Info("Create ValidatingWebhookConfiguration karmada-validations.")
 	if err = createOrUpdateValidatingWebhookConfiguration(clientSet, validatingConfig(caBase64, systemNamespace)); err != nil {
 		klog.Exitln(err)
 	}

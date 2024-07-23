@@ -5,9 +5,9 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: mutating-config
+  name: karmada-mutations
   labels:
-    app: mutating-config
+    app: karmada-webhook
     {{- include "karmada.commonLabels" . | nindent 4 }}
 webhooks:
   - name: propagationpolicy.karmada.io
@@ -126,9 +126,9 @@ webhooks:
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: validating-config
+  name: karmada-validations
   labels:
-    app: validating-config
+    app: karmada-webhook
     {{- include "karmada.commonLabels" . | nindent 4 }}
 webhooks:
   - name: propagationpolicy.karmada.io
