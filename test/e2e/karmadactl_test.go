@@ -1154,6 +1154,163 @@ var _ = ginkgo.Describe("Karmadactl options testing", func() {
 	})
 })
 
+var _ = framework.SerialDescribe("Karmadactl taint testing", ginkgo.Labels{NeedCreateCluster}, func() {
+	ginkgo.Context("Test karmadactl taint command with different effects", func() {
+		var (
+			newClusterName, clusterContext        string
+			homeDir, kubeConfigPath, controlPlane string
+			taintKey                              = "environment"
+			taintProductionValue                  = "production"
+			taintTestValue                        = "test"
+		)
+
+		ginkgo.BeforeEach(func() {
+			newClusterName = "member-e2e-" + rand.String(3)
+			homeDir = os.Getenv("HOME")
+			kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, newClusterName)
+			controlPlane = fmt.Sprintf("%s-control-plane", newClusterName)
+			clusterContext = fmt.Sprintf("kind-%s", newClusterName)
+		})
+
+		ginkgo.BeforeEach(func() {
+			ginkgo.By(fmt.Sprintf("Creating cluster: %s", newClusterName), func() {
+				err := createCluster(newClusterName, kubeConfigPath, controlPlane, clusterContext)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			ginkgo.By(fmt.Sprintf("Joining cluster: %s", newClusterName), func() {
+				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout,
+					"join", "--cluster-kubeconfig", kubeConfigPath, "--cluster-context", clusterContext, "--cluster-namespace", "karmada-cluster", newClusterName)
+				_, err := cmd.ExecOrDie()
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			ginkgo.By(fmt.Sprintf("wait cluster %s ready", newClusterName), func() {
+				framework.WaitClusterFitWith(controlPlaneClient, newClusterName, func(cluster *clusterv1alpha1.Cluster) bool {
+					return meta.IsStatusConditionPresentAndEqual(cluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
+				})
+			})
+
+			ginkgo.DeferCleanup(func() {
+				ginkgo.By(fmt.Sprintf("Unjoinning cluster: %s", newClusterName), func() {
+					cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", 5*options.DefaultKarmadactlCommandDuration,
+						"unjoin", "--cluster-kubeconfig", kubeConfigPath, "--cluster-context", clusterContext, "--cluster-namespace", "karmada-cluster", newClusterName)
+					_, err := cmd.ExecOrDie()
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				})
+
+				ginkgo.By(fmt.Sprintf("Deleting clusters: %s", newClusterName), func() {
+					err := deleteCluster(newClusterName, kubeConfigPath)
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					_ = os.Remove(kubeConfigPath)
+				})
+			})
+		})
+
+		ginkgo.It("should handle taint correctly", func() {
+			// testTaintEffect is a reusable function for testing taints on a given effect.
+			testTaintEffect := func(effect corev1.TaintEffect) {
+				productionTaint := fmt.Sprintf("%s=%s:%s", taintKey, taintProductionValue, effect)
+				testTaint := fmt.Sprintf("%s=%s:%s", taintKey, taintTestValue, effect)
+
+				ginkgo.By(fmt.Sprintf("Verifying that %s taint is not applied during dry-run mode", productionTaint), func() {
+					cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "taint", "clusters", newClusterName, productionTaint, "--dry-run")
+					output, err := cmd.ExecOrDie()
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					gomega.Expect(strings.Contains(output, fmt.Sprintf("cluster/%s tainted", newClusterName))).Should(gomega.BeTrue())
+					framework.WaitClusterFitWith(controlPlaneClient, newClusterName, func(cluster *clusterv1alpha1.Cluster) bool {
+						for _, taint := range cluster.Spec.Taints {
+							if taint.Key == taintKey && taint.Value == taintProductionValue && taint.Effect == effect {
+								return false
+							}
+						}
+						return true
+					})
+				})
+
+				ginkgo.By(fmt.Sprintf("Applying %s taint to the cluster", productionTaint), func() {
+					cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "taint", "clusters", newClusterName, productionTaint)
+					output, err := cmd.ExecOrDie()
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					gomega.Expect(strings.Contains(output, fmt.Sprintf("cluster/%s tainted", newClusterName))).Should(gomega.BeTrue())
+					framework.WaitClusterFitWith(controlPlaneClient, newClusterName, func(cluster *clusterv1alpha1.Cluster) bool {
+						for _, taint := range cluster.Spec.Taints {
+							if taint.Key == taintKey && taint.Value == taintProductionValue && taint.Effect == effect {
+								return true
+							}
+						}
+						return false
+					})
+				})
+
+				ginkgo.By(fmt.Sprintf("Overwriting %s taint with %s taint without --overwrite flag", productionTaint, testTaint), func() {
+					cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "taint", "clusters", newClusterName, testTaint)
+					_, err := cmd.ExecOrDie()
+					gomega.Expect(err).Should(gomega.HaveOccurred())
+					gomega.Expect(strings.Contains(err.Error(), fmt.Sprintf("cluster %s already has environment taint(s) with same effect(s) and --overwrite is false", newClusterName))).Should(gomega.BeTrue())
+					framework.WaitClusterFitWith(controlPlaneClient, newClusterName, func(cluster *clusterv1alpha1.Cluster) bool {
+						for _, taint := range cluster.Spec.Taints {
+							if taint.Key == taintKey && taint.Value == taintProductionValue && taint.Effect == effect {
+								return true
+							}
+						}
+						return false
+					})
+				})
+
+				ginkgo.By(fmt.Sprintf("Overwriting %s taint with %s taint using --overwrite flag", productionTaint, testTaint), func() {
+					cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "taint", "clusters", newClusterName, testTaint, "--overwrite")
+					output, err := cmd.ExecOrDie()
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					gomega.Expect(strings.Contains(output, fmt.Sprintf("cluster/%s modified", newClusterName))).Should(gomega.BeTrue())
+					framework.WaitClusterFitWith(controlPlaneClient, newClusterName, func(cluster *clusterv1alpha1.Cluster) bool {
+						for _, taint := range cluster.Spec.Taints {
+							if taint.Key == taintKey && taint.Value == taintTestValue && taint.Effect == effect {
+								return true
+							}
+						}
+						return false
+					})
+				})
+
+				ginkgo.By(fmt.Sprintf("Removing %s taint from the cluster", testTaint), func() {
+					cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "taint", "clusters", newClusterName, fmt.Sprintf("%s-", testTaint))
+					output, err := cmd.ExecOrDie()
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					gomega.Expect(strings.Contains(output, "untainted")).Should(gomega.BeTrue())
+					framework.WaitClusterFitWith(controlPlaneClient, newClusterName, func(cluster *clusterv1alpha1.Cluster) bool {
+						for _, taint := range cluster.Spec.Taints {
+							if taint.Key == taintKey && taint.Value == taintTestValue && taint.Effect == effect {
+								return false
+							}
+						}
+						return true
+					})
+				})
+
+				ginkgo.By("Returning an error for invalid flag in taint command", func() {
+					cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "taint", "clusters", newClusterName, productionTaint, "--invalidflag")
+					_, err := cmd.ExecOrDie()
+					gomega.Expect(err).Should(gomega.HaveOccurred())
+					gomega.Expect(strings.Contains(err.Error(), "unknown flag: --invalidflag")).Should(gomega.BeTrue())
+				})
+
+				ginkgo.By("Returning an error if cluster does not exist", func() {
+					nonExistentCluster := "non-existent-cluster"
+					cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "taint", "clusters", nonExistentCluster, productionTaint)
+					_, err := cmd.ExecOrDie()
+					gomega.Expect(err).Should(gomega.HaveOccurred())
+					gomega.Expect(strings.Contains(err.Error(), fmt.Sprintf("clusters.cluster.karmada.io \"%s\" not found", nonExistentCluster))).Should(gomega.BeTrue())
+				})
+			}
+
+			// Call testTaintEffect function for each taint effect: NoSchedule, NoExecute.
+			testTaintEffect(corev1.TaintEffectNoSchedule)
+			testTaintEffect(corev1.TaintEffectNoExecute)
+		})
+	})
+})
+
 // extractTokenIDAndSecret extracts the token ID and Secret from the output string.
 // It assumes the output format is "tokenID.tokenSecret".
 //
