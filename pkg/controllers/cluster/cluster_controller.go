@@ -423,6 +423,9 @@ func (c *Controller) createExecutionSpace(cluster *clusterv1alpha1.Cluster) erro
 		executionSpace := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: executionSpaceName,
+				Labels: map[string]string{
+					util.KarmadaSystemLabel: util.KarmadaSystemLabelValue,
+				},
 			},
 		}
 		err = c.Client.Create(context.TODO(), executionSpace)
