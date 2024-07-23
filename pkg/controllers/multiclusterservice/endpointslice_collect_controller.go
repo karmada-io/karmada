@@ -51,9 +51,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
-// EndpointSliceCollectControllerName is the controller name that will be used when reporting events.
-const EndpointSliceCollectControllerName = "endpointslice-collect-controller"
-
 // EndpointSliceCollectController collects EndpointSlice from member clusters and reports them to control-plane.
 type EndpointSliceCollectController struct {
 	client.Client
@@ -94,7 +91,7 @@ func (c *EndpointSliceCollectController) Reconcile(ctx context.Context, req cont
 	}
 
 	if !work.DeletionTimestamp.IsZero() {
-		// The Provider Clusters' EndpointSlice will be deleted by mcs_controller, let's just ignore it
+		// The Provider Clusters' EndpointSlice will be deleted by multiclusterservice-controller, let's just ignore it
 		return controllerruntime.Result{}, nil
 	}
 
@@ -355,7 +352,7 @@ func (c *EndpointSliceCollectController) collectTargetEndpointSlice(work *workv1
 			klog.Errorf("Failed to convert EndpointSlice %s/%s to unstructured, error: %v", eps.GetNamespace(), eps.GetName(), err)
 			return err
 		}
-		if err := c.reportEndpointSliceWithEndpointSliceCreateOrUpdate(clusterName, epsUnstructured); err != nil {
+		if err = c.reportEndpointSliceWithEndpointSliceCreateOrUpdate(clusterName, epsUnstructured); err != nil {
 			return err
 		}
 	}
@@ -448,7 +445,8 @@ func cleanupWorkWithEndpointSliceDelete(c client.Client, endpointSliceKey keys.F
 	return cleanProviderClustersEndpointSliceWork(c, work.DeepCopy())
 }
 
-// TBD: Currently, the EndpointSlice work can be handled by both service-export-controller and endpointslice-collect-controller. To indicate this, we've introduced the label endpointslice.karmada.io/managed-by. Therefore,
+// TBD: Currently, the EndpointSlice work can be handled by both service-export-controller and endpointslice-collect-controller.
+// To indicate this, we've introduced the label endpointslice.karmada.io/managed-by. Therefore,
 // if managed by both controllers, simply remove each controller's respective labels.
 // If managed solely by its own controller, delete the work accordingly.
 // This logic should be deleted after the conflict is fixed.

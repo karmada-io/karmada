@@ -138,7 +138,7 @@ const (
 	// before ClusterResourceBinding itself is deleted.
 	ClusterResourceBindingControllerFinalizer = "karmada.io/cluster-resource-binding-controller"
 
-	// MCSControllerFinalizer is added to Cluster to ensure service work is deleted before itself is deleted.
+	// MCSControllerFinalizer is added to MultiClusterService to ensure service work is deleted before itself is deleted.
 	MCSControllerFinalizer = "karmada.io/multiclusterservice-controller"
 
 	// PropagationPolicyControllerFinalizer is added to PropagationPolicy to ensure the related resources have been unbound before itself is deleted.
