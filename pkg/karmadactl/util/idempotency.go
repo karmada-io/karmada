@@ -29,6 +29,8 @@ import (
 	"k8s.io/klog/v2"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	aggregator "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
+
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // CreateService creates a Service if the target resource doesn't exist.
@@ -241,6 +243,9 @@ func NewNamespace(name string) *corev1.Namespace {
 	return &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
+			Labels: map[string]string{
+				util.KarmadaSystemLabel: util.KarmadaSystemLabelValue,
+			},
 		},
 	}
 }
