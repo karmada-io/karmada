@@ -46,7 +46,7 @@ var _ = framework.SerialDescribe("FederatedResourceQuota auto-provision testing"
 	ginkgo.BeforeEach(func() {
 		frqNamespace = testNamespace
 		frqName = federatedResourceQuotaPrefix + rand.String(RandomStrLength)
-		federatedResourceQuota = helper.NewFederatedResourceQuota(frqNamespace, frqName)
+		federatedResourceQuota = helper.NewFederatedResourceQuota(frqNamespace, frqName, framework.ClusterNames())
 
 		defaultConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
 		defaultConfigFlags.Context = &karmadaContext
@@ -163,7 +163,7 @@ var _ = framework.SerialDescribe("[FederatedResourceQuota] status collection tes
 	ginkgo.BeforeEach(func() {
 		frqNamespace = testNamespace
 		frqName = federatedResourceQuotaPrefix + rand.String(RandomStrLength)
-		federatedResourceQuota = helper.NewFederatedResourceQuota(frqNamespace, frqName)
+		federatedResourceQuota = helper.NewFederatedResourceQuota(frqNamespace, frqName, framework.ClusterNames())
 	})
 
 	ginkgo.Context("collect federatedResourceQuota status", func() {
