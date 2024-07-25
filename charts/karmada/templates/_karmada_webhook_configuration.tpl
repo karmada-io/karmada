@@ -7,7 +7,7 @@ kind: MutatingWebhookConfiguration
 metadata:
   name: mutating-config
   labels:
-    app: mutating-config
+    app: karmada-webhook
     {{- include "karmada.commonLabels" . | nindent 4 }}
 webhooks:
   - name: propagationpolicy.karmada.io
@@ -128,7 +128,7 @@ kind: ValidatingWebhookConfiguration
 metadata:
   name: validating-config
   labels:
-    app: validating-config
+    app: karmada-webhook
     {{- include "karmada.commonLabels" . | nindent 4 }}
 webhooks:
   - name: propagationpolicy.karmada.io
