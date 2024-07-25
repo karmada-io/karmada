@@ -41,6 +41,7 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
+	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -239,9 +240,11 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 	}
 
 	if needUpdate {
-		if err := c.ObjectWatcher.Update(clusterName, desiredObj, observedObj); err != nil {
-			klog.Errorf("Updating %s failed: %v", fedKey.String(), err)
-			return err
+		updateErr := c.ObjectWatcher.Update(clusterName, desiredObj, observedObj)
+		metrics.CountUpdateResourceToCluster(updateErr, desiredObj.GetAPIVersion(), desiredObj.GetKind(), clusterName)
+		if updateErr != nil {
+			klog.Errorf("Updating %s failed: %v", fedKey.String(), updateErr)
+			return updateErr
 		}
 		// We can't return even after a success updates, because that might lose the chance to collect status.
 		// Not all updates are real, they might be no change, in that case there will be no more event for this update,
@@ -283,6 +286,7 @@ func (c *WorkStatusController) handleDeleteEvent(key keys.FederatedKey) error {
 	}
 
 	reCreateErr := c.recreateResourceIfNeeded(work, key)
+	metrics.CountRecreateResourceToCluster(reCreateErr, key.GroupVersion().String(), key.Kind, key.Cluster)
 	if reCreateErr != nil {
 		c.updateAppliedCondition(work, metav1.ConditionFalse, "ReCreateFailed", reCreateErr.Error())
 		return reCreateErr
