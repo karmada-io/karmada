@@ -24,7 +24,7 @@ kind: MutatingWebhookConfiguration
 metadata:
   name: mutating-config
   labels:
-    app: mutating-config
+    app: karmada-webhook
 webhooks:
   - name: propagationpolicy.karmada.io
     rules:
@@ -147,7 +147,7 @@ kind: ValidatingWebhookConfiguration
 metadata:
   name: validating-config
   labels:
-    app: validating-config
+    app: karmada-webhook
 webhooks:
   - name: propagationpolicy.karmada.io
     rules:
