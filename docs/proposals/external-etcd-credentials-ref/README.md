@@ -3,9 +3,11 @@ title: Enhance `EcternalEtcd` Configuration to Support Retrieving etcd Client Cr
 authors:
 - "@jabellard"
 reviewers:
-- "@RainbowMango", "@zhzhuang-zju"
+- "@RainbowMango"
+- "@zhzhuang-zju"
 approvers:
-- "@RainbowMango", "@zhzhuang-zju"
+- "@RainbowMango"
+- "@zhzhuang-zju"
 
 creation-date: 2024-07-26
 
@@ -45,27 +47,12 @@ The existing inline configuration fields will be preserved to maintain backward 
 
 ## Design Details
 
-Introduce the following struct within the ExternalEtcd configuration:
+Introduce the new field `SecretRef` within the ExternalEtcd configuration:
 ```go
 // ExternalEtcd describes an external etcd cluster.
 type ExternalEtcd struct {
-  // Endpoints of etcd members. Required for ExternalEtcd.
-  Endpoints []string `json:"endpoints"`
-  
-  // CAData is an SSL Certificate Authority file used to secure etcd communication.
-  // Required if using a TLS connection.
-  // +optional
-  CAData []byte `json:"caData"`
-  
-  // CertData is an SSL certification file used to secure etcd communication.
-  // Required if using a TLS connection.
-  // +optional
-  CertData []byte `json:"certData"`
-  
-  // KeyData is an SSL key file used to secure etcd communication.
-  // Required if using a TLS connection.
-  // +optional
-  KeyData []byte `json:"keyData"`
+  // Other, existing fields
+	
   
   // SecretRef references a Kubernetes secret containing the etcd connection credentials.
   // The secret must contain the following data keys:
