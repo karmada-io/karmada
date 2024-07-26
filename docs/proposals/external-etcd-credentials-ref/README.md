@@ -47,7 +47,7 @@ The existing inline configuration fields will be preserved to maintain backward 
 
 ## Design Details
 
-Introduce the new field `SecretRef` within the ExternalEtcd configuration:
+Introduce the new field `SecretRef` within the `ExternalEtcd` configuration:
 ```go
 // ExternalEtcd describes an external etcd cluster.
 type ExternalEtcd struct {
