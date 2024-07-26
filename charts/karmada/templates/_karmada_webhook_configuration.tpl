@@ -72,7 +72,7 @@ webhooks:
         apiGroups: ["work.karmada.io"]
         apiVersions: ["*"]
         resources: ["clusterresourcebindings"]
-        scope: "Namespaced"
+        scope: "Cluster"
     clientConfig:
       url: https://{{ $name }}-webhook.{{ $namespace }}.svc:443/mutate-clusterresourcebinding
       {{- include "karmada.webhook.caBundle" . | nindent 6 }}
