@@ -31,11 +31,14 @@ import (
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	mapper "k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/kind/pkg/cluster"
@@ -108,6 +111,8 @@ var (
 	kubeClient            kubernetes.Interface
 	karmadaClient         karmada.Interface
 	dynamicClient         dynamic.Interface
+	discoveryClient       *discovery.DiscoveryClient
+	restMapper            meta.RESTMapper
 	controlPlaneClient    client.Client
 	testNamespace         string
 	clusterProvider       *cluster.Provider
@@ -157,6 +162,13 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	dynamicClient, err = dynamic.NewForConfig(restConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
+	discoveryClient, err = discovery.NewDiscoveryClientForConfig(restConfig)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	groupResources, err := mapper.GetAPIGroupResources(discoveryClient)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	restMapper = mapper.NewDiscoveryRESTMapper(groupResources)
+
 	controlPlaneClient = gclient.NewForConfigOrDie(restConfig)
 
 	framework.InitClusterInformation(karmadaClient, controlPlaneClient)
@@ -166,6 +178,13 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	framework.WaitNamespacePresentOnClusters(framework.ClusterNames(), testNamespace)
+})
+
+var _ = ginkgo.JustAfterEach(func() {
+	// check if the current test case failed
+	if ginkgo.CurrentSpecReport().Failed() {
+		printAllBindingAndRelatedObjects()
+	}
 })
 
 var _ = ginkgo.SynchronizedAfterSuite(func() {
