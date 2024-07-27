@@ -514,7 +514,8 @@ var _ = ginkgo.Describe("[BasicPropagation] propagation testing", func() {
 })
 
 // ImplicitPriority more than one PP matches the object, we should choose the most suitable one.
-var _ = ginkgo.Describe("[ImplicitPriority] propagation testing", func() {
+// Set it to run sequentially to avoid affecting other test cases.
+var _ = framework.SerialDescribe("[ImplicitPriority] propagation testing", func() {
 	ginkgo.Context("priorityMatchName propagation testing", func() {
 		var policyNamespace, priorityMatchName, priorityMatchLabelSelector, priorityMatchAll string
 		var deploymentNamespace, deploymentName string
