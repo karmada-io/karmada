@@ -570,6 +570,7 @@ var _ = ginkgo.Describe("[ImplicitPriority] propagation testing", func() {
 					APIVersion: deployment.APIVersion,
 					Kind:       deployment.Kind,
 					Name:       deployment.Name,
+					Namespace:  deployment.Namespace,
 				},
 			}, policyv1alpha1.Placement{
 				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
@@ -580,6 +581,7 @@ var _ = ginkgo.Describe("[ImplicitPriority] propagation testing", func() {
 				{
 					APIVersion:    deployment.APIVersion,
 					Kind:          deployment.Kind,
+					Namespace:     deployment.Namespace,
 					LabelSelector: metav1.SetAsLabelSelector(labels.Set{implicitPriorityLabelKey: implicitPriorityLabelValue}),
 				},
 			}, policyv1alpha1.Placement{
@@ -591,6 +593,7 @@ var _ = ginkgo.Describe("[ImplicitPriority] propagation testing", func() {
 				{
 					APIVersion: deployment.APIVersion,
 					Kind:       deployment.Kind,
+					Namespace:  deployment.Namespace,
 				},
 			}, policyv1alpha1.Placement{
 				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
