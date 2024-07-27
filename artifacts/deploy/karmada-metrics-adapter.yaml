@@ -67,7 +67,7 @@ spec:
       volumes:
         - name: karmada-certs
           secret:
-            secretName: karmada-cert-secret
+            secretName: karmada-cert
         - name: kubeconfig
           secret:
             secretName: kubeconfig
