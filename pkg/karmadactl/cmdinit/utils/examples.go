@@ -93,8 +93,7 @@ spec:
             - --cluster-name={member_cluster_name}
             - --cluster-api-endpoint={member_cluster_api_endpoint}
             - --cluster-status-update-frequency=10s
-            - --bind-address=0.0.0.0
-            - --secure-port=10357
+            - --health-probe-bind-address=0.0.0.0:10357
             - --v=4
           livenessProbe:
             httpGet:

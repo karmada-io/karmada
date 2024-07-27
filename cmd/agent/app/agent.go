@@ -20,8 +20,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net"
-	"strconv"
 
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -80,6 +78,10 @@ func NewAgentCommand(ctx context.Context) *cobra.Command {
 plane and sync manifests from the Karmada control plane to the member cluster. In addition, it also syncs the status of member
 cluster and manifests to the Karmada control plane.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
+			// complete options
+			if err := opts.Complete(); err != nil {
+				return err
+			}
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()
@@ -205,7 +207,7 @@ func run(ctx context.Context, opts *options.Options) error {
 		LeaseDuration:              &opts.LeaderElection.LeaseDuration.Duration,
 		RenewDeadline:              &opts.LeaderElection.RenewDeadline.Duration,
 		RetryPeriod:                &opts.LeaderElection.RetryPeriod.Duration,
-		HealthProbeBindAddress:     net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)),
+		HealthProbeBindAddress:     opts.HealthProbeBindAddress,
 		LivenessEndpointName:       "/healthz",
 		Metrics:                    metricsserver.Options{BindAddress: opts.MetricsBindAddress},
 		MapperProvider:             restmapper.MapperProvider,
