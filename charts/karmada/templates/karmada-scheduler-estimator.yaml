@@ -51,6 +51,8 @@ spec:
             - --grpc-auth-cert-file=/etc/karmada/pki/karmada.crt
             - --grpc-auth-key-file=/etc/karmada/pki/karmada.key
             - --grpc-client-ca-file=/etc/karmada/pki/server-ca.crt
+            - --metrics-bind-address=0.0.0.0:10351
+            - --health-probe-bind-address=0.0.0.0:10351
             {{- with (include "karmada.schedulerEstimator.featureGates" (dict "featureGatesArg" $.Values.schedulerEstimator.featureGates)) }}
             - {{ . }}
             {{- end}}

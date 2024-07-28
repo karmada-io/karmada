@@ -29,8 +29,6 @@ type ModifyOptions func(option *Options)
 func New(modifyOptions ModifyOptions) Options {
 	option := Options{
 		ClusterName: "testCluster",
-		BindAddress: "0.0.0.0",
-		SecurePort:  10100,
 		ServerPort:  8088,
 	}
 
@@ -60,18 +58,6 @@ func TestValidateKarmadaSchedulerEstimator(t *testing.T) {
 				option.ClusterName = ""
 			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterName"), "", "clusterName cannot be empty")},
-		},
-		"invalid BindAddress": {
-			opt: New(func(option *Options) {
-				option.BindAddress = "127.0.0.1:8082"
-			}),
-			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("BindAddress"), "127.0.0.1:8082", "not a valid textual representation of an IP address")},
-		},
-		"invalid SecurePort": {
-			opt: New(func(option *Options) {
-				option.SecurePort = 908188
-			}),
-			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("SecurePort"), 908188, "must be a valid port between 0 and 65535 inclusive")},
 		},
 		"invalid ServerPort": {
 			opt: New(func(option *Options) {
