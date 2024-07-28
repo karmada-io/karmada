@@ -18,6 +18,7 @@ package scheduler
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -26,10 +27,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/record"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	karmadafake "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
 	"github.com/karmada-io/karmada/pkg/util"
+	// "github.com/stretchr/testify/assert"
 )
 
 func TestCreateScheduler(t *testing.T) {
@@ -448,55 +451,227 @@ func Test_patchClusterBindingStatusCondition(t *testing.T) {
 	}
 }
 
-func Test_patchClusterBindingStatusWithAffinityName(t *testing.T) {
-	karmadaClient := karmadafake.NewSimpleClientset()
+func Test_recordScheduleResultEventForResourceBinding(t *testing.T) {
+	fakeRecorder := record.NewFakeRecorder(10)
+	scheduler := &Scheduler{eventRecorder: fakeRecorder}
 
 	tests := []struct {
-		name         string
-		binding      *workv1alpha2.ClusterResourceBinding
-		affinityName string
-		expected     *workv1alpha2.ClusterResourceBinding
+		name           string
+		rb             *workv1alpha2.ResourceBinding
+		scheduleResult []workv1alpha2.TargetCluster
+		schedulerErr   error
+		expectedEvents int
+		expectedMsg    string
 	}{
 		{
-			name: "add affinityName in status",
-			binding: &workv1alpha2.ClusterResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "crb-1", Generation: 1},
-				Spec:       workv1alpha2.ResourceBindingSpec{},
-				Status: workv1alpha2.ResourceBindingStatus{
-					Conditions:                  []metav1.Condition{util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue)},
-					SchedulerObservedGeneration: 1,
+			name:           "nil ResourceBinding",
+			rb:             nil,
+			scheduleResult: nil,
+			schedulerErr:   nil,
+			expectedEvents: 0,
+			expectedMsg:    "",
+		},
+		{
+			name: "successful scheduling",
+			rb: &workv1alpha2.ResourceBinding{
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{
+						Kind:       "Deployment",
+						APIVersion: "apps/v1",
+						Namespace:  "default",
+						Name:       "test-deployment",
+						UID:        "12345",
+					},
 				},
 			},
-			affinityName: "group1",
-			expected: &workv1alpha2.ClusterResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "crb-1"},
-				Spec:       workv1alpha2.ResourceBindingSpec{},
-				Status: workv1alpha2.ResourceBindingStatus{
-					SchedulerObservedAffinityName: "group1",
-					Conditions:                    []metav1.Condition{util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue)},
-					SchedulerObservedGeneration:   1,
+			scheduleResult: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 1},
+				{Name: "cluster2", Replicas: 2},
+			},
+			schedulerErr:   nil,
+			expectedEvents: 2,
+			expectedMsg: fmt.Sprintf("%s Result: {%s}", successfulSchedulingMessage, targetClustersToString([]workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 1},
+				{Name: "cluster2", Replicas: 2},
+			}))},
+		{
+			name: "scheduling error",
+			rb: &workv1alpha2.ResourceBinding{
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{
+						Kind:       "Deployment",
+						APIVersion: "apps/v1",
+						Namespace:  "default",
+						Name:       "test-deployment",
+						UID:        "12345",
+					},
 				},
 			},
+			scheduleResult: nil,
+			schedulerErr:   fmt.Errorf("scheduling error"),
+			expectedEvents: 2,
+			expectedMsg:    "scheduling error",
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := karmadaClient.WorkV1alpha2().ClusterResourceBindings().Create(context.TODO(), test.binding, metav1.CreateOptions{})
-			if err != nil {
-				t.Fatal(err)
+			fakeRecorder.Events = make(chan string, 10)
+
+			scheduler.recordScheduleResultEventForResourceBinding(test.rb, test.scheduleResult, test.schedulerErr)
+
+			if len(fakeRecorder.Events) != test.expectedEvents {
+				t.Errorf("expected %d events, got %d", test.expectedEvents, len(fakeRecorder.Events))
 			}
-			err = patchClusterBindingStatusWithAffinityName(karmadaClient, test.binding, test.affinityName)
-			if err != nil {
-				t.Error(err)
-			}
-			res, err := karmadaClient.WorkV1alpha2().ClusterResourceBindings().Get(context.TODO(), test.binding.Name, metav1.GetOptions{})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !reflect.DeepEqual(res.Status, test.expected.Status) {
-				t.Errorf("expected status: %v, but got: %v", test.expected.Status, res.Status)
+
+			for i := 0; i < test.expectedEvents; i++ {
+				select {
+				case event := <-fakeRecorder.Events:
+					if !contains(event, test.expectedMsg) {
+						t.Errorf("expected event message to contain %q, got %q", test.expectedMsg, event)
+					}
+				default:
+					t.Error("expected event not found")
+				}
 			}
 		})
 	}
+}
+
+func contains(event, msg string) bool {
+	return len(event) >= len(msg) && event[len(event)-len(msg):] == msg
+}
+
+func Test_recordScheduleResultEventForClusterResourceBinding(t *testing.T) {
+	fakeRecorder := record.NewFakeRecorder(10)
+	scheduler := &Scheduler{eventRecorder: fakeRecorder}
+
+	tests := []struct {
+		name           string
+		crb            *workv1alpha2.ClusterResourceBinding
+		scheduleResult []workv1alpha2.TargetCluster
+		schedulerErr   error
+		expectedEvents int
+		expectedMsg    string
+	}{
+		{
+			name:           "nil ClusterResourceBinding",
+			crb:            nil,
+			scheduleResult: nil,
+			schedulerErr:   nil,
+			expectedEvents: 0,
+			expectedMsg:    "",
+		},
+		{
+			name: "successful scheduling",
+			crb: &workv1alpha2.ClusterResourceBinding{
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{
+						Kind:       "Deployment",
+						APIVersion: "apps/v1",
+						Namespace:  "default",
+						Name:       "test-deployment",
+						UID:        "12345",
+					},
+				},
+			},
+			scheduleResult: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 1},
+				{Name: "cluster2", Replicas: 2},
+			},
+			schedulerErr:   nil,
+			expectedEvents: 2,
+			expectedMsg: fmt.Sprintf("%s Result {%s}", successfulSchedulingMessage, targetClustersToString([]workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 1},
+				{Name: "cluster2", Replicas: 2},
+			})),
+		},
+		{
+			name: "scheduling error",
+			crb: &workv1alpha2.ClusterResourceBinding{
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{
+						Kind:       "Deployment",
+						APIVersion: "apps/v1",
+						Namespace:  "default",
+						Name:       "test-deployment",
+						UID:        "12345",
+					},
+				},
+			},
+			scheduleResult: nil,
+			schedulerErr:   fmt.Errorf("scheduling error"),
+			expectedEvents: 2,
+			expectedMsg:    "scheduling error",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fakeRecorder.Events = make(chan string, 10)
+
+			scheduler.recordScheduleResultEventForClusterResourceBinding(test.crb, test.scheduleResult, test.schedulerErr)
+
+			if len(fakeRecorder.Events) != test.expectedEvents {
+				t.Errorf("expected %d events, got %d", test.expectedEvents, len(fakeRecorder.Events))
+			}
+
+			for i := 0; i < test.expectedEvents; i++ {
+				select {
+				case event := <-fakeRecorder.Events:
+					if !contains(event, test.expectedMsg) {
+						t.Errorf("expected event message to contain %q, got %q", test.expectedMsg, event)
+					}
+				default:
+					t.Error("expected event not found")
+				}
+			}
+		})
+	}
+}
+
+func Test_targetClustersToString(t *testing.T) {
+    tests := []struct {
+        name           string
+        tcs            []workv1alpha2.TargetCluster
+        expectedOutput string
+    }{
+        {
+            name:           "empty slice",
+            tcs:            []workv1alpha2.TargetCluster{},
+            expectedOutput: "",
+        },
+        {
+            name: "single cluster",
+            tcs: []workv1alpha2.TargetCluster{
+                {Name: "cluster1", Replicas: 1},
+            },
+            expectedOutput: "cluster1:1",
+        },
+        {
+            name: "multiple clusters",
+            tcs: []workv1alpha2.TargetCluster{
+                {Name: "cluster1", Replicas: 1},
+                {Name: "cluster2", Replicas: 2},
+            },
+            expectedOutput: "cluster1:1, cluster2:2",
+        },
+        {
+            name: "clusters with zero replicas",
+            tcs: []workv1alpha2.TargetCluster{
+                {Name: "cluster1", Replicas: 0},
+                {Name: "cluster2", Replicas: 2},
+            },
+            expectedOutput: "cluster1:0, cluster2:2",
+        },
+    }
+
+    for _, test := range tests {
+        t.Run(test.name, func(t *testing.T) {
+            result := targetClustersToString(test.tcs)
+            if result != test.expectedOutput {
+                t.Errorf("expected %q, got %q", test.expectedOutput, result)
+            }
+        })
+    }
 }
