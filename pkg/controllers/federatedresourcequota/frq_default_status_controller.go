@@ -35,14 +35,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 const (
-	// StatusControllerName is the controller name that will be used when reporting events.
+	// DefaultControllerName is the controller name that will be used when reporting events.
 	DefaultControllerName = "federated-resource-quota-default-status-controller"
 )
 
@@ -120,12 +119,12 @@ func (c *DefaultStatusController) SetupWithManager(mgr controllerruntime.Manager
 			oldObj := updateEvent.ObjectOld.(*workv1alpha2.ResourceBinding)
 			newObj := updateEvent.ObjectNew.(*workv1alpha2.ResourceBinding)
 			// If either binding version has a quota, we should reconcile
-			if oldObj.Spec.FederatedResourceQuota != "" || newObj.Spec.FederatedResourceQuota != "" {
-				// If ResourceRequest is unchanged, ignore update
-				return !reflect.DeepEqual(oldObj.Spec.ReplicaRequirements.ResourceRequest,
+			if oldObj.Spec.FederatedResourceQuota == "" && newObj.Spec.FederatedResourceQuota == "" {
+				// If Replicas or ResourceRequest is unchanged, ignore update
+				return !(oldObj.Spec.Replicas == newObj.Spec.Replicas) || !reflect.DeepEqual(oldObj.Spec.ReplicaRequirements.ResourceRequest,
 					newObj.Spec.ReplicaRequirements.ResourceRequest)
 			}
-			return false
+			return true
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			binding := deleteEvent.Object.(*workv1alpha2.ResourceBinding)
@@ -167,7 +166,7 @@ func (c *DefaultStatusController) collectQuotaStatus(quota *policyv1alpha1.Feder
 	})
 }
 
-func calculateUsedWithResourceBinding(resourceBindings []v1alpha2.ResourceBinding) corev1.ResourceList {
+func calculateUsedWithResourceBinding(resourceBindings []workv1alpha2.ResourceBinding) corev1.ResourceList {
 	overallUsed := corev1.ResourceList{}
 	for index := range resourceBindings {
 		// TODO: Consider skipping resourcebinding if it is not applied
