@@ -218,6 +218,7 @@ func (es *AccurateSchedulerEstimatorServer) MaxAvailableReplicas(ctx context.Con
 		return nil, fmt.Errorf("cluster name does not match, got: %s, desire: %s", request.Cluster, es.clusterName)
 	}
 	maxReplicas, err := es.EstimateReplicas(ctx, object, request)
+	klog.V(4).Infof("Finished maxReplica estimation and got: %d", maxReplicas)
 	if err != nil {
 		return nil, fmt.Errorf("failed to estimate replicas: %v", err)
 	}

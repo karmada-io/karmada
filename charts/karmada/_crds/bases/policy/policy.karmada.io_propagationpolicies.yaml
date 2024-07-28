@@ -716,6 +716,11 @@ spec:
 
                   Defaults to false.
                 type: boolean
+              federatedResourceQuota:
+                description: |-
+                  FederatedResourceQuota specifies the quota that will be used for this resource.
+                  A quota that sets resource limits on the user.
+                type: string
               resourceSelectors:
                 description: |-
                   ResourceSelectors used to select resources.

@@ -85,6 +85,10 @@ type PropagationSpec struct {
 	// +optional
 	PropagateDeps bool `json:"propagateDeps,omitempty"`
 
+	// FederatedResourceQuota will link resources with an existing quota.
+	// Quotas can be used to limit the amount of resources users have access to.
+	FederatedResourceQuota string `json:"federatedResourceQuota,omitempty"`
+
 	// Placement represents the rule for select clusters to propagate resources.
 	// +optional
 	Placement Placement `json:"placement,omitempty"`

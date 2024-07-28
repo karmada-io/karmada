@@ -222,7 +222,8 @@ func init() {
 	controllers["serviceImport"] = startServiceImportController
 	controllers["unifiedAuth"] = startUnifiedAuthController
 	controllers["federatedResourceQuotaSync"] = startFederatedResourceQuotaSyncController
-	controllers["federatedResourceQuotaStatus"] = startFederatedResourceQuotaStatusController
+	controllers["federatedResourceQuotaStaticStatus"] = startFRQStaticAssignmentStatusController
+	controllers["federatedResourceQuotaStatus"] = startFRQDefaultStatusController
 	controllers["gracefulEviction"] = startGracefulEvictionController
 	controllers["applicationFailover"] = startApplicationFailoverController
 	controllers["federatedHorizontalPodAutoscaler"] = startFederatedHorizontalPodAutoscalerController
@@ -551,10 +552,21 @@ func startFederatedResourceQuotaSyncController(ctx controllerscontext.Context) (
 	return true, nil
 }
 
-func startFederatedResourceQuotaStatusController(ctx controllerscontext.Context) (enabled bool, err error) {
-	controller := federatedresourcequota.StatusController{
+func startFRQStaticAssignmentStatusController(ctx controllerscontext.Context) (enabled bool, err error) {
+	controller := federatedresourcequota.StaticAssignmentStatusController{
 		Client:        ctx.Mgr.GetClient(),
-		EventRecorder: ctx.Mgr.GetEventRecorderFor(federatedresourcequota.StatusControllerName),
+		EventRecorder: ctx.Mgr.GetEventRecorderFor(federatedresourcequota.StaticAssignmentStatusControllerName),
+	}
+	if err = controller.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startFRQDefaultStatusController(ctx controllerscontext.Context) (enabled bool, err error) {
+	controller := federatedresourcequota.DefaultStatusController{
+		Client:        ctx.Mgr.GetClient(),
+		EventRecorder: ctx.Mgr.GetEventRecorderFor(federatedresourcequota.DefaultControllerName),
 	}
 	if err = controller.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err

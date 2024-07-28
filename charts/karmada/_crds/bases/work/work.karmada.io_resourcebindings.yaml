@@ -932,6 +932,11 @@ spec:
                   It is inherited from PropagationPolicy or ClusterPropagationPolicy.
                   default false.
                 type: boolean
+              federatedResourceQuota:
+                description: |-
+                  FederatedResourceQuota specifies the quota that will be used for this resource.
+                  A quota that sets resource limits on the user.
+                type: string
               replicaRequirements:
                 description: ReplicaRequirements represents the requirements required
                   by each replica.

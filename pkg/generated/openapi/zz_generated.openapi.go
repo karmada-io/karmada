@@ -4806,6 +4806,13 @@ func schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"federatedResourceQuota": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FederatedResourceQuota will link resources with an existing quota. Quotas can be used to limit the amount of resources users have access to.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"placement": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Placement represents the rule for select clusters to propagate resources.",
@@ -6945,6 +6952,13 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 						SchemaProps: spec.SchemaProps{
 							Description: "ReplicaRequirements represents the requirements required by each replica.",
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements"),
+						},
+					},
+					"federatedResourceQuota": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FederatedResourceQuota represents the name of the ResourceQuota that will be used for this resource",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"replicas": {

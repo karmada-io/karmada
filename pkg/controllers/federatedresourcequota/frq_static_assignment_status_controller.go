@@ -48,12 +48,12 @@ import (
 )
 
 const (
-	// StatusControllerName is the controller name that will be used when reporting events.
-	StatusControllerName = "federated-resource-quota-status-controller"
+	// StaticAssignmentStatusControllerName is the controller name that will be used when reporting events.
+	StaticAssignmentStatusControllerName = "federated-resource-quota-static-assignment-status-controller"
 )
 
-// StatusController is to collect status from work to FederatedResourceQuota.
-type StatusController struct {
+// StaticAssignmentStatusController is to collect status from work to FederatedResourceQuota.
+type StaticAssignmentStatusController struct {
 	client.Client // used to operate Work resources.
 	EventRecorder record.EventRecorder
 }
@@ -61,7 +61,9 @@ type StatusController struct {
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 // The SyncController will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (c *StatusController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
+func (c *StaticAssignmentStatusController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
+	// TODO: Only reconcile when static assignment is set. We will enforce that tenants can not switch to
+	// static assignment via update.
 	klog.V(4).Infof("FederatedResourceQuota status controller reconciling %s", req.NamespacedName.String())
 
 	quota := &policyv1alpha1.FederatedResourceQuota{}
@@ -77,8 +79,13 @@ func (c *StatusController) Reconcile(ctx context.Context, req controllerruntime.
 		return controllerruntime.Result{}, nil
 	}
 
+	if quota.Spec.StaticAssignments == nil {
+		klog.V(4).Infof("FederatedResourceQuota(%s) does not define static assignments, returning.", quota.Name)
+		return controllerruntime.Result{}, nil
+	}
+
 	if err := c.collectQuotaStatus(quota); err != nil {
-		klog.Errorf("Failed to collect status from works to federatedResourceQuota(%s), error: %v", req.NamespacedName.String(), err)
+		klog.Errorf("Failed to collect status for FederatedResourceQuota(%s), error: %v", req.NamespacedName.String(), err)
 		c.EventRecorder.Eventf(quota, corev1.EventTypeWarning, events.EventReasonCollectFederatedResourceQuotaStatusFailed, err.Error())
 		return controllerruntime.Result{}, err
 	}
@@ -87,7 +94,7 @@ func (c *StatusController) Reconcile(ctx context.Context, req controllerruntime.
 }
 
 // SetupWithManager creates a controller and register to controller manager.
-func (c *StatusController) SetupWithManager(mgr controllerruntime.Manager) error {
+func (c *StaticAssignmentStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
 	fn := handler.MapFunc(
 		func(_ context.Context, obj client.Object) []reconcile.Request {
 			var requests []reconcile.Request
@@ -134,13 +141,13 @@ func (c *StatusController) SetupWithManager(mgr controllerruntime.Manager) error
 		Complete(c)
 }
 
-func (c *StatusController) collectQuotaStatus(quota *policyv1alpha1.FederatedResourceQuota) error {
+func (c *StaticAssignmentStatusController) collectQuotaStatus(quota *policyv1alpha1.FederatedResourceQuota) error {
 	workList, err := helper.GetWorksByLabelsSet(c.Client, labels.Set{
 		util.FederatedResourceQuotaNamespaceLabel: quota.Namespace,
 		util.FederatedResourceQuotaNameLabel:      quota.Name,
 	})
 	if err != nil {
-		klog.Errorf("Failed to list workList created by federatedResourceQuota(%s), error: %v", klog.KObj(quota).String(), err)
+		klog.Errorf("Failed to list workList created by FederatedResourceQuota(%s), error: %v", klog.KObj(quota).String(), err)
 		return err
 	}
 

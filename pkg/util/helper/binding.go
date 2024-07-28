@@ -344,6 +344,13 @@ func GetResourceBindings(c client.Client, ls labels.Set) (*workv1alpha2.Resource
 	return bindings, c.List(context.TODO(), bindings, listOpt)
 }
 
+func GetResourceBindingsByNamespace(c client.Client, namespace string) (*workv1alpha2.ResourceBindingList, error) {
+	bindings := &workv1alpha2.ResourceBindingList{}
+	listOpt := &client.ListOptions{Namespace: namespace}
+
+	return bindings, c.List(context.TODO(), bindings, listOpt)
+}
+
 // DeleteWorks will delete all Work objects by labels.
 func DeleteWorks(c client.Client, namespace, name, bindingID string) error {
 	workList, err := GetWorksByBindingID(c, bindingID, namespace != "")

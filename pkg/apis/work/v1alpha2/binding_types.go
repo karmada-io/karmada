@@ -82,6 +82,10 @@ type ResourceBindingSpec struct {
 	// +optional
 	ReplicaRequirements *ReplicaRequirements `json:"replicaRequirements,omitempty"`
 
+	// FederatedResourceQuota represents the name of the ResourceQuota that will be used for this resource
+	// +optional
+	FederatedResourceQuota string `json:"federatedResourceQuota,omitempty"`
+
 	// Replicas represents the replica number of the referencing resource.
 	// +optional
 	Replicas int32 `json:"replicas,omitempty"`
