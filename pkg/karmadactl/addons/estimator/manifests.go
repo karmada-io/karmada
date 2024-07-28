@@ -48,12 +48,12 @@ spec:
             - /bin/karmada-scheduler-estimator
             - --kubeconfig=/etc/{{ .MemberClusterName}}-kubeconfig
             - --cluster-name={{ .MemberClusterName}}
-            - --bind-address=0.0.0.0
-            - --secure-port=10351
             - --grpc-auth-cert-file=/etc/karmada/pki/karmada.crt
             - --grpc-auth-key-file=/etc/karmada/pki/karmada.key
             - --client-cert-auth=true
             - --grpc-client-ca-file=/etc/karmada/pki/ca.crt
+            - --metrics-bind-address=0.0.0.0:10351
+            - --health-probe-bind-address=0.0.0.0:10351
           livenessProbe:
             httpGet:
               path: /healthz
