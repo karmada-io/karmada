@@ -451,6 +451,59 @@ func Test_patchClusterBindingStatusCondition(t *testing.T) {
 	}
 }
 
+func Test_patchClusterBindingStatusWithAffinityName(t *testing.T) {
+	karmadaClient := karmadafake.NewSimpleClientset()
+
+	tests := []struct {
+		name         string
+		binding      *workv1alpha2.ClusterResourceBinding
+		affinityName string
+		expected     *workv1alpha2.ClusterResourceBinding
+	}{
+		{
+			name: "add affinityName in status",
+			binding: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "crb-1", Generation: 1},
+				Spec:       workv1alpha2.ResourceBindingSpec{},
+				Status: workv1alpha2.ResourceBindingStatus{
+					Conditions:                  []metav1.Condition{util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue)},
+					SchedulerObservedGeneration: 1,
+				},
+			},
+			affinityName: "group1",
+			expected: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "crb-1"},
+				Spec:       workv1alpha2.ResourceBindingSpec{},
+				Status: workv1alpha2.ResourceBindingStatus{
+					SchedulerObservedAffinityName: "group1",
+					Conditions:                    []metav1.Condition{util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue)},
+					SchedulerObservedGeneration:   1,
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := karmadaClient.WorkV1alpha2().ClusterResourceBindings().Create(context.TODO(), test.binding, metav1.CreateOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = patchClusterBindingStatusWithAffinityName(karmadaClient, test.binding, test.affinityName)
+			if err != nil {
+				t.Error(err)
+			}
+			res, err := karmadaClient.WorkV1alpha2().ClusterResourceBindings().Get(context.TODO(), test.binding.Name, metav1.GetOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(res.Status, test.expected.Status) {
+				t.Errorf("expected status: %v, but got: %v", test.expected.Status, res.Status)
+			}
+		})
+	}
+}
+
 func Test_recordScheduleResultEventForResourceBinding(t *testing.T) {
 	fakeRecorder := record.NewFakeRecorder(10)
 	scheduler := &Scheduler{eventRecorder: fakeRecorder}
@@ -631,47 +684,47 @@ func Test_recordScheduleResultEventForClusterResourceBinding(t *testing.T) {
 }
 
 func Test_targetClustersToString(t *testing.T) {
-    tests := []struct {
-        name           string
-        tcs            []workv1alpha2.TargetCluster
-        expectedOutput string
-    }{
-        {
-            name:           "empty slice",
-            tcs:            []workv1alpha2.TargetCluster{},
-            expectedOutput: "",
-        },
-        {
-            name: "single cluster",
-            tcs: []workv1alpha2.TargetCluster{
-                {Name: "cluster1", Replicas: 1},
-            },
-            expectedOutput: "cluster1:1",
-        },
-        {
-            name: "multiple clusters",
-            tcs: []workv1alpha2.TargetCluster{
-                {Name: "cluster1", Replicas: 1},
-                {Name: "cluster2", Replicas: 2},
-            },
-            expectedOutput: "cluster1:1, cluster2:2",
-        },
-        {
-            name: "clusters with zero replicas",
-            tcs: []workv1alpha2.TargetCluster{
-                {Name: "cluster1", Replicas: 0},
-                {Name: "cluster2", Replicas: 2},
-            },
-            expectedOutput: "cluster1:0, cluster2:2",
-        },
-    }
+	tests := []struct {
+		name           string
+		tcs            []workv1alpha2.TargetCluster
+		expectedOutput string
+	}{
+		{
+			name:           "empty slice",
+			tcs:            []workv1alpha2.TargetCluster{},
+			expectedOutput: "",
+		},
+		{
+			name: "single cluster",
+			tcs: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 1},
+			},
+			expectedOutput: "cluster1:1",
+		},
+		{
+			name: "multiple clusters",
+			tcs: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 1},
+				{Name: "cluster2", Replicas: 2},
+			},
+			expectedOutput: "cluster1:1, cluster2:2",
+		},
+		{
+			name: "clusters with zero replicas",
+			tcs: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 0},
+				{Name: "cluster2", Replicas: 2},
+			},
+			expectedOutput: "cluster1:0, cluster2:2",
+		},
+	}
 
-    for _, test := range tests {
-        t.Run(test.name, func(t *testing.T) {
-            result := targetClustersToString(test.tcs)
-            if result != test.expectedOutput {
-                t.Errorf("expected %q, got %q", test.expectedOutput, result)
-            }
-        })
-    }
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := targetClustersToString(test.tcs)
+			if result != test.expectedOutput {
+				t.Errorf("expected %q, got %q", test.expectedOutput, result)
+			}
+		})
+	}
 }
