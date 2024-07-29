@@ -29,6 +29,7 @@ Additionally, this enhancement is very well-aligned with Kubernetes best practic
 
 ### Goals
 
+- Add support for connecting to an external etcd cluster.
 - Enable the use of Kubernetes secrets for storing and retrieving external etcd connection credentials.
 - Improve the security of sensitive data by leveraging Kubernetes' native secret management capabilities.
 - Simplify the management of external etcd configurations.
@@ -87,3 +88,8 @@ data:
   tls.crt: <base64-encoded-data>
   tls.key: <base64-encoded-data>
 ```
+
+### Core And Aggregated API Server Configurations
+
+Today, the Karmada operator stores the in-cluster etcd client credentials in a secret. That secret is then used as the source of a volume that is mounted into the core and aggregated API server containers
+to configure etcd client credentials via flags. The configuration will be very similar when connecting to an external etcd cluster.
