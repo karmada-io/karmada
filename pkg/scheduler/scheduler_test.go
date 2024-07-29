@@ -29,10 +29,11 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	karmadafake "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
 	"github.com/karmada-io/karmada/pkg/util"
-	// "github.com/stretchr/testify/assert"
+	"github.com/karmada-io/karmada/pkg/util/grpcconnection"
 )
 
 func TestCreateScheduler(t *testing.T) {
@@ -40,12 +41,22 @@ func TestCreateScheduler(t *testing.T) {
 	karmadaClient := karmadafake.NewSimpleClientset()
 	kubeClient := fake.NewSimpleClientset()
 	port := 10025
+	servicePrefix := "test-service-prefix"
+	schedulerName := "test-scheduler"
+	timeout := metav1.Duration{Duration: 5 * time.Second}
 
 	testcases := []struct {
-		name                     string
-		opts                     []Option
-		enableSchedulerEstimator bool
-		schedulerEstimatorPort   int
+		name                                string
+		opts                                []Option
+		enableSchedulerEstimator            bool
+		schedulerEstimatorPort              int
+		disableSchedulerEstimatorInPullMode bool
+		schedulerEstimatorTimeout           metav1.Duration
+		schedulerEstimatorServicePrefix     string
+		schedulerName                       string
+		schedulerEstimatorClientConfig      *grpcconnection.ClientConfig
+		enableEmptyWorkloadPropagation      bool
+		plugins                             []string
 	}{
 		{
 			name:                     "scheduler with default configuration",
@@ -69,6 +80,53 @@ func TestCreateScheduler(t *testing.T) {
 			},
 			enableSchedulerEstimator: false,
 		},
+		{
+			name: "scheduler with disableSchedulerEstimatorInPullMode enabled",
+			opts: []Option{
+				WithEnableSchedulerEstimator(true),
+				WithSchedulerEstimatorConnection(port, "", "", "", false),
+				WithDisableSchedulerEstimatorInPullMode(true),
+			},
+			enableSchedulerEstimator:            true,
+			schedulerEstimatorPort:              port,
+			disableSchedulerEstimatorInPullMode: true,
+		},
+		{
+			name: "scheduler with SchedulerEstimatorServicePrefix enabled",
+			opts: []Option{
+				WithEnableSchedulerEstimator(true),
+				WithSchedulerEstimatorConnection(port, "", "", "", false),
+				WithSchedulerEstimatorServicePrefix(servicePrefix),
+			},
+			enableSchedulerEstimator:        true,
+			schedulerEstimatorPort:          port,
+			schedulerEstimatorServicePrefix: servicePrefix,
+		},
+		{
+			name: "scheduler with SchedulerName enabled",
+			opts: []Option{
+				WithSchedulerName(schedulerName),
+			},
+			schedulerName: schedulerName,
+		},
+		{
+			name: "scheduler with EnableEmptyWorkloadPropagation enabled",
+			opts: []Option{
+				WithEnableEmptyWorkloadPropagation(true),
+			},
+			enableEmptyWorkloadPropagation: true,
+		},
+		{
+			name: "scheduler with SchedulerEstimatorTimeout enabled",
+			opts: []Option{
+				WithEnableSchedulerEstimator(true),
+				WithSchedulerEstimatorConnection(port, "", "", "", false),
+				WithSchedulerEstimatorTimeout(timeout),
+			},
+			enableSchedulerEstimator:  true,
+			schedulerEstimatorPort:    port,
+			schedulerEstimatorTimeout: timeout,
+		},
 	}
 
 	for _, tc := range testcases {
@@ -84,6 +142,82 @@ func TestCreateScheduler(t *testing.T) {
 
 			if tc.enableSchedulerEstimator && tc.schedulerEstimatorPort != sche.schedulerEstimatorClientConfig.TargetPort {
 				t.Errorf("unexpected schedulerEstimatorPort want %v, got %v", tc.schedulerEstimatorPort, sche.schedulerEstimatorClientConfig.TargetPort)
+			}
+
+			if tc.disableSchedulerEstimatorInPullMode != sche.disableSchedulerEstimatorInPullMode {
+				t.Errorf("unexpected disableSchedulerEstimatorInPullMode want %v, got %v", tc.disableSchedulerEstimatorInPullMode, sche.disableSchedulerEstimatorInPullMode)
+			}
+
+			if tc.schedulerEstimatorServicePrefix != sche.schedulerEstimatorServicePrefix {
+				t.Errorf("unexpected schedulerEstimatorServicePrefix want %v, got %v", tc.schedulerEstimatorServicePrefix, sche.schedulerEstimatorServicePrefix)
+			}
+
+			if tc.schedulerName != sche.schedulerName {
+				t.Errorf("unexpected schedulerName want %v, got %v", tc.schedulerName, sche.schedulerName)
+			}
+
+			if tc.enableEmptyWorkloadPropagation != sche.enableEmptyWorkloadPropagation {
+				t.Errorf("unexpected enableEmptyWorkloadPropagation want %v, got %v", tc.enableEmptyWorkloadPropagation, sche.enableEmptyWorkloadPropagation)
+			}
+		})
+	}
+}
+
+func TestReconcileEstimatorConnection(t *testing.T) {
+	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
+	karmadaClient := karmadafake.NewSimpleClientset()
+	kubeClient := fake.NewSimpleClientset()
+	scheduler, err := NewScheduler(dynamicClient, karmadaClient, kubeClient, WithEnableSchedulerEstimator(true))
+	if err != nil {
+		t.Fatalf("Failed to create scheduler: %v", err)
+	}
+
+	clusterName := "test-cluster"
+	cluster := &clusterv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{Name: clusterName},
+		Spec:       clusterv1alpha1.ClusterSpec{SyncMode: clusterv1alpha1.Pull},
+	}
+	_, err = karmadaClient.ClusterV1alpha1().Clusters().Create(context.TODO(), cluster, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Failed to create cluster: %v", err)
+	}
+
+	tests := []struct {
+		name                                string
+		key                                 util.QueueKey
+		disableSchedulerEstimatorInPullMode bool
+		expectedError                       bool
+	}{
+		{
+			name:          "Invalid key",
+			key:           123,
+			expectedError: true,
+		},
+		{
+			name:          "Cluster not found",
+			key:           "non-existent-cluster",
+			expectedError: false,
+		},
+		{
+			name:                                "Cluster in pull mode, estimator disabled",
+			key:                                 clusterName,
+			disableSchedulerEstimatorInPullMode: true,
+			expectedError:                       false,
+		},
+		{
+			name:                                "Cluster in pull mode, estimator enabled",
+			key:                                 clusterName,
+			disableSchedulerEstimatorInPullMode: false,
+			expectedError:                       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scheduler.disableSchedulerEstimatorInPullMode = tt.disableSchedulerEstimatorInPullMode
+			err := scheduler.reconcileEstimatorConnection(tt.key)
+			if (err != nil) != tt.expectedError {
+				t.Errorf("reconcileEstimatorConnection() error = %v, expectedError %v", err, tt.expectedError)
 			}
 		})
 	}
