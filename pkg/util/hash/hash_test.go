@@ -17,7 +17,7 @@ limitations under the License.
 package hash
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
 	"testing"
 
@@ -68,11 +68,11 @@ func TestDeepHashObject(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hasher1 := md5.New()
+			hasher1 := sha256.New()
 			DeepHashObject(hasher1, tt.object1)
 			hash1 := hex.EncodeToString(hasher1.Sum(nil))
 
-			hasher2 := md5.New()
+			hasher2 := sha256.New()
 			DeepHashObject(hasher2, tt.object2)
 			hash2 := hex.EncodeToString(hasher2.Sum(nil))
 
@@ -93,7 +93,7 @@ func TestDeepHashObjectMultipleTimes(t *testing.T) {
 		"key2": 42,
 	}
 
-	hasher := md5.New()
+	hasher := sha256.New()
 	DeepHashObject(hasher, object)
 	hash1 := hex.EncodeToString(hasher.Sum(nil))
 
