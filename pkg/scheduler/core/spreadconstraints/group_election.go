@@ -18,6 +18,7 @@ package spreadconstraint
 
 import (
 	"errors"
+	"fmt"
 	clusterV1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"sort"
 )
@@ -29,11 +30,19 @@ func (root *groupRoot) Elect() ([]*clusterV1alpha1.Cluster, error) {
 	if err != nil {
 		return nil, err
 	} else {
-		var clusters []*clusterV1alpha1.Cluster
-		for _, desc := range selects {
-			clusters = append(clusters, desc.Cluster)
+		var clusters []*clusterDesc
+		for _, cluster := range selects {
+			clusters = append(clusters, cluster)
 		}
-		return clusters, nil
+		sort.Slice(clusters, func(i, j int) bool {
+			return clusters[i].Score > clusters[j].Score
+		})
+
+		var result []*clusterV1alpha1.Cluster
+		for _, cluster := range clusters {
+			result = append(result, cluster.Cluster)
+		}
+		return result, nil
 	}
 }
 
@@ -48,20 +57,16 @@ func (node *groupNode) selectCluster(replicas int32, selects map[string]*cluster
 
 // selectByClusters selects clusters from the current group's Clusters list
 func (node *groupNode) selectByClusters(replicas int32, selects map[string]*clusterDesc) (int32, error) {
-	if replicas != InvalidReplicas && node.AvailableReplicas < replicas {
-		return 0, errors.New("not enough replicas in the clusters")
-	} else {
-		adds := int32(0)
-		for _, cluster := range node.Clusters {
-			if replicas == InvalidReplicas || cluster.AvailableReplicas > 0 {
-				if _, ok := selects[cluster.Name]; !ok {
-					selects[cluster.Name] = cluster
-					adds += cluster.AvailableReplicas
-				}
+	adds := int32(0)
+	for _, cluster := range node.Clusters {
+		if replicas == InvalidReplicas || cluster.AvailableReplicas > 0 {
+			if _, ok := selects[cluster.Name]; !ok {
+				selects[cluster.Name] = cluster
+				adds += cluster.AvailableReplicas
 			}
 		}
-		return adds, nil
 	}
+	return adds, nil
 }
 
 // selectByGroups selects clusters from the sub-groups
@@ -70,7 +75,7 @@ func (node *groupNode) selectByGroups(replicas int32, selects map[string]*cluste
 	adds := int32(0)
 	groups := len(node.Groups)
 	if groups <= node.MinGroups {
-		return 0, errors.New("not enough groups to meet the minimum node requirement")
+		return 0, errors.New("the number of feasible clusters is less than spreadConstraint.MinGroups")
 	} else {
 		maxGroups := node.MaxGroups
 		if maxGroups == 0 || groups < maxGroups {
@@ -91,9 +96,10 @@ func (node *groupNode) selectByGroups(replicas int32, selects map[string]*cluste
 		} else {
 			left := make(map[string]*clusterDesc)
 			for i := maxGroups; i < groups; i++ {
-				_, _ = node.Groups[i].selectByGroups(InvalidReplicas, left)
+				_, _ = node.Groups[i].selectByClusters(InvalidReplicas, left)
 			}
-			i, err := supplement(selects, left, remain)
+			i, err := node.supplement(selects, left, remain)
+			fmt.Println(selects)
 			if err != nil {
 				return 0, err
 			}
@@ -102,26 +108,28 @@ func (node *groupNode) selectByGroups(replicas int32, selects map[string]*cluste
 	}
 }
 
-func supplement(selects map[string]*clusterDesc, remains map[string]*clusterDesc, replicas int32) (int32, error) {
+// supplement attempts to balance the cluster nodes by supplementing the selected nodes
+// with the remaining nodes to meet the required replicas.
+func (node *groupNode) supplement(selects map[string]*clusterDesc, remains map[string]*clusterDesc, replicas int32) (int32, error) {
 	adds := int32(0)
 	var selectArray []*clusterDesc
 	for _, cluster := range selects {
 		selectArray = append(selectArray, cluster)
 	}
+	sort.Slice(selectArray, func(i, j int) bool {
+		return selectArray[i].Score > selectArray[j].Score
+	})
+
 	var remainArray []*clusterDesc
 	for _, cluster := range remains {
 		if _, ok := selects[cluster.Name]; !ok {
 			remainArray = append(remainArray, cluster)
 		}
 	}
-	// Sort the selected clusters by AvailableReplicas in descending order.
-	sort.Slice(selectArray, func(i, j int) bool {
-		return selectArray[i].AvailableReplicas > selectArray[j].AvailableReplicas
-	})
 	maxReplicas := int32(0)
 	maxIndex := -1
-	for j := len(selects) - 1; j >= 0; j-- {
-		for i := 0; i < len(remains); i++ {
+	for j := len(selectArray) - 1; j >= 0; j-- {
+		for i := 0; i < len(remainArray); i++ {
 			if remainArray[i].AvailableReplicas > maxReplicas {
 				maxReplicas = remainArray[i].AvailableReplicas
 				maxIndex = i
@@ -130,16 +138,15 @@ func supplement(selects map[string]*clusterDesc, remains map[string]*clusterDesc
 		add := remainArray[maxIndex].AvailableReplicas - selectArray[j].AvailableReplicas
 		replicas -= add
 		adds += add
-		if add <= 0 {
-			return 0, errors.New("not enough replicas available in the groups")
-		} else if replicas <= 0 {
-			return adds, nil
-		} else {
+		if add > 0 {
 			delete(selects, selectArray[j].Name)
 			selects[remainArray[maxIndex].Name] = remainArray[maxIndex]
+			if replicas <= 0 {
+				return adds, nil
+			}
 			selectArray[j], remainArray[maxIndex] = remainArray[maxIndex], selectArray[j]
 		}
 	}
 
-	return 0, errors.New("not enough replicas available in the groups")
+	return 0, fmt.Errorf("no enough resource when selecting %d %ss", node.MaxGroups, node.Constraint)
 }

@@ -23,6 +23,7 @@ import (
 // groupNode represents a group in the cluster hierarchy.
 type groupNode struct {
 	Name              string         // Name of the group.
+	Constraint        string         // Type of constraint
 	MaxScore          int64          // The highest cluster score in this group.
 	AvailableReplicas int32          // Number of available replicas in this group.
 	MinGroups         int            // Minimum number of groups

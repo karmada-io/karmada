@@ -41,6 +41,7 @@ func (builder *groupBuilder) Create(ctx SelectionCtx) (Selection, error) {
 	if root.DisableConstraint {
 		root.Replicas = InvalidReplicas
 		root.Clusters = createClusters(ctx.ClusterScores)
+		root.Leaf = true
 		sortClusters(root.Clusters)
 	} else {
 		replicasFunc := ctx.ReplicasFunc
@@ -108,6 +109,7 @@ func disableAvailableResource(placement *policyv1alpha1.Placement) bool {
 // If the current group is at the last constraint, it marks it as a leaf node.
 func born(parent *groupNode, constraints []policyv1alpha1.SpreadConstraint, index int) {
 	constraint := constraints[index]
+	parent.Constraint = getConstraint(constraint)
 	parent.MinGroups = constraint.MinGroups
 	parent.MaxGroups = constraint.MaxGroups
 	children := make(map[string]*groupNode)
@@ -137,6 +139,17 @@ func born(parent *groupNode, constraints []policyv1alpha1.SpreadConstraint, inde
 		}
 	}
 	parent.compute()
+}
+
+// getConstraint returns the spread constraint as a string.
+func getConstraint(constraint policyv1alpha1.SpreadConstraint) string {
+	if constraint.SpreadByField != "" {
+		return string(constraint.SpreadByField)
+	} else if constraint.SpreadByLabel != "" {
+		return constraint.SpreadByLabel
+	} else {
+		return ""
+	}
 }
 
 // getGroup returns a list of group identifiers for a given cluster based on the provided constraint.
