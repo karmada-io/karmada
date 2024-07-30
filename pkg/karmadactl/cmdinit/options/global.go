@@ -40,3 +40,20 @@ const (
 	// WaitComponentReadyTimeout wait component ready time
 	WaitComponentReadyTimeout = 120
 )
+
+const (
+	// DefaultKubeImageTag is the default tag for the Kubernetes image used by the Karmada control plane.
+	DefaultKubeImageTag = "v1.30.4"
+	// DefaultKarmadaKubeNamespace is the default namespace in which the Karmada control plane components will be deployed.
+	DefaultKarmadaKubeNamespace = "karmada-system"
+	// DefaultKarmadaAPIServerNodePort is the default node port used by the Karmada API server.
+	DefaultKarmadaAPIServerNodePort = 32443
+	// DefaultEtcdStorageMode is the default storage mode for etcd data. The default mode is 'hostPath'.
+	DefaultEtcdStorageMode = "hostPath"
+	// DefaultEtcdHostDataPath is the default file system path where etcd data is stored when the storage mode is 'hostPath'.
+	DefaultEtcdHostDataPath = "/var/lib/karmada-etcd"
+	// DefaultKarmadaDataPath is the default directory where Karmada stores its configuration, certificates, and other data.
+	DefaultKarmadaDataPath = "/etc/karmada"
+	// DefaultKarmadaPkiPath is the default directory where Karmada stores its PKI (Public Key Infrastructure) files.
+	DefaultKarmadaPkiPath = "/etc/karmada/pki"
+)

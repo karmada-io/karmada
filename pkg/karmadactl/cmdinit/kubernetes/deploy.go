@@ -744,3 +744,33 @@ func generateServerURL(serverIP string, nodePort int32) (string, error) {
 func SupportedStorageMode() []string {
 	return []string{etcdStorageModeEmptyDir, etcdStorageModeHostPath, etcdStorageModePVC}
 }
+
+// NewDefaultCommandInitOption returns a CommandInitOption with default values
+func NewDefaultCommandInitOption() *CommandInitOption {
+	return &CommandInitOption{
+		ImagePullPolicy:                 string(corev1.PullIfNotPresent),
+		KubeImageTag:                    options.DefaultKubeImageTag,
+		Namespace:                       options.DefaultKarmadaKubeNamespace,
+		EtcdInitImage:                   DefaultInitImage,
+		CRDs:                            DefaultCrdURL,
+		KarmadaSchedulerImage:           DefaultKarmadaSchedulerImage,
+		KarmadaControllerManagerImage:   DefaultKarmadaControllerManagerImage,
+		KarmadaWebhookImage:             DefaultKarmadaWebhookImage,
+		KarmadaAggregatedAPIServerImage: DefaultKarmadaAggregatedAPIServerImage,
+	}
+}
+
+// GenerateControlPlaneImages generated control plane all the image list
+func (i *CommandInitOption) GenerateControlPlaneImages() []string {
+	images := []string{
+		i.kubeAPIServerImage(),
+		i.kubeControllerManagerImage(),
+		i.etcdImage(),
+		i.etcdInitImage(),
+		i.karmadaSchedulerImage(),
+		i.karmadaControllerManagerImage(),
+		i.karmadaWebhookImage(),
+		i.karmadaAggregatedAPIServerImage(),
+	}
+	return images
+}
