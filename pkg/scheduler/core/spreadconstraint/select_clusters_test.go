@@ -64,10 +64,22 @@ func newClusterScore(cluster *clusterv1alpha1.Cluster, score int64, replicas int
 
 func newClusterScoreList() []clusterScore {
 	return []clusterScore{
-		newClusterScore(newCluster("member4", "P2", "R2", "Z4", nil, nil), 60, 50),
-		newClusterScore(newCluster("member2", "P1", "R1", "Z2", nil, nil), 40, 60),
-		newClusterScore(newCluster("member3", "P2", "R2", "Z3", nil, nil), 30, 80),
-		newClusterScore(newCluster("member1", "P1", "R1", "Z1", nil, nil), 20, 40),
+		newClusterScore(newCluster("member4", "P2", "R2", "Z4", map[string]string{
+			"unit": "U2",
+			"cell": "C4",
+		}, nil), 60, 50),
+		newClusterScore(newCluster("member2", "P1", "R1", "Z2", map[string]string{
+			"unit": "U1",
+			"cell": "C2",
+		}, nil), 40, 60),
+		newClusterScore(newCluster("member3", "P2", "R2", "Z3", map[string]string{
+			"unit": "U2",
+			"cell": "C3",
+		}, nil), 30, 80),
+		newClusterScore(newCluster("member1", "P1", "R1", "Z1", map[string]string{
+			"unit": "U1",
+			"cell": "C1",
+		}, nil), 20, 40),
 	}
 }
 
@@ -253,6 +265,36 @@ func TestSelectBestClusters(t *testing.T) {
 			},
 			want:    nil,
 			wantErr: fmt.Errorf("the number of feasible clusters is less than spreadConstraint.MinGroups"),
+		},
+		{
+			name: "select clusters by unit cell label",
+			ctx: SelectionCtx{
+				ClusterScores: clusterScores,
+				Placement: &policyv1alpha1.Placement{
+					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+						{
+							SpreadByLabel: "unit",
+							MaxGroups:     2,
+							MinGroups:     1,
+						},
+						{
+							SpreadByLabel: "cell",
+							MaxGroups:     2,
+							MinGroups:     1,
+						},
+					},
+				},
+				Spec: &workv1alpha2.ResourceBindingSpec{
+					Replicas: 120,
+				},
+				ReplicasFunc: replicasFunc,
+			},
+			want: []*clusterv1alpha1.Cluster{
+				clusterScores[0].Cluster,
+				clusterScores[1].Cluster,
+				clusterScores[2].Cluster,
+				clusterScores[3].Cluster,
+			},
 		},
 	}
 
