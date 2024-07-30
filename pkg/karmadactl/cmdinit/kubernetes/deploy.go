@@ -38,6 +38,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/cert"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/karmada"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
+	cmdinitoptions "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 	globaloptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
@@ -728,4 +729,48 @@ func generateServerURL(serverIP string, nodePort int32) (string, error) {
 // SupportedStorageMode Return install etcd supported storage mode
 func SupportedStorageMode() []string {
 	return []string{etcdStorageModeEmptyDir, etcdStorageModeHostPath, etcdStorageModePVC}
+}
+
+// NewDefaultCommandInitOption returns a CommandInitOption with default values
+func NewDefaultCommandInitOption() *CommandInitOption {
+	return &CommandInitOption{
+		ImagePullPolicy:                    string(corev1.PullIfNotPresent),
+		KubeImageTag:                       "v1.29.6",
+		Namespace:                          "karmada-system",
+		EtcdStorageMode:                    "hostPath",
+		EtcdInitImage:                      DefaultInitImage,
+		EtcdReplicas:                       1,
+		EtcdHostDataPath:                   "/var/lib/karmada-etcd",
+		EtcdPersistentVolumeSize:           "5Gi",
+		CRDs:                               DefaultCrdURL,
+		KarmadaAPIServerNodePort:           32443,
+		KarmadaDataPath:                    "/etc/karmada",
+		KarmadaPkiPath:                     "/etc/karmada/pki",
+		KarmadaSchedulerImage:              DefaultKarmadaSchedulerImage,
+		KarmadaSchedulerReplicas:           1,
+		KarmadaControllerManagerImage:      DefaultKarmadaControllerManagerImage,
+		KarmadaControllerManagerReplicas:   1,
+		KarmadaWebhookImage:                DefaultKarmadaWebhookImage,
+		KarmadaWebhookReplicas:             1,
+		KarmadaAggregatedAPIServerImage:    DefaultKarmadaAggregatedAPIServerImage,
+		KarmadaAggregatedAPIServerReplicas: 1,
+		WaitComponentReadyTimeout:          cmdinitoptions.WaitComponentReadyTimeout,
+		CertValidity:                       cert.Duration365d,
+		HostClusterDomain:                  globaloptions.DefaultHostClusterDomain,
+	}
+}
+
+// GenerateControlPlaneImages generated control plane all the image list
+func (i *CommandInitOption) GenerateControlPlaneImages() []string {
+	images := []string{
+		i.kubeAPIServerImage(),
+		i.kubeControllerManagerImage(),
+		i.etcdImage(),
+		i.etcdInitImage(),
+		i.karmadaSchedulerImage(),
+		i.karmadaControllerManagerImage(),
+		i.karmadaWebhookImage(),
+		i.karmadaAggregatedAPIServerImage(),
+	}
+	return images
 }
