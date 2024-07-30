@@ -50,8 +50,8 @@ type Selection interface {
 
 // SelectionFactory defines the interface for creating Selection instances.
 type SelectionFactory interface {
-	// create initializes a Selection instance with the given context.
-	create(ctx SelectionCtx) (Selection, error)
+	// Create initializes a Selection instance with the given context.
+	Create(ctx SelectionCtx) (Selection, error)
 }
 
 // SelectionRegistry is a map that registers SelectionFactory instances by name.

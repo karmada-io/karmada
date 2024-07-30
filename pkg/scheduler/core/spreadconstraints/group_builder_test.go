@@ -464,7 +464,7 @@ func Test_GroupClusters(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			factory := SelectionRegistry[DefaultSelectionFactoryName]
-			selection, err := factory.create(SelectionCtx{
+			selection, err := factory.Create(SelectionCtx{
 				ClusterScores: tt.arg.clustersScore,
 				Placement:     tt.arg.placement,
 				Spec:          tt.arg.spec,

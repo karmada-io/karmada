@@ -33,7 +33,7 @@ func init() {
 
 // createGroupRoot groups clusters based on scores and placement policies.
 // It considers topology constraints if they are enabled in the placement.
-func (builder *groupBuilder) create(ctx SelectionCtx) (Selection, error) {
+func (builder *groupBuilder) Create(ctx SelectionCtx) (Selection, error) {
 	root := &groupRoot{}
 	root.Name = ""
 	root.DisableConstraint = len(ctx.Placement.SpreadConstraints) == 0 || disableSpreadConstraint(ctx.Placement)

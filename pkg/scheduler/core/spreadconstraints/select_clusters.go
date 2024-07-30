@@ -30,7 +30,7 @@ func SelectBestClusters(ctx SelectionCtx, name string) ([]*clusterv1alpha1.Clust
 	if !ok {
 		return nil, fmt.Errorf("selection %s is not registered", name)
 	}
-	selection, err := factory.create(ctx)
+	selection, err := factory.Create(ctx)
 	if err != nil {
 		return nil, err
 	}
