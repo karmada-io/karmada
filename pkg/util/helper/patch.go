@@ -67,6 +67,24 @@ func GenMergePatch(originalObj interface{}, modifiedObj interface{}) ([]byte, er
 	return patchBytes, nil
 }
 
+// GenFieldMergePatch will return a merge patch document capable of converting the
+// original field to the modified field.
+// The merge patch format is primarily intended for use with the HTTP PATCH method
+// as a means of describing a set of modifications to a target resource's content.
+func GenFieldMergePatch(fieldName string, originField interface{}, modifiedField interface{}) ([]byte, error) {
+	patchBytes, err := GenMergePatch(originField, modifiedField)
+	if err != nil {
+		return nil, err
+	}
+	if len(patchBytes) == 0 {
+		return nil, nil
+	}
+
+	patchBytes = append(patchBytes, '}')
+	patchBytes = append([]byte(`{"`+fieldName+`":`), patchBytes...)
+	return patchBytes, nil
+}
+
 // GenReplaceFieldJSONPatch returns the RFC6902 JSONPatch array as []byte, which is used to simply
 // add/replace/delete certain JSON **Object** field.
 func GenReplaceFieldJSONPatch(path string, originalFieldValue, newFieldValue interface{}) ([]byte, error) {
