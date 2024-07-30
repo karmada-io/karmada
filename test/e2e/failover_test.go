@@ -528,9 +528,6 @@ func disableCluster(c client.Client, clusterName string) error {
 	err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
 		if err := c.Get(ctx, client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
-			if apierrors.IsConflict(err) {
-				return false, nil
-			}
 			return false, err
 		}
 		// set the APIEndpoint of matched cluster to a wrong value
@@ -552,9 +549,6 @@ func taintCluster(c client.Client, clusterName string, taint corev1.Taint) error
 	err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
 		if err := c.Get(ctx, client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
-			if apierrors.IsConflict(err) {
-				return false, nil
-			}
 			return false, err
 		}
 		clusterObj.Spec.Taints = append(clusterObj.Spec.Taints, taint)
@@ -574,9 +568,6 @@ func recoverTaintedCluster(c client.Client, clusterName string, taint corev1.Tai
 	err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
 		if err := c.Get(ctx, client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
-			if apierrors.IsConflict(err) {
-				return false, nil
-			}
 			return false, err
 		}
 		clusterObj.Spec.Taints = helper.SetCurrentClusterTaints(nil, []*corev1.Taint{&taint}, clusterObj)
