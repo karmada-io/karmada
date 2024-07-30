@@ -264,9 +264,6 @@ func deleteClusterLabel(c client.Client, clusterName string) error {
 	err := wait.PollUntilContextTimeout(context.TODO(), 2*time.Second, 10*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
 		if err := c.Get(ctx, client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
-			if apierrors.IsConflict(err) {
-				return false, nil
-			}
 			return false, err
 		}
 		delete(clusterObj.Labels, "location")
