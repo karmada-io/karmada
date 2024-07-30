@@ -189,7 +189,7 @@ func getGroupByField(cluster *clusterv1alpha1.Cluster, value policyv1alpha1.Spre
 	case policyv1alpha1.SpreadByFieldRegion:
 		return []string{cluster.Spec.Region}
 	case policyv1alpha1.SpreadByFieldZone:
-		if cluster.Spec.Zones != nil {
+		if len(cluster.Spec.Zones) > 0 {
 			return cluster.Spec.Zones
 		}
 		return []string{cluster.Spec.Zone}
