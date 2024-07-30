@@ -29,7 +29,7 @@ import (
 func generateClusterScore() framework.ClusterScoreList {
 	return framework.ClusterScoreList{
 		{
-			Cluster: NewCluster("member1", "P1", "R1", "Z1",
+			Cluster: newCluster("member1", "P1", "R1", "Z1",
 				map[string]string{
 					"unit": "U1",
 					"cell": "C1",
@@ -40,7 +40,7 @@ func generateClusterScore() framework.ClusterScoreList {
 			Score: 20,
 		},
 		{
-			Cluster: NewCluster("member2", "P1", "R1", "Z2",
+			Cluster: newCluster("member2", "P1", "R1", "Z2",
 				map[string]string{
 					"unit": "U1",
 					"cell": "C2",
@@ -51,7 +51,7 @@ func generateClusterScore() framework.ClusterScoreList {
 			Score: 40,
 		},
 		{
-			Cluster: NewCluster("member3", "P2", "R2", "Z3",
+			Cluster: newCluster("member3", "P2", "R2", "Z3",
 				map[string]string{
 					"unit": "U2",
 					"cell": "C3",
@@ -62,7 +62,7 @@ func generateClusterScore() framework.ClusterScoreList {
 			Score: 30,
 		},
 		{
-			Cluster: NewCluster("member4", "P2", "R2", "Z4",
+			Cluster: newCluster("member4", "P2", "R2", "Z4",
 				map[string]string{
 					"unit": "U2",
 					"cell": "C4",
@@ -75,12 +75,6 @@ func generateClusterScore() framework.ClusterScoreList {
 	}
 }
 
-type args struct {
-	clustersScore framework.ClusterScoreList
-	placement     *policyv1alpha1.Placement
-	spec          *workv1alpha2.ResourceBindingSpec
-}
-
 type want struct {
 	name     string
 	clusters []string
@@ -89,7 +83,7 @@ type want struct {
 
 type test struct {
 	name string
-	arg  args
+	ctx  SelectionCtx
 	want want
 }
 
@@ -118,13 +112,25 @@ func (want *want) match(group *groupNode) error {
 
 func Test_GroupClusters(t *testing.T) {
 
+	replicasFunc := func(clusters []*clusterv1alpha1.Cluster, _ *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
+		availableTargetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
+
+		for i := range availableTargetClusters {
+			availableTargetClusters[i].Name = clusters[i].Name
+			availableTargetClusters[i].Replicas = 100
+		}
+
+		return availableTargetClusters
+	}
+
 	tests := []test{
 		{
 			name: "test SpreadConstraints is nil",
-			arg: args{
-				clustersScore: generateClusterScore(),
-				placement:     &policyv1alpha1.Placement{},
-				spec:          &workv1alpha2.ResourceBindingSpec{},
+			ctx: SelectionCtx{
+				ClusterScores: generateClusterScore(),
+				Placement:     &policyv1alpha1.Placement{},
+				Spec:          &workv1alpha2.ResourceBindingSpec{},
+				ReplicasFunc:  replicasFunc,
 			},
 			want: want{
 				clusters: []string{"member4", "member2", "member3", "member1"},
@@ -132,9 +138,9 @@ func Test_GroupClusters(t *testing.T) {
 		},
 		{
 			name: "test SpreadConstraints is cluster",
-			arg: args{
-				clustersScore: generateClusterScore(),
-				placement: &policyv1alpha1.Placement{
+			ctx: SelectionCtx{
+				ClusterScores: generateClusterScore(),
+				Placement: &policyv1alpha1.Placement{
 					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
 						{
 							SpreadByField: policyv1alpha1.SpreadByFieldCluster,
@@ -143,7 +149,8 @@ func Test_GroupClusters(t *testing.T) {
 						},
 					},
 				},
-				spec: &workv1alpha2.ResourceBindingSpec{},
+				Spec:         &workv1alpha2.ResourceBindingSpec{},
+				ReplicasFunc: replicasFunc,
 			},
 			want: want{
 				name:     "",
@@ -170,9 +177,9 @@ func Test_GroupClusters(t *testing.T) {
 		},
 		{
 			name: "test SpreadConstraints is zone",
-			arg: args{
-				clustersScore: generateClusterScore(),
-				placement: &policyv1alpha1.Placement{
+			ctx: SelectionCtx{
+				ClusterScores: generateClusterScore(),
+				Placement: &policyv1alpha1.Placement{
 					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
 						{
 							SpreadByField: policyv1alpha1.SpreadByFieldZone,
@@ -181,7 +188,8 @@ func Test_GroupClusters(t *testing.T) {
 						},
 					},
 				},
-				spec: &workv1alpha2.ResourceBindingSpec{},
+				Spec:         &workv1alpha2.ResourceBindingSpec{},
+				ReplicasFunc: replicasFunc,
 			},
 			want: want{
 				name:     "",
@@ -208,9 +216,9 @@ func Test_GroupClusters(t *testing.T) {
 		},
 		{
 			name: "test SpreadConstraints is region",
-			arg: args{
-				clustersScore: generateClusterScore(),
-				placement: &policyv1alpha1.Placement{
+			ctx: SelectionCtx{
+				ClusterScores: generateClusterScore(),
+				Placement: &policyv1alpha1.Placement{
 					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
 						{
 							SpreadByField: policyv1alpha1.SpreadByFieldRegion,
@@ -219,7 +227,8 @@ func Test_GroupClusters(t *testing.T) {
 						},
 					},
 				},
-				spec: &workv1alpha2.ResourceBindingSpec{},
+				Spec:         &workv1alpha2.ResourceBindingSpec{},
+				ReplicasFunc: replicasFunc,
 			},
 			want: want{
 				name:     "",
@@ -238,9 +247,9 @@ func Test_GroupClusters(t *testing.T) {
 		},
 		{
 			name: "test SpreadConstraints is provider",
-			arg: args{
-				clustersScore: generateClusterScore(),
-				placement: &policyv1alpha1.Placement{
+			ctx: SelectionCtx{
+				ClusterScores: generateClusterScore(),
+				Placement: &policyv1alpha1.Placement{
 					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
 						{
 							SpreadByField: policyv1alpha1.SpreadByFieldProvider,
@@ -249,7 +258,8 @@ func Test_GroupClusters(t *testing.T) {
 						},
 					},
 				},
-				spec: &workv1alpha2.ResourceBindingSpec{},
+				Spec:         &workv1alpha2.ResourceBindingSpec{},
+				ReplicasFunc: replicasFunc,
 			},
 			want: want{
 				name:     "",
@@ -268,9 +278,9 @@ func Test_GroupClusters(t *testing.T) {
 		},
 		{
 			name: "test SpreadConstraints is provider/region/zone",
-			arg: args{
-				clustersScore: generateClusterScore(),
-				placement: &policyv1alpha1.Placement{
+			ctx: SelectionCtx{
+				ClusterScores: generateClusterScore(),
+				Placement: &policyv1alpha1.Placement{
 					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
 						{
 							SpreadByField: policyv1alpha1.SpreadByFieldProvider,
@@ -289,7 +299,8 @@ func Test_GroupClusters(t *testing.T) {
 						},
 					},
 				},
-				spec: &workv1alpha2.ResourceBindingSpec{},
+				Spec:         &workv1alpha2.ResourceBindingSpec{},
+				ReplicasFunc: replicasFunc,
 			},
 			want: want{
 				name:     "",
@@ -340,9 +351,9 @@ func Test_GroupClusters(t *testing.T) {
 		},
 		{
 			name: "test SpreadConstraints is label unit/cell",
-			arg: args{
-				clustersScore: generateClusterScore(),
-				placement: &policyv1alpha1.Placement{
+			ctx: SelectionCtx{
+				ClusterScores: generateClusterScore(),
+				Placement: &policyv1alpha1.Placement{
 					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
 						{
 							SpreadByLabel: "unit",
@@ -356,7 +367,8 @@ func Test_GroupClusters(t *testing.T) {
 						},
 					},
 				},
-				spec: &workv1alpha2.ResourceBindingSpec{},
+				Spec:         &workv1alpha2.ResourceBindingSpec{},
+				ReplicasFunc: replicasFunc,
 			},
 			want: want{
 				name:     "",
@@ -395,9 +407,9 @@ func Test_GroupClusters(t *testing.T) {
 		},
 		{
 			name: "test SpreadConstraints is annotation unit/cell",
-			arg: args{
-				clustersScore: generateClusterScore(),
-				placement: &policyv1alpha1.Placement{
+			ctx: SelectionCtx{
+				ClusterScores: generateClusterScore(),
+				Placement: &policyv1alpha1.Placement{
 					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
 						{
 							SpreadByLabel: "unit@annotation",
@@ -411,7 +423,8 @@ func Test_GroupClusters(t *testing.T) {
 						},
 					},
 				},
-				spec: &workv1alpha2.ResourceBindingSpec{},
+				Spec:         &workv1alpha2.ResourceBindingSpec{},
+				ReplicasFunc: replicasFunc,
 			},
 			want: want{
 				name:     "",
@@ -450,26 +463,10 @@ func Test_GroupClusters(t *testing.T) {
 		},
 	}
 
-	calAvailableReplicasFunc := func(clusters []*clusterv1alpha1.Cluster, _ *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
-		availableTargetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
-
-		for i := range availableTargetClusters {
-			availableTargetClusters[i].Name = clusters[i].Name
-			availableTargetClusters[i].Replicas = 100
-		}
-
-		return availableTargetClusters
-	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			factory := SelectionRegistry[DefaultSelectionFactoryName]
-			selection, err := factory.Create(SelectionCtx{
-				ClusterScores: tt.arg.clustersScore,
-				Placement:     tt.arg.placement,
-				Spec:          tt.arg.spec,
-				ReplicasFunc:  calAvailableReplicasFunc,
-			})
+			selection, err := factory.Create(tt.ctx)
 			if err != nil {
 				t.Errorf("%s : %s", tt.name, err.Error())
 			}
