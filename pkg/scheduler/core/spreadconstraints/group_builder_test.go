@@ -29,31 +29,47 @@ import (
 func generateClusterScore() framework.ClusterScoreList {
 	return framework.ClusterScoreList{
 		{
-			Cluster: NewClusterWithTopology("member1", "P1", "R1", "Z1", map[string]string{
-				"unit": "U1",
-				"cell": "C1",
-			}),
+			Cluster: NewCluster("member1", "P1", "R1", "Z1",
+				map[string]string{
+					"unit": "U1",
+					"cell": "C1",
+				}, map[string]string{
+					"unit": "U1",
+					"cell": "C1",
+				}),
 			Score: 20,
 		},
 		{
-			Cluster: NewClusterWithTopology("member2", "P1", "R1", "Z2", map[string]string{
-				"unit": "U1",
-				"cell": "C2",
-			}),
+			Cluster: NewCluster("member2", "P1", "R1", "Z2",
+				map[string]string{
+					"unit": "U1",
+					"cell": "C2",
+				}, map[string]string{
+					"unit": "U1",
+					"cell": "C2",
+				}),
 			Score: 40,
 		},
 		{
-			Cluster: NewClusterWithTopology("member3", "P2", "R2", "Z3", map[string]string{
-				"unit": "U2",
-				"cell": "C3",
-			}),
+			Cluster: NewCluster("member3", "P2", "R2", "Z3",
+				map[string]string{
+					"unit": "U2",
+					"cell": "C3",
+				}, map[string]string{
+					"unit": "U2",
+					"cell": "C3",
+				}),
 			Score: 30,
 		},
 		{
-			Cluster: NewClusterWithTopology("member4", "P2", "R2", "Z4", map[string]string{
-				"unit": "U2",
-				"cell": "C4",
-			}),
+			Cluster: NewCluster("member4", "P2", "R2", "Z4",
+				map[string]string{
+					"unit": "U2",
+					"cell": "C4",
+				}, map[string]string{
+					"unit": "U2",
+					"cell": "C4",
+				}),
 			Score: 60,
 		},
 	}
@@ -77,7 +93,7 @@ type test struct {
 	want want
 }
 
-func (want *want) match(group *groupCluster) error {
+func (want *want) match(group *groupNode) error {
 	if group.Name != want.name {
 		return fmt.Errorf("name, want %s, got %s", want.name, group.Name)
 	} else if len(want.clusters) != len(group.Clusters) {
@@ -323,7 +339,7 @@ func Test_GroupClusters(t *testing.T) {
 			},
 		},
 		{
-			name: "test SpreadConstraints is unit/cell",
+			name: "test SpreadConstraints is label unit/cell",
 			arg: args{
 				clustersScore: generateClusterScore(),
 				placement: &policyv1alpha1.Placement{
@@ -335,6 +351,61 @@ func Test_GroupClusters(t *testing.T) {
 						},
 						{
 							SpreadByLabel: "cell",
+							MaxGroups:     1,
+							MinGroups:     1,
+						},
+					},
+				},
+				spec: &workv1alpha2.ResourceBindingSpec{},
+			},
+			want: want{
+				name:     "",
+				clusters: []string{"member4", "member2", "member3", "member1"},
+				groups: []want{
+					{
+						name:     "U2",
+						clusters: []string{"member4", "member3"},
+						groups: []want{
+							{
+								name:     "C4",
+								clusters: []string{"member4"},
+							},
+							{
+								name:     "C3",
+								clusters: []string{"member3"},
+							},
+						},
+					},
+					{
+						name:     "U1",
+						clusters: []string{"member2", "member1"},
+						groups: []want{
+							{
+								name:     "C2",
+								clusters: []string{"member2"},
+							},
+							{
+								name:     "C1",
+								clusters: []string{"member1"},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "test SpreadConstraints is annotation unit/cell",
+			arg: args{
+				clustersScore: generateClusterScore(),
+				placement: &policyv1alpha1.Placement{
+					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+						{
+							SpreadByLabel: "unit@annotation",
+							MaxGroups:     1,
+							MinGroups:     1,
+						},
+						{
+							SpreadByLabel: "cell@annotation",
 							MaxGroups:     1,
 							MinGroups:     1,
 						},
@@ -392,10 +463,21 @@ func Test_GroupClusters(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			group := createGroupCluster(tt.arg.clustersScore, tt.arg.placement, tt.arg.spec, calAvailableReplicasFunc)
-			err := tt.want.match(group)
+			factory := SelectionRegistry[DefaultSelectionFactoryName]
+			selection, err := factory.create(SelectionCtx{
+				ClusterScores: tt.arg.clustersScore,
+				Placement:     tt.arg.placement,
+				Spec:          tt.arg.spec,
+				ReplicasFunc:  calAvailableReplicasFunc,
+			})
 			if err != nil {
 				t.Errorf("%s : %s", tt.name, err.Error())
+			}
+			if root, ok := selection.(*groupRoot); ok {
+				err := tt.want.match(&root.groupNode)
+				if err != nil {
+					t.Errorf("%s : %s", tt.name, err.Error())
+				}
 			}
 		})
 	}

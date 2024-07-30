@@ -22,10 +22,10 @@ import (
 	"sort"
 )
 
-// elect method to select clusters based on the required replicas
-func (group *groupCluster) elect(replicas int32) ([]*clusterV1alpha1.Cluster, error) {
+// Elect method to select clusters based on the required replicas
+func (root *groupRoot) Elect() ([]*clusterV1alpha1.Cluster, error) {
 	selects := make(map[string]*clusterDesc)
-	_, err := group.selectCluster(replicas, selects)
+	_, err := root.selectCluster(root.Replicas, selects)
 	if err != nil {
 		return nil, err
 	} else {
@@ -38,21 +38,21 @@ func (group *groupCluster) elect(replicas int32) ([]*clusterV1alpha1.Cluster, er
 }
 
 // selectCluster method to select clusters based on the required replicas
-func (group *groupCluster) selectCluster(replicas int32, selects map[string]*clusterDesc) (int32, error) {
-	if group.Leaf {
-		return group.selectByClusters(replicas, selects)
+func (node *groupNode) selectCluster(replicas int32, selects map[string]*clusterDesc) (int32, error) {
+	if node.Leaf {
+		return node.selectByClusters(replicas, selects)
 	} else {
-		return group.selectByGroups(replicas, selects)
+		return node.selectByGroups(replicas, selects)
 	}
 }
 
 // selectByClusters selects clusters from the current group's Clusters list
-func (group *groupCluster) selectByClusters(replicas int32, selects map[string]*clusterDesc) (int32, error) {
-	if replicas != InvalidReplicas && group.AvailableReplicas < replicas {
+func (node *groupNode) selectByClusters(replicas int32, selects map[string]*clusterDesc) (int32, error) {
+	if replicas != InvalidReplicas && node.AvailableReplicas < replicas {
 		return 0, errors.New("not enough replicas in the clusters")
 	} else {
 		adds := int32(0)
-		for _, cluster := range group.Clusters {
+		for _, cluster := range node.Clusters {
 			if replicas == InvalidReplicas || cluster.AvailableReplicas > 0 {
 				if _, ok := selects[cluster.Name]; !ok {
 					selects[cluster.Name] = cluster
@@ -65,19 +65,19 @@ func (group *groupCluster) selectByClusters(replicas int32, selects map[string]*
 }
 
 // selectByGroups selects clusters from the sub-groups
-func (group *groupCluster) selectByGroups(replicas int32, selects map[string]*clusterDesc) (int32, error) {
+func (node *groupNode) selectByGroups(replicas int32, selects map[string]*clusterDesc) (int32, error) {
 	remain := replicas
 	adds := int32(0)
-	groups := len(group.Groups)
-	if groups <= group.MinGroups {
-		return 0, errors.New("not enough groups to meet the minimum group requirement")
+	groups := len(node.Groups)
+	if groups <= node.MinGroups {
+		return 0, errors.New("not enough groups to meet the minimum node requirement")
 	} else {
-		maxGroups := group.MaxGroups
+		maxGroups := node.MaxGroups
 		if maxGroups == 0 || groups < maxGroups {
 			maxGroups = groups
 		}
 		for i := 0; i < maxGroups; i++ {
-			add, err := group.Groups[i].selectCluster(remain, selects)
+			add, err := node.Groups[i].selectCluster(remain, selects)
 			adds += add
 			if err == nil && replicas != InvalidReplicas {
 				remain -= add
@@ -91,7 +91,7 @@ func (group *groupCluster) selectByGroups(replicas int32, selects map[string]*cl
 		} else {
 			left := make(map[string]*clusterDesc)
 			for i := maxGroups; i < groups; i++ {
-				_, _ = group.Groups[i].selectByGroups(InvalidReplicas, left)
+				_, _ = node.Groups[i].selectByGroups(InvalidReplicas, left)
 			}
 			i, err := supplement(selects, left, remain)
 			if err != nil {

@@ -22,12 +22,15 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
 
-// NewClusterWithTopology will build a Cluster with topology.
-func NewClusterWithTopology(name, provider, region, zone string, labels map[string]string) *clusterv1alpha1.Cluster {
+// NewCluster will build a Cluster with topology.
+func NewCluster(name, provider, region, zone string,
+	labels map[string]string,
+	annotations map[string]string) *clusterv1alpha1.Cluster {
 	return &clusterv1alpha1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   name,
-			Labels: labels,
+			Name:        name,
+			Labels:      labels,
+			Annotations: annotations,
 		},
 		Spec: clusterv1alpha1.ClusterSpec{
 			Provider: provider,

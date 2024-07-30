@@ -17,35 +17,22 @@ limitations under the License.
 package spreadconstraint
 
 import (
-	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/scheduler/framework"
-
-	"k8s.io/klog/v2"
-
+	"fmt"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
-// SelectBestClusters selects the cluster set based the spread constraint
-func SelectBestClusters(clusterScores framework.ClusterScoreList,
-	placement *policyv1alpha1.Placement,
-	spec *workv1alpha2.ResourceBindingSpec,
-	availableReplicasFunc func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster,
-) ([]*clusterv1alpha1.Cluster, error) {
-	if len(placement.SpreadConstraints) == 0 || disableSpreadConstraint(placement) {
-		var clusters []*clusterv1alpha1.Cluster
-		for _, score := range clusterScores {
-			clusters = append(clusters, score.Cluster)
-		}
-		klog.V(4).Infof("Select all clusters")
-		return clusters, nil
+// SelectBestClusters selects the best clusters based on the provided selection context and factory name.
+func SelectBestClusters(ctx SelectionCtx, name string) ([]*clusterv1alpha1.Cluster, error) {
+	if name == "" {
+		name = DefaultSelectionFactoryName
 	}
-
-	replicas := spec.Replicas
-	if disableAvailableResource(placement) {
-		replicas = InvalidReplicas
+	factory, ok := SelectionRegistry[name]
+	if !ok {
+		return nil, fmt.Errorf("selection %s is not registered", name)
 	}
-
-	group := createGroupCluster(clusterScores, placement, spec, availableReplicasFunc)
-	return group.elect(replicas)
+	selection, err := factory.create(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return selection.Elect()
 }
