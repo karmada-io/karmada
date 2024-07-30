@@ -828,7 +828,7 @@ func patchBindingStatusWithAffinityName(karmadaClient karmadaclientset.Interface
 }
 
 func patchBindingStatus(karmadaClient karmadaclientset.Interface, rb, updateRB *workv1alpha2.ResourceBinding) error {
-	patchBytes, err := helper.GenMergePatch(rb, updateRB)
+	patchBytes, err := helper.GenFieldMergePatch("status", rb.Status, updateRB.Status)
 	if err != nil {
 		return err
 	}
@@ -879,7 +879,7 @@ func patchClusterBindingStatusWithAffinityName(karmadaClient karmadaclientset.In
 }
 
 func patchClusterResourceBindingStatus(karmadaClient karmadaclientset.Interface, crb, updateCRB *workv1alpha2.ClusterResourceBinding) error {
-	patchBytes, err := helper.GenMergePatch(crb, updateCRB)
+	patchBytes, err := helper.GenFieldMergePatch("status", crb.Status, updateCRB.Status)
 	if err != nil {
 		return err
 	}
