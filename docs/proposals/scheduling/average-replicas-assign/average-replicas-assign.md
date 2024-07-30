@@ -172,6 +172,12 @@ Note that `replicaDivisionPreference == Average` will only be effective when `re
 注意，replicaDivisionPreference == Average 只有在 replicaSchedulingType == Divided 时才会生效。
 -->
 
+Finally, since the added AverageReplicas is a general strategic capability, we are considering introducing it into the API in the form of an enumeration (i.e., introducing Average as a new optional value for replicaDivisionPreference). For now, we are not considering designing a general API and then making Average a sub-item of that general API.
+
+<!--
+最后，由于我们添加的 AverageReplicas 属于通用的策略能力，因此此处考虑将其以枚举的形式引入到 API 中（即引入 Average 作为 replicaDivisionPreference 的一个新的可选值）。暂时不考虑设计一个通用的 API，然后将 Average 设计为该通用 API 的子项。
+-->
+
 ### Process Design
 
 Currently, Karmada's scheduling process consists of four phases: Filter, Score, Select, and Assign. To achieve an even distribution of replicas across the clusters as much as possible, it is necessary to implement the allocation of replicas to each member cluster in an as-even-as-possible manner during the Assign phase.
@@ -250,6 +256,12 @@ Since we have ensured in the Select phase that the total AvailableReplica of the
 由于在 Select 阶段中，我们已经保证了所选出的 Cluster 的 AvailableReplica 总和是大于待分配的 Replica 的，因此不必担心资源不足的问题。
 -->
 
+It should be clearly stated that if the result is not a whole number when calculating avg_rep (avg_rep = Replica / L), the avg_rep will be rounded down, and the remaining Replicas due to rounding will be added to the sumPendingReplica variable. For example, suppose Replica = 8 and L = 3, then avg_rep = 8 / 3 = 2.67. We would round down avg_rep to 2, meaning each Cluster is expected to be allocated 2 Replicas. Since 2 * 3 = 6, there are still 2 Replicas left unallocated. These two Replicas will then be added to sumPendingReplica, making sumPendingReplica = sumPendingReplica + 2.
+
+<!--
+需要明确说明的是，如果在计算 avg_rep 时（avg_rep = Replica / L），发现无法得到整除的结果，那么会对所得到的 avg_rep 进行向下取整，并将由于取整而舍去的 Replica 加到 sumPendingReplica 这个变量中。举个例子，假设 Replica = 8，L = 3，那么 avg_rep = 8 / 3 = 2.67，那么我们就会取 avg_rep = 2，那么每个 Cluster 就会被预期分到 2 个 Replica，2 * 3 = 6，那么还有 2 个 Replica 尚未被分配，此时就会将这两个 Replica 计入到 sumPendingReplica 中，即 sumPendingReplica = sumPendingReplica + 2。
+-->
+
 **This way, we can achieve an even distribution of replicas across different clusters as much as possible.** Below is a detailed flowchart:
 
 <!--
@@ -273,3 +285,5 @@ Other implementation methods for this proposal have not been considered previous
 <!--
 此前没有考虑过该 Proposal 的其他实现方法。
 -->
+
+
