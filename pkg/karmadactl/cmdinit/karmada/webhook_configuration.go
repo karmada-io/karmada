@@ -34,7 +34,7 @@ func mutatingConfig(caBundle string, systemNamespace string) string {
 	return fmt.Sprintf(`apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: mutating-config
+  name: karmada-mutations
   labels:
     app: karmada-webhook
 webhooks:
@@ -156,7 +156,7 @@ func validatingConfig(caBundle string, systemNamespace string) string {
 	return fmt.Sprintf(`apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: validating-config
+  name: karmada-validations
   labels:
     app: karmada-webhook
 webhooks:
