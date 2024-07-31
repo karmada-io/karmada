@@ -39,9 +39,8 @@ func (builder *groupBuilder) Create(ctx SelectionCtx) (Selection, error) {
 	if disableSpreadConstraint(ctx.Placement) {
 		root.DisableConstraint = true
 		root.Replicas = InvalidReplicas
-		root.Clusters = createClusters(ctx.ClusterScores)
 		root.Leaf = true
-		sortClusters(root.Clusters)
+		root.Clusters = sortClusters(createClusters(ctx.ClusterScores))
 	} else {
 		root.Replicas = ctx.Spec.Replicas
 		replicasFunc := ctx.ReplicasFunc
@@ -49,8 +48,7 @@ func (builder *groupBuilder) Create(ctx SelectionCtx) (Selection, error) {
 			root.Replicas = InvalidReplicas
 			replicasFunc = nil
 		}
-		root.Clusters = createClustersWithReplicas(ctx.ClusterScores, ctx.Spec, replicasFunc)
-		sortClusters(root.Clusters)
+		root.Clusters = sortClusters(createClustersWithReplicas(ctx.ClusterScores, ctx.Spec, replicasFunc))
 		born(&root.groupNode, ctx.Placement.SpreadConstraints, 0)
 	}
 
@@ -243,18 +241,21 @@ func createClustersWithReplicas(clusterScores framework.ClusterScoreList,
 }
 
 // sortClusters sorts the given slice of clusterDesc pointers.
-func sortClusters(clusters []*clusterDesc) {
-	sort.Slice(clusters, func(i, j int) bool {
-		if clusters[i].Score > clusters[j].Score {
-			return true
-		} else if clusters[i].Score < clusters[j].Score {
-			return false
-		} else if clusters[i].AvailableReplicas > clusters[j].AvailableReplicas {
-			return true
-		} else if clusters[i].AvailableReplicas < clusters[j].AvailableReplicas {
-			return false
-		} else {
-			return clusters[i].Name < clusters[j].Name
-		}
-	})
+func sortClusters(clusters []*clusterDesc) []*clusterDesc {
+	if len(clusters) > 0 {
+		sort.Slice(clusters, func(i, j int) bool {
+			if clusters[i].Score > clusters[j].Score {
+				return true
+			} else if clusters[i].Score < clusters[j].Score {
+				return false
+			} else if clusters[i].AvailableReplicas > clusters[j].AvailableReplicas {
+				return true
+			} else if clusters[i].AvailableReplicas < clusters[j].AvailableReplicas {
+				return false
+			} else {
+				return clusters[i].Name < clusters[j].Name
+			}
+		})
+	}
+	return clusters
 }
