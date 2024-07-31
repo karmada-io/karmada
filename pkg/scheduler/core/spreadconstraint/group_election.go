@@ -25,22 +25,24 @@ import (
 
 // Elect method to select clusters based on the required replicas
 func (root *groupRoot) Elect() ([]*clusterV1alpha1.Cluster, error) {
-	selects := make(map[string]*clusterDesc)
+	selects := make(map[string]*clusterDesc, len(root.Clusters))
 	_, err := root.selectCluster(root.Replicas, selects)
 	if err != nil {
 		return nil, err
 	} else {
-		var clusters []*clusterDesc
+		clusters := make([]*clusterDesc, len(selects))
+		index := 0
 		for _, cluster := range selects {
-			clusters = append(clusters, cluster)
+			clusters[index] = cluster
+			index++
 		}
 		sort.Slice(clusters, func(i, j int) bool {
 			return clusters[i].Score > clusters[j].Score
 		})
 
-		var result []*clusterV1alpha1.Cluster
-		for _, cluster := range clusters {
-			result = append(result, cluster.Cluster)
+		result := make([]*clusterV1alpha1.Cluster, len(clusters))
+		for i, cluster := range clusters {
+			result[i] = cluster.Cluster
 		}
 		return result, nil
 	}
@@ -83,9 +85,11 @@ func (node *groupNode) selectByGroups(replicas int32, selects map[string]*cluste
 		}
 		for i := 0; i < maxGroups; i++ {
 			add, err := node.Groups[i].selectCluster(remain, selects)
-			adds += add
-			if err == nil && replicas != InvalidReplicas {
-				remain -= add
+			if err == nil {
+				adds += add
+				if replicas != InvalidReplicas {
+					remain -= add
+				}
 			}
 		}
 
@@ -94,12 +98,12 @@ func (node *groupNode) selectByGroups(replicas int32, selects map[string]*cluste
 		} else if maxGroups == groups {
 			return 0, errors.New("not enough replicas in the groups")
 		} else {
-			left := make(map[string]*clusterDesc)
+			// TODO replace by group
+			left := make(map[string]*clusterDesc, len(node.Clusters))
 			for i := maxGroups; i < groups; i++ {
-				_, _ = node.Groups[i].selectByClusters(InvalidReplicas, left)
+				_, _ = node.Groups[i].selectCluster(InvalidReplicas, left)
 			}
 			i, err := node.supplement(selects, left, remain)
-			fmt.Println(selects)
 			if err != nil {
 				return 0, err
 			}

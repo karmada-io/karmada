@@ -31,19 +31,19 @@ func init() {
 	SelectionRegistry[DefaultSelectionFactoryName] = &groupBuilder{}
 }
 
-// createGroupRoot groups clusters based on scores and placement policies.
+// Create createGroupRoot groups clusters based on scores and placement policies.
 // It considers topology constraints if they are enabled in the placement.
 func (builder *groupBuilder) Create(ctx SelectionCtx) (Selection, error) {
 	root := &groupRoot{}
 	root.Name = ""
-	root.DisableConstraint = len(ctx.Placement.SpreadConstraints) == 0 || disableSpreadConstraint(ctx.Placement)
-	root.Replicas = ctx.Spec.Replicas
-	if root.DisableConstraint {
+	if disableSpreadConstraint(ctx.Placement) {
+		root.DisableConstraint = true
 		root.Replicas = InvalidReplicas
 		root.Clusters = createClusters(ctx.ClusterScores)
 		root.Leaf = true
 		sortClusters(root.Clusters)
 	} else {
+		root.Replicas = ctx.Spec.Replicas
 		replicasFunc := ctx.ReplicasFunc
 		if disableAvailableResource(ctx.Placement) {
 			root.Replicas = InvalidReplicas
@@ -79,8 +79,12 @@ func (node *groupNode) compute() {
 // disableSpreadConstraint checks if the spread constraints should be ignored.
 // It returns true if the replica division preference is 'static weighted'.
 func disableSpreadConstraint(placement *policyv1alpha1.Placement) bool {
-	strategy := placement.ReplicaScheduling
 
+	if len(placement.SpreadConstraints) == 0 {
+		return true
+	}
+
+	strategy := placement.ReplicaScheduling
 	// If the replica division preference is 'static weighted', ignore the declaration specified by spread constraints.
 	if strategy != nil && strategy.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided &&
 		strategy.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceWeighted &&
@@ -104,7 +108,7 @@ func disableAvailableResource(placement *policyv1alpha1.Placement) bool {
 	return false
 }
 
-// born recursively groups clusters based on the provided constraints.
+// born recursively groups based on the provided constraints.
 // It updates the parent group with its child groups and their respective clusters.
 // If the current group is at the last constraint, it marks it as a leaf node.
 func born(parent *groupNode, constraints []policyv1alpha1.SpreadConstraint, index int) {
@@ -114,6 +118,7 @@ func born(parent *groupNode, constraints []policyv1alpha1.SpreadConstraint, inde
 	parent.MaxGroups = constraint.MaxGroups
 	children := make(map[string]*groupNode)
 	for _, desc := range parent.Clusters {
+		// Cluster may be deployed across zones or cells.
 		names := getGroup(desc.Cluster, constraint)
 		if names != nil {
 			for _, name := range names {
