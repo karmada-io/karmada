@@ -86,6 +86,7 @@ func (node *GroupNode) selectByGroups(replicas int32) (*Candidate, error) {
 	} else {
 		// all matched group order by score desc.
 		var candidates []*Candidate
+		// TODO candidate maybe is not best.
 		for _, group := range node.Groups {
 			candidate, err := group.selectCluster(InvalidReplicas)
 			if err == nil {
