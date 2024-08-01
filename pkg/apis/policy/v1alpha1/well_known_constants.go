@@ -50,7 +50,11 @@ const (
 
 	// PropagationPolicyNameAnnotation is added to objects to specify associated PropagationPolicy name.
 	PropagationPolicyNameAnnotation = "propagationpolicy.karmada.io/name"
+	// PropagationPolicyGenerationAnnotation is added to objects to specify associated PropagationPolicy generation.
+	PropagationPolicyGenerationAnnotation = "propagationpolicy.karmada.io/generation"
 
 	// ClusterPropagationPolicyAnnotation is added to objects to specify associated ClusterPropagationPolicy name.
 	ClusterPropagationPolicyAnnotation = "clusterpropagationpolicy.karmada.io/name"
+	// ClusterPropagationPolicyGenerationAnnotation is added to objects to specify associated ClusterPropagationPolicy generation.
+	ClusterPropagationPolicyGenerationAnnotation = "clusterpropagationpolicy.karmada.io/generation"
 )

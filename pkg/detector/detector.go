@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
 	"sync"
 	"time"
 
@@ -449,7 +450,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		}
 	}()
 
-	policyID, err := d.ClaimPolicyForObject(object, policy)
+	policyID, err := d.ClaimPolicyForObject(object, policy, resourceChangeByKarmada)
 	if err != nil {
 		klog.Errorf("Failed to claim policy(%s/%s) for object: %s", policy.Namespace, policy.Name, object)
 		return err
@@ -540,7 +541,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 		}
 	}()
 
-	policyID, err := d.ClaimClusterPolicyForObject(object, policy)
+	policyID, err := d.ClaimClusterPolicyForObject(object, policy, resourceChangeByKarmada)
 	if err != nil {
 		klog.Errorf("Failed to claim cluster policy(%s) for object: %s", policy.Name, object)
 		return err
@@ -698,17 +699,27 @@ func (d *ResourceDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) 
 }
 
 // ClaimPolicyForObject set policy identifier which the object associated with.
-func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructured, policy *policyv1alpha1.PropagationPolicy) (string, error) {
+func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructured, policy *policyv1alpha1.PropagationPolicy, resourceChangeByKarmada bool) (string, error) {
 	policyID := policy.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel]
-
+	generation := strconv.FormatInt(policy.Generation, 10)
 	objLabels := object.GetLabels()
+	samePolicy := false
 	if objLabels == nil {
 		objLabels = make(map[string]string)
 	} else if len(objLabels) > 0 {
 		// object has been claimed, don't need to claim again
 		if !excludeClusterPolicy(objLabels) &&
 			objLabels[policyv1alpha1.PropagationPolicyPermanentIDLabel] == policyID {
-			return policyID, nil
+			samePolicy = true
+			if _, exist := object.GetAnnotations()[policyv1alpha1.PropagationPolicyGenerationAnnotation]; !exist &&
+				!util.IsLazyActivationEnabled(policy.Spec.ActivationPreference) {
+				// If the object has been claimed by the same policy and the activation preference is not lazy, no need to claim again.
+				return policyID, nil
+			}
+			if util.IsLazyActivationEnabled(policy.Spec.ActivationPreference) && resourceChangeByKarmada {
+				// If the object has been claimed by the same policy and the activation preference is lazy and the change is from Karmada, no need to claim again.
+				return policyID, nil
+			}
 		}
 	}
 
@@ -720,7 +731,14 @@ func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructure
 	}
 	objectAnnotations[policyv1alpha1.PropagationPolicyNamespaceAnnotation] = policy.Namespace
 	objectAnnotations[policyv1alpha1.PropagationPolicyNameAnnotation] = policy.Name
-
+	if util.IsLazyActivationEnabled(policy.Spec.ActivationPreference) {
+		if gen, exist := objectAnnotations[policyv1alpha1.PropagationPolicyNameAnnotation]; exist && gen == generation && samePolicy {
+			return policyID, nil
+		}
+		objectAnnotations[policyv1alpha1.PropagationPolicyGenerationAnnotation] = generation
+	} else {
+		delete(objectAnnotations, policyv1alpha1.PropagationPolicyGenerationAnnotation)
+	}
 	objectCopy := object.DeepCopy()
 	objectCopy.SetLabels(objLabels)
 	objectCopy.SetAnnotations(objectAnnotations)
@@ -728,19 +746,36 @@ func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructure
 }
 
 // ClaimClusterPolicyForObject set cluster identifier which the object associated with
-func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unstructured, policy *policyv1alpha1.ClusterPropagationPolicy) (string, error) {
+func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unstructured, policy *policyv1alpha1.ClusterPropagationPolicy, resourceChangeByKarmada bool) (string, error) {
 	policyID := policy.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]
 
 	claimedID := util.GetLabelValue(object.GetLabels(), policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel)
+	generation := strconv.FormatInt(policy.Generation, 10)
 	// object has been claimed, don't need to claim again
 	if claimedID == policyID {
-		return policyID, nil
+		if _, exist := object.GetAnnotations()[policyv1alpha1.ClusterPropagationPolicyGenerationAnnotation]; !exist &&
+			!util.IsLazyActivationEnabled(policy.Spec.ActivationPreference) {
+			return policyID, nil // If the object has been claimed by the same policy and the activation preference is not lazy, no need to claim again.
+		}
+		if util.IsLazyActivationEnabled(policy.Spec.ActivationPreference) && resourceChangeByKarmada {
+			// If the object has been claimed by the same policy and the activation preference is lazy and the change is from Karmada, no need to claim again.
+			return policyID, nil
+		}
 	}
 
 	objectCopy := object.DeepCopy()
 	util.MergeLabel(objectCopy, policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel, policyID)
 
 	util.MergeAnnotation(objectCopy, policyv1alpha1.ClusterPropagationPolicyAnnotation, policy.Name)
+	if util.IsLazyActivationEnabled(policy.Spec.ActivationPreference) {
+		if gen, exist := objectCopy.GetAnnotations()[policyv1alpha1.ClusterPropagationPolicyGenerationAnnotation]; exist && gen == generation && claimedID == policyID {
+			return policyID, nil
+		}
+		util.MergeAnnotation(objectCopy, policyv1alpha1.ClusterPropagationPolicyGenerationAnnotation, generation)
+	} else {
+		util.RemoveAnnotations(objectCopy, policyv1alpha1.ClusterPropagationPolicyGenerationAnnotation)
+	}
+
 	return policyID, d.Client.Update(context.TODO(), objectCopy)
 }
 
