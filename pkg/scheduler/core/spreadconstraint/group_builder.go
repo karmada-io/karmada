@@ -40,6 +40,7 @@ func (builder *GroupBuilder) Create(ctx SelectionCtx) (Selection, error) {
 		root.DisableConstraint = true
 		root.Replicas = InvalidReplicas
 		root.Leaf = true
+		root.Valid = true
 		root.Clusters = sortClusters(createClusters(ctx.ClusterScores))
 	} else {
 		root.Replicas = ctx.Spec.Replicas
@@ -58,20 +59,43 @@ func (builder *GroupBuilder) Create(ctx SelectionCtx) (Selection, error) {
 // compute calculates the maximum score and the total available replicas
 // from the clusters within the group,
 func (node *GroupNode) compute() {
+	groups := len(node.Groups)
+	node.MaxGroups = ternary(node.MaxGroups > 0 && groups < node.MaxGroups, groups, node.MaxGroups)
+	node.Valid = ternary(node.MinGroups > 0 && groups < node.MinGroups, false, true)
+
+	if node.Valid {
+		node.MaxScore, node.AvailableReplicas = node.computeScoreAndReplicas()
+
+		//sort groups by maxScore
+		sort.Slice(node.Groups, func(i, j int) bool {
+			if node.Groups[i].Valid && !node.Groups[j].Valid {
+				return true
+			} else if !node.Groups[i].Valid && node.Groups[j].Valid {
+				return false
+			}
+			return node.Groups[i].MaxScore > node.Groups[j].MaxScore
+		})
+	}
+}
+
+// computeScoreAndReplicas calculates the maximum score and the total available replicas
+func (node *GroupNode) computeScoreAndReplicas() (int64, int32) {
 	score := int64(0)
 	availableReplicas := int32(0)
-	for _, cluster := range node.Clusters {
-		if cluster.Score > score {
-			score = cluster.Score
+	if node.Leaf {
+		for _, cluster := range node.Clusters {
+			score = ternary(cluster.Score > score, cluster.Score, score)
+			availableReplicas += cluster.AvailableReplicas
 		}
-		availableReplicas += cluster.AvailableReplicas
+	} else {
+		for _, group := range node.Groups {
+			if group.Valid {
+				score = ternary(group.MaxScore > score, group.MaxScore, score)
+				availableReplicas += group.AvailableReplicas
+			}
+		}
 	}
-	node.MaxScore = score
-	node.AvailableReplicas = availableReplicas
-	//sort groups by maxScore
-	sort.Slice(node.Groups, func(i, j int) bool {
-		return node.Groups[i].MaxScore > node.Groups[j].MaxScore
-	})
+	return score, availableReplicas
 }
 
 // disableSpreadConstraint checks if the spread constraints should be ignored.
@@ -139,6 +163,7 @@ func born(parent *GroupNode, constraints []policyv1alpha1.SpreadConstraint, inde
 			born(child, constraints, index+1)
 		} else {
 			child.Leaf = true
+			child.compute()
 		}
 	}
 	parent.compute()

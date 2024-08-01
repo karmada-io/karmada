@@ -28,6 +28,7 @@ type GroupNode struct {
 	AvailableReplicas int32          // Number of available replicas in this group.
 	MinGroups         int            // Minimum number of groups
 	MaxGroups         int            // Maximum number of groups
+	Valid             bool           // Indicates if the number of groups is valid.
 	Leaf              bool           // Indicates if it is a leaf node.
 	Clusters          []*ClusterDesc // Clusters in this group, sorted by cluster.MaxScore descending.
 	Groups            []*GroupNode   // Sub-groups of this group.
@@ -51,4 +52,11 @@ type ClusterDesc struct {
 // GroupBuilder is a structure that embeds a SelectionFactory to build groups.
 type GroupBuilder struct {
 	SelectionFactory
+}
+
+func ternary[T any](condition bool, trueVal, falseVal T) T {
+	if condition {
+		return trueVal
+	}
+	return falseVal
 }

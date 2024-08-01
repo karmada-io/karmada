@@ -81,7 +81,7 @@ func (node *GroupNode) selectByClusters(replicas int32) (*Candidate, error) {
 
 // selectByGroups selects clusters from the sub-groups
 func (node *GroupNode) selectByGroups(replicas int32) (*Candidate, error) {
-	if node.MinGroups > 0 && len(node.Groups) <= node.MinGroups {
+	if !node.Valid {
 		return nil, errors.New("the number of feasible clusters is less than spreadConstraint.MinGroups")
 	} else {
 		// all matched group order by score desc.
