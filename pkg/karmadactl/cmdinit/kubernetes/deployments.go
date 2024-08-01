@@ -591,10 +591,9 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 				Command: []string{
 					"/bin/karmada-controller-manager",
 					"--kubeconfig=/etc/kubeconfig",
-					"--bind-address=0.0.0.0",
 					"--metrics-bind-address=:8080",
+					"--health-probe-bind-address=0.0.0.0:10357",
 					"--cluster-status-update-frequency=10s",
-					"--secure-port=10357",
 					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
 					"--v=4",
 				},
