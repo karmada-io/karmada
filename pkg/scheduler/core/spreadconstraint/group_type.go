@@ -20,8 +20,8 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
 
-// groupNode represents a group in the cluster hierarchy.
-type groupNode struct {
+// GroupNode represents a group in the cluster hierarchy.
+type GroupNode struct {
 	Name              string         // Name of the group.
 	Constraint        string         // Type of constraint
 	MaxScore          int64          // The highest cluster score in this group.
@@ -29,26 +29,26 @@ type groupNode struct {
 	MinGroups         int            // Minimum number of groups
 	MaxGroups         int            // Maximum number of groups
 	Leaf              bool           // Indicates if it is a leaf node.
-	Clusters          []*clusterDesc // Clusters in this group, sorted by cluster.MaxScore descending.
-	Groups            []*groupNode   // Sub-groups of this group.
+	Clusters          []*ClusterDesc // Clusters in this group, sorted by cluster.MaxScore descending.
+	Groups            []*GroupNode   // Sub-groups of this group.
 }
 
-// groupRoot represents the root group node in a hierarchical structure.
-type groupRoot struct {
-	groupNode
+// GroupRoot represents the root group node in a hierarchical structure.
+type GroupRoot struct {
+	GroupNode
 	DisableConstraint bool  // Indicates if the constraint is disabled.
 	Replicas          int32 // Number of replicas in the root group.
 }
 
-// clusterDesc indicates the cluster information
-type clusterDesc struct {
+// ClusterDesc indicates the cluster information
+type ClusterDesc struct {
 	Name              string                   // Name of the cluster
 	Score             int64                    // Score of the cluster
 	AvailableReplicas int32                    // Number of available replicas in the cluster
 	Cluster           *clusterv1alpha1.Cluster // Pointer to the Cluster object
 }
 
-// groupBuilder is a structure that embeds a SelectionFactory to build groups.
-type groupBuilder struct {
+// GroupBuilder is a structure that embeds a SelectionFactory to build groups.
+type GroupBuilder struct {
 	SelectionFactory
 }

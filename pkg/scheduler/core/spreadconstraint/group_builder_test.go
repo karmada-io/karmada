@@ -87,7 +87,7 @@ type test struct {
 	want want
 }
 
-func (want *want) match(group *groupNode) error {
+func (want *want) match(group *GroupNode) error {
 	if group.Name != want.name {
 		return fmt.Errorf("name, want %s, got %s", want.name, group.Name)
 	} else if len(want.clusters) != len(group.Clusters) {
@@ -470,8 +470,8 @@ func Test_GroupClusters(t *testing.T) {
 			if err != nil {
 				t.Errorf("%s : %s", tt.name, err.Error())
 			}
-			if root, ok := selection.(*groupRoot); ok {
-				err := tt.want.match(&root.groupNode)
+			if root, ok := selection.(*GroupRoot); ok {
+				err := tt.want.match(&root.GroupNode)
 				if err != nil {
 					t.Errorf("%s : %s", tt.name, err.Error())
 				}

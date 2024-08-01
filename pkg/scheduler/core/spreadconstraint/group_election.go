@@ -23,19 +23,20 @@ import (
 	"sort"
 )
 
+type Candidate struct {
+	Name     string         // The name of the group.
+	MaxScore int64          // The highest cluster score in this group.
+	Replicas int32          // Number of available replicas in this group.
+	Clusters []*ClusterDesc // Clusters in this group, sorted by cluster.MaxScore descending.
+}
+
 // Elect method to select clusters based on the required replicas
-func (root *groupRoot) Elect() ([]*clusterV1alpha1.Cluster, error) {
-	selects := make(map[string]*clusterDesc, len(root.Clusters))
-	_, err := root.selectCluster(root.Replicas, selects)
+func (root *GroupRoot) Elect() ([]*clusterV1alpha1.Cluster, error) {
+	election, err := root.selectCluster(root.Replicas)
 	if err != nil {
 		return nil, err
 	} else {
-		clusters := make([]*clusterDesc, len(selects))
-		index := 0
-		for _, cluster := range selects {
-			clusters[index] = cluster
-			index++
-		}
+		clusters := election.Clusters
 		sort.Slice(clusters, func(i, j int) bool {
 			return clusters[i].Score > clusters[j].Score
 		})
@@ -49,108 +50,150 @@ func (root *groupRoot) Elect() ([]*clusterV1alpha1.Cluster, error) {
 }
 
 // selectCluster method to select clusters based on the required replicas
-func (node *groupNode) selectCluster(replicas int32, selects map[string]*clusterDesc) (int32, error) {
+func (node *GroupNode) selectCluster(replicas int32) (*Candidate, error) {
 	if node.Leaf {
-		return node.selectByClusters(replicas, selects)
+		return node.selectByClusters(replicas)
 	} else {
-		return node.selectByGroups(replicas, selects)
+		return node.selectByGroups(replicas)
 	}
 }
 
 // selectByClusters selects clusters from the current group's Clusters list
-func (node *groupNode) selectByClusters(replicas int32, selects map[string]*clusterDesc) (int32, error) {
-	adds := int32(0)
+func (node *GroupNode) selectByClusters(replicas int32) (*Candidate, error) {
+	groupElection := &Candidate{
+		Name: node.Name,
+	}
+	availableReplicas := int32(0)
+	maxScore := int64(0)
 	for _, cluster := range node.Clusters {
 		if replicas == InvalidReplicas || cluster.AvailableReplicas > 0 {
-			if _, ok := selects[cluster.Name]; !ok {
-				selects[cluster.Name] = cluster
-				adds += cluster.AvailableReplicas
+			if cluster.Score > maxScore {
+				maxScore = cluster.Score
 			}
+			availableReplicas += cluster.AvailableReplicas
+			groupElection.Clusters = append(groupElection.Clusters, cluster)
 		}
 	}
-	return adds, nil
+	groupElection.MaxScore = maxScore
+	groupElection.Replicas = availableReplicas
+	return groupElection, nil
 }
 
 // selectByGroups selects clusters from the sub-groups
-func (node *groupNode) selectByGroups(replicas int32, selects map[string]*clusterDesc) (int32, error) {
-	remain := replicas
-	adds := int32(0)
-	groups := len(node.Groups)
-	if groups <= node.MinGroups {
-		return 0, errors.New("the number of feasible clusters is less than spreadConstraint.MinGroups")
+func (node *GroupNode) selectByGroups(replicas int32) (*Candidate, error) {
+	if node.MinGroups > 0 && len(node.Groups) <= node.MinGroups {
+		return nil, errors.New("the number of feasible clusters is less than spreadConstraint.MinGroups")
 	} else {
-		maxGroups := node.MaxGroups
-		if maxGroups == 0 || groups < maxGroups {
-			maxGroups = groups
-		}
-		for i := 0; i < maxGroups; i++ {
-			add, err := node.Groups[i].selectCluster(remain, selects)
+		// all matched group order by score desc.
+		var candidates []*Candidate
+		for _, group := range node.Groups {
+			candidate, err := group.selectCluster(InvalidReplicas)
 			if err == nil {
-				adds += add
-				if replicas != InvalidReplicas {
-					remain -= add
-				}
+				candidates = append(candidates, candidate)
 			}
 		}
 
-		if remain <= 0 {
-			return adds, nil
-		} else if maxGroups == groups {
-			return 0, errors.New("not enough replicas in the groups")
-		} else {
-			// TODO replace by group
-			left := make(map[string]*clusterDesc, len(node.Clusters))
-			for i := maxGroups; i < groups; i++ {
-				_, _ = node.Groups[i].selectCluster(InvalidReplicas, left)
-			}
-			i, err := node.supplement(selects, left, remain)
-			if err != nil {
-				return 0, err
-			}
-			return adds + i, nil
+		candidates, err := node.chooseBest(candidates, replicas)
+		if err != nil {
+			return nil, err
 		}
+		return node.merge(candidates), nil
 	}
 }
 
-// supplement attempts to balance the cluster nodes by supplementing the selected nodes
-// with the remaining nodes to meet the required replicas.
-func (node *groupNode) supplement(selects map[string]*clusterDesc, remains map[string]*clusterDesc, replicas int32) (int32, error) {
-	adds := int32(0)
-	var selectArray []*clusterDesc
-	for _, cluster := range selects {
-		selectArray = append(selectArray, cluster)
-	}
-	sort.Slice(selectArray, func(i, j int) bool {
-		return selectArray[i].Score > selectArray[j].Score
-	})
-
-	var remainArray []*clusterDesc
-	for _, cluster := range remains {
-		if _, ok := selects[cluster.Name]; !ok {
-			remainArray = append(remainArray, cluster)
+// chooseBest selects the best candidates to meet the required replicas.
+// It returns a slice of selected candidates or an error if the requirements cannot be met.
+func (node *GroupNode) chooseBest(candidates []*Candidate, replicas int32) ([]*Candidate, error) {
+	size := len(candidates)
+	// Does not meet the minimum group size
+	if node.MinGroups > 0 && size <= node.MinGroups {
+		return nil, errors.New("the number of feasible clusters is less than spreadConstraint.MinGroups")
+	} else if size == 0 {
+		return nil, errors.New("the number of feasible clusters is zero")
+	} else {
+		var selects []*Candidate
+		if node.MaxGroups > 0 && node.MaxGroups < size {
+			selects = candidates[:node.MaxGroups]
+		} else if node.MaxGroups > 0 && node.MaxGroups == size {
+			selects = candidates
+		} else if node.MinGroups > 0 && node.MinGroups < size {
+			selects = candidates[:node.MinGroups]
+		} else {
+			selects = candidates
 		}
-	}
-	maxReplicas := int32(0)
-	maxIndex := -1
-	for j := len(selectArray) - 1; j >= 0; j-- {
-		for i := 0; i < len(remainArray); i++ {
-			if remainArray[i].AvailableReplicas > maxReplicas {
-				maxReplicas = remainArray[i].AvailableReplicas
-				maxIndex = i
+		if replicas == InvalidReplicas {
+			return selects, nil
+		}
+		if node.match(selects, replicas) {
+			return selects, nil
+		} else if len(selects) == len(candidates) {
+			return nil, fmt.Errorf("no enough resource when selecting %d %ss", node.MaxGroups, node.Constraint)
+		} else {
+			if node.MaxGroups > 0 && len(selects) < node.MaxGroups {
+				for i := len(selects); i < node.MaxGroups; i++ {
+					selects = candidates[:i]
+					if node.match(selects, replicas) {
+						return selects, nil
+					}
+				}
+			}
+			for i := len(selects) - 1; i > 0; i-- {
+				maxPos := -1
+				for j := len(selects); j < len(candidates); j++ {
+					if maxPos == -1 || candidates[j].Replicas > candidates[maxPos].Replicas {
+						maxPos = j
+					}
+				}
+				candidates[i], candidates[maxPos] = candidates[maxPos], candidates[i]
+				selects = candidates[:len(selects)]
+				if node.match(selects, replicas) {
+					return selects, nil
+				}
 			}
 		}
-		add := remainArray[maxIndex].AvailableReplicas - selectArray[j].AvailableReplicas
-		replicas -= add
-		adds += add
-		if add > 0 {
-			delete(selects, selectArray[j].Name)
-			selects[remainArray[maxIndex].Name] = remainArray[maxIndex]
-			if replicas <= 0 {
-				return adds, nil
+	}
+	return nil, fmt.Errorf("no enough resource when selecting %d %ss", node.MaxGroups, node.Constraint)
+}
+
+// match checks if the candidates meet the required replicas.
+func (node *GroupNode) match(candidates []*Candidate, replicas int32) bool {
+	candidate := node.merge(candidates)
+	if candidate.Replicas >= replicas {
+		return true
+	}
+	return false
+}
+
+// merge combines a list of Candidate objects into a single Candidate.
+// It merges the clusters, updates the maximum score, and sums the replicas.
+func (node *GroupNode) merge(candidates []*Candidate) *Candidate {
+	size := len(candidates)
+	maxScore := int64(0)
+	replicas := int32(0)
+	var clusters []*ClusterDesc
+	if size == 1 {
+		maxScore = candidates[0].MaxScore
+		replicas = candidates[0].Replicas
+		clusters = candidates[0].Clusters
+	} else {
+		maps := make(map[string]bool, size)
+		for _, candidate := range candidates {
+			for _, cluster := range candidate.Clusters {
+				if _, ok := maps[cluster.Name]; !ok {
+					maps[cluster.Name] = true
+					clusters = append(clusters, cluster)
+					replicas += cluster.AvailableReplicas
+					if cluster.Score > maxScore {
+						maxScore = cluster.Score
+					}
+				}
 			}
-			selectArray[j], remainArray[maxIndex] = remainArray[maxIndex], selectArray[j]
 		}
 	}
-
-	return 0, fmt.Errorf("no enough resource when selecting %d %ss", node.MaxGroups, node.Constraint)
+	return &Candidate{
+		Name:     node.Name,
+		MaxScore: maxScore,
+		Replicas: replicas,
+		Clusters: clusters,
+	}
 }
