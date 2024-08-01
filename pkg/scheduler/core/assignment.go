@@ -103,6 +103,8 @@ func newAssignState(candidates []*clusterv1alpha1.Cluster, spec *workv1alpha2.Re
 			} else {
 				strategyType = StaticWeightStrategy
 			}
+		default:
+			strategyType = AggregatedStrategy
 		}
 	}
 
