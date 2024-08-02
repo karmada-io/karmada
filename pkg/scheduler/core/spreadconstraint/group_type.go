@@ -94,22 +94,26 @@ func (path *dfsPath) addLast(group *groupNode) {
 }
 
 // removeLast removes the last node from the dfsPath and returns a new dfsPath instance with updated replicas and maximum score.
-func (path *dfsPath) removeLast() *dfsPath {
+func (path *dfsPath) removeLast() {
 	size := len(path.Nodes)
 	last := path.Nodes[size-1]
-	nodes := make([]*dfsNode, size-1)
-	copy(nodes, path.Nodes[:size-1])
-	// Create a new dfsPath instance with the last node removed
-	result := &dfsPath{
-		Id:       path.Id + 1,
-		Replicas: path.Replicas - last.Replicas,
-		MaxScore: path.MaxScore,
-		Nodes:    nodes,
-	}
+	path.Nodes = path.Nodes[:size-1]
+	path.Replicas -= last.Replicas
 	// Recalculate the maximum score if the last node had the current maximum score
 	if last.MaxScore == path.MaxScore {
-		result.score()
+		path.score()
 	}
+}
+
+// removeLast removes the last node from the dfsPath and returns a new dfsPath instance with updated replicas and maximum score.
+func (path *dfsPath) next() *dfsPath {
+	result := &dfsPath{
+		Id:       path.Id,
+		Replicas: path.Replicas,
+		MaxScore: path.MaxScore,
+		Nodes:    append([]*dfsNode{}, path.Nodes...),
+	}
+	path.Id = path.Id + 1
 	return result
 }
 

@@ -72,7 +72,7 @@ func (node *groupNode) selectByGroups(replicas int32) (*candidate, error) {
 		path := node.selectBest(paths)
 
 		for _, node := range path.Nodes {
-			participant, _ := node.Group.selectCluster(node.Replicas)
+			participant, _ := node.Group.selectCluster(ternary(replicas == InvalidReplicas, InvalidReplicas, node.Replicas))
 			candidates = append(candidates, participant)
 		}
 
@@ -87,14 +87,16 @@ func (node *groupNode) findPaths(replicas int32) (paths []*dfsPath) {
 	var dfsFunc func(int, *dfsPath)
 	dfsFunc = func(start int, current *dfsPath) {
 		length := current.length()
-		if current.Replicas >= replicas && length > 0 && (node.MinGroups <= 0 || length >= node.MinGroups) {
-			paths = append(paths, current)
-		} else if node.MaxGroups <= 0 || length < node.MaxGroups {
+		if replicas == InvalidReplicas && length == node.MaxGroups ||
+			(replicas != InvalidReplicas && current.Replicas >= replicas && length > 0 &&
+				(node.MinGroups <= 0 || length >= node.MinGroups)) {
+			paths = append(paths, current.next())
+		} else if length < node.MaxGroups {
 			for i := start; i < len(node.Groups); i++ {
 				if node.Groups[i].Valid {
 					current.addLast(node.Groups[i])
 					dfsFunc(i+1, current)
-					current = current.removeLast()
+					current.removeLast()
 				}
 			}
 		}

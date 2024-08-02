@@ -60,7 +60,7 @@ func (builder *groupBuilder) Create(ctx SelectionCtx) (Selection, error) {
 // from the clusters within the group,
 func (node *groupNode) compute() {
 	groups := len(node.Groups)
-	node.MaxGroups = ternary(node.MaxGroups > 0 && groups < node.MaxGroups, groups, node.MaxGroups)
+	node.MaxGroups = ternary(node.MaxGroups > 0 && node.MaxGroups < groups, node.MaxGroups, groups)
 	node.Valid = ternary(node.MinGroups > 0 && groups < node.MinGroups, false, true)
 
 	if node.Valid {
@@ -151,6 +151,7 @@ func disableAvailableResource(placement *policyv1alpha1.Placement) bool {
 
 	// If the replica division preference is 'Duplicated', ignore the information about cluster available resource.
 	if strategy == nil || strategy.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
+		// The default strategy is policyv1alpha1.ReplicaSchedulingTypeDuplicated
 		return true
 	}
 
