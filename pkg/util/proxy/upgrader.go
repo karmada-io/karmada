@@ -150,7 +150,7 @@ func (h *UpgradeAwareHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 			code := response.StatusCode
 			if code >= 300 && code <= 399 && len(response.Header.Get("Location")) > 0 {
 				// close the original response
-				response.Body.Close()
+				defer response.Body.Close()
 				msg := "the backend attempted to redirect this request, which is not permitted"
 				// replace the response
 				*response = http.Response{
