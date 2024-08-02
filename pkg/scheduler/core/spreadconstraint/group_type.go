@@ -66,28 +66,30 @@ type candidate struct {
 
 // dfsPath represents a path in the depth-first search.
 type dfsPath struct {
-	Id       int
-	Replicas int32
-	MaxScore int64
-	Nodes    []*dfsNode
+	Id       int            // Unique identifier for the path.
+	Replicas int32          // Total number of replicas in the path.
+	MaxScore int64          // Maximum score among the nodes in the path.
+	Nodes    []*dfsNode     // List of nodes in the path.
+	clusters map[string]int // Map of cluster identifiers to their counts.
 }
 
 // dfsNode represents a node in the depth-first search.
 type dfsNode struct {
-	Replicas int32
-	MaxScore int64
-	Group    *groupNode
+	Replicas int32      // Number of replicas in this node.
+	MaxScore int64      // Maximum score of this node.
+	Group    *groupNode // Reference to the associated group.
 }
 
 // addLast appends a new group to the dfsPath, updating the total replicas and maximum score of the path.
 func (path *dfsPath) addLast(group *groupNode) {
+	// remove duplicate cluster
+	replicas := path.addClusters(group)
 	node := &dfsNode{
-		Replicas: group.AvailableReplicas,
+		Replicas: replicas,
 		MaxScore: group.MaxScore,
 		Group:    group,
 	}
 	path.Nodes = append(path.Nodes, node)
-	// TODO handle duplicate cluster
 	path.Replicas += node.Replicas
 	if node.MaxScore > path.MaxScore {
 		path.MaxScore = node.MaxScore
@@ -104,15 +106,21 @@ func (path *dfsPath) removeLast() {
 	if last.MaxScore == path.MaxScore {
 		path.score()
 	}
+	path.removeClusters(last.Group)
 }
 
 // removeLast removes the last node from the dfsPath and returns a new dfsPath instance with updated replicas and maximum score.
 func (path *dfsPath) next() *dfsPath {
+	clusters := make(map[string]int, len(path.clusters))
+	for k, v := range path.clusters {
+		clusters[k] = v
+	}
 	result := &dfsPath{
 		Id:       path.Id,
 		Replicas: path.Replicas,
 		MaxScore: path.MaxScore,
 		Nodes:    append([]*dfsNode{}, path.Nodes...),
+		clusters: clusters,
 	}
 	path.Id = path.Id + 1
 	return result
@@ -132,6 +140,44 @@ func (path *dfsPath) score() {
 		}
 	}
 	path.MaxScore = maxScore
+}
+
+// addClusters adds the clusters from the given groupNode to the dfsPath's clusters map.
+func (path *dfsPath) addClusters(group *groupNode) int32 {
+	replicas := int32(0)
+	for _, cluster := range group.Clusters {
+		if cluster.Valid {
+			if path.clusters == nil {
+				path.clusters = make(map[string]int)
+			}
+			count, ok := path.clusters[cluster.Name]
+			if !ok {
+				count = 1
+				replicas += cluster.AvailableReplicas
+			} else {
+				count = count + 1
+			}
+			path.clusters[cluster.Name] = count
+		}
+	}
+	return replicas
+}
+
+// removeClusters removes the clusters from the given groupNode from the dfsPath's clusters map.
+func (path *dfsPath) removeClusters(group *groupNode) {
+	for _, cluster := range group.Clusters {
+		if cluster.Valid {
+			count, ok := path.clusters[cluster.Name]
+			if ok {
+				count--
+				if count == 0 {
+					delete(path.clusters, cluster.Name)
+				} else {
+					path.clusters[cluster.Name] = count
+				}
+			}
+		}
+	}
 }
 
 func ternary[T any](condition bool, trueVal, falseVal T) T {
