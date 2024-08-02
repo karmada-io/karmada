@@ -20,8 +20,8 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
 
-// GroupNode represents a group in the cluster hierarchy.
-type GroupNode struct {
+// groupNode represents a group in the cluster hierarchy.
+type groupNode struct {
 	Name              string         // Name of the group.
 	Constraint        string         // Type of constraint
 	MaxScore          int64          // The highest cluster score in this group.
@@ -30,28 +30,103 @@ type GroupNode struct {
 	MaxGroups         int            // Maximum number of groups
 	Valid             bool           // Indicates if the number of groups is valid.
 	Leaf              bool           // Indicates if it is a leaf node.
-	Clusters          []*ClusterDesc // Clusters in this group, sorted by cluster.MaxScore descending.
-	Groups            []*GroupNode   // Sub-groups of this group.
+	Clusters          []*clusterDesc // Clusters in this group, sorted by cluster.MaxScore descending.
+	Groups            []*groupNode   // Sub-groups of this group.
 }
 
-// GroupRoot represents the root group node in a hierarchical structure.
-type GroupRoot struct {
-	GroupNode
+// groupRoot represents the root group node in a hierarchical structure.
+type groupRoot struct {
+	groupNode
 	DisableConstraint bool  // Indicates if the constraint is disabled.
 	Replicas          int32 // Number of replicas in the root group.
 }
 
-// ClusterDesc indicates the cluster information
-type ClusterDesc struct {
+// clusterDesc indicates the cluster information
+type clusterDesc struct {
 	Name              string                   // Name of the cluster
 	Score             int64                    // Score of the cluster
 	AvailableReplicas int32                    // Number of available replicas in the cluster
+	Valid             bool                     // Indicates if the cluster of the group is valid.
 	Cluster           *clusterv1alpha1.Cluster // Pointer to the Cluster object
 }
 
-// GroupBuilder is a structure that embeds a SelectionFactory to build groups.
-type GroupBuilder struct {
+// groupBuilder is a structure that embeds a SelectionFactory to build groups.
+type groupBuilder struct {
 	SelectionFactory
+}
+
+// candidate represents a group with its name, highest cluster score, number of available replicas,
+// and a list of clusters sorted by their maximum score in descending order.
+type candidate struct {
+	Name     string         // The name of the group.
+	MaxScore int64          // The highest cluster score in this group.
+	Replicas int32          // Number of available replicas in this group.
+	Clusters []*clusterDesc // Clusters in this group, sorted by cluster.MaxScore descending.
+}
+
+// dfsPath represents a path in the depth-first search.
+type dfsPath struct {
+	Id       int
+	Replicas int32
+	MaxScore int64
+	Nodes    []*dfsNode
+}
+
+// dfsNode represents a node in the depth-first search.
+type dfsNode struct {
+	Replicas int32
+	MaxScore int64
+	Group    *groupNode
+}
+
+// addLast appends a new group to the dfsPath, updating the total replicas and maximum score of the path.
+func (path *dfsPath) addLast(group *groupNode) {
+	node := &dfsNode{
+		Replicas: group.AvailableReplicas,
+		MaxScore: group.MaxScore,
+		Group:    group,
+	}
+	path.Nodes = append(path.Nodes, node)
+	path.Replicas += node.Replicas
+	if node.MaxScore > path.MaxScore {
+		path.MaxScore = node.MaxScore
+	}
+}
+
+// removeLast removes the last node from the dfsPath and returns a new dfsPath instance with updated replicas and maximum score.
+func (path *dfsPath) removeLast() *dfsPath {
+	size := len(path.Nodes)
+	last := path.Nodes[size-1]
+	nodes := make([]*dfsNode, size-1)
+	copy(nodes, path.Nodes[:size-1])
+	// Create a new dfsPath instance with the last node removed
+	result := &dfsPath{
+		Id:       path.Id + 1,
+		Replicas: path.Replicas - last.Replicas,
+		MaxScore: path.MaxScore,
+		Nodes:    nodes,
+	}
+	// Recalculate the maximum score if the last node had the current maximum score
+	if last.MaxScore == path.MaxScore {
+		result.score()
+	}
+	return result
+}
+
+// length returns the number of nodes in the dfsPath.
+func (path *dfsPath) length() int {
+	return len(path.Nodes)
+}
+
+// score calculates the maximum score among all the nodes in the dfsPath and updates the path's MaxScore.
+func (path *dfsPath) score() {
+	maxScore := int64(0)
+	for _, node := range path.Nodes {
+		if node.MaxScore > maxScore {
+			maxScore = node.MaxScore
+		}
+	}
+	path.MaxScore = maxScore
 }
 
 func ternary[T any](condition bool, trueVal, falseVal T) T {

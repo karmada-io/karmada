@@ -28,13 +28,13 @@ import (
 const annotationSuffix = "@annotation"
 
 func init() {
-	SelectionRegistry[DefaultSelectionFactoryName] = &GroupBuilder{}
+	SelectionRegistry[DefaultSelectionFactoryName] = &groupBuilder{}
 }
 
 // Create createGroupRoot groups clusters based on scores and placement policies.
 // It considers topology constraints if they are enabled in the placement.
-func (builder *GroupBuilder) Create(ctx SelectionCtx) (Selection, error) {
-	root := &GroupRoot{}
+func (builder *groupBuilder) Create(ctx SelectionCtx) (Selection, error) {
+	root := &groupRoot{}
 	root.Name = ""
 	if disableSpreadConstraint(ctx.Placement) {
 		root.DisableConstraint = true
@@ -50,7 +50,7 @@ func (builder *GroupBuilder) Create(ctx SelectionCtx) (Selection, error) {
 			replicasFunc = nil
 		}
 		root.Clusters = sortClusters(createClustersWithReplicas(ctx.ClusterScores, ctx.Spec, replicasFunc))
-		born(&root.GroupNode, ctx.Placement.SpreadConstraints, 0)
+		born(&root.groupNode, ctx.Placement.SpreadConstraints, 0)
 	}
 
 	return root, nil
@@ -58,7 +58,7 @@ func (builder *GroupBuilder) Create(ctx SelectionCtx) (Selection, error) {
 
 // compute calculates the maximum score and the total available replicas
 // from the clusters within the group,
-func (node *GroupNode) compute() {
+func (node *groupNode) compute() {
 	groups := len(node.Groups)
 	node.MaxGroups = ternary(node.MaxGroups > 0 && groups < node.MaxGroups, groups, node.MaxGroups)
 	node.Valid = ternary(node.MinGroups > 0 && groups < node.MinGroups, false, true)
@@ -79,7 +79,7 @@ func (node *GroupNode) compute() {
 }
 
 // computeScoreAndReplicas calculates the maximum score and the total available replicas
-func (node *GroupNode) computeScoreAndReplicas() (int64, int32) {
+func (node *groupNode) computeScoreAndReplicas() (int64, int32) {
 	score := int64(0)
 	availableReplicas := int32(0)
 	if node.Leaf {
@@ -88,14 +88,41 @@ func (node *GroupNode) computeScoreAndReplicas() (int64, int32) {
 			availableReplicas += cluster.AvailableReplicas
 		}
 	} else {
+		// compute available replicas
+		clusterMap := make(map[string]bool)
 		for _, group := range node.Groups {
 			if group.Valid {
-				score = ternary(group.MaxScore > score, group.MaxScore, score)
-				availableReplicas += group.AvailableReplicas
+				for _, cluster := range group.Clusters {
+					if _, ok := clusterMap[cluster.Name]; !ok {
+						clusterMap[cluster.Name] = true
+						availableReplicas += cluster.AvailableReplicas
+						if cluster.Score > score {
+							score = cluster.Score
+						}
+					}
+				}
+			}
+		}
+		node.validateCluster(clusterMap)
+	}
+	return score, availableReplicas
+}
+
+func (node *groupNode) validateCluster(validClusters map[string]bool) {
+	// mark invalid clusters
+	if len(node.Clusters) != len(validClusters) {
+		for i, cluster := range node.Clusters {
+			if _, ok := validClusters[cluster.Name]; !ok {
+				node.Clusters[i] = &clusterDesc{
+					Name:              cluster.Name,
+					Score:             cluster.Score,
+					AvailableReplicas: cluster.AvailableReplicas,
+					Valid:             false,
+					Cluster:           cluster.Cluster,
+				}
 			}
 		}
 	}
-	return score, availableReplicas
 }
 
 // disableSpreadConstraint checks if the spread constraints should be ignored.
@@ -133,12 +160,12 @@ func disableAvailableResource(placement *policyv1alpha1.Placement) bool {
 // born recursively groups based on the provided constraints.
 // It updates the parent group with its child groups and their respective clusters.
 // If the current group is at the last constraint, it marks it as a leaf node.
-func born(parent *GroupNode, constraints []policyv1alpha1.SpreadConstraint, index int) {
+func born(parent *groupNode, constraints []policyv1alpha1.SpreadConstraint, index int) {
 	constraint := constraints[index]
 	parent.Constraint = getConstraint(constraint)
 	parent.MinGroups = constraint.MinGroups
 	parent.MaxGroups = constraint.MaxGroups
-	children := make(map[string]*GroupNode)
+	children := make(map[string]*groupNode)
 	for _, desc := range parent.Clusters {
 		// Cluster may be deployed across zones or cells.
 		names := getGroup(desc.Cluster, constraint)
@@ -147,7 +174,7 @@ func born(parent *GroupNode, constraints []policyv1alpha1.SpreadConstraint, inde
 				if name != "" {
 					child, ok := children[name]
 					if !ok {
-						child = &GroupNode{}
+						child = &groupNode{}
 						child.Name = name
 						children[name] = child
 						parent.Groups = append(parent.Groups, child)
@@ -228,33 +255,31 @@ func getGroupByField(cluster *clusterv1alpha1.Cluster, value policyv1alpha1.Spre
 	}
 }
 
-// createClusters generates a list of ClusterDesc based on the given cluster scores.
-func createClusters(clusterScores framework.ClusterScoreList) []*ClusterDesc {
-	var result []*ClusterDesc
+// createClusters generates a list of clusterDesc based on the given cluster scores.
+func createClusters(clusterScores framework.ClusterScoreList) []*clusterDesc {
+	var result []*clusterDesc
 
 	for _, score := range clusterScores {
-		desc := &ClusterDesc{}
+		desc := &clusterDesc{}
 		desc.Name = score.Cluster.Name
 		desc.Score = score.Score
 		desc.Cluster = score.Cluster
+		desc.Valid = true
 		result = append(result, desc)
 	}
 	return result
 }
 
-// createClusters generates a list of ClusterDesc based on the given cluster scores,
+// createClusters generates a list of clusterDesc based on the given cluster scores,
 // resource binding specification, and available replicas computation function.
 func createClustersWithReplicas(clusterScores framework.ClusterScoreList,
 	spec *workv1alpha2.ResourceBindingSpec,
-	computeAvailableReplicas AvailableReplicasFunc) []*ClusterDesc {
+	replicasFunc AvailableReplicasFunc) []*clusterDesc {
 	result := createClusters(clusterScores)
 
-	if computeAvailableReplicas != nil {
-		var clusters []*clusterv1alpha1.Cluster
-		for _, score := range result {
-			clusters = append(clusters, score.Cluster)
-		}
-		clustersReplicas := computeAvailableReplicas(clusters, spec)
+	if replicasFunc != nil {
+		clusters := toCluster(result)
+		clustersReplicas := replicasFunc(clusters, spec)
 		for i, clustersReplica := range clustersReplicas {
 			desc := result[i]
 			desc.AvailableReplicas = clustersReplica.Replicas
@@ -265,18 +290,23 @@ func createClustersWithReplicas(clusterScores framework.ClusterScoreList,
 	return result
 }
 
-// sortClusters sorts the given slice of ClusterDesc pointers.
-func sortClusters(clusters []*ClusterDesc) []*ClusterDesc {
+// toCluster converts a slice of clusterDesc into a slice of clusterv1alpha1.Cluster.
+func toCluster(result []*clusterDesc) []*clusterv1alpha1.Cluster {
+	var clusters []*clusterv1alpha1.Cluster
+	for _, score := range result {
+		clusters = append(clusters, score.Cluster)
+	}
+	return clusters
+}
+
+// sortClusters sorts the given slice of clusterDesc pointers.
+func sortClusters(clusters []*clusterDesc) []*clusterDesc {
 	if len(clusters) > 0 {
 		sort.Slice(clusters, func(i, j int) bool {
-			if clusters[i].Score > clusters[j].Score {
-				return true
-			} else if clusters[i].Score < clusters[j].Score {
-				return false
-			} else if clusters[i].AvailableReplicas > clusters[j].AvailableReplicas {
-				return true
-			} else if clusters[i].AvailableReplicas < clusters[j].AvailableReplicas {
-				return false
+			if clusters[i].Score != clusters[j].Score {
+				return clusters[i].Score > clusters[j].Score
+			} else if clusters[i].AvailableReplicas != clusters[j].AvailableReplicas {
+				return clusters[i].AvailableReplicas > clusters[j].AvailableReplicas
 			} else {
 				return clusters[i].Name < clusters[j].Name
 			}
