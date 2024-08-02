@@ -176,6 +176,9 @@ func (c *Controller) buildImpersonationClusterRole(cluster *clusterv1alpha1.Clus
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: karmadaImpersonatorName,
+			Labels: map[string]string{
+				util.KarmadaSystemLabel: util.KarmadaSystemLabelValue,
+			},
 		},
 		Rules: rules,
 	}
@@ -197,6 +200,9 @@ func (c *Controller) buildImpersonationClusterRoleBinding(cluster *clusterv1alph
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: karmadaImpersonatorName,
+			Labels: map[string]string{
+				util.KarmadaSystemLabel: util.KarmadaSystemLabelValue,
+			},
 		},
 		Subjects: []rbacv1.Subject{
 			{
