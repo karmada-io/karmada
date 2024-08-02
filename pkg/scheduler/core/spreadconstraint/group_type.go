@@ -87,6 +87,7 @@ func (path *dfsPath) addLast(group *groupNode) {
 		Group:    group,
 	}
 	path.Nodes = append(path.Nodes, node)
+	// TODO handle duplicate cluster
 	path.Replicas += node.Replicas
 	if node.MaxScore > path.MaxScore {
 		path.MaxScore = node.MaxScore
