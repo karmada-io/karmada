@@ -524,12 +524,6 @@ var _ = ginkgo.Describe("Karmadactl exec testing", func() {
 	})
 
 	ginkgo.It("Test exec command", func() {
-		waitForPodReady := func(namespace, podName string) {
-			framework.WaitPodPresentOnClusterFitWith(framework.ClusterNames()[0], namespace, podName, func(pod *corev1.Pod) bool {
-				return pod.Status.Phase == corev1.PodRunning
-			})
-		}
-		waitForPodReady(pod.Namespace, pod.Name)
 		framework.WaitPodPresentOnClustersFitWith(framework.ClusterNames(), pod.Namespace, pod.Name,
 			func(pod *corev1.Pod) bool {
 				return pod.Status.Phase == corev1.PodRunning
@@ -543,7 +537,7 @@ var _ = ginkgo.Describe("Karmadactl exec testing", func() {
 	})
 })
 
-var _ = ginkgo.Describe("Karmadactl top testing", ginkgo.Labels{NeedCreateCluster}, func() {
+var _ = ginkgo.Describe("Karmadactl top testing", func() {
 	ginkgo.Context("Karmadactl top pod which does not exist", func() {
 		ginkgo.It("Karmadactl top pod which does not exist", func() {
 			podName := podNamePrefix + rand.String(RandomStrLength)
