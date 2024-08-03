@@ -20,6 +20,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 
@@ -112,5 +113,31 @@ pool_put_operation_total{name="foo",to="destroyed"} 1
 				t.Errorf("unexpected collecting result:\n%s", err)
 			}
 		})
+	}
+}
+
+func TestPoolCollectors(t *testing.T) {
+	expectedCollectors := []prometheus.Collector{
+		poolGetCounter,
+		poolPutCounter,
+	}
+
+	actualCollectors := PoolCollectors()
+
+	if len(actualCollectors) != len(expectedCollectors) {
+		t.Errorf("expected %d collectors, got %d", len(expectedCollectors), len(actualCollectors))
+	}
+
+	for _, expected := range expectedCollectors {
+		found := false
+		for _, actual := range actualCollectors {
+			if expected == actual {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected collector %v not found in actual collectors", expected)
+		}
 	}
 }
