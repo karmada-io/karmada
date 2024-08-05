@@ -84,7 +84,7 @@ func (c *RBApplicationFailoverController) Reconcile(ctx context.Context, req con
 		return controllerruntime.Result{}, err
 	}
 	if retryDuration > 0 {
-		klog.V(4).Infof("Retry to check health status of the workload after %v minutes.", retryDuration.Minutes())
+		klog.V(4).Infof("Retry to check health status of the workload after %v seconds.", retryDuration.Seconds())
 		return controllerruntime.Result{RequeueAfter: retryDuration}, nil
 	}
 	return controllerruntime.Result{}, nil
