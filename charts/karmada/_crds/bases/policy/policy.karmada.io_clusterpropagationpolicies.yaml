@@ -169,6 +169,11 @@ spec:
                     - decisionConditions
                     type: object
                 type: object
+              federatedResourceQuota:
+                description: |-
+                  FederatedResourceQuota will link resources with an existing quota.
+                  Quotas can be used to limit the amount of resources users have access to.
+                type: string
               placement:
                 description: Placement represents the rule for select clusters to
                   propagate resources.

@@ -35,6 +35,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/conversion"
 
 	"github.com/karmada-io/karmada/cmd/webhook/app/options"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/thirdparty"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
@@ -48,6 +50,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/webhook/cronfederatedhpa"
 	"github.com/karmada-io/karmada/pkg/webhook/federatedhpa"
 	"github.com/karmada-io/karmada/pkg/webhook/federatedresourcequota"
+	"github.com/karmada-io/karmada/pkg/webhook/federatedresourcequotalimit"
 	"github.com/karmada-io/karmada/pkg/webhook/multiclusteringress"
 	"github.com/karmada-io/karmada/pkg/webhook/multiclusterservice"
 	"github.com/karmada-io/karmada/pkg/webhook/overridepolicy"
@@ -170,6 +173,8 @@ func Run(ctx context.Context, opts *options.Options) error {
 	hookServer.Register("/convert", conversion.NewWebhookHandler(hookManager.GetScheme()))
 	hookServer.Register("/validate-resourceinterpreterwebhookconfiguration", &webhook.Admission{Handler: &configuration.ValidatingAdmission{Decoder: decoder}})
 	hookServer.Register("/validate-federatedresourcequota", &webhook.Admission{Handler: &federatedresourcequota.ValidatingAdmission{Decoder: decoder}})
+	hookServer.Register("/validate-federatedresourcequotalimit", &webhook.Admission{Handler: &federatedresourcequotalimit.ValidatingAdmission{Client: hookManager.GetClient(), Decoder: decoder,
+		Interpreter: native.NewDefaultInterpreter(), ThirdParty: thirdparty.NewConfigurableInterpreter()}})
 	hookServer.Register("/validate-federatedhpa", &webhook.Admission{Handler: &federatedhpa.ValidatingAdmission{Decoder: decoder}})
 	hookServer.Register("/validate-cronfederatedhpa", &webhook.Admission{Handler: &cronfederatedhpa.ValidatingAdmission{Decoder: decoder}})
 	hookServer.Register("/validate-resourceinterpretercustomization", &webhook.Admission{Handler: &resourceinterpretercustomization.ValidatingAdmission{Client: hookManager.GetClient(), Decoder: decoder}})

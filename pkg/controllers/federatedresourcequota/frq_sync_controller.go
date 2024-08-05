@@ -79,12 +79,15 @@ func (c *SyncController) Reconcile(ctx context.Context, req controllerruntime.Re
 		return controllerruntime.Result{}, err
 	}
 
-	if err := c.buildWorks(quota, clusterList.Items); err != nil {
-		klog.Errorf("Failed to build works for federatedResourceQuota(%s), error: %v", req.NamespacedName.String(), err)
-		c.EventRecorder.Eventf(quota, corev1.EventTypeWarning, events.EventReasonSyncFederatedResourceQuotaFailed, err.Error())
-		return controllerruntime.Result{}, err
+	// Only build resource quotas if the user has specified static assignements
+	if quota.Spec.StaticAssignments != nil && len(quota.Spec.StaticAssignments) > 0 {
+		if err := c.buildWorks(quota, clusterList.Items); err != nil {
+			klog.Errorf("Failed to build works for federatedResourceQuota(%s), error: %v", req.NamespacedName.String(), err)
+			c.EventRecorder.Eventf(quota, corev1.EventTypeWarning, events.EventReasonSyncFederatedResourceQuotaFailed, err.Error())
+			return controllerruntime.Result{}, err
+		}
+		c.EventRecorder.Eventf(quota, corev1.EventTypeNormal, events.EventReasonSyncFederatedResourceQuotaSucceed, "Sync works for FederatedResourceQuota(%s) succeed.", req.NamespacedName.String())
 	}
-	c.EventRecorder.Eventf(quota, corev1.EventTypeNormal, events.EventReasonSyncFederatedResourceQuotaSucceed, "Sync works for FederatedResourceQuota(%s) succeed.", req.NamespacedName.String())
 
 	return controllerruntime.Result{}, nil
 }

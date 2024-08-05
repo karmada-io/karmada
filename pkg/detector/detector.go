@@ -760,11 +760,12 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 			Finalizers:  []string{util.BindingControllerFinalizer},
 		},
 		Spec: workv1alpha2.ResourceBindingSpec{
-			PropagateDeps:      policySpec.PropagateDeps,
-			SchedulerName:      policySpec.SchedulerName,
-			Placement:          &policySpec.Placement,
-			Failover:           policySpec.Failover,
-			ConflictResolution: policySpec.ConflictResolution,
+			PropagateDeps:          policySpec.PropagateDeps,
+			FederatedResourceQuota: policySpec.FederatedResourceQuota,
+			SchedulerName:          policySpec.SchedulerName,
+			Placement:              &policySpec.Placement,
+			Failover:               policySpec.Failover,
+			ConflictResolution:     policySpec.ConflictResolution,
 			Resource: workv1alpha2.ObjectReference{
 				APIVersion:      object.GetAPIVersion(),
 				Kind:            object.GetKind(),

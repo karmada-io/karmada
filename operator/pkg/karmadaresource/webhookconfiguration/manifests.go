@@ -247,6 +247,20 @@ webhooks:
     sideEffects: None
     admissionReviewVersions: [ "v1" ]
     timeoutSeconds: 3
+  - name: federatedresourcequotalimit.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["flink.apache.org"]
+        apiVersions: ["v1beta1"]
+        resources: ["*"]
+        scope: "Namespaced"
+    clientConfig:
+      url: https://karmada-webhook.karmada-system.svc:443/validate-federatedresourcequotalimit
+      caBundle: {{caBundle}}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: [ "v1" ]
+    timeoutSeconds: 10
   - name: multiclusteringress.karmada.io
     rules:
       - operations: ["CREATE", "UPDATE"]

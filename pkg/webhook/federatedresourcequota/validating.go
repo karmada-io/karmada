@@ -18,9 +18,11 @@ package federatedresourcequota
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
+	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -50,6 +52,21 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 	klog.V(2).Infof("Validating FederatedResourceQuote(%s) for request: %s", klog.KObj(quota).String(), req.Operation)
+
+	if req.Operation == admissionv1.Update {
+		oldQuota := &policyv1alpha1.FederatedResourceQuota{}
+		err = v.Decoder.DecodeRaw(req.OldObject, oldQuota)
+		if err != nil {
+			return admission.Errored(http.StatusBadRequest, err)
+		}
+		// StaticAssignment should not be toggled on or off once applied
+		if (oldQuota.Spec.StaticAssignments == nil && quota.Spec.StaticAssignments != nil) ||
+			(oldQuota.Spec.StaticAssignments != nil && quota.Spec.StaticAssignments == nil) {
+			err = fmt.Errorf("staticAssignment should not be switched on or off once quota is created")
+			klog.Error(err)
+			return admission.Denied(err.Error())
+		}
+	}
 
 	if errs := validateFederatedResourceQuota(quota); len(errs) != 0 {
 		klog.Errorf("%v", errs)

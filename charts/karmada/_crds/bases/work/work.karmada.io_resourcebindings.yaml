@@ -340,6 +340,10 @@ spec:
                     - decisionConditions
                     type: object
                 type: object
+              federatedResourceQuota:
+                description: FederatedResourceQuota represents the name of the ResourceQuota
+                  that will be used for this resource
+                type: string
               gracefulEvictionTasks:
                 description: |-
                   GracefulEvictionTasks holds the eviction tasks that are expected to perform
