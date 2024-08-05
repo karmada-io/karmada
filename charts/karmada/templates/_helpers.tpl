@@ -586,40 +586,31 @@ Return the proper Docker Image Registry Secret Names
 {{- end }}
 {{- end -}}
 
-{{- define "karmada.init-sa-secret.volume" -}}
-{{- $name := include "karmada.name" . -}}
-- name: init-sa-secret
-  secret:
-    secretName: {{ $name }}-hook-job
-{{- end -}}
-
-{{- define "karmada.init-sa-secret.volumeMount" -}}
-- name: init-sa-secret
-  mountPath: /opt/mount
-{{- end -}}
-
-{{- define "karmada.initContainer.build-kubeconfig" -}}
-TOKEN=$(cat /opt/mount/token)
-kubectl config set-cluster karmada-host --server=https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT} --certificate-authority=/opt/mount/ca.crt
-kubectl config set-credentials default --token=$TOKEN
-kubectl config set-context karmada-host-context --cluster=karmada-host --user=default --namespace=default
-kubectl config use-context karmada-host-context
-{{- end -}}
-
 {{- define "karmada.initContainer.waitEtcd" -}}
 - name: wait
-  image: {{ include "karmada.kubectl.image" . }}
+  image: {{ include "karmada.cfssl.image" . }}
   imagePullPolicy: {{ .Values.kubectl.image.pullPolicy }}
   command:
     - /bin/sh
     - -c
     - |
       bash <<'EOF'
-      {{- include "karmada.initContainer.build-kubeconfig" . | nindent 6 }}
-      kubectl rollout status statefulset etcd -n {{ include "karmada.namespace" . }}
+      set -ex
+      while true; do
+        ETCD_ENDPOINT=${ETCD_CLIENT_SERVICE_HOST}":"${ETCD_CLIENT_SERVICE_PORT}
+
+        # check etcd connectivity by executing curl.
+        # if etcd is ready, the response of curl would be `curl: (52) Empty reply from server`, with return code 52.
+        # if not, the response of curl would be like `curl: (7) Failed to connect to .....`, with other return code.
+        if curl --connect-timeout 2 ${ETCD_ENDPOINT} || [ $? -eq 52 ]; then
+          break
+        fi
+
+        echo "failed to connect to "${ETCD_ENDPOINT}
+        sleep 2
+      done
+      echo "successfully connect to "${ETCD_ENDPOINT}
       EOF
-  volumeMounts:
-    {{- include "karmada.init-sa-secret.volumeMount" .| nindent 4 }}
 {{- end -}}
 
 {{- define "karmada.initContainer.waitStaticResource" -}}
@@ -631,9 +622,18 @@ kubectl config use-context karmada-host-context
     - -c
     - |
       bash <<'EOF'
-      {{- include "karmada.initContainer.build-kubeconfig" . | nindent 6 }}
-      kubectl wait --for=condition=complete job {{ include "karmada.name" . }}-static-resource -n {{ include "karmada.namespace" . }}
+      set -ex
+
+      # here are three cases:
+      # case first installation: no `cm/karmada-version` at first, so when you get it, it means `karmada-static-resource-job` finished.
+      # case restart: already has `cm/karmada-version`, which means `karmada-static-resource-job` already finished.
+      # case upgrading: already has `cm/karmada-version`, but it may be old version, we should wait until `.data.karmadaVersion` equal to current `.Values.karmadaImageVersion`.
+      while [[ $(kubectl --kubeconfig /etc/kubeconfig get configmap karmada-version -n {{ .Values.systemNamespace }} -o jsonpath='{.data.karmadaVersion}') != {{ .Values.karmadaImageVersion }} ]]; do
+        echo "wait for karmada-static-resource-job finished"; sleep 2
+      done
+
+      echo "karmada-static-resource-job successfully completed since expected configmap value was found"
       EOF
   volumeMounts:
-    {{- include "karmada.init-sa-secret.volumeMount" .| nindent 4 }}
+    {{- include "karmada.kubeconfig.volumeMount" .| nindent 4 }}
 {{- end -}}
