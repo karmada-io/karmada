@@ -6184,6 +6184,13 @@ func schema_pkg_apis_work_v1alpha1_TargetCluster(ref common.ReferenceCallback) c
 							Format:      "",
 						},
 					},
+					"startOrdinal": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartOrdinal is allows you to configure the integer ordinals to each Pod It's must enable the StatefulSetStartOrdinal in the feature gate, and required to be greater than v1.27 [beta], refer to https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#start-ordinal",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 					"replicas": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Replicas in target cluster",
@@ -7113,6 +7120,13 @@ func schema_pkg_apis_work_v1alpha2_TargetCluster(ref common.ReferenceCallback) c
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"startOrdinal": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartOrdinal is allows you to configure the integer ordinals to each Pod It's must enable the StatefulSetStartOrdinal in the feature gate, and required to be greater than v1.27 [beta], refer to https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#start-ordinal",
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 					"replicas": {

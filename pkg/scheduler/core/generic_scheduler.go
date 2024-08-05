@@ -34,7 +34,7 @@ import (
 
 // ScheduleAlgorithm is the interface that should be implemented to schedule a resource to the target clusters.
 type ScheduleAlgorithm interface {
-	Schedule(context.Context, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus, *ScheduleAlgorithmOption) (scheduleResult ScheduleResult, err error)
+	Schedule(context.Context, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus, *ScheduleAlgorithmOption, bool) (scheduleResult ScheduleResult, err error)
 }
 
 // ScheduleAlgorithmOption represents the option for ScheduleAlgorithm.
@@ -72,6 +72,7 @@ func (g *genericScheduler) Schedule(
 	spec *workv1alpha2.ResourceBindingSpec,
 	status *workv1alpha2.ResourceBindingStatus,
 	scheduleAlgorithmOption *ScheduleAlgorithmOption,
+	enableStsStartOrdinal bool,
 ) (result ScheduleResult, err error) {
 	clusterInfoSnapshot := g.schedulerCache.Snapshot()
 	feasibleClusters, diagnosis, err := g.findClustersThatFit(ctx, spec, status, &clusterInfoSnapshot)
@@ -100,7 +101,7 @@ func (g *genericScheduler) Schedule(
 	}
 	klog.V(4).Infof("Selected clusters: %v", clusters)
 
-	clustersWithReplicas, err := g.assignReplicas(clusters, spec, status)
+	clustersWithReplicas, err := g.assignReplicas(clusters, spec, status, enableStsStartOrdinal)
 	if err != nil {
 		return result, fmt.Errorf("failed to assign replicas: %w", err)
 	}
@@ -180,6 +181,6 @@ func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreLi
 }
 
 func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec,
-	status *workv1alpha2.ResourceBindingStatus) ([]workv1alpha2.TargetCluster, error) {
-	return AssignReplicas(clusters, spec, status)
+	status *workv1alpha2.ResourceBindingStatus, enableStsStartOrdinal bool) ([]workv1alpha2.TargetCluster, error) {
+	return AssignReplicas(clusters, spec, status, enableStsStartOrdinal)
 }

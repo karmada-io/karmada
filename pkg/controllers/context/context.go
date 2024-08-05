@@ -99,6 +99,10 @@ type Options struct {
 	KarmadaKubeconfigNamespace string
 	// HPAControllerConfiguration is the config of federatedHPA-controller.
 	HPAControllerConfiguration config.HPAControllerConfiguration
+	// EnableStsStartOrdinal indicates whether to enable the startOrdinal feature for statefulset.
+	// and it's required that the k8s version grater than 1.27 [beta], refer to
+	// https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#start-ordinal
+	EnableStsStartOrdinal bool
 }
 
 // Context defines the context object for controller.
@@ -112,6 +116,7 @@ type Context struct {
 	OverrideManager             overridemanager.OverrideManager
 	ControlPlaneInformerManager genericmanager.SingleClusterInformerManager
 	ResourceInterpreter         resourceinterpreter.ResourceInterpreter
+	EnableStsStartOrdinal       bool
 }
 
 // IsControllerEnabled check if a specified controller enabled or not.

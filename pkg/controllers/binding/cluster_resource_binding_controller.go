@@ -54,14 +54,15 @@ const ClusterResourceBindingControllerName = "cluster-resource-binding-controlle
 
 // ClusterResourceBindingController is to sync ClusterResourceBinding.
 type ClusterResourceBindingController struct {
-	client.Client                                                   // used to operate ClusterResourceBinding resources.
-	DynamicClient       dynamic.Interface                           // used to fetch arbitrary resources from api server.
-	InformerManager     genericmanager.SingleClusterInformerManager // used to fetch arbitrary resources from cache.
-	EventRecorder       record.EventRecorder
-	RESTMapper          meta.RESTMapper
-	OverrideManager     overridemanager.OverrideManager
-	ResourceInterpreter resourceinterpreter.ResourceInterpreter
-	RateLimiterOptions  ratelimiterflag.Options
+	client.Client                                                     // used to operate ClusterResourceBinding resources.
+	DynamicClient         dynamic.Interface                           // used to fetch arbitrary resources from api server.
+	InformerManager       genericmanager.SingleClusterInformerManager // used to fetch arbitrary resources from cache.
+	EventRecorder         record.EventRecorder
+	RESTMapper            meta.RESTMapper
+	OverrideManager       overridemanager.OverrideManager
+	ResourceInterpreter   resourceinterpreter.ResourceInterpreter
+	RateLimiterOptions    ratelimiterflag.Options
+	EnableStsStartOrdinal bool
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -125,7 +126,7 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 	}
 
 	start := time.Now()
-	err = ensureWork(c.Client, c.ResourceInterpreter, workload, c.OverrideManager, binding, apiextensionsv1.ClusterScoped)
+	err = ensureWork(c.Client, c.ResourceInterpreter, workload, c.OverrideManager, binding, apiextensionsv1.ClusterScoped, c.EnableStsStartOrdinal)
 	metrics.ObserveSyncWorkLatency(err, start)
 	if err != nil {
 		klog.Errorf("Failed to transform clusterResourceBinding(%s) to works. Error: %v.", binding.GetName(), err)

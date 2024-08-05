@@ -128,3 +128,32 @@ func removeZeroReplicasCluster(assignResults []workv1alpha2.TargetCluster) []wor
 	}
 	return targetClusters
 }
+
+// assignStartOrdinal assign ordinal for target clusters, if catch the statefulset.
+func assignStartOrdinal(targetCluster []workv1alpha2.TargetCluster, replicas int32) []workv1alpha2.TargetCluster {
+	var (
+		targetReplicas []int32
+		i              int32
+		start          int32
+	)
+
+	targetReplicas = make([]int32, replicas)
+
+	for i = 0; i < replicas; i++ {
+		targetReplicas[i] = i
+	}
+
+	start = 0
+	for j := range targetCluster {
+		if j == 0 {
+			start = targetReplicas[targetCluster[j].Replicas]
+			continue
+		}
+
+		targetCluster[j].StartOrdinal = targetReplicas[start]
+
+		start = start + targetReplicas[targetCluster[j].Replicas]
+	}
+
+	return targetCluster
+}

@@ -17,7 +17,12 @@ limitations under the License.
 package binding
 
 import (
+	"fmt"
 	"strconv"
+	"time"
+
+	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,6 +44,7 @@ import (
 func ensureWork(
 	c client.Client, resourceInterpreter resourceinterpreter.ResourceInterpreter, workload *unstructured.Unstructured,
 	overrideManager overridemanager.OverrideManager, binding metav1.Object, scope apiextensionsv1.ResourceScope,
+	enableStsStartOrdinal bool,
 ) error {
 	var targetClusters []workv1alpha2.TargetCluster
 	var placement *policyv1alpha1.Placement
@@ -126,6 +132,51 @@ func ensureWork(
 			Finalizers:  []string{util.ExecutionControllerFinalizer},
 			Labels:      workLabel,
 			Annotations: annotations,
+		}
+
+		// add start ordinal for statefulset
+		stsGVR := util.GetStsGroupVersionKind()
+		stsAPIVersion := fmt.Sprintf("%s/%s", stsGVR.Group, stsGVR.Version)
+		klog.Infof("create workload, kind: %s, api version: %s, enableStsStartOrdinal: %v",
+			clonedWorkload.GetKind(), clonedWorkload.GetAPIVersion(), enableStsStartOrdinal)
+		if clonedWorkload.GetKind() == stsGVR.Kind &&
+			clonedWorkload.GetAPIVersion() == stsAPIVersion && enableStsStartOrdinal {
+			if targetCluster.StartOrdinal > 0 {
+				klog.Infof("start to assign the ordinal to statefultset. name: %s, namespace: %s",
+					clonedWorkload.GetName(),
+					clonedWorkload.GetNamespace())
+				startTime := time.Now()
+
+				sts := &appsv1.StatefulSet{}
+				if err = runtime.DefaultUnstructuredConverter.FromUnstructured(clonedWorkload.UnstructuredContent(),
+					sts); err != nil {
+					return err
+				}
+
+				if sts.Spec.Ordinals == nil {
+					sts.Spec.Ordinals = &appsv1.StatefulSetOrdinals{
+						Start: targetCluster.StartOrdinal,
+					}
+				} else {
+					sts.Spec.Ordinals.Start = targetCluster.StartOrdinal
+				}
+
+				// parse the stateful set to Unstructured data
+				toUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(sts)
+				if err != nil {
+					return err
+				}
+				clonedWorkload = &unstructured.Unstructured{Object: toUnstructured}
+
+				klog.Infof("finished to assign ordinal, cost(s): %f, name: %s, namespace: %s, "+
+					"startOrdinal: %d, replicas: %d",
+					time.Since(startTime).Seconds(),
+					clonedWorkload.GetName(),
+					clonedWorkload.GetNamespace(),
+					targetCluster.StartOrdinal,
+					targetCluster.Replicas,
+				)
+			}
 		}
 
 		if err = helper.CreateOrUpdateWork(c, workMeta, clonedWorkload); err != nil {

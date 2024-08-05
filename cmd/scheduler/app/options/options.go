@@ -96,6 +96,11 @@ type Options struct {
 
 	// RateLimiterOpts contains the options for rate limiter.
 	RateLimiterOpts ratelimiterflag.Options
+
+	// EnableStsStartOrdinal indicates whether to enable the startOrdinal feature for statefulset.
+	// and it's required that the k8s version grater than 1.27 [beta], refer to
+	// https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#start-ordinal
+	EnableStsStartOrdinal bool
 }
 
 // NewOptions builds an default scheduler options.
@@ -154,6 +159,8 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.StringSliceVar(&o.Plugins, "plugins", []string{"*"},
 		fmt.Sprintf("A list of plugins to enable. '*' enables all build-in and customized plugins, 'foo' enables the plugin named 'foo', '*,-foo' disables the plugin named 'foo'.\nAll build-in plugins: %s.", strings.Join(frameworkplugins.NewInTreeRegistry().FactoryNames(), ",")))
 	fs.StringVar(&o.SchedulerName, "scheduler-name", scheduler.DefaultScheduler, "SchedulerName represents the name of the scheduler. default is 'default-scheduler'.")
+	fs.BoolVar(&o.EnableStsStartOrdinal, "enable-sts-start-ordinal", false, "enable the startOrdinal feature for statefulset. and it's required that the k8s version grater than 1.27 [beta],\n"+
+		"refer to // https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#start-ordinal")
 	features.FeatureGate.AddFlag(fs)
 	o.ProfileOpts.AddFlags(fs)
 	o.RateLimiterOpts.AddFlags(fs)
