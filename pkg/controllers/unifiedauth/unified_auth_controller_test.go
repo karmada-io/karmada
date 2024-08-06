@@ -17,6 +17,7 @@ limitations under the License.
 package unifiedauth
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -104,7 +105,7 @@ func Test_findRBACSubjectsWithCluster(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := findRBACSubjectsWithCluster(tt.args.c, tt.args.cluster)
+			got, err := findRBACSubjectsWithCluster(context.Background(), tt.args.c, tt.args.cluster)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("findRBACSubjectsWithCluster() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -267,7 +268,7 @@ func TestController_generateRequestsFromClusterRole(t *testing.T) {
 				Client:        tt.fields.Client,
 				EventRecorder: tt.fields.EventRecorder,
 			}
-			if got := c.generateRequestsFromClusterRole(tt.args.clusterRole); !reflect.DeepEqual(got, tt.want) {
+			if got := c.generateRequestsFromClusterRole(context.Background(), tt.args.clusterRole); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("generateRequestsFromClusterRole() = %v, want %v", got, tt.want)
 			}
 		})

@@ -79,7 +79,7 @@ func (c *RBApplicationFailoverController) Reconcile(ctx context.Context, req con
 		return controllerruntime.Result{}, nil
 	}
 
-	retryDuration, err := c.syncBinding(binding)
+	retryDuration, err := c.syncBinding(ctx, binding)
 	if err != nil {
 		return controllerruntime.Result{}, err
 	}
@@ -122,7 +122,7 @@ func (c *RBApplicationFailoverController) detectFailure(clusters []string, toler
 	return duration, needEvictClusters
 }
 
-func (c *RBApplicationFailoverController) syncBinding(binding *workv1alpha2.ResourceBinding) (time.Duration, error) {
+func (c *RBApplicationFailoverController) syncBinding(ctx context.Context, binding *workv1alpha2.ResourceBinding) (time.Duration, error) {
 	key := types.NamespacedName{Name: binding.Name, Namespace: binding.Namespace}
 	tolerationSeconds := binding.Spec.Failover.Application.DecisionConditions.TolerationSeconds
 
@@ -141,7 +141,7 @@ func (c *RBApplicationFailoverController) syncBinding(binding *workv1alpha2.Reso
 	}
 
 	if len(needEvictClusters) != 0 {
-		if err = c.updateBinding(binding, allClusters, needEvictClusters); err != nil {
+		if err = c.updateBinding(ctx, binding, allClusters, needEvictClusters); err != nil {
 			return 0, err
 		}
 	}
@@ -181,8 +181,8 @@ func (c *RBApplicationFailoverController) evictBinding(binding *workv1alpha2.Res
 	return nil
 }
 
-func (c *RBApplicationFailoverController) updateBinding(binding *workv1alpha2.ResourceBinding, allClusters sets.Set[string], needEvictClusters []string) error {
-	if err := c.Update(context.TODO(), binding); err != nil {
+func (c *RBApplicationFailoverController) updateBinding(ctx context.Context, binding *workv1alpha2.ResourceBinding, allClusters sets.Set[string], needEvictClusters []string) error {
+	if err := c.Update(ctx, binding); err != nil {
 		for _, cluster := range needEvictClusters {
 			helper.EmitClusterEvictionEventForResourceBinding(binding, cluster, c.EventRecorder, err)
 		}

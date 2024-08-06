@@ -17,6 +17,8 @@ limitations under the License.
 package detector
 
 import (
+	"context"
+
 	pq "github.com/emirpasic/gods/queues/priorityqueue"
 	godsutils "github.com/emirpasic/gods/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -234,7 +236,7 @@ func (d *ResourceDetector) preemptClusterPropagationPolicy(resourceTemplate *uns
 
 // fetchResourceTemplate fetches resource template by resource selector, ignore it if not found or deleting.
 func (d *ResourceDetector) fetchResourceTemplate(rs policyv1alpha1.ResourceSelector) (*unstructured.Unstructured, error) {
-	resourceTemplate, err := helper.FetchResourceTemplate(d.DynamicClient, d.InformerManager, d.RESTMapper, helper.ConstructObjectReference(rs))
+	resourceTemplate, err := helper.FetchResourceTemplate(context.TODO(), d.DynamicClient, d.InformerManager, d.RESTMapper, helper.ConstructObjectReference(rs))
 	if err != nil {
 		// do nothing if resource template not exist, it might has been removed.
 		if apierrors.IsNotFound(err) {

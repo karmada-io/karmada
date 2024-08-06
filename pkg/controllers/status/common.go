@@ -101,6 +101,7 @@ var workPredicateFn = builder.WithPredicates(predicate.Funcs{
 // updateResourceStatus will try to calculate the summary status and
 // update to original object that the ResourceBinding refer to.
 func updateResourceStatus(
+	ctx context.Context,
 	dynamicClient dynamic.Interface,
 	restMapper meta.RESTMapper,
 	interpreter resourceinterpreter.ResourceInterpreter,
@@ -136,7 +137,7 @@ func updateResourceStatus(
 	}
 
 	_, err = dynamicClient.Resource(gvr).Namespace(resource.GetNamespace()).
-		Patch(context.TODO(), resource.GetName(), types.JSONPatchType, patchBytes, metav1.PatchOptions{}, "status")
+		Patch(ctx, resource.GetName(), types.JSONPatchType, patchBytes, metav1.PatchOptions{}, "status")
 	if err != nil {
 		klog.Errorf("Failed to update resource(%s/%s/%s), Error: %v", gvr, resource.GetNamespace(), resource.GetName(), err)
 		return err

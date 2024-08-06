@@ -153,7 +153,7 @@ func (c *ClusterStatusController) Reconcile(ctx context.Context, req controllerr
 		return controllerruntime.Result{Requeue: true}, nil
 	}
 
-	return c.syncClusterStatus(cluster)
+	return c.syncClusterStatus(ctx, cluster)
 }
 
 // SetupWithManager creates a controller and register to controller manager.
@@ -169,7 +169,7 @@ func (c *ClusterStatusController) SetupWithManager(mgr controllerruntime.Manager
 		}).Complete(c)
 }
 
-func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
+func (c *ClusterStatusController) syncClusterStatus(ctx context.Context, cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
 	start := time.Now()
 	defer func() {
 		metrics.RecordClusterStatus(cluster)
@@ -182,7 +182,7 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 	clusterClient, err := c.ClusterClientSetFunc(cluster.Name, c.Client, c.ClusterClientOption)
 	if err != nil {
 		klog.Errorf("Failed to create a ClusterClient for the given member cluster: %v, err is : %v", cluster.Name, err)
-		return c.setStatusCollectionFailedCondition(cluster, currentClusterStatus, fmt.Sprintf("failed to create a ClusterClient: %v", err))
+		return c.setStatusCollectionFailedCondition(ctx, cluster, currentClusterStatus, fmt.Sprintf("failed to create a ClusterClient: %v", err))
 	}
 
 	online, healthy := getClusterHealthStatus(clusterClient)
@@ -194,7 +194,7 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 		klog.V(2).Infof("Cluster(%s) still offline after %s, ensuring offline is set.",
 			cluster.Name, c.ClusterFailureThreshold.Duration)
 		meta.SetStatusCondition(&currentClusterStatus.Conditions, *readyCondition)
-		return c.updateStatusIfNeeded(cluster, currentClusterStatus)
+		return c.updateStatusIfNeeded(ctx, cluster, currentClusterStatus)
 	}
 
 	// skip collecting cluster status if not ready
@@ -219,7 +219,7 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 
 	meta.SetStatusCondition(&currentClusterStatus.Conditions, *readyCondition)
 
-	return c.updateStatusIfNeeded(cluster, currentClusterStatus)
+	return c.updateStatusIfNeeded(ctx, cluster, currentClusterStatus)
 }
 
 func (c *ClusterStatusController) setCurrentClusterStatus(clusterClient *util.ClusterClient, cluster *clusterv1alpha1.Cluster, currentClusterStatus *clusterv1alpha1.ClusterStatus) error {
@@ -266,18 +266,18 @@ func (c *ClusterStatusController) setCurrentClusterStatus(clusterClient *util.Cl
 	return nil
 }
 
-func (c *ClusterStatusController) setStatusCollectionFailedCondition(cluster *clusterv1alpha1.Cluster, currentClusterStatus clusterv1alpha1.ClusterStatus, message string) (controllerruntime.Result, error) {
+func (c *ClusterStatusController) setStatusCollectionFailedCondition(ctx context.Context, cluster *clusterv1alpha1.Cluster, currentClusterStatus clusterv1alpha1.ClusterStatus, message string) (controllerruntime.Result, error) {
 	readyCondition := util.NewCondition(clusterv1alpha1.ClusterConditionReady, statusCollectionFailed, message, metav1.ConditionFalse)
 	meta.SetStatusCondition(&currentClusterStatus.Conditions, readyCondition)
-	return c.updateStatusIfNeeded(cluster, currentClusterStatus)
+	return c.updateStatusIfNeeded(ctx, cluster, currentClusterStatus)
 }
 
 // updateStatusIfNeeded calls updateStatus only if the status of the member cluster is not the same as the old status
-func (c *ClusterStatusController) updateStatusIfNeeded(cluster *clusterv1alpha1.Cluster, currentClusterStatus clusterv1alpha1.ClusterStatus) (controllerruntime.Result, error) {
+func (c *ClusterStatusController) updateStatusIfNeeded(ctx context.Context, cluster *clusterv1alpha1.Cluster, currentClusterStatus clusterv1alpha1.ClusterStatus) (controllerruntime.Result, error) {
 	if !equality.Semantic.DeepEqual(cluster.Status, currentClusterStatus) {
 		klog.V(4).Infof("Start to update cluster status: %s", cluster.Name)
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-			_, err = helper.UpdateStatus(context.Background(), c.Client, cluster, func() error {
+			_, err = helper.UpdateStatus(ctx, c.Client, cluster, func() error {
 				cluster.Status.KubernetesVersion = currentClusterStatus.KubernetesVersion
 				cluster.Status.APIEnablements = currentClusterStatus.APIEnablements
 				cluster.Status.Conditions = currentClusterStatus.Conditions

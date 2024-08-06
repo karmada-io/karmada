@@ -63,37 +63,37 @@ func (c *EndpointSliceController) Reconcile(ctx context.Context, req controllerr
 
 	if !work.DeletionTimestamp.IsZero() {
 		// Clean up derived EndpointSlices when deleting the work.
-		if err := helper.DeleteEndpointSlice(c.Client, labels.Set{
+		if err := helper.DeleteEndpointSlice(ctx, c.Client, labels.Set{
 			workv1alpha2.WorkPermanentIDLabel: work.Labels[workv1alpha2.WorkPermanentIDLabel],
 		}); err != nil {
 			klog.Errorf("Failed to delete endpointslice of the work(%s/%s) when deleting the work, err is %v", work.Namespace, work.Name, err)
 			return controllerruntime.Result{}, err
 		}
-		return controllerruntime.Result{}, c.removeFinalizer(work.DeepCopy())
+		return controllerruntime.Result{}, c.removeFinalizer(ctx, work.DeepCopy())
 	}
 
 	// TBD: The work is managed by service-export-controller and endpointslice-collect-controller now,
 	// after the ServiceExport is deleted, the corresponding works' labels will be cleaned, so we should delete the EndpointSlice in control plane.
 	// Once the conflict between service_export_controller.go and endpointslice_collect_controller.go is fixed, the following code should be deleted.
 	if serviceName := util.GetLabelValue(work.Labels, util.ServiceNameLabel); serviceName == "" {
-		err := helper.DeleteEndpointSlice(c.Client, labels.Set{
+		err := helper.DeleteEndpointSlice(ctx, c.Client, labels.Set{
 			workv1alpha2.WorkPermanentIDLabel: work.Labels[workv1alpha2.WorkPermanentIDLabel],
 		})
 		if err != nil {
 			klog.Errorf("Failed to delete endpointslice of the work(%s/%s) when the serviceexport is deleted, err is %v", work.Namespace, work.Name, err)
 			return controllerruntime.Result{}, err
 		}
-		return controllerruntime.Result{}, c.removeFinalizer(work.DeepCopy())
+		return controllerruntime.Result{}, c.removeFinalizer(ctx, work.DeepCopy())
 	}
 
-	return controllerruntime.Result{}, c.collectEndpointSliceFromWork(work)
+	return controllerruntime.Result{}, c.collectEndpointSliceFromWork(ctx, work)
 }
 
-func (c *EndpointSliceController) removeFinalizer(work *workv1alpha1.Work) error {
+func (c *EndpointSliceController) removeFinalizer(ctx context.Context, work *workv1alpha1.Work) error {
 	if !controllerutil.RemoveFinalizer(work, util.EndpointSliceControllerFinalizer) {
 		return nil
 	}
-	return c.Client.Update(context.TODO(), work)
+	return c.Client.Update(ctx, work)
 }
 
 // SetupWithManager creates a controller and register to controller manager.
@@ -118,7 +118,7 @@ func (c *EndpointSliceController) SetupWithManager(mgr controllerruntime.Manager
 	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{}, builder.WithPredicates(serviceImportPredicateFun)).Complete(c)
 }
 
-func (c *EndpointSliceController) collectEndpointSliceFromWork(work *workv1alpha1.Work) error {
+func (c *EndpointSliceController) collectEndpointSliceFromWork(ctx context.Context, work *workv1alpha1.Work) error {
 	clusterName, err := names.GetClusterName(work.Namespace)
 	if err != nil {
 		klog.Errorf("Failed to get cluster name for work %s/%s", work.Namespace, work.Name)
@@ -149,7 +149,7 @@ func (c *EndpointSliceController) collectEndpointSliceFromWork(work *workv1alpha
 			workv1alpha2.WorkNameAnnotation:      work.Name,
 		})
 
-		if err = helper.CreateOrUpdateEndpointSlice(c.Client, desiredEndpointSlice); err != nil {
+		if err = helper.CreateOrUpdateEndpointSlice(ctx, c.Client, desiredEndpointSlice); err != nil {
 			return err
 		}
 	}

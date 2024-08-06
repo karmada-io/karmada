@@ -246,7 +246,7 @@ func TestDependenciesDistributor_findOrphanAttachedBindingsByDependencies(t *tes
 				InformerManager: tt.fields.InformerManager,
 				RESTMapper:      tt.fields.RESTMapper,
 			}
-			got, err := d.isOrphanAttachedBindings(tt.args.dependencies, tt.args.dependencyIndexes, tt.args.attachedBinding)
+			got, err := d.isOrphanAttachedBindings(context.Background(), tt.args.dependencies, tt.args.dependencyIndexes, tt.args.attachedBinding)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("findOrphanAttachedBindingsByDependencies() error = %v, wantErr %v", err, tt.wantErr)
 				return
