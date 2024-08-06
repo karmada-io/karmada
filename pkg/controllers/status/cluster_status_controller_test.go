@@ -228,7 +228,7 @@ func TestClusterStatusController_syncClusterStatus(t *testing.T) {
 		if err := c.Client.Create(context.Background(), cluster); err != nil {
 			t.Fatalf("Failed to create cluster: %v", err)
 		}
-		res, err := c.syncClusterStatus(cluster)
+		res, err := c.syncClusterStatus(context.Background(), cluster)
 		expect := controllerruntime.Result{}
 		assert.Equal(t, expect, res)
 		assert.Empty(t, err)
@@ -275,7 +275,7 @@ func TestClusterStatusController_syncClusterStatus(t *testing.T) {
 			t.Fatalf("Failed to create cluster: %v", err)
 		}
 
-		res, err := c.syncClusterStatus(cluster)
+		res, err := c.syncClusterStatus(context.Background(), cluster)
 		expect := controllerruntime.Result{}
 		assert.Equal(t, expect, res)
 		assert.Empty(t, err)
@@ -322,7 +322,7 @@ func TestClusterStatusController_syncClusterStatus(t *testing.T) {
 		if err := c.Client.Create(context.Background(), cluster); err != nil {
 			t.Fatalf("Failed to create cluster: %v", err)
 		}
-		res, err := c.syncClusterStatus(cluster)
+		res, err := c.syncClusterStatus(context.Background(), cluster)
 		expect := controllerruntime.Result{}
 		assert.Equal(t, expect, res)
 		assert.Empty(t, err)
@@ -913,7 +913,7 @@ func TestClusterStatusController_updateStatusIfNeeded(t *testing.T) {
 			ClusterClientSetFunc: util.NewClusterClientSet,
 		}
 
-		actual, err := c.updateStatusIfNeeded(cluster, currentClusterStatus)
+		actual, err := c.updateStatusIfNeeded(context.Background(), cluster, currentClusterStatus)
 		assert.Equal(t, controllerruntime.Result{}, actual)
 		assert.Empty(t, err, "updateStatusIfNeeded returns error")
 	})
@@ -978,7 +978,7 @@ func TestClusterStatusController_updateStatusIfNeeded(t *testing.T) {
 			ClusterClientSetFunc: util.NewClusterClientSet,
 		}
 
-		actual, err := c.updateStatusIfNeeded(cluster, currentClusterStatus)
+		actual, err := c.updateStatusIfNeeded(context.Background(), cluster, currentClusterStatus)
 		expect := controllerruntime.Result{}
 		assert.Equal(t, expect, actual)
 		assert.NotEmpty(t, err, "updateStatusIfNeeded doesn't return error")

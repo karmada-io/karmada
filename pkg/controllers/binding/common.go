@@ -17,6 +17,7 @@ limitations under the License.
 package binding
 
 import (
+	"context"
 	"strconv"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -38,7 +39,7 @@ import (
 
 // ensureWork ensure Work to be created or updated.
 func ensureWork(
-	c client.Client, resourceInterpreter resourceinterpreter.ResourceInterpreter, workload *unstructured.Unstructured,
+	ctx context.Context, c client.Client, resourceInterpreter resourceinterpreter.ResourceInterpreter, workload *unstructured.Unstructured,
 	overrideManager overridemanager.OverrideManager, binding metav1.Object, scope apiextensionsv1.ResourceScope,
 ) error {
 	var targetClusters []workv1alpha2.TargetCluster
@@ -134,7 +135,7 @@ func ensureWork(
 
 		suspendDispatching := shouldSuspendDispatching(suspension, targetCluster)
 
-		if err = helper.CreateOrUpdateWork(c, workMeta, clonedWorkload, &suspendDispatching); err != nil {
+		if err = helper.CreateOrUpdateWork(ctx, c, workMeta, clonedWorkload, &suspendDispatching); err != nil {
 			return err
 		}
 	}

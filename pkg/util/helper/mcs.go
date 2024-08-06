@@ -34,11 +34,11 @@ import (
 )
 
 // CreateOrUpdateEndpointSlice creates a EndpointSlice object if not exist, or updates if it already exists.
-func CreateOrUpdateEndpointSlice(client client.Client, endpointSlice *discoveryv1.EndpointSlice) error {
+func CreateOrUpdateEndpointSlice(ctx context.Context, client client.Client, endpointSlice *discoveryv1.EndpointSlice) error {
 	runtimeObject := endpointSlice.DeepCopy()
 	var operationResult controllerutil.OperationResult
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), client, runtimeObject, func() error {
+		operationResult, err = controllerutil.CreateOrUpdate(ctx, client, runtimeObject, func() error {
 			runtimeObject.AddressType = endpointSlice.AddressType
 			runtimeObject.Endpoints = endpointSlice.Endpoints
 			runtimeObject.Labels = endpointSlice.Labels
@@ -75,7 +75,7 @@ func GetEndpointSlices(c client.Client, ls labels.Set) (*discoveryv1.EndpointSli
 }
 
 // DeleteEndpointSlice will delete all EndpointSlice objects by labels.
-func DeleteEndpointSlice(c client.Client, selector labels.Set) error {
+func DeleteEndpointSlice(ctx context.Context, c client.Client, selector labels.Set) error {
 	endpointSliceList, err := GetEndpointSlices(c, selector)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -87,7 +87,7 @@ func DeleteEndpointSlice(c client.Client, selector labels.Set) error {
 
 	var errs []error
 	for index, work := range endpointSliceList.Items {
-		if err := c.Delete(context.TODO(), &endpointSliceList.Items[index]); err != nil {
+		if err := c.Delete(ctx, &endpointSliceList.Items[index]); err != nil {
 			klog.Errorf("Failed to delete endpointslice(%s/%s): %v", work.Namespace, work.Name, err)
 			errs = append(errs, err)
 		}
