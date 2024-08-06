@@ -154,7 +154,7 @@ func mergeTargetClusters(targetClusters []workv1alpha2.TargetCluster, requiredBy
 	return targetClusters
 }
 
-func checkFailoverCondition(resourceBinding *workv1alpha2.ResourceBinding) string {
+func checkFailoverHistory(resourceBinding *workv1alpha2.ResourceBinding) string {
 	failoverHistory := resourceBinding.Status.FailoverHistory
 	klog.V(4).Infof("Failover History is %+v", failoverHistory)
 	if len(failoverHistory) == 0 {
@@ -179,7 +179,7 @@ func mergeLabel(workload *unstructured.Unstructured, binding metav1.Object, scop
 	if scope == apiextensionsv1.NamespaceScoped {
 		klog.V(4).Info("Checking for failover condition.")
 		namespaceBindingObj := binding.(*workv1alpha2.ResourceBinding)
-		failoverReason := checkFailoverCondition(namespaceBindingObj)
+		failoverReason := checkFailoverHistory(namespaceBindingObj)
 		if failoverReason != "" {
 			if failoverReason == workv1alpha2.EvictionReasonApplicationFailure {
 				klog.V(4).Info("Appending application failover label")

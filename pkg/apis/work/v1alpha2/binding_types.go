@@ -325,6 +325,7 @@ type ResourceBindingStatus struct {
 	FailoverHistory []FailoverHistoryItem `json:"failoverHistory,omitempty"`
 }
 
+// FailoverHistoryItem represents either an application or cluster failover event that occurred in the past.
 type FailoverHistoryItem struct {
 	// FailoverTime represents the timestamp when the workload failed over.
 	// It is represented in RFC3339 form(like '2021-04-25T10:02:10Z') and is in UTC.
