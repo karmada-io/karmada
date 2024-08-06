@@ -12,6 +12,8 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.actor }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
+permissions:
+  contents: read  # Required to check out the code
 jobs:
   init:
     name: init
