@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"regexp"
 	"strings"
 	"time"
@@ -45,7 +46,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cordon"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
-	"github.com/karmada-io/karmada/pkg/util"
+	util "github.com/karmada-io/karmada/pkg/util"
 	khelper "github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
@@ -1310,6 +1311,145 @@ var _ = framework.SerialDescribe("Karmadactl taint testing", ginkgo.Labels{NeedC
 		})
 	})
 })
+
+var _ = ginkgo.Describe("Karmadactl addons testing", func() {
+	ginkgo.Context("Test listing addons", func() {
+		var expectedAddons map[string]string
+		var member1 string
+
+		ginkgo.BeforeEach(func() {
+			expectedAddons = map[string]string{
+				"karmada-descheduler":         "disabled",
+				"karmada-metrics-adapter":     "disabled",
+				"karmada-scheduler-estimator": "unknown",
+				"karmada-search":              "disabled",
+			}
+			member1 = framework.ClusterNames()[0]
+		})
+
+		ginkgo.It("should list addons with default options on karmada control plane", func() {
+			cmd := framework.NewKarmadactlCommand("", karmadaContext, karmadactlPath, "", karmadactlTimeout, "addons", "list", "--karmada-kubeconfig", kubeconfig)
+			output, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+			normalizedOutput := normalizeOutput(output)
+			checkExpectedAddons(normalizedOutput, expectedAddons)
+		})
+
+		ginkgo.It("should list addons for a specific cluster", func() {
+			cmd := framework.NewKarmadactlCommand("", karmadaContext, karmadactlPath, "", karmadactlTimeout, "addons", "list", "--karmada-kubeconfig", kubeconfig, "-C", member1)
+			output, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+			expectedAddons["karmada-scheduler-estimator"] = "disabled"
+			normalizedOutput := normalizeOutput(output)
+			checkExpectedAddons(normalizedOutput, expectedAddons)
+		})
+
+		ginkgo.It("should list addons in a specific namespace", func() {
+			cmd := framework.NewKarmadactlCommand("", karmadaContext, karmadactlPath, "", karmadactlTimeout, "addons", "list", "--karmada-kubeconfig", kubeconfig, "--namespace", util.NamespaceKarmadaSystem)
+			output, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+			normalizedOutput := normalizeOutput(output)
+			checkExpectedAddons(normalizedOutput, expectedAddons)
+		})
+
+		ginkgo.It("should list addons with multiple options for a specific cluster", func() {
+			cmd := framework.NewKarmadactlCommand("", karmadaContext, karmadactlPath, "", karmadactlTimeout, "addons", "list", "--karmada-kubeconfig", kubeconfig, "-C", member1, "--namespace", util.NamespaceKarmadaSystem)
+			output, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+			expectedAddons["karmada-scheduler-estimator"] = "disabled"
+			normalizedOutput := normalizeOutput(output)
+			checkExpectedAddons(normalizedOutput, expectedAddons)
+		})
+
+		ginkgo.It("should handle missing karmada-apiserver config gracefully", func() {
+			ginkgo.By("Attempting to list addons without a karmada-apiserver config", func() {
+				cmd := framework.NewKarmadactlCommand("", karmadaContext, karmadactlPath, "", karmadactlTimeout, "addons", "list")
+				_, err := cmd.ExecOrDie()
+				gomega.Expect(err).Should(gomega.HaveOccurred())
+				gomega.Expect(err.Error()).To(gomega.ContainSubstring("failed to get karmada-apiserver config"))
+			})
+
+			ginkgo.By("Attempting to list addons with an invalid karmada-apiserver config", func() {
+				cmd := framework.NewKarmadactlCommand("", karmadaContext, karmadactlPath, "", karmadactlTimeout, "addons", "list", "--karmada-kubeconfig", "invalid")
+				_, err := cmd.ExecOrDie()
+				gomega.Expect(err).Should(gomega.HaveOccurred())
+				gomega.Expect(err.Error()).To(gomega.ContainSubstring(fmt.Sprintf("failed to get karmada-apiserver config from %s", "invalid")))
+			})
+		})
+	})
+
+	ginkgo.Context("Test enabling addons", ginkgo.Ordered, func() {
+		var contextName = "karmada-host"
+		var secretName string
+
+		ginkgo.BeforeAll(func() {
+			// Create kubeconfig secret in karmada-host context on karmada-system namespace.
+			secretName = "kubeconfig"
+			createSecretCmd := exec.Command("kubectl", "create", "secret", "generic", secretName, "--from-file=kubeconfig="+kubeconfig, "--namespace", util.NamespaceKarmadaSystem, "--context", contextName)
+			_, err := createSecretCmd.CombinedOutput()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			ginkgo.DeferCleanup(func() {
+				deleteSecretCmd := exec.Command("kubectl", "delete", "secret", secretName, "--namespace", util.NamespaceKarmadaSystem, "--context", contextName)
+				_, err := deleteSecretCmd.CombinedOutput()
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+
+		ginkgo.It("should enable/disable karmada-descheduler addon", func() {
+			ginkgo.By("enabling karmada-descheduler addon", func() {
+				cmd := framework.NewKarmadactlCommand("", "", karmadactlPath, "", karmadactlTimeout*6, "addons", "enable", "karmada-descheduler", "--karmada-kubeconfig", kubeconfig, "--context", contextName)
+				output, err := cmd.ExecOrDie()
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				gomega.Expect(output).To(gomega.ContainSubstring("Successfully enable addon karmada-descheduler"))
+			})
+
+			ginkgo.By("disabling karmada-descheduler addon", func() {
+				cmd := framework.NewKarmadactlCommand("", "", karmadactlPath, "", karmadactlTimeout*6, "addons", "disable", "karmada-descheduler", "--karmada-kubeconfig", kubeconfig, "--context", contextName)
+				_, err := cmd.ExecOrDie()
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+	})
+})
+
+// normalizeOutput removes table borders and extra spaces from the output string.
+// This function is useful for normalizing command output to make string matching
+// more reliable and less sensitive to formatting differences. It performs the
+// following operations on the output string:
+//   - Removes all pipe characters ('|') used in table formatting.
+//   - Removes all spaces to standardize the output format.
+//   - Removes all newline characters to ensure continuous string comparison.
+//
+// Args:
+//
+//	output (string): The raw output string from the command.
+//
+// Returns:
+//
+//	string: The normalized output string with formatting characters removed.
+func normalizeOutput(output string) string {
+	normalizedOutput := strings.ReplaceAll(output, "|", "")
+	normalizedOutput = strings.ReplaceAll(normalizedOutput, " ", "")
+	normalizedOutput = strings.ReplaceAll(normalizedOutput, "\n", "")
+	return normalizedOutput
+}
+
+// checkExpectedAddons verifies that the expected addons and their statuses are
+// present in the normalized output. The status parameter should be "disabled" or
+// "unknown" depending on the context of the test.
+//
+// Args:
+//
+//	output: The normalized command output string.
+func checkExpectedAddons(output string, expectedAddons map[string]string) {
+	for addon, expectedStatus := range expectedAddons {
+		gomega.Expect(output).To(gomega.ContainSubstring(fmt.Sprintf("%s%s", addon, expectedStatus)))
+	}
+}
 
 // extractTokenIDAndSecret extracts the token ID and Secret from the output string.
 // It assumes the output format is "tokenID.tokenSecret".
