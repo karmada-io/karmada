@@ -4,6 +4,9 @@ on:
     # Run this workflow "At 20:00 UTC on Sunday and Saturday"
     - cron: '0 20 * * 0,6'
 
+permissions:
+  contents: read # Required by actions/checkout to fetch the repository contents.
+
 jobs:
   e2e:
     name: e2e test
