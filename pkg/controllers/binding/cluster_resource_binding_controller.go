@@ -82,24 +82,24 @@ func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req co
 
 	if !clusterResourceBinding.DeletionTimestamp.IsZero() {
 		klog.V(4).Infof("Begin to delete works owned by binding(%s).", req.NamespacedName.String())
-		if err := helper.DeleteWorks(c.Client, "", req.Name, clusterResourceBinding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel]); err != nil {
+		if err := helper.DeleteWorks(ctx, c.Client, "", req.Name, clusterResourceBinding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel]); err != nil {
 			klog.Errorf("Failed to delete works related to %s: %v", clusterResourceBinding.GetName(), err)
 			return controllerruntime.Result{}, err
 		}
-		return c.removeFinalizer(clusterResourceBinding)
+		return c.removeFinalizer(ctx, clusterResourceBinding)
 	}
 
-	return c.syncBinding(clusterResourceBinding)
+	return c.syncBinding(ctx, clusterResourceBinding)
 }
 
 // removeFinalizer removes finalizer from the given ClusterResourceBinding
-func (c *ClusterResourceBindingController) removeFinalizer(crb *workv1alpha2.ClusterResourceBinding) (controllerruntime.Result, error) {
+func (c *ClusterResourceBindingController) removeFinalizer(ctx context.Context, crb *workv1alpha2.ClusterResourceBinding) (controllerruntime.Result, error) {
 	if !controllerutil.ContainsFinalizer(crb, util.ClusterResourceBindingControllerFinalizer) {
 		return controllerruntime.Result{}, nil
 	}
 
 	controllerutil.RemoveFinalizer(crb, util.ClusterResourceBindingControllerFinalizer)
-	err := c.Client.Update(context.TODO(), crb)
+	err := c.Client.Update(ctx, crb)
 	if err != nil {
 		return controllerruntime.Result{}, err
 	}
@@ -107,12 +107,12 @@ func (c *ClusterResourceBindingController) removeFinalizer(crb *workv1alpha2.Clu
 }
 
 // syncBinding will sync clusterResourceBinding to Works.
-func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.ClusterResourceBinding) (controllerruntime.Result, error) {
-	if err := c.removeOrphanWorks(binding); err != nil {
+func (c *ClusterResourceBindingController) syncBinding(ctx context.Context, binding *workv1alpha2.ClusterResourceBinding) (controllerruntime.Result, error) {
+	if err := c.removeOrphanWorks(ctx, binding); err != nil {
 		return controllerruntime.Result{}, err
 	}
 
-	workload, err := helper.FetchResourceTemplate(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
+	workload, err := helper.FetchResourceTemplate(ctx, c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// It might happen when the resource template has been removed but the garbage collector hasn't removed
@@ -125,7 +125,7 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 	}
 
 	start := time.Now()
-	err = ensureWork(c.Client, c.ResourceInterpreter, workload, c.OverrideManager, binding, apiextensionsv1.ClusterScoped)
+	err = ensureWork(ctx, c.Client, c.ResourceInterpreter, workload, c.OverrideManager, binding, apiextensionsv1.ClusterScoped)
 	metrics.ObserveSyncWorkLatency(err, start)
 	if err != nil {
 		klog.Errorf("Failed to transform clusterResourceBinding(%s) to works. Error: %v.", binding.GetName(), err)
@@ -141,15 +141,15 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 	return controllerruntime.Result{}, nil
 }
 
-func (c *ClusterResourceBindingController) removeOrphanWorks(binding *workv1alpha2.ClusterResourceBinding) error {
-	works, err := helper.FindOrphanWorks(c.Client, "", binding.Name, binding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel], helper.ObtainBindingSpecExistingClusters(binding.Spec))
+func (c *ClusterResourceBindingController) removeOrphanWorks(ctx context.Context, binding *workv1alpha2.ClusterResourceBinding) error {
+	works, err := helper.FindOrphanWorks(ctx, c.Client, "", binding.Name, binding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel], helper.ObtainBindingSpecExistingClusters(binding.Spec))
 	if err != nil {
 		klog.Errorf("Failed to find orphan works by ClusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
 		c.EventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonCleanupWorkFailed, err.Error())
 		return err
 	}
 
-	err = helper.RemoveOrphanWorks(c.Client, works)
+	err = helper.RemoveOrphanWorks(ctx, c.Client, works)
 	if err != nil {
 		klog.Errorf("Failed to remove orphan works by clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
 		c.EventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonCleanupWorkFailed, err.Error())
@@ -169,7 +169,7 @@ func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntim
 }
 
 func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.MapFunc {
-	return func(_ context.Context, a client.Object) []reconcile.Request {
+	return func(ctx context.Context, a client.Object) []reconcile.Request {
 		var overrideRS []policyv1alpha1.ResourceSelector
 		switch t := a.(type) {
 		case *policyv1alpha1.ClusterOverridePolicy:
@@ -179,7 +179,7 @@ func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.MapFu
 		}
 
 		bindingList := &workv1alpha2.ClusterResourceBindingList{}
-		if err := c.Client.List(context.TODO(), bindingList); err != nil {
+		if err := c.Client.List(ctx, bindingList); err != nil {
 			klog.Errorf("Failed to list clusterResourceBindings, error: %v", err)
 			return nil
 		}
@@ -193,7 +193,7 @@ func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.MapFu
 				continue
 			}
 
-			workload, err := helper.FetchResourceTemplate(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
+			workload, err := helper.FetchResourceTemplate(ctx, c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
 			if err != nil {
 				// If we cannot fetch resource template from binding, this may be due to the fact that the resource template has been deleted.
 				// Just skip it so that it will not affect other bindings.

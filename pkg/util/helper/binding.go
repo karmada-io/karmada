@@ -194,9 +194,9 @@ func ObtainBindingSpecExistingClusters(bindingSpec workv1alpha2.ResourceBindingS
 
 // FindOrphanWorks retrieves all works that labeled with current binding(ResourceBinding or ClusterResourceBinding) objects,
 // then pick the works that not meet current binding declaration.
-func FindOrphanWorks(c client.Client, bindingNamespace, bindingName, bindingID string, expectClusters sets.Set[string]) ([]workv1alpha1.Work, error) {
+func FindOrphanWorks(ctx context.Context, c client.Client, bindingNamespace, bindingName, bindingID string, expectClusters sets.Set[string]) ([]workv1alpha1.Work, error) {
 	var needJudgeWorks []workv1alpha1.Work
-	workList, err := GetWorksByBindingID(c, bindingID, bindingNamespace != "")
+	workList, err := GetWorksByBindingID(ctx, c, bindingID, bindingNamespace != "")
 	if err != nil {
 		klog.Errorf("Failed to get works by binding object (%s/%s): %v", bindingNamespace, bindingName, err)
 		return nil, err
@@ -219,10 +219,10 @@ func FindOrphanWorks(c client.Client, bindingNamespace, bindingName, bindingID s
 }
 
 // RemoveOrphanWorks will remove orphan works.
-func RemoveOrphanWorks(c client.Client, works []workv1alpha1.Work) error {
+func RemoveOrphanWorks(ctx context.Context, c client.Client, works []workv1alpha1.Work) error {
 	var errs []error
 	for workIndex, work := range works {
-		err := c.Delete(context.TODO(), &works[workIndex])
+		err := c.Delete(ctx, &works[workIndex])
 		if err != nil {
 			klog.Errorf("Failed to delete orphan work %s/%s, err is %v", work.GetNamespace(), work.GetName(), err)
 			errs = append(errs, err)
@@ -238,6 +238,7 @@ func RemoveOrphanWorks(c client.Client, works []workv1alpha1.Work) error {
 // We should abide by the principle of making a deep copy first and then modifying it.
 // See issue: https://github.com/karmada-io/karmada/issues/3878.
 func FetchResourceTemplate(
+	ctx context.Context,
 	dynamicClient dynamic.Interface,
 	informerManager genericmanager.SingleClusterInformerManager,
 	restMapper meta.RESTMapper,
@@ -261,7 +262,7 @@ func FetchResourceTemplate(
 		// fall back to call api server in case the cache has not been synchronized yet
 		klog.Warningf("Failed to get resource template (%s/%s/%s) from cache, Error: %v. Fall back to call api server.",
 			resource.Kind, resource.Namespace, resource.Name, err)
-		object, err = dynamicClient.Resource(gvr).Namespace(resource.Namespace).Get(context.TODO(), resource.Name, metav1.GetOptions{})
+		object, err = dynamicClient.Resource(gvr).Namespace(resource.Namespace).Get(ctx, resource.Name, metav1.GetOptions{})
 		if err != nil {
 			klog.Errorf("Failed to get resource template (%s/%s/%s) from api server, Error: %v",
 				resource.Kind, resource.Namespace, resource.Name, err)
@@ -345,8 +346,8 @@ func GetResourceBindings(c client.Client, ls labels.Set) (*workv1alpha2.Resource
 }
 
 // DeleteWorks will delete all Work objects by labels.
-func DeleteWorks(c client.Client, namespace, name, bindingID string) error {
-	workList, err := GetWorksByBindingID(c, bindingID, namespace != "")
+func DeleteWorks(ctx context.Context, c client.Client, namespace, name, bindingID string) error {
+	workList, err := GetWorksByBindingID(ctx, c, bindingID, namespace != "")
 	if err != nil {
 		klog.Errorf("Failed to get works by (Cluster)ResourceBinding(%s/%s) : %v", namespace, name, err)
 		return err
@@ -354,7 +355,7 @@ func DeleteWorks(c client.Client, namespace, name, bindingID string) error {
 
 	var errs []error
 	for index, work := range workList.Items {
-		if err := c.Delete(context.TODO(), &workList.Items[index]); err != nil {
+		if err := c.Delete(ctx, &workList.Items[index]); err != nil {
 			if apierrors.IsNotFound(err) {
 				continue
 			}

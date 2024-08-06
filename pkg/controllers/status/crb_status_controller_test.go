@@ -209,7 +209,7 @@ func TestCRBStatusController_syncBindingStatus(t *testing.T) {
 				}
 			}
 
-			err := c.syncBindingStatus(binding)
+			err := c.syncBindingStatus(context.Background(), binding)
 
 			if tt.expectedError {
 				assert.Error(t, err)

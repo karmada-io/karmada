@@ -56,12 +56,13 @@ const (
 // AggregateResourceBindingWorkStatus will collect all work statuses with current ResourceBinding objects,
 // then aggregate status info to current ResourceBinding status.
 func AggregateResourceBindingWorkStatus(
+	ctx context.Context,
 	c client.Client,
 	binding *workv1alpha2.ResourceBinding,
 	resourceTemplate *unstructured.Unstructured,
 	eventRecorder record.EventRecorder,
 ) error {
-	workList, err := GetWorksByBindingID(c, binding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel], true)
+	workList, err := GetWorksByBindingID(ctx, c, binding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel], true)
 	if err != nil {
 		return err
 	}
@@ -75,7 +76,7 @@ func AggregateResourceBindingWorkStatus(
 
 	var operationResult controllerutil.OperationResult
 	if err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		operationResult, err = UpdateStatus(context.Background(), c, binding, func() error {
+		operationResult, err = UpdateStatus(ctx, c, binding, func() error {
 			binding.Status.AggregatedStatus = aggregatedStatuses
 			// set binding status with the newest condition
 			meta.SetStatusCondition(&binding.Status.Conditions, fullyAppliedCondition)
@@ -101,12 +102,13 @@ func AggregateResourceBindingWorkStatus(
 // AggregateClusterResourceBindingWorkStatus will collect all work statuses with current ClusterResourceBinding objects,
 // then aggregate status info to current ClusterResourceBinding status.
 func AggregateClusterResourceBindingWorkStatus(
+	ctx context.Context,
 	c client.Client,
 	binding *workv1alpha2.ClusterResourceBinding,
 	resourceTemplate *unstructured.Unstructured,
 	eventRecorder record.EventRecorder,
 ) error {
-	workList, err := GetWorksByBindingID(c, binding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel], false)
+	workList, err := GetWorksByBindingID(ctx, c, binding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel], false)
 	if err != nil {
 		return err
 	}
@@ -120,7 +122,7 @@ func AggregateClusterResourceBindingWorkStatus(
 
 	var operationResult controllerutil.OperationResult
 	if err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		operationResult, err = UpdateStatus(context.Background(), c, binding, func() error {
+		operationResult, err = UpdateStatus(ctx, c, binding, func() error {
 			binding.Status.AggregatedStatus = aggregatedStatuses
 			// set binding status with the newest condition
 			meta.SetStatusCondition(&binding.Status.Conditions, fullyAppliedCondition)
