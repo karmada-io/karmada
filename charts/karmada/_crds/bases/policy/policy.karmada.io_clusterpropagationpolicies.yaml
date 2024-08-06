@@ -164,6 +164,10 @@ spec:
                           cluster from which the application is migrated.
                           Valid options are "Immediately", "Graciously" and "Never".
                           Defaults to "Graciously".
+                        enum:
+                        - Immediately
+                        - Graciously
+                        - Never
                         type: string
                     required:
                     - decisionConditions
