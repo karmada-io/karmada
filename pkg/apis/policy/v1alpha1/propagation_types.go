@@ -286,6 +286,7 @@ type ApplicationFailoverBehavior struct {
 	// cluster from which the application is migrated.
 	// Valid options are "Immediately", "Graciously" and "Never".
 	// Defaults to "Graciously".
+	// +kubebuilder:validation:Enum=Immediately;Graciously;Never
 	// +kubebuilder:default=Graciously
 	// +optional
 	PurgeMode PurgeMode `json:"purgeMode,omitempty"`
