@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -91,6 +92,11 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	if err != nil {
 		klog.Errorf("Failed to get the given member cluster %s", clusterName)
 		return controllerruntime.Result{}, err
+	}
+
+	if ptr.Deref(work.Spec.SuspendDispatching, false) {
+		klog.V(4).Infof("Skip syncing work(%s/%s) for cluster(%s) as work dispatch is suspended.", work.Namespace, work.Name, cluster.Name)
+		return controllerruntime.Result{}, nil
 	}
 
 	if !work.DeletionTimestamp.IsZero() {
