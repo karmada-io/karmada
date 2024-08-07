@@ -61,6 +61,13 @@ func TestContext_IsControllerEnabled(t *testing.T) {
 			expected:                     false,
 		},
 		{
+			name:                         "on by star, not in disabled list",
+			controllerName:               "foxtrot",
+			disabledByDefaultControllers: []string{"delta", "echo"},
+			controllers:                  []string{"*"}, // --controllers=*
+			expected:                     true,
+		},
+		{
 			name:                         "on by star, not off by name",
 			controllerName:               "alpha",
 			disabledByDefaultControllers: []string{"delta", "echo"},
@@ -80,13 +87,6 @@ func TestContext_IsControllerEnabled(t *testing.T) {
 			disabledByDefaultControllers: []string{"delta", "echo"},
 			controllers:                  []string{"alpha", "bravo", "-charlie"}, // --controllers=alpha,bravo,-charlie
 			expected:                     false,
-		},
-		{
-			name:                         "on by star, not in disabled list",
-			controllerName:               "foxtrot",
-			disabledByDefaultControllers: []string{"delta", "echo"},
-			controllers:                  []string{"*"}, // --controllers=*
-			expected:                     true,
 		},
 		{
 			name:                         "empty controllers list",
