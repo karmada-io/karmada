@@ -1,5 +1,5 @@
 /*
-Copyright 2024 The Karmada Authors.
+Copyright 2022 The Karmada Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -36,27 +36,27 @@ func TestContext_IsControllerEnabled(t *testing.T) {
 			name:                         "on by name",
 			controllerName:               "bravo",
 			disabledByDefaultControllers: []string{"delta", "echo"},
-			controllers:                  []string{"alpha", "bravo", "-charlie"},
+			controllers:                  []string{"alpha", "bravo", "-charlie"}, // --controllers=alpha,bravo,-charlie
 			expected:                     true,
 		},
 		{
 			name:                         "off by name",
 			controllerName:               "charlie",
 			disabledByDefaultControllers: []string{"delta", "echo"},
-			controllers:                  []string{"alpha", "bravo", "-charlie"},
+			controllers:                  []string{"alpha", "bravo", "-charlie"}, // --controllers=alpha,bravo,-charlie
 			expected:                     false,
 		},
 		{
 			name:                         "on by default",
 			controllerName:               "alpha",
-			disabledByDefaultControllers: []string{"delta", "echo"},
+			disabledByDefaultControllers: []string{"delta", "echo"}, // --controllers=*
 			controllers:                  []string{"*"},
 			expected:                     true,
 		},
 		{
 			name:                         "off by default",
 			controllerName:               "delta",
-			disabledByDefaultControllers: []string{"delta", "echo"},
+			disabledByDefaultControllers: []string{"delta", "echo"}, // --controllers=*
 			controllers:                  []string{"*"},
 			expected:                     false,
 		},
@@ -64,35 +64,35 @@ func TestContext_IsControllerEnabled(t *testing.T) {
 			name:                         "on by star, not off by name",
 			controllerName:               "alpha",
 			disabledByDefaultControllers: []string{"delta", "echo"},
-			controllers:                  []string{"*", "-charlie"},
+			controllers:                  []string{"*", "-charlie"}, // --controllers=*,-charlie
 			expected:                     true,
 		},
 		{
 			name:                         "off by name with star",
 			controllerName:               "charlie",
 			disabledByDefaultControllers: []string{"delta", "echo"},
-			controllers:                  []string{"*", "-charlie"},
+			controllers:                  []string{"*", "-charlie"}, // --controllers=*,-charlie
 			expected:                     false,
 		},
 		{
 			name:                         "off by default implicit, no star",
 			controllerName:               "foxtrot",
 			disabledByDefaultControllers: []string{"delta", "echo"},
-			controllers:                  []string{"alpha", "bravo", "-charlie"},
+			controllers:                  []string{"alpha", "bravo", "-charlie"}, // --controllers=alpha,bravo,-charlie
 			expected:                     false,
 		},
 		{
 			name:                         "on by star, not in disabled list",
 			controllerName:               "foxtrot",
 			disabledByDefaultControllers: []string{"delta", "echo"},
-			controllers:                  []string{"*"},
+			controllers:                  []string{"*"}, // --controllers=*
 			expected:                     true,
 		},
 		{
 			name:                         "empty controllers list",
 			controllerName:               "alpha",
 			disabledByDefaultControllers: []string{"delta", "echo"},
-			controllers:                  []string{},
+			controllers:                  []string{}, // No controllers
 			expected:                     false,
 		},
 	}
