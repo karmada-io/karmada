@@ -134,6 +134,7 @@ type CommandInitOption struct {
 	EtcdStorageMode                    string
 	EtcdHostDataPath                   string
 	EtcdNodeSelectorLabels             string
+	EtcdNodeSelectorLabelsMap          map[string]string
 	EtcdPersistentVolumeSize           string
 	ExternalEtcdCACertPath             string
 	ExternalEtcdClientCertPath         string
@@ -180,8 +181,10 @@ func (i *CommandInitOption) validateLocalEtcd(parentCommand string) error {
 		return fmt.Errorf("when etcd storage mode is hostPath, dataPath is not empty. See '%s init --help'", parentCommand)
 	}
 
-	if i.EtcdStorageMode == etcdStorageModeHostPath && i.EtcdNodeSelectorLabels != "" && utils.StringToMap(i.EtcdNodeSelectorLabels) == nil {
-		return fmt.Errorf("the label does not seem to be 'key=value'")
+	if i.EtcdStorageMode == etcdStorageModeHostPath && i.EtcdNodeSelectorLabels != "" {
+		if err := i.parseEtcdNodeSelectorLabelsMap(); err != nil {
+			return fmt.Errorf("the etcdNodeSelector format is incorrect: %s", err)
+		}
 	}
 
 	if i.EtcdStorageMode == etcdStorageModeHostPath && i.EtcdReplicas != 1 {
@@ -275,8 +278,11 @@ func (i *CommandInitOption) Complete() error {
 	klog.Infof("karmada apiserver ip: %s", i.KarmadaAPIServerIP)
 
 	if !i.isExternalEtcdProvided() && i.EtcdStorageMode == "hostPath" && i.EtcdNodeSelectorLabels != "" {
-		if !i.isNodeExist(i.EtcdNodeSelectorLabels) {
-			return fmt.Errorf("no node found by label %s", i.EtcdNodeSelectorLabels)
+		labels := strings.Split(i.EtcdNodeSelectorLabels, ",")
+		for _, label := range labels {
+			if !i.isNodeExist(label) {
+				return fmt.Errorf("no node found by label %s", label)
+			}
 		}
 	}
 
@@ -728,4 +734,28 @@ func generateServerURL(serverIP string, nodePort int32) (string, error) {
 // SupportedStorageMode Return install etcd supported storage mode
 func SupportedStorageMode() []string {
 	return []string{etcdStorageModeEmptyDir, etcdStorageModeHostPath, etcdStorageModePVC}
+}
+
+// parseEtcdNodeSelectorLabelsMap parse etcd node selector labels
+func (i *CommandInitOption) parseEtcdNodeSelectorLabelsMap() error {
+	if i.EtcdNodeSelectorLabels == "" {
+		return nil
+	}
+
+	i.EtcdNodeSelectorLabelsMap = make(map[string]string)
+
+	// Split the string by commas
+	labels := strings.Split(i.EtcdNodeSelectorLabels, ",")
+	for _, label := range labels {
+		// Split each label by the equal sign
+		parts := strings.SplitN(label, "=", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid label: %s", label)
+		}
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+		i.EtcdNodeSelectorLabelsMap[key] = value
+	}
+
+	return nil
 }
