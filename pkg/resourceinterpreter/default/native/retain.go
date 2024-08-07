@@ -18,10 +18,12 @@ package native
 
 import (
 	"fmt"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -35,7 +37,7 @@ type retentionInterpreter func(desired *unstructured.Unstructured, observed *uns
 
 func getAllDefaultRetentionInterpreter() map[schema.GroupVersionKind]retentionInterpreter {
 	s := make(map[schema.GroupVersionKind]retentionInterpreter)
-	s[appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind)] = retainWorkloadReplicas
+	s[appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind)] = retainWorkloadFields
 	s[corev1.SchemeGroupVersion.WithKind(util.PodKind)] = retainPodFields
 	s[corev1.SchemeGroupVersion.WithKind(util.ServiceKind)] = lifted.RetainServiceFields
 	s[corev1.SchemeGroupVersion.WithKind(util.ServiceAccountKind)] = lifted.RetainServiceAccountFields
@@ -142,24 +144,77 @@ func retainJobSelectorFields(desired, observed *unstructured.Unstructured) (*uns
 	return desired, nil
 }
 
-func retainWorkloadReplicas(desired, observed *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-	labels, _, err := unstructured.NestedStringMap(desired.Object, "metadata", "labels")
+func retainWorkloadFields(desired, observed *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+	desiredDeploy := &appsv1.Deployment{}
+	err := helper.ConvertToTypedObject(desired, desiredDeploy)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get metadata.label from desired.Object: %+v", err)
+		return nil, fmt.Errorf("failed to convert desciredDeploy from unstructured object: %v", err)
 	}
 
-	if label, labelExist := labels[util.RetainReplicasLabel]; labelExist && label == util.RetainReplicasValue {
-		replicas, exist, err := unstructured.NestedInt64(observed.Object, "spec", "replicas")
-		if err != nil || !exist {
-			return nil, fmt.Errorf("failed to get spec.replicas from %s %s/%s", observed.GetKind(), observed.GetNamespace(), observed.GetName())
-		}
-		err = unstructured.SetNestedField(desired.Object, replicas, "spec", "replicas")
-		if err != nil {
-			return nil, fmt.Errorf("failed to set spec.replicas to %s %s/%s", desired.GetKind(), desired.GetNamespace(), desired.GetName())
-		}
+	observedDeploy := &appsv1.Deployment{}
+	err = helper.ConvertToTypedObject(observed, observedDeploy)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert observedDeploy from unstructured object: %v", err)
 	}
 
-	return desired, nil
+	err = setNewestRestartedAtTime(&desiredDeploy.Spec.Template.ObjectMeta, &observedDeploy.Spec.Template.ObjectMeta)
+	if err != nil {
+		return nil, fmt.Errorf("failed to setNewestRestartedAtTime: %v", err)
+	}
+
+	if label, labelExist := desiredDeploy.Labels[util.RetainReplicasLabel]; labelExist && label == util.RetainReplicasValue {
+		desiredDeploy.Spec.Replicas = observedDeploy.Spec.Replicas
+	}
+
+	unstructuredObj, err := helper.ToUnstructured(desiredDeploy)
+	if err != nil {
+		return nil, fmt.Errorf("failed to transform deployment: %v", err)
+	}
+	return unstructuredObj, nil
+}
+
+// setNewestRestartedAtTime sets the newest restartedAt time to desired object.
+func setNewestRestartedAtTime(desiredMeta, observedMeta *metav1.ObjectMeta) error {
+	desiredAnnos := desiredMeta.GetAnnotations()
+	observedAnnos := observedMeta.GetAnnotations()
+	// init annotations if desired object has no annotations
+	observedRestarted, observedRestartedExist, err := getRestartedAtTime(observedAnnos)
+	if err != nil {
+		return err
+	}
+	// if observed object has no restartedAt annotation, no need to update desired objectMeta
+	if !observedRestartedExist {
+		return nil
+	}
+	// init annotations if desired object has no annotations
+	if desiredAnnos == nil {
+		desiredAnnos = make(map[string]string)
+	}
+	desiredRestarted, desiredRestartedExist, err := getRestartedAtTime(desiredAnnos)
+	if err != nil {
+		return err
+	}
+	// if desired object's restartedAt time is before observed object, update it
+	if !desiredRestartedExist || desiredRestarted.Before(observedRestarted) {
+		desiredAnnos["kubectl.kubernetes.io/restartedAt"] = observedAnnos["kubectl.kubernetes.io/restartedAt"]
+		desiredMeta.SetAnnotations(desiredAnnos)
+	}
+	return nil
+}
+
+func getRestartedAtTime(annotations map[string]string) (time.Time, bool, error) {
+	if annotations == nil {
+		return time.Time{}, false, nil
+	}
+	restartAtTime, exist := annotations["kubectl.kubernetes.io/restartedAt"]
+	if !exist {
+		return time.Time{}, exist, nil
+	}
+	t, err := time.Parse(time.RFC3339, restartAtTime)
+	if err != nil {
+		return time.Time{}, exist, fmt.Errorf("failed to parse kubectl.kubernetes.io/restartedAt: %v", err)
+	}
+	return t, true, nil
 }
 
 func retainSecretServiceAccountToken(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error) {
