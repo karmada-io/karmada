@@ -36,6 +36,7 @@ import (
 	netutils "k8s.io/utils/net"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/cert"
+	initConfig "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/config"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/karmada"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
@@ -174,6 +175,7 @@ type CommandInitOption struct {
 	WaitComponentReadyTimeout          int
 	CaCertFile                         string
 	CaKeyFile                          string
+	KarmadaInitFilePath                string
 }
 
 func (i *CommandInitOption) validateLocalEtcd(parentCommand string) error {
@@ -219,6 +221,16 @@ func (i *CommandInitOption) isExternalEtcdProvided() bool {
 
 // Validate Check that there are enough flags to run the command.
 func (i *CommandInitOption) Validate(parentCommand string) error {
+	if i.KarmadaInitFilePath != "" {
+		cfg, err := initConfig.LoadInitConfiguration(i.KarmadaInitFilePath)
+		if err != nil {
+			return fmt.Errorf("failed to load karmada init configuration: %v", err)
+		}
+		if err := i.parseInitConfig(cfg); err != nil {
+			return fmt.Errorf("failed to parse karmada init configuration: %v", err)
+		}
+	}
+
 	if i.KarmadaAPIServerAdvertiseAddress != "" {
 		if netutils.ParseIPSloppy(i.KarmadaAPIServerAdvertiseAddress) == nil {
 			return fmt.Errorf("karmada apiserver advertise address is not valid")
@@ -276,8 +288,11 @@ func (i *CommandInitOption) Complete() error {
 	}
 
 	if !i.isExternalEtcdProvided() && i.EtcdStorageMode == "hostPath" && i.EtcdNodeSelectorLabels != "" {
-		if !i.isNodeExist(i.EtcdNodeSelectorLabels) {
-			return fmt.Errorf("no node found by label %s", i.EtcdNodeSelectorLabels)
+		labels := strings.Split(i.EtcdNodeSelectorLabels, ",")
+		for _, label := range labels {
+			if !i.isNodeExist(label) {
+				return fmt.Errorf("no node found by label %s", label)
+			}
 		}
 	}
 	return initializeDirectory(i.KarmadaDataPath)
@@ -714,6 +729,126 @@ func (i *CommandInitOption) getImagePullSecrets() []corev1.LocalObjectReference 
 	return imagePullSecrets
 }
 
+// parseInitConfig parses fields from InitConfiguration into CommandInitOption.
+func (i *CommandInitOption) parseInitConfig(cfg *initConfig.InitConfiguration) error {
+	// General Config
+	setIfNotEmpty(&i.Namespace, cfg.GeneralConfig.Namespace)
+	setIfNotEmpty(&i.KubeConfig, cfg.GeneralConfig.KubeConfigPath)
+	setIfNotEmpty(&i.KubeImageTag, cfg.GeneralConfig.KubeImageTag)
+	setIfNotEmpty(&i.KubeImageRegistry, cfg.ImageConfig.KubeImageRegistry)
+	setIfNotEmpty(&i.KubeImageMirrorCountry, cfg.ImageConfig.KubeImageMirrorCountry)
+	setIfNotEmpty(&i.ImageRegistry, cfg.GeneralConfig.PrivateImageRegistry)
+	setIfNotEmpty(&i.ImagePullPolicy, cfg.ImageConfig.ImagePullPolicy)
+	setIfNotEmpty(&i.Context, cfg.GeneralConfig.Context)
+	if len(cfg.ImageConfig.ImagePullSecrets) != 0 {
+		i.PullSecrets = cfg.ImageConfig.ImagePullSecrets
+	}
+	setIfNotZero(&i.WaitComponentReadyTimeout, cfg.GeneralConfig.WaitComponentReadyTimeout)
+
+	// Certificate Config
+	setIfNotEmpty(&i.CaKeyFile, cfg.CertificateConfig.CaCertKeyFile)
+	setIfNotEmpty(&i.CaCertFile, cfg.CertificateConfig.CaCertFile)
+	if len(cfg.CertificateConfig.ExternalDNS) > 0 {
+		i.ExternalDNS = joinStringSlice(cfg.CertificateConfig.ExternalDNS)
+	}
+	if len(cfg.CertificateConfig.ExternalIP) > 0 {
+		i.ExternalIP = joinStringSlice(cfg.CertificateConfig.ExternalIP)
+	}
+	if cfg.CertificateConfig.ValidityPeriod != "" {
+		i.CertValidity = parseDuration(cfg.CertificateConfig.ValidityPeriod)
+	}
+
+	// Etcd Config
+	if cfg.EtcdConfig.Local != nil {
+		setIfNotEmpty(&i.EtcdImage, cfg.EtcdConfig.Local.Image)
+		setIfNotEmpty(&i.EtcdInitImage, cfg.EtcdConfig.Local.InitImage)
+		setIfNotEmpty(&i.EtcdHostDataPath, cfg.EtcdConfig.Local.DataDir)
+		setIfNotEmpty(&i.EtcdPersistentVolumeSize, cfg.EtcdConfig.Local.PVCSize)
+		if len(cfg.EtcdConfig.Local.NodeSelectorLabels) != 0 {
+			builder := strings.Builder{}
+			for k, v := range cfg.EtcdConfig.Local.NodeSelectorLabels {
+				if builder.Len() > 0 {
+					builder.WriteString(",")
+				}
+				builder.WriteString(fmt.Sprintf("%s=%s", k, v))
+			}
+			i.EtcdNodeSelectorLabels = builder.String()
+		}
+		setIfNotEmpty(&i.EtcdStorageMode, cfg.EtcdConfig.Local.StorageMode)
+		setIfNotZeroInt32(&i.EtcdReplicas, cfg.EtcdConfig.Local.Replicas)
+	} else if cfg.EtcdConfig.External != nil {
+		setIfNotEmpty(&i.ExternalEtcdCACertPath, cfg.EtcdConfig.External.ExternalCAPath)
+		setIfNotEmpty(&i.ExternalEtcdClientCertPath, cfg.EtcdConfig.External.ExternalCertPath)
+		setIfNotEmpty(&i.ExternalEtcdClientKeyPath, cfg.EtcdConfig.External.ExternalKeyPath)
+		setIfNotEmpty(&i.ExternalEtcdServers, cfg.EtcdConfig.External.ExternalServers)
+		setIfNotEmpty(&i.ExternalEtcdKeyPrefix, cfg.EtcdConfig.External.ExternalPrefix)
+	}
+
+	// Control Plane Config
+	setIfNotEmpty(&i.KarmadaAPIServerImage, cfg.KarmadaControlPlaneConfig.APIServer.Image)
+	setIfNotZeroInt32(&i.KarmadaAPIServerReplicas, cfg.KarmadaControlPlaneConfig.APIServer.Replicas)
+	setIfNotEmpty(&i.KarmadaAPIServerAdvertiseAddress, cfg.KarmadaControlPlaneConfig.APIServer.AdvertiseAddress)
+	setIfNotZeroInt32(&i.KarmadaAPIServerNodePort, cfg.KarmadaControlPlaneConfig.APIServer.NodePort)
+
+	setIfNotEmpty(&i.KarmadaControllerManagerImage, cfg.KarmadaControlPlaneConfig.ControllerManager.Image)
+	setIfNotZeroInt32(&i.KarmadaControllerManagerReplicas, cfg.KarmadaControlPlaneConfig.ControllerManager.Replicas)
+
+	setIfNotEmpty(&i.KarmadaSchedulerImage, cfg.KarmadaControlPlaneConfig.Scheduler.Image)
+	setIfNotZeroInt32(&i.KarmadaSchedulerReplicas, cfg.KarmadaControlPlaneConfig.Scheduler.Replicas)
+
+	setIfNotEmpty(&i.KarmadaWebhookImage, cfg.KarmadaControlPlaneConfig.Webhook.Image)
+	setIfNotZeroInt32(&i.KarmadaWebhookReplicas, cfg.KarmadaControlPlaneConfig.Webhook.Replicas)
+
+	setIfNotEmpty(&i.KarmadaAggregatedAPIServerImage, cfg.KarmadaControlPlaneConfig.AggregatedAPIServerConfig.Image)
+	setIfNotZeroInt32(&i.KarmadaAggregatedAPIServerReplicas, cfg.KarmadaControlPlaneConfig.AggregatedAPIServerConfig.Replicas)
+
+	setIfNotEmpty(&i.KubeControllerManagerImage, cfg.KarmadaControlPlaneConfig.KubeControllerManagerConfig.Image)
+	setIfNotZeroInt32(&i.KubeControllerManagerReplicas, cfg.KarmadaControlPlaneConfig.KubeControllerManagerConfig.Replicas)
+
+	setIfNotEmpty(&i.KarmadaDataPath, cfg.KarmadaControlPlaneConfig.DataPath)
+	setIfNotEmpty(&i.KarmadaPkiPath, cfg.KarmadaControlPlaneConfig.PkiPath)
+	setIfNotEmpty(&i.CRDs, cfg.KarmadaControlPlaneConfig.CRDs)
+	setIfNotEmpty(&i.HostClusterDomain, cfg.KarmadaControlPlaneConfig.HostClusterDomain)
+
+	return nil
+}
+
+// setIfNotEmpty checks if the source string is not empty, and if so, assigns its value to the destination string.
+func setIfNotEmpty(dest *string, src string) {
+	if src != "" {
+		*dest = src
+	}
+}
+
+// setIfNotZero checks if the source integer is not zero, and if so, assigns its value to the destination integer.
+func setIfNotZero(dest *int, src int) {
+	if src != 0 {
+		*dest = src
+	}
+}
+
+// setIfNotZeroInt32 checks if the source int32 is not zero, and if so, assigns its value to the destination int32.
+func setIfNotZeroInt32(dest *int32, src int32) {
+	if src != 0 {
+		*dest = src
+	}
+}
+
+// joinStringSlice joins a slice of strings into a single string separated by commas.
+func joinStringSlice(slice []string) string {
+	return strings.Join(slice, ",")
+}
+
+// parseDuration parses a duration string and returns the corresponding time.Duration value.
+// If the parsing fails, it returns a duration of 0.
+func parseDuration(durationStr string) time.Duration {
+	duration, err := time.ParseDuration(durationStr)
+	if err != nil {
+		return 0
+	}
+	return duration
+}
+
 func (i *CommandInitOption) handleEtcdNodeSelectorLabels() error {
 	if i.EtcdStorageMode == etcdStorageModeHostPath && i.EtcdNodeSelectorLabels != "" {
 		selector, err := metav1.ParseToLabelSelector(i.EtcdNodeSelectorLabels)
@@ -743,4 +878,28 @@ func generateServerURL(serverIP string, nodePort int32) (string, error) {
 // SupportedStorageMode Return install etcd supported storage mode
 func SupportedStorageMode() []string {
 	return []string{etcdStorageModeEmptyDir, etcdStorageModeHostPath, etcdStorageModePVC}
+}
+
+// parseEtcdNodeSelectorLabelsMap parse etcd node selector labels
+func (i *CommandInitOption) parseEtcdNodeSelectorLabelsMap() error {
+	if i.EtcdNodeSelectorLabels == "" {
+		return nil
+	}
+
+	i.EtcdNodeSelectorLabelsMap = make(map[string]string)
+
+	// Split the string by commas
+	labels := strings.Split(i.EtcdNodeSelectorLabels, ",")
+	for _, label := range labels {
+		// Split each label by the equal sign
+		parts := strings.SplitN(label, "=", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid label: %s", label)
+		}
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+		i.EtcdNodeSelectorLabelsMap[key] = value
+	}
+
+	return nil
 }
