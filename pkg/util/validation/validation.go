@@ -43,6 +43,7 @@ func ValidatePropagationSpec(spec policyv1alpha1.PropagationSpec) field.ErrorLis
 	}
 	allErrs = append(allErrs, ValidateFailover(spec.Failover, field.NewPath("spec").Child("failover"))...)
 	allErrs = append(allErrs, validateResourceSelectorsIfPreemptionEnabled(spec, field.NewPath("spec").Child("resourceSelectors"))...)
+	allErrs = append(allErrs, validateSuspension(spec.Suspension, field.NewPath("spec").Child("suspension"))...)
 	return allErrs
 }
 
@@ -55,10 +56,25 @@ func validateResourceSelectorsIfPreemptionEnabled(spec policyv1alpha1.Propagatio
 	var allErrs field.ErrorList
 	for index, resourceSelector := range spec.ResourceSelectors {
 		if len(resourceSelector.Name) == 0 {
-			allErrs = append(allErrs, field.Invalid(fldPath.Index(index).Child("name"), resourceSelector.Name, "name can not be empty if preemption is Always, the empty name may cause unexpected resources preemption"))
+			allErrs = append(allErrs, field.Invalid(fldPath.Index(index).Child("name"), resourceSelector.Name, "name cannot be empty if preemption is Always, the empty name may cause unexpected resources preemption"))
 		}
 	}
 	return allErrs
+}
+
+// validateSuspension validates no conflicts between dispatching and dispatchingOnClusters.
+func validateSuspension(suspension *policyv1alpha1.Suspension, fldPath *field.Path) field.ErrorList {
+	if suspension == nil {
+		return nil
+	}
+
+	if (suspension.Dispatching != nil && *suspension.Dispatching) &&
+		(suspension.DispatchingOnClusters != nil && len(suspension.DispatchingOnClusters.ClusterNames) > 0) {
+		return field.ErrorList{
+			field.Invalid(fldPath.Child("suspension"), suspension, "suspension dispatching cannot co-exist with dispatchingOnClusters.clusterNames"),
+		}
+	}
+	return nil
 }
 
 // ValidatePlacement validates a placement before creation or update.
@@ -66,7 +82,7 @@ func ValidatePlacement(placement policyv1alpha1.Placement, fldPath *field.Path) 
 	var allErrs field.ErrorList
 
 	if placement.ClusterAffinity != nil && placement.ClusterAffinities != nil {
-		allErrs = append(allErrs, field.Invalid(fldPath, placement, "clusterAffinities can not co-exist with clusterAffinity"))
+		allErrs = append(allErrs, field.Invalid(fldPath, placement, "clusterAffinities cannot co-exist with clusterAffinity"))
 	}
 
 	allErrs = append(allErrs, ValidateClusterAffinity(placement.ClusterAffinity, fldPath.Child("clusterAffinity"))...)
