@@ -78,43 +78,55 @@ func TestCommandInitIOption_etcdInitContainerCommand(t *testing.T) {
 
 func TestCommandInitIOption_makeETCDStatefulSet(t *testing.T) {
 	tests := []struct {
-		name            string
-		opt             CommandInitOption
-		expectedNSValue string
-		expectedNSLabel string
+		name          string
+		opt           CommandInitOption
+		expectedNSMap map[string]string
 	}{
 		{
-			name: "EtcdStorageMode is etcdStorageModeHostPath, EtcdNodeSelectorLabels is set",
+			name: "EtcdStorageMode is etcdStorageModeHostPath, single valid EtcdNodeSelectorLabel",
 			opt: CommandInitOption{
 				EtcdStorageMode:          etcdStorageModeHostPath,
 				Namespace:                "karmada",
 				StorageClassesName:       "StorageClassesName",
 				EtcdPersistentVolumeSize: "1024",
 				EtcdNodeSelectorLabels:   "label=value",
+				EtcdNodeSelectorLabelsMap: map[string]string{
+					"label": "value",
+				},
 			},
-			expectedNSValue: "value",
-			expectedNSLabel: "label",
+			expectedNSMap: map[string]string{
+				"label": "value",
+			},
 		},
 		{
-			name: "EtcdStorageMode is etcdStorageModeHostPath, EtcdNodeSelectorLabels is not set",
+			name: "EtcdStorageMode is etcdStorageModeHostPath, multiple valid EtcdNodeSelectorLabels",
 			opt: CommandInitOption{
 				EtcdStorageMode:          etcdStorageModeHostPath,
 				Namespace:                "karmada",
 				StorageClassesName:       "StorageClassesName",
 				EtcdPersistentVolumeSize: "1024",
-				EtcdNodeSelectorLabels:   "",
+				EtcdNodeSelectorLabels:   "label1=value1,label2=value2,kubernetes.io/os=linux",
+				EtcdNodeSelectorLabelsMap: map[string]string{
+					"label1":           "value1",
+					"label2":           "value2",
+					"kubernetes.io/os": "linux",
+				},
 			},
-			expectedNSValue: "",
-			expectedNSLabel: "karmada.io/etcd",
+			expectedNSMap: map[string]string{
+				"label1":           "value1",
+				"label2":           "value2",
+				"kubernetes.io/os": "linux",
+			},
 		},
 		{
 			name: "EtcdStorageMode is etcdStorageModePVC",
 			opt: CommandInitOption{
-				EtcdStorageMode:          etcdStorageModePVC,
-				Namespace:                "karmada",
-				StorageClassesName:       "StorageClassesName",
-				EtcdPersistentVolumeSize: "1024",
-				EtcdNodeSelectorLabels:   "",
+				EtcdStorageMode:           etcdStorageModePVC,
+				Namespace:                 "karmada",
+				StorageClassesName:        "StorageClassesName",
+				EtcdPersistentVolumeSize:  "1024",
+				EtcdNodeSelectorLabels:    "",
+				EtcdNodeSelectorLabelsMap: map[string]string{},
 			},
 		},
 	}
@@ -128,8 +140,10 @@ func TestCommandInitIOption_makeETCDStatefulSet(t *testing.T) {
 				}
 			} else {
 				nodeSelector := etcd.Spec.Template.Spec.NodeSelector
-				if val, ok := nodeSelector[tt.expectedNSLabel]; !ok || val != tt.expectedNSValue {
-					t.Errorf("CommandInitOption.makeETCDStatefulSet() returns wrong nodeSelector %v", nodeSelector)
+				for label, value := range tt.expectedNSMap {
+					if val, ok := nodeSelector[label]; !ok || val != value {
+						t.Errorf("CommandInitOption.makeETCDStatefulSet() returns wrong nodeSelector %v, expected %v=%v", nodeSelector, label, value)
+					}
 				}
 
 				if len(etcd.Spec.VolumeClaimTemplates) != 0 {
