@@ -152,6 +152,8 @@ const (
 	// WorkDegraded represents that the current state of Work does not match
 	// the desired state for a certain period.
 	WorkDegraded string = "Degraded"
+	// WorkDispatching represents the dispatching or suspension status of the Work resource
+	WorkDispatching string = "Dispatching"
 )
 
 // ResourceHealth represents that the health status of the reference resource.

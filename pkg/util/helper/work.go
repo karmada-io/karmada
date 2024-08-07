@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -172,4 +173,9 @@ func IsWorkContains(manifests []workv1alpha1.Manifest, targetResource schema.Gro
 		}
 	}
 	return false
+}
+
+// IsWorkSuspendDispatching checks if the work is suspended from dispatching.
+func IsWorkSuspendDispatching(work *workv1alpha1.Work) bool {
+	return ptr.Deref(work.Spec.SuspendDispatching, false)
 }
