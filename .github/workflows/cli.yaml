@@ -36,7 +36,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-
       - name: run karmadactl init test
         run: |
           export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
@@ -48,7 +47,7 @@ jobs:
           export KUBECONFIG=${HOME}/karmada/karmada-apiserver.config
           GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
           ginkgo -v --race --trace -p  --focus="[BasicPropagation] propagation testing deployment propagation testing"  ./test/e2e/
-      - name: export logs 
+      - name: export logs
         if: always()
         run: |
           export ARTIFACTS_PATH=${{ github.workspace }}/karmadactl-test-logs/${{ matrix.k8s }}/
