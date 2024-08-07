@@ -20,11 +20,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -32,40 +33,51 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
 func TestExecutionController_Reconcile(t *testing.T) {
 	tests := []struct {
-		name      string
-		c         Controller
-		work      *workv1alpha1.Work
-		ns        string
-		expectRes controllerruntime.Result
-		existErr  bool
+		name            string
+		work            *workv1alpha1.Work
+		ns              string
+		expectRes       controllerruntime.Result
+		expectCondition *metav1.Condition
+		existErr        bool
 	}{
 		{
 			name: "work dispatching is suspended, no error, no apply",
-			c:    newController(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)),
-			work: &workv1alpha1.Work{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "work",
-					Namespace: "karmada-es-cluster",
-				},
-				Spec: workv1alpha1.WorkSpec{
-					SuspendDispatching: ptr.To(true),
-				},
-				Status: workv1alpha1.WorkStatus{
-					Conditions: []metav1.Condition{
-						{
-							Type:   workv1alpha1.WorkApplied,
-							Status: metav1.ConditionTrue,
-						},
-					},
-				},
-			},
+			work: newWork(func(work *workv1alpha1.Work) {
+				work.Spec.SuspendDispatching = ptr.To(true)
+			}),
 			ns:        "karmada-es-cluster",
 			expectRes: controllerruntime.Result{},
 			existErr:  false,
+		},
+		{
+			name: "work dispatching is suspended, adds false dispatching condition",
+			work: newWork(func(w *workv1alpha1.Work) {
+				w.Spec.SuspendDispatching = ptr.To(true)
+			}),
+			ns:              "karmada-es-cluster",
+			expectRes:       controllerruntime.Result{},
+			expectCondition: &metav1.Condition{Type: workv1alpha1.WorkDispatching, Status: metav1.ConditionFalse},
+			existErr:        false,
+		},
+		{
+			name: "work dispatching is suspended, overwrites existing dispatching condition",
+			work: newWork(func(w *workv1alpha1.Work) {
+				w.Spec.SuspendDispatching = ptr.To(true)
+				meta.SetStatusCondition(&w.Status.Conditions, metav1.Condition{
+					Type:   workv1alpha1.WorkDispatching,
+					Status: metav1.ConditionTrue,
+					Reason: workDispatchingConditionReason,
+				})
+			}),
+			ns:              "karmada-es-cluster",
+			expectRes:       controllerruntime.Result{},
+			expectCondition: &metav1.Condition{Type: workv1alpha1.WorkDispatching, Status: metav1.ConditionFalse},
+			existErr:        false,
 		},
 	}
 
@@ -78,27 +90,38 @@ func TestExecutionController_Reconcile(t *testing.T) {
 				},
 			}
 
-			if err := tt.c.Client.Create(context.Background(), tt.work); err != nil {
-				t.Fatalf("Failed to create cluster: %v", err)
-			}
-
-			res, err := tt.c.Reconcile(context.Background(), req)
+			c := newController(tt.work)
+			res, err := c.Reconcile(context.Background(), req)
 			assert.Equal(t, tt.expectRes, res)
 			if tt.existErr {
-				assert.NotEmpty(t, err)
+				assert.Error(t, err)
 			} else {
-				assert.Empty(t, err)
+				assert.NoError(t, err)
+			}
+
+			if tt.expectCondition != nil {
+				assert.NoError(t, c.Client.Get(context.Background(), req.NamespacedName, tt.work))
+				assert.True(t, meta.IsStatusConditionPresentAndEqual(tt.work.Status.Conditions, tt.expectCondition.Type, tt.expectCondition.Status))
 			}
 		})
 	}
 }
 
-func newController(objects ...client.Object) Controller {
+func newController(work *workv1alpha1.Work) Controller {
+	cluster := newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
 	return Controller{
-		Client:          fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(objects...).Build(),
+		Client:          fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(cluster, work).WithStatusSubresource(work).Build(),
 		InformerManager: genericmanager.GetInstance(),
 		PredicateFunc:   helper.NewClusterPredicateOnAgent("test"),
 	}
+}
+
+func newWork(applyFunc func(work *workv1alpha1.Work)) *workv1alpha1.Work {
+	work := testhelper.NewWork("work", "karmada-es-cluster", string(uuid.NewUUID()), nil)
+	if applyFunc != nil {
+		applyFunc(work)
+	}
+	return work
 }
 
 func newCluster(name string, clusterType string, clusterStatus metav1.ConditionStatus) *clusterv1alpha1.Cluster {

@@ -30,7 +30,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,6 +52,10 @@ import (
 const (
 	// ControllerName is the controller name that will be used when reporting events.
 	ControllerName = "execution-controller"
+	// workSuspendDispatchingConditionReason is the reason for the WorkDispatching condition when dispatching is suspended.
+	workSuspendDispatchingConditionReason = "SuspendDispatching"
+	// workDispatchingConditionReason is the reason for the WorkDispatching condition when dispatching is not suspended.
+	workDispatchingConditionReason = "Dispatching"
 )
 
 // Controller is to sync Work.
@@ -94,7 +97,12 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 		return controllerruntime.Result{}, err
 	}
 
-	if ptr.Deref(work.Spec.SuspendDispatching, false) {
+	if err := c.updateWorkDispatchingConditionIfNeeded(ctx, work); err != nil {
+		klog.Errorf("Failed to update work condition type %s. err is %v", workv1alpha1.WorkDispatching, err)
+		return controllerruntime.Result{}, err
+	}
+
+	if helper.IsWorkSuspendDispatching(work) {
 		klog.V(4).Infof("Skip syncing work(%s/%s) for cluster(%s) as work dispatch is suspended.", work.Namespace, work.Name, cluster.Name)
 		return controllerruntime.Result{}, nil
 	}
@@ -209,7 +217,7 @@ func (c *Controller) syncToClusters(ctx context.Context, clusterName string, wor
 	if len(errs) > 0 {
 		total := len(work.Spec.Workload.Manifests)
 		message := fmt.Sprintf("Failed to apply all manifests (%d/%d): %s", syncSucceedNum, total, errors.NewAggregate(errs).Error())
-		err := c.updateAppliedCondition(work, metav1.ConditionFalse, "AppliedFailed", message)
+		err := c.updateAppliedCondition(ctx, work, metav1.ConditionFalse, "AppliedFailed", message)
 		if err != nil {
 			klog.Errorf("Failed to update applied status for given work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
 			errs = append(errs, err)
@@ -217,7 +225,7 @@ func (c *Controller) syncToClusters(ctx context.Context, clusterName string, wor
 		return errors.NewAggregate(errs)
 	}
 
-	err := c.updateAppliedCondition(work, metav1.ConditionTrue, "AppliedSuccessful", "Manifest has been successfully applied")
+	err := c.updateAppliedCondition(ctx, work, metav1.ConditionTrue, "AppliedSuccessful", "Manifest has been successfully applied")
 	if err != nil {
 		klog.Errorf("Failed to update applied status for given work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
 		return err
@@ -253,8 +261,31 @@ func (c *Controller) tryCreateOrUpdateWorkload(ctx context.Context, clusterName 
 	return nil
 }
 
+func (c *Controller) updateWorkDispatchingConditionIfNeeded(ctx context.Context, work *workv1alpha1.Work) error {
+	newWorkDispatchingCondition := metav1.Condition{
+		Type:               workv1alpha1.WorkDispatching,
+		LastTransitionTime: metav1.Now(),
+	}
+
+	if helper.IsWorkSuspendDispatching(work) {
+		newWorkDispatchingCondition.Status = metav1.ConditionFalse
+		newWorkDispatchingCondition.Reason = workSuspendDispatchingConditionReason
+		newWorkDispatchingCondition.Message = "Work dispatching is in a suspended state."
+	} else {
+		newWorkDispatchingCondition.Status = metav1.ConditionTrue
+		newWorkDispatchingCondition.Reason = workDispatchingConditionReason
+		newWorkDispatchingCondition.Message = "Work is being dispatched to member clusters."
+	}
+
+	if meta.IsStatusConditionPresentAndEqual(work.Status.Conditions, newWorkDispatchingCondition.Type, newWorkDispatchingCondition.Status) {
+		return nil
+	}
+
+	return c.setStatusCondition(ctx, work, newWorkDispatchingCondition)
+}
+
 // updateAppliedCondition updates the applied condition for the given Work.
-func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status metav1.ConditionStatus, reason, message string) error {
+func (c *Controller) updateAppliedCondition(ctx context.Context, work *workv1alpha1.Work, status metav1.ConditionStatus, reason, message string) error {
 	newWorkAppliedCondition := metav1.Condition{
 		Type:               workv1alpha1.WorkApplied,
 		Status:             status,
@@ -263,9 +294,13 @@ func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status meta
 		LastTransitionTime: metav1.Now(),
 	}
 
+	return c.setStatusCondition(ctx, work, newWorkAppliedCondition)
+}
+
+func (c *Controller) setStatusCondition(ctx context.Context, work *workv1alpha1.Work, statusCondition metav1.Condition) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		_, err = helper.UpdateStatus(context.Background(), c.Client, work, func() error {
-			meta.SetStatusCondition(&work.Status.Conditions, newWorkAppliedCondition)
+		_, err = helper.UpdateStatus(ctx, c.Client, work, func() error {
+			meta.SetStatusCondition(&work.Status.Conditions, statusCondition)
 			return nil
 		})
 		return err
