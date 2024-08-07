@@ -49,15 +49,15 @@ func TestContext_IsControllerEnabled(t *testing.T) {
 		{
 			name:                         "on by default",
 			controllerName:               "alpha",
-			disabledByDefaultControllers: []string{"delta", "echo"}, // --controllers=*
-			controllers:                  []string{"*"},
+			disabledByDefaultControllers: []string{"delta", "echo"},
+			controllers:                  []string{"*"}, // --controllers=*
 			expected:                     true,
 		},
 		{
 			name:                         "off by default",
 			controllerName:               "delta",
-			disabledByDefaultControllers: []string{"delta", "echo"}, // --controllers=*
-			controllers:                  []string{"*"},
+			disabledByDefaultControllers: []string{"delta", "echo"},
+			controllers:                  []string{"*"}, // --controllers=*
 			expected:                     false,
 		},
 		{
