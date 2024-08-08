@@ -1171,10 +1171,10 @@ var _ = ginkgo.Describe("Karmadactl config testing", func() {
 registry.k8s.io/kube-controller-manager:v1.29.6
 registry.k8s.io/etcd:3.5.13-0
 docker.io/alpine:3.19.1
-docker.io/karmada/karmada-scheduler:v1.11.0-alpha.0
-docker.io/karmada/karmada-controller-manager:v1.11.0-alpha.0
-docker.io/karmada/karmada-webhook:v1.11.0-alpha.0
-docker.io/karmada/karmada-aggregated-apiserver:v1.11.0-alpha.0`
+docker.io/karmada/karmada-scheduler:v0.0.0-master
+docker.io/karmada/karmada-controller-manager:v0.0.0-master
+docker.io/karmada/karmada-webhook:v0.0.0-master
+docker.io/karmada/karmada-aggregated-apiserver:v0.0.0-master`
 
 			cmd := framework.NewKarmadactlCommand(kubeconfig, "", karmadactlPath, "", timeout, cmdArgs...)
 			output, err := cmd.ExecOrDie()
@@ -1188,10 +1188,10 @@ docker.io/karmada/karmada-aggregated-apiserver:v1.11.0-alpha.0`
 registry.k8s.io2/kube-controller-manager:v1.29.6
 registry.k8s.io2/etcd:3.5.13-0
 registry.k8s.io2/alpine:3.19.1
-registry.k8s.io2/karmada-scheduler:v1.11.0-alpha.0
-registry.k8s.io2/karmada-controller-manager:v1.11.0-alpha.0
-registry.k8s.io2/karmada-webhook:v1.11.0-alpha.0
-registry.k8s.io2/karmada-aggregated-apiserver:v1.11.0-alpha.0`
+registry.k8s.io2/karmada-scheduler:v0.0.0-master
+registry.k8s.io2/karmada-controller-manager:v0.0.0-master
+registry.k8s.io2/karmada-webhook:v0.0.0-master
+registry.k8s.io2/karmada-aggregated-apiserver:v0.0.0-master`
 
 			cmd := framework.NewKarmadactlCommand(kubeconfig, "", karmadactlPath, "", timeout, cmdArgs...)
 			output, err := cmd.ExecOrDie()
@@ -1205,10 +1205,10 @@ registry.k8s.io2/karmada-aggregated-apiserver:v1.11.0-alpha.0`
 registry.cn-hangzhou.aliyuncs.com/google_containers/kube-controller-manager:v1.29.6
 registry.cn-hangzhou.aliyuncs.com/google_containers/etcd:3.5.13-0
 docker.io/alpine:3.19.1
-docker.io/karmada/karmada-scheduler:v1.11.0-alpha.0
-docker.io/karmada/karmada-controller-manager:v1.11.0-alpha.0
-docker.io/karmada/karmada-webhook:v1.11.0-alpha.0
-docker.io/karmada/karmada-aggregated-apiserver:v1.11.0-alpha.0`
+docker.io/karmada/karmada-scheduler:v0.0.0-master
+docker.io/karmada/karmada-controller-manager:v0.0.0-master
+docker.io/karmada/karmada-webhook:v0.0.0-master
+docker.io/karmada/karmada-aggregated-apiserver:v0.0.0-master`
 
 			cmd := framework.NewKarmadactlCommand(kubeconfig, "", karmadactlPath, "", timeout, cmdArgs...)
 			output, err := cmd.ExecOrDie()
