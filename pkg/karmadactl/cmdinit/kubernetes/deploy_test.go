@@ -20,6 +20,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
@@ -543,21 +544,9 @@ func TestCommandInitOption_parseEtcdNodeSelectorLabelsMap(t *testing.T) {
 				t.Errorf("parseEtcdNodeSelectorLabelsMap() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !tt.wantErr && !mapsEqual(tt.opt.EtcdNodeSelectorLabelsMap, tt.expected) {
+			if !tt.wantErr && !reflect.DeepEqual(tt.opt.EtcdNodeSelectorLabelsMap, tt.expected) {
 				t.Errorf("parseEtcdNodeSelectorLabelsMap() = %v, want %v", tt.opt.EtcdNodeSelectorLabelsMap, tt.expected)
 			}
 		})
 	}
-}
-
-func mapsEqual(a, b map[string]string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for k, v := range a {
-		if b[k] != v {
-			return false
-		}
-	}
-	return true
 }
