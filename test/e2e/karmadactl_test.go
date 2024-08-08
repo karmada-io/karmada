@@ -1193,7 +1193,7 @@ myregistry.com/karmada-controller-manager:v1.11.0-alpha.0
 myregistry.com/karmada-webhook:v1.11.0-alpha.0
 myregistry.com/karmada-aggregated-apiserver:v1.11.0-alpha.0`
 
-			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", timeout, cmdArgs...)
+			cmd := framework.NewKarmadactlCommand(kubeconfig, "", karmadactlPath, "", timeout, cmdArgs...)
 			output, err := cmd.ExecOrDie()
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			gomega.Expect(strings.Contains(output, expected)).Should(gomega.BeTrue(), "Output: %s, Expected: %s", output, expected)
@@ -1209,7 +1209,7 @@ docker.io/karmada/karmada-controller-manager:v1.11.0-alpha.0
 docker.io/karmada/karmada-webhook:v1.11.0-alpha.0
 docker.io/karmada/karmada-aggregated-apiserver:v1.11.0-alpha.0`
 
-			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", timeout, cmdArgs...)
+			cmd := framework.NewKarmadactlCommand(kubeconfig, "", karmadactlPath, "", timeout, cmdArgs...)
 			output, err := cmd.ExecOrDie()
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			gomega.Expect(strings.Contains(output, expected)).Should(gomega.BeTrue(), "Output: %s, Expected: %s", output, expected)
@@ -1226,7 +1226,7 @@ docker.io/karmada/karmada-aggregated-apiserver:v1.11.0-alpha.0`
 			cmdArgs = []string{"config", "image", "list", "--unknown-flag"}
 			expected = "unknown flag"
 
-			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", timeout, cmdArgs...)
+			cmd := framework.NewKarmadactlCommand(kubeconfig, "", karmadactlPath, "", timeout, cmdArgs...)
 			_, err := cmd.ExecOrDie()
 			gomega.Expect(err).Should(gomega.HaveOccurred())
 			gomega.Expect(strings.Contains(err.Error(), expected)).Should(gomega.BeTrue(), "Stderr: %s, Expected: %s", err.Error(), expected)
