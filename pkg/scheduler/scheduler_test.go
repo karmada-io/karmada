@@ -187,6 +187,7 @@ func TestReconcileEstimatorConnection(t *testing.T) {
 		key                                 util.QueueKey
 		disableSchedulerEstimatorInPullMode bool
 		expectedError                       bool
+		expectEstablishConnection           bool
 	}{
 		{
 			name:          "Invalid key",
@@ -203,21 +204,31 @@ func TestReconcileEstimatorConnection(t *testing.T) {
 			key:                                 clusterName,
 			disableSchedulerEstimatorInPullMode: true,
 			expectedError:                       false,
+			expectEstablishConnection:           false,
 		},
 		{
 			name:                                "Cluster in pull mode, estimator enabled",
 			key:                                 clusterName,
 			disableSchedulerEstimatorInPullMode: false,
 			expectedError:                       false,
+			expectEstablishConnection:           true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			scheduler.disableSchedulerEstimatorInPullMode = tt.disableSchedulerEstimatorInPullMode
+
 			err := scheduler.reconcileEstimatorConnection(tt.key)
 			if (err != nil) != tt.expectedError {
 				t.Errorf("reconcileEstimatorConnection() error = %v, expectedError %v", err, tt.expectedError)
+			}
+
+			// We can't directly assert whether EstablishConnection is called.
+			// Instead, we'll check for conditions around its invocation.
+			// If EstablishConnection should be called, the error should be nil, and no early returns should have occurred.
+			if tt.expectEstablishConnection && err != nil {
+				t.Errorf("Expected EstablishConnection to be called, but got error: %v", err)
 			}
 		})
 	}
