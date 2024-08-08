@@ -1201,7 +1201,8 @@ myregistry.com/karmada-aggregated-apiserver:v1.11.0-alpha.0`
 
 		ginkgo.It("list images with kube-image-country flag", func() {
 			cmdArgs = []string{"config", "image", "list", "--kube-image-country=cn"}
-			expected = `registry.cn-hangzhou.aliyuncs.com/google_containers/kube-controller-manager:v1.29.6
+			expected = `registry.cn-hangzhou.aliyuncs.com/google_containers/kube-apiserver:v1.29.6
+registry.cn-hangzhou.aliyuncs.com/google_containers/kube-controller-manager:v1.29.6
 registry.cn-hangzhou.aliyuncs.com/google_containers/etcd:3.5.13-0
 docker.io/alpine:3.19.1
 docker.io/karmada/karmada-scheduler:v1.11.0-alpha.0
