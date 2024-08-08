@@ -161,18 +161,6 @@ func findFeasiblePaths(groups []*GroupInfo, minConstraint, maxConstraint, target
 	rootPath := new(dfsPath)
 	var dfsFunc func(int, int)
 	dfsFunc = func(sum, begin int) {
-		// directly check the sum
-		if len(groups) == minConstraint {
-			for _, group := range groups {
-				sum += group.value
-				rootPath.enqueue(group)
-			}
-			if sum >= target {
-				paths = append(paths, rootPath.next())
-			}
-			return
-		}
-
 		if sum >= target && rootPath.length() >= minConstraint && rootPath.length() <= maxConstraint {
 			paths = append(paths, rootPath.next())
 			return
@@ -187,6 +175,12 @@ func findFeasiblePaths(groups []*GroupInfo, minConstraint, maxConstraint, target
 			sum += groups[i].value
 			rootPath.enqueue(groups[i])
 			dfsFunc(sum, i+1)
+
+			// stop backtracking when we have to traverse all groups to satisfy the minimum constraint.
+			if len(groups) == minConstraint {
+				break
+			}
+
 			sum -= groups[i].value
 			rootPath.popLast()
 		}
