@@ -23,14 +23,14 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/kubernetes"
 )
 
-// CommandConfigImageOption options for addons list.
+// CommandConfigImageOption options for components
 type CommandConfigImageOption struct {
 	PrivateImageRegistry string
 	KubeImageCountry     string
 	InitOption           *kubernetes.CommandInitOption
 }
 
-// Complete the conditions required to be able to run list.
+// Complete sets up the CommandConfigImageOption with the provided options.
 func (o *CommandConfigImageOption) Complete() error {
 	o.InitOption = kubernetes.NewDefaultCommandInitOption()
 	if o.PrivateImageRegistry != "" {
@@ -42,7 +42,7 @@ func (o *CommandConfigImageOption) Complete() error {
 	return nil
 }
 
-// Run start list Karmada addons
+// Run generates and prints the required control plane images.
 func (o *CommandConfigImageOption) Run() error {
 	imageList := o.InitOption.GenerateControlPlaneImages()
 	for _, image := range imageList {
