@@ -18871,7 +18871,7 @@
       }
     },
     "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Overriders": {
-      "description": "Overriders offers various alternatives to represent the override rules.\n\nIf more than one alternative exists, they will be applied with following order: - ImageOverrider - CommandOverrider - ArgsOverrider - LabelsOverrider - AnnotationsOverrider - Plaintext",
+      "description": "Overriders offers various alternatives to represent the override rules.\n\nIf more than one alternative exists, they will be applied with following order: - ImageOverrider - CommandOverrider - ArgsOverrider - LabelsOverrider - AnnotationsOverrider - Plaintext - PlaintextObjectOverrider",
       "type": "object",
       "properties": {
         "annotationsOverrider": {
@@ -18921,6 +18921,14 @@
             "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.PlaintextOverrider"
           }
+        },
+        "plaintextObjectOverrider": {
+          "description": "PlaintextObjectOverrider represents the rules dedicated to handling yaml or json object overrides",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.PlaintextObjectOverrider"
+          }
         }
       }
     },
@@ -18958,6 +18966,29 @@
           "items": {
             "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.SpreadConstraint"
+          }
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.PlaintextObjectOverrider": {
+      "description": "PlaintextObjectOverrider represents the rules dedicated to handling yaml or json object overrides",
+      "type": "object",
+      "required": [
+        "path",
+        "plaintext"
+      ],
+      "properties": {
+        "path": {
+          "description": "Path indicates the path of target field",
+          "type": "string",
+          "default": ""
+        },
+        "plaintext": {
+          "description": "Plaintext represents override rules defined with plaintext overriders.",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.PlaintextOverrider"
           }
         }
       }

@@ -19,14 +19,19 @@ package overridemanager
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"reflect"
 	"sort"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
+	"github.com/go-openapi/jsonpointer"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	yamlutil "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -280,6 +285,21 @@ func applyJSONPatch(obj *unstructured.Unstructured, overrides []overrideOption) 
 	return err
 }
 
+// applyRawJSONPatch applies the override on to the given raw json object.
+func applyRawJSONPatch(raw []byte, overrides []overrideOption) ([]byte, error) {
+	jsonPatchBytes, err := json.Marshal(overrides)
+	if err != nil {
+		return nil, err
+	}
+
+	patch, err := jsonpatch.DecodePatch(jsonPatchBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return patch.Apply(raw)
+}
+
 // applyPolicyOverriders applies OverridePolicy/ClusterOverridePolicy overriders to target object
 func applyPolicyOverriders(rawObj *unstructured.Unstructured, overriders policyv1alpha1.Overriders) error {
 	err := applyImageOverriders(rawObj, overriders.ImageOverrider)
@@ -298,6 +318,9 @@ func applyPolicyOverriders(rawObj *unstructured.Unstructured, overriders policyv
 		return err
 	}
 	if err := applyAnnotationsOverriders(rawObj, overriders.AnnotationsOverrider); err != nil {
+		return err
+	}
+	if err := applyPlaintextObjectOverriders(rawObj, overriders.PlaintextObjectOverrider); err != nil {
 		return err
 	}
 	return applyJSONPatch(rawObj, parseJSONPatchesByPlaintext(overriders.Plaintext))
@@ -349,6 +372,55 @@ func applyArgsOverriders(rawObj *unstructured.Unstructured, argsOverriders []pol
 		}
 	}
 
+	return nil
+}
+
+func applyPlaintextObjectOverriders(rawObj *unstructured.Unstructured, plaintextObjectOverriders []policyv1alpha1.PlaintextObjectOverrider) error {
+	if len(plaintextObjectOverriders) == 0 {
+		return nil
+	}
+	for index := range plaintextObjectOverriders {
+		pointer, err := jsonpointer.New(plaintextObjectOverriders[index].Path)
+		if err != nil {
+			klog.Errorf("Build jsonpointer with overrider's path err: %v", err)
+			return err
+		}
+		res, kind, err := pointer.Get(rawObj.Object)
+		if err != nil {
+			klog.Errorf("Get value by overrider's path err: %v", err)
+			return err
+		}
+		if kind != reflect.String {
+			errMsg := fmt.Sprintf("Get object's value by overrider's path(%s) is not string", plaintextObjectOverriders[index].Path)
+			klog.Errorf(errMsg)
+			return fmt.Errorf(errMsg)
+		}
+		dataBytes := []byte(res.(string))
+		isJSON := yamlutil.IsJSONBuffer(dataBytes)
+		if !isJSON {
+			dataBytes, err = yaml.YAMLToJSON(dataBytes)
+			if err != nil {
+				klog.Errorf("Before apply jsonpath by plaintextObjectOverriders[%d], parsing yaml to json err: %v", index, err)
+				return err
+			}
+		}
+		klog.V(4).Infof("Parsed JSON patches by plaintextObjectOverriders[%d](%+v)", index, plaintextObjectOverriders[index])
+		appliedRawData, err := applyRawJSONPatch(dataBytes, parseJSONPatchesByPlaintext(plaintextObjectOverriders[index].Plaintext))
+		if err != nil {
+			return err
+		}
+		if !isJSON {
+			appliedRawData, err = yaml.JSONToYAML(appliedRawData)
+			if err != nil {
+				klog.Errorf("After apply jsonpath by plaintextObjectOverriders[%d], parsing json to yaml err: %v", index, err)
+				return err
+			}
+		}
+		_, err = pointer.Set(rawObj.Object, string(appliedRawData))
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

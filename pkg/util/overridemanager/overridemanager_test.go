@@ -442,3 +442,242 @@ func TestGetMatchingOverridePolicies(t *testing.T) {
 		})
 	}
 }
+
+func Test_overrideManagerImpl_ApplyYAMLOverridePolicies(t *testing.T) {
+	configmap := helper.NewConfigMap(metav1.NamespaceDefault, "test1", map[string]string{
+		"test.yaml": `
+key: 
+  key1: value
+`,
+	})
+	configmapObj, _ := utilhelper.ToUnstructured(configmap)
+
+	type fields struct {
+		Client        client.Client
+		EventRecorder record.EventRecorder
+	}
+	type args struct {
+		rawObj      *unstructured.Unstructured
+		clusterName string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantCOP *AppliedOverrides
+		wantOP  *AppliedOverrides
+		wantErr bool
+	}{
+		{
+			name: "test yaml overridePolicies",
+			fields: fields{
+				Client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(helper.NewCluster("test1"),
+					&policyv1alpha1.OverridePolicy{
+						ObjectMeta: metav1.ObjectMeta{Name: "test1", Namespace: metav1.NamespaceDefault},
+						Spec: policyv1alpha1.OverrideSpec{
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion: "v1",
+									Kind:       "ConfigMap",
+									Namespace:  "default",
+									Name:       "test1",
+								},
+							},
+							OverrideRules: []policyv1alpha1.RuleWithCluster{
+								{
+									TargetCluster: &policyv1alpha1.ClusterAffinity{ClusterNames: []string{"test1"}},
+									Overriders: policyv1alpha1.Overriders{
+										PlaintextObjectOverrider: []policyv1alpha1.PlaintextObjectOverrider{
+											{
+												Path: "/data/test.yaml",
+												Plaintext: []policyv1alpha1.PlaintextOverrider{
+													{
+														Path:     "/key/key1",
+														Operator: policyv1alpha1.OverriderOpReplace,
+														Value:    apiextensionsv1.JSON{Raw: []byte(`"updated_value"`)},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				).Build(),
+				EventRecorder: &record.FakeRecorder{},
+			},
+			args: args{
+				rawObj:      configmapObj,
+				clusterName: "test1",
+			},
+			wantCOP: nil,
+			wantOP: &AppliedOverrides{
+				AppliedItems: []OverridePolicyShadow{
+					{
+						PolicyName: "test1",
+						Overriders: policyv1alpha1.Overriders{
+							PlaintextObjectOverrider: []policyv1alpha1.PlaintextObjectOverrider{
+								{
+									Path: "/data/test.yaml",
+									Plaintext: []policyv1alpha1.PlaintextOverrider{
+										{
+											Path:     "/key/key1",
+											Operator: policyv1alpha1.OverriderOpReplace,
+											Value:    apiextensionsv1.JSON{Raw: []byte(`"updated_value"`)},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			o := &overrideManagerImpl{
+				Client:        tt.fields.Client,
+				EventRecorder: tt.fields.EventRecorder,
+			}
+			gotCOP, gotOP, err := o.ApplyOverridePolicies(tt.args.rawObj, tt.args.clusterName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ApplyOverridePolicies() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(gotCOP, tt.wantCOP) {
+				t.Errorf("ApplyOverridePolicies() gotCOP = %v, wantCOP %v", gotCOP, tt.wantCOP)
+			}
+			if !reflect.DeepEqual(gotOP, tt.wantOP) {
+				t.Errorf("ApplyOverridePolicies() gotOP = %v, wantOP %v", gotOP, tt.wantOP)
+			}
+			wantData := map[string]interface{}{
+				"test.yaml": `key:
+  key1: updated_value
+`,
+			}
+			if !reflect.DeepEqual(tt.args.rawObj.Object["data"], wantData) {
+				t.Errorf("ApplyOverridePolicies() gotData = %v, wantData %v", tt.args.rawObj.Object["data"], wantData)
+			}
+		})
+	}
+}
+
+func Test_overrideManagerImpl_ApplyJSONOverridePolicies(t *testing.T) {
+	configmap := helper.NewConfigMap(metav1.NamespaceDefault, "test1", map[string]string{
+		"test.json": `{"key":{"key1":"value"}}`,
+	})
+	configmapObj, _ := utilhelper.ToUnstructured(configmap)
+
+	type fields struct {
+		Client        client.Client
+		EventRecorder record.EventRecorder
+	}
+	type args struct {
+		rawObj      *unstructured.Unstructured
+		clusterName string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantCOP *AppliedOverrides
+		wantOP  *AppliedOverrides
+		wantErr bool
+	}{
+		{
+			name: "test yaml overridePolicies",
+			fields: fields{
+				Client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(helper.NewCluster("test1"),
+					&policyv1alpha1.OverridePolicy{
+						ObjectMeta: metav1.ObjectMeta{Name: "test1", Namespace: metav1.NamespaceDefault},
+						Spec: policyv1alpha1.OverrideSpec{
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion: "v1",
+									Kind:       "ConfigMap",
+									Namespace:  "default",
+									Name:       "test1",
+								},
+							},
+							OverrideRules: []policyv1alpha1.RuleWithCluster{
+								{
+									TargetCluster: &policyv1alpha1.ClusterAffinity{ClusterNames: []string{"test1"}},
+									Overriders: policyv1alpha1.Overriders{
+										PlaintextObjectOverrider: []policyv1alpha1.PlaintextObjectOverrider{
+											{
+												Path: "/data/test.json",
+												Plaintext: []policyv1alpha1.PlaintextOverrider{
+													{
+														Path:     "/key/key1",
+														Operator: policyv1alpha1.OverriderOpReplace,
+														Value:    apiextensionsv1.JSON{Raw: []byte(`"updated_value"`)},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				).Build(),
+				EventRecorder: &record.FakeRecorder{},
+			},
+			args: args{
+				rawObj:      configmapObj,
+				clusterName: "test1",
+			},
+			wantCOP: nil,
+			wantOP: &AppliedOverrides{
+				AppliedItems: []OverridePolicyShadow{
+					{
+						PolicyName: "test1",
+						Overriders: policyv1alpha1.Overriders{
+							PlaintextObjectOverrider: []policyv1alpha1.PlaintextObjectOverrider{
+								{
+									Path: "/data/test.json",
+									Plaintext: []policyv1alpha1.PlaintextOverrider{
+										{
+											Path:     "/key/key1",
+											Operator: policyv1alpha1.OverriderOpReplace,
+											Value:    apiextensionsv1.JSON{Raw: []byte(`"updated_value"`)},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			o := &overrideManagerImpl{
+				Client:        tt.fields.Client,
+				EventRecorder: tt.fields.EventRecorder,
+			}
+			gotCOP, gotOP, err := o.ApplyOverridePolicies(tt.args.rawObj, tt.args.clusterName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ApplyOverridePolicies() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(gotCOP, tt.wantCOP) {
+				t.Errorf("ApplyOverridePolicies() gotCOP = %v, wantCOP %v", gotCOP, tt.wantCOP)
+			}
+			if !reflect.DeepEqual(gotOP, tt.wantOP) {
+				t.Errorf("ApplyOverridePolicies() gotOP = %v, wantOP %v", gotOP, tt.wantOP)
+			}
+			wantData := map[string]interface{}{
+				"test.json": `{"key":{"key1":"updated_value"}}`,
+			}
+			if !reflect.DeepEqual(tt.args.rawObj.Object["data"], wantData) {
+				t.Errorf("ApplyOverridePolicies() gotData = %v, wantData %v", tt.args.rawObj.Object["data"], wantData)
+			}
+		})
+	}
+}

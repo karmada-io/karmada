@@ -272,6 +272,52 @@ spec:
                             - path
                             type: object
                           type: array
+                        plaintextObjectOverrider:
+                          description: PlaintextObjectOverrider represents the rules
+                            dedicated to handling yaml or json object overrides
+                          items:
+                            description: PlaintextObjectOverrider represents the rules
+                              dedicated to handling yaml or json object overrides
+                            properties:
+                              path:
+                                description: Path indicates the path of target field
+                                type: string
+                              plaintext:
+                                description: Plaintext represents override rules defined
+                                  with plaintext overriders.
+                                items:
+                                  description: |-
+                                    PlaintextOverrider is a simple overrider that overrides target fields
+                                    according to path, operator and value.
+                                  properties:
+                                    operator:
+                                      description: |-
+                                        Operator indicates the operation on target field.
+                                        Available operators are: add, replace and remove.
+                                      enum:
+                                      - add
+                                      - remove
+                                      - replace
+                                      type: string
+                                    path:
+                                      description: Path indicates the path of target
+                                        field
+                                      type: string
+                                    value:
+                                      description: |-
+                                        Value to be applied to target field.
+                                        Must be empty when operator is Remove.
+                                      x-kubernetes-preserve-unknown-fields: true
+                                  required:
+                                  - operator
+                                  - path
+                                  type: object
+                                type: array
+                            required:
+                            - path
+                            - plaintext
+                            type: object
+                          type: array
                       type: object
                     targetCluster:
                       description: |-
@@ -606,6 +652,51 @@ spec:
                       required:
                       - operator
                       - path
+                      type: object
+                    type: array
+                  plaintextObjectOverrider:
+                    description: PlaintextObjectOverrider represents the rules dedicated
+                      to handling yaml or json object overrides
+                    items:
+                      description: PlaintextObjectOverrider represents the rules dedicated
+                        to handling yaml or json object overrides
+                      properties:
+                        path:
+                          description: Path indicates the path of target field
+                          type: string
+                        plaintext:
+                          description: Plaintext represents override rules defined
+                            with plaintext overriders.
+                          items:
+                            description: |-
+                              PlaintextOverrider is a simple overrider that overrides target fields
+                              according to path, operator and value.
+                            properties:
+                              operator:
+                                description: |-
+                                  Operator indicates the operation on target field.
+                                  Available operators are: add, replace and remove.
+                                enum:
+                                - add
+                                - remove
+                                - replace
+                                type: string
+                              path:
+                                description: Path indicates the path of target field
+                                type: string
+                              value:
+                                description: |-
+                                  Value to be applied to target field.
+                                  Must be empty when operator is Remove.
+                                x-kubernetes-preserve-unknown-fields: true
+                            required:
+                            - operator
+                            - path
+                            type: object
+                          type: array
+                      required:
+                      - path
+                      - plaintext
                       type: object
                     type: array
                 type: object

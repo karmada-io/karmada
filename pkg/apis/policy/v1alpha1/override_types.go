@@ -102,6 +102,7 @@ type RuleWithCluster struct {
 // - LabelsOverrider
 // - AnnotationsOverrider
 // - Plaintext
+// - PlaintextObjectOverrider
 type Overriders struct {
 	// Plaintext represents override rules defined with plaintext overriders.
 	// +optional
@@ -126,6 +127,18 @@ type Overriders struct {
 	// AnnotationsOverrider represents the rules dedicated to handling workload annotations
 	// +optional
 	AnnotationsOverrider []LabelAnnotationOverrider `json:"annotationsOverrider,omitempty"`
+
+	// PlaintextObjectOverrider represents the rules dedicated to handling yaml or json object overrides
+	// +optional
+	PlaintextObjectOverrider []PlaintextObjectOverrider `json:"plaintextObjectOverrider,omitempty"`
+}
+
+// PlaintextObjectOverrider represents the rules dedicated to handling yaml or json object overrides
+type PlaintextObjectOverrider struct {
+	// Path indicates the path of target field
+	Path string `json:"path"`
+	// Plaintext represents override rules defined with plaintext overriders.
+	Plaintext []PlaintextOverrider `json:"plaintext"`
 }
 
 // LabelAnnotationOverrider represents the rules dedicated to handling workload labels/annotations
