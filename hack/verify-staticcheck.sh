@@ -13,32 +13,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# - download golangci-lint if needed (replace existing if incorrect version)
+# - run golangci-lint
 
 set -o errexit
 set -o nounset
 set -o pipefail
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
-GOLANGCI_LINT_VER="v1.59.0"
+GOLANGCI_LINT_VER="1.59.0"
+GOLANGCI_LINT="./bin/golangci-lint"
 
 cd "${REPO_ROOT}"
-source "hack/util.sh"
+mkdir -p bin
 
-if util::cmd_exist golangci-lint ; then
-  echo "Using golangci-lint version:"
-  golangci-lint version
-else
-  echo "Installing golangci-lint ${GOLANGCI_LINT_VER}"
-  # https://golangci-lint.run/usage/install/#other-ci
-  curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin ${GOLANGCI_LINT_VER}
+if ! (test -f "${GOLANGCI_LINT}" && ${GOLANGCI_LINT} --version | grep " ${GOLANGCI_LINT_VER} " >/dev/null); then
+  rm -f ${GOLANGCI_LINT} && echo "Installing ${GOLANGCI_LINT} ${GOLANGCI_LINT_VER}"
+  curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b bin -d "v${GOLANGCI_LINT_VER}"
 fi
 
-if golangci-lint run; then
+if ${GOLANGCI_LINT} run; then
   echo 'Congratulations!  All Go source files have passed staticcheck.'
 else
   echo # print one empty line, separate from warning messages.
   echo 'Please review the above warnings.'
-  echo 'Tips: The golangci-lint might help you fix some issues, try with the command "golangci-lint run --fix".'
+  echo "Tips: The ${GOLANGCI_LINT} might help you fix some issues, try with the command "${GOLANGCI_LINT} run --fix"."
   echo 'If the above warnings do not make sense, feel free to file an issue.'
   exit 1
 fi
