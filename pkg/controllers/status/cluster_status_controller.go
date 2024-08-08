@@ -235,6 +235,7 @@ func (c *ClusterStatusController) setCurrentClusterStatus(clusterClient *util.Cl
 		klog.Errorf("Failed to get any APIs installed in Cluster %s. Error: %v.", cluster.GetName(), err)
 	} else if err != nil {
 		klog.Warningf("Maybe get partial(%d) APIs installed in Cluster %s. Error: %v.", len(apiEnables), cluster.GetName(), err)
+		return err
 	}
 	currentClusterStatus.APIEnablements = apiEnables
 
