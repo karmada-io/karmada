@@ -1183,15 +1183,15 @@ docker.io/karmada/karmada-aggregated-apiserver:v1.11.0-alpha.0`
 		})
 
 		ginkgo.It("list images with private-image-registry flag", func() {
-			cmdArgs = []string{"config", "image", "list", "--private-image-registry=myregistry.com"}
-			expected = `myregistry.com/kube-apiserver:v1.29.6
-myregistry.com/kube-controller-manager:v1.29.6
-myregistry.com/etcd:3.5.13-0
-myregistry.com/alpine:3.19.1
-myregistry.com/karmada-scheduler:v1.11.0-alpha.0
-myregistry.com/karmada-controller-manager:v1.11.0-alpha.0
-myregistry.com/karmada-webhook:v1.11.0-alpha.0
-myregistry.com/karmada-aggregated-apiserver:v1.11.0-alpha.0`
+			cmdArgs = []string{"config", "image", "list", "--private-image-registry=registry.k8s.io2"}
+			expected = `registry.k8s.io2/kube-apiserver:v1.29.6
+registry.k8s.io2/kube-controller-manager:v1.29.6
+registry.k8s.io2/etcd:3.5.13-0
+registry.k8s.io2/alpine:3.19.1
+registry.k8s.io2/karmada-scheduler:v1.11.0-alpha.0
+registry.k8s.io2/karmada-controller-manager:v1.11.0-alpha.0
+registry.k8s.io2/karmada-webhook:v1.11.0-alpha.0
+registry.k8s.io2/karmada-aggregated-apiserver:v1.11.0-alpha.0`
 
 			cmd := framework.NewKarmadactlCommand(kubeconfig, "", karmadactlPath, "", timeout, cmdArgs...)
 			output, err := cmd.ExecOrDie()
