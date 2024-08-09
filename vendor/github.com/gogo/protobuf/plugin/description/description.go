@@ -43,35 +43,34 @@ The description plugin also generates a test given it is enabled using one of th
 
 Let us look at:
 
-  github.com/gogo/protobuf/test/example/example.proto
+	github.com/gogo/protobuf/test/example/example.proto
 
 Btw all the output can be seen at:
 
-  github.com/gogo/protobuf/test/example/*
+	github.com/gogo/protobuf/test/example/*
 
 The following message:
 
-  message B {
-	option (gogoproto.description) = true;
-	optional A A = 1 [(gogoproto.nullable) = false, (gogoproto.embed) = true];
-	repeated bytes G = 2 [(gogoproto.customtype) = "github.com/gogo/protobuf/test/custom.Uint128", (gogoproto.nullable) = false];
-  }
+	  message B {
+		option (gogoproto.description) = true;
+		optional A A = 1 [(gogoproto.nullable) = false, (gogoproto.embed) = true];
+		repeated bytes G = 2 [(gogoproto.customtype) = "github.com/gogo/protobuf/test/custom.Uint128", (gogoproto.nullable) = false];
+	  }
 
 given to the description plugin, will generate the following code:
 
-  func (this *B) Description() (desc *google_protobuf.FileDescriptorSet) {
-	return ExampleDescription()
-  }
+	  func (this *B) Description() (desc *google_protobuf.FileDescriptorSet) {
+		return ExampleDescription()
+	  }
 
 and the following test code:
 
-  func TestDescription(t *testing9.T) {
-	ExampleDescription()
-  }
+	  func TestDescription(t *testing9.T) {
+		ExampleDescription()
+	  }
 
 The hope is to use this struct in some way instead of reflect.
 This package is subject to change, since a use has not been figured out yet.
-
 */
 package description
 

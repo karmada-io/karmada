@@ -45,12 +45,9 @@ func newIngestProcessorGrokFunc(t Transport) IngestProcessorGrok {
 // ----- API Definition -------------------------------------------------------
 
 // IngestProcessorGrok returns a list of the built-in patterns.
-//
-//
 type IngestProcessorGrok func(o ...func(*IngestProcessorGrokRequest)) (*Response, error)
 
 // IngestProcessorGrokRequest configures the Ingest Processor Grok API request.
-//
 type IngestProcessorGrokRequest struct {
 	Pretty     bool
 	Human      bool
@@ -63,7 +60,6 @@ type IngestProcessorGrokRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r IngestProcessorGrokRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -138,7 +134,6 @@ func (r IngestProcessorGrokRequest) Do(ctx context.Context, transport Transport)
 }
 
 // WithContext sets the request context.
-//
 func (f IngestProcessorGrok) WithContext(v context.Context) func(*IngestProcessorGrokRequest) {
 	return func(r *IngestProcessorGrokRequest) {
 		r.ctx = v
@@ -146,7 +141,6 @@ func (f IngestProcessorGrok) WithContext(v context.Context) func(*IngestProcesso
 }
 
 // WithPretty makes the response body pretty-printed.
-//
 func (f IngestProcessorGrok) WithPretty() func(*IngestProcessorGrokRequest) {
 	return func(r *IngestProcessorGrokRequest) {
 		r.Pretty = true
@@ -154,7 +148,6 @@ func (f IngestProcessorGrok) WithPretty() func(*IngestProcessorGrokRequest) {
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f IngestProcessorGrok) WithHuman() func(*IngestProcessorGrokRequest) {
 	return func(r *IngestProcessorGrokRequest) {
 		r.Human = true
@@ -162,7 +155,6 @@ func (f IngestProcessorGrok) WithHuman() func(*IngestProcessorGrokRequest) {
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f IngestProcessorGrok) WithErrorTrace() func(*IngestProcessorGrokRequest) {
 	return func(r *IngestProcessorGrokRequest) {
 		r.ErrorTrace = true
@@ -170,7 +162,6 @@ func (f IngestProcessorGrok) WithErrorTrace() func(*IngestProcessorGrokRequest) 
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f IngestProcessorGrok) WithFilterPath(v ...string) func(*IngestProcessorGrokRequest) {
 	return func(r *IngestProcessorGrokRequest) {
 		r.FilterPath = v
@@ -178,7 +169,6 @@ func (f IngestProcessorGrok) WithFilterPath(v ...string) func(*IngestProcessorGr
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f IngestProcessorGrok) WithHeader(h map[string]string) func(*IngestProcessorGrokRequest) {
 	return func(r *IngestProcessorGrokRequest) {
 		if r.Header == nil {
@@ -191,7 +181,6 @@ func (f IngestProcessorGrok) WithHeader(h map[string]string) func(*IngestProcess
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f IngestProcessorGrok) WithOpaqueID(s string) func(*IngestProcessorGrokRequest) {
 	return func(r *IngestProcessorGrokRequest) {
 		if r.Header == nil {

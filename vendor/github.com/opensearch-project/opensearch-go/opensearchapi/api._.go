@@ -27,7 +27,6 @@
 package opensearchapi
 
 // API contains the OpenSearch APIs
-//
 type API struct {
 	Cat      *Cat
 	Cluster  *Cluster
@@ -222,7 +221,6 @@ type Tasks struct {
 }
 
 // New creates new API
-//
 func New(t Transport) *API {
 	return &API{
 		Bulk:                               newBulkFunc(t),

@@ -46,12 +46,9 @@ func newGetSourceFunc(t Transport) GetSource {
 // ----- API Definition -------------------------------------------------------
 
 // GetSource returns the source of a document.
-//
-//
 type GetSource func(index string, id string, o ...func(*GetSourceRequest)) (*Response, error)
 
 // GetSourceRequest configures the Get Source API request.
-//
 type GetSourceRequest struct {
 	Index        string
 	DocumentType string
@@ -78,7 +75,6 @@ type GetSourceRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r GetSourceRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -202,7 +198,6 @@ func (r GetSourceRequest) Do(ctx context.Context, transport Transport) (*Respons
 }
 
 // WithContext sets the request context.
-//
 func (f GetSource) WithContext(v context.Context) func(*GetSourceRequest) {
 	return func(r *GetSourceRequest) {
 		r.ctx = v
@@ -210,7 +205,6 @@ func (f GetSource) WithContext(v context.Context) func(*GetSourceRequest) {
 }
 
 // WithDocumentType - the type of the document; deprecated and optional starting with 7.0.
-//
 func (f GetSource) WithDocumentType(v string) func(*GetSourceRequest) {
 	return func(r *GetSourceRequest) {
 		r.DocumentType = v
@@ -218,7 +212,6 @@ func (f GetSource) WithDocumentType(v string) func(*GetSourceRequest) {
 }
 
 // WithPreference - specify the node or shard the operation should be performed on (default: random).
-//
 func (f GetSource) WithPreference(v string) func(*GetSourceRequest) {
 	return func(r *GetSourceRequest) {
 		r.Preference = v
@@ -226,7 +219,6 @@ func (f GetSource) WithPreference(v string) func(*GetSourceRequest) {
 }
 
 // WithRealtime - specify whether to perform the operation in realtime or search mode.
-//
 func (f GetSource) WithRealtime(v bool) func(*GetSourceRequest) {
 	return func(r *GetSourceRequest) {
 		r.Realtime = &v
@@ -234,7 +226,6 @@ func (f GetSource) WithRealtime(v bool) func(*GetSourceRequest) {
 }
 
 // WithRefresh - refresh the shard containing the document before performing the operation.
-//
 func (f GetSource) WithRefresh(v bool) func(*GetSourceRequest) {
 	return func(r *GetSourceRequest) {
 		r.Refresh = &v
@@ -242,7 +233,6 @@ func (f GetSource) WithRefresh(v bool) func(*GetSourceRequest) {
 }
 
 // WithRouting - specific routing value.
-//
 func (f GetSource) WithRouting(v string) func(*GetSourceRequest) {
 	return func(r *GetSourceRequest) {
 		r.Routing = v
@@ -250,7 +240,6 @@ func (f GetSource) WithRouting(v string) func(*GetSourceRequest) {
 }
 
 // WithSource - true or false to return the _source field or not, or a list of fields to return.
-//
 func (f GetSource) WithSource(v ...string) func(*GetSourceRequest) {
 	return func(r *GetSourceRequest) {
 		r.Source = v
@@ -258,7 +247,6 @@ func (f GetSource) WithSource(v ...string) func(*GetSourceRequest) {
 }
 
 // WithSourceExcludes - a list of fields to exclude from the returned _source field.
-//
 func (f GetSource) WithSourceExcludes(v ...string) func(*GetSourceRequest) {
 	return func(r *GetSourceRequest) {
 		r.SourceExcludes = v
@@ -266,7 +254,6 @@ func (f GetSource) WithSourceExcludes(v ...string) func(*GetSourceRequest) {
 }
 
 // WithSourceIncludes - a list of fields to extract and return from the _source field.
-//
 func (f GetSource) WithSourceIncludes(v ...string) func(*GetSourceRequest) {
 	return func(r *GetSourceRequest) {
 		r.SourceIncludes = v
@@ -274,7 +261,6 @@ func (f GetSource) WithSourceIncludes(v ...string) func(*GetSourceRequest) {
 }
 
 // WithVersion - explicit version number for concurrency control.
-//
 func (f GetSource) WithVersion(v int) func(*GetSourceRequest) {
 	return func(r *GetSourceRequest) {
 		r.Version = &v
@@ -282,7 +268,6 @@ func (f GetSource) WithVersion(v int) func(*GetSourceRequest) {
 }
 
 // WithVersionType - specific version type.
-//
 func (f GetSource) WithVersionType(v string) func(*GetSourceRequest) {
 	return func(r *GetSourceRequest) {
 		r.VersionType = v
@@ -290,7 +275,6 @@ func (f GetSource) WithVersionType(v string) func(*GetSourceRequest) {
 }
 
 // WithPretty makes the response body pretty-printed.
-//
 func (f GetSource) WithPretty() func(*GetSourceRequest) {
 	return func(r *GetSourceRequest) {
 		r.Pretty = true
@@ -298,7 +282,6 @@ func (f GetSource) WithPretty() func(*GetSourceRequest) {
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f GetSource) WithHuman() func(*GetSourceRequest) {
 	return func(r *GetSourceRequest) {
 		r.Human = true
@@ -306,7 +289,6 @@ func (f GetSource) WithHuman() func(*GetSourceRequest) {
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f GetSource) WithErrorTrace() func(*GetSourceRequest) {
 	return func(r *GetSourceRequest) {
 		r.ErrorTrace = true
@@ -314,7 +296,6 @@ func (f GetSource) WithErrorTrace() func(*GetSourceRequest) {
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f GetSource) WithFilterPath(v ...string) func(*GetSourceRequest) {
 	return func(r *GetSourceRequest) {
 		r.FilterPath = v
@@ -322,7 +303,6 @@ func (f GetSource) WithFilterPath(v ...string) func(*GetSourceRequest) {
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f GetSource) WithHeader(h map[string]string) func(*GetSourceRequest) {
 	return func(r *GetSourceRequest) {
 		if r.Header == nil {
@@ -335,7 +315,6 @@ func (f GetSource) WithHeader(h map[string]string) func(*GetSourceRequest) {
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f GetSource) WithOpaqueID(s string) func(*GetSourceRequest) {
 	return func(r *GetSourceRequest) {
 		if r.Header == nil {

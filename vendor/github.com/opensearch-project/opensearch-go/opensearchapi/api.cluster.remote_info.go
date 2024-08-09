@@ -45,12 +45,9 @@ func newClusterRemoteInfoFunc(t Transport) ClusterRemoteInfo {
 // ----- API Definition -------------------------------------------------------
 
 // ClusterRemoteInfo returns the information about configured remote clusters.
-//
-//
 type ClusterRemoteInfo func(o ...func(*ClusterRemoteInfoRequest)) (*Response, error)
 
 // ClusterRemoteInfoRequest configures the Cluster Remote Info API request.
-//
 type ClusterRemoteInfoRequest struct {
 	Pretty     bool
 	Human      bool
@@ -63,7 +60,6 @@ type ClusterRemoteInfoRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r ClusterRemoteInfoRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -138,7 +134,6 @@ func (r ClusterRemoteInfoRequest) Do(ctx context.Context, transport Transport) (
 }
 
 // WithContext sets the request context.
-//
 func (f ClusterRemoteInfo) WithContext(v context.Context) func(*ClusterRemoteInfoRequest) {
 	return func(r *ClusterRemoteInfoRequest) {
 		r.ctx = v
@@ -146,7 +141,6 @@ func (f ClusterRemoteInfo) WithContext(v context.Context) func(*ClusterRemoteInf
 }
 
 // WithPretty makes the response body pretty-printed.
-//
 func (f ClusterRemoteInfo) WithPretty() func(*ClusterRemoteInfoRequest) {
 	return func(r *ClusterRemoteInfoRequest) {
 		r.Pretty = true
@@ -154,7 +148,6 @@ func (f ClusterRemoteInfo) WithPretty() func(*ClusterRemoteInfoRequest) {
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f ClusterRemoteInfo) WithHuman() func(*ClusterRemoteInfoRequest) {
 	return func(r *ClusterRemoteInfoRequest) {
 		r.Human = true
@@ -162,7 +155,6 @@ func (f ClusterRemoteInfo) WithHuman() func(*ClusterRemoteInfoRequest) {
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f ClusterRemoteInfo) WithErrorTrace() func(*ClusterRemoteInfoRequest) {
 	return func(r *ClusterRemoteInfoRequest) {
 		r.ErrorTrace = true
@@ -170,7 +162,6 @@ func (f ClusterRemoteInfo) WithErrorTrace() func(*ClusterRemoteInfoRequest) {
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f ClusterRemoteInfo) WithFilterPath(v ...string) func(*ClusterRemoteInfoRequest) {
 	return func(r *ClusterRemoteInfoRequest) {
 		r.FilterPath = v
@@ -178,7 +169,6 @@ func (f ClusterRemoteInfo) WithFilterPath(v ...string) func(*ClusterRemoteInfoRe
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f ClusterRemoteInfo) WithHeader(h map[string]string) func(*ClusterRemoteInfoRequest) {
 	return func(r *ClusterRemoteInfoRequest) {
 		if r.Header == nil {
@@ -191,7 +181,6 @@ func (f ClusterRemoteInfo) WithHeader(h map[string]string) func(*ClusterRemoteIn
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f ClusterRemoteInfo) WithOpaqueID(s string) func(*ClusterRemoteInfoRequest) {
 	return func(r *ClusterRemoteInfoRequest) {
 		if r.Header == nil {

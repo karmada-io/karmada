@@ -47,12 +47,9 @@ func newGetScriptContextFunc(t Transport) GetScriptContext {
 // GetScriptContext returns all script contexts.
 //
 // This API is experimental.
-//
-//
 type GetScriptContext func(o ...func(*GetScriptContextRequest)) (*Response, error)
 
 // GetScriptContextRequest configures the Get Script Context API request.
-//
 type GetScriptContextRequest struct {
 	Pretty     bool
 	Human      bool
@@ -65,7 +62,6 @@ type GetScriptContextRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r GetScriptContextRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -140,7 +136,6 @@ func (r GetScriptContextRequest) Do(ctx context.Context, transport Transport) (*
 }
 
 // WithContext sets the request context.
-//
 func (f GetScriptContext) WithContext(v context.Context) func(*GetScriptContextRequest) {
 	return func(r *GetScriptContextRequest) {
 		r.ctx = v
@@ -148,7 +143,6 @@ func (f GetScriptContext) WithContext(v context.Context) func(*GetScriptContextR
 }
 
 // WithPretty makes the response body pretty-printed.
-//
 func (f GetScriptContext) WithPretty() func(*GetScriptContextRequest) {
 	return func(r *GetScriptContextRequest) {
 		r.Pretty = true
@@ -156,7 +150,6 @@ func (f GetScriptContext) WithPretty() func(*GetScriptContextRequest) {
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f GetScriptContext) WithHuman() func(*GetScriptContextRequest) {
 	return func(r *GetScriptContextRequest) {
 		r.Human = true
@@ -164,7 +157,6 @@ func (f GetScriptContext) WithHuman() func(*GetScriptContextRequest) {
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f GetScriptContext) WithErrorTrace() func(*GetScriptContextRequest) {
 	return func(r *GetScriptContextRequest) {
 		r.ErrorTrace = true
@@ -172,7 +164,6 @@ func (f GetScriptContext) WithErrorTrace() func(*GetScriptContextRequest) {
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f GetScriptContext) WithFilterPath(v ...string) func(*GetScriptContextRequest) {
 	return func(r *GetScriptContextRequest) {
 		r.FilterPath = v
@@ -180,7 +171,6 @@ func (f GetScriptContext) WithFilterPath(v ...string) func(*GetScriptContextRequ
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f GetScriptContext) WithHeader(h map[string]string) func(*GetScriptContextRequest) {
 	return func(r *GetScriptContextRequest) {
 		if r.Header == nil {
@@ -193,7 +183,6 @@ func (f GetScriptContext) WithHeader(h map[string]string) func(*GetScriptContext
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f GetScriptContext) WithOpaqueID(s string) func(*GetScriptContextRequest) {
 	return func(r *GetScriptContextRequest) {
 		if r.Header == nil {

@@ -12,44 +12,44 @@ import (
 // In addition to the error message itself, you can also print detailed location
 // information with context by using ErrorWithLocation():
 //
-//     toml: error: Key 'fruit' was already created and cannot be used as an array.
+//	toml: error: Key 'fruit' was already created and cannot be used as an array.
 //
-//     At line 4, column 2-7:
+//	At line 4, column 2-7:
 //
-//           2 | fruit = []
-//           3 |
-//           4 | [[fruit]] # Not allowed
-//                 ^^^^^
+//	      2 | fruit = []
+//	      3 |
+//	      4 | [[fruit]] # Not allowed
+//	            ^^^^^
 //
 // Furthermore, the ErrorWithUsage() can be used to print the above with some
 // more detailed usage guidance:
 //
-//    toml: error: newlines not allowed within inline tables
+//	toml: error: newlines not allowed within inline tables
 //
-//    At line 1, column 18:
+//	At line 1, column 18:
 //
-//          1 | x = [{ key = 42 #
-//                               ^
+//	      1 | x = [{ key = 42 #
+//	                           ^
 //
-//    Error help:
+//	Error help:
 //
-//      Inline tables must always be on a single line:
+//	  Inline tables must always be on a single line:
 //
-//          table = {key = 42, second = 43}
+//	      table = {key = 42, second = 43}
 //
-//      It is invalid to split them over multiple lines like so:
+//	  It is invalid to split them over multiple lines like so:
 //
-//          # INVALID
-//          table = {
-//              key    = 42,
-//              second = 43
-//          }
+//	      # INVALID
+//	      table = {
+//	          key    = 42,
+//	          second = 43
+//	      }
 //
-//      Use regular for this:
+//	  Use regular for this:
 //
-//          [table]
-//          key    = 42
-//          second = 43
+//	      [table]
+//	      key    = 42
+//	      second = 43
 type ParseError struct {
 	Message  string   // Short technical message.
 	Usage    string   // Longer message with usage guidance; may be blank.

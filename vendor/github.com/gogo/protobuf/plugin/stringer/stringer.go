@@ -41,38 +41,38 @@ The stringer plugin also generates a test given it is enabled using one of the f
 
 Let us look at:
 
-  github.com/gogo/protobuf/test/example/example.proto
+	github.com/gogo/protobuf/test/example/example.proto
 
 Btw all the output can be seen at:
 
-  github.com/gogo/protobuf/test/example/*
+	github.com/gogo/protobuf/test/example/*
 
 The following message:
 
-  option (gogoproto.goproto_stringer_all) = false;
-  option (gogoproto.stringer_all) =  true;
+	  option (gogoproto.goproto_stringer_all) = false;
+	  option (gogoproto.stringer_all) =  true;
 
-  message A {
-	optional string Description = 1 [(gogoproto.nullable) = false];
-	optional int64 Number = 2 [(gogoproto.nullable) = false];
-	optional bytes Id = 3 [(gogoproto.customtype) = "github.com/gogo/protobuf/test/custom.Uuid", (gogoproto.nullable) = false];
-  }
+	  message A {
+		optional string Description = 1 [(gogoproto.nullable) = false];
+		optional int64 Number = 2 [(gogoproto.nullable) = false];
+		optional bytes Id = 3 [(gogoproto.customtype) = "github.com/gogo/protobuf/test/custom.Uuid", (gogoproto.nullable) = false];
+	  }
 
 given to the stringer stringer, will generate the following code:
 
-  func (this *A) String() string {
-	if this == nil {
-		return "nil"
-	}
-	s := strings.Join([]string{`&A{`,
-		`Description:` + fmt.Sprintf("%v", this.Description) + `,`,
-		`Number:` + fmt.Sprintf("%v", this.Number) + `,`,
-		`Id:` + fmt.Sprintf("%v", this.Id) + `,`,
-		`XXX_unrecognized:` + fmt.Sprintf("%v", this.XXX_unrecognized) + `,`,
-		`}`,
-	}, "")
-	return s
-  }
+	  func (this *A) String() string {
+		if this == nil {
+			return "nil"
+		}
+		s := strings.Join([]string{`&A{`,
+			`Description:` + fmt.Sprintf("%v", this.Description) + `,`,
+			`Number:` + fmt.Sprintf("%v", this.Number) + `,`,
+			`Id:` + fmt.Sprintf("%v", this.Id) + `,`,
+			`XXX_unrecognized:` + fmt.Sprintf("%v", this.XXX_unrecognized) + `,`,
+			`}`,
+		}, "")
+		return s
+	  }
 
 and the following test code:
 
@@ -88,7 +88,6 @@ and the following test code:
 
 Typically fmt.Printf("%v") will stop to print when it reaches a pointer and
 not print their values, while the generated String method will always print all values, recursively.
-
 */
 package stringer
 

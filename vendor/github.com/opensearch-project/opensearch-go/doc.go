@@ -29,7 +29,7 @@ Package opensearch provides a Go client for OpenSearch.
 
 Create the client with the NewDefaultClient function:
 
-		opensearch.NewDefaultClient()
+	opensearch.NewDefaultClient()
 
 The OPENSEARCH_URL/ELASTICSEARCH_URL environment variable is used instead of the default URL, when set.
 Use a comma to separate multiple URLs.
@@ -37,35 +37,35 @@ It is an error to set both environment variable.
 
 To configure the client, pass a Config object to the NewClient function:
 
-		cfg := opensearch.Config{
-		  Addresses: []string{
-		    "http://localhost:9200",
-		    "http://localhost:9201",
-		  },
-		  Username: "foo",
-		  Password: "bar",
-		  Transport: &http.Transport{
-		    MaxIdleConnsPerHost:   10,
-		    ResponseHeaderTimeout: time.Second,
-		    DialContext:           (&net.Dialer{Timeout: time.Second}).DialContext,
-		    TLSClientConfig: &tls.Config{
-		      MinVersion:         tls.VersionTLS11,
-		    },
-		  },
-		}
+	cfg := opensearch.Config{
+	  Addresses: []string{
+	    "http://localhost:9200",
+	    "http://localhost:9201",
+	  },
+	  Username: "foo",
+	  Password: "bar",
+	  Transport: &http.Transport{
+	    MaxIdleConnsPerHost:   10,
+	    ResponseHeaderTimeout: time.Second,
+	    DialContext:           (&net.Dialer{Timeout: time.Second}).DialContext,
+	    TLSClientConfig: &tls.Config{
+	      MinVersion:         tls.VersionTLS11,
+	    },
+	  },
+	}
 
-		opensearch.NewClient(cfg)
+	opensearch.NewClient(cfg)
 
 See the opensearch_integration_test.go file for more information.
 
 Call the OpenSearch APIs by invoking the corresponding methods on the client:
 
-		res, err := client.Info()
-		if err != nil {
-		  log.Fatalf("Error getting response: %s", err)
-		}
+	res, err := client.Info()
+	if err != nil {
+	  log.Fatalf("Error getting response: %s", err)
+	}
 
-		log.Println(res)
+	log.Println(res)
 
 See the github.com/opensearch-project/opensearch-go/opensearchapi package for more information about using the API.
 

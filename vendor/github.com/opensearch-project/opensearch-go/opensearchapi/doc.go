@@ -88,7 +88,7 @@ or locally by:
 	go doc github.com/opensearch-project/opensearch-go/opensearchapi Index
 	go doc github.com/opensearch-project/opensearch-go/opensearchapi IndexRequest
 
-Response
+# Response
 
 The opensearchapi.Response type is a lightweight wrapper around http.Response.
 
@@ -101,6 +101,5 @@ It is imperative to close the response body for a non-nil response.
 The Response type implements a couple of convenience methods for accessing
 the status, checking an error status code or printing
 the response body for debugging purposes.
-
 */
 package opensearchapi

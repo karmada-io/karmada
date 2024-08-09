@@ -46,12 +46,9 @@ func newCatHelpFunc(t Transport) CatHelp {
 // ----- API Definition -------------------------------------------------------
 
 // CatHelp returns help for the Cat APIs.
-//
-//
 type CatHelp func(o ...func(*CatHelpRequest)) (*Response, error)
 
 // CatHelpRequest configures the Cat Help API request.
-//
 type CatHelpRequest struct {
 	Help *bool
 	S    []string
@@ -67,7 +64,6 @@ type CatHelpRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r CatHelpRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -150,7 +146,6 @@ func (r CatHelpRequest) Do(ctx context.Context, transport Transport) (*Response,
 }
 
 // WithContext sets the request context.
-//
 func (f CatHelp) WithContext(v context.Context) func(*CatHelpRequest) {
 	return func(r *CatHelpRequest) {
 		r.ctx = v
@@ -158,7 +153,6 @@ func (f CatHelp) WithContext(v context.Context) func(*CatHelpRequest) {
 }
 
 // WithHelp - return help information.
-//
 func (f CatHelp) WithHelp(v bool) func(*CatHelpRequest) {
 	return func(r *CatHelpRequest) {
 		r.Help = &v
@@ -166,7 +160,6 @@ func (f CatHelp) WithHelp(v bool) func(*CatHelpRequest) {
 }
 
 // WithS - comma-separated list of column names or column aliases to sort by.
-//
 func (f CatHelp) WithS(v ...string) func(*CatHelpRequest) {
 	return func(r *CatHelpRequest) {
 		r.S = v
@@ -174,7 +167,6 @@ func (f CatHelp) WithS(v ...string) func(*CatHelpRequest) {
 }
 
 // WithPretty makes the response body pretty-printed.
-//
 func (f CatHelp) WithPretty() func(*CatHelpRequest) {
 	return func(r *CatHelpRequest) {
 		r.Pretty = true
@@ -182,7 +174,6 @@ func (f CatHelp) WithPretty() func(*CatHelpRequest) {
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f CatHelp) WithHuman() func(*CatHelpRequest) {
 	return func(r *CatHelpRequest) {
 		r.Human = true
@@ -190,7 +181,6 @@ func (f CatHelp) WithHuman() func(*CatHelpRequest) {
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f CatHelp) WithErrorTrace() func(*CatHelpRequest) {
 	return func(r *CatHelpRequest) {
 		r.ErrorTrace = true
@@ -198,7 +188,6 @@ func (f CatHelp) WithErrorTrace() func(*CatHelpRequest) {
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f CatHelp) WithFilterPath(v ...string) func(*CatHelpRequest) {
 	return func(r *CatHelpRequest) {
 		r.FilterPath = v
@@ -206,7 +195,6 @@ func (f CatHelp) WithFilterPath(v ...string) func(*CatHelpRequest) {
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f CatHelp) WithHeader(h map[string]string) func(*CatHelpRequest) {
 	return func(r *CatHelpRequest) {
 		if r.Header == nil {
@@ -219,7 +207,6 @@ func (f CatHelp) WithHeader(h map[string]string) func(*CatHelpRequest) {
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f CatHelp) WithOpaqueID(s string) func(*CatHelpRequest) {
 	return func(r *CatHelpRequest) {
 		if r.Header == nil {

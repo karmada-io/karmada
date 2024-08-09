@@ -45,12 +45,9 @@ func newInfoFunc(t Transport) Info {
 // ----- API Definition -------------------------------------------------------
 
 // Info returns basic information about the cluster.
-//
-//
 type Info func(o ...func(*InfoRequest)) (*Response, error)
 
 // InfoRequest configures the Info API request.
-//
 type InfoRequest struct {
 	Pretty     bool
 	Human      bool
@@ -63,7 +60,6 @@ type InfoRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r InfoRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -138,7 +134,6 @@ func (r InfoRequest) Do(ctx context.Context, transport Transport) (*Response, er
 }
 
 // WithContext sets the request context.
-//
 func (f Info) WithContext(v context.Context) func(*InfoRequest) {
 	return func(r *InfoRequest) {
 		r.ctx = v
@@ -146,7 +141,6 @@ func (f Info) WithContext(v context.Context) func(*InfoRequest) {
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f Info) WithHuman() func(*InfoRequest) {
 	return func(r *InfoRequest) {
 		r.Human = true
@@ -154,7 +148,6 @@ func (f Info) WithHuman() func(*InfoRequest) {
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f Info) WithErrorTrace() func(*InfoRequest) {
 	return func(r *InfoRequest) {
 		r.ErrorTrace = true
@@ -162,7 +155,6 @@ func (f Info) WithErrorTrace() func(*InfoRequest) {
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f Info) WithFilterPath(v ...string) func(*InfoRequest) {
 	return func(r *InfoRequest) {
 		r.FilterPath = v
@@ -170,7 +162,6 @@ func (f Info) WithFilterPath(v ...string) func(*InfoRequest) {
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f Info) WithHeader(h map[string]string) func(*InfoRequest) {
 	return func(r *InfoRequest) {
 		if r.Header == nil {
@@ -183,7 +174,6 @@ func (f Info) WithHeader(h map[string]string) func(*InfoRequest) {
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f Info) WithOpaqueID(s string) func(*InfoRequest) {
 	return func(r *InfoRequest) {
 		if r.Header == nil {

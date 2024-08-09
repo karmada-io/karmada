@@ -67,11 +67,9 @@ const (
 )
 
 // Version returns the package version as a string.
-//
 const Version = version.Client
 
 // Config represents the client configuration.
-//
 type Config struct {
 	Addresses []string // A list of nodes to use.
 	Username  string   // Username for HTTP Basic Authentication.
@@ -112,7 +110,6 @@ type Config struct {
 }
 
 // Client represents the OpenSearch client.
-//
 type Client struct {
 	*opensearchapi.API   // Embeds the API methods
 	Transport            opensearchtransport.Interface
@@ -141,7 +138,6 @@ type info struct {
 // to configure the addresses; use a comma to separate multiple URLs.
 //
 // It's an error to set both OPENSEARCH_URL and ELASTICSEARCH_URL.
-//
 func NewDefaultClient() (*Client, error) {
 	return NewClient(Config{})
 }
@@ -154,7 +150,6 @@ func NewDefaultClient() (*Client, error) {
 // to configure the addresses; use a comma to separate multiple URLs.
 //
 // It's an error to set both OPENSEARCH_URL and ELASTICSEARCH_URL.
-//
 func NewClient(cfg Config) (*Client, error) {
 	var addrs []string
 
@@ -241,7 +236,6 @@ func getAddressFromEnvironment() ([]string, error) {
 }
 
 // checkCompatibleInfo validates the information given by OpenSearch
-//
 func checkCompatibleInfo(info info) error {
 	major, _, _, err := ParseVersion(info.Version.Number)
 	if err != nil {
@@ -257,7 +251,6 @@ func checkCompatibleInfo(info info) error {
 }
 
 // ParseVersion returns an int64 representation of version.
-//
 func ParseVersion(version string) (int64, int64, int64, error) {
 	matches := reVersion.FindStringSubmatch(version)
 
@@ -272,7 +265,6 @@ func ParseVersion(version string) (int64, int64, int64, error) {
 }
 
 // Perform delegates to Transport to execute a request and return a response.
-//
 func (c *Client) Perform(req *http.Request) (*http.Response, error) {
 	if !c.useResponseCheckOnly {
 		// Launch product check, request info, check header then payload.
@@ -353,7 +345,6 @@ func (c *Client) productCheck() error {
 }
 
 // Metrics returns the client metrics.
-//
 func (c *Client) Metrics() (opensearchtransport.Metrics, error) {
 	if mt, ok := c.Transport.(opensearchtransport.Measurable); ok {
 		return mt.Metrics()
@@ -362,7 +353,6 @@ func (c *Client) Metrics() (opensearchtransport.Metrics, error) {
 }
 
 // DiscoverNodes reloads the client connections by fetching information from the cluster.
-//
 func (c *Client) DiscoverNodes() error {
 	if dt, ok := c.Transport.(opensearchtransport.Discoverable); ok {
 		return dt.DiscoverNodes()
@@ -372,7 +362,6 @@ func (c *Client) DiscoverNodes() error {
 
 // addrsFromEnvironment returns a list of addresses by splitting
 // the given environment variable with comma, or an empty list.
-//
 func addrsFromEnvironment(name string) []string {
 	var addrs []string
 
@@ -387,7 +376,6 @@ func addrsFromEnvironment(name string) []string {
 }
 
 // addrsToURLs creates a list of url.URL structures from url list.
-//
 func addrsToURLs(addrs []string) ([]*url.URL, error) {
 	var urls []*url.URL
 	for _, addr := range addrs {
