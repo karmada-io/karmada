@@ -37,7 +37,8 @@ func TestGenerateExecutionSpaceName(t *testing.T) {
 		want    string
 		wantErr bool
 	}{
-		{name: "normal cluster name",
+		{
+			name: "normal cluster name",
 			args: args{clusterName: "member-cluster-normal"},
 			want: "karmada-es-member-cluster-normal",
 		},
@@ -62,17 +63,20 @@ func TestGetClusterName(t *testing.T) {
 		want    string
 		wantErr bool
 	}{
-		{name: "normal execution space name",
+		{
+			name:    "normal execution space name",
 			args:    args{executionSpaceName: "karmada-es-member-cluster-normal"},
 			want:    "member-cluster-normal",
 			wantErr: false,
 		},
-		{name: "invalid member cluster",
+		{
+			name:    "invalid member cluster",
 			args:    args{executionSpaceName: "invalid"},
 			want:    "",
 			wantErr: true,
 		},
-		{name: "empty execution space name",
+		{
+			name:    "empty execution space name",
 			args:    args{executionSpaceName: ""},
 			want:    "",
 			wantErr: true,
@@ -210,6 +214,13 @@ func TestGenerateWorkName(t *testing.T) {
 			namespace: "default",
 			workname:  "default-pod-pods",
 		},
+		{
+			testCase:  "non nil namespace, colon in name",
+			kind:      "Pods",
+			name:      "work:pod",
+			namespace: "default",
+			workname:  "default-work.pod-pods",
+		},
 	}
 
 	for _, test := range tests {
@@ -217,6 +228,9 @@ func TestGenerateWorkName(t *testing.T) {
 
 		hash := fnv.New32a()
 		hashutil.DeepHashObject(hash, test.workname)
+		if strings.Contains(test.name, ":") {
+			test.name = strings.ReplaceAll(test.name, ":", ".")
+		}
 		if result := fmt.Sprintf("%s-%s", strings.ToLower(test.name), rand.SafeEncodeString(fmt.Sprint(hash.Sum32()))); result != got {
 			t.Errorf("Test %s failed: expected %v, but got %v", test.testCase, result, got)
 		}
@@ -435,6 +449,33 @@ func TestGeneratePolicyName(t *testing.T) {
 		got := GeneratePolicyName(test.namespace, test.resourcename, test.gvk)
 		if got != test.expected {
 			t.Errorf("Test %s failed: expected %v, but got %v", test.name, test.expected, got)
+		}
+	}
+}
+
+func TestNamespacedKey(t *testing.T) {
+	tests := []struct {
+		testCase              string
+		name                  string
+		namespace             string
+		expectedNamespacedKey string
+	}{
+		{
+			testCase:              "empty namespace",
+			name:                  "pod",
+			namespace:             "",
+			expectedNamespacedKey: "pod",
+		}, {
+			testCase:              "non nil namespace",
+			name:                  "pod",
+			namespace:             "default",
+			expectedNamespacedKey: "default/pod",
+		},
+	}
+	for _, test := range tests {
+		gotNamespacedKey := NamespacedKey(test.namespace, test.name)
+		if gotNamespacedKey != test.expectedNamespacedKey {
+			t.Errorf("Test %s failed: expected %v, but got %v", test.testCase, test.expectedNamespacedKey, gotNamespacedKey)
 		}
 	}
 }

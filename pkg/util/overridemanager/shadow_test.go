@@ -22,6 +22,14 @@ import (
 
 func TestAppliedOverrides_AscendOrder(t *testing.T) {
 	applied := AppliedOverrides{}
+	appliedEmptyBytes, er := applied.MarshalJSON()
+	if er != nil {
+		t.Fatalf("not expect error, but got: %v", er)
+	}
+	if appliedEmptyBytes != nil {
+		t.Fatalf("expect nil, but got: %s", string(appliedEmptyBytes))
+	}
+
 	item2 := OverridePolicyShadow{PolicyName: "bbb"}
 	item1 := OverridePolicyShadow{PolicyName: "aaa"}
 	item3 := OverridePolicyShadow{PolicyName: "ccc"}
