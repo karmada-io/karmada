@@ -102,7 +102,7 @@ This guide will cover:
 - Propagate an application by using `karmada`.
 
 ### Prerequisites
-- [Go](https://golang.org/) version v1.22.4+
+- [Go](https://golang.org/) version follows [go.mod](https://github.com/karmada-io/karmada/blob/master/go.mod#L3)
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) version v1.19+
 - [kind](https://kind.sigs.k8s.io/) version v0.14.0+
 
