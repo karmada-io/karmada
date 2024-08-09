@@ -33,6 +33,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	controllerUtils "github.com/karmada-io/karmada/pkg/controllers/utils"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
@@ -170,6 +171,11 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 	// Case 2: Need eviction after toleration time. If time is up, do eviction right now.
 	// Case 3: Tolerate forever, we do nothing.
 	if needEviction || tolerationTime == 0 {
+		klog.V(4).Infof("Updating resource binding: %s with latest failover information %s.", binding.Name, cluster)
+		updateErr := controllerUtils.UpdateFailoverStatus(tc.Client, binding, cluster, workv1alpha2.EvictionReasonTaintUntolerated)
+		if updateErr != nil {
+			klog.Errorf("Failed to update status with failover information")
+		}
 		// update final result to evict the target cluster
 		if features.FeatureGate.Enabled(features.GracefulEviction) {
 			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager), workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))

@@ -142,3 +142,8 @@ const (
 	// EvictionProducerTaintManager represents the name of taint manager.
 	EvictionProducerTaintManager = "TaintManager"
 )
+
+// Define failover labels.
+const (
+	ResourceBindingFailoverLabel = "resourcebinding.karmada.io/failover-type"
+)
