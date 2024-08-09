@@ -323,7 +323,7 @@ func applyPolicyOverriders(rawObj *unstructured.Unstructured, overriders policyv
 	if err := applyAnnotationsOverriders(rawObj, overriders.AnnotationsOverrider); err != nil {
 		return err
 	}
-	if err := applyYAMLOrJSONOverriders(rawObj, overriders.YamlOverrider); err != nil {
+	if err := applyPlaintextObjectOverriders(rawObj, overriders.PlaintextObjectOverrider); err != nil {
 		return err
 	}
 	return applyJSONPatch(rawObj, parseJSONPatchesByPlaintext(overriders.Plaintext))
@@ -378,16 +378,16 @@ func applyArgsOverriders(rawObj *unstructured.Unstructured, argsOverriders []pol
 	return nil
 }
 
-func applyYAMLOrJSONOverriders(rawObj *unstructured.Unstructured, structureOverriders []policyv1alpha1.StructureOverrider) error {
-  if len(structureOverriders)	 == 0 {
+func applyPlaintextObjectOverriders(rawObj *unstructured.Unstructured, plaintextObjectOverriders []policyv1alpha1.PlaintextObjectOverrider) error {
+  if len(plaintextObjectOverriders)	 == 0 {
   	return nil
   }
 	rawObjJSONBytes, err := rawObj.MarshalJSON()
 	if err != nil {
 		return err
 	}
-	for index := range structureOverriders {
-		res := gjson.GetBytes(rawObjJSONBytes, structureOverriders[index].Path)
+	for index := range plaintextObjectOverriders {
+		res := gjson.GetBytes(rawObjJSONBytes, plaintextObjectOverriders[index].Path)
 		dataBytes := []byte(res.String())
 		isJSON := yamlutil.IsJSONBuffer(dataBytes)
     if !isJSON {
@@ -396,7 +396,7 @@ func applyYAMLOrJSONOverriders(rawObj *unstructured.Unstructured, structureOverr
 		  	return err
 		  }
     }
-	  appliedRawData, err := applyRawJSONPatch(dataBytes, parseJSONPatchesByPlaintext(structureOverriders[index].SubOverrider))
+	  appliedRawData, err := applyRawJSONPatch(dataBytes, parseJSONPatchesByPlaintext(plaintextObjectOverriders[index].Plaintext))
 	  if err != nil {
 	  	return err
 	  }
@@ -406,7 +406,7 @@ func applyYAMLOrJSONOverriders(rawObj *unstructured.Unstructured, structureOverr
 				return err
 			}
 		}
-	  rawObjJSONBytes, err = sjson.SetBytes(rawObjJSONBytes,structureOverriders[index].Path, appliedRawData)
+	  rawObjJSONBytes, err = sjson.SetBytes(rawObjJSONBytes,plaintextObjectOverriders[index].Path, appliedRawData)
 	  if err != nil {
 	  	return err
 	  }
