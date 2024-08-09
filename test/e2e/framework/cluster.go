@@ -308,6 +308,17 @@ func WaitClusterFitWith(c client.Client, clusterName string, fit func(cluster *c
 	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 }
 
+// WaitClusterFitWithKarmadaClient wait cluster fit with fit func.
+func WaitClusterFitWithKarmadaClient(c karmada.Interface, clusterName string, fit func(cluster *clusterv1alpha1.Cluster) bool) {
+	gomega.Eventually(func() (bool, error) {
+		currentCluster, _, err := util.GetClusterWithKarmadaClient(c, clusterName)
+		if err != nil {
+			return false, err
+		}
+		return fit(currentCluster), nil
+	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+}
+
 // LoadRESTClientConfig creates a rest.Config using the passed kubeconfig. If context is empty, current context in kubeconfig will be used.
 func LoadRESTClientConfig(kubeconfig string, context string) (*rest.Config, error) {
 	loader := &clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig}
