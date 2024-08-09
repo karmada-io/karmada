@@ -52,7 +52,7 @@ var _ = ginkgo.Describe("[cluster unjoined] reschedule testing", func() {
 		var f cmdutil.Factory
 
 		ginkgo.BeforeEach(func() {
-			newClusterName = "member-e2e-" + rand.String(3)
+			newClusterName = "member-e2e-" + rand.String(RandomStrLength)
 			homeDir = os.Getenv("HOME")
 			kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, newClusterName)
 			controlPlane = fmt.Sprintf("%s-control-plane", newClusterName)
@@ -173,7 +173,7 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 		var f cmdutil.Factory
 
 		ginkgo.BeforeEach(func() {
-			newClusterName = "member-e2e-" + rand.String(3)
+			newClusterName = "member-e2e-" + rand.String(RandomStrLength)
 			homeDir = os.Getenv("HOME")
 			kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, newClusterName)
 			controlPlane = fmt.Sprintf("%s-control-plane", newClusterName)

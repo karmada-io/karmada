@@ -45,7 +45,7 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 	var f cmdutil.Factory
 
 	ginkgo.BeforeEach(func() {
-		namespaceName = "karmada-e2e-ns-" + rand.String(3)
+		namespaceName = "karmada-e2e-ns-" + rand.String(RandomStrLength)
 		namespace = helper.NewNamespace(namespaceName)
 
 		defaultConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
@@ -86,7 +86,7 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 		var clusterContext string
 
 		ginkgo.BeforeEach(func() {
-			clusterName = "member-e2e-" + rand.String(3)
+			clusterName = "member-e2e-" + rand.String(RandomStrLength)
 			homeDir = os.Getenv("HOME")
 			kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, clusterName)
 			controlPlane = fmt.Sprintf("%s-control-plane", clusterName)
