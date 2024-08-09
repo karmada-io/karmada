@@ -38,6 +38,8 @@ var (
 	}
 	// PodColumns is the list of columns used in the top pod command.
 	PodColumns = []string{"NAME", "CLUSTER", "CPU(cores)", "MEMORY(bytes)"}
+	// NodeColumns is the list of columns used in the top node command.
+	NodeColumns = []string{"NAME", "CLUSTER", "CPU(cores)", "CPU%", "MEMORY(bytes)", "MEMORY%"}
 	// NamespaceColumn is the column name for namespace.
 	NamespaceColumn = "NAMESPACE"
 	// PodColumn is the column name for pod.
@@ -60,6 +62,52 @@ type CmdPrinter struct {
 // NewTopCmdPrinter creates a new TopCmdPrinter.
 func NewTopCmdPrinter(out io.Writer) *CmdPrinter {
 	return &CmdPrinter{out: out}
+}
+
+// PrintNodeMetrics prints the given metrics to the given writer.
+func (printer *CmdPrinter) PrintNodeMetrics(metrics []metricsapi.NodeMetrics, availableResources map[string]map[string]corev1.ResourceList, noHeaders bool, sortBy string) error {
+	if len(metrics) == 0 {
+		return nil
+	}
+	w := printers.GetNewTabWriter(printer.out)
+	defer w.Flush()
+
+	sort.Sort(NewNodeMetricsSorter(metrics, sortBy))
+
+	if !noHeaders {
+		printColumnNames(w, NodeColumns)
+	}
+	var usage corev1.ResourceList
+	for _, m := range metrics {
+		m.Usage.DeepCopyInto(&usage)
+		cluster := m.Annotations[autoscalingv1alpha1.QuerySourceAnnotationKey]
+		printMetricsLine(w, &ResourceMetricsInfo{
+			Name:      m.Name,
+			Cluster:   cluster,
+			Metrics:   usage,
+			Available: availableResources[cluster][m.Name],
+		})
+		delete(availableResources[cluster], m.Name)
+	}
+
+	// print lines for nodes of which the metrics is unreachable.
+	for cluster, resourceMap := range availableResources {
+		for nodeName := range resourceMap {
+			printMissingMetricsNodeLine(w, cluster, nodeName)
+		}
+	}
+	return nil
+}
+
+func printMissingMetricsNodeLine(out io.Writer, cluster, nodeName string) {
+	printValue(out, nodeName)
+	printValue(out, cluster)
+	unknownMetricsStatus := "<unknown>"
+	for i := 0; i < len(MeasuredResources); i++ {
+		printValue(out, unknownMetricsStatus)
+		printValue(out, unknownMetricsStatus)
+	}
+	fmt.Fprint(out, "\n")
 }
 
 // PrintPodMetrics prints the given metrics to the given writer.
