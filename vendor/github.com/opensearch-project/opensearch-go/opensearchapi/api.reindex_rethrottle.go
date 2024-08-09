@@ -46,12 +46,9 @@ func newReindexRethrottleFunc(t Transport) ReindexRethrottle {
 // ----- API Definition -------------------------------------------------------
 
 // ReindexRethrottle changes the number of requests per second for a particular Reindex operation.
-//
-//
 type ReindexRethrottle func(task_id string, requests_per_second *int, o ...func(*ReindexRethrottleRequest)) (*Response, error)
 
 // ReindexRethrottleRequest configures the Reindex Rethrottle API request.
-//
 type ReindexRethrottleRequest struct {
 	TaskID string
 
@@ -68,7 +65,6 @@ type ReindexRethrottleRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r ReindexRethrottleRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -152,7 +148,6 @@ func (r ReindexRethrottleRequest) Do(ctx context.Context, transport Transport) (
 }
 
 // WithContext sets the request context.
-//
 func (f ReindexRethrottle) WithContext(v context.Context) func(*ReindexRethrottleRequest) {
 	return func(r *ReindexRethrottleRequest) {
 		r.ctx = v
@@ -160,7 +155,6 @@ func (f ReindexRethrottle) WithContext(v context.Context) func(*ReindexRethrottl
 }
 
 // WithRequestsPerSecond - the throttle to set on this request in floating sub-requests per second. -1 means set no throttle..
-//
 func (f ReindexRethrottle) WithRequestsPerSecond(v int) func(*ReindexRethrottleRequest) {
 	return func(r *ReindexRethrottleRequest) {
 		r.RequestsPerSecond = &v
@@ -168,7 +162,6 @@ func (f ReindexRethrottle) WithRequestsPerSecond(v int) func(*ReindexRethrottleR
 }
 
 // WithPretty makes the response body pretty-printed.
-//
 func (f ReindexRethrottle) WithPretty() func(*ReindexRethrottleRequest) {
 	return func(r *ReindexRethrottleRequest) {
 		r.Pretty = true
@@ -176,7 +169,6 @@ func (f ReindexRethrottle) WithPretty() func(*ReindexRethrottleRequest) {
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f ReindexRethrottle) WithHuman() func(*ReindexRethrottleRequest) {
 	return func(r *ReindexRethrottleRequest) {
 		r.Human = true
@@ -184,7 +176,6 @@ func (f ReindexRethrottle) WithHuman() func(*ReindexRethrottleRequest) {
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f ReindexRethrottle) WithErrorTrace() func(*ReindexRethrottleRequest) {
 	return func(r *ReindexRethrottleRequest) {
 		r.ErrorTrace = true
@@ -192,7 +183,6 @@ func (f ReindexRethrottle) WithErrorTrace() func(*ReindexRethrottleRequest) {
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f ReindexRethrottle) WithFilterPath(v ...string) func(*ReindexRethrottleRequest) {
 	return func(r *ReindexRethrottleRequest) {
 		r.FilterPath = v
@@ -200,7 +190,6 @@ func (f ReindexRethrottle) WithFilterPath(v ...string) func(*ReindexRethrottleRe
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f ReindexRethrottle) WithHeader(h map[string]string) func(*ReindexRethrottleRequest) {
 	return func(r *ReindexRethrottleRequest) {
 		if r.Header == nil {
@@ -213,7 +202,6 @@ func (f ReindexRethrottle) WithHeader(h map[string]string) func(*ReindexRethrott
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f ReindexRethrottle) WithOpaqueID(s string) func(*ReindexRethrottleRequest) {
 	return func(r *ReindexRethrottleRequest) {
 		if r.Header == nil {

@@ -47,12 +47,9 @@ func newIndicesGetIndexTemplateFunc(t Transport) IndicesGetIndexTemplate {
 // ----- API Definition -------------------------------------------------------
 
 // IndicesGetIndexTemplate returns an index template.
-//
-//
 type IndicesGetIndexTemplate func(o ...func(*IndicesGetIndexTemplateRequest)) (*Response, error)
 
 // IndicesGetIndexTemplateRequest configures the Indices Get Index Template API request.
-//
 type IndicesGetIndexTemplateRequest struct {
 	Name []string
 
@@ -71,7 +68,6 @@ type IndicesGetIndexTemplateRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r IndicesGetIndexTemplateRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -163,7 +159,6 @@ func (r IndicesGetIndexTemplateRequest) Do(ctx context.Context, transport Transp
 }
 
 // WithContext sets the request context.
-//
 func (f IndicesGetIndexTemplate) WithContext(v context.Context) func(*IndicesGetIndexTemplateRequest) {
 	return func(r *IndicesGetIndexTemplateRequest) {
 		r.ctx = v
@@ -171,7 +166,6 @@ func (f IndicesGetIndexTemplate) WithContext(v context.Context) func(*IndicesGet
 }
 
 // WithName - the comma separated names of the index templates.
-//
 func (f IndicesGetIndexTemplate) WithName(v ...string) func(*IndicesGetIndexTemplateRequest) {
 	return func(r *IndicesGetIndexTemplateRequest) {
 		r.Name = v
@@ -179,7 +173,6 @@ func (f IndicesGetIndexTemplate) WithName(v ...string) func(*IndicesGetIndexTemp
 }
 
 // WithFlatSettings - return settings in flat format (default: false).
-//
 func (f IndicesGetIndexTemplate) WithFlatSettings(v bool) func(*IndicesGetIndexTemplateRequest) {
 	return func(r *IndicesGetIndexTemplateRequest) {
 		r.FlatSettings = &v
@@ -187,7 +180,6 @@ func (f IndicesGetIndexTemplate) WithFlatSettings(v bool) func(*IndicesGetIndexT
 }
 
 // WithLocal - return local information, do not retrieve the state from master node (default: false).
-//
 func (f IndicesGetIndexTemplate) WithLocal(v bool) func(*IndicesGetIndexTemplateRequest) {
 	return func(r *IndicesGetIndexTemplateRequest) {
 		r.Local = &v
@@ -195,7 +187,6 @@ func (f IndicesGetIndexTemplate) WithLocal(v bool) func(*IndicesGetIndexTemplate
 }
 
 // WithMasterTimeout - explicit operation timeout for connection to master node.
-//
 func (f IndicesGetIndexTemplate) WithMasterTimeout(v time.Duration) func(*IndicesGetIndexTemplateRequest) {
 	return func(r *IndicesGetIndexTemplateRequest) {
 		r.MasterTimeout = v
@@ -203,7 +194,6 @@ func (f IndicesGetIndexTemplate) WithMasterTimeout(v time.Duration) func(*Indice
 }
 
 // WithPretty makes the response body pretty-printed.
-//
 func (f IndicesGetIndexTemplate) WithPretty() func(*IndicesGetIndexTemplateRequest) {
 	return func(r *IndicesGetIndexTemplateRequest) {
 		r.Pretty = true
@@ -211,7 +201,6 @@ func (f IndicesGetIndexTemplate) WithPretty() func(*IndicesGetIndexTemplateReque
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f IndicesGetIndexTemplate) WithHuman() func(*IndicesGetIndexTemplateRequest) {
 	return func(r *IndicesGetIndexTemplateRequest) {
 		r.Human = true
@@ -219,7 +208,6 @@ func (f IndicesGetIndexTemplate) WithHuman() func(*IndicesGetIndexTemplateReques
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f IndicesGetIndexTemplate) WithErrorTrace() func(*IndicesGetIndexTemplateRequest) {
 	return func(r *IndicesGetIndexTemplateRequest) {
 		r.ErrorTrace = true
@@ -227,7 +215,6 @@ func (f IndicesGetIndexTemplate) WithErrorTrace() func(*IndicesGetIndexTemplateR
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f IndicesGetIndexTemplate) WithFilterPath(v ...string) func(*IndicesGetIndexTemplateRequest) {
 	return func(r *IndicesGetIndexTemplateRequest) {
 		r.FilterPath = v
@@ -235,7 +222,6 @@ func (f IndicesGetIndexTemplate) WithFilterPath(v ...string) func(*IndicesGetInd
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f IndicesGetIndexTemplate) WithHeader(h map[string]string) func(*IndicesGetIndexTemplateRequest) {
 	return func(r *IndicesGetIndexTemplateRequest) {
 		if r.Header == nil {
@@ -248,7 +234,6 @@ func (f IndicesGetIndexTemplate) WithHeader(h map[string]string) func(*IndicesGe
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f IndicesGetIndexTemplate) WithOpaqueID(s string) func(*IndicesGetIndexTemplateRequest) {
 	return func(r *IndicesGetIndexTemplateRequest) {
 		if r.Header == nil {

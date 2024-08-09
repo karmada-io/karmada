@@ -47,12 +47,9 @@ func newCatIndicesFunc(t Transport) CatIndices {
 // ----- API Definition -------------------------------------------------------
 
 // CatIndices returns information about indices: number of primaries and replicas, document counts, disk size, ...
-//
-//
 type CatIndices func(o ...func(*CatIndicesRequest)) (*Response, error)
 
 // CatIndicesRequest configures the Cat Indices API request.
-//
 type CatIndicesRequest struct {
 	Index []string
 
@@ -81,7 +78,6 @@ type CatIndicesRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r CatIndicesRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -215,7 +211,6 @@ func (r CatIndicesRequest) Do(ctx context.Context, transport Transport) (*Respon
 }
 
 // WithContext sets the request context.
-//
 func (f CatIndices) WithContext(v context.Context) func(*CatIndicesRequest) {
 	return func(r *CatIndicesRequest) {
 		r.ctx = v
@@ -223,7 +218,6 @@ func (f CatIndices) WithContext(v context.Context) func(*CatIndicesRequest) {
 }
 
 // WithIndex - a list of index names to limit the returned information.
-//
 func (f CatIndices) WithIndex(v ...string) func(*CatIndicesRequest) {
 	return func(r *CatIndicesRequest) {
 		r.Index = v
@@ -231,7 +225,6 @@ func (f CatIndices) WithIndex(v ...string) func(*CatIndicesRequest) {
 }
 
 // WithBytes - the unit in which to display byte values.
-//
 func (f CatIndices) WithBytes(v string) func(*CatIndicesRequest) {
 	return func(r *CatIndicesRequest) {
 		r.Bytes = v
@@ -239,7 +232,6 @@ func (f CatIndices) WithBytes(v string) func(*CatIndicesRequest) {
 }
 
 // WithExpandWildcards - whether to expand wildcard expression to concrete indices that are open, closed or both..
-//
 func (f CatIndices) WithExpandWildcards(v string) func(*CatIndicesRequest) {
 	return func(r *CatIndicesRequest) {
 		r.ExpandWildcards = v
@@ -247,7 +239,6 @@ func (f CatIndices) WithExpandWildcards(v string) func(*CatIndicesRequest) {
 }
 
 // WithFormat - a short version of the accept header, e.g. json, yaml.
-//
 func (f CatIndices) WithFormat(v string) func(*CatIndicesRequest) {
 	return func(r *CatIndicesRequest) {
 		r.Format = v
@@ -255,7 +246,6 @@ func (f CatIndices) WithFormat(v string) func(*CatIndicesRequest) {
 }
 
 // WithH - comma-separated list of column names to display.
-//
 func (f CatIndices) WithH(v ...string) func(*CatIndicesRequest) {
 	return func(r *CatIndicesRequest) {
 		r.H = v
@@ -263,7 +253,6 @@ func (f CatIndices) WithH(v ...string) func(*CatIndicesRequest) {
 }
 
 // WithHealth - a health status ("green", "yellow", or "red" to filter only indices matching the specified health status.
-//
 func (f CatIndices) WithHealth(v string) func(*CatIndicesRequest) {
 	return func(r *CatIndicesRequest) {
 		r.Health = v
@@ -271,7 +260,6 @@ func (f CatIndices) WithHealth(v string) func(*CatIndicesRequest) {
 }
 
 // WithHelp - return help information.
-//
 func (f CatIndices) WithHelp(v bool) func(*CatIndicesRequest) {
 	return func(r *CatIndicesRequest) {
 		r.Help = &v
@@ -279,7 +267,6 @@ func (f CatIndices) WithHelp(v bool) func(*CatIndicesRequest) {
 }
 
 // WithIncludeUnloadedSegments - if set to true segment stats will include stats for segments that are not currently loaded into memory.
-//
 func (f CatIndices) WithIncludeUnloadedSegments(v bool) func(*CatIndicesRequest) {
 	return func(r *CatIndicesRequest) {
 		r.IncludeUnloadedSegments = &v
@@ -287,7 +274,6 @@ func (f CatIndices) WithIncludeUnloadedSegments(v bool) func(*CatIndicesRequest)
 }
 
 // WithLocal - return local information, do not retrieve the state from master node (default: false).
-//
 func (f CatIndices) WithLocal(v bool) func(*CatIndicesRequest) {
 	return func(r *CatIndicesRequest) {
 		r.Local = &v
@@ -295,7 +281,6 @@ func (f CatIndices) WithLocal(v bool) func(*CatIndicesRequest) {
 }
 
 // WithMasterTimeout - explicit operation timeout for connection to master node.
-//
 func (f CatIndices) WithMasterTimeout(v time.Duration) func(*CatIndicesRequest) {
 	return func(r *CatIndicesRequest) {
 		r.MasterTimeout = v
@@ -303,7 +288,6 @@ func (f CatIndices) WithMasterTimeout(v time.Duration) func(*CatIndicesRequest) 
 }
 
 // WithPri - set to true to return stats only for primary shards.
-//
 func (f CatIndices) WithPri(v bool) func(*CatIndicesRequest) {
 	return func(r *CatIndicesRequest) {
 		r.Pri = &v
@@ -311,7 +295,6 @@ func (f CatIndices) WithPri(v bool) func(*CatIndicesRequest) {
 }
 
 // WithS - comma-separated list of column names or column aliases to sort by.
-//
 func (f CatIndices) WithS(v ...string) func(*CatIndicesRequest) {
 	return func(r *CatIndicesRequest) {
 		r.S = v
@@ -319,7 +302,6 @@ func (f CatIndices) WithS(v ...string) func(*CatIndicesRequest) {
 }
 
 // WithTime - the unit in which to display time values.
-//
 func (f CatIndices) WithTime(v string) func(*CatIndicesRequest) {
 	return func(r *CatIndicesRequest) {
 		r.Time = v
@@ -327,7 +309,6 @@ func (f CatIndices) WithTime(v string) func(*CatIndicesRequest) {
 }
 
 // WithV - verbose mode. display column headers.
-//
 func (f CatIndices) WithV(v bool) func(*CatIndicesRequest) {
 	return func(r *CatIndicesRequest) {
 		r.V = &v
@@ -335,7 +316,6 @@ func (f CatIndices) WithV(v bool) func(*CatIndicesRequest) {
 }
 
 // WithPretty makes the response body pretty-printed.
-//
 func (f CatIndices) WithPretty() func(*CatIndicesRequest) {
 	return func(r *CatIndicesRequest) {
 		r.Pretty = true
@@ -343,7 +323,6 @@ func (f CatIndices) WithPretty() func(*CatIndicesRequest) {
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f CatIndices) WithHuman() func(*CatIndicesRequest) {
 	return func(r *CatIndicesRequest) {
 		r.Human = true
@@ -351,7 +330,6 @@ func (f CatIndices) WithHuman() func(*CatIndicesRequest) {
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f CatIndices) WithErrorTrace() func(*CatIndicesRequest) {
 	return func(r *CatIndicesRequest) {
 		r.ErrorTrace = true
@@ -359,7 +337,6 @@ func (f CatIndices) WithErrorTrace() func(*CatIndicesRequest) {
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f CatIndices) WithFilterPath(v ...string) func(*CatIndicesRequest) {
 	return func(r *CatIndicesRequest) {
 		r.FilterPath = v
@@ -367,7 +344,6 @@ func (f CatIndices) WithFilterPath(v ...string) func(*CatIndicesRequest) {
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f CatIndices) WithHeader(h map[string]string) func(*CatIndicesRequest) {
 	return func(r *CatIndicesRequest) {
 		if r.Header == nil {
@@ -380,7 +356,6 @@ func (f CatIndices) WithHeader(h map[string]string) func(*CatIndicesRequest) {
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f CatIndices) WithOpaqueID(s string) func(*CatIndicesRequest) {
 	return func(r *CatIndicesRequest) {
 		if r.Header == nil {

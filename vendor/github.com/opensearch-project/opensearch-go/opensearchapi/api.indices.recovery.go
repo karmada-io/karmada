@@ -46,12 +46,9 @@ func newIndicesRecoveryFunc(t Transport) IndicesRecovery {
 // ----- API Definition -------------------------------------------------------
 
 // IndicesRecovery returns information about ongoing index shard recoveries.
-//
-//
 type IndicesRecovery func(o ...func(*IndicesRecoveryRequest)) (*Response, error)
 
 // IndicesRecoveryRequest configures the Indices Recovery API request.
-//
 type IndicesRecoveryRequest struct {
 	Index []string
 
@@ -69,7 +66,6 @@ type IndicesRecoveryRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r IndicesRecoveryRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -157,7 +153,6 @@ func (r IndicesRecoveryRequest) Do(ctx context.Context, transport Transport) (*R
 }
 
 // WithContext sets the request context.
-//
 func (f IndicesRecovery) WithContext(v context.Context) func(*IndicesRecoveryRequest) {
 	return func(r *IndicesRecoveryRequest) {
 		r.ctx = v
@@ -165,7 +160,6 @@ func (f IndicesRecovery) WithContext(v context.Context) func(*IndicesRecoveryReq
 }
 
 // WithIndex - a list of index names; use _all to perform the operation on all indices.
-//
 func (f IndicesRecovery) WithIndex(v ...string) func(*IndicesRecoveryRequest) {
 	return func(r *IndicesRecoveryRequest) {
 		r.Index = v
@@ -173,7 +167,6 @@ func (f IndicesRecovery) WithIndex(v ...string) func(*IndicesRecoveryRequest) {
 }
 
 // WithActiveOnly - display only those recoveries that are currently on-going.
-//
 func (f IndicesRecovery) WithActiveOnly(v bool) func(*IndicesRecoveryRequest) {
 	return func(r *IndicesRecoveryRequest) {
 		r.ActiveOnly = &v
@@ -181,7 +174,6 @@ func (f IndicesRecovery) WithActiveOnly(v bool) func(*IndicesRecoveryRequest) {
 }
 
 // WithDetailed - whether to display detailed information about shard recovery.
-//
 func (f IndicesRecovery) WithDetailed(v bool) func(*IndicesRecoveryRequest) {
 	return func(r *IndicesRecoveryRequest) {
 		r.Detailed = &v
@@ -189,7 +181,6 @@ func (f IndicesRecovery) WithDetailed(v bool) func(*IndicesRecoveryRequest) {
 }
 
 // WithPretty makes the response body pretty-printed.
-//
 func (f IndicesRecovery) WithPretty() func(*IndicesRecoveryRequest) {
 	return func(r *IndicesRecoveryRequest) {
 		r.Pretty = true
@@ -197,7 +188,6 @@ func (f IndicesRecovery) WithPretty() func(*IndicesRecoveryRequest) {
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f IndicesRecovery) WithHuman() func(*IndicesRecoveryRequest) {
 	return func(r *IndicesRecoveryRequest) {
 		r.Human = true
@@ -205,7 +195,6 @@ func (f IndicesRecovery) WithHuman() func(*IndicesRecoveryRequest) {
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f IndicesRecovery) WithErrorTrace() func(*IndicesRecoveryRequest) {
 	return func(r *IndicesRecoveryRequest) {
 		r.ErrorTrace = true
@@ -213,7 +202,6 @@ func (f IndicesRecovery) WithErrorTrace() func(*IndicesRecoveryRequest) {
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f IndicesRecovery) WithFilterPath(v ...string) func(*IndicesRecoveryRequest) {
 	return func(r *IndicesRecoveryRequest) {
 		r.FilterPath = v
@@ -221,7 +209,6 @@ func (f IndicesRecovery) WithFilterPath(v ...string) func(*IndicesRecoveryReques
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f IndicesRecovery) WithHeader(h map[string]string) func(*IndicesRecoveryRequest) {
 	return func(r *IndicesRecoveryRequest) {
 		if r.Header == nil {
@@ -234,7 +221,6 @@ func (f IndicesRecovery) WithHeader(h map[string]string) func(*IndicesRecoveryRe
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f IndicesRecovery) WithOpaqueID(s string) func(*IndicesRecoveryRequest) {
 	return func(r *IndicesRecoveryRequest) {
 		if r.Header == nil {

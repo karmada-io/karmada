@@ -49,12 +49,9 @@ func newTasksGetFunc(t Transport) TasksGet {
 // TasksGet returns information about a task.
 //
 // This API is experimental.
-//
-//
 type TasksGet func(task_id string, o ...func(*TasksGetRequest)) (*Response, error)
 
 // TasksGetRequest configures the Tasks Get API request.
-//
 type TasksGetRequest struct {
 	TaskID string
 
@@ -72,7 +69,6 @@ type TasksGetRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r TasksGetRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -158,7 +154,6 @@ func (r TasksGetRequest) Do(ctx context.Context, transport Transport) (*Response
 }
 
 // WithContext sets the request context.
-//
 func (f TasksGet) WithContext(v context.Context) func(*TasksGetRequest) {
 	return func(r *TasksGetRequest) {
 		r.ctx = v
@@ -166,7 +161,6 @@ func (f TasksGet) WithContext(v context.Context) func(*TasksGetRequest) {
 }
 
 // WithTimeout - explicit operation timeout.
-//
 func (f TasksGet) WithTimeout(v time.Duration) func(*TasksGetRequest) {
 	return func(r *TasksGetRequest) {
 		r.Timeout = v
@@ -174,7 +168,6 @@ func (f TasksGet) WithTimeout(v time.Duration) func(*TasksGetRequest) {
 }
 
 // WithWaitForCompletion - wait for the matching tasks to complete (default: false).
-//
 func (f TasksGet) WithWaitForCompletion(v bool) func(*TasksGetRequest) {
 	return func(r *TasksGetRequest) {
 		r.WaitForCompletion = &v
@@ -182,7 +175,6 @@ func (f TasksGet) WithWaitForCompletion(v bool) func(*TasksGetRequest) {
 }
 
 // WithPretty makes the response body pretty-printed.
-//
 func (f TasksGet) WithPretty() func(*TasksGetRequest) {
 	return func(r *TasksGetRequest) {
 		r.Pretty = true
@@ -190,7 +182,6 @@ func (f TasksGet) WithPretty() func(*TasksGetRequest) {
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f TasksGet) WithHuman() func(*TasksGetRequest) {
 	return func(r *TasksGetRequest) {
 		r.Human = true
@@ -198,7 +189,6 @@ func (f TasksGet) WithHuman() func(*TasksGetRequest) {
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f TasksGet) WithErrorTrace() func(*TasksGetRequest) {
 	return func(r *TasksGetRequest) {
 		r.ErrorTrace = true
@@ -206,7 +196,6 @@ func (f TasksGet) WithErrorTrace() func(*TasksGetRequest) {
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f TasksGet) WithFilterPath(v ...string) func(*TasksGetRequest) {
 	return func(r *TasksGetRequest) {
 		r.FilterPath = v
@@ -214,7 +203,6 @@ func (f TasksGet) WithFilterPath(v ...string) func(*TasksGetRequest) {
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f TasksGet) WithHeader(h map[string]string) func(*TasksGetRequest) {
 	return func(r *TasksGetRequest) {
 		if r.Header == nil {
@@ -227,7 +215,6 @@ func (f TasksGet) WithHeader(h map[string]string) func(*TasksGetRequest) {
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f TasksGet) WithOpaqueID(s string) func(*TasksGetRequest) {
 	return func(r *TasksGetRequest) {
 		if r.Header == nil {

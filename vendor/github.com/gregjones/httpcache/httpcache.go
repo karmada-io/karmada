@@ -3,7 +3,6 @@
 //
 // It is only suitable for use as a 'private' cache (i.e. for a web-browser or an API-client
 // and not for a shared proxy).
-//
 package httpcache
 
 import (
@@ -420,10 +419,10 @@ func getEndToEndHeaders(respHeaders http.Header) []string {
 		"Keep-Alive":          struct{}{},
 		"Proxy-Authenticate":  struct{}{},
 		"Proxy-Authorization": struct{}{},
-		"Te":                struct{}{},
-		"Trailers":          struct{}{},
-		"Transfer-Encoding": struct{}{},
-		"Upgrade":           struct{}{},
+		"Te":                  struct{}{},
+		"Trailers":            struct{}{},
+		"Transfer-Encoding":   struct{}{},
+		"Upgrade":             struct{}{},
 	}
 
 	for _, extra := range strings.Split(respHeaders.Get("connection"), ",") {

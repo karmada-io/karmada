@@ -47,12 +47,9 @@ func newSnapshotGetRepositoryFunc(t Transport) SnapshotGetRepository {
 // ----- API Definition -------------------------------------------------------
 
 // SnapshotGetRepository returns information about a repository.
-//
-//
 type SnapshotGetRepository func(o ...func(*SnapshotGetRepositoryRequest)) (*Response, error)
 
 // SnapshotGetRepositoryRequest configures the Snapshot Get Repository API request.
-//
 type SnapshotGetRepositoryRequest struct {
 	Repository []string
 
@@ -70,7 +67,6 @@ type SnapshotGetRepositoryRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r SnapshotGetRepositoryRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -158,7 +154,6 @@ func (r SnapshotGetRepositoryRequest) Do(ctx context.Context, transport Transpor
 }
 
 // WithContext sets the request context.
-//
 func (f SnapshotGetRepository) WithContext(v context.Context) func(*SnapshotGetRepositoryRequest) {
 	return func(r *SnapshotGetRepositoryRequest) {
 		r.ctx = v
@@ -166,7 +161,6 @@ func (f SnapshotGetRepository) WithContext(v context.Context) func(*SnapshotGetR
 }
 
 // WithRepository - a list of repository names.
-//
 func (f SnapshotGetRepository) WithRepository(v ...string) func(*SnapshotGetRepositoryRequest) {
 	return func(r *SnapshotGetRepositoryRequest) {
 		r.Repository = v
@@ -174,7 +168,6 @@ func (f SnapshotGetRepository) WithRepository(v ...string) func(*SnapshotGetRepo
 }
 
 // WithLocal - return local information, do not retrieve the state from master node (default: false).
-//
 func (f SnapshotGetRepository) WithLocal(v bool) func(*SnapshotGetRepositoryRequest) {
 	return func(r *SnapshotGetRepositoryRequest) {
 		r.Local = &v
@@ -182,7 +175,6 @@ func (f SnapshotGetRepository) WithLocal(v bool) func(*SnapshotGetRepositoryRequ
 }
 
 // WithMasterTimeout - explicit operation timeout for connection to master node.
-//
 func (f SnapshotGetRepository) WithMasterTimeout(v time.Duration) func(*SnapshotGetRepositoryRequest) {
 	return func(r *SnapshotGetRepositoryRequest) {
 		r.MasterTimeout = v
@@ -190,7 +182,6 @@ func (f SnapshotGetRepository) WithMasterTimeout(v time.Duration) func(*Snapshot
 }
 
 // WithPretty makes the response body pretty-printed.
-//
 func (f SnapshotGetRepository) WithPretty() func(*SnapshotGetRepositoryRequest) {
 	return func(r *SnapshotGetRepositoryRequest) {
 		r.Pretty = true
@@ -198,7 +189,6 @@ func (f SnapshotGetRepository) WithPretty() func(*SnapshotGetRepositoryRequest) 
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f SnapshotGetRepository) WithHuman() func(*SnapshotGetRepositoryRequest) {
 	return func(r *SnapshotGetRepositoryRequest) {
 		r.Human = true
@@ -206,7 +196,6 @@ func (f SnapshotGetRepository) WithHuman() func(*SnapshotGetRepositoryRequest) {
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f SnapshotGetRepository) WithErrorTrace() func(*SnapshotGetRepositoryRequest) {
 	return func(r *SnapshotGetRepositoryRequest) {
 		r.ErrorTrace = true
@@ -214,7 +203,6 @@ func (f SnapshotGetRepository) WithErrorTrace() func(*SnapshotGetRepositoryReque
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f SnapshotGetRepository) WithFilterPath(v ...string) func(*SnapshotGetRepositoryRequest) {
 	return func(r *SnapshotGetRepositoryRequest) {
 		r.FilterPath = v
@@ -222,7 +210,6 @@ func (f SnapshotGetRepository) WithFilterPath(v ...string) func(*SnapshotGetRepo
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f SnapshotGetRepository) WithHeader(h map[string]string) func(*SnapshotGetRepositoryRequest) {
 	return func(r *SnapshotGetRepositoryRequest) {
 		if r.Header == nil {
@@ -235,7 +222,6 @@ func (f SnapshotGetRepository) WithHeader(h map[string]string) func(*SnapshotGet
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f SnapshotGetRepository) WithOpaqueID(s string) func(*SnapshotGetRepositoryRequest) {
 	return func(r *SnapshotGetRepositoryRequest) {
 		if r.Header == nil {

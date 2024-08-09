@@ -47,12 +47,9 @@ func newIndicesGetSettingsFunc(t Transport) IndicesGetSettings {
 // ----- API Definition -------------------------------------------------------
 
 // IndicesGetSettings returns settings for one or more indices.
-//
-//
 type IndicesGetSettings func(o ...func(*IndicesGetSettingsRequest)) (*Response, error)
 
 // IndicesGetSettingsRequest configures the Indices Get Settings API request.
-//
 type IndicesGetSettingsRequest struct {
 	Index []string
 
@@ -77,7 +74,6 @@ type IndicesGetSettingsRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r IndicesGetSettingsRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -189,7 +185,6 @@ func (r IndicesGetSettingsRequest) Do(ctx context.Context, transport Transport) 
 }
 
 // WithContext sets the request context.
-//
 func (f IndicesGetSettings) WithContext(v context.Context) func(*IndicesGetSettingsRequest) {
 	return func(r *IndicesGetSettingsRequest) {
 		r.ctx = v
@@ -197,7 +192,6 @@ func (f IndicesGetSettings) WithContext(v context.Context) func(*IndicesGetSetti
 }
 
 // WithIndex - a list of index names; use _all to perform the operation on all indices.
-//
 func (f IndicesGetSettings) WithIndex(v ...string) func(*IndicesGetSettingsRequest) {
 	return func(r *IndicesGetSettingsRequest) {
 		r.Index = v
@@ -205,7 +199,6 @@ func (f IndicesGetSettings) WithIndex(v ...string) func(*IndicesGetSettingsReque
 }
 
 // WithName - the name of the settings that should be included.
-//
 func (f IndicesGetSettings) WithName(v ...string) func(*IndicesGetSettingsRequest) {
 	return func(r *IndicesGetSettingsRequest) {
 		r.Name = v
@@ -213,7 +206,6 @@ func (f IndicesGetSettings) WithName(v ...string) func(*IndicesGetSettingsReques
 }
 
 // WithAllowNoIndices - whether to ignore if a wildcard indices expression resolves into no concrete indices. (this includes `_all` string or when no indices have been specified).
-//
 func (f IndicesGetSettings) WithAllowNoIndices(v bool) func(*IndicesGetSettingsRequest) {
 	return func(r *IndicesGetSettingsRequest) {
 		r.AllowNoIndices = &v
@@ -221,7 +213,6 @@ func (f IndicesGetSettings) WithAllowNoIndices(v bool) func(*IndicesGetSettingsR
 }
 
 // WithExpandWildcards - whether to expand wildcard expression to concrete indices that are open, closed or both..
-//
 func (f IndicesGetSettings) WithExpandWildcards(v string) func(*IndicesGetSettingsRequest) {
 	return func(r *IndicesGetSettingsRequest) {
 		r.ExpandWildcards = v
@@ -229,7 +220,6 @@ func (f IndicesGetSettings) WithExpandWildcards(v string) func(*IndicesGetSettin
 }
 
 // WithFlatSettings - return settings in flat format (default: false).
-//
 func (f IndicesGetSettings) WithFlatSettings(v bool) func(*IndicesGetSettingsRequest) {
 	return func(r *IndicesGetSettingsRequest) {
 		r.FlatSettings = &v
@@ -237,7 +227,6 @@ func (f IndicesGetSettings) WithFlatSettings(v bool) func(*IndicesGetSettingsReq
 }
 
 // WithIgnoreUnavailable - whether specified concrete indices should be ignored when unavailable (missing or closed).
-//
 func (f IndicesGetSettings) WithIgnoreUnavailable(v bool) func(*IndicesGetSettingsRequest) {
 	return func(r *IndicesGetSettingsRequest) {
 		r.IgnoreUnavailable = &v
@@ -245,7 +234,6 @@ func (f IndicesGetSettings) WithIgnoreUnavailable(v bool) func(*IndicesGetSettin
 }
 
 // WithIncludeDefaults - whether to return all default setting for each of the indices..
-//
 func (f IndicesGetSettings) WithIncludeDefaults(v bool) func(*IndicesGetSettingsRequest) {
 	return func(r *IndicesGetSettingsRequest) {
 		r.IncludeDefaults = &v
@@ -253,7 +241,6 @@ func (f IndicesGetSettings) WithIncludeDefaults(v bool) func(*IndicesGetSettings
 }
 
 // WithLocal - return local information, do not retrieve the state from master node (default: false).
-//
 func (f IndicesGetSettings) WithLocal(v bool) func(*IndicesGetSettingsRequest) {
 	return func(r *IndicesGetSettingsRequest) {
 		r.Local = &v
@@ -261,7 +248,6 @@ func (f IndicesGetSettings) WithLocal(v bool) func(*IndicesGetSettingsRequest) {
 }
 
 // WithMasterTimeout - specify timeout for connection to master.
-//
 func (f IndicesGetSettings) WithMasterTimeout(v time.Duration) func(*IndicesGetSettingsRequest) {
 	return func(r *IndicesGetSettingsRequest) {
 		r.MasterTimeout = v
@@ -269,7 +255,6 @@ func (f IndicesGetSettings) WithMasterTimeout(v time.Duration) func(*IndicesGetS
 }
 
 // WithPretty makes the response body pretty-printed.
-//
 func (f IndicesGetSettings) WithPretty() func(*IndicesGetSettingsRequest) {
 	return func(r *IndicesGetSettingsRequest) {
 		r.Pretty = true
@@ -277,7 +262,6 @@ func (f IndicesGetSettings) WithPretty() func(*IndicesGetSettingsRequest) {
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f IndicesGetSettings) WithHuman() func(*IndicesGetSettingsRequest) {
 	return func(r *IndicesGetSettingsRequest) {
 		r.Human = true
@@ -285,7 +269,6 @@ func (f IndicesGetSettings) WithHuman() func(*IndicesGetSettingsRequest) {
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f IndicesGetSettings) WithErrorTrace() func(*IndicesGetSettingsRequest) {
 	return func(r *IndicesGetSettingsRequest) {
 		r.ErrorTrace = true
@@ -293,7 +276,6 @@ func (f IndicesGetSettings) WithErrorTrace() func(*IndicesGetSettingsRequest) {
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f IndicesGetSettings) WithFilterPath(v ...string) func(*IndicesGetSettingsRequest) {
 	return func(r *IndicesGetSettingsRequest) {
 		r.FilterPath = v
@@ -301,7 +283,6 @@ func (f IndicesGetSettings) WithFilterPath(v ...string) func(*IndicesGetSettings
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f IndicesGetSettings) WithHeader(h map[string]string) func(*IndicesGetSettingsRequest) {
 	return func(r *IndicesGetSettingsRequest) {
 		if r.Header == nil {
@@ -314,7 +295,6 @@ func (f IndicesGetSettings) WithHeader(h map[string]string) func(*IndicesGetSett
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f IndicesGetSettings) WithOpaqueID(s string) func(*IndicesGetSettingsRequest) {
 	return func(r *IndicesGetSettingsRequest) {
 		if r.Header == nil {

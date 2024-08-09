@@ -75,13 +75,11 @@ func init() {
 }
 
 // Interface defines the interface for HTTP client.
-//
 type Interface interface {
 	Perform(*http.Request) (*http.Response, error)
 }
 
 // Config represents the configuration of HTTP client.
-//
 type Config struct {
 	URLs     []*url.URL
 	Username string
@@ -113,7 +111,6 @@ type Config struct {
 }
 
 // Client represents the HTTP client.
-//
 type Client struct {
 	sync.Mutex
 
@@ -146,7 +143,6 @@ type Client struct {
 // New creates new transport client.
 //
 // http.DefaultTransport will be used if no transport is passed in the configuration.
-//
 func New(cfg Config) (*Client, error) {
 	if cfg.Transport == nil {
 		cfg.Transport = http.DefaultTransport
@@ -235,7 +231,6 @@ func New(cfg Config) (*Client, error) {
 }
 
 // Perform executes the request and returns a response or error.
-//
 func (c *Client) Perform(req *http.Request) (*http.Response, error) {
 	var (
 		res *http.Response
@@ -413,8 +408,6 @@ func (c *Client) Perform(req *http.Request) (*http.Response, error) {
 }
 
 // URLs returns a list of transport URLs.
-//
-//
 func (c *Client) URLs() []*url.URL {
 	return c.pool.URLs()
 }

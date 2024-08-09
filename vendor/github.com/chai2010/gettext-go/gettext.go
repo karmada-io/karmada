@@ -52,16 +52,18 @@ func init() {
 // BindLocale sets and queries program's domains.
 //
 // Examples:
+//
 //	BindLocale(New("poedit", "locale")) // bind "poedit" domain
 //
 // Use zip file:
+//
 //	BindLocale(New("poedit", "locale.zip"))          // bind "poedit" domain
 //	BindLocale(New("poedit", "locale.zip", zipData)) // bind "poedit" domain
 //
 // Use FileSystem:
+//
 //	BindLocale(New("poedit", "name", OS("path/to/dir"))) // bind "poedit" domain
 //	BindLocale(New("poedit", "name", OS("path/to.zip"))) // bind "poedit" domain
-//
 func BindLocale(g Gettexter) {
 	if g != nil {
 		defaultGettexter.Gettexter = g
@@ -81,6 +83,7 @@ func BindLocale(g Gettexter) {
 // Returns is the current locale.
 //
 // Examples:
+//
 //	SetLanguage("")      // get locale: return DefaultLocale
 //	SetLanguage("zh_CN") // set locale: return zh_CN
 //	SetLanguage("")      // get locale: return zh_CN
@@ -98,6 +101,7 @@ func SetLanguage(lang string) string {
 // Returns is the all used domains.
 //
 // Examples:
+//
 //	SetDomain("poedit") // set domain: poedit
 //	SetDomain("")       // get domain: return poedit
 func SetDomain(domain string) string {
@@ -111,6 +115,7 @@ func SetDomain(domain string) string {
 // It use the caller's function name as the msgctxt.
 //
 // Examples:
+//
 //	func Foo() {
 //		msg := gettext.Gettext("Hello") // msgctxt is ""
 //	}
@@ -122,6 +127,7 @@ func Gettext(msgid string) string {
 // by looking up the translation in a message catalog.
 //
 // Examples:
+//
 //	func Foo() {
 //		Textdomain("hello")
 //		BindLocale("hello", "locale.zip", nilOrZipData)
@@ -138,6 +144,7 @@ func Getdata(name string) []byte {
 // It use the caller's function name as the msgctxt.
 //
 // Examples:
+//
 //	func Foo() {
 //		msg := gettext.NGettext("%d people", "%d peoples", 2)
 //	}
@@ -149,6 +156,7 @@ func NGettext(msgid, msgidPlural string, n int) string {
 // by looking up the translation in a message catalog.
 //
 // Examples:
+//
 //	func Foo() {
 //		msg := gettext.PGettext("gettext-go.example", "Hello") // msgctxt is "gettext-go.example"
 //	}
@@ -161,6 +169,7 @@ func PGettext(msgctxt, msgid string) string {
 // catalog.
 //
 // Examples:
+//
 //	func Foo() {
 //		msg := gettext.PNGettext("gettext-go.example", "%d people", "%d peoples", 2)
 //	}
@@ -171,6 +180,7 @@ func PNGettext(msgctxt, msgid, msgidPlural string, n int) string {
 // DGettext like Gettext(), but looking up the message in the specified domain.
 //
 // Examples:
+//
 //	func Foo() {
 //		msg := gettext.DGettext("poedit", "Hello")
 //	}
@@ -181,6 +191,7 @@ func DGettext(domain, msgid string) string {
 // DNGettext like NGettext(), but looking up the message in the specified domain.
 //
 // Examples:
+//
 //	func Foo() {
 //		msg := gettext.PNGettext("poedit", "gettext-go.example", "%d people", "%d peoples", 2)
 //	}
@@ -191,6 +202,7 @@ func DNGettext(domain, msgid, msgidPlural string, n int) string {
 // DPGettext like PGettext(), but looking up the message in the specified domain.
 //
 // Examples:
+//
 //	func Foo() {
 //		msg := gettext.DPGettext("poedit", "gettext-go.example", "Hello")
 //	}
@@ -201,6 +213,7 @@ func DPGettext(domain, msgctxt, msgid string) string {
 // DPNGettext like PNGettext(), but looking up the message in the specified domain.
 //
 // Examples:
+//
 //	func Foo() {
 //		msg := gettext.DPNGettext("poedit", "gettext-go.example", "%d people", "%d peoples", 2)
 //	}
@@ -211,6 +224,7 @@ func DPNGettext(domain, msgctxt, msgid, msgidPlural string, n int) string {
 // DGetdata like Getdata(), but looking up the resource in the specified domain.
 //
 // Examples:
+//
 //	func Foo() {
 //		msg := gettext.DGetdata("hello", "poems.txt")
 //	}

@@ -49,12 +49,9 @@ func newSearchFunc(t Transport) Search {
 // ----- API Definition -------------------------------------------------------
 
 // Search returns results matching a query.
-//
-//
 type Search func(o ...func(*SearchRequest)) (*Response, error)
 
 // SearchRequest configures the Search API request.
-//
 type SearchRequest struct {
 	Index        []string
 	DocumentType []string
@@ -116,7 +113,6 @@ type SearchRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r SearchRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -376,7 +372,6 @@ func (r SearchRequest) Do(ctx context.Context, transport Transport) (*Response, 
 }
 
 // WithContext sets the request context.
-//
 func (f Search) WithContext(v context.Context) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.ctx = v
@@ -384,7 +379,6 @@ func (f Search) WithContext(v context.Context) func(*SearchRequest) {
 }
 
 // WithBody - The search definition using the Query DSL.
-//
 func (f Search) WithBody(v io.Reader) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.Body = v
@@ -392,7 +386,6 @@ func (f Search) WithBody(v io.Reader) func(*SearchRequest) {
 }
 
 // WithIndex - a list of index names to search; use _all to perform the operation on all indices.
-//
 func (f Search) WithIndex(v ...string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.Index = v
@@ -400,7 +393,6 @@ func (f Search) WithIndex(v ...string) func(*SearchRequest) {
 }
 
 // WithDocumentType - a list of document types to search; leave empty to perform the operation on all types.
-//
 func (f Search) WithDocumentType(v ...string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.DocumentType = v
@@ -408,7 +400,6 @@ func (f Search) WithDocumentType(v ...string) func(*SearchRequest) {
 }
 
 // WithAllowNoIndices - whether to ignore if a wildcard indices expression resolves into no concrete indices. (this includes `_all` string or when no indices have been specified).
-//
 func (f Search) WithAllowNoIndices(v bool) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.AllowNoIndices = &v
@@ -416,7 +407,6 @@ func (f Search) WithAllowNoIndices(v bool) func(*SearchRequest) {
 }
 
 // WithAllowPartialSearchResults - indicate if an error should be returned if there is a partial search failure or timeout.
-//
 func (f Search) WithAllowPartialSearchResults(v bool) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.AllowPartialSearchResults = &v
@@ -424,7 +414,6 @@ func (f Search) WithAllowPartialSearchResults(v bool) func(*SearchRequest) {
 }
 
 // WithAnalyzer - the analyzer to use for the query string.
-//
 func (f Search) WithAnalyzer(v string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.Analyzer = v
@@ -432,7 +421,6 @@ func (f Search) WithAnalyzer(v string) func(*SearchRequest) {
 }
 
 // WithAnalyzeWildcard - specify whether wildcard and prefix queries should be analyzed (default: false).
-//
 func (f Search) WithAnalyzeWildcard(v bool) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.AnalyzeWildcard = &v
@@ -440,7 +428,6 @@ func (f Search) WithAnalyzeWildcard(v bool) func(*SearchRequest) {
 }
 
 // WithBatchedReduceSize - the number of shard results that should be reduced at once on the coordinating node. this value should be used as a protection mechanism to reduce the memory overhead per search request if the potential number of shards in the request can be large..
-//
 func (f Search) WithBatchedReduceSize(v int) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.BatchedReduceSize = &v
@@ -448,7 +435,6 @@ func (f Search) WithBatchedReduceSize(v int) func(*SearchRequest) {
 }
 
 // WithCcsMinimizeRoundtrips - indicates whether network round-trips should be minimized as part of cross-cluster search requests execution.
-//
 func (f Search) WithCcsMinimizeRoundtrips(v bool) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.CcsMinimizeRoundtrips = &v
@@ -456,7 +442,6 @@ func (f Search) WithCcsMinimizeRoundtrips(v bool) func(*SearchRequest) {
 }
 
 // WithDefaultOperator - the default operator for query string query (and or or).
-//
 func (f Search) WithDefaultOperator(v string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.DefaultOperator = v
@@ -464,7 +449,6 @@ func (f Search) WithDefaultOperator(v string) func(*SearchRequest) {
 }
 
 // WithDf - the field to use as default where no field prefix is given in the query string.
-//
 func (f Search) WithDf(v string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.Df = v
@@ -472,7 +456,6 @@ func (f Search) WithDf(v string) func(*SearchRequest) {
 }
 
 // WithDocvalueFields - a list of fields to return as the docvalue representation of a field for each hit.
-//
 func (f Search) WithDocvalueFields(v ...string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.DocvalueFields = v
@@ -480,7 +463,6 @@ func (f Search) WithDocvalueFields(v ...string) func(*SearchRequest) {
 }
 
 // WithExpandWildcards - whether to expand wildcard expression to concrete indices that are open, closed or both..
-//
 func (f Search) WithExpandWildcards(v string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.ExpandWildcards = v
@@ -488,7 +470,6 @@ func (f Search) WithExpandWildcards(v string) func(*SearchRequest) {
 }
 
 // WithExplain - specify whether to return detailed information about score computation as part of a hit.
-//
 func (f Search) WithExplain(v bool) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.Explain = &v
@@ -496,7 +477,6 @@ func (f Search) WithExplain(v bool) func(*SearchRequest) {
 }
 
 // WithFrom - starting offset (default: 0).
-//
 func (f Search) WithFrom(v int) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.From = &v
@@ -504,7 +484,6 @@ func (f Search) WithFrom(v int) func(*SearchRequest) {
 }
 
 // WithIgnoreThrottled - whether specified concrete, expanded or aliased indices should be ignored when throttled.
-//
 func (f Search) WithIgnoreThrottled(v bool) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.IgnoreThrottled = &v
@@ -512,7 +491,6 @@ func (f Search) WithIgnoreThrottled(v bool) func(*SearchRequest) {
 }
 
 // WithIgnoreUnavailable - whether specified concrete indices should be ignored when unavailable (missing or closed).
-//
 func (f Search) WithIgnoreUnavailable(v bool) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.IgnoreUnavailable = &v
@@ -520,7 +498,6 @@ func (f Search) WithIgnoreUnavailable(v bool) func(*SearchRequest) {
 }
 
 // WithLenient - specify whether format-based query failures (such as providing text to a numeric field) should be ignored.
-//
 func (f Search) WithLenient(v bool) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.Lenient = &v
@@ -528,7 +505,6 @@ func (f Search) WithLenient(v bool) func(*SearchRequest) {
 }
 
 // WithMaxConcurrentShardRequests - the number of concurrent shard requests per node this search executes concurrently. this value should be used to limit the impact of the search on the cluster in order to limit the number of concurrent shard requests.
-//
 func (f Search) WithMaxConcurrentShardRequests(v int) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.MaxConcurrentShardRequests = &v
@@ -536,7 +512,6 @@ func (f Search) WithMaxConcurrentShardRequests(v int) func(*SearchRequest) {
 }
 
 // WithMinCompatibleShardNode - the minimum compatible version that all shards involved in search should have for this request to be successful.
-//
 func (f Search) WithMinCompatibleShardNode(v string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.MinCompatibleShardNode = v
@@ -544,7 +519,6 @@ func (f Search) WithMinCompatibleShardNode(v string) func(*SearchRequest) {
 }
 
 // WithPreference - specify the node or shard the operation should be performed on (default: random).
-//
 func (f Search) WithPreference(v string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.Preference = v
@@ -552,7 +526,6 @@ func (f Search) WithPreference(v string) func(*SearchRequest) {
 }
 
 // WithPreFilterShardSize - a threshold that enforces a pre-filter roundtrip to prefilter search shards based on query rewriting if the number of shards the search request expands to exceeds the threshold. this filter roundtrip can limit the number of shards significantly if for instance a shard can not match any documents based on its rewrite method ie. if date filters are mandatory to match but the shard bounds and the query are disjoint..
-//
 func (f Search) WithPreFilterShardSize(v int) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.PreFilterShardSize = &v
@@ -560,7 +533,6 @@ func (f Search) WithPreFilterShardSize(v int) func(*SearchRequest) {
 }
 
 // WithQuery - query in the lucene query string syntax.
-//
 func (f Search) WithQuery(v string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.Query = v
@@ -568,7 +540,6 @@ func (f Search) WithQuery(v string) func(*SearchRequest) {
 }
 
 // WithRequestCache - specify if request cache should be used for this request or not, defaults to index level setting.
-//
 func (f Search) WithRequestCache(v bool) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.RequestCache = &v
@@ -576,7 +547,6 @@ func (f Search) WithRequestCache(v bool) func(*SearchRequest) {
 }
 
 // WithRestTotalHitsAsInt - indicates whether hits.total should be rendered as an integer or an object in the rest search response.
-//
 func (f Search) WithRestTotalHitsAsInt(v bool) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.RestTotalHitsAsInt = &v
@@ -584,7 +554,6 @@ func (f Search) WithRestTotalHitsAsInt(v bool) func(*SearchRequest) {
 }
 
 // WithRouting - a list of specific routing values.
-//
 func (f Search) WithRouting(v ...string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.Routing = v
@@ -592,7 +561,6 @@ func (f Search) WithRouting(v ...string) func(*SearchRequest) {
 }
 
 // WithScroll - specify how long a consistent view of the index should be maintained for scrolled search.
-//
 func (f Search) WithScroll(v time.Duration) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.Scroll = v
@@ -600,7 +568,6 @@ func (f Search) WithScroll(v time.Duration) func(*SearchRequest) {
 }
 
 // WithSearchType - search operation type.
-//
 func (f Search) WithSearchType(v string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.SearchType = v
@@ -608,7 +575,6 @@ func (f Search) WithSearchType(v string) func(*SearchRequest) {
 }
 
 // WithSeqNoPrimaryTerm - specify whether to return sequence number and primary term of the last modification of each hit.
-//
 func (f Search) WithSeqNoPrimaryTerm(v bool) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.SeqNoPrimaryTerm = &v
@@ -616,7 +582,6 @@ func (f Search) WithSeqNoPrimaryTerm(v bool) func(*SearchRequest) {
 }
 
 // WithSize - number of hits to return (default: 10).
-//
 func (f Search) WithSize(v int) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.Size = &v
@@ -624,7 +589,6 @@ func (f Search) WithSize(v int) func(*SearchRequest) {
 }
 
 // WithSort - a list of <field>:<direction> pairs.
-//
 func (f Search) WithSort(v ...string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.Sort = v
@@ -632,7 +596,6 @@ func (f Search) WithSort(v ...string) func(*SearchRequest) {
 }
 
 // WithSource - true or false to return the _source field or not, or a list of fields to return.
-//
 func (f Search) WithSource(v ...string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.Source = v
@@ -640,7 +603,6 @@ func (f Search) WithSource(v ...string) func(*SearchRequest) {
 }
 
 // WithSourceExcludes - a list of fields to exclude from the returned _source field.
-//
 func (f Search) WithSourceExcludes(v ...string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.SourceExcludes = v
@@ -648,7 +610,6 @@ func (f Search) WithSourceExcludes(v ...string) func(*SearchRequest) {
 }
 
 // WithSourceIncludes - a list of fields to extract and return from the _source field.
-//
 func (f Search) WithSourceIncludes(v ...string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.SourceIncludes = v
@@ -656,7 +617,6 @@ func (f Search) WithSourceIncludes(v ...string) func(*SearchRequest) {
 }
 
 // WithStats - specific 'tag' of the request for logging and statistical purposes.
-//
 func (f Search) WithStats(v ...string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.Stats = v
@@ -664,7 +624,6 @@ func (f Search) WithStats(v ...string) func(*SearchRequest) {
 }
 
 // WithStoredFields - a list of stored fields to return as part of a hit.
-//
 func (f Search) WithStoredFields(v ...string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.StoredFields = v
@@ -672,7 +631,6 @@ func (f Search) WithStoredFields(v ...string) func(*SearchRequest) {
 }
 
 // WithSuggestField - specify which field to use for suggestions.
-//
 func (f Search) WithSuggestField(v string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.SuggestField = v
@@ -680,7 +638,6 @@ func (f Search) WithSuggestField(v string) func(*SearchRequest) {
 }
 
 // WithSuggestMode - specify suggest mode.
-//
 func (f Search) WithSuggestMode(v string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.SuggestMode = v
@@ -688,7 +645,6 @@ func (f Search) WithSuggestMode(v string) func(*SearchRequest) {
 }
 
 // WithSuggestSize - how many suggestions to return in response.
-//
 func (f Search) WithSuggestSize(v int) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.SuggestSize = &v
@@ -696,7 +652,6 @@ func (f Search) WithSuggestSize(v int) func(*SearchRequest) {
 }
 
 // WithSuggestText - the source text for which the suggestions should be returned.
-//
 func (f Search) WithSuggestText(v string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.SuggestText = v
@@ -704,7 +659,6 @@ func (f Search) WithSuggestText(v string) func(*SearchRequest) {
 }
 
 // WithTerminateAfter - the maximum number of documents to collect for each shard, upon reaching which the query execution will terminate early..
-//
 func (f Search) WithTerminateAfter(v int) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.TerminateAfter = &v
@@ -712,7 +666,6 @@ func (f Search) WithTerminateAfter(v int) func(*SearchRequest) {
 }
 
 // WithTimeout - explicit operation timeout.
-//
 func (f Search) WithTimeout(v time.Duration) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.Timeout = v
@@ -720,7 +673,6 @@ func (f Search) WithTimeout(v time.Duration) func(*SearchRequest) {
 }
 
 // WithTrackScores - whether to calculate and return scores even if they are not used for sorting.
-//
 func (f Search) WithTrackScores(v bool) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.TrackScores = &v
@@ -728,7 +680,6 @@ func (f Search) WithTrackScores(v bool) func(*SearchRequest) {
 }
 
 // WithTrackTotalHits - indicate if the number of documents that match the query should be tracked.
-//
 func (f Search) WithTrackTotalHits(v interface{}) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.TrackTotalHits = v
@@ -736,7 +687,6 @@ func (f Search) WithTrackTotalHits(v interface{}) func(*SearchRequest) {
 }
 
 // WithTypedKeys - specify whether aggregation and suggester names should be prefixed by their respective types in the response.
-//
 func (f Search) WithTypedKeys(v bool) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.TypedKeys = &v
@@ -744,7 +694,6 @@ func (f Search) WithTypedKeys(v bool) func(*SearchRequest) {
 }
 
 // WithVersion - specify whether to return document version as part of a hit.
-//
 func (f Search) WithVersion(v bool) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.Version = &v
@@ -752,7 +701,6 @@ func (f Search) WithVersion(v bool) func(*SearchRequest) {
 }
 
 // WithPretty makes the response body pretty-printed.
-//
 func (f Search) WithPretty() func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.Pretty = true
@@ -760,7 +708,6 @@ func (f Search) WithPretty() func(*SearchRequest) {
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f Search) WithHuman() func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.Human = true
@@ -768,7 +715,6 @@ func (f Search) WithHuman() func(*SearchRequest) {
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f Search) WithErrorTrace() func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.ErrorTrace = true
@@ -776,7 +722,6 @@ func (f Search) WithErrorTrace() func(*SearchRequest) {
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f Search) WithFilterPath(v ...string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		r.FilterPath = v
@@ -784,7 +729,6 @@ func (f Search) WithFilterPath(v ...string) func(*SearchRequest) {
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f Search) WithHeader(h map[string]string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		if r.Header == nil {
@@ -797,7 +741,6 @@ func (f Search) WithHeader(h map[string]string) func(*SearchRequest) {
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f Search) WithOpaqueID(s string) func(*SearchRequest) {
 	return func(r *SearchRequest) {
 		if r.Header == nil {
