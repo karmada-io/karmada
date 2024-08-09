@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc"
 	grpccredentials "google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"k8s.io/apiserver/pkg/server/dynamiccertificates"
 )
 
 // ServerConfig the config of GRPC server side.
@@ -72,13 +73,20 @@ func (s *ServerConfig) NewServer() (*grpc.Server, error) {
 		return grpc.NewServer(), nil
 	}
 
-	cert, err := tls.LoadX509KeyPair(s.CertFile, s.KeyFile)
-	if err != nil {
-		return nil, err
-	}
 	config := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		MinVersion:   tls.VersionTLS13,
+		MinVersion: tls.VersionTLS13,
+	}
+
+	servingCertProvider, err := dynamiccertificates.NewDynamicServingContentFromFiles("serving grpc", s.CertFile, s.KeyFile)
+	if err != nil {
+		return nil, fmt.Errorf("loading tls config (%s, %s) failed - %s", s.CertFile, s.KeyFile, err)
+	}
+	go servingCertProvider.Run(context.Background(), 1)
+
+	config.GetCertificate = func(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
+		cert, key := servingCertProvider.CurrentCertKeyContent()
+		certKeyPair, err := tls.X509KeyPair(cert, key)
+		return &certKeyPair, err
 	}
 
 	if s.ClientAuthCAFile != "" {
@@ -128,11 +136,17 @@ func (c *ClientConfig) DialWithTimeOut(path string, timeout time.Duration) (*grp
 		}
 		if c.CertFile != "" && c.KeyFile != "" {
 			// mutual TLS
-			certificate, err := tls.LoadX509KeyPair(c.CertFile, c.KeyFile)
+			servingCertProvider, err := dynamiccertificates.NewDynamicServingContentFromFiles("serving grpc", c.CertFile, c.KeyFile)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("loading tls config (%s, %s) failed - %s", c.CertFile, c.KeyFile, err)
 			}
-			config.Certificates = []tls.Certificate{certificate}
+			go servingCertProvider.Run(context.Background(), 1)
+
+			config.GetClientCertificate = func(_ *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+				cert, key := servingCertProvider.CurrentCertKeyContent()
+				certKeyPair, err := tls.X509KeyPair(cert, key)
+				return &certKeyPair, err
+			}
 		}
 		cred = grpccredentials.NewTLS(config)
 	}
