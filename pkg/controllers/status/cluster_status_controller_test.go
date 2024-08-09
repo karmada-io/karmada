@@ -1090,7 +1090,7 @@ func TestClusterStatusController_initLeaseController(_ *testing.T) {
 }
 
 func mockServer(statusCode int, existError bool) *httptest.Server {
-	respBody := "test"
+	respBody := "{}"
 	resp := &http.Response{
 		StatusCode: statusCode,
 		Body:       io.NopCloser(bytes.NewBufferString(respBody)),
@@ -1105,6 +1105,10 @@ func mockServer(statusCode int, existError bool) *httptest.Server {
 		} else {
 			w.WriteHeader(resp.StatusCode)
 			_, err := io.Copy(w, resp.Body)
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBufferString(respBody))
+			}()
+
 			if err != nil {
 				fmt.Printf("failed to copy, err: %v", err)
 			}
