@@ -158,28 +158,28 @@ func TestFixedPool_Put(t *testing.T) {
 
 func TestNewFixedPool(t *testing.T) {
 	tests := []struct {
-		name     string
-		newFunc  func() (any, error)
+		name        string
+		newFunc     func() (any, error)
 		destroyFunc func(any)
-		capacity int
-		wantName string
-		wantCap  int
+		capacity    int
+		wantName    string
+		wantCap     int
 	}{
 		{
-			name:     "create pool with capacity 3",
-			newFunc:  func() (any, error) { return &struct{}{}, nil },
+			name:        "create pool with capacity 3",
+			newFunc:     func() (any, error) { return &struct{}{}, nil },
 			destroyFunc: func(any) {},
-			capacity: 3,
-			wantName: "testPool",
-			wantCap:  3,
+			capacity:    3,
+			wantName:    "testPool",
+			wantCap:     3,
 		},
 		{
-			name:     "create pool with capacity 0",
-			newFunc:  func() (any, error) { return &struct{}{}, nil },
+			name:        "create pool with capacity 0",
+			newFunc:     func() (any, error) { return &struct{}{}, nil },
 			destroyFunc: func(any) {},
-			capacity: 0,
-			wantName: "emptyPool",
-			wantCap:  0,
+			capacity:    0,
+			wantName:    "emptyPool",
+			wantCap:     0,
 		},
 	}
 
