@@ -960,6 +960,10 @@ func NewPodDisruptionBudget(namespace, name string, maxUnAvailable intstr.IntOrS
 // NewWork will build a new Work object.
 func NewWork(workName, workNs, workUID string, raw []byte) *workv1alpha1.Work {
 	work := &workv1alpha1.Work{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       workv1alpha1.ResourceKindWork,
+			APIVersion: workv1alpha1.GroupVersion.Version,
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      workName,
 			Namespace: workNs,

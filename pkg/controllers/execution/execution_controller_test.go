@@ -17,19 +17,24 @@ package execution
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -38,34 +43,50 @@ import (
 
 func TestExecutionController_Reconcile(t *testing.T) {
 	tests := []struct {
-		name            string
-		work            *workv1alpha1.Work
-		ns              string
-		expectRes       controllerruntime.Result
-		expectCondition *metav1.Condition
-		existErr        bool
+		name               string
+		work               *workv1alpha1.Work
+		ns                 string
+		expectRes          controllerruntime.Result
+		expectCondition    *metav1.Condition
+		expectEventMessage string
+		existErr           bool
 	}{
 		{
-			name: "work dispatching is suspended, no error, no apply",
-			work: newWork(func(work *workv1alpha1.Work) {
-				work.Spec.SuspendDispatching = ptr.To(true)
-			}),
+			name:      "work dispatching is suspended, no error, no apply",
 			ns:        "karmada-es-cluster",
 			expectRes: controllerruntime.Result{},
 			existErr:  false,
+			work: newWork(func(work *workv1alpha1.Work) {
+				work.Spec.SuspendDispatching = ptr.To(true)
+			}),
 		},
 		{
-			name: "work dispatching is suspended, adds false dispatching condition",
-			work: newWork(func(w *workv1alpha1.Work) {
-				w.Spec.SuspendDispatching = ptr.To(true)
-			}),
+			name:            "work dispatching is suspended, adds false dispatching condition",
 			ns:              "karmada-es-cluster",
 			expectRes:       controllerruntime.Result{},
 			expectCondition: &metav1.Condition{Type: workv1alpha1.WorkDispatching, Status: metav1.ConditionFalse},
 			existErr:        false,
+
+			work: newWork(func(w *workv1alpha1.Work) {
+				w.Spec.SuspendDispatching = ptr.To(true)
+			}),
 		},
 		{
-			name: "work dispatching is suspended, overwrites existing dispatching condition",
+			name:               "work dispatching is suspended, adds event message",
+			ns:                 "karmada-es-cluster",
+			expectRes:          controllerruntime.Result{},
+			expectEventMessage: fmt.Sprintf("%s %s %s", corev1.EventTypeNormal, events.EventReasonWorkDispatching, WorkSuspendDispatchingConditionMessage),
+			existErr:           false,
+			work: newWork(func(w *workv1alpha1.Work) {
+				w.Spec.SuspendDispatching = ptr.To(true)
+			}),
+		},
+		{
+			name:            "work dispatching is suspended, overwrites existing dispatching condition",
+			ns:              "karmada-es-cluster",
+			expectRes:       controllerruntime.Result{},
+			expectCondition: &metav1.Condition{Type: workv1alpha1.WorkDispatching, Status: metav1.ConditionFalse},
+			existErr:        false,
 			work: newWork(func(w *workv1alpha1.Work) {
 				w.Spec.SuspendDispatching = ptr.To(true)
 				meta.SetStatusCondition(&w.Status.Conditions, metav1.Condition{
@@ -74,10 +95,6 @@ func TestExecutionController_Reconcile(t *testing.T) {
 					Reason: workDispatchingConditionReason,
 				})
 			}),
-			ns:              "karmada-es-cluster",
-			expectRes:       controllerruntime.Result{},
-			expectCondition: &metav1.Condition{Type: workv1alpha1.WorkDispatching, Status: metav1.ConditionFalse},
-			existErr:        false,
 		},
 	}
 
@@ -90,7 +107,8 @@ func TestExecutionController_Reconcile(t *testing.T) {
 				},
 			}
 
-			c := newController(tt.work)
+			eventRecorder := record.NewFakeRecorder(1)
+			c := newController(tt.work, eventRecorder)
 			res, err := c.Reconcile(context.Background(), req)
 			assert.Equal(t, tt.expectRes, res)
 			if tt.existErr {
@@ -103,21 +121,30 @@ func TestExecutionController_Reconcile(t *testing.T) {
 				assert.NoError(t, c.Client.Get(context.Background(), req.NamespacedName, tt.work))
 				assert.True(t, meta.IsStatusConditionPresentAndEqual(tt.work.Status.Conditions, tt.expectCondition.Type, tt.expectCondition.Status))
 			}
+
+			if tt.expectEventMessage != "" {
+				assert.Equal(t, 1, len(eventRecorder.Events))
+				e := <-eventRecorder.Events
+				assert.Equal(t, tt.expectEventMessage, e)
+			}
 		})
 	}
 }
 
-func newController(work *workv1alpha1.Work) Controller {
+func newController(work *workv1alpha1.Work, eventRecorder *record.FakeRecorder) Controller {
 	cluster := newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
 	return Controller{
 		Client:          fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(cluster, work).WithStatusSubresource(work).Build(),
 		InformerManager: genericmanager.GetInstance(),
 		PredicateFunc:   helper.NewClusterPredicateOnAgent("test"),
+		EventRecorder:   eventRecorder,
 	}
 }
 
 func newWork(applyFunc func(work *workv1alpha1.Work)) *workv1alpha1.Work {
-	work := testhelper.NewWork("work", "karmada-es-cluster", string(uuid.NewUUID()), nil)
+	pod := testhelper.NewPod("default", "test")
+	bytes, _ := json.Marshal(pod)
+	work := testhelper.NewWork("work", "karmada-es-cluster", string(uuid.NewUUID()), bytes)
 	if applyFunc != nil {
 		applyFunc(work)
 	}
