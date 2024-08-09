@@ -109,27 +109,14 @@ func (c *CRBStatusController) SetupWithManager(mgr controllerruntime.Manager) er
 }
 
 func (c *CRBStatusController) syncBindingStatus(ctx context.Context, binding *workv1alpha2.ClusterResourceBinding) error {
-	resource, err := helper.FetchResourceTemplate(ctx, c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			// It might happen when the resource template has been removed but the garbage collector hasn't removed
-			// the ResourceBinding which dependent on resource template.
-			// So, just return without retry(requeue) would save unnecessary loop.
-			return nil
-		}
-		klog.Errorf("Failed to fetch workload for clusterResourceBinding(%s). Error: %v",
-			binding.GetName(), err)
-		return err
-	}
-
-	err = helper.AggregateClusterResourceBindingWorkStatus(ctx, c.Client, binding, resource, c.EventRecorder)
+	err := helper.AggregateClusterResourceBindingWorkStatus(ctx, c.Client, binding, c.EventRecorder)
 	if err != nil {
 		klog.Errorf("Failed to aggregate workStatues to clusterResourceBinding(%s), Error: %v",
 			binding.Name, err)
 		return err
 	}
 
-	err = updateResourceStatus(ctx, c.DynamicClient, c.RESTMapper, c.ResourceInterpreter, resource, binding.Status)
+	err = updateResourceStatus(ctx, c.DynamicClient, c.RESTMapper, c.ResourceInterpreter, c.EventRecorder, binding.Spec.Resource, binding.Status)
 	if err != nil {
 		return err
 	}

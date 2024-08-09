@@ -59,7 +59,6 @@ func AggregateResourceBindingWorkStatus(
 	ctx context.Context,
 	c client.Client,
 	binding *workv1alpha2.ResourceBinding,
-	resourceTemplate *unstructured.Unstructured,
 	eventRecorder record.EventRecorder,
 ) error {
 	workList, err := GetWorksByBindingID(ctx, c, binding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel], true)
@@ -67,7 +66,7 @@ func AggregateResourceBindingWorkStatus(
 		return err
 	}
 
-	aggregatedStatuses, err := assembleWorkStatus(workList.Items, resourceTemplate)
+	aggregatedStatuses, err := assembleWorkStatus(workList.Items, binding.Spec.Resource)
 	if err != nil {
 		return err
 	}
@@ -85,14 +84,12 @@ func AggregateResourceBindingWorkStatus(
 		return err
 	}); err != nil {
 		eventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonAggregateStatusFailed, err.Error())
-		eventRecorder.Event(resourceTemplate, corev1.EventTypeWarning, events.EventReasonAggregateStatusFailed, err.Error())
 		return err
 	}
 
 	if operationResult == controllerutil.OperationResultUpdatedStatusOnly {
 		msg := fmt.Sprintf("Update ResourceBinding(%s/%s) with AggregatedStatus successfully.", binding.Namespace, binding.Name)
 		eventRecorder.Event(binding, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
-		eventRecorder.Event(resourceTemplate, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
 	} else {
 		klog.Infof("New aggregatedStatuses are equal with old ResourceBinding(%s/%s) AggregatedStatus, no update required.", binding.Namespace, binding.Name)
 	}
@@ -105,7 +102,6 @@ func AggregateClusterResourceBindingWorkStatus(
 	ctx context.Context,
 	c client.Client,
 	binding *workv1alpha2.ClusterResourceBinding,
-	resourceTemplate *unstructured.Unstructured,
 	eventRecorder record.EventRecorder,
 ) error {
 	workList, err := GetWorksByBindingID(ctx, c, binding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel], false)
@@ -113,7 +109,7 @@ func AggregateClusterResourceBindingWorkStatus(
 		return err
 	}
 
-	aggregatedStatuses, err := assembleWorkStatus(workList.Items, resourceTemplate)
+	aggregatedStatuses, err := assembleWorkStatus(workList.Items, binding.Spec.Resource)
 	if err != nil {
 		return err
 	}
@@ -131,14 +127,12 @@ func AggregateClusterResourceBindingWorkStatus(
 		return err
 	}); err != nil {
 		eventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonAggregateStatusFailed, err.Error())
-		eventRecorder.Event(resourceTemplate, corev1.EventTypeWarning, events.EventReasonAggregateStatusFailed, err.Error())
 		return err
 	}
 
 	if operationResult == controllerutil.OperationResultUpdatedStatusOnly {
 		msg := fmt.Sprintf("Update ClusterResourceBinding(%s) with AggregatedStatus successfully.", binding.Name)
 		eventRecorder.Event(binding, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
-		eventRecorder.Event(resourceTemplate, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
 	} else {
 		klog.Infof("New aggregatedStatuses are equal with old ClusterResourceBinding(%s) AggregatedStatus, no update required.", binding.Name)
 	}
@@ -155,14 +149,14 @@ func generateFullyAppliedCondition(spec workv1alpha2.ResourceBindingSpec, aggreg
 }
 
 // assemble workStatuses from workList which list by selector and match with workload.
-func assembleWorkStatus(works []workv1alpha1.Work, workload *unstructured.Unstructured) ([]workv1alpha2.AggregatedStatusItem, error) {
+func assembleWorkStatus(works []workv1alpha1.Work, objRef workv1alpha2.ObjectReference) ([]workv1alpha2.AggregatedStatusItem, error) {
 	statuses := make([]workv1alpha2.AggregatedStatusItem, 0)
 	for _, work := range works {
 		if !work.DeletionTimestamp.IsZero() {
 			continue
 		}
 
-		identifierIndex, err := GetManifestIndex(work.Spec.Workload.Manifests, workload)
+		identifierIndex, err := getManifestIndex(work.Spec.Workload.Manifests, objRef)
 		if err != nil {
 			klog.Errorf("Failed to get manifestIndex of workload in work.Spec.Workload.Manifests. Error: %v.", err)
 			return nil, err
@@ -208,7 +202,7 @@ func assembleWorkStatus(works []workv1alpha1.Work, workload *unstructured.Unstru
 		}
 
 		for i := range work.Status.ManifestStatuses {
-			equal, err := equalIdentifier(&work.Status.ManifestStatuses[i].Identifier, identifierIndex, workload)
+			equal, err := equalIdentifier(&work.Status.ManifestStatuses[i].Identifier, identifierIndex, objRef)
 			if err != nil {
 				return nil, err
 			}
@@ -246,8 +240,27 @@ func GetManifestIndex(manifests []workv1alpha1.Manifest, clusterObj *unstructure
 	return -1, fmt.Errorf("no such manifest exist")
 }
 
-func equalIdentifier(targetIdentifier *workv1alpha1.ResourceIdentifier, ordinal int, workload *unstructured.Unstructured) (bool, error) {
-	groupVersion, err := schema.ParseGroupVersion(workload.GetAPIVersion())
+// getManifestIndex gets the index of clusterObj in manifest list, if not exist return -1.
+func getManifestIndex(manifests []workv1alpha1.Manifest, objRef workv1alpha2.ObjectReference) (int, error) {
+	for index, rawManifest := range manifests {
+		manifest := &unstructured.Unstructured{}
+		if err := manifest.UnmarshalJSON(rawManifest.Raw); err != nil {
+			return -1, err
+		}
+
+		if manifest.GetAPIVersion() == objRef.APIVersion &&
+			manifest.GetKind() == objRef.Kind &&
+			manifest.GetNamespace() == objRef.Namespace &&
+			manifest.GetName() == objRef.Name {
+			return index, nil
+		}
+	}
+
+	return -1, fmt.Errorf("no such manifest exist")
+}
+
+func equalIdentifier(targetIdentifier *workv1alpha1.ResourceIdentifier, ordinal int, objRef workv1alpha2.ObjectReference) (bool, error) {
+	groupVersion, err := schema.ParseGroupVersion(objRef.APIVersion)
 	if err != nil {
 		return false, err
 	}
@@ -255,9 +268,9 @@ func equalIdentifier(targetIdentifier *workv1alpha1.ResourceIdentifier, ordinal 
 	if targetIdentifier.Ordinal == ordinal &&
 		targetIdentifier.Group == groupVersion.Group &&
 		targetIdentifier.Version == groupVersion.Version &&
-		targetIdentifier.Kind == workload.GetKind() &&
-		targetIdentifier.Namespace == workload.GetNamespace() &&
-		targetIdentifier.Name == workload.GetName() {
+		targetIdentifier.Kind == objRef.Kind &&
+		targetIdentifier.Namespace == objRef.Namespace &&
+		targetIdentifier.Name == objRef.Name {
 		return true, nil
 	}
 

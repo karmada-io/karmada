@@ -224,7 +224,7 @@ func TestEqualIdentifier(t *testing.T) {
 		name           string
 		target         *workv1alpha1.ResourceIdentifier
 		ordinal        int
-		workload       *unstructured.Unstructured
+		workload       workv1alpha2.ObjectReference
 		expectedOutput bool
 	}{
 		{
@@ -238,15 +238,11 @@ func TestEqualIdentifier(t *testing.T) {
 				Name:      "test-deployment",
 			},
 			ordinal: 0,
-			workload: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "apps/v1",
-					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
-						"namespace": "default",
-						"name":      "test-deployment",
-					},
-				},
+			workload: workv1alpha2.ObjectReference{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Namespace:  "default",
+				Name:       "test-deployment",
 			},
 			expectedOutput: true,
 		},
@@ -261,15 +257,11 @@ func TestEqualIdentifier(t *testing.T) {
 				Name:      "test-deployment",
 			},
 			ordinal: 0,
-			workload: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "apps/v1",
-					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
-						"namespace": "default",
-						"name":      "test-deployment",
-					},
-				},
+			workload: workv1alpha2.ObjectReference{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Namespace:  "default",
+				Name:       "test-deployment",
 			},
 			expectedOutput: false,
 		},
