@@ -42,7 +42,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	"github.com/karmada-io/karmada/test/helper"
-	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
 var (
@@ -155,7 +154,7 @@ func getPrepareInfo() (serviceExport mcsv1alpha1.ServiceExport, serviceImport mc
 
 	exportPolicyNamespace := serviceExport.Namespace
 	exportPolicyName := fmt.Sprintf("export-%s-policy", serviceExport.Name)
-	exportPolicy = testhelper.NewPropagationPolicy(exportPolicyNamespace, exportPolicyName, []policyv1alpha1.ResourceSelector{
+	exportPolicy = helper.NewPropagationPolicy(exportPolicyNamespace, exportPolicyName, []policyv1alpha1.ResourceSelector{
 		{
 			APIVersion: serviceExport.APIVersion,
 			Kind:       serviceExport.Kind,
@@ -170,7 +169,7 @@ func getPrepareInfo() (serviceExport mcsv1alpha1.ServiceExport, serviceImport mc
 
 	importPolicyNamespace := serviceImport.Namespace
 	importPolicyName := fmt.Sprintf("import-%s-policy", serviceImport.Name)
-	importPolicy = testhelper.NewPropagationPolicy(importPolicyNamespace, importPolicyName, []policyv1alpha1.ResourceSelector{
+	importPolicy = helper.NewPropagationPolicy(importPolicyNamespace, importPolicyName, []policyv1alpha1.ResourceSelector{
 		{
 			APIVersion: serviceImport.APIVersion,
 			Kind:       serviceImport.Kind,
@@ -209,7 +208,7 @@ var _ = ginkgo.Describe("Multi-Cluster Service testing", func() {
 		serviceExportPolicyName = fmt.Sprintf("%s-%s-policy", serviceExportResource, rand.String(RandomStrLength))
 		serviceImportPolicyName = fmt.Sprintf("%s-%s-policy", serviceImportResource, rand.String(RandomStrLength))
 
-		serviceExportPolicy = testhelper.NewClusterPropagationPolicy(serviceExportPolicyName, []policyv1alpha1.ResourceSelector{
+		serviceExportPolicy = helper.NewClusterPropagationPolicy(serviceExportPolicyName, []policyv1alpha1.ResourceSelector{
 			{
 				APIVersion: apiextensionsv1.SchemeGroupVersion.String(),
 				Kind:       util.CRDKind,
@@ -220,7 +219,7 @@ var _ = ginkgo.Describe("Multi-Cluster Service testing", func() {
 				ClusterNames: framework.ClusterNames(),
 			},
 		})
-		serviceImportPolicy = testhelper.NewClusterPropagationPolicy(serviceImportPolicyName, []policyv1alpha1.ResourceSelector{
+		serviceImportPolicy = helper.NewClusterPropagationPolicy(serviceImportPolicyName, []policyv1alpha1.ResourceSelector{
 			{
 				APIVersion: apiextensionsv1.SchemeGroupVersion.String(),
 				Kind:       util.CRDKind,

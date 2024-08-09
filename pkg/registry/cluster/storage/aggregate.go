@@ -34,7 +34,6 @@ import (
 	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/endpoints/handlers/responsewriters"
 	"k8s.io/apiserver/pkg/endpoints/request"
-	apirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -359,7 +358,7 @@ func doClusterRequest(
 }
 
 // requestURLStr returns the request resource url string.
-func requestURLStr(urlStr string, requestInfo *apirequest.RequestInfo) string {
+func requestURLStr(urlStr string, requestInfo *request.RequestInfo) string {
 	parts := []string{requestInfo.APIPrefix}
 	if requestInfo.APIGroup != "" {
 		parts = append(parts, requestInfo.APIGroup)
