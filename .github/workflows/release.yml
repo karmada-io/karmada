@@ -33,10 +33,11 @@ jobs:
         GOOS: ${{ matrix.os }}
         GOARCH: ${{ matrix.arch }}
       run: make release-${{ matrix.target }}
-    - name: Making helm charts
-      env:
-        VERSION: ${{ github.ref_name }}
-      run: make package-chart
+    - name: upload cli
+      uses: actions/upload-artifact@v4
+      with:
+        name: cli-${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz
+        path: _output/release/${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz
     - name: Uploading assets...
       if: ${{ !env.ACT }}
       uses: softprops/action-gh-release@v2
@@ -44,10 +45,43 @@ jobs:
         files: |
           _output/release/${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz
           _output/release/${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz.sha256
+  generate-subject-for-cli-provenance:
+    needs: [release-assests]
+    runs-on: ubuntu-22.04
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+    steps:
+      - name: download cli
+        uses: actions/download-artifact@v4
+        with:
+          path: _output/release
+          pattern: cli-*
+          merge-multiple: true
+      - name: generate cli hash
+        id: hash
+        run: |
+          cd _output/release
+          # sha256sum generates sha256 hash for cli.
+          # base64 -w0 encodes to base64 and outputs on a single line.
+          echo "hashes=$(sha256sum *.tgz|base64 -w0)" >> "$GITHUB_OUTPUT"
+  cli-provenance:
+    needs: [generate-subject-for-cli-provenance]
+    permissions:
+      actions: read # for detecting the Github Actions environment
+      id-token: write # Needed for provenance signing and ID
+      contents: write #  Needed for release uploads
+    # Must be referenced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    with:
+      base64-subjects: "${{ needs.generate-subject-for-cli-provenance.outputs.hashes }}"
+      provenance-name: "karmada-cli.intoto.jsonl"
+      upload-assets: true
   release-crds-assests:
     permissions:
       contents: write  # for softprops/action-gh-release to create GitHub release
     name: release crds
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
@@ -61,15 +95,35 @@ jobs:
         cwd: ./charts/karmada/
         files: crds
         outPath: crds.tar.gz
+    - name: generate crds hash
+      id: hash
+      run: |
+        # sha256sum generates sha256 hash for crds.
+        # base64 -w0 encodes to base64 and outputs on a single line.
+        echo "hashes=$(sha256sum crds.tar.gz | base64 -w0)" >> "$GITHUB_OUTPUT"
     - name: Uploading crd assets...
       uses: softprops/action-gh-release@v2
       with:
         files: |
           crds.tar.gz
+  crds-provenance:
+    needs: [release-crds-assests]
+    permissions:
+      actions: read # for detecting the Github Actions environment
+      id-token: write # Needed for provenance signing and ID
+      contents: write #  Needed for release uploads
+    # Must be referenced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    with:
+      base64-subjects: "${{ needs.release-crds-assests.outputs.hashes }}"
+      provenance-name: "karmada-crds.intoto.jsonl"
+      upload-assets: true
   release-charts:
     permissions:
       contents: write  # for softprops/action-gh-release to create GitHub release
     name: Release charts
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
@@ -86,10 +140,29 @@ jobs:
           _output/charts/karmada-chart-${{ github.ref_name }}.tgz.sha256
           _output/charts/karmada-operator-chart-${{ github.ref_name }}.tgz
           _output/charts/karmada-operator-chart-${{ github.ref_name }}.tgz.sha256
+    - name: generate charts hash
+      id: hash
+      run: |
+        cd _output/charts
+        echo "hashes=$(sha256sum *.tgz|base64 -w0)" >> "$GITHUB_OUTPUT"
+  charts-provenance:
+    needs: [release-charts]
+    permissions:
+      actions: read # for detecting the Github Actions environment
+      id-token: write # Needed for provenance signing and ID
+      contents: write #  Needed for release uploads
+    # Must be referenced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    with:
+      base64-subjects: "${{ needs.release-charts.outputs.hashes }}"
+      provenance-name: "karmada-charts.intoto.jsonl"
+      upload-assets: true
   sbom-assests:
     permissions:
       contents: write  # for softprops/action-gh-release to create GitHub release
     name: Release sbom
+    outputs:
+      hashes: ${{ steps.sbom-hash.outputs.hashes}}
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
@@ -103,11 +176,30 @@ jobs:
     - name: Tar the sbom files
       run: |
         tar -zcf sbom.tar.gz *.spdx
+    - name: Generate SBOM hash
+      shell: bash
+      id: sbom-hash
+      run: |
+        # sha256sum generates sha256 hash for sbom.
+        # base64 -w0 encodes to base64 and outputs on a single line.
+        echo "hashes=$(sha256sum sbom.tar.gz | base64 -w0)" >> "$GITHUB_OUTPUT"
     - name: Uploading sbom assets...
       uses: softprops/action-gh-release@v2
       with:
         files: |
           sbom.tar.gz
+  sbom-provenance:
+    needs: [sbom-assests]
+    permissions:
+      actions: read # for detecting the Github Actions environment
+      id-token: write # Needed for provenance signing and ID
+      contents: write #  Needed for release uploads
+    # Must be referenced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    with:
+      base64-subjects: "${{ needs.sbom-assests.outputs.hashes }}"
+      provenance-name: "karmada-sbom.intoto.jsonl"
+      upload-assets: true
   update-krew-index:
     needs: release-assests
     name: Update krew-index
