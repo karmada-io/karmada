@@ -50,7 +50,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	"github.com/karmada-io/karmada/test/helper"
-	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
 const (
@@ -501,7 +500,7 @@ var _ = ginkgo.Describe("Karmadactl exec testing", func() {
 	ginkgo.BeforeEach(func() {
 		policyName = podNamePrefix + rand.String(RandomStrLength)
 		pod = helper.NewPod(testNamespace, podNamePrefix+rand.String(RandomStrLength))
-		policy = testhelper.NewPropagationPolicy(testNamespace, policyName, []policyv1alpha1.ResourceSelector{
+		policy = helper.NewPropagationPolicy(testNamespace, policyName, []policyv1alpha1.ResourceSelector{
 			{
 				APIVersion: pod.APIVersion,
 				Kind:       pod.Kind,
@@ -557,7 +556,7 @@ var _ = ginkgo.Describe("Karmadactl top testing", func() {
 			// create a pod and a propagationPolicy
 			policyName = podNamePrefix + rand.String(RandomStrLength)
 			pod = helper.NewPod(testNamespace, podNamePrefix+rand.String(RandomStrLength))
-			policy = testhelper.NewPropagationPolicy(testNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			policy = helper.NewPropagationPolicy(testNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: pod.APIVersion,
 					Kind:       pod.Kind,
