@@ -18,6 +18,7 @@ package status
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -231,12 +232,16 @@ func (c *ClusterStatusController) setCurrentClusterStatus(clusterClient *util.Cl
 
 	// get the list of APIs installed in the member cluster
 	apiEnables, err := getAPIEnablements(clusterClient)
-	if len(apiEnables) == 0 {
-		klog.Errorf("Failed to get any APIs installed in Cluster %s. Error: %v.", cluster.GetName(), err)
-	} else if err != nil {
-		klog.Warningf("Maybe get partial(%d) APIs installed in Cluster %s. Error: %v.", len(apiEnables), cluster.GetName(), err)
+	if err != nil {
+		klog.Errorf("Failed to get APIs installed in Cluster %s. Error: %v.", cluster.GetName(), err)
 		return err
 	}
+
+	if len(apiEnables) == 0 && len(currentClusterStatus.APIEnablements) > 0 {
+		klog.Warningf("Unable to get any APIs installed in the existing Cluster %s, will retry", cluster.GetName())
+		return errors.New("empty APIs in cluster")
+	}
+
 	currentClusterStatus.APIEnablements = apiEnables
 
 	if c.EnableClusterResourceModeling {
