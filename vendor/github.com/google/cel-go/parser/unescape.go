@@ -90,10 +90,10 @@ func unescape(value string, isBytes bool) (string, error) {
 
 // unescapeChar takes a string input and returns the following info:
 //
-//   value - the escaped unicode rune at the front of the string.
-//   encode - the value should be unicode-encoded
-//   tail - the remainder of the input string.
-//   err - error value, if the character could not be unescaped.
+//	value - the escaped unicode rune at the front of the string.
+//	encode - the value should be unicode-encoded
+//	tail - the remainder of the input string.
+//	err - error value, if the character could not be unescaped.
 //
 // When encode is true the return value may still fit within a single byte,
 // but unicode encoding is attempted which is more expensive than when the

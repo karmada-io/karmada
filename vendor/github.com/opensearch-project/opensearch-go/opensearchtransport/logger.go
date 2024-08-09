@@ -43,7 +43,6 @@ import (
 var debugLogger DebuggingLogger
 
 // Logger defines an interface for logging request and response.
-//
 type Logger interface {
 	// LogRoundTrip should not modify the request or response, except for consuming and closing the body.
 	// Implementations have to check for nil values in request and response.
@@ -55,14 +54,12 @@ type Logger interface {
 }
 
 // DebuggingLogger defines the interface for a debugging logger.
-//
 type DebuggingLogger interface {
 	Log(a ...interface{}) error
 	Logf(format string, a ...interface{}) error
 }
 
 // TextLogger prints the log message in plain text.
-//
 type TextLogger struct {
 	Output             io.Writer
 	EnableRequestBody  bool
@@ -70,7 +67,6 @@ type TextLogger struct {
 }
 
 // ColorLogger prints the log message in a terminal-optimized plain text.
-//
 type ColorLogger struct {
 	Output             io.Writer
 	EnableRequestBody  bool
@@ -78,7 +74,6 @@ type ColorLogger struct {
 }
 
 // CurlLogger prints the log message as a runnable curl command.
-//
 type CurlLogger struct {
 	Output             io.Writer
 	EnableRequestBody  bool
@@ -86,7 +81,6 @@ type CurlLogger struct {
 }
 
 // JSONLogger prints the log message as JSON.
-//
 type JSONLogger struct {
 	Output             io.Writer
 	EnableRequestBody  bool
@@ -94,13 +88,11 @@ type JSONLogger struct {
 }
 
 // debuggingLogger prints debug messages as plain text.
-//
 type debuggingLogger struct {
 	Output io.Writer
 }
 
 // LogRoundTrip prints the information about request and response.
-//
 func (l *TextLogger) LogRoundTrip(req *http.Request, res *http.Response, err error, start time.Time, dur time.Duration) error {
 	fmt.Fprintf(l.Output, "%s %s %s [status:%d request:%s]\n",
 		start.Format(time.RFC3339),
@@ -138,7 +130,6 @@ func (l *TextLogger) RequestBodyEnabled() bool { return l.EnableRequestBody }
 func (l *TextLogger) ResponseBodyEnabled() bool { return l.EnableResponseBody }
 
 // LogRoundTrip prints the information about request and response.
-//
 func (l *ColorLogger) LogRoundTrip(req *http.Request, res *http.Response, err error, start time.Time, dur time.Duration) error {
 	query, _ := url.QueryUnescape(req.URL.RawQuery)
 	if query != "" {
@@ -213,7 +204,6 @@ func (l *ColorLogger) RequestBodyEnabled() bool { return l.EnableRequestBody }
 func (l *ColorLogger) ResponseBodyEnabled() bool { return l.EnableResponseBody }
 
 // LogRoundTrip prints the information about request and response.
-//
 func (l *CurlLogger) LogRoundTrip(req *http.Request, res *http.Response, err error, start time.Time, dur time.Duration) error {
 	var b bytes.Buffer
 
@@ -303,7 +293,6 @@ func (l *CurlLogger) RequestBodyEnabled() bool { return l.EnableRequestBody }
 func (l *CurlLogger) ResponseBodyEnabled() bool { return l.EnableResponseBody }
 
 // LogRoundTrip prints the information about request and response.
-//
 func (l *JSONLogger) LogRoundTrip(req *http.Request, res *http.Response, err error, start time.Time, dur time.Duration) error {
 	// TODO: Research performance optimization of using sync.Pool
 
@@ -411,14 +400,12 @@ func (l *JSONLogger) RequestBodyEnabled() bool { return l.EnableRequestBody }
 func (l *JSONLogger) ResponseBodyEnabled() bool { return l.EnableResponseBody }
 
 // Log prints the arguments to output in default format.
-//
 func (l *debuggingLogger) Log(a ...interface{}) error {
 	_, err := fmt.Fprint(l.Output, a...)
 	return err
 }
 
 // Logf prints formats the arguments and prints them to output.
-//
 func (l *debuggingLogger) Logf(format string, a ...interface{}) error {
 	_, err := fmt.Fprintf(l.Output, format, a...)
 	return err

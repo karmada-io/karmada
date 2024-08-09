@@ -32,7 +32,6 @@ For instance:
 An error is caused if a oneof field:
   - is used in a face
   - is an embedded field
-
 */
 package oneofcheck
 

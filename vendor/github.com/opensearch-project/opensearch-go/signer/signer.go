@@ -11,7 +11,7 @@ package signer
 
 import "net/http"
 
-//Signer an interface that will sign http.Request
+// Signer an interface that will sign http.Request
 type Signer interface {
 	SignRequest(request *http.Request) error
 }

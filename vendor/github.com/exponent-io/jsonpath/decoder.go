@@ -28,7 +28,7 @@ func NewDecoder(r io.Reader) *Decoder {
 //
 // Consider the JSON structure
 //
-//  { "a": [0,"s",12e4,{"b":0,"v":35} ] }
+//	{ "a": [0,"s",12e4,{"b":0,"v":35} ] }
 //
 // SeekTo("a",3,"v") will move to the value referenced by the "a" key in the current object,
 // followed by a move to the 4th value (index 3) in the array, followed by a move to the value at key "v".

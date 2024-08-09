@@ -6,6 +6,7 @@
 Package plural provides standard plural formulas.
 
 Examples:
+
 	import (
 		"github.com/chai2010/gettext-go/plural"
 	)

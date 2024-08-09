@@ -47,12 +47,9 @@ func newTermvectorsFunc(t Transport) Termvectors {
 // ----- API Definition -------------------------------------------------------
 
 // Termvectors returns information and statistics about terms in the fields of a particular document.
-//
-//
 type Termvectors func(index string, o ...func(*TermvectorsRequest)) (*Response, error)
 
 // TermvectorsRequest configures the Termvectors API request.
-//
 type TermvectorsRequest struct {
 	Index        string
 	DocumentType string
@@ -83,7 +80,6 @@ type TermvectorsRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r TermvectorsRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -221,7 +217,6 @@ func (r TermvectorsRequest) Do(ctx context.Context, transport Transport) (*Respo
 }
 
 // WithContext sets the request context.
-//
 func (f Termvectors) WithContext(v context.Context) func(*TermvectorsRequest) {
 	return func(r *TermvectorsRequest) {
 		r.ctx = v
@@ -229,7 +224,6 @@ func (f Termvectors) WithContext(v context.Context) func(*TermvectorsRequest) {
 }
 
 // WithBody - Define parameters and or supply a document to get termvectors for. See documentation..
-//
 func (f Termvectors) WithBody(v io.Reader) func(*TermvectorsRequest) {
 	return func(r *TermvectorsRequest) {
 		r.Body = v
@@ -237,7 +231,6 @@ func (f Termvectors) WithBody(v io.Reader) func(*TermvectorsRequest) {
 }
 
 // WithDocumentID - the ID of the document, when not specified a doc param should be supplied..
-//
 func (f Termvectors) WithDocumentID(v string) func(*TermvectorsRequest) {
 	return func(r *TermvectorsRequest) {
 		r.DocumentID = v
@@ -245,7 +238,6 @@ func (f Termvectors) WithDocumentID(v string) func(*TermvectorsRequest) {
 }
 
 // WithDocumentType - the type of the document..
-//
 func (f Termvectors) WithDocumentType(v string) func(*TermvectorsRequest) {
 	return func(r *TermvectorsRequest) {
 		r.DocumentType = v
@@ -253,7 +245,6 @@ func (f Termvectors) WithDocumentType(v string) func(*TermvectorsRequest) {
 }
 
 // WithFields - a list of fields to return..
-//
 func (f Termvectors) WithFields(v ...string) func(*TermvectorsRequest) {
 	return func(r *TermvectorsRequest) {
 		r.Fields = v
@@ -261,7 +252,6 @@ func (f Termvectors) WithFields(v ...string) func(*TermvectorsRequest) {
 }
 
 // WithFieldStatistics - specifies if document count, sum of document frequencies and sum of total term frequencies should be returned..
-//
 func (f Termvectors) WithFieldStatistics(v bool) func(*TermvectorsRequest) {
 	return func(r *TermvectorsRequest) {
 		r.FieldStatistics = &v
@@ -269,7 +259,6 @@ func (f Termvectors) WithFieldStatistics(v bool) func(*TermvectorsRequest) {
 }
 
 // WithOffsets - specifies if term offsets should be returned..
-//
 func (f Termvectors) WithOffsets(v bool) func(*TermvectorsRequest) {
 	return func(r *TermvectorsRequest) {
 		r.Offsets = &v
@@ -277,7 +266,6 @@ func (f Termvectors) WithOffsets(v bool) func(*TermvectorsRequest) {
 }
 
 // WithPayloads - specifies if term payloads should be returned..
-//
 func (f Termvectors) WithPayloads(v bool) func(*TermvectorsRequest) {
 	return func(r *TermvectorsRequest) {
 		r.Payloads = &v
@@ -285,7 +273,6 @@ func (f Termvectors) WithPayloads(v bool) func(*TermvectorsRequest) {
 }
 
 // WithPositions - specifies if term positions should be returned..
-//
 func (f Termvectors) WithPositions(v bool) func(*TermvectorsRequest) {
 	return func(r *TermvectorsRequest) {
 		r.Positions = &v
@@ -293,7 +280,6 @@ func (f Termvectors) WithPositions(v bool) func(*TermvectorsRequest) {
 }
 
 // WithPreference - specify the node or shard the operation should be performed on (default: random)..
-//
 func (f Termvectors) WithPreference(v string) func(*TermvectorsRequest) {
 	return func(r *TermvectorsRequest) {
 		r.Preference = v
@@ -301,7 +287,6 @@ func (f Termvectors) WithPreference(v string) func(*TermvectorsRequest) {
 }
 
 // WithRealtime - specifies if request is real-time as opposed to near-real-time (default: true)..
-//
 func (f Termvectors) WithRealtime(v bool) func(*TermvectorsRequest) {
 	return func(r *TermvectorsRequest) {
 		r.Realtime = &v
@@ -309,7 +294,6 @@ func (f Termvectors) WithRealtime(v bool) func(*TermvectorsRequest) {
 }
 
 // WithRouting - specific routing value..
-//
 func (f Termvectors) WithRouting(v string) func(*TermvectorsRequest) {
 	return func(r *TermvectorsRequest) {
 		r.Routing = v
@@ -317,7 +301,6 @@ func (f Termvectors) WithRouting(v string) func(*TermvectorsRequest) {
 }
 
 // WithTermStatistics - specifies if total term frequency and document frequency should be returned..
-//
 func (f Termvectors) WithTermStatistics(v bool) func(*TermvectorsRequest) {
 	return func(r *TermvectorsRequest) {
 		r.TermStatistics = &v
@@ -325,7 +308,6 @@ func (f Termvectors) WithTermStatistics(v bool) func(*TermvectorsRequest) {
 }
 
 // WithVersion - explicit version number for concurrency control.
-//
 func (f Termvectors) WithVersion(v int) func(*TermvectorsRequest) {
 	return func(r *TermvectorsRequest) {
 		r.Version = &v
@@ -333,7 +315,6 @@ func (f Termvectors) WithVersion(v int) func(*TermvectorsRequest) {
 }
 
 // WithVersionType - specific version type.
-//
 func (f Termvectors) WithVersionType(v string) func(*TermvectorsRequest) {
 	return func(r *TermvectorsRequest) {
 		r.VersionType = v
@@ -341,7 +322,6 @@ func (f Termvectors) WithVersionType(v string) func(*TermvectorsRequest) {
 }
 
 // WithPretty makes the response body pretty-printed.
-//
 func (f Termvectors) WithPretty() func(*TermvectorsRequest) {
 	return func(r *TermvectorsRequest) {
 		r.Pretty = true
@@ -349,7 +329,6 @@ func (f Termvectors) WithPretty() func(*TermvectorsRequest) {
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f Termvectors) WithHuman() func(*TermvectorsRequest) {
 	return func(r *TermvectorsRequest) {
 		r.Human = true
@@ -357,7 +336,6 @@ func (f Termvectors) WithHuman() func(*TermvectorsRequest) {
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f Termvectors) WithErrorTrace() func(*TermvectorsRequest) {
 	return func(r *TermvectorsRequest) {
 		r.ErrorTrace = true
@@ -365,7 +343,6 @@ func (f Termvectors) WithErrorTrace() func(*TermvectorsRequest) {
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f Termvectors) WithFilterPath(v ...string) func(*TermvectorsRequest) {
 	return func(r *TermvectorsRequest) {
 		r.FilterPath = v
@@ -373,7 +350,6 @@ func (f Termvectors) WithFilterPath(v ...string) func(*TermvectorsRequest) {
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f Termvectors) WithHeader(h map[string]string) func(*TermvectorsRequest) {
 	return func(r *TermvectorsRequest) {
 		if r.Header == nil {
@@ -386,7 +362,6 @@ func (f Termvectors) WithHeader(h map[string]string) func(*TermvectorsRequest) {
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f Termvectors) WithOpaqueID(s string) func(*TermvectorsRequest) {
 	return func(r *TermvectorsRequest) {
 		if r.Header == nil {

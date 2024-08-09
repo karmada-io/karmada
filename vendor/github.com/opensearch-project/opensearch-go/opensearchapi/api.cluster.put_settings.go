@@ -48,12 +48,9 @@ func newClusterPutSettingsFunc(t Transport) ClusterPutSettings {
 // ----- API Definition -------------------------------------------------------
 
 // ClusterPutSettings updates the cluster settings.
-//
-//
 type ClusterPutSettings func(body io.Reader, o ...func(*ClusterPutSettingsRequest)) (*Response, error)
 
 // ClusterPutSettingsRequest configures the Cluster Put Settings API request.
-//
 type ClusterPutSettingsRequest struct {
 	Body io.Reader
 
@@ -72,7 +69,6 @@ type ClusterPutSettingsRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r ClusterPutSettingsRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -163,7 +159,6 @@ func (r ClusterPutSettingsRequest) Do(ctx context.Context, transport Transport) 
 }
 
 // WithContext sets the request context.
-//
 func (f ClusterPutSettings) WithContext(v context.Context) func(*ClusterPutSettingsRequest) {
 	return func(r *ClusterPutSettingsRequest) {
 		r.ctx = v
@@ -171,7 +166,6 @@ func (f ClusterPutSettings) WithContext(v context.Context) func(*ClusterPutSetti
 }
 
 // WithFlatSettings - return settings in flat format (default: false).
-//
 func (f ClusterPutSettings) WithFlatSettings(v bool) func(*ClusterPutSettingsRequest) {
 	return func(r *ClusterPutSettingsRequest) {
 		r.FlatSettings = &v
@@ -179,7 +173,6 @@ func (f ClusterPutSettings) WithFlatSettings(v bool) func(*ClusterPutSettingsReq
 }
 
 // WithMasterTimeout - explicit operation timeout for connection to master node.
-//
 func (f ClusterPutSettings) WithMasterTimeout(v time.Duration) func(*ClusterPutSettingsRequest) {
 	return func(r *ClusterPutSettingsRequest) {
 		r.MasterTimeout = v
@@ -187,7 +180,6 @@ func (f ClusterPutSettings) WithMasterTimeout(v time.Duration) func(*ClusterPutS
 }
 
 // WithTimeout - explicit operation timeout.
-//
 func (f ClusterPutSettings) WithTimeout(v time.Duration) func(*ClusterPutSettingsRequest) {
 	return func(r *ClusterPutSettingsRequest) {
 		r.Timeout = v
@@ -195,7 +187,6 @@ func (f ClusterPutSettings) WithTimeout(v time.Duration) func(*ClusterPutSetting
 }
 
 // WithPretty makes the response body pretty-printed.
-//
 func (f ClusterPutSettings) WithPretty() func(*ClusterPutSettingsRequest) {
 	return func(r *ClusterPutSettingsRequest) {
 		r.Pretty = true
@@ -203,7 +194,6 @@ func (f ClusterPutSettings) WithPretty() func(*ClusterPutSettingsRequest) {
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f ClusterPutSettings) WithHuman() func(*ClusterPutSettingsRequest) {
 	return func(r *ClusterPutSettingsRequest) {
 		r.Human = true
@@ -211,7 +201,6 @@ func (f ClusterPutSettings) WithHuman() func(*ClusterPutSettingsRequest) {
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f ClusterPutSettings) WithErrorTrace() func(*ClusterPutSettingsRequest) {
 	return func(r *ClusterPutSettingsRequest) {
 		r.ErrorTrace = true
@@ -219,7 +208,6 @@ func (f ClusterPutSettings) WithErrorTrace() func(*ClusterPutSettingsRequest) {
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f ClusterPutSettings) WithFilterPath(v ...string) func(*ClusterPutSettingsRequest) {
 	return func(r *ClusterPutSettingsRequest) {
 		r.FilterPath = v
@@ -227,7 +215,6 @@ func (f ClusterPutSettings) WithFilterPath(v ...string) func(*ClusterPutSettings
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f ClusterPutSettings) WithHeader(h map[string]string) func(*ClusterPutSettingsRequest) {
 	return func(r *ClusterPutSettingsRequest) {
 		if r.Header == nil {
@@ -240,7 +227,6 @@ func (f ClusterPutSettings) WithHeader(h map[string]string) func(*ClusterPutSett
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f ClusterPutSettings) WithOpaqueID(s string) func(*ClusterPutSettingsRequest) {
 	return func(r *ClusterPutSettingsRequest) {
 		if r.Header == nil {

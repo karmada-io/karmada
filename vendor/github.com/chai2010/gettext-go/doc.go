@@ -6,6 +6,7 @@
 Package gettext implements a basic GNU's gettext library.
 
 Example:
+
 	import (
 		"github.com/chai2010/gettext-go"
 	)
@@ -54,6 +55,7 @@ Translate directory struct("./examples/locale.zip"):
 	           \-poems.txt         # $(lang)/$(domain)/poems.txt
 
 See:
+
 	http://en.wikipedia.org/wiki/Gettext
 	http://www.gnu.org/software/gettext/manual/html_node
 	http://www.gnu.org/software/gettext/manual/html_node/Header-Entry.html

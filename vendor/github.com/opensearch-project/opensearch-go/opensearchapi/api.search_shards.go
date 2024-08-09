@@ -46,12 +46,9 @@ func newSearchShardsFunc(t Transport) SearchShards {
 // ----- API Definition -------------------------------------------------------
 
 // SearchShards returns information about the indices and shards that a search request would be executed against.
-//
-//
 type SearchShards func(o ...func(*SearchShardsRequest)) (*Response, error)
 
 // SearchShardsRequest configures the Search Shards API request.
-//
 type SearchShardsRequest struct {
 	Index []string
 
@@ -73,7 +70,6 @@ type SearchShardsRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r SearchShardsRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -177,7 +173,6 @@ func (r SearchShardsRequest) Do(ctx context.Context, transport Transport) (*Resp
 }
 
 // WithContext sets the request context.
-//
 func (f SearchShards) WithContext(v context.Context) func(*SearchShardsRequest) {
 	return func(r *SearchShardsRequest) {
 		r.ctx = v
@@ -185,7 +180,6 @@ func (f SearchShards) WithContext(v context.Context) func(*SearchShardsRequest) 
 }
 
 // WithIndex - a list of index names to search; use _all to perform the operation on all indices.
-//
 func (f SearchShards) WithIndex(v ...string) func(*SearchShardsRequest) {
 	return func(r *SearchShardsRequest) {
 		r.Index = v
@@ -193,7 +187,6 @@ func (f SearchShards) WithIndex(v ...string) func(*SearchShardsRequest) {
 }
 
 // WithAllowNoIndices - whether to ignore if a wildcard indices expression resolves into no concrete indices. (this includes `_all` string or when no indices have been specified).
-//
 func (f SearchShards) WithAllowNoIndices(v bool) func(*SearchShardsRequest) {
 	return func(r *SearchShardsRequest) {
 		r.AllowNoIndices = &v
@@ -201,7 +194,6 @@ func (f SearchShards) WithAllowNoIndices(v bool) func(*SearchShardsRequest) {
 }
 
 // WithExpandWildcards - whether to expand wildcard expression to concrete indices that are open, closed or both..
-//
 func (f SearchShards) WithExpandWildcards(v string) func(*SearchShardsRequest) {
 	return func(r *SearchShardsRequest) {
 		r.ExpandWildcards = v
@@ -209,7 +201,6 @@ func (f SearchShards) WithExpandWildcards(v string) func(*SearchShardsRequest) {
 }
 
 // WithIgnoreUnavailable - whether specified concrete indices should be ignored when unavailable (missing or closed).
-//
 func (f SearchShards) WithIgnoreUnavailable(v bool) func(*SearchShardsRequest) {
 	return func(r *SearchShardsRequest) {
 		r.IgnoreUnavailable = &v
@@ -217,7 +208,6 @@ func (f SearchShards) WithIgnoreUnavailable(v bool) func(*SearchShardsRequest) {
 }
 
 // WithLocal - return local information, do not retrieve the state from master node (default: false).
-//
 func (f SearchShards) WithLocal(v bool) func(*SearchShardsRequest) {
 	return func(r *SearchShardsRequest) {
 		r.Local = &v
@@ -225,7 +215,6 @@ func (f SearchShards) WithLocal(v bool) func(*SearchShardsRequest) {
 }
 
 // WithPreference - specify the node or shard the operation should be performed on (default: random).
-//
 func (f SearchShards) WithPreference(v string) func(*SearchShardsRequest) {
 	return func(r *SearchShardsRequest) {
 		r.Preference = v
@@ -233,7 +222,6 @@ func (f SearchShards) WithPreference(v string) func(*SearchShardsRequest) {
 }
 
 // WithRouting - specific routing value.
-//
 func (f SearchShards) WithRouting(v string) func(*SearchShardsRequest) {
 	return func(r *SearchShardsRequest) {
 		r.Routing = v
@@ -241,7 +229,6 @@ func (f SearchShards) WithRouting(v string) func(*SearchShardsRequest) {
 }
 
 // WithPretty makes the response body pretty-printed.
-//
 func (f SearchShards) WithPretty() func(*SearchShardsRequest) {
 	return func(r *SearchShardsRequest) {
 		r.Pretty = true
@@ -249,7 +236,6 @@ func (f SearchShards) WithPretty() func(*SearchShardsRequest) {
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f SearchShards) WithHuman() func(*SearchShardsRequest) {
 	return func(r *SearchShardsRequest) {
 		r.Human = true
@@ -257,7 +243,6 @@ func (f SearchShards) WithHuman() func(*SearchShardsRequest) {
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f SearchShards) WithErrorTrace() func(*SearchShardsRequest) {
 	return func(r *SearchShardsRequest) {
 		r.ErrorTrace = true
@@ -265,7 +250,6 @@ func (f SearchShards) WithErrorTrace() func(*SearchShardsRequest) {
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f SearchShards) WithFilterPath(v ...string) func(*SearchShardsRequest) {
 	return func(r *SearchShardsRequest) {
 		r.FilterPath = v
@@ -273,7 +257,6 @@ func (f SearchShards) WithFilterPath(v ...string) func(*SearchShardsRequest) {
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f SearchShards) WithHeader(h map[string]string) func(*SearchShardsRequest) {
 	return func(r *SearchShardsRequest) {
 		if r.Header == nil {
@@ -286,7 +269,6 @@ func (f SearchShards) WithHeader(h map[string]string) func(*SearchShardsRequest)
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f SearchShards) WithOpaqueID(s string) func(*SearchShardsRequest) {
 	return func(r *SearchShardsRequest) {
 		if r.Header == nil {

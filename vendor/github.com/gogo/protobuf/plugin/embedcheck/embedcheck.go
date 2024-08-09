@@ -40,8 +40,7 @@ It is enabled by the following extensions:
 
 For incorrect usage of embed with tests see:
 
-  github.com/gogo/protobuf/test/embedconflict
-
+	github.com/gogo/protobuf/test/embedconflict
 */
 package embedcheck
 

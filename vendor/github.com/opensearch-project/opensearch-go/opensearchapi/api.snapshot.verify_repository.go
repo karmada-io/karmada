@@ -46,12 +46,9 @@ func newSnapshotVerifyRepositoryFunc(t Transport) SnapshotVerifyRepository {
 // ----- API Definition -------------------------------------------------------
 
 // SnapshotVerifyRepository verifies a repository.
-//
-//
 type SnapshotVerifyRepository func(repository string, o ...func(*SnapshotVerifyRepositoryRequest)) (*Response, error)
 
 // SnapshotVerifyRepositoryRequest configures the Snapshot Verify Repository API request.
-//
 type SnapshotVerifyRepositoryRequest struct {
 	Repository string
 
@@ -69,7 +66,6 @@ type SnapshotVerifyRepositoryRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r SnapshotVerifyRepositoryRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -157,7 +153,6 @@ func (r SnapshotVerifyRepositoryRequest) Do(ctx context.Context, transport Trans
 }
 
 // WithContext sets the request context.
-//
 func (f SnapshotVerifyRepository) WithContext(v context.Context) func(*SnapshotVerifyRepositoryRequest) {
 	return func(r *SnapshotVerifyRepositoryRequest) {
 		r.ctx = v
@@ -165,7 +160,6 @@ func (f SnapshotVerifyRepository) WithContext(v context.Context) func(*SnapshotV
 }
 
 // WithMasterTimeout - explicit operation timeout for connection to master node.
-//
 func (f SnapshotVerifyRepository) WithMasterTimeout(v time.Duration) func(*SnapshotVerifyRepositoryRequest) {
 	return func(r *SnapshotVerifyRepositoryRequest) {
 		r.MasterTimeout = v
@@ -173,7 +167,6 @@ func (f SnapshotVerifyRepository) WithMasterTimeout(v time.Duration) func(*Snaps
 }
 
 // WithTimeout - explicit operation timeout.
-//
 func (f SnapshotVerifyRepository) WithTimeout(v time.Duration) func(*SnapshotVerifyRepositoryRequest) {
 	return func(r *SnapshotVerifyRepositoryRequest) {
 		r.Timeout = v
@@ -181,7 +174,6 @@ func (f SnapshotVerifyRepository) WithTimeout(v time.Duration) func(*SnapshotVer
 }
 
 // WithPretty makes the response body pretty-printed.
-//
 func (f SnapshotVerifyRepository) WithPretty() func(*SnapshotVerifyRepositoryRequest) {
 	return func(r *SnapshotVerifyRepositoryRequest) {
 		r.Pretty = true
@@ -189,7 +181,6 @@ func (f SnapshotVerifyRepository) WithPretty() func(*SnapshotVerifyRepositoryReq
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f SnapshotVerifyRepository) WithHuman() func(*SnapshotVerifyRepositoryRequest) {
 	return func(r *SnapshotVerifyRepositoryRequest) {
 		r.Human = true
@@ -197,7 +188,6 @@ func (f SnapshotVerifyRepository) WithHuman() func(*SnapshotVerifyRepositoryRequ
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f SnapshotVerifyRepository) WithErrorTrace() func(*SnapshotVerifyRepositoryRequest) {
 	return func(r *SnapshotVerifyRepositoryRequest) {
 		r.ErrorTrace = true
@@ -205,7 +195,6 @@ func (f SnapshotVerifyRepository) WithErrorTrace() func(*SnapshotVerifyRepositor
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f SnapshotVerifyRepository) WithFilterPath(v ...string) func(*SnapshotVerifyRepositoryRequest) {
 	return func(r *SnapshotVerifyRepositoryRequest) {
 		r.FilterPath = v
@@ -213,7 +202,6 @@ func (f SnapshotVerifyRepository) WithFilterPath(v ...string) func(*SnapshotVeri
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f SnapshotVerifyRepository) WithHeader(h map[string]string) func(*SnapshotVerifyRepositoryRequest) {
 	return func(r *SnapshotVerifyRepositoryRequest) {
 		if r.Header == nil {
@@ -226,7 +214,6 @@ func (f SnapshotVerifyRepository) WithHeader(h map[string]string) func(*Snapshot
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f SnapshotVerifyRepository) WithOpaqueID(s string) func(*SnapshotVerifyRepositoryRequest) {
 	return func(r *SnapshotVerifyRepositoryRequest) {
 		if r.Header == nil {

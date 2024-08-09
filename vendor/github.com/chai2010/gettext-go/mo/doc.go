@@ -6,6 +6,7 @@
 Package mo provides support for reading and writing GNU MO file.
 
 Examples:
+
 	import (
 		"github.com/chai2010/gettext-go/mo"
 	)

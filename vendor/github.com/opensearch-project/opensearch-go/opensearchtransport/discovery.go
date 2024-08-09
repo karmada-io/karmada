@@ -39,13 +39,11 @@ import (
 )
 
 // Discoverable defines the interface for transports supporting node discovery.
-//
 type Discoverable interface {
 	DiscoverNodes() error
 }
 
 // nodeInfo represents the information about node in a cluster.
-//
 type nodeInfo struct {
 	ID         string
 	Name       string
@@ -58,7 +56,6 @@ type nodeInfo struct {
 }
 
 // DiscoverNodes reloads the client connections by fetching information from the cluster.
-//
 func (c *Client) DiscoverNodes() error {
 	var conns []*Connection
 

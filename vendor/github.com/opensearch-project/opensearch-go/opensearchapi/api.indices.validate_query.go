@@ -47,12 +47,9 @@ func newIndicesValidateQueryFunc(t Transport) IndicesValidateQuery {
 // ----- API Definition -------------------------------------------------------
 
 // IndicesValidateQuery allows a user to validate a potentially expensive query without executing it.
-//
-//
 type IndicesValidateQuery func(o ...func(*IndicesValidateQueryRequest)) (*Response, error)
 
 // IndicesValidateQueryRequest configures the Indices Validate Query API request.
-//
 type IndicesValidateQueryRequest struct {
 	Index        []string
 	DocumentType []string
@@ -83,7 +80,6 @@ type IndicesValidateQueryRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r IndicesValidateQueryRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -221,7 +217,6 @@ func (r IndicesValidateQueryRequest) Do(ctx context.Context, transport Transport
 }
 
 // WithContext sets the request context.
-//
 func (f IndicesValidateQuery) WithContext(v context.Context) func(*IndicesValidateQueryRequest) {
 	return func(r *IndicesValidateQueryRequest) {
 		r.ctx = v
@@ -229,7 +224,6 @@ func (f IndicesValidateQuery) WithContext(v context.Context) func(*IndicesValida
 }
 
 // WithBody - The query definition specified with the Query DSL.
-//
 func (f IndicesValidateQuery) WithBody(v io.Reader) func(*IndicesValidateQueryRequest) {
 	return func(r *IndicesValidateQueryRequest) {
 		r.Body = v
@@ -237,7 +231,6 @@ func (f IndicesValidateQuery) WithBody(v io.Reader) func(*IndicesValidateQueryRe
 }
 
 // WithIndex - a list of index names to restrict the operation; use _all to perform the operation on all indices.
-//
 func (f IndicesValidateQuery) WithIndex(v ...string) func(*IndicesValidateQueryRequest) {
 	return func(r *IndicesValidateQueryRequest) {
 		r.Index = v
@@ -245,7 +238,6 @@ func (f IndicesValidateQuery) WithIndex(v ...string) func(*IndicesValidateQueryR
 }
 
 // WithDocumentType - a list of document types to restrict the operation; leave empty to perform the operation on all types.
-//
 func (f IndicesValidateQuery) WithDocumentType(v ...string) func(*IndicesValidateQueryRequest) {
 	return func(r *IndicesValidateQueryRequest) {
 		r.DocumentType = v
@@ -253,7 +245,6 @@ func (f IndicesValidateQuery) WithDocumentType(v ...string) func(*IndicesValidat
 }
 
 // WithAllowNoIndices - whether to ignore if a wildcard indices expression resolves into no concrete indices. (this includes `_all` string or when no indices have been specified).
-//
 func (f IndicesValidateQuery) WithAllowNoIndices(v bool) func(*IndicesValidateQueryRequest) {
 	return func(r *IndicesValidateQueryRequest) {
 		r.AllowNoIndices = &v
@@ -261,7 +252,6 @@ func (f IndicesValidateQuery) WithAllowNoIndices(v bool) func(*IndicesValidateQu
 }
 
 // WithAllShards - execute validation on all shards instead of one random shard per index.
-//
 func (f IndicesValidateQuery) WithAllShards(v bool) func(*IndicesValidateQueryRequest) {
 	return func(r *IndicesValidateQueryRequest) {
 		r.AllShards = &v
@@ -269,7 +259,6 @@ func (f IndicesValidateQuery) WithAllShards(v bool) func(*IndicesValidateQueryRe
 }
 
 // WithAnalyzer - the analyzer to use for the query string.
-//
 func (f IndicesValidateQuery) WithAnalyzer(v string) func(*IndicesValidateQueryRequest) {
 	return func(r *IndicesValidateQueryRequest) {
 		r.Analyzer = v
@@ -277,7 +266,6 @@ func (f IndicesValidateQuery) WithAnalyzer(v string) func(*IndicesValidateQueryR
 }
 
 // WithAnalyzeWildcard - specify whether wildcard and prefix queries should be analyzed (default: false).
-//
 func (f IndicesValidateQuery) WithAnalyzeWildcard(v bool) func(*IndicesValidateQueryRequest) {
 	return func(r *IndicesValidateQueryRequest) {
 		r.AnalyzeWildcard = &v
@@ -285,7 +273,6 @@ func (f IndicesValidateQuery) WithAnalyzeWildcard(v bool) func(*IndicesValidateQ
 }
 
 // WithDefaultOperator - the default operator for query string query (and or or).
-//
 func (f IndicesValidateQuery) WithDefaultOperator(v string) func(*IndicesValidateQueryRequest) {
 	return func(r *IndicesValidateQueryRequest) {
 		r.DefaultOperator = v
@@ -293,7 +280,6 @@ func (f IndicesValidateQuery) WithDefaultOperator(v string) func(*IndicesValidat
 }
 
 // WithDf - the field to use as default where no field prefix is given in the query string.
-//
 func (f IndicesValidateQuery) WithDf(v string) func(*IndicesValidateQueryRequest) {
 	return func(r *IndicesValidateQueryRequest) {
 		r.Df = v
@@ -301,7 +287,6 @@ func (f IndicesValidateQuery) WithDf(v string) func(*IndicesValidateQueryRequest
 }
 
 // WithExpandWildcards - whether to expand wildcard expression to concrete indices that are open, closed or both..
-//
 func (f IndicesValidateQuery) WithExpandWildcards(v string) func(*IndicesValidateQueryRequest) {
 	return func(r *IndicesValidateQueryRequest) {
 		r.ExpandWildcards = v
@@ -309,7 +294,6 @@ func (f IndicesValidateQuery) WithExpandWildcards(v string) func(*IndicesValidat
 }
 
 // WithExplain - return detailed information about the error.
-//
 func (f IndicesValidateQuery) WithExplain(v bool) func(*IndicesValidateQueryRequest) {
 	return func(r *IndicesValidateQueryRequest) {
 		r.Explain = &v
@@ -317,7 +301,6 @@ func (f IndicesValidateQuery) WithExplain(v bool) func(*IndicesValidateQueryRequ
 }
 
 // WithIgnoreUnavailable - whether specified concrete indices should be ignored when unavailable (missing or closed).
-//
 func (f IndicesValidateQuery) WithIgnoreUnavailable(v bool) func(*IndicesValidateQueryRequest) {
 	return func(r *IndicesValidateQueryRequest) {
 		r.IgnoreUnavailable = &v
@@ -325,7 +308,6 @@ func (f IndicesValidateQuery) WithIgnoreUnavailable(v bool) func(*IndicesValidat
 }
 
 // WithLenient - specify whether format-based query failures (such as providing text to a numeric field) should be ignored.
-//
 func (f IndicesValidateQuery) WithLenient(v bool) func(*IndicesValidateQueryRequest) {
 	return func(r *IndicesValidateQueryRequest) {
 		r.Lenient = &v
@@ -333,7 +315,6 @@ func (f IndicesValidateQuery) WithLenient(v bool) func(*IndicesValidateQueryRequ
 }
 
 // WithQuery - query in the lucene query string syntax.
-//
 func (f IndicesValidateQuery) WithQuery(v string) func(*IndicesValidateQueryRequest) {
 	return func(r *IndicesValidateQueryRequest) {
 		r.Query = v
@@ -341,7 +322,6 @@ func (f IndicesValidateQuery) WithQuery(v string) func(*IndicesValidateQueryRequ
 }
 
 // WithRewrite - provide a more detailed explanation showing the actual lucene query that will be executed..
-//
 func (f IndicesValidateQuery) WithRewrite(v bool) func(*IndicesValidateQueryRequest) {
 	return func(r *IndicesValidateQueryRequest) {
 		r.Rewrite = &v
@@ -349,7 +329,6 @@ func (f IndicesValidateQuery) WithRewrite(v bool) func(*IndicesValidateQueryRequ
 }
 
 // WithPretty makes the response body pretty-printed.
-//
 func (f IndicesValidateQuery) WithPretty() func(*IndicesValidateQueryRequest) {
 	return func(r *IndicesValidateQueryRequest) {
 		r.Pretty = true
@@ -357,7 +336,6 @@ func (f IndicesValidateQuery) WithPretty() func(*IndicesValidateQueryRequest) {
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f IndicesValidateQuery) WithHuman() func(*IndicesValidateQueryRequest) {
 	return func(r *IndicesValidateQueryRequest) {
 		r.Human = true
@@ -365,7 +343,6 @@ func (f IndicesValidateQuery) WithHuman() func(*IndicesValidateQueryRequest) {
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f IndicesValidateQuery) WithErrorTrace() func(*IndicesValidateQueryRequest) {
 	return func(r *IndicesValidateQueryRequest) {
 		r.ErrorTrace = true
@@ -373,7 +350,6 @@ func (f IndicesValidateQuery) WithErrorTrace() func(*IndicesValidateQueryRequest
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f IndicesValidateQuery) WithFilterPath(v ...string) func(*IndicesValidateQueryRequest) {
 	return func(r *IndicesValidateQueryRequest) {
 		r.FilterPath = v
@@ -381,7 +357,6 @@ func (f IndicesValidateQuery) WithFilterPath(v ...string) func(*IndicesValidateQ
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f IndicesValidateQuery) WithHeader(h map[string]string) func(*IndicesValidateQueryRequest) {
 	return func(r *IndicesValidateQueryRequest) {
 		if r.Header == nil {
@@ -394,7 +369,6 @@ func (f IndicesValidateQuery) WithHeader(h map[string]string) func(*IndicesValid
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f IndicesValidateQuery) WithOpaqueID(s string) func(*IndicesValidateQueryRequest) {
 	return func(r *IndicesValidateQueryRequest) {
 		if r.Header == nil {

@@ -72,7 +72,7 @@ func (c CurlyRouter) matchesRouteByPathTokens(routeTokens, requestTokens []strin
 			return false, 0, 0
 		}
 		requestToken := requestTokens[i]
-		if routeHasCustomVerb && hasCustomVerb(routeToken){
+		if routeHasCustomVerb && hasCustomVerb(routeToken) {
 			if !isMatchCustomVerb(routeToken, requestToken) {
 				return false, 0, 0
 			}

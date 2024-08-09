@@ -20,11 +20,11 @@ type ctxKey struct{}
 // For instance, to add a field to an existing logger in the context, use this
 // notation:
 //
-//     ctx := r.Context()
-//     l := zerolog.Ctx(ctx)
-//     l.UpdateContext(func(c Context) Context {
-//         return c.Str("bar", "baz")
-//     })
+//	ctx := r.Context()
+//	l := zerolog.Ctx(ctx)
+//	l.UpdateContext(func(c Context) Context {
+//	    return c.Str("bar", "baz")
+//	})
 func (l *Logger) WithContext(ctx context.Context) context.Context {
 	if lp, ok := ctx.Value(ctxKey{}).(*Logger); ok {
 		if lp == l {

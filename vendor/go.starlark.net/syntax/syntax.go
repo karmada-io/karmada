@@ -99,9 +99,10 @@ func (*LoadStmt) stmt()   {}
 func (*ReturnStmt) stmt() {}
 
 // An AssignStmt represents an assignment:
+//
 //	x = 0
 //	x, y = y, x
-// 	x += 1
+//	x += 1
 type AssignStmt struct {
 	commentsRef
 	OpPos Position

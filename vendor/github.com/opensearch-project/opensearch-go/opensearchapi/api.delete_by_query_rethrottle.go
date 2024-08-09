@@ -46,12 +46,9 @@ func newDeleteByQueryRethrottleFunc(t Transport) DeleteByQueryRethrottle {
 // ----- API Definition -------------------------------------------------------
 
 // DeleteByQueryRethrottle changes the number of requests per second for a particular Delete By Query operation.
-//
-//
 type DeleteByQueryRethrottle func(task_id string, requests_per_second *int, o ...func(*DeleteByQueryRethrottleRequest)) (*Response, error)
 
 // DeleteByQueryRethrottleRequest configures the Delete By Query Rethrottle API request.
-//
 type DeleteByQueryRethrottleRequest struct {
 	TaskID string
 
@@ -68,7 +65,6 @@ type DeleteByQueryRethrottleRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r DeleteByQueryRethrottleRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -152,7 +148,6 @@ func (r DeleteByQueryRethrottleRequest) Do(ctx context.Context, transport Transp
 }
 
 // WithContext sets the request context.
-//
 func (f DeleteByQueryRethrottle) WithContext(v context.Context) func(*DeleteByQueryRethrottleRequest) {
 	return func(r *DeleteByQueryRethrottleRequest) {
 		r.ctx = v
@@ -160,7 +155,6 @@ func (f DeleteByQueryRethrottle) WithContext(v context.Context) func(*DeleteByQu
 }
 
 // WithRequestsPerSecond - the throttle to set on this request in floating sub-requests per second. -1 means set no throttle..
-//
 func (f DeleteByQueryRethrottle) WithRequestsPerSecond(v int) func(*DeleteByQueryRethrottleRequest) {
 	return func(r *DeleteByQueryRethrottleRequest) {
 		r.RequestsPerSecond = &v
@@ -168,7 +162,6 @@ func (f DeleteByQueryRethrottle) WithRequestsPerSecond(v int) func(*DeleteByQuer
 }
 
 // WithPretty makes the response body pretty-printed.
-//
 func (f DeleteByQueryRethrottle) WithPretty() func(*DeleteByQueryRethrottleRequest) {
 	return func(r *DeleteByQueryRethrottleRequest) {
 		r.Pretty = true
@@ -176,7 +169,6 @@ func (f DeleteByQueryRethrottle) WithPretty() func(*DeleteByQueryRethrottleReque
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f DeleteByQueryRethrottle) WithHuman() func(*DeleteByQueryRethrottleRequest) {
 	return func(r *DeleteByQueryRethrottleRequest) {
 		r.Human = true
@@ -184,7 +176,6 @@ func (f DeleteByQueryRethrottle) WithHuman() func(*DeleteByQueryRethrottleReques
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f DeleteByQueryRethrottle) WithErrorTrace() func(*DeleteByQueryRethrottleRequest) {
 	return func(r *DeleteByQueryRethrottleRequest) {
 		r.ErrorTrace = true
@@ -192,7 +183,6 @@ func (f DeleteByQueryRethrottle) WithErrorTrace() func(*DeleteByQueryRethrottleR
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f DeleteByQueryRethrottle) WithFilterPath(v ...string) func(*DeleteByQueryRethrottleRequest) {
 	return func(r *DeleteByQueryRethrottleRequest) {
 		r.FilterPath = v
@@ -200,7 +190,6 @@ func (f DeleteByQueryRethrottle) WithFilterPath(v ...string) func(*DeleteByQuery
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f DeleteByQueryRethrottle) WithHeader(h map[string]string) func(*DeleteByQueryRethrottleRequest) {
 	return func(r *DeleteByQueryRethrottleRequest) {
 		if r.Header == nil {
@@ -213,7 +202,6 @@ func (f DeleteByQueryRethrottle) WithHeader(h map[string]string) func(*DeleteByQ
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f DeleteByQueryRethrottle) WithOpaqueID(s string) func(*DeleteByQueryRethrottleRequest) {
 	return func(r *DeleteByQueryRethrottleRequest) {
 		if r.Header == nil {

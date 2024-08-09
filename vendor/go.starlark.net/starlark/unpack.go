@@ -44,23 +44,23 @@ type Unpacker interface {
 //
 // Examples:
 //
-//      var (
-//          a Value
-//          b = MakeInt(42)
-//          c Value = starlark.None
-//      )
+//	var (
+//	    a Value
+//	    b = MakeInt(42)
+//	    c Value = starlark.None
+//	)
 //
-//      // 1. mixed parameters, like def f(a, b=42, c=None).
-//      err := UnpackArgs("f", args, kwargs, "a", &a, "b?", &b, "c?", &c)
+//	// 1. mixed parameters, like def f(a, b=42, c=None).
+//	err := UnpackArgs("f", args, kwargs, "a", &a, "b?", &b, "c?", &c)
 //
-//      // 2. keyword parameters only, like def f(*, a, b, c=None).
-//      if len(args) > 0 {
-//              return fmt.Errorf("f: unexpected positional arguments")
-//      }
-//      err := UnpackArgs("f", args, kwargs, "a", &a, "b?", &b, "c?", &c)
+//	// 2. keyword parameters only, like def f(*, a, b, c=None).
+//	if len(args) > 0 {
+//	        return fmt.Errorf("f: unexpected positional arguments")
+//	}
+//	err := UnpackArgs("f", args, kwargs, "a", &a, "b?", &b, "c?", &c)
 //
-//      // 3. positional parameters only, like def f(a, b=42, c=None, /) in Python 3.8.
-//      err := UnpackPositionalArgs("f", args, kwargs, 1, &a, &b, &c)
+//	// 3. positional parameters only, like def f(a, b=42, c=None, /) in Python 3.8.
+//	err := UnpackPositionalArgs("f", args, kwargs, 1, &a, &b, &c)
 //
 // More complex forms such as def f(a, b=42, *args, c, d=123, **kwargs)
 // require additional logic, but their need in built-ins is exceedingly rare.
@@ -79,17 +79,16 @@ type Unpacker interface {
 // for the zero values of variables of type *List, *Dict, Callable, or
 // Iterable. For example:
 //
-//      // def myfunc(d=None, e=[], f={})
-//      var (
-//          d Value
-//          e *List
-//          f *Dict
-//      )
-//      err := UnpackArgs("myfunc", args, kwargs, "d?", &d, "e?", &e, "f?", &f)
-//      if d == nil { d = None; }
-//      if e == nil { e = new(List); }
-//      if f == nil { f = new(Dict); }
-//
+//	// def myfunc(d=None, e=[], f={})
+//	var (
+//	    d Value
+//	    e *List
+//	    f *Dict
+//	)
+//	err := UnpackArgs("myfunc", args, kwargs, "d?", &d, "e?", &e, "f?", &f)
+//	if d == nil { d = None; }
+//	if e == nil { e = new(List); }
+//	if f == nil { f = new(Dict); }
 func UnpackArgs(fnname string, args Tuple, kwargs []Tuple, pairs ...interface{}) error {
 	nparams := len(pairs) / 2
 	var defined intset

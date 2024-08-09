@@ -46,12 +46,9 @@ func newSnapshotDeleteRepositoryFunc(t Transport) SnapshotDeleteRepository {
 // ----- API Definition -------------------------------------------------------
 
 // SnapshotDeleteRepository deletes a repository.
-//
-//
 type SnapshotDeleteRepository func(repository []string, o ...func(*SnapshotDeleteRepositoryRequest)) (*Response, error)
 
 // SnapshotDeleteRepositoryRequest configures the Snapshot Delete Repository API request.
-//
 type SnapshotDeleteRepositoryRequest struct {
 	Repository []string
 
@@ -69,7 +66,6 @@ type SnapshotDeleteRepositoryRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r SnapshotDeleteRepositoryRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -155,7 +151,6 @@ func (r SnapshotDeleteRepositoryRequest) Do(ctx context.Context, transport Trans
 }
 
 // WithContext sets the request context.
-//
 func (f SnapshotDeleteRepository) WithContext(v context.Context) func(*SnapshotDeleteRepositoryRequest) {
 	return func(r *SnapshotDeleteRepositoryRequest) {
 		r.ctx = v
@@ -163,7 +158,6 @@ func (f SnapshotDeleteRepository) WithContext(v context.Context) func(*SnapshotD
 }
 
 // WithMasterTimeout - explicit operation timeout for connection to master node.
-//
 func (f SnapshotDeleteRepository) WithMasterTimeout(v time.Duration) func(*SnapshotDeleteRepositoryRequest) {
 	return func(r *SnapshotDeleteRepositoryRequest) {
 		r.MasterTimeout = v
@@ -171,7 +165,6 @@ func (f SnapshotDeleteRepository) WithMasterTimeout(v time.Duration) func(*Snaps
 }
 
 // WithTimeout - explicit operation timeout.
-//
 func (f SnapshotDeleteRepository) WithTimeout(v time.Duration) func(*SnapshotDeleteRepositoryRequest) {
 	return func(r *SnapshotDeleteRepositoryRequest) {
 		r.Timeout = v
@@ -179,7 +172,6 @@ func (f SnapshotDeleteRepository) WithTimeout(v time.Duration) func(*SnapshotDel
 }
 
 // WithPretty makes the response body pretty-printed.
-//
 func (f SnapshotDeleteRepository) WithPretty() func(*SnapshotDeleteRepositoryRequest) {
 	return func(r *SnapshotDeleteRepositoryRequest) {
 		r.Pretty = true
@@ -187,7 +179,6 @@ func (f SnapshotDeleteRepository) WithPretty() func(*SnapshotDeleteRepositoryReq
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f SnapshotDeleteRepository) WithHuman() func(*SnapshotDeleteRepositoryRequest) {
 	return func(r *SnapshotDeleteRepositoryRequest) {
 		r.Human = true
@@ -195,7 +186,6 @@ func (f SnapshotDeleteRepository) WithHuman() func(*SnapshotDeleteRepositoryRequ
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f SnapshotDeleteRepository) WithErrorTrace() func(*SnapshotDeleteRepositoryRequest) {
 	return func(r *SnapshotDeleteRepositoryRequest) {
 		r.ErrorTrace = true
@@ -203,7 +193,6 @@ func (f SnapshotDeleteRepository) WithErrorTrace() func(*SnapshotDeleteRepositor
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f SnapshotDeleteRepository) WithFilterPath(v ...string) func(*SnapshotDeleteRepositoryRequest) {
 	return func(r *SnapshotDeleteRepositoryRequest) {
 		r.FilterPath = v
@@ -211,7 +200,6 @@ func (f SnapshotDeleteRepository) WithFilterPath(v ...string) func(*SnapshotDele
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f SnapshotDeleteRepository) WithHeader(h map[string]string) func(*SnapshotDeleteRepositoryRequest) {
 	return func(r *SnapshotDeleteRepositoryRequest) {
 		if r.Header == nil {
@@ -224,7 +212,6 @@ func (f SnapshotDeleteRepository) WithHeader(h map[string]string) func(*Snapshot
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f SnapshotDeleteRepository) WithOpaqueID(s string) func(*SnapshotDeleteRepositoryRequest) {
 	return func(r *SnapshotDeleteRepositoryRequest) {
 		if r.Header == nil {

@@ -46,8 +46,7 @@ It is enabled by the following extensions:
 
 For incorrect usage of nullable with tests see:
 
-  github.com/gogo/protobuf/test/nullableconflict
-
+	github.com/gogo/protobuf/test/nullableconflict
 */
 package defaultcheck
 

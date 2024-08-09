@@ -47,12 +47,9 @@ func newNodesReloadSecureSettingsFunc(t Transport) NodesReloadSecureSettings {
 // ----- API Definition -------------------------------------------------------
 
 // NodesReloadSecureSettings reloads secure settings.
-//
-//
 type NodesReloadSecureSettings func(o ...func(*NodesReloadSecureSettingsRequest)) (*Response, error)
 
 // NodesReloadSecureSettingsRequest configures the Nodes Reload Secure Settings API request.
-//
 type NodesReloadSecureSettingsRequest struct {
 	Body io.Reader
 
@@ -71,7 +68,6 @@ type NodesReloadSecureSettingsRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r NodesReloadSecureSettingsRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -161,7 +157,6 @@ func (r NodesReloadSecureSettingsRequest) Do(ctx context.Context, transport Tran
 }
 
 // WithContext sets the request context.
-//
 func (f NodesReloadSecureSettings) WithContext(v context.Context) func(*NodesReloadSecureSettingsRequest) {
 	return func(r *NodesReloadSecureSettingsRequest) {
 		r.ctx = v
@@ -169,7 +164,6 @@ func (f NodesReloadSecureSettings) WithContext(v context.Context) func(*NodesRel
 }
 
 // WithBody - An object containing the password for the opensearch keystore.
-//
 func (f NodesReloadSecureSettings) WithBody(v io.Reader) func(*NodesReloadSecureSettingsRequest) {
 	return func(r *NodesReloadSecureSettingsRequest) {
 		r.Body = v
@@ -177,7 +171,6 @@ func (f NodesReloadSecureSettings) WithBody(v io.Reader) func(*NodesReloadSecure
 }
 
 // WithNodeID - a list of node ids to span the reload/reinit call. should stay empty because reloading usually involves all cluster nodes..
-//
 func (f NodesReloadSecureSettings) WithNodeID(v ...string) func(*NodesReloadSecureSettingsRequest) {
 	return func(r *NodesReloadSecureSettingsRequest) {
 		r.NodeID = v
@@ -185,7 +178,6 @@ func (f NodesReloadSecureSettings) WithNodeID(v ...string) func(*NodesReloadSecu
 }
 
 // WithTimeout - explicit operation timeout.
-//
 func (f NodesReloadSecureSettings) WithTimeout(v time.Duration) func(*NodesReloadSecureSettingsRequest) {
 	return func(r *NodesReloadSecureSettingsRequest) {
 		r.Timeout = v
@@ -193,7 +185,6 @@ func (f NodesReloadSecureSettings) WithTimeout(v time.Duration) func(*NodesReloa
 }
 
 // WithPretty makes the response body pretty-printed.
-//
 func (f NodesReloadSecureSettings) WithPretty() func(*NodesReloadSecureSettingsRequest) {
 	return func(r *NodesReloadSecureSettingsRequest) {
 		r.Pretty = true
@@ -201,7 +192,6 @@ func (f NodesReloadSecureSettings) WithPretty() func(*NodesReloadSecureSettingsR
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f NodesReloadSecureSettings) WithHuman() func(*NodesReloadSecureSettingsRequest) {
 	return func(r *NodesReloadSecureSettingsRequest) {
 		r.Human = true
@@ -209,7 +199,6 @@ func (f NodesReloadSecureSettings) WithHuman() func(*NodesReloadSecureSettingsRe
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f NodesReloadSecureSettings) WithErrorTrace() func(*NodesReloadSecureSettingsRequest) {
 	return func(r *NodesReloadSecureSettingsRequest) {
 		r.ErrorTrace = true
@@ -217,7 +206,6 @@ func (f NodesReloadSecureSettings) WithErrorTrace() func(*NodesReloadSecureSetti
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f NodesReloadSecureSettings) WithFilterPath(v ...string) func(*NodesReloadSecureSettingsRequest) {
 	return func(r *NodesReloadSecureSettingsRequest) {
 		r.FilterPath = v
@@ -225,7 +213,6 @@ func (f NodesReloadSecureSettings) WithFilterPath(v ...string) func(*NodesReload
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f NodesReloadSecureSettings) WithHeader(h map[string]string) func(*NodesReloadSecureSettingsRequest) {
 	return func(r *NodesReloadSecureSettingsRequest) {
 		if r.Header == nil {
@@ -238,7 +225,6 @@ func (f NodesReloadSecureSettings) WithHeader(h map[string]string) func(*NodesRe
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f NodesReloadSecureSettings) WithOpaqueID(s string) func(*NodesReloadSecureSettingsRequest) {
 	return func(r *NodesReloadSecureSettingsRequest) {
 		if r.Header == nil {

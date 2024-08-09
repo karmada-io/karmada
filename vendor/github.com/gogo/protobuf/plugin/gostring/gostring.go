@@ -30,7 +30,7 @@
 The gostring plugin generates a GoString method for each message.
 The GoString method is called whenever you use a fmt.Printf as such:
 
-  fmt.Printf("%#v", mymessage)
+	fmt.Printf("%#v", mymessage)
 
 or whenever you actually call GoString()
 The output produced by the GoString method can be copied from the output into code and used to set a variable.
@@ -48,31 +48,31 @@ The gostring plugin also generates a test given it is enabled using one of the f
 
 Let us look at:
 
-  github.com/gogo/protobuf/test/example/example.proto
+	github.com/gogo/protobuf/test/example/example.proto
 
 Btw all the output can be seen at:
 
-  github.com/gogo/protobuf/test/example/*
+	github.com/gogo/protobuf/test/example/*
 
 The following message:
 
-  option (gogoproto.gostring_all) = true;
+	  option (gogoproto.gostring_all) = true;
 
-  message A {
-	optional string Description = 1 [(gogoproto.nullable) = false];
-	optional int64 Number = 2 [(gogoproto.nullable) = false];
-	optional bytes Id = 3 [(gogoproto.customtype) = "github.com/gogo/protobuf/test/custom.Uuid", (gogoproto.nullable) = false];
-  }
+	  message A {
+		optional string Description = 1 [(gogoproto.nullable) = false];
+		optional int64 Number = 2 [(gogoproto.nullable) = false];
+		optional bytes Id = 3 [(gogoproto.customtype) = "github.com/gogo/protobuf/test/custom.Uuid", (gogoproto.nullable) = false];
+	  }
 
 given to the gostring plugin, will generate the following code:
 
-  func (this *A) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := strings1.Join([]string{`&test.A{` + `Description:` + fmt1.Sprintf("%#v", this.Description), `Number:` + fmt1.Sprintf("%#v", this.Number), `Id:` + fmt1.Sprintf("%#v", this.Id), `XXX_unrecognized:` + fmt1.Sprintf("%#v", this.XXX_unrecognized) + `}`}, ", ")
-	return s
-  }
+	  func (this *A) GoString() string {
+		if this == nil {
+			return "nil"
+		}
+		s := strings1.Join([]string{`&test.A{` + `Description:` + fmt1.Sprintf("%#v", this.Description), `Number:` + fmt1.Sprintf("%#v", this.Number), `Id:` + fmt1.Sprintf("%#v", this.Id), `XXX_unrecognized:` + fmt1.Sprintf("%#v", this.XXX_unrecognized) + `}`}, ", ")
+		return s
+	  }
 
 and the following test code:
 
@@ -92,7 +92,6 @@ and the following test code:
 
 Typically fmt.Printf("%#v") will stop to print when it reaches a pointer and
 not print their values, while the generated GoString method will always print all values, recursively.
-
 */
 package gostring
 

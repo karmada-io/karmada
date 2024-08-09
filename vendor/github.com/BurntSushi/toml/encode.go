@@ -638,16 +638,15 @@ func (enc *Encoder) newline() {
 
 // Write a key/value pair:
 //
-//   key = <any value>
+//	key = <any value>
 //
 // This is also used for "k = v" in inline tables; so something like this will
 // be written in three calls:
 //
-//     ┌────────────────────┐
-//     │      ┌───┐  ┌─────┐│
-//     v      v   v  v     vv
-//     key = {k = v, k2 = v2}
-//
+//	┌────────────────────┐
+//	│      ┌───┐  ┌─────┐│
+//	v      v   v  v     vv
+//	key = {k = v, k2 = v2}
 func (enc *Encoder) writeKeyValue(key Key, val reflect.Value, inline bool) {
 	if len(key) == 0 {
 		encPanic(errNoKey)

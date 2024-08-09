@@ -7,8 +7,8 @@ import (
 
 const (
 	// Import from zerolog/global.go
-	timeFormatUnix   = ""
-	timeFormatUnixMs = "UNIXMS"
+	timeFormatUnix      = ""
+	timeFormatUnixMs    = "UNIXMS"
 	timeFormatUnixMicro = "UNIXMICRO"
 )
 

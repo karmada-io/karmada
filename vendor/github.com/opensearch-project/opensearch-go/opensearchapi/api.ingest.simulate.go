@@ -47,12 +47,9 @@ func newIngestSimulateFunc(t Transport) IngestSimulate {
 // ----- API Definition -------------------------------------------------------
 
 // IngestSimulate allows to simulate a pipeline with example documents.
-//
-//
 type IngestSimulate func(body io.Reader, o ...func(*IngestSimulateRequest)) (*Response, error)
 
 // IngestSimulateRequest configures the Ingest Simulate API request.
-//
 type IngestSimulateRequest struct {
 	PipelineID string
 
@@ -71,7 +68,6 @@ type IngestSimulateRequest struct {
 }
 
 // Do executes the request and returns response or error.
-//
 func (r IngestSimulateRequest) Do(ctx context.Context, transport Transport) (*Response, error) {
 	var (
 		method string
@@ -163,7 +159,6 @@ func (r IngestSimulateRequest) Do(ctx context.Context, transport Transport) (*Re
 }
 
 // WithContext sets the request context.
-//
 func (f IngestSimulate) WithContext(v context.Context) func(*IngestSimulateRequest) {
 	return func(r *IngestSimulateRequest) {
 		r.ctx = v
@@ -171,7 +166,6 @@ func (f IngestSimulate) WithContext(v context.Context) func(*IngestSimulateReque
 }
 
 // WithPipelineID - pipeline ID.
-//
 func (f IngestSimulate) WithPipelineID(v string) func(*IngestSimulateRequest) {
 	return func(r *IngestSimulateRequest) {
 		r.PipelineID = v
@@ -179,7 +173,6 @@ func (f IngestSimulate) WithPipelineID(v string) func(*IngestSimulateRequest) {
 }
 
 // WithVerbose - verbose mode. display data output for each processor in executed pipeline.
-//
 func (f IngestSimulate) WithVerbose(v bool) func(*IngestSimulateRequest) {
 	return func(r *IngestSimulateRequest) {
 		r.Verbose = &v
@@ -187,7 +180,6 @@ func (f IngestSimulate) WithVerbose(v bool) func(*IngestSimulateRequest) {
 }
 
 // WithPretty makes the response body pretty-printed.
-//
 func (f IngestSimulate) WithPretty() func(*IngestSimulateRequest) {
 	return func(r *IngestSimulateRequest) {
 		r.Pretty = true
@@ -195,7 +187,6 @@ func (f IngestSimulate) WithPretty() func(*IngestSimulateRequest) {
 }
 
 // WithHuman makes statistical values human-readable.
-//
 func (f IngestSimulate) WithHuman() func(*IngestSimulateRequest) {
 	return func(r *IngestSimulateRequest) {
 		r.Human = true
@@ -203,7 +194,6 @@ func (f IngestSimulate) WithHuman() func(*IngestSimulateRequest) {
 }
 
 // WithErrorTrace includes the stack trace for errors in the response body.
-//
 func (f IngestSimulate) WithErrorTrace() func(*IngestSimulateRequest) {
 	return func(r *IngestSimulateRequest) {
 		r.ErrorTrace = true
@@ -211,7 +201,6 @@ func (f IngestSimulate) WithErrorTrace() func(*IngestSimulateRequest) {
 }
 
 // WithFilterPath filters the properties of the response body.
-//
 func (f IngestSimulate) WithFilterPath(v ...string) func(*IngestSimulateRequest) {
 	return func(r *IngestSimulateRequest) {
 		r.FilterPath = v
@@ -219,7 +208,6 @@ func (f IngestSimulate) WithFilterPath(v ...string) func(*IngestSimulateRequest)
 }
 
 // WithHeader adds the headers to the HTTP request.
-//
 func (f IngestSimulate) WithHeader(h map[string]string) func(*IngestSimulateRequest) {
 	return func(r *IngestSimulateRequest) {
 		if r.Header == nil {
@@ -232,7 +220,6 @@ func (f IngestSimulate) WithHeader(h map[string]string) func(*IngestSimulateRequ
 }
 
 // WithOpaqueID adds the X-Opaque-Id header to the HTTP request.
-//
 func (f IngestSimulate) WithOpaqueID(s string) func(*IngestSimulateRequest) {
 	return func(r *IngestSimulateRequest) {
 		if r.Header == nil {
