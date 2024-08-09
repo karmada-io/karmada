@@ -30,6 +30,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -41,7 +42,9 @@ import (
 	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
@@ -1163,7 +1166,19 @@ var _ = ginkgo.Describe("[Suspend] PropagationPolicy testing", func() {
 				if err != nil {
 					return false
 				}
-				return work != nil && ptr.Deref(work.Spec.SuspendDispatching, false)
+				return work != nil && helper.IsWorkSuspendDispatching(work)
+			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+		})
+
+		ginkgo.It("adds suspend dispatching condition to Work\"", func() {
+			workName := names.GenerateWorkName(deployment.Kind, deployment.Name, deployment.Namespace)
+			esName := names.GenerateExecutionSpaceName(targetMember)
+			gomega.Eventually(func() bool {
+				work, err := karmadaClient.WorkV1alpha1().Works(esName).Get(context.TODO(), workName, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+				return work != nil && meta.IsStatusConditionPresentAndEqual(work.Status.Conditions, workv1alpha1.WorkDispatching, metav1.ConditionFalse)
 			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 		})
 	})
