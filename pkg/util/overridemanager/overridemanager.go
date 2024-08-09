@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"sort"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
