@@ -155,3 +155,46 @@ func TestFixedPool_Put(t *testing.T) {
 		})
 	}
 }
+func TestNewFixedPool(t *testing.T) {
+	tests := []struct {
+		name        string
+		newFunc     func() (any, error)
+		destroyFunc func(any)
+		capacity    int
+		wantName    string
+		wantCap     int
+	}{
+		{
+			name:        "create pool with capacity 3",
+			newFunc:     func() (any, error) { return &struct{}{}, nil },
+			destroyFunc: func(any) {},
+			capacity:    3,
+			wantName:    "testPool",
+			wantCap:     3,
+		},
+		{
+			name:        "create pool with capacity 0",
+			newFunc:     func() (any, error) { return &struct{}{}, nil },
+			destroyFunc: func(any) {},
+			capacity:    0,
+			wantName:    "emptyPool",
+			wantCap:     0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := New(tt.wantName, tt.newFunc, tt.destroyFunc, tt.capacity)
+
+			if p.name != tt.wantName {
+				t.Errorf("New() name got = %v, want %v", p.name, tt.wantName)
+			}
+			if p.capacity != tt.wantCap {
+				t.Errorf("New() capacity got = %v, want %v", p.capacity, tt.wantCap)
+			}
+			if got := len(p.pool); got != 0 {
+				t.Errorf("New() pool length got = %v, want 0", got)
+			}
+		})
+	}
+}
