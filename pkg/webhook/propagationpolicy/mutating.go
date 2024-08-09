@@ -19,7 +19,6 @@ package propagationpolicy
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -31,7 +30,6 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/validation"
 )
 
 // MutatingAdmission mutates API request if necessary.
@@ -75,9 +73,6 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 		}
 	}
 
-	if len(policy.Name) > validation.LabelValueMaxLength {
-		return admission.Errored(http.StatusBadRequest, fmt.Errorf("PropagationPolicy's name should be no more than %d characters", validation.LabelValueMaxLength))
-	}
 	// Set default spread constraints if both 'SpreadByField' and 'SpreadByLabel' not set.
 	helper.SetDefaultSpreadConstraints(policy.Spec.Placement.SpreadConstraints)
 	helper.AddTolerations(&policy.Spec.Placement, helper.NewNotReadyToleration(a.DefaultNotReadyTolerationSeconds),
