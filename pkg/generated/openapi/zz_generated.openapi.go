@@ -118,6 +118,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OverrideSpec":                                schema_pkg_apis_policy_v1alpha1_OverrideSpec(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Overriders":                                  schema_pkg_apis_policy_v1alpha1_Overriders(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement":                                   schema_pkg_apis_policy_v1alpha1_Placement(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PlaintextObjectOverrider":                    schema_pkg_apis_policy_v1alpha1_PlaintextObjectOverrider(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PlaintextOverrider":                          schema_pkg_apis_policy_v1alpha1_PlaintextOverrider(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PropagationPolicy":                           schema_pkg_apis_policy_v1alpha1_PropagationPolicy(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PropagationPolicyList":                       schema_pkg_apis_policy_v1alpha1_PropagationPolicyList(ref),
@@ -4479,7 +4480,7 @@ func schema_pkg_apis_policy_v1alpha1_Overriders(ref common.ReferenceCallback) co
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "Overriders offers various alternatives to represent the override rules.\n\nIf more than one alternative exists, they will be applied with following order: - ImageOverrider - CommandOverrider - ArgsOverrider - LabelsOverrider - AnnotationsOverrider - Plaintext",
+				Description: "Overriders offers various alternatives to represent the override rules.\n\nIf more than one alternative exists, they will be applied with following order: - ImageOverrider - CommandOverrider - ArgsOverrider - LabelsOverrider - AnnotationsOverrider - Plaintext - PlaintextObjectOverrider",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"plaintext": {
@@ -4566,11 +4567,25 @@ func schema_pkg_apis_policy_v1alpha1_Overriders(ref common.ReferenceCallback) co
 							},
 						},
 					},
+					"plaintextObjectOverrider": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PlaintextObjectOverrider represents the rules dedicated to handling yaml or json object overrides",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PlaintextObjectOverrider"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.CommandArgsOverrider", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ImageOverrider", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.LabelAnnotationOverrider", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PlaintextOverrider"},
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.CommandArgsOverrider", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ImageOverrider", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.LabelAnnotationOverrider", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PlaintextObjectOverrider", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PlaintextOverrider"},
 	}
 }
 
@@ -4640,6 +4655,44 @@ func schema_pkg_apis_policy_v1alpha1_Placement(ref common.ReferenceCallback) com
 		},
 		Dependencies: []string{
 			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinityTerm", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ReplicaSchedulingStrategy", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SpreadConstraint", "k8s.io/api/core/v1.Toleration"},
+	}
+}
+
+func schema_pkg_apis_policy_v1alpha1_PlaintextObjectOverrider(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PlaintextObjectOverrider represents the rules dedicated to handling yaml or json object overrides",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"path": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Path indicates the path of target field",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"plaintext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Plaintext represents override rules defined with plaintext overriders.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PlaintextOverrider"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"path", "plaintext"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PlaintextOverrider"},
 	}
 }
 

@@ -22,11 +22,15 @@ import (
 	"sort"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	yamlutil "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -280,6 +284,22 @@ func applyJSONPatch(obj *unstructured.Unstructured, overrides []overrideOption) 
 	return err
 }
 
+// applyRawJSONPatch applies the override on to the given raw json object.
+func applyRawJSONPatch(raw []byte, overrides []overrideOption) ([]byte, error) {
+	jsonPatchBytes, err := json.Marshal(overrides)
+	if err != nil {
+		return nil, err
+	}
+	// fmt.Printf(string(jsonPatchBytes) + " " + string(raw))
+
+	patch, err := jsonpatch.DecodePatch(jsonPatchBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return patch.Apply(raw)
+}
+
 // applyPolicyOverriders applies OverridePolicy/ClusterOverridePolicy overriders to target object
 func applyPolicyOverriders(rawObj *unstructured.Unstructured, overriders policyv1alpha1.Overriders) error {
 	err := applyImageOverriders(rawObj, overriders.ImageOverrider)
@@ -298,6 +318,9 @@ func applyPolicyOverriders(rawObj *unstructured.Unstructured, overriders policyv
 		return err
 	}
 	if err := applyAnnotationsOverriders(rawObj, overriders.AnnotationsOverrider); err != nil {
+		return err
+	}
+	if err := applyPlaintextObjectOverriders(rawObj, overriders.PlaintextObjectOverrider); err != nil {
 		return err
 	}
 	return applyJSONPatch(rawObj, parseJSONPatchesByPlaintext(overriders.Plaintext))
@@ -350,6 +373,42 @@ func applyArgsOverriders(rawObj *unstructured.Unstructured, argsOverriders []pol
 	}
 
 	return nil
+}
+
+func applyPlaintextObjectOverriders(rawObj *unstructured.Unstructured, plaintextObjectOverriders []policyv1alpha1.PlaintextObjectOverrider) error {
+	if len(plaintextObjectOverriders) == 0 {
+		return nil
+	}
+	rawObjJSONBytes, err := rawObj.MarshalJSON()
+	if err != nil {
+		return err
+	}
+	for index := range plaintextObjectOverriders {
+		res := gjson.GetBytes(rawObjJSONBytes, plaintextObjectOverriders[index].Path)
+		dataBytes := []byte(res.String())
+		isJSON := yamlutil.IsJSONBuffer(dataBytes)
+		if !isJSON {
+			dataBytes, err = yaml.YAMLToJSON(dataBytes)
+			if err != nil {
+				return err
+			}
+		}
+		appliedRawData, err := applyRawJSONPatch(dataBytes, parseJSONPatchesByPlaintext(plaintextObjectOverriders[index].Plaintext))
+		if err != nil {
+			return err
+		}
+		if !isJSON {
+			appliedRawData, err = yaml.JSONToYAML(appliedRawData)
+			if err != nil {
+				return err
+			}
+		}
+		rawObjJSONBytes, err = sjson.SetBytes(rawObjJSONBytes, plaintextObjectOverriders[index].Path, appliedRawData)
+		if err != nil {
+			return err
+		}
+	}
+	return rawObj.UnmarshalJSON(rawObjJSONBytes)
 }
 
 func parseJSONPatchesByPlaintext(overriders []policyv1alpha1.PlaintextOverrider) []overrideOption {
