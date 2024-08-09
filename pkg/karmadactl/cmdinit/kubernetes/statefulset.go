@@ -28,7 +28,6 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
-	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
 
 const (
@@ -300,8 +299,8 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 		Volumes: *Volumes,
 	}
 
-	if i.EtcdStorageMode == "hostPath" && i.EtcdNodeSelectorLabels != "" {
-		podSpec.NodeSelector = utils.StringToMap(i.EtcdNodeSelectorLabels)
+	if i.EtcdStorageMode == "hostPath" && i.EtcdNodeSelectorLabelsMap != nil {
+		podSpec.NodeSelector = i.EtcdNodeSelectorLabelsMap
 	}
 	if i.EtcdStorageMode == "hostPath" && i.EtcdNodeSelectorLabels == "" {
 		podSpec.NodeSelector = map[string]string{"karmada.io/etcd": ""}

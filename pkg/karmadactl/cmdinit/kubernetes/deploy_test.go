@@ -20,6 +20,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
@@ -492,6 +493,59 @@ func TestKarmadaSchedulerImage(t *testing.T) {
 
 			if result != tt.expected {
 				t.Errorf("Unexpected result: %s, expected: %s", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestCommandInitOption_parseEtcdNodeSelectorLabelsMap(t *testing.T) {
+	tests := []struct {
+		name     string
+		opt      CommandInitOption
+		wantErr  bool
+		expected map[string]string
+	}{
+		{
+			name: "Valid labels",
+			opt: CommandInitOption{
+				EtcdNodeSelectorLabels: "kubernetes.io/os=linux,hello=world",
+			},
+			wantErr: false,
+			expected: map[string]string{
+				"kubernetes.io/os": "linux",
+				"hello":            "world",
+			},
+		},
+		{
+			name: "Invalid labels without equal sign",
+			opt: CommandInitOption{
+				EtcdNodeSelectorLabels: "invalidlabel",
+			},
+			wantErr:  true,
+			expected: nil,
+		},
+		{
+			name: "Labels with extra spaces",
+			opt: CommandInitOption{
+				EtcdNodeSelectorLabels: "  key1 = value1 , key2=value2  ",
+			},
+			wantErr: false,
+			expected: map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.opt.parseEtcdNodeSelectorLabelsMap()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseEtcdNodeSelectorLabelsMap() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && !reflect.DeepEqual(tt.opt.EtcdNodeSelectorLabelsMap, tt.expected) {
+				t.Errorf("parseEtcdNodeSelectorLabelsMap() = %v, want %v", tt.opt.EtcdNodeSelectorLabelsMap, tt.expected)
 			}
 		})
 	}
