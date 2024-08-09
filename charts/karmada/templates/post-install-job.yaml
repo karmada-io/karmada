@@ -58,6 +58,5 @@ spec:
           done
 
           kubectl delete job {{ $name }}-static-resource -n {{ $namespace }}
-          kubectl delete secret {{ $name }}-hook-job -n {{ $namespace }}
           EOF
 {{- end }}

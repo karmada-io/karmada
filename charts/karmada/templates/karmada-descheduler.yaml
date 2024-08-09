@@ -77,7 +77,6 @@ spec:
           resources:
           {{- toYaml .Values.descheduler.resources | nindent 12 }}
       volumes:
-      {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
       {{- include "karmada.descheduler.kubeconfig.volume" . | nindent 8 }}
       {{- include "karmada.scheduler.cert.volume" . | nindent 8 }}
 

@@ -42,6 +42,17 @@ spec:
           kubectl apply -k /crds --kubeconfig /etc/kubeconfig
           kubectl apply -f /static-resources/system-namespace.yaml --kubeconfig /etc/kubeconfig
           kubectl apply -f /static-resources/ --kubeconfig /etc/kubeconfig
+
+          kubectl --kubeconfig /etc/kubeconfig apply -f - <<InnerEOF
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: karmada-versions
+            namespace: {{ .Values.systemNamespace }}
+          data:
+            karmadaImageVersion: {{ .Values.karmadaImageVersion }}
+          InnerEOF
+
           EOF
         volumeMounts:
           - name: {{ $name }}-crds-kustomization
