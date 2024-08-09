@@ -214,7 +214,6 @@ func TestThresholdAdjustedReadyCondition(t *testing.T) {
 				Status: metav1.ConditionFalse, // should retain old status due to threshold
 			},
 		},
-
 		{
 			name: "current condition is nil, should return observed condition",
 			clusterData: &clusterData{
