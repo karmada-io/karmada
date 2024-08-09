@@ -17,7 +17,6 @@ limitations under the License.
 package overridemanager
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"sort"
@@ -29,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	yamlutil "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/jsonpath"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
@@ -378,9 +376,9 @@ func applyArgsOverriders(rawObj *unstructured.Unstructured, argsOverriders []pol
 }
 
 func applyPlaintextObjectOverriders(rawObj *unstructured.Unstructured, plaintextObjectOverriders []policyv1alpha1.PlaintextObjectOverrider) error {
-  if len(plaintextObjectOverriders)	 == 0 {
-  	return nil
-  }
+	if len(plaintextObjectOverriders) == 0 {
+		return nil
+	}
 	rawObjJSONBytes, err := rawObj.MarshalJSON()
 	if err != nil {
 		return err
@@ -389,41 +387,28 @@ func applyPlaintextObjectOverriders(rawObj *unstructured.Unstructured, plaintext
 		res := gjson.GetBytes(rawObjJSONBytes, plaintextObjectOverriders[index].Path)
 		dataBytes := []byte(res.String())
 		isJSON := yamlutil.IsJSONBuffer(dataBytes)
-    if !isJSON {
-		  dataBytes, err = yaml.YAMLToJSON(dataBytes)
-		  if err != nil {
-		  	return err
-		  }
-    }
-	  appliedRawData, err := applyRawJSONPatch(dataBytes, parseJSONPatchesByPlaintext(plaintextObjectOverriders[index].Plaintext))
-	  if err != nil {
-	  	return err
-	  }
 		if !isJSON {
-		  appliedRawData, err = yaml.JSONToYAML(appliedRawData)
+			dataBytes, err = yaml.YAMLToJSON(dataBytes)
 			if err != nil {
 				return err
 			}
 		}
-	  rawObjJSONBytes, err = sjson.SetBytes(rawObjJSONBytes,plaintextObjectOverriders[index].Path, appliedRawData)
-	  if err != nil {
-	  	return err
-	  }
+		appliedRawData, err := applyRawJSONPatch(dataBytes, parseJSONPatchesByPlaintext(plaintextObjectOverriders[index].Plaintext))
+		if err != nil {
+			return err
+		}
+		if !isJSON {
+			appliedRawData, err = yaml.JSONToYAML(appliedRawData)
+			if err != nil {
+				return err
+			}
+		}
+		rawObjJSONBytes, err = sjson.SetBytes(rawObjJSONBytes, plaintextObjectOverriders[index].Path, appliedRawData)
+		if err != nil {
+			return err
+		}
 	}
-	rawObj.UnmarshalJSON(rawObjJSONBytes)
-	return nil
-}
-
-func parseJSONPath(input interface{}, name, template string) ([]byte, error) {
-	j := jsonpath.New(name)
-	buf := new(bytes.Buffer)
-	if err := j.Parse(template); err != nil {
-		return nil, err
-	}
-	if err := j.Execute(buf, input); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return rawObj.UnmarshalJSON(rawObjJSONBytes)
 }
 
 func parseJSONPatchesByPlaintext(overriders []policyv1alpha1.PlaintextOverrider) []overrideOption {

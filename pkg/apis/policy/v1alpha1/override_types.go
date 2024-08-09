@@ -128,11 +128,12 @@ type Overriders struct {
 	// +optional
 	AnnotationsOverrider []LabelAnnotationOverrider `json:"annotationsOverrider,omitempty"`
 
-	// PlaintextObjectOverrider represents the rules dedicated to handling yaml or json data overrides
+	// PlaintextObjectOverrider represents the rules dedicated to handling yaml or json object overrides
 	// +optional
 	PlaintextObjectOverrider []PlaintextObjectOverrider `json:"plaintextObjectOverrider,omitempty"`
 }
 
+// PlaintextObjectOverrider represents the rules dedicated to handling yaml or json object overrides
 type PlaintextObjectOverrider struct {
 	// Path indicates the path of target field
 	Path string `json:"path"`

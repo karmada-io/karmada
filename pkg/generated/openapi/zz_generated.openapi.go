@@ -4548,7 +4548,7 @@ func schema_pkg_apis_policy_v1alpha1_Overriders(ref common.ReferenceCallback) co
 					},
 					"plaintextObjectOverrider": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PlaintextObjectOverrider represents the rules dedicated to handling yaml or json data overrides",
+							Description: "PlaintextObjectOverrider represents the rules dedicated to handling yaml or json object overrides",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -4641,7 +4641,8 @@ func schema_pkg_apis_policy_v1alpha1_PlaintextObjectOverrider(ref common.Referen
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "PlaintextObjectOverrider represents the rules dedicated to handling yaml or json object overrides",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"path": {
 						SchemaProps: spec.SchemaProps{
