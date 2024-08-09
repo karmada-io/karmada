@@ -44,6 +44,8 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/controllers/execution"
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
@@ -99,6 +101,15 @@ var _ = ginkgo.Describe("[BasicPropagation] propagation testing", func() {
 				func(deployment *appsv1.Deployment) bool {
 					return *deployment.Spec.Replicas == updateDeploymentReplicas
 				})
+		})
+
+		ginkgo.It("adds dispatching event with a dispatching message", func() {
+			workName := names.GenerateWorkName(deployment.Kind, deployment.Name, deployment.Namespace)
+			esName := names.GenerateExecutionSpaceName(framework.ClusterNames()[0])
+			framework.WaitEventFitWith(kubeClient, esName, workName, func(event corev1.Event) bool {
+				return event.Reason == events.EventReasonWorkDispatching &&
+					event.Message == execution.WorkDispatchingConditionMessage
+			})
 		})
 	})
 
@@ -1170,7 +1181,7 @@ var _ = ginkgo.Describe("[Suspend] PropagationPolicy testing", func() {
 			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 		})
 
-		ginkgo.It("adds suspend dispatching condition to Work\"", func() {
+		ginkgo.It("adds suspend dispatching condition to Work", func() {
 			workName := names.GenerateWorkName(deployment.Kind, deployment.Name, deployment.Namespace)
 			esName := names.GenerateExecutionSpaceName(targetMember)
 			gomega.Eventually(func() bool {
@@ -1180,6 +1191,15 @@ var _ = ginkgo.Describe("[Suspend] PropagationPolicy testing", func() {
 				}
 				return work != nil && meta.IsStatusConditionPresentAndEqual(work.Status.Conditions, workv1alpha1.WorkDispatching, metav1.ConditionFalse)
 			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+		})
+
+		ginkgo.It("adds dispatching event with suspend message", func() {
+			workName := names.GenerateWorkName(deployment.Kind, deployment.Name, deployment.Namespace)
+			esName := names.GenerateExecutionSpaceName(targetMember)
+			framework.WaitEventFitWith(kubeClient, esName, workName, func(event corev1.Event) bool {
+				return event.Reason == events.EventReasonWorkDispatching &&
+					event.Message == execution.WorkSuspendDispatchingConditionMessage
+			})
 		})
 	})
 })
