@@ -281,7 +281,7 @@ var _ = framework.SerialDescribe("Karmadactl join/unjoin testing", ginkgo.Labels
 		var policy *policyv1alpha1.PropagationPolicy
 
 		ginkgo.BeforeEach(func() {
-			clusterName = "member-e2e-" + rand.String(3)
+			clusterName = "member-e2e-" + rand.String(RandomStrLength)
 			homeDir = os.Getenv("HOME")
 			kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, clusterName)
 			clusterContext = fmt.Sprintf("kind-%s", clusterName)
@@ -402,7 +402,7 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 	var f cmdutil.Factory
 
 	ginkgo.BeforeEach(func() {
-		clusterName = "member-e2e-" + rand.String(3)
+		clusterName = "member-e2e-" + rand.String(RandomStrLength)
 		homeDir = os.Getenv("HOME")
 		kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, clusterName)
 		controlPlane = fmt.Sprintf("%s-control-plane", clusterName)
@@ -1164,7 +1164,7 @@ var _ = framework.SerialDescribe("Karmadactl taint testing", ginkgo.Labels{NeedC
 		)
 
 		ginkgo.BeforeEach(func() {
-			newClusterName = "member-e2e-" + rand.String(3)
+			newClusterName = "member-e2e-" + rand.String(RandomStrLength)
 			homeDir = os.Getenv("HOME")
 			kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, newClusterName)
 			controlPlane = fmt.Sprintf("%s-control-plane", newClusterName)

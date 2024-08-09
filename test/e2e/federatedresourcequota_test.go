@@ -84,7 +84,7 @@ var _ = framework.SerialDescribe("FederatedResourceQuota auto-provision testing"
 		var clusterContext string
 
 		ginkgo.BeforeEach(func() {
-			clusterName = "member-e2e-" + rand.String(3)
+			clusterName = "member-e2e-" + rand.String(RandomStrLength)
 			homeDir = os.Getenv("HOME")
 			kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, clusterName)
 			controlPlane = fmt.Sprintf("%s-control-plane", clusterName)
