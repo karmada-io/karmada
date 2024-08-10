@@ -61,16 +61,26 @@ func TestFeatureToggling(t *testing.T) {
 
 func TestFeatureDependencies(t *testing.T) {
 	for feature, spec := range DefaultFeatureGates {
-		FeatureGate.Set(fmt.Sprintf("%s=%t", feature, spec.Default))
+		err := FeatureGate.Set(fmt.Sprintf("%s=%t", feature, spec.Default))
+		if err != nil {
+			t.Errorf("Failed to reset feature gate %s: %v", feature, err)
+		}
 	}
-
-	FeatureGate.Set(fmt.Sprintf("%s=true", Failover))
-	FeatureGate.Set(fmt.Sprintf("%s=true", GracefulEviction))
+	err := FeatureGate.Set(fmt.Sprintf("%s=true", Failover))
+	if err != nil {
+		t.Errorf("Failed to enable Failover: %v", err)
+	}
+	err = FeatureGate.Set(fmt.Sprintf("%s=true", GracefulEviction))
+	if err != nil {
+		t.Errorf("Failed to enable GracefulEviction: %v", err)
+	}
 	if !FeatureGate.Enabled(GracefulEviction) {
 		t.Errorf("GracefulEviction should be able to be enabled when Failover is enabled")
 	}
-
-	FeatureGate.Set(fmt.Sprintf("%s=false", GracefulEviction))
+	err = FeatureGate.Set(fmt.Sprintf("%s=false", GracefulEviction))
+	if err != nil {
+		t.Errorf("Failed to disable GracefulEviction: %v", err)
+	}
 	if FeatureGate.Enabled(GracefulEviction) {
 		t.Errorf("GracefulEviction should be able to be disabled independently of Failover")
 	}
@@ -84,13 +94,20 @@ func TestUnknownFeature(t *testing.T) {
 }
 
 func TestFeatureGateReset(t *testing.T) {
-	FeatureGate.Set(fmt.Sprintf("%s=false", Failover))
-	FeatureGate.Set(fmt.Sprintf("%s=true", PolicyPreemption))
-
-	for feature, spec := range DefaultFeatureGates {
-		FeatureGate.Set(fmt.Sprintf("%s=%t", feature, spec.Default))
+	err := FeatureGate.Set(fmt.Sprintf("%s=false", Failover))
+	if err != nil {
+		t.Errorf("Failed to set Failover to false: %v", err)
 	}
-
+	err = FeatureGate.Set(fmt.Sprintf("%s=true", PolicyPreemption))
+	if err != nil {
+		t.Errorf("Failed to set PolicyPreemption to true: %v", err)
+	}
+	for feature, spec := range DefaultFeatureGates {
+		err := FeatureGate.Set(fmt.Sprintf("%s=%t", feature, spec.Default))
+		if err != nil {
+			t.Errorf("Failed to reset feature %s: %v", feature, err)
+		}
+	}
 	for feature, spec := range DefaultFeatureGates {
 		if FeatureGate.Enabled(feature) != spec.Default {
 			t.Errorf("Feature %v should be reset to its default state of %v", feature, spec.Default)
