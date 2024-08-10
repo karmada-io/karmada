@@ -18,6 +18,7 @@ package e2e
 
 import (
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/onsi/ginkgo/v2"
@@ -27,7 +28,9 @@ import (
 	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
@@ -37,7 +40,7 @@ const waitIntervalForLazyPolicyTest = 3 * time.Second
 // e2e test for https://github.com/karmada-io/karmada/blob/release-1.9/docs/proposals/scheduling/activation-preference/lazy-activation-preference.md#test-plan
 var _ = ginkgo.Describe("Lazy activation policy testing", func() {
 	var namespace string
-	var deploymentName, configMapName, policyName, policyHigherPriorityName string
+	var deploymentName, configMapName, policyName, policyHigherPriorityName, bindingName string
 	var originalCluster, modifiedCluster string
 	var deployment *appsv1.Deployment
 	var configMap *corev1.ConfigMap
@@ -53,6 +56,7 @@ var _ = ginkgo.Describe("Lazy activation policy testing", func() {
 		modifiedCluster = framework.ClusterNames()[1]
 
 		deployment = testhelper.NewDeployment(namespace, deploymentName)
+		bindingName = names.GenerateBindingName(deployment.Kind, deployment.Name)
 		configMap = testhelper.NewConfigMap(namespace, configMapName, map[string]string{"test": "test"})
 		policy = testhelper.NewLazyPropagationPolicy(namespace, policyName, []policyv1alpha1.ResourceSelector{
 			{
@@ -267,14 +271,44 @@ var _ = ginkgo.Describe("Lazy activation policy testing", func() {
 		// refer: https://github.com/karmada-io/karmada/blob/release-1.9/docs/proposals/scheduling/activation-preference/lazy-activation-preference.md#simple-case-2-policy-created-after-resource
 		ginkgo.It("Simple Case 2 (Policy created after resource)", func() {
 			ginkgo.By("step1: deployment would not propagate when lazy policy created after deployment", func() {
-				// wait to distinguish whether the deployment will not propagate or have no time to propagate
-				time.Sleep(waitIntervalForLazyPolicyTest)
-				framework.WaitDeploymentDisappearOnCluster(originalCluster, namespace, deploymentName)
+				// when create lazy policy after resource, a suspended Binding will be created to prevent resource from dispatching until resource is updated by User.
+				framework.WaitResourceBindingFitWith(karmadaClient, namespace, bindingName, func(rb *workv1alpha2.ResourceBinding) bool {
+					return *rb.Spec.Suspension.Dispatching == true
+				})
 			})
 
 			ginkgo.By("step2: resource would propagate when itself updated", func() {
 				updateDeploymentManually(deployment)
+				// when resource is updated by User, the suspension of the binding should be replaced according to current policy
+				framework.WaitResourceBindingFitWith(karmadaClient, namespace, bindingName, func(rb *workv1alpha2.ResourceBinding) bool {
+					return rb.Spec.Suspension == nil
+				})
 				waitDeploymentPresentOnCluster(originalCluster, namespace, deploymentName)
+			})
+		})
+
+		ginkgo.Context("Policy created after resource && policy is suspension", func() {
+			ginkgo.BeforeEach(func() {
+				policy.Spec.Suspension = &policyv1alpha1.Suspension{
+					DispatchingOnClusters: &policyv1alpha1.SuspendClusters{ClusterNames: []string{originalCluster}},
+				}
+			})
+
+			ginkgo.It("Suspension Policy created after resource", func() {
+				ginkgo.By("step1: deployment would not propagate when lazy policy created after deployment", func() {
+					// // when create lazy policy after resource, a suspended Binding will be created to prevent resource from dispatching until resource is updated by User.
+					framework.WaitResourceBindingFitWith(karmadaClient, namespace, bindingName, func(rb *workv1alpha2.ResourceBinding) bool {
+						return *rb.Spec.Suspension.Dispatching == true
+					})
+				})
+
+				ginkgo.By("step2: resource would suspend propagate when itself updated", func() {
+					updateDeploymentManually(deployment)
+					// // when resource is updated by User, the suspension of the binding should be replaced according to current policy
+					framework.WaitResourceBindingFitWith(karmadaClient, namespace, bindingName, func(rb *workv1alpha2.ResourceBinding) bool {
+						return rb.Spec.Suspension.Dispatching == nil && reflect.DeepEqual(rb.Spec.Suspension.DispatchingOnClusters.ClusterNames, []string{originalCluster})
+					})
+				})
 			})
 		})
 

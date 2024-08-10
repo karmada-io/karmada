@@ -39,6 +39,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -455,15 +456,6 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		return err
 	}
 
-	// If this Reconcile action is triggered by Karmada itself and the current bound Policy is lazy activation preference,
-	// resource will delay to sync the placement from Policy to Binding util resource is updated by User.
-	if resourceChangeByKarmada && util.IsLazyActivationEnabled(policy.Spec.ActivationPreference) {
-		operationResult = controllerutil.OperationResultNone
-		klog.Infof("Skip refresh Binding for the change of resource (%s/%s) is from Karmada and activation "+
-			"preference of current bound policy (%s) is enabled.", object.GetNamespace(), object.GetName(), policy.Name)
-		return nil
-	}
-
 	policyLabels := map[string]string{
 		policyv1alpha1.PropagationPolicyPermanentIDLabel: policyID,
 	}
@@ -477,6 +469,17 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		klog.Errorf("Failed to build resourceBinding for object: %s. error: %v", objectKey, err)
 		return err
 	}
+
+	// If this Reconcile action is triggered by Karmada itself and the current bound Policy is lazy activation preference:
+	// * binding exist: resource will delay to sync the placement from Policy to Binding until resource is updated by User.
+	// * binding not exist: a suspended Binding will be created to prevent resource from dispatching until resource is updated by User.
+	if resourceChangeByKarmada && util.IsLazyActivationEnabled(policy.Spec.ActivationPreference) {
+		operationResult = controllerutil.OperationResultNone
+
+		binding.Spec.Suspension = &policyv1alpha1.Suspension{Dispatching: ptr.To[bool](true)}
+		return d.handleLazyActivationBinding(object, binding)
+	}
+
 	bindingCopy := binding.DeepCopy()
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
@@ -547,15 +550,6 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 		return err
 	}
 
-	// If this Reconcile action is triggered by Karmada itself and the current bound Policy is lazy activation preference,
-	// resource will delay to sync the placement from Policy to Binding util resource is updated by User.
-	if resourceChangeByKarmada && util.IsLazyActivationEnabled(policy.Spec.ActivationPreference) {
-		operationResult = controllerutil.OperationResultNone
-		klog.Infof("Skip refresh Binding for the change of resource (%s/%s) is from Karmada and activation "+
-			"preference of current bound cluster policy (%s) is enabled.", object.GetNamespace(), object.GetName(), policy.Name)
-		return nil
-	}
-
 	policyLabels := map[string]string{
 		policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: policyID,
 	}
@@ -572,6 +566,17 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			klog.Errorf("Failed to build resourceBinding for object: %s. error: %v", objectKey, err)
 			return err
 		}
+
+		// If this Reconcile action is triggered by Karmada itself and the current bound Policy is lazy activation preference:
+		// * binding exist: resource will delay to sync the placement from Policy to Binding until resource is updated by User.
+		// * binding not exist: a suspended Binding will be created to prevent resource from dispatching until resource is updated by User.
+		if resourceChangeByKarmada && util.IsLazyActivationEnabled(policy.Spec.ActivationPreference) {
+			operationResult = controllerutil.OperationResultNone
+
+			binding.Spec.Suspension = &policyv1alpha1.Suspension{Dispatching: ptr.To[bool](true)}
+			return d.handleLazyActivationBinding(object, binding)
+		}
+
 		bindingCopy := binding.DeepCopy()
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 			operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
@@ -619,6 +624,17 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			klog.Errorf("Failed to build clusterResourceBinding for object: %s. error: %v", objectKey, err)
 			return err
 		}
+
+		// If this Reconcile action is triggered by Karmada itself and the current bound Policy is lazy activation preference:
+		// * binding exist: resource will delay to sync the placement from Policy to Binding until resource is updated by User.
+		// * binding not exist: a suspended Binding will be created to prevent resource from dispatching until resource is updated by User.
+		if resourceChangeByKarmada && util.IsLazyActivationEnabled(policy.Spec.ActivationPreference) {
+			operationResult = controllerutil.OperationResultNone
+
+			binding.Spec.Suspension = &policyv1alpha1.Suspension{Dispatching: ptr.To[bool](true)}
+			return d.handleLazyActivationBinding(object, binding)
+		}
+
 		bindingCopy := binding.DeepCopy()
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 			operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
@@ -660,6 +676,34 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			klog.V(2).Infof("ClusterResourceBinding(%s) is up to date.", binding.GetName())
 		}
 	}
+
+	return nil
+}
+
+// handleLazyActivationBinding handle Reconcile is triggered by Karmada itself and the current bound Policy is lazy activation preference.
+// if binding exist, resource will delay to sync the placement from Policy to Binding until resource is updated by User.
+// if binding not exist, a suspended Binding will be created to prevent resource from dispatching until resource is updated by User.
+func (d *ResourceDetector) handleLazyActivationBinding(obj *unstructured.Unstructured, binding client.Object) error {
+	bindingKey := client.ObjectKeyFromObject(obj)
+
+	err := d.Client.Get(context.TODO(), bindingKey, &workv1alpha2.ResourceBinding{})
+	// 1. case binding exist
+	if err == nil {
+		klog.Infof("Skip refresh Binding for the change of resource (%s/%s) is from Karmada and activation "+
+			"preference of current bound policy (%s) is enabled.", obj.GetNamespace(), obj.GetName(), binding.GetName())
+		return nil
+	}
+
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("failed to get binding(%s/%s), error: %w", obj.GetNamespace(), obj.GetName(), err)
+	}
+
+	// 2. case binding not exist
+	if err := d.Client.Create(context.TODO(), binding); err != nil {
+		return fmt.Errorf("failed to create binding(%s/%s), error: %w", obj.GetNamespace(), obj.GetName(), err)
+	}
+	klog.Infof("Create suspended Binding for the change of resource (%s/%s) is from Karmada and activation "+
+		"preference of current bound policy (%s) is enabled.", obj.GetNamespace(), obj.GetName(), binding.GetName())
 
 	return nil
 }
