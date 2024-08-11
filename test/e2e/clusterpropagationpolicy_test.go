@@ -1052,23 +1052,22 @@ var _ = ginkgo.Describe("[Suspend] clusterPropagation testing", func() {
 	})
 
 	ginkgo.BeforeEach(func() {
+		framework.CreateClusterPropagationPolicy(karmadaClient, policy)
 		framework.CreateClusterRole(kubeClient, clusterRole)
 		ginkgo.DeferCleanup(func() {
+			framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
 			framework.RemoveClusterRole(kubeClient, clusterRole.Name)
 		})
 	})
 
-	ginkgo.Context("suspend the ClusterPropagationPolicy dispatching", func() {
-		ginkgo.BeforeEach(func() {
-			policy.Spec.Suspension = &policyv1alpha1.Suspension{
-				Dispatching: ptr.To(true),
-			}
-			framework.CreateClusterPropagationPolicy(karmadaClient, policy)
-			ginkgo.DeferCleanup(func() {
-				framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
-			})
-		})
+	ginkgo.BeforeEach(func() {
+		policy.Spec.Suspension = &policyv1alpha1.Suspension{
+			Dispatching: ptr.To(true),
+		}
+		framework.UpdateClusterPropagationPolicyWithSpec(karmadaClient, policy.Name, policy.Spec)
+	})
 
+	ginkgo.Context("suspend the ClusterPropagationPolicy dispatching", func() {
 		ginkgo.It("suspends ClusterResourceBinding", func() {
 			framework.WaitClusterResourceBindingFitWith(karmadaClient, resourceBindingName, func(binding *workv1alpha2.ClusterResourceBinding) bool {
 				return binding.Spec.Suspension != nil && ptr.Deref(binding.Spec.Suspension.Dispatching, false)
