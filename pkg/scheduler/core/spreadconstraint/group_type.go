@@ -109,7 +109,7 @@ func (path *dfsPath) removeLast() {
 	path.removeClusters(last.Group)
 }
 
-// removeLast removes the last node from the dfsPath and returns a new dfsPath instance with updated replicas and maximum score.
+// next returns a copy of the current path, and increment the current id for next path.
 func (path *dfsPath) next() *dfsPath {
 	clusters := make(map[string]int, len(path.clusters))
 	for k, v := range path.clusters {
