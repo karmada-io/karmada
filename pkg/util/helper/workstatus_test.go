@@ -192,7 +192,9 @@ func TestGetManifestIndex(t *testing.T) {
 	}
 
 	t.Run("Service", func(t *testing.T) {
-		index, err := GetManifestIndex(manifests, service)
+		manifestRef := ManifestReference{APIVersion: service.GetAPIVersion(), Kind: service.GetKind(),
+			Namespace: service.GetNamespace(), Name: service.GetName()}
+		index, err := GetManifestIndex(manifests, &manifestRef)
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
@@ -202,7 +204,9 @@ func TestGetManifestIndex(t *testing.T) {
 	})
 
 	t.Run("Deployment", func(t *testing.T) {
-		index, err := GetManifestIndex(manifests, deployment)
+		manifestRef := ManifestReference{APIVersion: deployment.GetAPIVersion(), Kind: deployment.GetKind(),
+			Namespace: deployment.GetNamespace(), Name: deployment.GetName()}
+		index, err := GetManifestIndex(manifests, &manifestRef)
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
@@ -212,7 +216,7 @@ func TestGetManifestIndex(t *testing.T) {
 	})
 
 	t.Run("No match", func(t *testing.T) {
-		_, err := GetManifestIndex(manifests, &unstructured.Unstructured{})
+		_, err := GetManifestIndex(manifests, &ManifestReference{})
 		if err == nil {
 			t.Errorf("expected error, got nil")
 		}
@@ -224,7 +228,7 @@ func TestEqualIdentifier(t *testing.T) {
 		name           string
 		target         *workv1alpha1.ResourceIdentifier
 		ordinal        int
-		workload       *unstructured.Unstructured
+		workload       *ManifestReference
 		expectedOutput bool
 	}{
 		{
@@ -238,15 +242,11 @@ func TestEqualIdentifier(t *testing.T) {
 				Name:      "test-deployment",
 			},
 			ordinal: 0,
-			workload: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "apps/v1",
-					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
-						"namespace": "default",
-						"name":      "test-deployment",
-					},
-				},
+			workload: &ManifestReference{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Namespace:  "default",
+				Name:       "test-deployment",
 			},
 			expectedOutput: true,
 		},
@@ -261,15 +261,11 @@ func TestEqualIdentifier(t *testing.T) {
 				Name:      "test-deployment",
 			},
 			ordinal: 0,
-			workload: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "apps/v1",
-					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
-						"namespace": "default",
-						"name":      "test-deployment",
-					},
-				},
+			workload: &ManifestReference{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Namespace:  "default",
+				Name:       "test-deployment",
 			},
 			expectedOutput: false,
 		},
