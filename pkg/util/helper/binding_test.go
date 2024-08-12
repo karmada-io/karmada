@@ -553,7 +553,7 @@ func TestFindOrphanWorks(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := FindOrphanWorks(tt.args.c, tt.args.bindingNamespace, tt.args.bindingName, tt.args.bindingID, tt.args.expectClusters)
+			got, err := FindOrphanWorks(context.Background(), tt.args.c, tt.args.bindingNamespace, tt.args.bindingName, tt.args.bindingID, tt.args.expectClusters)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("FindOrphanWorks() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -608,7 +608,7 @@ func TestRemoveOrphanWorks(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := RemoveOrphanWorks(tt.args.c, tt.args.works); (err != nil) != tt.wantErr {
+			if err := RemoveOrphanWorks(context.Background(), tt.args.c, tt.args.works); (err != nil) != tt.wantErr {
 				t.Errorf("RemoveOrphanWorks() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			got := &workv1alpha1.WorkList{}
@@ -806,7 +806,7 @@ func TestFetchWorkload(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			stopCh := make(chan struct{})
 			mgr := tt.args.informerManager(stopCh)
-			got, err := FetchResourceTemplate(tt.args.dynamicClient, mgr, tt.args.restMapper, tt.args.resource)
+			got, err := FetchResourceTemplate(context.TODO(), tt.args.dynamicClient, mgr, tt.args.restMapper, tt.args.resource)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("FetchResourceTemplate() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1044,11 +1044,11 @@ func TestDeleteWorkByRBNamespaceAndName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := DeleteWorks(tt.args.c, tt.args.namespace, tt.args.name, tt.args.bindingID); (err != nil) != tt.wantErr {
+			if err := DeleteWorks(context.Background(), tt.args.c, tt.args.namespace, tt.args.name, tt.args.bindingID); (err != nil) != tt.wantErr {
 				t.Errorf("DeleteWorks() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			list := &workv1alpha1.WorkList{}
-			if err := tt.args.c.List(context.TODO(), list); err != nil {
+			if err := tt.args.c.List(context.Background(), list); err != nil {
 				t.Error(err)
 				return
 			}

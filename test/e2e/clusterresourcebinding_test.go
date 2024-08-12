@@ -17,6 +17,7 @@ limitations under the License.
 package e2e
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/onsi/ginkgo/v2"
@@ -79,7 +80,7 @@ var _ = ginkgo.Describe("ClusterResourceBinding test", func() {
 
 		ginkgo.It("creates work with permanent ID label", func() {
 			framework.WaitClusterResourceBindingFitWith(karmadaClient, bindingName, func(clusterResourceBinding *workv1alpha2.ClusterResourceBinding) bool {
-				workList, err := helper.GetWorksByBindingID(controlPlaneClient, clusterResourceBinding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel], false)
+				workList, err := helper.GetWorksByBindingID(context.Background(), controlPlaneClient, clusterResourceBinding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel], false)
 				if err != nil {
 					return false
 				}

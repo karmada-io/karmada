@@ -866,13 +866,13 @@ func TestWorkStatusController_recreateResourceIfNeeded(t *testing.T) {
 	}
 
 	t.Run("normal case", func(t *testing.T) {
-		err := c.recreateResourceIfNeeded(work, fedKey)
+		err := c.recreateResourceIfNeeded(context.Background(), work, fedKey)
 		assert.Empty(t, err)
 	})
 
 	t.Run("failed to UnmarshalJSON", func(t *testing.T) {
 		work.Spec.Workload.Manifests[0].RawExtension.Raw = []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}},`)
-		err := c.recreateResourceIfNeeded(work, fedKey)
+		err := c.recreateResourceIfNeeded(context.Background(), work, fedKey)
 		assert.NotEmpty(t, err)
 	})
 }

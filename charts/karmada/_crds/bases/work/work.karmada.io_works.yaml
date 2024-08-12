@@ -54,6 +54,12 @@ spec:
           spec:
             description: Spec represents the desired behavior of Work.
             properties:
+              suspendDispatching:
+                description: |-
+                  SuspendDispatching controls whether dispatching should
+                  be suspended, nil means not suspend.
+                  Note: true means stop propagating to all clusters.
+                type: boolean
               workload:
                 description: Workload represents the manifest workload to be deployed
                   on managed cluster.

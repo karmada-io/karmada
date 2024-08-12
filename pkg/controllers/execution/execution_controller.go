@@ -52,6 +52,14 @@ import (
 const (
 	// ControllerName is the controller name that will be used when reporting events.
 	ControllerName = "execution-controller"
+	// WorkSuspendDispatchingConditionMessage is the condition and event message when dispatching is suspended.
+	WorkSuspendDispatchingConditionMessage = "Work dispatching is in a suspended state."
+	// WorkDispatchingConditionMessage is the condition and event message when dispatching is not suspended.
+	WorkDispatchingConditionMessage = "Work is being dispatched to member clusters."
+	// workSuspendDispatchingConditionReason is the reason for the WorkDispatching condition when dispatching is suspended.
+	workSuspendDispatchingConditionReason = "SuspendDispatching"
+	// workDispatchingConditionReason is the reason for the WorkDispatching condition when dispatching is not suspended.
+	workDispatchingConditionReason = "Dispatching"
 )
 
 // Controller is to sync Work.
@@ -93,10 +101,20 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 		return controllerruntime.Result{}, err
 	}
 
+	if err := c.updateWorkDispatchingConditionIfNeeded(ctx, work); err != nil {
+		klog.Errorf("Failed to update work condition type %s. err is %v", workv1alpha1.WorkDispatching, err)
+		return controllerruntime.Result{}, err
+	}
+
+	if helper.IsWorkSuspendDispatching(work) {
+		klog.V(4).Infof("Skip syncing work(%s/%s) for cluster(%s) as work dispatch is suspended.", work.Namespace, work.Name, cluster.Name)
+		return controllerruntime.Result{}, nil
+	}
+
 	if !work.DeletionTimestamp.IsZero() {
 		// Abort deleting workload if cluster is unready when unjoining cluster, otherwise the unjoin process will be failed.
 		if util.IsClusterReady(&cluster.Status) {
-			err := c.tryDeleteWorkload(clusterName, work)
+			err := c.tryDeleteWorkload(ctx, clusterName, work)
 			if err != nil {
 				klog.Errorf("Failed to delete work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
 				return controllerruntime.Result{}, err
@@ -105,7 +123,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 			return controllerruntime.Result{}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
 		}
 
-		return c.removeFinalizer(work)
+		return c.removeFinalizer(ctx, work)
 	}
 
 	if !util.IsClusterReady(&cluster.Status) {
@@ -113,7 +131,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 		return controllerruntime.Result{}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
 	}
 
-	return c.syncWork(clusterName, work)
+	return c.syncWork(ctx, clusterName, work)
 }
 
 // SetupWithManager creates a controller and register to controller manager.
@@ -127,9 +145,9 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 		Complete(c)
 }
 
-func (c *Controller) syncWork(clusterName string, work *workv1alpha1.Work) (controllerruntime.Result, error) {
+func (c *Controller) syncWork(ctx context.Context, clusterName string, work *workv1alpha1.Work) (controllerruntime.Result, error) {
 	start := time.Now()
-	err := c.syncToClusters(clusterName, work)
+	err := c.syncToClusters(ctx, clusterName, work)
 	metrics.ObserveSyncWorkloadLatency(err, start)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to sync work(%s/%s) to cluster(%s), err: %v", work.Namespace, work.Name, clusterName, err)
@@ -144,7 +162,7 @@ func (c *Controller) syncWork(clusterName string, work *workv1alpha1.Work) (cont
 }
 
 // tryDeleteWorkload tries to delete resources in the given member cluster.
-func (c *Controller) tryDeleteWorkload(clusterName string, work *workv1alpha1.Work) error {
+func (c *Controller) tryDeleteWorkload(ctx context.Context, clusterName string, work *workv1alpha1.Work) error {
 	for _, manifest := range work.Spec.Workload.Manifests {
 		workload := &unstructured.Unstructured{}
 		err := workload.UnmarshalJSON(manifest.Raw)
@@ -153,7 +171,7 @@ func (c *Controller) tryDeleteWorkload(clusterName string, work *workv1alpha1.Wo
 			return err
 		}
 
-		err = c.ObjectWatcher.Delete(clusterName, workload)
+		err = c.ObjectWatcher.Delete(ctx, clusterName, workload)
 		if err != nil {
 			klog.Errorf("Failed to delete resource in the given member cluster %v, err is %v", clusterName, err)
 			return err
@@ -164,13 +182,13 @@ func (c *Controller) tryDeleteWorkload(clusterName string, work *workv1alpha1.Wo
 }
 
 // removeFinalizer remove finalizer from the given Work
-func (c *Controller) removeFinalizer(work *workv1alpha1.Work) (controllerruntime.Result, error) {
+func (c *Controller) removeFinalizer(ctx context.Context, work *workv1alpha1.Work) (controllerruntime.Result, error) {
 	if !controllerutil.ContainsFinalizer(work, util.ExecutionControllerFinalizer) {
 		return controllerruntime.Result{}, nil
 	}
 
 	controllerutil.RemoveFinalizer(work, util.ExecutionControllerFinalizer)
-	err := c.Client.Update(context.TODO(), work)
+	err := c.Client.Update(ctx, work)
 	if err != nil {
 		return controllerruntime.Result{}, err
 	}
@@ -178,7 +196,7 @@ func (c *Controller) removeFinalizer(work *workv1alpha1.Work) (controllerruntime
 }
 
 // syncToClusters ensures that the state of the given object is synchronized to member clusters.
-func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work) error {
+func (c *Controller) syncToClusters(ctx context.Context, clusterName string, work *workv1alpha1.Work) error {
 	var errs []error
 	syncSucceedNum := 0
 	for _, manifest := range work.Spec.Workload.Manifests {
@@ -190,7 +208,7 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 			continue
 		}
 
-		if err = c.tryCreateOrUpdateWorkload(clusterName, workload); err != nil {
+		if err = c.tryCreateOrUpdateWorkload(ctx, clusterName, workload); err != nil {
 			klog.Errorf("Failed to create or update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
 			c.eventf(workload, corev1.EventTypeWarning, events.EventReasonSyncWorkloadFailed, "Failed to create or update resource(%s) in member cluster(%s): %v", klog.KObj(workload), clusterName, err)
 			errs = append(errs, err)
@@ -203,7 +221,7 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 	if len(errs) > 0 {
 		total := len(work.Spec.Workload.Manifests)
 		message := fmt.Sprintf("Failed to apply all manifests (%d/%d): %s", syncSucceedNum, total, errors.NewAggregate(errs).Error())
-		err := c.updateAppliedCondition(work, metav1.ConditionFalse, "AppliedFailed", message)
+		err := c.updateAppliedCondition(ctx, work, metav1.ConditionFalse, "AppliedFailed", message)
 		if err != nil {
 			klog.Errorf("Failed to update applied status for given work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
 			errs = append(errs, err)
@@ -211,7 +229,7 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 		return errors.NewAggregate(errs)
 	}
 
-	err := c.updateAppliedCondition(work, metav1.ConditionTrue, "AppliedSuccessful", "Manifest has been successfully applied")
+	err := c.updateAppliedCondition(ctx, work, metav1.ConditionTrue, "AppliedSuccessful", "Manifest has been successfully applied")
 	if err != nil {
 		klog.Errorf("Failed to update applied status for given work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
 		return err
@@ -220,7 +238,7 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 	return nil
 }
 
-func (c *Controller) tryCreateOrUpdateWorkload(clusterName string, workload *unstructured.Unstructured) error {
+func (c *Controller) tryCreateOrUpdateWorkload(ctx context.Context, clusterName string, workload *unstructured.Unstructured) error {
 	fedKey, err := keys.FederatedKeyFunc(clusterName, workload)
 	if err != nil {
 		klog.Errorf("Failed to get FederatedKey %s, error: %v", workload.GetName(), err)
@@ -233,22 +251,55 @@ func (c *Controller) tryCreateOrUpdateWorkload(clusterName string, workload *uns
 			klog.Errorf("Failed to get the resource(kind=%s, %s/%s) from member cluster(%s), err is %v ", workload.GetKind(), workload.GetNamespace(), workload.GetName(), clusterName, err)
 			return err
 		}
-		err = c.ObjectWatcher.Create(clusterName, workload)
+		err = c.ObjectWatcher.Create(ctx, clusterName, workload)
 		if err != nil {
 			return err
 		}
 		return nil
 	}
 
-	err = c.ObjectWatcher.Update(clusterName, workload, clusterObj)
+	err = c.ObjectWatcher.Update(ctx, clusterName, workload, clusterObj)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
+func (c *Controller) updateWorkDispatchingConditionIfNeeded(ctx context.Context, work *workv1alpha1.Work) error {
+	newWorkDispatchingCondition := metav1.Condition{
+		Type:               workv1alpha1.WorkDispatching,
+		LastTransitionTime: metav1.Now(),
+	}
+
+	if helper.IsWorkSuspendDispatching(work) {
+		newWorkDispatchingCondition.Status = metav1.ConditionFalse
+		newWorkDispatchingCondition.Reason = workSuspendDispatchingConditionReason
+		newWorkDispatchingCondition.Message = WorkSuspendDispatchingConditionMessage
+	} else {
+		newWorkDispatchingCondition.Status = metav1.ConditionTrue
+		newWorkDispatchingCondition.Reason = workDispatchingConditionReason
+		newWorkDispatchingCondition.Message = WorkDispatchingConditionMessage
+	}
+
+	if meta.IsStatusConditionPresentAndEqual(work.Status.Conditions, newWorkDispatchingCondition.Type, newWorkDispatchingCondition.Status) {
+		return nil
+	}
+
+	if err := c.setStatusCondition(ctx, work, newWorkDispatchingCondition); err != nil {
+		return err
+	}
+
+	obj, err := helper.ToUnstructured(work)
+	if err != nil {
+		return err
+	}
+
+	c.eventf(obj, corev1.EventTypeNormal, events.EventReasonWorkDispatching, newWorkDispatchingCondition.Message)
+	return nil
+}
+
 // updateAppliedCondition updates the applied condition for the given Work.
-func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status metav1.ConditionStatus, reason, message string) error {
+func (c *Controller) updateAppliedCondition(ctx context.Context, work *workv1alpha1.Work, status metav1.ConditionStatus, reason, message string) error {
 	newWorkAppliedCondition := metav1.Condition{
 		Type:               workv1alpha1.WorkApplied,
 		Status:             status,
@@ -257,9 +308,13 @@ func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status meta
 		LastTransitionTime: metav1.Now(),
 	}
 
+	return c.setStatusCondition(ctx, work, newWorkAppliedCondition)
+}
+
+func (c *Controller) setStatusCondition(ctx context.Context, work *workv1alpha1.Work, statusCondition metav1.Condition) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		_, err = helper.UpdateStatus(context.Background(), c.Client, work, func() error {
-			meta.SetStatusCondition(&work.Status.Conditions, newWorkAppliedCondition)
+		_, err = helper.UpdateStatus(ctx, c.Client, work, func() error {
+			meta.SetStatusCondition(&work.Status.Conditions, statusCondition)
 			return nil
 		})
 		return err

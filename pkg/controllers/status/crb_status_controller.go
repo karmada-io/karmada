@@ -75,7 +75,7 @@ func (c *CRBStatusController) Reconcile(ctx context.Context, req controllerrunti
 		return controllerruntime.Result{}, nil
 	}
 
-	err := c.syncBindingStatus(binding)
+	err := c.syncBindingStatus(ctx, binding)
 	if err != nil {
 		return controllerruntime.Result{}, err
 	}
@@ -108,8 +108,8 @@ func (c *CRBStatusController) SetupWithManager(mgr controllerruntime.Manager) er
 		Complete(c)
 }
 
-func (c *CRBStatusController) syncBindingStatus(binding *workv1alpha2.ClusterResourceBinding) error {
-	resource, err := helper.FetchResourceTemplate(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
+func (c *CRBStatusController) syncBindingStatus(ctx context.Context, binding *workv1alpha2.ClusterResourceBinding) error {
+	resource, err := helper.FetchResourceTemplate(ctx, c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// It might happen when the resource template has been removed but the garbage collector hasn't removed
@@ -122,14 +122,14 @@ func (c *CRBStatusController) syncBindingStatus(binding *workv1alpha2.ClusterRes
 		return err
 	}
 
-	err = helper.AggregateClusterResourceBindingWorkStatus(c.Client, binding, resource, c.EventRecorder)
+	err = helper.AggregateClusterResourceBindingWorkStatus(ctx, c.Client, binding, resource, c.EventRecorder)
 	if err != nil {
 		klog.Errorf("Failed to aggregate workStatues to clusterResourceBinding(%s), Error: %v",
 			binding.Name, err)
 		return err
 	}
 
-	err = updateResourceStatus(c.DynamicClient, c.RESTMapper, c.ResourceInterpreter, resource, binding.Status)
+	err = updateResourceStatus(ctx, c.DynamicClient, c.RESTMapper, c.ResourceInterpreter, resource, binding.Status)
 	if err != nil {
 		return err
 	}

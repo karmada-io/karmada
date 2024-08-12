@@ -97,7 +97,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 		return controllerruntime.Result{}, err
 	}
 
-	err := c.buildWorks(namespace, clusterList.Items)
+	err := c.buildWorks(ctx, namespace, clusterList.Items)
 	if err != nil {
 		klog.Errorf("Failed to build work for namespace %s. Error: %v.", namespace.GetName(), err)
 		return controllerruntime.Result{}, err
@@ -119,7 +119,7 @@ func (c *Controller) namespaceShouldBeSynced(namespace string) bool {
 	return true
 }
 
-func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv1alpha1.Cluster) error {
+func (c *Controller) buildWorks(ctx context.Context, namespace *corev1.Namespace, clusters []clusterv1alpha1.Cluster) error {
 	namespaceObj, err := helper.ToUnstructured(namespace)
 	if err != nil {
 		klog.Errorf("Failed to transform namespace %s. Error: %v", namespace.GetName(), err)
@@ -157,7 +157,7 @@ func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv
 				Annotations: annotations,
 			}
 
-			if err = helper.CreateOrUpdateWork(c.Client, objectMeta, clonedNamespaced); err != nil {
+			if err = helper.CreateOrUpdateWork(ctx, c.Client, objectMeta, clonedNamespaced, nil); err != nil {
 				ch <- fmt.Errorf("sync namespace(%s) to cluster(%s) failed due to: %v", clonedNamespaced.GetName(), cluster.GetName(), err)
 				return
 			}
@@ -178,10 +178,10 @@ func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv
 // SetupWithManager creates a controller and register to controller manager.
 func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	clusterNamespaceFn := handler.MapFunc(
-		func(_ context.Context, _ client.Object) []reconcile.Request {
+		func(ctx context.Context, _ client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 			namespaceList := &corev1.NamespaceList{}
-			if err := c.Client.List(context.TODO(), namespaceList); err != nil {
+			if err := c.Client.List(ctx, namespaceList); err != nil {
 				klog.Errorf("Failed to list namespace, error: %v", err)
 				return nil
 			}

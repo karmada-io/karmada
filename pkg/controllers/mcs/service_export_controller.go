@@ -192,6 +192,7 @@ func (c *ServiceExportController) enqueueReportedEpsServiceExport() {
 }
 
 func (c *ServiceExportController) syncServiceExportOrEndpointSlice(key util.QueueKey) error {
+	ctx := context.Background()
 	fedKey, ok := key.(keys.FederatedKey)
 	if !ok {
 		klog.Errorf("Failed to sync serviceExport as invalid key: %v", key)
@@ -202,13 +203,13 @@ func (c *ServiceExportController) syncServiceExportOrEndpointSlice(key util.Queu
 
 	switch fedKey.Kind {
 	case util.ServiceExportKind:
-		if err := c.handleServiceExportEvent(fedKey); err != nil {
+		if err := c.handleServiceExportEvent(ctx, fedKey); err != nil {
 			klog.Errorf("Failed to handle serviceExport(%s) event, Error: %v",
 				fedKey.NamespaceKey(), err)
 			return err
 		}
 	case util.EndpointSliceKind:
-		if err := c.handleEndpointSliceEvent(fedKey); err != nil {
+		if err := c.handleEndpointSliceEvent(ctx, fedKey); err != nil {
 			klog.Errorf("Failed to handle endpointSlice(%s) event, Error: %v",
 				fedKey.NamespaceKey(), err)
 			return err
@@ -338,11 +339,11 @@ func (c *ServiceExportController) genHandlerDeleteFunc(clusterName string) func(
 // handleServiceExportEvent syncs EndPointSlice objects to control-plane according to ServiceExport event.
 // For ServiceExport create or update event, reports the referencing service's EndpointSlice.
 // For ServiceExport delete event, cleanup the previously reported EndpointSlice.
-func (c *ServiceExportController) handleServiceExportEvent(serviceExportKey keys.FederatedKey) error {
+func (c *ServiceExportController) handleServiceExportEvent(ctx context.Context, serviceExportKey keys.FederatedKey) error {
 	_, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, serviceExportKey)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return cleanupWorkWithServiceExportDelete(c.Client, serviceExportKey)
+			return cleanupWorkWithServiceExportDelete(ctx, c.Client, serviceExportKey)
 		}
 		return err
 	}
@@ -351,7 +352,7 @@ func (c *ServiceExportController) handleServiceExportEvent(serviceExportKey keys
 	// be redundant, but it helps to avoid a corner case:
 	// If skip report here, after ServiceExport deletion and re-creation, if no EndpointSlice changes, we didn't get a
 	// change to sync.
-	if err = c.reportEndpointSliceWithServiceExportCreate(serviceExportKey); err != nil {
+	if err = c.reportEndpointSliceWithServiceExportCreate(ctx, serviceExportKey); err != nil {
 		klog.Errorf("Failed to handle ServiceExport(%s) event, Error: %v",
 			serviceExportKey.NamespaceKey(), err)
 		return err
@@ -363,16 +364,16 @@ func (c *ServiceExportController) handleServiceExportEvent(serviceExportKey keys
 // handleEndpointSliceEvent syncs EndPointSlice objects to control-plane according to EndpointSlice event.
 // For EndpointSlice create or update event, reports the EndpointSlice when referencing service has been exported.
 // For EndpointSlice delete event, cleanup the previously reported EndpointSlice.
-func (c *ServiceExportController) handleEndpointSliceEvent(endpointSliceKey keys.FederatedKey) error {
+func (c *ServiceExportController) handleEndpointSliceEvent(ctx context.Context, endpointSliceKey keys.FederatedKey) error {
 	endpointSliceObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, endpointSliceKey)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return cleanupWorkWithEndpointSliceDelete(c.Client, endpointSliceKey)
+			return cleanupWorkWithEndpointSliceDelete(ctx, c.Client, endpointSliceKey)
 		}
 		return err
 	}
 
-	if err = c.reportEndpointSliceWithEndpointSliceCreateOrUpdate(endpointSliceKey.Cluster, endpointSliceObj); err != nil {
+	if err = c.reportEndpointSliceWithEndpointSliceCreateOrUpdate(ctx, endpointSliceKey.Cluster, endpointSliceObj); err != nil {
 		klog.Errorf("Failed to handle endpointSlice(%s) event, Error: %v",
 			endpointSliceKey.NamespaceKey(), err)
 		return err
@@ -382,7 +383,7 @@ func (c *ServiceExportController) handleEndpointSliceEvent(endpointSliceKey keys
 }
 
 // reportEndpointSliceWithServiceExportCreate reports the referencing service's EndpointSlice.
-func (c *ServiceExportController) reportEndpointSliceWithServiceExportCreate(serviceExportKey keys.FederatedKey) error {
+func (c *ServiceExportController) reportEndpointSliceWithServiceExportCreate(ctx context.Context, serviceExportKey keys.FederatedKey) error {
 	var (
 		endpointSliceObjects []runtime.Object
 		err                  error
@@ -401,20 +402,20 @@ func (c *ServiceExportController) reportEndpointSliceWithServiceExportCreate(ser
 		return err
 	}
 
-	err = c.removeOrphanWork(endpointSliceObjects, serviceExportKey)
+	err = c.removeOrphanWork(ctx, endpointSliceObjects, serviceExportKey)
 	if err != nil {
 		return err
 	}
 
 	for index := range endpointSliceObjects {
-		if err = reportEndpointSlice(c.Client, endpointSliceObjects[index].(*unstructured.Unstructured), serviceExportKey.Cluster); err != nil {
+		if err = reportEndpointSlice(ctx, c.Client, endpointSliceObjects[index].(*unstructured.Unstructured), serviceExportKey.Cluster); err != nil {
 			errs = append(errs, err)
 		}
 	}
 	return utilerrors.NewAggregate(errs)
 }
 
-func (c *ServiceExportController) removeOrphanWork(endpointSliceObjects []runtime.Object, serviceExportKey keys.FederatedKey) error {
+func (c *ServiceExportController) removeOrphanWork(ctx context.Context, endpointSliceObjects []runtime.Object, serviceExportKey keys.FederatedKey) error {
 	willReportWorks := sets.NewString()
 	for index := range endpointSliceObjects {
 		endpointSlice := endpointSliceObjects[index].(*unstructured.Unstructured)
@@ -423,7 +424,7 @@ func (c *ServiceExportController) removeOrphanWork(endpointSliceObjects []runtim
 	}
 
 	collectedEpsWorkList := &workv1alpha1.WorkList{}
-	if err := c.List(context.TODO(), collectedEpsWorkList, &client.ListOptions{
+	if err := c.List(ctx, collectedEpsWorkList, &client.ListOptions{
 		Namespace: names.GenerateExecutionSpaceName(serviceExportKey.Cluster),
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			util.PropagationInstruction: util.PropagationInstructionSuppressed,
@@ -452,7 +453,7 @@ func (c *ServiceExportController) removeOrphanWork(endpointSliceObjects []runtim
 			continue
 		}
 
-		err := cleanEndpointSliceWork(c.Client, &work)
+		err := cleanEndpointSliceWork(ctx, c.Client, &work)
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -461,7 +462,7 @@ func (c *ServiceExportController) removeOrphanWork(endpointSliceObjects []runtim
 }
 
 // reportEndpointSliceWithEndpointSliceCreateOrUpdate reports the EndpointSlice when referencing service has been exported.
-func (c *ServiceExportController) reportEndpointSliceWithEndpointSliceCreateOrUpdate(clusterName string, endpointSlice *unstructured.Unstructured) error {
+func (c *ServiceExportController) reportEndpointSliceWithEndpointSliceCreateOrUpdate(ctx context.Context, clusterName string, endpointSlice *unstructured.Unstructured) error {
 	relatedServiceName := endpointSlice.GetLabels()[discoveryv1.LabelServiceName]
 
 	singleClusterManager := c.InformerManager.GetSingleClusterManager(clusterName)
@@ -480,30 +481,30 @@ func (c *ServiceExportController) reportEndpointSliceWithEndpointSliceCreateOrUp
 		return err
 	}
 
-	return reportEndpointSlice(c.Client, endpointSlice, clusterName)
+	return reportEndpointSlice(ctx, c.Client, endpointSlice, clusterName)
 }
 
 // reportEndpointSlice report EndPointSlice objects to control-plane.
-func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructured, clusterName string) error {
+func reportEndpointSlice(ctx context.Context, c client.Client, endpointSlice *unstructured.Unstructured, clusterName string) error {
 	executionSpace := names.GenerateExecutionSpaceName(clusterName)
 	workName := names.GenerateWorkName(endpointSlice.GetKind(), endpointSlice.GetName(), endpointSlice.GetNamespace())
 
-	workMeta, err := getEndpointSliceWorkMeta(c, executionSpace, workName, endpointSlice)
+	workMeta, err := getEndpointSliceWorkMeta(ctx, c, executionSpace, workName, endpointSlice)
 	if err != nil {
 		return err
 	}
 
-	if err := helper.CreateOrUpdateWork(c, workMeta, endpointSlice); err != nil {
+	if err := helper.CreateOrUpdateWork(ctx, c, workMeta, endpointSlice, nil); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func getEndpointSliceWorkMeta(c client.Client, ns string, workName string, endpointSlice *unstructured.Unstructured) (metav1.ObjectMeta, error) {
+func getEndpointSliceWorkMeta(ctx context.Context, c client.Client, ns string, workName string, endpointSlice *unstructured.Unstructured) (metav1.ObjectMeta, error) {
 	existWork := &workv1alpha1.Work{}
 	var err error
-	if err = c.Get(context.Background(), types.NamespacedName{
+	if err = c.Get(ctx, types.NamespacedName{
 		Namespace: ns,
 		Name:      workName,
 	}, existWork); err != nil && !apierrors.IsNotFound(err) {
@@ -538,11 +539,11 @@ func getEndpointSliceWorkMeta(c client.Client, ns string, workName string, endpo
 	return workMeta, nil
 }
 
-func cleanupWorkWithServiceExportDelete(c client.Client, serviceExportKey keys.FederatedKey) error {
+func cleanupWorkWithServiceExportDelete(ctx context.Context, c client.Client, serviceExportKey keys.FederatedKey) error {
 	executionSpace := names.GenerateExecutionSpaceName(serviceExportKey.Cluster)
 
 	workList := &workv1alpha1.WorkList{}
-	if err := c.List(context.TODO(), workList, &client.ListOptions{
+	if err := c.List(ctx, workList, &client.ListOptions{
 		Namespace: executionSpace,
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			util.ServiceNamespaceLabel: serviceExportKey.Namespace,
@@ -556,14 +557,14 @@ func cleanupWorkWithServiceExportDelete(c client.Client, serviceExportKey keys.F
 
 	var errs []error
 	for _, work := range workList.Items {
-		if err := cleanEndpointSliceWork(c, work.DeepCopy()); err != nil {
+		if err := cleanEndpointSliceWork(ctx, c, work.DeepCopy()); err != nil {
 			errs = append(errs, err)
 		}
 	}
 	return utilerrors.NewAggregate(errs)
 }
 
-func cleanupWorkWithEndpointSliceDelete(c client.Client, endpointSliceKey keys.FederatedKey) error {
+func cleanupWorkWithEndpointSliceDelete(ctx context.Context, c client.Client, endpointSliceKey keys.FederatedKey) error {
 	executionSpace := names.GenerateExecutionSpaceName(endpointSliceKey.Cluster)
 
 	workNamespaceKey := types.NamespacedName{
@@ -571,7 +572,7 @@ func cleanupWorkWithEndpointSliceDelete(c client.Client, endpointSliceKey keys.F
 		Name:      names.GenerateWorkName(endpointSliceKey.Kind, endpointSliceKey.Name, endpointSliceKey.Namespace),
 	}
 	work := &workv1alpha1.Work{}
-	if err := c.Get(context.TODO(), workNamespaceKey, work); err != nil {
+	if err := c.Get(ctx, workNamespaceKey, work); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
@@ -580,14 +581,14 @@ func cleanupWorkWithEndpointSliceDelete(c client.Client, endpointSliceKey keys.F
 		return err
 	}
 
-	return cleanEndpointSliceWork(c, work.DeepCopy())
+	return cleanEndpointSliceWork(ctx, c, work.DeepCopy())
 }
 
 // TBD: Currently, the EndpointSlice work can be handled by both service-export-controller and endpointslice-collect-controller. To indicate this, we've introduced the label endpointslice.karmada.io/managed-by. Therefore,
 // if managed by both controllers, simply remove each controller's respective labels.
 // If managed solely by its own controller, delete the work accordingly.
 // This logic should be deleted after the conflict is fixed.
-func cleanEndpointSliceWork(c client.Client, work *workv1alpha1.Work) error {
+func cleanEndpointSliceWork(ctx context.Context, c client.Client, work *workv1alpha1.Work) error {
 	controllers := util.GetLabelValue(work.Labels, util.EndpointSliceWorkManagedByLabel)
 	controllerSet := sets.New[string]()
 	controllerSet.Insert(strings.Split(controllers, ".")...)
@@ -597,14 +598,14 @@ func cleanEndpointSliceWork(c client.Client, work *workv1alpha1.Work) error {
 		delete(work.Labels, util.ServiceNamespaceLabel)
 		work.Labels[util.EndpointSliceWorkManagedByLabel] = strings.Join(controllerSet.UnsortedList(), ".")
 
-		if err := c.Update(context.TODO(), work); err != nil {
+		if err := c.Update(ctx, work); err != nil {
 			klog.Errorf("Failed to update work(%s/%s): %v", work.Namespace, work.Name, err)
 			return err
 		}
 		return nil
 	}
 
-	if err := c.Delete(context.TODO(), work); err != nil {
+	if err := c.Delete(ctx, work); err != nil {
 		klog.Errorf("Failed to delete work(%s/%s), Error: %v", work.Namespace, work.Name, err)
 		return err
 	}

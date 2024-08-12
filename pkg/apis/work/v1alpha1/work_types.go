@@ -57,6 +57,12 @@ type Work struct {
 type WorkSpec struct {
 	// Workload represents the manifest workload to be deployed on managed cluster.
 	Workload WorkloadTemplate `json:"workload,omitempty"`
+
+	// SuspendDispatching controls whether dispatching should
+	// be suspended, nil means not suspend.
+	// Note: true means stop propagating to all clusters.
+	// +optional
+	SuspendDispatching *bool `json:"suspendDispatching,omitempty"`
 }
 
 // WorkloadTemplate represents the manifest workload to be deployed on managed cluster.
@@ -146,6 +152,8 @@ const (
 	// WorkDegraded represents that the current state of Work does not match
 	// the desired state for a certain period.
 	WorkDegraded string = "Degraded"
+	// WorkDispatching represents the dispatching or suspension status of the Work resource
+	WorkDispatching string = "Dispatching"
 )
 
 // ResourceHealth represents that the health status of the reference resource.

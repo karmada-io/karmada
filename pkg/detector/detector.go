@@ -500,6 +500,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 			bindingCopy.Spec.Placement = binding.Spec.Placement
 			bindingCopy.Spec.Failover = binding.Spec.Failover
 			bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
+			bindingCopy.Spec.Suspension = binding.Spec.Suspension
 			excludeClusterPolicy(bindingCopy.Labels)
 			return nil
 		})
@@ -594,6 +595,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 				bindingCopy.Spec.Placement = binding.Spec.Placement
 				bindingCopy.Spec.Failover = binding.Spec.Failover
 				bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
+				bindingCopy.Spec.Suspension = binding.Spec.Suspension
 				return nil
 			})
 			return err
@@ -639,6 +641,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 				bindingCopy.Spec.Placement = binding.Spec.Placement
 				bindingCopy.Spec.Failover = binding.Spec.Failover
 				bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
+				bindingCopy.Spec.Suspension = binding.Spec.Suspension
 				return nil
 			})
 			return err
@@ -765,6 +768,7 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 			Placement:          &policySpec.Placement,
 			Failover:           policySpec.Failover,
 			ConflictResolution: policySpec.ConflictResolution,
+			Suspension:         policySpec.Suspension,
 			Resource: workv1alpha2.ObjectReference{
 				APIVersion:      object.GetAPIVersion(),
 				Kind:            object.GetKind(),
@@ -809,6 +813,7 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 			Placement:          &policySpec.Placement,
 			Failover:           policySpec.Failover,
 			ConflictResolution: policySpec.ConflictResolution,
+			Suspension:         policySpec.Suspension,
 			Resource: workv1alpha2.ObjectReference{
 				APIVersion:      object.GetAPIVersion(),
 				Kind:            object.GetKind(),
@@ -1330,32 +1335,33 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy
 
 // CleanupResourceTemplateMarks removes marks, such as labels and annotations, from object referencing by objRef.
 func (d *ResourceDetector) CleanupResourceTemplateMarks(objRef workv1alpha2.ObjectReference, cleanupFunc func(obj metav1.Object)) error {
-	workload, err := helper.FetchResourceTemplate(d.DynamicClient, d.InformerManager, d.RESTMapper, objRef)
+	gvr, err := restmapper.GetGroupVersionResource(d.RESTMapper, schema.FromAPIVersionAndKind(objRef.APIVersion, objRef.Kind))
 	if err != nil {
-		// do nothing if resource template not exist, it might have been removed.
-		if apierrors.IsNotFound(err) {
-			return nil
+		klog.Errorf("Failed to convert GVR from GVK(%s/%s), err: %v", objRef.APIVersion, objRef.Kind, err)
+		return err
+	}
+
+	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		workload, err := d.DynamicClient.Resource(gvr).Namespace(objRef.Namespace).Get(context.TODO(), objRef.Name, metav1.GetOptions{})
+		if err != nil {
+			// do nothing if resource template not exist, it might have been removed.
+			if apierrors.IsNotFound(err) {
+				return nil
+			}
+			klog.Errorf("Failed to fetch resource(kind=%s, %s/%s): err is %v", objRef.Kind, objRef.Namespace, objRef.Name, err)
+			return err
 		}
-		klog.Errorf("Failed to fetch resource(kind=%s, %s/%s): %v", objRef.Kind, objRef.Namespace, objRef.Name, err)
-		return err
-	}
 
-	workload = workload.DeepCopy()
-	cleanupFunc(workload)
+		cleanupFunc(workload)
 
-	gvr, err := restmapper.GetGroupVersionResource(d.RESTMapper, workload.GroupVersionKind())
-	if err != nil {
-		klog.Errorf("Failed to delete resource(%s/%s) labels as mapping GVK to GVR failed: %v", workload.GetNamespace(), workload.GetName(), err)
-		return err
-	}
-
-	newWorkload, err := d.DynamicClient.Resource(gvr).Namespace(workload.GetNamespace()).Update(context.TODO(), workload, metav1.UpdateOptions{})
-	if err != nil {
-		klog.Errorf("Failed to update resource %v/%v, err is %v ", workload.GetNamespace(), workload.GetName(), err)
-		return err
-	}
-	klog.V(2).Infof("Updated resource template(kind=%s, %s/%s) successfully", newWorkload.GetKind(), newWorkload.GetNamespace(), newWorkload.GetName())
-	return nil
+		_, err = d.DynamicClient.Resource(gvr).Namespace(workload.GetNamespace()).Update(context.TODO(), workload, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Errorf("Failed to update resource(kind=%s, %s/%s): err is %v", workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)
+			return err
+		}
+		klog.V(2).Infof("Updated resource template(kind=%s, %s/%s) successfully", workload.GetKind(), workload.GetNamespace(), workload.GetName())
+		return nil
+	})
 }
 
 // CleanupResourceBindingMarks removes marks, such as labels and annotations, from resource binding.

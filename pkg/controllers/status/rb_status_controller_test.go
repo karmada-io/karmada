@@ -34,6 +34,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 )
@@ -98,8 +100,11 @@ func TestRBStatusController_Reconcile(t *testing.T) {
 			name: "failed in syncBindingStatus",
 			binding: &workv1alpha2.ResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:              "binding",
-					Namespace:         "default",
+					Name:      "binding",
+					Namespace: "default",
+					// finalizers field is required when deletionTimestamp is defined, otherwise will encounter the
+					// error: `refusing to create obj binding with metadata.deletionTimestamp but no finalizers`.
+					Finalizers:        []string{"test"},
 					DeletionTimestamp: &preTime,
 				},
 				Spec: workv1alpha2.ResourceBindingSpec{
@@ -119,6 +124,7 @@ func TestRBStatusController_Reconcile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := generateRBStatusController()
+			c.ResourceInterpreter = FakeResourceInterpreter{DefaultInterpreter: native.NewDefaultInterpreter()}
 
 			// Prepare req
 			req := controllerruntime.Request{
@@ -130,9 +136,7 @@ func TestRBStatusController_Reconcile(t *testing.T) {
 
 			// Prepare binding and create it in client
 			if tt.binding != nil {
-				if err := c.Client.Create(context.Background(), tt.binding); err != nil {
-					t.Fatalf("Failed to create binding: %v", err)
-				}
+				c.Client = fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(tt.binding).WithStatusSubresource(tt.binding).Build()
 			}
 
 			res, err := c.Reconcile(context.Background(), req)
@@ -192,6 +196,7 @@ func TestRBStatusController_syncBindingStatus(t *testing.T) {
 			c := generateRBStatusController()
 			c.DynamicClient = dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 				&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: tt.podNameInDynamicClient, Namespace: "default"}})
+			c.ResourceInterpreter = FakeResourceInterpreter{DefaultInterpreter: native.NewDefaultInterpreter()}
 
 			binding := &workv1alpha2.ResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{
@@ -204,12 +209,10 @@ func TestRBStatusController_syncBindingStatus(t *testing.T) {
 			}
 
 			if tt.resourceExistInClient {
-				if err := c.Client.Create(context.Background(), binding); err != nil {
-					t.Fatalf("Failed to create binding: %v", err)
-				}
+				c.Client = fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(binding).WithStatusSubresource(binding).Build()
 			}
 
-			err := c.syncBindingStatus(binding)
+			err := c.syncBindingStatus(context.Background(), binding)
 
 			if tt.expectedError {
 				assert.Error(t, err)
@@ -218,4 +221,14 @@ func TestRBStatusController_syncBindingStatus(t *testing.T) {
 			}
 		})
 	}
+}
+
+var _ resourceinterpreter.ResourceInterpreter = &FakeResourceInterpreter{}
+
+type FakeResourceInterpreter struct {
+	*native.DefaultInterpreter
+}
+
+func (f FakeResourceInterpreter) Start(_ context.Context) (err error) {
+	return nil
 }

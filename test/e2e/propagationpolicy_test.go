@@ -30,6 +30,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -41,7 +42,11 @@ import (
 	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/controllers/execution"
+	"github.com/karmada-io/karmada/pkg/events"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
@@ -96,6 +101,15 @@ var _ = ginkgo.Describe("[BasicPropagation] propagation testing", func() {
 				func(deployment *appsv1.Deployment) bool {
 					return *deployment.Spec.Replicas == updateDeploymentReplicas
 				})
+		})
+
+		ginkgo.It("adds dispatching event with a dispatching message", func() {
+			workName := names.GenerateWorkName(deployment.Kind, deployment.Name, deployment.Namespace)
+			esName := names.GenerateExecutionSpaceName(framework.ClusterNames()[0])
+			framework.WaitEventFitWith(kubeClient, esName, workName, func(event corev1.Event) bool {
+				return event.Reason == events.EventReasonWorkDispatching &&
+					event.Message == execution.WorkDispatchingConditionMessage
+			})
 		})
 	})
 
@@ -1107,6 +1121,85 @@ var _ = ginkgo.Describe("[AdvancedPropagation] propagation testing", func() {
 			framework.WaitConfigMapPresentOnClusterFitWith(member2, configmap.Namespace, configmap.Name,
 				func(*corev1.ConfigMap) bool { return true })
 			framework.RemovePropagationPolicy(karmadaClient, policy02.Namespace, policy02.Name)
+		})
+	})
+})
+
+var _ = ginkgo.Describe("[Suspend] PropagationPolicy testing", func() {
+	var policy *policyv1alpha1.PropagationPolicy
+	var deployment *appsv1.Deployment
+	var targetMember string
+
+	ginkgo.BeforeEach(func() {
+		targetMember = framework.ClusterNames()[0]
+		policyNamespace := testNamespace
+		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
+		deployment = testhelper.NewDeployment(testNamespace, policyName+"01")
+		policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: deployment.APIVersion,
+				Kind:       deployment.Kind,
+				Name:       deployment.Name,
+			}}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: []string{targetMember},
+			},
+		})
+	})
+
+	ginkgo.BeforeEach(func() {
+		framework.CreateDeployment(kubeClient, deployment)
+		ginkgo.DeferCleanup(func() {
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+		})
+	})
+
+	ginkgo.Context("suspend the PropagationPolicy dispatching", func() {
+		ginkgo.BeforeEach(func() {
+			policy.Spec.Suspension = &policyv1alpha1.Suspension{
+				Dispatching: ptr.To(true),
+			}
+
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+		})
+
+		ginkgo.It("suspends ResourceBinding", func() {
+			framework.WaitResourceBindingFitWith(karmadaClient, deployment.Namespace, names.GenerateBindingName(deployment.Kind, deployment.Name), func(binding *workv1alpha2.ResourceBinding) bool {
+				return binding.Spec.Suspension != nil && ptr.Deref(binding.Spec.Suspension.Dispatching, false)
+			})
+		})
+
+		ginkgo.It("suspends Work", func() {
+			workName := names.GenerateWorkName(deployment.Kind, deployment.Name, deployment.Namespace)
+			esName := names.GenerateExecutionSpaceName(targetMember)
+			gomega.Eventually(func() bool {
+				work, err := karmadaClient.WorkV1alpha1().Works(esName).Get(context.TODO(), workName, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+				return work != nil && helper.IsWorkSuspendDispatching(work)
+			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+		})
+
+		ginkgo.It("adds suspend dispatching condition to Work", func() {
+			workName := names.GenerateWorkName(deployment.Kind, deployment.Name, deployment.Namespace)
+			esName := names.GenerateExecutionSpaceName(targetMember)
+			gomega.Eventually(func() bool {
+				work, err := karmadaClient.WorkV1alpha1().Works(esName).Get(context.TODO(), workName, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+				return work != nil && meta.IsStatusConditionPresentAndEqual(work.Status.Conditions, workv1alpha1.WorkDispatching, metav1.ConditionFalse)
+			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+		})
+
+		ginkgo.It("adds dispatching event with suspend message", func() {
+			workName := names.GenerateWorkName(deployment.Kind, deployment.Name, deployment.Namespace)
+			esName := names.GenerateExecutionSpaceName(targetMember)
+			framework.WaitEventFitWith(kubeClient, esName, workName, func(event corev1.Event) bool {
+				return event.Reason == events.EventReasonWorkDispatching &&
+					event.Message == execution.WorkSuspendDispatchingConditionMessage
+			})
 		})
 	})
 })

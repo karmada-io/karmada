@@ -335,6 +335,10 @@ spec:
                           cluster from which the application is migrated.
                           Valid options are "Immediately", "Graciously" and "Never".
                           Defaults to "Graciously".
+                        enum:
+                        - Immediately
+                        - Graciously
+                        - Never
                         type: string
                     required:
                     - decisionConditions
@@ -1187,6 +1191,31 @@ spec:
                   SchedulerName represents which scheduler to proceed the scheduling.
                   It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).
                 type: string
+              suspension:
+                description: |-
+                  Suspension declares the policy for suspending different aspects of propagation.
+                  nil means no suspension. no default values.
+                properties:
+                  dispatching:
+                    description: |-
+                      Dispatching controls whether dispatching should be suspended.
+                      nil means not suspend, no default value, only accepts 'true'.
+                      Note: true means stop propagating to all clusters. Can not co-exist
+                      with DispatchingOnClusters which is used to suspend particular clusters.
+                    type: boolean
+                  dispatchingOnClusters:
+                    description: |-
+                      DispatchingOnClusters declares a list of clusters to which the dispatching
+                      should be suspended.
+                      Note: Can not co-exist with Dispatching which is used to suspend all.
+                    properties:
+                      clusterNames:
+                        description: ClusterNames is the list of clusters to be selected.
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                type: object
             required:
             - resource
             type: object

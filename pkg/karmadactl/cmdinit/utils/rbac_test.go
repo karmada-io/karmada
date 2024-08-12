@@ -22,6 +22,8 @@ import (
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 func TestClusterRoleFromRules(t *testing.T) {
@@ -58,7 +60,10 @@ func TestClusterRoleFromRules(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        "foo",
 					Annotations: map[string]string{"foo": "bar"},
-					Labels:      map[string]string{"foo": "bar"},
+					Labels: map[string]string{
+						"foo":                   "bar",
+						util.KarmadaSystemLabel: util.KarmadaSystemLabelValue,
+					},
 				},
 				Rules: []rbacv1.PolicyRule{
 					{
@@ -111,8 +116,11 @@ func TestClusterRoleBindingFromSubjects(t *testing.T) {
 					Kind:       "ClusterRoleBinding",
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name:   "foo",
-					Labels: map[string]string{"foo": "bar"},
+					Name: "foo",
+					Labels: map[string]string{
+						"foo":                   "bar",
+						util.KarmadaSystemLabel: util.KarmadaSystemLabelValue,
+					},
 				},
 				RoleRef: rbacv1.RoleRef{
 					APIGroup: "rbac.authorization.k8s.io",

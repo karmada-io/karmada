@@ -26,14 +26,18 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
@@ -1015,6 +1019,82 @@ var _ = ginkgo.Describe("[Delete] clusterPropagation testing", func() {
 			framework.WaitClusterResourceBindingFitWith(karmadaClient, resourceBindingName, func(crb *workv1alpha2.ClusterResourceBinding) bool {
 				return crb.Annotations[policyv1alpha1.ClusterPropagationPolicyAnnotation] == crdPolicy01.Name
 			})
+		})
+	})
+})
+
+// Suspend dispatching of ClusterPropagationPolicy
+var _ = ginkgo.Describe("[Suspend] clusterPropagation testing", func() {
+	var policy *policyv1alpha1.ClusterPropagationPolicy
+	var clusterRole *rbacv1.ClusterRole
+	var targetMember string
+	var resourceBindingName string
+	var workName string
+
+	ginkgo.BeforeEach(func() {
+		targetMember = framework.ClusterNames()[0]
+		policyName := clusterRoleNamePrefix + rand.String(RandomStrLength)
+		clusterRoleName := fmt.Sprintf("system:test-%s", policyName)
+
+		clusterRole = testhelper.NewClusterRole(clusterRoleName, nil)
+		resourceBindingName = names.GenerateBindingName(clusterRole.Kind, clusterRole.Name)
+		workName = names.GenerateWorkName(clusterRole.Kind, clusterRole.Name, clusterRole.Namespace)
+		policy = testhelper.NewClusterPropagationPolicy(policyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: clusterRole.APIVersion,
+				Kind:       clusterRole.Kind,
+				Name:       clusterRole.Name,
+			}}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: []string{targetMember},
+			},
+		})
+	})
+
+	ginkgo.BeforeEach(func() {
+		framework.CreateClusterRole(kubeClient, clusterRole)
+		ginkgo.DeferCleanup(func() {
+			framework.RemoveClusterRole(kubeClient, clusterRole.Name)
+		})
+	})
+
+	ginkgo.Context("suspend the ClusterPropagationPolicy dispatching", func() {
+		ginkgo.BeforeEach(func() {
+			policy.Spec.Suspension = &policyv1alpha1.Suspension{
+				Dispatching: ptr.To(true),
+			}
+			framework.CreateClusterPropagationPolicy(karmadaClient, policy)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
+			})
+		})
+
+		ginkgo.It("suspends ClusterResourceBinding", func() {
+			framework.WaitClusterResourceBindingFitWith(karmadaClient, resourceBindingName, func(binding *workv1alpha2.ClusterResourceBinding) bool {
+				return binding.Spec.Suspension != nil && ptr.Deref(binding.Spec.Suspension.Dispatching, false)
+			})
+		})
+
+		ginkgo.It("suspends Work", func() {
+			esName := names.GenerateExecutionSpaceName(targetMember)
+			gomega.Eventually(func() bool {
+				work, err := karmadaClient.WorkV1alpha1().Works(esName).Get(context.TODO(), workName, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+				return work != nil && helper.IsWorkSuspendDispatching(work)
+			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+		})
+
+		ginkgo.It("adds suspend dispatching condition to Work", func() {
+			esName := names.GenerateExecutionSpaceName(targetMember)
+			gomega.Eventually(func() bool {
+				work, err := karmadaClient.WorkV1alpha1().Works(esName).Get(context.TODO(), workName, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+				return work != nil && meta.IsStatusConditionPresentAndEqual(work.Status.Conditions, workv1alpha1.WorkDispatching, metav1.ConditionFalse)
+			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 		})
 	})
 })

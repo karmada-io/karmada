@@ -17,12 +17,14 @@ limitations under the License.
 package binding
 
 import (
+	"context"
 	"strconv"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -37,7 +39,7 @@ import (
 
 // ensureWork ensure Work to be created or updated.
 func ensureWork(
-	c client.Client, resourceInterpreter resourceinterpreter.ResourceInterpreter, workload *unstructured.Unstructured,
+	ctx context.Context, c client.Client, resourceInterpreter resourceinterpreter.ResourceInterpreter, workload *unstructured.Unstructured,
 	overrideManager overridemanager.OverrideManager, binding metav1.Object, scope apiextensionsv1.ResourceScope,
 ) error {
 	var targetClusters []workv1alpha2.TargetCluster
@@ -45,6 +47,7 @@ func ensureWork(
 	var requiredByBindingSnapshot []workv1alpha2.BindingSnapshot
 	var replicas int32
 	var conflictResolutionInBinding policyv1alpha1.ConflictResolution
+	var suspension *policyv1alpha1.Suspension
 	switch scope {
 	case apiextensionsv1.NamespaceScoped:
 		bindingObj := binding.(*workv1alpha2.ResourceBinding)
@@ -53,6 +56,7 @@ func ensureWork(
 		placement = bindingObj.Spec.Placement
 		replicas = bindingObj.Spec.Replicas
 		conflictResolutionInBinding = bindingObj.Spec.ConflictResolution
+		suspension = bindingObj.Spec.Suspension
 	case apiextensionsv1.ClusterScoped:
 		bindingObj := binding.(*workv1alpha2.ClusterResourceBinding)
 		targetClusters = bindingObj.Spec.Clusters
@@ -60,6 +64,7 @@ func ensureWork(
 		placement = bindingObj.Spec.Placement
 		replicas = bindingObj.Spec.Replicas
 		conflictResolutionInBinding = bindingObj.Spec.ConflictResolution
+		suspension = bindingObj.Spec.Suspension
 	}
 
 	targetClusters = mergeTargetClusters(targetClusters, requiredByBindingSnapshot)
@@ -128,7 +133,9 @@ func ensureWork(
 			Annotations: annotations,
 		}
 
-		if err = helper.CreateOrUpdateWork(c, workMeta, clonedWorkload); err != nil {
+		suspendDispatching := shouldSuspendDispatching(suspension, targetCluster)
+
+		if err = helper.CreateOrUpdateWork(ctx, c, workMeta, clonedWorkload, &suspendDispatching); err != nil {
 			return err
 		}
 	}
@@ -259,4 +266,22 @@ func divideReplicasByJobCompletions(workload *unstructured.Unstructured, cluster
 
 func needReviseReplicas(replicas int32, placement *policyv1alpha1.Placement) bool {
 	return replicas > 0 && placement != nil && placement.ReplicaSchedulingType() == policyv1alpha1.ReplicaSchedulingTypeDivided
+}
+
+func shouldSuspendDispatching(suspension *policyv1alpha1.Suspension, targetCluster workv1alpha2.TargetCluster) bool {
+	if suspension == nil {
+		return false
+	}
+
+	suspendDispatching := ptr.Deref(suspension.Dispatching, false)
+
+	if !suspendDispatching && suspension.DispatchingOnClusters != nil {
+		for _, cluster := range suspension.DispatchingOnClusters.ClusterNames {
+			if cluster == targetCluster.Name {
+				suspendDispatching = true
+				break
+			}
+		}
+	}
+	return suspendDispatching
 }

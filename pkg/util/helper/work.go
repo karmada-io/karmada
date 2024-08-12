@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -38,7 +39,7 @@ import (
 )
 
 // CreateOrUpdateWork creates a Work object if not exist, or updates if it already exists.
-func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resource *unstructured.Unstructured) error {
+func CreateOrUpdateWork(ctx context.Context, client client.Client, workMeta metav1.ObjectMeta, resource *unstructured.Unstructured, suspendDispatching *bool) error {
 	if workMeta.Labels[util.PropagationInstruction] != util.PropagationInstructionSuppressed {
 		resource = resource.DeepCopy()
 		// set labels
@@ -61,6 +62,7 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 	work := &workv1alpha1.Work{
 		ObjectMeta: workMeta,
 		Spec: workv1alpha1.WorkSpec{
+			SuspendDispatching: suspendDispatching,
 			Workload: workv1alpha1.WorkloadTemplate{
 				Manifests: []workv1alpha1.Manifest{
 					{
@@ -76,7 +78,7 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 	runtimeObject := work.DeepCopy()
 	var operationResult controllerutil.OperationResult
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), client, runtimeObject, func() error {
+		operationResult, err = controllerutil.CreateOrUpdate(ctx, client, runtimeObject, func() error {
 			if !runtimeObject.DeletionTimestamp.IsZero() {
 				return fmt.Errorf("work %s/%s is being deleted", runtimeObject.GetNamespace(), runtimeObject.GetName())
 			}
@@ -106,15 +108,15 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 }
 
 // GetWorksByLabelsSet gets WorkList by matching labels.Set.
-func GetWorksByLabelsSet(c client.Client, ls labels.Set) (*workv1alpha1.WorkList, error) {
+func GetWorksByLabelsSet(ctx context.Context, c client.Client, ls labels.Set) (*workv1alpha1.WorkList, error) {
 	workList := &workv1alpha1.WorkList{}
 	listOpt := &client.ListOptions{LabelSelector: labels.SelectorFromSet(ls)}
 
-	return workList, c.List(context.TODO(), workList, listOpt)
+	return workList, c.List(ctx, workList, listOpt)
 }
 
 // GetWorksByBindingID gets WorkList by matching same binding's permanent id.
-func GetWorksByBindingID(c client.Client, bindingID string, namespaced bool) (*workv1alpha1.WorkList, error) {
+func GetWorksByBindingID(ctx context.Context, c client.Client, bindingID string, namespaced bool) (*workv1alpha1.WorkList, error) {
 	var ls labels.Set
 	if namespaced {
 		ls = labels.Set{workv1alpha2.ResourceBindingPermanentIDLabel: bindingID}
@@ -122,7 +124,7 @@ func GetWorksByBindingID(c client.Client, bindingID string, namespaced bool) (*w
 		ls = labels.Set{workv1alpha2.ClusterResourceBindingPermanentIDLabel: bindingID}
 	}
 
-	return GetWorksByLabelsSet(c, ls)
+	return GetWorksByLabelsSet(ctx, c, ls)
 }
 
 // GenEventRef returns the event reference. sets the UID(.spec.uid) that might be missing for fire events.
@@ -171,4 +173,9 @@ func IsWorkContains(manifests []workv1alpha1.Manifest, targetResource schema.Gro
 		}
 	}
 	return false
+}
+
+// IsWorkSuspendDispatching checks if the work is suspended from dispatching.
+func IsWorkSuspendDispatching(work *workv1alpha1.Work) bool {
+	return ptr.Deref(work.Spec.SuspendDispatching, false)
 }
