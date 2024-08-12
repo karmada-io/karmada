@@ -390,7 +390,9 @@ func (c *WorkStatusController) reflectStatus(ctx context.Context, work *workv1al
 }
 
 func (c *WorkStatusController) buildStatusIdentifier(work *workv1alpha1.Work, clusterObj *unstructured.Unstructured) (*workv1alpha1.ResourceIdentifier, error) {
-	ordinal, err := helper.GetManifestIndex(work.Spec.Workload.Manifests, clusterObj)
+	manifestRef := helper.ManifestReference{APIVersion: clusterObj.GetAPIVersion(), Kind: clusterObj.GetKind(),
+		Namespace: clusterObj.GetNamespace(), Name: clusterObj.GetName()}
+	ordinal, err := helper.GetManifestIndex(work.Spec.Workload.Manifests, &manifestRef)
 	if err != nil {
 		return nil, err
 	}
