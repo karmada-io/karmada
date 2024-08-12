@@ -266,7 +266,6 @@ func validateMetricSpec(spec autoscalingv2.MetricSpec, fldPath *field.Path) fiel
 
 	var expectedField string
 	switch spec.Type {
-
 	case autoscalingv2.ObjectMetricSourceType:
 		if spec.Object == nil {
 			allErrs = append(allErrs, field.Required(fldPath.Child("object"), "must populate information for the given metric source"))

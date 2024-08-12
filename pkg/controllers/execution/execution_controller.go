@@ -52,6 +52,10 @@ import (
 const (
 	// ControllerName is the controller name that will be used when reporting events.
 	ControllerName = "execution-controller"
+	// WorkSuspendDispatchingConditionMessage is the condition and event message when dispatching is suspended.
+	WorkSuspendDispatchingConditionMessage = "Work dispatching is in a suspended state."
+	// WorkDispatchingConditionMessage is the condition and event message when dispatching is not suspended.
+	WorkDispatchingConditionMessage = "Work is being dispatched to member clusters."
 	// workSuspendDispatchingConditionReason is the reason for the WorkDispatching condition when dispatching is suspended.
 	workSuspendDispatchingConditionReason = "SuspendDispatching"
 	// workDispatchingConditionReason is the reason for the WorkDispatching condition when dispatching is not suspended.
@@ -270,18 +274,28 @@ func (c *Controller) updateWorkDispatchingConditionIfNeeded(ctx context.Context,
 	if helper.IsWorkSuspendDispatching(work) {
 		newWorkDispatchingCondition.Status = metav1.ConditionFalse
 		newWorkDispatchingCondition.Reason = workSuspendDispatchingConditionReason
-		newWorkDispatchingCondition.Message = "Work dispatching is in a suspended state."
+		newWorkDispatchingCondition.Message = WorkSuspendDispatchingConditionMessage
 	} else {
 		newWorkDispatchingCondition.Status = metav1.ConditionTrue
 		newWorkDispatchingCondition.Reason = workDispatchingConditionReason
-		newWorkDispatchingCondition.Message = "Work is being dispatched to member clusters."
+		newWorkDispatchingCondition.Message = WorkDispatchingConditionMessage
 	}
 
 	if meta.IsStatusConditionPresentAndEqual(work.Status.Conditions, newWorkDispatchingCondition.Type, newWorkDispatchingCondition.Status) {
 		return nil
 	}
 
-	return c.setStatusCondition(ctx, work, newWorkDispatchingCondition)
+	if err := c.setStatusCondition(ctx, work, newWorkDispatchingCondition); err != nil {
+		return err
+	}
+
+	obj, err := helper.ToUnstructured(work)
+	if err != nil {
+		return err
+	}
+
+	c.eventf(obj, corev1.EventTypeNormal, events.EventReasonWorkDispatching, newWorkDispatchingCondition.Message)
+	return nil
 }
 
 // updateAppliedCondition updates the applied condition for the given Work.
