@@ -3,6 +3,7 @@ name: Chart Lint
 
 env:
   HELM_VERSION: v3.11.2
+  KUSTOMIZE_VERSION: 5.4.3
   KIND_VERSION: v0.22.0
   KIND_NODE_IMAGE: kindest/node:v1.29.0
   K8S_VERSION: v1.29.0
@@ -39,13 +40,37 @@ jobs:
         with:
           version: ${{ env.HELM_VERSION }}
 
+      - name: Set up Kustomize
+        uses: syntaqx/setup-kustomize@v1
+        with:
+          kustomize-version: ${{ env.KUSTOMIZE_VERSION }}
+
       - name: Run chart-testing (template)
         run: |
-          helm template --set components={"search,descheduler,schedulerEstimator"} --dependency-update ./charts/karmada --debug > /dev/null
-          helm template --set components={"search,descheduler,schedulerEstimator"},certs.mode=custom --dependency-update ./charts/karmada --debug > /dev/null
-          helm template --set components={"search,descheduler,schedulerEstimator"},installMode=component --dependency-update ./charts/karmada --debug > /dev/null
-          helm template --set installMode=agent --dependency-update ./charts/karmada --debug > /dev/null
-          helm template --dependency-update ./charts/karmada-operator --debug > /dev/null   
+          cat <<EOF > post-render.sh
+          #!/bin/sh
+          # save helm stdout to file, kustomize will read this
+          cat > all.yaml
+          kustomize build
+          EOF
+
+          chmod +x post-render.sh
+
+          cat <<EOF > kustomization.yaml
+          resources:
+            - all.yaml
+          EOF
+
+          helm template --set components={"search,descheduler,schedulerEstimator"} --dependency-update ./charts/karmada \
+            --post-renderer ./post-render.sh --debug > /dev/null
+          helm template --set components={"search,descheduler,schedulerEstimator"},certs.mode=custom --dependency-update \
+            ./charts/karmada --post-renderer ./post-render.sh --debug > /dev/null
+          helm template --set components={"search,descheduler,schedulerEstimator"},installMode=component --dependency-update \
+            ./charts/karmada --post-renderer ./post-render.sh --debug > /dev/null
+          helm template --set installMode=agent --dependency-update ./charts/karmada --post-renderer ./post-render.sh --debug > /dev/null
+          helm template --dependency-update ./charts/karmada-operator --post-renderer ./post-render.sh --debug > /dev/null
+
+          rm post-render.sh all.yaml kustomization.yaml
 
       # Python is required because `ct lint` runs Yamale (https://github.com/23andMe/Yamale) and
       # yamllint (https://github.com/adrienverge/yamllint) which require Python
