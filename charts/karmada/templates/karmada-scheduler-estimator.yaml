@@ -17,7 +17,7 @@ spec:
   replicas: {{  $member.replicaCount }}
   selector:
     matchLabels:
-      app: karmada-scheduler-estimator-{{ $clusterName }}
+      cluster: {{ $clusterName }}
       {{- include "karmada.schedulerEstimator.labels" $ | nindent 6 }}
   {{- with $.Values.schedulerEstimator.strategy }}
   strategy:
@@ -30,7 +30,7 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        app: karmada-scheduler-estimator-{{ $clusterName }}
+        cluster: {{ $clusterName }}
         {{- include "karmada.schedulerEstimator.labels" $ | nindent 8 }}
         {{- include "karmada.schedulerEstimator.podLabels" $ | nindent 8 }}
     spec:
@@ -91,7 +91,7 @@ metadata:
     cluster: {{ $clusterName }}
 spec:
   selector:
-    app: karmada-scheduler-estimator-{{ $clusterName }}
+    cluster: {{ $clusterName }}
     {{- include "karmada.schedulerEstimator.labels" $ | nindent 4 }}
   ports:
     - protocol: TCP
@@ -138,7 +138,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: karmada-scheduler-estimator-{{ $clusterName }}
+      cluster: {{ $clusterName }}
       {{- include "karmada.schedulerEstimator.labels" $ | nindent 6 }}
   {{ toYaml $.Values.schedulerEstimator.podDisruptionBudget | nindent 2 }}
 {{- end -}}
