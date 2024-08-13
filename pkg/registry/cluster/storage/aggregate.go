@@ -149,7 +149,7 @@ func requestWithResourceNameHandlerFunc(
 					klog.Errorf("failed to get impersonateToken for cluster %s: %v", cluster.Name, err)
 					return
 				}
-				statusCode, err := doClusterRequest(req.Method, requestURLStr(location.String(), proxyRequestInfo), transport, requester, impersonateToken)
+				statusCode, err := doClusterRequest(http.MethodGet, requestURLStr(location.String(), proxyRequestInfo), transport, requester, impersonateToken)
 				if err != nil {
 					klog.Errorf("failed to do request for cluster %s: %v", cluster.Name, err)
 					return
