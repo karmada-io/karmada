@@ -244,8 +244,7 @@ func sortClusters(clusters []*clusterDesc) {
 			return true
 		} else if clusters[i].AvailableReplicas < clusters[j].AvailableReplicas {
 			return false
-		} else {
-			return clusters[i].Name < clusters[j].Name
 		}
+		return clusters[i].Name < clusters[j].Name
 	})
 }

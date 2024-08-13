@@ -94,17 +94,16 @@ func (want *want) match(group *groupNode) error {
 		return fmt.Errorf("cluster size, want %d, got %d", len(want.clusters), len(group.Clusters))
 	} else if len(want.groups) != len(group.Groups) {
 		return fmt.Errorf("group size, want %d, got %d", len(want.groups), len(group.Groups))
-	} else {
-		for i, c := range want.clusters {
-			if c != group.Clusters[i].Name {
-				return fmt.Errorf("cluster, want %s, got %s", c, group.Clusters[i].Name)
-			}
+	}
+	for i, c := range want.clusters {
+		if c != group.Clusters[i].Name {
+			return fmt.Errorf("cluster, want %s, got %s", c, group.Clusters[i].Name)
 		}
-		for i, w := range want.groups {
-			err := w.match(group.Groups[i])
-			if err != nil {
-				return err
-			}
+	}
+	for i, w := range want.groups {
+		err := w.match(group.Groups[i])
+		if err != nil {
+			return err
 		}
 	}
 	return nil
