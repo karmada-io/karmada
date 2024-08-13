@@ -31,7 +31,7 @@ func init() {
 	SelectionRegistry[DefaultSelectionFactoryName] = &groupBuilder{}
 }
 
-// createGroupRoot groups clusters based on scores and placement policies.
+// Create selection based on context.
 // It considers topology constraints if they are enabled in the placement.
 func (builder *groupBuilder) Create(ctx SelectionCtx) (Selection, error) {
 	root := &groupRoot{}
