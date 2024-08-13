@@ -18,12 +18,12 @@ package core
 
 import (
 	"fmt"
+	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"time"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
 )
@@ -34,8 +34,13 @@ func SelectClusters(clustersScore framework.ClusterScoreList,
 	startTime := time.Now()
 	defer metrics.ScheduleStep(metrics.ScheduleStepSelect, startTime)
 
-	groupClustersInfo := spreadconstraint.GroupClustersWithScore(clustersScore, placement, spec, calAvailableReplicas)
-	return spreadconstraint.SelectBestClusters(placement, groupClustersInfo, spec.Replicas)
+	return spreadconstraint.SelectBestClusters(
+		spreadconstraint.SelectionCtx{
+			ClusterScores: clustersScore,
+			Placement:     placement,
+			Spec:          spec,
+			ReplicasFunc:  calAvailableReplicas,
+		}, "")
 }
 
 // AssignReplicas assigns replicas to clusters based on the placement and resource binding spec.
