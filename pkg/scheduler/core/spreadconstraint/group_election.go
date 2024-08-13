@@ -19,8 +19,9 @@ package spreadconstraint
 import (
 	"errors"
 	"fmt"
-	clusterV1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"sort"
+
+	clusterV1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
 
 // Elect method to select clusters based on the required replicas

@@ -18,6 +18,7 @@ package spreadconstraint
 
 import (
 	"fmt"
+
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
 
