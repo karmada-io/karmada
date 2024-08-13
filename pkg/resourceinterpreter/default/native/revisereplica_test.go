@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 func TestReviseDeploymentReplica(t *testing.T) {
@@ -246,5 +247,30 @@ func TestReviseStatefulSetReplica(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestGetAllDefaultReviseReplicaInterpreter(t *testing.T) {
+	expected := map[schema.GroupVersionKind]reviseReplicaInterpreter{
+		{Group: "apps", Version: "v1", Kind: "Deployment"}:  reviseDeploymentReplica,
+		{Group: "apps", Version: "v1", Kind: "StatefulSet"}: reviseStatefulSetReplica,
+		{Group: "batch", Version: "v1", Kind: "Job"}:        reviseJobReplica,
+	}
+
+	got := getAllDefaultReviseReplicaInterpreter()
+
+	if len(got) != len(expected) {
+		t.Errorf("getAllDefaultReviseReplicaInterpreter() returned map of length %v, want %v", len(got), len(expected))
+	}
+
+	for key, expectedValue := range expected {
+		gotValue, gotOk := got[key]
+		if !gotOk {
+			t.Errorf("expected key %v not found in got map", key)
+		} else if gotValue == nil {
+			t.Errorf("for key %v, getAllDefaultReviseReplicaInterpreter()= %v want %v", key, gotValue, expectedValue)
+		} else if reflect.ValueOf(gotValue).Pointer() != reflect.ValueOf(expectedValue).Pointer() {
+			t.Errorf("for key %v, getAllDefaultReviseReplicaInterpreter()= %v want %v", key, gotValue, expectedValue)
+		}
 	}
 }
