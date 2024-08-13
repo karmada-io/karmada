@@ -79,7 +79,7 @@ func TestSelectBestClusters(t *testing.T) {
 		clusterScores = append(clusterScores, sc)
 		replicas[sc.Cluster.Name] = score.replicas
 	}
-	replicasFunc := func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
+	replicasFunc := func(clusters []*clusterv1alpha1.Cluster, _ *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
 		var result []workv1alpha2.TargetCluster
 		for _, c := range clusters {
 			result = append(result, workv1alpha2.TargetCluster{

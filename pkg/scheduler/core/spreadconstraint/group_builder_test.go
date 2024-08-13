@@ -111,7 +111,6 @@ func (want *want) match(group *groupNode) error {
 }
 
 func Test_GroupClusters(t *testing.T) {
-
 	replicasFunc := func(clusters []*clusterv1alpha1.Cluster, _ *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
 		availableTargetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
 

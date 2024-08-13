@@ -29,30 +29,28 @@ func (root *groupRoot) Elect() ([]*clusterV1alpha1.Cluster, error) {
 	_, err := root.selectCluster(root.Replicas, selects)
 	if err != nil {
 		return nil, err
-	} else {
-		var clusters []*clusterDesc
-		for _, cluster := range selects {
-			clusters = append(clusters, cluster)
-		}
-		sort.Slice(clusters, func(i, j int) bool {
-			return clusters[i].Score > clusters[j].Score
-		})
-
-		var result []*clusterV1alpha1.Cluster
-		for _, cluster := range clusters {
-			result = append(result, cluster.Cluster)
-		}
-		return result, nil
 	}
+	var clusters []*clusterDesc
+	for _, cluster := range selects {
+		clusters = append(clusters, cluster)
+	}
+	sort.Slice(clusters, func(i, j int) bool {
+		return clusters[i].Score > clusters[j].Score
+	})
+
+	var result []*clusterV1alpha1.Cluster
+	for _, cluster := range clusters {
+		result = append(result, cluster.Cluster)
+	}
+	return result, nil
 }
 
 // selectCluster method to select clusters based on the required replicas
 func (node *groupNode) selectCluster(replicas int32, selects map[string]*clusterDesc) (int32, error) {
 	if node.Leaf {
 		return node.selectByClusters(replicas, selects)
-	} else {
-		return node.selectByGroups(replicas, selects)
 	}
+	return node.selectByGroups(replicas, selects)
 }
 
 // selectByClusters selects clusters from the current group's Clusters list
@@ -93,17 +91,16 @@ func (node *groupNode) selectByGroups(replicas int32, selects map[string]*cluste
 			return adds, nil
 		} else if maxGroups == groups {
 			return 0, errors.New("not enough replicas in the groups")
-		} else {
-			left := make(map[string]*clusterDesc)
-			for i := maxGroups; i < groups; i++ {
-				_, _ = node.Groups[i].selectByClusters(InvalidReplicas, left)
-			}
-			i, err := node.supplement(selects, left, remain)
-			if err != nil {
-				return 0, err
-			}
-			return adds + i, nil
 		}
+		left := make(map[string]*clusterDesc)
+		for i := maxGroups; i < groups; i++ {
+			_, _ = node.Groups[i].selectByClusters(InvalidReplicas, left)
+		}
+		i, err := node.supplement(selects, left, remain)
+		if err != nil {
+			return 0, err
+		}
+		return adds + i, nil
 	}
 }
 

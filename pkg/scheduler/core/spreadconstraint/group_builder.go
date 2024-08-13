@@ -115,18 +115,16 @@ func born(parent *groupNode, constraints []policyv1alpha1.SpreadConstraint, inde
 	children := make(map[string]*groupNode)
 	for _, desc := range parent.Clusters {
 		names := getGroup(desc.Cluster, constraint)
-		if names != nil {
-			for _, name := range names {
-				if name != "" {
-					child, ok := children[name]
-					if !ok {
-						child = &groupNode{}
-						child.Name = name
-						children[name] = child
-						parent.Groups = append(parent.Groups, child)
-					}
-					child.Clusters = append(child.Clusters, desc)
+		for _, name := range names {
+			if name != "" {
+				child, ok := children[name]
+				if !ok {
+					child = &groupNode{}
+					child.Name = name
+					children[name] = child
+					parent.Groups = append(parent.Groups, child)
 				}
+				child.Clusters = append(child.Clusters, desc)
 			}
 		}
 	}
