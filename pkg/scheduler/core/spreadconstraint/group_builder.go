@@ -145,9 +145,8 @@ func getConstraint(constraint policyv1alpha1.SpreadConstraint) string {
 		return string(constraint.SpreadByField)
 	} else if constraint.SpreadByLabel != "" {
 		return constraint.SpreadByLabel
-	} else {
-		return ""
 	}
+	return ""
 }
 
 // getGroup returns a list of group identifiers for a given cluster based on the provided constraint.
@@ -156,9 +155,8 @@ func getGroup(cluster *clusterv1alpha1.Cluster, constraint policyv1alpha1.Spread
 		return getGroupByField(cluster, constraint.SpreadByField)
 	} else if constraint.SpreadByLabel != "" {
 		return getGroupByLabel(cluster, constraint.SpreadByLabel)
-	} else {
-		return nil
 	}
+	return nil
 }
 
 // getGroupByLabel returns a list of group identifiers for a given cluster based on the specified label key.

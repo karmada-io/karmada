@@ -74,34 +74,33 @@ func (node *groupNode) selectByGroups(replicas int32, selects map[string]*cluste
 	groups := len(node.Groups)
 	if groups <= node.MinGroups {
 		return 0, errors.New("the number of feasible clusters is less than spreadConstraint.MinGroups")
-	} else {
-		maxGroups := node.MaxGroups
-		if maxGroups == 0 || groups < maxGroups {
-			maxGroups = groups
-		}
-		for i := 0; i < maxGroups; i++ {
-			add, err := node.Groups[i].selectCluster(remain, selects)
-			adds += add
-			if err == nil && replicas != InvalidReplicas {
-				remain -= add
-			}
-		}
-
-		if remain <= 0 {
-			return adds, nil
-		} else if maxGroups == groups {
-			return 0, errors.New("not enough replicas in the groups")
-		}
-		left := make(map[string]*clusterDesc)
-		for i := maxGroups; i < groups; i++ {
-			_, _ = node.Groups[i].selectByClusters(InvalidReplicas, left)
-		}
-		i, err := node.supplement(selects, left, remain)
-		if err != nil {
-			return 0, err
-		}
-		return adds + i, nil
 	}
+	maxGroups := node.MaxGroups
+	if maxGroups == 0 || groups < maxGroups {
+		maxGroups = groups
+	}
+	for i := 0; i < maxGroups; i++ {
+		add, err := node.Groups[i].selectCluster(remain, selects)
+		adds += add
+		if err == nil && replicas != InvalidReplicas {
+			remain -= add
+		}
+	}
+
+	if remain <= 0 {
+		return adds, nil
+	} else if maxGroups == groups {
+		return 0, errors.New("not enough replicas in the groups")
+	}
+	left := make(map[string]*clusterDesc)
+	for i := maxGroups; i < groups; i++ {
+		_, _ = node.Groups[i].selectByClusters(InvalidReplicas, left)
+	}
+	i, err := node.supplement(selects, left, remain)
+	if err != nil {
+		return 0, err
+	}
+	return adds + i, nil
 }
 
 // supplement attempts to balance the cluster nodes by supplementing the selected nodes
