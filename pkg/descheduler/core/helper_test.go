@@ -164,7 +164,7 @@ func TestGetReadyReplicas(t *testing.T) {
 // mockUnschedulableReplicaEstimator is a mock implementation of the UnschedulableReplicaEstimator interface
 type mockUnschedulableReplicaEstimator struct{}
 
-func (m *mockUnschedulableReplicaEstimator) GetUnschedulableReplicas(ctx context.Context, clusters []string, reference *workv1alpha2.ObjectReference, unschedulableThreshold time.Duration) ([]workv1alpha2.TargetCluster, error) {
+func (m *mockUnschedulableReplicaEstimator) GetUnschedulableReplicas(_ context.Context, _ []string, _ *workv1alpha2.ObjectReference, _ time.Duration) ([]workv1alpha2.TargetCluster, error) {
 	return []workv1alpha2.TargetCluster{
 		{Name: "cluster1", Replicas: 1},
 		{Name: "cluster2", Replicas: 1},
