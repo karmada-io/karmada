@@ -99,7 +99,6 @@ func (node *groupNode) selectByGroups(replicas int32, selects map[string]*cluste
 				_, _ = node.Groups[i].selectByClusters(InvalidReplicas, left)
 			}
 			i, err := node.supplement(selects, left, remain)
-			fmt.Println(selects)
 			if err != nil {
 				return 0, err
 			}
