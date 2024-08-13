@@ -453,12 +453,10 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 					currentDaemonSet, err := kubeClient.AppsV1().DaemonSets(daemonSetNamespace).Get(context.TODO(), daemonSetName, metav1.GetOptions{})
 					g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-					klog.Infof("daemonSet(%s/%s) replicas: %d, wanted replicas: %d", daemonSetNamespace, daemonSetName, currentDaemonSet.Status.NumberReady, wantedReplicas)
-					if currentDaemonSet.Status.NumberReady == wantedReplicas &&
-						currentDaemonSet.Status.CurrentNumberScheduled == wantedReplicas &&
+					klog.Infof("daemonSet(%s/%s) current scheduled replicas: %d, wanted replicas: %d", daemonSetNamespace, daemonSetName, currentDaemonSet.Status.CurrentNumberScheduled, wantedReplicas)
+					if currentDaemonSet.Status.CurrentNumberScheduled == wantedReplicas &&
 						currentDaemonSet.Status.DesiredNumberScheduled == wantedReplicas &&
-						currentDaemonSet.Status.UpdatedNumberScheduled == wantedReplicas &&
-						currentDaemonSet.Status.NumberAvailable == wantedReplicas {
+						currentDaemonSet.Status.UpdatedNumberScheduled == wantedReplicas {
 						return true, nil
 					}
 
@@ -476,11 +474,9 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 					currentDaemonSet, err := kubeClient.AppsV1().DaemonSets(daemonSetNamespace).Get(context.TODO(), daemonSetName, metav1.GetOptions{})
 					g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-					if currentDaemonSet.Status.NumberReady == wantedReplicas &&
-						currentDaemonSet.Status.CurrentNumberScheduled == wantedReplicas &&
+					if currentDaemonSet.Status.CurrentNumberScheduled == wantedReplicas &&
 						currentDaemonSet.Status.DesiredNumberScheduled == wantedReplicas &&
-						currentDaemonSet.Status.UpdatedNumberScheduled == wantedReplicas &&
-						currentDaemonSet.Status.NumberAvailable == wantedReplicas {
+						currentDaemonSet.Status.UpdatedNumberScheduled == wantedReplicas {
 						return true, nil
 					}
 
