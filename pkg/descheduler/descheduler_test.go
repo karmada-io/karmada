@@ -22,12 +22,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 
+	"github.com/karmada-io/karmada/cmd/descheduler/app/options"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	estimatorclient "github.com/karmada-io/karmada/pkg/estimator/client"
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
@@ -64,6 +69,97 @@ func buildBinding(name, ns string, target, status []workv1alpha2.TargetCluster) 
 		},
 		Status: bindingStatus,
 	}, nil
+}
+
+func TestNewDescheduler(t *testing.T) {
+	karmadaClient := fakekarmadaclient.NewSimpleClientset()
+	kubeClient := fake.NewSimpleClientset()
+	opts := &options.Options{
+		UnschedulableThreshold: metav1.Duration{Duration: 5 * time.Minute},
+		DeschedulingInterval:   metav1.Duration{Duration: 1 * time.Minute},
+		SchedulerEstimatorPort: 8080,
+	}
+
+	descheduler := NewDescheduler(karmadaClient, kubeClient, opts)
+
+	assert.NotNil(t, descheduler)
+	assert.Equal(t, karmadaClient, descheduler.KarmadaClient)
+	assert.Equal(t, kubeClient, descheduler.KubeClient)
+	assert.Equal(t, opts.UnschedulableThreshold.Duration, descheduler.unschedulableThreshold)
+	assert.Equal(t, opts.DeschedulingInterval.Duration, descheduler.deschedulingInterval)
+	assert.NotNil(t, descheduler.schedulerEstimatorCache)
+	assert.NotNil(t, descheduler.schedulerEstimatorWorker)
+	assert.NotNil(t, descheduler.deschedulerWorker)
+}
+
+func TestRun(t *testing.T) {
+	karmadaClient := fakekarmadaclient.NewSimpleClientset()
+	kubeClient := fake.NewSimpleClientset()
+	opts := &options.Options{
+		UnschedulableThreshold: metav1.Duration{Duration: 5 * time.Minute},
+		DeschedulingInterval:   metav1.Duration{Duration: 1 * time.Minute},
+		SchedulerEstimatorPort: 8080,
+	}
+
+	descheduler := NewDescheduler(karmadaClient, kubeClient, opts)
+
+	testCluster := &clusterv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-cluster"},
+	}
+	_, err := karmadaClient.ClusterV1alpha1().Clusters().Create(context.TODO(), testCluster, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+	descheduler.informerFactory.Start(stopCh)
+	descheduler.informerFactory.WaitForCacheSync(stopCh)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	go descheduler.Run(ctx)
+
+	time.Sleep(500 * time.Millisecond)
+
+	cluster, err := descheduler.clusterLister.Get("test-cluster")
+	assert.NoError(t, err)
+	assert.NotNil(t, cluster)
+	assert.Equal(t, "test-cluster", cluster.Name)
+
+	<-ctx.Done()
+}
+
+func TestDescheduleOnce(t *testing.T) {
+	karmadaClient := fakekarmadaclient.NewSimpleClientset()
+	kubeClient := fake.NewSimpleClientset()
+	opts := &options.Options{
+		UnschedulableThreshold: metav1.Duration{Duration: 5 * time.Minute},
+		DeschedulingInterval:   metav1.Duration{Duration: 1 * time.Second},
+		SchedulerEstimatorPort: 8080,
+	}
+
+	descheduler := NewDescheduler(karmadaClient, kubeClient, opts)
+
+	binding1, err := buildBinding("binding1", "default", []workv1alpha2.TargetCluster{{Name: "cluster1", Replicas: 5}}, []workv1alpha2.TargetCluster{{Name: "cluster1", Replicas: 3}})
+	assert.NoError(t, err)
+	binding2, err := buildBinding("binding2", "default", []workv1alpha2.TargetCluster{{Name: "cluster2", Replicas: 3}}, []workv1alpha2.TargetCluster{{Name: "cluster2", Replicas: 3}})
+	assert.NoError(t, err)
+
+	_, err = karmadaClient.WorkV1alpha2().ResourceBindings("default").Create(context.TODO(), binding1, metav1.CreateOptions{})
+	assert.NoError(t, err)
+	_, err = karmadaClient.WorkV1alpha2().ResourceBindings("default").Create(context.TODO(), binding2, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	go descheduler.Run(ctx)
+
+	time.Sleep(1 * time.Second)
+
+	descheduler.descheduleOnce()
+
+	bindings, err := descheduler.bindingLister.List(labels.Everything())
+	assert.NoError(t, err)
+	assert.Len(t, bindings, 2)
 }
 
 func TestDescheduler_worker(t *testing.T) {

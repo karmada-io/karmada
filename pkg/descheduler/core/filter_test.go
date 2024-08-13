@@ -27,6 +27,49 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
+func TestFilterBindings(t *testing.T) {
+	tests := []struct {
+		name     string
+		bindings []*workv1alpha2.ResourceBinding
+		expected int
+	}{
+		{
+			name: "No valid bindings",
+			bindings: []*workv1alpha2.ResourceBinding{
+				createBinding("binding1", "v1", "Pod", nil),
+				createBinding("binding2", "v1", "Service", nil),
+			},
+			expected: 0,
+		},
+		{
+			name: "Mix of valid and invalid bindings",
+			bindings: []*workv1alpha2.ResourceBinding{
+				createBinding("binding1", "apps/v1", "Deployment", createValidPlacement()),
+				createBinding("binding2", "v1", "Pod", createValidPlacement()),
+				createBinding("binding3", "apps/v1", "Deployment", createInvalidPlacement()),
+			},
+			expected: 1,
+		},
+		{
+			name: "All valid bindings",
+			bindings: []*workv1alpha2.ResourceBinding{
+				createBinding("binding1", "apps/v1", "Deployment", createValidPlacement()),
+				createBinding("binding2", "apps/v1", "Deployment", createValidPlacement()),
+			},
+			expected: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filtered := FilterBindings(tt.bindings)
+			if len(filtered) != tt.expected {
+				t.Errorf("FilterBindings() returned %d bindings, expected %d", len(filtered), tt.expected)
+			}
+		})
+	}
+}
+
 func TestValidateGVK(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -34,7 +77,7 @@ func TestValidateGVK(t *testing.T) {
 		expected  bool
 	}{
 		{
-			name: "supportedGVKs",
+			name: "Supported GVK - Deployment",
 			reference: &workv1alpha2.ObjectReference{
 				APIVersion: "apps/v1",
 				Kind:       "Deployment",
@@ -42,10 +85,26 @@ func TestValidateGVK(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "unsupportedGVKs",
+			name: "Unsupported GVK - Pod",
 			reference: &workv1alpha2.ObjectReference{
 				APIVersion: "v1",
 				Kind:       "Pod",
+			},
+			expected: false,
+		},
+		{
+			name: "Unsupported GVK - Custom Resource",
+			reference: &workv1alpha2.ObjectReference{
+				APIVersion: "custom.example.com/v1",
+				Kind:       "MyCustomResource",
+			},
+			expected: false,
+		},
+		{
+			name: "Unsupported GVK - Different Version of Deployment",
+			reference: &workv1alpha2.ObjectReference{
+				APIVersion: "apps/v2",
+				Kind:       "Deployment",
 			},
 			expected: false,
 		},
@@ -62,95 +121,34 @@ func TestValidateGVK(t *testing.T) {
 }
 
 func TestValidatePlacement(t *testing.T) {
-	fakePlacement1 := policyv1alpha1.Placement{
-		ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-			ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDuplicated,
-		},
-	}
-	marshaledBytes1, _ := json.Marshal(fakePlacement1)
-	fakePlacement2 := policyv1alpha1.Placement{
-		ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-			ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-			ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceAggregated,
-		},
-	}
-	marshaledBytes2, _ := json.Marshal(fakePlacement2)
-	fakePlacement3 := policyv1alpha1.Placement{
-		ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-			ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-			ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-			WeightPreference:          &policyv1alpha1.ClusterPreferences{},
-		},
-	}
-	marshaledBytes3, _ := json.Marshal(fakePlacement3)
-	fakePlacement4 := policyv1alpha1.Placement{
-		ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-			ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-			ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-			WeightPreference: &policyv1alpha1.ClusterPreferences{
-				DynamicWeight: policyv1alpha1.DynamicWeightByAvailableReplicas,
-			},
-		},
-	}
-	marshaledBytes4, _ := json.Marshal(fakePlacement4)
-
 	tests := []struct {
 		name     string
 		binding  *workv1alpha2.ResourceBinding
 		expected bool
 	}{
 		{
-			name: "no policyPlacementAnnotation",
-			binding: &workv1alpha2.ResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "bar",
-				},
-			},
+			name:     "No policyPlacementAnnotation",
+			binding:  createBinding("binding1", "apps/v1", "Deployment", nil),
 			expected: false,
 		},
 		{
-			name: "propagationPolicy schedules replicas as non-dynamic",
-			binding: &workv1alpha2.ResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        "foo",
-					Namespace:   "bar",
-					Annotations: map[string]string{util.PolicyPlacementAnnotation: string(marshaledBytes1)},
-				},
-			},
+			name:     "ReplicaSchedulingType Duplicated",
+			binding:  createBinding("binding2", "apps/v1", "Deployment", createPlacement(policyv1alpha1.ReplicaSchedulingTypeDuplicated, "", nil)),
 			expected: false,
 		},
 		{
-			name: "propagationPolicy schedules replicas as dynamic: ReplicaDivisionPreference is Aggregated",
-			binding: &workv1alpha2.ResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        "foo",
-					Namespace:   "bar",
-					Annotations: map[string]string{util.PolicyPlacementAnnotation: string(marshaledBytes2)},
-				},
-			},
+			name:     "ReplicaSchedulingType Divided, Preference Aggregated",
+			binding:  createBinding("binding3", "apps/v1", "Deployment", createPlacement(policyv1alpha1.ReplicaSchedulingTypeDivided, policyv1alpha1.ReplicaDivisionPreferenceAggregated, nil)),
 			expected: true,
 		},
 		{
-			name: "propagationPolicy schedules replicas as dynamic: DynamicWeight is null",
-			binding: &workv1alpha2.ResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        "foo",
-					Namespace:   "bar",
-					Annotations: map[string]string{util.PolicyPlacementAnnotation: string(marshaledBytes3)},
-				},
-			},
+			name:     "ReplicaSchedulingType Divided, Preference Weighted, No DynamicWeight",
+			binding:  createBinding("binding4", "apps/v1", "Deployment", createPlacement(policyv1alpha1.ReplicaSchedulingTypeDivided, policyv1alpha1.ReplicaDivisionPreferenceWeighted, &policyv1alpha1.ClusterPreferences{})),
 			expected: false,
 		},
 		{
-			name: "propagationPolicy schedules replicas as dynamic: DynamicWeight is not null",
-			binding: &workv1alpha2.ResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        "foo",
-					Namespace:   "bar",
-					Annotations: map[string]string{util.PolicyPlacementAnnotation: string(marshaledBytes4)},
-				},
-			},
+			name:     "ReplicaSchedulingType Divided, Preference Weighted, With DynamicWeight",
+			binding:  createBinding("binding5", "apps/v1", "Deployment", createPlacement(policyv1alpha1.ReplicaSchedulingTypeDivided, policyv1alpha1.ReplicaDivisionPreferenceWeighted, &policyv1alpha1.ClusterPreferences{DynamicWeight: policyv1alpha1.DynamicWeightByAvailableReplicas})),
 			expected: true,
 		},
 	}
@@ -163,4 +161,44 @@ func TestValidatePlacement(t *testing.T) {
 			}
 		})
 	}
+}
+
+func createBinding(name, apiVersion, kind string, placement *policyv1alpha1.Placement) *workv1alpha2.ResourceBinding {
+	binding := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: "default",
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Resource: workv1alpha2.ObjectReference{
+				APIVersion: apiVersion,
+				Kind:       kind,
+			},
+		},
+	}
+
+	if placement != nil {
+		marshaledBytes, _ := json.Marshal(placement)
+		binding.Annotations = map[string]string{util.PolicyPlacementAnnotation: string(marshaledBytes)}
+	}
+
+	return binding
+}
+
+func createPlacement(schedulingType policyv1alpha1.ReplicaSchedulingType, divisionPreference policyv1alpha1.ReplicaDivisionPreference, weightPreference *policyv1alpha1.ClusterPreferences) *policyv1alpha1.Placement {
+	return &policyv1alpha1.Placement{
+		ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+			ReplicaSchedulingType:     schedulingType,
+			ReplicaDivisionPreference: divisionPreference,
+			WeightPreference:          weightPreference,
+		},
+	}
+}
+
+func createValidPlacement() *policyv1alpha1.Placement {
+	return createPlacement(policyv1alpha1.ReplicaSchedulingTypeDivided, policyv1alpha1.ReplicaDivisionPreferenceAggregated, nil)
+}
+
+func createInvalidPlacement() *policyv1alpha1.Placement {
+	return createPlacement(policyv1alpha1.ReplicaSchedulingTypeDuplicated, "", nil)
 }
