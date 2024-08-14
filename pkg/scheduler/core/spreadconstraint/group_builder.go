@@ -166,6 +166,7 @@ func born(parent *groupNode, constraints []policyv1alpha1.SpreadConstraint, inde
 			born(child, constraints, index+1)
 		} else {
 			child.Leaf = true
+			child.compute()
 		}
 	}
 	parent.compute()

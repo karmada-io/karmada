@@ -185,6 +185,37 @@ func TestSelectBestClusters(t *testing.T) {
 			},
 		},
 		{
+			name: "select clusters by region and cluster",
+			ctx: SelectionCtx{
+				ClusterScores: clusterScores,
+				Placement: &policyv1alpha1.Placement{
+					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+							MaxGroups:     1,
+							MinGroups:     1,
+						},
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldRegion,
+							MaxGroups:     2,
+							MinGroups:     2,
+						},
+					},
+					ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided,
+					},
+				},
+				Spec: &workv1alpha2.ResourceBindingSpec{
+					Replicas: 120,
+				},
+				ReplicasFunc: replicasFunc,
+			},
+			want: []*clusterv1alpha1.Cluster{
+				clusterScores[1].Cluster,
+				clusterScores[2].Cluster,
+			},
+		},
+		{
 			name: "select clusters by cluster score and satisfy available resources",
 			ctx: SelectionCtx{
 				ClusterScores: clusterScores,

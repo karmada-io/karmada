@@ -27,9 +27,11 @@ import (
 // Elect method to select clusters based on the required replicas
 func (root *groupRoot) Elect() ([]*clusterv1alpha1.Cluster, error) {
 	selects := make(map[string]*clusterDesc)
-	_, err := root.selectCluster(root.Replicas, selects)
+	i, err := root.selectCluster(root.Replicas, selects)
 	if err != nil {
 		return nil, err
+	} else if root.Replicas > 0 && i < root.Replicas {
+		return nil, fmt.Errorf("no enough resource when selecting %d %ss", root.MaxGroups, root.Constraint)
 	}
 	var clusters []*clusterDesc
 	for _, cluster := range selects {
@@ -73,7 +75,7 @@ func (node *groupNode) selectByGroups(replicas int32, selects map[string]*cluste
 	remain := replicas
 	adds := int32(0)
 	groups := len(node.Groups)
-	if groups <= node.MinGroups {
+	if groups < node.MinGroups {
 		return 0, errors.New("the number of feasible clusters is less than spreadConstraint.MinGroups")
 	}
 	maxGroups := node.MaxGroups
@@ -97,16 +99,13 @@ func (node *groupNode) selectByGroups(replicas int32, selects map[string]*cluste
 	for i := maxGroups; i < groups; i++ {
 		_, _ = node.Groups[i].selectByClusters(InvalidReplicas, left)
 	}
-	i, err := node.supplement(selects, left, remain)
-	if err != nil {
-		return 0, err
-	}
+	i := node.supplement(selects, left, remain)
 	return adds + i, nil
 }
 
 // supplement attempts to balance the cluster nodes by supplementing the selected nodes
 // with the remaining nodes to meet the required replicas.
-func (node *groupNode) supplement(selects map[string]*clusterDesc, remains map[string]*clusterDesc, replicas int32) (int32, error) {
+func (node *groupNode) supplement(selects map[string]*clusterDesc, remains map[string]*clusterDesc, replicas int32) int32 {
 	adds := int32(0)
 	var selectArray []*clusterDesc
 	for _, cluster := range selects {
@@ -138,11 +137,11 @@ func (node *groupNode) supplement(selects map[string]*clusterDesc, remains map[s
 			delete(selects, selectArray[j].Name)
 			selects[remainArray[maxIndex].Name] = remainArray[maxIndex]
 			if replicas <= 0 {
-				return adds, nil
+				break
 			}
 			selectArray[j], remainArray[maxIndex] = remainArray[maxIndex], selectArray[j]
 		}
 	}
 
-	return 0, fmt.Errorf("no enough resource when selecting %d %ss", node.MaxGroups, node.Constraint)
+	return adds
 }
