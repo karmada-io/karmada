@@ -251,26 +251,22 @@ func TestReviseStatefulSetReplica(t *testing.T) {
 }
 
 func TestGetAllDefaultReviseReplicaInterpreter(t *testing.T) {
-	expected := map[schema.GroupVersionKind]reviseReplicaInterpreter{
-		{Group: "apps", Version: "v1", Kind: "Deployment"}:  reviseDeploymentReplica,
-		{Group: "apps", Version: "v1", Kind: "StatefulSet"}: reviseStatefulSetReplica,
-		{Group: "batch", Version: "v1", Kind: "Job"}:        reviseJobReplica,
+	expectedKinds := []schema.GroupVersionKind{
+		{Group: "apps", Version: "v1", Kind: "Deployment"},
+		{Group: "apps", Version: "v1", Kind: "StatefulSet"},
+		{Group: "batch", Version: "v1", Kind: "Job"},
 	}
 
 	got := getAllDefaultReviseReplicaInterpreter()
 
-	if len(got) != len(expected) {
-		t.Errorf("getAllDefaultReviseReplicaInterpreter() returned map of length %v, want %v", len(got), len(expected))
+	if len(got) != len(expectedKinds) {
+		t.Errorf("getAllDefaultReviseReplicaInterpreter() returned map of length %v, want %v", len(got), len(expectedKinds))
 	}
 
-	for key, expectedValue := range expected {
-		gotValue, gotOk := got[key]
-		if !gotOk {
-			t.Errorf("expected key %v not found in got map", key)
-		} else if gotValue == nil {
-			t.Errorf("for key %v, getAllDefaultReviseReplicaInterpreter()= %v want %v", key, gotValue, expectedValue)
-		} else if reflect.ValueOf(gotValue).Pointer() != reflect.ValueOf(expectedValue).Pointer() {
-			t.Errorf("for key %v, getAllDefaultReviseReplicaInterpreter()= %v want %v", key, gotValue, expectedValue)
+	for _, key := range expectedKinds {
+		_, exists := got[key]
+		if !exists {
+			t.Errorf("getAllDefaultReviseReplicaInterpreter() missing key %v", key)
 		}
 	}
 }

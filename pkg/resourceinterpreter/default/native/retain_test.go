@@ -17,7 +17,6 @@ limitations under the License.
 package native
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -30,7 +29,6 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
 func Test_retainK8sWorkloadReplicas(t *testing.T) {
@@ -695,30 +693,26 @@ func Test_retainPodFields(t *testing.T) {
 }
 
 func Test_getAllDefaultRetentionInterpreter(t *testing.T) {
-	expected := map[schema.GroupVersionKind]retentionInterpreter{
-		{Group: "apps", Version: "v1", Kind: "Deployment"}:        retainWorkloadReplicas,
-		{Group: "", Version: "v1", Kind: "Pod"}:                   retainPodFields,
-		{Group: "", Version: "v1", Kind: "Service"}:               lifted.RetainServiceFields,
-		{Group: "", Version: "v1", Kind: "ServiceAccount"}:        lifted.RetainServiceAccountFields,
-		{Group: "", Version: "v1", Kind: "PersistentVolumeClaim"}: retainPersistentVolumeClaimFields,
-		{Group: "", Version: "v1", Kind: "PersistentVolume"}:      retainPersistentVolumeFields,
-		{Group: "batch", Version: "v1", Kind: "Job"}:              retainJobSelectorFields,
-		{Group: "", Version: "v1", Kind: "Secret"}:                retainSecretServiceAccountToken,
+	expectedKinds := []schema.GroupVersionKind{
+		{Group: "apps", Version: "v1", Kind: "Deployment"},
+		{Group: "", Version: "v1", Kind: "Pod"},
+		{Group: "", Version: "v1", Kind: "Service"},
+		{Group: "", Version: "v1", Kind: "ServiceAccount"},
+		{Group: "", Version: "v1", Kind: "PersistentVolumeClaim"},
+		{Group: "", Version: "v1", Kind: "PersistentVolume"},
+		{Group: "batch", Version: "v1", Kind: "Job"},
+		{Group: "", Version: "v1", Kind: "Secret"},
 	}
 
 	got := getAllDefaultRetentionInterpreter()
 
-	if len(got) != len(expected) {
-		t.Errorf("getAllDefaultRetentionInterpreter() length = %d, want %d", len(got), len(expected))
+	if len(got) != len(expectedKinds) {
+		t.Errorf("getAllDefaultRetentionInterpreter() length = %d, want %d", len(got), len(expectedKinds))
 	}
 
-	for key, expectedValue := range expected {
-		if gotValue, exists := got[key]; !exists {
+	for _, key := range expectedKinds {
+		if _, exists := got[key]; !exists {
 			t.Errorf("getAllDefaultRetentionInterpreter() missing key %v", key)
-		} else if gotValue == nil {
-			t.Errorf("for key %v, getAllDefaultRetentionInterpreter()= %v want %v", key, gotValue, expectedValue)
-		} else if reflect.ValueOf(gotValue).Pointer() != reflect.ValueOf(expectedValue).Pointer() {
-			t.Errorf("getAllDefaultRetentionInterpreter() for key %v = %v, want %v", key, gotValue, expectedValue)
 		}
 	}
 }

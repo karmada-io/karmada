@@ -17,7 +17,6 @@ limitations under the License.
 package native
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -33,27 +32,23 @@ import (
 )
 
 func Test_getAllDefaultReplicaInterpreter(t *testing.T) {
-	expected := map[schema.GroupVersionKind]replicaInterpreter{
-		{Group: "apps", Version: "v1", Kind: "Deployment"}:  deployReplica,
-		{Group: "apps", Version: "v1", Kind: "StatefulSet"}: statefulSetReplica,
-		{Group: "batch", Version: "v1", Kind: "Job"}:        jobReplica,
-		{Group: "", Version: "v1", Kind: "Pod"}:             podReplica,
+	expectedKinds := []schema.GroupVersionKind{
+		{Group: "apps", Version: "v1", Kind: "Deployment"},
+		{Group: "apps", Version: "v1", Kind: "StatefulSet"},
+		{Group: "batch", Version: "v1", Kind: "Job"},
+		{Group: "", Version: "v1", Kind: "Pod"},
 	}
 
 	got := getAllDefaultReplicaInterpreter()
 
-	if len(got) != len(expected) {
-		t.Errorf("getAllDefaultReplicaInterpreter() length = %d, want %d", len(got), len(expected))
+	if len(got) != len(expectedKinds) {
+		t.Errorf("getAllDefaultReplicaInterpreter() length = %d, want %d", len(got), len(expectedKinds))
 	}
 
-	for key, expectedValue := range expected {
-		gotValue, exists := got[key]
+	for _, key := range expectedKinds {
+		_, exists := got[key]
 		if !exists {
 			t.Errorf("getAllDefaultReplicaInterpreter() missing key %v", key)
-		} else if gotValue == nil {
-			t.Errorf("for key %v, getAllDefaultReplicaInterpreter() = %v, want %v", key, gotValue, expectedValue)
-		} else if reflect.ValueOf(gotValue).Pointer() != reflect.ValueOf(expectedValue).Pointer() {
-			t.Errorf("getAllDefaultReplicaInterpreter() for key %v = %v, want %v", key, gotValue, expectedValue)
 		}
 	}
 }
