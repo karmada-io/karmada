@@ -21,11 +21,11 @@ import (
 	"fmt"
 	"sort"
 
-	clusterV1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
 
 // Elect method to select clusters based on the required replicas
-func (root *groupRoot) Elect() ([]*clusterV1alpha1.Cluster, error) {
+func (root *groupRoot) Elect() ([]*clusterv1alpha1.Cluster, error) {
 	selects := make(map[string]*clusterDesc)
 	_, err := root.selectCluster(root.Replicas, selects)
 	if err != nil {
@@ -39,7 +39,7 @@ func (root *groupRoot) Elect() ([]*clusterV1alpha1.Cluster, error) {
 		return clusters[i].Score > clusters[j].Score
 	})
 
-	var result []*clusterV1alpha1.Cluster
+	var result []*clusterv1alpha1.Cluster
 	for _, cluster := range clusters {
 		result = append(result, cluster.Cluster)
 	}
