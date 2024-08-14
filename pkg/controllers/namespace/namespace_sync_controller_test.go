@@ -1,5 +1,5 @@
 /*
-Copyright 2023 The Karmada Authors.
+Copyright 2024 The Karmada Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package namespace
 import (
 	"context"
 	"regexp"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -307,11 +309,19 @@ func TestController_buildWorksWithOverridePolicy(t *testing.T) {
 
 func TestController_SetupWithManager(t *testing.T) {
 	scheme := runtime.NewScheme()
-	_ = corev1.AddToScheme(scheme)
-	_ = clusterv1alpha1.Install(scheme)
-	_ = workv1alpha1.Install(scheme)
+	err := corev1.AddToScheme(scheme)
+	assert.NoError(t, err)
+	err = clusterv1alpha1.Install(scheme)
+	assert.NoError(t, err)
+	err = workv1alpha1.Install(scheme)
+	assert.NoError(t, err)
+	err = policyv1alpha1.Install(scheme)
+	assert.NoError(t, err)
 
-	mgr, err := controllerruntime.NewManager(controllerruntime.GetConfigOrDie(), controllerruntime.Options{Scheme: scheme})
+	cfg := &rest.Config{Host: "http://localhost:8080"}
+	mgr, err := controllerruntime.NewManager(cfg, controllerruntime.Options{
+		Scheme: scheme,
+	})
 	assert.NoError(t, err)
 
 	c := &Controller{
@@ -322,6 +332,64 @@ func TestController_SetupWithManager(t *testing.T) {
 
 	err = c.SetupWithManager(mgr)
 	assert.NoError(t, err)
+
+	assert.NotNil(t, c.Client, "Controller's Client should not be nil")
+	assert.NotNil(t, c.EventRecorder, "Controller's EventRecorder should not be nil")
+	assert.NotNil(t, c.OverrideManager, "Controller's OverrideManager should not be nil")
+}
+
+func TestController_SetupWithManagerConcurrent(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := corev1.AddToScheme(scheme)
+	assert.NoError(t, err)
+	err = clusterv1alpha1.Install(scheme)
+	assert.NoError(t, err)
+	err = workv1alpha1.Install(scheme)
+	assert.NoError(t, err)
+	err = policyv1alpha1.Install(scheme)
+	assert.NoError(t, err)
+
+	cfg := &rest.Config{Host: "http://localhost:8080"}
+	mgr, err := controllerruntime.NewManager(cfg, controllerruntime.Options{
+		Scheme: scheme,
+	})
+	assert.NoError(t, err)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			c := &Controller{
+				Client:          mgr.GetClient(),
+				EventRecorder:   mgr.GetEventRecorderFor("test-controller"),
+				OverrideManager: overridemanager.New(mgr.GetClient(), mgr.GetEventRecorderFor("test-controller")),
+			}
+			err := c.SetupWithManager(mgr)
+			assert.NoError(t, err)
+		}()
+	}
+	wg.Wait()
+}
+
+func TestController_SetupWithManagerError(t *testing.T) {
+	scheme := runtime.NewScheme()
+	// Schemes are not added to intentionaly trigger an error
+
+	cfg := &rest.Config{Host: "http://localhost:8080"}
+	mgr, err := controllerruntime.NewManager(cfg, controllerruntime.Options{
+		Scheme: scheme,
+	})
+	assert.NoError(t, err)
+
+	c := &Controller{
+		Client:          mgr.GetClient(),
+		EventRecorder:   mgr.GetEventRecorderFor("test-controller"),
+		OverrideManager: overridemanager.New(mgr.GetClient(), mgr.GetEventRecorderFor("test-controller")),
+	}
+
+	err = c.SetupWithManager(mgr)
+	assert.Error(t, err, "SetupWithManager should return an error when schemes are not properly set up")
 }
 
 func TestClusterNamespaceFn(t *testing.T) {
@@ -359,6 +427,7 @@ func TestClusterNamespaceFn(t *testing.T) {
 	assert.Contains(t, requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: "namespace1"}})
 	assert.Contains(t, requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: "namespace2"}})
 }
+
 func TestClusterOverridePolicyNamespaceFn(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
