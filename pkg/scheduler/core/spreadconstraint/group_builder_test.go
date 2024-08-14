@@ -348,6 +348,79 @@ func Test_GroupClusters(t *testing.T) {
 			},
 		},
 		{
+			name: "test SpreadConstraints is zone/region/provider",
+			ctx: SelectionCtx{
+				ClusterScores: generateClusterScore(),
+				Placement: &policyv1alpha1.Placement{
+					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldZone,
+							MaxGroups:     1,
+							MinGroups:     1,
+						},
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldRegion,
+							MaxGroups:     1,
+							MinGroups:     1,
+						},
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldProvider,
+							MaxGroups:     1,
+							MinGroups:     1,
+						},
+					},
+				},
+				Spec:         &workv1alpha2.ResourceBindingSpec{},
+				ReplicasFunc: replicasFunc,
+			},
+			want: want{
+				name:     "",
+				clusters: []string{"member4", "member2", "member3", "member1"},
+				groups: []want{
+					{
+						name:     "P2",
+						clusters: []string{"member4", "member3"},
+						groups: []want{
+							{
+								name:     "R2",
+								clusters: []string{"member4", "member3"},
+								groups: []want{
+									{
+										name:     "Z4",
+										clusters: []string{"member4"},
+									},
+									{
+										name:     "Z3",
+										clusters: []string{"member3"},
+									},
+								},
+							},
+						},
+					},
+					{
+						name:     "P1",
+						clusters: []string{"member2", "member1"},
+						groups: []want{
+							{
+								name:     "R1",
+								clusters: []string{"member2", "member1"},
+								groups: []want{
+									{
+										name:     "Z2",
+										clusters: []string{"member2"},
+									},
+									{
+										name:     "Z1",
+										clusters: []string{"member1"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "test SpreadConstraints is label unit/cell",
 			ctx: SelectionCtx{
 				ClusterScores: generateClusterScore(),

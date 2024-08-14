@@ -37,7 +37,8 @@ func init() {
 func (builder *groupBuilder) Create(ctx SelectionCtx) (Selection, error) {
 	root := &groupRoot{}
 	root.Name = ""
-	root.DisableConstraint = len(ctx.Placement.SpreadConstraints) == 0 || disableSpreadConstraint(ctx.Placement)
+	constraints := ctx.Placement.SpreadConstraints
+	root.DisableConstraint = len(constraints) == 0 || disableSpreadConstraint(ctx.Placement)
 	root.Replicas = ctx.Spec.Replicas
 	if root.DisableConstraint {
 		root.Replicas = InvalidReplicas
@@ -52,7 +53,8 @@ func (builder *groupBuilder) Create(ctx SelectionCtx) (Selection, error) {
 		}
 		root.Clusters = createClustersWithReplicas(ctx.ClusterScores, ctx.Spec, replicasFunc)
 		sortClusters(root.Clusters)
-		born(&root.groupNode, ctx.Placement.SpreadConstraints, 0)
+
+		born(&root.groupNode, sortConstraints(constraints), 0)
 	}
 
 	return root, nil
@@ -103,6 +105,35 @@ func disableAvailableResource(placement *policyv1alpha1.Placement) bool {
 	}
 
 	return false
+}
+
+// sortConstraints sorts the given slice of SpreadConstraints.
+func sortConstraints(constraints []policyv1alpha1.SpreadConstraint) []policyv1alpha1.SpreadConstraint {
+	var sorts = make([]policyv1alpha1.SpreadConstraint, len(constraints))
+	copy(sorts, constraints)
+	sort.Slice(sorts, func(i, j int) bool {
+		if sorts[i].SpreadByField == policyv1alpha1.SpreadByFieldCluster {
+			return false
+		} else if sorts[j].SpreadByField == policyv1alpha1.SpreadByFieldCluster {
+			return true
+		} else if sorts[i].SpreadByField != "" && sorts[j].SpreadByField != "" {
+			if sorts[i].SpreadByField == policyv1alpha1.SpreadByFieldProvider {
+				return true
+			} else if sorts[j].SpreadByField == policyv1alpha1.SpreadByFieldProvider {
+				return false
+			} else if sorts[i].SpreadByField == policyv1alpha1.SpreadByFieldRegion {
+				return true
+			} else if sorts[j].SpreadByField == policyv1alpha1.SpreadByFieldRegion {
+				return false
+			} else if sorts[i].SpreadByField == policyv1alpha1.SpreadByFieldZone {
+				return true
+			} else if sorts[j].SpreadByField == policyv1alpha1.SpreadByFieldZone {
+				return false
+			}
+		}
+		return i < j
+	})
+	return sorts
 }
 
 // born recursively groups clusters based on the provided constraints.
