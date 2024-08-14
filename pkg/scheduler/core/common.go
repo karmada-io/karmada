@@ -20,11 +20,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
-
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
 )
