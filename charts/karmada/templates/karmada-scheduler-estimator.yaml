@@ -50,7 +50,7 @@ spec:
             - --cluster-name={{ $clusterName }}
             - --grpc-auth-cert-file=/etc/karmada/pki/karmada.crt
             - --grpc-auth-key-file=/etc/karmada/pki/karmada.key
-            - --grpc-client-ca-file=/etc/karmada/pki/ca.crt
+            - --grpc-client-ca-file=/etc/karmada/pki/server-ca.crt
             {{- with (include "karmada.schedulerEstimator.featureGates" (dict "featureGatesArg" $.Values.schedulerEstimator.featureGates)) }}
             - {{ . }}
             {{- end}}
