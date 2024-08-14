@@ -53,7 +53,7 @@ spec:
             - --bind-address=0.0.0.0
             - --secure-port=10351
             - --leader-elect-resource-namespace={{ $systemNamespace }}
-            - --scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt
+            - --scheduler-estimator-ca-file=/etc/karmada/pki/server-ca.crt
             - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt
             - --scheduler-estimator-key-file=/etc/karmada/pki/karmada.key
           livenessProbe:
