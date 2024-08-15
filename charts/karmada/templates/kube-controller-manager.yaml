@@ -51,7 +51,7 @@ spec:
             - --authorization-kubeconfig=/etc/kubeconfig
             - --bind-address=0.0.0.0
             - --client-ca-file=/etc/karmada/pki/server-ca.crt
-            - --cluster-cidr=10.244.0.0/16
+            - --cluster-cidr={{ .Values.kubeControllerManager.clusterCIDR }}
             - --cluster-name=karmada
             - --cluster-signing-cert-file=/etc/karmada/pki/server-ca.crt
             - --cluster-signing-key-file=/etc/karmada/pki/server-ca.key
@@ -61,7 +61,7 @@ spec:
             - --node-cidr-mask-size=24
             - --root-ca-file=/etc/karmada/pki/server-ca.crt
             - --service-account-private-key-file=/etc/karmada/pki/karmada.key
-            - --service-cluster-ip-range=10.96.0.0/12
+            - --service-cluster-ip-range={{ .Values.kubeControllerManager.serviceClusterIPRange }}
             - --use-service-account-credentials=true
             - --v=5
           image: {{ template "karmada.kubeControllerManager.image" . }}
