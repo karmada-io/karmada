@@ -101,16 +101,6 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 		return controllerruntime.Result{}, err
 	}
 
-	if err := c.updateWorkDispatchingConditionIfNeeded(ctx, work); err != nil {
-		klog.Errorf("Failed to update work condition type %s. err is %v", workv1alpha1.WorkDispatching, err)
-		return controllerruntime.Result{}, err
-	}
-
-	if helper.IsWorkSuspendDispatching(work) {
-		klog.V(4).Infof("Skip syncing work(%s/%s) for cluster(%s) as work dispatch is suspended.", work.Namespace, work.Name, cluster.Name)
-		return controllerruntime.Result{}, nil
-	}
-
 	if !work.DeletionTimestamp.IsZero() {
 		// Abort deleting workload if cluster is unready when unjoining cluster, otherwise the unjoin process will be failed.
 		if util.IsClusterReady(&cluster.Status) {
@@ -124,6 +114,16 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 		}
 
 		return c.removeFinalizer(ctx, work)
+	}
+
+	if err := c.updateWorkDispatchingConditionIfNeeded(ctx, work); err != nil {
+		klog.Errorf("Failed to update work condition type %s. err is %v", workv1alpha1.WorkDispatching, err)
+		return controllerruntime.Result{}, err
+	}
+
+	if helper.IsWorkSuspendDispatching(work) {
+		klog.V(4).Infof("Skip syncing work(%s/%s) for cluster(%s) as work dispatch is suspended.", work.Namespace, work.Name, cluster.Name)
+		return controllerruntime.Result{}, nil
 	}
 
 	if !util.IsClusterReady(&cluster.Status) {
