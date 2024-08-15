@@ -2,24 +2,30 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.10.3](#v1103)
-  - [Downloads for v1.10.3](#downloads-for-v1103)
-  - [Changelog since v1.10.2](#changelog-since-v1102)
+- [v1.10.4](#v1104)
+  - [Downloads for v1.10.4](#downloads-for-v1104)
+  - [Changelog since v1.10.3](#changelog-since-v1103)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
-- [v1.10.2](#v1102)
-  - [Downloads for v1.10.2](#downloads-for-v1102)
-  - [Changelog since v1.10.1](#changelog-since-v1101)
+- [v1.10.3](#v1103)
+  - [Downloads for v1.10.3](#downloads-for-v1103)
+  - [Changelog since v1.10.2](#changelog-since-v1102)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
-- [v1.10.1](#v1101)
-  - [Downloads for v1.10.1](#downloads-for-v1101)
-  - [Changelog since v1.10.0](#changelog-since-v1100)
+- [v1.10.2](#v1102)
+  - [Downloads for v1.10.2](#downloads-for-v1102)
+  - [Changelog since v1.10.1](#changelog-since-v1101)
     - [Changes by Kind](#changes-by-kind-2)
       - [Bug Fixes](#bug-fixes-2)
       - [Others](#others-2)
+- [v1.10.1](#v1101)
+  - [Downloads for v1.10.1](#downloads-for-v1101)
+  - [Changelog since v1.10.0](#changelog-since-v1100)
+    - [Changes by Kind](#changes-by-kind-3)
+      - [Bug Fixes](#bug-fixes-3)
+      - [Others](#others-3)
 - [v1.10.0](#v1100)
   - [Downloads for v1.10.0](#downloads-for-v1100)
   - [What's New](#whats-new)
@@ -28,7 +34,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-3)
+    - [Bug Fixes](#bug-fixes-4)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -38,6 +44,20 @@
   - [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.10.4
+## Downloads for v1.10.4
+
+Download v1.10.4 in the [v1.10.4 release page](https://github.com/karmada-io/karmada/releases/tag/v1.10.4).
+
+## Changelog since v1.10.3
+### Changes by Kind
+#### Bug Fixes
+- `Helm`: fix wrong `ClusterResourceBinding` scope in `MutatingWebhookConfiguration`. ([#5262](https://github.com/karmada-io/karmada/pull/5262), @XiShanYongYe-Chang)
+
+#### Others
+- The base image `alpine` now has been promoted from `alpine:3.20.1` to `alpine:3.20.2`. ([#5268](https://github.com/karmada-io/karmada/pull/5268))
+- Bump golang version to `v1.21.13` ([#5371](https://github.com/karmada-io/karmada/pull/5371), @zhzhuang-zju)
 
 # v1.10.3
 ## Downloads for v1.10.3
