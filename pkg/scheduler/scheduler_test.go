@@ -18,6 +18,7 @@ package scheduler
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -26,10 +27,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/record"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	karmadafake "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/grpcconnection"
 )
 
 func TestCreateScheduler(t *testing.T) {
@@ -37,12 +40,22 @@ func TestCreateScheduler(t *testing.T) {
 	karmadaClient := karmadafake.NewSimpleClientset()
 	kubeClient := fake.NewSimpleClientset()
 	port := 10025
+	servicePrefix := "test-service-prefix"
+	schedulerName := "test-scheduler"
+	timeout := metav1.Duration{Duration: 5 * time.Second}
 
 	testcases := []struct {
-		name                     string
-		opts                     []Option
-		enableSchedulerEstimator bool
-		schedulerEstimatorPort   int
+		name                                string
+		opts                                []Option
+		enableSchedulerEstimator            bool
+		schedulerEstimatorPort              int
+		disableSchedulerEstimatorInPullMode bool
+		schedulerEstimatorTimeout           metav1.Duration
+		schedulerEstimatorServicePrefix     string
+		schedulerName                       string
+		schedulerEstimatorClientConfig      *grpcconnection.ClientConfig
+		enableEmptyWorkloadPropagation      bool
+		plugins                             []string
 	}{
 		{
 			name:                     "scheduler with default configuration",
@@ -66,6 +79,53 @@ func TestCreateScheduler(t *testing.T) {
 			},
 			enableSchedulerEstimator: false,
 		},
+		{
+			name: "scheduler with disableSchedulerEstimatorInPullMode enabled",
+			opts: []Option{
+				WithEnableSchedulerEstimator(true),
+				WithSchedulerEstimatorConnection(port, "", "", "", false),
+				WithDisableSchedulerEstimatorInPullMode(true),
+			},
+			enableSchedulerEstimator:            true,
+			schedulerEstimatorPort:              port,
+			disableSchedulerEstimatorInPullMode: true,
+		},
+		{
+			name: "scheduler with SchedulerEstimatorServicePrefix enabled",
+			opts: []Option{
+				WithEnableSchedulerEstimator(true),
+				WithSchedulerEstimatorConnection(port, "", "", "", false),
+				WithSchedulerEstimatorServicePrefix(servicePrefix),
+			},
+			enableSchedulerEstimator:        true,
+			schedulerEstimatorPort:          port,
+			schedulerEstimatorServicePrefix: servicePrefix,
+		},
+		{
+			name: "scheduler with SchedulerName enabled",
+			opts: []Option{
+				WithSchedulerName(schedulerName),
+			},
+			schedulerName: schedulerName,
+		},
+		{
+			name: "scheduler with EnableEmptyWorkloadPropagation enabled",
+			opts: []Option{
+				WithEnableEmptyWorkloadPropagation(true),
+			},
+			enableEmptyWorkloadPropagation: true,
+		},
+		{
+			name: "scheduler with SchedulerEstimatorTimeout enabled",
+			opts: []Option{
+				WithEnableSchedulerEstimator(true),
+				WithSchedulerEstimatorConnection(port, "", "", "", false),
+				WithSchedulerEstimatorTimeout(timeout),
+			},
+			enableSchedulerEstimator:  true,
+			schedulerEstimatorPort:    port,
+			schedulerEstimatorTimeout: timeout,
+		},
 	}
 
 	for _, tc := range testcases {
@@ -82,10 +142,25 @@ func TestCreateScheduler(t *testing.T) {
 			if tc.enableSchedulerEstimator && tc.schedulerEstimatorPort != sche.schedulerEstimatorClientConfig.TargetPort {
 				t.Errorf("unexpected schedulerEstimatorPort want %v, got %v", tc.schedulerEstimatorPort, sche.schedulerEstimatorClientConfig.TargetPort)
 			}
+
+			if tc.disableSchedulerEstimatorInPullMode != sche.disableSchedulerEstimatorInPullMode {
+				t.Errorf("unexpected disableSchedulerEstimatorInPullMode want %v, got %v", tc.disableSchedulerEstimatorInPullMode, sche.disableSchedulerEstimatorInPullMode)
+			}
+
+			if tc.schedulerEstimatorServicePrefix != sche.schedulerEstimatorServicePrefix {
+				t.Errorf("unexpected schedulerEstimatorServicePrefix want %v, got %v", tc.schedulerEstimatorServicePrefix, sche.schedulerEstimatorServicePrefix)
+			}
+
+			if tc.schedulerName != sche.schedulerName {
+				t.Errorf("unexpected schedulerName want %v, got %v", tc.schedulerName, sche.schedulerName)
+			}
+
+			if tc.enableEmptyWorkloadPropagation != sche.enableEmptyWorkloadPropagation {
+				t.Errorf("unexpected enableEmptyWorkloadPropagation want %v, got %v", tc.enableEmptyWorkloadPropagation, sche.enableEmptyWorkloadPropagation)
+			}
 		})
 	}
 }
-
 func Test_patchBindingStatusCondition(t *testing.T) {
 	oneHourBefore := time.Now().Add(-1 * time.Hour).Round(time.Second)
 	oneHourAfter := time.Now().Add(1 * time.Hour).Round(time.Second)
@@ -496,6 +571,231 @@ func Test_patchClusterBindingStatusWithAffinityName(t *testing.T) {
 			}
 			if !reflect.DeepEqual(res.Status, test.expected.Status) {
 				t.Errorf("expected status: %v, but got: %v", test.expected.Status, res.Status)
+			}
+		})
+	}
+}
+
+func Test_recordScheduleResultEventForResourceBinding(t *testing.T) {
+	fakeRecorder := record.NewFakeRecorder(10)
+	scheduler := &Scheduler{eventRecorder: fakeRecorder}
+
+	tests := []struct {
+		name           string
+		rb             *workv1alpha2.ResourceBinding
+		scheduleResult []workv1alpha2.TargetCluster
+		schedulerErr   error
+		expectedEvents int
+		expectedMsg    string
+	}{
+		{
+			name:           "nil ResourceBinding",
+			rb:             nil,
+			scheduleResult: nil,
+			schedulerErr:   nil,
+			expectedEvents: 0,
+			expectedMsg:    "",
+		},
+		{
+			name: "successful scheduling",
+			rb: &workv1alpha2.ResourceBinding{
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{
+						Kind:       "Deployment",
+						APIVersion: "apps/v1",
+						Namespace:  "default",
+						Name:       "test-deployment",
+						UID:        "12345",
+					},
+				},
+			},
+			scheduleResult: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 1},
+				{Name: "cluster2", Replicas: 2},
+			},
+			schedulerErr:   nil,
+			expectedEvents: 2,
+			expectedMsg: fmt.Sprintf("%s Result: {%s}", successfulSchedulingMessage, targetClustersToString([]workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 1},
+				{Name: "cluster2", Replicas: 2},
+			}))},
+		{
+			name: "scheduling error",
+			rb: &workv1alpha2.ResourceBinding{
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{
+						Kind:       "Deployment",
+						APIVersion: "apps/v1",
+						Namespace:  "default",
+						Name:       "test-deployment",
+						UID:        "12345",
+					},
+				},
+			},
+			scheduleResult: nil,
+			schedulerErr:   fmt.Errorf("scheduling error"),
+			expectedEvents: 2,
+			expectedMsg:    "scheduling error",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fakeRecorder.Events = make(chan string, 10)
+
+			scheduler.recordScheduleResultEventForResourceBinding(test.rb, test.scheduleResult, test.schedulerErr)
+
+			if len(fakeRecorder.Events) != test.expectedEvents {
+				t.Errorf("expected %d events, got %d", test.expectedEvents, len(fakeRecorder.Events))
+			}
+
+			for i := 0; i < test.expectedEvents; i++ {
+				select {
+				case event := <-fakeRecorder.Events:
+					if !contains(event, test.expectedMsg) {
+						t.Errorf("expected event message to contain %q, got %q", test.expectedMsg, event)
+					}
+				default:
+					t.Error("expected event not found")
+				}
+			}
+		})
+	}
+}
+
+func contains(event, msg string) bool {
+	return len(event) >= len(msg) && event[len(event)-len(msg):] == msg
+}
+
+func Test_recordScheduleResultEventForClusterResourceBinding(t *testing.T) {
+	fakeRecorder := record.NewFakeRecorder(10)
+	scheduler := &Scheduler{eventRecorder: fakeRecorder}
+
+	tests := []struct {
+		name           string
+		crb            *workv1alpha2.ClusterResourceBinding
+		scheduleResult []workv1alpha2.TargetCluster
+		schedulerErr   error
+		expectedEvents int
+		expectedMsg    string
+	}{
+		{
+			name:           "nil ClusterResourceBinding",
+			crb:            nil,
+			scheduleResult: nil,
+			schedulerErr:   nil,
+			expectedEvents: 0,
+			expectedMsg:    "",
+		},
+		{
+			name: "successful scheduling",
+			crb: &workv1alpha2.ClusterResourceBinding{
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{
+						Kind:       "Deployment",
+						APIVersion: "apps/v1",
+						Namespace:  "default",
+						Name:       "test-deployment",
+						UID:        "12345",
+					},
+				},
+			},
+			scheduleResult: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 1},
+				{Name: "cluster2", Replicas: 2},
+			},
+			schedulerErr:   nil,
+			expectedEvents: 2,
+			expectedMsg: fmt.Sprintf("%s Result {%s}", successfulSchedulingMessage, targetClustersToString([]workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 1},
+				{Name: "cluster2", Replicas: 2},
+			})),
+		},
+		{
+			name: "scheduling error",
+			crb: &workv1alpha2.ClusterResourceBinding{
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{
+						Kind:       "Deployment",
+						APIVersion: "apps/v1",
+						Namespace:  "default",
+						Name:       "test-deployment",
+						UID:        "12345",
+					},
+				},
+			},
+			scheduleResult: nil,
+			schedulerErr:   fmt.Errorf("scheduling error"),
+			expectedEvents: 2,
+			expectedMsg:    "scheduling error",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fakeRecorder.Events = make(chan string, 10)
+
+			scheduler.recordScheduleResultEventForClusterResourceBinding(test.crb, test.scheduleResult, test.schedulerErr)
+
+			if len(fakeRecorder.Events) != test.expectedEvents {
+				t.Errorf("expected %d events, got %d", test.expectedEvents, len(fakeRecorder.Events))
+			}
+
+			for i := 0; i < test.expectedEvents; i++ {
+				select {
+				case event := <-fakeRecorder.Events:
+					if !contains(event, test.expectedMsg) {
+						t.Errorf("expected event message to contain %q, got %q", test.expectedMsg, event)
+					}
+				default:
+					t.Error("expected event not found")
+				}
+			}
+		})
+	}
+}
+
+func Test_targetClustersToString(t *testing.T) {
+	tests := []struct {
+		name           string
+		tcs            []workv1alpha2.TargetCluster
+		expectedOutput string
+	}{
+		{
+			name:           "empty slice",
+			tcs:            []workv1alpha2.TargetCluster{},
+			expectedOutput: "",
+		},
+		{
+			name: "single cluster",
+			tcs: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 1},
+			},
+			expectedOutput: "cluster1:1",
+		},
+		{
+			name: "multiple clusters",
+			tcs: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 1},
+				{Name: "cluster2", Replicas: 2},
+			},
+			expectedOutput: "cluster1:1, cluster2:2",
+		},
+		{
+			name: "clusters with zero replicas",
+			tcs: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 0},
+				{Name: "cluster2", Replicas: 2},
+			},
+			expectedOutput: "cluster1:0, cluster2:2",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := targetClustersToString(test.tcs)
+			if result != test.expectedOutput {
+				t.Errorf("expected %q, got %q", test.expectedOutput, result)
 			}
 		})
 	}
