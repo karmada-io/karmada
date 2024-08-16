@@ -571,9 +571,13 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 			pdbNamespace = testNamespace
 			pdbName = policyName
 			deploymentName := policyName
+			// use a special label value to prevent PDB from selecting pods of other parallel e2e cases.
+			matchLabels := map[string]string{"app": "nginx-" + rand.String(RandomStrLength)}
 
 			deployment = testhelper.NewDeployment(pdbNamespace, deploymentName)
-			pdb = testhelper.NewPodDisruptionBudget(pdbNamespace, pdbName, intstr.FromString("50%"))
+			deployment.Spec.Selector.MatchLabels = matchLabels
+			deployment.Spec.Template.Labels = matchLabels
+			pdb = testhelper.NewPodDisruptionBudget(pdbNamespace, pdbName, intstr.FromString("50%"), matchLabels)
 			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: pdb.APIVersion,
