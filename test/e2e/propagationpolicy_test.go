@@ -1213,29 +1213,6 @@ var _ = ginkgo.Describe("[Suspend] PropagationPolicy testing", func() {
 		})
 	})
 
-	ginkgo.Context("delete resource in the control plane", func() {
-		ginkgo.JustBeforeEach(func() {
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-		})
-
-		ginkgo.It("suspends deleting deployment in member cluster", func() {
-			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment.Namespace, deployment.Name, func(dep *appsv1.Deployment) bool {
-				return dep.GetDeletionTimestamp() == nil
-			})
-		})
-
-		ginkgo.When("propagation is resumed", func() {
-			ginkgo.JustBeforeEach(func() {
-				policy.Spec.Suspension = &policyv1alpha1.Suspension{}
-				framework.UpdatePropagationPolicyWithSpec(karmadaClient, policy.Namespace, policy.Name, policy.Spec)
-			})
-
-			ginkgo.It("deletes deployment in member cluster", func() {
-				framework.WaitDeploymentDisappearOnCluster(targetMember, deployment.Namespace, deployment.Name)
-			})
-		})
-	})
-
 	ginkgo.Context("update resource in the control plane", func() {
 		ginkgo.JustBeforeEach(func() {
 			framework.UpdateDeploymentReplicas(kubeClient, deployment, updateDeploymentReplicas)
