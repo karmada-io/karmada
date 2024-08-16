@@ -153,7 +153,7 @@ type WorkSpec struct {
 }
 ```
 
-A new ConditionType called `SuspendDispatching` is introduced to describe the distribution suspension status of the Work resource. Meanwhile, the system will also report events to record the suspension of resource distribution.
+A new ConditionType called `Dispatching` is introduced to describe the distribution suspension status of the Work resource. Meanwhile, the system will also report events to record the suspension of resource distribution.
 
 ### User usage example
 
@@ -195,7 +195,7 @@ spec:
 status:
   conditions:
     - lastTransitionTime: "2024-07-01T08:33:28Z"
-      message: resource distribution is in a pause state.
+      message: Work dispatching is in a suspended state.
       reason: SuspendDispatching
       status: "True"
       type: Dispatching
@@ -255,6 +255,12 @@ spec:
 If, after synchronizing the new version of the resource to the member1 cluster, issues are found with the application that cause the release to fail, the user can roll back the version of the Deployment resource in the Karmada control plane, thereby protecting the business in the member2 and member3 clusters from being affected.
 
 Q&A: How to remove the annotation `propagation.karmada.io/instruction` from Work? It can be carried by the `Dispatching` field in the Work.
+
+### Corner Case Consideration
+
+1. Resource dispatching suspension does not block resource deletion.
+
+When a user specifies through PropagationPolicy that a resource is in a dispatching suspension, and then performs a deletion operation with the intention of removing the resource, the resource will be deleted normally without blocking the deletion, thus preventing leftover resources in the member clusters.
 
 ### Test Plan
 
