@@ -12,6 +12,8 @@ ensures development quality.
 
 - [`local-up-karmada.sh`](local-up-karmada.sh) This script will quickly set up a local development environment with member clusters based on the current codebase.
 
+- [`local-down-karmada.sh`](local-down-karmada.sh) This script will clean up the whole local deployment environment installed by the previous `local-up-karmada.sh` script.
+
 - [`remote-up-karmada.sh`](remote-up-karmada.sh) This script will install Karmada to a standalone K8s cluster, this cluster
   may be real, remote , and even for production. It is worth noting for the connectivity from your client to Karmada API server,
   it will directly use host network by default, else `export LOAD_BALANCER=true` with the `LoadBalancer` type service before the following script.
