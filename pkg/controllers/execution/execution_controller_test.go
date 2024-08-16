@@ -25,8 +25,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -35,9 +38,10 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/events"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
-	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
@@ -96,6 +100,18 @@ func TestExecutionController_Reconcile(t *testing.T) {
 				})
 			}),
 		},
+		{
+			name:      "suspend work with deletion timestamp is deleted",
+			ns:        "karmada-es-cluster",
+			expectRes: controllerruntime.Result{},
+			existErr:  false,
+			work: newWork(func(work *workv1alpha1.Work) {
+				now := metav1.Now()
+				work.SetDeletionTimestamp(&now)
+				work.SetFinalizers([]string{util.ExecutionControllerFinalizer})
+				work.Spec.SuspendDispatching = ptr.To(true)
+			}),
+		},
 	}
 
 	for _, tt := range tests {
@@ -133,11 +149,21 @@ func TestExecutionController_Reconcile(t *testing.T) {
 
 func newController(work *workv1alpha1.Work, eventRecorder *record.FakeRecorder) Controller {
 	cluster := newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
+	pod := testhelper.NewPod("default", "test")
+	client := fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(cluster, work, pod).WithStatusSubresource(work).Build()
+	restMapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
+	restMapper.Add(corev1.SchemeGroupVersion.WithKind(pod.Kind), meta.RESTScopeNamespace)
+	dynamicClientSet := dynamicfake.NewSimpleDynamicClient(scheme.Scheme, pod)
+	informerManager := genericmanager.GetInstance()
+	informerManager.ForCluster(cluster.Name, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+	informerManager.Start(cluster.Name)
+	informerManager.WaitForCacheSync(cluster.Name)
 	return Controller{
-		Client:          fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(cluster, work).WithStatusSubresource(work).Build(),
-		InformerManager: genericmanager.GetInstance(),
-		PredicateFunc:   helper.NewClusterPredicateOnAgent("test"),
+		Client:          client,
+		InformerManager: informerManager,
 		EventRecorder:   eventRecorder,
+		RESTMapper:      restMapper,
+		ObjectWatcher:   objectwatcher.NewObjectWatcher(client, restMapper, util.NewClusterDynamicClientSetForAgent, nil),
 	}
 }
 
