@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -208,7 +208,7 @@ func TestController_Reconcile(t *testing.T) {
 			if tt.namespaceNotFound {
 				ns := &corev1.Namespace{}
 				err := fakeClient.Get(context.Background(), types.NamespacedName{Name: tt.namespace.Name}, ns)
-				assert.True(t, errors.IsNotFound(err))
+				assert.True(t, apierrors.IsNotFound(err))
 			} else if tt.namespaceDeleting {
 				ns := &corev1.Namespace{}
 				err := fakeClient.Get(context.Background(), types.NamespacedName{Name: tt.namespace.Name}, ns)
@@ -234,7 +234,7 @@ func TestController_Reconcile(t *testing.T) {
 					Name:      names.GenerateWorkName(tt.namespace.Kind, tt.namespace.Name, tt.namespace.Namespace),
 				}, work)
 				assert.Error(t, err)
-				assert.True(t, errors.IsNotFound(err))
+				assert.True(t, apierrors.IsNotFound(err))
 			}
 		})
 	}
