@@ -365,6 +365,7 @@ func startWorkStatusController(ctx controllerscontext.Context) (bool, error) {
 		ConcurrentWorkStatusSyncs:   ctx.Opts.ConcurrentWorkSyncs,
 		RateLimiterOptions:          ctx.Opts.RateLimiterOptions,
 		ResourceInterpreter:         ctx.ResourceInterpreter,
+		ClusterName:                 ctx.Opts.ClusterName,
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(ctx.Mgr); err != nil {
