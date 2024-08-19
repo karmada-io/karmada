@@ -29,6 +29,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/addons"
+	"github.com/karmada-io/karmada/pkg/karmadactl/apiresources"
 	"github.com/karmada-io/karmada/pkg/karmadactl/apply"
 	"github.com/karmada-io/karmada/pkg/karmadactl/attach"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit"
@@ -128,6 +129,13 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 				apply.NewCmdApply(f, parentCommand, ioStreams),
 				promote.NewCmdPromote(f, parentCommand),
 				top.NewCmdTop(f, parentCommand, ioStreams),
+			},
+		},
+		{
+			Message: "Other Commands:",
+			Commands: []*cobra.Command{
+				apiresources.NewCmdAPIResources(f, parentCommand, ioStreams),
+				apiresources.NewCmdAPIVersions(f, parentCommand, ioStreams),
 			},
 		},
 	}
