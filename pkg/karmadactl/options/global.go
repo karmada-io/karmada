@@ -17,6 +17,7 @@ limitations under the License.
 package options
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -46,4 +47,67 @@ var DefaultConfigFlags = genericclioptions.NewConfigFlags(true).WithDeprecatedPa
 func AddKubeConfigFlags(flags *pflag.FlagSet) {
 	flags.StringVar(DefaultConfigFlags.KubeConfig, "kubeconfig", *DefaultConfigFlags.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
 	flags.StringVar(DefaultConfigFlags.Context, "karmada-context", *DefaultConfigFlags.Context, "The name of the kubeconfig context to use")
+}
+
+// OperationScope defines the operation scope of a command.
+type OperationScope string
+
+// String returns the string value of OperationScope
+func (o *OperationScope) String() string {
+	return string(*o)
+}
+
+// Set vaule to OperationScope
+func (o *OperationScope) Set(s string) error {
+	switch s {
+	case "":
+		return nil
+	case string(KarmadaControlPlane):
+		*o = KarmadaControlPlane
+		return nil
+	case string(Members):
+		*o = Members
+		return nil
+	case string(All):
+		*o = All
+		return nil
+	}
+	return fmt.Errorf("not support OperationScope: %s", s)
+}
+
+// Type returns type of OperationScope
+func (o *OperationScope) Type() string {
+	return "operationScope"
+}
+
+const (
+	// KarmadaControlPlane indicates the operation scope of a command is Karmada control plane.
+	KarmadaControlPlane OperationScope = "karmada"
+	// Members indicates the operation scope of a command is member clusters.
+	Members OperationScope = "members"
+	// All indicates the operation scope of a command contains Karmada control plane and member clusters.
+	All OperationScope = "all"
+)
+
+// VerifyOperationScopeFlags verifies whether the given operationScope is valid.
+func VerifyOperationScopeFlags(operationScope OperationScope, supportScope ...OperationScope) error {
+	if len(supportScope) == 0 {
+		supportScope = []OperationScope{KarmadaControlPlane, Members, All}
+	}
+	for _, scope := range supportScope {
+		if operationScope == scope {
+			return nil
+		}
+	}
+	return fmt.Errorf("not support operation scope: %s", operationScope)
+}
+
+// ContainKarmadaScope returns true if the given operationScope contains Karmada control plane.
+func ContainKarmadaScope(operationScope OperationScope) bool {
+	return operationScope == KarmadaControlPlane || operationScope == All
+}
+
+// ContainMembersScope returns true if the given operationScope contains member clusters.
+func ContainMembersScope(operationScope OperationScope) bool {
+	return operationScope == Members || operationScope == All
 }
