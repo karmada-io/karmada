@@ -799,6 +799,74 @@ var _ = ginkgo.Describe("Karmadactl get testing", func() {
 		member1Client = framework.GetClusterClient(member1)
 	})
 
+	ginkgo.Context("Test operation scope switching", func() {
+		var deployment *appsv1.Deployment
+		var propagationPolicy *policyv1alpha1.PropagationPolicy
+
+		ginkgo.BeforeEach(func() {
+			deployment = helper.NewDeployment(testNamespace, deploymentNamePrefix+rand.String(RandomStrLength))
+			propagationPolicy = helper.NewPropagationPolicy(deployment.Namespace, ppNamePrefix+rand.String(RandomStrLength), []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{ClusterNames: framework.ClusterNames()},
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreateDeployment(kubeClient, deployment)
+			framework.CreatePropagationPolicy(karmadaClient, propagationPolicy)
+
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
+			})
+		})
+
+		ginkgo.It("should switch operation scope successfully", func() {
+			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+				func(*appsv1.Deployment) bool {
+					return true
+				})
+
+			ginkgo.By("should display the deployment in Karmada control plane", func() {
+				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, deployment.Namespace, karmadactlTimeout, "get", "deployment", deployment.Name)
+				output, err := cmd.ExecOrDie()
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				gomega.Expect(strings.Contains(output, "Karmada")).Should(gomega.BeTrue())
+				gomega.Expect(strings.Contains(output, member1)).ShouldNot(gomega.BeTrue())
+			})
+
+			ginkgo.By("should display the deployment in Karmada control plane and member1", func() {
+				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, deployment.Namespace, karmadactlTimeout, "get", "deployment", deployment.Name, "--operation-scope", "all", "-C", member1)
+				output, err := cmd.ExecOrDie()
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				gomega.Expect(strings.Contains(output, "Karmada")).Should(gomega.BeTrue())
+				gomega.Expect(strings.Contains(output, member1)).Should(gomega.BeTrue())
+				gomega.Expect(strings.Contains(output, framework.ClusterNames()[1])).ShouldNot(gomega.BeTrue())
+			})
+
+			ginkgo.By("should display the deployment in Karmada control plane and all member clusters", func() {
+				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, deployment.Namespace, karmadactlTimeout, "get", "deployment", deployment.Name, "--operation-scope", "all")
+				output, err := cmd.ExecOrDie()
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				gomega.Expect(strings.Contains(output, "Karmada")).Should(gomega.BeTrue())
+				gomega.Expect(strings.Contains(output, member1)).Should(gomega.BeTrue())
+				gomega.Expect(strings.Contains(output, framework.ClusterNames()[1])).Should(gomega.BeTrue())
+			})
+
+			ginkgo.By("should ignore resources in Karmada control plane", func() {
+				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, deployment.Namespace, karmadactlTimeout, "get", "deployment", deployment.Name, "--operation-scope", "members")
+				output, err := cmd.ExecOrDie()
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				gomega.Expect(strings.Contains(output, "Karmada")).ShouldNot(gomega.BeTrue())
+			})
+		})
+	})
+
 	ginkgo.Context("Test karmadactl get for existing resource", func() {
 		var (
 			namespace, podName string
@@ -826,7 +894,7 @@ var _ = ginkgo.Describe("Karmadactl get testing", func() {
 		})
 
 		ginkgo.It("should get the existing pod successfully", func() {
-			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, namespace, karmadactlTimeout, "get", "pods", podName, "-C", member1)
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, namespace, karmadactlTimeout, "get", "pods", podName, "--operation-scope", "members", "-C", member1)
 			output, err := cmd.ExecOrDie()
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			gomega.Expect(strings.Contains(output, podName)).Should(gomega.BeTrue())
@@ -855,7 +923,7 @@ var _ = ginkgo.Describe("Karmadactl get testing", func() {
 		})
 
 		ginkgo.It("should return not found error for non-existing pod", func() {
-			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, namespace, karmadactlTimeout, "get", "pods", podName, "-C", member1)
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, namespace, karmadactlTimeout, "get", "pods", podName, "--operation-scope", "members", "-C", member1)
 			_, err := cmd.ExecOrDie()
 			gomega.Expect(err).Should(gomega.HaveOccurred())
 			gomega.Expect(strings.Contains(err.Error(), fmt.Sprintf("pods \"%s\" not found", podName))).Should(gomega.BeTrue())
@@ -871,7 +939,7 @@ var _ = ginkgo.Describe("Karmadactl get testing", func() {
 		})
 
 		ginkgo.It("should return not found error for non-existing namespace", func() {
-			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, namespace, karmadactlTimeout, "get", "pods", podName, "-C", member1)
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, namespace, karmadactlTimeout, "get", "pods", podName, "--operation-scope", "members", "-C", member1)
 			_, err := cmd.ExecOrDie()
 			gomega.Expect(err).Should(gomega.HaveOccurred())
 			gomega.Expect(strings.Contains(err.Error(), fmt.Sprintf("namespaces \"%s\" not found", namespace))).Should(gomega.BeTrue())
@@ -886,7 +954,7 @@ var _ = ginkgo.Describe("Karmadactl get testing", func() {
 		})
 
 		ginkgo.It("should return error for invalid resource type", func() {
-			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, namespace, karmadactlTimeout, "get", "invalidresource", "invalidname", "-C", member1)
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, namespace, karmadactlTimeout, "get", "invalidresource", "invalidname")
 			_, err := cmd.ExecOrDie()
 			gomega.Expect(err).Should(gomega.HaveOccurred())
 			gomega.Expect(strings.Contains(err.Error(), "the server doesn't have a resource type \"invalidresource\"")).Should(gomega.BeTrue())
