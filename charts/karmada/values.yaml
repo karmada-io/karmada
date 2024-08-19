@@ -421,6 +421,7 @@ apiServer:
   ## will take effect when 'apiServer.serviceType' is 'NodePort'.
   ## If no port is specified, the nodePort will be automatically assigned.
   nodePort: 0
+  serviceClusterIPRange: "10.96.0.0/12"
   maxRequestsInflight: 1500
   maxMutatingRequestsInflight: 500
   ## @param apiserver.strategy strategy of the apiserver
@@ -606,6 +607,8 @@ kubeControllerManager:
   controllers: namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrapproving,csrcleaner,csrsigning,clusterrole-aggregation
   ## @param apiServer.podDisruptionBudget
   podDisruptionBudget: *podDisruptionBudget
+  serviceClusterIPRange: "10.96.0.0/12"
+  clusterCIDR: "10.244.0.0/16"
 
 ## etcd config
 etcd:
