@@ -53,7 +53,8 @@ spec:
 
           # The `post-install hook job` may be applied before all karmada components are ready that rely on `static-resource job` and `hook-job secret`.
           # So, we have to postpone the deletion of the `static-resource job` and `hook-job secret` until all karmada components are up and running.
-          while [[ $(kubectl get pods -n {{ $namespace }} --field-selector=status.phase!=Running,status.phase!=Succeeded -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | wc -l) > 0 ]]; do
+          while [[ $(kubectl get pods -n {{ $namespace }} --field-selector=status.phase!=Running,status.phase!=Succeeded -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep -v static-resource | wc -l) > 0 ]];
+          do
             echo "waiting for all pods of karmada control plane ready..."; sleep 1;
           done
 
