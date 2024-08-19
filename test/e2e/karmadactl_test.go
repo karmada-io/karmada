@@ -529,7 +529,7 @@ var _ = ginkgo.Describe("Karmadactl exec testing", func() {
 			})
 
 		for _, clusterName := range framework.ClusterNames() {
-			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, pod.Namespace, karmadactlTimeout, "exec", pod.Name, "-C", clusterName, "--", "echo", "hello")
+			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, pod.Namespace, karmadactlTimeout, "exec", pod.Name, "--operation-scope", "members", "--cluster", clusterName, "--", "echo", "hello")
 			_, err := cmd.ExecOrDie()
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		}
