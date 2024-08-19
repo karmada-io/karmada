@@ -30,7 +30,7 @@ import (
 
 var (
 	describeLong = templates.LongDesc(`
-		Show details of a specific resource or group of resources in a member cluster.
+		Show details of a specific resource or group of resources in Karmada control plane or a member cluster.
 
 		Print a detailed description of the selected resources, including related
 		resources such as events or controllers. You may select a single object by name,
@@ -43,21 +43,24 @@ var (
 		prefixed with NAME_PREFIX.`)
 
 	describeExample = templates.Examples(`
+		# Describe a deployment in Karmada control plane
+		%[1]s describe deployment/nginx
+
 		# Describe a pod in cluster(member1)
-		%[1]s describe pods/nginx -C=member1
+		%[1]s describe pods/nginx --operation-scope=members --cluster=member1
 
 		# Describe all pods in cluster(member1)
-		%[1]s describe pods -C=member1
+		%[1]s describe pods --operation-scope=members --cluster=member1
 
 		# Describe a pod identified by type and name in "pod.json" in cluster(member1)
-		%[1]s describe -f pod.json -C=member1
+		%[1]s describe -f pod.json --operation-scope=members --cluster=member1
 
 		# Describe pods by label name=myLabel in cluster(member1)
-		%[1]s describe po -l name=myLabel -C=member1
+		%[1]s describe po -l name=myLabel --operation-scope=members --cluster=member1
 
 		# Describe all pods managed by the 'frontend' replication controller in cluster(member1)
 		# (rc-created pods get the name of the rc as a prefix in the pod name)
-		%[1]s describe pods frontend -C=member1`)
+		%[1]s describe pods frontend --operation-scope=members --cluster=member1`)
 )
 
 // NewCmdDescribe new describe command.
@@ -66,14 +69,17 @@ func NewCmdDescribe(f util.Factory, parentCommand string, streams genericiooptio
 	kubedescribeFlags := kubectldescribe.NewDescribeFlags(f, streams)
 
 	cmd := &cobra.Command{
-		Use:                   "describe (-f FILENAME | TYPE [NAME_PREFIX | -l label] | TYPE/NAME) (-C CLUSTER)",
-		Short:                 "Show details of a specific resource or group of resources in a cluster",
+		Use:                   "describe (-f FILENAME | TYPE [NAME_PREFIX | -l label] | TYPE/NAME) (--operation-scope=SCOPE --cluster=CLUSTER)",
+		Short:                 "Show details of a specific resource or group of resources in Karmada control plane or a member cluster",
 		Long:                  fmt.Sprintf(describeLong, parentCommand),
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		Example:               fmt.Sprintf(describeExample, parentCommand),
 		RunE: func(_ *cobra.Command, args []string) error {
 			if err := o.Complete(f, args, kubedescribeFlags, parentCommand); err != nil {
+				return err
+			}
+			if err := o.Validate(); err != nil {
 				return err
 			}
 			if err := o.Run(); err != nil {
@@ -90,8 +96,10 @@ func NewCmdDescribe(f util.Factory, parentCommand string, streams genericiooptio
 	kubedescribeFlags.AddFlags(cmd)
 
 	options.AddKubeConfigFlags(flags)
+	o.OperationScope = options.KarmadaControlPlane
+	flags.Var(&o.OperationScope, "operation-scope", "Used to control the operation scope of the command. The optional values are karmada and members. Defaults to karmada.")
 	flags.StringVarP(options.DefaultConfigFlags.Namespace, "namespace", "n", *options.DefaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
-	flags.StringVarP(&o.Cluster, "cluster", "C", "", "Specify a member cluster")
+	flags.StringVarP(&o.Cluster, "cluster", "C", "", "Used to specify a target member cluster and only takes effect when the command's operation scope is members, for example: --operation-scope=members --cluster=member1")
 
 	return cmd
 }
@@ -101,22 +109,38 @@ type CommandDescribeOptions struct {
 	// flags specific to describe
 	KubectlDescribeOptions *kubectldescribe.DescribeOptions
 	Cluster                string
+	OperationScope         options.OperationScope
 }
 
 // Complete ensures that options are valid and marshals them if necessary
 func (o *CommandDescribeOptions) Complete(f util.Factory, args []string, describeFlag *kubectldescribe.DescribeFlags, parentCommand string) error {
-	if len(o.Cluster) == 0 {
-		return fmt.Errorf("must specify a cluster")
+	if o.OperationScope == options.KarmadaControlPlane {
+		describeFlag.Factory = f
+	}
+	if o.OperationScope == options.Members && len(o.Cluster) != 0 {
+		memberFactory, err := f.FactoryForMemberCluster(o.Cluster)
+		if err != nil {
+			return err
+		}
+		describeFlag.Factory = memberFactory
 	}
 
-	memberFactory, err := f.FactoryForMemberCluster(o.Cluster)
-	if err != nil {
-		return err
-	}
-	describeFlag.Factory = memberFactory
+	var err error
 	o.KubectlDescribeOptions, err = describeFlag.ToOptions(parentCommand, args)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+// Validate checks if the parameters are valid
+func (o *CommandDescribeOptions) Validate() error {
+	err := options.VerifyOperationScopeFlags(o.OperationScope, options.KarmadaControlPlane, options.Members)
+	if err != nil {
+		return err
+	}
+	if o.OperationScope == options.Members && len(o.Cluster) == 0 {
+		return fmt.Errorf("must specify a member cluster")
 	}
 	return nil
 }
