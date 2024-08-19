@@ -33,6 +33,29 @@ MEMBER_CLUSTER_2_NAME=${MEMBER_CLUSTER_2_NAME:-"member2"}
 CLUSTER_VERSION=${CLUSTER_VERSION:-"${DEFAULT_CLUSTER_VERSION}"}
 BUILD_PATH=${BUILD_PATH:-"_output/bin/linux/amd64"}
 
+
+# install kind and kubectl
+kind_version=v0.22.0
+echo -n "Preparing: 'kind' existence check - "
+if util::cmd_exist kind; then
+  echo "passed"
+else
+  echo "not pass"
+  util::install_tools "sigs.k8s.io/kind" $kind_version
+fi
+# get arch name and os name in bootstrap
+BS_ARCH=$(go env GOARCH)
+BS_OS=$(go env GOOS)
+# check arch and os name before installing
+util::install_environment_check "${BS_ARCH}" "${BS_OS}"
+echo -n "Preparing: 'kubectl' existence check - "
+if util::cmd_exist kubectl; then
+  echo "passed"
+else
+  echo "not pass"
+  util::install_kubectl "" "${BS_ARCH}" "${BS_OS}"
+fi
+
 # prepare the newest crds
 echo "Prepare the newest crds"
 cd  charts/karmada/
