@@ -18,6 +18,7 @@ package binding
 
 import (
 	"reflect"
+	"sort"
 	"testing"
 
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -375,6 +376,125 @@ func Test_shouldSuspendDispatching(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := shouldSuspendDispatching(tt.args.suspension, tt.args.targetCluster); got != tt.want {
 				t.Errorf("shouldSuspendDispatching() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_needReviseReplicas(t *testing.T) {
+	tests := []struct {
+		name      string
+		replicas  int32
+		placement *policyv1alpha1.Placement
+		want      bool
+	}{
+		{
+			name:     "replicas is zero",
+			replicas: 0,
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+					ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided,
+				},
+			},
+			want: false,
+		},
+		{
+			name:      "placement is nil",
+			replicas:  1,
+			placement: nil,
+			want:      false,
+		},
+		{
+			name:     "replica scheduling type is not divided",
+			replicas: 1,
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+					ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDuplicated,
+				},
+			},
+			want: false,
+		},
+		{
+			name:     "replica scheduling type is divided",
+			replicas: 1,
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+					ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided,
+				},
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := needReviseReplicas(tt.replicas, tt.placement); got != tt.want {
+				t.Errorf("needReviseReplicas() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_divideReplicasByJobCompletions(t *testing.T) {
+	tests := []struct {
+		name     string
+		workload *unstructured.Unstructured
+		clusters []workv1alpha2.TargetCluster
+		want     []workv1alpha2.TargetCluster
+		wantErr  bool
+	}{
+		{
+			name: "completions found",
+			workload: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"spec": map[string]interface{}{
+						"completions": int64(10),
+					},
+				},
+			},
+			clusters: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 5},
+				{Name: "cluster2", Replicas: 5},
+			},
+			want: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 5},
+				{Name: "cluster2", Replicas: 5},
+			},
+			wantErr: false,
+		},
+		{
+			name: "error in NestedInt64",
+			workload: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"spec": "invalid",
+				},
+			},
+			clusters: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 5},
+				{Name: "cluster2", Replicas: 5},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := divideReplicasByJobCompletions(tt.workload, tt.clusters)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("divideReplicasByJobCompletions() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			sort.Slice(got, func(i, j int) bool {
+				return got[i].Name < got[j].Name
+			})
+			sort.Slice(tt.want, func(i, j int) bool {
+				return tt.want[i].Name < tt.want[j].Name
+			})
+
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("divideReplicasByJobCompletions() = %v, want %v", got, tt.want)
 			}
 		})
 	}
