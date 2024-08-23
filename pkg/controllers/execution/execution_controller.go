@@ -245,24 +245,28 @@ func (c *Controller) tryCreateOrUpdateWorkload(ctx context.Context, clusterName 
 		return err
 	}
 
-	clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			klog.Errorf("Failed to get the resource(kind=%s, %s/%s) from member cluster(%s), err is %v ", workload.GetKind(), workload.GetNamespace(), workload.GetName(), clusterName, err)
-			return err
-		}
-		err = c.ObjectWatcher.Create(ctx, clusterName, workload)
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
 		if err != nil {
+			if !apierrors.IsNotFound(err) {
+				klog.Errorf("Failed to get the resource(kind=%s, %s/%s) from member cluster(%s), err is %v ", workload.GetKind(), workload.GetNamespace(), workload.GetName(), clusterName, err)
+				return err
+			}
+			err = c.ObjectWatcher.Create(ctx, clusterName, workload)
+			if err != nil {
+				klog.Errorf("Failed to create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
+				return err
+			}
+			return nil
+		}
+
+		err = c.ObjectWatcher.Update(ctx, clusterName, workload, clusterObj)
+		if err != nil {
+			klog.Errorf("Failed to update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
 			return err
 		}
 		return nil
-	}
-
-	err = c.ObjectWatcher.Update(ctx, clusterName, workload, clusterObj)
-	if err != nil {
-		return err
-	}
-	return nil
+	})
 }
 
 func (c *Controller) updateWorkDispatchingConditionIfNeeded(ctx context.Context, work *workv1alpha1.Work) error {
