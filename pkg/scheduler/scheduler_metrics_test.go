@@ -208,3 +208,18 @@ func TestIncomingBindingMetrics(t *testing.T) {
 		})
 	}
 }
+
+func TestCountSchedulerNoClusterFit(t *testing.T) {
+	kind := "deployment"
+	name := "nginx-deployment"
+	want := `
+# HELP karmada_scheduler_no_cluster_fit_total Number of scheduling no cluster fit.
+# TYPE karmada_scheduler_no_cluster_fit_total counter
+karmada_scheduler_no_cluster_fit_total{kind="deployment",name="nginx-deployment"} 1
+`
+	metrics.SchedulerNoClusterFit.Reset()
+	metrics.CountSchedulerNoClusterFit(kind, name)
+	if err := testutil.CollectAndCompare(metrics.SchedulerNoClusterFit, strings.NewReader(want), "karmada_scheduler_no_cluster_fit_total"); err != nil {
+		t.Errorf("unexpected collecting result:\n%s", err)
+	}
+}

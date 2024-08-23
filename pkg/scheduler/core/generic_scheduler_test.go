@@ -17,13 +17,23 @@ limitations under the License.
 package core
 
 import (
+	"context"
 	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"k8s.io/component-base/metrics/testutil"
+
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	karmadafake "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
+	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
+	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
+	"github.com/karmada-io/karmada/pkg/scheduler/framework"
+	frameworkplugins "github.com/karmada-io/karmada/pkg/scheduler/framework/plugins"
+	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -527,5 +537,43 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 				t.Errorf("AssignReplicas() got = %v, wants %s --> %v", got, gotResult, expect)
 			}
 		})
+	}
+}
+
+func TestNoClusterFitMetrics(t *testing.T) {
+	karmadaClient := karmadafake.NewSimpleClientset()
+	registry := frameworkplugins.NewInTreeRegistry()
+	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
+	clusterLister := factory.Cluster().V1alpha1().Clusters().Lister()
+	schedulerCache := schedulercache.NewCache(clusterLister)
+	gs, err := NewGenericScheduler(schedulerCache, registry)
+	if err != nil {
+		t.Errorf("create genericScheduler error: %s", err)
+	}
+
+	rb := &workv1alpha2.ResourceBinding{
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Resource: workv1alpha2.ObjectReference{
+				Kind: "deployment",
+				Name: "nginx-deployment",
+			},
+		},
+		Status: workv1alpha2.ResourceBindingStatus{},
+	}
+	metrics.SchedulerNoClusterFit.Reset()
+	_, err = gs.Schedule(context.TODO(), &rb.Spec, &rb.Status, &ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: true})
+	expectErr := &framework.FitError{
+		NumAllClusters: 0,
+		Diagnosis:      framework.Diagnosis{},
+	}
+	metricName := "karmada_scheduler_no_cluster_fit_total"
+	assert.EqualError(t, err, expectErr.Error())
+	want := `
+# HELP karmada_scheduler_no_cluster_fit_total Number of scheduling no cluster fit.
+# TYPE karmada_scheduler_no_cluster_fit_total counter
+karmada_scheduler_no_cluster_fit_total{kind="deployment",name="nginx-deployment"} 1
+`
+	if err := testutil.CollectAndCompare(metrics.SchedulerNoClusterFit, strings.NewReader(want), metricName); err != nil {
+		t.Errorf("unexpected collecting result:\n%s", err)
 	}
 }
