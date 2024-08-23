@@ -42,12 +42,24 @@ func TestReleaseVersion(t *testing.T) {
 			expectReleaseVersion: "v1.7.0-alpha.1",
 			expectError:          false,
 		},
+		{
+			name:                 "nil version",
+			gitVersion:           "",
+			expectReleaseVersion: "<nil>",
+			expectError:          false,
+		},
 	}
 
 	for i := range tests {
 		tc := tests[i]
 		t.Run(tc.name, func(t *testing.T) {
-			rv, err := ParseGitVersion(tc.gitVersion)
+			var rv *ReleaseVersion
+			var err error
+			if tc.gitVersion != "" {
+				rv, err = ParseGitVersion(tc.gitVersion)
+			} else {
+				rv = &ReleaseVersion{Version: nil}
+			}
 			if err != nil {
 				if !tc.expectError {
 					t.Fatalf("No error is expected but got: %v", err)

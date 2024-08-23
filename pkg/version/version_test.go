@@ -17,6 +17,9 @@ limitations under the License.
 package version
 
 import (
+	"fmt"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -39,11 +42,94 @@ func TestInfo_String(t *testing.T) {
 			},
 			want: `version.Info{GitVersion:"1.3.0", GitCommit:"da070e68f3318410c8c70ed8186a2bc4736dacbd", GitTreeState:"clean", BuildDate:"2022-08-31T13:09:22Z", GoVersion:"go1.18.3", Compiler:"gc", Platform:"linux/amd64"}`,
 		},
+		{
+			name: "empty info",
+			info: Info{},
+			want: `version.Info{GitVersion:"", GitCommit:"", GitTreeState:"", BuildDate:"", GoVersion:"", Compiler:"", Platform:""}`,
+		},
 	}
+
+	fields := []string{"GitVersion", "GitCommit", "GitTreeState", "BuildDate", "GoVersion", "Compiler", "Platform"}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.info.String(); got != tt.want {
+			got := tt.info.String()
+			if got != tt.want {
 				t.Errorf("Info.String() = %v, want %v", got, tt.want)
+			}
+			for _, field := range fields {
+				if !strings.Contains(got, field) {
+					t.Errorf("Info.String() does not contain %s", field)
+				}
+			}
+		})
+	}
+}
+
+func TestGet(t *testing.T) {
+	info := Get()
+
+	tests := []struct {
+		name     string
+		got      string
+		expected string
+	}{
+		{"GitVersion", info.GitVersion, gitVersion},
+		{"GitCommit", info.GitCommit, gitCommit},
+		{"GitTreeState", info.GitTreeState, gitTreeState},
+		{"BuildDate", info.BuildDate, buildDate},
+		{"GoVersion", info.GoVersion, runtime.Version()},
+		{"Compiler", info.Compiler, runtime.Compiler},
+		{"Platform", info.Platform, fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.got != tt.expected {
+				t.Errorf("Get().%s = %v, want %v", tt.name, tt.got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestInfoFields(t *testing.T) {
+	tests := []struct {
+		name     string
+		info     Info
+		field    string
+		expected string
+	}{
+		{"GitVersion", Info{GitVersion: "v1.0.0"}, "GitVersion", "v1.0.0"},
+		{"GitCommit", Info{GitCommit: "abcdef123456"}, "GitCommit", "abcdef123456"},
+		{"GitTreeState", Info{GitTreeState: "clean"}, "GitTreeState", "clean"},
+		{"BuildDate", Info{BuildDate: "2023-04-01T00:00:00Z"}, "BuildDate", "2023-04-01T00:00:00Z"},
+		{"GoVersion", Info{GoVersion: "go1.16"}, "GoVersion", "go1.16"},
+		{"Compiler", Info{Compiler: "gc"}, "Compiler", "gc"},
+		{"Platform", Info{Platform: "linux/amd64"}, "Platform", "linux/amd64"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			value := ""
+			switch tt.field {
+			case "GitVersion":
+				value = tt.info.GitVersion
+			case "GitCommit":
+				value = tt.info.GitCommit
+			case "GitTreeState":
+				value = tt.info.GitTreeState
+			case "BuildDate":
+				value = tt.info.BuildDate
+			case "GoVersion":
+				value = tt.info.GoVersion
+			case "Compiler":
+				value = tt.info.Compiler
+			case "Platform":
+				value = tt.info.Platform
+			}
+
+			if value != tt.expected {
+				t.Errorf("%s = %v, want %v", tt.field, value, tt.expected)
 			}
 		})
 	}
