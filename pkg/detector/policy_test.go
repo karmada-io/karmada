@@ -37,6 +37,866 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 )
 
+func Test_cleanPPUnmatchedRBs(t *testing.T) {
+	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(appsv1.AddToScheme(scheme))
+	utilruntime.Must(workv1alpha2.Install(scheme))
+
+	restMapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{{Group: "apps", Version: "v1"}})
+	deploymentGVK := appsv1.SchemeGroupVersion.WithKind("Deployment")
+	restMapper.Add(deploymentGVK, meta.RESTScopeNamespace)
+	tests := []struct {
+		name             string
+		policyID         string
+		policyName       string
+		policyNamespace  string
+		selectors        []policyv1alpha1.ResourceSelector
+		wantErr          bool
+		setupClient      func() *fake.ClientBuilder
+		existingObject   *unstructured.Unstructured
+		expectedBindings *workv1alpha2.ResourceBindingList
+	}{
+		{
+			name:            "clean unmatched binding resource with policy and namespace",
+			policyID:        "f2507cgb-f3f3-4a4b-b289-5691a4fef979",
+			policyName:      "test-policy-1",
+			policyNamespace: "fake-namespace-1",
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Pod",
+					Namespace:  "default",
+				},
+			},
+			wantErr: false,
+			setupClient: func() *fake.ClientBuilder {
+				obj := &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":      "deployment",
+							"namespace": "test",
+						},
+					},
+				}
+				rb := &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "binding-1",
+						ResourceVersion: "999",
+						Namespace:       "fake-namespace-1",
+						Labels: map[string]string{
+							policyv1alpha1.PropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979",
+						},
+						Annotations: map[string]string{
+							policyv1alpha1.PropagationPolicyNamespaceAnnotation: "deploy-match-namespace-1",
+							policyv1alpha1.PropagationPolicyNameAnnotation:      "deploy-match-name-1",
+						},
+					},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Resource: workv1alpha2.ObjectReference{
+							APIVersion: "apps/v1",
+							Kind:       "Deployment",
+							Namespace:  "test",
+							Name:       "deployment",
+						},
+					},
+				}
+				return fake.NewClientBuilder().WithScheme(scheme).WithObjects(obj, rb).WithRESTMapper(restMapper)
+			},
+			existingObject: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "deployment",
+						"namespace": "test",
+					},
+				},
+			},
+			expectedBindings: &workv1alpha2.ResourceBindingList{Items: []workv1alpha2.ResourceBinding{}},
+		},
+		{
+			name:            "cannot list unmatched binding resource with policy and namespace",
+			policyID:        "f2507cgb-f3f3-4a4b-b289-5691a4fef979",
+			policyName:      "test-policy-2",
+			policyNamespace: "fake-namespace-2",
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Pod",
+					Namespace:  "default",
+				},
+			},
+			wantErr: true,
+			setupClient: func() *fake.ClientBuilder {
+				return fake.NewClientBuilder().WithRESTMapper(restMapper)
+			},
+			existingObject: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "deployment",
+						"namespace": "test",
+					},
+				},
+			},
+			expectedBindings: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := tt.setupClient().Build()
+			stopCh := make(chan struct{})
+			defer close(stopCh)
+			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
+			genMgr := genericmanager.NewSingleClusterInformerManager(fakeDynamicClient, 0, stopCh)
+			resourceDetector := &ResourceDetector{
+				Client:          fakeClient,
+				DynamicClient:   fakeDynamicClient,
+				RESTMapper:      fakeClient.RESTMapper(),
+				InformerManager: genMgr,
+			}
+			err := resourceDetector.cleanPPUnmatchedRBs(tt.policyID, tt.policyNamespace, tt.policyName, tt.selectors)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("cleanPPUnmatchedRBs() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			bindings, err := resourceDetector.listPPDerivedRBs(tt.policyID, tt.policyNamespace, tt.policyName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("listPPDerivedRBs() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if !reflect.DeepEqual(tt.expectedBindings, bindings) {
+				t.Errorf("listPPDerivedRBs() = %v, want %v", bindings, tt.expectedBindings)
+			}
+		})
+	}
+}
+
+func Test_cleanUnmatchedRBs(t *testing.T) {
+	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(appsv1.AddToScheme(scheme))
+	utilruntime.Must(workv1alpha2.Install(scheme))
+
+	restMapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{{Group: "apps", Version: "v1"}})
+	deploymentGVK := appsv1.SchemeGroupVersion.WithKind("Deployment")
+	restMapper.Add(deploymentGVK, meta.RESTScopeNamespace)
+	tests := []struct {
+		name             string
+		policyID         string
+		policyName       string
+		selectors        []policyv1alpha1.ResourceSelector
+		wantErr          bool
+		setupClient      func() *fake.ClientBuilder
+		existingObject   *unstructured.Unstructured
+		expectedBindings *workv1alpha2.ResourceBindingList
+	}{
+		{
+			name:       "clean unmatched binding resource",
+			policyID:   "f2507cgb-f3f3-4a4b-b289-5691a4fef979",
+			policyName: "test-policy-1",
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Pod",
+					Namespace:  "default",
+				},
+			},
+			wantErr: false,
+			setupClient: func() *fake.ClientBuilder {
+				obj := &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":      "deployment",
+							"namespace": "test",
+						},
+					},
+				}
+				rb := &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "binding-1",
+						ResourceVersion: "999",
+						Labels: map[string]string{
+							policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979",
+						},
+						Annotations: map[string]string{
+							policyv1alpha1.ClusterPropagationPolicyAnnotation: "deploy-match-name-1",
+						},
+					},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Resource: workv1alpha2.ObjectReference{
+							APIVersion: "apps/v1",
+							Kind:       "Deployment",
+							Namespace:  "test",
+							Name:       "deployment",
+						},
+					},
+				}
+				return fake.NewClientBuilder().WithScheme(scheme).WithObjects(obj, rb).WithRESTMapper(restMapper)
+			},
+			existingObject: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "deployment",
+						"namespace": "test",
+					},
+				},
+			},
+			expectedBindings: &workv1alpha2.ResourceBindingList{Items: []workv1alpha2.ResourceBinding{}},
+		},
+		{
+			name:       "cannot list unmatched binding resource",
+			policyID:   "f2507cgb-f3f3-4a4b-b289-5691a4fef979",
+			policyName: "test-policy-1",
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Pod",
+					Namespace:  "default",
+				},
+			},
+			wantErr: true,
+			setupClient: func() *fake.ClientBuilder {
+				return fake.NewClientBuilder().WithRESTMapper(restMapper)
+			},
+			existingObject: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "deployment",
+						"namespace": "test",
+					},
+				},
+			},
+			expectedBindings: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := tt.setupClient().Build()
+			stopCh := make(chan struct{})
+			defer close(stopCh)
+			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
+			genMgr := genericmanager.NewSingleClusterInformerManager(fakeDynamicClient, 0, stopCh)
+			resourceDetector := &ResourceDetector{
+				Client:          fakeClient,
+				DynamicClient:   fakeDynamicClient,
+				RESTMapper:      fakeClient.RESTMapper(),
+				InformerManager: genMgr,
+			}
+			err := resourceDetector.cleanCPPUnmatchedRBs(tt.policyID, tt.policyName, tt.selectors)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("cleanCPPUnmatchedRBs() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			bindings, err := resourceDetector.listCPPDerivedRBs(tt.policyID, tt.policyName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("listCPPDerivedRBs() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if !reflect.DeepEqual(tt.expectedBindings, bindings) {
+				t.Errorf("listCPPDerivedRBs() = %v, want %v", bindings, tt.expectedBindings)
+			}
+		})
+	}
+}
+
+func Test_cleanUnmatchedCRBs(t *testing.T) {
+	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(appsv1.AddToScheme(scheme))
+	utilruntime.Must(workv1alpha2.Install(scheme))
+
+	restMapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{{Group: "apps", Version: "v1"}})
+	deploymentGVK := appsv1.SchemeGroupVersion.WithKind("Deployment")
+	restMapper.Add(deploymentGVK, meta.RESTScopeNamespace)
+	tests := []struct {
+		name             string
+		policyID         string
+		policyName       string
+		selectors        []policyv1alpha1.ResourceSelector
+		wantErr          bool
+		setupClient      func() *fake.ClientBuilder
+		existingObject   *unstructured.Unstructured
+		expectedBindings *workv1alpha2.ClusterResourceBindingList
+	}{
+		{
+			name:       "clean unmatched cluster binding resource",
+			policyID:   "f2507cgb-f3f3-4a4b-b289-5691a4fef979",
+			policyName: "test-policy-1",
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Pod",
+					Namespace:  "default",
+				},
+			},
+			wantErr: false,
+			setupClient: func() *fake.ClientBuilder {
+				obj := &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":      "deployment",
+							"namespace": "test",
+						},
+					},
+				}
+				rb := &workv1alpha2.ClusterResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "binding-1",
+						ResourceVersion: "999",
+						Labels: map[string]string{
+							policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979",
+						},
+						Annotations: map[string]string{
+							policyv1alpha1.ClusterPropagationPolicyAnnotation: "deploy-match-name-1",
+						},
+					},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Resource: workv1alpha2.ObjectReference{
+							APIVersion: "apps/v1",
+							Kind:       "Deployment",
+							Namespace:  "test",
+							Name:       "deployment",
+						},
+					},
+				}
+				return fake.NewClientBuilder().WithScheme(scheme).WithObjects(obj, rb).WithRESTMapper(restMapper)
+			},
+			existingObject: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "deployment",
+						"namespace": "test",
+					},
+				},
+			},
+			expectedBindings: &workv1alpha2.ClusterResourceBindingList{Items: []workv1alpha2.ClusterResourceBinding{}},
+		},
+		{
+			name:       "cannot list unmatched cluster binding resource",
+			policyID:   "f2507cgb-f3f3-4a4b-b289-5691a4fef979",
+			policyName: "test-policy-1",
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Pod",
+					Namespace:  "default",
+				},
+			},
+			wantErr: true,
+			setupClient: func() *fake.ClientBuilder {
+				return fake.NewClientBuilder().WithRESTMapper(restMapper)
+			},
+			existingObject: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "deployment",
+						"namespace": "test",
+					},
+				},
+			},
+			expectedBindings: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := tt.setupClient().Build()
+			stopCh := make(chan struct{})
+			defer close(stopCh)
+			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
+			genMgr := genericmanager.NewSingleClusterInformerManager(fakeDynamicClient, 0, stopCh)
+			resourceDetector := &ResourceDetector{
+				Client:          fakeClient,
+				DynamicClient:   fakeDynamicClient,
+				RESTMapper:      fakeClient.RESTMapper(),
+				InformerManager: genMgr,
+			}
+			err := resourceDetector.cleanUnmatchedCRBs(tt.policyID, tt.policyName, tt.selectors)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("cleanUnmatchedCRBs() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			bindings, err := resourceDetector.listCPPDerivedCRBs(tt.policyID, tt.policyName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("listCPPDerivedCRBs() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if !reflect.DeepEqual(tt.expectedBindings, bindings) {
+				t.Errorf("listCPPDerivedCRBs() = %v, want %v", bindings, tt.expectedBindings)
+			}
+		})
+	}
+}
+
+func Test_removeRBsMarks(t *testing.T) {
+	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(appsv1.AddToScheme(scheme))
+	utilruntime.Must(workv1alpha2.Install(scheme))
+
+	restMapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{{Group: "apps", Version: "v1"}})
+	deploymentGVK := appsv1.SchemeGroupVersion.WithKind("Deployment")
+	restMapper.Add(deploymentGVK, meta.RESTScopeNamespace)
+	tests := []struct {
+		name              string
+		bindings          *workv1alpha2.ResourceBindingList
+		selectors         []policyv1alpha1.ResourceSelector
+		existingObject    *unstructured.Unstructured
+		removeLabels      []string
+		removeAnnotations []string
+		wantErr           bool
+		setupClient       func() *fake.ClientBuilder
+	}{
+		{
+			name: "cannot remove resource binding with matching selectors",
+			bindings: &workv1alpha2.ResourceBindingList{
+				Items: []workv1alpha2.ResourceBinding{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "binding-1",
+							Namespace:       "fake-namespace-1",
+							ResourceVersion: "999",
+						},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion: "apps/v1",
+								Kind:       "Deployment",
+								Namespace:  "test",
+								Name:       "deployment",
+							},
+						},
+					},
+				},
+			},
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+					Namespace:  "test",
+				},
+			},
+			removeLabels:      []string{"app"},
+			removeAnnotations: []string{"foo"},
+			existingObject: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":        "deployment",
+						"namespace":   "test",
+						"labels":      map[string]interface{}{"app": "nginx"},
+						"annotations": map[string]interface{}{"foo": "bar"},
+					},
+				},
+			},
+			wantErr: false,
+			setupClient: func() *fake.ClientBuilder {
+				obj := &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":        "deployment",
+							"namespace":   "test",
+							"labels":      map[string]interface{}{"app": "nginx"},
+							"annotations": map[string]interface{}{"foo": "bar"},
+						},
+					},
+				}
+				return fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithObjects(obj).WithRESTMapper(restMapper)
+			},
+		},
+		{
+			name: "remove resource binding with non-matching selectors",
+			bindings: &workv1alpha2.ResourceBindingList{
+				Items: []workv1alpha2.ResourceBinding{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "binding-1",
+							Namespace:       "fake-namespace-1",
+							ResourceVersion: "999",
+						},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion: "apps/v1",
+								Kind:       "Deployment",
+								Namespace:  "test",
+								Name:       "deployment",
+							},
+						},
+					},
+				},
+			},
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Pod",
+					Namespace:  "default",
+				},
+			},
+			removeLabels:      []string{"app"},
+			removeAnnotations: []string{"foo"},
+			existingObject: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":        "deployment",
+						"namespace":   "test",
+						"labels":      map[string]interface{}{"app": "nginx"},
+						"annotations": map[string]interface{}{"foo": "bar"},
+					},
+				},
+			},
+			wantErr: false,
+			setupClient: func() *fake.ClientBuilder {
+				obj := &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":        "deployment",
+							"namespace":   "test",
+							"labels":      map[string]interface{}{"app": "nginx"},
+							"annotations": map[string]interface{}{"foo": "bar"},
+						},
+					},
+				}
+				rb := &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "binding-1",
+						Namespace:       "fake-namespace-1",
+						ResourceVersion: "999",
+					},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Resource: workv1alpha2.ObjectReference{
+							APIVersion: "apps/v1",
+							Kind:       "Deployment",
+							Namespace:  "test",
+							Name:       "deployment",
+						},
+					},
+				}
+				return fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithObjects(obj, rb).WithRESTMapper(restMapper)
+			},
+		},
+		{
+			name: "failed to remove resource binding with non-matching selectors",
+			bindings: &workv1alpha2.ResourceBindingList{
+				Items: []workv1alpha2.ResourceBinding{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "binding-1",
+							Namespace:       "fake-namespace-1",
+							ResourceVersion: "999",
+						},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion: "apps/v1",
+								Kind:       "Deployment",
+								Namespace:  "test",
+								Name:       "deployment",
+							},
+						},
+					},
+				},
+			},
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Pod",
+					Namespace:  "default",
+				},
+			},
+			removeLabels:      []string{"app"},
+			removeAnnotations: []string{"foo"},
+			existingObject: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":        "deployment",
+						"namespace":   "test",
+						"labels":      map[string]interface{}{"app": "nginx"},
+						"annotations": map[string]interface{}{"foo": "bar"},
+					},
+				},
+			},
+			wantErr: true,
+			setupClient: func() *fake.ClientBuilder {
+				return fake.NewClientBuilder().WithRESTMapper(restMapper)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := tt.setupClient().Build()
+			stopCh := make(chan struct{})
+			defer close(stopCh)
+			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
+			genMgr := genericmanager.NewSingleClusterInformerManager(fakeDynamicClient, 0, stopCh)
+			resourceDetector := &ResourceDetector{
+				Client:          fakeClient,
+				DynamicClient:   fakeDynamicClient,
+				RESTMapper:      fakeClient.RESTMapper(),
+				InformerManager: genMgr,
+			}
+			err := resourceDetector.removeRBsMarks(tt.bindings, tt.selectors, tt.removeLabels, tt.removeAnnotations)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("removeRBsMarks() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_removeCRBsMarks(t *testing.T) {
+	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(appsv1.AddToScheme(scheme))
+	utilruntime.Must(workv1alpha2.Install(scheme))
+
+	restMapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{{Group: "apps", Version: "v1"}})
+	deploymentGVK := appsv1.SchemeGroupVersion.WithKind("Deployment")
+	restMapper.Add(deploymentGVK, meta.RESTScopeNamespace)
+	tests := []struct {
+		name              string
+		bindings          *workv1alpha2.ClusterResourceBindingList
+		selectors         []policyv1alpha1.ResourceSelector
+		existingObject    *unstructured.Unstructured
+		removeLabels      []string
+		removeAnnotations []string
+		wantErr           bool
+		setupClient       func() *fake.ClientBuilder
+	}{
+		{
+			name: "cannot remove cluster resource binding with matching selectors",
+			bindings: &workv1alpha2.ClusterResourceBindingList{
+				Items: []workv1alpha2.ClusterResourceBinding{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "binding-1",
+							Namespace:       "fake-namespace-1",
+							ResourceVersion: "999",
+						},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion: "apps/v1",
+								Kind:       "Deployment",
+								Namespace:  "test",
+								Name:       "deployment",
+							},
+						},
+					},
+				},
+			},
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+					Namespace:  "test",
+				},
+			},
+			removeLabels:      []string{"app"},
+			removeAnnotations: []string{"foo"},
+			existingObject: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":        "deployment",
+						"namespace":   "test",
+						"labels":      map[string]interface{}{"app": "nginx"},
+						"annotations": map[string]interface{}{"foo": "bar"},
+					},
+				},
+			},
+			wantErr: false,
+			setupClient: func() *fake.ClientBuilder {
+				obj := &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":        "deployment",
+							"namespace":   "test",
+							"labels":      map[string]interface{}{"app": "nginx"},
+							"annotations": map[string]interface{}{"foo": "bar"},
+						},
+					},
+				}
+				return fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithObjects(obj).WithRESTMapper(restMapper)
+			},
+		},
+		{
+			name: "remove cluster resource binding with non-matching selectors",
+			bindings: &workv1alpha2.ClusterResourceBindingList{
+				Items: []workv1alpha2.ClusterResourceBinding{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "binding-1",
+							Namespace:       "fake-namespace-1",
+							ResourceVersion: "999",
+						},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion: "apps/v1",
+								Kind:       "Deployment",
+								Namespace:  "test",
+								Name:       "deployment",
+							},
+						},
+					},
+				},
+			},
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Pod",
+					Namespace:  "default",
+				},
+			},
+			removeLabels:      []string{"app"},
+			removeAnnotations: []string{"foo"},
+			existingObject: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":        "deployment",
+						"namespace":   "test",
+						"labels":      map[string]interface{}{"app": "nginx"},
+						"annotations": map[string]interface{}{"foo": "bar"},
+					},
+				},
+			},
+			wantErr: false,
+			setupClient: func() *fake.ClientBuilder {
+				obj := &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":        "deployment",
+							"namespace":   "test",
+							"labels":      map[string]interface{}{"app": "nginx"},
+							"annotations": map[string]interface{}{"foo": "bar"},
+						},
+					},
+				}
+				crb := &workv1alpha2.ClusterResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "binding-1",
+						Namespace:       "fake-namespace-1",
+						ResourceVersion: "999",
+					},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Resource: workv1alpha2.ObjectReference{
+							APIVersion: "apps/v1",
+							Kind:       "Deployment",
+							Namespace:  "test",
+							Name:       "deployment",
+						},
+					},
+				}
+				return fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithObjects(obj, crb).WithRESTMapper(restMapper)
+			},
+		},
+		{
+			name: "failed to remove cluster resource binding with non-matching selectors",
+			bindings: &workv1alpha2.ClusterResourceBindingList{
+				Items: []workv1alpha2.ClusterResourceBinding{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "binding-1",
+							Namespace:       "fake-namespace-1",
+							ResourceVersion: "999",
+						},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion: "apps/v1",
+								Kind:       "Deployment",
+								Namespace:  "test",
+								Name:       "deployment",
+							},
+						},
+					},
+				},
+			},
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Pod",
+					Namespace:  "default",
+				},
+			},
+			removeLabels:      []string{"app"},
+			removeAnnotations: []string{"foo"},
+			existingObject: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":        "deployment",
+						"namespace":   "test",
+						"labels":      map[string]interface{}{"app": "nginx"},
+						"annotations": map[string]interface{}{"foo": "bar"},
+					},
+				},
+			},
+			wantErr: true,
+			setupClient: func() *fake.ClientBuilder {
+				return fake.NewClientBuilder().WithRESTMapper(restMapper)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := tt.setupClient().Build()
+			stopCh := make(chan struct{})
+			defer close(stopCh)
+			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
+			genMgr := genericmanager.NewSingleClusterInformerManager(fakeDynamicClient, 0, stopCh)
+			resourceDetector := &ResourceDetector{
+				Client:          fakeClient,
+				DynamicClient:   fakeDynamicClient,
+				RESTMapper:      fakeClient.RESTMapper(),
+				InformerManager: genMgr,
+			}
+			err := resourceDetector.removeCRBsMarks(tt.bindings, tt.selectors, tt.removeLabels, tt.removeAnnotations)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("removeCRBsMarks() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func Test_removeResourceMarksIfNotMatched(t *testing.T) {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
