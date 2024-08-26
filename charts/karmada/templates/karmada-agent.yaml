@@ -33,7 +33,7 @@ subjects:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: {{ $name }}-kubeconfig
+  name: karmada-kubeconfig
   namespace: {{ include "karmada.namespace" . }}
 stringData:
   kubeconfig: |-
@@ -126,14 +126,14 @@ spec:
               name: metrics
               protocol: TCP
           volumeMounts:
-            - name: kubeconfig
+            - name: karmada-kubeconfig
               mountPath: /etc/kubeconfig
           resources:
           {{- toYaml .Values.agent.resources | nindent 12 }}
       volumes:
-        - name: kubeconfig
+        - name: karmada-kubeconfig
           secret:
-            secretName: {{ $name }}-kubeconfig
+            secretName: karmada-kubeconfig
 
 {{ if .Values.agent.podDisruptionBudget }}
 ---

@@ -48,9 +48,9 @@ spec:
             - /bin/karmada-scheduler-estimator
             - --kubeconfig=/etc/{{ $clusterName }}-kubeconfig
             - --cluster-name={{ $clusterName }}
-            - --grpc-auth-cert-file=/etc/karmada/pki/karmada.crt
-            - --grpc-auth-key-file=/etc/karmada/pki/karmada.key
-            - --grpc-client-ca-file=/etc/karmada/pki/server-ca.crt
+            - --grpc-auth-cert-file=/etc/karmada/pki/karmada-server.crt
+            - --grpc-auth-key-file=/etc/karmada/pki/karmada-server.key
+            - --grpc-client-ca-file=/etc/karmada/pki/ca.crt
             - --metrics-bind-address=0.0.0.0:8080
             - --health-probe-bind-address=0.0.0.0:10351
             {{- with (include "karmada.schedulerEstimator.featureGates" (dict "featureGatesArg" $.Values.schedulerEstimator.featureGates)) }}
@@ -70,16 +70,14 @@ spec:
               name: metrics
               protocol: TCP
           volumeMounts:
-            - name: karmada-certs
-              mountPath: /etc/karmada/pki
-              readOnly: true
+            {{- include "karmada.karmada-certs.volumeMount" . | nindent 12 }}
             - name: member-kubeconfig
               subPath: {{ $clusterName }}-kubeconfig
               mountPath: /etc/{{ $clusterName }}-kubeconfig
           resources:
           {{- toYaml $.Values.schedulerEstimator.resources | nindent 12 }}
       volumes:
-      {{- include "karmada.scheduler.cert.volume" $ | nindent 8 }}
+        {{- include "karmada.karmada-certs.volume" $ | nindent 8 }}
         - name: member-kubeconfig
           secret:
             secretName: {{ $clusterName }}-kubeconfig

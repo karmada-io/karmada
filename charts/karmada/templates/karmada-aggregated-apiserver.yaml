@@ -37,32 +37,25 @@ spec:
           imagePullPolicy: {{ .Values.aggregatedApiServer.image.pullPolicy }}
           volumeMounts:
             {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
-            - name: etcd-cert
-              mountPath: /etc/etcd/pki
-              readOnly: true
-            - name: apiserver-cert
-              mountPath: /etc/kubernetes/pki
-              readOnly: true
+            {{- include "karmada.karmada-certs.volumeMount" . | nindent 12 }}
+            {{- include "karmada.etcd-cert.volumeMount" . | nindent 12 }}
           command:
             - /bin/karmada-aggregated-apiserver
             - --kubeconfig=/etc/kubeconfig
             - --authentication-kubeconfig=/etc/kubeconfig
             - --authorization-kubeconfig=/etc/kubeconfig
+            - --etcd-cafile=/etc/etcd/pki/etcd-ca.crt
+            - --etcd-certfile=/etc/etcd/pki/etcd-client.crt
+            - --etcd-keyfile=/etc/etcd/pki/etcd-client.key
             {{- if eq .Values.etcd.mode "external" }}
-            - --etcd-cafile=/etc/etcd/pki/ca.crt
-            - --etcd-certfile=/etc/etcd/pki/tls.crt
-            - --etcd-keyfile=/etc/etcd/pki/tls.key
             - --etcd-servers={{ .Values.etcd.external.servers }}
             - --etcd-prefix={{ .Values.etcd.external.registryPrefix }}
             {{- end }}
             {{- if eq .Values.etcd.mode "internal" }}
-            - --etcd-cafile=/etc/etcd/pki/server-ca.crt
-            - --etcd-certfile=/etc/etcd/pki/karmada.crt
-            - --etcd-keyfile=/etc/etcd/pki/karmada.key
             - --etcd-servers=https://etcd-client.{{ include "karmada.namespace" . }}.svc.{{ .Values.clusterDomain }}:2379
             {{- end }}
-            - --tls-cert-file=/etc/kubernetes/pki/karmada.crt
-            - --tls-private-key-file=/etc/kubernetes/pki/karmada.key
+            - --tls-cert-file=/etc/karmada/pki/karmada-server.crt
+            - --tls-private-key-file=/etc/karmada/pki/karmada-server.key
             - --audit-log-path=-
             - --audit-log-maxage=0
             - --audit-log-maxbackup=0
@@ -99,17 +92,8 @@ spec:
       {{- end }}
       volumes:
         {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
-        - name: apiserver-cert
-          secret:
-            secretName: {{ $name }}-cert
-        - name: etcd-cert
-          secret:
-          {{- if eq .Values.etcd.mode "internal" }}
-            secretName: {{ $name }}-cert
-          {{- end }}
-          {{- if eq .Values.etcd.mode "external" }}
-            secretName: {{ $name }}-external-etcd-cert
-          {{- end }}
+        {{- include "karmada.karmada-certs.volume" . | nindent 8 }}
+        {{- include "karmada.etcd-cert.volume" . | nindent 8 }}
 ---
 apiVersion: v1
 kind: Service

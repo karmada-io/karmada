@@ -249,41 +249,73 @@ data:
     apiVersion: v1
     kind: Secret
     metadata:
-      name: {{ $name }}-cert
+      name: karmada-certs
       namespace: {{ $namespace }}
     type: Opaque
     data:
-      server-ca.crt: |-
+      ca.crt: |-
         {{ print "{{ ca_crt }}" }}
-      server-ca.key: |-
+      ca.key: |-
         {{ print "{{ ca_key }}" }}
-      karmada.crt: |-
-        {{ print "{{ crt }}" }}
-      karmada.key: |-
-        {{ print "{{ key }}" }}
+      karmada-client.crt: |-
+        {{ print "{{ karmada_client_crt }}" }}
+      karmada-client.key: |-
+        {{ print "{{ karmada_client_key }}" }}
+      karmada-server.crt: |-
+        {{ print "{{ karmada_server_crt }}" }}
+      karmada-server.key: |-
+        {{ print "{{ karmada_server_key }}" }}
       front-proxy-ca.crt: |-
         {{ print "{{ front_proxy_ca_crt }}" }}
       front-proxy-client.crt: |-
         {{ print "{{ front_proxy_crt }}" }}
       front-proxy-client.key: |-
         {{ print "{{ front_proxy_key }}" }}
+  etcd-cert.yaml: |-
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: karmada-etcd-cert
+      namespace: {{ $namespace }}
+    type: Opaque
+    data:
+      {{- if eq .Values.etcd.mode "internal" }}
+      etcd-ca.crt: |-
+        {{ print "{{ etcd_ca_crt }}" }}
+      etcd-server.crt: |-
+        {{ print "{{ etcd_server_crt }}" }}
+      etcd-server.key: |-
+        {{ print "{{ etcd_server_key }}" }}
+      etcd-client.crt: |-
+        {{ print "{{ etcd_client_crt }}" }}
+      etcd-client.key: |-
+        {{ print "{{ etcd_client_key }}" }}
+      {{- end }}
+      {{- if eq .Values.etcd.mode "external" }}
+      etcd-ca.crt: |
+        {{ b64enc .Values.etcd.external.certs.caCrt }}
+      etcd-client.crt: |
+        {{ b64enc .Values.etcd.external.certs.etcdClientCrt }}
+      etcd-client.key: |
+        {{ b64enc .Values.etcd.external.certs.etcdClientKey }}
+      {{- end }}
   webhook-cert.yaml: |-
     apiVersion: v1
     kind: Secret
     metadata:
-      name: {{ $name }}-webhook-cert
+      name: karmada-webhook-cert
       namespace: {{ $namespace }}
     type: kubernetes.io/tls
     data:
       tls.crt: |-
-        {{ print "{{ crt }}" }}
+        {{ print "{{ karmada_server_crt }}" }}
       tls.key: |-
-        {{ print "{{ key }}" }}
+        {{ print "{{ karmada_server_key }}" }}
   kubeconfig.yaml: |-
     apiVersion: v1
     kind: Secret
     metadata:
-      name: {{ $name }}-kubeconfig
+      name: karmada-kubeconfig
       namespace: {{ $namespace }}
     stringData:
       kubeconfig: |-
@@ -296,8 +328,8 @@ data:
             name: {{ $name }}-apiserver
         users:
           - user:
-              client-certificate-data: {{ print "{{ crt }}" }}
-              client-key-data: {{ print "{{ key }}" }}
+              client-certificate-data: {{ print "{{ karmada_client_crt }}" }}
+              client-key-data: {{ print "{{ karmada_client_key }}" }}
             name: {{ $name }}-apiserver
         contexts:
           - context:
@@ -388,31 +420,71 @@ spec:
           mkdir -p /opt/configs
           mkdir -p /opt/certs
           cp -r -L /opt/mount/* /opt/configs/
-          openssl req -x509 -sha256 -new -nodes -days 365 -newkey rsa:{{ .Values.certs.auto.rsaSize }} -keyout "/opt/certs/server-ca.key" -out "/opt/certs/server-ca.crt" -subj "/C=xx/ST=x/L=x/O=x/OU=x/CN=ca/emailAddress=x/"
+
+          # create CA signers
+          openssl req -x509 -sha256 -new -nodes -days 365 -newkey rsa:{{ .Values.certs.auto.rsaSize }} -keyout "/opt/certs/ca.key" -out "/opt/certs/ca.crt" -subj "/C=xx/ST=x/L=x/O=x/OU=x/CN=ca/emailAddress=x/"
           openssl req -x509 -sha256 -new -nodes -days 365 -newkey rsa:{{ .Values.certs.auto.rsaSize }} -keyout "/opt/certs/front-proxy-ca.key" -out "/opt/certs/front-proxy-ca.crt" -subj "/C=xx/ST=x/L=x/O=x/OU=x/CN=ca/emailAddress=x/"
-          echo '{"signing":{"default":{"expiry":{{ printf `"%s"` .Values.certs.auto.expiry }},"usages":["signing","key encipherment","client auth","server auth"]}}}' > "/opt/certs/server-ca-config.json"
-          echo '{"CN":"system:admin","hosts":{{ tpl (toJson .Values.certs.auto.hosts) . }},"names":[{"O":"system:masters"}],"key":{"algo":"rsa","size":{{ .Values.certs.auto.rsaSize }}}}' | cfssl gencert -ca=/opt/certs/server-ca.crt -ca-key=/opt/certs/server-ca.key -config=/opt/certs/server-ca-config.json - | cfssljson -bare /opt/certs/karmada
+          openssl req -x509 -sha256 -new -nodes -days 365 -newkey rsa:{{ .Values.certs.auto.rsaSize }} -keyout "/opt/certs/etcd-ca.key" -out "/opt/certs/etcd-ca.crt" -subj "/C=xx/ST=x/L=x/O=x/OU=x/CN=ca/emailAddress=x/"
+
+          # signs certificates
+          echo '{"signing":{"default":{"expiry":{{ printf `"%s"` .Values.certs.auto.expiry }},"usages":["signing","key encipherment","client auth","server auth"]}}}' > "/opt/certs/ca-config.json"
+          echo '{"CN":"system:admin","hosts":{{ tpl (toJson .Values.certs.auto.hosts) . }},"names":[{"O":"system:masters"}],"key":{"algo":"rsa","size":{{ .Values.certs.auto.rsaSize }}}}' | cfssl gencert -ca=/opt/certs/ca.crt -ca-key=/opt/certs/ca.key -config=/opt/certs/ca-config.json - | cfssljson -bare /opt/certs/karmada-client
+          echo '{"CN":"karmada-server","hosts":{{ tpl (toJson .Values.certs.auto.hosts) . }},"names":[{"O":""}],"key":{"algo":"rsa","size":{{ .Values.certs.auto.rsaSize }}}}' | cfssl gencert -ca=/opt/certs/ca.crt -ca-key=/opt/certs/ca.key -config=/opt/certs/ca-config.json - | cfssljson -bare /opt/certs/karmada-server
+
           echo '{"signing":{"default":{"expiry":{{ printf `"%s"` .Values.certs.auto.expiry }},"usages":["signing","key encipherment","client auth","server auth"]}}}' > "/opt/certs/front-proxy-ca-config.json"
           echo '{"CN":"front-proxy-client","hosts":{{ tpl (toJson .Values.certs.auto.hosts) . }},"names":[{"O":"system:masters"}],"key":{"algo":"rsa","size":{{ .Values.certs.auto.rsaSize }}}}' | cfssl gencert -ca=/opt/certs/front-proxy-ca.crt -ca-key=/opt/certs/front-proxy-ca.key -config=/opt/certs/front-proxy-ca-config.json - | cfssljson -bare /opt/certs/front-proxy-client
-          karmada_ca=$(base64 /opt/certs/server-ca.crt | tr -d '\r\n')
-          karmada_ca_key=$(base64 /opt/certs/server-ca.key | tr -d '\r\n')
-          karmada_crt=$(base64 /opt/certs/karmada.pem | tr -d '\r\n')
-          karmada_key=$(base64 /opt/certs/karmada-key.pem | tr -d '\r\n')
+
+          {{- if eq .Values.etcd.mode "internal" }}
+          echo '{"signing":{"default":{"expiry":{{ printf `"%s"` .Values.certs.auto.expiry }},"usages":["signing","key encipherment","client auth","server auth"]}}}' > "/opt/certs/etcd-ca-config.json"
+          echo '{"CN":"etcd-server","hosts":{{ tpl (toJson .Values.certs.auto.hosts) . }},"names":[{"O":""}],"key":{"algo":"rsa","size":{{ .Values.certs.auto.rsaSize }}}}' | cfssl gencert -ca=/opt/certs/etcd-ca.crt -ca-key=/opt/certs/etcd-ca.key -config=/opt/certs/etcd-ca-config.json - | cfssljson -bare /opt/certs/etcd-server
+          echo '{"CN":"etcd-client","hosts":{{ tpl (toJson .Values.certs.auto.hosts) . }},"names":[{"O":""}],"key":{"algo":"rsa","size":{{ .Values.certs.auto.rsaSize }}}}' | cfssl gencert -ca=/opt/certs/etcd-ca.crt -ca-key=/opt/certs/etcd-ca.key -config=/opt/certs/etcd-ca-config.json - | cfssljson -bare /opt/certs/etcd-client
+          {{- end }}
+
+          # fill in secret karmada-certs
+          karmada_ca=$(base64 /opt/certs/ca.crt | tr -d '\r\n')
+          karmada_ca_key=$(base64 /opt/certs/ca.key | tr -d '\r\n')
+          karmada_server_crt=$(base64 /opt/certs/karmada-server.pem | tr -d '\r\n')
+          karmada_server_key=$(base64 /opt/certs/karmada-server-key.pem | tr -d '\r\n')
+          karmada_client_crt=$(base64 /opt/certs/karmada-client.pem | tr -d '\r\n')
+          karmada_client_key=$(base64 /opt/certs/karmada-client-key.pem | tr -d '\r\n')
           front_proxy_ca=$(base64 /opt/certs/front-proxy-ca.crt | tr -d '\r\n')
           front_proxy_client_crt=$(base64 /opt/certs/front-proxy-client.pem | tr -d '\r\n')
           front_proxy_client_key=$(base64 /opt/certs/front-proxy-client-key.pem | tr -d '\r\n')
+
           sed -i'' -e "s/{{ print "{{ ca_crt }}" }}/${karmada_ca}/g" /opt/configs/cert.yaml
           sed -i'' -e "s/{{ print "{{ ca_key }}" }}/${karmada_ca_key}/g" /opt/configs/cert.yaml
-          sed -i'' -e "s/{{ print "{{ crt }}" }}/${karmada_crt}/g" /opt/configs/cert.yaml
-          sed -i'' -e "s/{{ print "{{ key }}" }}/${karmada_key}/g" /opt/configs/cert.yaml
+          sed -i'' -e "s/{{ print "{{ karmada_server_crt }}" }}/${karmada_server_crt}/g" /opt/configs/cert.yaml
+          sed -i'' -e "s/{{ print "{{ karmada_server_key }}" }}/${karmada_server_key}/g" /opt/configs/cert.yaml
+          sed -i'' -e "s/{{ print "{{ karmada_client_crt }}" }}/${karmada_client_crt}/g" /opt/configs/cert.yaml
+          sed -i'' -e "s/{{ print "{{ karmada_client_key }}" }}/${karmada_client_key}/g" /opt/configs/cert.yaml
           sed -i'' -e "s/{{ print "{{ front_proxy_ca_crt }}" }}/${front_proxy_ca}/g" /opt/configs/cert.yaml
           sed -i'' -e "s/{{ print "{{ front_proxy_crt }}" }}/${front_proxy_client_crt}/g" /opt/configs/cert.yaml
           sed -i'' -e "s/{{ print "{{ front_proxy_key }}" }}/${front_proxy_client_key}/g" /opt/configs/cert.yaml
+
+          {{- if eq .Values.etcd.mode "internal" }}
+          # fill in secret karmada-etcd-cert
+          etcd_ca_crt=$(base64 /opt/certs/etcd-ca.crt | tr -d '\r\n')
+          etcd_server_crt=$(base64 /opt/certs/etcd-server.pem | tr -d '\r\n')
+          etcd_server_key=$(base64 /opt/certs/etcd-server-key.pem | tr -d '\r\n')
+          etcd_client_crt=$(base64 /opt/certs/etcd-client.pem | tr -d '\r\n')
+          etcd_client_key=$(base64 /opt/certs/etcd-client-key.pem | tr -d '\r\n')
+
+          sed -i'' -e "s/{{ print "{{ etcd_ca_crt }}" }}/${etcd_ca_crt}/g" /opt/configs/etcd-cert.yaml
+          sed -i'' -e "s/{{ print "{{ etcd_server_crt }}" }}/${etcd_server_crt}/g" /opt/configs/etcd-cert.yaml
+          sed -i'' -e "s/{{ print "{{ etcd_server_key }}" }}/${etcd_server_key}/g" /opt/configs/etcd-cert.yaml
+          sed -i'' -e "s/{{ print "{{ etcd_client_crt }}" }}/${etcd_client_crt}/g" /opt/configs/etcd-cert.yaml
+          sed -i'' -e "s/{{ print "{{ etcd_client_key }}" }}/${etcd_client_key}/g" /opt/configs/etcd-cert.yaml
+          {{- end }}
+
+          # fill in secret karmada-kubeconfig
           sed -i'' -e "s/{{ print "{{ ca_crt }}" }}/${karmada_ca}/g" /opt/configs/kubeconfig.yaml
-          sed -i'' -e "s/{{ print "{{ crt }}" }}/${karmada_crt}/g" /opt/configs/kubeconfig.yaml
-          sed -i'' -e "s/{{ print "{{ key }}" }}/${karmada_key}/g" /opt/configs/kubeconfig.yaml
-          sed -i'' -e "s/{{ print "{{ crt }}" }}/${karmada_crt}/g" /opt/configs/webhook-cert.yaml
-          sed -i'' -e "s/{{ print "{{ key }}" }}/${karmada_key}/g" /opt/configs/webhook-cert.yaml
+          sed -i'' -e "s/{{ print "{{ karmada_client_crt }}" }}/${karmada_client_crt}/g" /opt/configs/kubeconfig.yaml
+          sed -i'' -e "s/{{ print "{{ karmada_client_key }}" }}/${karmada_client_key}/g" /opt/configs/kubeconfig.yaml
+
+          # fill in secret karmada-webhook-cert
+          sed -i'' -e "s/{{ print "{{ karmada_server_crt }}" }}/${karmada_server_crt}/g" /opt/configs/webhook-cert.yaml
+          sed -i'' -e "s/{{ print "{{ karmada_server_key }}" }}/${karmada_server_key}/g" /opt/configs/webhook-cert.yaml
+
           sed -i'' -e "s/{{ print "{{ ca_crt }}" }}/${karmada_ca}/g" /opt/configs/static-resources-configmaps.yaml
           sed -i'' -e "s/{{ print "{{ ca_crt }}" }}/${karmada_ca}/g" /opt/configs/crds-patches-configmaps.yaml
           EOF
