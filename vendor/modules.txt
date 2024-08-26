@@ -1682,6 +1682,7 @@ k8s.io/kube-openapi/pkg/validation/strfmt/bson
 k8s.io/kubectl/pkg/apps
 k8s.io/kubectl/pkg/cmd/apiresources
 k8s.io/kubectl/pkg/cmd/apply
+k8s.io/kubectl/pkg/cmd/attach
 k8s.io/kubectl/pkg/cmd/create
 k8s.io/kubectl/pkg/cmd/delete
 k8s.io/kubectl/pkg/cmd/describe
