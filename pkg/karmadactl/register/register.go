@@ -53,6 +53,7 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
+	karmadactlutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	tokenutil "github.com/karmada-io/karmada/pkg/karmadactl/util/bootstraptoken"
 	karmadautil "github.com/karmada-io/karmada/pkg/util"
@@ -76,8 +77,8 @@ var (
 )
 
 const (
-	// KarmadaDir is the directory Karmada owns for storing various configuration files
-	KarmadaDir = "/etc/karmada"
+	// KarmadaDataPath is the directory Karmada owns for storing kubeconfig cert and crds files
+	KarmadaDataPath = "/etc/karmada"
 	// CACertPath defines default location of CA certificate on Linux
 	CACertPath = "/etc/karmada/pki/ca.crt"
 	// ClusterPermissionPrefix defines the common name of karmada agent certificate
@@ -181,6 +182,7 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 	flags.StringVar(&opts.KubeConfig, "kubeconfig", "", "Path to the kubeconfig file of member cluster.")
 	flags.StringVar(&opts.Context, "context", "", "Name of the cluster context in kubeconfig file.")
 	flags.StringVarP(&opts.Namespace, "namespace", "n", "karmada-system", "Namespace the karmada-agent component deployed.")
+	flags.StringVarP(&opts.KarmadaDataPath, "karmada-data", "d", KarmadaDataPath, "Karmada data path. kubeconfig cert and crds files")
 	flags.StringVar(&opts.ClusterName, "cluster-name", "", "The name of member cluster in the control plane, if not specified, the cluster of current-context is used by default.")
 	flags.StringVar(&opts.ClusterNamespace, "cluster-namespace", options.DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster secrets are stored.")
 	flags.StringVar(&opts.ClusterProvider, "cluster-provider", "", "Provider of the joining cluster. The Karmada scheduler can use this information to spread workloads across providers for higher availability.")
@@ -230,6 +232,9 @@ type CommandRegisterOption struct {
 
 	// EnableCertRotation indicates if enable certificate rotation for karmada-agent.
 	EnableCertRotation bool
+
+	// KarmadaDataPath is the directory Karmada owns for storing kubeconfig cert and crds files.
+	KarmadaDataPath string
 
 	// CACertPath is the path to the SSL certificate authority used to
 	// secure communications between member cluster and karmada-control-plane.
@@ -294,6 +299,31 @@ func (o *CommandRegisterOption) Complete(args []string) error {
 		return err
 	}
 
+	return initializeDirectory(o.KarmadaDataPath)
+}
+
+// initializeDirectory ensures that the specified path is a directory.
+// If the path does not exist, it creates the directory with the specified permissions (0700).
+// If the path exists but is a file, it returns an error indicating that the path is a file, not a directory.
+//
+// Parameters:
+//
+//	path (string): The file path to check or create.
+//
+// Returns:
+//
+//	error: An error if the path exists as a file or if there was an issue creating the directory,
+//	       or nil if the path is successfully created or already exists as a directory.
+func initializeDirectory(path string) error {
+	pathType, exists := karmadactlutil.IsExist(path)
+	if !exists {
+		if err := os.MkdirAll(path, os.FileMode(0700)); err != nil {
+			return fmt.Errorf("failed to create directory '%s': %w", path, err)
+		}
+	} else if pathType == karmadactlutil.File {
+		return fmt.Errorf("path '%s' exists and is a file, not a directory", path)
+	}
+	// If pathType is Directory, do nothing.
 	return nil
 }
 
@@ -309,6 +339,10 @@ func (o *CommandRegisterOption) Validate() error {
 
 	if !o.BootstrapToken.UnsafeSkipCAVerification && len(o.BootstrapToken.CACertHashes) == 0 {
 		return fmt.Errorf("need to verify CACertHashes, or set --discovery-token-unsafe-skip-ca-verification=true")
+	}
+
+	if !filepath.IsAbs(o.KarmadaDataPath) {
+		return fmt.Errorf("karmada data path must be an absolute path: %s", o.KarmadaDataPath)
 	}
 
 	if !filepath.IsAbs(o.CACertPath) || !strings.HasSuffix(o.CACertPath, ".crt") {
@@ -340,7 +374,7 @@ func (o *CommandRegisterOption) Run(parentCommand string) error {
 		return nil
 	}
 
-	bootstrapKubeConfigFile := filepath.Join(KarmadaDir, KarmadaAgentBootstrapKubeConfigFileName)
+	bootstrapKubeConfigFile := filepath.Join(o.KarmadaDataPath, KarmadaAgentBootstrapKubeConfigFileName)
 
 	// Deletes the bootstrapKubeConfigFile, so the credential used for TLS bootstrap is removed from disk
 	defer func(name string) {
@@ -412,8 +446,8 @@ func (o *CommandRegisterOption) preflight() []error {
 	var errlist []error
 
 	// check if the given file already exist
-	errlist = appendError(errlist, checkFileIfExist(filepath.Join(KarmadaDir, KarmadaAgentBootstrapKubeConfigFileName)))
-	errlist = appendError(errlist, checkFileIfExist(filepath.Join(KarmadaDir, KarmadaAgentKubeConfigFileName)))
+	errlist = appendError(errlist, checkFileIfExist(filepath.Join(o.KarmadaDataPath, KarmadaAgentBootstrapKubeConfigFileName)))
+	errlist = appendError(errlist, checkFileIfExist(filepath.Join(o.KarmadaDataPath, KarmadaAgentKubeConfigFileName)))
 	errlist = appendError(errlist, checkFileIfExist(CACertPath))
 
 	// check if relative resources already exist in member cluster
@@ -576,7 +610,7 @@ func (o *CommandRegisterOption) constructKarmadaAgentConfig(bootstrapClient *kub
 		pkData,
 	)
 
-	kubeConfigFile := filepath.Join(KarmadaDir, KarmadaAgentKubeConfigFileName)
+	kubeConfigFile := filepath.Join(o.KarmadaDataPath, KarmadaAgentKubeConfigFileName)
 
 	// Write the karmada-agent config file down to disk
 	klog.V(1).Infof("writing bootstrap karmada-agent config file at %s", kubeConfigFile)
