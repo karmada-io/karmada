@@ -41,6 +41,10 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 15
             timeoutSeconds: 5
+          ports:
+            - containerPort: 10358
+              name: metrics
+              protocol: TCP
           volumeMounts:
             - name: karmada-certs
               mountPath: /etc/karmada/pki

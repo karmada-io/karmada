@@ -31,6 +31,7 @@ spec:
             - --cluster-api-endpoint={{member_cluster_api_endpoint}}
             - --cluster-status-update-frequency=10s
             - --health-probe-bind-address=0.0.0.0:10357
+            - --metrics-bind-address=:8080
             - --feature-gates=CustomizedClusterResourceModeling=true,MultiClusterService=true
             - --v=4
           livenessProbe:
@@ -42,6 +43,10 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 15
             timeoutSeconds: 5
+          ports:
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
           volumeMounts:
             - name: kubeconfig
               mountPath: /etc/kubeconfig
