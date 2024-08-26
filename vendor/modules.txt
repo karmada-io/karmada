@@ -1687,6 +1687,7 @@ k8s.io/kubectl/pkg/cmd/create
 k8s.io/kubectl/pkg/cmd/delete
 k8s.io/kubectl/pkg/cmd/describe
 k8s.io/kubectl/pkg/cmd/exec
+k8s.io/kubectl/pkg/cmd/explain
 k8s.io/kubectl/pkg/cmd/get
 k8s.io/kubectl/pkg/cmd/logs
 k8s.io/kubectl/pkg/cmd/testing
@@ -1696,6 +1697,8 @@ k8s.io/kubectl/pkg/cmd/util/editor/crlf
 k8s.io/kubectl/pkg/cmd/util/podcmd
 k8s.io/kubectl/pkg/cmd/wait
 k8s.io/kubectl/pkg/describe
+k8s.io/kubectl/pkg/explain
+k8s.io/kubectl/pkg/explain/v2
 k8s.io/kubectl/pkg/generate
 k8s.io/kubectl/pkg/metricsutil
 k8s.io/kubectl/pkg/polymorphichelpers
