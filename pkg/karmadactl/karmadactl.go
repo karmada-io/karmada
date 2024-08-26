@@ -30,6 +30,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/addons"
 	"github.com/karmada-io/karmada/pkg/karmadactl/apply"
+	"github.com/karmada-io/karmada/pkg/karmadactl/attach"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cordon"
 	"github.com/karmada-io/karmada/pkg/karmadactl/create"
@@ -114,6 +115,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 		{
 			Message: "Troubleshooting and Debugging Commands:",
 			Commands: []*cobra.Command{
+				attach.NewCmdAttach(f, parentCommand, ioStreams),
 				logs.NewCmdLogs(f, parentCommand, ioStreams),
 				exec.NewCmdExec(f, parentCommand, ioStreams),
 				describe.NewCmdDescribe(f, parentCommand, ioStreams),
