@@ -222,12 +222,25 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return nil
 	}
 
+	if err := c.updateResource(ctx, observedObj, workObject, fedKey); err != nil {
+		return err
+	}
+
+	klog.Infof("Reflecting the resource(kind=%s, %s/%s) status to the Work(%s/%s).", observedObj.GetKind(), observedObj.GetNamespace(), observedObj.GetName(), workNamespace, workName)
+	return c.reflectStatus(ctx, workObject, observedObj)
+}
+
+func (c *WorkStatusController) updateResource(ctx context.Context, observedObj *unstructured.Unstructured, workObject *workv1alpha1.Work, fedKey keys.FederatedKey) error {
+	if helper.IsWorkSuspendDispatching(workObject) {
+		return nil
+	}
+
 	desiredObj, err := c.getRawManifest(workObject.Spec.Workload.Manifests, observedObj)
 	if err != nil {
 		return err
 	}
 
-	clusterName, err := names.GetClusterName(workNamespace)
+	clusterName, err := names.GetClusterName(workObject.Namespace)
 	if err != nil {
 		klog.Errorf("Failed to get member cluster name: %v", err)
 		return err
@@ -255,9 +268,7 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		// also needs to update again. The update operation will be a non-operation if the event triggered by Service's
 		// status changes.
 	}
-
-	klog.Infof("Reflecting the resource(kind=%s, %s/%s) status to the Work(%s/%s).", observedObj.GetKind(), observedObj.GetNamespace(), observedObj.GetName(), workNamespace, workName)
-	return c.reflectStatus(ctx, workObject, observedObj)
+	return nil
 }
 
 func (c *WorkStatusController) handleDeleteEvent(ctx context.Context, key keys.FederatedKey) error {
