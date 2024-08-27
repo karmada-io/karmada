@@ -36,6 +36,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cordon"
 	"github.com/karmada-io/karmada/pkg/karmadactl/create"
 	"github.com/karmada-io/karmada/pkg/karmadactl/deinit"
+	karmadactldelete "github.com/karmada-io/karmada/pkg/karmadactl/delete"
 	"github.com/karmada-io/karmada/pkg/karmadactl/describe"
 	"github.com/karmada-io/karmada/pkg/karmadactl/exec"
 	"github.com/karmada-io/karmada/pkg/karmadactl/explain"
@@ -93,6 +94,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 				explain.NewCmdExplain(f, parentCommand, ioStreams),
 				get.NewCmdGet(f, parentCommand, ioStreams),
 				create.NewCmdCreate(f, parentCommand, ioStreams),
+				karmadactldelete.NewCmdDelete(f, parentCommand, ioStreams),
 			},
 		},
 		{
