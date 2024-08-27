@@ -35,17 +35,35 @@ spec:
         - name: etcd
           image: registry.k8s.io/etcd:3.5.13-0
           imagePullPolicy: IfNotPresent
-          livenessProbe:
-            exec:
-              command:
-                - /bin/sh
-                - -ec
-                - 'etcdctl get /registry --prefix --keys-only  --endpoints https://127.0.0.1:2379  --cacert /etc/karmada/pki/etcd-ca.crt --cert /etc/karmada/pki/etcd-server.crt --key /etc/karmada/pki/etcd-server.key'
+          startupProbe:
+            failureThreshold: 24
+            httpGet:
+              host: 127.0.0.1
+              path: /readyz
+              port: 2381
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 15
+          readinessProbe:
             failureThreshold: 3
-            initialDelaySeconds: 600
-            periodSeconds: 60
-            successThreshold: 1
-            timeoutSeconds: 10
+            httpGet:
+              host: 127.0.0.1
+              path: /readyz
+              port: 2381
+              scheme: HTTP
+            periodSeconds: 1
+            timeoutSeconds: 15
+          livenessProbe:
+            failureThreshold: 8
+            httpGet:
+              host: 127.0.0.1
+              path: /livez
+              port: 2381
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 15
           ports:
             - containerPort: 2379
               name: client
