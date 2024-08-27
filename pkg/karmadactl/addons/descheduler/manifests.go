@@ -45,8 +45,8 @@ spec:
           command:
             - /bin/karmada-descheduler
             - --kubeconfig=/etc/kubeconfig
-            - --bind-address=0.0.0.0
-            - --secure-port=10358
+            - --metrics-bind-address=0.0.0.0:10358
+            - --health-probe-bind-address=0.0.0.0:10358
             - --leader-elect-resource-namespace={{ .Namespace }}
             - --scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt
             - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt
