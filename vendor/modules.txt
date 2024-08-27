@@ -1686,6 +1686,7 @@ k8s.io/kubectl/pkg/cmd/attach
 k8s.io/kubectl/pkg/cmd/create
 k8s.io/kubectl/pkg/cmd/delete
 k8s.io/kubectl/pkg/cmd/describe
+k8s.io/kubectl/pkg/cmd/edit
 k8s.io/kubectl/pkg/cmd/exec
 k8s.io/kubectl/pkg/cmd/explain
 k8s.io/kubectl/pkg/cmd/get
