@@ -1,3 +1,4 @@
+{{- if semverCompare "<1.23.0-0" .Capabilities.KubeVersion.GitVersion }}
 {{- $name := include "karmada.name" . -}}
 {{- $namespace := include "karmada.namespace" . -}}
 {{- if eq .Values.installMode "host" }}
@@ -51,8 +52,8 @@ spec:
           bash <<'EOF'
           set -ex
 
-          # The `post-install hook job` may be applied before all karmada components are ready that rely on `static-resource job` and `hook-job secret`.
-          # So, we have to postpone the deletion of the `static-resource job` and `hook-job secret` until all karmada components are up and running.
+          # The `post-install hook job` may be applied before all karmada components are ready that rely on `static-resource job`.
+          # So, we have to postpone the deletion of the `static-resource job` until all karmada components are up and running.
           while [[ $(kubectl get pods -n {{ $namespace }} --field-selector=status.phase!=Running,status.phase!=Succeeded -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep -v static-resource | wc -l) > 0 ]];
           do
             echo "waiting for all pods of karmada control plane ready..."; sleep 1;
@@ -60,4 +61,5 @@ spec:
 
           kubectl delete job {{ $name }}-static-resource -n {{ $namespace }}
           EOF
+{{- end }}
 {{- end }}
