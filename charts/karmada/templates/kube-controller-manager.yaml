@@ -89,7 +89,6 @@ spec:
         - name: apisever-cert
           secret:
             secretName: {{ $name }}-cert
-        {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
         {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
 
 {{ if .Values.kubeControllerManager.podDisruptionBudget }}
