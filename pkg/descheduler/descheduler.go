@@ -186,6 +186,10 @@ func (d *Descheduler) worker(key util.QueueKey) error {
 		}
 		return fmt.Errorf("get ResourceBinding(%s) error: %v", namespacedName, err)
 	}
+	if !binding.DeletionTimestamp.IsZero() {
+		klog.Infof("ResourceBinding(%s) in work queue is being deleted, ignore.", namespacedName)
+		return nil
+	}
 
 	h := core.NewSchedulingResultHelper(binding)
 	if _, undesiredClusters := h.GetUndesiredClusters(); len(undesiredClusters) == 0 {
