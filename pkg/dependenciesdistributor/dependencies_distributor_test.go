@@ -18,8 +18,10 @@ package dependenciesdistributor
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"testing"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -27,12 +29,14 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -40,6 +44,201 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 )
+
+type MockAsyncWorker struct {
+	queue []interface{}
+}
+
+// Note: This is a dummy implementation of Add for testing purposes.
+func (m *MockAsyncWorker) Add(item interface{}) {
+	// No actual work is done in the mock; we just simulate running
+	m.queue = append(m.queue, item)
+}
+
+// Note: This is a dummy implementation of AddAfter for testing purposes.
+func (m *MockAsyncWorker) AddAfter(item interface{}, duration time.Duration) {
+	// No actual work is done in the mock; we just simulate running
+	fmt.Printf("%v", duration)
+	m.queue = append(m.queue, item)
+}
+
+// Note: This is a dummy implementation of Enqueue for testing purposes.
+func (m *MockAsyncWorker) Enqueue(obj interface{}) {
+	// Assuming KeyFunc is used to generate a key; for simplicity, we use obj directly
+	m.queue = append(m.queue, obj)
+}
+
+// Note: This is a dummy implementation of Run for testing purposes.
+func (m *MockAsyncWorker) Run(workerNumber int, stopChan <-chan struct{}) {
+	// No actual work is done in the mock; we just simulate running
+	fmt.Printf("%v", workerNumber)
+	fmt.Printf("%v", <-stopChan)
+}
+
+// GetQueue returns the current state of the queue
+func (m *MockAsyncWorker) GetQueue() []interface{} {
+	return m.queue
+}
+
+func Test_OnUpdate(t *testing.T) {
+	type args struct {
+		oldObj interface{}
+		newObj interface{}
+	}
+	tests := []struct {
+		name          string
+		args          args
+		wantQueueSize int
+	}{
+		{
+			name: "update the object, specification changed",
+			args: args{
+				oldObj: &corev1.Node{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Node",
+						APIVersion: "v1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "bar",
+					},
+				},
+				newObj: &corev1.Node{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Node",
+						APIVersion: "v1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foo",
+					},
+				},
+			},
+			wantQueueSize: 2,
+		},
+		{
+			name: "do not update the object, no specification changed",
+			args: args{
+				oldObj: &corev1.Node{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Node",
+						APIVersion: "v1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "bar",
+					},
+				},
+				newObj: &corev1.Node{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Node",
+						APIVersion: "v1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "bar",
+					},
+				},
+			},
+			wantQueueSize: 0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockWorker := &MockAsyncWorker{}
+			d := &DependenciesDistributor{
+				resourceProcessor: mockWorker,
+			}
+
+			d.OnUpdate(tt.args.oldObj, tt.args.newObj)
+
+			gotQueueSize := len(mockWorker.GetQueue())
+			if gotQueueSize != tt.wantQueueSize {
+				t.Errorf("OnUpdate() want queue size %v, got %v", tt.wantQueueSize, gotQueueSize)
+			}
+		})
+	}
+}
+
+func Test_reconcileResourceTemplate(t *testing.T) {
+	type args struct {
+		key util.QueueKey
+	}
+	type fields struct {
+		Client client.Client
+	}
+	tests := []struct {
+		name                   string
+		args                   args
+		fields                 fields
+		wantGenericEventLength int
+		wantErr                bool
+	}{
+		{
+			name: "reconcile resource template",
+			args: args{
+				key: &LabelsKey{
+					ClusterWideKey: keys.ClusterWideKey{
+						Group:     "apps",
+						Version:   "v1",
+						Kind:      "Deployment",
+						Name:      "demo-app",
+						Namespace: "test",
+					},
+					Labels: map[string]string{
+						"app": "test",
+					},
+				},
+			},
+			fields: fields{
+				Client: func() client.Client {
+					Scheme := runtime.NewScheme()
+					utilruntime.Must(scheme.AddToScheme(Scheme))
+					utilruntime.Must(workv1alpha2.Install(Scheme))
+					rb := &workv1alpha2.ResourceBinding{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "test-binding",
+							Namespace:       "test",
+							ResourceVersion: "1000",
+							Labels: map[string]string{
+								"app": "test",
+							},
+							Annotations: map[string]string{
+								dependenciesAnnotationKey: "[{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"namespace\":\"test\",\"name\":\"demo-app\"}]",
+							},
+						},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion:      "apps/v1",
+								Kind:            "Deployment",
+								Namespace:       "test",
+								Name:            "demo-app",
+								ResourceVersion: "22222",
+							},
+						},
+					}
+					return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb).Build()
+				}(),
+			},
+			wantGenericEventLength: 1,
+			wantErr:                false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &DependenciesDistributor{
+				Client:       tt.fields.Client,
+				genericEvent: make(chan event.TypedGenericEvent[*workv1alpha2.ResourceBinding], 1),
+			}
+
+			err := d.reconcileResourceTemplate(tt.args.key)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("reconcileResourceTemplate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			gotGenericEventLength := len(d.genericEvent)
+			if gotGenericEventLength != tt.wantGenericEventLength {
+				t.Errorf("reconcileResourceTemplate() length of genericEvent = %v, want length %v", gotGenericEventLength, tt.wantGenericEventLength)
+			}
+		})
+	}
+}
 
 func Test_dependentObjectReferenceMatches(t *testing.T) {
 	type args struct {
@@ -121,6 +320,1298 @@ func Test_dependentObjectReferenceMatches(t *testing.T) {
 			got := matchesWithBindingDependencies(tt.args.objectKey, tt.args.referenceBinding)
 			if got != tt.want {
 				t.Errorf("matchesWithBindingDependencies() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_addFinalizer(t *testing.T) {
+	type fields struct {
+		Client client.Client
+	}
+	type args struct {
+		independentBinding *workv1alpha2.ResourceBinding
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *workv1alpha2.ResourceBinding
+		wantErr bool
+	}{
+		{
+			name: "add finalizer",
+			fields: fields{
+				Client: func() client.Client {
+					Scheme := runtime.NewScheme()
+					utilruntime.Must(scheme.AddToScheme(Scheme))
+					utilruntime.Must(workv1alpha2.Install(Scheme))
+					rb := &workv1alpha2.ResourceBinding{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "test-binding",
+							Namespace:       "test",
+							ResourceVersion: "1000",
+						},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion:      "apps/v1",
+								Kind:            "Deployment",
+								Namespace:       "fake-ns",
+								Name:            "demo-app",
+								ResourceVersion: "22222",
+							},
+						},
+					}
+					return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb).Build()
+				}(),
+			},
+			args: args{
+				independentBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "test-binding",
+						Namespace:       "test",
+						ResourceVersion: "1000",
+					},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Resource: workv1alpha2.ObjectReference{
+							APIVersion:      "apps/v1",
+							Kind:            "Deployment",
+							Namespace:       "fake-ns",
+							Name:            "demo-app",
+							ResourceVersion: "22222",
+						},
+					},
+				},
+			},
+			want: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test-binding",
+					Namespace:       "test",
+					ResourceVersion: "1001",
+					Finalizers:      []string{util.BindingDependenciesDistributorFinalizer},
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{
+						APIVersion:      "apps/v1",
+						Kind:            "Deployment",
+						Namespace:       "fake-ns",
+						Name:            "demo-app",
+						ResourceVersion: "22222",
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &DependenciesDistributor{
+				Client: tt.fields.Client,
+			}
+			err := d.addFinalizer(context.Background(), tt.args.independentBinding)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("addFinalizer() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			bindingKey := client.ObjectKey{Namespace: tt.args.independentBinding.Namespace, Name: tt.args.independentBinding.Name}
+			got := &workv1alpha2.ResourceBinding{}
+			err = d.Client.Get(context.Background(), bindingKey, got)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Client.Get() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Client.Get() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_removeFinalizer(t *testing.T) {
+	type fields struct {
+		Client client.Client
+	}
+	type args struct {
+		independentBinding *workv1alpha2.ResourceBinding
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *workv1alpha2.ResourceBinding
+		wantErr bool
+	}{
+		{
+			name: "remove non-empty finalizer",
+			fields: fields{
+				Client: func() client.Client {
+					Scheme := runtime.NewScheme()
+					utilruntime.Must(scheme.AddToScheme(Scheme))
+					utilruntime.Must(workv1alpha2.Install(Scheme))
+					rb := &workv1alpha2.ResourceBinding{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "test-binding",
+							Namespace:       "test",
+							ResourceVersion: "1000",
+							Finalizers:      []string{util.BindingDependenciesDistributorFinalizer},
+						},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion:      "apps/v1",
+								Kind:            "Deployment",
+								Namespace:       "fake-ns",
+								Name:            "demo-app",
+								ResourceVersion: "22222",
+							},
+						},
+					}
+					return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb).Build()
+				}(),
+			},
+			args: args{
+				independentBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "test-binding",
+						Namespace:       "test",
+						ResourceVersion: "1000",
+						Finalizers:      []string{util.BindingDependenciesDistributorFinalizer},
+					},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Resource: workv1alpha2.ObjectReference{
+							APIVersion:      "apps/v1",
+							Kind:            "Deployment",
+							Namespace:       "fake-ns",
+							Name:            "demo-app",
+							ResourceVersion: "22222",
+						},
+					},
+				},
+			},
+			want: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test-binding",
+					Namespace:       "test",
+					ResourceVersion: "1001",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{
+						APIVersion:      "apps/v1",
+						Kind:            "Deployment",
+						Namespace:       "fake-ns",
+						Name:            "demo-app",
+						ResourceVersion: "22222",
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &DependenciesDistributor{
+				Client: tt.fields.Client,
+			}
+
+			err := d.removeFinalizer(context.Background(), tt.args.independentBinding)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("removeFinalizer() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			bindingKey := client.ObjectKey{Namespace: tt.args.independentBinding.Namespace, Name: tt.args.independentBinding.Name}
+			got := &workv1alpha2.ResourceBinding{}
+			err = d.Client.Get(context.Background(), bindingKey, got)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Client.Get() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Client.Get() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_handleIndependentBindingDeletion(t *testing.T) {
+	type fields struct {
+		Client client.Client
+	}
+	type args struct {
+		id        string
+		namespace string
+		name      string
+	}
+	tests := []struct {
+		name         string
+		fields       fields
+		args         args
+		wantBindings *workv1alpha2.ResourceBindingList
+		wantErr      bool
+	}{
+		{
+			name: "handle independent binding deletion",
+			fields: fields{
+				Client: func() client.Client {
+					Scheme := runtime.NewScheme()
+					utilruntime.Must(scheme.AddToScheme(Scheme))
+					utilruntime.Must(workv1alpha2.Install(Scheme))
+					rb := &workv1alpha2.ResourceBinding{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "test-binding",
+							Namespace:       "test",
+							ResourceVersion: "1000",
+							Labels: map[string]string{
+								"app": "nginx",
+								"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9",
+							},
+						},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion:      "apps/v1",
+								Kind:            "Deployment",
+								Namespace:       "fake-ns",
+								Name:            "demo-app",
+								ResourceVersion: "22222",
+							},
+							RequiredBy: []workv1alpha2.BindingSnapshot{
+								{
+									Namespace: "test",
+									Name:      "test-binding",
+									Clusters: []workv1alpha2.TargetCluster{
+										{
+											Name:     "foo",
+											Replicas: 1,
+										},
+									},
+								},
+								{
+									Namespace: "default-1",
+									Name:      "default-binding-1",
+									Clusters: []workv1alpha2.TargetCluster{
+										{
+											Name:     "member1",
+											Replicas: 2,
+										},
+									},
+								},
+								{
+									Namespace: "test",
+									Name:      "test-binding",
+									Clusters: []workv1alpha2.TargetCluster{
+										{
+											Name:     "bar",
+											Replicas: 1,
+										},
+									},
+								},
+							},
+						},
+					}
+					return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb).Build()
+				}(),
+			},
+			args: args{
+				id:        "93162d3c-ee8e-4995-9034-05f4d5d2c2b9",
+				namespace: "test",
+				name:      "test-binding",
+			},
+			wantBindings: &workv1alpha2.ResourceBindingList{
+				Items: []workv1alpha2.ResourceBinding{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "test-binding",
+							Namespace:       "test",
+							ResourceVersion: "1001",
+							Labels: map[string]string{
+								"app": "nginx",
+							},
+						},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion:      "apps/v1",
+								Kind:            "Deployment",
+								Namespace:       "fake-ns",
+								Name:            "demo-app",
+								ResourceVersion: "22222",
+							},
+							RequiredBy: []workv1alpha2.BindingSnapshot{
+								{
+									Namespace: "default-1",
+									Name:      "default-binding-1",
+									Clusters: []workv1alpha2.TargetCluster{
+										{
+											Name:     "member1",
+											Replicas: 2,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &DependenciesDistributor{
+				Client: tt.fields.Client,
+			}
+			err := d.handleIndependentBindingDeletion(tt.args.id, tt.args.namespace, tt.args.name)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("handleIndependentBindingDeletion() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			existBindings := &workv1alpha2.ResourceBindingList{}
+			err = d.Client.List(context.TODO(), existBindings)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("handleIndependentBindingDeletion(), Client.List() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !reflect.DeepEqual(existBindings, tt.wantBindings) {
+				t.Errorf("handleIndependentBindingDeletion(), Client.List() = %v, want %v", existBindings, tt.wantBindings)
+			}
+		})
+	}
+}
+
+func Test_removeOrphanAttachedBindings(t *testing.T) {
+	type fields struct {
+		Client          client.Client
+		DynamicClient   dynamic.Interface
+		InformerManager genericmanager.SingleClusterInformerManager
+		RESTMapper      meta.RESTMapper
+	}
+	type args struct {
+		independentBinding *workv1alpha2.ResourceBinding
+		dependencies       []configv1alpha1.DependentObjectReference
+	}
+	tests := []struct {
+		name         string
+		fields       fields
+		args         args
+		wantBindings *workv1alpha2.ResourceBindingList
+		wantErr      bool
+	}{
+		{
+			name: "remove orphan attached bindings",
+			fields: fields{
+				Client: func() client.Client {
+					Scheme := runtime.NewScheme()
+					utilruntime.Must(scheme.AddToScheme(Scheme))
+					utilruntime.Must(workv1alpha2.Install(Scheme))
+					rb := &workv1alpha2.ResourceBinding{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "test-binding-1",
+							Namespace:       "test",
+							ResourceVersion: "1000",
+							Labels: map[string]string{
+								"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9",
+							},
+						},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion:      "v1",
+								Kind:            "Pod",
+								Namespace:       "default",
+								Name:            "pod",
+								ResourceVersion: "22222",
+							},
+						},
+					}
+					return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb).Build()
+				}(),
+				DynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme),
+				InformerManager: func() genericmanager.SingleClusterInformerManager {
+					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
+						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"}}})
+					m := genericmanager.NewSingleClusterInformerManager(c, 0, context.TODO().Done())
+					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+					m.Start()
+					m.WaitForCacheSync()
+					return m
+				}(),
+				RESTMapper: func() meta.RESTMapper {
+					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
+					m.Add(corev1.SchemeGroupVersion.WithKind("Pod"), meta.RESTScopeNamespace)
+					return m
+				}(),
+			},
+			args: args{
+				independentBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "test-binding",
+						Namespace:       "test",
+						ResourceVersion: "1000",
+						Labels: map[string]string{
+							workv1alpha2.ResourceBindingPermanentIDLabel: "93162d3c-ee8e-4995-9034-05f4d5d2c2b9",
+						},
+					},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Resource: workv1alpha2.ObjectReference{
+							APIVersion:      "v1",
+							Kind:            "Pod",
+							Namespace:       "default",
+							Name:            "pod",
+							ResourceVersion: "22222",
+						},
+					},
+				},
+				dependencies: []configv1alpha1.DependentObjectReference{
+					{
+						APIVersion: "v1",
+						Kind:       "Pod",
+						Namespace:  "test",
+						Name:       "pod-test",
+					},
+				},
+			},
+			wantBindings: &workv1alpha2.ResourceBindingList{
+				Items: []workv1alpha2.ResourceBinding{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "test-binding-1",
+							Namespace:       "test",
+							ResourceVersion: "1001",
+						},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion:      "v1",
+								Kind:            "Pod",
+								Namespace:       "default",
+								Name:            "pod",
+								ResourceVersion: "22222",
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &DependenciesDistributor{
+				Client:          tt.fields.Client,
+				DynamicClient:   tt.fields.DynamicClient,
+				InformerManager: tt.fields.InformerManager,
+				RESTMapper:      tt.fields.RESTMapper,
+			}
+			err := d.removeOrphanAttachedBindings(context.Background(), tt.args.independentBinding, tt.args.dependencies)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("removeOrphanAttachedBindings() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			existBindings := &workv1alpha2.ResourceBindingList{}
+			err = d.Client.List(context.TODO(), existBindings)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("removeOrphanAttachedBindings(), Client.List() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !reflect.DeepEqual(existBindings, tt.wantBindings) {
+				t.Errorf("removeOrphanAttachedBindings(), Client.List() = %v, want %v", existBindings, tt.wantBindings)
+			}
+		})
+	}
+}
+
+func Test_handleDependentResource(t *testing.T) {
+	type fields struct {
+		Client          client.Client
+		DynamicClient   dynamic.Interface
+		InformerManager genericmanager.SingleClusterInformerManager
+		RESTMapper      meta.RESTMapper
+	}
+	type args struct {
+		independentBinding *workv1alpha2.ResourceBinding
+		dependencies       configv1alpha1.DependentObjectReference
+	}
+	tests := []struct {
+		name        string
+		fields      fields
+		args        args
+		wantBinding *workv1alpha2.ResourceBinding
+		wantErr     bool
+	}{
+		{
+			name: "nil label selector, non-empty name",
+			fields: fields{
+				Client: func() client.Client {
+					Scheme := runtime.NewScheme()
+					utilruntime.Must(scheme.AddToScheme(Scheme))
+					utilruntime.Must(workv1alpha2.Install(Scheme))
+					rb := &workv1alpha2.ResourceBinding{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "test-binding",
+							Namespace:       "test",
+							ResourceVersion: "1000",
+							Labels: map[string]string{
+								"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9",
+							},
+						},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion:      "v1",
+								Kind:            "Pod",
+								Namespace:       "default",
+								Name:            "pod",
+								ResourceVersion: "22222",
+								UID:             types.UID("db56a4a6-0dff-465a-b046-2c1dea42a42b"),
+							},
+							Clusters: []workv1alpha2.TargetCluster{
+								{
+									Name:     "member1",
+									Replicas: 2,
+								},
+							},
+						},
+					}
+					return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb).Build()
+				}(),
+				DynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme),
+				InformerManager: func() genericmanager.SingleClusterInformerManager {
+					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
+						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"}}})
+					m := genericmanager.NewSingleClusterInformerManager(c, 0, context.TODO().Done())
+					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+					m.Start()
+					m.WaitForCacheSync()
+					return m
+				}(),
+				RESTMapper: func() meta.RESTMapper {
+					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
+					m.Add(corev1.SchemeGroupVersion.WithKind("Pod"), meta.RESTScopeNamespace)
+					return m
+				}(),
+			},
+			args: args{
+				independentBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-binding",
+						Namespace: "test",
+						Labels:    map[string]string{workv1alpha2.ResourceBindingPermanentIDLabel: "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"},
+					},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Resource: workv1alpha2.ObjectReference{
+							APIVersion:      "v1",
+							Kind:            "Pod",
+							Namespace:       "default",
+							Name:            "pod",
+							ResourceVersion: "22222",
+							UID:             types.UID("db56a4a6-0dff-465a-b046-2c1dea42a42b"),
+						},
+						Clusters: []workv1alpha2.TargetCluster{
+							{
+								Name:     "member1",
+								Replicas: 2,
+							},
+						},
+					},
+				},
+				dependencies: configv1alpha1.DependentObjectReference{
+					APIVersion: "v1",
+					Kind:       "Pod",
+					Namespace:  "default",
+					Name:       "pod",
+				},
+			},
+			wantBinding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test-binding",
+					Namespace:       "test",
+					ResourceVersion: "1000",
+					Labels:          map[string]string{"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"},
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{
+						APIVersion:      "v1",
+						Kind:            "Pod",
+						Namespace:       "default",
+						Name:            "pod",
+						ResourceVersion: "22222",
+						UID:             types.UID("db56a4a6-0dff-465a-b046-2c1dea42a42b"),
+					},
+					Clusters: []workv1alpha2.TargetCluster{
+						{
+							Name:     "member1",
+							Replicas: 2,
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty name, non-nil label selector",
+			fields: fields{
+				Client: func() client.Client {
+					Scheme := runtime.NewScheme()
+					utilruntime.Must(scheme.AddToScheme(Scheme))
+					utilruntime.Must(workv1alpha2.Install(Scheme))
+					rb := &workv1alpha2.ResourceBinding{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "test-binding",
+							Namespace:       "test",
+							ResourceVersion: "1000",
+							Labels: map[string]string{
+								"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9",
+							},
+						},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion:      "v1",
+								Kind:            "Pod",
+								Namespace:       "default",
+								Name:            "pod",
+								ResourceVersion: "22222",
+								UID:             types.UID("db56a4a6-0dff-465a-b046-2c1dea42a42b"),
+							},
+							Clusters: []workv1alpha2.TargetCluster{
+								{
+									Name:     "member1",
+									Replicas: 2,
+								},
+							},
+						},
+					}
+					return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb).Build()
+				}(),
+				DynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme),
+				InformerManager: func() genericmanager.SingleClusterInformerManager {
+					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
+						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"}}})
+					m := genericmanager.NewSingleClusterInformerManager(c, 0, context.TODO().Done())
+					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+					m.Start()
+					m.WaitForCacheSync()
+					return m
+				}(),
+				RESTMapper: func() meta.RESTMapper {
+					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
+					m.Add(corev1.SchemeGroupVersion.WithKind("Pod"), meta.RESTScopeNamespace)
+					return m
+				}(),
+			},
+			args: args{
+				independentBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-binding",
+						Namespace: "test",
+						Labels:    map[string]string{workv1alpha2.ResourceBindingPermanentIDLabel: "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"},
+					},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Resource: workv1alpha2.ObjectReference{
+							APIVersion:      "v1",
+							Kind:            "Pod",
+							Namespace:       "default",
+							Name:            "pod",
+							ResourceVersion: "22222",
+							UID:             types.UID("db56a4a6-0dff-465a-b046-2c1dea42a42b"),
+						},
+						Clusters: []workv1alpha2.TargetCluster{
+							{
+								Name:     "member1",
+								Replicas: 2,
+							},
+						},
+					},
+				},
+				dependencies: configv1alpha1.DependentObjectReference{
+					APIVersion:    "v1",
+					Kind:          "Pod",
+					Namespace:     "default",
+					LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"}},
+				},
+			},
+			wantBinding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test-binding",
+					Namespace:       "test",
+					ResourceVersion: "1000",
+					Labels:          map[string]string{"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"},
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{
+						APIVersion:      "v1",
+						Kind:            "Pod",
+						Namespace:       "default",
+						Name:            "pod",
+						ResourceVersion: "22222",
+						UID:             types.UID("db56a4a6-0dff-465a-b046-2c1dea42a42b"),
+					},
+					Clusters: []workv1alpha2.TargetCluster{
+						{
+							Name:     "member1",
+							Replicas: 2,
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "nil label selector, empty name",
+			fields: fields{
+				Client: func() client.Client {
+					return fake.NewClientBuilder().Build()
+				}(),
+				DynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme),
+				InformerManager: func() genericmanager.SingleClusterInformerManager {
+					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
+						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"}}})
+					m := genericmanager.NewSingleClusterInformerManager(c, 0, context.TODO().Done())
+					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+					m.Start()
+					m.WaitForCacheSync()
+					return m
+				}(),
+				RESTMapper: func() meta.RESTMapper {
+					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
+					m.Add(corev1.SchemeGroupVersion.WithKind("Pod"), meta.RESTScopeNamespace)
+					return m
+				}(),
+			},
+			args: args{
+				independentBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-binding",
+						Namespace: "test",
+						Labels:    map[string]string{workv1alpha2.ResourceBindingPermanentIDLabel: "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"},
+					},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Clusters: []workv1alpha2.TargetCluster{
+							{
+								Name:     "member1",
+								Replicas: 2,
+							},
+						},
+					},
+				},
+				dependencies: configv1alpha1.DependentObjectReference{
+					APIVersion: "v1",
+					Kind:       "Pod",
+					Namespace:  "default",
+				},
+			},
+			wantBinding: &workv1alpha2.ResourceBinding{},
+			wantErr:     true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &DependenciesDistributor{
+				Client:          tt.fields.Client,
+				DynamicClient:   tt.fields.DynamicClient,
+				InformerManager: tt.fields.InformerManager,
+				RESTMapper:      tt.fields.RESTMapper,
+			}
+			err := d.handleDependentResource(context.Background(), tt.args.independentBinding, tt.args.dependencies)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("handleDependentResource() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			existBinding := &workv1alpha2.ResourceBinding{}
+			bindingKey := client.ObjectKeyFromObject(tt.args.independentBinding)
+			err = d.Client.Get(context.TODO(), bindingKey, existBinding)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("handleDependentResource(), Client.Get() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !reflect.DeepEqual(existBinding, tt.wantBinding) {
+				t.Errorf("handleDependentResource(), Client.Get() = %v, want %v", existBinding, tt.wantBinding)
+			}
+		})
+	}
+}
+
+func Test_recordDependencies(t *testing.T) {
+	type fields struct {
+		Client client.Client
+	}
+	type args struct {
+		independentBinding *workv1alpha2.ResourceBinding
+		dependencies       []configv1alpha1.DependentObjectReference
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *workv1alpha2.ResourceBinding
+		wantErr bool
+	}{
+		{
+			name: "record updated dependencies",
+			fields: fields{
+				Client: func() client.Client {
+					Scheme := runtime.NewScheme()
+					utilruntime.Must(scheme.AddToScheme(Scheme))
+					utilruntime.Must(workv1alpha2.Install(Scheme))
+					rb := &workv1alpha2.ResourceBinding{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "test-binding",
+							Namespace:       "test",
+							ResourceVersion: "1000",
+						},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion:      "v1",
+								Kind:            "Pod",
+								Namespace:       "default",
+								Name:            "pod",
+								ResourceVersion: "22222",
+							},
+						},
+					}
+					return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb).Build()
+				}(),
+			},
+			args: args{
+				independentBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "test-binding",
+						Namespace:       "test",
+						ResourceVersion: "1000",
+					},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Resource: workv1alpha2.ObjectReference{
+							APIVersion:      "v1",
+							Kind:            "Pod",
+							Namespace:       "default",
+							Name:            "pod",
+							ResourceVersion: "22222",
+						},
+					},
+				},
+				dependencies: []configv1alpha1.DependentObjectReference{
+					{
+						APIVersion: "v1",
+						Kind:       "Pod",
+						Namespace:  "default",
+						Name:       "pod",
+					},
+				},
+			},
+			want: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test-binding",
+					Namespace:       "test",
+					ResourceVersion: "1001",
+					Annotations: map[string]string{
+						dependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"namespace\":\"default\",\"name\":\"pod\"}]",
+					},
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{
+						APIVersion:      "v1",
+						Kind:            "Pod",
+						Namespace:       "default",
+						Name:            "pod",
+						ResourceVersion: "22222",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "no need to record non-updated dependencies",
+			fields: fields{
+				Client: func() client.Client {
+					Scheme := runtime.NewScheme()
+					utilruntime.Must(scheme.AddToScheme(Scheme))
+					utilruntime.Must(workv1alpha2.Install(Scheme))
+					rb := &workv1alpha2.ResourceBinding{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "test-binding",
+							Namespace:       "test",
+							ResourceVersion: "1000",
+							Annotations: map[string]string{
+								dependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"namespace\":\"default\",\"name\":\"pod\"}]",
+							},
+						},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion:      "v1",
+								Kind:            "Pod",
+								Namespace:       "default",
+								Name:            "pod",
+								ResourceVersion: "22222",
+							},
+						},
+					}
+					return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb).Build()
+				}(),
+			},
+			args: args{
+				independentBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "test-binding",
+						Namespace:       "test",
+						ResourceVersion: "1000",
+						Annotations: map[string]string{
+							dependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"namespace\":\"default\",\"name\":\"pod\"}]",
+						},
+					},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Resource: workv1alpha2.ObjectReference{
+							APIVersion:      "v1",
+							Kind:            "Pod",
+							Namespace:       "default",
+							Name:            "pod",
+							ResourceVersion: "22222",
+						},
+					},
+				},
+				dependencies: []configv1alpha1.DependentObjectReference{
+					{
+						APIVersion: "v1",
+						Kind:       "Pod",
+						Namespace:  "default",
+						Name:       "pod",
+					},
+				},
+			},
+			want: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test-binding",
+					Namespace:       "test",
+					ResourceVersion: "1000",
+					Annotations: map[string]string{
+						dependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"namespace\":\"default\",\"name\":\"pod\"}]",
+					},
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{
+						APIVersion:      "v1",
+						Kind:            "Pod",
+						Namespace:       "default",
+						Name:            "pod",
+						ResourceVersion: "22222",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "non-matching independent binding",
+			fields: fields{
+				Client: func() client.Client {
+					Scheme := runtime.NewScheme()
+					utilruntime.Must(scheme.AddToScheme(Scheme))
+					utilruntime.Must(workv1alpha2.Install(Scheme))
+					rb := &workv1alpha2.ResourceBinding{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "test-binding",
+							Namespace:       "test",
+							ResourceVersion: "1000",
+							Annotations: map[string]string{
+								dependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"namespace\":\"default\",\"name\":\"pod\"}]",
+							},
+						},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion:      "v1",
+								Kind:            "Pod",
+								Namespace:       "default",
+								Name:            "pod",
+								ResourceVersion: "22222",
+							},
+						},
+					}
+					return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb).Build()
+				}(),
+			},
+			args: args{
+				independentBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "test-binding",
+						Namespace:       "test",
+						ResourceVersion: "999",
+					},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Resource: workv1alpha2.ObjectReference{
+							APIVersion:      "v1",
+							Kind:            "Pod",
+							Namespace:       "default",
+							Name:            "pod",
+							ResourceVersion: "22222",
+						},
+					},
+				},
+				dependencies: []configv1alpha1.DependentObjectReference{
+					{
+						APIVersion: "v1",
+						Kind:       "Pod",
+						Namespace:  "default",
+						Name:       "pod",
+					},
+				},
+			},
+			want: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test-binding",
+					Namespace:       "test",
+					ResourceVersion: "1001",
+					Annotations: map[string]string{
+						dependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"namespace\":\"default\",\"name\":\"pod\"}]",
+					},
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{
+						APIVersion:      "v1",
+						Kind:            "Pod",
+						Namespace:       "default",
+						Name:            "pod",
+						ResourceVersion: "22222",
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &DependenciesDistributor{
+				Client: tt.fields.Client,
+			}
+			err := d.recordDependencies(context.Background(), tt.args.independentBinding, tt.args.dependencies)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("recordDependencies() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			bindingKey := client.ObjectKey{Namespace: tt.args.independentBinding.Namespace, Name: tt.args.independentBinding.Name}
+			got := &workv1alpha2.ResourceBinding{}
+			err = d.Client.Get(context.Background(), bindingKey, got)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Client.Get() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Client.Get() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_findOrphanAttachedBindings(t *testing.T) {
+	type fields struct {
+		Client          client.Client
+		DynamicClient   dynamic.Interface
+		InformerManager genericmanager.SingleClusterInformerManager
+		RESTMapper      meta.RESTMapper
+	}
+	type args struct {
+		independentBinding *workv1alpha2.ResourceBinding
+		dependencies       []configv1alpha1.DependentObjectReference
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []*workv1alpha2.ResourceBinding
+		wantErr bool
+	}{
+		{
+			name: "find orphan attached bindings - matching dependency",
+			fields: fields{
+				Client: func() client.Client {
+					Scheme := runtime.NewScheme()
+					utilruntime.Must(scheme.AddToScheme(Scheme))
+					utilruntime.Must(workv1alpha2.Install(Scheme))
+					rb := &workv1alpha2.ResourceBinding{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "test-binding-1",
+							Namespace:       "test",
+							ResourceVersion: "1000",
+							Labels: map[string]string{
+								"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9",
+							},
+						},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion:      "v1",
+								Kind:            "Pod",
+								Namespace:       "default",
+								Name:            "pod",
+								ResourceVersion: "22222",
+							},
+						},
+					}
+					return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb).Build()
+				}(),
+				DynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme),
+				InformerManager: func() genericmanager.SingleClusterInformerManager {
+					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
+						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"}}})
+					m := genericmanager.NewSingleClusterInformerManager(c, 0, context.TODO().Done())
+					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+					m.Start()
+					m.WaitForCacheSync()
+					return m
+				}(),
+				RESTMapper: func() meta.RESTMapper {
+					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
+					m.Add(corev1.SchemeGroupVersion.WithKind("Pod"), meta.RESTScopeNamespace)
+					return m
+				}(),
+			},
+			args: args{
+				independentBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "test-binding",
+						Namespace:       "test",
+						ResourceVersion: "1000",
+						Labels: map[string]string{
+							workv1alpha2.ResourceBindingPermanentIDLabel: "93162d3c-ee8e-4995-9034-05f4d5d2c2b9",
+						},
+					},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Resource: workv1alpha2.ObjectReference{
+							APIVersion:      "v1",
+							Kind:            "Pod",
+							Namespace:       "default",
+							Name:            "pod",
+							ResourceVersion: "22222",
+						},
+					},
+				},
+				dependencies: []configv1alpha1.DependentObjectReference{
+					{
+						APIVersion: "v1",
+						Kind:       "Pod",
+						Namespace:  "default",
+						Name:       "pod-test",
+					},
+				},
+			},
+			want: []*workv1alpha2.ResourceBinding{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "test-binding-1",
+						Namespace:       "test",
+						ResourceVersion: "1000",
+						Labels: map[string]string{
+							"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9",
+						},
+					},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Resource: workv1alpha2.ObjectReference{
+							APIVersion:      "v1",
+							Kind:            "Pod",
+							Namespace:       "default",
+							Name:            "pod",
+							ResourceVersion: "22222",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "find orphan attached bindings - non matching dependency",
+			fields: fields{
+				Client: func() client.Client {
+					Scheme := runtime.NewScheme()
+					utilruntime.Must(scheme.AddToScheme(Scheme))
+					utilruntime.Must(workv1alpha2.Install(Scheme))
+					rb := &workv1alpha2.ResourceBinding{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "test-binding-1",
+							Namespace:       "test",
+							ResourceVersion: "1000",
+							Labels: map[string]string{
+								"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9",
+							},
+						},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion:      "v1",
+								Kind:            "Pod",
+								Namespace:       "default",
+								Name:            "pod",
+								ResourceVersion: "22222",
+							},
+						},
+					}
+
+					return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb).Build()
+				}(),
+				DynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme),
+				InformerManager: func() genericmanager.SingleClusterInformerManager {
+					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
+						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"}}})
+					m := genericmanager.NewSingleClusterInformerManager(c, 0, context.TODO().Done())
+					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+					m.Start()
+					m.WaitForCacheSync()
+					return m
+				}(),
+				RESTMapper: func() meta.RESTMapper {
+					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
+					m.Add(corev1.SchemeGroupVersion.WithKind("Pod"), meta.RESTScopeNamespace)
+					return m
+				}(),
+			},
+			args: args{
+				independentBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "test-binding",
+						Namespace:       "test",
+						ResourceVersion: "1000",
+						Labels: map[string]string{
+							workv1alpha2.ResourceBindingPermanentIDLabel: "93162d3c-ee8e-4995-9034-05f4d5d2c2b9",
+						},
+					},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Resource: workv1alpha2.ObjectReference{
+							APIVersion:      "v1",
+							Kind:            "Pod",
+							Namespace:       "default",
+							Name:            "pod",
+							ResourceVersion: "22222",
+						},
+					},
+				},
+				dependencies: []configv1alpha1.DependentObjectReference{
+					{
+						APIVersion: "v1",
+						Kind:       "Pod",
+						Namespace:  "test",
+						Name:       "pod-test",
+					},
+				},
+			},
+			want: []*workv1alpha2.ResourceBinding{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "test-binding-1",
+						Namespace:       "test",
+						ResourceVersion: "1000",
+						Labels: map[string]string{
+							"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9",
+						},
+					},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Resource: workv1alpha2.ObjectReference{
+							APIVersion:      "v1",
+							Kind:            "Pod",
+							Namespace:       "default",
+							Name:            "pod",
+							ResourceVersion: "22222",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &DependenciesDistributor{
+				Client:          tt.fields.Client,
+				DynamicClient:   tt.fields.DynamicClient,
+				InformerManager: tt.fields.InformerManager,
+				RESTMapper:      tt.fields.RESTMapper,
+			}
+			got, err := d.findOrphanAttachedBindings(context.Background(), tt.args.independentBinding, tt.args.dependencies)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("findOrphanAttachedBindings() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("findOrphanAttachedBindings() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
