@@ -452,8 +452,8 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 				Command: []string{
 					"/bin/karmada-scheduler",
 					"--kubeconfig=/etc/kubeconfig",
-					"--bind-address=0.0.0.0",
-					"--secure-port=10351",
+					"--metrics-bind-address=0.0.0.0:10351",
+					"--health-probe-bind-address=0.0.0.0:10351",
 					"--enable-scheduler-estimator=true",
 					"--leader-elect=true",
 					"--scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt",
