@@ -113,6 +113,10 @@ type KarmadaSpec struct {
 	// By default, the operator will only attempt to download the tarball if it's not yet present in the local cache.
 	// +optional
 	CRDTarball *CRDTarball `json:"crdTarball,omitempty"`
+
+	// CertConfig represents a config to generate certificate by karmada.
+  // +optional
+  CertConfig *CertConfig `json:"certConfig,omitempty"`
 }
 
 // ImageRegistry represents an image registry as well as the
@@ -593,6 +597,29 @@ type CommonSettings struct {
 	// More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
 	// +optional
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+// CertConfig represents the configuration for creating a signing certificate.
+// It includes settings such as expiry, not_before, not_after, and public key algorithm.
+type CertConfig struct {
+	// Expiry is the duration of the certificate's validity period.
+	// The unit is days, where 1 represents one day.
+	// Defaults to 365.
+	// +optional
+	Expiry int32 `json:"expiry,omitempty"`
+	// NotBefore specifies the start date and time of the certificate's validity period.
+	// If this field is nil, the current time is used as the start time.
+	// +optional
+	NotBefore *metav1.Time `json:"notBefore,omitempty"`
+	// NotAfter specifies the end date and time of the certificate's validity period.
+	// This field can be nil, indicating that the end time will be calculated based on Expiry.
+	// +optional
+	NotAfter *metav1.Time `json:"notAfter,omitempty"`
+	// PublicKeyAlgorithm is the public key algorithm used for the certificate.
+	// This can be RSA, DSA, ECDSA, and Ed25519.
+	// Defaults to RSA
+	// +optional
+	PublicKeyAlgorithm *string `json:"publicKeyAlgorithm,omitempty"`
 }
 
 // Image allows to customize the image used for components.

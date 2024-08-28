@@ -36,6 +36,7 @@ type InitData interface {
 	KarmadaClient() clientset.Interface
 	DataDir() string
 	CrdTarball() operatorv1alpha1.CRDTarball
+	GetCertConfig() operatorv1alpha1.CertConfig
 	KarmadaVersion() string
 	Components() *operatorv1alpha1.KarmadaComponents
 	FeatureGates() map[string]bool

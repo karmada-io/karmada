@@ -78,13 +78,6 @@ func (config *CertConfig) defaultPublicKeyAlgorithm() {
 	}
 }
 
-func (config *CertConfig) defaultNotAfter() {
-	if config.NotAfter == nil {
-		notAfter := time.Now().Add(constants.CertificateValidity).UTC()
-		config.NotAfter = &notAfter
-	}
-}
-
 // GetDefaultCertList returns all of karmada certConfigs, it include karmada, front and etcd.
 func GetDefaultCertList() []*CertConfig {
 	return []*CertConfig{
@@ -291,9 +284,6 @@ func CreateCertAndKeyFilesWithCA(cc *CertConfig, caCertData, caKeyData []byte) (
 		return nil, fmt.Errorf("must specify at least one ExtKeyUsage")
 	}
 
-	cc.defaultNotAfter()
-	cc.defaultPublicKeyAlgorithm()
-
 	key, err := GeneratePrivateKey(cc.PublicKeyAlgorithm)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create private key, err: %w", err)
@@ -356,7 +346,7 @@ func NewSignedCert(cc *CertConfig, key crypto.Signer, caCert *x509.Certificate, 
 		DNSNames:              cc.Config.AltNames.DNSNames,
 		IPAddresses:           cc.Config.AltNames.IPs,
 		SerialNumber:          serial,
-		NotBefore:             caCert.NotBefore,
+		NotBefore:             cc.Config.NotBefore,
 		NotAfter:              cc.NotAfter.UTC(),
 		KeyUsage:              keyUsage,
 		ExtKeyUsage:           cc.Config.Usages,

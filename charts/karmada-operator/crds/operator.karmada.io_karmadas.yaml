@@ -48,6 +48,36 @@ spec:
           spec:
             description: Spec defines the desired behavior of the Karmada.
             properties:
+              certConfig:
+                description: CertConfig represents a config to generate certificate
+                  by karmada.
+                properties:
+                  expiry:
+                    description: |-
+                      Expiry is the duration of the certificate's validity period.
+                      The unit is days, where 1 represents one day.
+                      Defaults to 365.
+                    format: int32
+                    type: integer
+                  notAfter:
+                    description: |-
+                      NotAfter specifies the end date and time of the certificate's validity period.
+                      This field can be nil, indicating that the end time will be calculated based on Expiry.
+                    format: date-time
+                    type: string
+                  notBefore:
+                    description: |-
+                      NotBefore specifies the start date and time of the certificate's validity period.
+                      If this field is nil, the current time is used as the start time.
+                    format: date-time
+                    type: string
+                  publicKeyAlgorithm:
+                    description: |-
+                      PublicKeyAlgorithm is the public key algorithm used for the certificate.
+                      This can be RSA, DSA, ECDSA, and Ed25519.
+                      Defaults to RSA
+                    type: string
+                type: object
               components:
                 description: |-
                   Components define all of karmada components.

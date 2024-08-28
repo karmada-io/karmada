@@ -18,11 +18,14 @@ package tasks
 
 import (
 	"context"
+	"crypto/x509"
 	"errors"
 	"fmt"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 
 	"github.com/karmada-io/karmada/operator/pkg/certs"
 	"github.com/karmada-io/karmada/operator/pkg/util"
@@ -148,6 +151,19 @@ func runCertTask(cc, caCert *certs.CertConfig) func(d workflow.RunData) error {
 }
 
 func mutateCertConfig(data InitData, cc *certs.CertConfig) error {
+	cc.Config.NotBefore = data.GetCertConfig().NotBefore.Time
+	switch *data.GetCertConfig().PublicKeyAlgorithm {
+	case "DSA":
+		cc.PublicKeyAlgorithm = x509.DSA
+	case "ECDSA":
+		cc.PublicKeyAlgorithm = x509.ECDSA
+	case "Ed25519":
+		cc.PublicKeyAlgorithm = x509.Ed25519
+	default:
+		cc.PublicKeyAlgorithm = x509.RSA
+	}
+	cc.NotAfter = ptr.To[time.Time](data.GetCertConfig().NotAfter.Time)
+	
 	if cc.AltNamesMutatorFunc != nil {
 		err := cc.AltNamesMutatorFunc(&certs.AltNamesMutatorConfig{
 			Name:                data.GetName(),
