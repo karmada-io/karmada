@@ -1034,7 +1034,7 @@ var _ = ginkgo.Describe("[Suspend] clusterPropagation testing", func() {
 	ginkgo.BeforeEach(func() {
 		targetMember = framework.ClusterNames()[0]
 		policyName := clusterRoleNamePrefix + rand.String(RandomStrLength)
-		clusterRoleName := fmt.Sprintf("system:test-%s", policyName)
+		clusterRoleName := fmt.Sprintf("system:test-suspend-%s", policyName)
 
 		clusterRole = testhelper.NewClusterRole(clusterRoleName, nil)
 		resourceBindingName = names.GenerateBindingName(clusterRole.Kind, clusterRole.Name)
@@ -1057,6 +1057,7 @@ var _ = ginkgo.Describe("[Suspend] clusterPropagation testing", func() {
 		ginkgo.DeferCleanup(func() {
 			framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
 			framework.RemoveClusterRole(kubeClient, clusterRole.Name)
+			framework.WaitClusterRoleBindingDisappearOnCluster(targetMember, clusterRole.Name)
 		})
 	})
 
