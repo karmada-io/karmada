@@ -115,8 +115,8 @@ type KarmadaSpec struct {
 	CRDTarball *CRDTarball `json:"crdTarball,omitempty"`
 
 	// CertConfig represents a config to generate certificate by karmada.
-  // +optional
-  CertConfig *CertConfig `json:"certConfig,omitempty"`
+	// +optional
+	CertConfig *CertConfig `json:"certConfig,omitempty"`
 }
 
 // ImageRegistry represents an image registry as well as the

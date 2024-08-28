@@ -218,7 +218,7 @@ function util::create_signing_certkey {
       exit 1
     fi
 
-		local ca_config='{"signing":{"default":{"expiry":"'"${expiry}"'","usages":["signing","key encipherment",'"${purpose}"']}}}'
+    local ca_config='{"signing":{"default":{"expiry":"'"${expiry}"'","usages":["signing","key encipherment",'"${purpose}"']}}}'
     if [[ -n "$not_before" && -n "$not_after" ]]; then
         ca_config='{"signing":{"default":{"expiry":"'"${expiry}"'","not_before":"'"${not_before}"'","not_after":"'"${not_after}"'","usages":["signing","key encipherment",'"${purpose}"']}}}'
     elif [[ -n "$not_before" ]]; then
