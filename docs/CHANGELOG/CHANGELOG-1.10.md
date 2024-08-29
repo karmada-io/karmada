@@ -58,6 +58,7 @@ Download v1.10.4 in the [v1.10.4 release page](https://github.com/karmada-io/kar
 #### Others
 - The base image `alpine` now has been promoted from `alpine:3.20.1` to `alpine:3.20.2`. ([#5268](https://github.com/karmada-io/karmada/pull/5268))
 - Bump golang version to `v1.21.13` ([#5371](https://github.com/karmada-io/karmada/pull/5371), @zhzhuang-zju)
+- [Enable `karmada-data` flag in `karmadactl register` command](https://github.com/karmada-io/karmada/pull/5429) for storing karmada configuration files.
 
 # v1.10.3
 ## Downloads for v1.10.3
