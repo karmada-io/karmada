@@ -38,10 +38,10 @@ type Options struct {
 	Master      string
 	ClusterName string
 	// BindAddress is the IP address on which to listen for the --secure-port port.
-	// Deprecated: To specify the TCP addresse for serving health probes, use HealthProbeBindAddress instead. To specify the TCP addresse for serving prometheus metrics, use MetricsBindAddress instead. This will be removed in release 1.12+.
+	// Deprecated: To specify the TCP address for serving health probes, use HealthProbeBindAddress instead. To specify the TCP address for serving prometheus metrics, use MetricsBindAddress instead. This will be removed in release 1.12+.
 	BindAddress string
 	// SecurePort is the port that the server serves at.
-	// Deprecated: To specify the TCP addresse for serving health probes, use HealthProbeBindAddress instead. To specify the TCP addresse for serving prometheus metrics, use MetricsBindAddress instead. This will be removed in release 1.12+.
+	// Deprecated: To specify the TCP address for serving health probes, use HealthProbeBindAddress instead. To specify the TCP address for serving prometheus metrics, use MetricsBindAddress instead. This will be removed in release 1.12+.
 	SecurePort int
 	// ServerPort is the port that the server gRPC serves at.
 	ServerPort int
