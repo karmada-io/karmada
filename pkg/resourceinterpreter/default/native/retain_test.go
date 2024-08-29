@@ -559,13 +559,13 @@ func Test_retainPodFields(t *testing.T) {
 				}},
 				observed: &corev1.Pod{Spec: corev1.PodSpec{
 					NodeName:           "node1",
-					ServiceAccountName: "fake-obersved-sa",
+					ServiceAccountName: "fake-observed-sa",
 					Volumes: []corev1.Volume{
 						{
-							Name: "fake-obersved-volume",
+							Name: "fake-observed-volume",
 							VolumeSource: corev1.VolumeSource{
 								Secret: &corev1.SecretVolumeSource{
-									SecretName: "fake-obersved-secret",
+									SecretName: "fake-observed-secret",
 								},
 							},
 						},
@@ -612,13 +612,13 @@ func Test_retainPodFields(t *testing.T) {
 			},
 			want: &corev1.Pod{Spec: corev1.PodSpec{
 				NodeName:           "node1",
-				ServiceAccountName: "fake-obersved-sa",
+				ServiceAccountName: "fake-observed-sa",
 				Volumes: []corev1.Volume{
 					{
-						Name: "fake-obersved-volume",
+						Name: "fake-observed-volume",
 						VolumeSource: corev1.VolumeSource{
 							Secret: &corev1.SecretVolumeSource{
-								SecretName: "fake-obersved-secret",
+								SecretName: "fake-observed-secret",
 							},
 						},
 					},
