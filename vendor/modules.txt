@@ -1681,6 +1681,7 @@ k8s.io/kube-openapi/pkg/validation/strfmt/bson
 # k8s.io/kubectl v0.30.2
 ## explicit; go 1.22.0
 k8s.io/kubectl/pkg/apps
+k8s.io/kubectl/pkg/cmd/annotate
 k8s.io/kubectl/pkg/cmd/apiresources
 k8s.io/kubectl/pkg/cmd/apply
 k8s.io/kubectl/pkg/cmd/attach
