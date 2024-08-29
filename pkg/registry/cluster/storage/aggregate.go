@@ -149,7 +149,7 @@ func requestWithResourceNameHandlerFunc(
 					klog.Errorf("failed to get impersonateToken for cluster %s: %v", cluster.Name, err)
 					return
 				}
-				statusCode, err := doClusterRequest(req.Method, requestURLStr(location.String(), proxyRequestInfo), transport, requester, impersonateToken)
+				statusCode, err := doClusterRequest(req.Method, requestURLStr(location, proxyRequestInfo), transport, requester, impersonateToken)
 				if err != nil {
 					klog.Errorf("failed to do request for cluster %s: %v", cluster.Name, err)
 					return
@@ -358,7 +358,7 @@ func doClusterRequest(
 }
 
 // requestURLStr returns the request resource url string.
-func requestURLStr(urlStr string, requestInfo *request.RequestInfo) string {
+func requestURLStr(location *url.URL, requestInfo *request.RequestInfo) string {
 	parts := []string{requestInfo.APIPrefix}
 	if requestInfo.APIGroup != "" {
 		parts = append(parts, requestInfo.APIGroup)
@@ -377,7 +377,7 @@ func requestURLStr(urlStr string, requestInfo *request.RequestInfo) string {
 		requestInfo.Subresource != "exec" && requestInfo.Subresource != "log" {
 		parts = append(parts, requestInfo.Subresource)
 	}
-	return fmt.Sprintf("%s/%s", urlStr, strings.Join(parts, "/"))
+	return location.ResolveReference(&url.URL{Path: strings.Join(parts, "/")}).String()
 }
 
 func setRequestHeader(req *http.Request, userInfo user.Info, impersonateToken string) {
