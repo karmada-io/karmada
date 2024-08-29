@@ -35,7 +35,7 @@ const (
 	scaleTargetWorkerNum = 1
 )
 
-// HpaScaleTargetMarker is to automatically add `retain-replicas` label to resource template mananged by HPA.
+// HpaScaleTargetMarker is to automatically add `retain-replicas` label to resource template managed by HPA.
 type HpaScaleTargetMarker struct {
 	DynamicClient dynamic.Interface
 	RESTMapper    meta.RESTMapper

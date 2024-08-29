@@ -47,8 +47,8 @@ var (
 )
 
 // NewCmdEdit returns new initialized instance of edit sub command
-func NewCmdEdit(f util.Factory, parentCommnd string, ioStreams genericiooptions.IOStreams) *cobra.Command {
+func NewCmdEdit(f util.Factory, parentCommand string, ioStreams genericiooptions.IOStreams) *cobra.Command {
 	cmd := kubectledit.NewCmdEdit(f, ioStreams)
-	cmd.Example = fmt.Sprintf(editExample, parentCommnd)
+	cmd.Example = fmt.Sprintf(editExample, parentCommand)
 	return cmd
 }

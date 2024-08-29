@@ -57,7 +57,7 @@ func (o *OperationScope) String() string {
 	return string(*o)
 }
 
-// Set vaule to OperationScope
+// Set value to OperationScope
 func (o *OperationScope) Set(s string) error {
 	switch s {
 	case "":

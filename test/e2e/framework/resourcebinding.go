@@ -50,17 +50,17 @@ func AssertBindingScheduledClusters(client karmada.Interface, namespace, name st
 			if err != nil {
 				return err
 			}
-			scheduledClutsers := make([]string, 0, len(binding.Spec.Clusters))
+			scheduledClusters := make([]string, 0, len(binding.Spec.Clusters))
 			for _, scheduledCluster := range binding.Spec.Clusters {
-				scheduledClutsers = append(scheduledClutsers, scheduledCluster.Name)
+				scheduledClusters = append(scheduledClusters, scheduledCluster.Name)
 			}
-			sort.Strings(scheduledClutsers)
-			for _, expectedClutsers := range expectedResults {
-				if reflect.DeepEqual(scheduledClutsers, expectedClutsers) {
+			sort.Strings(scheduledClusters)
+			for _, expectedClusters := range expectedResults {
+				if reflect.DeepEqual(scheduledClusters, expectedClusters) {
 					return nil
 				}
 			}
-			return fmt.Errorf("scheduled clusters: %+v, expected possible results: %+v", scheduledClutsers, expectedResults)
+			return fmt.Errorf("scheduled clusters: %+v, expected possible results: %+v", scheduledClusters, expectedResults)
 		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }
