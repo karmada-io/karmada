@@ -11,6 +11,9 @@ metadata:
 spec:
   parallelism: 1
   completions: 1
+  {{- if semverCompare ">=1.23.0-0" .Capabilities.KubeVersion.GitVersion }}
+  ttlSecondsAfterFinished: {{ .Values.staticResourceJob.ttlSecondsAfterFinished }}
+  {{- end }}
   template:
     metadata:
       name: {{ $name }}

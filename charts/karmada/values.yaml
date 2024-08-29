@@ -102,6 +102,9 @@ preInstallJob:
 staticResourceJob:
   tolerations: []
   nodeSelector: {}
+  ## Set a TTL for the static-resource Job, the Job will be automatically cleaned up after this time.
+  ## This only works on Kubernetes version 1.23 or higher.
+  ttlSecondsAfterFinished: 10
 
 ## post-install job config
 postInstallJob:
