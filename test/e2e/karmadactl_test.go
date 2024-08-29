@@ -589,28 +589,30 @@ var _ = ginkgo.Describe("Karmadactl top testing", func() {
 		})
 
 		ginkgo.It("Karmadactl top existing pod", func() {
-			for _, clusterName := range framework.ClusterNames() {
-				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, pod.Namespace, karmadactlTimeout, "top", "pod", pod.Name, "-n", pod.Namespace, "-C", clusterName)
+			ginkgo.By("Karmadactl top existing pod", func() {
+				for _, clusterName := range framework.ClusterNames() {
+					cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, pod.Namespace, karmadactlTimeout, "top", "pod", pod.Name, "-n", pod.Namespace, "-C", clusterName)
+					_, err := cmd.ExecOrDie()
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}
+			})
+
+			ginkgo.By("Karmadactl top existing pod without setting cluster flag", func() {
+				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, pod.Namespace, karmadactlTimeout, "top", "pod", pod.Name, "-n", pod.Namespace)
 				_, err := cmd.ExecOrDie()
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			}
-		})
+			})
 
-		ginkgo.It("Karmadactl top existing pod without setting cluster flag", func() {
-			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, pod.Namespace, karmadactlTimeout, "top", "pod", pod.Name, "-n", pod.Namespace)
-			_, err := cmd.ExecOrDie()
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		})
-
-		ginkgo.It("Karmadactl top pod without specific podName", func() {
-			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, pod.Namespace, karmadactlTimeout, "top", "pod", "-A")
-			_, err := cmd.ExecOrDie()
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			for _, clusterName := range framework.ClusterNames() {
-				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, pod.Namespace, karmadactlTimeout, "top", "pod", "-A", "-C", clusterName)
+			ginkgo.By("Karmadactl top pod without specific podName", func() {
+				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, pod.Namespace, karmadactlTimeout, "top", "pod", "-A")
 				_, err := cmd.ExecOrDie()
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			}
+				for _, clusterName := range framework.ClusterNames() {
+					cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, pod.Namespace, karmadactlTimeout, "top", "pod", "-A", "-C", clusterName)
+					_, err := cmd.ExecOrDie()
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}
+			})
 		})
 	})
 })

@@ -84,6 +84,12 @@ var (
 		# Show metrics for all pods in the default namespace
 		%[1]s top pod
 
+		# Show metrics for all pods in the default namespace in member1 cluster
+		%[1]s top pod --clusters=member1
+
+		# Show metrics for all pods in the default namespace in member1 and member2 cluster
+		%[1]s top pod --clusters=member1,member2
+
 		# Show metrics for all pods in the given namespace
 		%[1]s top pod --namespace=NAMESPACE
 
