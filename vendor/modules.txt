@@ -1691,6 +1691,7 @@ k8s.io/kubectl/pkg/cmd/edit
 k8s.io/kubectl/pkg/cmd/exec
 k8s.io/kubectl/pkg/cmd/explain
 k8s.io/kubectl/pkg/cmd/get
+k8s.io/kubectl/pkg/cmd/label
 k8s.io/kubectl/pkg/cmd/logs
 k8s.io/kubectl/pkg/cmd/testing
 k8s.io/kubectl/pkg/cmd/util
