@@ -41,6 +41,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 	globaloptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	karmadactlutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	"github.com/karmada-io/karmada/pkg/version"
 )
@@ -283,15 +284,33 @@ func (i *CommandInitOption) Complete() error {
 	return initializeDirectory(i.KarmadaDataPath)
 }
 
-// initializeDirectory initializes a directory and makes sure it's empty.
+// initializeDirectory ensures that the specified path is a directory.
+// If the path does not exist, it creates the directory with the specified permissions (0700).
+// If the path exists as a file, it returns an error indicating that the path is a file, not a directory.
+// If the path exists as a directory, it removes the existing directory and its contents before creating a new one.
+//
+// Parameters:
+//
+//	path (string): The path to check or create.
+//
+// Returns:
+//
+//	error: An error if the path exists as a file, or if there was an issue creating the directory
+//	       or removing an existing directory, or nil if successful.
 func initializeDirectory(path string) error {
-	if utils.IsExist(path) {
+	pathType, exists := karmadactlutil.IsExist(path)
+	if exists && pathType == karmadactlutil.Directory {
 		if err := os.RemoveAll(path); err != nil {
-			return err
+			return fmt.Errorf("failed to remove existing directory '%s': %w", path, err)
 		}
 	}
-	if err := os.MkdirAll(path, os.FileMode(0700)); err != nil {
-		return fmt.Errorf("failed to create directory: %s, error: %v", path, err)
+
+	if !exists {
+		if err := os.MkdirAll(path, os.FileMode(0700)); err != nil {
+			return fmt.Errorf("failed to create directory '%s': %w", path, err)
+		}
+	} else if pathType == karmadactlutil.File {
+		return fmt.Errorf("path '%s' exists and is a file, not a directory", path)
 	}
 
 	return nil

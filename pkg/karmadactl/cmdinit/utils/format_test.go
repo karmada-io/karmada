@@ -21,6 +21,8 @@ import (
 	"os"
 	"reflect"
 	"testing"
+
+	karmadactlutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
 func stringInslice(target string, strArray []string) bool {
@@ -34,25 +36,32 @@ func stringInslice(target string, strArray []string) bool {
 
 func TestIsExist(t *testing.T) {
 	tests := []struct {
-		name string
-		path string
-		want bool
+		name              string
+		path              string
+		expectedPathType  karmadactlutil.PathType
+		expectedExistence bool
 	}{
 		{
-			name: "path exist",
-			path: "./",
-			want: true,
+			name:              "path exist",
+			path:              "./",
+			expectedPathType:  karmadactlutil.Directory,
+			expectedExistence: true,
 		},
 		{
-			name: "path is not exist",
-			path: "for-a-not-exist-path" + randString(),
-			want: false,
+			name:              "path is not exist",
+			path:              "for-a-not-exist-path" + randString(),
+			expectedPathType:  karmadactlutil.NonExistent,
+			expectedExistence: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := IsExist(tt.path); got != tt.want {
-				t.Errorf("IsExist() = %v, want %v", got, tt.want)
+			pathType, got := karmadactlutil.IsExist(tt.path)
+			if got != tt.expectedExistence {
+				t.Errorf("IsExist() existence = %v, want %v", got, tt.expectedExistence)
+			}
+			if pathType != tt.expectedPathType {
+				t.Errorf("IsExist() pathType = %v, want %v", pathType, tt.expectedPathType)
 			}
 		})
 	}
