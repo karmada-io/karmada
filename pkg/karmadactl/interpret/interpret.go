@@ -44,13 +44,13 @@ var (
 	interpretLong = templates.LongDesc(`
         Validate, test and edit interpreter customization before applying it to the control plane.
 
-        1. Validate the ResourceInterpreterCustomization configuration as per API schema
+		1. Validate the ResourceInterpreterCustomization configuration as per API schema
            and try to load the scripts for syntax check.
 
-        2. Run the rules locally and test if the result is expected. Similar to the dry run.
+		2. Run the rules locally and test if the result is expected. Similar to the dry run.
 
 		3. Edit customization. Similar to the kubectl edit.
-`)
+	`)
 
 	interpretExample = templates.Examples(`
         # Check the customizations in file
@@ -82,7 +82,7 @@ var (
 
 		# Edit customization
 		%[1]s interpret -f customization.yml --edit
-`)
+	`)
 )
 
 const (
