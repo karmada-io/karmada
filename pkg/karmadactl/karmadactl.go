@@ -29,6 +29,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/addons"
+	"github.com/karmada-io/karmada/pkg/karmadactl/annotate"
 	"github.com/karmada-io/karmada/pkg/karmadactl/apiresources"
 	"github.com/karmada-io/karmada/pkg/karmadactl/apply"
 	"github.com/karmada-io/karmada/pkg/karmadactl/attach"
@@ -142,6 +143,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 			Message: "Settings Commands:",
 			Commands: []*cobra.Command{
 				label.NewCmdLabel(f, parentCommand, ioStreams),
+				annotate.NewCmdAnnotate(f, parentCommand, ioStreams),
 			},
 		},
 		{
