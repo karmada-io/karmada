@@ -49,6 +49,7 @@ spec:
         - /bin/karmada-webhook
         - --kubeconfig=/etc/karmada/kubeconfig
         - --bind-address=0.0.0.0
+        - --metrics-bind-address=:8080
         - --default-not-ready-toleration-seconds=30
         - --default-unreachable-toleration-seconds=30
         - --secure-port=8443
@@ -56,6 +57,9 @@ spec:
         - --v=4
         ports:
         - containerPort: 8443
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
         volumeMounts:
         - name: kubeconfig
           subPath: kubeconfig
