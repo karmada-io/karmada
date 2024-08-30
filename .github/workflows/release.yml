@@ -200,11 +200,22 @@ jobs:
       base64-subjects: "${{ needs.sbom-assests.outputs.hashes }}"
       provenance-name: "karmada-sbom.intoto.jsonl"
       upload-assets: true
+
   update-krew-index:
-    needs: release-assests
+    needs: 
+    - release-assests
     name: Update krew-index
     runs-on: ubuntu-22.04
     steps:
+    - name: get latest tag
+      id: get-latest-tag
+      run: |
+        export LATEST_TAG=`gh api repos/karmada-io/karmada/releases/latest | jq -r '.tag_name'`
+        echo "Got the latest tag:$LATEST_TAG"
+        echo "event.tag:"${{ github.event.release.tag_name }}
+        echo "latestTag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
     - uses: actions/checkout@v4
+      if: steps.get-latest-tag.outputs.latestTag == github.event.release.tag_name
     - name: Update new version in krew-index
+      if: steps.get-latest-tag.outputs.latestTag == github.event.release.tag_name
       uses: rajatjindal/krew-release-bot@v0.0.46
