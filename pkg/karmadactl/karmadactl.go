@@ -48,6 +48,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/label"
 	"github.com/karmada-io/karmada/pkg/karmadactl/logs"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/patch"
 	"github.com/karmada-io/karmada/pkg/karmadactl/promote"
 	"github.com/karmada-io/karmada/pkg/karmadactl/register"
 	"github.com/karmada-io/karmada/pkg/karmadactl/taint"
@@ -137,6 +138,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 				apply.NewCmdApply(f, parentCommand, ioStreams),
 				promote.NewCmdPromote(f, parentCommand),
 				top.NewCmdTop(f, parentCommand, ioStreams),
+				patch.NewCmdPatch(f, parentCommand, ioStreams),
 			},
 		},
 		{
