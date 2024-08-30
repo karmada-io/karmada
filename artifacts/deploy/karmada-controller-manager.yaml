@@ -26,6 +26,8 @@ spec:
           command:
             - /bin/karmada-controller-manager
             - --kubeconfig=/etc/kubeconfig
+            - --bind-address=0.0.0.0
+            - --metrics-bind-address=:8080
             - --cluster-status-update-frequency=10s
             - --failover-eviction-timeout=30s
             - --controllers=*,hpaScaleTargetMarker,deploymentReplicasSyncer
@@ -41,6 +43,10 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 15
             timeoutSeconds: 5
+          ports:
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
           volumeMounts:
           - name: kubeconfig
             subPath: kubeconfig
