@@ -128,6 +128,7 @@ spec:
         command:
         - /bin/karmada-controller-manager
         - --kubeconfig=/etc/karmada/kubeconfig
+        - --metrics-bind-address=:8080
         - --cluster-status-update-frequency=10s
         - --failover-eviction-timeout=30s
         - --leader-elect-resource-namespace={{ .SystemNamespace }}
@@ -142,6 +143,10 @@ spec:
           initialDelaySeconds: 15
           periodSeconds: 15
           timeoutSeconds: 5
+        ports:
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
         volumeMounts:
         - name: kubeconfig
           subPath: kubeconfig
@@ -200,6 +205,10 @@ spec:
           initialDelaySeconds: 15
           periodSeconds: 15
           timeoutSeconds: 5
+        ports:
+        - containerPort: 10351
+          name: metrics
+          protocol: TCP
         volumeMounts:
         - name: karmada-certs
           mountPath: /etc/karmada/pki
@@ -263,6 +272,10 @@ spec:
           initialDelaySeconds: 15
           periodSeconds: 15
           timeoutSeconds: 5
+        ports:
+        - containerPort: 10358
+          name: metrics
+          protocol: TCP
         volumeMounts:
         - name: karmada-certs
           mountPath: /etc/karmada/pki
