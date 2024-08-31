@@ -51,6 +51,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/patch"
 	"github.com/karmada-io/karmada/pkg/karmadactl/promote"
+	"github.com/karmada-io/karmada/pkg/karmadactl/rebalance"
 	"github.com/karmada-io/karmada/pkg/karmadactl/register"
 	"github.com/karmada-io/karmada/pkg/karmadactl/taint"
 	"github.com/karmada-io/karmada/pkg/karmadactl/token"
@@ -152,6 +153,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 				promote.NewCmdPromote(f, parentCommand),
 				top.NewCmdTop(f, parentCommand, ioStreams),
 				patch.NewCmdPatch(f, parentCommand, ioStreams),
+				rebalance.NewCmdRebalance(f, parentCommand),
 			},
 		},
 		{
