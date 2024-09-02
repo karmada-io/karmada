@@ -202,6 +202,8 @@ jobs:
       upload-assets: true
 
   update-krew-index:
+    env: 
+      GH_TOKEN: ${{ github.token }}
     needs: 
     - release-assests
     name: Update krew-index
