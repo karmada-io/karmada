@@ -55,9 +55,6 @@ spec:
         - --etcd-keyfile=/etc/etcd/pki/etcd-client.key
         - --etcd-servers=https://{{ .EtcdClientService }}.{{ .Namespace }}.svc.cluster.local:{{ .EtcdListenClientPort }}
         - --bind-address=0.0.0.0
-        - --kubelet-client-certificate=/etc/karmada/pki/karmada.crt
-        - --kubelet-client-key=/etc/karmada/pki/karmada.key
-        - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
         - --secure-port=5443
         - --service-account-issuer=https://kubernetes.default.svc.cluster.local
         - --service-account-key-file=/etc/karmada/pki/karmada.key
