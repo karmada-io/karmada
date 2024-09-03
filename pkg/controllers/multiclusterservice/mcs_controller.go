@@ -19,6 +19,7 @@ package multiclusterservice
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -337,8 +338,8 @@ func (c *MCSController) retrieveService(ctx context.Context, mcs *networkingv1al
 		delete(svcCopy.Labels, networkingv1alpha1.MultiClusterServicePermanentIDLabel)
 	}
 
-	if err = c.Client.Update(ctx, svcCopy); err != nil {
-		klog.Errorf("Failed to update service(%s/%s):%v", mcs.Namespace, mcs.Name, err)
+	if err := c.patchService(ctx, svc, svcCopy); err != nil {
+		klog.Errorf("Failed to patch service(%s/%s):%v", svc.Namespace, svc.Name, err)
 		return err
 	}
 
@@ -493,8 +494,8 @@ func (c *MCSController) claimMultiClusterServiceForService(ctx context.Context, 
 	svcCopy.Annotations[networkingv1alpha1.MultiClusterServiceNameAnnotation] = mcs.Name
 	svcCopy.Annotations[networkingv1alpha1.MultiClusterServiceNamespaceAnnotation] = mcs.Namespace
 
-	if err := c.Client.Update(ctx, svcCopy); err != nil {
-		klog.Errorf("Failed to update service(%s/%s):%v ", svc.Namespace, svc.Name, err)
+	if err := c.patchService(ctx, svc, svcCopy); err != nil {
+		klog.Errorf("Failed to patch service(%s/%s):%v ", svc.Namespace, svc.Name, err)
 		return err
 	}
 
@@ -678,4 +679,16 @@ func (c *MCSController) needSyncMultiClusterService(mcs *networkingv1alpha1.Mult
 		return true, nil
 	}
 	return false, nil
+}
+
+func (c *MCSController) patchService(ctx context.Context, original *corev1.Service, modified *corev1.Service) error {
+	if reflect.DeepEqual(original, modified) {
+		return nil
+	}
+
+	patch := client.MergeFrom(original)
+	if err := c.Client.Patch(ctx, modified, patch); err != nil {
+		return err
+	}
+	return nil
 }
