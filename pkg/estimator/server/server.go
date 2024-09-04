@@ -278,6 +278,8 @@ func (es *AccurateSchedulerEstimatorServer) GetUnschedulableReplicas(ctx context
 	return &pb.UnschedulableReplicasResponse{UnschedulableReplicas: unschedulables}, err
 }
 
+// GetVictimResourceBindings is the implementation of gRPC interface. It will return a list of
+// selected victim Resourcebindings for eviction during priority&preemption.
 func (es *AccurateSchedulerEstimatorServer) GetVictimResourceBindings(_ context.Context, _ *pb.PreemptionRequest) (*pb.PreemptionResponse, error) {
 	return &pb.PreemptionResponse{VictimResourceBindings: []pb.ObjectReference{}}, errors.New("Unimplemented")
 }
