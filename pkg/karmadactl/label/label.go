@@ -50,5 +50,8 @@ var (
 func NewCmdLabel(f util.Factory, parentCommand string, ioStreams genericiooptions.IOStreams) *cobra.Command {
 	cmd := kubectllabel.NewCmdLabel(f, ioStreams)
 	cmd.Example = fmt.Sprintf(labelExample, parentCommand)
+	cmd.Annotations = map[string]string{
+		util.TagCommandGroup: util.GroupSettingsCommands,
+	}
 	return cmd
 }

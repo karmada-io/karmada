@@ -74,6 +74,9 @@ func NewCmdExplain(f util.Factory, parentCommand string, streams genericiooption
 			cmdutil.CheckErr(o.Validate())
 			cmdutil.CheckErr(o.Run())
 		},
+		Annotations: map[string]string{
+			util.TagCommandGroup: util.GroupBasic,
+		},
 	}
 
 	flags := cmd.Flags()

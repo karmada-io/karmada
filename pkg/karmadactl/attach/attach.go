@@ -70,6 +70,9 @@ func NewCmdAttach(f util.Factory, parentCommand string, streams genericiooptions
 			cmdutil.CheckErr(o.Validate())
 			cmdutil.CheckErr(o.Run())
 		},
+		Annotations: map[string]string{
+			util.TagCommandGroup: util.GroupClusterTroubleshootingAndDebugging,
+		},
 	}
 
 	cmdutil.AddPodRunningTimeoutFlag(cmd, defaultPodAttachTimeout)

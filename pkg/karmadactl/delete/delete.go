@@ -92,5 +92,8 @@ func NewCmdDelete(f util.Factory, parentCommnd string, ioStreams genericiooption
 	cmd := kubectldelete.NewCmdDelete(f, ioStreams)
 	cmd.Long = fmt.Sprintf(deleteLong, parentCommnd)
 	cmd.Example = fmt.Sprintf(deleteExample, parentCommnd)
+	cmd.Annotations = map[string]string{
+		util.TagCommandGroup: util.GroupBasic,
+	}
 	return cmd
 }
