@@ -71,7 +71,7 @@ func NewCmdAPIResources(f util.Factory, parentCommand string, ioStreams generici
 	}
 
 	o.OperationScope = options.KarmadaControlPlane
-	cmd.Flags().Var(&o.OperationScope, "operation-scope", "Used to control the operation scope of the command. The optional values are karmada and members. Defaults to karmada.")
+	cmd.Flags().VarP(&o.OperationScope, "operation-scope", "s", "Used to control the operation scope of the command. The optional values are karmada and members. Defaults to karmada.")
 	cmd.Flags().StringVar(&o.Cluster, "cluster", "", "Used to specify a target member cluster and only takes effect when the command's operation scope is members, for example: --operation-scope=members --cluster=member1")
 	cmd.Flags().BoolVar(&o.NoHeaders, "no-headers", o.NoHeaders, "When using the default or custom-column output format, don't print headers (default print headers).")
 	cmd.Flags().StringVarP(&o.Output, "output", "o", o.Output, `Output format. One of: (wide, name).`)
