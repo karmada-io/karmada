@@ -81,7 +81,7 @@ func NewCmdExplain(f util.Factory, parentCommand string, streams genericiooption
 
 	flags := cmd.Flags()
 	o.OperationScope = options.KarmadaControlPlane
-	flags.Var(&o.OperationScope, "operation-scope", "Used to control the operation scope of the command. The optional values are karmada and members. Defaults to karmada.")
+	flags.VarP(&o.OperationScope, "operation-scope", "s", "Used to control the operation scope of the command. The optional values are karmada and members. Defaults to karmada.")
 	flags.BoolVar(&o.Recursive, "recursive", o.Recursive, "When true, print the name of all the fields recursively. Otherwise, print the available fields with their description.")
 	flags.StringVar(&o.APIVersion, "api-version", o.APIVersion, "Use given api-version (group/version) of the resource.")
 
