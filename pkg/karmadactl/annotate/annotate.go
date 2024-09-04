@@ -51,5 +51,8 @@ var (
 func NewCmdAnnotate(f util.Factory, parentCommand string, ioStreams genericiooptions.IOStreams) *cobra.Command {
 	cmd := kubectlannotate.NewCmdAnnotate(parentCommand, f, ioStreams)
 	cmd.Example = fmt.Sprintf(annotateExample, parentCommand)
+	cmd.Annotations = map[string]string{
+		util.TagCommandGroup: util.GroupSettingsCommands,
+	}
 	return cmd
 }

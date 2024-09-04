@@ -65,6 +65,9 @@ func NewCmdAPIResources(f util.Factory, parentCommand string, ioStreams generici
 			cmdutil.CheckErr(o.Validate())
 			cmdutil.CheckErr(o.RunAPIResources())
 		},
+		Annotations: map[string]string{
+			util.TagCommandGroup: util.GroupOtherCommands,
+		},
 	}
 
 	o.OperationScope = options.KarmadaControlPlane

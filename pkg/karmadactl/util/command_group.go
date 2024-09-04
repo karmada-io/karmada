@@ -36,4 +36,10 @@ const (
 
 	// GroupAdvancedCommands means the command belongs to Group "Advanced Commands"
 	GroupAdvancedCommands = "Advanced Commands"
+
+	// GroupSettingsCommands means the command belongs to Group "Settings Commands"
+	GroupSettingsCommands = "Settings Commands"
+
+	// GroupOtherCommands means the command belongs to Group "Other Commands"
+	GroupOtherCommands = "Other Commands"
 )
