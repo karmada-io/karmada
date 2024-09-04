@@ -58,6 +58,9 @@ func NewCmdTop(f util.Factory, parentCommand string, streams genericiooptions.IO
 		Short: "Display resource (CPU/memory) usage of member clusters",
 		Long:  topLong,
 		Run:   cmdutil.DefaultSubCommandRun(streams.ErrOut),
+		Annotations: map[string]string{
+			util.TagCommandGroup: util.GroupAdvancedCommands,
+		},
 	}
 
 	// create subcommands

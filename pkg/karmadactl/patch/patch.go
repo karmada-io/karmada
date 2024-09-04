@@ -46,5 +46,8 @@ var (
 func NewCmdPatch(f util.Factory, parentCommand string, ioStreams genericiooptions.IOStreams) *cobra.Command {
 	cmd := kubectlpatch.NewCmdPatch(f, ioStreams)
 	cmd.Example = fmt.Sprintf(patchExample, parentCommand)
+	cmd.Annotations = map[string]string{
+		util.TagCommandGroup: util.GroupAdvancedCommands,
+	}
 	return cmd
 }

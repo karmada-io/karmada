@@ -50,5 +50,8 @@ var (
 func NewCmdEdit(f util.Factory, parentCommand string, ioStreams genericiooptions.IOStreams) *cobra.Command {
 	cmd := kubectledit.NewCmdEdit(f, ioStreams)
 	cmd.Example = fmt.Sprintf(editExample, parentCommand)
+	cmd.Annotations = map[string]string{
+		util.TagCommandGroup: util.GroupBasic,
+	}
 	return cmd
 }

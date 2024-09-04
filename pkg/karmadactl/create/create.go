@@ -49,5 +49,8 @@ func NewCmdCreate(f util.Factory, parentCommnd string, ioStreams genericiooption
 	cmd := kubectlcreate.NewCmdCreate(f, ioStreams)
 	cmd.Long = fmt.Sprintf(createLong, parentCommnd)
 	cmd.Example = fmt.Sprintf(createExample, parentCommnd)
+	cmd.Annotations = map[string]string{
+		util.TagCommandGroup: util.GroupBasic,
+	}
 	return cmd
 }

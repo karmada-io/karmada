@@ -53,6 +53,9 @@ func NewCmdAPIVersions(f util.Factory, parentCommand string, ioStreams genericio
 			cmdutil.CheckErr(o.Validate())
 			cmdutil.CheckErr(o.RunAPIVersions())
 		},
+		Annotations: map[string]string{
+			util.TagCommandGroup: util.GroupOtherCommands,
+		},
 	}
 
 	o.OperationScope = options.KarmadaControlPlane
