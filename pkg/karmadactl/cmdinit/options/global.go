@@ -23,10 +23,10 @@ const (
 	EtcdServerCertAndKeyName = "etcd-server"
 	// EtcdClientCertAndKeyName etcd client certificate key name
 	EtcdClientCertAndKeyName = "etcd-client"
-	// KarmadaCertAndKeyName karmada certificate key name
-	KarmadaCertAndKeyName = "karmada"
-	// ApiserverCertAndKeyName karmada apiserver certificate key name
-	ApiserverCertAndKeyName = "apiserver"
+	// KarmadaClientCertAndKeyName karmada certificate key name
+	KarmadaClientCertAndKeyName = "karmada-client"
+	// KarmadaServerCertAndKeyName karmada apiserver certificate key name
+	KarmadaServerCertAndKeyName = "karmada-server"
 	// FrontProxyCaCertAndKeyName front-proxy-client  certificate key name
 	FrontProxyCaCertAndKeyName = "front-proxy-ca"
 	// FrontProxyClientCertAndKeyName front-proxy-client  certificate key name

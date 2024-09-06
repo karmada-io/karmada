@@ -44,10 +44,13 @@ spec:
           image: {{ .Image }}
           imagePullPolicy: IfNotPresent
           volumeMounts:
-            - name: k8s-certs
+            - name: karmada-certs
               mountPath: /etc/karmada/pki
               readOnly: true
-            - name: kubeconfig
+            - name: karmada-etcd-cert
+              mountPath: /etc/etcd/pki
+              readOnly: true
+            - name: karmada-kubeconfig
               subPath: kubeconfig
               mountPath: /etc/kubeconfig
           command:
@@ -56,11 +59,11 @@ spec:
             - --authentication-kubeconfig=/etc/kubeconfig
             - --authorization-kubeconfig=/etc/kubeconfig
             - --etcd-servers={{ .ETCDSevers }}
-            - --etcd-cafile=/etc/karmada/pki/etcd-ca.crt
-            - --etcd-certfile=/etc/karmada/pki/etcd-client.crt
-            - --etcd-keyfile=/etc/karmada/pki/etcd-client.key
-            - --tls-cert-file=/etc/karmada/pki/karmada.crt
-            - --tls-private-key-file=/etc/karmada/pki/karmada.key
+            - --etcd-cafile=/etc/etcd/pki/etcd-ca.crt
+            - --etcd-certfile=/etc/etcd/pki/etcd-client.crt
+            - --etcd-keyfile=/etc/etcd/pki/etcd-client.key
+            - --tls-cert-file=/etc/karmada/pki/karmada-server.crt
+            - --tls-private-key-file=/etc/karmada/pki/karmada-server.key
             - --tls-min-version=VersionTLS13
             - --audit-log-path=-
             - --audit-log-maxage=0
@@ -79,12 +82,15 @@ spec:
             requests:
               cpu: 100m
       volumes:
-        - name: k8s-certs
+        - name: karmada-certs
           secret:
-            secretName: karmada-cert
-        - name: kubeconfig
+            secretName: karmada-certs
+        - name: karmada-etcd-cert
           secret:
-            secretName: kubeconfig
+            secretName: karmada-etcd-cert
+        - name: karmada-kubeconfig
+          secret:
+            secretName: karmada-kubeconfig
 `
 
 	karmadaSearchService = `
