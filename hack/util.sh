@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 set -o errexit
 set -o nounset
 set -o pipefail
@@ -86,14 +85,13 @@ function util::get_target_source() {
 #  - $1: package name, such as "sigs.k8s.io/controller-tools/cmd/controller-gen"
 #  - $2: package version, such as "v0.4.1"
 function util::install_tools() {
-	local package="$1"
-	local version="$2"
-	echo "go install ${package}@${version}"
-	GO111MODULE=on go install "${package}"@"${version}"
-	GOPATH=$(go env GOPATH | awk -F ':' '{print $1}')
-	export PATH=$PATH:$GOPATH/bin
+  local package="$1"
+  local version="$2"
+  echo "go install ${package}@${version}"
+  GO111MODULE=on go install "${package}"@"${version}"
+  GOPATH=$(go env GOPATH | awk -F ':' '{print $1}')
+  export PATH=$PATH:$GOPATH/bin
 }
-
 
 function util::cmd_exist {
   local CMD=$(command -v ${1})
@@ -105,29 +103,29 @@ function util::cmd_exist {
 
 # util::cmd_must_exist check whether command is installed.
 function util::cmd_must_exist {
-    local CMD=$(command -v ${1})
-    if [[ ! -x ${CMD} ]]; then
-      echo "Please install ${1} and verify they are in \$PATH."
-      exit 1
-    fi
+  local CMD=$(command -v ${1})
+  if [[ ! -x ${CMD} ]]; then
+    echo "Please install ${1} and verify they are in \$PATH."
+    exit 1
+  fi
 }
 
 function util::verify_docker {
   if ! docker ps -q >/dev/null 2>&1; then
-      echo "Docker is not available, Please verify docker is installed and available"
-      exit 1
+    echo "Docker is not available, Please verify docker is installed and available"
+    exit 1
   fi
 }
 
 function util::verify_go_version {
-    local go_version
-    IFS=" " read -ra go_version <<< "$(GOFLAGS='' go version)"
-    if [[ "${MIN_Go_VERSION}" != $(echo -e "${MIN_Go_VERSION}\n${go_version[2]}" | sort -s -t. -k 1,1 -k 2,2n -k 3,3n | head -n1) && "${go_version[2]}" != "devel" ]]; then
-      echo "Detected go version: ${go_version[*]}."
-      echo "Karmada requires ${MIN_Go_VERSION} or greater."
-      echo "Please install ${MIN_Go_VERSION} or later."
-      exit 1
-    fi
+  local go_version
+  IFS=" " read -ra go_version <<<"$(GOFLAGS='' go version)"
+  if [[ "${MIN_Go_VERSION}" != $(echo -e "${MIN_Go_VERSION}\n${go_version[2]}" | sort -s -t. -k 1,1 -k 2,2n -k 3,3n | head -n1) && "${go_version[2]}" != "devel" ]]; then
+    echo "Detected go version: ${go_version[*]}."
+    echo "Karmada requires ${MIN_Go_VERSION} or greater."
+    echo "Please install ${MIN_Go_VERSION} or later."
+    exit 1
+  fi
 }
 
 function util::verify_ip_address {
@@ -140,78 +138,78 @@ function util::verify_ip_address {
 
 # util::cmd_must_exist_cfssl downloads cfssl/cfssljson if they do not already exist in PATH
 function util::cmd_must_exist_cfssl {
-    CFSSL_VERSION=${1}
-    if command -v cfssl &>/dev/null && command -v cfssljson &>/dev/null; then
-        CFSSL_BIN=$(command -v cfssl)
-        CFSSLJSON_BIN=$(command -v cfssljson)
-        return 0
-    fi
+  CFSSL_VERSION=${1}
+  if command -v cfssl &>/dev/null && command -v cfssljson &>/dev/null; then
+    CFSSL_BIN=$(command -v cfssl)
+    CFSSLJSON_BIN=$(command -v cfssljson)
+    return 0
+  fi
 
-    util::install_tools "github.com/cloudflare/cfssl/cmd/..." ${CFSSL_VERSION}
+  util::install_tools "github.com/cloudflare/cfssl/cmd/..." ${CFSSL_VERSION}
 
-    GOPATH=$(go env GOPATH | awk -F ':' '{print $1}')
-    CFSSL_BIN="${GOPATH}/bin/cfssl"
-    CFSSLJSON_BIN="${GOPATH}/bin/cfssljson"
-    if [[ ! -x ${CFSSL_BIN} || ! -x ${CFSSLJSON_BIN} ]]; then
-      echo "Failed to download 'cfssl'. Please install cfssl and cfssljson and verify they are in \$PATH."
-      echo "Hint: export PATH=\$PATH:\$GOPATH/bin; go install github.com/cloudflare/cfssl/cmd/..."
-      exit 1
-    fi
+  GOPATH=$(go env GOPATH | awk -F ':' '{print $1}')
+  CFSSL_BIN="${GOPATH}/bin/cfssl"
+  CFSSLJSON_BIN="${GOPATH}/bin/cfssljson"
+  if [[ ! -x ${CFSSL_BIN} || ! -x ${CFSSLJSON_BIN} ]]; then
+    echo "Failed to download 'cfssl'. Please install cfssl and cfssljson and verify they are in \$PATH."
+    echo "Hint: export PATH=\$PATH:\$GOPATH/bin; go install github.com/cloudflare/cfssl/cmd/..."
+    exit 1
+  fi
 }
 
 # util::install_environment_check will check OS and ARCH before installing
 # ARCH support list: amd64,arm64
 # OS support list: linux,darwin
 function util::install_environment_check {
-    local ARCH=${1:-}
-    local OS=${2:-}
-    if [[ "$ARCH" =~ ^(amd64|arm64)$ ]]; then
-        if [[ "$OS" =~ ^(linux|darwin)$ ]]; then
-            return 0
-        fi
+  local ARCH=${1:-}
+  local OS=${2:-}
+  if [[ "$ARCH" =~ ^(amd64|arm64)$ ]]; then
+    if [[ "$OS" =~ ^(linux|darwin)$ ]]; then
+      return 0
     fi
-    echo "Sorry, Karmada installation does not support $ARCH/$OS at the moment"
-    exit 1
+  fi
+  echo "Sorry, Karmada installation does not support $ARCH/$OS at the moment"
+  exit 1
 }
 
 # util::install_kubectl will install the given version kubectl
 function util::install_kubectl {
-    local KUBECTL_VERSION=${1}
-    local ARCH=${2}
-    local OS=${3:-linux}
-    if [ -z "$KUBECTL_VERSION" ]; then
-      KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
-    fi
-    echo "Installing 'kubectl ${KUBECTL_VERSION}' for you"
-    curl --retry 5 -sSLo ./kubectl -w "%{http_code}" https://dl.k8s.io/release/"$KUBECTL_VERSION"/bin/"$OS"/"$ARCH"/kubectl | grep '200' > /dev/null
-    ret=$?
-    if [ ${ret} -eq 0 ]; then
-        chmod +x ./kubectl
-        mkdir -p ~/.local/bin/
-        mv ./kubectl ~/.local/bin/kubectl
+  local KUBECTL_VERSION=${1}
+  local ARCH=${2}
+  local OS=${3:-linux}
+  if [ -z "$KUBECTL_VERSION" ]; then
+    KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
+  fi
+  echo "Installing 'kubectl ${KUBECTL_VERSION}' for you"
+  curl --retry 5 -sSLo ./kubectl -w "%{http_code}" https://dl.k8s.io/release/"$KUBECTL_VERSION"/bin/"$OS"/"$ARCH"/kubectl | grep '200' >/dev/null
+  ret=$?
+  if [ ${ret} -eq 0 ]; then
+    chmod +x ./kubectl
+    mkdir -p ~/.local/bin/
+    mv ./kubectl ~/.local/bin/kubectl
 
-        export PATH=$PATH:~/.local/bin
-    else
-        echo "Failed to install kubectl, can not download the binary file at https://dl.k8s.io/release/$KUBECTL_VERSION/bin/$OS/$ARCH/kubectl"
-        exit 1
-    fi
+    export PATH=$PATH:~/.local/bin
+  else
+    echo "Failed to install kubectl, can not download the binary file at https://dl.k8s.io/release/$KUBECTL_VERSION/bin/$OS/$ARCH/kubectl"
+    exit 1
+  fi
 }
 
 # util::install_helm will install the helm command
 function util::install_helm {
-    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 }
 
 # util::create_signing_certkey creates a CA, args are sudo, dest-dir, ca-id, purpose
 function util::create_signing_certkey {
-    local sudo=$1
-    local dest_dir=$2
-    local id=$3
-    local cn=$4
-    local purpose=$5
-    OPENSSL_BIN=$(command -v openssl)
-    # Create ca
-    ${sudo} /usr/bin/env bash -e <<EOF
+  local sudo=$1
+  local dest_dir=$2
+  local id=$3
+  local cn=$4
+  local purpose=$5
+  OPENSSL_BIN=$(command -v openssl)
+  # Create ca
+  ${sudo} /usr/bin/env bash -e <<EOF
     rm -f "${dest_dir}/${id}.crt" "${dest_dir}/${id}.key"
     ${OPENSSL_BIN} req -x509 -sha256 -new -nodes -days 3650 -newkey rsa:3072 -keyout "${dest_dir}/${id}.key" -out "${dest_dir}/${id}.crt" -subj "/CN=${cn}/"
     echo '{"signing":{"default":{"expiry":"43800h","usages":["signing","key encipherment",${purpose}]}}}' > "${dest_dir}/${id}-config.json"
@@ -220,21 +218,21 @@ EOF
 
 # util::create_certkey signs a certificate: args are sudo, dest-dir, ca, filename (roughly), subject, hosts...
 function util::create_certkey {
-    local sudo=$1
-    local dest_dir=$2
-    local ca=$3
-    local id=$4
-    local cn=${5:-$4}
-    local og=$6
-    local hosts=""
-    local SEP=""
-    shift 6
-    while [[ -n "${1:-}" ]]; do
-        hosts+="${SEP}\"$1\""
-        SEP=","
-        shift 1
-    done
-    ${sudo} /usr/bin/env bash -e <<EOF
+  local sudo=$1
+  local dest_dir=$2
+  local ca=$3
+  local id=$4
+  local cn=${5:-$4}
+  local og=$6
+  local hosts=""
+  local SEP=""
+  shift 6
+  while [[ -n "${1:-}" ]]; do
+    hosts+="${SEP}\"$1\""
+    SEP=","
+    shift 1
+  done
+  ${sudo} /usr/bin/env bash -e <<EOF
     cd ${dest_dir}
     echo '{"CN":"${cn}","hosts":[${hosts}],"names":[{"O":"${og}"}],"key":{"algo":"rsa","size":3072}}' | ${CFSSL_BIN} gencert -ca=${ca}.crt -ca-key=${ca}.key -config=${ca}-config.json - | ${CFSSLJSON_BIN} -bare ${id}
     mv "${id}-key.pem" "${id}.key"
@@ -245,29 +243,29 @@ EOF
 
 # util::append_client_kubeconfig creates a new context including a cluster and a user to the existed kubeconfig file
 function util::append_client_kubeconfig {
-    local kubeconfig_path=$1
-    local client_certificate_file=$2
-    local client_key_file=$3
-    local api_host=$4
-    local api_port=$5
-    local client_id=$6
-    local token=${7:-}
-    kubectl config set-cluster "${client_id}" --server=https://"${api_host}:${api_port}" --insecure-skip-tls-verify=true --kubeconfig="${kubeconfig_path}"
-    kubectl config set-credentials "${client_id}" --token="${token}" --client-certificate="${client_certificate_file}" --client-key="${client_key_file}" --embed-certs=true --kubeconfig="${kubeconfig_path}"
-    kubectl config set-context "${client_id}" --cluster="${client_id}" --user="${client_id}" --kubeconfig="${kubeconfig_path}"
+  local kubeconfig_path=$1
+  local client_certificate_file=$2
+  local client_key_file=$3
+  local api_host=$4
+  local api_port=$5
+  local client_id=$6
+  local token=${7:-}
+  kubectl config set-cluster "${client_id}" --server=https://"${api_host}:${api_port}" --insecure-skip-tls-verify=true --kubeconfig="${kubeconfig_path}"
+  kubectl config set-credentials "${client_id}" --token="${token}" --client-certificate="${client_certificate_file}" --client-key="${client_key_file}" --embed-certs=true --kubeconfig="${kubeconfig_path}"
+  kubectl config set-context "${client_id}" --cluster="${client_id}" --user="${client_id}" --kubeconfig="${kubeconfig_path}"
 }
 
 # util::write_client_kubeconfig creates a self-contained kubeconfig: args are sudo, dest-dir, client certificate data, client key data, host, port, client id, token(optional)
 function util::write_client_kubeconfig {
-    local sudo=$1
-    local dest_dir=$2
-    local client_certificate_data=$3
-    local client_key_data=$4
-    local api_host=$5
-    local api_port=$6
-    local client_id=$7
-    local token=${8:-}
-    cat <<EOF | ${sudo} tee "${dest_dir}"/"${client_id}".config > /dev/null
+  local sudo=$1
+  local dest_dir=$2
+  local client_certificate_data=$3
+  local client_key_data=$4
+  local api_host=$5
+  local api_port=$6
+  local client_id=$7
+  local token=${8:-}
+  cat <<EOF | ${sudo} tee "${dest_dir}"/"${client_id}".config >/dev/null
 apiVersion: v1
 kind: Config
 clusters:
@@ -288,7 +286,7 @@ contexts:
     name: karmada-apiserver
 current-context: karmada-apiserver
 EOF
-    ${sudo} chmod 0644 "${dest_dir}"/"${client_id}".config
+  ${sudo} chmod 0644 "${dest_dir}"/"${client_id}".config
 }
 
 # util::wait_for_condition blocks until the provided condition becomes true
@@ -333,33 +331,33 @@ function util::wait_for_condition() {
 
 # util::wait_file_exist checks if a file exists, if not, wait until timeout
 function util::wait_file_exist() {
-    local file_path=${1}
-    local timeout=${2}
-    local error_msg="[ERROR] Timeout waiting for file exist ${file_path}"
-    for ((time=0; time<${timeout}; time++)); do
-        if [[ -e ${file_path} ]]; then
-            return 0
-        fi
-        sleep 1
-    done
-    echo -e "\n${error_msg}"
-    return 1
+  local file_path=${1}
+  local timeout=${2}
+  local error_msg="[ERROR] Timeout waiting for file exist ${file_path}"
+  for ((time = 0; time < ${timeout}; time++)); do
+    if [[ -e ${file_path} ]]; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo -e "\n${error_msg}"
+  return 1
 }
 
 # util::wait_context_exist checks if the specific context exists in kubeconfig, if not, wait until timeout
 function util::wait_context_exist() {
-    local context_name=${1}
-    local file_path=${2}
-    local timeout=${3}
-    local error_msg="[ERROR] Timeout waiting for context exist ${context_name}"
-    for ((time=0; time<${timeout}; time++)); do
-        if [[ `kubectl config get-contexts ${context_name} --kubeconfig=${file_path}` =~ ${context_name} ]]; then
-            return 0
-        fi
-        sleep 1
-    done
-    echo -e "\n${error_msg}"
-    return 1
+  local context_name=${1}
+  local file_path=${2}
+  local timeout=${3}
+  local error_msg="[ERROR] Timeout waiting for context exist ${context_name}"
+  for ((time = 0; time < ${timeout}; time++)); do
+    if [[ $(kubectl config get-contexts ${context_name} --kubeconfig=${file_path}) =~ ${context_name} ]]; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo -e "\n${error_msg}"
+  return 1
 }
 
 # util::wait_pod_ready waits for pod state becomes ready until timeout.
@@ -369,22 +367,22 @@ function util::wait_context_exist() {
 #  - $3: pod namespace, such as "karmada-system"
 #  - $4: time out, such as "200s"
 function util::wait_pod_ready() {
-    local context_name=$1
-    local pod_label=$2
-    local pod_namespace=$3
+  local context_name=$1
+  local pod_label=$2
+  local pod_namespace=$3
 
-    echo "wait the $pod_label ready..."
-    set +e
-    util::kubectl_with_retry --context="$context_name" wait --for=condition=Ready --timeout=30s pods -l app=${pod_label} -n ${pod_namespace}
-    ret=$?
-    set -e
-    if [ $ret -ne 0 ];then
-      echo "kubectl describe info:"
-      kubectl --context="$context_name" describe pod -l app=${pod_label} -n ${pod_namespace}
-      echo "kubectl logs info:"
-      kubectl --context="$context_name" logs -l app=${pod_label} -n ${pod_namespace}
-    fi
-    return ${ret}
+  echo "wait the $pod_label ready..."
+  set +e
+  util::kubectl_with_retry --context="$context_name" wait --for=condition=Ready --timeout=30s pods -l app=${pod_label} -n ${pod_namespace}
+  ret=$?
+  set -e
+  if [ $ret -ne 0 ]; then
+    echo "kubectl describe info:"
+    kubectl --context="$context_name" describe pod -l app=${pod_label} -n ${pod_namespace}
+    echo "kubectl logs info:"
+    kubectl --context="$context_name" logs -l app=${pod_label} -n ${pod_namespace}
+  fi
+  return ${ret}
 }
 
 # util::wait_apiservice_ready waits for apiservice state becomes Available until timeout.
@@ -393,19 +391,19 @@ function util::wait_pod_ready() {
 #  - $2: apiservice label, such as "app=etcd"
 #  - $3: time out, such as "200s"
 function util::wait_apiservice_ready() {
-    local context_name=$1
-    local apiservice_label=$2
+  local context_name=$1
+  local apiservice_label=$2
 
-    echo "wait the $apiservice_label Available..."
-    set +e
-    util::kubectl_with_retry --context="$context_name" wait --for=condition=Available --timeout=30s apiservices -l app=${apiservice_label}
-    ret=$?
-    set -e
-    if [ $ret -ne 0 ];then
-      echo "kubectl describe info:"
-      kubectl --context="$context_name" describe apiservices -l app=${apiservice_label}
-    fi
-    return ${ret}
+  echo "wait the $apiservice_label Available..."
+  set +e
+  util::kubectl_with_retry --context="$context_name" wait --for=condition=Available --timeout=30s apiservices -l app=${apiservice_label}
+  ret=$?
+  set -e
+  if [ $ret -ne 0 ]; then
+    echo "kubectl describe info:"
+    kubectl --context="$context_name" describe apiservices -l app=${apiservice_label}
+  fi
+  return ${ret}
 }
 
 # util::wait_cluster_ready waits for cluster state becomes ready until timeout.
@@ -431,22 +429,22 @@ function util:wait_cluster_ready() {
 # util::kubectl_with_retry will retry if execute kubectl command failed
 # tolerate kubectl command failure that may happen before the pod is created by  StatefulSet/Deployment.
 function util::kubectl_with_retry() {
-    local ret=0
-    for i in {1..10}; do
-        kubectl "$@"
-        ret=$?
-        if [[ ${ret} -ne 0 ]]; then
-            echo "kubectl $@ failed, retrying(${i} times)"
-            sleep 1
-            continue
-        else
-            return 0
-        fi
-    done
-
-    echo "kubectl $@ failed"
+  local ret=0
+  for i in {1..10}; do
     kubectl "$@"
-    return ${ret}
+    ret=$?
+    if [[ ${ret} -ne 0 ]]; then
+      echo "kubectl $@ failed, retrying(${i} times)"
+      sleep 1
+      continue
+    else
+      return 0
+    fi
+  done
+
+  echo "kubectl $@ failed"
+  kubectl "$@"
+  return ${ret}
 }
 
 # util::delete_necessary_resources deletes clusters(karmada-host, member1, member2 and member3) and related resources directly
@@ -464,9 +462,9 @@ function util::delete_necessary_resources() {
   rm -f ${log_file}
   mkdir -p ${log_path}
 
-  local config_file_arr=$(echo ${config_files}| tr ',' ' ')
-  local cluster_arr=$(echo ${clusters}| tr ',' ' ')
-  kind delete clusters ${cluster_arr} >> "${log_file}" 2>&1
+  local config_file_arr=$(echo ${config_files} | tr ',' ' ')
+  local cluster_arr=$(echo ${clusters} | tr ',' ' ')
+  kind delete clusters ${cluster_arr} >>"${log_file}" 2>&1
   rm -f ${config_file_arr}
   echo "Deleted all necessary clusters and the log file is in ${log_file}"
 }
@@ -489,7 +487,7 @@ function util::create_cluster() {
   rm -rf "${log_path}/${cluster_name}.log"
   rm -f "${kubeconfig}"
 
-  nohup kind create cluster --name "${cluster_name}" --kubeconfig="${kubeconfig}" --image="${kind_image}" --config="${cluster_config}" >> "${log_path}"/"${cluster_name}".log 2>&1 &
+  nohup kind create cluster --name "${cluster_name}" --kubeconfig="${kubeconfig}" --image="${kind_image}" --config="${cluster_config}" >>"${log_path}"/"${cluster_name}".log 2>&1 &
   echo "Creating cluster ${cluster_name} and the log file is in ${log_path}/${cluster_name}.log"
 }
 
@@ -497,7 +495,7 @@ function util::create_cluster() {
 # Parameters:
 #  - $1: docker instance name
 
-function util::get_docker_native_ipaddress(){
+function util::get_docker_native_ipaddress() {
   local container_name=$1
   docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${container_name}"
 }
@@ -509,7 +507,7 @@ function util::get_docker_native_ipaddress(){
 #   Use for getting host IP and port for cluster
 #   "6443/tcp" assumes that API server port is 6443 and protocol is TCP
 
-function util::get_docker_host_ip_port(){
+function util::get_docker_host_ip_port() {
   local container_name=$1
   docker inspect --format='{{range $key, $value := index .NetworkSettings.Ports "6443/tcp"}}{{if eq $key 0}}{{$value.HostIp}}:{{$value.HostPort}}{{end}}{{end}}' "${container_name}"
 }
@@ -529,13 +527,16 @@ function util::check_clusters_ready() {
   os_name=$(go env GOOS)
   local container_ip_port
   case $os_name in
-    linux) container_ip_port=$(util::get_docker_native_ipaddress "${context_name}-control-plane")":6443"
+  linux)
+    container_ip_port=$(util::get_docker_native_ipaddress "${context_name}-control-plane")":6443"
     ;;
-    darwin) container_ip_port=$(util::get_docker_host_ip_port "${context_name}-control-plane")
+  darwin)
+    container_ip_port=$(util::get_docker_host_ip_port "${context_name}-control-plane")
     ;;
-    *)
-        echo "OS ${os_name} does NOT support for getting container ip in installation script"
-        exit 1
+  *)
+    echo "OS ${os_name} does NOT support for getting container ip in installation script"
+    exit 1
+    ;;
   esac
   kubectl config set-cluster "kind-${context_name}" --server="https://${container_ip_port}" --kubeconfig="${kubeconfig_path}"
 
@@ -543,7 +544,7 @@ function util::check_clusters_ready() {
 }
 
 # This function gets api server's ip from kubeconfig by context name
-function util::get_apiserver_ip_from_kubeconfig(){
+function util::get_apiserver_ip_from_kubeconfig() {
   local context_name=$1
   local cluster_name apiserver_url
   cluster_name=$(kubectl config view --template='{{ range $_, $value := .contexts }}{{if eq $value.name '"\"${context_name}\""'}}{{$value.context.cluster}}{{end}}{{end}}')
@@ -563,7 +564,7 @@ function util::deploy_webhook_configuration() {
   local ca_file=$2
   local conf=$3
 
-  local ca_string=$(cat ${ca_file} | base64 | tr "\n" " "|sed s/[[:space:]]//g)
+  local ca_string=$(cat ${ca_file} | base64 | tr "\n" " " | sed s/[[:space:]]//g)
 
   local temp_path=$(mktemp -d)
   cp -rf "${conf}" "${temp_path}/temp.yaml"
@@ -576,7 +577,7 @@ function util::fill_cabundle() {
   local ca_file=$1
   local conf=$2
 
-  local ca_string=$(cat "${ca_file}" | base64 | tr "\n" " "|sed s/[[:space:]]//g)
+  local ca_string=$(cat "${ca_file}" | base64 | tr "\n" " " | sed s/[[:space:]]//g)
   sed -i'' -e "s/{{caBundle}}/${ca_string}/g" "${conf}"
 }
 
@@ -624,7 +625,7 @@ function util::get_load_balancer_ip() {
     for tmp in {1..10}; do
       #if it is a host, check dns first
       if [[ ! "${first_ip}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        if ! nslookup ${first_ip} > /dev/null; then # host dns lookup failed
+        if ! nslookup ${first_ip} >/dev/null; then # host dns lookup failed
           sleep 30
           continue
         fi
@@ -756,7 +757,7 @@ function util::set_mirror_registry_for_china_mainland() {
     "cluster/images/buildx.Dockerfile"
   )
   for dockerfile in "${dockerfile_list[@]}"; do
-    grep 'mirrors.ustc.edu.cn' ${repo_root}/${dockerfile} > /dev/null || sed -i'' -e "/FROM alpine:/a\\
+    grep 'mirrors.ustc.edu.cn' ${repo_root}/${dockerfile} >/dev/null || sed -i'' -e "/FROM alpine:/a\\
 RUN echo -e http://mirrors.ustc.edu.cn/alpine/v3.17/main/ > /etc/apk/repositories" ${repo_root}/${dockerfile}
   done
 }
