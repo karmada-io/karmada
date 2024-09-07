@@ -156,6 +156,7 @@ func TestCRBStatusController_syncBindingStatus(t *testing.T) {
 		podNameInDynamicClient string
 		resourceExistInClient  bool
 		expectedError          bool
+		skipStatusCollection   bool
 	}{
 		{
 			name: "failed in FetchResourceTemplate, err is NotFound",
@@ -188,6 +189,19 @@ func TestCRBStatusController_syncBindingStatus(t *testing.T) {
 			resourceExistInClient:  false,
 			expectedError:          true,
 		},
+		{
+			name: "skip status collection",
+			resource: workv1alpha2.ObjectReference{
+				APIVersion: "v1",
+				Kind:       "Pod",
+				Namespace:  "default",
+				Name:       "pod",
+			},
+			podNameInDynamicClient: "pod",
+			resourceExistInClient:  true,
+			skipStatusCollection:   true,
+			expectedError:          false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -196,6 +210,7 @@ func TestCRBStatusController_syncBindingStatus(t *testing.T) {
 			c.DynamicClient = dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 				&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: tt.podNameInDynamicClient, Namespace: "default"}})
 			c.ResourceInterpreter = FakeResourceInterpreter{DefaultInterpreter: native.NewDefaultInterpreter()}
+			c.SkipStatusCollection = tt.skipStatusCollection
 
 			binding := &workv1alpha2.ClusterResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{

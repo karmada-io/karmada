@@ -370,26 +370,28 @@ func startBindingController(ctx controllerscontext.Context) (enabled bool, err e
 
 func startBindingStatusController(ctx controllerscontext.Context) (enabled bool, err error) {
 	rbStatusController := &status.RBStatusController{
-		Client:              ctx.Mgr.GetClient(),
-		DynamicClient:       ctx.DynamicClientSet,
-		InformerManager:     ctx.ControlPlaneInformerManager,
-		ResourceInterpreter: ctx.ResourceInterpreter,
-		EventRecorder:       ctx.Mgr.GetEventRecorderFor(status.RBStatusControllerName),
-		RESTMapper:          ctx.Mgr.GetRESTMapper(),
-		RateLimiterOptions:  ctx.Opts.RateLimiterOptions,
+		Client:               ctx.Mgr.GetClient(),
+		DynamicClient:        ctx.DynamicClientSet,
+		InformerManager:      ctx.ControlPlaneInformerManager,
+		ResourceInterpreter:  ctx.ResourceInterpreter,
+		EventRecorder:        ctx.Mgr.GetEventRecorderFor(status.RBStatusControllerName),
+		RESTMapper:           ctx.Mgr.GetRESTMapper(),
+		RateLimiterOptions:   ctx.Opts.RateLimiterOptions,
+		SkipStatusCollection: ctx.Opts.SkipStatusCollection,
 	}
 	if err := rbStatusController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 
 	crbStatusController := &status.CRBStatusController{
-		Client:              ctx.Mgr.GetClient(),
-		DynamicClient:       ctx.DynamicClientSet,
-		InformerManager:     ctx.ControlPlaneInformerManager,
-		ResourceInterpreter: ctx.ResourceInterpreter,
-		EventRecorder:       ctx.Mgr.GetEventRecorderFor(status.CRBStatusControllerName),
-		RESTMapper:          ctx.Mgr.GetRESTMapper(),
-		RateLimiterOptions:  ctx.Opts.RateLimiterOptions,
+		Client:               ctx.Mgr.GetClient(),
+		DynamicClient:        ctx.DynamicClientSet,
+		InformerManager:      ctx.ControlPlaneInformerManager,
+		ResourceInterpreter:  ctx.ResourceInterpreter,
+		EventRecorder:        ctx.Mgr.GetEventRecorderFor(status.CRBStatusControllerName),
+		RESTMapper:           ctx.Mgr.GetRESTMapper(),
+		RateLimiterOptions:   ctx.Opts.RateLimiterOptions,
+		SkipStatusCollection: ctx.Opts.SkipStatusCollection,
 	}
 	if err := crbStatusController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -810,6 +812,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			GracefulEvictionTimeout:           opts.GracefulEvictionTimeout,
 			EnableClusterResourceModeling:     opts.EnableClusterResourceModeling,
 			HPAControllerConfiguration:        opts.HPAControllerConfiguration,
+			SkipStatusCollection:              opts.SkipStatusCollection,
 		},
 		StopChan:                    stopChan,
 		DynamicClientSet:            dynamicClientSet,
