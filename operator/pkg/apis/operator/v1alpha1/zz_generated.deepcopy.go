@@ -22,8 +22,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -275,6 +275,20 @@ func (in *KarmadaAPIServer) DeepCopyInto(out *KarmadaAPIServer) {
 		*out = make(map[string]string, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
+		}
+	}
+	if in.ExtraVolumes != nil {
+		in, out := &in.ExtraVolumes, &out.ExtraVolumes
+		*out = make([]v1.Volume, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.ExtraVolumeMounts != nil {
+		in, out := &in.ExtraVolumeMounts, &out.ExtraVolumeMounts
+		*out = make([]v1.VolumeMount, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	if in.CertSANs != nil {
@@ -629,7 +643,7 @@ func (in *KarmadaStatus) DeepCopyInto(out *KarmadaStatus) {
 	}
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
-		*out = make([]v1.Condition, len(*in))
+		*out = make([]metav1.Condition, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
@@ -781,17 +795,17 @@ func (in *VolumeData) DeepCopyInto(out *VolumeData) {
 	*out = *in
 	if in.VolumeClaim != nil {
 		in, out := &in.VolumeClaim, &out.VolumeClaim
-		*out = new(corev1.PersistentVolumeClaimTemplate)
+		*out = new(v1.PersistentVolumeClaimTemplate)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.HostPath != nil {
 		in, out := &in.HostPath, &out.HostPath
-		*out = new(corev1.HostPathVolumeSource)
+		*out = new(v1.HostPathVolumeSource)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.EmptyDir != nil {
 		in, out := &in.EmptyDir, &out.EmptyDir
-		*out = new(corev1.EmptyDirVolumeSource)
+		*out = new(v1.EmptyDirVolumeSource)
 		(*in).DeepCopyInto(*out)
 	}
 	return
