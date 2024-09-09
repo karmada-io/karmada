@@ -287,7 +287,7 @@ func TestController_buildWorks(t *testing.T) {
 						Plaintext: []policyv1alpha1.PlaintextOverrider{
 							{
 								Path:     "/metadata/labels/overridden",
-								Operator: "add",
+								Operator: policyv1alpha1.OverriderOpAdd,
 								Value: apiextensionsv1.JSON{
 									Raw: []byte(`"true"`),
 								},
