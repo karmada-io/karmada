@@ -77,7 +77,8 @@ func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.K
 		return fmt.Errorf("error when decoding karmadaApiserver deployment: %w", err)
 	}
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
-		WithExtraArgs(cfg.ExtraArgs).WithResources(cfg.Resources).ForDeployment(apiserverDeployment)
+		WithExtraArgs(cfg.ExtraArgs).WithExtraVolumeMounts(cfg.ExtraVolumeMounts).
+		WithExtraVolumes(cfg.ExtraVolumes).WithResources(cfg.Resources).ForDeployment(apiserverDeployment)
 
 	if err := apiclient.CreateOrUpdateDeployment(client, apiserverDeployment); err != nil {
 		return fmt.Errorf("error when creating deployment for %s, err: %w", apiserverDeployment.Name, err)
