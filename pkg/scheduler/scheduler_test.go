@@ -40,6 +40,7 @@ func TestCreateScheduler(t *testing.T) {
 	karmadaClient := karmadafake.NewSimpleClientset()
 	kubeClient := fake.NewSimpleClientset()
 	port := 10025
+	serviceNamespace := "tenant1"
 	servicePrefix := "test-service-prefix"
 	schedulerName := "test-scheduler"
 	timeout := metav1.Duration{Duration: 5 * time.Second}
@@ -51,6 +52,7 @@ func TestCreateScheduler(t *testing.T) {
 		schedulerEstimatorPort              int
 		disableSchedulerEstimatorInPullMode bool
 		schedulerEstimatorTimeout           metav1.Duration
+		schedulerEstimatorServiceNamespace  string
 		schedulerEstimatorServicePrefix     string
 		schedulerName                       string
 		schedulerEstimatorClientConfig      *grpcconnection.ClientConfig
@@ -102,6 +104,17 @@ func TestCreateScheduler(t *testing.T) {
 			schedulerEstimatorServicePrefix: servicePrefix,
 		},
 		{
+			name: "scheduler with custom SchedulerEstimatorServiceNamespace set",
+			opts: []Option{
+				WithEnableSchedulerEstimator(true),
+				WithSchedulerEstimatorConnection(port, "", "", "", false),
+				WithSchedulerEstimatorServiceNamespace(serviceNamespace),
+			},
+			enableSchedulerEstimator:           true,
+			schedulerEstimatorPort:             port,
+			schedulerEstimatorServiceNamespace: serviceNamespace,
+		},
+		{
 			name: "scheduler with SchedulerName enabled",
 			opts: []Option{
 				WithSchedulerName(schedulerName),
@@ -145,6 +158,10 @@ func TestCreateScheduler(t *testing.T) {
 
 			if tc.disableSchedulerEstimatorInPullMode != sche.disableSchedulerEstimatorInPullMode {
 				t.Errorf("unexpected disableSchedulerEstimatorInPullMode want %v, got %v", tc.disableSchedulerEstimatorInPullMode, sche.disableSchedulerEstimatorInPullMode)
+			}
+
+			if tc.schedulerEstimatorServiceNamespace != sche.schedulerEstimatorServiceNamespace {
+				t.Errorf("unexpected schedulerEstimatorServiceNamespace want %v, got %v", tc.schedulerEstimatorServiceNamespace, sche.schedulerEstimatorServiceNamespace)
 			}
 
 			if tc.schedulerEstimatorServicePrefix != sche.schedulerEstimatorServicePrefix {

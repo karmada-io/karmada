@@ -106,6 +106,7 @@ type Scheduler struct {
 	enableSchedulerEstimator            bool
 	disableSchedulerEstimatorInPullMode bool
 	schedulerEstimatorCache             *estimatorclient.SchedulerEstimatorCache
+	schedulerEstimatorServiceNamespace  string
 	schedulerEstimatorServicePrefix     string
 	schedulerEstimatorWorker            util.AsyncWorker
 	schedulerEstimatorClientConfig      *grpcconnection.ClientConfig
@@ -121,6 +122,8 @@ type schedulerOptions struct {
 	disableSchedulerEstimatorInPullMode bool
 	// schedulerEstimatorTimeout specifies the timeout period of calling the accurate scheduler estimator service.
 	schedulerEstimatorTimeout metav1.Duration
+	// schedulerEstimatorServiceNamespace specifies the namespace to be used for discovering scheduler estimator services.
+	schedulerEstimatorServiceNamespace string
 	// SchedulerEstimatorServicePrefix presents the prefix of the accurate scheduler estimator service name.
 	schedulerEstimatorServicePrefix string
 	// schedulerName is the name of the scheduler. Default is "default-scheduler".
@@ -171,6 +174,13 @@ func WithDisableSchedulerEstimatorInPullMode(disableSchedulerEstimatorInPullMode
 func WithSchedulerEstimatorTimeout(schedulerEstimatorTimeout metav1.Duration) Option {
 	return func(o *schedulerOptions) {
 		o.schedulerEstimatorTimeout = schedulerEstimatorTimeout
+	}
+}
+
+// WithSchedulerEstimatorServiceNamespace sets the schedulerEstimatorServiceNamespace for the scheduler
+func WithSchedulerEstimatorServiceNamespace(schedulerEstimatorServiceNamespace string) Option {
+	return func(o *schedulerOptions) {
+		o.schedulerEstimatorServiceNamespace = schedulerEstimatorServiceNamespace
 	}
 }
 
@@ -262,6 +272,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 		sched.enableSchedulerEstimator = options.enableSchedulerEstimator
 		sched.disableSchedulerEstimatorInPullMode = options.disableSchedulerEstimatorInPullMode
 		sched.schedulerEstimatorServicePrefix = options.schedulerEstimatorServicePrefix
+		sched.schedulerEstimatorServiceNamespace = options.schedulerEstimatorServiceNamespace
 		sched.schedulerEstimatorClientConfig = options.schedulerEstimatorClientConfig
 		sched.schedulerEstimatorCache = estimatorclient.NewSchedulerEstimatorCache()
 		schedulerEstimatorWorkerOptions := util.Options{
@@ -776,7 +787,12 @@ func (s *Scheduler) reconcileEstimatorConnection(key util.QueueKey) error {
 		return nil
 	}
 
-	return estimatorclient.EstablishConnection(s.KubeClient, name, s.schedulerEstimatorCache, s.schedulerEstimatorServicePrefix, s.schedulerEstimatorClientConfig)
+	serviceInfo := estimatorclient.SchedulerEstimatorServiceInfo{
+		Name:       name,
+		Namespace:  s.schedulerEstimatorServiceNamespace,
+		NamePrefix: s.schedulerEstimatorServicePrefix,
+	}
+	return estimatorclient.EstablishConnection(s.KubeClient, serviceInfo, s.schedulerEstimatorCache, s.schedulerEstimatorClientConfig)
 }
 
 func (s *Scheduler) establishEstimatorConnections() {
@@ -789,7 +805,12 @@ func (s *Scheduler) establishEstimatorConnections() {
 		if clusterList.Items[i].Spec.SyncMode == clusterv1alpha1.Pull && s.disableSchedulerEstimatorInPullMode {
 			continue
 		}
-		if err = estimatorclient.EstablishConnection(s.KubeClient, clusterList.Items[i].Name, s.schedulerEstimatorCache, s.schedulerEstimatorServicePrefix, s.schedulerEstimatorClientConfig); err != nil {
+		serviceInfo := estimatorclient.SchedulerEstimatorServiceInfo{
+			Name:       clusterList.Items[i].Name,
+			Namespace:  s.schedulerEstimatorServiceNamespace,
+			NamePrefix: s.schedulerEstimatorServicePrefix,
+		}
+		if err = estimatorclient.EstablishConnection(s.KubeClient, serviceInfo, s.schedulerEstimatorCache, s.schedulerEstimatorClientConfig); err != nil {
 			klog.Error(err)
 		}
 	}
