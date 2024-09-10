@@ -101,7 +101,7 @@ func NewCmdExec(f util.Factory, parentCommand string, streams genericiooptions.I
 	o.OperationScope = options.KarmadaControlPlane
 	flags := cmd.Flags()
 	options.AddKubeConfigFlags(flags)
-	flags.StringVarP(options.DefaultConfigFlags.Namespace, "namespace", "n", *options.DefaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
+	options.AddNamespaceFlag(flags)
 	cmdutil.AddPodRunningTimeoutFlag(cmd, defaultPodExecTimeout)
 	cmdutil.AddJsonFilenameFlag(flags, &o.KubectlExecOptions.FilenameOptions.Filenames, "to use to exec into the resource")
 	cmdutil.AddContainerVarFlags(cmd, &o.KubectlExecOptions.ContainerName, o.KubectlExecOptions.ContainerName)

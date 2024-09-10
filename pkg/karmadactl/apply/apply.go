@@ -110,7 +110,7 @@ func NewCmdApply(f util.Factory, parentCommand string, streams genericiooptions.
 	o.KubectlApplyFlags.AddFlags(cmd)
 	flags := cmd.Flags()
 	options.AddKubeConfigFlags(flags)
-	flags.StringVarP(options.DefaultConfigFlags.Namespace, "namespace", "n", *options.DefaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
+	options.AddNamespaceFlag(flags)
 	flags.BoolVarP(&o.AllClusters, "all-clusters", "", o.AllClusters, "If present, propagates a group of resources to all member clusters.")
 	flags.StringSliceVarP(&o.Clusters, "cluster", "C", o.Clusters, "If present, propagates a group of resources to specified clusters.")
 	return cmd

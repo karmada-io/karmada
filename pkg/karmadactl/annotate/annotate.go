@@ -21,6 +21,7 @@ import (
 	kubectlannotate "k8s.io/kubectl/pkg/cmd/annotate"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
@@ -51,5 +52,7 @@ var (
 func NewCmdAnnotate(f util.Factory, parentCommand string, ioStreams genericiooptions.IOStreams) *cobra.Command {
 	cmd := kubectlannotate.NewCmdAnnotate(parentCommand, f, ioStreams)
 	cmd.Example = fmt.Sprintf(annotateExample, parentCommand)
+	options.AddKubeConfigFlags(cmd.Flags())
+	options.AddNamespaceFlag(cmd.Flags())
 	return cmd
 }

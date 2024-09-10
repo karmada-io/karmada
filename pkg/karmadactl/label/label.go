@@ -21,6 +21,7 @@ import (
 	kubectllabel "k8s.io/kubectl/pkg/cmd/label"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
@@ -50,5 +51,7 @@ var (
 func NewCmdLabel(f util.Factory, parentCommand string, ioStreams genericiooptions.IOStreams) *cobra.Command {
 	cmd := kubectllabel.NewCmdLabel(f, ioStreams)
 	cmd.Example = fmt.Sprintf(labelExample, parentCommand)
+	options.AddKubeConfigFlags(cmd.Flags())
+	options.AddNamespaceFlag(cmd.Flags())
 	return cmd
 }
