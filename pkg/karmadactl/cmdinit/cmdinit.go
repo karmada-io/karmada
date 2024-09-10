@@ -140,7 +140,7 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	flags.StringVarP(&opts.EtcdInitImage, "etcd-init-image", "", kubernetes.DefaultInitImage, "etcd init container image")
 	flags.Int32VarP(&opts.EtcdReplicas, "etcd-replicas", "", 1, "etcd replica set, cluster 3,5...singular")
 	flags.StringVarP(&opts.EtcdHostDataPath, "etcd-data", "", "/var/lib/karmada-etcd", "etcd data path,valid in hostPath mode.")
-	flags.StringVarP(&opts.EtcdNodeSelectorLabels, "etcd-node-selector-labels", "", "", "etcd pod select the labels of the node. valid in hostPath mode ( e.g. --etcd-node-selector-labels karmada.io/etcd=true)")
+	flags.StringVarP(&opts.EtcdNodeSelectorLabels, "etcd-node-selector-labels", "", "", "the labels used for etcd pod to select nodes, valid in hostPath mode, and with each label separated by a comma. ( e.g. --etcd-node-selector-labels karmada.io/etcd=true,kubernetes.io/os=linux)")
 	flags.StringVarP(&opts.EtcdPersistentVolumeSize, "etcd-pvc-size", "", "5Gi", "etcd data path,valid in pvc mode.")
 	flags.StringVar(&opts.ExternalEtcdCACertPath, "external-etcd-ca-cert-path", "", "The path of CA certificate of the external etcd cluster in pem format.")
 	flags.StringVar(&opts.ExternalEtcdClientCertPath, "external-etcd-client-cert-path", "", "The path of client side certificate to the external etcd cluster in pem format.")
