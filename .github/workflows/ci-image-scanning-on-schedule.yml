@@ -1,0 +1,69 @@
+name: image-scanning-on-schedule
+on:
+  schedule:
+    # Run this workflow "At 00:00 UTC on Sunday"
+    - cron: '0 0 * * 0'
+permissions:
+  contents: read
+jobs:
+  use-trivy-to-scan-image:
+    permissions:
+      security-events: write  # for github/codeql-action/upload-sarif to upload SARIF results
+    name: image-scanning
+    if: ${{ github.repository == 'karmada-io/karmada' }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - karmada-controller-manager
+          - karmada-scheduler
+          - karmada-descheduler
+          - karmada-webhook
+          - karmada-agent
+          - karmada-scheduler-estimator
+          - karmada-interpreter-webhook-example
+          - karmada-aggregated-apiserver
+          - karmada-search
+          - karmada-operator
+          - karmada-metrics-adapter
+        karmada-version: [ release-1.11, release-1.10, release-1.9 ]
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.karmada-version }}
+      - name: install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - id: gen_git_info
+        run: |
+          echo "ref=$(git rev-parse --symbolic-full-name  HEAD)" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Build images from Dockerfile
+        run: |
+          export VERSION=${{ matrix.karmada-version }}
+          export REGISTRY="docker.io/karmada"
+          make image-${{ matrix.target }}
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: 'docker.io/karmada/${{ matrix.target }}:${{ matrix.karmada-version }}'
+          format: 'sarif'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          output: '${{ matrix.target }}:${{ matrix.karmada-version }}.trivy-results.sarif'
+      - name: display scan results
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: 'docker.io/karmada/${{ matrix.target }}:${{ matrix.karmada-version }}'
+          format: 'table'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: '${{ matrix.target }}:${{ matrix.karmada-version }}.trivy-results.sarif'
+          ref: ${{steps.gen_git_info.outputs.ref}}
+          sha: ${{steps.gen_git_info.outputs.sha}}
