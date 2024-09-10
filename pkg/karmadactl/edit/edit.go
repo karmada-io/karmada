@@ -25,6 +25,7 @@ import (
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
@@ -53,5 +54,7 @@ func NewCmdEdit(f util.Factory, parentCommand string, ioStreams genericiooptions
 	cmd.Annotations = map[string]string{
 		util.TagCommandGroup: util.GroupBasic,
 	}
+	options.AddKubeConfigFlags(cmd.Flags())
+	options.AddNamespaceFlag(cmd.Flags())
 	return cmd
 }

@@ -40,6 +40,7 @@ import (
 
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
@@ -112,6 +113,7 @@ func NewCmdTopNode(f util.Factory, parentCommand string, o *NodeOptions, streams
 		Aliases: []string{"nodes", "no"},
 	}
 	cmdutil.AddLabelSelectorFlagVar(cmd, &o.Selector)
+	options.AddKubeConfigFlags(cmd.Flags())
 	cmd.Flags().StringVar(&o.SortBy, "sort-by", o.SortBy, "If non-empty, sort nodes list using specified field. The field can be either 'cpu' or 'memory'.")
 	cmd.Flags().StringSliceVar(&o.Clusters, "clusters", []string{}, "Used to specify target member clusters, for example: --clusters=member1,member2")
 	cmd.Flags().BoolVar(&o.NoHeaders, "no-headers", o.NoHeaders, "If present, print output without headers")

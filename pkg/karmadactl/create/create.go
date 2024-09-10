@@ -24,6 +24,7 @@ import (
 	kubectlcreate "k8s.io/kubectl/pkg/cmd/create"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
@@ -45,12 +46,14 @@ var (
 )
 
 // NewCmdCreate returns new initialized instance of create sub command
-func NewCmdCreate(f util.Factory, parentCommnd string, ioStreams genericiooptions.IOStreams) *cobra.Command {
+func NewCmdCreate(f util.Factory, parentCommand string, ioStreams genericiooptions.IOStreams) *cobra.Command {
 	cmd := kubectlcreate.NewCmdCreate(f, ioStreams)
-	cmd.Long = fmt.Sprintf(createLong, parentCommnd)
-	cmd.Example = fmt.Sprintf(createExample, parentCommnd)
+	cmd.Long = fmt.Sprintf(createLong, parentCommand)
+	cmd.Example = fmt.Sprintf(createExample, parentCommand)
 	cmd.Annotations = map[string]string{
 		util.TagCommandGroup: util.GroupBasic,
 	}
+	options.AddKubeConfigFlags(cmd.PersistentFlags())
+	options.AddNamespaceFlag(cmd.PersistentFlags())
 	return cmd
 }

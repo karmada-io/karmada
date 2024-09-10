@@ -59,6 +59,7 @@ func NewCmdAPIVersions(f util.Factory, parentCommand string, ioStreams genericio
 	}
 
 	o.OperationScope = options.KarmadaControlPlane
+	options.AddKubeConfigFlags(cmd.Flags())
 	cmd.Flags().VarP(&o.OperationScope, "operation-scope", "s", "Used to control the operation scope of the command. The optional values are karmada and members. Defaults to karmada.")
 	cmd.Flags().StringVar(&o.Cluster, "cluster", "", "Used to specify a target member cluster and only takes effect when the command's operation scope is members, for example: --operation-scope=members --cluster=member1")
 	return cmd
