@@ -21,6 +21,7 @@ import (
 	kubectlpatch "k8s.io/kubectl/pkg/cmd/patch"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
@@ -46,5 +47,7 @@ var (
 func NewCmdPatch(f util.Factory, parentCommand string, ioStreams genericiooptions.IOStreams) *cobra.Command {
 	cmd := kubectlpatch.NewCmdPatch(f, ioStreams)
 	cmd.Example = fmt.Sprintf(patchExample, parentCommand)
+	options.AddKubeConfigFlags(cmd.Flags())
+	options.AddNamespaceFlag(cmd.Flags())
 	return cmd
 }

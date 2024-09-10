@@ -98,7 +98,7 @@ func NewCmdLogs(f util.Factory, parentCommand string, streams genericiooptions.I
 
 	flags := cmd.Flags()
 	options.AddKubeConfigFlags(flags)
-	flags.StringVarP(options.DefaultConfigFlags.Namespace, "namespace", "n", *options.DefaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
+	options.AddNamespaceFlag(flags)
 	flags.StringVarP(&o.Cluster, "cluster", "C", "", "Specify a member cluster")
 	o.KubectlLogsOptions.AddFlags(cmd)
 
