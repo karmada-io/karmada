@@ -149,9 +149,9 @@ func NewCmdGet(f util.Factory, parentCommand string, streams genericiooptions.IO
 	o.PrintFlags.AddFlags(cmd)
 	flags := cmd.Flags()
 	options.AddKubeConfigFlags(flags)
+	options.AddNamespaceFlag(flags)
 	o.OperationScope = options.KarmadaControlPlane
 	flags.VarP(&o.OperationScope, "operation-scope", "s", "Used to control the operation scope of the command. The optional values are karmada, members, and all. Defaults to karmada.")
-	flags.StringVarP(options.DefaultConfigFlags.Namespace, "namespace", "n", *options.DefaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
 	flags.StringVarP(&o.LabelSelector, "labels", "l", "", "-l=label or -l label")
 	flags.StringSliceVarP(&o.Clusters, "clusters", "C", []string{}, "Used to specify target member clusters and only takes effect when the command's operation scope is members or all, for example: --operation-scope=all --clusters=member1,member2")
 	flags.BoolVarP(&o.AllNamespaces, "all-namespaces", "A", o.AllNamespaces, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")

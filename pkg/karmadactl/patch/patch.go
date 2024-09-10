@@ -21,6 +21,7 @@ import (
 	kubectlpatch "k8s.io/kubectl/pkg/cmd/patch"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
@@ -49,5 +50,7 @@ func NewCmdPatch(f util.Factory, parentCommand string, ioStreams genericiooption
 	cmd.Annotations = map[string]string{
 		util.TagCommandGroup: util.GroupAdvancedCommands,
 	}
+	options.AddKubeConfigFlags(cmd.Flags())
+	options.AddNamespaceFlag(cmd.Flags())
 	return cmd
 }

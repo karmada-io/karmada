@@ -21,6 +21,7 @@ import (
 	kubectlannotate "k8s.io/kubectl/pkg/cmd/annotate"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
@@ -54,5 +55,7 @@ func NewCmdAnnotate(f util.Factory, parentCommand string, ioStreams genericioopt
 	cmd.Annotations = map[string]string{
 		util.TagCommandGroup: util.GroupSettingsCommands,
 	}
+	options.AddKubeConfigFlags(cmd.Flags())
+	options.AddNamespaceFlag(cmd.Flags())
 	return cmd
 }
