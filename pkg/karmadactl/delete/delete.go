@@ -21,6 +21,7 @@ import (
 	kubectldelete "k8s.io/kubectl/pkg/cmd/delete"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
@@ -88,12 +89,14 @@ var (
 )
 
 // NewCmdDelete returns new initialized instance of delete sub command
-func NewCmdDelete(f util.Factory, parentCommnd string, ioStreams genericiooptions.IOStreams) *cobra.Command {
+func NewCmdDelete(f util.Factory, parentCommand string, ioStreams genericiooptions.IOStreams) *cobra.Command {
 	cmd := kubectldelete.NewCmdDelete(f, ioStreams)
-	cmd.Long = fmt.Sprintf(deleteLong, parentCommnd)
-	cmd.Example = fmt.Sprintf(deleteExample, parentCommnd)
+	cmd.Long = fmt.Sprintf(deleteLong, parentCommand)
+	cmd.Example = fmt.Sprintf(deleteExample, parentCommand)
 	cmd.Annotations = map[string]string{
 		util.TagCommandGroup: util.GroupBasic,
 	}
+	options.AddKubeConfigFlags(cmd.Flags())
+	options.AddNamespaceFlag(cmd.Flags())
 	return cmd
 }

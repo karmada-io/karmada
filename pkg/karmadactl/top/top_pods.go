@@ -125,7 +125,7 @@ func NewCmdTopPod(f util.Factory, parentCommand string, o *PodOptions, streams g
 	}
 	cmdutil.AddLabelSelectorFlagVar(cmd, &o.LabelSelector)
 	options.AddKubeConfigFlags(cmd.Flags())
-	cmd.Flags().StringVarP(options.DefaultConfigFlags.Namespace, "namespace", "n", *options.DefaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
+	options.AddNamespaceFlag(cmd.Flags())
 	cmd.Flags().StringSliceVarP(&o.Clusters, "clusters", "C", []string{}, "-C=member1,member2")
 	cmd.Flags().StringVar(&o.FieldSelector, "field-selector", o.FieldSelector, "Selector (field query) to filter on, supports '=', '==', and '!='.(e.g. --field-selector key1=value1,key2=value2). The server only supports a limited number of field queries per type.")
 	cmd.Flags().StringVar(&o.SortBy, "sort-by", o.SortBy, "If non-empty, sort pods list using specified field. The field can be either 'cpu' or 'memory'.")

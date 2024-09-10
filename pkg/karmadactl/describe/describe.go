@@ -96,9 +96,9 @@ func NewCmdDescribe(f util.Factory, parentCommand string, streams genericiooptio
 	kubedescribeFlags.AddFlags(cmd)
 
 	options.AddKubeConfigFlags(flags)
+	options.AddNamespaceFlag(flags)
 	o.OperationScope = options.KarmadaControlPlane
 	flags.VarP(&o.OperationScope, "operation-scope", "s", "Used to control the operation scope of the command. The optional values are karmada and members. Defaults to karmada.")
-	flags.StringVarP(options.DefaultConfigFlags.Namespace, "namespace", "n", *options.DefaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
 	flags.StringVarP(&o.Cluster, "cluster", "C", "", "Used to specify a target member cluster and only takes effect when the command's operation scope is members, for example: --operation-scope=members --cluster=member1")
 
 	return cmd

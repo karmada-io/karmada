@@ -81,14 +81,14 @@ func NewCmdExplain(f util.Factory, parentCommand string, streams genericiooption
 
 	flags := cmd.Flags()
 	o.OperationScope = options.KarmadaControlPlane
+	options.AddKubeConfigFlags(flags)
+	options.AddNamespaceFlag(flags)
 	flags.VarP(&o.OperationScope, "operation-scope", "s", "Used to control the operation scope of the command. The optional values are karmada and members. Defaults to karmada.")
 	flags.BoolVar(&o.Recursive, "recursive", o.Recursive, "When true, print the name of all the fields recursively. Otherwise, print the available fields with their description.")
 	flags.StringVar(&o.APIVersion, "api-version", o.APIVersion, "Use given api-version (group/version) of the resource.")
 
 	// Only enable --output as a valid flag if the feature is enabled
 	flags.StringVar(&o.OutputFormat, "output", plaintextTemplateName, "Format in which to render the schema. Valid values are: (plaintext, plaintext-openapiv2).")
-
-	flags.StringVarP(options.DefaultConfigFlags.Namespace, "namespace", "n", *options.DefaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
 	flags.StringVar(&o.Cluster, "cluster", "", "Used to specify a target member cluster and only takes effect when the command's operation scope is member clusters, for example: --operation-scope=all --cluster=member1")
 	return cmd
 }
