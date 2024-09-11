@@ -1,0 +1,27 @@
+# See https://github.com/crate-ci/typos/blob/master/docs/reference.md to configure typos
+[files]
+extend-exclude = [
+    "vendor/*",
+    "third_party/*",
+    "*generated.pb.go",
+    "*.svg",
+    "*CHANGELOG*",
+    "*.drawio",
+]
+[default.extend-words]
+Ded = "Ded"
+Datas = "Datas"
+unexpect = "unexpect"
+Mis = "Mis"
+Sortings = "Sortings"
+BA = "BA"
+UE = "UE"
+ND = "ND"
+Fo = "Fo"
+abd = "abd"
+IY = "IY"
+Iy = "Iy"
+Pn = "Pn"
+Hda = "Hda"
+Anf = "Anf"
+metdata = "metdata"   # this is generated

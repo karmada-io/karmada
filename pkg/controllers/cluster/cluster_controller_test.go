@@ -287,19 +287,19 @@ func TestController_Reconcile(t *testing.T) {
 			c := newClusterController()
 			if tt.cluster != nil {
 				if err := c.Create(context.Background(), tt.cluster, &client.CreateOptions{}); err != nil {
-					t.Fatalf("faild to create cluster %v", err)
+					t.Fatalf("failed to create cluster %v", err)
 				}
 			}
 
 			if tt.ns != nil {
 				if err := c.Create(context.Background(), tt.ns, &client.CreateOptions{}); err != nil {
-					t.Fatalf("faild to create ns %v", err)
+					t.Fatalf("failed to create ns %v", err)
 				}
 			}
 
 			if tt.work != nil {
 				if err := c.Create(context.Background(), tt.work, &client.CreateOptions{}); err != nil {
-					t.Fatalf("faild to create work %v", err)
+					t.Fatalf("failed to create work %v", err)
 				}
 			}
 

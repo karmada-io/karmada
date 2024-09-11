@@ -74,7 +74,7 @@ func WaitGracefulEvictionTasksDone(client karmada.Interface, namespace, name str
 				return err
 			}
 			if len(binding.Spec.GracefulEvictionTasks) > 0 {
-				return fmt.Errorf("%d GracefulEvictionTasks is being precessing", len(binding.Spec.GracefulEvictionTasks))
+				return fmt.Errorf("%d GracefulEvictionTasks is being processing", len(binding.Spec.GracefulEvictionTasks))
 			}
 			return nil
 		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
