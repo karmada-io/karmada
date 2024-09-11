@@ -18,6 +18,7 @@ package client
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -34,7 +35,7 @@ func TestResolveCluster(t *testing.T) {
 		port        int32
 		service     *corev1.Service
 		expectError bool
-		expected    string
+		expected    []string
 	}{
 		{
 			name:      "Service not found",
@@ -42,7 +43,7 @@ func TestResolveCluster(t *testing.T) {
 			id:        "nonexistent",
 			port:      80,
 			service:   nil,
-			expected:  "nonexistent.default.svc.cluster.local:80",
+			expected:  []string{"nonexistent.default.svc.cluster.local:80", "nonexistent.default.svc:80"},
 		},
 		{
 			name:      "Unsupported service type",
@@ -81,7 +82,7 @@ func TestResolveCluster(t *testing.T) {
 					},
 				},
 			},
-			expected: "example.com:8080",
+			expected: []string{"example.com:8080"},
 		},
 		{
 			name:      "ExternalName service with non-int target port",
@@ -122,8 +123,8 @@ func TestResolveCluster(t *testing.T) {
 			if (err != nil) != tt.expectError {
 				t.Errorf("expected error: %v, got: %v", tt.expectError, err)
 			}
-			if result != tt.expected {
-				t.Errorf("expected: %s, got: %s", tt.expected, result)
+			if !reflect.DeepEqual(tt.expected, result) {
+				t.Errorf("expected: %v, got: %v", tt.expected, result)
 			}
 		})
 	}
