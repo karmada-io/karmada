@@ -55,12 +55,12 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 		if err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
-		if errs := validateMCIUpdate(oldMci, mci); len(errs) != 0 {
+		if errs := v.validateMCIUpdate(oldMci, mci); len(errs) != 0 {
 			klog.Errorf("%v", errs)
 			return admission.Denied(errs.ToAggregate().Error())
 		}
 	} else {
-		if errs := validateMCI(mci); len(errs) != 0 {
+		if errs := v.validateMCI(mci); len(errs) != 0 {
 			klog.Errorf("%v", errs)
 			return admission.Denied(errs.ToAggregate().Error())
 		}
@@ -68,14 +68,14 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 	return admission.Allowed("")
 }
 
-func validateMCIUpdate(oldMci, newMci *networkingv1alpha1.MultiClusterIngress) field.ErrorList {
+func (v *ValidatingAdmission) validateMCIUpdate(oldMci, newMci *networkingv1alpha1.MultiClusterIngress) field.ErrorList {
 	allErrs := apimachineryvalidation.ValidateObjectMetaUpdate(&newMci.ObjectMeta, &oldMci.ObjectMeta, field.NewPath("metadata"))
-	allErrs = append(allErrs, validateMCI(newMci)...)
+	allErrs = append(allErrs, v.validateMCI(newMci)...)
 	allErrs = append(allErrs, lifted.ValidateIngressLoadBalancerStatus(&newMci.Status.LoadBalancer, field.NewPath("status", "loadBalancer"))...)
 	return allErrs
 }
 
-func validateMCI(mci *networkingv1alpha1.MultiClusterIngress) field.ErrorList {
+func (v *ValidatingAdmission) validateMCI(mci *networkingv1alpha1.MultiClusterIngress) field.ErrorList {
 	allErrs := apimachineryvalidation.ValidateObjectMeta(&mci.ObjectMeta, true,
 		apimachineryvalidation.NameIsDNSSubdomain, field.NewPath("metadata"))
 	opts := lifted.IngressValidationOptions{
