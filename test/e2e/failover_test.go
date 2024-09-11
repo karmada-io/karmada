@@ -354,7 +354,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 							ImageOverrider: []policyv1alpha1.ImageOverrider{
 								{
 									Component: "Registry",
-									Operator:  "replace",
+									Operator:  policyv1alpha1.OverriderOpReplace,
 									Value:     "fake",
 								},
 							},
@@ -405,7 +405,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 				// modify gracePeriodSeconds to create a time difference with tolerationSecond to avoid cluster interference
 				patch := []map[string]interface{}{
 					{
-						"op":    "replace",
+						"op":    policyv1alpha1.OverriderOpReplace,
 						"path":  "/spec/failover/application/gracePeriodSeconds",
 						"value": ptr.To[int32](gracePeriodSeconds),
 					},
@@ -432,7 +432,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 							ImageOverrider: []policyv1alpha1.ImageOverrider{
 								{
 									Component: "Registry",
-									Operator:  "replace",
+									Operator:  policyv1alpha1.OverriderOpReplace,
 									Value:     "fake",
 								},
 							},
@@ -545,7 +545,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 							ImageOverrider: []policyv1alpha1.ImageOverrider{
 								{
 									Component: "Registry",
-									Operator:  "replace",
+									Operator:  policyv1alpha1.OverriderOpReplace,
 									Value:     "fake",
 								},
 							},

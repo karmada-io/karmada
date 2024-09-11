@@ -133,7 +133,7 @@ func TestValidateOverrideSpec(t *testing.T) {
 						Overriders: policyv1alpha1.Overriders{
 							AnnotationsOverrider: []policyv1alpha1.LabelAnnotationOverrider{
 								{
-									Operator: "add",
+									Operator: policyv1alpha1.OverriderOpAdd,
 									Value:    map[string]string{"testannotation~projectId": "c-m-lfx9lk92p-v86cf"},
 								},
 							},
@@ -154,7 +154,7 @@ func TestValidateOverrideSpec(t *testing.T) {
 						Overriders: policyv1alpha1.Overriders{
 							LabelsOverrider: []policyv1alpha1.LabelAnnotationOverrider{
 								{
-									Operator: "add",
+									Operator: policyv1alpha1.OverriderOpAdd,
 									Value:    map[string]string{"testannotation~projectId": "c-m-lfx9lk92p-v86cf"},
 								},
 							},
@@ -277,14 +277,14 @@ func TestEmptyOverrides(t *testing.T) {
 				ImageOverrider: []policyv1alpha1.ImageOverrider{
 					{
 						Component: "Registry",
-						Operator:  "remove",
+						Operator:  policyv1alpha1.OverriderOpRemove,
 						Value:     "fictional.registry.us",
 					},
 				},
 				CommandOverrider: []policyv1alpha1.CommandArgsOverrider{
 					{
 						ContainerName: "nginx",
-						Operator:      "add",
+						Operator:      policyv1alpha1.OverriderOpAdd,
 						Value:         []string{"echo 'hello karmada'"},
 					},
 				},
