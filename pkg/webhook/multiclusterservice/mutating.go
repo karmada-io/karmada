@@ -22,6 +22,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
@@ -44,6 +45,7 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
+	klog.V(2).Infof("Mutating MultiClusterService(%s/%s) for request: %s", req.Namespace, mcs.Name, req.Operation)
 
 	if util.GetLabelValue(mcs.Labels, networkingv1alpha1.MultiClusterServicePermanentIDLabel) == "" {
 		id := uuid.New().String()

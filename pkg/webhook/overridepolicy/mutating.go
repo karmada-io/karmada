@@ -43,6 +43,7 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
+	klog.V(2).Infof("Mutating OverridePolicy(%s/%s) for request: %s", req.Namespace, policy.Name, req.Operation)
 
 	// Set default namespace for all resource selector if not set.
 	// We need to get the default namespace from the request because for kube-apiserver < v1.24,
