@@ -23,6 +23,7 @@ import (
 
 	"github.com/google/uuid"
 	admissionv1 "k8s.io/api/admission/v1"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -59,6 +60,7 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
+	klog.V(2).Infof("Mutating ClusterPropagationPolicy(%s/%s) for request: %s", req.Namespace, policy.Name, req.Operation)
 
 	// Set default spread constraints if both 'SpreadByField' and 'SpreadByLabel' not set.
 	helper.SetDefaultSpreadConstraints(policy.Spec.Placement.SpreadConstraints)
