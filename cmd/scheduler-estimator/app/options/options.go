@@ -90,7 +90,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&o.GrpcAuthCertFile, "grpc-auth-cert-file", "", "SSL certification file used for grpc SSL/TLS connections.")
 	fs.StringVar(&o.GrpcAuthKeyFile, "grpc-auth-key-file", "", "SSL key file used for grpc SSL/TLS connections.")
 	fs.BoolVar(&o.InsecureSkipGrpcClientVerify, "insecure-skip-grpc-client-verify", false, "If set to true, the estimator will not verify the grpc client's certificate chain and host name. When the relevant certificates are not configured, it will not take effect.")
-	fs.StringVar(&o.GrpcClientCaFile, "grpc-client-ca-file", "", "SSL Certificate Authority file used to verify grpc client certificates on incoming requests if --client-cert-auth flag is set.")
+	fs.StringVar(&o.GrpcClientCaFile, "grpc-client-ca-file", "", "SSL Certificate Authority file used to verify grpc client certificates on incoming requests.")
 	fs.IntVar(&o.SecurePort, "secure-port", defaultHealthzPort, "The secure port on which to serve HTTPS.")
 	fs.Float32Var(&o.ClusterAPIQPS, "kube-api-qps", 20.0, "QPS to use while talking with apiserver.")
 	fs.IntVar(&o.ClusterAPIBurst, "kube-api-burst", 30, "Burst to use while talking with apiserver.")
