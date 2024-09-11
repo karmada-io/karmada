@@ -1075,8 +1075,7 @@ var _ = ginkgo.Describe("[DeleteCase] ClusterPropagationPolicy testing", func() 
 	})
 })
 
-// Suspend dispatching of ClusterPropagationPolicy
-var _ = ginkgo.Describe("[Suspend] clusterPropagation testing", func() {
+var _ = ginkgo.Describe("[Suspension] ClusterPropagationPolicy testing", func() {
 	var policy *policyv1alpha1.ClusterPropagationPolicy
 	var clusterRole *rbacv1.ClusterRole
 	var targetMember string
@@ -1106,27 +1105,30 @@ var _ = ginkgo.Describe("[Suspend] clusterPropagation testing", func() {
 	ginkgo.BeforeEach(func() {
 		framework.CreateClusterPropagationPolicy(karmadaClient, policy)
 		framework.CreateClusterRole(kubeClient, clusterRole)
+		framework.WaitClusterRolePresentOnClusterFitWith(targetMember, clusterRole.Name, func(*rbacv1.ClusterRole) bool {
+			return true
+		})
 		ginkgo.DeferCleanup(func() {
 			framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
 			framework.RemoveClusterRole(kubeClient, clusterRole.Name)
 		})
 	})
 
-	ginkgo.BeforeEach(func() {
-		policy.Spec.Suspension = &policyv1alpha1.Suspension{
-			Dispatching: ptr.To(true),
-		}
-		framework.UpdateClusterPropagationPolicyWithSpec(karmadaClient, policy.Name, policy.Spec)
-	})
+	ginkgo.It("suspend the CPP dispatching", func() {
+		ginkgo.By("update the cpp suspension dispatching to true", func() {
+			policy.Spec.Suspension = &policyv1alpha1.Suspension{
+				Dispatching: ptr.To(true),
+			}
+			framework.UpdateClusterPropagationPolicyWithSpec(karmadaClient, policy.Name, policy.Spec)
+		})
 
-	ginkgo.Context("suspend the ClusterPropagationPolicy dispatching", func() {
-		ginkgo.It("suspends ClusterResourceBinding", func() {
+		ginkgo.By("check CRB suspension spec", func() {
 			framework.WaitClusterResourceBindingFitWith(karmadaClient, resourceBindingName, func(binding *workv1alpha2.ClusterResourceBinding) bool {
 				return binding.Spec.Suspension != nil && ptr.Deref(binding.Spec.Suspension.Dispatching, false)
 			})
 		})
 
-		ginkgo.It("suspends Work", func() {
+		ginkgo.By("check Work suspension spec", func() {
 			esName := names.GenerateExecutionSpaceName(targetMember)
 			gomega.Eventually(func() bool {
 				work, err := karmadaClient.WorkV1alpha1().Works(esName).Get(context.TODO(), workName, metav1.GetOptions{})
@@ -1137,7 +1139,7 @@ var _ = ginkgo.Describe("[Suspend] clusterPropagation testing", func() {
 			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 		})
 
-		ginkgo.It("adds suspend dispatching condition to Work", func() {
+		ginkgo.By("check Work Dispatching status condition", func() {
 			esName := names.GenerateExecutionSpaceName(targetMember)
 			gomega.Eventually(func() bool {
 				work, err := karmadaClient.WorkV1alpha1().Works(esName).Get(context.TODO(), workName, metav1.GetOptions{})
