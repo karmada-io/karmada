@@ -31,7 +31,7 @@ import (
 // ResolveCluster parses Service resource content by itself.
 // Fixes Issue https://github.com/karmada-io/karmada/issues/2487
 // Modified from "k8s.io/apiserver/pkg/util/proxy/proxy.go:92 => func ResolveCluster"
-func resolveCluster(kubeClient kubernetes.Interface, namespace, id string, port int32) (string, error) {
+func resolveCluster(kubeClient kubernetes.Interface, namespace, id string, port int32) ([]string, error) {
 	svc, err := kubeClient.CoreV1().Services(namespace).Get(context.TODO(), id, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -39,29 +39,33 @@ func resolveCluster(kubeClient kubernetes.Interface, namespace, id string, port 
 			 * When Deploying Karmada in Host Kubernetes Cluster, the kubeClient will connect kube-apiserver
 			 * of Karmada Control Plane, rather than of host cluster.
 			 * But the Service resource is defined in Host Kubernetes Cluster. So we cannot get its content here.
-			 * The best thing we can do is just glue host:port together, and try to connect to it.
+			 * The best thing we can do is just assemble hosts and ports according to a specific rule, and try to connect to them.
 			 */
-			return net.JoinHostPort(fmt.Sprintf("%s.%s.svc.cluster.local", id, namespace), fmt.Sprintf("%d", port)), nil
+			return []string{
+				net.JoinHostPort(fmt.Sprintf("%s.%s.svc.cluster.local", id, namespace), fmt.Sprintf("%d", port)),
+				// To support the environment with a custom DNS suffix.
+				net.JoinHostPort(fmt.Sprintf("%s.%s.svc", id, namespace), fmt.Sprintf("%d", port)),
+			}, nil
 		}
 
-		return "", err
+		return nil, err
 	}
 
 	if svc.Spec.Type != corev1.ServiceTypeExternalName {
 		// We only support ExternalName type here.
 		// See discussions in PR: https://github.com/karmada-io/karmada/pull/2574#discussion_r979539389
-		return "", fmt.Errorf("unsupported service type %q", svc.Spec.Type)
+		return nil, fmt.Errorf("unsupported service type %q", svc.Spec.Type)
 	}
 
 	svcPort, err := findServicePort(svc, port)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if svcPort.TargetPort.Type != intstr.Int {
-		return "", fmt.Errorf("ExternalName service type should have int target port, "+
+		return nil, fmt.Errorf("ExternalName service type should have int target port, "+
 			"current target port: %v", svcPort.TargetPort)
 	}
-	return net.JoinHostPort(svc.Spec.ExternalName, fmt.Sprintf("%d", svcPort.TargetPort.IntVal)), nil
+	return []string{net.JoinHostPort(svc.Spec.ExternalName, fmt.Sprintf("%d", svcPort.TargetPort.IntVal))}, nil
 }
 
 // findServicePort finds the service port by name or numerically.
