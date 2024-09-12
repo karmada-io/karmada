@@ -290,6 +290,24 @@ type KarmadaAPIServer struct {
 	// +optional
 	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
 
+	// ExtraVolumes specifies a list of extra volumes for the API server's pod
+	// To fulfil the base functionality required for a functioning control plane, when provisioning a new Karmada instance,
+	// the operator will automatically attach volumes for the API server pod needed to configure things such as TLS,
+	// SA token issuance/signing and secured connection to etcd, amongst others. However, given the wealth of options for configurability,
+	// there are additional features (e.g., encryption at rest and custom AuthN webhook) that can be configured. ExtraVolumes, in conjunction
+	// with ExtraArgs and ExtraVolumeMounts can be used to fulfil those use cases.
+	// +optional
+	ExtraVolumes []corev1.Volume `json:"extraVolumes,omitempty"`
+
+	// ExtraVolumeMounts specifies a list of extra volume mounts to be mounted into the API server's container
+	// To fulfil the base functionality required for a functioning control plane, when provisioning a new Karmada instance,
+	// the operator will automatically mount volumes into the API server container needed to configure things such as TLS,
+	// SA token issuance/signing and secured connection to etcd, amongst others. However, given the wealth of options for configurability,
+	// there are additional features (e.g., encryption at rest and custom AuthN webhook) that can be configured. ExtraVolumeMounts, in conjunction
+	// with ExtraArgs and ExtraVolumes can be used to fulfil those use cases.
+	// +optional
+	ExtraVolumeMounts []corev1.VolumeMount `json:"extraVolumeMounts,omitempty"`
+
 	// CertSANs sets extra Subject Alternative Names for the API Server signing cert.
 	// +optional
 	CertSANs []string `json:"certSANs,omitempty"`

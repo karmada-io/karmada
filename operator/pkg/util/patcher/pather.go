@@ -35,12 +35,14 @@ import (
 
 // Patcher defines multiple variables that need to be patched.
 type Patcher struct {
-	labels       map[string]string
-	annotations  map[string]string
-	extraArgs    map[string]string
-	featureGates map[string]bool
-	volume       *operatorv1alpha1.VolumeData
-	resources    corev1.ResourceRequirements
+	labels            map[string]string
+	annotations       map[string]string
+	extraArgs         map[string]string
+	extraVolumes      []corev1.Volume
+	extraVolumeMounts []corev1.VolumeMount
+	featureGates      map[string]bool
+	volume            *operatorv1alpha1.VolumeData
+	resources         corev1.ResourceRequirements
 }
 
 // NewPatcher returns a patcher.
@@ -63,6 +65,18 @@ func (p *Patcher) WithAnnotations(annotations labels.Set) *Patcher {
 // WithExtraArgs sets extraArgs to the patcher.
 func (p *Patcher) WithExtraArgs(extraArgs map[string]string) *Patcher {
 	p.extraArgs = extraArgs
+	return p
+}
+
+// WithExtraVolumes sets extra volumes for the patcher.
+func (p *Patcher) WithExtraVolumes(extraVolumes []corev1.Volume) *Patcher {
+	p.extraVolumes = extraVolumes
+	return p
+}
+
+// WithExtraVolumeMounts sets extra volume mounts for the patcher.
+func (p *Patcher) WithExtraVolumeMounts(extraVolumeMounts []corev1.VolumeMount) *Patcher {
+	p.extraVolumeMounts = extraVolumeMounts
 	return p
 }
 
@@ -122,6 +136,10 @@ func (p *Patcher) ForDeployment(deployment *appsv1.Deployment) {
 		command = append(command, buildArgumentListFromMap(argsMap, overrideArgs)...)
 		deployment.Spec.Template.Spec.Containers[0].Command = command
 	}
+	// Add extra volumes and volume mounts
+	// First container in the pod is expected to contain the Karmada component
+	deployment.Spec.Template.Spec.Volumes = append(deployment.Spec.Template.Spec.Volumes, p.extraVolumes...)
+	deployment.Spec.Template.Spec.Containers[0].VolumeMounts = append(deployment.Spec.Template.Spec.Containers[0].VolumeMounts, p.extraVolumeMounts...)
 }
 
 // ForStatefulSet patches the statefulset manifest.
