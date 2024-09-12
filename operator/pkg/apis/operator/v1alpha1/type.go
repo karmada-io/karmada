@@ -236,22 +236,33 @@ type VolumeData struct {
 }
 
 // ExternalEtcd describes an external etcd cluster.
-// operator has no knowledge of where certificate files live, and they must be supplied.
+// Operator has no knowledge of where certificate files live, and they must be supplied.
 type ExternalEtcd struct {
 	// Endpoints of etcd members. Required for ExternalEtcd.
 	Endpoints []string `json:"endpoints"`
 
 	// CAData is an SSL Certificate Authority file used to secure etcd communication.
 	// Required if using a TLS connection.
-	CAData []byte `json:"caData"`
+	// This field is deprecated and will be removed in a future version. Use SecretRef for providing client connection credentials.
+	CAData []byte `json:"caData,omitempty"`
 
 	// CertData is an SSL certification file used to secure etcd communication.
 	// Required if using a TLS connection.
-	CertData []byte `json:"certData"`
+	// This field is deprecated and will be removed in a future version. Use SecretRef for providing client connection credentials.
+	CertData []byte `json:"certData,omitempty"`
 
 	// KeyData is an SSL key file used to secure etcd communication.
 	// Required if using a TLS connection.
-	KeyData []byte `json:"keyData"`
+	// This field is deprecated and will be removed in a future version. Use SecretRef for providing client connection credentials.
+	KeyData []byte `json:"keyData,omitempty"`
+
+	// SecretRef references a Kubernetes secret containing the etcd connection credentials.
+	// The secret must contain the following data keys:
+	// ca.crt: The Certificate Authority (CA) certificate data.
+	// tls.crt: The TLS certificate data.
+	// tls.key: The TLS private key data.
+	// Required to configure the connection to an external etcd cluster.
+	SecretRef LocalSecretReference `json:"secretRef"`
 }
 
 // KarmadaAPIServer holds settings to kube-apiserver component of the kubernetes.

@@ -19,6 +19,7 @@ package tasks
 import (
 	"errors"
 	"fmt"
+	"github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 
 	"k8s.io/klog/v2"
 
@@ -29,26 +30,31 @@ import (
 )
 
 // NewRemoveComponentTask init a remove karmada components task
-func NewRemoveComponentTask() workflow.Task {
+func NewRemoveComponentTask(karmada *v1alpha1.Karmada) workflow.Task {
+	workflowTasks := []workflow.Task{
+		newRemoveComponentWithServiceSubTask(constants.KarmadaMetricsAdapterComponent, util.KarmadaMetricsAdapterName),
+		newRemoveComponentSubTask(constants.KarmadaDeschedulerComponent, util.KarmadaDeschedulerName),
+		newRemoveComponentSubTask(constants.KarmadaSchedulerComponent, util.KarmadaSchedulerName),
+		newRemoveComponentSubTask(constants.KarmadaControllerManagerComponent, util.KarmadaControllerManagerName),
+		newRemoveComponentSubTask(constants.KubeControllerManagerComponent, util.KubeControllerManagerName),
+		newRemoveComponentWithServiceSubTask(constants.KarmadaWebhookComponent, util.KarmadaWebhookName),
+		newRemoveComponentWithServiceSubTask(constants.KarmadaSearchComponent, util.KarmadaSearchName),
+		newRemoveComponentWithServiceSubTask(constants.KarmadaAggregatedAPIServerComponent, util.KarmadaAggregatedAPIServerName),
+		newRemoveComponentWithServiceSubTask(constants.KarmadaAPIserverComponent, util.KarmadaAPIServerName),
+	}
+	// In-cluster and external etcd configurations are mutually exclusive.
+	if karmada.Spec.Components.Etcd.Local != nil {
+		removeEtcdTask := workflow.Task{
+			Name: "remove-etcd",
+			Run:  runRemoveEtcd,
+		}
+		workflowTasks = append(workflowTasks, removeEtcdTask)
+	}
 	return workflow.Task{
 		Name:        "remove-component",
 		Run:         runRemoveComponent,
 		RunSubTasks: true,
-		Tasks: []workflow.Task{
-			newRemoveComponentWithServiceSubTask(constants.KarmadaMetricsAdapterComponent, util.KarmadaMetricsAdapterName),
-			newRemoveComponentSubTask(constants.KarmadaDeschedulerComponent, util.KarmadaDeschedulerName),
-			newRemoveComponentSubTask(constants.KarmadaSchedulerComponent, util.KarmadaSchedulerName),
-			newRemoveComponentSubTask(constants.KarmadaControllerManagerComponent, util.KarmadaControllerManagerName),
-			newRemoveComponentSubTask(constants.KubeControllerManagerComponent, util.KubeControllerManagerName),
-			newRemoveComponentWithServiceSubTask(constants.KarmadaWebhookComponent, util.KarmadaWebhookName),
-			newRemoveComponentWithServiceSubTask(constants.KarmadaSearchComponent, util.KarmadaSearchName),
-			newRemoveComponentWithServiceSubTask(constants.KarmadaAggregatedAPIServerComponent, util.KarmadaAggregatedAPIServerName),
-			newRemoveComponentWithServiceSubTask(constants.KarmadaAPIserverComponent, util.KarmadaAPIServerName),
-			{
-				Name: "remove-etcd",
-				Run:  runRemoveEtcd,
-			},
-		},
+		Tasks:       workflowTasks,
 	}
 }
 

@@ -112,6 +112,7 @@ func setDefaultsEtcd(obj *KarmadaComponents) {
 		obj.Etcd = &Etcd{}
 	}
 
+	// If external etcd client connection is not configured, we'll default to using in-cluster etcd configuration
 	if obj.Etcd.External == nil {
 		if obj.Etcd.Local == nil {
 			obj.Etcd.Local = &LocalEtcd{}

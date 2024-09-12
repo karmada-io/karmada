@@ -19,6 +19,7 @@ package tasks
 import (
 	"errors"
 	"fmt"
+	"github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 
 	"k8s.io/klog/v2"
 
@@ -29,16 +30,21 @@ import (
 )
 
 // NewCleanupCertTask init a task to cleanup certs
-func NewCleanupCertTask() workflow.Task {
+func NewCleanupCertTask(karmada *v1alpha1.Karmada) workflow.Task {
+	workflowTasks := []workflow.Task{
+		newCleanupCertSubTask("karmada", util.KarmadaCertSecretName),
+		newCleanupCertSubTask("webhook", util.WebhookCertSecretName),
+	}
+	// In-cluster and external etcd configurations are mutually exclusive.
+	if karmada.Spec.Components.Etcd.Local != nil {
+		cleanupEtcdCertTask := newCleanupCertSubTask("etcd", util.EtcdCertSecretName)
+		workflowTasks = append(workflowTasks, cleanupEtcdCertTask)
+	}
 	return workflow.Task{
 		Name:        "cleanup-cert",
 		Run:         runCleanupCert,
 		RunSubTasks: true,
-		Tasks: []workflow.Task{
-			newCleanupCertSubTask("karmada", util.KarmadaCertSecretName),
-			newCleanupCertSubTask("etcd", util.EtcdCertSecretName),
-			newCleanupCertSubTask("webhook", util.WebhookCertSecretName),
-		},
+		Tasks:       workflowTasks,
 	}
 }
 
