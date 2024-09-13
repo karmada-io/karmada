@@ -19,10 +19,11 @@ package tasks
 import (
 	"errors"
 	"fmt"
-	"github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
+
 
 	"k8s.io/klog/v2"
 
+	"github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
