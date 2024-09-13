@@ -101,8 +101,8 @@ func TestMutatingAdmission_Handle(t *testing.T) {
 }
 
 func TestMutatingAdmission_Handle_FullCoverage(t *testing.T) {
-	// Define the policy name and namespace to be used in the test.
-	policyName := "test-policy"
+	// Define the pp name and namespace to be used in the test.
+	policyName := "test-propagation-policy"
 	namespace := "test-namespace"
 
 	// Mock a request with a specific namespace.
@@ -113,8 +113,8 @@ func TestMutatingAdmission_Handle_FullCoverage(t *testing.T) {
 		},
 	}
 
-	// Create the initial policy with default values for testing.
-	policy := &policyv1alpha1.PropagationPolicy{
+	// Create the initial pp with default values for testing.
+	pp := &policyv1alpha1.PropagationPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: policyName,
 		},
@@ -145,8 +145,8 @@ func TestMutatingAdmission_Handle_FullCoverage(t *testing.T) {
 		},
 	}
 
-	// Define the expected policy after mutations.
-	wantPolicy := &policyv1alpha1.PropagationPolicy{
+	// Define the expected pp after mutations.
+	wantPP := &policyv1alpha1.PropagationPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: policyName,
 			Labels: map[string]string{
@@ -189,15 +189,15 @@ func TestMutatingAdmission_Handle_FullCoverage(t *testing.T) {
 		},
 	}
 
-	// Mock decoder that decodes the request into the policy object.
+	// Mock decoder that decodes the request into the pp object.
 	decoder := &fakeMutationDecoder{
-		obj: policy,
+		obj: pp,
 	}
 
-	// Marshal the expected policy to simulate the final mutated object.
-	wantBytes, err := json.Marshal(wantPolicy)
+	// Marshal the expected pp to simulate the final mutated object.
+	wantBytes, err := json.Marshal(wantPP)
 	if err != nil {
-		t.Fatalf("Failed to marshal expected policy: %v", err)
+		t.Fatalf("Failed to marshal expected propagation policy: %v", err)
 	}
 	req.Object.Raw = wantBytes
 
@@ -209,12 +209,16 @@ func TestMutatingAdmission_Handle_FullCoverage(t *testing.T) {
 	// Call the Handle function.
 	got := mutatingHandler.Handle(context.Background(), req)
 
-	// Verify that the only patch applied is for the UUID label. If any other patches are present, it indicates that the policy was not handled as expected.
-	if len(got.Patches) > 0 {
-		firstPatch := got.Patches[0]
-		if firstPatch.Operation != "replace" || firstPatch.Path != "/metadata/labels/propagationpolicy.karmada.io~1permanent-id" {
-			t.Errorf("Handle() returned unexpected patches. Only the UUID patch was expected. Received patches: %v", got.Patches)
-		}
+	// Check if exactly one patch is applied.
+	if len(got.Patches) != 1 {
+		t.Errorf("Handle() returned an unexpected number of patches. Expected one patch, received: %v", got.Patches)
+	}
+
+	// Verify that the only patch applied is for the UUID label
+	// If any other patches are present, it indicates that the propagation policy was not handled as expected.
+	firstPatch := got.Patches[0]
+	if firstPatch.Operation != "replace" || firstPatch.Path != "/metadata/labels/propagationpolicy.karmada.io~1permanent-id" {
+		t.Errorf("Handle() returned unexpected patches. Only the UUID patch was expected. Received patches: %v", got.Patches)
 	}
 
 	// Check if the admission request was allowed.
