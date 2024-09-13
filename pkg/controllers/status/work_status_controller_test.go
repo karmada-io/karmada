@@ -25,22 +25,26 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -723,6 +727,9 @@ func newWorkStatusController(cluster *clusterv1alpha1.Cluster, dynamicClientSets
 			m.Add(corev1.SchemeGroupVersion.WithKind("Pod"), meta.RESTScopeNamespace)
 			return m
 		}(),
+		ResourceInterpreter: FakeResourceInterpreter{
+			DefaultInterpreter: native.NewDefaultInterpreter(),
+		},
 	}
 
 	if len(dynamicClientSets) > 0 {
@@ -1020,4 +1027,48 @@ func TestWorkStatusController_registerInformersAndStart(t *testing.T) {
 		err := c.registerInformersAndStart(cluster, work)
 		assert.NotEmpty(t, err)
 	})
+}
+
+func TestWorkStatusController_interpretHealth(t *testing.T) {
+	tests := []struct {
+		name                   string
+		clusterObj             client.Object
+		expectedResourceHealth workv1alpha1.ResourceHealth
+		expectedEventReason    string
+	}{
+		{
+			name:                   "deployment without status is interpreted as unhealthy",
+			clusterObj:             testhelper.NewDeployment("foo", "bar"),
+			expectedResourceHealth: workv1alpha1.ResourceUnhealthy,
+			expectedEventReason:    events.EventReasonInterpretHealthSucceed,
+		},
+		{
+			name:                   "cluster role without status is interpreted as healthy",
+			clusterObj:             testhelper.NewClusterRole("foo", []rbacv1.PolicyRule{}),
+			expectedResourceHealth: workv1alpha1.ResourceHealthy,
+		},
+	}
+
+	cluster := newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
+	c := newWorkStatusController(cluster)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			work := testhelper.NewWork(tt.clusterObj.GetName(), tt.clusterObj.GetNamespace(), string(uuid.NewUUID()), []byte{})
+			obj, err := helper.ToUnstructured(tt.clusterObj)
+			assert.NoError(t, err)
+
+			resourceHealth := c.interpretHealth(obj, work)
+			assert.Equalf(t, tt.expectedResourceHealth, resourceHealth, "expected resource health %v, got %v", tt.expectedResourceHealth, resourceHealth)
+
+			eventRecorder := c.EventRecorder.(*record.FakeRecorder)
+			if tt.expectedEventReason == "" {
+				assert.Empty(t, eventRecorder.Events, "expected no events to get recorded")
+			} else {
+				assert.Equal(t, 1, len(eventRecorder.Events))
+				e := <-eventRecorder.Events
+				assert.Containsf(t, e, tt.expectedEventReason, "expected event reason %v, got %v", tt.expectedEventReason, e)
+			}
+		})
+	}
 }
