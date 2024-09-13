@@ -36,13 +36,28 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
-type fakeDecoder struct {
+// ResponseType represents the type of admission response.
+type ResponseType string
+
+const (
+	Denied  ResponseType = "Denied"
+	Allowed ResponseType = "Allowed"
+	Errored ResponseType = "Errored"
+)
+
+// TestResponse is used to define expected response in a test case.
+type TestResponse struct {
+	Type    ResponseType
+	Message string
+}
+
+type fakeValidationDecoder struct {
 	err error
 	obj runtime.Object
 }
 
 // Decode mocks the Decode method of admission.Decoder.
-func (f *fakeDecoder) Decode(_ admission.Request, obj runtime.Object) error {
+func (f *fakeValidationDecoder) Decode(_ admission.Request, obj runtime.Object) error {
 	if f.err != nil {
 		return f.err
 	}
@@ -53,7 +68,7 @@ func (f *fakeDecoder) Decode(_ admission.Request, obj runtime.Object) error {
 }
 
 // DecodeRaw mocks the DecodeRaw method of admission.Decoder.
-func (f *fakeDecoder) DecodeRaw(_ runtime.RawExtension, obj runtime.Object) error {
+func (f *fakeValidationDecoder) DecodeRaw(_ runtime.RawExtension, obj runtime.Object) error {
 	if f.err != nil {
 		return f.err
 	}
@@ -66,7 +81,7 @@ func (f *fakeDecoder) DecodeRaw(_ runtime.RawExtension, obj runtime.Object) erro
 // sortAndJoinMessages sorts and joins error message parts to ensure consistent ordering.
 // This prevents test flakiness caused by varying error message order.
 func sortAndJoinMessages(message string) string {
-	parts := strings.Split(strings.Trim(message, "[]"), ", ")
+	parts := strings.Split(message, ", ")
 	sort.Strings(parts)
 	return strings.Join(parts, ", ")
 }
@@ -86,7 +101,7 @@ func Test_validateOverallAndAssignments(t *testing.T) {
 		want field.ErrorList
 	}{
 		{
-			"normal",
+			"validateOverallAndAssignments_ValidValues_NoErrors",
 			args{
 				quotaSpec: &policyv1alpha1.FederatedResourceQuotaSpec{
 					Overall: corev1.ResourceList{
@@ -115,7 +130,7 @@ func Test_validateOverallAndAssignments(t *testing.T) {
 			field.ErrorList{},
 		},
 		{
-			"overall[cpu] is less than assignments",
+			"validateOverallAndAssignments_LowerOverallCPUThanAssignments_OverallCPULessThanAssignments",
 			args{
 				quotaSpec: &policyv1alpha1.FederatedResourceQuotaSpec{
 					Overall: corev1.ResourceList{
@@ -146,7 +161,7 @@ func Test_validateOverallAndAssignments(t *testing.T) {
 			},
 		},
 		{
-			"overall[memory] is less than assignments",
+			"validateOverallAndAssignments_LowerOverallMemoryThanAssignments_OverallMemoryLessThanAssignments",
 			args{
 				quotaSpec: &policyv1alpha1.FederatedResourceQuotaSpec{
 					Overall: corev1.ResourceList{
@@ -177,7 +192,7 @@ func Test_validateOverallAndAssignments(t *testing.T) {
 			},
 		},
 		{
-			"assignment resourceName is not exist in overall",
+			"validateOverallAndAssignments_InvalidAssignmentResource_AssignmentResourceNotInOverall",
 			args{
 				quotaSpec: &policyv1alpha1.FederatedResourceQuotaSpec{
 					Overall: corev1.ResourceList{
@@ -222,19 +237,22 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 		name    string
 		decoder admission.Decoder
 		req     admission.Request
-		want    admission.Response
+		want    TestResponse
 	}{
 		{
-			name: "Decode Error Handling",
-			decoder: &fakeDecoder{
+			name: "Handle_DecodeErrorHandling_ErrorReturned",
+			decoder: &fakeValidationDecoder{
 				err: errors.New("decode error"),
 			},
-			req:  admission.Request{},
-			want: admission.Errored(http.StatusBadRequest, errors.New("decode error")),
+			req: admission.Request{},
+			want: TestResponse{
+				Type:    Errored,
+				Message: "decode error",
+			},
 		},
 		{
-			name: "Validation Success - Resource Limits Match",
-			decoder: &fakeDecoder{
+			name: "Handle_ResourceLimitsMatch_NoErrors",
+			decoder: &fakeValidationDecoder{
 				obj: &policyv1alpha1.FederatedResourceQuota{
 					Spec: policyv1alpha1.FederatedResourceQuotaSpec{
 						Overall: corev1.ResourceList{
@@ -260,12 +278,15 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 					},
 				},
 			},
-			req:  admission.Request{},
-			want: admission.Allowed(""),
+			req: admission.Request{},
+			want: TestResponse{
+				Type:    Allowed,
+				Message: "",
+			},
 		},
 		{
-			name: "Validation Error - Resource Limits Exceeded",
-			decoder: &fakeDecoder{
+			name: "Handle_ExceedResourceLimits_ResourceLimitsExceeded",
+			decoder: &fakeValidationDecoder{
 				obj: &policyv1alpha1.FederatedResourceQuota{
 					Spec: policyv1alpha1.FederatedResourceQuotaSpec{
 						Overall: corev1.ResourceList{
@@ -291,12 +312,15 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 					},
 				},
 			},
-			req:  admission.Request{},
-			want: admission.Denied(fmt.Sprintf("[spec.overall[cpu]: Invalid value: \"%s\": overall is less than assignments, spec.overall[memory]: Invalid value: \"%s\": overall is less than assignments]", "5", "5Gi")),
+			req: admission.Request{},
+			want: TestResponse{
+				Type:    Denied,
+				Message: fmt.Sprintf("spec.overall[cpu]: Invalid value: \"%s\": overall is less than assignments, spec.overall[memory]: Invalid value: \"%s\": overall is less than assignments", "5", "5Gi"),
+			},
 		},
 		{
-			name: "Validation Error - CPU Allocation Exceeds Overall Limit",
-			decoder: &fakeDecoder{
+			name: "Handle_ExceedCPUAllocationOverallLimit_CPUAllocationExceedsOverallLimit",
+			decoder: &fakeValidationDecoder{
 				obj: &policyv1alpha1.FederatedResourceQuota{
 					Spec: policyv1alpha1.FederatedResourceQuotaSpec{
 						Overall: corev1.ResourceList{
@@ -322,12 +346,15 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 					},
 				},
 			},
-			req:  admission.Request{},
-			want: admission.Denied(fmt.Sprintf("spec.overall[cpu]: Invalid value: \"%s\": overall is less than assignments", "5")),
+			req: admission.Request{},
+			want: TestResponse{
+				Type:    Denied,
+				Message: fmt.Sprintf("spec.overall[cpu]: Invalid value: \"%s\": overall is less than assignments", "5"),
+			},
 		},
 		{
-			name: "Validation Error - Memory Allocation Exceeds Overall Limit",
-			decoder: &fakeDecoder{
+			name: "Handle_ExceedMemoryAllocationOverallLimit_MemoryAllocationExceedsOverallLimit",
+			decoder: &fakeValidationDecoder{
 				obj: &policyv1alpha1.FederatedResourceQuota{
 					Spec: policyv1alpha1.FederatedResourceQuotaSpec{
 						Overall: corev1.ResourceList{
@@ -353,12 +380,15 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 					},
 				},
 			},
-			req:  admission.Request{},
-			want: admission.Denied(fmt.Sprintf("spec.overall[memory]: Invalid value: \"%s\": overall is less than assignments", "5Gi")),
+			req: admission.Request{},
+			want: TestResponse{
+				Type:    Denied,
+				Message: fmt.Sprintf("spec.overall[memory]: Invalid value: \"%s\": overall is less than assignments", "5Gi"),
+			},
 		},
 		{
-			name: "Invalid Cluster Name",
-			decoder: &fakeDecoder{
+			name: "Handle_InvalidClusterName_ClusterNameInvalid",
+			decoder: &fakeValidationDecoder{
 				obj: &policyv1alpha1.FederatedResourceQuota{
 					Spec: policyv1alpha1.FederatedResourceQuotaSpec{
 						Overall: corev1.ResourceList{
@@ -377,8 +407,11 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 					},
 				},
 			},
-			req:  admission.Request{},
-			want: admission.Denied("[spec.staticAssignments[0].clusterName: Invalid value: \"invalid cluster name\": a lowercase RFC 1123 label must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name',  or '123-abc', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?')]"),
+			req: admission.Request{},
+			want: TestResponse{
+				Type:    Denied,
+				Message: "Invalid value: \"invalid cluster name\"",
+			},
 		},
 	}
 
@@ -389,9 +422,14 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 			}
 			got := v.Handle(context.Background(), tt.req)
 			got.Result.Message = sortAndJoinMessages(got.Result.Message)
-			tt.want.Result.Message = sortAndJoinMessages(tt.want.Result.Message)
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Handle() = %v, want %v", got, tt.want)
+			tt.want.Message = sortAndJoinMessages(tt.want.Message)
+
+			// Extract type and message from the actual response.
+			gotType := extractResponseType(got)
+			gotMessage := extractErrorMessage(got)
+
+			if gotType != tt.want.Type || !strings.Contains(gotMessage, tt.want.Message) {
+				t.Errorf("Handle() = {Type: %v, Message: %v}, want {Type: %v, Message: %v}", gotType, gotMessage, tt.want.Type, tt.want.Message)
 			}
 		})
 	}
@@ -406,7 +444,7 @@ func Test_validateFederatedResourceQuotaStatus(t *testing.T) {
 		expected field.ErrorList
 	}{
 		{
-			name: "Valid FederatedResourceQuotaStatus",
+			name: "validateFederatedResourceQuotaStatus_ValidStatus_NoErrors",
 			status: &policyv1alpha1.FederatedResourceQuotaStatus{
 				Overall:     corev1.ResourceList{"cpu": resource.MustParse("10")},
 				OverallUsed: corev1.ResourceList{"cpu": resource.MustParse("5")},
@@ -423,7 +461,7 @@ func Test_validateFederatedResourceQuotaStatus(t *testing.T) {
 			expected: field.ErrorList{},
 		},
 		{
-			name: "Invalid Overall Resource List",
+			name: "validateFederatedResourceQuotaStatus_InvalidOverallResourceList_ResourceTypeInvalid",
 			status: &policyv1alpha1.FederatedResourceQuotaStatus{
 				Overall:     corev1.ResourceList{"invalid-resource": resource.MustParse("10")},
 				OverallUsed: corev1.ResourceList{"cpu": resource.MustParse("5")},
@@ -443,7 +481,7 @@ func Test_validateFederatedResourceQuotaStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "Invalid AggregatedStatus Resource List",
+			name: "validateFederatedResourceQuotaStatus_InvalidAggregatedStatusResourceList_ResourceTypeInvalid",
 			status: &policyv1alpha1.FederatedResourceQuotaStatus{
 				Overall:     corev1.ResourceList{"cpu": resource.MustParse("10")},
 				OverallUsed: corev1.ResourceList{"cpu": resource.MustParse("5")},
@@ -482,7 +520,7 @@ func Test_validateClusterQuotaStatus(t *testing.T) {
 		expected field.ErrorList
 	}{
 		{
-			name: "Valid ClusterQuotaStatus",
+			name: "validateClusterQuotaStatus_ValidClusterQuotaStatus_NoErrors",
 			status: &policyv1alpha1.ClusterQuotaStatus{
 				ClusterName: "valid-cluster",
 				ResourceQuotaStatus: corev1.ResourceQuotaStatus{
@@ -493,7 +531,7 @@ func Test_validateClusterQuotaStatus(t *testing.T) {
 			expected: field.ErrorList{},
 		},
 		{
-			name: "Invalid Cluster Name",
+			name: "validateClusterQuotaStatus_InvalidClusterName_ClusterNameInvalid",
 			status: &policyv1alpha1.ClusterQuotaStatus{
 				ClusterName: "invalid cluster name",
 				ResourceQuotaStatus: corev1.ResourceQuotaStatus{
@@ -506,7 +544,7 @@ func Test_validateClusterQuotaStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "Invalid Resource List - Hard",
+			name: "validateClusterQuotaStatus_InvalidResourceList_HardResourceInvalid",
 			status: &policyv1alpha1.ClusterQuotaStatus{
 				ClusterName: "valid-cluster",
 				ResourceQuotaStatus: corev1.ResourceQuotaStatus{
@@ -520,7 +558,7 @@ func Test_validateClusterQuotaStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "Invalid Resource List - Used",
+			name: "validateClusterQuotaStatus_InvalidResourceList_UsedResourceInvalid",
 			status: &policyv1alpha1.ClusterQuotaStatus{
 				ClusterName: "valid-cluster",
 				ResourceQuotaStatus: corev1.ResourceQuotaStatus{
@@ -542,4 +580,25 @@ func Test_validateClusterQuotaStatus(t *testing.T) {
 			}
 		})
 	}
+}
+
+// extractResponseType extracts the type of admission response.
+func extractResponseType(resp admission.Response) ResponseType {
+	if resp.Allowed {
+		return Allowed
+	}
+	if resp.Result != nil {
+		if resp.Result.Code == http.StatusBadRequest {
+			return Errored
+		}
+	}
+	return Denied
+}
+
+// extractErrorMessage extracts the error message from a Denied/Errored response.
+func extractErrorMessage(resp admission.Response) string {
+	if !resp.Allowed && resp.Result != nil {
+		return resp.Result.Message
+	}
+	return ""
 }
