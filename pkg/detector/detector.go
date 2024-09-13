@@ -1477,8 +1477,10 @@ func (d *ResourceDetector) applyReplicaInterpretation(object *unstructured.Unstr
 		components, err := d.ResourceInterpreter.GetComponents(object)
 		if err != nil {
 			klog.Errorf("Failed to get components for %s(%s): %v", gvk, name, err)
+			d.EventRecorder.Event(object, corev1.EventTypeWarning, events.EventReasonGetComponentsFailed, err.Error())
 			return err
 		}
+		d.EventRecorder.Event(object, corev1.EventTypeNormal, events.EventReasonGetComponentsSucceed, "Get components of resource template successfully.")
 		spec.Components = components
 		return nil
 	}
@@ -1488,8 +1490,10 @@ func (d *ResourceDetector) applyReplicaInterpretation(object *unstructured.Unstr
 		replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
 		if err != nil {
 			klog.Errorf("Failed to customize replicas for %s(%s): %v", gvk, name, err)
+			d.EventRecorder.Event(object, corev1.EventTypeWarning, events.EventReasonGetReplicasFailed, err.Error())
 			return err
 		}
+		d.EventRecorder.Event(object, corev1.EventTypeNormal, events.EventReasonGetReplicasSucceed, "Get replicas of resource template successfully.")
 
 		// Most interpreters (except webhook interpreter) cannot properly obtain the namespace because they extract
 		// information from PodTemplate, and advanced workloads' PodTemplates typically don't have a namespace set.

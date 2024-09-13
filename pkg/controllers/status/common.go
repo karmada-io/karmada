@@ -203,7 +203,6 @@ func updateResourceStatus(
 
 		eventRecorder.Event(resource, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, "Update Resource with AggregatedStatus successfully.")
 		klog.V(3).Infof("Update resource(%s/%s/%s) status successfully.", gvr, resource.GetNamespace(), resource.GetName())
-
 		return nil
 	}); err != nil {
 		if resource != nil {
