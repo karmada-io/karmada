@@ -59,14 +59,15 @@ import (
 
 const (
 	// ControllerName is the controller name that will be used when reporting events.
-	ControllerName            = "cluster-status-controller"
-	clusterReady              = "ClusterReady"
-	clusterHealthy            = "cluster is healthy and ready to accept workloads"
-	clusterNotReady           = "ClusterNotReady"
-	clusterUnhealthy          = "cluster is reachable but health endpoint responded without ok"
-	clusterNotReachableReason = "ClusterNotReachable"
-	clusterNotReachableMsg    = "cluster is not reachable"
-	statusCollectionFailed    = "StatusCollectionFailed"
+	ControllerName                   = "cluster-status-controller"
+	clusterReady                     = "ClusterReady"
+	clusterHealthy                   = "cluster is healthy and ready to accept workloads"
+	clusterNotReady                  = "ClusterNotReady"
+	clusterUnhealthy                 = "cluster is reachable but health endpoint responded without ok"
+	clusterNotReachableReason        = "ClusterNotReachable"
+	clusterNotReachableMsg           = "cluster is not reachable"
+	statusCollectionFailed           = "StatusCollectionFailed"
+	externalHealthCheckAnnotationKey = "cluster.karmada.io/health-checker"
 )
 
 var (
@@ -190,6 +191,13 @@ func (c *ClusterStatusController) syncClusterStatus(ctx context.Context, cluster
 	}
 
 	online, healthy := getClusterHealthStatus(clusterClient)
+	if online {
+		pass, err := tryExternalProbe(cluster)
+		if err != nil {
+			klog.Errorf("Failed to check external cluster health probe. cluster: %v, err is: %v", cluster.Name, err)
+		}
+		healthy = healthy && pass
+	}
 	observedReadyCondition := generateReadyCondition(online, healthy)
 	readyCondition := c.clusterConditionCache.thresholdAdjustedReadyCondition(cluster, &observedReadyCondition)
 
