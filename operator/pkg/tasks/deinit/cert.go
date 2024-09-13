@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 
-
 	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
