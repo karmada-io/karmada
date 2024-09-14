@@ -18,9 +18,7 @@ package options
 
 import (
 	"fmt"
-	"net"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -34,11 +32,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
-)
-
-const (
-	defaultBindAddress = "0.0.0.0"
-	defaultPort        = 10357
 )
 
 var (
@@ -57,13 +50,6 @@ type Options struct {
 	Controllers []string
 	// LeaderElection defines the configuration of leader election client.
 	LeaderElection componentbaseconfig.LeaderElectionConfiguration
-	// BindAddress is the IP address on which to listen for the --secure-port port.
-	// Deprecated: Use HealthProbeBindAddress instead. This will be removed in release 1.12+.
-	BindAddress string
-	// SecurePort is the port that the the server serves at.
-	// Note: We hope support https in the future once controller-runtime provides the functionality.
-	// Deprecated: Use HealthProbeBindAddress instead. This will be removed in release 1.12+.
-	SecurePort int
 	// ClusterStatusUpdateFrequency is the frequency that controller computes and report cluster status.
 	// It must work with ClusterMonitorGracePeriod(--cluster-monitor-grace-period) in karmada-controller-manager.
 	ClusterStatusUpdateFrequency metav1.Duration
@@ -177,14 +163,6 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 		"A list of controllers to enable. '*' enables all on-by-default controllers, 'foo' enables the controller named 'foo', '-foo' disables the controller named 'foo'. \nAll controllers: %s.\nDisabled-by-default controllers: %s",
 		strings.Join(allControllers, ", "), strings.Join(disabledByDefaultControllers, ", "),
 	))
-	flags.StringVar(&o.BindAddress, "bind-address", defaultBindAddress,
-		"The IP address on which to listen for the --secure-port port.")
-	flags.IntVar(&o.SecurePort, "secure-port", defaultPort,
-		"The secure port on which to serve HTTPS.")
-	// nolint: errcheck
-	flags.MarkDeprecated("bind-address", "This flag is deprecated and will be removed in release 1.12+. Use --health-probe-bind-address instead.")
-	// nolint: errcheck
-	flags.MarkDeprecated("secure-port", "This flag is deprecated and will be removed in release 1.12+. Use --health-probe-bind-address instead.")
 	flags.DurationVar(&o.ClusterStatusUpdateFrequency.Duration, "cluster-status-update-frequency", 10*time.Second,
 		"Specifies how often karmada-controller-manager posts cluster status to karmada-apiserver.")
 	flags.BoolVar(&o.LeaderElection.LeaderElect, "leader-elect", true, "Start a leader election client and gain leadership before executing the main loop. Enable this when running replicated components for high availability.")
@@ -232,7 +210,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 	flags.DurationVar(&o.ClusterCacheSyncTimeout.Duration, "cluster-cache-sync-timeout", util.CacheSyncTimeout, "Timeout period waiting for cluster cache to sync.")
 	flags.DurationVar(&o.ResyncPeriod.Duration, "resync-period", 0, "Base frequency the informers are resynced.")
 	flags.StringVar(&o.MetricsBindAddress, "metrics-bind-address", ":8080", "The TCP address that the controller should bind to for serving prometheus metrics(e.g. 127.0.0.1:8080, :8080). It can be set to \"0\" to disable the metrics serving.")
-	flags.StringVar(&o.HealthProbeBindAddress, "health-probe-bind-address", "", "The TCP address that the controller should bind to for serving health probes(e.g. 127.0.0.1:10357, :10357). It can be set to \"0\" to disable serving the health probe. Defaults to 0.0.0.0:10357.")
+	flags.StringVar(&o.HealthProbeBindAddress, "health-probe-bind-address", ":10357", "The TCP address that the controller should bind to for serving health probes(e.g. 127.0.0.1:10357, :10357). It can be set to \"0\" to disable serving the health probe. Defaults to 0.0.0.0:10357.")
 	flags.IntVar(&o.ConcurrentClusterSyncs, "concurrent-cluster-syncs", 5, "The number of Clusters that are allowed to sync concurrently.")
 	flags.IntVar(&o.ConcurrentClusterResourceBindingSyncs, "concurrent-clusterresourcebinding-syncs", 5, "The number of ClusterResourceBindings that are allowed to sync concurrently.")
 	flags.IntVar(&o.ConcurrentResourceBindingSyncs, "concurrent-resourcebinding-syncs", 5, "The number of ResourceBindings that are allowed to sync concurrently.")
@@ -260,12 +238,4 @@ func (o *Options) SkippedNamespacesRegexps() []*regexp.Regexp {
 		skippedPropagatingNamespaces[index] = regexp.MustCompile(fmt.Sprintf("^%s$", ns))
 	}
 	return skippedPropagatingNamespaces
-}
-
-// Complete ensures that options are valid and marshals them if necessary.
-func (o *Options) Complete() error {
-	if len(o.HealthProbeBindAddress) == 0 {
-		o.HealthProbeBindAddress = net.JoinHostPort(o.BindAddress, strconv.Itoa(o.SecurePort))
-	}
-	return nil
 }
