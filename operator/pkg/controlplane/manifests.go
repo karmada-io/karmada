@@ -256,7 +256,7 @@ spec:
         command:
         - /bin/karmada-descheduler
         - --kubeconfig=/etc/karmada/kubeconfig
-        - --metrics-bind-address=0.0.0.0:10358
+        - --metrics-bind-address=0.0.0.0:8080
         - --health-probe-bind-address=0.0.0.0:10358
         - --leader-elect-resource-namespace={{ .SystemNamespace }}
         - --scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt
@@ -273,7 +273,7 @@ spec:
           periodSeconds: 15
           timeoutSeconds: 5
         ports:
-        - containerPort: 10358
+        - containerPort: 8080
           name: metrics
           protocol: TCP
         volumeMounts:
