@@ -100,10 +100,6 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 The controllers watch Karmada objects and then talk to the underlying clusters' API servers
 to create regular Kubernetes resources.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			// complete options
-			if err := opts.Complete(); err != nil {
-				return err
-			}
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()
