@@ -449,7 +449,7 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 				Command: []string{
 					"/bin/karmada-scheduler",
 					"--kubeconfig=/etc/kubeconfig",
-					"--metrics-bind-address=0.0.0.0:10351",
+					"--metrics-bind-address=0.0.0.0:8080",
 					"--health-probe-bind-address=0.0.0.0:10351",
 					"--enable-scheduler-estimator=true",
 					"--leader-elect=true",
@@ -463,7 +463,7 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          metricsPortName,
-						ContainerPort: 10351,
+						ContainerPort: 8080,
 						Protocol:      corev1.ProtocolTCP,
 					},
 				},

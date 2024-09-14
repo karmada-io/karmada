@@ -188,7 +188,7 @@ spec:
         command:
         - /bin/karmada-scheduler
         - --kubeconfig=/etc/karmada/kubeconfig
-        - --metrics-bind-address=0.0.0.0:10351
+        - --metrics-bind-address=0.0.0.0:8080
         - --health-probe-bind-address=0.0.0.0:10351
         - --enable-scheduler-estimator=true
         - --leader-elect-resource-namespace={{ .SystemNamespace }}
@@ -206,7 +206,7 @@ spec:
           periodSeconds: 15
           timeoutSeconds: 5
         ports:
-        - containerPort: 10351
+        - containerPort: 8080
           name: metrics
           protocol: TCP
         volumeMounts:
