@@ -2,15 +2,23 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
+- [v1.11.1](#v1111)
+  - [Downloads for v1.11.1](#downloads-for-v1111)
+  - [Changelog since v1.11.0](#changelog-since-v1110)
+    - [Changes by Kind](#changes-by-kind)
+      - [Bug Fixes](#bug-fixes)
+      - [Others](#others)
 - [v1.11.0](#v1110)
   - [Downloads for v1.11.0](#downloads-for-v1110)
   - [What's New](#whats-new)
     - [Cluster-Level Resource Propagation Pause and Resume](#cluster-level-resource-propagation-pause-and-resume)
-    - [Karmadactl offers more advanced features](#karmadactl-offers-more-advanced-features)
+    - [Karmadactl Offers More Advanced Features](#karmadactl-offers-more-advanced-features)
+    - [Consistent generation semantics for multi-cluster workloads](#consistent-generation-semantics-for-multi-cluster-workloads)
+    - [Karmada Operator Supports Custom CRD Download Strategy](#karmada-operator-supports-custom-crd-download-strategy)
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes)
+    - [Bug Fixes](#bug-fixes-1)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -20,6 +28,22 @@
   - [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.11.1
+## Downloads for v1.11.1
+
+Download v1.11.1 in the [v1.11.1 release page](https://github.com/karmada-io/karmada/releases/tag/v1.11.1).
+
+## Changelog since v1.11.0
+### Changes by Kind
+#### Bug Fixes
+- `karmada-operator`: Fixed the issue where the manifests for the `karmada-scheduler` and `karmada-descheduler` components were not parsed correctly. ([#5550](https://github.com/karmada-io/karmada/pull/5550) @zhzhuang-zju)
+- `karmadactl`：Fixed the issue where commands `create`, `annotate`, `delete`, `edit`, `label`, and `patch` cannot specify the namespace flag. ([#5513](https://github.com/karmada-io/karmada/pull/5513) @zhzhuang-zju)
+- `karmadactl`: Fixed the issue that karmadactl addon failed to install karmada-scheduler-estimator due to unknown flag. ([#5538](https://github.com/karmada-io/karmada/pull/5538) @chaosi-zju)
+
+#### Others
+- The base image `alpine` now has been promoted from `alpine:3.20.2` to `alpine:3.20.3`.
+- Karmada(release-1.11) now using Golang v1.22.7. ([#5531](https://github.com/karmada-io/karmada/pull/5531) @RainbowMango)
 
 # v1.11.0
 ## Downloads for v1.11.0

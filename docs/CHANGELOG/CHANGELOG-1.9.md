@@ -2,42 +2,48 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.9.6](#v196)
-  - [Downloads for v1.9.6](#downloads-for-v196)
-  - [Changelog since v1.9.5](#changelog-since-v195)
+- [v1.9.7](#v197)
+  - [Downloads for v1.9.7](#downloads-for-v197)
+  - [Changelog since v1.9.6](#changelog-since-v196)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
-- [v1.9.5](#v195)
-  - [Downloads for v1.9.5](#downloads-for-v195)
-  - [Changelog since v1.9.4](#changelog-since-v194)
+- [v1.9.6](#v196)
+  - [Downloads for v1.9.6](#downloads-for-v196)
+  - [Changelog since v1.9.5](#changelog-since-v195)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
-- [v1.9.4](#v194)
-  - [Downloads for v1.9.4](#downloads-for-v194)
-  - [Changelog since v1.9.3](#changelog-since-v193)
+- [v1.9.5](#v195)
+  - [Downloads for v1.9.5](#downloads-for-v195)
+  - [Changelog since v1.9.4](#changelog-since-v194)
     - [Changes by Kind](#changes-by-kind-2)
       - [Bug Fixes](#bug-fixes-2)
       - [Others](#others-2)
-- [v1.9.3](#v193)
-  - [Downloads for v1.9.3](#downloads-for-v193)
-  - [Changelog since v1.9.2](#changelog-since-v192)
+- [v1.9.4](#v194)
+  - [Downloads for v1.9.4](#downloads-for-v194)
+  - [Changelog since v1.9.3](#changelog-since-v193)
     - [Changes by Kind](#changes-by-kind-3)
       - [Bug Fixes](#bug-fixes-3)
       - [Others](#others-3)
-- [v1.9.2](#v192)
-  - [Downloads for v1.9.2](#downloads-for-v192)
-  - [Changelog since v1.9.1](#changelog-since-v191)
+- [v1.9.3](#v193)
+  - [Downloads for v1.9.3](#downloads-for-v193)
+  - [Changelog since v1.9.2](#changelog-since-v192)
     - [Changes by Kind](#changes-by-kind-4)
       - [Bug Fixes](#bug-fixes-4)
       - [Others](#others-4)
-- [v1.9.1](#v191)
-  - [Downloads for v1.9.1](#downloads-for-v191)
-  - [Changelog since v1.9.0](#changelog-since-v190)
+- [v1.9.2](#v192)
+  - [Downloads for v1.9.2](#downloads-for-v192)
+  - [Changelog since v1.9.1](#changelog-since-v191)
     - [Changes by Kind](#changes-by-kind-5)
       - [Bug Fixes](#bug-fixes-5)
       - [Others](#others-5)
+- [v1.9.1](#v191)
+  - [Downloads for v1.9.1](#downloads-for-v191)
+  - [Changelog since v1.9.0](#changelog-since-v190)
+    - [Changes by Kind](#changes-by-kind-6)
+      - [Bug Fixes](#bug-fixes-6)
+      - [Others](#others-6)
 - [v1.9.0](#v190)
   - [Downloads for v1.9.0](#downloads-for-v190)
   - [What's New](#whats-new)
@@ -47,7 +53,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-6)
+    - [Bug Fixes](#bug-fixes-7)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -57,6 +63,19 @@
   - [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.9.7
+## Downloads for v1.9.7
+
+Download v1.9.7 in the [v1.9.7 release page](https://github.com/karmada-io/karmada/releases/tag/v1.9.7).
+
+## Changelog since v1.9.6
+### Changes by Kind
+#### Bug Fixes
+- `karmada-controller-manager`: Fixed the error of cluster status old condition update will overwrite the newest condition. ([#5402](https://github.com/karmada-io/karmada/pull/5402), @XiShanYongYe-Chang)
+
+#### Others
+- The base image `alpine` now has been promoted from `alpine:3.20.2` to `alpine:3.20.3`.
 
 # v1.9.6
 ## Downloads for v1.9.6
