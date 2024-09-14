@@ -18,8 +18,6 @@ package options
 
 import (
 	"fmt"
-	"net"
-	"strconv"
 	"strings"
 	"time"
 
@@ -37,8 +35,6 @@ import (
 const (
 	// DefaultKarmadaClusterNamespace defines the default namespace where the member cluster secrets are stored.
 	DefaultKarmadaClusterNamespace = "karmada-cluster"
-	defaultBindAddress             = "0.0.0.0"
-	defaultPort                    = 10357
 )
 
 var (
@@ -50,15 +46,8 @@ var (
 // Options contains everything necessary to create and run controller-manager.
 type Options struct {
 	// Controllers contains all controller names.
-	Controllers    []string
-	LeaderElection componentbaseconfig.LeaderElectionConfiguration
-	// BindAddress is the IP address on which to listen for the --secure-port port.
-	// Deprecated: Use HealthProbeBindAddress instead. And will be removed in release 1.12+.
-	BindAddress string
-	// SecurePort is the port that the the server serves at.
-	// Note: We hope support https in the future once controller-runtime provides the functionality.
-	// Deprecated: Use HealthProbeBindAddress instead. And will be removed in release 1.12+.
-	SecurePort        int
+	Controllers       []string
+	LeaderElection    componentbaseconfig.LeaderElectionConfiguration
 	KarmadaKubeConfig string
 	// ClusterContext is the name of the cluster context in control plane KUBECONFIG file.
 	// Default value is the current-context.
@@ -173,14 +162,6 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 		"A list of controllers to enable. '*' enables all on-by-default controllers, 'foo' enables the controller named 'foo', '-foo' disables the controller named 'foo'. All controllers: %s.",
 		strings.Join(allControllers, ", "),
 	))
-	fs.StringVar(&o.BindAddress, "bind-address", defaultBindAddress,
-		"The IP address on which to listen for the --secure-port port.")
-	fs.IntVar(&o.SecurePort, "secure-port", defaultPort,
-		"The secure port on which to serve HTTPS.")
-	// nolint: errcheck
-	fs.MarkDeprecated("bind-address", "This flag is deprecated and will be removed in release 1.12+. Use --health-probe-bind-address instead.")
-	// nolint: errcheck
-	fs.MarkDeprecated("secure-port", "This flag is deprecated and will be removed in release 1.12+. Use --health-probe-bind-address instead.")
 	fs.BoolVar(&o.LeaderElection.LeaderElect, "leader-elect", true, "Start a leader election client and gain leadership before executing the main loop. Enable this when running replicated components for high availability.")
 	fs.StringVar(&o.LeaderElection.ResourceNamespace, "leader-elect-resource-namespace", util.NamespaceKarmadaSystem, "The namespace of resource object that is used for locking during leader election.")
 	fs.DurationVar(&o.LeaderElection.LeaseDuration.Duration, "leader-elect-lease-duration", defaultElectionLeaseDuration.Duration, ""+
@@ -219,7 +200,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 	fs.IntVar(&o.ConcurrentWorkSyncs, "concurrent-work-syncs", 5, "The number of Works that are allowed to sync concurrently.")
 	fs.StringSliceVar(&o.ReportSecrets, "report-secrets", []string{"KubeCredentials", "KubeImpersonator"}, "The secrets that are allowed to be reported to the Karmada control plane during registering. Valid values are 'KubeCredentials', 'KubeImpersonator' and 'None'. e.g 'KubeCredentials,KubeImpersonator' or 'None'.")
 	fs.StringVar(&o.MetricsBindAddress, "metrics-bind-address", ":8080", "The TCP address that the controller should bind to for serving prometheus metrics(e.g. 127.0.0.1:8080, :8080). It can be set to \"0\" to disable the metrics serving.")
-	fs.StringVar(&o.HealthProbeBindAddress, "health-probe-bind-address", "", "The TCP address that the controller should bind to for serving health probes(e.g. 127.0.0.1:10357, :10357). It can be set to \"0\" to disable serving the health probe. Defaults to 0.0.0.0:10357.")
+	fs.StringVar(&o.HealthProbeBindAddress, "health-probe-bind-address", ":10357", "The TCP address that the controller should bind to for serving health probes(e.g. 127.0.0.1:10357, :10357). It can be set to \"0\" to disable serving the health probe. Defaults to 0.0.0.0:10357.")
 	fs.StringVar(&o.ClusterProvider, "cluster-provider", "", "Provider of the joining cluster. The Karmada scheduler can use this information to spread workloads across providers for higher availability.")
 	fs.StringVar(&o.ClusterRegion, "cluster-region", "", "The region of the joining cluster. The Karmada scheduler can use this information to spread workloads across regions for higher availability.")
 	fs.StringSliceVar(&o.ClusterZones, "cluster-zones", []string{}, "The zones of the joining cluster. The Karmada scheduler can use this information to spread workloads across zones for higher availability.")
@@ -232,12 +213,4 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 	o.RateLimiterOpts.AddFlags(fs)
 	features.FeatureGate.AddFlag(fs)
 	o.ProfileOpts.AddFlags(fs)
-}
-
-// Complete ensures that options are valid and marshals them if necessary.
-func (o *Options) Complete() error {
-	if len(o.HealthProbeBindAddress) == 0 {
-		o.HealthProbeBindAddress = net.JoinHostPort(o.BindAddress, strconv.Itoa(o.SecurePort))
-	}
-	return nil
 }

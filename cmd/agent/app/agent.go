@@ -78,10 +78,6 @@ func NewAgentCommand(ctx context.Context) *cobra.Command {
 plane and sync manifests from the Karmada control plane to the member cluster. In addition, it also syncs the status of member
 cluster and manifests to the Karmada control plane.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			// complete options
-			if err := opts.Complete(); err != nil {
-				return err
-			}
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()
