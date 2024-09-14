@@ -98,10 +98,6 @@ The scheduler determines which clusters are valid placements for each resource i
 constraints and available resources. The scheduler then ranks each valid cluster and binds the resource to
 the most suitable cluster.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			// complete options
-			if err := opts.Complete(); err != nil {
-				return err
-			}
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()

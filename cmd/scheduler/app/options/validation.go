@@ -17,22 +17,8 @@ limitations under the License.
 package options
 
 import (
-	"net"
-	"strconv"
-
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
-
-// Complete ensures that options are valid and marshals them if necessary.
-func (o *Options) Complete() error {
-	if len(o.HealthProbeBindAddress) == 0 {
-		o.HealthProbeBindAddress = net.JoinHostPort(o.BindAddress, strconv.Itoa(o.SecurePort))
-	}
-	if len(o.MetricsBindAddress) == 0 {
-		o.MetricsBindAddress = net.JoinHostPort(o.BindAddress, strconv.Itoa(o.SecurePort))
-	}
-	return nil
-}
 
 // Validate checks Options and return a slice of found errs.
 func (o *Options) Validate() field.ErrorList {
