@@ -81,11 +81,6 @@ func NewSchedulerEstimatorCommand(ctx context.Context) *cobra.Command {
 		Long: `The karmada-scheduler-estimator runs an accurate scheduler estimator of a cluster. It 
 provides the scheduler with more accurate cluster resource information.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			// complete options
-			if err := opts.Complete(); err != nil {
-				return err
-			}
-
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()
