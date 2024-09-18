@@ -27,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -132,7 +133,36 @@ func getStatefulSetDependencies(object *unstructured.Unstructured) ([]configv1al
 		return nil, err
 	}
 
-	return helper.GetDependenciesFromPodTemplate(podObj)
+	deps, err := helper.GetDependenciesFromPodTemplate(podObj)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(statefulSetObj.Spec.VolumeClaimTemplates) == 0 {
+		return deps, nil
+	}
+
+	// ignore the PersistentVolumeClaim dependency if it was created by the StatefulSet VolumeClaimTemplates
+	// the PVC dependency is not needed because the StatefulSet will manage the pvcs in the member cluster,
+	// if it exists here it was just a placeholder not a real PVC
+	var validDeps []configv1alpha1.DependentObjectReference
+	volumeClaimTemplateNames := sets.Set[string]{}
+	for i := range statefulSetObj.Spec.VolumeClaimTemplates {
+		volumeClaimTemplateNames.Insert(statefulSetObj.Spec.VolumeClaimTemplates[i].Name)
+	}
+
+	for i := range deps {
+		if deps[i].Kind != util.PersistentVolumeClaimKind {
+			validDeps = append(validDeps, deps[i])
+			continue
+		}
+		if volumeClaimTemplateNames.Has(deps[i].Name) {
+			continue
+		}
+		validDeps = append(validDeps, deps[i])
+	}
+
+	return validDeps, nil
 }
 
 func getIngressDependencies(object *unstructured.Unstructured) ([]configv1alpha1.DependentObjectReference, error) {
