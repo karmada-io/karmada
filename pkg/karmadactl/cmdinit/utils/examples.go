@@ -140,7 +140,7 @@ spec:
             - /bin/karmada-scheduler-estimator
             - --kubeconfig=/etc/{{member_cluster_name}}-kubeconfig
             - --cluster-name={{member_cluster_name}}
-            - --metrics-bind-address=0.0.0.0:10351
+            - --metrics-bind-address=0.0.0.0:8080
             - --health-probe-bind-address=0.0.0.0:10351
           volumeMounts:
             - name: member-kubeconfig
