@@ -11,6 +11,9 @@ metadata:
 spec:
   parallelism: 1
   completions: 1
+  {{- if semverCompare ">=1.23.0-0" .Capabilities.KubeVersion.GitVersion }}
+  ttlSecondsAfterFinished: {{ .Values.staticResourceJob.ttlSecondsAfterFinished }}
+  {{- end }}
   template:
     metadata:
       name: {{ $name }}
@@ -42,6 +45,17 @@ spec:
           kubectl apply -k /crds --kubeconfig /etc/kubeconfig
           kubectl apply -f /static-resources/system-namespace.yaml --kubeconfig /etc/kubeconfig
           kubectl apply -f /static-resources/ --kubeconfig /etc/kubeconfig
+
+          kubectl --kubeconfig /etc/kubeconfig apply -f - <<InnerEOF
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: karmada-version
+            namespace: {{ .Values.systemNamespace }}
+          data:
+            karmadaVersion: {{ .Values.karmadaImageVersion }}
+          InnerEOF
+
           EOF
         volumeMounts:
           - name: {{ $name }}-crds-kustomization

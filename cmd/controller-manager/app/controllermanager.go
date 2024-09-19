@@ -19,8 +19,6 @@ package app
 import (
 	"context"
 	"flag"
-	"net"
-	"strconv"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -156,7 +154,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 		RenewDeadline:              &opts.LeaderElection.RenewDeadline.Duration,
 		RetryPeriod:                &opts.LeaderElection.RetryPeriod.Duration,
 		LeaderElectionResourceLock: opts.LeaderElection.ResourceLock,
-		HealthProbeBindAddress:     net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)),
+		HealthProbeBindAddress:     opts.HealthProbeBindAddress,
 		LivenessEndpointName:       "/healthz",
 		Metrics:                    metricsserver.Options{BindAddress: opts.MetricsBindAddress},
 		MapperProvider:             restmapper.MapperProvider,

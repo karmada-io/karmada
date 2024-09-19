@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 func TestReviseDeploymentReplica(t *testing.T) {
@@ -246,5 +247,26 @@ func TestReviseStatefulSetReplica(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestGetAllDefaultReviseReplicaInterpreter(t *testing.T) {
+	expectedKinds := []schema.GroupVersionKind{
+		{Group: "apps", Version: "v1", Kind: "Deployment"},
+		{Group: "apps", Version: "v1", Kind: "StatefulSet"},
+		{Group: "batch", Version: "v1", Kind: "Job"},
+	}
+
+	got := getAllDefaultReviseReplicaInterpreter()
+
+	if len(got) != len(expectedKinds) {
+		t.Errorf("getAllDefaultReviseReplicaInterpreter() returned map of length %v, want %v", len(got), len(expectedKinds))
+	}
+
+	for _, key := range expectedKinds {
+		_, exists := got[key]
+		if !exists {
+			t.Errorf("getAllDefaultReviseReplicaInterpreter() missing key %v", key)
+		}
 	}
 }

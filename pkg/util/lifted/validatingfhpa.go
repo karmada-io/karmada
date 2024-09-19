@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
-	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	pathvalidation "k8s.io/apimachinery/pkg/api/validation/path"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -46,7 +45,7 @@ const (
 func ValidateFederatedHPA(fhpa *autoscalingv1alpha1.FederatedHPA) field.ErrorList {
 	errs := field.ErrorList{}
 
-	errs = append(errs, apimachineryvalidation.ValidateObjectMeta(&fhpa.ObjectMeta, true, apivalidation.NameIsDNSSubdomain, field.NewPath("metadata"))...)
+	errs = append(errs, apivalidation.ValidateObjectMeta(&fhpa.ObjectMeta, true, apivalidation.NameIsDNSSubdomain, field.NewPath("metadata"))...)
 
 	// MinReplicasLowerBound represents a minimum value for minReplicas
 	// 0 when HPA scale-to-zero feature is enabled
@@ -267,7 +266,6 @@ func validateMetricSpec(spec autoscalingv2.MetricSpec, fldPath *field.Path) fiel
 
 	var expectedField string
 	switch spec.Type {
-
 	case autoscalingv2.ObjectMetricSourceType:
 		if spec.Object == nil {
 			allErrs = append(allErrs, field.Required(fldPath.Child("object"), "must populate information for the given metric source"))

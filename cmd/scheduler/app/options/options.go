@@ -52,9 +52,23 @@ type Options struct {
 	KubeConfig     string
 	Master         string
 	// BindAddress is the IP address on which to listen for the --secure-port port.
+	// Deprecated: To specify the TCP address for serving health probes, use HealthProbeBindAddress instead. To specify the TCP address for serving prometheus metrics, use MetricsBindAddress instead. This will be removed in release 1.12+.
 	BindAddress string
 	// SecurePort is the port that the server serves at.
+	// Deprecated: To specify the TCP address for serving health probes, use HealthProbeBindAddress instead. To specify the TCP address for serving prometheus metrics, use MetricsBindAddress instead. This will be removed in release 1.12+.
 	SecurePort int
+
+	// MetricsBindAddress is the TCP address that the controller should bind to
+	// for serving prometheus metrics.
+	// It can be set to "0" to disable the metrics serving.
+	// Defaults to ":10351".
+	MetricsBindAddress string
+
+	// HealthProbeBindAddress is the TCP address that the controller should bind to
+	// for serving health probes
+	// It can be set to "0" or "" to disable serving the health probe.
+	// Defaults to ":10351".
+	HealthProbeBindAddress string
 
 	// KubeAPIQPS is the QPS to use while talking with karmada-apiserver.
 	KubeAPIQPS float32
@@ -67,6 +81,8 @@ type Options struct {
 	DisableSchedulerEstimatorInPullMode bool
 	// SchedulerEstimatorTimeout specifies the timeout period of calling the accurate scheduler estimator service.
 	SchedulerEstimatorTimeout metav1.Duration
+	// SchedulerEstimatorServiceNamespace specifies the namespace to be used for discovering scheduler estimator services.
+	SchedulerEstimatorServiceNamespace string
 	// SchedulerEstimatorServicePrefix presents the prefix of the accurate scheduler estimator service name.
 	SchedulerEstimatorServicePrefix string
 	// SchedulerEstimatorPort is the port that the accurate scheduler estimator server serves at.
@@ -139,11 +155,18 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&o.Master, "master", o.Master, "The address of the Kubernetes API server. Overrides any value in KubeConfig. Only required if out-of-cluster.")
 	fs.StringVar(&o.BindAddress, "bind-address", defaultBindAddress, "The IP address on which to listen for the --secure-port port.")
 	fs.IntVar(&o.SecurePort, "secure-port", defaultPort, "The secure port on which to serve HTTPS.")
+	// nolint: errcheck
+	fs.MarkDeprecated("bind-address", "This flag is deprecated and will be removed in release 1.12+. Use --health-probe-bind-address and --metrics-bind-address instead. Note: In release 1.12+, these two addresses cannot be the same.")
+	// nolint: errcheck
+	fs.MarkDeprecated("secure-port", "This flag is deprecated and will be removed in release 1.12+. Use --health-probe-bind-address and --metrics-bind-address instead. Note: In release 1.12+, these two addresses cannot be the same.")
+	fs.StringVar(&o.MetricsBindAddress, "metrics-bind-address", "", "The TCP address that the server should bind to for serving prometheus metrics(e.g. 127.0.0.1:9000, :10351). It can be set to \"0\" to disable the metrics serving. Defaults to 0.0.0.0:10351.")
+	fs.StringVar(&o.HealthProbeBindAddress, "health-probe-bind-address", "", "The TCP address that the server should bind to for serving health probes(e.g. 127.0.0.1:9000, :10351). It can be set to \"0\" to disable serving the health probe. Defaults to 0.0.0.0:10351.")
 	fs.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver.")
 	fs.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver.")
 	fs.BoolVar(&o.EnableSchedulerEstimator, "enable-scheduler-estimator", false, "Enable calling cluster scheduler estimator for adjusting replicas.")
 	fs.BoolVar(&o.DisableSchedulerEstimatorInPullMode, "disable-scheduler-estimator-in-pull-mode", false, "Disable the scheduler estimator for clusters in pull mode, which takes effect only when enable-scheduler-estimator is true.")
 	fs.DurationVar(&o.SchedulerEstimatorTimeout.Duration, "scheduler-estimator-timeout", 3*time.Second, "Specifies the timeout period of calling the scheduler estimator service.")
+	fs.StringVar(&o.SchedulerEstimatorServiceNamespace, "scheduler-estimator-service-namespace", util.NamespaceKarmadaSystem, "The namespace to be used for discovering scheduler estimator services.")
 	fs.StringVar(&o.SchedulerEstimatorServicePrefix, "scheduler-estimator-service-prefix", "karmada-scheduler-estimator", "The prefix of scheduler estimator service name")
 	fs.IntVar(&o.SchedulerEstimatorPort, "scheduler-estimator-port", defaultEstimatorPort, "The secure port on which to connect the accurate scheduler estimator.")
 	fs.StringVar(&o.SchedulerEstimatorCertFile, "scheduler-estimator-cert-file", "", "SSL certification file used to secure scheduler estimator communication.")

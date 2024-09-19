@@ -43,9 +43,6 @@ spec:
             - --etcd-keyfile=/etc/karmada/pki/etcd-client.key
             - --etcd-servers=https://etcd-client.karmada-system.svc.cluster.local:2379
             - --bind-address=0.0.0.0
-            - --kubelet-client-certificate=/etc/karmada/pki/karmada.crt
-            - --kubelet-client-key=/etc/karmada/pki/karmada.key
-            - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
             - --disable-admission-plugins=StorageObjectInUseProtection,ServiceAccount
             - --runtime-config=
             - --secure-port=5443

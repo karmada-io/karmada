@@ -42,7 +42,6 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-      {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
       {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
       initContainers:
         {{- include "karmada.initContainer.waitStaticResource" . | nindent 8 }}
@@ -53,10 +52,10 @@ spec:
           command:
             - /bin/karmada-controller-manager
             - --kubeconfig=/etc/kubeconfig
-            - --bind-address=0.0.0.0
             - --cluster-status-update-frequency=10s
-            - --secure-port=10357
             - --leader-elect-resource-namespace={{ $systemNamespace }}
+            - --health-probe-bind-address=0.0.0.0:10357
+            - --metrics-bind-address=:8080
             - --v=2
             {{- if .Values.controllerManager.controllers }}
             - --controllers={{ .Values.controllerManager.controllers }}

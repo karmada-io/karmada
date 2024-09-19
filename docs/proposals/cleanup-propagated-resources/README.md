@@ -75,7 +75,7 @@ In kubefed's propose, the author suggest add a `BestEffort` strategy, reviewers 
 
 #### Needless Strategy
 
-Not need cleanup propagated resources when unjoining cluster. `Karmada` should use this strategy as default value,  condsider the business risk.
+Not need cleanup propagated resources when unjoining cluster. `Karmada` should use this strategy as default value,  consider the business risk.
 
 #### Required Strategy
 

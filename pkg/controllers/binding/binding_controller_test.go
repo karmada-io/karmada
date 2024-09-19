@@ -34,10 +34,12 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	testing2 "github.com/karmada-io/karmada/pkg/search/proxy/testing"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	testing3 "github.com/karmada-io/karmada/pkg/util/testing"
@@ -197,7 +199,7 @@ func TestResourceBindingController_syncBinding(t *testing.T) {
 				t.Errorf("makeFakeRBCByResource %v", makeErr)
 				return
 			}
-			got, err := c.syncBinding(tt.rb)
+			got, err := c.syncBinding(context.Background(), tt.rb)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("syncBinding() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -242,7 +244,7 @@ func TestResourceBindingController_removeOrphanWorks(t *testing.T) {
 				t.Errorf("makeFakeRBCByResource %v", makeErr)
 				return
 			}
-			if err := c.removeOrphanWorks(tt.rb); (err != nil) != tt.wantErr {
+			if err := c.removeOrphanWorks(context.TODO(), tt.rb); (err != nil) != tt.wantErr {
 				t.Errorf("removeOrphanWorks() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -257,19 +259,15 @@ func TestResourceBindingController_newOverridePolicyFunc(t *testing.T) {
 		Name:       "pod",
 	}
 	tests := []struct {
-		name    string
-		want    bool
-		obIsNil bool
+		name string
+		want []reconcile.Request
+		req  client.Object
+		rb   *workv1alpha2.ResourceBinding
 	}{
 		{
-			name:    "newOverridePolicyFunc success test",
-			want:    false,
-			obIsNil: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tempOP := &policyv1alpha1.OverridePolicy{
+			name: "newOverridePolicyFunc success test",
+			want: []reconcile.Request{{NamespacedName: types.NamespacedName{Namespace: "default", Name: "test-rb"}}},
+			req: &policyv1alpha1.OverridePolicy{
 				ObjectMeta: metav1.ObjectMeta{Namespace: rs.Namespace},
 				Spec: policyv1alpha1.OverrideSpec{ResourceSelectors: []policyv1alpha1.ResourceSelector{
 					{
@@ -279,18 +277,162 @@ func TestResourceBindingController_newOverridePolicyFunc(t *testing.T) {
 						Name:       rs.Name,
 					},
 				}},
-			}
+			},
+			rb: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-rb",
+					Namespace: "default",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: rs,
+				},
+			},
+		},
+		{
+			name: "namespace not match",
+			want: nil,
+			req: &policyv1alpha1.OverridePolicy{
+				ObjectMeta: metav1.ObjectMeta{Namespace: rs.Namespace},
+				Spec: policyv1alpha1.OverrideSpec{ResourceSelectors: []policyv1alpha1.ResourceSelector{
+					{
+						APIVersion: rs.APIVersion,
+						Kind:       rs.Kind,
+						Namespace:  rs.Namespace,
+						Name:       rs.Name,
+					},
+				}},
+			},
+			rb: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-rb",
+					Namespace: "test",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: rs,
+				},
+			},
+		},
+		{
+			name: "ResourceSelector is empty",
+			want: []reconcile.Request{{NamespacedName: types.NamespacedName{Namespace: "default", Name: "test-rb"}}},
+			req: &policyv1alpha1.OverridePolicy{
+				ObjectMeta: metav1.ObjectMeta{Namespace: rs.Namespace},
+				Spec:       policyv1alpha1.OverrideSpec{ResourceSelectors: []policyv1alpha1.ResourceSelector{}},
+			},
+			rb: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-rb",
+					Namespace: "default",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: rs,
+				},
+			},
+		},
+		{
+			name: "client is nil",
+			want: nil,
+			req:  nil,
+			rb: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-rb",
+					Namespace: "default",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: rs,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			c, makeErr := makeFakeRBCByResource(&rs)
 			if makeErr != nil {
 				t.Errorf("makeFakeRBCByResource %v", makeErr)
 				return
 			}
-			got := c.newOverridePolicyFunc()
-			if (got == nil) != tt.want {
-				t.Errorf("newOverridePolicyFunc() is not same as want:%v", tt.want)
+
+			if tt.rb != nil {
+				if err := c.Client.Create(context.Background(), tt.rb); err != nil {
+					t.Errorf("create rb %v", err)
+					return
+				}
 			}
-			if (got(context.TODO(), client.Object(tempOP)) == nil) == tt.obIsNil {
-				t.Errorf("newOverridePolicyFunc() got() result is not same as want: %v", tt.obIsNil)
+
+			got := c.newOverridePolicyFunc()
+			result := got(context.Background(), tt.req)
+			if !reflect.DeepEqual(result, tt.want) {
+				t.Errorf("newOverridePolicyFunc() got() result is %v not same as want: %v", result, tt.want)
+			}
+		})
+	}
+}
+
+func TestResourceBindingController_removeFinalizer(t *testing.T) {
+	tests := []struct {
+		name    string
+		want    controllerruntime.Result
+		wantErr bool
+		rb      *workv1alpha2.ResourceBinding
+		create  bool
+	}{
+		{
+			name:    "Remove finalizer succeed",
+			want:    controllerruntime.Result{},
+			wantErr: false,
+			rb: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "test",
+					Finalizers: []string{util.BindingControllerFinalizer},
+				},
+			},
+			create: true,
+		},
+		{
+			name:    "finalizers not exist",
+			want:    controllerruntime.Result{},
+			wantErr: false,
+			rb: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+			create: true,
+		},
+		{
+			name:    "rb not found",
+			want:    controllerruntime.Result{},
+			wantErr: true,
+			rb: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "test",
+					Finalizers: []string{util.BindingControllerFinalizer},
+				},
+			},
+			create: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := makeFakeRBCByResource(nil)
+			if err != nil {
+				t.Fatalf("Failed to create ClusterResourceBindingController: %v", err)
+			}
+
+			if tt.create && tt.rb != nil {
+				if err := c.Client.Create(context.Background(), tt.rb); err != nil {
+					t.Fatalf("Failed to create ClusterResourceBinding: %v", err)
+				}
+			}
+
+			result, err := c.removeFinalizer(context.Background(), tt.rb)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ClusterResourceBindingController.removeFinalizer() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(result, tt.want) {
+				t.Errorf("ClusterResourceBindingController.removeFinalizer() = %v, want %v", result, tt.want)
 			}
 		})
 	}

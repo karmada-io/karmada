@@ -936,9 +936,7 @@ func NewIngress(namespace, name string) *networkingv1.Ingress {
 }
 
 // NewPodDisruptionBudget will build a new PodDisruptionBudget object.
-func NewPodDisruptionBudget(namespace, name string, maxUnAvailable intstr.IntOrString) *policyv1.PodDisruptionBudget {
-	podLabels := map[string]string{"app": "nginx"}
-
+func NewPodDisruptionBudget(namespace, name string, maxUnAvailable intstr.IntOrString, matchLabels map[string]string) *policyv1.PodDisruptionBudget {
 	return &policyv1.PodDisruptionBudget{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "policy/v1",
@@ -951,7 +949,7 @@ func NewPodDisruptionBudget(namespace, name string, maxUnAvailable intstr.IntOrS
 		Spec: policyv1.PodDisruptionBudgetSpec{
 			MaxUnavailable: &maxUnAvailable,
 			Selector: &metav1.LabelSelector{
-				MatchLabels: podLabels,
+				MatchLabels: matchLabels,
 			},
 		},
 	}
@@ -960,6 +958,10 @@ func NewPodDisruptionBudget(namespace, name string, maxUnAvailable intstr.IntOrS
 // NewWork will build a new Work object.
 func NewWork(workName, workNs, workUID string, raw []byte) *workv1alpha1.Work {
 	work := &workv1alpha1.Work{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       workv1alpha1.ResourceKindWork,
+			APIVersion: workv1alpha1.GroupVersion.Version,
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      workName,
 			Namespace: workNs,

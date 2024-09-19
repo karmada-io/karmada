@@ -20,8 +20,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net"
-	"strconv"
 
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -205,7 +203,7 @@ func run(ctx context.Context, opts *options.Options) error {
 		LeaseDuration:              &opts.LeaderElection.LeaseDuration.Duration,
 		RenewDeadline:              &opts.LeaderElection.RenewDeadline.Duration,
 		RetryPeriod:                &opts.LeaderElection.RetryPeriod.Duration,
-		HealthProbeBindAddress:     net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)),
+		HealthProbeBindAddress:     opts.HealthProbeBindAddress,
 		LivenessEndpointName:       "/healthz",
 		Metrics:                    metricsserver.Options{BindAddress: opts.MetricsBindAddress},
 		MapperProvider:             restmapper.MapperProvider,

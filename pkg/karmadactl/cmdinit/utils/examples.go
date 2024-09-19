@@ -93,8 +93,7 @@ spec:
             - --cluster-name={member_cluster_name}
             - --cluster-api-endpoint={member_cluster_api_endpoint}
             - --cluster-status-update-frequency=10s
-            - --bind-address=0.0.0.0
-            - --secure-port=10357
+            - --health-probe-bind-address=0.0.0.0:10357
             - --v=4
           livenessProbe:
             httpGet:
@@ -141,6 +140,8 @@ spec:
             - /bin/karmada-scheduler-estimator
             - --kubeconfig=/etc/{{member_cluster_name}}-kubeconfig
             - --cluster-name={{member_cluster_name}}
+            - --metrics-bind-address=0.0.0.0:10351
+            - --health-probe-bind-address=0.0.0.0:10351
           volumeMounts:
             - name: member-kubeconfig
               subPath: {{member_cluster_name}}-kubeconfig

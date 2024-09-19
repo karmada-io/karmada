@@ -19,7 +19,7 @@ jobs:
       max-parallel: 5
       fail-fast: false
       matrix:
-        k8s: [ v1.23.4, v1.24.2, v1.25.0, v1.26.0, v1.27.3, v1.28.0, v1.29.0, v1.30.0 ]
+        k8s: [ v1.23.4, v1.24.2, v1.25.0, v1.26.0, v1.27.3, v1.28.0, v1.29.0, v1.30.0, v1.31.0 ]
     steps:
       # Free up disk space on Ubuntu
       - name: Free Disk Space (Ubuntu)

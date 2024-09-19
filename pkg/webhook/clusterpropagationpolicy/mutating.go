@@ -19,18 +19,17 @@ package clusterpropagationpolicy
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
 	admissionv1 "k8s.io/api/admission/v1"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/validation"
 )
 
 // MutatingAdmission mutates API request if necessary.
@@ -61,15 +60,12 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
+	klog.V(2).Infof("Mutating ClusterPropagationPolicy(%s/%s) for request: %s", req.Namespace, policy.Name, req.Operation)
 
 	// Set default spread constraints if both 'SpreadByField' and 'SpreadByLabel' not set.
 	helper.SetDefaultSpreadConstraints(policy.Spec.Placement.SpreadConstraints)
 	helper.AddTolerations(&policy.Spec.Placement, helper.NewNotReadyToleration(a.DefaultNotReadyTolerationSeconds),
 		helper.NewUnreachableToleration(a.DefaultUnreachableTolerationSeconds))
-
-	if len(policy.Name) > validation.LabelValueMaxLength {
-		return admission.Errored(http.StatusBadRequest, fmt.Errorf("ClusterPropagationPolicy's name should be no more than %d characters", validation.LabelValueMaxLength))
-	}
 
 	if helper.ContainsServiceImport(policy.Spec.ResourceSelectors) {
 		policy.Spec.PropagateDeps = true

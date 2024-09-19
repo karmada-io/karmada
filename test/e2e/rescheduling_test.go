@@ -52,7 +52,7 @@ var _ = ginkgo.Describe("[cluster unjoined] reschedule testing", func() {
 		var f cmdutil.Factory
 
 		ginkgo.BeforeEach(func() {
-			newClusterName = "member-e2e-" + rand.String(3)
+			newClusterName = "member-e2e-" + rand.String(RandomStrLength)
 			homeDir = os.Getenv("HOME")
 			kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, newClusterName)
 			controlPlane = fmt.Sprintf("%s-control-plane", newClusterName)
@@ -173,7 +173,7 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 		var f cmdutil.Factory
 
 		ginkgo.BeforeEach(func() {
-			newClusterName = "member-e2e-" + rand.String(3)
+			newClusterName = "member-e2e-" + rand.String(RandomStrLength)
 			homeDir = os.Getenv("HOME")
 			kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, newClusterName)
 			controlPlane = fmt.Sprintf("%s-control-plane", newClusterName)
@@ -269,7 +269,7 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 
 		ginkgo.Context("testing clusterAffinity of the policy", func() {
 			ginkgo.BeforeEach(func() {
-				initClusterNames = []string{"member1", "member2", newClusterName}
+				initClusterNames = []string{framework.ClusterNames()[0], framework.ClusterNames()[1], newClusterName}
 				policyNamespace = testNamespace
 				policyName = deploymentNamePrefix + rand.String(RandomStrLength)
 				deploymentNamespace = testNamespace
@@ -329,7 +329,7 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 
 				gomega.Eventually(func(gomega.Gomega) bool {
 					targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
-					return testhelper.IsExclude("member3", targetClusterNames)
+					return testhelper.IsExclude(framework.ClusterNames()[2], targetClusterNames)
 				}, pollTimeout, pollInterval).Should(gomega.BeTrue())
 
 			})

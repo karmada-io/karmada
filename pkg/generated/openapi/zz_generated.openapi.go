@@ -128,6 +128,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SpreadConstraint":                            schema_pkg_apis_policy_v1alpha1_SpreadConstraint(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StaticClusterAssignment":                     schema_pkg_apis_policy_v1alpha1_StaticClusterAssignment(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StaticClusterWeight":                         schema_pkg_apis_policy_v1alpha1_StaticClusterWeight(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SuspendClusters":                             schema_pkg_apis_policy_v1alpha1_SuspendClusters(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Suspension":                                  schema_pkg_apis_policy_v1alpha1_Suspension(ref),
 		"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.ClusterAffinity":                             schema_pkg_apis_remedy_v1alpha1_ClusterAffinity(ref),
 		"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.ClusterConditionRequirement":                 schema_pkg_apis_remedy_v1alpha1_ClusterConditionRequirement(ref),
 		"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.DecisionMatch":                               schema_pkg_apis_remedy_v1alpha1_DecisionMatch(ref),
@@ -4870,12 +4872,18 @@ func schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"suspension": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Suspension declares the policy for suspending different aspects of propagation. nil means no suspension. no default values.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Suspension"),
+						},
+					},
 				},
 				Required: []string{"resourceSelectors"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ResourceSelector"},
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ResourceSelector", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Suspension"},
 	}
 }
 
@@ -5102,6 +5110,62 @@ func schema_pkg_apis_policy_v1alpha1_StaticClusterWeight(ref common.ReferenceCal
 		},
 		Dependencies: []string{
 			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity"},
+	}
+}
+
+func schema_pkg_apis_policy_v1alpha1_SuspendClusters(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SuspendClusters represents a group of clusters that should be suspended from propagating. Note: No plan to introduce the label selector or field selector to select clusters yet, as it would make the system unpredictable.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"clusterNames": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClusterNames is the list of clusters to be selected.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_policy_v1alpha1_Suspension(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Suspension defines the policy for suspending different aspects of propagation.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"dispatching": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Dispatching controls whether dispatching should be suspended. nil means not suspend, no default value, only accepts 'true'. Note: true means stop propagating to all clusters. Can not co-exist with DispatchingOnClusters which is used to suspend particular clusters.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"dispatchingOnClusters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DispatchingOnClusters declares a list of clusters to which the dispatching should be suspended. Note: Can not co-exist with Dispatching which is used to suspend all.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SuspendClusters"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SuspendClusters"},
 	}
 }
 
@@ -6312,6 +6376,13 @@ func schema_pkg_apis_work_v1alpha1_WorkSpec(ref common.ReferenceCallback) common
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.WorkloadTemplate"),
 						},
 					},
+					"suspendDispatching": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SuspendDispatching controls whether dispatching should be suspended, nil means not suspend. Note: true means stop propagating to all clusters.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -7028,12 +7099,18 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
+					"suspension": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Suspension declares the policy for suspending different aspects of propagation. nil means no suspension. no default values.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Suspension"),
+						},
+					},
 				},
 				Required: []string{"resource"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.BindingSnapshot", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.GracefulEvictionTask", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ObjectReference", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Suspension", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.BindingSnapshot", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.GracefulEvictionTask", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ObjectReference", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -8243,7 +8320,7 @@ func schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicyBindingS
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "validationActions declares how Validations of the referenced ValidatingAdmissionPolicy are enforced. If a validation evaluates to false it is always enforced according to these actions.\n\nFailures defined by the ValidatingAdmissionPolicy's FailurePolicy are enforced according to these actions only if the FailurePolicy is set to Fail, otherwise the failures are ignored. This includes compilation errors, runtime errors and misconfigurations of the policy.\n\nvalidationActions is declared as a set of action values. Order does not matter. validationActions may not contain duplicates of the same action.\n\nThe supported actions values are:\n\n\"Deny\" specifies that a validation failure results in a denied request.\n\n\"Warn\" specifies that a validation failure is reported to the request client in HTTP Warning headers, with a warning code of 299. Warnings can be sent both for allowed or denied admission responses.\n\n\"Audit\" specifies that a validation failure is included in the published audit event for the request. The audit event will contain a `validation.policy.admission.k8s.io/validation_failure` audit annotation with a value containing the details of the validation failures, formatted as a JSON list of objects, each with the following fields: - message: The validation failure message string - policy: The resource name of the ValidatingAdmissionPolicy - binding: The resource name of the ValidatingAdmissionPolicyBinding - expressionIndex: The index of the failed validations in the ValidatingAdmissionPolicy - validationActions: The enforcement actions enacted for the validation failure Example audit annotation: `\"validation.policy.admission.k8s.io/validation_failure\": \"[{\"message\": \"Invalid value\", {\"policy\": \"policy.example.com\", {\"binding\": \"policybinding.example.com\", {\"expressionIndex\": \"1\", {\"validationActions\": [\"Audit\"]}]\"`\n\nClients should expect to handle additional values by ignoring any values not recognized.\n\n\"Deny\" and \"Warn\" may not be used together since this combination needlessly duplicates the validation failure both in the API response body and the HTTP warning headers.\n\nRequired.",
+							Description: "validationActions declares how Validations of the referenced ValidatingAdmissionPolicy are enforced. If a validation evaluates to false it is always enforced according to these actions.\n\nFailures defined by the ValidatingAdmissionPolicy's FailurePolicy are enforced according to these actions only if the FailurePolicy is set to Fail, otherwise the failures are ignored. This includes compilation errors, runtime errors and misconfigurations of the policy.\n\nvalidationActions is declared as a set of action values. Order does not matter. validationActions may not contain duplicates of the same action.\n\nThe supported actions values are:\n\n\"Deny\" specifies that a validation failure results in a denied request.\n\n\"Warn\" specifies that a validation failure is reported to the request client in HTTP Warning headers, with a warning code of 299. Warnings can be sent both for allowed or denied admission responses.\n\n\"Audit\" specifies that a validation failure is included in the published audit event for the request. The audit event will contain a `validation.policy.admission.k8s.io/validation_failure` audit annotation with a value containing the details of the validation failures, formatted as a JSON list of objects, each with the following fields: - message: The validation failure message string - policy: The resource name of the ValidatingAdmissionPolicy - binding: The resource name of the ValidatingAdmissionPolicyBinding - expressionIndex: The index of the failed validations in the ValidatingAdmissionPolicy - validationActions: The enforcement actions enacted for the validation failure Example audit annotation: `\"validation.policy.admission.k8s.io/validation_failure\": \"[{\\\"message\\\": \\\"Invalid value\\\", {\\\"policy\\\": \\\"policy.example.com\\\", {\\\"binding\\\": \\\"policybinding.example.com\\\", {\\\"expressionIndex\\\": \\\"1\\\", {\\\"validationActions\\\": [\\\"Audit\\\"]}]\"`\n\nClients should expect to handle additional values by ignoring any values not recognized.\n\n\"Deny\" and \"Warn\" may not be used together since this combination needlessly duplicates the validation failure both in the API response body and the HTTP warning headers.\n\nRequired.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -18534,7 +18611,7 @@ func schema_k8sio_api_core_v1_PodSpec(ref common.ReferenceCallback) common.OpenA
 					},
 					"setHostnameAsFQDN": {
 						SchemaProps: spec.SchemaProps{
-							Description: "If true the pod's hostname will be configured as the pod's FQDN, rather than the leaf name (the default). In Linux containers, this means setting the FQDN in the hostname field of the kernel (the nodename field of struct utsname). In Windows containers, this means setting the registry value of hostname for the registry key HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters to FQDN. If a pod does not have FQDN, this has no effect. Default to false.",
+							Description: "If true the pod's hostname will be configured as the pod's FQDN, rather than the leaf name (the default). In Linux containers, this means setting the FQDN in the hostname field of the kernel (the nodename field of struct utsname). In Windows containers, this means setting the registry value of hostname for the registry key HKEY_LOCAL_MACHINE\\\\SYSTEM\\\\CurrentControlSet\\\\Services\\\\Tcpip\\\\Parameters to FQDN. If a pod does not have FQDN, this has no effect. Default to false.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -24982,7 +25059,7 @@ func schema_pkg_apis_apiextensions_v1_JSONSchemaProps(ref common.ReferenceCallba
 					},
 					"format": {
 						SchemaProps: spec.SchemaProps{
-							Description: "format is an OpenAPI v3 format string. Unknown formats are ignored. The following formats are validated:\n\n- bsonobjectid: a bson object ID, i.e. a 24 characters hex string - uri: an URI as parsed by Golang net/url.ParseRequestURI - email: an email address as parsed by Golang net/mail.ParseAddress - hostname: a valid representation for an Internet host name, as defined by RFC 1034, section 3.1 [RFC1034]. - ipv4: an IPv4 IP as parsed by Golang net.ParseIP - ipv6: an IPv6 IP as parsed by Golang net.ParseIP - cidr: a CIDR as parsed by Golang net.ParseCIDR - mac: a MAC address as parsed by Golang net.ParseMAC - uuid: an UUID that allows uppercase defined by the regex (?i)^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$ - uuid3: an UUID3 that allows uppercase defined by the regex (?i)^[0-9a-f]{8}-?[0-9a-f]{4}-?3[0-9a-f]{3}-?[0-9a-f]{4}-?[0-9a-f]{12}$ - uuid4: an UUID4 that allows uppercase defined by the regex (?i)^[0-9a-f]{8}-?[0-9a-f]{4}-?4[0-9a-f]{3}-?[89ab][0-9a-f]{3}-?[0-9a-f]{12}$ - uuid5: an UUID5 that allows uppercase defined by the regex (?i)^[0-9a-f]{8}-?[0-9a-f]{4}-?5[0-9a-f]{3}-?[89ab][0-9a-f]{3}-?[0-9a-f]{12}$ - isbn: an ISBN10 or ISBN13 number string like \"0321751043\" or \"978-0321751041\" - isbn10: an ISBN10 number string like \"0321751043\" - isbn13: an ISBN13 number string like \"978-0321751041\" - creditcard: a credit card number defined by the regex ^(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|6(?:011|5[0-9][0-9])[0-9]{12}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11}|(?:2131|1800|35\\d{3})\\d{11})$ with any non digit characters mixed in - ssn: a U.S. social security number following the regex ^\\d{3}[- ]?\\d{2}[- ]?\\d{4}$ - hexcolor: an hexadecimal color code like \"#FFFFFF: following the regex ^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$ - rgbcolor: an RGB color code like rgb like \"rgb(255,255,2559\" - byte: base64 encoded binary data - password: any kind of string - date: a date string like \"2006-01-02\" as defined by full-date in RFC3339 - duration: a duration string like \"22 ns\" as parsed by Golang time.ParseDuration or compatible with Scala duration format - datetime: a date time string like \"2014-12-15T19:30:20.000Z\" as defined by date-time in RFC3339.",
+							Description: "format is an OpenAPI v3 format string. Unknown formats are ignored. The following formats are validated:\n\n- bsonobjectid: a bson object ID, i.e. a 24 characters hex string - uri: an URI as parsed by Golang net/url.ParseRequestURI - email: an email address as parsed by Golang net/mail.ParseAddress - hostname: a valid representation for an Internet host name, as defined by RFC 1034, section 3.1 [RFC1034]. - ipv4: an IPv4 IP as parsed by Golang net.ParseIP - ipv6: an IPv6 IP as parsed by Golang net.ParseIP - cidr: a CIDR as parsed by Golang net.ParseCIDR - mac: a MAC address as parsed by Golang net.ParseMAC - uuid: an UUID that allows uppercase defined by the regex (?i)^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$ - uuid3: an UUID3 that allows uppercase defined by the regex (?i)^[0-9a-f]{8}-?[0-9a-f]{4}-?3[0-9a-f]{3}-?[0-9a-f]{4}-?[0-9a-f]{12}$ - uuid4: an UUID4 that allows uppercase defined by the regex (?i)^[0-9a-f]{8}-?[0-9a-f]{4}-?4[0-9a-f]{3}-?[89ab][0-9a-f]{3}-?[0-9a-f]{12}$ - uuid5: an UUID5 that allows uppercase defined by the regex (?i)^[0-9a-f]{8}-?[0-9a-f]{4}-?5[0-9a-f]{3}-?[89ab][0-9a-f]{3}-?[0-9a-f]{12}$ - isbn: an ISBN10 or ISBN13 number string like \"0321751043\" or \"978-0321751041\" - isbn10: an ISBN10 number string like \"0321751043\" - isbn13: an ISBN13 number string like \"978-0321751041\" - creditcard: a credit card number defined by the regex ^(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|6(?:011|5[0-9][0-9])[0-9]{12}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11}|(?:2131|1800|35\\\\d{3})\\\\d{11})$ with any non digit characters mixed in - ssn: a U.S. social security number following the regex ^\\\\d{3}[- ]?\\\\d{2}[- ]?\\\\d{4}$ - hexcolor: an hexadecimal color code like \"#FFFFFF: following the regex ^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$ - rgbcolor: an RGB color code like rgb like \"rgb(255,255,2559\" - byte: base64 encoded binary data - password: any kind of string - date: a date string like \"2006-01-02\" as defined by full-date in RFC3339 - duration: a duration string like \"22 ns\" as parsed by Golang time.ParseDuration or compatible with Scala duration format - datetime: a date time string like \"2014-12-15T19:30:20.000Z\" as defined by date-time in RFC3339.",
 							Type:        []string{"string"},
 							Format:      "",
 						},

@@ -10,5 +10,5 @@ spec:
     webhook:
       clientConfig:
         url: https://karmada-webhook.karmada-system.svc:443/convert
-        caBundle: {{caBundle}}
+        caBundle: "{{caBundle}}"
       conversionReviewVersions: ["v1"]

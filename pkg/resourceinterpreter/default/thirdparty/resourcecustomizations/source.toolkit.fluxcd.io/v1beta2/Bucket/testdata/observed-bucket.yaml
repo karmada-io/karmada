@@ -3,6 +3,9 @@ kind: Bucket
 metadata:
   name: sample
   namespace: test-bucket
+  annotations:
+    resourcetemplate.karmada.io/generation: "1"
+  generation: 1
 spec:
   provider: generic
   interval: 5m0s

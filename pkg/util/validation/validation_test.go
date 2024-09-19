@@ -133,7 +133,7 @@ func TestValidateOverrideSpec(t *testing.T) {
 						Overriders: policyv1alpha1.Overriders{
 							AnnotationsOverrider: []policyv1alpha1.LabelAnnotationOverrider{
 								{
-									Operator: "add",
+									Operator: policyv1alpha1.OverriderOpAdd,
 									Value:    map[string]string{"testannotation~projectId": "c-m-lfx9lk92p-v86cf"},
 								},
 							},
@@ -154,7 +154,7 @@ func TestValidateOverrideSpec(t *testing.T) {
 						Overriders: policyv1alpha1.Overriders{
 							LabelsOverrider: []policyv1alpha1.LabelAnnotationOverrider{
 								{
-									Operator: "add",
+									Operator: policyv1alpha1.OverriderOpAdd,
 									Value:    map[string]string{"testannotation~projectId": "c-m-lfx9lk92p-v86cf"},
 								},
 							},
@@ -277,14 +277,14 @@ func TestEmptyOverrides(t *testing.T) {
 				ImageOverrider: []policyv1alpha1.ImageOverrider{
 					{
 						Component: "Registry",
-						Operator:  "remove",
+						Operator:  policyv1alpha1.OverriderOpRemove,
 						Value:     "fictional.registry.us",
 					},
 				},
 				CommandOverrider: []policyv1alpha1.CommandArgsOverrider{
 					{
 						ContainerName: "nginx",
-						Operator:      "add",
+						Operator:      policyv1alpha1.OverriderOpAdd,
 						Value:         []string{"echo 'hello karmada'"},
 					},
 				},
@@ -370,7 +370,7 @@ func TestValidatePropagationSpec(t *testing.T) {
 			expectedErr: "unsupported operator \"Exists\", must be In or NotIn",
 		},
 		{
-			name: "clusterAffinities can not co-exist with clusterAffinity",
+			name: "clusterAffinities cannot co-exist with clusterAffinity",
 			spec: policyv1alpha1.PropagationSpec{
 				Placement: policyv1alpha1.Placement{
 					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
@@ -382,7 +382,7 @@ func TestValidatePropagationSpec(t *testing.T) {
 							ClusterAffinity: policyv1alpha1.ClusterAffinity{
 								ClusterNames: []string{"m1"},
 							}}}}},
-			expectedErr: "clusterAffinities can not co-exist with clusterAffinity",
+			expectedErr: "clusterAffinities cannot co-exist with clusterAffinity",
 		},
 		{
 			name: "clusterAffinities different affinities have the same affinityName",
@@ -564,7 +564,63 @@ func TestValidatePropagationSpec(t *testing.T) {
 				},
 				Preemption: policyv1alpha1.PreemptAlways,
 			},
-			expectedErr: "name can not be empty if preemption is Always, the empty name may cause unexpected resources preemption",
+			expectedErr: "name cannot be empty if preemption is Always, the empty name may cause unexpected resources preemption",
+		},
+		{
+			name: "suspension dispatching cannot co-exist with dispatchingOnClusters",
+			spec: policyv1alpha1.PropagationSpec{
+				Suspension: &policyv1alpha1.Suspension{
+					Dispatching: ptr.To(true),
+					DispatchingOnClusters: &policyv1alpha1.SuspendClusters{
+						ClusterNames: []string{"cluster-name"},
+					},
+				},
+			},
+			expectedErr: "suspension dispatching cannot co-exist with dispatchingOnClusters.clusterNames",
+		},
+		{
+			name: "suspension dispatching with nil dispatchingOnClusters is valid",
+			spec: policyv1alpha1.PropagationSpec{
+				Suspension: &policyv1alpha1.Suspension{
+					Dispatching: ptr.To(true),
+				},
+			},
+			expectedErr: "",
+		},
+		{
+			name: "suspension dispatching with empty dispatching clusters is valid",
+			spec: policyv1alpha1.PropagationSpec{
+				Suspension: &policyv1alpha1.Suspension{
+					Dispatching: ptr.To(true),
+					DispatchingOnClusters: &policyv1alpha1.SuspendClusters{
+						ClusterNames: []string{},
+					},
+				},
+			},
+			expectedErr: "",
+		},
+		{
+			name: "dispatchingOnClusters.clusterNames without dispatching is valid",
+			spec: policyv1alpha1.PropagationSpec{
+				Suspension: &policyv1alpha1.Suspension{
+					DispatchingOnClusters: &policyv1alpha1.SuspendClusters{
+						ClusterNames: []string{"cluster-name"},
+					},
+				},
+			},
+			expectedErr: "",
+		},
+		{
+			name: "dispatchingOnClusters.clusterNames with dispatching false is valid",
+			spec: policyv1alpha1.PropagationSpec{
+				Suspension: &policyv1alpha1.Suspension{
+					Dispatching: ptr.To(false),
+					DispatchingOnClusters: &policyv1alpha1.SuspendClusters{
+						ClusterNames: []string{"cluster-name"},
+					},
+				},
+			},
+			expectedErr: "",
 		},
 	}
 	for _, tt := range tests {

@@ -7,7 +7,7 @@ kind: MutatingWebhookConfiguration
 metadata:
   name: mutating-config
   labels:
-    app: mutating-config
+    app: karmada-webhook
     {{- include "karmada.commonLabels" . | nindent 4 }}
 webhooks:
   - name: propagationpolicy.karmada.io
@@ -72,7 +72,7 @@ webhooks:
         apiGroups: ["work.karmada.io"]
         apiVersions: ["*"]
         resources: ["clusterresourcebindings"]
-        scope: "Namespaced"
+        scope: "Cluster"
     clientConfig:
       url: https://{{ $name }}-webhook.{{ $namespace }}.svc:443/mutate-clusterresourcebinding
       {{- include "karmada.webhook.caBundle" . | nindent 6 }}
@@ -128,7 +128,7 @@ kind: ValidatingWebhookConfiguration
 metadata:
   name: validating-config
   labels:
-    app: validating-config
+    app: karmada-webhook
     {{- include "karmada.commonLabels" . | nindent 4 }}
 webhooks:
   - name: propagationpolicy.karmada.io

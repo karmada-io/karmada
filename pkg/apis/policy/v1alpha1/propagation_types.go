@@ -176,6 +176,11 @@ type PropagationSpec struct {
 	// +kubebuilder:validation:Enum=Lazy
 	// +optional
 	ActivationPreference ActivationPreference `json:"activationPreference,omitempty"`
+
+	// Suspension declares the policy for suspending different aspects of propagation.
+	// nil means no suspension. no default values.
+	// +optional
+	Suspension *Suspension `json:"suspension,omitempty"`
 }
 
 // ResourceSelector the resources will be selected.
@@ -208,6 +213,31 @@ type ResourceSelector struct {
 type FieldSelector struct {
 	// A list of field selector requirements.
 	MatchExpressions []corev1.NodeSelectorRequirement `json:"matchExpressions,omitempty"`
+}
+
+// Suspension defines the policy for suspending different aspects of propagation.
+type Suspension struct {
+	// Dispatching controls whether dispatching should be suspended.
+	// nil means not suspend, no default value, only accepts 'true'.
+	// Note: true means stop propagating to all clusters. Can not co-exist
+	// with DispatchingOnClusters which is used to suspend particular clusters.
+	// +optional
+	Dispatching *bool `json:"dispatching,omitempty"`
+
+	// DispatchingOnClusters declares a list of clusters to which the dispatching
+	// should be suspended.
+	// Note: Can not co-exist with Dispatching which is used to suspend all.
+	// +optional
+	DispatchingOnClusters *SuspendClusters `json:"dispatchingOnClusters,omitempty"`
+}
+
+// SuspendClusters represents a group of clusters that should be suspended from propagating.
+// Note: No plan to introduce the label selector or field selector to select clusters yet, as it
+// would make the system unpredictable.
+type SuspendClusters struct {
+	// ClusterNames is the list of clusters to be selected.
+	// +optional
+	ClusterNames []string `json:"clusterNames,omitempty"`
 }
 
 // PurgeMode represents that how to deal with the legacy applications on the
@@ -256,6 +286,7 @@ type ApplicationFailoverBehavior struct {
 	// cluster from which the application is migrated.
 	// Valid options are "Immediately", "Graciously" and "Never".
 	// Defaults to "Graciously".
+	// +kubebuilder:validation:Enum=Immediately;Graciously;Never
 	// +kubebuilder:default=Graciously
 	// +optional
 	PurgeMode PurgeMode `json:"purgeMode,omitempty"`

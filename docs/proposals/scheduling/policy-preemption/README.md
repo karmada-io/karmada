@@ -49,7 +49,7 @@ Even if workloads have been propagated by a policy, they can be preempted by a h
 
 Cluster administrators usually cannot foresee future expansion scenarios when configuring policies.
 They will usually start with a broad policy to set the base strategy. When an application requires special configuration,
-the administrator wants to provide a persionalized policy to take over the application.
+the administrator wants to provide a personalized policy to take over the application.
 At this time, it hopes that the high-priority policy can preempt the low-priority policy.
 
 ### Goals
@@ -257,7 +257,7 @@ metadata:
   namespace: default 
 ```
 
-Assume that there is a high-priority policy which allows preepmtion:
+Assume that there is a high-priority policy which allows preemption:
 
 ```yaml
 apiVersion: policy.karmada.io/v1alpha1

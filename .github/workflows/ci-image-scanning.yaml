@@ -32,6 +32,10 @@ jobs:
     steps:
       - name: checkout code
         uses: actions/checkout@v4
+      - name: install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
       - name: Build an image from Dockerfile
         run: |
           export VERSION="latest"

@@ -118,7 +118,7 @@ func (c *CertRotationController) Reconcile(ctx context.Context, req controllerru
 		return controllerruntime.Result{}, err
 	}
 
-	if err = c.syncCertRotation(secret); err != nil {
+	if err = c.syncCertRotation(ctx, secret); err != nil {
 		klog.Errorf("Failed to rotate the certificate of karmada-agent for the given member cluster: %s, err is: %v", cluster.Name, err)
 		return controllerruntime.Result{}, err
 	}
@@ -137,7 +137,7 @@ func (c *CertRotationController) SetupWithManager(mgr controllerruntime.Manager)
 		Complete(c)
 }
 
-func (c *CertRotationController) syncCertRotation(secret *corev1.Secret) error {
+func (c *CertRotationController) syncCertRotation(ctx context.Context, secret *corev1.Secret) error {
 	karmadaKubeconfig, err := getKubeconfigFromSecret(secret)
 	if err != nil {
 		return err
@@ -174,15 +174,15 @@ func (c *CertRotationController) syncCertRotation(secret *corev1.Secret) error {
 		return fmt.Errorf("invalid private key for certificate request: %v", err)
 	}
 
-	csr, err := c.createCSRInControlPlane(clusterName, privateKey, oldCert)
+	csr, err := c.createCSRInControlPlane(ctx, clusterName, privateKey, oldCert)
 	if err != nil {
 		return fmt.Errorf("failed to create csr in control plane, err is: %v", err)
 	}
 
 	var newCertData []byte
 	klog.V(1).Infof("Waiting for the client certificate to be issued")
-	err = wait.PollUntilContextTimeout(context.TODO(), 1*time.Second, 5*time.Minute, false, func(context.Context) (done bool, err error) {
-		csr, err := c.KubeClient.CertificatesV1().CertificateSigningRequests().Get(context.TODO(), csr, metav1.GetOptions{})
+	err = wait.PollUntilContextTimeout(ctx, 1*time.Second, 5*time.Minute, false, func(context.Context) (done bool, err error) {
+		csr, err := c.KubeClient.CertificatesV1().CertificateSigningRequests().Get(ctx, csr, metav1.GetOptions{})
 		if err != nil {
 			return false, fmt.Errorf("failed to get the cluster csr %s. err: %v", clusterName, err)
 		}
@@ -210,7 +210,7 @@ func (c *CertRotationController) syncCertRotation(secret *corev1.Secret) error {
 
 	secret.Data["karmada-kubeconfig"] = karmadaKubeconfigBytes
 	// Update the karmada-kubeconfig secret in the member cluster.
-	if _, err := c.ClusterClient.KubeClient.CoreV1().Secrets(secret.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{}); err != nil {
+	if _, err := c.ClusterClient.KubeClient.CoreV1().Secrets(secret.Namespace).Update(ctx, secret, metav1.UpdateOptions{}); err != nil {
 		return fmt.Errorf("unable to update secret, err: %w", err)
 	}
 
@@ -225,7 +225,7 @@ func (c *CertRotationController) syncCertRotation(secret *corev1.Secret) error {
 	return nil
 }
 
-func (c *CertRotationController) createCSRInControlPlane(clusterName string, privateKey interface{}, oldCert []*x509.Certificate) (string, error) {
+func (c *CertRotationController) createCSRInControlPlane(ctx context.Context, clusterName string, privateKey interface{}, oldCert []*x509.Certificate) (string, error) {
 	csrData, err := certutil.MakeCSR(privateKey, &oldCert[0].Subject, nil, nil)
 	if err != nil {
 		return "", fmt.Errorf("unable to generate certificate request: %v", err)
@@ -252,7 +252,7 @@ func (c *CertRotationController) createCSRInControlPlane(clusterName string, pri
 		},
 	}
 
-	_, err = c.KubeClient.CertificatesV1().CertificateSigningRequests().Create(context.TODO(), certificateSigningRequest, metav1.CreateOptions{})
+	_, err = c.KubeClient.CertificatesV1().CertificateSigningRequests().Create(ctx, certificateSigningRequest, metav1.CreateOptions{})
 	if err != nil {
 		return "", fmt.Errorf("unable to create certificate request in control plane: %v", err)
 	}

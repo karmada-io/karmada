@@ -19,6 +19,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -26,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
@@ -274,6 +276,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 		var policy *policyv1alpha1.PropagationPolicy
 		var overridePolicy *policyv1alpha1.OverridePolicy
 		var maxGroups, minGroups int
+		var gracePeriodSeconds, tolerationSeconds int32
 		ginkgo.BeforeEach(func() {
 			policyNamespace = testNamespace
 			policyName = deploymentNamePrefix + rand.String(RandomStrLength)
@@ -282,6 +285,8 @@ var _ = framework.SerialDescribe("failover testing", func() {
 			deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
 			maxGroups = 1
 			minGroups = 1
+			gracePeriodSeconds = 30
+			tolerationSeconds = 30
 
 			policy = &policyv1alpha1.PropagationPolicy{
 				ObjectMeta: metav1.ObjectMeta{
@@ -312,10 +317,10 @@ var _ = framework.SerialDescribe("failover testing", func() {
 					Failover: &policyv1alpha1.FailoverBehavior{
 						Application: &policyv1alpha1.ApplicationFailoverBehavior{
 							DecisionConditions: policyv1alpha1.DecisionConditions{
-								TolerationSeconds: ptr.To[int32](30),
+								TolerationSeconds: ptr.To[int32](tolerationSeconds),
 							},
 							PurgeMode:          policyv1alpha1.Graciously,
-							GracePeriodSeconds: ptr.To[int32](30),
+							GracePeriodSeconds: ptr.To[int32](gracePeriodSeconds),
 						},
 					},
 				},
@@ -331,7 +336,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 			})
 		})
 
-		ginkgo.It("application failover with purgeMode graciously", func() {
+		ginkgo.It("application failover with purgeMode graciously when the application come back to healthy on the new cluster", func() {
 			disabledClusters := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 			ginkgo.By("create an error op", func() {
 				overridePolicy = testhelper.NewOverridePolicyByOverrideRules(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
@@ -349,7 +354,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 							ImageOverrider: []policyv1alpha1.ImageOverrider{
 								{
 									Component: "Registry",
-									Operator:  "replace",
+									Operator:  policyv1alpha1.OverriderOpReplace,
 									Value:     "fake",
 								},
 							},
@@ -391,6 +396,70 @@ var _ = framework.SerialDescribe("failover testing", func() {
 
 			ginkgo.By("delete the error op", func() {
 				framework.RemoveOverridePolicy(karmadaClient, policyNamespace, policyName)
+			})
+		})
+
+		ginkgo.It("application failover with purgeMode graciously when the GracePeriodSeconds is reach out", func() {
+			gracePeriodSeconds = 10
+			ginkgo.By("update pp", func() {
+				// modify gracePeriodSeconds to create a time difference with tolerationSecond to avoid cluster interference
+				patch := []map[string]interface{}{
+					{
+						"op":    policyv1alpha1.OverriderOpReplace,
+						"path":  "/spec/failover/application/gracePeriodSeconds",
+						"value": ptr.To[int32](gracePeriodSeconds),
+					},
+				}
+				framework.PatchPropagationPolicy(karmadaClient, policy.Namespace, policy.Name, patch, types.JSONPatchType)
+			})
+
+			disabledClusters := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
+			var beginTime time.Time
+			ginkgo.By("create an error op", func() {
+				overridePolicy = testhelper.NewOverridePolicyByOverrideRules(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+					{
+						APIVersion: deployment.APIVersion,
+						Kind:       deployment.Kind,
+						Name:       deployment.Name,
+					},
+				}, []policyv1alpha1.RuleWithCluster{
+					{
+						TargetCluster: &policyv1alpha1.ClusterAffinity{
+							// guarantee that application cannot come back to healthy on the new cluster
+							ClusterNames: framework.ClusterNames(),
+						},
+						Overriders: policyv1alpha1.Overriders{
+							ImageOverrider: []policyv1alpha1.ImageOverrider{
+								{
+									Component: "Registry",
+									Operator:  policyv1alpha1.OverriderOpReplace,
+									Value:     "fake",
+								},
+							},
+						},
+					},
+				})
+				framework.CreateOverridePolicy(karmadaClient, overridePolicy)
+				beginTime = time.Now()
+			})
+			defer framework.RemoveOverridePolicy(karmadaClient, policyNamespace, policyName)
+
+			ginkgo.By("check if deployment present on member clusters has correct image value", func() {
+				framework.WaitDeploymentPresentOnClustersFitWith(disabledClusters, deployment.Namespace, deployment.Name,
+					func(deployment *appsv1.Deployment) bool {
+						for _, container := range deployment.Spec.Template.Spec.Containers {
+							if container.Image != "fake/nginx:1.19.0" {
+								return false
+							}
+						}
+						return true
+					})
+			})
+
+			ginkgo.By("check whether application failover with purgeMode graciously when the GracePeriodSeconds is reach out", func() {
+				framework.WaitDeploymentDisappearOnClusters(disabledClusters, deploymentNamespace, deploymentName)
+				evictionTime := time.Now()
+				gomega.Expect(evictionTime.Sub(beginTime) > time.Duration(gracePeriodSeconds+tolerationSeconds)*time.Second).Should(gomega.BeTrue())
 			})
 		})
 	})
@@ -476,7 +545,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 							ImageOverrider: []policyv1alpha1.ImageOverrider{
 								{
 									Component: "Registry",
-									Operator:  "replace",
+									Operator:  policyv1alpha1.OverriderOpReplace,
 									Value:     "fake",
 								},
 							},
@@ -528,9 +597,6 @@ func disableCluster(c client.Client, clusterName string) error {
 	err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
 		if err := c.Get(ctx, client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
-			if apierrors.IsConflict(err) {
-				return false, nil
-			}
 			return false, err
 		}
 		// set the APIEndpoint of matched cluster to a wrong value
@@ -552,9 +618,6 @@ func taintCluster(c client.Client, clusterName string, taint corev1.Taint) error
 	err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
 		if err := c.Get(ctx, client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
-			if apierrors.IsConflict(err) {
-				return false, nil
-			}
 			return false, err
 		}
 		clusterObj.Spec.Taints = append(clusterObj.Spec.Taints, taint)
@@ -574,9 +637,6 @@ func recoverTaintedCluster(c client.Client, clusterName string, taint corev1.Tai
 	err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
 		if err := c.Get(ctx, client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
-			if apierrors.IsConflict(err) {
-				return false, nil
-			}
 			return false, err
 		}
 		clusterObj.Spec.Taints = helper.SetCurrentClusterTaints(nil, []*corev1.Taint{&taint}, clusterObj)

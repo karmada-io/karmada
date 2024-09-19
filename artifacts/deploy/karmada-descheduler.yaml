@@ -26,7 +26,8 @@ spec:
           command:
             - /bin/karmada-descheduler
             - --kubeconfig=/etc/kubeconfig
-            - --bind-address=0.0.0.0
+            - --metrics-bind-address=0.0.0.0:10358
+            - --health-probe-bind-address=0.0.0.0:10358
             - --scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt
             - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt
             - --scheduler-estimator-key-file=/etc/karmada/pki/karmada.key
@@ -40,6 +41,10 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 15
             timeoutSeconds: 5
+          ports:
+            - containerPort: 10358
+              name: metrics
+              protocol: TCP
           volumeMounts:
             - name: karmada-certs
               mountPath: /etc/karmada/pki

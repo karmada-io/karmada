@@ -158,7 +158,7 @@ func (as *assignState) resortAvailableClusters() []workv1alpha2.TargetCluster {
 
 	var (
 		prev = make([]workv1alpha2.TargetCluster, 0, len(prior))
-		left = make([]workv1alpha2.TargetCluster, 0, len(as.scheduledClusters)-len(prior))
+		left = make([]workv1alpha2.TargetCluster, 0, len(as.availableClusters)-len(prior))
 	)
 
 	for _, cluster := range as.availableClusters {

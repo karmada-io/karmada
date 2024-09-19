@@ -29,6 +29,7 @@ import (
 	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -1146,5 +1147,35 @@ func Test_aggregateHorizontalPodAutoscalerStatus(t *testing.T) {
 			}
 			assert.Equalf(t, tt.want, got, "aggregateHorizontalPodAutoscalerStatus(%v, %v)", tt.args.object, tt.args.aggregatedStatusItems)
 		})
+	}
+}
+
+func Test_getAllDefaultAggregateStatusInterpreter(t *testing.T) {
+	expectedKinds := []schema.GroupVersionKind{
+		{Group: "apps", Version: "v1", Kind: "Deployment"},
+		{Group: "apps", Version: "v1", Kind: "StatefulSet"},
+		{Group: "batch", Version: "v1", Kind: "Job"},
+		{Group: "", Version: "v1", Kind: "Pod"},
+		{Group: "", Version: "v1", Kind: "Service"},
+		{Group: "networking.k8s.io", Version: "v1", Kind: "Ingress"},
+		{Group: "batch", Version: "v1", Kind: "CronJob"},
+		{Group: "apps", Version: "v1", Kind: "DaemonSet"},
+		{Group: "", Version: "v1", Kind: "PersistentVolume"},
+		{Group: "", Version: "v1", Kind: "PersistentVolumeClaim"},
+		{Group: "policy", Version: "v1", Kind: "PodDisruptionBudget"},
+		{Group: "autoscaling", Version: "v2", Kind: "HorizontalPodAutoscaler"},
+	}
+
+	got := getAllDefaultAggregateStatusInterpreter()
+
+	if len(got) != len(expectedKinds) {
+		t.Errorf("getAllDefaultAggregateStatusInterpreter() length = %d, want %d", len(got), len(expectedKinds))
+	}
+
+	for _, key := range expectedKinds {
+		_, exists := got[key]
+		if !exists {
+			t.Errorf("getAllDefaultAggregateStatusInterpreter() missing key %v", key)
+		}
 	}
 }

@@ -120,7 +120,7 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	// kube image registry
 	flags.StringVarP(&opts.KubeImageMirrorCountry, "kube-image-mirror-country", "", "", "Country code of the kube image registry to be used. For Chinese mainland users, set it to cn")
 	flags.StringVarP(&opts.KubeImageRegistry, "kube-image-registry", "", "", "Kube image registry. For Chinese mainland users, you may use local gcr.io mirrors such as registry.cn-hangzhou.aliyuncs.com/google_containers to override default kube image registry")
-	flags.StringVar(&opts.KubeImageTag, "kube-image-tag", "v1.29.6", "Choose a specific Kubernetes version for the control plane.")
+	flags.StringVar(&opts.KubeImageTag, "kube-image-tag", "v1.30.4", "Choose a specific Kubernetes version for the control plane.")
 	// cert
 	flags.StringVar(&opts.ExternalIP, "cert-external-ip", "", "the external IP of Karmada certificate (e.g 192.168.1.2,172.16.1.2)")
 	flags.StringVar(&opts.ExternalDNS, "cert-external-dns", "", "the external DNS of Karmada certificate (e.g localhost,localhost.com)")
@@ -140,7 +140,7 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	flags.StringVarP(&opts.EtcdInitImage, "etcd-init-image", "", kubernetes.DefaultInitImage, "etcd init container image")
 	flags.Int32VarP(&opts.EtcdReplicas, "etcd-replicas", "", 1, "etcd replica set, cluster 3,5...singular")
 	flags.StringVarP(&opts.EtcdHostDataPath, "etcd-data", "", "/var/lib/karmada-etcd", "etcd data path,valid in hostPath mode.")
-	flags.StringVarP(&opts.EtcdNodeSelectorLabels, "etcd-node-selector-labels", "", "", "etcd pod select the labels of the node. valid in hostPath mode ( e.g. --etcd-node-selector-labels karmada.io/etcd=true)")
+	flags.StringVarP(&opts.EtcdNodeSelectorLabels, "etcd-node-selector-labels", "", "", "the labels used for etcd pod to select nodes, valid in hostPath mode, and with each label separated by a comma. ( e.g. --etcd-node-selector-labels karmada.io/etcd=true,kubernetes.io/os=linux)")
 	flags.StringVarP(&opts.EtcdPersistentVolumeSize, "etcd-pvc-size", "", "5Gi", "etcd data path,valid in pvc mode.")
 	flags.StringVar(&opts.ExternalEtcdCACertPath, "external-etcd-ca-cert-path", "", "The path of CA certificate of the external etcd cluster in pem format.")
 	flags.StringVar(&opts.ExternalEtcdClientCertPath, "external-etcd-client-cert-path", "", "The path of client side certificate to the external etcd cluster in pem format.")

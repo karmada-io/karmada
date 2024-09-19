@@ -74,20 +74,20 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 			}, policyv1alpha1.Overriders{
 				LabelsOverrider: []policyv1alpha1.LabelAnnotationOverrider{
 					{
-						Operator: "replace",
+						Operator: policyv1alpha1.OverriderOpReplace,
 						Value: map[string]string{
 							"foo":       "exist",
 							"non-exist": "non-exist",
 						},
 					},
 					{
-						Operator: "add",
+						Operator: policyv1alpha1.OverriderOpAdd,
 						Value: map[string]string{
 							"app": "nginx",
 						},
 					},
 					{
-						Operator: "remove",
+						Operator: policyv1alpha1.OverriderOpRemove,
 						Value: map[string]string{
 							"bar": "bar",
 						},
@@ -159,20 +159,20 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 			}, policyv1alpha1.Overriders{
 				AnnotationsOverrider: []policyv1alpha1.LabelAnnotationOverrider{
 					{
-						Operator: "replace",
+						Operator: policyv1alpha1.OverriderOpReplace,
 						Value: map[string]string{
 							"foo":       "exist",
 							"non-exist": "non-exist",
 						},
 					},
 					{
-						Operator: "add",
+						Operator: policyv1alpha1.OverriderOpAdd,
 						Value: map[string]string{
 							"app": "nginx",
 						},
 					},
 					{
-						Operator: "remove",
+						Operator: policyv1alpha1.OverriderOpRemove,
 						Value: map[string]string{
 							"bar": "bar",
 						},
@@ -241,17 +241,17 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 				ImageOverrider: []policyv1alpha1.ImageOverrider{
 					{
 						Component: "Registry",
-						Operator:  "replace",
+						Operator:  policyv1alpha1.OverriderOpReplace,
 						Value:     "fictional.registry.us",
 					},
 					{
 						Component: "Repository",
-						Operator:  "replace",
+						Operator:  policyv1alpha1.OverriderOpReplace,
 						Value:     "busybox",
 					},
 					{
 						Component: "Tag",
-						Operator:  "replace",
+						Operator:  policyv1alpha1.OverriderOpReplace,
 						Value:     "1.0",
 					},
 				},
@@ -319,17 +319,17 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 				ImageOverrider: []policyv1alpha1.ImageOverrider{
 					{
 						Component: "Registry",
-						Operator:  "replace",
+						Operator:  policyv1alpha1.OverriderOpReplace,
 						Value:     "fictional.registry.us",
 					},
 					{
 						Component: "Repository",
-						Operator:  "replace",
+						Operator:  policyv1alpha1.OverriderOpReplace,
 						Value:     "busybox",
 					},
 					{
 						Component: "Tag",
-						Operator:  "replace",
+						Operator:  policyv1alpha1.OverriderOpReplace,
 						Value:     "1.0",
 					},
 				},
@@ -399,7 +399,7 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 							Path: "/spec/template/spec/containers/0/image",
 						},
 						Component: "Registry",
-						Operator:  "replace",
+						Operator:  policyv1alpha1.OverriderOpReplace,
 						Value:     "fictional.registry.us",
 					},
 				},
@@ -464,7 +464,7 @@ var _ = framework.SerialDescribe("OverridePolicy with nil resourceSelector testi
 						Path: "/spec/template/spec/containers/0/image",
 					},
 					Component: "Registry",
-					Operator:  "replace",
+					Operator:  policyv1alpha1.OverriderOpReplace,
 					Value:     "fictional.registry.us",
 				},
 			},
@@ -538,17 +538,17 @@ var _ = ginkgo.Describe("[OverrideRules] apply overriders testing", func() {
 						ImageOverrider: []policyv1alpha1.ImageOverrider{
 							{
 								Component: "Registry",
-								Operator:  "replace",
+								Operator:  policyv1alpha1.OverriderOpReplace,
 								Value:     "fictional.registry.us",
 							},
 							{
 								Component: "Repository",
-								Operator:  "replace",
+								Operator:  policyv1alpha1.OverriderOpReplace,
 								Value:     "busybox",
 							},
 							{
 								Component: "Tag",
-								Operator:  "replace",
+								Operator:  policyv1alpha1.OverriderOpReplace,
 								Value:     "1.0",
 							},
 						},
@@ -621,17 +621,17 @@ var _ = ginkgo.Describe("[OverrideRules] apply overriders testing", func() {
 						ImageOverrider: []policyv1alpha1.ImageOverrider{
 							{
 								Component: "Registry",
-								Operator:  "replace",
+								Operator:  policyv1alpha1.OverriderOpReplace,
 								Value:     "fictional.registry.us",
 							},
 							{
 								Component: "Repository",
-								Operator:  "replace",
+								Operator:  policyv1alpha1.OverriderOpReplace,
 								Value:     "busybox",
 							},
 							{
 								Component: "Tag",
-								Operator:  "replace",
+								Operator:  policyv1alpha1.OverriderOpReplace,
 								Value:     "1.0",
 							},
 						},
@@ -706,7 +706,7 @@ var _ = ginkgo.Describe("[OverrideRules] apply overriders testing", func() {
 									Path: "/spec/template/spec/containers/0/image",
 								},
 								Component: "Registry",
-								Operator:  "replace",
+								Operator:  policyv1alpha1.OverriderOpReplace,
 								Value:     "fictional.registry.us",
 							},
 						},
@@ -777,7 +777,7 @@ var _ = framework.SerialDescribe("OverrideRules with nil resourceSelector testin
 								Path: "/spec/template/spec/containers/0/image",
 							},
 							Component: "Registry",
-							Operator:  "replace",
+							Operator:  policyv1alpha1.OverriderOpReplace,
 							Value:     "fictional.registry.us",
 						},
 					},

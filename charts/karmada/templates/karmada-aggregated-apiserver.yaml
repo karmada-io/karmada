@@ -98,7 +98,6 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-        {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
         {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
         - name: apiserver-cert
           secret:

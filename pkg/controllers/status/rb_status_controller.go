@@ -75,7 +75,7 @@ func (c *RBStatusController) Reconcile(ctx context.Context, req controllerruntim
 		return controllerruntime.Result{}, nil
 	}
 
-	err := c.syncBindingStatus(binding)
+	err := c.syncBindingStatus(ctx, binding)
 	if err != nil {
 		return controllerruntime.Result{}, err
 	}
@@ -110,30 +110,18 @@ func (c *RBStatusController) SetupWithManager(mgr controllerruntime.Manager) err
 		Complete(c)
 }
 
-func (c *RBStatusController) syncBindingStatus(binding *workv1alpha2.ResourceBinding) error {
-	resourceTemplate, err := helper.FetchResourceTemplate(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
+func (c *RBStatusController) syncBindingStatus(ctx context.Context, binding *workv1alpha2.ResourceBinding) error {
+	err := helper.AggregateResourceBindingWorkStatus(ctx, c.Client, binding, c.EventRecorder)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			// It might happen when the resource template has been removed but the garbage collector hasn't removed
-			// the ResourceBinding which dependent on resource template.
-			// So, just return without retry(requeue) would save unnecessary loop.
-			return nil
-		}
-		klog.Errorf("Failed to fetch workload for resourceBinding(%s/%s). Error: %v.",
-			binding.GetNamespace(), binding.GetName(), err)
-		return err
-	}
-
-	err = helper.AggregateResourceBindingWorkStatus(c.Client, binding, resourceTemplate, c.EventRecorder)
-	if err != nil {
-		klog.Errorf("Failed to aggregate workStatues to resourceBinding(%s/%s), Error: %v",
+		klog.Errorf("Failed to aggregate workStatus to resourceBinding(%s/%s), Error: %v",
 			binding.Namespace, binding.Name, err)
 		return err
 	}
 
-	err = updateResourceStatus(c.DynamicClient, c.RESTMapper, c.ResourceInterpreter, resourceTemplate, binding.Status)
+	err = updateResourceStatus(ctx, c.DynamicClient, c.RESTMapper, c.ResourceInterpreter, c.EventRecorder, binding.Spec.Resource, binding.Status)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }

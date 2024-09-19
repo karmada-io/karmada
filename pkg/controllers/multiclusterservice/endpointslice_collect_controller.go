@@ -51,9 +51,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
-// EndpointSliceCollectControllerName is the controller name that will be used when reporting events.
-const EndpointSliceCollectControllerName = "endpointslice-collect-controller"
-
 // EndpointSliceCollectController collects EndpointSlice from member clusters and reports them to control-plane.
 type EndpointSliceCollectController struct {
 	client.Client
@@ -94,7 +91,7 @@ func (c *EndpointSliceCollectController) Reconcile(ctx context.Context, req cont
 	}
 
 	if !work.DeletionTimestamp.IsZero() {
-		// The Provider Clusters' EndpointSlice will be deleted by mcs_controller, let's just ignore it
+		// The Provider Clusters' EndpointSlice will be deleted by multiclusterservice-controller, let's just ignore it
 		return controllerruntime.Result{}, nil
 	}
 
@@ -108,7 +105,7 @@ func (c *EndpointSliceCollectController) Reconcile(ctx context.Context, req cont
 		return controllerruntime.Result{}, err
 	}
 
-	if err = c.collectTargetEndpointSlice(work, clusterName); err != nil {
+	if err = c.collectTargetEndpointSlice(ctx, work, clusterName); err != nil {
 		return controllerruntime.Result{}, err
 	}
 
@@ -133,6 +130,7 @@ func (c *EndpointSliceCollectController) RunWorkQueue() {
 }
 
 func (c *EndpointSliceCollectController) collectEndpointSlice(key util.QueueKey) error {
+	ctx := context.Background()
 	fedKey, ok := key.(keys.FederatedKey)
 	if !ok {
 		klog.Errorf("Failed to collect endpointslice as invalid key: %v", key)
@@ -140,7 +138,7 @@ func (c *EndpointSliceCollectController) collectEndpointSlice(key util.QueueKey)
 	}
 
 	klog.V(4).Infof("Begin to collect %s %s.", fedKey.Kind, fedKey.NamespaceKey())
-	if err := c.handleEndpointSliceEvent(fedKey); err != nil {
+	if err := c.handleEndpointSliceEvent(ctx, fedKey); err != nil {
 		klog.Errorf("Failed to handle endpointSlice(%s) event, Error: %v",
 			fedKey.NamespaceKey(), err)
 		return err
@@ -279,11 +277,11 @@ func (c *EndpointSliceCollectController) genHandlerDeleteFunc(clusterName string
 // handleEndpointSliceEvent syncs EndPointSlice objects to control-plane according to EndpointSlice event.
 // For EndpointSlice create or update event, reports the EndpointSlice when referencing service has been exported.
 // For EndpointSlice delete event, cleanup the previously reported EndpointSlice.
-func (c *EndpointSliceCollectController) handleEndpointSliceEvent(endpointSliceKey keys.FederatedKey) error {
+func (c *EndpointSliceCollectController) handleEndpointSliceEvent(ctx context.Context, endpointSliceKey keys.FederatedKey) error {
 	endpointSliceObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, endpointSliceKey)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return cleanupWorkWithEndpointSliceDelete(c.Client, endpointSliceKey)
+			return cleanupWorkWithEndpointSliceDelete(ctx, c.Client, endpointSliceKey)
 		}
 		return err
 	}
@@ -293,7 +291,7 @@ func (c *EndpointSliceCollectController) handleEndpointSliceEvent(endpointSliceK
 	}
 
 	workList := &workv1alpha1.WorkList{}
-	if err := c.Client.List(context.TODO(), workList, &client.ListOptions{
+	if err := c.Client.List(ctx, workList, &client.ListOptions{
 		Namespace: names.GenerateExecutionSpaceName(endpointSliceKey.Cluster),
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			util.MultiClusterServiceNamespaceLabel: endpointSliceKey.Namespace,
@@ -314,7 +312,7 @@ func (c *EndpointSliceCollectController) handleEndpointSliceEvent(endpointSliceK
 		return nil
 	}
 
-	if err = c.reportEndpointSliceWithEndpointSliceCreateOrUpdate(endpointSliceKey.Cluster, endpointSliceObj); err != nil {
+	if err = c.reportEndpointSliceWithEndpointSliceCreateOrUpdate(ctx, endpointSliceKey.Cluster, endpointSliceObj); err != nil {
 		klog.Errorf("Failed to handle endpointSlice(%s) event, Error: %v",
 			endpointSliceKey.NamespaceKey(), err)
 		return err
@@ -323,7 +321,7 @@ func (c *EndpointSliceCollectController) handleEndpointSliceEvent(endpointSliceK
 	return nil
 }
 
-func (c *EndpointSliceCollectController) collectTargetEndpointSlice(work *workv1alpha1.Work, clusterName string) error {
+func (c *EndpointSliceCollectController) collectTargetEndpointSlice(ctx context.Context, work *workv1alpha1.Work, clusterName string) error {
 	manager := c.InformerManager.GetSingleClusterManager(clusterName)
 	if manager == nil {
 		err := fmt.Errorf("failed to get informer manager for cluster %s", clusterName)
@@ -355,7 +353,7 @@ func (c *EndpointSliceCollectController) collectTargetEndpointSlice(work *workv1
 			klog.Errorf("Failed to convert EndpointSlice %s/%s to unstructured, error: %v", eps.GetNamespace(), eps.GetName(), err)
 			return err
 		}
-		if err := c.reportEndpointSliceWithEndpointSliceCreateOrUpdate(clusterName, epsUnstructured); err != nil {
+		if err = c.reportEndpointSliceWithEndpointSliceCreateOrUpdate(ctx, clusterName, epsUnstructured); err != nil {
 			return err
 		}
 	}
@@ -364,8 +362,8 @@ func (c *EndpointSliceCollectController) collectTargetEndpointSlice(work *workv1
 }
 
 // reportEndpointSliceWithEndpointSliceCreateOrUpdate reports the EndpointSlice when referencing service has been exported.
-func (c *EndpointSliceCollectController) reportEndpointSliceWithEndpointSliceCreateOrUpdate(clusterName string, endpointSlice *unstructured.Unstructured) error {
-	if err := reportEndpointSlice(c.Client, endpointSlice, clusterName); err != nil {
+func (c *EndpointSliceCollectController) reportEndpointSliceWithEndpointSliceCreateOrUpdate(ctx context.Context, clusterName string, endpointSlice *unstructured.Unstructured) error {
+	if err := reportEndpointSlice(ctx, c.Client, endpointSlice, clusterName); err != nil {
 		return fmt.Errorf("failed to report EndpointSlice(%s/%s) from cluster(%s) to control-plane",
 			endpointSlice.GetNamespace(), endpointSlice.GetName(), clusterName)
 	}
@@ -374,16 +372,16 @@ func (c *EndpointSliceCollectController) reportEndpointSliceWithEndpointSliceCre
 }
 
 // reportEndpointSlice report EndPointSlice objects to control-plane.
-func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructured, clusterName string) error {
+func reportEndpointSlice(ctx context.Context, c client.Client, endpointSlice *unstructured.Unstructured, clusterName string) error {
 	executionSpace := names.GenerateExecutionSpaceName(clusterName)
 	workName := names.GenerateWorkName(endpointSlice.GetKind(), endpointSlice.GetName(), endpointSlice.GetNamespace())
 
-	workMeta, err := getEndpointSliceWorkMeta(c, executionSpace, workName, endpointSlice)
+	workMeta, err := getEndpointSliceWorkMeta(ctx, c, executionSpace, workName, endpointSlice)
 	if err != nil {
 		return err
 	}
 
-	if err := helper.CreateOrUpdateWork(c, workMeta, endpointSlice); err != nil {
+	if err := helper.CreateOrUpdateWork(ctx, c, workMeta, endpointSlice, nil); err != nil {
 		klog.Errorf("Failed to create or update work(%s/%s), Error: %v", workMeta.Namespace, workMeta.Name, err)
 		return err
 	}
@@ -391,10 +389,10 @@ func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructur
 	return nil
 }
 
-func getEndpointSliceWorkMeta(c client.Client, ns string, workName string, endpointSlice *unstructured.Unstructured) (metav1.ObjectMeta, error) {
+func getEndpointSliceWorkMeta(ctx context.Context, c client.Client, ns string, workName string, endpointSlice *unstructured.Unstructured) (metav1.ObjectMeta, error) {
 	existWork := &workv1alpha1.Work{}
 	var err error
-	if err = c.Get(context.Background(), types.NamespacedName{
+	if err = c.Get(ctx, types.NamespacedName{
 		Namespace: ns,
 		Name:      workName,
 	}, existWork); err != nil && !apierrors.IsNotFound(err) {
@@ -429,7 +427,7 @@ func getEndpointSliceWorkMeta(c client.Client, ns string, workName string, endpo
 	}, nil
 }
 
-func cleanupWorkWithEndpointSliceDelete(c client.Client, endpointSliceKey keys.FederatedKey) error {
+func cleanupWorkWithEndpointSliceDelete(ctx context.Context, c client.Client, endpointSliceKey keys.FederatedKey) error {
 	executionSpace := names.GenerateExecutionSpaceName(endpointSliceKey.Cluster)
 
 	workNamespaceKey := types.NamespacedName{
@@ -437,7 +435,7 @@ func cleanupWorkWithEndpointSliceDelete(c client.Client, endpointSliceKey keys.F
 		Name:      names.GenerateWorkName(endpointSliceKey.Kind, endpointSliceKey.Name, endpointSliceKey.Namespace),
 	}
 	work := &workv1alpha1.Work{}
-	if err := c.Get(context.TODO(), workNamespaceKey, work); err != nil {
+	if err := c.Get(ctx, workNamespaceKey, work); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
@@ -445,14 +443,15 @@ func cleanupWorkWithEndpointSliceDelete(c client.Client, endpointSliceKey keys.F
 		return err
 	}
 
-	return cleanProviderClustersEndpointSliceWork(c, work.DeepCopy())
+	return cleanProviderClustersEndpointSliceWork(ctx, c, work.DeepCopy())
 }
 
-// TBD: Currently, the EndpointSlice work can be handled by both service-export-controller and endpointslice-collect-controller. To indicate this, we've introduced the label endpointslice.karmada.io/managed-by. Therefore,
+// TBD: Currently, the EndpointSlice work can be handled by both service-export-controller and endpointslice-collect-controller.
+// To indicate this, we've introduced the label endpointslice.karmada.io/managed-by. Therefore,
 // if managed by both controllers, simply remove each controller's respective labels.
 // If managed solely by its own controller, delete the work accordingly.
 // This logic should be deleted after the conflict is fixed.
-func cleanProviderClustersEndpointSliceWork(c client.Client, work *workv1alpha1.Work) error {
+func cleanProviderClustersEndpointSliceWork(ctx context.Context, c client.Client, work *workv1alpha1.Work) error {
 	controllers := util.GetLabelValue(work.Labels, util.EndpointSliceWorkManagedByLabel)
 	controllerSet := sets.New[string]()
 	controllerSet.Insert(strings.Split(controllers, ".")...)
@@ -462,14 +461,14 @@ func cleanProviderClustersEndpointSliceWork(c client.Client, work *workv1alpha1.
 		delete(work.Labels, util.MultiClusterServiceNamespaceLabel)
 		work.Labels[util.EndpointSliceWorkManagedByLabel] = strings.Join(controllerSet.UnsortedList(), ".")
 
-		if err := c.Update(context.TODO(), work); err != nil {
+		if err := c.Update(ctx, work); err != nil {
 			klog.Errorf("Failed to update work(%s/%s): %v", work.Namespace, work.Name, err)
 			return err
 		}
 		return nil
 	}
 
-	if err := c.Delete(context.TODO(), work); err != nil {
+	if err := c.Delete(ctx, work); err != nil {
 		klog.Errorf("Failed to delete work(%s/%s): %v", work.Namespace, work.Name, err)
 		return err
 	}

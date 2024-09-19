@@ -50,9 +50,10 @@ spec:
           command:
             - /bin/karmada-descheduler
             - --kubeconfig=/etc/kubeconfig
-            - --bind-address=0.0.0.0
+            - --metrics-bind-address=0.0.0.0:10358
+            - --health-probe-bind-address=0.0.0.0:10358
             - --leader-elect-resource-namespace={{ $systemNamespace }}
-            - --scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt
+            - --scheduler-estimator-ca-file=/etc/karmada/pki/server-ca.crt
             - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt
             - --scheduler-estimator-key-file=/etc/karmada/pki/karmada.key
             - --v=4
@@ -77,7 +78,6 @@ spec:
           resources:
           {{- toYaml .Values.descheduler.resources | nindent 12 }}
       volumes:
-      {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
       {{- include "karmada.descheduler.kubeconfig.volume" . | nindent 8 }}
       {{- include "karmada.scheduler.cert.volume" . | nindent 8 }}
 

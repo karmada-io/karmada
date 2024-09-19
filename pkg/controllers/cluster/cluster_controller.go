@@ -222,7 +222,7 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 
 func (c *Controller) syncCluster(ctx context.Context, cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
 	// create execution space
-	err := c.createExecutionSpace(cluster)
+	err := c.createExecutionSpace(ctx, cluster)
 	if err != nil {
 		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, events.EventReasonCreateExecutionSpaceFailed, err.Error())
 		return controllerruntime.Result{}, err
@@ -235,7 +235,7 @@ func (c *Controller) syncCluster(ctx context.Context, cluster *clusterv1alpha1.C
 	}
 
 	// ensure finalizer
-	return c.ensureFinalizer(cluster)
+	return c.ensureFinalizer(ctx, cluster)
 }
 
 func (c *Controller) removeCluster(ctx context.Context, cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
@@ -245,7 +245,7 @@ func (c *Controller) removeCluster(ctx context.Context, cluster *clusterv1alpha1
 		return controllerruntime.Result{}, err
 	}
 
-	if err := c.removeExecutionSpace(cluster); err != nil {
+	if err := c.removeExecutionSpace(ctx, cluster); err != nil {
 		klog.Errorf("Failed to remove execution space %s: %v", cluster.Name, err)
 		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, events.EventReasonRemoveExecutionSpaceFailed, err.Error())
 		return controllerruntime.Result{}, err
@@ -253,7 +253,7 @@ func (c *Controller) removeCluster(ctx context.Context, cluster *clusterv1alpha1
 	msg := fmt.Sprintf("Removed execution space for cluster(%s).", cluster.Name)
 	c.EventRecorder.Event(cluster, corev1.EventTypeNormal, events.EventReasonRemoveExecutionSpaceSucceed, msg)
 
-	if exist, err := c.ExecutionSpaceExistForCluster(cluster.Name); err != nil {
+	if exist, err := c.ExecutionSpaceExistForCluster(ctx, cluster.Name); err != nil {
 		klog.Errorf("Failed to check weather the execution space exist in the given member cluster or not, error is: %v", err)
 		return controllerruntime.Result{}, err
 	} else if exist {
@@ -275,7 +275,7 @@ func (c *Controller) removeCluster(ctx context.Context, cluster *clusterv1alpha1
 		}
 	}
 
-	return c.removeFinalizer(cluster)
+	return c.removeFinalizer(ctx, cluster)
 }
 
 func (c *Controller) isTargetClusterRemoved(ctx context.Context, cluster *clusterv1alpha1.Cluster) (bool, error) {
@@ -305,7 +305,7 @@ func (c *Controller) isTargetClusterRemoved(ctx context.Context, cluster *cluste
 }
 
 // removeExecutionSpace deletes the given execution space
-func (c *Controller) removeExecutionSpace(cluster *clusterv1alpha1.Cluster) error {
+func (c *Controller) removeExecutionSpace(ctx context.Context, cluster *clusterv1alpha1.Cluster) error {
 	executionSpaceName := names.GenerateExecutionSpaceName(cluster.Name)
 
 	executionSpaceObj := &corev1.Namespace{
@@ -315,12 +315,12 @@ func (c *Controller) removeExecutionSpace(cluster *clusterv1alpha1.Cluster) erro
 	}
 	// delete finalizers of work objects when the sync-mode is pull and cluster status is notready or unknown
 	if cluster.Spec.SyncMode == clusterv1alpha1.Pull && !util.IsClusterReady(&cluster.Status) {
-		if err := c.deleteFinalizerForWorks(executionSpaceObj); err != nil {
+		if err := c.deleteFinalizerForWorks(ctx, executionSpaceObj); err != nil {
 			klog.Errorf("Error while deleting finalizers of work which in %s: %s", executionSpaceName, err)
 			return err
 		}
 	}
-	if err := c.Client.Delete(context.TODO(), executionSpaceObj); err != nil && !apierrors.IsNotFound(err) {
+	if err := c.Client.Delete(ctx, executionSpaceObj); err != nil && !apierrors.IsNotFound(err) {
 		klog.Errorf("Error while deleting namespace %s: %s", executionSpaceName, err)
 		return err
 	}
@@ -329,11 +329,11 @@ func (c *Controller) removeExecutionSpace(cluster *clusterv1alpha1.Cluster) erro
 }
 
 // ExecutionSpaceExistForCluster determine whether the execution space exists in the cluster
-func (c *Controller) ExecutionSpaceExistForCluster(clusterName string) (bool, error) {
+func (c *Controller) ExecutionSpaceExistForCluster(ctx context.Context, clusterName string) (bool, error) {
 	executionSpaceName := names.GenerateExecutionSpaceName(clusterName)
 
 	executionSpaceObj := &corev1.Namespace{}
-	err := c.Client.Get(context.TODO(), types.NamespacedName{Name: executionSpaceName}, executionSpaceObj)
+	err := c.Client.Get(ctx, types.NamespacedName{Name: executionSpaceName}, executionSpaceObj)
 	if apierrors.IsNotFound(err) {
 		klog.V(2).Infof("Execution space(%s) no longer exists", executionSpaceName)
 		return false, nil
@@ -346,9 +346,9 @@ func (c *Controller) ExecutionSpaceExistForCluster(clusterName string) (bool, er
 }
 
 // Delete finalizers of work objects
-func (c *Controller) deleteFinalizerForWorks(workSpace *corev1.Namespace) error {
+func (c *Controller) deleteFinalizerForWorks(ctx context.Context, workSpace *corev1.Namespace) error {
 	workList := &workv1alpha1.WorkList{}
-	err := c.Client.List(context.TODO(), workList, &client.ListOptions{
+	err := c.Client.List(ctx, workList, &client.ListOptions{
 		Namespace: workSpace.Name,
 	})
 	if err != nil {
@@ -378,13 +378,13 @@ func (c *Controller) removeWorkFinalizer(work *workv1alpha1.Work) error {
 	return err
 }
 
-func (c *Controller) removeFinalizer(cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
+func (c *Controller) removeFinalizer(ctx context.Context, cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
 	if !controllerutil.ContainsFinalizer(cluster, util.ClusterControllerFinalizer) {
 		return controllerruntime.Result{}, nil
 	}
 
 	controllerutil.RemoveFinalizer(cluster, util.ClusterControllerFinalizer)
-	err := c.Client.Update(context.TODO(), cluster)
+	err := c.Client.Update(ctx, cluster)
 	if err != nil {
 		return controllerruntime.Result{}, err
 	}
@@ -392,13 +392,13 @@ func (c *Controller) removeFinalizer(cluster *clusterv1alpha1.Cluster) (controll
 	return controllerruntime.Result{}, nil
 }
 
-func (c *Controller) ensureFinalizer(cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
+func (c *Controller) ensureFinalizer(ctx context.Context, cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
 	if controllerutil.ContainsFinalizer(cluster, util.ClusterControllerFinalizer) {
 		return controllerruntime.Result{}, nil
 	}
 
 	controllerutil.AddFinalizer(cluster, util.ClusterControllerFinalizer)
-	err := c.Client.Update(context.TODO(), cluster)
+	err := c.Client.Update(ctx, cluster)
 	if err != nil {
 		return controllerruntime.Result{}, err
 	}
@@ -407,12 +407,12 @@ func (c *Controller) ensureFinalizer(cluster *clusterv1alpha1.Cluster) (controll
 }
 
 // createExecutionSpace creates member cluster execution space when member cluster joined
-func (c *Controller) createExecutionSpace(cluster *clusterv1alpha1.Cluster) error {
+func (c *Controller) createExecutionSpace(ctx context.Context, cluster *clusterv1alpha1.Cluster) error {
 	executionSpaceName := names.GenerateExecutionSpaceName(cluster.Name)
 
 	// create member cluster execution space when member cluster joined
 	executionSpaceObj := &corev1.Namespace{}
-	err := c.Client.Get(context.TODO(), types.NamespacedName{Name: executionSpaceName}, executionSpaceObj)
+	err := c.Client.Get(ctx, types.NamespacedName{Name: executionSpaceName}, executionSpaceObj)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			klog.Errorf("Failed to get namespace(%s): %v", executionSpaceName, err)
@@ -423,9 +423,12 @@ func (c *Controller) createExecutionSpace(cluster *clusterv1alpha1.Cluster) erro
 		executionSpace := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: executionSpaceName,
+				Labels: map[string]string{
+					util.KarmadaSystemLabel: util.KarmadaSystemLabelValue,
+				},
 			},
 		}
-		err = c.Client.Create(context.TODO(), executionSpace)
+		err = c.Client.Create(ctx, executionSpace)
 		if err != nil {
 			klog.Errorf("Failed to create execution space for cluster(%s): %v", cluster.Name, err)
 			return err

@@ -64,7 +64,7 @@ func (c *SyncController) Reconcile(ctx context.Context, req controllerruntime.Re
 	if err := c.Client.Get(ctx, req.NamespacedName, quota); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("Begin to cleanup works created by federatedResourceQuota(%s)", req.NamespacedName.String())
-			if err = c.cleanUpWorks(req.Namespace, req.Name); err != nil {
+			if err = c.cleanUpWorks(ctx, req.Namespace, req.Name); err != nil {
 				klog.Errorf("Failed to cleanup works created by federatedResourceQuota(%s)", req.NamespacedName.String())
 				return controllerruntime.Result{}, err
 			}
@@ -79,7 +79,7 @@ func (c *SyncController) Reconcile(ctx context.Context, req controllerruntime.Re
 		return controllerruntime.Result{}, err
 	}
 
-	if err := c.buildWorks(quota, clusterList.Items); err != nil {
+	if err := c.buildWorks(ctx, quota, clusterList.Items); err != nil {
 		klog.Errorf("Failed to build works for federatedResourceQuota(%s), error: %v", req.NamespacedName.String(), err)
 		c.EventRecorder.Eventf(quota, corev1.EventTypeWarning, events.EventReasonSyncFederatedResourceQuotaFailed, err.Error())
 		return controllerruntime.Result{}, err
@@ -92,11 +92,11 @@ func (c *SyncController) Reconcile(ctx context.Context, req controllerruntime.Re
 // SetupWithManager creates a controller and register to controller manager.
 func (c *SyncController) SetupWithManager(mgr controllerruntime.Manager) error {
 	fn := handler.MapFunc(
-		func(context.Context, client.Object) []reconcile.Request {
+		func(ctx context.Context, _ client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 
 			FederatedResourceQuotaList := &policyv1alpha1.FederatedResourceQuotaList{}
-			if err := c.Client.List(context.TODO(), FederatedResourceQuotaList); err != nil {
+			if err := c.Client.List(ctx, FederatedResourceQuotaList); err != nil {
 				klog.Errorf("Failed to list FederatedResourceQuota, error: %v", err)
 			}
 
@@ -134,10 +134,10 @@ func (c *SyncController) SetupWithManager(mgr controllerruntime.Manager) error {
 		Complete(c)
 }
 
-func (c *SyncController) cleanUpWorks(namespace, name string) error {
+func (c *SyncController) cleanUpWorks(ctx context.Context, namespace, name string) error {
 	var errs []error
 	workList := &workv1alpha1.WorkList{}
-	if err := c.List(context.TODO(), workList, client.MatchingLabels{
+	if err := c.List(ctx, workList, client.MatchingLabels{
 		util.FederatedResourceQuotaNamespaceLabel: namespace,
 		util.FederatedResourceQuotaNameLabel:      name,
 	}); err != nil {
@@ -147,7 +147,7 @@ func (c *SyncController) cleanUpWorks(namespace, name string) error {
 
 	for index := range workList.Items {
 		work := &workList.Items[index]
-		if err := c.Delete(context.TODO(), work); err != nil && !apierrors.IsNotFound(err) {
+		if err := c.Delete(ctx, work); err != nil && !apierrors.IsNotFound(err) {
 			klog.Errorf("Failed to delete work(%s): %v", klog.KObj(work).String(), err)
 			errs = append(errs, err)
 		}
@@ -156,7 +156,7 @@ func (c *SyncController) cleanUpWorks(namespace, name string) error {
 	return errors.NewAggregate(errs)
 }
 
-func (c *SyncController) buildWorks(quota *policyv1alpha1.FederatedResourceQuota, clusters []clusterv1alpha1.Cluster) error {
+func (c *SyncController) buildWorks(ctx context.Context, quota *policyv1alpha1.FederatedResourceQuota, clusters []clusterv1alpha1.Cluster) error {
 	var errs []error
 	for _, cluster := range clusters {
 		resourceQuota := &corev1.ResourceQuota{}
@@ -183,7 +183,7 @@ func (c *SyncController) buildWorks(quota *policyv1alpha1.FederatedResourceQuota
 			},
 		}
 
-		err = helper.CreateOrUpdateWork(c.Client, objectMeta, resourceQuotaObj)
+		err = helper.CreateOrUpdateWork(ctx, c.Client, objectMeta, resourceQuotaObj, nil)
 		if err != nil {
 			errs = append(errs, err)
 		}

@@ -26,26 +26,39 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
-var _ = ginkgo.Describe("[BasicClusterPropagation] propagation testing", func() {
+var _ = ginkgo.Describe("[BasicCase] ClusterPropagationPolicy testing", func() {
+	var policyName string
+	var policy *policyv1alpha1.ClusterPropagationPolicy
+
+	ginkgo.JustBeforeEach(func() {
+		framework.CreateClusterPropagationPolicy(karmadaClient, policy)
+		ginkgo.DeferCleanup(func() {
+			framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
+		})
+	})
+
 	ginkgo.Context("CustomResourceDefinition propagation testing", func() {
 		var crdGroup string
 		var randStr string
 		var crdSpecNames apiextensionsv1.CustomResourceDefinitionNames
 		var crd *apiextensionsv1.CustomResourceDefinition
-		var crdPolicy *policyv1alpha1.ClusterPropagationPolicy
 
 		ginkgo.BeforeEach(func() {
 			crdGroup = fmt.Sprintf("example-%s.karmada.io", rand.String(RandomStrLength))
@@ -57,7 +70,8 @@ var _ = ginkgo.Describe("[BasicClusterPropagation] propagation testing", func() 
 				Singular: fmt.Sprintf("foo%s", randStr),
 			}
 			crd = testhelper.NewCustomResourceDefinition(crdGroup, crdSpecNames, apiextensionsv1.NamespaceScoped)
-			crdPolicy = testhelper.NewClusterPropagationPolicy(crd.Name, []policyv1alpha1.ResourceSelector{
+			policyName = crd.Name
+			policy = testhelper.NewClusterPropagationPolicy(policyName, []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: crd.APIVersion,
 					Kind:       crd.Kind,
@@ -71,10 +85,8 @@ var _ = ginkgo.Describe("[BasicClusterPropagation] propagation testing", func() 
 		})
 
 		ginkgo.BeforeEach(func() {
-			framework.CreateClusterPropagationPolicy(karmadaClient, crdPolicy)
 			framework.CreateCRD(dynamicClient, crd)
 			ginkgo.DeferCleanup(func() {
-				framework.RemoveClusterPropagationPolicy(karmadaClient, crdPolicy.Name)
 				framework.RemoveCRD(dynamicClient, crd.Name)
 				framework.WaitCRDDisappearedOnClusters(framework.ClusterNames(), crd.Name)
 			})
@@ -90,8 +102,6 @@ var _ = ginkgo.Describe("[BasicClusterPropagation] propagation testing", func() 
 	ginkgo.Context("ClusterRole propagation testing", func() {
 		var (
 			clusterRoleName string
-			policyName      string
-			policy          *policyv1alpha1.ClusterPropagationPolicy
 			clusterRole     *rbacv1.ClusterRole
 		)
 
@@ -114,10 +124,8 @@ var _ = ginkgo.Describe("[BasicClusterPropagation] propagation testing", func() 
 		})
 
 		ginkgo.BeforeEach(func() {
-			framework.CreateClusterPropagationPolicy(karmadaClient, policy)
 			framework.CreateClusterRole(kubeClient, clusterRole)
 			ginkgo.DeferCleanup(func() {
-				framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
 				framework.RemoveClusterRole(kubeClient, clusterRole.Name)
 				framework.WaitClusterRoleDisappearOnClusters(framework.ClusterNames(), clusterRole.Name)
 			})
@@ -134,8 +142,6 @@ var _ = ginkgo.Describe("[BasicClusterPropagation] propagation testing", func() 
 	ginkgo.Context("ClusterRoleBinding propagation testing", func() {
 		var (
 			clusterRoleBindingName string
-			policyName             string
-			policy                 *policyv1alpha1.ClusterPropagationPolicy
 			clusterRoleBinding     *rbacv1.ClusterRoleBinding
 		)
 
@@ -158,10 +164,8 @@ var _ = ginkgo.Describe("[BasicClusterPropagation] propagation testing", func() 
 		})
 
 		ginkgo.BeforeEach(func() {
-			framework.CreateClusterPropagationPolicy(karmadaClient, policy)
 			framework.CreateClusterRoleBinding(kubeClient, clusterRoleBinding)
 			ginkgo.DeferCleanup(func() {
-				framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
 				framework.RemoveClusterRoleBinding(kubeClient, clusterRoleBinding.Name)
 				framework.WaitClusterRoleBindingDisappearOnClusters(framework.ClusterNames(), clusterRoleBinding.Name)
 			})
@@ -174,9 +178,108 @@ var _ = ginkgo.Describe("[BasicClusterPropagation] propagation testing", func() 
 				})
 		})
 	})
+
+	ginkgo.Context("Deployment propagation testing", func() {
+		var deployment *appsv1.Deployment
+		var targetMember string
+
+		ginkgo.BeforeEach(func() {
+			targetMember = framework.ClusterNames()[0]
+			policyName = cppNamePrefix + rand.String(RandomStrLength)
+			deploymentName := deploymentNamePrefix + rand.String(RandomStrLength)
+
+			deployment = testhelper.NewDeployment(testNamespace, deploymentName)
+
+			policy = testhelper.NewClusterPropagationPolicy(policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				}}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: []string{targetMember},
+				},
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			})
+		})
+
+		ginkgo.It("deployment propagation testing", func() {
+			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment.Namespace, deployment.Name,
+				func(d *appsv1.Deployment) bool {
+					return *d.Spec.Replicas == *deployment.Spec.Replicas
+				})
+
+			framework.UpdateDeploymentReplicas(kubeClient, deployment, updateDeploymentReplicas)
+			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment.Namespace, deployment.Name,
+				func(deployment *appsv1.Deployment) bool {
+					return *deployment.Spec.Replicas == updateDeploymentReplicas
+				})
+		})
+	})
 })
 
-var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func() {
+var _ = ginkgo.Describe("[CornerCase] ClusterPropagationPolicy testing", func() {
+	var policyName string
+	var policy *policyv1alpha1.ClusterPropagationPolicy
+
+	ginkgo.JustBeforeEach(func() {
+		framework.CreateClusterPropagationPolicy(karmadaClient, policy)
+		ginkgo.DeferCleanup(func() {
+			framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
+		})
+	})
+
+	ginkgo.Context("Deployment propagation testing", func() {
+		var deployment *appsv1.Deployment
+		var targetMember string
+
+		ginkgo.BeforeEach(func() {
+			targetMember = framework.ClusterNames()[0]
+			policyName = cppNamePrefix + rand.String(RandomStrLength)
+			deploymentName := deploymentNamePrefix + rand.String(RandomStrLength)
+
+			deployment = testhelper.NewDeployment(testNamespace, deploymentName)
+			policy = testhelper.NewClusterPropagationPolicy(policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				}}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: []string{targetMember},
+				},
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			})
+		})
+
+		ginkgo.It("deployment propagation testing", func() {
+			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment.Namespace, deployment.Name,
+				func(d *appsv1.Deployment) bool {
+					return *d.Spec.Replicas == *deployment.Spec.Replicas
+				})
+
+			framework.UpdateDeploymentReplicas(kubeClient, deployment, updateDeploymentReplicas)
+			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment.Namespace, deployment.Name,
+				func(deployment *appsv1.Deployment) bool {
+					return *deployment.Spec.Replicas == updateDeploymentReplicas
+				})
+		})
+	})
+})
+
+var _ = ginkgo.Describe("[AdvancedCase] ClusterPropagationPolicy testing", func() {
 	ginkgo.Context("Edit ClusterPropagationPolicy ResourceSelectors", func() {
 		ginkgo.When("propagate namespace scope resource", func() {
 			var policy *policyv1alpha1.ClusterPropagationPolicy
@@ -499,9 +602,109 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 	})
 })
 
+// ImplicitPriority more than one PP matches the object, we should choose the most suitable one.
+// Set it to run sequentially to avoid affecting other test cases.
+var _ = framework.SerialDescribe("[ImplicitPriority] ClusterPropagationPolicy testing", func() {
+	ginkgo.Context("priorityMatchName/priorityMatchLabel/priorityMatchAll propagation testing", func() {
+		var priorityMatchName, priorityMatchLabelSelector, priorityMatchAll string
+		var deploymentNamespace, deploymentName string
+		var deployment *appsv1.Deployment
+		var policyMatchName, policyMatchLabelSelector, policyPriorityMatchAll *policyv1alpha1.ClusterPropagationPolicy
+		var implicitPriorityLabelKey = "priority"
+		var implicitPriorityLabelValue = "implicit-priority"
+
+		ginkgo.BeforeEach(func() {
+			priorityMatchName = deploymentNamePrefix + "match-name" + rand.String(RandomStrLength)
+			priorityMatchLabelSelector = deploymentNamePrefix + "match-labelselector" + rand.String(RandomStrLength)
+			priorityMatchAll = deploymentNamePrefix + "match-all" + rand.String(RandomStrLength)
+			deploymentNamespace = testNamespace
+			deploymentName = deploymentNamePrefix + rand.String(RandomStrLength)
+
+			deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
+			deployment.SetLabels(map[string]string{implicitPriorityLabelKey: implicitPriorityLabelValue})
+			policyMatchName = testhelper.NewClusterPropagationPolicy(priorityMatchName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+					Namespace:  deployment.Namespace,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
+			policyMatchLabelSelector = testhelper.NewClusterPropagationPolicy(priorityMatchLabelSelector, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion:    deployment.APIVersion,
+					Kind:          deployment.Kind,
+					Namespace:     deployment.Namespace,
+					LabelSelector: metav1.SetAsLabelSelector(labels.Set{implicitPriorityLabelKey: implicitPriorityLabelValue}),
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
+			policyPriorityMatchAll = testhelper.NewClusterPropagationPolicy(priorityMatchAll, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Namespace:  deployment.Namespace,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreateClusterPropagationPolicy(karmadaClient, policyMatchName)
+			framework.CreateClusterPropagationPolicy(karmadaClient, policyMatchLabelSelector)
+			framework.CreateClusterPropagationPolicy(karmadaClient, policyPriorityMatchAll)
+			// after all ClusterPropagationPolicy are created, create deployment
+			time.Sleep(time.Second * 3)
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				// Used to ensure that the remaining resources are deleted when the following test cases fail.
+				framework.RemoveClusterPropagationPolicy(karmadaClient, policyMatchName.Name)
+				framework.RemoveClusterPropagationPolicy(karmadaClient, policyMatchLabelSelector.Name)
+				framework.RemoveClusterPropagationPolicy(karmadaClient, policyPriorityMatchAll.Name)
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.WaitDeploymentDisappearOnClusters(framework.ClusterNames(), deployment.Namespace, deployment.Name)
+			})
+		})
+
+		ginkgo.It("priorityMatchName/priorityMatchLabel/priorityMatchAll testing", func() {
+			ginkgo.By("check whether the deployment uses the highest priority propagationPolicy(priorityMatchName)", func() {
+				defer framework.RemoveClusterPropagationPolicy(karmadaClient, policyMatchName.Name)
+				framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+					func(deployment *appsv1.Deployment) bool {
+						return deployment.GetAnnotations()[policyv1alpha1.ClusterPropagationPolicyAnnotation] == priorityMatchName
+					})
+			})
+			ginkgo.By("check whether the deployment uses the highest priority propagationPolicy(priorityMatchLabel)", func() {
+				defer framework.RemoveClusterPropagationPolicy(karmadaClient, policyMatchLabelSelector.Name)
+				framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+					func(deployment *appsv1.Deployment) bool {
+						return deployment.GetAnnotations()[policyv1alpha1.ClusterPropagationPolicyAnnotation] == priorityMatchLabelSelector
+					})
+			})
+			ginkgo.By("check whether the deployment uses the highest priority propagationPolicy(priorityMatchAll)", func() {
+				defer framework.RemoveClusterPropagationPolicy(karmadaClient, policyPriorityMatchAll.Name)
+				framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+					func(deployment *appsv1.Deployment) bool {
+						return deployment.GetAnnotations()[policyv1alpha1.ClusterPropagationPolicyAnnotation] == priorityMatchAll
+					})
+			})
+		})
+	})
+})
+
 // ExplicitPriority more than one CPP matches the object, we should select the one with the highest explicit priority, if the
 // explicit priority is same, select the  one with the highest implicit priority.
-var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
+var _ = ginkgo.Describe("[ExplicitPriority] ClusterPropagationPolicy testing", func() {
 	ginkgo.Context("high explicit/low priority/implicit priority ClusterPropagationPolicy propagation testing", func() {
 		var higherPriorityLabelSelector, lowerPriorityMatchName, implicitPriorityMatchName string
 		var deploymentNamespace, deploymentName string
@@ -658,11 +861,11 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 
 // Delete when delete a clusterPropagationPolicy, and no more clusterPropagationPolicy matches the object, something like
 // labels should be cleaned.
-var _ = ginkgo.Describe("[Delete] clusterPropagation testing", func() {
+var _ = ginkgo.Describe("[DeleteCase] ClusterPropagationPolicy testing", func() {
 	ginkgo.Context("delete clusterPropagation and remove the labels and annotations from the resource template and reference binding", func() {
 		var policy *policyv1alpha1.ClusterPropagationPolicy
 		var deployment *appsv1.Deployment
-		var targetMember string
+		var targetMember, updateMember string
 
 		ginkgo.BeforeEach(func() {
 			targetMember = framework.ClusterNames()[0]
@@ -730,6 +933,38 @@ var _ = ginkgo.Describe("[Delete] clusterPropagation testing", func() {
 				return true
 			})
 		})
+
+		ginkgo.It("delete the old ClusterPropagationPolicy to unbind and create a new one", func() {
+			framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
+
+			policyName01 := deploymentNamePrefix + rand.String(RandomStrLength)
+			updateMember = framework.ClusterNames()[1]
+			policy01 := testhelper.NewClusterPropagationPolicy(policyName01, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				}}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: []string{updateMember},
+				},
+			})
+			framework.CreateClusterPropagationPolicy(karmadaClient, policy01)
+			defer framework.RemoveClusterPropagationPolicy(karmadaClient, policyName01)
+
+			framework.WaitDeploymentFitWith(kubeClient, deployment.Namespace, deployment.Name, func(dep *appsv1.Deployment) bool {
+				return dep.Annotations[policyv1alpha1.ClusterPropagationPolicyAnnotation] == policyName01
+			})
+			resourceBindingName := names.GenerateBindingName(deployment.Kind, deployment.Name)
+			framework.WaitResourceBindingFitWith(karmadaClient, deployment.Namespace, resourceBindingName, func(resourceBinding *workv1alpha2.ResourceBinding) bool {
+				return resourceBinding.Annotations[policyv1alpha1.ClusterPropagationPolicyAnnotation] == policyName01
+			})
+
+			framework.WaitDeploymentDisappearOnCluster(targetMember, deployment.Namespace, deployment.Name)
+			framework.WaitDeploymentPresentOnClusterFitWith(updateMember, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool {
+				return true
+			})
+		})
 	})
 
 	ginkgo.Context("delete clusterPropagation and remove the labels and annotations from the resource template and reference clusterBinding", func() {
@@ -737,7 +972,7 @@ var _ = ginkgo.Describe("[Delete] clusterPropagation testing", func() {
 		var randStr string
 		var crdSpecNames apiextensionsv1.CustomResourceDefinitionNames
 		var crd *apiextensionsv1.CustomResourceDefinition
-		var crdPolicy *policyv1alpha1.ClusterPropagationPolicy
+		var crdPolicy, crdPolicy01 *policyv1alpha1.ClusterPropagationPolicy
 
 		ginkgo.BeforeEach(func() {
 			crdGroup = fmt.Sprintf("example-%s.karmada.io", rand.String(RandomStrLength))
@@ -809,6 +1044,110 @@ var _ = ginkgo.Describe("[Delete] clusterPropagation testing", func() {
 				}
 				return true
 			})
+		})
+
+		ginkgo.It("delete the old ClusterPropagationPolicy to unbind and create a new one", func() {
+			framework.RemoveClusterPropagationPolicy(karmadaClient, crdPolicy.Name)
+
+			crdPolicy01 = testhelper.NewClusterPropagationPolicy(crd.Name+"02", []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: crd.APIVersion,
+					Kind:       crd.Kind,
+					Name:       crd.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
+			framework.CreateClusterPropagationPolicy(karmadaClient, crdPolicy01)
+			defer framework.RemoveClusterPropagationPolicy(karmadaClient, crdPolicy01.Name)
+
+			framework.WaitCRDFitWith(dynamicClient, crd.Name, func(crd *apiextensionsv1.CustomResourceDefinition) bool {
+				return crd.Annotations[policyv1alpha1.ClusterPropagationPolicyAnnotation] == crdPolicy01.Name
+			})
+
+			resourceBindingName := names.GenerateBindingName(crd.Kind, crd.Name)
+			framework.WaitClusterResourceBindingFitWith(karmadaClient, resourceBindingName, func(crb *workv1alpha2.ClusterResourceBinding) bool {
+				return crb.Annotations[policyv1alpha1.ClusterPropagationPolicyAnnotation] == crdPolicy01.Name
+			})
+		})
+	})
+})
+
+var _ = ginkgo.Describe("[Suspension] ClusterPropagationPolicy testing", func() {
+	var policy *policyv1alpha1.ClusterPropagationPolicy
+	var clusterRole *rbacv1.ClusterRole
+	var targetMember string
+	var resourceBindingName string
+	var workName string
+
+	ginkgo.BeforeEach(func() {
+		targetMember = framework.ClusterNames()[0]
+		policyName := clusterRoleNamePrefix + rand.String(RandomStrLength)
+		clusterRoleName := fmt.Sprintf("system:test-%s", policyName)
+
+		clusterRole = testhelper.NewClusterRole(clusterRoleName, nil)
+		resourceBindingName = names.GenerateBindingName(clusterRole.Kind, clusterRole.Name)
+		workName = names.GenerateWorkName(clusterRole.Kind, clusterRole.Name, clusterRole.Namespace)
+		policy = testhelper.NewClusterPropagationPolicy(policyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: clusterRole.APIVersion,
+				Kind:       clusterRole.Kind,
+				Name:       clusterRole.Name,
+			}}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: []string{targetMember},
+			},
+		})
+	})
+
+	ginkgo.BeforeEach(func() {
+		framework.CreateClusterPropagationPolicy(karmadaClient, policy)
+		framework.CreateClusterRole(kubeClient, clusterRole)
+		framework.WaitClusterRolePresentOnClusterFitWith(targetMember, clusterRole.Name, func(*rbacv1.ClusterRole) bool {
+			return true
+		})
+		ginkgo.DeferCleanup(func() {
+			framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
+			framework.RemoveClusterRole(kubeClient, clusterRole.Name)
+		})
+	})
+
+	ginkgo.It("suspend the CPP dispatching", func() {
+		ginkgo.By("update the cpp suspension dispatching to true", func() {
+			policy.Spec.Suspension = &policyv1alpha1.Suspension{
+				Dispatching: ptr.To(true),
+			}
+			framework.UpdateClusterPropagationPolicyWithSpec(karmadaClient, policy.Name, policy.Spec)
+		})
+
+		ginkgo.By("check CRB suspension spec", func() {
+			framework.WaitClusterResourceBindingFitWith(karmadaClient, resourceBindingName, func(binding *workv1alpha2.ClusterResourceBinding) bool {
+				return binding.Spec.Suspension != nil && ptr.Deref(binding.Spec.Suspension.Dispatching, false)
+			})
+		})
+
+		ginkgo.By("check Work suspension spec", func() {
+			esName := names.GenerateExecutionSpaceName(targetMember)
+			gomega.Eventually(func() bool {
+				work, err := karmadaClient.WorkV1alpha1().Works(esName).Get(context.TODO(), workName, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+				return work != nil && helper.IsWorkSuspendDispatching(work)
+			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+		})
+
+		ginkgo.By("check Work Dispatching status condition", func() {
+			esName := names.GenerateExecutionSpaceName(targetMember)
+			gomega.Eventually(func() bool {
+				work, err := karmadaClient.WorkV1alpha1().Works(esName).Get(context.TODO(), workName, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+				return work != nil && meta.IsStatusConditionPresentAndEqual(work.Status.Conditions, workv1alpha1.WorkDispatching, metav1.ConditionFalse)
+			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 		})
 	})
 })
