@@ -35,9 +35,9 @@ func NewCleanupCertTask() workflow.Task {
 		Run:         runCleanupCert,
 		RunSubTasks: true,
 		Tasks: []workflow.Task{
-			newCleanupCertSubTask("karmada", util.KarmadaCertSecretName),
-			newCleanupCertSubTask("etcd", util.EtcdCertSecretName),
-			newCleanupCertSubTask("webhook", util.WebhookCertSecretName),
+			newCleanupCertSubTask("karmada", util.KarmadaCertsName),
+			newCleanupCertSubTask("etcd", util.KarmadaEtcdCertName),
+			newCleanupCertSubTask("webhook", util.KarmadaWebhookCertName),
 		},
 	}
 }
@@ -52,14 +52,14 @@ func runCleanupCert(r workflow.RunData) error {
 	return nil
 }
 
-func newCleanupCertSubTask(owner string, secretNameFunc util.Namefunc) workflow.Task {
+func newCleanupCertSubTask(owner, secretName string) workflow.Task {
 	return workflow.Task{
 		Name: fmt.Sprintf("cleanup-%s-cert", owner),
-		Run:  runCleanupCertSubTask(owner, secretNameFunc),
+		Run:  runCleanupCertSubTask(owner, secretName),
 	}
 }
 
-func runCleanupCertSubTask(owner string, secretNameFunc util.Namefunc) func(r workflow.RunData) error {
+func runCleanupCertSubTask(owner, secretName string) func(r workflow.RunData) error {
 	return func(r workflow.RunData) error {
 		data, ok := r.(DeInitData)
 		if !ok {
@@ -68,7 +68,7 @@ func runCleanupCertSubTask(owner string, secretNameFunc util.Namefunc) func(r wo
 
 		err := apiclient.DeleteSecretIfHasLabels(
 			data.RemoteClient(),
-			secretNameFunc(data.GetName()),
+			secretName,
 			data.GetNamespace(),
 			constants.KarmadaOperatorLabel,
 		)

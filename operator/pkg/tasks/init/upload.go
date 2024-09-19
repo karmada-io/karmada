@@ -26,7 +26,6 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/klog/v2"
 
-	"github.com/karmada-io/karmada/operator/pkg/certs"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
@@ -43,7 +42,7 @@ func NewUploadKubeconfigTask() workflow.Task {
 		Tasks: []workflow.Task{
 			{
 				Name: "UploadAdminKubeconfig",
-				Run:  runUploadAdminKubeconfig,
+				Run:  runUploadKarmadaKubeconfig,
 			},
 		},
 	}
@@ -59,7 +58,7 @@ func runUploadKubeconfig(r workflow.RunData) error {
 	return nil
 }
 
-func runUploadAdminKubeconfig(r workflow.RunData) error {
+func runUploadKarmadaKubeconfig(r workflow.RunData) error {
 	data, ok := r.(InitData)
 	if !ok {
 		return errors.New("UploadAdminKubeconfig task invoked with an invalid data struct")
@@ -93,10 +92,10 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 	err = apiclient.CreateOrUpdateSecret(data.RemoteClient(), &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: data.GetNamespace(),
-			Name:      util.AdminKubeconfigSecretName(data.GetName()),
+			Name:      util.KarmadaKubeconfigName,
 			Labels:    constants.KarmadaOperatorLabel,
 		},
-		Data: map[string][]byte{"kubeconfig": configBytes},
+		Data: map[string][]byte{constants.KarmadaKubeconfigSecretSubpath: configBytes},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create secret of kubeconfig, err: %w", err)
@@ -130,17 +129,12 @@ func getNodePortFromAPIServerService(service *corev1.Service) int32 {
 func buildKubeConfigFromSpec(data InitData, serverURL string) (*clientcmdapi.Config, error) {
 	ca := data.GetCert(constants.CaCertAndKeyName)
 	if ca == nil {
-		return nil, errors.New("unable build karmada admin kubeconfig, CA cert is empty")
+		return nil, errors.New("unable build karmada kubeconfig, CA cert is empty")
 	}
 
-	cc := certs.KarmadaCertClient()
-
-	if err := mutateCertConfig(data, cc); err != nil {
-		return nil, fmt.Errorf("error when mutate cert altNames for %s, err: %w", cc.Name, err)
-	}
-	client, err := certs.CreateCertAndKeyFilesWithCA(cc, ca.CertData(), ca.KeyData())
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate karmada apiserver client certificate for kubeconfig, err: %w", err)
+	client := data.GetCert(constants.KarmadaClientCertAndKeyName)
+	if client == nil {
+		return nil, errors.New("unable build karmada kubeconfig, karmada-client cert is empty")
 	}
 
 	return util.CreateWithCerts(
@@ -195,20 +189,30 @@ func runUploadKarmadaCert(r workflow.RunData) error {
 		return errors.New("upload-KarmadaCert task invoked with an invalid data struct")
 	}
 
-	certList := data.CertList()
-	certsData := make(map[string][]byte, len(certList))
-	for _, c := range certList {
-		certsData[c.KeyName()] = c.KeyData()
-		certsData[c.CertName()] = c.CertData()
-	}
+	ca := data.GetCert(constants.CaCertAndKeyName)
+	karmadaServer := data.GetCert(constants.KarmadaServerCertAndKeyName)
+	karmadaClient := data.GetCert(constants.KarmadaClientCertAndKeyName)
+	frontProxyCa := data.GetCert(constants.FrontProxyCaCertAndKeyName)
+	frontProxyClient := data.GetCert(constants.FrontProxyClientCertAndKeyName)
 
 	err := apiclient.CreateOrUpdateSecret(data.RemoteClient(), &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      util.KarmadaCertSecretName(data.GetName()),
+			Name:      util.KarmadaCertsName,
 			Namespace: data.GetNamespace(),
 			Labels:    constants.KarmadaOperatorLabel,
 		},
-		Data: certsData,
+		Data: map[string][]byte{
+			ca.CertName():               ca.CertData(),
+			ca.KeyName():                ca.KeyData(),
+			karmadaServer.CertName():    karmadaServer.CertData(),
+			karmadaServer.KeyName():     karmadaServer.KeyData(),
+			karmadaClient.CertName():    karmadaClient.CertData(),
+			karmadaClient.KeyName():     karmadaClient.KeyData(),
+			frontProxyCa.CertName():     frontProxyCa.CertData(),
+			frontProxyCa.KeyName():      frontProxyCa.KeyData(),
+			frontProxyClient.CertName(): frontProxyClient.CertData(),
+			frontProxyClient.KeyName():  frontProxyClient.KeyData(),
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to upload karmada cert to secret, err: %w", err)
@@ -231,7 +235,7 @@ func runUploadEtcdCert(r workflow.RunData) error {
 	err := apiclient.CreateOrUpdateSecret(data.RemoteClient(), &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: data.GetNamespace(),
-			Name:      util.EtcdCertSecretName(data.GetName()),
+			Name:      util.KarmadaEtcdCertName,
 			Labels:    constants.KarmadaOperatorLabel,
 		},
 
@@ -258,10 +262,10 @@ func runUploadWebHookCert(r workflow.RunData) error {
 		return errors.New("upload-webhookCert task invoked with an invalid data struct")
 	}
 
-	cert := data.GetCert(constants.KarmadaCertAndKeyName)
+	cert := data.GetCert(constants.KarmadaServerCertAndKeyName)
 	err := apiclient.CreateOrUpdateSecret(data.RemoteClient(), &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      util.WebhookCertSecretName(data.GetName()),
+			Name:      util.KarmadaWebhookCertName,
 			Namespace: data.GetNamespace(),
 			Labels:    constants.KarmadaOperatorLabel,
 		},

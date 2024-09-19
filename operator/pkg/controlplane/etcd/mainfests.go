@@ -55,9 +55,9 @@ spec:
         - --initial-cluster={{ .InitialCluster }}
         - --initial-cluster-state=new
         - --client-cert-auth=true
-        - --trusted-ca-file=/etc/karmada/pki/etcd/etcd-ca.crt
-        - --cert-file=/etc/karmada/pki/etcd/etcd-server.crt
-        - --key-file=/etc/karmada/pki/etcd/etcd-server.key
+        - --trusted-ca-file=/etc/etcd/pki/etcd-ca.crt
+        - --cert-file=/etc/etcd/pki/etcd-server.crt
+        - --key-file=/etc/etcd/pki/etcd-server.key
         - --data-dir=/var/lib/etcd
         - --snapshot-count=10000
         - --log-level=debug
@@ -73,7 +73,7 @@ spec:
             command:
             - /bin/sh
             - -ec
-            - etcdctl get /registry --prefix --keys-only --endpoints https://127.0.0.1:{{ .EtcdListenClientPort }} --cacert=/etc/karmada/pki/etcd/etcd-ca.crt --cert=/etc/karmada/pki/etcd/etcd-server.crt --key=/etc/karmada/pki/etcd/etcd-server.key
+            - etcdctl get /registry --prefix --keys-only --endpoints https://127.0.0.1:{{ .EtcdListenClientPort }} --cacert=/etc/etcd/pki/etcd-ca.crt --cert=/etc/etcd/pki/etcd-client.crt --key=/etc/etcd/pki/etcd-client.key
           failureThreshold: 3
           initialDelaySeconds: 600
           periodSeconds: 60
@@ -89,12 +89,12 @@ spec:
         volumeMounts:
         - mountPath: /var/lib/etcd
           name: {{ .EtcdDataVolumeName }}
-        - mountPath: /etc/karmada/pki/etcd
-          name: etcd-cert
+        - mountPath: /etc/etcd/pki
+          name: karmada-etcd-cert
       volumes:
-      - name: etcd-cert
+      - name: karmada-etcd-cert
         secret:
-          secretName: {{ .CertsSecretName }}
+          secretName: {{ .KarmadaEtcdCertSecret }}
 `
 
 	// KarmadaEtcdClientService is karmada etcd client service manifest

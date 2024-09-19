@@ -47,13 +47,13 @@ spec:
         imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - /bin/karmada-webhook
-        - --kubeconfig=/etc/karmada/kubeconfig
+        - --kubeconfig=/etc/kubeconfig
         - --bind-address=0.0.0.0
         - --metrics-bind-address=:8080
         - --default-not-ready-toleration-seconds=30
         - --default-unreachable-toleration-seconds=30
         - --secure-port=8443
-        - --cert-dir=/var/serving-cert
+        - --cert-dir=/etc/karmada/pki
         - --v=4
         ports:
         - containerPort: 8443
@@ -61,11 +61,11 @@ spec:
           name: metrics
           protocol: TCP
         volumeMounts:
-        - name: kubeconfig
+        - name: karmada-kubeconfig
           subPath: kubeconfig
-          mountPath: /etc/karmada/kubeconfig
-        - name: cert
-          mountPath: /var/serving-cert
+          mountPath: /etc/kubeconfig
+        - name: karmada-webhook-cert
+          mountPath: /etc/karmada/pki
           readOnly: true
         readinessProbe:
           httpGet:
@@ -73,12 +73,12 @@ spec:
             port: 8443
             scheme: HTTPS
       volumes:
-      - name: kubeconfig
+      - name: karmada-kubeconfig
         secret:
-          secretName: {{ .KubeconfigSecret }}
-      - name: cert
+          secretName: {{ .KarmadaKubeconfigSecret }}
+      - name: karmada-webhook-cert
         secret:
-          secretName: {{ .WebhookCertsSecret }}
+          secretName: {{ .KarmadaWebhookCertSecret }}
 `
 
 	// KarmadaWebhookService is karmada webhook service manifest

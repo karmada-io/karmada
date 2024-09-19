@@ -90,8 +90,8 @@ func GetDefaultCertList() []*CertConfig {
 	return []*CertConfig{
 		// karmada cert config.
 		KarmadaCertRootCA(),
-		KarmadaCertAdmin(),
-		KarmadaCertApiserver(),
+		KarmadaCertServer(),
+		KarmadaCertClient(),
 		// front proxy cert config.
 		KarmadaCertFrontProxyCA(),
 		KarmadaCertFrontProxyClient(),
@@ -112,37 +112,23 @@ func KarmadaCertRootCA() *CertConfig {
 	}
 }
 
-// KarmadaCertAdmin returns karmada client cert config.
-func KarmadaCertAdmin() *CertConfig {
+// KarmadaCertServer returns karmada-server cert config.
+func KarmadaCertServer() *CertConfig {
 	return &CertConfig{
-		Name:   constants.KarmadaCertAndKeyName,
+		Name:   constants.KarmadaServerCertAndKeyName,
 		CAName: constants.CaCertAndKeyName,
 		Config: certutil.Config{
-			CommonName:   "system:admin",
-			Organization: []string{"system:masters"},
-			Usages:       []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
-		},
-		AltNamesMutatorFunc: makeAltNamesMutator(apiServerAltNamesMutator),
-	}
-}
-
-// KarmadaCertApiserver returns karmada apiserver cert config.
-func KarmadaCertApiserver() *CertConfig {
-	return &CertConfig{
-		Name:   constants.ApiserverCertAndKeyName,
-		CAName: constants.CaCertAndKeyName,
-		Config: certutil.Config{
-			CommonName: "karmada-apiserver",
+			CommonName: "karmada-server",
 			Usages:     []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		},
 		AltNamesMutatorFunc: makeAltNamesMutator(apiServerAltNamesMutator),
 	}
 }
 
-// KarmadaCertClient returns karmada client cert config.
+// KarmadaCertClient returns karmada-client cert config.
 func KarmadaCertClient() *CertConfig {
 	return &CertConfig{
-		Name:   "karmada-client",
+		Name:   constants.KarmadaClientCertAndKeyName,
 		CAName: constants.CaCertAndKeyName,
 		Config: certutil.Config{
 			CommonName:   "system:admin",
@@ -180,7 +166,7 @@ func KarmadaCertEtcdCA() *CertConfig {
 	return &CertConfig{
 		Name: constants.EtcdCaCertAndKeyName,
 		Config: certutil.Config{
-			CommonName: "karmada-etcd-ca",
+			CommonName: "etcd-ca",
 		},
 	}
 }
@@ -191,7 +177,7 @@ func KarmadaCertEtcdServer() *CertConfig {
 		Name:   constants.EtcdServerCertAndKeyName,
 		CAName: constants.EtcdCaCertAndKeyName,
 		Config: certutil.Config{
-			CommonName: "karmada-etcd-server",
+			CommonName: "etcd-server",
 			Usages:     []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 		},
 		AltNamesMutatorFunc: makeAltNamesMutator(etcdServerAltNamesMutator),
@@ -204,7 +190,7 @@ func KarmadaCertEtcdClient() *CertConfig {
 		Name:   constants.EtcdClientCertAndKeyName,
 		CAName: constants.EtcdCaCertAndKeyName,
 		Config: certutil.Config{
-			CommonName: "karmada-etcd-client",
+			CommonName: "etcd-client",
 			Usages:     []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 		},
 	}

@@ -21,28 +21,22 @@ import (
 	"strings"
 )
 
+const (
+	// KarmadaCertsName secret name of karmada-certs
+	KarmadaCertsName = "karmada-certs"
+
+	// KarmadaEtcdCertName secret name of karmada-etcd-cert
+	KarmadaEtcdCertName = "karmada-etcd-cert"
+
+	// KarmadaWebhookCertName secret name of karmada-webhook-cert
+	KarmadaWebhookCertName = "karmada-webhook-cert"
+
+	// KarmadaKubeconfigName secret name of karmada-kubeconfig
+	KarmadaKubeconfigName = "karmada-kubeconfig"
+)
+
 // Namefunc defines a function to generate resource name according to karmada resource name.
 type Namefunc func(karmada string) string
-
-// AdminKubeconfigSecretName returns secret name of karmada-admin kubeconfig
-func AdminKubeconfigSecretName(karmada string) string {
-	return generateResourceName(karmada, "admin-config")
-}
-
-// KarmadaCertSecretName returns secret name of karmada certs
-func KarmadaCertSecretName(karmada string) string {
-	return generateResourceName(karmada, "cert")
-}
-
-// EtcdCertSecretName returns secret name of etcd cert
-func EtcdCertSecretName(karmada string) string {
-	return generateResourceName(karmada, "etcd-cert")
-}
-
-// WebhookCertSecretName returns secret name of karmada-webhook cert
-func WebhookCertSecretName(karmada string) string {
-	return generateResourceName(karmada, "webhook-cert")
-}
 
 // KarmadaAPIServerName returns secret name of karmada-apiserver
 func KarmadaAPIServerName(karmada string) string {

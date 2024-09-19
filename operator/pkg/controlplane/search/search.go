@@ -43,20 +43,21 @@ func EnsureKarmadaSearch(client clientset.Interface, cfg *operatorv1alpha1.Karma
 
 func installKarmadaSearch(client clientset.Interface, cfg *operatorv1alpha1.KarmadaSearch, name, namespace string, _ map[string]bool) error {
 	searchDeploymentSetBytes, err := util.ParseTemplate(KarmadaSearchDeployment, struct {
-		DeploymentName, Namespace, Image, ImagePullPolicy, KarmadaCertsSecret string
-		KubeconfigSecret, EtcdClientService                                   string
-		Replicas                                                              *int32
-		EtcdListenClientPort                                                  int32
+		DeploymentName, Namespace, Image, ImagePullPolicy, EtcdClientService string
+		KarmadaCertsSecret, KarmadaEtcdCertSecret, KarmadaKubeconfigSecret   string
+		Replicas                                                             *int32
+		EtcdListenClientPort                                                 int32
 	}{
-		DeploymentName:       util.KarmadaSearchName(name),
-		Namespace:            namespace,
-		Image:                cfg.Image.Name(),
-		ImagePullPolicy:      string(cfg.ImagePullPolicy),
-		KarmadaCertsSecret:   util.KarmadaCertSecretName(name),
-		Replicas:             cfg.Replicas,
-		KubeconfigSecret:     util.AdminKubeconfigSecretName(name),
-		EtcdClientService:    util.KarmadaEtcdClientName(name),
-		EtcdListenClientPort: constants.EtcdListenClientPort,
+		DeploymentName:          util.KarmadaSearchName(name),
+		Namespace:               namespace,
+		Image:                   cfg.Image.Name(),
+		ImagePullPolicy:         string(cfg.ImagePullPolicy),
+		Replicas:                cfg.Replicas,
+		KarmadaCertsSecret:      util.KarmadaCertsName,
+		KarmadaEtcdCertSecret:   util.KarmadaEtcdCertName,
+		KarmadaKubeconfigSecret: util.KarmadaKubeconfigName,
+		EtcdClientService:       util.KarmadaEtcdClientName(name),
+		EtcdListenClientPort:    constants.EtcdListenClientPort,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing KarmadaSearch Deployment template: %w", err)

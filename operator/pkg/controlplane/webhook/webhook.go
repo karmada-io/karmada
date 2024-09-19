@@ -43,16 +43,16 @@ func EnsureKarmadaWebhook(client clientset.Interface, cfg *operatorv1alpha1.Karm
 func installKarmadaWebhook(client clientset.Interface, cfg *operatorv1alpha1.KarmadaWebhook, name, namespace string, _ map[string]bool) error {
 	webhookDeploymentSetBytes, err := util.ParseTemplate(KarmadaWebhookDeployment, struct {
 		DeploymentName, Namespace, Image, ImagePullPolicy string
-		KubeconfigSecret, WebhookCertsSecret              string
+		KarmadaKubeconfigSecret, KarmadaWebhookCertSecret string
 		Replicas                                          *int32
 	}{
-		DeploymentName:     util.KarmadaWebhookName(name),
-		Namespace:          namespace,
-		Image:              cfg.Image.Name(),
-		ImagePullPolicy:    string(cfg.ImagePullPolicy),
-		Replicas:           cfg.Replicas,
-		KubeconfigSecret:   util.AdminKubeconfigSecretName(name),
-		WebhookCertsSecret: util.WebhookCertSecretName(name),
+		DeploymentName:           util.KarmadaWebhookName(name),
+		Namespace:                namespace,
+		Image:                    cfg.Image.Name(),
+		ImagePullPolicy:          string(cfg.ImagePullPolicy),
+		Replicas:                 cfg.Replicas,
+		KarmadaKubeconfigSecret:  util.KarmadaKubeconfigName,
+		KarmadaWebhookCertSecret: util.KarmadaWebhookCertName,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing KarmadaWebhook Deployment template: %w", err)
