@@ -33,6 +33,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
+	utilcomp "github.com/karmada-io/karmada/pkg/karmadactl/util/completion"
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
@@ -77,6 +78,7 @@ func NewCmdJoin(f cmdutil.Factory, parentCommand string) *cobra.Command {
 	opts.AddFlags(flags)
 	options.AddKubeConfigFlags(flags)
 
+	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(cmd)
 	return cmd
 }
 

@@ -39,6 +39,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	tokenutil "github.com/karmada-io/karmada/pkg/karmadactl/util/bootstraptoken"
+	utilcomp "github.com/karmada-io/karmada/pkg/karmadactl/util/completion"
 )
 
 var (
@@ -135,6 +136,7 @@ func NewCmdTokenCreate(f util.Factory, out io.Writer, tokenOpts *CommandTokenOpt
 	cmd.Flags().StringSliceVar(&tokenOpts.Groups, "groups", tokenutil.DefaultGroups, fmt.Sprintf("Extra groups that this token will authenticate as when used for authentication. Must match %q", bootstrapapi.BootstrapGroupPattern))
 	cmd.Flags().StringVar(&tokenOpts.Description, "description", tokenOpts.Description, "A human friendly description of how this token is used.")
 
+	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(cmd)
 	return cmd
 }
 
@@ -158,6 +160,7 @@ func NewCmdTokenList(f util.Factory, out io.Writer, errW io.Writer, tokenOpts *C
 
 	options.AddKubeConfigFlags(cmd.Flags())
 
+	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(cmd)
 	return cmd
 }
 
@@ -190,6 +193,7 @@ func NewCmdTokenDelete(f util.Factory, out io.Writer, tokenOpts *CommandTokenOpt
 
 	options.AddKubeConfigFlags(cmd.Flags())
 
+	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(cmd)
 	return cmd
 }
 
