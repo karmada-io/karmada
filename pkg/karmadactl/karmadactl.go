@@ -34,6 +34,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/apply"
 	"github.com/karmada-io/karmada/pkg/karmadactl/attach"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit"
+	"github.com/karmada-io/karmada/pkg/karmadactl/completion"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cordon"
 	"github.com/karmada-io/karmada/pkg/karmadactl/create"
 	"github.com/karmada-io/karmada/pkg/karmadactl/deinit"
@@ -56,6 +57,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/top"
 	"github.com/karmada-io/karmada/pkg/karmadactl/unjoin"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	utilcomp "github.com/karmada-io/karmada/pkg/karmadactl/util/completion"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
 
@@ -91,12 +93,21 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 	_ = flag.CommandLine.Parse(nil)
 	f := util.NewFactory(options.DefaultConfigFlags)
 	ioStreams := genericiooptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
+
+	// Avoid import cycle by setting ValidArgsFunction here instead of in NewCmdGet()
+	getCmd := get.NewCmdGet(f, parentCommand, ioStreams)
+	getCmd.ValidArgsFunction = utilcomp.ResourceTypeAndNameCompletionFunc(f)
+	utilcomp.RegisterCompletionFuncForClustersFlag(getCmd)
+	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(getCmd)
+	utilcomp.RegisterCompletionFuncForNamespaceFlag(getCmd, f)
+	utilcomp.RegisterCompletionFuncForOperationScopeFlag(getCmd)
+
 	groups := templates.CommandGroups{
 		{
 			Message: "Basic Commands:",
 			Commands: []*cobra.Command{
 				explain.NewCmdExplain(f, parentCommand, ioStreams),
-				get.NewCmdGet(f, parentCommand, ioStreams),
+				getCmd,
 				create.NewCmdCreate(f, parentCommand, ioStreams),
 				karmadactldelete.NewCmdDelete(f, parentCommand, ioStreams),
 				edit.NewCmdEdit(f, parentCommand, ioStreams),
@@ -146,6 +157,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 			Commands: []*cobra.Command{
 				label.NewCmdLabel(f, parentCommand, ioStreams),
 				annotate.NewCmdAnnotate(f, parentCommand, ioStreams),
+				completion.NewCmdCompletion(parentCommand, ioStreams.Out, ""),
 			},
 		},
 		{
@@ -164,6 +176,8 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 	rootCmd.AddCommand(options.NewCmdOptions(parentCommand, ioStreams.Out))
 
 	templates.ActsAsRootCommand(rootCmd, filters, groups...)
+
+	utilcomp.SetFactoryForCompletion(f)
 
 	return rootCmd
 }

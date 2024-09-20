@@ -46,6 +46,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/get"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	utilcomp "github.com/karmada-io/karmada/pkg/karmadactl/util/completion"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/declarative"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/webhook"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/webhook/request"
@@ -103,6 +104,7 @@ func NewCmdPromote(f util.Factory, parentCommand string) *cobra.Command {
 		Example:               fmt.Sprintf(promoteExample, parentCommand),
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
+		ValidArgsFunction:     utilcomp.ResourceTypeAndNameCompletionFunc(f),
 		RunE: func(_ *cobra.Command, args []string) error {
 			if err := opts.Complete(f, args); err != nil {
 				return err
@@ -125,6 +127,9 @@ func NewCmdPromote(f util.Factory, parentCommand string) *cobra.Command {
 	options.AddKubeConfigFlags(flag)
 	options.AddNamespaceFlag(flag)
 
+	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(cmd)
+	utilcomp.RegisterCompletionFuncForNamespaceFlag(cmd, f)
+	utilcomp.RegisterCompletionFuncForClusterFlag(cmd)
 	return cmd
 }
 

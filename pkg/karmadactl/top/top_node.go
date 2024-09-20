@@ -31,7 +31,6 @@ import (
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/util/completion"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 	metricsapi "k8s.io/metrics/pkg/apis/metrics"
@@ -42,6 +41,7 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	utilcomp "github.com/karmada-io/karmada/pkg/karmadactl/util/completion"
 )
 
 // NodeOptions contains all the options for running the top-node cli command.
@@ -104,13 +104,16 @@ func NewCmdTopNode(f util.Factory, parentCommand string, o *NodeOptions, streams
 		Short:                 i18n.T("Display resource (CPU/memory) usage of nodes"),
 		Long:                  topNodeLong,
 		Example:               fmt.Sprintf(topNodeExample, parentCommand),
-		ValidArgsFunction:     completion.ResourceNameCompletionFunc(f, "node"),
+		ValidArgsFunction:     utilcomp.ResourceNameCompletionFunc(f, "node"),
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(f, cmd, args))
 			cmdutil.CheckErr(o.Validate())
 			cmdutil.CheckErr(o.RunTopNode(f))
 		},
 		Aliases: []string{"nodes", "no"},
+		Annotations: map[string]string{
+			"parent": "top", // used for completion code to set default operation scope.
+		},
 	}
 	cmdutil.AddLabelSelectorFlagVar(cmd, &o.Selector)
 	options.AddKubeConfigFlags(cmd.Flags())
@@ -120,6 +123,8 @@ func NewCmdTopNode(f util.Factory, parentCommand string, o *NodeOptions, streams
 	cmd.Flags().BoolVar(&o.UseProtocolBuffers, "use-protocol-buffers", o.UseProtocolBuffers, "Enables using protocol-buffers to access Metrics API.")
 	cmd.Flags().BoolVar(&o.ShowCapacity, "show-capacity", o.ShowCapacity, "Print node resources based on Capacity instead of Allocatable(default) of the nodes.")
 
+	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(cmd)
+	utilcomp.RegisterCompletionFuncForClustersFlag(cmd)
 	return cmd
 }
 

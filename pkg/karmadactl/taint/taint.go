@@ -37,6 +37,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	utilcomp "github.com/karmada-io/karmada/pkg/karmadactl/util/completion"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
@@ -84,6 +85,7 @@ func NewCmdTaint(f util.Factory, parentCommand string) *cobra.Command {
 		Example:               fmt.Sprintf(taintExample, parentCommand),
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
+		ValidArgsFunction:     utilcomp.SpecifiedResourceTypeAndNameCompletionFunc(f, []string{"cluster"}),
 		RunE: func(_ *cobra.Command, args []string) error {
 			if err := opts.Complete(f, args); err != nil {
 				return err
@@ -107,6 +109,7 @@ func NewCmdTaint(f util.Factory, parentCommand string) *cobra.Command {
 	flags.BoolVar(&opts.overwrite, "overwrite", opts.overwrite, "If true, allow taints to be overwritten, otherwise reject taint updates that overwrite existing taints.")
 	flags.BoolVar(&opts.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 
+	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(cmd)
 	return cmd
 }
 

@@ -26,6 +26,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	utilcomp "github.com/karmada-io/karmada/pkg/karmadactl/util/completion"
 )
 
 var (
@@ -55,5 +56,9 @@ func NewCmdCreate(f util.Factory, parentCommand string, ioStreams genericiooptio
 	}
 	options.AddKubeConfigFlags(cmd.PersistentFlags())
 	options.AddNamespaceFlag(cmd.PersistentFlags())
+
+	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(cmd)
+	utilcomp.RegisterCompletionFuncForNamespaceFlag(cmd, f)
+
 	return cmd
 }
