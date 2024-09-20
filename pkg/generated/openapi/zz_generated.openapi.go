@@ -4878,6 +4878,13 @@ func schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref common.ReferenceCallbac
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Suspension"),
 						},
 					},
+					"preserveResourcesOnDeletion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PreserveResourcesOnDeletion controls whether resources should be preserved on the member clusters when the resource template is deleted. If set to true, resources will be preserved on the member clusters. Default is false, which means resources will be deleted along with the resource template.\n\nThis setting is particularly useful during workload migration scenarios to ensure that rollback can occur quickly without affecting the workloads running on the member clusters.\n\nAdditionally, this setting applies uniformly across all member clusters and will not selectively control preservation on only some clusters.\n\nNote: This setting does not apply to the deletion of the policy itself. When the policy is deleted, the resource templates and their corresponding propagated resources in member clusters will remain unchanged unless explicitly deleted.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"resourceSelectors"},
 			},
@@ -6383,6 +6390,13 @@ func schema_pkg_apis_work_v1alpha1_WorkSpec(ref common.ReferenceCallback) common
 							Format:      "",
 						},
 					},
+					"preserveResourcesOnDeletion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PreserveResourcesOnDeletion controls whether resources should be preserved on the member cluster when the Work object is deleted. If set to true, resources will be preserved on the member cluster. Default is false, which means resources will be deleted along with the Work object.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -7103,6 +7117,13 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 						SchemaProps: spec.SchemaProps{
 							Description: "Suspension declares the policy for suspending different aspects of propagation. nil means no suspension. no default values.",
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Suspension"),
+						},
+					},
+					"preserveResourcesOnDeletion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PreserveResourcesOnDeletion controls whether resources should be preserved on the member clusters when the binding object is deleted. If set to true, resources will be preserved on the member clusters. Default is false, which means resources will be deleted along with the binding object. This setting applies to all Work objects created under this binding object.",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 				},

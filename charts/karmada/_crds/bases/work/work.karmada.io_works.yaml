@@ -54,6 +54,13 @@ spec:
           spec:
             description: Spec represents the desired behavior of Work.
             properties:
+              preserveResourcesOnDeletion:
+                description: |-
+                  PreserveResourcesOnDeletion controls whether resources should be preserved on the
+                  member cluster when the Work object is deleted.
+                  If set to true, resources will be preserved on the member cluster.
+                  Default is false, which means resources will be deleted along with the Work object.
+                type: boolean
               suspendDispatching:
                 description: |-
                   SuspendDispatching controls whether dispatching should

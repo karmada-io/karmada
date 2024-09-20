@@ -19098,6 +19098,10 @@
             "Never"
           ]
         },
+        "preserveResourcesOnDeletion": {
+          "description": "PreserveResourcesOnDeletion controls whether resources should be preserved on the member clusters when the resource template is deleted. If set to true, resources will be preserved on the member clusters. Default is false, which means resources will be deleted along with the resource template.\n\nThis setting is particularly useful during workload migration scenarios to ensure that rollback can occur quickly without affecting the workloads running on the member clusters.\n\nAdditionally, this setting applies uniformly across all member clusters and will not selectively control preservation on only some clusters.\n\nNote: This setting does not apply to the deletion of the policy itself. When the policy is deleted, the resource templates and their corresponding propagated resources in member clusters will remain unchanged unless explicitly deleted.",
+          "type": "boolean"
+        },
         "priority": {
           "description": "Priority indicates the importance of a policy(PropagationPolicy or ClusterPropagationPolicy). A policy will be applied for the matched resource templates if there is no other policies with higher priority at the point of the resource template be processed. Once a resource template has been claimed by a policy, by default it will not be preempted by following policies even with a higher priority. See Preemption for more details.\n\nIn case of two policies have the same priority, the one with a more precise matching rules in ResourceSelectors wins: - matching by name(resourceSelector.name) has higher priority than\n  by selector(resourceSelector.labelSelector)\n- matching by selector(resourceSelector.labelSelector) has higher priority\n  than by APIVersion(resourceSelector.apiVersion) and Kind(resourceSelector.kind).\nIf there is still no winner at this point, the one with the lower alphabetic order wins, e.g. policy 'bar' has higher priority than 'foo'.\n\nThe higher the value, the higher the priority. Defaults to zero.",
           "type": "integer",
@@ -19752,6 +19756,10 @@
       "description": "WorkSpec defines the desired state of Work.",
       "type": "object",
       "properties": {
+        "preserveResourcesOnDeletion": {
+          "description": "PreserveResourcesOnDeletion controls whether resources should be preserved on the member cluster when the Work object is deleted. If set to true, resources will be preserved on the member cluster. Default is false, which means resources will be deleted along with the Work object.",
+          "type": "boolean"
+        },
         "suspendDispatching": {
           "description": "SuspendDispatching controls whether dispatching should be suspended, nil means not suspend. Note: true means stop propagating to all clusters.",
           "type": "boolean"
@@ -20173,6 +20181,10 @@
         "placement": {
           "description": "Placement represents the rule for select clusters to propagate resources.",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Placement"
+        },
+        "preserveResourcesOnDeletion": {
+          "description": "PreserveResourcesOnDeletion controls whether resources should be preserved on the member clusters when the binding object is deleted. If set to true, resources will be preserved on the member clusters. Default is false, which means resources will be deleted along with the binding object. This setting applies to all Work objects created under this binding object.",
+          "type": "boolean"
         },
         "propagateDeps": {
           "description": "PropagateDeps tells if relevant resources should be propagated automatically. It is inherited from PropagationPolicy or ClusterPropagationPolicy. default false.",
