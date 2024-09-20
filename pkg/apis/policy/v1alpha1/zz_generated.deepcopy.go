@@ -843,6 +843,11 @@ func (in *PropagationSpec) DeepCopyInto(out *PropagationSpec) {
 		*out = new(Suspension)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.PreserveResourcesOnDeletion != nil {
+		in, out := &in.PreserveResourcesOnDeletion, &out.PreserveResourcesOnDeletion
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 

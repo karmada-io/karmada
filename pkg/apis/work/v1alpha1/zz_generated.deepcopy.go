@@ -386,6 +386,11 @@ func (in *WorkSpec) DeepCopyInto(out *WorkSpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.PreserveResourcesOnDeletion != nil {
+		in, out := &in.PreserveResourcesOnDeletion, &out.PreserveResourcesOnDeletion
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
