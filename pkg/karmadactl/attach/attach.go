@@ -24,11 +24,11 @@ import (
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kubectlattach "k8s.io/kubectl/pkg/cmd/attach"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/util/completion"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	utilcomp "github.com/karmada-io/karmada/pkg/karmadactl/util/completion"
 )
 
 var (
@@ -64,7 +64,7 @@ func NewCmdAttach(f util.Factory, parentCommand string, streams genericiooptions
 		Short:                 "Attach to a running container",
 		Long:                  "Attach to a process that is already running inside an existing container.",
 		Example:               fmt.Sprintf(attachExample, parentCommand),
-		ValidArgsFunction:     completion.PodResourceNameCompletionFunc(f),
+		ValidArgsFunction:     utilcomp.PodResourceNameCompletionFunc(f),
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(f, cmd, args))
 			cmdutil.CheckErr(o.Validate())
@@ -85,6 +85,11 @@ func NewCmdAttach(f util.Factory, parentCommand string, streams genericiooptions
 	cmd.Flags().BoolVarP(&o.Quiet, "quiet", "q", o.Quiet, "Only print output from the remote session")
 	cmd.Flags().VarP(&o.OperationScope, "operation-scope", "s", "Used to control the operation scope of the command. The optional values are karmada and members. Defaults to karmada.")
 	cmd.Flags().StringVar(&o.Cluster, "cluster", "", "Used to specify a target member cluster and only takes effect when the command's operation scope is members, for example: --operation-scope=members --cluster=member1")
+
+	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(cmd)
+	utilcomp.RegisterCompletionFuncForNamespaceFlag(cmd, f)
+	utilcomp.RegisterCompletionFuncForOperationScopeFlag(cmd, options.KarmadaControlPlane, options.Members)
+	utilcomp.RegisterCompletionFuncForClusterFlag(cmd)
 	return cmd
 }
 

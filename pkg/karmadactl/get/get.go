@@ -130,13 +130,13 @@ func NewCmdGet(f util.Factory, parentCommand string, streams genericiooptions.IO
 		DisableFlagsInUseLine: true,
 		Example:               fmt.Sprintf(getExample, parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(f); err != nil {
+			if err := o.Complete(f, cmd); err != nil {
 				return err
 			}
 			if err := o.Validate(cmd); err != nil {
 				return err
 			}
-			if err := o.Run(f, cmd, args); err != nil {
+			if err := o.Run(f, args); err != nil {
 				return err
 			}
 			return nil
@@ -167,7 +167,7 @@ func NewCmdGet(f util.Factory, parentCommand string, streams genericiooptions.IO
 type CommandGetOptions struct {
 	Clusters             []string
 	OperationScope       options.OperationScope
-	targetMemberClusters []string
+	TargetMemberClusters []string
 
 	PrintFlags             *get.PrintFlags
 	ToPrinter              func(*meta.RESTMapping, *bool, bool, bool) (printers.ResourcePrinterFunc, error)
@@ -198,7 +198,7 @@ type CommandGetOptions struct {
 
 	genericiooptions.IOStreams
 
-	karmadaClient karmadaclientset.Interface
+	KarmadaClient karmadaclientset.Interface
 }
 
 // NewCommandGetOptions returns a CommandGetOptions with default chunk size 500.
@@ -212,9 +212,7 @@ func NewCommandGetOptions(streams genericiooptions.IOStreams) *CommandGetOptions
 }
 
 // Complete takes the command arguments and infers any remaining options.
-func (g *CommandGetOptions) Complete(f util.Factory) error {
-	newScheme := gclient.NewSchema()
-
+func (g *CommandGetOptions) Complete(f util.Factory, cmd *cobra.Command) error {
 	err := g.handleNamespaceScopeFlags(f)
 	if err != nil {
 		return err
@@ -225,12 +223,54 @@ func (g *CommandGetOptions) Complete(f util.Factory) error {
 		templateArg = *g.PrintFlags.TemplateFlags.TemplateArgument
 	}
 
+	outputOption := cmd.Flags().Lookup("output").Value.String()
+	if strings.Contains(outputOption, "custom-columns") || outputOption == "yaml" || strings.Contains(outputOption, "json") {
+		g.ServerPrint = false
+	}
+
 	// human readable printers have special conversion rules, so we determine if we're using one.
 	if (len(*g.PrintFlags.OutputFormat) == 0 && len(templateArg) == 0) || *g.PrintFlags.OutputFormat == "wide" {
 		g.IsHumanReadablePrinter = true
 	}
 
-	g.ToPrinter = func(mapping *meta.RESTMapping, outputObjects *bool, withNamespace bool, withKind bool) (printers.ResourcePrinterFunc, error) {
+	g.ToPrinter = g.getResourcePrinter()
+	karmadaClient, err := f.KarmadaClientSet()
+	if err != nil {
+		return err
+	}
+	g.KarmadaClient = karmadaClient
+	return g.HandleClusterScopeFlags()
+}
+
+// Validate checks the set of flags provided by the user.
+func (g *CommandGetOptions) Validate(cmd *cobra.Command) error {
+	if cmdutil.GetFlagBool(cmd, "show-labels") {
+		outputOption := cmd.Flags().Lookup("output").Value.String()
+		if outputOption != "" && outputOption != "wide" {
+			return fmt.Errorf("--show-labels option cannot be used with %s printer", outputOption)
+		}
+	}
+	if g.OutputWatchEvents && !(g.Watch || g.WatchOnly) {
+		return fmt.Errorf("--output-watch-events option can only be used with --watch or --watch-only")
+	}
+
+	if err := options.VerifyOperationScopeFlags(g.OperationScope); err != nil {
+		return err
+	}
+
+	if options.ContainMembersScope(g.OperationScope) && len(g.Clusters) > 0 {
+		clusters, err := g.KarmadaClient.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+		return util.VerifyClustersExist(g.Clusters, clusters)
+	}
+	return nil
+}
+
+func (g *CommandGetOptions) getResourcePrinter() func(mapping *meta.RESTMapping, outputObjects *bool, withNamespace bool, withKind bool) (printers.ResourcePrinterFunc, error) {
+	newScheme := gclient.NewSchema()
+	return func(mapping *meta.RESTMapping, outputObjects *bool, withNamespace bool, withKind bool) (printers.ResourcePrinterFunc, error) {
 		// make a new copy of current flags / opts before mutating
 		printFlags := g.PrintFlags.Copy()
 
@@ -263,51 +303,20 @@ func (g *CommandGetOptions) Complete(f util.Factory) error {
 
 		return printer.PrintObj, nil
 	}
-	karmadaClient, err := f.KarmadaClientSet()
-	if err != nil {
-		return err
-	}
-	g.karmadaClient = karmadaClient
-	return g.handleClusterScopeFlags()
 }
 
-// Validate checks the set of flags provided by the user.
-func (g *CommandGetOptions) Validate(cmd *cobra.Command) error {
-	if cmdutil.GetFlagBool(cmd, "show-labels") {
-		outputOption := cmd.Flags().Lookup("output").Value.String()
-		if outputOption != "" && outputOption != "wide" {
-			return fmt.Errorf("--show-labels option cannot be used with %s printer", outputOption)
-		}
-	}
-	if g.OutputWatchEvents && !(g.Watch || g.WatchOnly) {
-		return fmt.Errorf("--output-watch-events option can only be used with --watch or --watch-only")
-	}
-
-	if err := options.VerifyOperationScopeFlags(g.OperationScope); err != nil {
-		return err
-	}
-
-	if options.ContainMembersScope(g.OperationScope) && len(g.Clusters) > 0 {
-		clusters, err := g.karmadaClient.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			return err
-		}
-		return util.VerifyClustersExist(g.Clusters, clusters)
-	}
-	return nil
-}
-
-func (g *CommandGetOptions) handleClusterScopeFlags() error {
+// HandleClusterScopeFlags used to handle flags related to cluster scope.
+func (g *CommandGetOptions) HandleClusterScopeFlags() error {
 	var err error
 	switch g.OperationScope {
 	case options.KarmadaControlPlane:
-		g.targetMemberClusters = []string{}
+		g.TargetMemberClusters = []string{}
 	case options.Members, options.All:
 		if len(g.Clusters) == 0 {
-			g.targetMemberClusters, err = LoadRegisteredClusters(g.karmadaClient)
+			g.TargetMemberClusters, err = LoadRegisteredClusters(g.KarmadaClient)
 			return err
 		}
-		g.targetMemberClusters = g.Clusters
+		g.TargetMemberClusters = g.Clusters
 		return nil
 	}
 	return nil
@@ -339,7 +348,7 @@ type WatchObj struct {
 }
 
 // Run performs the get operation.
-func (g *CommandGetOptions) Run(f util.Factory, cmd *cobra.Command, args []string) error {
+func (g *CommandGetOptions) Run(f util.Factory, args []string) error {
 	mux := sync.Mutex{}
 	var wg sync.WaitGroup
 
@@ -347,24 +356,19 @@ func (g *CommandGetOptions) Run(f util.Factory, cmd *cobra.Command, args []strin
 	var watchObjs []WatchObj
 	var allErrs []error
 
-	outputOption := cmd.Flags().Lookup("output").Value.String()
-	if strings.Contains(outputOption, "custom-columns") || outputOption == "yaml" || strings.Contains(outputOption, "json") {
-		g.ServerPrint = false
-	}
-
 	if options.ContainKarmadaScope(g.OperationScope) {
 		g.getObjInfo(&mux, f, "Karmada", true, &objs, &watchObjs, &allErrs, args)
 	}
 
-	if len(g.targetMemberClusters) != 0 {
-		wg.Add(len(g.targetMemberClusters))
-		for idx := range g.targetMemberClusters {
-			memberFactory, err := f.FactoryForMemberCluster(g.targetMemberClusters[idx])
+	if len(g.TargetMemberClusters) != 0 {
+		wg.Add(len(g.TargetMemberClusters))
+		for idx := range g.TargetMemberClusters {
+			memberFactory, err := f.FactoryForMemberCluster(g.TargetMemberClusters[idx])
 			if err != nil {
 				return err
 			}
 			go func() {
-				g.getObjInfo(&mux, memberFactory, g.targetMemberClusters[idx], false, &objs, &watchObjs, &allErrs, args)
+				g.getObjInfo(&mux, memberFactory, g.TargetMemberClusters[idx], false, &objs, &watchObjs, &allErrs, args)
 				wg.Done()
 			}()
 		}
@@ -476,7 +480,7 @@ func (g *CommandGetOptions) printIfNotFindResource(written int, allErrs *[]error
 	if written != 0 || g.IgnoreNotFound || len(*allErrs) != 0 {
 		return
 	}
-	if !options.ContainKarmadaScope(g.OperationScope) && len(g.targetMemberClusters) == 0 {
+	if !options.ContainKarmadaScope(g.OperationScope) && len(g.TargetMemberClusters) == 0 {
 		fmt.Fprintln(g.ErrOut, "No member Clusters found in Karmada control plane")
 		return
 	}

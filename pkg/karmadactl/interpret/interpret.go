@@ -34,6 +34,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	utilcomp "github.com/karmada-io/karmada/pkg/karmadactl/util/completion"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/genericresource"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -131,6 +132,7 @@ func NewCmdInterpret(f util.Factory, parentCommand string, streams genericioopti
 	cmdutil.AddJsonFilenameFlag(flags, &o.FilenameOptions.Filenames, "Filename, directory, or URL to files containing the customizations")
 	flags.BoolVarP(&o.FilenameOptions.Recursive, "recursive", "R", false, "Process the directory used in -f, --filename recursively. Useful when you want to manage related manifests organized within the same directory.")
 
+	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(cmd)
 	return cmd
 }
 

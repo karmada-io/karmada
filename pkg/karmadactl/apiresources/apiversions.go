@@ -27,6 +27,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	utilcomp "github.com/karmada-io/karmada/pkg/karmadactl/util/completion"
 )
 
 var (
@@ -62,6 +63,11 @@ func NewCmdAPIVersions(f util.Factory, parentCommand string, ioStreams genericio
 	options.AddKubeConfigFlags(cmd.Flags())
 	cmd.Flags().VarP(&o.OperationScope, "operation-scope", "s", "Used to control the operation scope of the command. The optional values are karmada and members. Defaults to karmada.")
 	cmd.Flags().StringVar(&o.Cluster, "cluster", "", "Used to specify a target member cluster and only takes effect when the command's operation scope is members, for example: --operation-scope=members --cluster=member1")
+
+	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(cmd)
+	utilcomp.RegisterCompletionFuncForOperationScopeFlag(cmd, options.KarmadaControlPlane, options.Members)
+	utilcomp.RegisterCompletionFuncForClusterFlag(cmd)
+
 	return cmd
 }
 

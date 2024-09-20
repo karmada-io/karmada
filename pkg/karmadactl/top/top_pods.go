@@ -33,7 +33,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/util/completion"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 	metricsapi "k8s.io/metrics/pkg/apis/metrics"
@@ -44,6 +43,7 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	utilcomp "github.com/karmada-io/karmada/pkg/karmadactl/util/completion"
 )
 
 // PodOptions contains the options to the top command.
@@ -115,13 +115,16 @@ func NewCmdTopPod(f util.Factory, parentCommand string, o *PodOptions, streams g
 		Short:                 i18n.T("Display resource (CPU/memory) usage of pods of member clusters"),
 		Long:                  topPodLong,
 		Example:               fmt.Sprintf(topPodExample, parentCommand),
-		ValidArgsFunction:     completion.ResourceNameCompletionFunc(f, "pod"),
+		ValidArgsFunction:     utilcomp.ResourceNameCompletionFunc(f, "pod"),
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(f, cmd, args))
 			cmdutil.CheckErr(o.Validate())
 			cmdutil.CheckErr(o.RunTopPod(f))
 		},
 		Aliases: []string{"pods", "po"},
+		Annotations: map[string]string{
+			"parent": "top", // used for completion code to set default operation scope.
+		},
 	}
 	cmdutil.AddLabelSelectorFlagVar(cmd, &o.LabelSelector)
 	options.AddKubeConfigFlags(cmd.Flags())
@@ -134,6 +137,10 @@ func NewCmdTopPod(f util.Factory, parentCommand string, o *PodOptions, streams g
 	cmd.Flags().BoolVar(&o.NoHeaders, "no-headers", o.NoHeaders, "If present, print output without headers.")
 	cmd.Flags().BoolVar(&o.UseProtocolBuffers, "use-protocol-buffers", o.UseProtocolBuffers, "Enables using protocol-buffers to access Metrics API.")
 	cmd.Flags().BoolVar(&o.Sum, "sum", o.Sum, "Print the sum of the resource usage")
+
+	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(cmd)
+	utilcomp.RegisterCompletionFuncForNamespaceFlag(cmd, f)
+	utilcomp.RegisterCompletionFuncForClustersFlag(cmd)
 	return cmd
 }
 

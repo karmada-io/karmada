@@ -28,6 +28,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	utilcomp "github.com/karmada-io/karmada/pkg/karmadactl/util/completion"
 )
 
 const (
@@ -80,6 +81,7 @@ func NewCmdExec(f util.Factory, parentCommand string, streams genericiooptions.I
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		Example:               fmt.Sprintf(execExample, parentCommand),
+		ValidArgsFunction:     utilcomp.PodResourceNameCompletionFunc(f),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			argsLenAtDash := cmd.ArgsLenAtDash()
 			if err := o.Complete(f, cmd, args, argsLenAtDash); err != nil {
@@ -111,6 +113,13 @@ func NewCmdExec(f util.Factory, parentCommand string, streams genericiooptions.I
 	flags.BoolVarP(&o.KubectlExecOptions.Quiet, "quiet", "q", o.KubectlExecOptions.Quiet, "Only print output from the remote session")
 	flags.VarP(&o.OperationScope, "operation-scope", "s", "Used to control the operation scope of the command. The optional values are karmada and members. Defaults to karmada.")
 	flags.StringVar(&o.Cluster, "cluster", "", "Used to specify a target member cluster and only takes effect when the command's operation scope is members, for example: --operation-scope=members --cluster=member1")
+
+	cmdutil.CheckErr(cmd.RegisterFlagCompletionFunc("container", utilcomp.ContainerCompletionFunc(f)))
+	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(cmd)
+	utilcomp.RegisterCompletionFuncForNamespaceFlag(cmd, f)
+	utilcomp.RegisterCompletionFuncForOperationScopeFlag(cmd, options.KarmadaControlPlane, options.Members)
+	utilcomp.RegisterCompletionFuncForClusterFlag(cmd)
+
 	return cmd
 }
 

@@ -26,6 +26,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	utilcomp "github.com/karmada-io/karmada/pkg/karmadactl/util/completion"
 )
 
 var (
@@ -74,6 +75,7 @@ func NewCmdDescribe(f util.Factory, parentCommand string, streams genericiooptio
 		Long:                  fmt.Sprintf(describeLong, parentCommand),
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
+		ValidArgsFunction:     utilcomp.ResourceTypeAndNameCompletionFunc(f),
 		Example:               fmt.Sprintf(describeExample, parentCommand),
 		RunE: func(_ *cobra.Command, args []string) error {
 			if err := o.Complete(f, args, kubedescribeFlags, parentCommand); err != nil {
@@ -101,6 +103,10 @@ func NewCmdDescribe(f util.Factory, parentCommand string, streams genericiooptio
 	flags.VarP(&o.OperationScope, "operation-scope", "s", "Used to control the operation scope of the command. The optional values are karmada and members. Defaults to karmada.")
 	flags.StringVarP(&o.Cluster, "cluster", "C", "", "Used to specify a target member cluster and only takes effect when the command's operation scope is members, for example: --operation-scope=members --cluster=member1")
 
+	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(cmd)
+	utilcomp.RegisterCompletionFuncForNamespaceFlag(cmd, f)
+	utilcomp.RegisterCompletionFuncForOperationScopeFlag(cmd, options.KarmadaControlPlane, options.Members)
+	utilcomp.RegisterCompletionFuncForClusterFlag(cmd)
 	return cmd
 }
 
