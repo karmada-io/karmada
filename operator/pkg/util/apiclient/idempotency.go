@@ -281,6 +281,32 @@ func CreateOrUpdateClusterRole(client clientset.Interface, clusterrole *rbacv1.C
 	return nil
 }
 
+// CreateOrUpdateClusterRoleBinding creates a Clusterrolebinding if the target resource doesn't exist.
+// If the resource exists already, this function will update the resource instead.
+func CreateOrUpdateClusterRoleBinding(client clientset.Interface, clusterrolebinding *rbacv1.ClusterRoleBinding) error {
+	_, err := client.RbacV1().ClusterRoleBindings().Create(context.TODO(), clusterrolebinding, metav1.CreateOptions{})
+
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+
+		older, err := client.RbacV1().ClusterRoleBindings().Get(context.TODO(), clusterrolebinding.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		clusterrolebinding.ResourceVersion = older.ResourceVersion
+		_, err = client.RbacV1().ClusterRoleBindings().Update(context.TODO(), clusterrolebinding, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	klog.V(4).InfoS("Successfully created or updated clusterrolebinding", "clusterrolebinding", clusterrolebinding.GetName())
+	return nil
+}
+
 // DeleteDeploymentIfHasLabels deletes a Deployment that exists the given labels.
 func DeleteDeploymentIfHasLabels(client clientset.Interface, name, namespace string, ls labels.Set) error {
 	deployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
