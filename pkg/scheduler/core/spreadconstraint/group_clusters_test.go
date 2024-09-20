@@ -395,7 +395,6 @@ func generateClusterScores() [][]ClusterDetailInfo {
 }
 
 func Test_CalcGroupScore(t *testing.T) {
-
 	rbSpecs := generateRbSpec()
 	scores := generateClusterScores()
 

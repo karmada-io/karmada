@@ -17,9 +17,10 @@ limitations under the License.
 package spreadconstraint
 
 import (
-	"k8s.io/utils/ptr"
 	"math"
 	"sort"
+
+	"k8s.io/utils/ptr"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -133,6 +134,20 @@ func groupClustersIgnoringTopology(
 	return groupClustersInfo
 }
 
+func checkIfDuplicate(rbSpec *workv1alpha2.ResourceBindingSpec) bool {
+	return rbSpec.Placement == nil ||
+		rbSpec.Placement.ReplicaScheduling == nil ||
+		rbSpec.Placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated
+}
+
+func checkIfStaticWeight(rbSpec *workv1alpha2.ResourceBindingSpec) bool {
+	return rbSpec.Placement != nil && rbSpec.Placement.ReplicaScheduling != nil &&
+		rbSpec.Placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided &&
+		rbSpec.Placement.ReplicaScheduling.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceWeighted &&
+		(rbSpec.Placement.ReplicaScheduling.WeightPreference == nil ||
+			len(rbSpec.Placement.ReplicaScheduling.WeightPreference.StaticWeightList) != 0 && rbSpec.Placement.ReplicaScheduling.WeightPreference.DynamicWeight == "")
+}
+
 func (info *GroupClustersInfo) calcGroupScore(clusters []ClusterDetailInfo, rbSpec *workv1alpha2.ResourceBindingSpec) int64 {
 	// sort clusters by Score, from high score to low score.
 	sort.Slice(clusters, func(i, j int) bool {
@@ -154,12 +169,9 @@ func (info *GroupClustersInfo) calcGroupScore(clusters []ClusterDetailInfo, rbSp
 	}
 	var baseScore, bonusScore int64
 	baseScore = highScoreSum/selectedNum - (clusters[0].Score - clusters[len(clusters)-1].Score)
-	bonusScore = 0
 
 	// if duplicate =>
-	if rbSpec.Placement == nil ||
-		rbSpec.Placement.ReplicaScheduling == nil ||
-		rbSpec.Placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
+	if checkIfDuplicate(rbSpec) {
 		var goodNum int
 		for _, cluster := range clusters {
 			if cluster.AvailableReplicas >= int64(rbSpec.Replicas) {
@@ -172,11 +184,7 @@ func (info *GroupClustersInfo) calcGroupScore(clusters []ClusterDetailInfo, rbSp
 	}
 
 	// if static weight =>
-	if rbSpec.Placement != nil && rbSpec.Placement.ReplicaScheduling != nil &&
-		rbSpec.Placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided &&
-		rbSpec.Placement.ReplicaScheduling.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceWeighted &&
-		(rbSpec.Placement.ReplicaScheduling.WeightPreference == nil ||
-			len(rbSpec.Placement.ReplicaScheduling.WeightPreference.StaticWeightList) != 0 && rbSpec.Placement.ReplicaScheduling.WeightPreference.DynamicWeight == "") {
+	if checkIfStaticWeight(rbSpec) {
 		return baseScore
 	}
 
