@@ -18691,6 +18691,36 @@
         }
       }
     },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FieldOverrider": {
+      "description": "FieldOverrider represents the rules dedicated to modifying a specific field in any Kubernetes resource. This allows changing a single field within the resource with multiple operations. It is designed to handle structured field values such as those found in ConfigMaps or Secrets. The current implementation supports JSON and YAML formats, but can easily be extended to support XML in the future. Note: In any given instance, FieldOverrider processes either JSON or YAML fields, but not both simultaneously.",
+      "type": "object",
+      "required": [
+        "fieldPath"
+      ],
+      "properties": {
+        "fieldPath": {
+          "description": "FieldPath specifies the initial location in the instance document where the operation should take place. The path uses RFC 6901 for navigating into nested structures. For example, the path \"/data/db-config.yaml\" specifies the configuration data key named \"db-config.yaml\" in a ConfigMap: \"/data/db-config.yaml\".",
+          "type": "string",
+          "default": ""
+        },
+        "json": {
+          "description": "JSON represents the operations performed on the JSON document specified by the FieldPath.",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.JSONPatchOperation"
+          }
+        },
+        "yaml": {
+          "description": "YAML represents the operations performed on the YAML document specified by the FieldPath.",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.YAMLPatchOperation"
+          }
+        }
+      }
+    },
     "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FieldSelector": {
       "description": "FieldSelector is a field filter.",
       "type": "object",
@@ -18744,6 +18774,30 @@
           "description": "Path indicates the path of target field",
           "type": "string",
           "default": ""
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.JSONPatchOperation": {
+      "description": "JSONPatchOperation represents a single field modification operation for JSON format.",
+      "type": "object",
+      "required": [
+        "subPath",
+        "operator"
+      ],
+      "properties": {
+        "operator": {
+          "description": "Operator indicates the operation on target field. Available operators are: \"add\", \"remove\", and \"replace\".",
+          "type": "string",
+          "default": ""
+        },
+        "subPath": {
+          "description": "SubPath specifies the relative location within the initial FieldPath where the operation should take place. The path uses RFC 6901 for navigating into nested structures.",
+          "type": "string",
+          "default": ""
+        },
+        "value": {
+          "description": "Value is the new value to set for the specified field if the operation is \"add\" or \"replace\". For \"remove\" operation, this field is ignored.",
+          "$ref": "#/definitions/io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSON"
         }
       }
     },
@@ -18871,7 +18925,7 @@
       }
     },
     "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Overriders": {
-      "description": "Overriders offers various alternatives to represent the override rules.\n\nIf more than one alternative exists, they will be applied with following order: - ImageOverrider - CommandOverrider - ArgsOverrider - LabelsOverrider - AnnotationsOverrider - Plaintext",
+      "description": "Overriders offers various alternatives to represent the override rules.\n\nIf more than one alternative exists, they will be applied with following order: - ImageOverrider - CommandOverrider - ArgsOverrider - LabelsOverrider - AnnotationsOverrider - FieldOverrider - Plaintext",
       "type": "object",
       "properties": {
         "annotationsOverrider": {
@@ -18896,6 +18950,14 @@
           "items": {
             "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.CommandArgsOverrider"
+          }
+        },
+        "fieldOverrider": {
+          "description": "FieldOverrider represents the rules dedicated to modifying a specific field in any Kubernetes resource. This allows changing a single field within the resource with multiple operations. It is designed to handle structured field values such as those found in ConfigMaps or Secrets. The current implementation supports JSON and YAML formats, but can easily be extended to support XML in the future.",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FieldOverrider"
           }
         },
         "imageOverrider": {
@@ -19289,6 +19351,30 @@
         "dispatchingOnClusters": {
           "description": "DispatchingOnClusters declares a list of clusters to which the dispatching should be suspended. Note: Can not co-exist with Dispatching which is used to suspend all.",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.SuspendClusters"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.YAMLPatchOperation": {
+      "description": "YAMLPatchOperation represents a single field modification operation for YAML format.",
+      "type": "object",
+      "required": [
+        "subPath",
+        "operator"
+      ],
+      "properties": {
+        "operator": {
+          "description": "Operator indicates the operation on target field. Available operators are: \"add\", \"remove\", and \"replace\".",
+          "type": "string",
+          "default": ""
+        },
+        "subPath": {
+          "description": "SubPath specifies the relative location within the initial FieldPath where the operation should take place. The path uses RFC 6901 for navigating into nested structures.",
+          "type": "string",
+          "default": ""
+        },
+        "value": {
+          "description": "Value is the new value to set for the specified field if the operation is \"add\" or \"replace\". For \"remove\" operation, this field is ignored.",
+          "$ref": "#/definitions/io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSON"
         }
       }
     },

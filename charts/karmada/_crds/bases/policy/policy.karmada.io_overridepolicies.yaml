@@ -144,6 +144,92 @@ spec:
                             - operator
                             type: object
                           type: array
+                        fieldOverrider:
+                          description: |-
+                            FieldOverrider represents the rules dedicated to modifying a specific field in any Kubernetes resource.
+                            This allows changing a single field within the resource with multiple operations.
+                            It is designed to handle structured field values such as those found in ConfigMaps or Secrets.
+                            The current implementation supports JSON and YAML formats, but can easily be extended to support XML in the future.
+                          items:
+                            description: |-
+                              FieldOverrider represents the rules dedicated to modifying a specific field in any Kubernetes resource.
+                              This allows changing a single field within the resource with multiple operations.
+                              It is designed to handle structured field values such as those found in ConfigMaps or Secrets.
+                              The current implementation supports JSON and YAML formats, but can easily be extended to support XML in the future.
+                              Note: In any given instance, FieldOverrider processes either JSON or YAML fields, but not both simultaneously.
+                            properties:
+                              fieldPath:
+                                description: |-
+                                  FieldPath specifies the initial location in the instance document where the operation should take place.
+                                  The path uses RFC 6901 for navigating into nested structures. For example, the path "/data/db-config.yaml"
+                                  specifies the configuration data key named "db-config.yaml" in a ConfigMap: "/data/db-config.yaml".
+                                type: string
+                              json:
+                                description: JSON represents the operations performed
+                                  on the JSON document specified by the FieldPath.
+                                items:
+                                  description: JSONPatchOperation represents a single
+                                    field modification operation for JSON format.
+                                  properties:
+                                    operator:
+                                      description: |-
+                                        Operator indicates the operation on target field.
+                                        Available operators are: "add", "remove", and "replace".
+                                      enum:
+                                      - add
+                                      - remove
+                                      - replace
+                                      type: string
+                                    subPath:
+                                      description: |-
+                                        SubPath specifies the relative location within the initial FieldPath where the operation should take place.
+                                        The path uses RFC 6901 for navigating into nested structures.
+                                      type: string
+                                    value:
+                                      description: |-
+                                        Value is the new value to set for the specified field if the operation is "add" or "replace".
+                                        For "remove" operation, this field is ignored.
+                                      x-kubernetes-preserve-unknown-fields: true
+                                  required:
+                                  - operator
+                                  - subPath
+                                  type: object
+                                type: array
+                              yaml:
+                                description: YAML represents the operations performed
+                                  on the YAML document specified by the FieldPath.
+                                items:
+                                  description: YAMLPatchOperation represents a single
+                                    field modification operation for YAML format.
+                                  properties:
+                                    operator:
+                                      description: |-
+                                        Operator indicates the operation on target field.
+                                        Available operators are: "add", "remove", and "replace".
+                                      enum:
+                                      - add
+                                      - remove
+                                      - replace
+                                      type: string
+                                    subPath:
+                                      description: |-
+                                        SubPath specifies the relative location within the initial FieldPath where the operation should take place.
+                                        The path uses RFC 6901 for navigating into nested structures.
+                                      type: string
+                                    value:
+                                      description: |-
+                                        Value is the new value to set for the specified field if the operation is "add" or "replace".
+                                        For "remove" operation, this field is ignored.
+                                      x-kubernetes-preserve-unknown-fields: true
+                                  required:
+                                  - operator
+                                  - subPath
+                                  type: object
+                                type: array
+                            required:
+                            - fieldPath
+                            type: object
+                          type: array
                         imageOverrider:
                           description: ImageOverrider represents the rules dedicated
                             to handling image overrides.
@@ -479,6 +565,92 @@ spec:
                       required:
                       - containerName
                       - operator
+                      type: object
+                    type: array
+                  fieldOverrider:
+                    description: |-
+                      FieldOverrider represents the rules dedicated to modifying a specific field in any Kubernetes resource.
+                      This allows changing a single field within the resource with multiple operations.
+                      It is designed to handle structured field values such as those found in ConfigMaps or Secrets.
+                      The current implementation supports JSON and YAML formats, but can easily be extended to support XML in the future.
+                    items:
+                      description: |-
+                        FieldOverrider represents the rules dedicated to modifying a specific field in any Kubernetes resource.
+                        This allows changing a single field within the resource with multiple operations.
+                        It is designed to handle structured field values such as those found in ConfigMaps or Secrets.
+                        The current implementation supports JSON and YAML formats, but can easily be extended to support XML in the future.
+                        Note: In any given instance, FieldOverrider processes either JSON or YAML fields, but not both simultaneously.
+                      properties:
+                        fieldPath:
+                          description: |-
+                            FieldPath specifies the initial location in the instance document where the operation should take place.
+                            The path uses RFC 6901 for navigating into nested structures. For example, the path "/data/db-config.yaml"
+                            specifies the configuration data key named "db-config.yaml" in a ConfigMap: "/data/db-config.yaml".
+                          type: string
+                        json:
+                          description: JSON represents the operations performed on
+                            the JSON document specified by the FieldPath.
+                          items:
+                            description: JSONPatchOperation represents a single field
+                              modification operation for JSON format.
+                            properties:
+                              operator:
+                                description: |-
+                                  Operator indicates the operation on target field.
+                                  Available operators are: "add", "remove", and "replace".
+                                enum:
+                                - add
+                                - remove
+                                - replace
+                                type: string
+                              subPath:
+                                description: |-
+                                  SubPath specifies the relative location within the initial FieldPath where the operation should take place.
+                                  The path uses RFC 6901 for navigating into nested structures.
+                                type: string
+                              value:
+                                description: |-
+                                  Value is the new value to set for the specified field if the operation is "add" or "replace".
+                                  For "remove" operation, this field is ignored.
+                                x-kubernetes-preserve-unknown-fields: true
+                            required:
+                            - operator
+                            - subPath
+                            type: object
+                          type: array
+                        yaml:
+                          description: YAML represents the operations performed on
+                            the YAML document specified by the FieldPath.
+                          items:
+                            description: YAMLPatchOperation represents a single field
+                              modification operation for YAML format.
+                            properties:
+                              operator:
+                                description: |-
+                                  Operator indicates the operation on target field.
+                                  Available operators are: "add", "remove", and "replace".
+                                enum:
+                                - add
+                                - remove
+                                - replace
+                                type: string
+                              subPath:
+                                description: |-
+                                  SubPath specifies the relative location within the initial FieldPath where the operation should take place.
+                                  The path uses RFC 6901 for navigating into nested structures.
+                                type: string
+                              value:
+                                description: |-
+                                  Value is the new value to set for the specified field if the operation is "add" or "replace".
+                                  For "remove" operation, this field is ignored.
+                                x-kubernetes-preserve-unknown-fields: true
+                            required:
+                            - operator
+                            - subPath
+                            type: object
+                          type: array
+                      required:
+                      - fieldPath
                       type: object
                     type: array
                   imageOverrider:
