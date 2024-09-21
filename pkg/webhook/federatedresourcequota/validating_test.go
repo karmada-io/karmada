@@ -78,9 +78,11 @@ func (f *fakeValidationDecoder) DecodeRaw(_ runtime.RawExtension, obj runtime.Ob
 	return nil
 }
 
-// sortAndJoinMessages sorts and joins error message parts to ensure consistent ordering.
+// normalizedMessages trim the square brackets, and sorted error message parts to ensure consistent ordering.
 // This prevents test flakiness caused by varying error message order.
-func sortAndJoinMessages(message string) string {
+func normalizedMessages(message string) string {
+	message = strings.TrimLeft(message, "[")
+	message = strings.TrimRight(message, "]")
 	parts := strings.Split(message, ", ")
 	sort.Strings(parts)
 	return strings.Join(parts, ", ")
@@ -421,8 +423,8 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 				Decoder: tt.decoder,
 			}
 			got := v.Handle(context.Background(), tt.req)
-			got.Result.Message = sortAndJoinMessages(got.Result.Message)
-			tt.want.Message = sortAndJoinMessages(tt.want.Message)
+			got.Result.Message = normalizedMessages(got.Result.Message)
+			tt.want.Message = normalizedMessages(tt.want.Message)
 
 			// Extract type and message from the actual response.
 			gotType := extractResponseType(got)
