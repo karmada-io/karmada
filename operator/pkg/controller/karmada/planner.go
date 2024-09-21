@@ -159,7 +159,7 @@ func (p *Planner) afterRunJob() error {
 				return fmt.Errorf("error when creating cluster client to install karmada, err: %w", err)
 			}
 
-			secret, err := remoteClient.CoreV1().Secrets(p.karmada.GetNamespace()).Get(context.TODO(), util.AdminKubeconfigSecretName(p.karmada.GetName()), metav1.GetOptions{})
+			secret, err := remoteClient.CoreV1().Secrets(p.karmada.GetNamespace()).Get(context.TODO(), util.KarmadaKubeconfigName, metav1.GetOptions{})
 			if err != nil {
 				return err
 			}
@@ -167,7 +167,7 @@ func (p *Planner) afterRunJob() error {
 			_, err = localClusterClient.CoreV1().Secrets(p.karmada.GetNamespace()).Create(context.TODO(), &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: p.karmada.GetNamespace(),
-					Name:      util.AdminKubeconfigSecretName(p.karmada.GetName()),
+					Name:      util.KarmadaKubeconfigName,
 				},
 				Data: secret.Data,
 			}, metav1.CreateOptions{})
@@ -178,7 +178,7 @@ func (p *Planner) afterRunJob() error {
 
 		p.karmada.Status.SecretRef = &operatorv1alpha1.LocalSecretReference{
 			Namespace: p.karmada.GetNamespace(),
-			Name:      util.AdminKubeconfigSecretName(p.karmada.GetName()),
+			Name:      util.KarmadaKubeconfigName,
 		}
 		return p.Client.Status().Update(context.TODO(), p.karmada)
 	}

@@ -55,9 +55,9 @@ spec:
         command:
         - kube-controller-manager
         - --allocate-node-cidrs=true
-        - --kubeconfig=/etc/karmada/kubeconfig
-        - --authentication-kubeconfig=/etc/karmada/kubeconfig
-        - --authorization-kubeconfig=/etc/karmada/kubeconfig
+        - --kubeconfig=/etc/kubeconfig
+        - --authentication-kubeconfig=/etc/kubeconfig
+        - --authorization-kubeconfig=/etc/kubeconfig
         - --bind-address=0.0.0.0
         - --client-ca-file=/etc/karmada/pki/ca.crt
         - --cluster-cidr=10.244.0.0/16
@@ -68,7 +68,7 @@ spec:
         - --leader-elect=true
         - --node-cidr-mask-size=24
         - --root-ca-file=/etc/karmada/pki/ca.crt
-        - --service-account-private-key-file=/etc/karmada/pki/karmada.key
+        - --service-account-private-key-file=/etc/karmada/pki/karmada-client.key
         - --service-cluster-ip-range=10.96.0.0/12
         - --use-service-account-credentials=true
         - --v=4
@@ -86,16 +86,16 @@ spec:
         - name: karmada-certs
           mountPath: /etc/karmada/pki
           readOnly: true
-        - name: kubeconfig
-          mountPath: /etc/karmada/kubeconfig
+        - name: karmada-kubeconfig
+          mountPath: /etc/kubeconfig
           subPath: kubeconfig
       volumes:
         - name: karmada-certs
           secret:
             secretName: {{ .KarmadaCertsSecret }}
-        - name: kubeconfig
+        - name: karmada-kubeconfig
           secret:
-            secretName: {{ .KubeconfigSecret }}
+            secretName: {{ .KarmadaKubeconfigSecret }}
 `
 	// KamradaControllerManagerDeployment is karmada controllerManager Deployment manifest
 	KamradaControllerManagerDeployment = `
@@ -127,7 +127,7 @@ spec:
         imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - /bin/karmada-controller-manager
-        - --kubeconfig=/etc/karmada/kubeconfig
+        - --kubeconfig=/etc/kubeconfig
         - --metrics-bind-address=:8080
         - --cluster-status-update-frequency=10s
         - --failover-eviction-timeout=30s
@@ -148,13 +148,13 @@ spec:
           name: metrics
           protocol: TCP
         volumeMounts:
-        - name: kubeconfig
+        - name: karmada-kubeconfig
           subPath: kubeconfig
-          mountPath: /etc/karmada/kubeconfig
+          mountPath: /etc/kubeconfig
       volumes:
-      - name: kubeconfig
+      - name: karmada-kubeconfig
         secret:
-          secretName: {{ .KubeconfigSecret }}
+          secretName: {{ .KarmadaKubeconfigSecret }}
 `
 
 	// KarmadaSchedulerDeployment is KarmadaScheduler Deployment manifest
@@ -187,14 +187,14 @@ spec:
         imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - /bin/karmada-scheduler
-        - --kubeconfig=/etc/karmada/kubeconfig
+        - --kubeconfig=/etc/kubeconfig
         - --metrics-bind-address=0.0.0.0:10351
         - --health-probe-bind-address=0.0.0.0:10351
         - --enable-scheduler-estimator=true
         - --leader-elect-resource-namespace={{ .SystemNamespace }}
         - --scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt
-        - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt
-        - --scheduler-estimator-key-file=/etc/karmada/pki/karmada.key
+        - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada-client.crt
+        - --scheduler-estimator-key-file=/etc/karmada/pki/karmada-client.key
         - --v=4
         livenessProbe:
           httpGet:
@@ -213,16 +213,16 @@ spec:
         - name: karmada-certs
           mountPath: /etc/karmada/pki
           readOnly: true
-        - name: kubeconfig
+        - name: karmada-kubeconfig
           subPath: kubeconfig
-          mountPath: /etc/karmada/kubeconfig
+          mountPath: /etc/kubeconfig
       volumes:
         - name: karmada-certs
           secret:
             secretName: {{ .KarmadaCertsSecret }}
-        - name: kubeconfig
+        - name: karmada-kubeconfig
           secret:
-            secretName: {{ .KubeconfigSecret }}
+            secretName: {{ .KarmadaKubeconfigSecret }}
 `
 
 	// KarmadaDeschedulerDeployment is KarmadaDescheduler Deployment manifest
@@ -255,13 +255,13 @@ spec:
         imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - /bin/karmada-descheduler
-        - --kubeconfig=/etc/karmada/kubeconfig
+        - --kubeconfig=/etc/kubeconfig
         - --metrics-bind-address=0.0.0.0:10358
         - --health-probe-bind-address=0.0.0.0:10358
         - --leader-elect-resource-namespace={{ .SystemNamespace }}
         - --scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt
-        - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt
-        - --scheduler-estimator-key-file=/etc/karmada/pki/karmada.key
+        - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada-client.crt
+        - --scheduler-estimator-key-file=/etc/karmada/pki/karmada-client.key
         - --v=4
         livenessProbe:
           httpGet:
@@ -280,15 +280,15 @@ spec:
         - name: karmada-certs
           mountPath: /etc/karmada/pki
           readOnly: true
-        - name: kubeconfig
+        - name: karmada-kubeconfig
           subPath: kubeconfig
-          mountPath: /etc/karmada/kubeconfig
+          mountPath: /etc/kubeconfig
       volumes:
         - name: karmada-certs
           secret:
             secretName: {{ .KarmadaCertsSecret }}
-        - name: kubeconfig
+        - name: karmada-kubeconfig
           secret:
-            secretName: {{ .KubeconfigSecret }}
+            secretName: {{ .KarmadaKubeconfigSecret }}
 `
 )

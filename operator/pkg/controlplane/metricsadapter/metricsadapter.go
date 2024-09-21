@@ -43,16 +43,16 @@ func EnsureKarmadaMetricAdapter(client clientset.Interface, cfg *operatorv1alpha
 func installKarmadaMetricAdapter(client clientset.Interface, cfg *operatorv1alpha1.KarmadaMetricsAdapter, name, namespace string) error {
 	metricAdapterBytes, err := util.ParseTemplate(KarmadaMetricsAdapterDeployment, struct {
 		DeploymentName, Namespace, Image, ImagePullPolicy string
-		KubeconfigSecret, KarmadaCertsSecret              string
+		KarmadaKubeconfigSecret, KarmadaCertsSecret       string
 		Replicas                                          *int32
 	}{
-		DeploymentName:     util.KarmadaMetricsAdapterName(name),
-		Namespace:          namespace,
-		Image:              cfg.Image.Name(),
-		ImagePullPolicy:    string(cfg.ImagePullPolicy),
-		Replicas:           cfg.Replicas,
-		KubeconfigSecret:   util.AdminKubeconfigSecretName(name),
-		KarmadaCertsSecret: util.KarmadaCertSecretName(name),
+		DeploymentName:          util.KarmadaMetricsAdapterName(name),
+		Namespace:               namespace,
+		Image:                   cfg.Image.Name(),
+		ImagePullPolicy:         string(cfg.ImagePullPolicy),
+		Replicas:                cfg.Replicas,
+		KarmadaKubeconfigSecret: util.KarmadaKubeconfigName,
+		KarmadaCertsSecret:      util.KarmadaCertsName,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing KarmadaMetricAdapter Deployment template: %w", err)

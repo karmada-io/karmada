@@ -88,14 +88,16 @@ const (
 	EtcdServerCertAndKeyName = "etcd-server"
 	// EtcdClientCertAndKeyName etcd client certificate key name
 	EtcdClientCertAndKeyName = "etcd-client"
-	// KarmadaCertAndKeyName karmada certificate key name
-	KarmadaCertAndKeyName = "karmada"
-	// ApiserverCertAndKeyName karmada apiserver certificate key name
-	ApiserverCertAndKeyName = "apiserver"
+	// KarmadaServerCertAndKeyName karmada apiserver certificate key name
+	KarmadaServerCertAndKeyName = "karmada-server"
+	// KarmadaClientCertAndKeyName karmada certificate key name
+	KarmadaClientCertAndKeyName = "karmada-client"
 	// FrontProxyCaCertAndKeyName front-proxy-client  certificate key name
 	FrontProxyCaCertAndKeyName = "front-proxy-ca"
 	// FrontProxyClientCertAndKeyName front-proxy-client  certificate key name
 	FrontProxyClientCertAndKeyName = "front-proxy-client"
+	// KarmadaKubeconfigSecretSubpath subPath name of the KarmadaKubeconfigSecret
+	KarmadaKubeconfigSecretSubpath = "kubeconfig"
 	// ClusterName karmada cluster name
 	ClusterName = "karmada-apiserver"
 	// UserName karmada cluster user name

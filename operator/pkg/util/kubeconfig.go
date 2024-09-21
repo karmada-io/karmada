@@ -40,8 +40,8 @@ func CreateWithCerts(serverURL, clusterName, userName string, caCert []byte, cli
 
 // CreateBasic creates a basic, general KubeConfig object that then can be extended
 func CreateBasic(serverURL, clusterName, userName string, caCert []byte) *clientcmdapi.Config {
-	// Use the cluster and the username as the context name
-	contextName := fmt.Sprintf("%s@%s", userName, clusterName)
+	// Use the clusterName as the context name
+	contextName := clusterName
 
 	return &clientcmdapi.Config{
 		Clusters: map[string]*clientcmdapi.Cluster{

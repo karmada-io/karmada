@@ -23,6 +23,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/cluster-api/util/secret"
 
 	"github.com/karmada-io/karmada/operator/pkg/certs"
 	"github.com/karmada-io/karmada/operator/pkg/util"
@@ -56,14 +57,16 @@ func skipCerts(d workflow.RunData) (bool, error) {
 		return false, errors.New("certs task invoked with an invalid data struct")
 	}
 
-	secretName := util.KarmadaCertSecretName(data.GetName())
-	secret, err := data.RemoteClient().CoreV1().Secrets(data.GetNamespace()).Get(context.TODO(), secretName, metav1.GetOptions{})
-	if err != nil {
-		return false, nil
-	}
+	secretNames := []string{util.KarmadaCertsName, util.KarmadaEtcdCertName}
+	for _, secretName := range secretNames {
+		secretGet, err := data.RemoteClient().CoreV1().Secrets(data.GetNamespace()).Get(context.TODO(), secretName, metav1.GetOptions{})
+		if err != nil {
+			return false, nil
+		}
 
-	if err := data.LoadCertFromSecret(secret); err != nil {
-		return false, err
+		if err := data.LoadCertFromSecret(secretGet); err != nil {
+			return false, err
+		}
 	}
 
 	klog.V(4).InfoS("[certs] Successfully loaded certs form secret", "secret", secret.Name, "karmada", klog.KObj(data))

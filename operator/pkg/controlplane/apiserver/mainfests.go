@@ -57,8 +57,8 @@ spec:
         - --bind-address=0.0.0.0
         - --secure-port=5443
         - --service-account-issuer=https://kubernetes.default.svc.cluster.local
-        - --service-account-key-file=/etc/karmada/pki/karmada.key
-        - --service-account-signing-key-file=/etc/karmada/pki/karmada.key
+        - --service-account-key-file=/etc/karmada/pki/karmada-client.key
+        - --service-account-signing-key-file=/etc/karmada/pki/karmada-client.key
         - --service-cluster-ip-range={{ .ServiceSubnet }}
         - --proxy-client-cert-file=/etc/karmada/pki/front-proxy-client.crt
         - --proxy-client-key-file=/etc/karmada/pki/front-proxy-client.key
@@ -67,8 +67,8 @@ spec:
         - --requestheader-extra-headers-prefix=X-Remote-Extra-
         - --requestheader-group-headers=X-Remote-Group
         - --requestheader-username-headers=X-Remote-User
-        - --tls-cert-file=/etc/karmada/pki/apiserver.crt
-        - --tls-private-key-file=/etc/karmada/pki/apiserver.key
+        - --tls-cert-file=/etc/karmada/pki/karmada-server.crt
+        - --tls-private-key-file=/etc/karmada/pki/karmada-server.key
         - --tls-min-version=VersionTLS13
         - --max-requests-inflight=1500
         - --max-mutating-requests-inflight=500
@@ -110,19 +110,19 @@ spec:
           protocol: TCP
         volumeMounts:
         - mountPath: /etc/karmada/pki
-          name: apiserver-cert
+          name: karmada-certs
           readOnly: true
         - mountPath: /etc/etcd/pki
-          name: etcd-cert
+          name: karmada-etcd-cert
           readOnly: true
       priorityClassName: system-node-critical
       volumes:
-      - name: apiserver-cert
+      - name: karmada-certs
         secret:
           secretName: {{ .KarmadaCertsSecret }}
-      - name: etcd-cert
+      - name: karmada-etcd-cert
         secret:
-          secretName: {{ .EtcdCertsSecret }}
+          secretName: {{ .KarmadaEtcdCertSecret }}
 `
 
 	// KarmadaApiserverService is karmada apiserver service manifest
@@ -173,39 +173,39 @@ spec:
         imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - /bin/karmada-aggregated-apiserver
-        - --kubeconfig=/etc/karmada/kubeconfig
-        - --authentication-kubeconfig=/etc/karmada/kubeconfig
-        - --authorization-kubeconfig=/etc/karmada/kubeconfig
+        - --kubeconfig=/etc/kubeconfig
+        - --authentication-kubeconfig=/etc/kubeconfig
+        - --authorization-kubeconfig=/etc/kubeconfig
         - --etcd-cafile=/etc/etcd/pki/etcd-ca.crt
         - --etcd-certfile=/etc/etcd/pki/etcd-client.crt
         - --etcd-keyfile=/etc/etcd/pki/etcd-client.key
         - --etcd-servers=https://{{ .EtcdClientService }}.{{ .Namespace }}.svc.cluster.local:{{ .EtcdListenClientPort }}
-        - --tls-cert-file=/etc/karmada/pki/karmada.crt
-        - --tls-private-key-file=/etc/karmada/pki/karmada.key
+        - --tls-cert-file=/etc/karmada/pki/karmada-server.crt
+        - --tls-private-key-file=/etc/karmada/pki/karmada-server.key
         - --tls-min-version=VersionTLS13
         - --audit-log-path=-
         - --audit-log-maxage=0
         - --audit-log-maxbackup=0
         volumeMounts:
-        - mountPath: /etc/karmada/kubeconfig
-          name: kubeconfig
+        - mountPath: /etc/kubeconfig
+          name: karmada-kubeconfig
           subPath: kubeconfig
         - mountPath: /etc/etcd/pki
-          name: etcd-cert
+          name: karmada-etcd-cert
           readOnly: true
         - mountPath: /etc/karmada/pki
-          name: apiserver-cert
+          name: karmada-certs
           readOnly: true
       volumes:
-      - name: kubeconfig
+      - name: karmada-kubeconfig
         secret:
-          secretName: {{ .KubeconfigSecret }}
-      - name: apiserver-cert
+          secretName: {{ .KarmadaKubeconfigSecret }}
+      - name: karmada-certs
         secret:
           secretName: {{ .KarmadaCertsSecret }}
-      - name: etcd-cert
+      - name: karmada-etcd-cert
         secret:
-          secretName: {{ .EtcdCertsSecret }}
+          secretName: {{ .KarmadaEtcdCertSecret }}
 `
 	// KarmadaAggregatedAPIServerService is karmada aggregated APIServer Service manifest
 	KarmadaAggregatedAPIServerService = `
