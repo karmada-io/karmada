@@ -48,7 +48,7 @@ func selectBestClustersByRegion(spreadConstraintMap map[policyv1alpha1.SpreadFie
 	}
 
 	needCnt := len(candidateClusters) + len(clusters)
-	if needCnt > spreadConstraintMap[policyv1alpha1.SpreadByFieldCluster].MaxGroups {
+	if spreadConstraintMap[policyv1alpha1.SpreadByFieldCluster].MaxGroups != 0 && needCnt > spreadConstraintMap[policyv1alpha1.SpreadByFieldCluster].MaxGroups {
 		needCnt = spreadConstraintMap[policyv1alpha1.SpreadByFieldCluster].MaxGroups
 	}
 
