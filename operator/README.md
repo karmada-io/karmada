@@ -23,11 +23,12 @@ This section describes how to install `karmada-operator` and create a Karmada in
 
 #### Helm install
 
-Go to the root directory of the `karmada-io/karmada` repo. To install the Helm Chart with
-the release name `karmada-operator` in the namespace `karmada-system`, simply run the helm command:
+Go to the root directory of the `karmada-io/karmada` repo. Before installing the Helm Chart, ensure the `karmada-operator` is set to the preferred released version. You can check the [latest tag on GitHub releases](https://github.com/karmada-io/karmada/releases/latest).
+
+To install the Helm Chart with the release name `karmada-operator` in the namespace `karmada-system`, run the following command, replacing `${preferred-released-version}` with the desired version:
 
 ```shell
-helm install karmada-operator -n karmada-system  --create-namespace --dependency-update ./charts/karmada-operator --debug
+helm install karmada-operator -n karmada-system --create-namespace --dependency-update ./charts/karmada-operator --set operator.image.tag=${preferred-released-version} --debug
 ```
 
 #### Using YAML resource
