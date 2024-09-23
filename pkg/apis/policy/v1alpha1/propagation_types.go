@@ -181,6 +181,25 @@ type PropagationSpec struct {
 	// nil means no suspension. no default values.
 	// +optional
 	Suspension *Suspension `json:"suspension,omitempty"`
+
+	// PreserveResourcesOnDeletion controls whether resources should be preserved on the
+	// member clusters when the resource template is deleted.
+	// If set to true, resources will be preserved on the member clusters.
+	// Default is false, which means resources will be deleted along with the resource template.
+	//
+	// This setting is particularly useful during workload migration scenarios to ensure
+	// that rollback can occur quickly without affecting the workloads running on the
+	// member clusters.
+	//
+	// Additionally, this setting applies uniformly across all member clusters and will not
+	// selectively control preservation on only some clusters.
+	//
+	// Note: This setting does not apply to the deletion of the policy itself.
+	// When the policy is deleted, the resource templates and their corresponding
+	// propagated resources in member clusters will remain unchanged unless explicitly deleted.
+	//
+	// +optional
+	PreserveResourcesOnDeletion *bool `json:"preserveResourcesOnDeletion,omitempty"`
 }
 
 // ResourceSelector the resources will be selected.

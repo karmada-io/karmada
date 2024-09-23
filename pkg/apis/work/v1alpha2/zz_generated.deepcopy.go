@@ -353,6 +353,11 @@ func (in *ResourceBindingSpec) DeepCopyInto(out *ResourceBindingSpec) {
 		*out = new(v1alpha1.Suspension)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.PreserveResourcesOnDeletion != nil {
+		in, out := &in.PreserveResourcesOnDeletion, &out.PreserveResourcesOnDeletion
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
