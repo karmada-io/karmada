@@ -39,7 +39,7 @@ import (
 )
 
 // CreateOrUpdateWork creates a Work object if not exist, or updates if it already exists.
-func CreateOrUpdateWork(ctx context.Context, client client.Client, workMeta metav1.ObjectMeta, resource *unstructured.Unstructured, suspendDispatching *bool) error {
+func CreateOrUpdateWork(ctx context.Context, client client.Client, workMeta metav1.ObjectMeta, resource *unstructured.Unstructured, options ...WorkOption) error {
 	if workMeta.Labels[util.PropagationInstruction] != util.PropagationInstructionSuppressed {
 		resource = resource.DeepCopy()
 		// set labels
@@ -62,7 +62,6 @@ func CreateOrUpdateWork(ctx context.Context, client client.Client, workMeta meta
 	work := &workv1alpha1.Work{
 		ObjectMeta: workMeta,
 		Spec: workv1alpha1.WorkSpec{
-			SuspendDispatching: suspendDispatching,
 			Workload: workv1alpha1.WorkloadTemplate{
 				Manifests: []workv1alpha1.Manifest{
 					{
@@ -74,6 +73,8 @@ func CreateOrUpdateWork(ctx context.Context, client client.Client, workMeta meta
 			},
 		},
 	}
+
+	applyWorkOptions(work, options)
 
 	runtimeObject := work.DeepCopy()
 	var operationResult controllerutil.OperationResult

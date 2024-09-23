@@ -237,7 +237,7 @@ func (c *Controller) buildWorks(ctx context.Context, cluster *clusterv1alpha1.Cl
 		},
 	}
 
-	if err := helper.CreateOrUpdateWork(ctx, c.Client, objectMeta, obj, nil); err != nil {
+	if err := helper.CreateOrUpdateWork(ctx, c.Client, objectMeta, obj); err != nil {
 		return err
 	}
 
