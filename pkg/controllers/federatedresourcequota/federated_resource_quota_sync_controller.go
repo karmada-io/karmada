@@ -183,7 +183,7 @@ func (c *SyncController) buildWorks(ctx context.Context, quota *policyv1alpha1.F
 			},
 		}
 
-		err = helper.CreateOrUpdateWork(ctx, c.Client, objectMeta, resourceQuotaObj, nil)
+		err = helper.CreateOrUpdateWork(ctx, c.Client, objectMeta, resourceQuotaObj)
 		if err != nil {
 			errs = append(errs, err)
 		}

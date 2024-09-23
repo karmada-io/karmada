@@ -381,7 +381,7 @@ func reportEndpointSlice(ctx context.Context, c client.Client, endpointSlice *un
 		return err
 	}
 
-	if err := helper.CreateOrUpdateWork(ctx, c, workMeta, endpointSlice, nil); err != nil {
+	if err := helper.CreateOrUpdateWork(ctx, c, workMeta, endpointSlice); err != nil {
 		klog.Errorf("Failed to create or update work(%s/%s), Error: %v", workMeta.Namespace, workMeta.Name, err)
 		return err
 	}
