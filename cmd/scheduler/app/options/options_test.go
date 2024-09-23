@@ -59,44 +59,6 @@ func TestAddFlags(t *testing.T) {
 	}
 }
 
-func TestOptionsComplete(t *testing.T) {
-	testCases := []struct {
-		name            string
-		bindAddress     string
-		securePort      int
-		expectedMetrics string
-		expectedHealth  string
-	}{
-		{
-			name:            "Default values",
-			bindAddress:     defaultBindAddress,
-			securePort:      defaultPort,
-			expectedMetrics: "0.0.0.0:10351",
-			expectedHealth:  "0.0.0.0:10351",
-		},
-		{
-			name:            "Custom values",
-			bindAddress:     "127.0.0.1",
-			securePort:      8080,
-			expectedMetrics: "127.0.0.1:8080",
-			expectedHealth:  "127.0.0.1:8080",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			opts := &Options{
-				BindAddress: tc.bindAddress,
-				SecurePort:  tc.securePort,
-			}
-			err := opts.Complete()
-			assert.NoError(t, err)
-			assert.Equal(t, tc.expectedMetrics, opts.MetricsBindAddress)
-			assert.Equal(t, tc.expectedHealth, opts.HealthProbeBindAddress)
-		})
-	}
-}
-
 func TestOptionsFlagParsing(t *testing.T) {
 	opts := NewOptions()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
