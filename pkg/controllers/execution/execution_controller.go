@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,6 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/metrics"
@@ -102,15 +104,8 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	}
 
 	if !work.DeletionTimestamp.IsZero() {
-		// Abort deleting workload if cluster is unready when unjoining cluster, otherwise the unjoin process will be failed.
-		if util.IsClusterReady(&cluster.Status) {
-			err := c.tryDeleteWorkload(ctx, clusterName, work)
-			if err != nil {
-				klog.Errorf("Failed to delete work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
-				return controllerruntime.Result{}, err
-			}
-		} else if cluster.DeletionTimestamp.IsZero() { // cluster is unready, but not terminating
-			return controllerruntime.Result{}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
+		if err := c.handleWorkDelete(ctx, work, cluster); err != nil {
+			return controllerruntime.Result{}, err
 		}
 
 		return c.removeFinalizer(ctx, work)
@@ -151,14 +146,34 @@ func (c *Controller) syncWork(ctx context.Context, clusterName string, work *wor
 	metrics.ObserveSyncWorkloadLatency(err, start)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to sync work(%s/%s) to cluster(%s), err: %v", work.Namespace, work.Name, clusterName, err)
-		klog.Errorf(msg)
+		klog.Error(msg)
 		c.EventRecorder.Event(work, corev1.EventTypeWarning, events.EventReasonSyncWorkloadFailed, msg)
 		return controllerruntime.Result{}, err
 	}
 	msg := fmt.Sprintf("Sync work(%s/%s) to cluster(%s) successful.", work.Namespace, work.Name, clusterName)
-	klog.V(4).Infof(msg)
+	klog.V(4).Info(msg)
 	c.EventRecorder.Event(work, corev1.EventTypeNormal, events.EventReasonSyncWorkloadSucceed, msg)
 	return controllerruntime.Result{}, nil
+}
+
+func (c *Controller) handleWorkDelete(ctx context.Context, work *workv1alpha1.Work, cluster *clusterv1alpha1.Cluster) error {
+	if ptr.Deref(work.Spec.PreserveResourcesOnDeletion, false) {
+		klog.V(4).Infof("Preserving resource on deletion from work(%s/%s) on cluster(%s)", work.Namespace, work.Name, cluster.Name)
+		return nil
+	}
+
+	// Abort deleting workload if cluster is unready when unjoining cluster, otherwise the unjoin process will be failed.
+	if util.IsClusterReady(&cluster.Status) {
+		err := c.tryDeleteWorkload(ctx, cluster.Name, work)
+		if err != nil {
+			klog.Errorf("Failed to delete work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
+			return err
+		}
+	} else if cluster.DeletionTimestamp.IsZero() { // cluster is unready, but not terminating
+		return fmt.Errorf("cluster(%s) not ready", cluster.Name)
+	}
+
+	return nil
 }
 
 // tryDeleteWorkload tries to delete resources in the given member cluster.

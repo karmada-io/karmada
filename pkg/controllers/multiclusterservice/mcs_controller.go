@@ -309,7 +309,7 @@ func (c *MCSController) propagateMultiClusterService(ctx context.Context, mcs *n
 			klog.Errorf("Failed to convert MultiClusterService(%s/%s) to unstructured object, err is %v", mcs.Namespace, mcs.Name, err)
 			return err
 		}
-		if err = helper.CreateOrUpdateWork(ctx, c, workMeta, mcsObj, nil); err != nil {
+		if err = helper.CreateOrUpdateWork(ctx, c, workMeta, mcsObj); err != nil {
 			klog.Errorf("Failed to create or update MultiClusterService(%s/%s) work in the given member cluster %s, err is %v",
 				mcs.Namespace, mcs.Name, clusterName, err)
 			return err

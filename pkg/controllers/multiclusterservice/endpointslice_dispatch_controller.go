@@ -393,7 +393,7 @@ func (c *EndpointsliceDispatchController) ensureEndpointSliceWork(ctx context.Co
 		klog.Errorf("Failed to convert typed object to unstructured object, error is: %v", err)
 		return err
 	}
-	if err := helper.CreateOrUpdateWork(ctx, c.Client, workMeta, unstructuredEPS, nil); err != nil {
+	if err := helper.CreateOrUpdateWork(ctx, c.Client, workMeta, unstructuredEPS); err != nil {
 		klog.Errorf("Failed to dispatch EndpointSlice %s/%s from %s to cluster %s:%v",
 			work.GetNamespace(), work.GetName(), providerCluster, consumerCluster, err)
 		return err
