@@ -85,11 +85,6 @@ func NewDeschedulerCommand(stopChan <-chan struct{}) *cobra.Command {
 if they are failed to be scheduled for a period of time. It relies on 
 karmada-scheduler-estimator to get replica status.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			// complete options
-			if err := opts.Complete(); err != nil {
-				return err
-			}
-
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()

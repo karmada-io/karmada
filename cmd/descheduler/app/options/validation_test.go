@@ -59,8 +59,6 @@ func TestValidateKarmadaDescheduler(t *testing.T) {
 			LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
 				LeaderElect: false,
 			},
-			BindAddress:  "127.0.0.1",
-			SecurePort:   9000,
 			KubeAPIQPS:   40,
 			KubeAPIBurst: 30,
 		}}
