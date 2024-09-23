@@ -18,8 +18,8 @@ package validation
 
 import (
 	"fmt"
-	"strings"
 
+	"github.com/go-openapi/jsonpointer"
 	corev1 "k8s.io/api/core/v1"
 	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
@@ -304,13 +304,53 @@ func ValidateOverrideRules(overrideRules []policyv1alpha1.RuleWithCluster, fldPa
 		// validates predicate path.
 		for imageIndex, image := range rule.Overriders.ImageOverrider {
 			imagePath := rulePath.Child("overriders").Child("imageOverrider").Index(imageIndex)
-			if image.Predicate != nil && !strings.HasPrefix(image.Predicate.Path, "/") {
-				allErrs = append(allErrs, field.Invalid(imagePath.Child("predicate").Child("path"), image.Predicate.Path, "path should be start with / character"))
+			if image.Predicate != nil {
+				if _, err := jsonpointer.New(image.Predicate.Path); err != nil {
+					allErrs = append(allErrs, field.Invalid(imagePath.Child("predicate").Child("path"), image.Predicate.Path, err.Error()))
+				}
 			}
+		}
+
+		for fieldIndex, fieldOverrider := range rule.Overriders.FieldOverrider {
+			fieldPath := rulePath.Child("overriders").Child("fieldOverrider").Index(fieldIndex)
+			// validates that either YAML or JSON is selected for each field overrider.
+			if len(fieldOverrider.YAML) > 0 && len(fieldOverrider.JSON) > 0 {
+				allErrs = append(allErrs, field.Invalid(fieldPath, fieldOverrider, "FieldOverrider has both YAML and JSON set. Only one is allowed"))
+			}
+			// validates the field path.
+			if _, err := jsonpointer.New(fieldOverrider.FieldPath); err != nil {
+				allErrs = append(allErrs, field.Invalid(fieldPath.Child("fieldPath"), fieldOverrider.FieldPath, err.Error()))
+			}
+			// validates the JSON patch operations sub path.
+			allErrs = append(allErrs, validateJSONPatchSubPaths(fieldOverrider.JSON, fieldPath.Child("json"))...)
+			// validates the YAML patch operations sub path.
+			allErrs = append(allErrs, validateYAMLPatchSubPaths(fieldOverrider.YAML, fieldPath.Child("yaml"))...)
 		}
 
 		// validates the targetCluster.
 		allErrs = append(allErrs, ValidateClusterAffinity(rule.TargetCluster, rulePath.Child("targetCluster"))...)
+	}
+	return allErrs
+}
+
+func validateJSONPatchSubPaths(patches []policyv1alpha1.JSONPatchOperation, fieldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+	for index, patch := range patches {
+		patchPath := fieldPath.Index(index)
+		if _, err := jsonpointer.New(patch.SubPath); err != nil {
+			allErrs = append(allErrs, field.Invalid(patchPath.Child("subPath"), patch.SubPath, err.Error()))
+		}
+	}
+	return allErrs
+}
+
+func validateYAMLPatchSubPaths(patches []policyv1alpha1.YAMLPatchOperation, fieldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+	for index, patch := range patches {
+		patchPath := fieldPath.Index(index)
+		if _, err := jsonpointer.New(patch.SubPath); err != nil {
+			allErrs = append(allErrs, field.Invalid(patchPath.Child("subPath"), patch.SubPath, err.Error()))
+		}
 	}
 	return allErrs
 }
