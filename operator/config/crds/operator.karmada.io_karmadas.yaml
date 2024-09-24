@@ -92,8 +92,8 @@ spec:
                               SecretRef references a Kubernetes secret containing the etcd connection credentials.
                               The secret must contain the following data keys:
                               ca.crt: The Certificate Authority (CA) certificate data.
-                              tls.crt: The TLS certificate data.
-                              tls.key: The TLS private key data.
+                              tls.crt: The TLS certificate data used for verifying the etcd server's certificate.
+                              tls.key: The TLS private key.
                               Required to configure the connection to an external etcd cluster.
                             properties:
                               name:

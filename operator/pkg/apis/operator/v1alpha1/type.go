@@ -239,6 +239,7 @@ type VolumeData struct {
 // Operator has no knowledge of where certificate files live, and they must be supplied.
 type ExternalEtcd struct {
 	// Endpoints of etcd members. Required for ExternalEtcd.
+	// +required
 	Endpoints []string `json:"endpoints"`
 
 	// CAData is an SSL Certificate Authority file used to secure etcd communication.
@@ -259,9 +260,10 @@ type ExternalEtcd struct {
 	// SecretRef references a Kubernetes secret containing the etcd connection credentials.
 	// The secret must contain the following data keys:
 	// ca.crt: The Certificate Authority (CA) certificate data.
-	// tls.crt: The TLS certificate data.
-	// tls.key: The TLS private key data.
+	// tls.crt: The TLS certificate data used for verifying the etcd server's certificate.
+	// tls.key: The TLS private key.
 	// Required to configure the connection to an external etcd cluster.
+	// +required
 	SecretRef LocalSecretReference `json:"secretRef"`
 }
 
