@@ -38,6 +38,7 @@ import (
 	"k8s.io/klog/v2"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
+	"k8s.io/utils/ptr"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -553,12 +554,14 @@ func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj 
 		if err != nil {
 			return fmt.Errorf("failed to create resource %q(%s) in control plane: %v", gvr, o.name, err)
 		}
+		fmt.Printf("ResourceTemplate (%s/%s) is created successfully\n", o.Namespace, o.name)
 
 		if o.AutoCreatePolicy {
-			err = o.createClusterPropagationPolicy(karmadaClient, gvr, isDep)
+			policyName, err := o.createClusterPropagationPolicy(karmadaClient, gvr, isDep)
 			if err != nil {
 				return err
 			}
+			fmt.Printf("ClusterPropagationPolicy %s is created successfully\n", policyName)
 		}
 
 		fmt.Printf("Resource %q(%s) is promoted successfully\n", gvr, o.name)
@@ -578,12 +581,14 @@ func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj 
 		if err != nil {
 			return fmt.Errorf("failed to create resource %q(%s/%s) in control plane: %v", gvr, o.Namespace, o.name, err)
 		}
+		fmt.Printf("ResourceTemplate (%s/%s) is created successfully\n", o.Namespace, o.name)
 
 		if o.AutoCreatePolicy {
-			err = o.createPropagationPolicy(karmadaClient, gvr, isDep)
+			policyName, err := o.createPropagationPolicy(karmadaClient, gvr, isDep)
 			if err != nil {
 				return err
 			}
+			fmt.Printf("PropagationPolicy (%s/%s) is created successfully\n", o.Namespace, policyName)
 		}
 
 		fmt.Printf("Resource %q(%s/%s) is promoted successfully\n", gvr, o.Namespace, o.name)
@@ -658,7 +663,7 @@ func (o *CommandPromoteOption) printObjectAndPolicy(obj *unstructured.Unstructur
 }
 
 // createPropagationPolicy create PropagationPolicy in karmada control plane
-func (o *CommandPromoteOption) createPropagationPolicy(karmadaClient *karmadaclientset.Clientset, gvr schema.GroupVersionResource, isDep bool) error {
+func (o *CommandPromoteOption) createPropagationPolicy(karmadaClient *karmadaclientset.Clientset, gvr schema.GroupVersionResource, isDep bool) (string, error) {
 	var policyName string
 	if o.PolicyName == "" {
 		policyName = names.GeneratePolicyName(o.Namespace, o.name, o.gvk.String())
@@ -671,18 +676,18 @@ func (o *CommandPromoteOption) createPropagationPolicy(karmadaClient *karmadacli
 		pp := buildPropagationPolicy(o.name, policyName, o.Namespace, o.Cluster, gvr, o.gvk, isDep)
 		_, err = karmadaClient.PolicyV1alpha1().PropagationPolicies(o.Namespace).Create(context.TODO(), pp, metav1.CreateOptions{})
 
-		return err
+		return policyName, err
 	}
 	if err != nil {
-		return fmt.Errorf("failed to get PropagationPolicy(%s/%s) in control plane: %v", o.Namespace, policyName, err)
+		return policyName, fmt.Errorf("failed to get PropagationPolicy(%s/%s) in control plane: %v", o.Namespace, policyName, err)
 	}
 
 	// PropagationPolicy already exists, not to create it
-	return fmt.Errorf("the PropagationPolicy(%s/%s) already exist, please edit it to propagate resource", o.Namespace, policyName)
+	return policyName, fmt.Errorf("the PropagationPolicy(%s/%s) already exist, please edit it to propagate resource", o.Namespace, policyName)
 }
 
 // createClusterPropagationPolicy create ClusterPropagationPolicy in karmada control plane
-func (o *CommandPromoteOption) createClusterPropagationPolicy(karmadaClient *karmadaclientset.Clientset, gvr schema.GroupVersionResource, isDep bool) error {
+func (o *CommandPromoteOption) createClusterPropagationPolicy(karmadaClient *karmadaclientset.Clientset, gvr schema.GroupVersionResource, isDep bool) (string, error) {
 	var policyName string
 	if o.PolicyName == "" {
 		policyName = names.GeneratePolicyName("", o.name, o.gvk.String())
@@ -695,14 +700,14 @@ func (o *CommandPromoteOption) createClusterPropagationPolicy(karmadaClient *kar
 		cpp := buildClusterPropagationPolicy(o.name, policyName, o.Cluster, gvr, o.gvk, isDep)
 		_, err = karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Create(context.TODO(), cpp, metav1.CreateOptions{})
 
-		return err
+		return policyName, err
 	}
 	if err != nil {
-		return fmt.Errorf("failed to get ClusterPropagationPolicy(%s) in control plane: %v", policyName, err)
+		return policyName, fmt.Errorf("failed to get ClusterPropagationPolicy(%s) in control plane: %v", policyName, err)
 	}
 
 	// ClusterPropagationPolicy already exists, not to create it
-	return fmt.Errorf("the ClusterPropagationPolicy(%s) already exist, please edit it to propagate resource", policyName)
+	return policyName, fmt.Errorf("the ClusterPropagationPolicy(%s) already exist, please edit it to propagate resource", policyName)
 }
 
 // preprocessResource delete redundant fields to convert resource as template
@@ -750,6 +755,8 @@ func buildPropagationPolicy(resourceName, policyName, namespace, cluster string,
 					ClusterNames: []string{cluster},
 				},
 			},
+			ConflictResolution:          policyv1alpha1.ConflictOverwrite,
+			PreserveResourcesOnDeletion: ptr.To[bool](true),
 		},
 	}
 	return pp
@@ -775,6 +782,8 @@ func buildClusterPropagationPolicy(resourceName, policyName, cluster string, gvr
 					ClusterNames: []string{cluster},
 				},
 			},
+			ConflictResolution:          policyv1alpha1.ConflictOverwrite,
+			PreserveResourcesOnDeletion: ptr.To[bool](true),
 		},
 	}
 	return cpp
