@@ -47,7 +47,7 @@ type GlobalCommandOptions struct {
 
 	KarmadaRestConfig *rest.Config
 
-	KarmadaAggregatorClientSet *aggregator.Clientset
+	KarmadaAggregatorClientSet aggregator.Interface
 }
 
 // AddFlags adds flags to the specified FlagSet.

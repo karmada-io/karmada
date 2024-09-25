@@ -103,7 +103,7 @@ func NewCRDsClient(c *rest.Config) (clientset.Interface, error) {
 }
 
 // NewAPIRegistrationClient is to create an apiregistration ClientSet
-func NewAPIRegistrationClient(c *rest.Config) (*aggregator.Clientset, error) {
+func NewAPIRegistrationClient(c *rest.Config) (aggregator.Interface, error) {
 	return aggregator.NewForConfig(c)
 }
 

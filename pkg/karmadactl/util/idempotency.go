@@ -96,7 +96,7 @@ func CreateOrUpdateDeployment(client kubernetes.Interface, deploy *appsv1.Deploy
 
 // CreateOrUpdateAPIService creates a ApiService if the target resource doesn't exist.
 // If the resource exists already, this function will update the resource instead.
-func CreateOrUpdateAPIService(apiRegistrationClient *aggregator.Clientset, apiservice *apiregistrationv1.APIService) error {
+func CreateOrUpdateAPIService(apiRegistrationClient aggregator.Interface, apiservice *apiregistrationv1.APIService) error {
 	if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Create(context.TODO(), apiservice, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return fmt.Errorf("unable to create APIService: %v", err)
