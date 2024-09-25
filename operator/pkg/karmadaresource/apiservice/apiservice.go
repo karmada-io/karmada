@@ -46,7 +46,7 @@ func init() {
 }
 
 // EnsureAggregatedAPIService creates aggregated APIService and a service
-func EnsureAggregatedAPIService(aggregatorClient *aggregator.Clientset, client clientset.Interface, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, hostClusterServiceName, hostClusterNamespace, caBundle string) error {
+func EnsureAggregatedAPIService(aggregatorClient aggregator.Interface, client clientset.Interface, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, hostClusterServiceName, hostClusterNamespace, caBundle string) error {
 	if err := aggregatedApiserverService(client, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, hostClusterServiceName, hostClusterNamespace); err != nil {
 		return err
 	}
@@ -54,7 +54,7 @@ func EnsureAggregatedAPIService(aggregatorClient *aggregator.Clientset, client c
 	return aggregatedAPIService(aggregatorClient, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, caBundle)
 }
 
-func aggregatedAPIService(client *aggregator.Clientset, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, caBundle string) error {
+func aggregatedAPIService(client aggregator.Interface, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, caBundle string) error {
 	apiServiceBytes, err := util.ParseTemplate(KarmadaAggregatedAPIService, struct {
 		Namespace   string
 		ServiceName string
@@ -101,7 +101,7 @@ func aggregatedApiserverService(client clientset.Interface, karmadaControlPlaneS
 }
 
 // EnsureMetricsAdapterAPIService creates APIService and a service for karmada-metrics-adapter
-func EnsureMetricsAdapterAPIService(aggregatorClient *aggregator.Clientset, client clientset.Interface, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, hostClusterServiceName, hostClusterNamespace, caBundle string) error {
+func EnsureMetricsAdapterAPIService(aggregatorClient aggregator.Interface, client clientset.Interface, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, hostClusterServiceName, hostClusterNamespace, caBundle string) error {
 	if err := karmadaMetricsAdapterService(client, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, hostClusterServiceName, hostClusterNamespace); err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func EnsureMetricsAdapterAPIService(aggregatorClient *aggregator.Clientset, clie
 	return karmadaMetricsAdapterAPIService(aggregatorClient, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, caBundle)
 }
 
-func karmadaMetricsAdapterAPIService(client *aggregator.Clientset, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, caBundle string) error {
+func karmadaMetricsAdapterAPIService(client aggregator.Interface, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, caBundle string) error {
 	for _, gv := range constants.KarmadaMetricsAdapterAPIServices {
 		// The APIService name to metrics adapter is "$version.$group"
 		apiServiceName := fmt.Sprintf("%s.%s", gv.Version, gv.Group)
@@ -171,7 +171,7 @@ func karmadaMetricsAdapterService(client clientset.Interface, karmadaControlPlan
 }
 
 // EnsureSearchAPIService creates APIService and a service for karmada-metrics-adapter
-func EnsureSearchAPIService(aggregatorClient *aggregator.Clientset, client clientset.Interface, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, hostClusterServiceName, hostClusterNamespace, caBundle string) error {
+func EnsureSearchAPIService(aggregatorClient aggregator.Interface, client clientset.Interface, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, hostClusterServiceName, hostClusterNamespace, caBundle string) error {
 	if err := karmadaSearchService(client, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, hostClusterServiceName, hostClusterNamespace); err != nil {
 		return err
 	}
@@ -179,7 +179,7 @@ func EnsureSearchAPIService(aggregatorClient *aggregator.Clientset, client clien
 	return karmadaSearchAPIService(aggregatorClient, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, caBundle)
 }
 
-func karmadaSearchAPIService(client *aggregator.Clientset, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, caBundle string) error {
+func karmadaSearchAPIService(client aggregator.Interface, karmadaControlPlaneServiceName, karmadaControlPlaneNamespace, caBundle string) error {
 	apiServiceBytes, err := util.ParseTemplate(KarmadaSearchAPIService, struct {
 		ServiceName, Namespace string
 		CABundle               string
