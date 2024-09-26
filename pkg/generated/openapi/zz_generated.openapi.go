@@ -6530,7 +6530,7 @@ func schema_pkg_apis_work_v1alpha1_WorkSpec(ref common.ReferenceCallback) common
 					},
 					"suspendDispatching": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SuspendDispatching controls whether dispatching should be suspended, nil means not suspend. Note: true means stop propagating to all clusters.",
+							Description: "SuspendDispatching controls whether dispatching should be suspended, nil means not suspend. Note: true means stop propagating to the corresponding member cluster, and does not prevent status collection.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
