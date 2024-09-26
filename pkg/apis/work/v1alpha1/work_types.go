@@ -60,7 +60,8 @@ type WorkSpec struct {
 
 	// SuspendDispatching controls whether dispatching should
 	// be suspended, nil means not suspend.
-	// Note: true means stop propagating to all clusters.
+	// Note: true means stop propagating to the corresponding member cluster, and
+	// does not prevent status collection.
 	// +optional
 	SuspendDispatching *bool `json:"suspendDispatching,omitempty"`
 
