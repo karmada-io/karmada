@@ -17,6 +17,8 @@ limitations under the License.
 package spreadconstraint
 
 import (
+	"sort"
+
 	"k8s.io/utils/ptr"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -40,7 +42,7 @@ type GroupClustersInfo struct {
 // ProviderInfo indicate the provider information
 type ProviderInfo struct {
 	Name              string
-	Score             int64 // the highest score in all clusters of the provider
+	Score             int64 // the comprehensive score in all clusters of the provider
 	AvailableReplicas int64
 
 	// Regions under this provider
@@ -54,7 +56,7 @@ type ProviderInfo struct {
 // RegionInfo indicate the region information
 type RegionInfo struct {
 	Name              string
-	Score             int64 // the highest score in all clusters of the region
+	Score             int64 // the comprehensive score in all clusters of the region
 	AvailableReplicas int64
 
 	// Zones under this provider
@@ -66,7 +68,7 @@ type RegionInfo struct {
 // ZoneInfo indicate the zone information
 type ZoneInfo struct {
 	Name              string
-	Score             int64 // the highest score in all clusters of the zone
+	Score             int64 // the comprehensive score in all clusters of the zone
 	AvailableReplicas int64
 
 	// Clusters under this zone, sorted by cluster.Score descending.
@@ -128,6 +130,31 @@ func groupClustersIgnoringTopology(
 	return groupClustersInfo
 }
 
+func (info *GroupClustersInfo) calcGroupScore(clusters []ClusterDetailInfo) int64 {
+	// sort clusters by Score, from high score to low score.
+	sort.Slice(clusters, func(i, j int) bool {
+		if clusters[i].Score != clusters[j].Score {
+			return clusters[i].Score > clusters[j].Score
+		}
+		// if Score same，sort by Name.
+		return clusters[i].Name < clusters[j].Name
+	})
+	var highScoreSum, selectedNum int64
+	midIndex := (len(clusters) - 1) / 2
+	// The same applies to both odd and even numbers.
+	for i, cluster := range clusters {
+		if i > midIndex {
+			break
+		}
+		highScoreSum += cluster.Score
+		selectedNum++
+	}
+	var baseScore int64
+	baseScore = highScoreSum/selectedNum - (clusters[0].Score - clusters[len(clusters)-1].Score)
+
+	return baseScore
+}
+
 func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.ClusterScoreList, rbSpec *workv1alpha2.ResourceBindingSpec) {
 	var clusters []*clusterv1alpha1.Cluster
 	for _, clusterScore := range clustersScore {
@@ -179,7 +206,7 @@ func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alph
 	}
 
 	for zone, zoneInfo := range info.Zones {
-		zoneInfo.Score = zoneInfo.Clusters[0].Score
+		zoneInfo.Score = info.calcGroupScore(zoneInfo.Clusters)
 		info.Zones[zone] = zoneInfo
 	}
 }
@@ -213,7 +240,7 @@ func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1al
 	}
 
 	for region, regionInfo := range info.Regions {
-		regionInfo.Score = regionInfo.Clusters[0].Score
+		regionInfo.Score = info.calcGroupScore(regionInfo.Clusters)
 		info.Regions[region] = regionInfo
 	}
 }
@@ -253,7 +280,7 @@ func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1
 	}
 
 	for provider, providerInfo := range info.Providers {
-		providerInfo.Score = providerInfo.Clusters[0].Score
+		providerInfo.Score = info.calcGroupScore(providerInfo.Clusters)
 		info.Providers[provider] = providerInfo
 	}
 }
