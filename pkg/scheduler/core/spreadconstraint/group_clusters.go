@@ -149,8 +149,7 @@ func (info *GroupClustersInfo) calcGroupScore(clusters []ClusterDetailInfo) int6
 		highScoreSum += cluster.Score
 		selectedNum++
 	}
-	var baseScore int64
-	baseScore = highScoreSum/selectedNum - (clusters[0].Score - clusters[len(clusters)-1].Score)
+	baseScore := highScoreSum/selectedNum - (clusters[0].Score - clusters[len(clusters)-1].Score)
 
 	return baseScore
 }
