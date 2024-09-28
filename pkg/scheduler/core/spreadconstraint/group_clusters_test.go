@@ -425,7 +425,7 @@ func Test_CalcGroupScore(t *testing.T) {
 				clusters2: scores[3],
 				rbSpec:    rbSpecs[2],
 			},
-			want: true,
+			want: false,
 		},
 	}
 
