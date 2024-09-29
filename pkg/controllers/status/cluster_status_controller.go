@@ -451,9 +451,9 @@ func getClusterHealthStatus(clusterClient *util.ClusterClient) (online, healthy 
 	return true, true
 }
 
-func healthEndpointCheck(client *clientset.Clientset, path string) (int, error) {
+func healthEndpointCheck(client clientset.Interface, path string) (int, error) {
 	var healthStatus int
-	resp := client.DiscoveryClient.RESTClient().Get().AbsPath(path).Do(context.TODO()).StatusCode(&healthStatus)
+	resp := client.Discovery().RESTClient().Get().AbsPath(path).Do(context.TODO()).StatusCode(&healthStatus)
 	return healthStatus, resp.Error()
 }
 

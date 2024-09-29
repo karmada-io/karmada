@@ -221,7 +221,7 @@ func crdPatchesResources(filename, caBundle string) ([]byte, error) {
 }
 
 // createCRDs create crd resource
-func createCRDs(crdClient *clientset.Clientset, filename string) error {
+func createCRDs(crdClient clientset.Interface, filename string) error {
 	obj := apiextensionsv1.CustomResourceDefinition{}
 	data, err := os.ReadFile(filename)
 	if err != nil {
@@ -252,7 +252,7 @@ func createCRDs(crdClient *clientset.Clientset, filename string) error {
 }
 
 // patchCRDs patch crd resource
-func patchCRDs(crdClient *clientset.Clientset, caBundle, filename string) error {
+func patchCRDs(crdClient clientset.Interface, caBundle, filename string) error {
 	data, err := crdPatchesResources(filename, caBundle)
 	if err != nil {
 		return err
