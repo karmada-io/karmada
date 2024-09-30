@@ -282,6 +282,10 @@ func (j *CommandUnregisterOption) getKarmadaAgentConfig(agent *appsv1.Deployment
 	if err != nil {
 		return nil, fmt.Errorf("failed to get the secret which stores the karmada agent config")
 	}
+	if len(agentConfigSecret.Data[fileName]) == 0 {
+		return nil, fmt.Errorf("empty data, secretName: %s, keyName: %s", agentConfigSecretName, fileName)
+	}
+
 	return clientcmd.Load(agentConfigSecret.Data[fileName])
 }
 
