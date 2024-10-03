@@ -112,6 +112,14 @@ var (
 		},
 		[]string{"plugin", "extension_point", "result"})
 
+	// SchedulerNoClusterFit is the Number of scheduling no cluster fit.
+	SchedulerNoClusterFit = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Subsystem: SchedulerSubsystem,
+			Name:      "no_cluster_fit_total",
+			Help:      "Number of scheduling no cluster fit.",
+		}, []string{"kind", "name"})
+
 	metrics = []prometheus.Collector{
 		scheduleAttempts,
 		e2eSchedulingLatency,
@@ -119,6 +127,7 @@ var (
 		SchedulerQueueIncomingBindings,
 		FrameworkExtensionPointDuration,
 		PluginExecutionDuration,
+		SchedulerNoClusterFit,
 	}
 )
 
@@ -151,4 +160,9 @@ func ScheduleStep(action string, startTime time.Time) {
 // CountSchedulerBindings records the number of binding added to scheduling queues by event type.
 func CountSchedulerBindings(event string) {
 	SchedulerQueueIncomingBindings.WithLabelValues(event).Inc()
+}
+
+// CountSchedulerNoClusterFit records the number of scheduling no cluster fit.
+func CountSchedulerNoClusterFit(kind, name string) {
+	SchedulerNoClusterFit.WithLabelValues(kind, name).Inc()
 }

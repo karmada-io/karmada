@@ -81,6 +81,7 @@ func (g *genericScheduler) Schedule(
 
 	// Short path for case no cluster fit.
 	if len(feasibleClusters) == 0 {
+		metrics.CountSchedulerNoClusterFit(spec.Resource.Kind, spec.Resource.Name)
 		return result, &framework.FitError{
 			NumAllClusters: clusterInfoSnapshot.NumOfClusters(),
 			Diagnosis:      diagnosis,
