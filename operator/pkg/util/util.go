@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -221,4 +222,38 @@ func ReplaceYamlForReg(path, destResource string, reg *regexp.Regexp) ([]byte, e
 
 	repl := reg.ReplaceAllString(string(data), destResource)
 	return yaml.YAMLToJSON([]byte(repl))
+}
+
+// ContainsAllValues checks if all values in the 'values' slice exist in the 'container' slice or array.
+func ContainsAllValues(container interface{}, values interface{}) bool {
+	// Ensure the provided container is a slice or array.
+	vContainer := reflect.ValueOf(container)
+	if vContainer.Kind() != reflect.Slice && vContainer.Kind() != reflect.Array {
+		return false
+	}
+
+	// Ensure the provided values are a slice or array.
+	vValues := reflect.ValueOf(values)
+	if vValues.Kind() != reflect.Slice && vValues.Kind() != reflect.Array {
+		return false
+	}
+
+	// Iterate over the 'values' and ensure each value exists in the container.
+	for i := 0; i < vValues.Len(); i++ {
+		value := vValues.Index(i).Interface()
+		found := false
+		// Check if this value exists in the container.
+		for j := 0; j < vContainer.Len(); j++ {
+			if reflect.DeepEqual(vContainer.Index(j).Interface(), value) {
+				found = true
+				break
+			}
+		}
+		// If any value is not found, return false.
+		if !found {
+			return false
+		}
+	}
+	// If all values were found, return true.
+	return true
 }
