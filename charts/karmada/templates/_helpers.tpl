@@ -110,17 +110,40 @@ app: {{- include "karmada.name" .}}-kube-controller-manager
 {{- end }}
 {{- end -}}
 
-{{- define "karmada.kubeconfig.volume" -}}
-{{- $name := include "karmada.name" . -}}
-- name: kubeconfig-secret
+{{- define "karmada.karmada-certs.volume" -}}
+- name: karmada-certs
   secret:
-    secretName: {{ $name }}-kubeconfig
+    secretName: karmada-certs
+{{- end -}}
+
+{{- define "karmada.karmada-certs.volumeMount" -}}
+- name: karmada-certs
+  mountPath: /etc/karmada/pki
+  readOnly: true
+{{- end -}}
+
+{{- define "karmada.kubeconfig.volume" -}}
+- name: karmada-kubeconfig
+  secret:
+    secretName: karmada-kubeconfig
 {{- end -}}
 
 {{- define "karmada.kubeconfig.volumeMount" -}}
-- name: kubeconfig-secret
+- name: karmada-kubeconfig
   subPath: kubeconfig
   mountPath: /etc/kubeconfig
+{{- end -}}
+
+{{- define "karmada.etcd-cert.volume" -}}
+- name: karmada-etcd-cert
+  secret:
+    secretName: karmada-etcd-cert
+{{- end -}}
+
+{{- define "karmada.etcd-cert.volumeMount" -}}
+- name: karmada-etcd-cert
+  mountPath: /etc/etcd/pki
+  readOnly: true
 {{- end -}}
 
 {{- define "karmada.kubeconfig.caData" -}}
@@ -193,20 +216,6 @@ app: {{$name}}
 {{- end }}
 {{- end }}
 {{- end -}}
-
-{{- define "karmada.descheduler.kubeconfig.volume" -}}
-{{ $name :=  include "karmada.name" . }}
-{{- if eq .Values.installMode "host" -}}
-- name: kubeconfig-secret
-  secret:
-    secretName: {{ $name }}-kubeconfig
-{{- else -}}
-- name: kubeconfig-secret
-  secret:
-    secretName: {{ .Values.descheduler.kubeconfig }}
-{{- end -}}
-{{- end -}}
-
 
 {{- define "karmada.webhook.labels" -}}
 {{ $name :=  include "karmada.name" .}}
@@ -316,44 +325,6 @@ app: {{- include "karmada.name" .}}-search
 
 {{- define "karmada.postDeleteJob.labels" -}}
 {{- include "karmada.commonLabels" . -}}
-{{- end -}}
-
-{{- define "karmada.search.kubeconfig.volume" -}}
-{{ $name :=  include "karmada.name" . }}
-{{- if eq .Values.installMode "host" -}}
-- name: k8s-certs
-  secret:
-    secretName: {{ $name }}-cert
-- name: kubeconfig-secret
-  secret:
-    secretName: {{ $name }}-kubeconfig
-{{- else -}}
-- name: k8s-certs
-  secret:
-    secretName: {{ .Values.search.certs }}
-- name: kubeconfig-secret
-  secret:
-    secretName: {{ .Values.search.kubeconfig }}
-{{- end -}}
-{{- end -}}
-
-{{- define "karmada.search.etcd.cert.volume" -}}
-{{ $name :=  include "karmada.name" . }}
-- name: etcd-certs
-  secret:
-  {{- if eq .Values.etcd.mode "internal" }}
-    secretName: {{ $name }}-cert
-  {{- end }}
-  {{- if eq .Values.etcd.mode "external" }}
-    secretName: {{ $name }}-external-etcd-cert
-  {{- end }}
-{{- end -}}
-
-{{- define "karmada.scheduler.cert.volume" -}}
-{{ $name :=  include "karmada.name" . }}
-- name: karmada-certs
-  secret:
-    secretName: {{ $name }}-cert
 {{- end -}}
 
 {{/*

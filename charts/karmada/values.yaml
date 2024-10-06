@@ -123,8 +123,8 @@ postDeleteJob:
 ## karmada certificate config
 certs:
   ## @param certs.mode "auto" and "custom" are provided
-  ## "auto" means auto generate certificate
-  ## "custom" means use user certificate
+  ## "auto" means auto generate certificate (you can still customize etcd cert by `etcd.external.certs` when external etcd mode)
+  ## "custom" means all certificates are provided by user
   mode: auto
   auto:
     ## @param certs.auto.expiry expiry of the certificate
@@ -151,13 +151,26 @@ certs:
       -----BEGIN RSA PRIVATE KEY-----
       XXXXXXXXXXXXXXXXXXXXXXXXXXX
       -----END RSA PRIVATE KEY-----
-    ## @param certs.custom.crt crt of the certificate
-    crt: |
+    ## @param certs.custom.karmadaServerCrt crt of the karmada-server certificate
+    ## mainly used as server certificate for karmada components, such as karmada-apiserver,
+    ## karmada-search, karmada-metrics-adapter, etc.
+    karmadaServerCrt: |
       -----BEGIN CERTIFICATE-----
       XXXXXXXXXXXXXXXXXXXXXXXXXXX
       -----END CERTIFICATE-----
-    ## @param certs.custom.key key of the certificate
-    key: |
+    ## @param certs.custom.karmadaServerKey key of the karmada-server certificate
+    karmadaServerKey: |
+      -----BEGIN RSA PRIVATE KEY-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END RSA PRIVATE KEY-----
+    ## @param certs.custom.karmadaClientCrt crt of the karmada-client certificate
+    ## mainly used to construct kubeconfig for other components to access karmada-apiserver.
+    karmadaClientCrt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param certs.custom.karmadaClientKey key of the karmada-client certificate
+    karmadaClientKey: |
       -----BEGIN RSA PRIVATE KEY-----
       XXXXXXXXXXXXXXXXXXXXXXXXXXX
       -----END RSA PRIVATE KEY-----
@@ -173,6 +186,31 @@ certs:
       -----END CERTIFICATE-----
     ## @param certs.custom.frontProxyKey key of the front proxy certificate
     frontProxyKey: |
+      -----BEGIN RSA PRIVATE KEY-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END RSA PRIVATE KEY-----
+    ## @param certs.custom.etcdCaCrt ca of the etcd certificate
+    etcdCaCrt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param certs.custom.etcdServerCrt crt of the etcd-server certificate
+    etcdServerCrt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param certs.custom.frontProxyKey key of the etcd-server certificate
+    etcdServerKey: |
+      -----BEGIN RSA PRIVATE KEY-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END RSA PRIVATE KEY-----
+    ## @param certs.custom.etcdClientCrt crt of the etcd-client certificate
+    etcdClientCrt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param certs.custom.etcdClientKey key of the etcd-client certificate
+    etcdClientKey: |
       -----BEGIN RSA PRIVATE KEY-----
       XXXXXXXXXXXXXXXXXXXXXXXXXXX
       -----END RSA PRIVATE KEY-----
@@ -641,19 +679,20 @@ etcd:
     servers: ""
     ## @param etcd.external.registryPrefix use to registry prefix of etcd
     registryPrefix: "/registry/karmada"
+    ## @certs define external etcd cert when certs.mode is auto
     certs:
       ## @param etcd.external.certs.caCrt ca of the certificate
       caCrt: |
         -----BEGIN CERTIFICATE-----
         XXXXXXXXXXXXXXXXXXXXXXXXXXX
         -----END CERTIFICATE-----
-      ## @param etcd.external.certs.crt crt of the certificate
-      crt: |
+      ## @param etcd.external.certs.etcdClientCrt crt of the etcd-client certificate
+      etcdClientCrt: |
         -----BEGIN CERTIFICATE-----
         XXXXXXXXXXXXXXXXXXXXXXXXXXX
         -----END CERTIFICATE-----
-      ## @param etcd.external.certs.key key of the certificate
-      key: |
+      ## @param etcd.external.certs.etcdClientKey key of the etcd-client certificate
+      etcdClientKey: |
         -----BEGIN RSA PRIVATE KEY-----
         XXXXXXXXXXXXXXXXXXXXXXXXXXX
         -----END RSA PRIVATE KEY-----
@@ -911,8 +950,6 @@ descheduler:
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 50%
-  ## @param descheduler.kubeconfig kubeconfig of the descheduler
-  kubeconfig: karmada-kubeconfig
   ## @param apiServer.podDisruptionBudget
   podDisruptionBudget: *podDisruptionBudget
 
@@ -969,9 +1006,5 @@ search:
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 50%
-  ## @param search.certs certs of the search
-  certs: karmada-cert
-  ## @param search.kubeconfig kubeconfig of the search
-  kubeconfig: karmada-kubeconfig
   ## @param apiServer.podDisruptionBudget
   podDisruptionBudget: *podDisruptionBudget
