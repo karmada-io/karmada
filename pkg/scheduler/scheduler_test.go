@@ -18,22 +18,1197 @@ package scheduler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/kubernetes/scheme"
+	clienttesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/workqueue"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	karmadafake "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
+	workv1alpha2lister "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/scheduler/core"
+	schedulercore "github.com/karmada-io/karmada/pkg/scheduler/core"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/grpcconnection"
 )
+
+func TestDoSchedule(t *testing.T) {
+	tests := []struct {
+		name        string
+		key         string
+		binding     interface{}
+		expectError bool
+	}{
+		{
+			name:        "invalid key format",
+			key:         "invalid/key/format",
+			binding:     nil,
+			expectError: true,
+		},
+		{
+			name: "ResourceBinding scheduling",
+			key:  "default/test-binding",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding",
+					Namespace: "default",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{
+						ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{"cluster1"},
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "ClusterResourceBinding scheduling",
+			key:  "test-cluster-binding",
+			binding: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster-binding",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{
+						ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{"cluster1"},
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := karmadafake.NewSimpleClientset()
+			fakeRecorder := record.NewFakeRecorder(10)
+
+			var bindingLister *fakeBindingLister
+			var clusterBindingLister *fakeClusterBindingLister
+
+			if rb, ok := tt.binding.(*workv1alpha2.ResourceBinding); ok {
+				bindingLister = &fakeBindingLister{binding: rb}
+				_, err := fakeClient.WorkV1alpha2().ResourceBindings(rb.Namespace).Create(context.TODO(), rb, metav1.CreateOptions{})
+				assert.NoError(t, err)
+			}
+			if crb, ok := tt.binding.(*workv1alpha2.ClusterResourceBinding); ok {
+				clusterBindingLister = &fakeClusterBindingLister{binding: crb}
+				_, err := fakeClient.WorkV1alpha2().ClusterResourceBindings().Create(context.TODO(), crb, metav1.CreateOptions{})
+				assert.NoError(t, err)
+			}
+
+			mockAlgo := &mockAlgorithm{
+				scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, _ *schedulercore.ScheduleAlgorithmOption) (schedulercore.ScheduleResult, error) {
+					return schedulercore.ScheduleResult{
+						SuggestedClusters: []workv1alpha2.TargetCluster{
+							{Name: "cluster1", Replicas: 1},
+						},
+					}, nil
+				},
+			}
+
+			s := &Scheduler{
+				KarmadaClient:        fakeClient,
+				eventRecorder:        fakeRecorder,
+				bindingLister:        bindingLister,
+				clusterBindingLister: clusterBindingLister,
+				Algorithm:            mockAlgo,
+			}
+
+			err := s.doSchedule(tt.key)
+
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			if !tt.expectError {
+				if rb, ok := tt.binding.(*workv1alpha2.ResourceBinding); ok {
+					updated, err := fakeClient.WorkV1alpha2().ResourceBindings(rb.Namespace).Get(context.TODO(), rb.Name, metav1.GetOptions{})
+					assert.NoError(t, err)
+					assert.NotNil(t, updated.Spec.Clusters)
+					assert.Len(t, updated.Spec.Clusters, 1)
+					assert.Equal(t, "cluster1", updated.Spec.Clusters[0].Name)
+				}
+				if crb, ok := tt.binding.(*workv1alpha2.ClusterResourceBinding); ok {
+					updated, err := fakeClient.WorkV1alpha2().ClusterResourceBindings().Get(context.TODO(), crb.Name, metav1.GetOptions{})
+					assert.NoError(t, err)
+					assert.NotNil(t, updated.Spec.Clusters)
+					assert.Len(t, updated.Spec.Clusters, 1)
+					assert.Equal(t, "cluster1", updated.Spec.Clusters[0].Name)
+				}
+			}
+		})
+	}
+}
+
+func TestDoScheduleBinding(t *testing.T) {
+	tests := []struct {
+		name             string
+		binding          *workv1alpha2.ResourceBinding
+		expectSchedule   bool
+		expectError      bool
+		expectedClusters []workv1alpha2.TargetCluster
+		expectedEvent    string
+	}{
+		{
+			name: "binding with changed placement",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding-1",
+					Namespace: "default",
+					Annotations: map[string]string{
+						util.PolicyPlacementAnnotation: `{"clusterAffinity":{"clusterNames":["cluster1"]}}`,
+					},
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{
+						ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{"cluster1", "cluster2"},
+						},
+					},
+				},
+			},
+			expectSchedule: true,
+			expectError:    false,
+			expectedClusters: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 1},
+				{Name: "cluster2", Replicas: 1},
+			},
+			expectedEvent: "Normal ScheduleBindingSucceed",
+		},
+		{
+			name: "binding with replicas changed",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding-2",
+					Namespace: "default",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Replicas: 2,
+					Placement: &policyv1alpha1.Placement{
+						ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+							ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided,
+						},
+					},
+				},
+				Status: workv1alpha2.ResourceBindingStatus{
+					SchedulerObservedGeneration: 1,
+				},
+			},
+			expectSchedule: true,
+			expectError:    false,
+			expectedClusters: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 1},
+				{Name: "cluster2", Replicas: 1},
+			},
+			expectedEvent: "Normal ScheduleBindingSucceed",
+		},
+		{
+			name: "binding with reschedule triggered",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding-3",
+					Namespace: "default",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					RescheduleTriggeredAt: &metav1.Time{Time: time.Now()},
+					Placement:             &policyv1alpha1.Placement{},
+				},
+			},
+			expectSchedule: true,
+			expectError:    false,
+			expectedClusters: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 1},
+			},
+			expectedEvent: "Normal ScheduleBindingSucceed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := karmadafake.NewSimpleClientset(tt.binding)
+			fakeRecorder := record.NewFakeRecorder(10)
+			mockAlgorithm := &mockAlgorithm{
+				scheduleFunc: func(context.Context, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus, *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+					return core.ScheduleResult{SuggestedClusters: tt.expectedClusters}, nil
+				},
+			}
+
+			s := &Scheduler{
+				KarmadaClient: fakeClient,
+				bindingLister: &fakeBindingLister{binding: tt.binding},
+				eventRecorder: fakeRecorder,
+				Algorithm:     mockAlgorithm,
+			}
+
+			err := s.doScheduleBinding(tt.binding.Namespace, tt.binding.Name)
+
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			updatedBinding, err := fakeClient.WorkV1alpha2().ResourceBindings(tt.binding.Namespace).Get(context.TODO(), tt.binding.Name, metav1.GetOptions{})
+			assert.NoError(t, err)
+
+			if tt.expectSchedule {
+				assert.Equal(t, tt.expectedClusters, updatedBinding.Spec.Clusters)
+				assert.NotEqual(t, tt.binding.Spec.Clusters, updatedBinding.Spec.Clusters)
+			} else {
+				assert.Equal(t, tt.binding.Spec.Clusters, updatedBinding.Spec.Clusters)
+			}
+
+			// Check for expected events
+			select {
+			case event := <-fakeRecorder.Events:
+				assert.Contains(t, event, tt.expectedEvent)
+			default:
+				t.Errorf("Expected an event to be recorded")
+			}
+		})
+	}
+}
+
+func TestDoScheduleClusterBinding(t *testing.T) {
+	tests := []struct {
+		name             string
+		binding          *workv1alpha2.ClusterResourceBinding
+		expectSchedule   bool
+		expectError      bool
+		expectedClusters []workv1alpha2.TargetCluster
+		expectedEvent    string
+	}{
+		{
+			name: "cluster binding with changed placement",
+			binding: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster-binding-1",
+					Annotations: map[string]string{
+						util.PolicyPlacementAnnotation: `{"clusterAffinity":{"clusterNames":["cluster1"]}}`,
+					},
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{
+						ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{"cluster1", "cluster2"},
+						},
+					},
+				},
+			},
+			expectSchedule: true,
+			expectError:    false,
+			expectedClusters: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 1},
+				{Name: "cluster2", Replicas: 1},
+			},
+			expectedEvent: "Normal ScheduleBindingSucceed",
+		},
+		{
+			name: "cluster binding with replicas changed",
+			binding: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster-binding-2",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Replicas: 2,
+					Placement: &policyv1alpha1.Placement{
+						ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+							ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided,
+						},
+					},
+				},
+				Status: workv1alpha2.ResourceBindingStatus{
+					SchedulerObservedGeneration: 1,
+				},
+			},
+			expectSchedule: true,
+			expectError:    false,
+			expectedClusters: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 1},
+				{Name: "cluster2", Replicas: 1},
+			},
+			expectedEvent: "Normal ScheduleBindingSucceed",
+		},
+		{
+			name: "cluster binding with reschedule triggered",
+			binding: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster-binding-3",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					RescheduleTriggeredAt: &metav1.Time{Time: time.Now()},
+					Placement:             &policyv1alpha1.Placement{},
+				},
+			},
+			expectSchedule: true,
+			expectError:    false,
+			expectedClusters: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 1},
+			},
+			expectedEvent: "Normal ScheduleBindingSucceed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := karmadafake.NewSimpleClientset(tt.binding)
+			fakeRecorder := record.NewFakeRecorder(10)
+			mockAlgorithm := &mockAlgorithm{
+				scheduleFunc: func(context.Context, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus, *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+					return core.ScheduleResult{SuggestedClusters: tt.expectedClusters}, nil
+				},
+			}
+
+			s := &Scheduler{
+				KarmadaClient:        fakeClient,
+				clusterBindingLister: &fakeClusterBindingLister{binding: tt.binding},
+				eventRecorder:        fakeRecorder,
+				Algorithm:            mockAlgorithm,
+			}
+
+			err := s.doScheduleClusterBinding(tt.binding.Name)
+
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			updatedBinding, err := fakeClient.WorkV1alpha2().ClusterResourceBindings().Get(context.TODO(), tt.binding.Name, metav1.GetOptions{})
+			assert.NoError(t, err)
+
+			if tt.expectSchedule {
+				assert.Equal(t, tt.expectedClusters, updatedBinding.Spec.Clusters)
+				assert.NotEqual(t, tt.binding.Spec.Clusters, updatedBinding.Spec.Clusters)
+			} else {
+				assert.Equal(t, tt.binding.Spec.Clusters, updatedBinding.Spec.Clusters)
+			}
+
+			// Check for expected events
+			select {
+			case event := <-fakeRecorder.Events:
+				assert.Contains(t, event, tt.expectedEvent)
+			default:
+				t.Errorf("Expected an event to be recorded")
+			}
+		})
+	}
+}
+
+func TestScheduleResourceBindingWithClusterAffinity(t *testing.T) {
+	tests := []struct {
+		name           string
+		binding        *workv1alpha2.ResourceBinding
+		scheduleResult core.ScheduleResult
+		scheduleError  error
+		expectError    bool
+		expectedPatch  string
+		expectedEvent  string
+	}{
+		{
+			name: "successful scheduling",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding",
+					Namespace: "default",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{
+						ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{"cluster1"},
+						},
+					},
+				},
+			},
+			scheduleResult: core.ScheduleResult{
+				SuggestedClusters: []workv1alpha2.TargetCluster{
+					{Name: "cluster1", Replicas: 1},
+				},
+			},
+			expectError:   false,
+			expectedPatch: `{"metadata":{"annotations":{"policy.karmada.io/applied-placement":"{\"clusterAffinity\":{\"clusterNames\":[\"cluster1\"]}}"}},"spec":{"clusters":[{"name":"cluster1","replicas":1}]}}`,
+			expectedEvent: "Normal ScheduleBindingSucceed Binding has been scheduled successfully.",
+		},
+		{
+			name: "scheduling error",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding-error",
+					Namespace: "default",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{
+						ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{"cluster1"},
+						},
+					},
+				},
+			},
+			scheduleResult: core.ScheduleResult{},
+			scheduleError:  errors.New("scheduling error"),
+			expectError:    true,
+			expectedEvent:  "Warning ScheduleBindingFailed scheduling error",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := karmadafake.NewSimpleClientset(tt.binding)
+			fakeRecorder := record.NewFakeRecorder(10)
+			mockAlgorithm := &mockAlgorithm{
+				scheduleFunc: func(context.Context, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus, *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+					return tt.scheduleResult, tt.scheduleError
+				},
+			}
+			s := &Scheduler{
+				KarmadaClient: fakeClient,
+				eventRecorder: fakeRecorder,
+				Algorithm:     mockAlgorithm,
+			}
+
+			err := s.scheduleResourceBindingWithClusterAffinity(tt.binding)
+
+			if (err != nil) != tt.expectError {
+				t.Errorf("scheduleResourceBindingWithClusterAffinity() error = %v, expectError %v", err, tt.expectError)
+			}
+
+			actions := fakeClient.Actions()
+			patchActions := filterPatchActions(actions)
+
+			if tt.expectError {
+				assert.Empty(t, patchActions, "Expected no patch actions for error case")
+			} else {
+				assert.Len(t, patchActions, 1, "Expected one patch action")
+				if len(patchActions) > 0 {
+					actualPatch := string(patchActions[0].GetPatch())
+					assert.JSONEq(t, tt.expectedPatch, actualPatch, "Patch does not match expected")
+				}
+			}
+
+			// Check if an event was recorded
+			select {
+			case event := <-fakeRecorder.Events:
+				assert.Contains(t, event, tt.expectedEvent, "Event does not match expected")
+			default:
+				t.Errorf("Expected an event to be recorded")
+			}
+		})
+	}
+}
+
+func TestScheduleResourceBindingWithClusterAffinities(t *testing.T) {
+	tests := []struct {
+		name            string
+		binding         *workv1alpha2.ResourceBinding
+		scheduleResults []core.ScheduleResult
+		scheduleErrors  []error
+		expectError     bool
+		expectedPatches []string
+		expectedEvent   string
+	}{
+		{
+			name: "successful scheduling with first affinity",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding",
+					Namespace: "default",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{
+						ClusterAffinities: []policyv1alpha1.ClusterAffinityTerm{
+							{
+								AffinityName: "affinity1",
+								ClusterAffinity: policyv1alpha1.ClusterAffinity{
+									ClusterNames: []string{"cluster1"},
+								},
+							},
+							{
+								AffinityName: "affinity2",
+								ClusterAffinity: policyv1alpha1.ClusterAffinity{
+									ClusterNames: []string{"cluster2"},
+								},
+							},
+						},
+					},
+				},
+			},
+			scheduleResults: []core.ScheduleResult{
+				{
+					SuggestedClusters: []workv1alpha2.TargetCluster{
+						{Name: "cluster1", Replicas: 1},
+					},
+				},
+			},
+			scheduleErrors: []error{nil},
+			expectError:    false,
+			expectedPatches: []string{
+				`{"metadata":{"annotations":{"policy.karmada.io/applied-placement":"{\"clusterAffinities\":[{\"affinityName\":\"affinity1\",\"clusterNames\":[\"cluster1\"]},{\"affinityName\":\"affinity2\",\"clusterNames\":[\"cluster2\"]}]}"}},"spec":{"clusters":[{"name":"cluster1","replicas":1}]}}`,
+				`{"status":{"schedulerObservingAffinityName":"affinity1"}}`,
+			},
+			expectedEvent: "Normal ScheduleBindingSucceed Binding has been scheduled successfully.",
+		},
+		{
+			name: "successful scheduling with second affinity",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding-2",
+					Namespace: "default",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{
+						ClusterAffinities: []policyv1alpha1.ClusterAffinityTerm{
+							{
+								AffinityName: "affinity1",
+								ClusterAffinity: policyv1alpha1.ClusterAffinity{
+									ClusterNames: []string{"cluster1"},
+								},
+							},
+							{
+								AffinityName: "affinity2",
+								ClusterAffinity: policyv1alpha1.ClusterAffinity{
+									ClusterNames: []string{"cluster2"},
+								},
+							},
+						},
+					},
+				},
+			},
+			scheduleResults: []core.ScheduleResult{
+				{},
+				{
+					SuggestedClusters: []workv1alpha2.TargetCluster{
+						{Name: "cluster2", Replicas: 1},
+					},
+				},
+			},
+			scheduleErrors: []error{errors.New("first affinity failed"), nil},
+			expectError:    false,
+			expectedPatches: []string{
+				`{"metadata":{"annotations":{"policy.karmada.io/applied-placement":"{\"clusterAffinities\":[{\"affinityName\":\"affinity1\",\"clusterNames\":[\"cluster1\"]},{\"affinityName\":\"affinity2\",\"clusterNames\":[\"cluster2\"]}]}"}},"spec":{"clusters":[{"name":"cluster2","replicas":1}]}}`,
+				`{"status":{"schedulerObservingAffinityName":"affinity2"}}`,
+			},
+			expectedEvent: "Warning ScheduleBindingFailed failed to schedule ResourceBinding(default/test-binding-2) with clusterAffiliates index(0): first affinity failed",
+		},
+		{
+			name: "all affinities fail",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding-fail",
+					Namespace: "default",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{
+						ClusterAffinities: []policyv1alpha1.ClusterAffinityTerm{
+							{
+								AffinityName: "affinity1",
+								ClusterAffinity: policyv1alpha1.ClusterAffinity{
+									ClusterNames: []string{"cluster1"},
+								},
+							},
+							{
+								AffinityName: "affinity2",
+								ClusterAffinity: policyv1alpha1.ClusterAffinity{
+									ClusterNames: []string{"cluster2"},
+								},
+							},
+						},
+					},
+				},
+			},
+			scheduleResults: []core.ScheduleResult{{}, {}},
+			scheduleErrors:  []error{errors.New("first affinity failed"), errors.New("second affinity failed")},
+			expectError:     true,
+			expectedPatches: []string{},
+			expectedEvent:   "Warning ScheduleBindingFailed failed to schedule ResourceBinding",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := karmadafake.NewSimpleClientset(tt.binding)
+			fakeRecorder := record.NewFakeRecorder(10)
+			mockAlgorithm := &mockAlgorithm{
+				scheduleFunc: func(_ context.Context, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, _ *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+					index := getAffinityIndex(spec.Placement.ClusterAffinities, status.SchedulerObservedAffinityName)
+					if index < len(tt.scheduleResults) {
+						return tt.scheduleResults[index], tt.scheduleErrors[index]
+					}
+					return core.ScheduleResult{}, errors.New("unexpected call to Schedule")
+				},
+			}
+			s := &Scheduler{
+				KarmadaClient: fakeClient,
+				eventRecorder: fakeRecorder,
+				Algorithm:     mockAlgorithm,
+			}
+
+			err := s.scheduleResourceBindingWithClusterAffinities(tt.binding)
+
+			if (err != nil) != tt.expectError {
+				t.Errorf("scheduleResourceBindingWithClusterAffinities() error = %v, expectError %v", err, tt.expectError)
+			}
+
+			actions := fakeClient.Actions()
+			patchActions := filterPatchActions(actions)
+
+			if tt.expectError {
+				assert.Empty(t, patchActions, "Expected no patch actions for error case")
+			} else {
+				assert.Len(t, patchActions, len(tt.expectedPatches), "Expected %d patch actions", len(tt.expectedPatches))
+				for i, expectedPatch := range tt.expectedPatches {
+					actualPatch := string(patchActions[i].GetPatch())
+					assert.JSONEq(t, expectedPatch, actualPatch, "Patch %d does not match expected", i+1)
+				}
+			}
+
+			// Check if an event was recorded
+			select {
+			case event := <-fakeRecorder.Events:
+				if strings.Contains(event, "ScheduleBindingFailed") {
+					assert.Contains(t, event, tt.expectedEvent, "Event does not match expected")
+				} else {
+					assert.Contains(t, event, "ScheduleBindingSucceed", "Expected ScheduleBindingSucceed event")
+				}
+			default:
+				t.Errorf("Expected an event to be recorded")
+			}
+		})
+	}
+}
+
+func TestPatchScheduleResultForResourceBinding(t *testing.T) {
+	tests := []struct {
+		name            string
+		oldBinding      *workv1alpha2.ResourceBinding
+		placement       string
+		scheduleResult  []workv1alpha2.TargetCluster
+		expectError     bool
+		expectedBinding *workv1alpha2.ResourceBinding
+	}{
+		{
+			name: "successful patch",
+			oldBinding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding",
+					Namespace: "default",
+				},
+			},
+			placement: "test-placement",
+			scheduleResult: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 1},
+			},
+			expectError: false,
+			expectedBinding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding",
+					Namespace: "default",
+					Annotations: map[string]string{
+						util.PolicyPlacementAnnotation: "test-placement",
+					},
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Clusters: []workv1alpha2.TargetCluster{
+						{Name: "cluster1", Replicas: 1},
+					},
+				},
+			},
+		},
+		{
+			name: "no changes",
+			oldBinding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding",
+					Namespace: "default",
+					Annotations: map[string]string{
+						util.PolicyPlacementAnnotation: "test-placement",
+					},
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Clusters: []workv1alpha2.TargetCluster{
+						{Name: "cluster1", Replicas: 1},
+					},
+				},
+			},
+			placement: "test-placement",
+			scheduleResult: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 1},
+			},
+			expectError: false,
+			expectedBinding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding",
+					Namespace: "default",
+					Annotations: map[string]string{
+						util.PolicyPlacementAnnotation: "test-placement",
+					},
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Clusters: []workv1alpha2.TargetCluster{
+						{Name: "cluster1", Replicas: 1},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Scheduler{
+				KarmadaClient: karmadafake.NewSimpleClientset(tt.oldBinding),
+			}
+
+			err := s.patchScheduleResultForResourceBinding(tt.oldBinding, tt.placement, tt.scheduleResult)
+
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+
+				updatedBinding, err := s.KarmadaClient.WorkV1alpha2().ResourceBindings(tt.oldBinding.Namespace).Get(context.TODO(), tt.oldBinding.Name, metav1.GetOptions{})
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedBinding.Annotations, updatedBinding.Annotations)
+				assert.Equal(t, tt.expectedBinding.Spec.Clusters, updatedBinding.Spec.Clusters)
+			}
+		})
+	}
+}
+
+func TestScheduleClusterResourceBindingWithClusterAffinity(t *testing.T) {
+	tests := []struct {
+		name           string
+		binding        *workv1alpha2.ClusterResourceBinding
+		scheduleResult core.ScheduleResult
+		scheduleError  error
+		expectError    bool
+	}{
+		{
+			name: "successful scheduling",
+			binding: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster-binding",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{
+						ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{"cluster1", "cluster2"},
+						},
+					},
+				},
+			},
+			scheduleResult: core.ScheduleResult{
+				SuggestedClusters: []workv1alpha2.TargetCluster{
+					{Name: "cluster1", Replicas: 1},
+					{Name: "cluster2", Replicas: 1},
+				},
+			},
+			scheduleError: nil,
+			expectError:   false,
+		},
+		{
+			name: "scheduling error",
+			binding: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster-binding-error",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{
+						ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{"cluster1"},
+						},
+					},
+				},
+			},
+			scheduleResult: core.ScheduleResult{},
+			scheduleError:  errors.New("scheduling error"),
+			expectError:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := karmadafake.NewSimpleClientset(tt.binding)
+			fakeRecorder := record.NewFakeRecorder(10)
+			mockAlgorithm := &mockAlgorithm{
+				scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, _ *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+					return tt.scheduleResult, tt.scheduleError
+				},
+			}
+			s := &Scheduler{
+				KarmadaClient: fakeClient,
+				eventRecorder: fakeRecorder,
+				Algorithm:     mockAlgorithm,
+			}
+
+			err := s.scheduleClusterResourceBindingWithClusterAffinity(tt.binding)
+
+			if (err != nil) != tt.expectError {
+				t.Errorf("scheduleClusterResourceBindingWithClusterAffinity() error = %v, expectError %v", err, tt.expectError)
+			}
+
+			// Check if a patch was applied
+			actions := fakeClient.Actions()
+			patchActions := filterPatchActions(actions)
+			if tt.expectError {
+				assert.Empty(t, patchActions, "Expected no patch actions for error case")
+			} else {
+				assert.NotEmpty(t, patchActions, "Expected patch actions for success case")
+			}
+
+			// Check if an event was recorded
+			select {
+			case event := <-fakeRecorder.Events:
+				if tt.expectError {
+					assert.Contains(t, event, "ScheduleBindingFailed", "Expected ScheduleBindingFailed event")
+				} else {
+					assert.Contains(t, event, "ScheduleBindingSucceed", "Expected ScheduleBindingSucceed event")
+				}
+			default:
+				t.Errorf("Expected an event to be recorded")
+			}
+		})
+	}
+}
+
+func TestScheduleClusterResourceBindingWithClusterAffinities(t *testing.T) {
+	tests := []struct {
+		name            string
+		binding         *workv1alpha2.ClusterResourceBinding
+		scheduleResults []core.ScheduleResult
+		scheduleErrors  []error
+		expectError     bool
+	}{
+		{
+			name: "successful scheduling with first affinity",
+			binding: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster-binding",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{
+						ClusterAffinities: []policyv1alpha1.ClusterAffinityTerm{
+							{
+								AffinityName: "affinity1",
+								ClusterAffinity: policyv1alpha1.ClusterAffinity{
+									ClusterNames: []string{"cluster1"},
+								},
+							},
+							{
+								AffinityName: "affinity2",
+								ClusterAffinity: policyv1alpha1.ClusterAffinity{
+									ClusterNames: []string{"cluster2"},
+								},
+							},
+						},
+					},
+				},
+			},
+			scheduleResults: []core.ScheduleResult{
+				{
+					SuggestedClusters: []workv1alpha2.TargetCluster{
+						{Name: "cluster1", Replicas: 1},
+					},
+				},
+			},
+			scheduleErrors: []error{nil},
+			expectError:    false,
+		},
+		{
+			name: "successful scheduling with second affinity",
+			binding: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster-binding-2",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{
+						ClusterAffinities: []policyv1alpha1.ClusterAffinityTerm{
+							{
+								AffinityName: "affinity1",
+								ClusterAffinity: policyv1alpha1.ClusterAffinity{
+									ClusterNames: []string{"cluster1"},
+								},
+							},
+							{
+								AffinityName: "affinity2",
+								ClusterAffinity: policyv1alpha1.ClusterAffinity{
+									ClusterNames: []string{"cluster2"},
+								},
+							},
+						},
+					},
+				},
+			},
+			scheduleResults: []core.ScheduleResult{
+				{},
+				{
+					SuggestedClusters: []workv1alpha2.TargetCluster{
+						{Name: "cluster2", Replicas: 1},
+					},
+				},
+			},
+			scheduleErrors: []error{errors.New("first affinity failed"), nil},
+			expectError:    false,
+		},
+		{
+			name: "all affinities fail",
+			binding: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster-binding-fail",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{
+						ClusterAffinities: []policyv1alpha1.ClusterAffinityTerm{
+							{
+								AffinityName: "affinity1",
+								ClusterAffinity: policyv1alpha1.ClusterAffinity{
+									ClusterNames: []string{"cluster1"},
+								},
+							},
+							{
+								AffinityName: "affinity2",
+								ClusterAffinity: policyv1alpha1.ClusterAffinity{
+									ClusterNames: []string{"cluster2"},
+								},
+							},
+						},
+					},
+				},
+			},
+			scheduleResults: []core.ScheduleResult{{}, {}},
+			scheduleErrors:  []error{errors.New("first affinity failed"), errors.New("second affinity failed")},
+			expectError:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := karmadafake.NewSimpleClientset(tt.binding)
+			fakeRecorder := record.NewFakeRecorder(10)
+			mockAlgorithm := &mockAlgorithm{
+				scheduleFunc: func(_ context.Context, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, _ *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+					index := getAffinityIndex(spec.Placement.ClusterAffinities, status.SchedulerObservedAffinityName)
+					if index < len(tt.scheduleResults) {
+						return tt.scheduleResults[index], tt.scheduleErrors[index]
+					}
+					return core.ScheduleResult{}, errors.New("unexpected call to Schedule")
+				},
+			}
+			s := &Scheduler{
+				KarmadaClient: fakeClient,
+				eventRecorder: fakeRecorder,
+				Algorithm:     mockAlgorithm,
+			}
+
+			err := s.scheduleClusterResourceBindingWithClusterAffinities(tt.binding)
+
+			if (err != nil) != tt.expectError {
+				t.Errorf("scheduleClusterResourceBindingWithClusterAffinities() error = %v, expectError %v", err, tt.expectError)
+			}
+		})
+	}
+}
+
+func TestWorkerAndScheduleNext(t *testing.T) {
+	testScheme := setupScheme()
+
+	resourceBinding := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-binding",
+			Namespace: "default",
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Placement: &policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: []string{"cluster1"},
+				},
+			},
+		},
+	}
+
+	clusterResourceBinding := &workv1alpha2.ClusterResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-cluster-binding",
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Placement: &policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: []string{"cluster1"},
+				},
+			},
+		},
+	}
+
+	fakeClient := karmadafake.NewSimpleClientset(resourceBinding, clusterResourceBinding)
+
+	testCases := []struct {
+		name         string
+		key          string
+		shutdown     bool
+		expectResult bool
+	}{
+		{
+			name:         "Schedule ResourceBinding",
+			key:          "default/test-binding",
+			shutdown:     false,
+			expectResult: true,
+		},
+		{
+			name:         "Schedule ClusterResourceBinding",
+			key:          "test-cluster-binding",
+			shutdown:     false,
+			expectResult: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+			bindingLister := &fakeBindingLister{binding: resourceBinding}
+			clusterBindingLister := &fakeClusterBindingLister{binding: clusterResourceBinding}
+
+			mockAlgo := &mockAlgorithm{
+				scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, _ *schedulercore.ScheduleAlgorithmOption) (schedulercore.ScheduleResult, error) {
+					return schedulercore.ScheduleResult{
+						SuggestedClusters: []workv1alpha2.TargetCluster{
+							{Name: "cluster1", Replicas: 1},
+						},
+					}, nil
+				},
+			}
+
+			eventBroadcaster := record.NewBroadcaster()
+			eventRecorder := eventBroadcaster.NewRecorder(testScheme, corev1.EventSource{Component: "test-scheduler"})
+
+			s := &Scheduler{
+				KarmadaClient:        fakeClient,
+				queue:                queue,
+				bindingLister:        bindingLister,
+				clusterBindingLister: clusterBindingLister,
+				Algorithm:            mockAlgo,
+				eventRecorder:        eventRecorder,
+			}
+
+			s.queue.Add(tc.key)
+
+			if tc.shutdown {
+				s.queue.ShutDown()
+			}
+
+			result := s.scheduleNext()
+
+			assert.Equal(t, tc.expectResult, result, "scheduleNext return value mismatch")
+
+			if !tc.shutdown {
+				assert.Equal(t, 0, s.queue.Len(), "Queue should be empty after processing")
+			}
+		})
+	}
+}
+
+func TestPlacementChanged(t *testing.T) {
+	tests := []struct {
+		name                 string
+		placement            *policyv1alpha1.Placement
+		appliedPlacementStr  string
+		observedAffinityName string
+		want                 bool
+	}{
+		{
+			name: "placement changed",
+			placement: &policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: []string{"cluster1", "cluster2"},
+				},
+			},
+			appliedPlacementStr:  `{"clusterAffinity":{"clusterNames":["cluster1"]}}`,
+			observedAffinityName: "",
+			want:                 true,
+		},
+		{
+			name: "placement not changed",
+			placement: &policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: []string{"cluster1", "cluster2"},
+				},
+			},
+			appliedPlacementStr:  `{"clusterAffinity":{"clusterNames":["cluster1","cluster2"]}}`,
+			observedAffinityName: "",
+			want:                 false,
+		},
+		{
+			name: "invalid applied placement string",
+			placement: &policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: []string{"cluster1", "cluster2"},
+				},
+			},
+			appliedPlacementStr:  `invalid json`,
+			observedAffinityName: "",
+			want:                 false,
+		},
+		{
+			name:                 "empty placement",
+			placement:            &policyv1alpha1.Placement{},
+			appliedPlacementStr:  `{}`,
+			observedAffinityName: "",
+			want:                 false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test for ClusterResourceBinding
+			crb := &workv1alpha2.ClusterResourceBinding{
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Placement: tt.placement,
+				},
+				Status: workv1alpha2.ResourceBindingStatus{
+					SchedulerObservedAffinityName: tt.observedAffinityName,
+				},
+			}
+			got := placementChanged(*crb.Spec.Placement, tt.appliedPlacementStr, crb.Status.SchedulerObservedAffinityName)
+			assert.Equal(t, tt.want, got, "placementChanged() for ClusterResourceBinding result mismatch")
+
+			// Test for ResourceBinding
+			rb := &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "test-namespace",
+					Name:      "test-name",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Placement: tt.placement,
+				},
+				Status: workv1alpha2.ResourceBindingStatus{
+					SchedulerObservedAffinityName: tt.observedAffinityName,
+				},
+			}
+			got = placementChanged(*rb.Spec.Placement, tt.appliedPlacementStr, rb.Status.SchedulerObservedAffinityName)
+			assert.Equal(t, tt.want, got, "placementChanged() for ResourceBinding result mismatch")
+		})
+	}
+}
 
 func TestCreateScheduler(t *testing.T) {
 	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
@@ -44,6 +1219,9 @@ func TestCreateScheduler(t *testing.T) {
 	servicePrefix := "test-service-prefix"
 	schedulerName := "test-scheduler"
 	timeout := metav1.Duration{Duration: 5 * time.Second}
+
+	mockPlugins := []string{"plugin1", "plugin2"}
+	mockRateLimiterOptions := ratelimiterflag.Options{}
 
 	testcases := []struct {
 		name                                string
@@ -58,6 +1236,7 @@ func TestCreateScheduler(t *testing.T) {
 		schedulerEstimatorClientConfig      *grpcconnection.ClientConfig
 		enableEmptyWorkloadPropagation      bool
 		plugins                             []string
+		rateLimiterOptions                  ratelimiterflag.Options
 	}{
 		{
 			name:                     "scheduler with default configuration",
@@ -139,6 +1318,20 @@ func TestCreateScheduler(t *testing.T) {
 			schedulerEstimatorPort:    port,
 			schedulerEstimatorTimeout: timeout,
 		},
+		{
+			name: "scheduler with EnableSchedulerPlugin",
+			opts: []Option{
+				WithEnableSchedulerPlugin(mockPlugins),
+			},
+			plugins: mockPlugins,
+		},
+		{
+			name: "scheduler with RateLimiterOptions",
+			opts: []Option{
+				WithRateLimiterOptions(mockRateLimiterOptions),
+			},
+			rateLimiterOptions: mockRateLimiterOptions,
+		},
 	}
 
 	for _, tc := range testcases {
@@ -175,10 +1368,17 @@ func TestCreateScheduler(t *testing.T) {
 			if tc.enableEmptyWorkloadPropagation != sche.enableEmptyWorkloadPropagation {
 				t.Errorf("unexpected enableEmptyWorkloadPropagation want %v, got %v", tc.enableEmptyWorkloadPropagation, sche.enableEmptyWorkloadPropagation)
 			}
+			if len(tc.plugins) > 0 && sche.Algorithm == nil {
+				t.Errorf("expected Algorithm to be set when plugins are provided")
+			}
+			if tc.rateLimiterOptions != (ratelimiterflag.Options{}) && sche.queue == nil {
+				t.Errorf("expected queue to be set when rate limiter options are provided")
+			}
 		})
 	}
 }
-func Test_patchBindingStatusCondition(t *testing.T) {
+
+func TestPatchBindingStatusCondition(t *testing.T) {
 	oneHourBefore := time.Now().Add(-1 * time.Hour).Round(time.Second)
 	oneHourAfter := time.Now().Add(1 * time.Hour).Round(time.Second)
 
@@ -336,7 +1536,7 @@ func Test_patchBindingStatusCondition(t *testing.T) {
 	}
 }
 
-func Test_patchBindingStatusWithAffinityName(t *testing.T) {
+func TestPatchBindingStatusWithAffinityName(t *testing.T) {
 	karmadaClient := karmadafake.NewSimpleClientset()
 
 	tests := []struct {
@@ -382,7 +1582,7 @@ func Test_patchBindingStatusWithAffinityName(t *testing.T) {
 	}
 }
 
-func Test_patchClusterBindingStatusCondition(t *testing.T) {
+func TestPatchClusterBindingStatusCondition(t *testing.T) {
 	oneHourBefore := time.Now().Add(-1 * time.Hour).Round(time.Second)
 	oneHourAfter := time.Now().Add(1 * time.Hour).Round(time.Second)
 
@@ -540,7 +1740,7 @@ func Test_patchClusterBindingStatusCondition(t *testing.T) {
 	}
 }
 
-func Test_patchClusterBindingStatusWithAffinityName(t *testing.T) {
+func TestPatchClusterBindingStatusWithAffinityName(t *testing.T) {
 	karmadaClient := karmadafake.NewSimpleClientset()
 
 	tests := []struct {
@@ -593,7 +1793,7 @@ func Test_patchClusterBindingStatusWithAffinityName(t *testing.T) {
 	}
 }
 
-func Test_recordScheduleResultEventForResourceBinding(t *testing.T) {
+func TestRecordScheduleResultEventForResourceBinding(t *testing.T) {
 	fakeRecorder := record.NewFakeRecorder(10)
 	scheduler := &Scheduler{eventRecorder: fakeRecorder}
 
@@ -684,7 +1884,7 @@ func contains(event, msg string) bool {
 	return len(event) >= len(msg) && event[len(event)-len(msg):] == msg
 }
 
-func Test_recordScheduleResultEventForClusterResourceBinding(t *testing.T) {
+func TestRecordScheduleResultEventForClusterResourceBinding(t *testing.T) {
 	fakeRecorder := record.NewFakeRecorder(10)
 	scheduler := &Scheduler{eventRecorder: fakeRecorder}
 
@@ -772,7 +1972,7 @@ func Test_recordScheduleResultEventForClusterResourceBinding(t *testing.T) {
 	}
 }
 
-func Test_targetClustersToString(t *testing.T) {
+func TestTargetClustersToString(t *testing.T) {
 	tests := []struct {
 		name           string
 		tcs            []workv1alpha2.TargetCluster
@@ -816,4 +2016,74 @@ func Test_targetClustersToString(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Helper Functions
+
+// Helper function to setup scheme for testing
+func setupScheme() *runtime.Scheme {
+	s := runtime.NewScheme()
+
+	_ = scheme.AddToScheme(s)
+	_ = workv1alpha2.Install(s)
+	_ = policyv1alpha1.Install(s)
+
+	return s
+}
+
+// Helper function to filter patch actions
+func filterPatchActions(actions []clienttesting.Action) []clienttesting.PatchAction {
+	var patchActions []clienttesting.PatchAction
+	for _, action := range actions {
+		if patch, ok := action.(clienttesting.PatchAction); ok {
+			patchActions = append(patchActions, patch)
+		}
+	}
+	return patchActions
+}
+
+// Mock Implementations
+
+type mockAlgorithm struct {
+	scheduleFunc func(context.Context, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus, *core.ScheduleAlgorithmOption) (core.ScheduleResult, error)
+}
+
+func (m *mockAlgorithm) Schedule(ctx context.Context, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, option *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+	return m.scheduleFunc(ctx, spec, status, option)
+}
+
+type fakeBindingLister struct {
+	binding *workv1alpha2.ResourceBinding
+}
+
+func (f *fakeBindingLister) List(_ labels.Selector) (ret []*workv1alpha2.ResourceBinding, err error) {
+	return []*workv1alpha2.ResourceBinding{f.binding}, nil
+}
+
+func (f *fakeBindingLister) ResourceBindings(_ string) workv1alpha2lister.ResourceBindingNamespaceLister {
+	return &fakeBindingNamespaceLister{binding: f.binding}
+}
+
+type fakeBindingNamespaceLister struct {
+	binding *workv1alpha2.ResourceBinding
+}
+
+func (f *fakeBindingNamespaceLister) List(_ labels.Selector) (ret []*workv1alpha2.ResourceBinding, err error) {
+	return []*workv1alpha2.ResourceBinding{f.binding}, nil
+}
+
+func (f *fakeBindingNamespaceLister) Get(_ string) (*workv1alpha2.ResourceBinding, error) {
+	return f.binding, nil
+}
+
+type fakeClusterBindingLister struct {
+	binding *workv1alpha2.ClusterResourceBinding
+}
+
+func (f *fakeClusterBindingLister) List(_ labels.Selector) (ret []*workv1alpha2.ClusterResourceBinding, err error) {
+	return []*workv1alpha2.ClusterResourceBinding{f.binding}, nil
+}
+
+func (f *fakeClusterBindingLister) Get(_ string) (*workv1alpha2.ClusterResourceBinding, error) {
+	return f.binding, nil
 }
