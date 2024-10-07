@@ -58,6 +58,21 @@ func TestFilterBindings(t *testing.T) {
 			},
 			expected: 2,
 		},
+		{
+			name: "Invalid placement annotation",
+			bindings: []*workv1alpha2.ResourceBinding{
+				createBindingWithInvalidPlacementAnnotation("binding1", "apps/v1", "Deployment"),
+			},
+			expected: 0,
+		},
+		{
+			name: "Mix of valid and invalid annotations",
+			bindings: []*workv1alpha2.ResourceBinding{
+				createBindingWithInvalidPlacementAnnotation("binding1", "apps/v1", "Deployment"),
+				createBinding("binding2", "apps/v1", "Deployment", createValidPlacement()),
+			},
+			expected: 1,
+		},
 	}
 
 	for _, tt := range tests {
@@ -108,6 +123,30 @@ func TestValidateGVK(t *testing.T) {
 			},
 			expected: false,
 		},
+		{
+			name: "Empty APIVersion",
+			reference: &workv1alpha2.ObjectReference{
+				APIVersion: "",
+				Kind:       "Deployment",
+			},
+			expected: false,
+		},
+		{
+			name: "Empty Kind",
+			reference: &workv1alpha2.ObjectReference{
+				APIVersion: "apps/v1",
+				Kind:       "",
+			},
+			expected: false,
+		},
+		{
+			name: "Case-sensitive check",
+			reference: &workv1alpha2.ObjectReference{
+				APIVersion: "apps/v1",
+				Kind:       "deployment",
+			},
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -151,6 +190,30 @@ func TestValidatePlacement(t *testing.T) {
 			binding:  createBinding("binding5", "apps/v1", "Deployment", createPlacement(policyv1alpha1.ReplicaSchedulingTypeDivided, policyv1alpha1.ReplicaDivisionPreferenceWeighted, &policyv1alpha1.ClusterPreferences{DynamicWeight: policyv1alpha1.DynamicWeightByAvailableReplicas})),
 			expected: true,
 		},
+		{
+			name:     "Invalid JSON in placement annotation",
+			binding:  createBindingWithInvalidPlacementAnnotation("binding6", "apps/v1", "Deployment"),
+			expected: false,
+		},
+		{
+			name: "Valid JSON but invalid placement structure",
+			binding: func() *workv1alpha2.ResourceBinding {
+				b := createBinding("binding7", "apps/v1", "Deployment", nil)
+				b.Annotations = map[string]string{util.PolicyPlacementAnnotation: `{"invalidField": "value"}`}
+				return b
+			}(),
+			expected: false,
+		},
+		{
+			name: "Nil ReplicaScheduling",
+			binding: func() *workv1alpha2.ResourceBinding {
+				p := &policyv1alpha1.Placement{
+					ReplicaScheduling: nil,
+				}
+				return createBinding("binding8", "apps/v1", "Deployment", p)
+			}(),
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -161,6 +224,12 @@ func TestValidatePlacement(t *testing.T) {
 			}
 		})
 	}
+}
+
+func createBindingWithInvalidPlacementAnnotation(name, apiVersion, kind string) *workv1alpha2.ResourceBinding {
+	binding := createBinding(name, apiVersion, kind, nil)
+	binding.Annotations = map[string]string{util.PolicyPlacementAnnotation: "invalid json"}
+	return binding
 }
 
 func createBinding(name, apiVersion, kind string, placement *policyv1alpha1.Placement) *workv1alpha2.ResourceBinding {
