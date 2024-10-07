@@ -20151,6 +20151,10 @@
           "type": "integer",
           "format": "int32"
         },
+        "priorityClassName": {
+          "description": "PriorityClassName represents the resources priorityClassName",
+          "type": "string"
+        },
         "resourceRequest": {
           "description": "ResourceRequest represents the resources required by each replica.",
           "type": "object",

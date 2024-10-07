@@ -203,6 +203,10 @@ type ReplicaRequirements struct {
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
 
+	// PriorityClassName represents the resources priorityClassName
+	// +optional
+	PriorityClassName string `json:"priorityClassName,omitempty"`
+
 	// Priority represents the integer value of resourcebinding's priority. A 1000000000 max value means a non-preemptable replica
 	// +optional
 	Priority int32 `json:"priority,omitempty"`

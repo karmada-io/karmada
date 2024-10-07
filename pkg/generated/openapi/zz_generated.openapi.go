@@ -7035,6 +7035,13 @@ func schema_pkg_apis_work_v1alpha2_ReplicaRequirements(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
+					"priorityClassName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PriorityClassName represents the resources priorityClassName",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"priority": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Priority represents the integer value of resourcebinding's priority. A 1000000000 max value means a non-preemptable replica",
