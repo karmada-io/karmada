@@ -20,13 +20,16 @@ import (
 	"context"
 	"net"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/config"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
 
@@ -495,4 +498,187 @@ func TestKarmadaSchedulerImage(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCommandInitOption_parseEtcdNodeSelectorLabelsMap(t *testing.T) {
+	tests := []struct {
+		name     string
+		opt      CommandInitOption
+		wantErr  bool
+		expected map[string]string
+	}{
+		{
+			name: "Valid labels",
+			opt: CommandInitOption{
+				EtcdNodeSelectorLabels: "kubernetes.io/os=linux,hello=world",
+			},
+			wantErr: false,
+			expected: map[string]string{
+				"kubernetes.io/os": "linux",
+				"hello":            "world",
+			},
+		},
+		{
+			name: "Invalid labels without equal sign",
+			opt: CommandInitOption{
+				EtcdNodeSelectorLabels: "invalidlabel",
+			},
+			wantErr:  true,
+			expected: nil,
+		},
+		{
+			name: "Labels with extra spaces",
+			opt: CommandInitOption{
+				EtcdNodeSelectorLabels: "  key1 = value1 , key2=value2  ",
+			},
+			wantErr: false,
+			expected: map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.opt.parseEtcdNodeSelectorLabelsMap()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseEtcdNodeSelectorLabelsMap() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && !reflect.DeepEqual(tt.opt.EtcdNodeSelectorLabelsMap, tt.expected) {
+				t.Errorf("parseEtcdNodeSelectorLabelsMap() = %v, want %v", tt.opt.EtcdNodeSelectorLabelsMap, tt.expected)
+			}
+		})
+	}
+}
+
+func TestParseInitConfig(t *testing.T) {
+	cfg := &config.InitConfiguration{
+		GeneralConfig: config.GeneralConfig{
+			Namespace:                 "test-namespace",
+			KubeConfigPath:            "/path/to/kubeconfig",
+			KubeImageTag:              "v1.21.0",
+			Context:                   "test-context",
+			StorageClassesName:        "fast",
+			PrivateImageRegistry:      "test-registry",
+			WaitComponentReadyTimeout: 200,
+			Port:                      32443,
+		},
+		CertificateConfig: config.CertificateConfig{
+			ExternalDNS:    []string{"dns1", "dns2"},
+			ExternalIP:     []string{"1.2.3.4", "5.6.7.8"},
+			ValidityPeriod: "8760h",
+			CaCertFile:     "/path/to/ca.crt",
+			CaCertKeyFile:  "/path/to/ca.key",
+			ExtraArgs:      []config.Arg{{Name: "arg1", Value: "value1"}},
+		},
+		EtcdConfig: config.EtcdConfig{
+			Local: &config.LocalEtcd{
+				Image:     "etcd-image",
+				InitImage: "init-image",
+				DataDir:   "/data/dir",
+				PVCSize:   "5Gi",
+				NodeSelectorLabels: map[string]string{
+					"key": "value",
+				},
+				StorageMode: "PVC",
+				Replicas:    3,
+				ExtraArgs:   []config.Arg{{Name: "etcd-arg1", Value: "etcd-value1"}},
+			},
+			External: &config.ExternalEtcd{
+				ExternalCAPath:   "/etc/ssl/certs/ca-certificates.crt",
+				ExternalCertPath: "/path/to/certificate.pem",
+				ExternalKeyPath:  "/path/to/privatekey.pem",
+				ExternalServers:  "https://example.com:8443",
+				ExternalPrefix:   "ext-",
+				ExtraArgs:        []config.Arg{{Name: "ext-etcd-arg1", Value: "ext-etcd-value1"}},
+			},
+		},
+		KarmadaControlPlaneConfig: config.KarmadaControlPlaneConfig{
+			APIServer: config.APIServerConfig{
+				Image:            "apiserver-image",
+				AdvertiseAddress: "192.168.1.1",
+				Replicas:         2,
+				NodePort:         32443,
+				ExtraArgs:        []config.Arg{{Name: "api-arg1", Value: "api-value1"}},
+			},
+			ControllerManager: config.ControllerManagerConfig{
+				Image:     "controller-manager-image",
+				Replicas:  2,
+				ExtraArgs: []config.Arg{{Name: "cm-arg1", Value: "cm-value1"}},
+			},
+			Scheduler: config.SchedulerConfig{
+				Image:     "scheduler-image",
+				Replicas:  2,
+				ExtraArgs: []config.Arg{{Name: "sched-arg1", Value: "sched-value1"}},
+			},
+			Webhook: config.WebhookConfig{
+				Image:     "webhook-image",
+				Replicas:  2,
+				ExtraArgs: []config.Arg{{Name: "webhook-arg1", Value: "webhook-value1"}},
+			},
+			AggregatedAPIServerConfig: config.AggregatedAPIServerConfig{
+				Image:     "aggregated-apiserver-image",
+				Replicas:  2,
+				ExtraArgs: []config.Arg{{Name: "aggregated-arg1", Value: "aggregated-value1"}},
+			},
+			KubeControllerManagerConfig: config.KubeControllerManagerConfig{
+				Image:     "kube-controller-manager-image",
+				Replicas:  2,
+				ExtraArgs: []config.Arg{{Name: "kcm-arg1", Value: "kcm-value1"}},
+			},
+			DataPath:          "/etc/karmada",
+			PkiPath:           "/etc/karmada/pki",
+			CRDs:              "/etc/karmada/crds",
+			HostClusterDomain: "cluster.local",
+		},
+		ImageConfig: config.ImageConfig{
+			KubeImageTag:           "v1.21.0",
+			KubeImageRegistry:      "registry",
+			KubeImageMirrorCountry: "cn",
+			ImagePullPolicy:        "IfNotPresent",
+			ImagePullSecrets:       []string{"secret1", "secret2"},
+		},
+	}
+
+	opt := &CommandInitOption{}
+	err := opt.parseInitConfig(cfg)
+	assert.NoError(t, err)
+	assert.Equal(t, "test-namespace", opt.Namespace)
+	assert.Equal(t, "/path/to/kubeconfig", opt.KubeConfig)
+	assert.Equal(t, "test-registry", opt.ImageRegistry)
+	assert.Equal(t, 200, opt.WaitComponentReadyTimeout)
+	assert.Equal(t, "dns1,dns2", opt.ExternalDNS)
+	assert.Equal(t, "1.2.3.4,5.6.7.8", opt.ExternalIP)
+	assert.Equal(t, parseDuration("8760h"), opt.CertValidity)
+	assert.Equal(t, "etcd-image", opt.EtcdImage)
+	assert.Equal(t, "init-image", opt.EtcdInitImage)
+	assert.Equal(t, "/data/dir", opt.EtcdHostDataPath)
+	assert.Equal(t, "5Gi", opt.EtcdPersistentVolumeSize)
+	assert.Equal(t, "key=value", opt.EtcdNodeSelectorLabels)
+	assert.Equal(t, "PVC", opt.EtcdStorageMode)
+	assert.Equal(t, int32(3), opt.EtcdReplicas)
+	assert.Equal(t, "apiserver-image", opt.KarmadaAPIServerImage)
+	assert.Equal(t, "192.168.1.1", opt.KarmadaAPIServerAdvertiseAddress)
+	assert.Equal(t, int32(2), opt.KarmadaAPIServerReplicas)
+	assert.Equal(t, "registry", opt.KubeImageRegistry)
+	assert.Equal(t, "cn", opt.KubeImageMirrorCountry)
+	assert.Equal(t, "IfNotPresent", opt.ImagePullPolicy)
+	assert.Equal(t, []string{"secret1", "secret2"}, opt.PullSecrets)
+}
+
+func TestParseInitConfig_MissingFields(t *testing.T) {
+	cfg := &config.InitConfiguration{
+		GeneralConfig: config.GeneralConfig{
+			Namespace: "test-namespace",
+		},
+	}
+
+	opt := &CommandInitOption{}
+	err := opt.parseInitConfig(cfg)
+	assert.NoError(t, err)
+	assert.Equal(t, "test-namespace", opt.Namespace)
+	assert.Empty(t, opt.KubeConfig)
+	assert.Empty(t, opt.KubeImageTag)
 }
