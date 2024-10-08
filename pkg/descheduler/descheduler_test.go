@@ -18,6 +18,8 @@ package descheduler
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -25,8 +27,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -39,9 +45,194 @@ import (
 	estimatorservice "github.com/karmada-io/karmada/pkg/estimator/service"
 	fakekarmadaclient "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
+	worklister "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
+
+func TestRecordDescheduleResultEventForResourceBinding(t *testing.T) {
+	tests := []struct {
+		name           string
+		rb             *workv1alpha2.ResourceBinding
+		message        string
+		err            error
+		expectedEvents []string
+	}{
+		{
+			name:           "Nil ResourceBinding",
+			rb:             nil,
+			message:        "Test message",
+			err:            nil,
+			expectedEvents: []string{},
+		},
+		{
+			name: "Successful descheduling",
+			rb: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding",
+					Namespace: "test-namespace",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{
+						APIVersion: "apps/v1",
+						Kind:       "Deployment",
+						Name:       "test-deployment",
+						Namespace:  "test-namespace",
+						UID:        types.UID("test-uid"),
+					},
+				},
+			},
+			message: "Descheduling succeeded",
+			err:     nil,
+			expectedEvents: []string{
+				"Normal DescheduleBindingSucceed Descheduling succeeded",
+				"Normal DescheduleBindingSucceed Descheduling succeeded",
+			},
+		},
+		{
+			name: "Failed descheduling",
+			rb: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding",
+					Namespace: "test-namespace",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{
+						APIVersion: "apps/v1",
+						Kind:       "Deployment",
+						Name:       "test-deployment",
+						Namespace:  "test-namespace",
+						UID:        types.UID("test-uid"),
+					},
+				},
+			},
+			message: "Descheduling failed",
+			err:     errors.New("descheduling error"),
+			expectedEvents: []string{
+				"Warning DescheduleBindingFailed descheduling error",
+				"Warning DescheduleBindingFailed descheduling error",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeRecorder := record.NewFakeRecorder(10)
+			d := &Descheduler{
+				eventRecorder: fakeRecorder,
+			}
+
+			d.recordDescheduleResultEventForResourceBinding(tt.rb, tt.message, tt.err)
+
+			close(fakeRecorder.Events)
+			actualEvents := []string{}
+			for event := range fakeRecorder.Events {
+				actualEvents = append(actualEvents, event)
+			}
+
+			assert.Equal(t, tt.expectedEvents, actualEvents, "Recorded events do not match expected events")
+		})
+	}
+}
+
+func TestUpdateCluster(t *testing.T) {
+	tests := []struct {
+		name        string
+		newObj      interface{}
+		expectedAdd bool
+	}{
+		{
+			name: "Valid cluster update",
+			newObj: &clusterv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster",
+				},
+			},
+			expectedAdd: true,
+		},
+		{
+			name:        "Invalid object type",
+			newObj:      &corev1.Pod{},
+			expectedAdd: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockWorker := &mockAsyncWorker{}
+			d := &Descheduler{
+				schedulerEstimatorWorker: mockWorker,
+			}
+
+			if tt.expectedAdd {
+				mockWorker.On("Add", mock.AnythingOfType("string")).Return()
+			}
+
+			d.updateCluster(nil, tt.newObj)
+
+			if tt.expectedAdd {
+				mockWorker.AssertCalled(t, "Add", "test-cluster")
+			} else {
+				mockWorker.AssertNotCalled(t, "Add", mock.Anything)
+			}
+		})
+	}
+}
+
+func TestDeleteCluster(t *testing.T) {
+	tests := []struct {
+		name        string
+		obj         interface{}
+		expectedAdd bool
+	}{
+		{
+			name: "Delete Cluster object",
+			obj: &clusterv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster",
+				},
+			},
+			expectedAdd: true,
+		},
+		{
+			name: "Delete DeletedFinalStateUnknown object",
+			obj: cache.DeletedFinalStateUnknown{
+				Obj: &clusterv1alpha1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-cluster",
+					},
+				},
+			},
+			expectedAdd: true,
+		},
+		{
+			name:        "Invalid object type",
+			obj:         &corev1.Pod{},
+			expectedAdd: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockWorker := &mockAsyncWorker{}
+			d := &Descheduler{
+				schedulerEstimatorWorker: mockWorker,
+			}
+
+			if tt.expectedAdd {
+				mockWorker.On("Add", mock.AnythingOfType("string")).Return()
+			}
+
+			d.deleteCluster(tt.obj)
+
+			if tt.expectedAdd {
+				mockWorker.AssertCalled(t, "Add", "test-cluster")
+			} else {
+				mockWorker.AssertNotCalled(t, "Add", mock.Anything)
+			}
+		})
+	}
+}
 
 func buildBinding(name, ns string, target, status []workv1alpha2.TargetCluster) (*workv1alpha2.ResourceBinding, error) {
 	bindingStatus := workv1alpha2.ResourceBindingStatus{}
@@ -629,4 +820,133 @@ func TestDescheduler_worker(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDescheduler_workerErrors(t *testing.T) {
+	tests := []struct {
+		name          string
+		key           interface{}
+		setupMocks    func(*Descheduler)
+		expectedError string
+	}{
+		{
+			name:          "Invalid key type",
+			key:           123,
+			setupMocks:    func(_ *Descheduler) {},
+			expectedError: "failed to deschedule as invalid key: 123",
+		},
+		{
+			name:          "Invalid resource key format",
+			key:           "invalid/key/format",
+			setupMocks:    func(_ *Descheduler) {},
+			expectedError: "invalid resource key: invalid/key/format",
+		},
+		{
+			name: "ResourceBinding not found",
+			key:  "default/non-existent-binding",
+			setupMocks: func(d *Descheduler) {
+				d.bindingLister = &mockBindingLister{
+					getErr: apierrors.NewNotFound(schema.GroupResource{Resource: "resourcebindings"}, "non-existent-binding"),
+				}
+			},
+			expectedError: "",
+		},
+		{
+			name: "Error getting ResourceBinding",
+			key:  "default/error-binding",
+			setupMocks: func(d *Descheduler) {
+				d.bindingLister = &mockBindingLister{
+					getErr: fmt.Errorf("internal error"),
+				}
+			},
+			expectedError: "get ResourceBinding(default/error-binding) error: internal error",
+		},
+		{
+			name: "ResourceBinding being deleted",
+			key:  "default/deleted-binding",
+			setupMocks: func(d *Descheduler) {
+				d.bindingLister = &mockBindingLister{
+					binding: &workv1alpha2.ResourceBinding{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:              "deleted-binding",
+							Namespace:         "default",
+							DeletionTimestamp: &metav1.Time{Time: time.Now()},
+						},
+					},
+				}
+			},
+			expectedError: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &Descheduler{}
+			tt.setupMocks(d)
+
+			err := d.worker(tt.key)
+
+			if tt.expectedError == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.EqualError(t, err, tt.expectedError)
+			}
+		})
+	}
+}
+
+// Mock Implementations
+
+type mockAsyncWorker struct {
+	mock.Mock
+}
+
+func (m *mockAsyncWorker) Add(item interface{}) {
+	m.Called(item)
+}
+
+func (m *mockAsyncWorker) AddAfter(item interface{}, duration time.Duration) {
+	m.Called(item, duration)
+}
+
+func (m *mockAsyncWorker) Run(_ int, _ <-chan struct{}) {}
+
+func (m *mockAsyncWorker) Enqueue(obj interface{}) {
+	m.Called(obj)
+}
+
+func (m *mockAsyncWorker) EnqueueAfter(obj interface{}, duration time.Duration) {
+	m.Called(obj, duration)
+}
+
+type mockBindingLister struct {
+	binding *workv1alpha2.ResourceBinding
+	getErr  error
+}
+
+func (m *mockBindingLister) List(_ labels.Selector) (ret []*workv1alpha2.ResourceBinding, err error) {
+	return nil, nil
+}
+
+func (m *mockBindingLister) ResourceBindings(_ string) worklister.ResourceBindingNamespaceLister {
+	return &mockBindingNamespaceLister{
+		binding: m.binding,
+		getErr:  m.getErr,
+	}
+}
+
+type mockBindingNamespaceLister struct {
+	binding *workv1alpha2.ResourceBinding
+	getErr  error
+}
+
+func (m *mockBindingNamespaceLister) List(_ labels.Selector) (ret []*workv1alpha2.ResourceBinding, err error) {
+	return nil, nil
+}
+
+func (m *mockBindingNamespaceLister) Get(_ string) (*workv1alpha2.ResourceBinding, error) {
+	if m.getErr != nil {
+		return nil, m.getErr
+	}
+	return m.binding, nil
 }
