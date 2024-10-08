@@ -35,20 +35,20 @@ spec:
         - command:
             - kube-controller-manager
             - --allocate-node-cidrs=true
-            - --authentication-kubeconfig=/etc/kubeconfig
-            - --authorization-kubeconfig=/etc/kubeconfig
+            - --authentication-kubeconfig=/etc/karmada/config/karmada.config
+            - --authorization-kubeconfig=/etc/karmada/config/karmada.config
             - --bind-address=0.0.0.0
-            - --client-ca-file=/etc/karmada/pki/ca.crt
+            - --client-ca-file=/etc/karmada/pki/ca/tls.crt
             - --cluster-cidr=10.244.0.0/16
             - --cluster-name=karmada
-            - --cluster-signing-cert-file=/etc/karmada/pki/ca.crt
-            - --cluster-signing-key-file=/etc/karmada/pki/ca.key
+            - --cluster-signing-cert-file=/etc/karmada/pki/ca/tls.crt
+            - --cluster-signing-key-file=/etc/karmada/pki/ca/tls.key
             - --controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrapproving,csrcleaner,csrsigning,clusterrole-aggregation
-            - --kubeconfig=/etc/kubeconfig
+            - --kubeconfig=/etc/karmada/config/karmada.config
             - --leader-elect=true
             - --node-cidr-mask-size=24
-            - --root-ca-file=/etc/karmada/pki/ca.crt
-            - --service-account-private-key-file=/etc/karmada/pki/karmada.key
+            - --root-ca-file=/etc/karmada/pki/ca/tls.crt
+            - --service-account-private-key-file=/etc/karmada/pki/server/tls.key
             - --service-cluster-ip-range=10.96.0.0/12
             - --use-service-account-credentials=true
             - --v=4
@@ -69,17 +69,23 @@ spec:
             requests:
               cpu: 200m
           volumeMounts:
-            - mountPath: /etc/karmada/pki
-              name: karmada-certs
+            - mountPath: /etc/karmada/pki/ca
+              name: ca-key-pair
               readOnly: true
-            - mountPath: /etc/kubeconfig
-              subPath: kubeconfig
-              name: kubeconfig
+            - mountPath: /etc/karmada/pki/server
+              name: server-cert
+              readOnly: true
+            - mountPath: /etc/karmada/config
+              name: karmada-config
+              readOnly: true
       priorityClassName: system-node-critical
       volumes:
-        - name: karmada-certs
+        - name: ca-key-pair
           secret:
-            secretName: karmada-cert-secret
-        - name: kubeconfig
+            secretName: ca-key-pair
+        - name: server-cert
           secret:
-            secretName: kubeconfig
+            secretName: server-cert
+        - name: karmada-config
+          secret:
+            secretName: karmada-config
