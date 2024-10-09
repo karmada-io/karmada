@@ -43,7 +43,7 @@ func NewDecoder(scheme *runtime.Scheme) *Decoder {
 // It errors out if req.Object.Raw is empty i.e. containing 0 raw bytes.
 func (d *Decoder) Decode(req Request, into runtime.Object) error {
 	if len(req.Object.Raw) == 0 {
-		return fmt.Errorf("there is no context to decode")
+		return fmt.Errorf("there is no content to decode")
 	}
 	return d.DecodeRaw(req.Object, into)
 }
