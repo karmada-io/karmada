@@ -202,19 +202,37 @@ function util::install_helm {
     curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 }
 
-# util::create_signing_certkey creates a CA, args are sudo, dest-dir, ca-id, purpose
+# util::create_signing_certkey creates a CA, args are sudo, dest-dir, ca-id, purpose, expiry, not_before and not_after
+# expiry must not be empty and can be used in conjunction with not_before or not_after. When both not_before and not_after are set, expiry is ignored.
 function util::create_signing_certkey {
     local sudo=$1
     local dest_dir=$2
     local id=$3
     local cn=$4
     local purpose=$5
+    local expiry=$6
+    local not_before=$7
+    local not_after=$8
+    if [ -z ${expiry} ]; then
+      echo "expiry cannot be empty"
+      exit 1
+    fi
+
+    local ca_config='{"signing":{"default":{"expiry":"'"${expiry}"'","usages":["signing","key encipherment",'"${purpose}"']}}}'
+    if [[ -n "$not_before" && -n "$not_after" ]]; then
+        ca_config='{"signing":{"default":{"expiry":"'"${expiry}"'","not_before":"'"${not_before}"'","not_after":"'"${not_after}"'","usages":["signing","key encipherment",'"${purpose}"']}}}'
+    elif [[ -n "$not_before" ]]; then
+        ca_config='{"signing":{"default":{"expiry":"'"${expiry}"'","not_before":"'"${not_before}"'","usages":["signing","key encipherment",'"${purpose}"']}}}'
+    elif [[ -n "$not_after" ]]; then
+        ca_config='{"signing":{"default":{"expiry":"'"${expiry}"'","not_after":"'"${not_after}"'","usages":["signing","key encipherment",'"${purpose}"']}}}'
+    fi
+
     OPENSSL_BIN=$(command -v openssl)
     # Create ca
     ${sudo} /usr/bin/env bash -e <<EOF
     rm -f "${dest_dir}/${id}.crt" "${dest_dir}/${id}.key"
     ${OPENSSL_BIN} req -x509 -sha256 -new -nodes -days 3650 -newkey rsa:3072 -keyout "${dest_dir}/${id}.key" -out "${dest_dir}/${id}.crt" -subj "/CN=${cn}/"
-    echo '{"signing":{"default":{"expiry":"43800h","usages":["signing","key encipherment",${purpose}]}}}' > "${dest_dir}/${id}-config.json"
+    echo '${ca_config}' > "${dest_dir}/${id}-config.json"
 EOF
 }
 

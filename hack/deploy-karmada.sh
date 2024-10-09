@@ -32,6 +32,9 @@ ROOT_CA_FILE=${CERT_DIR}/ca.crt
 ROOT_CA_KEY=${CERT_DIR}/ca.key
 CFSSL_VERSION="v1.6.5"
 LOAD_BALANCER=${LOAD_BALANCER:-false} # whether create a 'LoadBalancer' type service for karmada apiserver
+CERTIFIACATE_EXPIRY=${CERTIFIACATE_EXPIRY:-"43800h"}
+CERTIFIACATE_NOT_BEFORE=${CERTIFIACATE_NOT_BEFORE:-""}
+CERTIFIACATE_NOT_AFTER=${CERTIFIACATE_NOT_AFTER:-""}
 source "${REPO_ROOT}"/hack/util.sh
 
 function usage() {
@@ -148,9 +151,9 @@ interpreter_webhook_example_service_external_ip_address=${interpreter_webhook_ex
 util::cmd_must_exist "openssl"
 util::cmd_must_exist_cfssl ${CFSSL_VERSION}
 # create CA signers
-util::create_signing_certkey "" "${CERT_DIR}" ca karmada '"client auth","server auth"'
-util::create_signing_certkey "" "${CERT_DIR}" front-proxy-ca front-proxy-ca '"client auth","server auth"'
-util::create_signing_certkey "" "${CERT_DIR}" etcd-ca etcd-ca '"client auth","server auth"'
+util::create_signing_certkey "" "${CERT_DIR}" ca karmada '"client auth","server auth"' "${CERTIFIACATE_EXPIRY}" "${CERTIFIACATE_NOT_BEFORE}" "${CERTIFIACATE_NOT_AFTER}"
+util::create_signing_certkey "" "${CERT_DIR}" front-proxy-ca front-proxy-ca '"client auth","server auth"' "${CERTIFIACATE_EXPIRY}" "${CERTIFIACATE_NOT_BEFORE}" "${CERTIFIACATE_NOT_AFTER}"
+util::create_signing_certkey "" "${CERT_DIR}" etcd-ca etcd-ca '"client auth","server auth"' "${CERTIFIACATE_EXPIRY}" "${CERTIFIACATE_NOT_BEFORE}" "${CERTIFIACATE_NOT_AFTER}"
 # signs a certificate
 util::create_certkey "" "${CERT_DIR}" "ca" karmada system:admin "system:masters" kubernetes.default.svc "*.etcd.karmada-system.svc.cluster.local" "*.karmada-system.svc.cluster.local" "*.karmada-system.svc" "localhost" "127.0.0.1" "${interpreter_webhook_example_service_external_ip_address}"
 util::create_certkey "" "${CERT_DIR}" "ca" apiserver karmada-apiserver "" "*.etcd.karmada-system.svc.cluster.local" "*.karmada-system.svc.cluster.local" "*.karmada-system.svc" "localhost" "127.0.0.1" $(util::get_apiserver_ip_from_kubeconfig "${HOST_CLUSTER_NAME}")

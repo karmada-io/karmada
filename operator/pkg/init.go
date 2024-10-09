@@ -21,13 +21,16 @@ import (
 	"fmt"
 	"net/url"
 	"sync"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	utilversion "k8s.io/apimachinery/pkg/util/version"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/certs"
@@ -48,6 +51,7 @@ type InitOptions struct {
 	Namespace      string
 	Kubeconfig     *rest.Config
 	KarmadaVersion string
+	CertConfig     operatorv1alpha1.CertConfig
 	CRDTarball     operatorv1alpha1.CRDTarball
 	KarmadaDataDir string
 	Karmada        *operatorv1alpha1.Karmada
@@ -65,6 +69,16 @@ func (opt *InitOptions) Validate() error {
 			return fmt.Errorf("unexpected invalid crds remote url %s", opt.CRDTarball.HTTPSource.URL)
 		}
 	}
+
+	if opt.CertConfig.Expiry < 0 {
+		return fmt.Errorf("invalid cert expiry: %d", opt.CertConfig.Expiry)
+	}
+	if opt.CertConfig.NotAfter != nil {
+		if opt.CertConfig.NotAfter.Before(opt.CertConfig.NotBefore) {
+			return fmt.Errorf("invalid not_after")
+		}
+	}
+
 	if !util.IsInCluster(opt.Karmada.Spec.HostCluster) && opt.Karmada.Spec.Components.KarmadaAPIServer.ServiceType == corev1.ServiceTypeClusterIP {
 		return fmt.Errorf("if karmada is installed in a remote cluster, the service type of karmada-apiserver must be either NodePort or LoadBalancer")
 	}
@@ -102,6 +116,7 @@ type initData struct {
 	remoteClient        clientset.Interface
 	karmadaClient       clientset.Interface
 	dnsDomain           string
+	CertConfig          operatorv1alpha1.CertConfig
 	CRDTarball          operatorv1alpha1.CRDTarball
 	karmadaDataDir      string
 	privateRegistry     string
@@ -184,6 +199,7 @@ func newRunData(opt *InitOptions) (*initData, error) {
 		controlplaneAddress: address,
 		remoteClient:        remoteClient,
 		CRDTarball:          opt.CRDTarball,
+		CertConfig:          opt.CertConfig,
 		karmadaDataDir:      opt.KarmadaDataDir,
 		privateRegistry:     privateRegistry,
 		components:          opt.Karmada.Spec.Components,
@@ -239,6 +255,10 @@ func (data *initData) CrdTarball() operatorv1alpha1.CRDTarball {
 	return data.CRDTarball
 }
 
+func (data *initData) GetCertConfig() operatorv1alpha1.CertConfig {
+	return data.CertConfig
+}
+
 func (data *initData) KarmadaVersion() string {
 	return data.karmadaVersion.String()
 }
@@ -276,6 +296,7 @@ func defaultJobInitOptions() *InitOptions {
 				URL: fmt.Sprintf(defaultCrdURL, operatorv1alpha1.DefaultKarmadaImageVersion),
 			},
 		},
+		CertConfig:     operatorv1alpha1.CertConfig{},
 		KarmadaVersion: operatorv1alpha1.DefaultKarmadaImageVersion,
 		KarmadaDataDir: constants.KarmadaDataDir,
 		Karmada:        karmada,
@@ -290,6 +311,15 @@ func NewInitOptWithKarmada(karmada *operatorv1alpha1.Karmada) InitOpt {
 		o.Namespace = karmada.GetNamespace()
 		if karmada.Spec.CRDTarball != nil {
 			o.CRDTarball = *karmada.Spec.CRDTarball
+		}
+		if karmada.Spec.CertConfig != nil {
+			o.CertConfig = *karmada.Spec.CertConfig
+		}
+		if o.CertConfig.NotBefore == nil {
+			o.CertConfig.NotBefore = ptr.To[metav1.Time](metav1.NewTime(time.Now()))
+		}
+		if o.CertConfig.NotAfter == nil {
+			o.CertConfig.NotAfter = ptr.To[metav1.Time](metav1.NewTime(o.CertConfig.NotBefore.Add(time.Hour * 24 * time.Duration(o.CertConfig.Expiry))))
 		}
 	}
 }
