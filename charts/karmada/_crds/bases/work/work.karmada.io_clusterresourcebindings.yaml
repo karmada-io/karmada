@@ -1094,6 +1094,11 @@ spec:
                           type: object
                         type: array
                     type: object
+                  priority:
+                    description: Priority represents the integer value of resourcebinding's
+                      priority. A 1000000000 max value means a non-preemptable replica
+                    format: int32
+                    type: integer
                   priorityClassName:
                     description: PriorityClassName represents the resources priorityClassName
                     type: string

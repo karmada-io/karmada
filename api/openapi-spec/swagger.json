@@ -20146,6 +20146,11 @@
           "description": "NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.NodeClaim"
         },
+        "priority": {
+          "description": "Priority represents the integer value of resourcebinding's priority. A 1000000000 max value means a non-preemptable replica",
+          "type": "integer",
+          "format": "int32"
+        },
         "priorityClassName": {
           "description": "PriorityClassName represents the resources priorityClassName",
           "type": "string"
