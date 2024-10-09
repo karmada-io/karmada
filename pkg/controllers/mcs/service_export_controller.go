@@ -494,7 +494,7 @@ func reportEndpointSlice(ctx context.Context, c client.Client, endpointSlice *un
 		return err
 	}
 
-	if err := helper.CreateOrUpdateWork(ctx, c, workMeta, endpointSlice, nil); err != nil {
+	if err := helper.CreateOrUpdateWork(ctx, c, workMeta, endpointSlice); err != nil {
 		return err
 	}
 

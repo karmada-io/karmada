@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -38,7 +39,7 @@ import (
 	"github.com/karmada-io/karmada/test/helper"
 )
 
-var _ = ginkgo.Describe("Seamless migration testing", func() {
+var _ = ginkgo.Describe("Seamless migration and rollback testing", func() {
 	var member1 string
 	var member1Client kubernetes.Interface
 
@@ -51,7 +52,7 @@ var _ = ginkgo.Describe("Seamless migration testing", func() {
 	ginkgo.Context("Test migrate namespaced resource: Deployment", func() {
 		var deployment *appsv1.Deployment
 		var propagationPolicy *policyv1alpha1.PropagationPolicy
-		var bindingName string
+		var bindingName, workName, workNamespace string
 
 		ginkgo.BeforeEach(func() {
 			deployment = helper.NewDeployment(testNamespace, deploymentNamePrefix+rand.String(RandomStrLength))
@@ -65,6 +66,8 @@ var _ = ginkgo.Describe("Seamless migration testing", func() {
 				ClusterAffinity: &policyv1alpha1.ClusterAffinity{ClusterNames: []string{member1}},
 			})
 			bindingName = names.GenerateBindingName(deployment.Kind, deployment.Name)
+			workName = names.GenerateWorkName(deployment.Kind, deployment.Name, deployment.Namespace)
+			workNamespace = names.GenerateExecutionSpaceName(member1)
 		})
 
 		ginkgo.BeforeEach(func() {
@@ -76,8 +79,8 @@ var _ = ginkgo.Describe("Seamless migration testing", func() {
 			framework.CreatePropagationPolicy(karmadaClient, propagationPolicy)
 
 			ginkgo.DeferCleanup(func() {
-				// Delete Deployment in karmada control plane
-				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				// Delete Deployment in member cluster
+				framework.RemoveDeployment(member1Client, deployment.Namespace, deployment.Name)
 				// Delete PropagationPolicy in karmada control plane
 				framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
 
@@ -103,9 +106,10 @@ var _ = ginkgo.Describe("Seamless migration testing", func() {
 				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			})
 
-			// Step 2, Update PropagationPolicy in karmada control plane with conflictResolution=Overwrite
+			// Step 2, Update PropagationPolicy in karmada control plane with conflictResolution=Overwrite and preserveResourcesOnDeletion=true
 			ginkgo.By(fmt.Sprintf("Update PropagationPolicy %s in karmada control plane with conflictResolution=Overwrite", propagationPolicy.Name), func() {
 				propagationPolicy.Spec.ConflictResolution = policyv1alpha1.ConflictOverwrite
+				propagationPolicy.Spec.PreserveResourcesOnDeletion = ptr.To[bool](true)
 				framework.UpdatePropagationPolicyWithSpec(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name, propagationPolicy.Spec)
 			})
 
@@ -122,6 +126,19 @@ var _ = ginkgo.Describe("Seamless migration testing", func() {
 				gomega.Expect(items[0].Applied).Should(gomega.BeTrue())
 				gomega.Expect(items[0].Health).Should(gomega.Equal(workv1alpha2.ResourceHealthy))
 			})
+
+			// Step 4, Delete resource template and check whether member cluster resource is preserved
+			ginkgo.By("Delete resource template and check whether member cluster resource is preserved", func() {
+				// Delete Deployment in karmada control plane
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+
+				// Wait for work deleted
+				framework.WaitForWorkToDisappear(karmadaClient, workNamespace, workName)
+
+				// Check member cluster resource is preserved
+				framework.WaitDeploymentPresentOnClusterFitWith(member1, deployment.Namespace, deployment.Name,
+					func(*appsv1.Deployment) bool { return true })
+			})
 		})
 	})
 
@@ -129,7 +146,7 @@ var _ = ginkgo.Describe("Seamless migration testing", func() {
 		var clusterRoleName string
 		var clusterRole *rbacv1.ClusterRole
 		var cpp *policyv1alpha1.ClusterPropagationPolicy
-		var bindingName string
+		var bindingName, workName, workNamespace string
 
 		ginkgo.BeforeEach(func() {
 			clusterRoleName = clusterRoleNamePrefix + rand.String(RandomStrLength)
@@ -151,7 +168,10 @@ var _ = ginkgo.Describe("Seamless migration testing", func() {
 				ClusterAffinity: &policyv1alpha1.ClusterAffinity{ClusterNames: []string{member1}},
 			})
 			cpp.Spec.ConflictResolution = policyv1alpha1.ConflictOverwrite
+			cpp.Spec.PreserveResourcesOnDeletion = ptr.To[bool](true)
 			bindingName = names.GenerateBindingName(clusterRole.Kind, clusterRole.Name)
+			workName = names.GenerateWorkName(clusterRole.Kind, clusterRole.Name, clusterRole.Namespace)
+			workNamespace = names.GenerateExecutionSpaceName(member1)
 		})
 
 		ginkgo.BeforeEach(func() {
@@ -163,8 +183,8 @@ var _ = ginkgo.Describe("Seamless migration testing", func() {
 			framework.CreateClusterPropagationPolicy(karmadaClient, cpp)
 
 			ginkgo.DeferCleanup(func() {
-				// Delete ClusterRole in karmada control plane
-				framework.RemoveClusterRole(kubeClient, clusterRoleName)
+				// Delete ClusterRole in member cluster
+				framework.RemoveClusterRole(member1Client, clusterRoleName)
 				// Delete ClusterPropagationPolicy in karmada control plane
 				framework.RemoveClusterPropagationPolicy(karmadaClient, cpp.Name)
 
@@ -187,6 +207,17 @@ var _ = ginkgo.Describe("Seamless migration testing", func() {
 					return e1 == nil && e2 == nil && len(binding.Status.AggregatedStatus) > 0 && binding.Status.AggregatedStatus[0].Applied
 				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			})
+
+			ginkgo.By("Delete resource template and check whether member cluster resource is preserved", func() {
+				// Delete ClusterRole in karmada control plane
+				framework.RemoveClusterRole(kubeClient, clusterRole.Name)
+
+				// Wait for work deleted
+				framework.WaitForWorkToDisappear(karmadaClient, workNamespace, workName)
+
+				// Check member cluster resource is preserved
+				framework.WaitClusterRolePresentOnClusterFitWith(member1, clusterRole.Name, func(*rbacv1.ClusterRole) bool { return true })
+			})
 		})
 	})
 
@@ -194,7 +225,7 @@ var _ = ginkgo.Describe("Seamless migration testing", func() {
 		var serviceName string
 		var service *corev1.Service
 		var pp *policyv1alpha1.PropagationPolicy
-		var bindingName string
+		var bindingName, workName, workNamespace string
 
 		ginkgo.BeforeEach(func() {
 			serviceName = serviceNamePrefix + rand.String(RandomStrLength)
@@ -209,7 +240,10 @@ var _ = ginkgo.Describe("Seamless migration testing", func() {
 				ClusterAffinity: &policyv1alpha1.ClusterAffinity{ClusterNames: []string{member1}},
 			})
 			pp.Spec.ConflictResolution = policyv1alpha1.ConflictOverwrite
+			pp.Spec.PreserveResourcesOnDeletion = ptr.To[bool](true)
 			bindingName = names.GenerateBindingName(service.Kind, service.Name)
+			workName = names.GenerateWorkName(service.Kind, service.Name, service.Namespace)
+			workNamespace = names.GenerateExecutionSpaceName(member1)
 		})
 
 		ginkgo.BeforeEach(func() {
@@ -221,8 +255,8 @@ var _ = ginkgo.Describe("Seamless migration testing", func() {
 			framework.CreatePropagationPolicy(karmadaClient, pp)
 
 			ginkgo.DeferCleanup(func() {
-				// Delete Service in karmada control plane
-				framework.RemoveService(kubeClient, testNamespace, serviceName)
+				// Delete Service in member cluster
+				framework.RemoveService(member1Client, testNamespace, serviceName)
 				// Delete PropagationPolicy in karmada control plane
 				framework.RemovePropagationPolicy(karmadaClient, testNamespace, pp.Name)
 
@@ -244,6 +278,18 @@ var _ = ginkgo.Describe("Seamless migration testing", func() {
 
 					return e1 == nil && e2 == nil && len(binding.Status.AggregatedStatus) > 0 && binding.Status.AggregatedStatus[0].Applied
 				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+			})
+
+			ginkgo.By("Delete resource template and check whether member cluster resource is preserved", func() {
+				// Delete Service in karmada control plane
+				framework.RemoveService(kubeClient, service.Namespace, service.Name)
+
+				// Wait for work deleted
+				framework.WaitForWorkToDisappear(karmadaClient, workNamespace, workName)
+
+				// Check member cluster resource is preserved
+				framework.WaitServicePresentOnClusterFitWith(member1, service.Namespace, service.Name,
+					func(*corev1.Service) bool { return true })
 			})
 		})
 	})
