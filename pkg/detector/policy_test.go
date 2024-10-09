@@ -447,7 +447,7 @@ func Test_cleanUnmatchedCRBs(t *testing.T) {
 	}
 }
 
-func Test_removeRBsMarks(t *testing.T) {
+func Test_removeRBsClaimMetadata(t *testing.T) {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(appsv1.AddToScheme(scheme))
@@ -664,15 +664,15 @@ func Test_removeRBsMarks(t *testing.T) {
 				RESTMapper:      fakeClient.RESTMapper(),
 				InformerManager: genMgr,
 			}
-			err := resourceDetector.removeRBsMarks(tt.bindings, tt.selectors, tt.removeLabels, tt.removeAnnotations)
+			err := resourceDetector.removeRBsClaimMetadata(tt.bindings, tt.selectors, tt.removeLabels, tt.removeAnnotations)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("removeRBsMarks() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("removeRBsClaimMetadata() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func Test_removeCRBsMarks(t *testing.T) {
+func Test_removeCRBsClaimMetadata(t *testing.T) {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(appsv1.AddToScheme(scheme))
@@ -889,15 +889,15 @@ func Test_removeCRBsMarks(t *testing.T) {
 				RESTMapper:      fakeClient.RESTMapper(),
 				InformerManager: genMgr,
 			}
-			err := resourceDetector.removeCRBsMarks(tt.bindings, tt.selectors, tt.removeLabels, tt.removeAnnotations)
+			err := resourceDetector.removeCRBsClaimMetadata(tt.bindings, tt.selectors, tt.removeLabels, tt.removeAnnotations)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("removeCRBsMarks() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("removeCRBsClaimMetadata() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func Test_removeResourceMarksIfNotMatched(t *testing.T) {
+func Test_removeResourceClaimMetadataIfNotMatched(t *testing.T) {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(appsv1.AddToScheme(scheme))
@@ -1113,13 +1113,13 @@ func Test_removeResourceMarksIfNotMatched(t *testing.T) {
 				InformerManager: genMgr,
 			}
 
-			updated, err := resourceDetector.removeResourceMarksIfNotMatched(tt.objectReference, tt.selectors, tt.labels, tt.annotations)
+			updated, err := resourceDetector.removeResourceClaimMetadataIfNotMatched(tt.objectReference, tt.selectors, tt.labels, tt.annotations)
 
 			if (err != nil) != tt.wantErr {
-				t.Errorf("removeResourceMarksIfNotMatched() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("removeResourceClaimMetadataIfNotMatched() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if updated != tt.wantUpdated {
-				t.Errorf("removeResourceMarksIfNotMatched() = %v, want %v", updated, tt.wantUpdated)
+				t.Errorf("removeResourceClaimMetadataIfNotMatched() = %v, want %v", updated, tt.wantUpdated)
 			}
 		})
 	}
@@ -1363,26 +1363,54 @@ func Test_listCPPDerivedCRBs(t *testing.T) {
 
 func Test_excludeClusterPolicy(t *testing.T) {
 	tests := []struct {
-		name      string
-		objLabels map[string]string
-		want      bool
+		name                    string
+		obj                     metav1.Object
+		result                  metav1.Object
+		hasClaimedClusterPolicy bool
 	}{
 		{
-			name:      "propagation policy was claimed",
-			objLabels: map[string]string{},
-			want:      false,
+			name: "propagation policy was claimed",
+			obj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{},
+					},
+				},
+			},
+			result: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{},
+					},
+				},
+			},
+			hasClaimedClusterPolicy: false,
 		}, {
 			name: "propagation policy was not claimed",
-			objLabels: map[string]string{
-				policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979",
+			obj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels":      map[string]interface{}{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979", "foo": "bar"},
+						"annotations": map[string]interface{}{policyv1alpha1.ClusterPropagationPolicyAnnotation: "nginx", "foo1": "bar1"},
+					},
+				},
 			},
-			want: true,
+			result: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels":      map[string]interface{}{"foo": "bar"},
+						"annotations": map[string]interface{}{"foo1": "bar1"},
+					},
+				},
+			},
+			hasClaimedClusterPolicy: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := excludeClusterPolicy(tt.objLabels)
-			assert.Equal(t, tt.want, got)
+			got := excludeClusterPolicy(tt.obj)
+			assert.Equal(t, tt.obj, tt.result)
+			assert.Equal(t, tt.hasClaimedClusterPolicy, got)
 		})
 	}
 }
