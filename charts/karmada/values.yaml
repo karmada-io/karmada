@@ -945,7 +945,7 @@ search:
     ##   - myRegistryKeySecretName
     ##
     pullSecrets: []
-  ## @param search.resources resource quota of the search
+  ## @param search.resources resource quota of the search.
   resources: {}
     # If you do want to specify resources, uncomment the following
     # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
