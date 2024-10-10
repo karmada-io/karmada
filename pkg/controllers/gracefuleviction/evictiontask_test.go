@@ -626,6 +626,21 @@ func Test_nextRetry(t *testing.T) {
 			},
 			want: 0,
 		},
+		{
+			name: "task with custom grace period - not expired",
+			args: args{
+				task: []workv1alpha2.GracefulEvictionTask{
+					{
+						FromCluster:        "member1",
+						CreationTimestamp:  &metav1.Time{Time: timeNow.Add(time.Minute * -5)},
+						GracePeriodSeconds: ptr.To[int32](600),
+					},
+				},
+				timeout: timeout,
+				timeNow: timeNow.Time,
+			},
+			want: time.Minute * 5, // 10 minutes (grace period) - 5 minutes (elapsed time)
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
