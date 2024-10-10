@@ -167,3 +167,44 @@ func TestCleanupCPPClaimMetadata(t *testing.T) {
 		})
 	}
 }
+
+func TestNeedCleanupClaimMetadata(t *testing.T) {
+	tests := []struct {
+		name                string
+		obj                 metav1.Object
+		targetClaimMetadata map[string]string
+		needCleanup         bool
+	}{
+		{
+			name: "need cleanup",
+			obj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels":      map[string]interface{}{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979"},
+						"annotations": map[string]interface{}{policyv1alpha1.ClusterPropagationPolicyAnnotation: "cpp-example"},
+					},
+				},
+			},
+			targetClaimMetadata: map[string]string{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979"},
+			needCleanup:         true,
+		},
+		{
+			name: "no need cleanup",
+			obj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels":      map[string]interface{}{policyv1alpha1.PropagationPolicyPermanentIDLabel: "b0907cgb-f3f3-4a4b-b289-5691a4fef979"},
+						"annotations": map[string]interface{}{policyv1alpha1.PropagationPolicyNamespaceAnnotation: "default", policyv1alpha1.PropagationPolicyNameAnnotation: "pp-example"},
+					},
+				},
+			},
+			targetClaimMetadata: map[string]string{policyv1alpha1.PropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979"},
+			needCleanup:         false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.needCleanup, NeedCleanupClaimMetadata(tt.obj, tt.targetClaimMetadata))
+		})
+	}
+}

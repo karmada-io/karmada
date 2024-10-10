@@ -1051,7 +1051,8 @@ func (d *ResourceDetector) ReconcileClusterPropagationPolicy(key util.QueueKey) 
 //
 // Note: The relevant ResourceBinding will continue to exist until the resource template is gone.
 func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyID string) error {
-	rbs, err := helper.GetResourceBindings(d.Client, labels.Set{policyv1alpha1.PropagationPolicyPermanentIDLabel: policyID})
+	claimMetadata := labels.Set{policyv1alpha1.PropagationPolicyPermanentIDLabel: policyID}
+	rbs, err := helper.GetResourceBindings(d.Client, claimMetadata)
 	if err != nil {
 		klog.Errorf("Failed to list propagation bindings with policy permanentID(%s): %v", policyID, err)
 		return err
@@ -1062,7 +1063,7 @@ func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyID string) erro
 		// Must remove the claim metadata, such as labels and annotations, from the resource template ahead of ResourceBinding,
 		// otherwise might lose the chance to do that in a retry loop (in particular, the claim metadata was successfully removed
 		// from ResourceBinding, but resource template not), since the ResourceBinding will not be listed again.
-		if err := d.CleanupResourceTemplateClaimMetadata(binding.Spec.Resource, CleanupPPClaimMetadata); err != nil {
+		if err := d.CleanupResourceTemplateClaimMetadata(binding.Spec.Resource, claimMetadata, CleanupPPClaimMetadata); err != nil {
 			klog.Errorf("Failed to clean up claim metadata from resource(%s-%s/%s) when propagationPolicy removed, error: %v",
 				binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name, err)
 			errs = append(errs, err)
@@ -1071,7 +1072,7 @@ func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyID string) erro
 		}
 
 		// Clean up the claim metadata from the reference binding so that the karmada scheduler won't reschedule the binding.
-		if err := d.CleanupResourceBindingClaimMetadata(&rbs.Items[index], CleanupPPClaimMetadata); err != nil {
+		if err := d.CleanupResourceBindingClaimMetadata(&rbs.Items[index], claimMetadata, CleanupPPClaimMetadata); err != nil {
 			klog.Errorf("Failed to clean up claim metadata from resource binding(%s/%s) when propagationPolicy removed, error: %v",
 				binding.Namespace, binding.Name, err)
 			errs = append(errs, err)
@@ -1102,7 +1103,7 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyID strin
 			// ClusterResourceBinding, otherwise might lose the chance to do that in a retry loop (in particular, the
 			// claim metadata was successfully removed from ClusterResourceBinding, but resource template not), since the
 			// ClusterResourceBinding will not be listed again.
-			if err := d.CleanupResourceTemplateClaimMetadata(binding.Spec.Resource, CleanupCPPClaimMetadata); err != nil {
+			if err := d.CleanupResourceTemplateClaimMetadata(binding.Spec.Resource, labelSet, CleanupCPPClaimMetadata); err != nil {
 				klog.Errorf("Failed to clean up claim metadata from resource(%s-%s) when clusterPropagationPolicy removed, error: %v",
 					binding.Spec.Resource.Kind, binding.Spec.Resource.Name, err)
 				// Skip cleaning up policy labels and annotations from ClusterResourceBinding, give a chance to do that in a retry loop.
@@ -1110,7 +1111,7 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyID strin
 			}
 
 			// Clean up the claim metadata from the reference binding so that the Karmada scheduler won't reschedule the binding.
-			if err := d.CleanupClusterResourceBindingClaimMetadata(&crbs.Items[index], CleanupCPPClaimMetadata); err != nil {
+			if err := d.CleanupClusterResourceBindingClaimMetadata(&crbs.Items[index], labelSet); err != nil {
 				klog.Errorf("Failed to clean up claim metadata from clusterResourceBinding(%s) when clusterPropagationPolicy removed, error: %v",
 					binding.Name, err)
 				errs = append(errs, err)
@@ -1128,7 +1129,7 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyID strin
 			// Must remove the claim metadata, such as labels and annotations, from the resource template ahead of ResourceBinding,
 			// otherwise might lose the chance to do that in a retry loop (in particular, the label was successfully
 			// removed from ResourceBinding, but resource template not), since the ResourceBinding will not be listed again.
-			if err := d.CleanupResourceTemplateClaimMetadata(binding.Spec.Resource, CleanupCPPClaimMetadata); err != nil {
+			if err := d.CleanupResourceTemplateClaimMetadata(binding.Spec.Resource, labelSet, CleanupCPPClaimMetadata); err != nil {
 				klog.Errorf("Failed to clean up claim metadata from resource(%s-%s/%s) when clusterPropagationPolicy removed, error: %v",
 					binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name, err)
 				errs = append(errs, err)
@@ -1137,7 +1138,7 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyID strin
 			}
 
 			// Clean up the claim metadata from the reference binding so that the Karmada scheduler won't reschedule the binding.
-			if err := d.CleanupResourceBindingClaimMetadata(&rbs.Items[index], CleanupCPPClaimMetadata); err != nil {
+			if err := d.CleanupResourceBindingClaimMetadata(&rbs.Items[index], labelSet, CleanupCPPClaimMetadata); err != nil {
 				klog.Errorf("Failed to clean up claim metadata from resourceBinding(%s/%s) when clusterPropagationPolicy removed, error: %v",
 					binding.Namespace, binding.Name, err)
 				errs = append(errs, err)
@@ -1279,7 +1280,7 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy
 }
 
 // CleanupResourceTemplateClaimMetadata removes claim metadata, such as labels and annotations, from object referencing by objRef.
-func (d *ResourceDetector) CleanupResourceTemplateClaimMetadata(objRef workv1alpha2.ObjectReference, cleanupFunc func(obj metav1.Object)) error {
+func (d *ResourceDetector) CleanupResourceTemplateClaimMetadata(objRef workv1alpha2.ObjectReference, targetClaimMetadata map[string]string, cleanupFunc func(obj metav1.Object)) error {
 	gvr, err := restmapper.GetGroupVersionResource(d.RESTMapper, schema.FromAPIVersionAndKind(objRef.APIVersion, objRef.Kind))
 	if err != nil {
 		klog.Errorf("Failed to convert GVR from GVK(%s/%s), err: %v", objRef.APIVersion, objRef.Kind, err)
@@ -1297,6 +1298,11 @@ func (d *ResourceDetector) CleanupResourceTemplateClaimMetadata(objRef workv1alp
 			return err
 		}
 
+		if !NeedCleanupClaimMetadata(workload, targetClaimMetadata) {
+			klog.Infof("No need to clean up the claim metadata on resource(kind=%s, %s/%s) since they have changed", workload.GetKind(), workload.GetNamespace(), workload.GetName())
+			return nil
+		}
+
 		cleanupFunc(workload)
 
 		_, err = d.DynamicClient.Resource(gvr).Namespace(workload.GetNamespace()).Update(context.TODO(), workload, metav1.UpdateOptions{})
@@ -1310,8 +1316,12 @@ func (d *ResourceDetector) CleanupResourceTemplateClaimMetadata(objRef workv1alp
 }
 
 // CleanupResourceBindingClaimMetadata removes claim metadata, such as labels and annotations, from resource binding.
-func (d *ResourceDetector) CleanupResourceBindingClaimMetadata(rb *workv1alpha2.ResourceBinding, cleanupFunc func(obj metav1.Object)) error {
+func (d *ResourceDetector) CleanupResourceBindingClaimMetadata(rb *workv1alpha2.ResourceBinding, targetClaimMetadata map[string]string, cleanupFunc func(obj metav1.Object)) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		if !NeedCleanupClaimMetadata(rb, targetClaimMetadata) {
+			klog.Infof("No need to clean up the claim metadata on ResourceBinding(%s/%s) since they have changed", rb.GetNamespace(), rb.GetName())
+			return nil
+		}
 		cleanupFunc(rb)
 		updateErr := d.Client.Update(context.TODO(), rb)
 		if updateErr == nil {
@@ -1322,16 +1332,20 @@ func (d *ResourceDetector) CleanupResourceBindingClaimMetadata(rb *workv1alpha2.
 		if err = d.Client.Get(context.TODO(), client.ObjectKey{Namespace: rb.GetNamespace(), Name: rb.GetName()}, updated); err == nil {
 			rb = updated.DeepCopy()
 		} else {
-			klog.Errorf("Failed to get updated resource binding %s/%s: %v", rb.GetNamespace(), rb.GetName(), err)
+			klog.Errorf("Failed to get updated ResourceBinding(%s/%s): %v", rb.GetNamespace(), rb.GetName(), err)
 		}
 		return updateErr
 	})
 }
 
 // CleanupClusterResourceBindingClaimMetadata removes claim metadata, such as labels and annotations, from cluster resource binding.
-func (d *ResourceDetector) CleanupClusterResourceBindingClaimMetadata(crb *workv1alpha2.ClusterResourceBinding, cleanupFunc func(obj metav1.Object)) error {
+func (d *ResourceDetector) CleanupClusterResourceBindingClaimMetadata(crb *workv1alpha2.ClusterResourceBinding, targetClaimMetadata map[string]string) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		cleanupFunc(crb)
+		if !NeedCleanupClaimMetadata(crb, targetClaimMetadata) {
+			klog.Infof("No need to clean up the claim metadata on ClusterResourceBinding(%s) since they have changed", crb.GetName())
+			return nil
+		}
+		CleanupCPPClaimMetadata(crb)
 		updateErr := d.Client.Update(context.TODO(), crb)
 		if updateErr == nil {
 			return nil
@@ -1341,7 +1355,7 @@ func (d *ResourceDetector) CleanupClusterResourceBindingClaimMetadata(crb *workv
 		if err = d.Client.Get(context.TODO(), client.ObjectKey{Name: crb.GetName()}, updated); err == nil {
 			crb = updated.DeepCopy()
 		} else {
-			klog.Errorf("Failed to get updated cluster resource binding %s: %v", crb.GetName(), err)
+			klog.Errorf("Failed to get updated ClusterResourceBinding(%s):: %v", crb.GetName(), err)
 		}
 		return updateErr
 	})
