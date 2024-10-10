@@ -75,3 +75,17 @@ func CleanupCPPClaimMetadata(obj metav1.Object) {
 	util.RemoveLabels(obj, clusterPropagationPolicyClaimLabels...)
 	util.RemoveAnnotations(obj, clusterPropagationPolicyClaimAnnotations...)
 }
+
+// NeedCleanupClaimMetadata determines whether the object's claim metadata needs to be cleaned up.
+// We need to ensure that the claim metadata being deleted belong to the current PropagationPolicy/ClusterPropagationPolicy,
+// otherwise, there is a risk of mistakenly deleting the ones belonging to another PropagationPolicy/ClusterPropagationPolicy.
+// This situation could occur during the rapid deletion and creation of PropagationPolicy(s)/ClusterPropagationPolicy(s).
+// More info can refer to https://github.com/karmada-io/karmada/issues/5307.
+func NeedCleanupClaimMetadata(obj metav1.Object, targetClaimMetadata map[string]string) bool {
+	for k, v := range targetClaimMetadata {
+		if obj.GetLabels()[k] != v {
+			return false
+		}
+	}
+	return true
+}
