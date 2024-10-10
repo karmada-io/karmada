@@ -22,7 +22,6 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/types"
@@ -62,6 +61,8 @@ type ResourceBindingController struct {
 	OverrideManager     overridemanager.OverrideManager
 	ResourceInterpreter resourceinterpreter.ResourceInterpreter
 	RateLimiterOptions  ratelimiterflag.Options
+
+	workSyncer workSyncer
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -125,7 +126,7 @@ func (c *ResourceBindingController) syncBinding(ctx context.Context, binding *wo
 		return controllerruntime.Result{}, err
 	}
 	start := time.Now()
-	err = ensureWork(ctx, c.Client, c.ResourceInterpreter, workload, c.OverrideManager, binding, apiextensionsv1.NamespaceScoped)
+	err = c.workSyncer.ensureWorks(ctx, workload, binding)
 	metrics.ObserveSyncWorkLatency(err, start)
 	if err != nil {
 		klog.Errorf("Failed to transform resourceBinding(%s/%s) to works. Error: %v.",
@@ -165,6 +166,12 @@ func (c *ResourceBindingController) removeOrphanWorks(ctx context.Context, bindi
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manager) error {
+	c.workSyncer = workSyncer{
+		client:      c.Client,
+		interpreter: c.ResourceInterpreter,
+		overrider:   c.OverrideManager,
+	}
+
 	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha2.ResourceBinding{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Watches(&policyv1alpha1.OverridePolicy{}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
