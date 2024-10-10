@@ -257,6 +257,19 @@ function util::append_client_kubeconfig {
     kubectl config set-context "${client_id}" --cluster="${client_id}" --user="${client_id}" --kubeconfig="${kubeconfig_path}"
 }
 
+# util::append_client_kubeconfig_with_server creates a new context including a cluster and a user to the existed kubeconfig file
+function util::append_client_kubeconfig_with_server {
+    local kubeconfig_path=$1
+    local client_certificate_file=$2
+    local client_key_file=$3
+    local server=$4
+    local client_id=$5
+    local token=${6:-}
+    kubectl config set-cluster "${client_id}" --server="${server}" --insecure-skip-tls-verify=true --kubeconfig="${kubeconfig_path}"
+    kubectl config set-credentials "${client_id}" --token="${token}" --client-certificate="${client_certificate_file}" --client-key="${client_key_file}" --embed-certs=true --kubeconfig="${kubeconfig_path}"
+    kubectl config set-context "${client_id}" --cluster="${client_id}" --user="${client_id}" --kubeconfig="${kubeconfig_path}"
+}
+
 # util::write_client_kubeconfig creates a self-contained kubeconfig: args are sudo, dest-dir, client certificate data, client key data, host, port, client id, token(optional)
 function util::write_client_kubeconfig {
     local sudo=$1
