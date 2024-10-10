@@ -31,6 +31,9 @@ type GroupClustersInfo struct {
 	Regions   map[string]RegionInfo
 	Zones     map[string]ZoneInfo
 
+	// The average score of all cluster.
+	averageScore int64
+
 	// Clusters from global view, sorted by cluster.Score descending.
 	Clusters []ClusterDetailInfo
 
@@ -126,6 +129,11 @@ func groupClustersIgnoringTopology(
 	groupClustersInfo.generateClustersInfo(clustersScore, rbSpec)
 
 	return groupClustersInfo
+}
+
+func (info *GroupClustersInfo) calcGroupScore(clusters []ClusterDetailInfo, rbSpec *workv1alpha2.ResourceBindingSpec) int64 {
+	print(clusters, rbSpec)
+	return 0
 }
 
 func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.ClusterScoreList, rbSpec *workv1alpha2.ResourceBindingSpec) {
