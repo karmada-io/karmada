@@ -28,8 +28,6 @@ KARMADA_INSTANCE_NAME=${KARMADA_INSTANCE_NAME:-"karmada-demo"}
 KARMADA_INSTANCE_NAMESPACE=${KARMADA_INSTANCE_NAMESPACE:-"test"}
 
 CERT_DIR=${CERT_DIR:-"${HOME}/.karmada"}
-GIT_VERSION=$(util::get_version)
-KARMADA_VERSION=$(echo $GIT_VERSION| awk -F '-' '{print $1}'| tr -d 'v"')
 mkdir -p "${CERT_DIR}" &>/dev/null ||  mkdir -p "${CERT_DIR}"
 rm -f "${CERT_DIR}/*" &>/dev/null ||  rm -f "${CERT_DIR}/*"
 
