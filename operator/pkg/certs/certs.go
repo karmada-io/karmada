@@ -25,7 +25,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -247,14 +246,16 @@ func (cert *KarmadaCert) KeyName() string {
 	return pair + keyExtension
 }
 
-// GeneratePrivateKey generates cert key with default size if 1024. it supports
-// ECDSA and RAS algorithm.
+// GeneratePrivateKey generates a certificate key. It supports both
+// ECDSA (using the P-256 elliptic curve) and RSA algorithms. For RSA,
+// the key is generated with a size of 3072 bits.
 func GeneratePrivateKey(keyType x509.PublicKeyAlgorithm) (crypto.Signer, error) {
 	if keyType == x509.ECDSA {
 		return ecdsa.GenerateKey(elliptic.P256(), cryptorand.Reader)
+	} else if keyType == x509.RSA {
+		return rsa.GenerateKey(cryptorand.Reader, rsaKeySize)
 	}
-
-	return rsa.GenerateKey(cryptorand.Reader, rsaKeySize)
+	return nil, fmt.Errorf("unsupported key type: %v, supported key types are RSA and ECDSA", keyType)
 }
 
 // NewCertificateAuthority creates new certificate and private key for the certificate authority
@@ -428,7 +429,8 @@ func ParsePrivateKeyPEM(keyData []byte) (crypto.Signer, error) {
 	case *ecdsa.PrivateKey:
 		key = k
 	default:
-		return nil, errors.New("the private key is neither in RSA nor ECDSA format")
+		keyType := fmt.Sprintf("%T", caPrivateKey)
+		return nil, fmt.Errorf("the private key is in an unsupported format: %s, supported formats are RSA and ECDSA", keyType)
 	}
 
 	return key, nil
