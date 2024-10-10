@@ -36,6 +36,18 @@ const (
 	APICallRetryInterval = 500 * time.Millisecond
 )
 
+var (
+	// initialBackoffDuration defines the initial duration for the backoff mechanism,
+	// set to 5 seconds. This value is used to determine the wait time before retrying
+	// a failed command.
+	initialBackoffDuration = 5 * time.Second
+
+	// backoffTimeoutFactor is the factor by which the backoff duration is multiplied
+	// after each failure. In this case, it is set to 2, meaning the wait time will
+	// double with each consecutive failure.
+	backoffTimeoutFactor float64 = 2
+)
+
 // Waiter is an interface for waiting for criteria in Karmada to happen
 type Waiter interface {
 	// WaitForAPI waits for the API Server's /healthz endpoint to become "ok"
@@ -79,9 +91,13 @@ func (w *KarmadaWaiter) WaitForAPI() error {
 	})
 }
 
+var aggregateClientFromConfigBuilder = func(karmadaConfig *rest.Config) (aggregator.Interface, error) {
+	return aggregator.NewForConfig(karmadaConfig)
+}
+
 // WaitForAPIService waits for the APIService condition to become "true"
 func (w *KarmadaWaiter) WaitForAPIService(name string) error {
-	aggregateClient, err := aggregator.NewForConfig(w.karmadaConfig)
+	aggregateClient, err := aggregateClientFromConfigBuilder(w.karmadaConfig)
 	if err != nil {
 		return err
 	}
@@ -162,20 +178,21 @@ func (w *KarmadaWaiter) SetTimeout(timeout time.Duration) {
 	w.timeout = timeout
 }
 
-// TryRunCommand runs a function a maximum of failureThreshold times, and retries on error. If failureThreshold is hit; the last error is returned
+// TryRunCommand runs a function a maximum of failureThreshold times, and
+// retries on error. If failureThreshold is hit; the last error is returned.
 func TryRunCommand(f func() error, failureThreshold int) error {
 	backoff := wait.Backoff{
-		Duration: 5 * time.Second,
-		Factor:   2, // double the timeout for every failure
+		Duration: initialBackoffDuration,
+		Factor:   backoffTimeoutFactor,
 		Steps:    failureThreshold,
 	}
 	return wait.ExponentialBackoff(backoff, func() (bool, error) {
 		err := f()
 		if err != nil {
-			// Retry until the timeout
+			// Retry until the timeout.
 			return false, nil
 		}
-		// The last f() call was a success, return cleanly
+		// The last f() call was a success, return cleanly.
 		return true, nil
 	})
 }
