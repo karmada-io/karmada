@@ -26,8 +26,10 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
+	"golang.org/x/sync/singleflight"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/httpstream"
@@ -43,6 +45,13 @@ import (
 
 // SecretGetterFunc is a function to get secret.
 type SecretGetterFunc func(context.Context, string, string) (*corev1.Secret, error)
+
+type clusterEndpointInfo struct {
+	Transport *http.Transport
+}
+
+var clusterEndpointInfoStore sync.Map
+var singleExecution singleflight.Group
 
 // ConnectCluster returns a handler for proxy cluster.
 func ConnectCluster(ctx context.Context, cluster *clusterapis.Cluster, proxyPath string, secretGetter SecretGetterFunc, responder registryrest.Responder) (http.Handler, error) {
@@ -159,12 +168,32 @@ func Location(cluster *clusterapis.Cluster, tlsConfig *tls.Config) (*url.URL, ht
 		return nil, nil, err
 	}
 
-	proxyTransport, err := createProxyTransport(cluster, tlsConfig)
+	if v, ok := clusterEndpointInfoStore.Load(cluster.UID); ok {
+		clusterEndpointsInfo := v.(clusterEndpointInfo)
+		return location, clusterEndpointsInfo.Transport, nil
+	}
+
+	endpointInfo, err, _ := singleExecution.Do(string(cluster.UID), func() (interface{}, error) {
+		if value, ok := clusterEndpointInfoStore.Load(cluster.UID); ok {
+			return value, nil
+		}
+		proxyTransport, err := createProxyTransport(cluster, tlsConfig)
+		if err != nil {
+			return nil, err
+		}
+		clusterEndpoint := clusterEndpointInfo{
+			Transport: proxyTransport,
+		}
+		clusterEndpointInfoStore.Store(cluster.UID, clusterEndpointInfo{
+			Transport: proxyTransport,
+		})
+		return clusterEndpoint, nil
+	})
 	if err != nil {
 		return nil, nil, err
 	}
-
-	return location, proxyTransport, nil
+	transport := endpointInfo.(clusterEndpointInfo).Transport
+	return location, transport, nil
 }
 
 func constructLocation(cluster *clusterapis.Cluster) (*url.URL, error) {
