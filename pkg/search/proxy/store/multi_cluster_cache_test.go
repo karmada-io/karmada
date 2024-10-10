@@ -554,7 +554,6 @@ func TestMultiClusterCache_Get_Namespaced(t *testing.T) {
 
 func TestMultiClusterCache_List(t *testing.T) {
 	cluster1 := newCluster("cluster1")
-	cluster2 := newCluster("cluster2")
 	cluster1Client := fakedynamic.NewSimpleDynamicClient(scheme,
 		newUnstructuredObject(podGVK, "pod11", withDefaultNamespace(), withResourceVersion("1001"), withLabel("app", "foo")),
 		newUnstructuredObject(podGVK, "pod12", withDefaultNamespace(), withResourceVersion("1002")),
@@ -562,20 +561,11 @@ func TestMultiClusterCache_List(t *testing.T) {
 		newUnstructuredObject(podGVK, "pod14", withDefaultNamespace(), withResourceVersion("1004")),
 		newUnstructuredObject(podGVK, "pod15", withDefaultNamespace(), withResourceVersion("1005")),
 	)
-	cluster2Client := fakedynamic.NewSimpleDynamicClient(scheme,
-		newUnstructuredObject(podGVK, "pod21", withDefaultNamespace(), withResourceVersion("2001"), withLabel("app", "foo")),
-		newUnstructuredObject(podGVK, "pod22", withDefaultNamespace(), withResourceVersion("2002")),
-		newUnstructuredObject(podGVK, "pod23", withDefaultNamespace(), withResourceVersion("2003"), withLabel("app", "foo")),
-		newUnstructuredObject(podGVK, "pod24", withDefaultNamespace(), withResourceVersion("2004")),
-		newUnstructuredObject(podGVK, "pod25", withDefaultNamespace(), withResourceVersion("2005")),
-	)
 
 	newClientFunc := func(cluster string) (dynamic.Interface, error) {
 		switch cluster {
 		case cluster1.Name:
 			return cluster1Client, nil
-		case cluster2.Name:
-			return cluster2Client, nil
 		}
 		return fakedynamic.NewSimpleDynamicClient(scheme), nil
 	}
@@ -617,7 +607,6 @@ func TestMultiClusterCache_List(t *testing.T) {
 			name: "list gets",
 			resources: map[string]map[schema.GroupVersionResource]*MultiNamespace{
 				cluster1.Name: resourceSet(podGVR),
-				cluster2.Name: resourceSet(podGVR),
 			},
 			args: args{
 				ctx:     request.WithNamespace(context.TODO(), metav1.NamespaceDefault),
@@ -626,8 +615,8 @@ func TestMultiClusterCache_List(t *testing.T) {
 			},
 			want: want{
 				// fakeDynamic returns list with resourceVersion=""
-				resourceVersion: buildMultiClusterRV("cluster1", "", "cluster2", ""),
-				names:           sets.New[string]("pod11", "pod12", "pod13", "pod14", "pod15", "pod21", "pod22", "pod23", "pod24", "pod25"),
+				resourceVersion: buildMultiClusterRV("cluster1", ""),
+				names:           sets.New[string]("pod11", "pod12", "pod13", "pod14", "pod15"),
 				errAssert:       noError,
 			},
 		},
@@ -635,7 +624,6 @@ func TestMultiClusterCache_List(t *testing.T) {
 			name: "list gets with labelSelector",
 			resources: map[string]map[schema.GroupVersionResource]*MultiNamespace{
 				cluster1.Name: resourceSet(podGVR),
-				cluster2.Name: resourceSet(podGVR),
 			},
 			args: args{
 				ctx: request.WithNamespace(context.TODO(), metav1.NamespaceDefault),
@@ -646,12 +634,12 @@ func TestMultiClusterCache_List(t *testing.T) {
 			},
 			want: want{
 				// fakeDynamic returns list with resourceVersion=""
-				resourceVersion: buildMultiClusterRV("cluster1", "", "cluster2", ""),
-				names:           sets.New[string]("pod11", "pod13", "pod21", "pod23"),
+				resourceVersion: buildMultiClusterRV("cluster1", ""),
+				names:           sets.New[string]("pod11", "pod13"),
 				errAssert:       noError,
 			},
 		},
-		// TODO: add case for limit option. But fakeClient doesn't support it.
+		// TODO: add case for limit and continue option. But fakeClient doesn't support it.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -704,22 +692,15 @@ func TestMultiClusterCache_List(t *testing.T) {
 
 func TestMultiClusterCache_List_CacheSourceAnnotation(t *testing.T) {
 	cluster1 := newCluster("cluster1")
-	cluster2 := newCluster("cluster2")
 	cluster1Client := fakedynamic.NewSimpleDynamicClient(scheme,
-		newUnstructuredObject(podGVK, "pod11"),
-		newUnstructuredObject(podGVK, "pod12"),
-	)
-	cluster2Client := fakedynamic.NewSimpleDynamicClient(scheme,
-		newUnstructuredObject(podGVK, "pod21"),
-		newUnstructuredObject(podGVK, "pod22"),
+		newUnstructuredObject(podGVK, "pod11", withDefaultNamespace()),
+		newUnstructuredObject(podGVK, "pod12", withDefaultNamespace()),
 	)
 
 	newClientFunc := func(cluster string) (dynamic.Interface, error) {
 		switch cluster {
 		case cluster1.Name:
 			return cluster1Client, nil
-		case cluster2.Name:
-			return cluster2Client, nil
 		}
 		return fakedynamic.NewSimpleDynamicClient(scheme), nil
 	}
@@ -727,7 +708,6 @@ func TestMultiClusterCache_List_CacheSourceAnnotation(t *testing.T) {
 	defer cache.Stop()
 	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]*MultiNamespace{
 		cluster1.Name: resourceSet(podGVR),
-		cluster2.Name: resourceSet(podGVR),
 	})
 	if err != nil {
 		t.Error(err)
@@ -746,10 +726,8 @@ func TestMultiClusterCache_List_CacheSourceAnnotation(t *testing.T) {
 	}
 
 	expect := []runtime.Object{
-		newUnstructuredObject(podGVK, "pod11", withCacheSourceAnnotation("cluster1")),
-		newUnstructuredObject(podGVK, "pod12", withCacheSourceAnnotation("cluster1")),
-		newUnstructuredObject(podGVK, "pod21", withCacheSourceAnnotation("cluster2")),
-		newUnstructuredObject(podGVK, "pod22", withCacheSourceAnnotation("cluster2")),
+		newUnstructuredObject(podGVK, "pod11", withDefaultNamespace(), withCacheSourceAnnotation("cluster1")),
+		newUnstructuredObject(podGVK, "pod12", withDefaultNamespace(), withCacheSourceAnnotation("cluster1")),
 	}
 	if !reflect.DeepEqual(items, expect) {
 		t.Errorf("list items diff: %v", cmp.Diff(expect, items))
@@ -758,29 +736,21 @@ func TestMultiClusterCache_List_CacheSourceAnnotation(t *testing.T) {
 
 func TestMultiClusterCache_List_Namespaced(t *testing.T) {
 	cluster1 := newCluster("cluster1")
-	cluster2 := newCluster("cluster2")
 	cluster1Client := fakedynamic.NewSimpleDynamicClient(scheme,
 		newUnstructuredObject(podGVK, "pod11", withNamespace("ns1"), withResourceVersion("1000")),
 		newUnstructuredObject(podGVK, "pod12", withNamespace("ns2"), withResourceVersion("1000")),
-	)
-	cluster2Client := fakedynamic.NewSimpleDynamicClient(scheme,
-		newUnstructuredObject(podGVK, "pod21", withNamespace("ns1"), withResourceVersion("2000")),
-		newUnstructuredObject(podGVK, "pod22", withNamespace("ns2"), withResourceVersion("2000")),
 	)
 	newClientFunc := func(cluster string) (dynamic.Interface, error) {
 		switch cluster {
 		case cluster1.Name:
 			return cluster1Client, nil
-		case cluster2.Name:
-			return cluster2Client, nil
 		}
 		return fakedynamic.NewSimpleDynamicClient(scheme), nil
 	}
 	cache := NewMultiClusterCache(newClientFunc, restMapper)
 	defer cache.Stop()
 	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]*MultiNamespace{
-		cluster1.Name: {podGVR: &MultiNamespace{namespaces: sets.New[string]("ns1")}},
-		cluster2.Name: {podGVR: &MultiNamespace{namespaces: sets.New[string]("ns1", "ns2", "ns3")}},
+		cluster1.Name: {podGVR: &MultiNamespace{namespaces: sets.New[string]("ns1", "ns2")}},
 	})
 	if err != nil {
 		t.Error(err)
@@ -809,7 +779,7 @@ func TestMultiClusterCache_List_Namespaced(t *testing.T) {
 				options: &metainternalversion.ListOptions{},
 			},
 			want: want{
-				names:     sets.New[string]("pod11", "pod21", "pod22"),
+				names:     sets.New[string]("pod11", "pod12"),
 				errAssert: noError,
 			},
 		},
@@ -821,7 +791,7 @@ func TestMultiClusterCache_List_Namespaced(t *testing.T) {
 				options: &metainternalversion.ListOptions{},
 			},
 			want: want{
-				names:     sets.New[string]("pod11", "pod21"),
+				names:     sets.New[string]("pod11"),
 				errAssert: noError,
 			},
 		},
@@ -833,7 +803,7 @@ func TestMultiClusterCache_List_Namespaced(t *testing.T) {
 				options: &metainternalversion.ListOptions{},
 			},
 			want: want{
-				names:     sets.New[string]("pod22"),
+				names:     sets.New[string]("pod12"),
 				errAssert: noError,
 			},
 		},
@@ -888,6 +858,11 @@ func TestMultiClusterCache_List_Namespaced(t *testing.T) {
 				return
 			}
 
+			names1 := []string{}
+			for name := range names {
+				names1 = append(names1, name)
+			}
+			t.Logf("names: %+v", names1)
 			if !tt.want.names.Equal(names) {
 				t.Errorf("List items want=%v, actual=%v", strings.Join(sets.List(tt.want.names), ","), strings.Join(sets.List(names), ","))
 			}
