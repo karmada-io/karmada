@@ -77,6 +77,16 @@ const (
 	KarmadaAPIserverListenClientPort = 5443
 	// EtcdDataVolumeName defines the name to etcd data volume
 	EtcdDataVolumeName = "etcd-data"
+	// EtcClientCredentialsVolumeName defines the name of the volume for the etcd client credentials
+	EtcClientCredentialsVolumeName = "etcd-client-credentials" // #nosec G101
+	// EtcClientCredentialsMountPath defines the mount path for the etcd client credentials data
+	EtcClientCredentialsMountPath = "/etc/etcd/pki" // #nosec G101
+	// CaCertDataKey defines the data key for a CA cert
+	CaCertDataKey = "ca.crt"
+	// TLSCertDataKey defines the data key for a TLS cert
+	TLSCertDataKey = "tls.crt"
+	// TLSPrivateKeyDataKey defines the data key for a TLS cert private key
+	TLSPrivateKeyDataKey = "tls.key"
 
 	// CertificateValidity Certificate validity period
 	CertificateValidity = time.Hour * 24 * 365

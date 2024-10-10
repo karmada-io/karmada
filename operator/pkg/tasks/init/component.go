@@ -264,6 +264,7 @@ func runKarmadaSearch(r workflow.RunData) error {
 	err := search.EnsureKarmadaSearch(
 		data.RemoteClient(),
 		cfg.KarmadaSearch,
+		cfg.Etcd,
 		data.GetName(),
 		data.GetNamespace(),
 		data.FeatureGates(),
