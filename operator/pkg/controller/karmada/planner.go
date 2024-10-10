@@ -69,7 +69,7 @@ func NewPlannerFor(karmada *operatorv1alpha1.Karmada, c client.Client, config *r
 		}
 
 		options := operator.NewJobInitOptions(opts...)
-		job = operator.NewInitJob(options)
+		job = operator.NewInitJob(options, operator.DefaultInitTasks)
 
 	case DeInitAction:
 		opts := []operator.DeInitOpt{
@@ -78,7 +78,7 @@ func NewPlannerFor(karmada *operatorv1alpha1.Karmada, c client.Client, config *r
 		}
 
 		options := operator.NewJobDeInitOptions(opts...)
-		job = operator.NewDeInitDataJob(options)
+		job = operator.NewDeInitDataJob(options, operator.DefaultDeInitTasks)
 	default:
 		return nil, fmt.Errorf("failed to recognize action for karmada %s", karmada.Name)
 	}
