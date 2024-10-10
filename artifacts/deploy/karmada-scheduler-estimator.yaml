@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: karmada-scheduler-estimator-{{member_cluster_name}}
-  namespace: karmada-system
+  namespace: {{namespace}}
   labels:
     cluster: {{member_cluster_name}}
 spec:
@@ -55,7 +55,7 @@ spec:
       volumes:
         - name: karmada-certs
           secret:
-            secretName: karmada-cert-secret
+            secretName: {{grpc_auth_secret_name}}
         - name: member-kubeconfig
           secret:
             secretName: {{member_cluster_name}}-kubeconfig
@@ -64,7 +64,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: karmada-scheduler-estimator-{{member_cluster_name}}
-  namespace: karmada-system
+  namespace: {{namespace}}
   labels:
     cluster: {{member_cluster_name}}
 spec:
