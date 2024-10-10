@@ -38,25 +38,25 @@ spec:
               protocol: TCP
           command:
             - /bin/karmada-scheduler
-            - --kubeconfig=/etc/kubeconfig
+            - --kubeconfig=/etc/karmada/config/karmada.config
             - --metrics-bind-address=0.0.0.0:8080
             - --health-probe-bind-address=0.0.0.0:10351
             - --enable-scheduler-estimator=true
-            - --scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt
-            - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt
-            - --scheduler-estimator-key-file=/etc/karmada/pki/karmada.key
+            - --scheduler-estimator-ca-file=/etc/karmada/pki/client/ca.crt
+            - --scheduler-estimator-cert-file=/etc/karmada/pki/client/tls.crt
+            - --scheduler-estimator-key-file=/etc/karmada/pki/client/tls.key
             - --v=4
           volumeMounts:
-            - name: karmada-certs
-              mountPath: /etc/karmada/pki
+            - name: client-cert
+              mountPath: /etc/karmada/pki/client
               readOnly: true
-            - name: kubeconfig
-              subPath: kubeconfig
-              mountPath: /etc/kubeconfig
+            - name: karmada-config
+              mountPath: /etc/karmada/config/
+              readOnly: true
       volumes:
-        - name: karmada-certs
+        - name: client-cert
           secret:
-            secretName: karmada-cert-secret
-        - name: kubeconfig
+            secretName: client-cert
+        - name: karmada-config
           secret:
-            secretName: kubeconfig
+            secretName: karmada-config

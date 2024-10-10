@@ -40,7 +40,7 @@ spec:
               command:
                 - /bin/sh
                 - -ec
-                - 'etcdctl get /registry --prefix --keys-only  --endpoints https://127.0.0.1:2379  --cacert /etc/karmada/pki/etcd-ca.crt --cert /etc/karmada/pki/etcd-server.crt --key /etc/karmada/pki/etcd-server.key'
+                - 'etcdctl get /registry --prefix --keys-only  --endpoints https://127.0.0.1:2379  --cacert /etc/karmada/pki/etcd-client/ca.crt --cert /etc/karmada/pki/etcd-client/tls.crt --key /etc/karmada/pki/etcd-client/tls.key'
             failureThreshold: 3
             initialDelaySeconds: 600
             periodSeconds: 60
@@ -56,8 +56,10 @@ spec:
           volumeMounts:
             - mountPath: /var/lib/etcd
               name: etcd-data
-            - mountPath: /etc/karmada/pki
-              name: etcd-certs
+            - mountPath: /etc/karmada/pki/etcd-server/
+              name: etcd-server-cert
+            - mountPath: /etc/karmada/pki/etcd-client/
+              name: etcd-client-cert
           resources:
             requests:
               cpu: 100m
@@ -76,10 +78,10 @@ spec:
             - etcd0=http://etcd-0.etcd.karmada-system.svc.cluster.local:2380
             - --initial-cluster-state
             - new
-            - --cert-file=/etc/karmada/pki/etcd-server.crt
+            - --cert-file=/etc/karmada/pki/etcd-server/tls.crt
             - --client-cert-auth=true
-            - --key-file=/etc/karmada/pki/etcd-server.key
-            - --trusted-ca-file=/etc/karmada/pki/etcd-ca.crt
+            - --key-file=/etc/karmada/pki/etcd-server/tls.key
+            - --trusted-ca-file=/etc/karmada/pki/etcd-server/ca.crt
             - --data-dir=/var/lib/etcd
             - --snapshot-count=10000
             # Setting Golang's secure cipher suites as etcd's cipher suites.
@@ -91,9 +93,12 @@ spec:
             path: /var/lib/karmada-etcd
             type: DirectoryOrCreate
           name: etcd-data
-        - name: etcd-certs
+        - name: etcd-server-cert
           secret:
-            secretName: karmada-cert-secret
+            secretName: etcd-server-cert
+        - name: etcd-client-cert
+          secret:
+            secretName: etcd-client-cert
 ---
 
 apiVersion: v1
