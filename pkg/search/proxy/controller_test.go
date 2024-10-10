@@ -293,7 +293,7 @@ func TestController_reconcile(t *testing.T) {
 				clusterLister:  karmadaFactory.Cluster().V1alpha1().Clusters().Lister(),
 				registryLister: karmadaFactory.Search().V1alpha1().ResourceRegistries().Lister(),
 				store: &proxytest.MockStore{
-					UpdateCacheFunc: func(m map[string]map[schema.GroupVersionResource]*store.MultiNamespace) error {
+					UpdateCacheFunc: func(m map[string]map[schema.GroupVersionResource]*store.MultiNamespace, _ map[schema.GroupVersionResource]struct{}) error {
 						for clusterName, resources := range m {
 							resourceNames := make([]string, 0, len(resources))
 							for resource := range resources {
