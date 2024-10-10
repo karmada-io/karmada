@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util/templates"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
@@ -190,7 +191,19 @@ func (j *CommandUnjoinOption) RunUnJoinCluster(controlPlaneRestConfig, clusterCo
 	err := j.deleteClusterObject(controlPlaneKarmadaClient)
 	if err != nil {
 		klog.Errorf("Failed to delete cluster object. cluster name: %s, error: %v", j.ClusterName, err)
-		return err
+		if j.forceDeletion {
+			klog.Infof("Start forced deletion by remove work finalizer. cluster name: %s", j.ClusterName)
+			executionSpaceName := names.GenerateExecutionSpaceName(j.ClusterName)
+			err = removeWorkFinalizer(executionSpaceName, controlPlaneKarmadaClient)
+			if err != nil {
+				klog.Errorf("Failed to remove work's finalizer, error: %s", err)
+				return err
+			}
+			klog.Infof("Succeeded to remove work's finalizer. After confirming the success of the unjoin, manually delete remaining resources on the cluster %s.", j.ClusterName)
+			return nil
+		} else {
+			return err
+		}
 	}
 
 	// Attempt to delete the cluster role, cluster rolebindings and service account from the unjoining cluster
@@ -322,5 +335,27 @@ func deleteNamespaceFromUnjoinCluster(clusterKubeClient kubeclient.Interface, na
 		klog.Errorf("Force deletion. Could not delete namespace %q in unjoining cluster %q: %v.", namespace, unjoiningClusterName, err)
 	}
 
+	return nil
+}
+
+// removeWorkFinalizer remove the finalizer of works from the executionSpace
+func removeWorkFinalizer(executionSpaceName string, controlPlaneKarmadaClient *karmadaclientset.Clientset) error {
+	list, err := controlPlaneKarmadaClient.WorkV1alpha1().Works(executionSpaceName).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to list work in executionSpace %s", executionSpaceName)
+	}
+
+	for i := range list.Items {
+		work := &list.Items[i]
+		if !controllerutil.ContainsFinalizer(work, util.ExecutionControllerFinalizer) {
+			continue
+		}
+
+		controllerutil.RemoveFinalizer(work, util.ExecutionControllerFinalizer)
+		_, err = controlPlaneKarmadaClient.WorkV1alpha1().Works(executionSpaceName).Update(context.TODO(), work, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
