@@ -18,6 +18,7 @@ package unjoin
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/spf13/pflag"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -50,6 +52,9 @@ var (
 
 		# Unjoin cluster from karmada control plane and attempt to remove resources created by karmada in the unjoining cluster
 		%[1]s unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>
+
+        # Unjoin cluster from karmada control plane and keep users' resources preserved in the unjoining cluster
+		%[1]s unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG> --preserve-resources=true
 
 		# Unjoin cluster from karmada control plane with timeout
 		%[1]s unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG> --wait 2m`)
@@ -108,6 +113,9 @@ type CommandUnjoinOption struct {
 	// DryRun tells if run the command in dry-run mode, without making any server requests.
 	DryRun bool
 
+	// PreserveResources tells if users' resources should be preserved in the unjoining cluster.
+	PreserveResources bool
+
 	forceDeletion bool
 
 	// Wait tells maximum command execution time
@@ -152,6 +160,7 @@ func (j *CommandUnjoinOption) AddFlags(flags *pflag.FlagSet) {
 		"Path of the cluster's kubeconfig.")
 	flags.BoolVar(&j.forceDeletion, "force", false,
 		"Delete cluster and secret resources even if resources in the cluster targeted for unjoin are not removed successfully.")
+	flags.BoolVar(&j.PreserveResources, "preserve-resources", false, "control whether users' resources should be preserved in the unjoining cluster.")
 	flags.DurationVar(&j.Wait, "wait", 60*time.Second, "wait for the unjoin command execution process(default 60s), if there is no success after this time, timeout will be returned.")
 	flags.BoolVar(&j.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 }
@@ -186,6 +195,16 @@ func (j *CommandUnjoinOption) Run(f cmdutil.Factory) error {
 func (j *CommandUnjoinOption) RunUnJoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config) error {
 	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
 
+	// Attempt to mark the cluster related work as `preserveResourcesOnDeletion`
+	// if user set command argument `preserve-resources` to true
+	if j.PreserveResources {
+		err := j.markClusterRelatedWorkAsPreserved(controlPlaneKarmadaClient, j.ClusterName)
+		if err != nil {
+			klog.Errorf("Failed to mark the work in cluster %s as preserve-resources", j.ClusterName)
+			return err
+		}
+	}
+
 	// delete the cluster object in host cluster that associates the unjoining cluster
 	err := j.deleteClusterObject(controlPlaneKarmadaClient)
 	if err != nil {
@@ -218,6 +237,43 @@ func (j *CommandUnjoinOption) RunUnJoinCluster(controlPlaneRestConfig, clusterCo
 		err = deleteNamespaceFromUnjoinCluster(clusterKubeClient, j.ClusterNamespace, j.ClusterName, j.forceDeletion, j.DryRun)
 		if err != nil {
 			klog.Errorf("Failed to delete namespace in unjoining cluster %q: %v", j.ClusterName, err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+// markClusterRelatedWorkAsPreserved attempt to mark the cluster related work as `preserveResourcesOnDeletion`
+func (j *CommandUnjoinOption) markClusterRelatedWorkAsPreserved(controlPlaneKarmadaClient *karmadaclientset.Clientset, clusterName string) error {
+	if j.DryRun {
+		return nil
+	}
+
+	patch := []map[string]interface{}{
+		{
+			"op":    "replace",
+			"path":  "/spec/preserveResourcesOnDeletion",
+			"value": true,
+		},
+	}
+	patchBytes, err := json.Marshal(patch)
+	if err != nil {
+		klog.Errorf("Failed to marshal patch bytes, error: %+v", err)
+		return err
+	}
+
+	workNamespace := names.GenerateExecutionSpaceName(clusterName)
+	workList, err := controlPlaneKarmadaClient.WorkV1alpha1().Works(workNamespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		klog.Errorf("Failed to list works in cluster %s, error: %+v", clusterName, err)
+		return err
+	}
+
+	for _, work := range workList.Items {
+		_, err = controlPlaneKarmadaClient.WorkV1alpha1().Works(workNamespace).Patch(context.TODO(), work.Name, types.JSONPatchType, patchBytes, metav1.PatchOptions{})
+		if err != nil {
+			klog.Errorf("Failed to set preserveResourcesOnDeletion in work(%s/%s), error: %+v", workNamespace, work.Name, err)
 			return err
 		}
 	}

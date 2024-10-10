@@ -103,7 +103,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 
 	if !work.DeletionTimestamp.IsZero() {
 		// Abort deleting workload if cluster is unready when unjoining cluster, otherwise the unjoin process will be failed.
-		if util.IsClusterReady(&cluster.Status) {
+		if util.IsClusterReady(&cluster.Status) && !isWorkloadPreservedOnDeletion(work) {
 			err := c.tryDeleteWorkload(ctx, clusterName, work)
 			if err != nil {
 				klog.Errorf("Failed to delete work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
@@ -328,4 +328,9 @@ func (c *Controller) eventf(object *unstructured.Unstructured, eventType, reason
 		return
 	}
 	c.EventRecorder.Eventf(ref, eventType, reason, messageFmt, args...)
+}
+
+// isWorkloadPreservedOnDeletion judge whether resources should be preserved on the member cluster.
+func isWorkloadPreservedOnDeletion(work *workv1alpha1.Work) bool {
+	return work.Spec.PreserveResourcesOnDeletion != nil && *work.Spec.PreserveResourcesOnDeletion
 }
