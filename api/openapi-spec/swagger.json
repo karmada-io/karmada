@@ -20022,6 +20022,23 @@
         }
       ]
     },
+    "com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.FailoverHistoryItem": {
+      "type": "object",
+      "properties": {
+        "failoverTime": {
+          "description": "FailoverTime represents the timestamp when the workload failed over. It is represented in RFC3339 form(like '2021-04-25T10:02:10Z') and is in UTC.",
+          "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
+        },
+        "originCluster": {
+          "description": "OriginCluster denotes the name of the cluster from which the workload was failed over.",
+          "type": "string"
+        },
+        "reason": {
+          "description": "Reason denotes the reason why the workload failed over.",
+          "type": "string"
+        }
+      }
+    },
     "com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.GracefulEvictionTask": {
       "description": "GracefulEvictionTask represents a graceful eviction task.",
       "type": "object",
@@ -20330,6 +20347,14 @@
           "items": {
             "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Condition"
+          }
+        },
+        "failoverHistory": {
+          "description": "FailoverHistory represents history of the previous failovers of this resource",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.FailoverHistoryItem"
           }
         },
         "lastScheduledTime": {

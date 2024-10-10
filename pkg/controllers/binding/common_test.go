@@ -21,6 +21,7 @@ import (
 	"sort"
 	"testing"
 
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -125,7 +126,7 @@ func Test_mergeLabel(t *testing.T) {
 					},
 				},
 			},
-			binding: &workv1alpha2.ClusterResourceBinding{
+			binding: &workv1alpha2.ResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      bindingName,
 					Namespace: namespace,
@@ -137,6 +138,76 @@ func Test_mergeLabel(t *testing.T) {
 			scope: v1.NamespaceScoped,
 			want: map[string]string{
 				workv1alpha2.ResourceBindingPermanentIDLabel: rbID,
+			},
+		},
+		{
+			name: "NamespaceScoped with application failover",
+			workload: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "demo-deployment",
+						"namespace": namespace,
+					},
+				},
+			},
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      bindingName,
+					Namespace: namespace,
+					Labels: map[string]string{
+						workv1alpha2.ResourceBindingPermanentIDLabel: rbID,
+					},
+				},
+				Status: workv1alpha2.ResourceBindingStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:   workv1alpha2.EvictionReasonApplicationFailure,
+							Status: metav1.ConditionTrue,
+						},
+					},
+				},
+			},
+			scope: apiextensionsv1.NamespaceScoped,
+			want: map[string]string{
+				workv1alpha2.ResourceBindingPermanentIDLabel: rbID,
+				workv1alpha2.ResourceBindingFailoverLabel:    "application",
+			},
+		},
+		{
+			name: "NamespaceScoped with cluster failover",
+			workload: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "demo-deployment",
+						"namespace": namespace,
+					},
+				},
+			},
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      bindingName,
+					Namespace: namespace,
+					Labels: map[string]string{
+						workv1alpha2.ResourceBindingPermanentIDLabel: rbID,
+					},
+				},
+				Status: workv1alpha2.ResourceBindingStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:   workv1alpha2.EvictionReasonTaintUntolerated,
+							Status: metav1.ConditionTrue,
+						},
+					},
+				},
+			},
+			scope: apiextensionsv1.NamespaceScoped,
+			want: map[string]string{
+				workv1alpha2.ResourceBindingPermanentIDLabel: rbID,
+				workv1alpha2.ResourceBindingFailoverLabel:    "cluster",
 			},
 		},
 		{

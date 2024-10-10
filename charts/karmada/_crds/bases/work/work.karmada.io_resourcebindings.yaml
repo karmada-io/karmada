@@ -1339,6 +1339,27 @@ spec:
                   - type
                   type: object
                 type: array
+              failoverHistory:
+                description: FailoverHistory represents history of the previous failovers
+                  of this resource
+                items:
+                  properties:
+                    failoverTime:
+                      description: |-
+                        FailoverTime represents the timestamp when the workload failed over.
+                        It is represented in RFC3339 form(like '2021-04-25T10:02:10Z') and is in UTC.
+                      format: date-time
+                      type: string
+                    originCluster:
+                      description: OriginCluster denotes the name of the cluster from
+                        which the workload was failed over.
+                      type: string
+                    reason:
+                      description: Reason denotes the reason why the workload failed
+                        over.
+                      type: string
+                  type: object
+                type: array
               lastScheduledTime:
                 description: |-
                   LastScheduledTime representing the latest timestamp when scheduler successfully finished a scheduling.
