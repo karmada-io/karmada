@@ -20,12 +20,11 @@ import (
 	"fmt"
 	"strings"
 
+	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
+	"github.com/karmada-io/karmada/operator/pkg/certs"
 	corev1 "k8s.io/api/core/v1"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-
-	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
-	"github.com/karmada-io/karmada/operator/pkg/certs"
 )
 
 // TestInterface defines the interface for retrieving test data.
