@@ -301,7 +301,7 @@ func (c *EndpointsliceDispatchController) cleanOrphanDispatchedEndpointSlice(ctx
 	return nil
 }
 
-func (c *EndpointsliceDispatchController) dispatchEndpointSlice(ctx context.Context, work *workv1alpha1.Work, mcs *networkingv1alpha1.MultiClusterService) error {
+func (c *EndpointsliceDispatchController) dispatchEndpointSlice(_ context.Context, work *workv1alpha1.Work, mcs *networkingv1alpha1.MultiClusterService) error {
 	epsSourceCluster, err := names.GetClusterName(work.Namespace)
 	if err != nil {
 		klog.Errorf("Failed to get EndpointSlice source cluster name for work %s/%s", work.Namespace, work.Name)
