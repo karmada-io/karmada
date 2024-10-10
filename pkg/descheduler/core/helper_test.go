@@ -18,6 +18,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -30,143 +31,336 @@ import (
 )
 
 func TestNewSchedulingResultHelper(t *testing.T) {
-	binding := &workv1alpha2.ResourceBinding{
-		Spec: workv1alpha2.ResourceBindingSpec{
-			Clusters: []workv1alpha2.TargetCluster{
-				{Name: "cluster1", Replicas: 3},
-				{Name: "cluster2", Replicas: 2},
+	tests := []struct {
+		name     string
+		binding  *workv1alpha2.ResourceBinding
+		expected *SchedulingResultHelper
+	}{
+		{
+			name: "Valid binding with ready replicas",
+			binding: &workv1alpha2.ResourceBinding{
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Clusters: []workv1alpha2.TargetCluster{
+						{Name: "cluster1", Replicas: 3},
+						{Name: "cluster2", Replicas: 2},
+					},
+				},
+				Status: workv1alpha2.ResourceBindingStatus{
+					AggregatedStatus: []workv1alpha2.AggregatedStatusItem{
+						{
+							ClusterName: "cluster1",
+							Status:      &runtime.RawExtension{Raw: []byte(`{"readyReplicas": 2}`)},
+						},
+						{
+							ClusterName: "cluster2",
+							Status:      &runtime.RawExtension{Raw: []byte(`{"readyReplicas": 1}`)},
+						},
+					},
+				},
+			},
+			expected: &SchedulingResultHelper{
+				TargetClusters: []*TargetClusterWrapper{
+					{ClusterName: "cluster1", Spec: 3, Ready: 2},
+					{ClusterName: "cluster2", Spec: 2, Ready: 1},
+				},
 			},
 		},
-		Status: workv1alpha2.ResourceBindingStatus{
-			AggregatedStatus: []workv1alpha2.AggregatedStatusItem{
-				{
-					ClusterName: "cluster1",
-					Status:      &runtime.RawExtension{Raw: []byte(`{"readyReplicas": 2}`)},
+		{
+			name: "Binding with invalid status",
+			binding: &workv1alpha2.ResourceBinding{
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Clusters: []workv1alpha2.TargetCluster{
+						{Name: "cluster1", Replicas: 3},
+						{Name: "cluster2", Replicas: 2},
+					},
 				},
-				{
-					ClusterName: "cluster2",
-					Status:      &runtime.RawExtension{Raw: []byte(`{"readyReplicas": 1}`)},
+				Status: workv1alpha2.ResourceBindingStatus{
+					AggregatedStatus: []workv1alpha2.AggregatedStatusItem{
+						{
+							ClusterName: "cluster1",
+							Status:      &runtime.RawExtension{Raw: []byte(`{"readyReplicas": 2}`)},
+						},
+						{
+							ClusterName: "cluster2",
+							Status:      &runtime.RawExtension{Raw: []byte(`invalid json`)},
+						},
+					},
+				},
+			},
+			expected: &SchedulingResultHelper{
+				TargetClusters: []*TargetClusterWrapper{
+					{ClusterName: "cluster1", Spec: 3, Ready: 2},
+					{ClusterName: "cluster2", Spec: 2, Ready: client.UnauthenticReplica},
 				},
 			},
 		},
 	}
 
-	helper := NewSchedulingResultHelper(binding)
-
-	expected := &SchedulingResultHelper{
-		ResourceBinding: binding,
-		TargetClusters: []*TargetClusterWrapper{
-			{ClusterName: "cluster1", Spec: 3, Ready: 2},
-			{ClusterName: "cluster2", Spec: 2, Ready: 1},
-		},
-	}
-
-	if !reflect.DeepEqual(helper, expected) {
-		t.Errorf("NewSchedulingResultHelper() = %v, want %v", helper, expected)
-	}
-}
-
-func TestSchedulingResultHelper_GetUndesiredClusters(t *testing.T) {
-	helper := &SchedulingResultHelper{
-		TargetClusters: []*TargetClusterWrapper{
-			{ClusterName: "cluster1", Spec: 3, Ready: 2},
-			{ClusterName: "cluster2", Spec: 2, Ready: 2},
-			{ClusterName: "cluster3", Spec: 4, Ready: 1},
-		},
-	}
-
-	clusters, names := helper.GetUndesiredClusters()
-
-	expectedClusters := []*TargetClusterWrapper{
-		{ClusterName: "cluster1", Spec: 3, Ready: 2},
-		{ClusterName: "cluster3", Spec: 4, Ready: 1},
-	}
-	expectedNames := []string{"cluster1", "cluster3"}
-
-	if !reflect.DeepEqual(clusters, expectedClusters) {
-		t.Errorf("GetUndesiredClusters() clusters = %v, want %v", clusters, expectedClusters)
-	}
-	if !reflect.DeepEqual(names, expectedNames) {
-		t.Errorf("GetUndesiredClusters() names = %v, want %v", names, expectedNames)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			helper := NewSchedulingResultHelper(tt.binding)
+			helper.ResourceBinding = nil
+			if !reflect.DeepEqual(helper, tt.expected) {
+				t.Errorf("NewSchedulingResultHelper() = %v, want %v", helper, tt.expected)
+			}
+		})
 	}
 }
 
 func TestSchedulingResultHelper_FillUnschedulableReplicas(t *testing.T) {
-	mockEstimator := &mockUnschedulableReplicaEstimator{}
-	client.GetUnschedulableReplicaEstimators()["mock"] = mockEstimator
-	defer delete(client.GetUnschedulableReplicaEstimators(), "mock")
-
-	helper := &SchedulingResultHelper{
-		ResourceBinding: &workv1alpha2.ResourceBinding{
-			Spec: workv1alpha2.ResourceBindingSpec{
-				Resource: workv1alpha2.ObjectReference{
-					APIVersion: "apps/v1",
-					Kind:       "Deployment",
-					Name:       "test-deployment",
-					Namespace:  "default",
+	tests := []struct {
+		name           string
+		helper         *SchedulingResultHelper
+		mockEstimator  *mockUnschedulableReplicaEstimator
+		expected       []*TargetClusterWrapper
+		expectedErrLog string
+	}{
+		{
+			name: "Successful fill",
+			helper: &SchedulingResultHelper{
+				ResourceBinding: &workv1alpha2.ResourceBinding{
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Resource: workv1alpha2.ObjectReference{
+							APIVersion: "apps/v1",
+							Kind:       "Deployment",
+							Name:       "test-deployment",
+							Namespace:  "default",
+						},
+					},
+				},
+				TargetClusters: []*TargetClusterWrapper{
+					{ClusterName: "cluster1", Spec: 3, Ready: 2},
+					{ClusterName: "cluster2", Spec: 2, Ready: 1},
 				},
 			},
+			mockEstimator: &mockUnschedulableReplicaEstimator{},
+			expected: []*TargetClusterWrapper{
+				{ClusterName: "cluster1", Spec: 3, Ready: 2, Unschedulable: 1},
+				{ClusterName: "cluster2", Spec: 2, Ready: 1, Unschedulable: 1},
+			},
 		},
-		TargetClusters: []*TargetClusterWrapper{
-			{ClusterName: "cluster1", Spec: 3, Ready: 2},
-			{ClusterName: "cluster2", Spec: 2, Ready: 1},
+		{
+			name: "Estimator error",
+			helper: &SchedulingResultHelper{
+				ResourceBinding: &workv1alpha2.ResourceBinding{
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Resource: workv1alpha2.ObjectReference{
+							APIVersion: "apps/v1",
+							Kind:       "Deployment",
+							Name:       "test-deployment",
+							Namespace:  "default",
+						},
+					},
+				},
+				TargetClusters: []*TargetClusterWrapper{
+					{ClusterName: "cluster1", Spec: 3, Ready: 2},
+				},
+			},
+			mockEstimator: &mockUnschedulableReplicaEstimator{shouldError: true},
+			expected: []*TargetClusterWrapper{
+				{ClusterName: "cluster1", Spec: 3, Ready: 2, Unschedulable: 0},
+			},
+			expectedErrLog: "Max cluster unschedulable replicas error: mock error",
+		},
+		{
+			name: "UnauthenticReplica handling",
+			helper: &SchedulingResultHelper{
+				ResourceBinding: &workv1alpha2.ResourceBinding{
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Resource: workv1alpha2.ObjectReference{
+							APIVersion: "apps/v1",
+							Kind:       "Deployment",
+							Name:       "test-deployment",
+							Namespace:  "default",
+						},
+					},
+				},
+				TargetClusters: []*TargetClusterWrapper{
+					{ClusterName: "cluster1", Spec: 3, Ready: 2},
+					{ClusterName: "cluster2", Spec: 2, Ready: 1},
+				},
+			},
+			mockEstimator: &mockUnschedulableReplicaEstimator{unauthenticCluster: "cluster2"},
+			expected: []*TargetClusterWrapper{
+				{ClusterName: "cluster1", Spec: 3, Ready: 2, Unschedulable: 1},
+				{ClusterName: "cluster2", Spec: 2, Ready: 1, Unschedulable: 0},
+			},
 		},
 	}
 
-	helper.FillUnschedulableReplicas(time.Minute)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client.GetUnschedulableReplicaEstimators()["mock"] = tt.mockEstimator
+			defer delete(client.GetUnschedulableReplicaEstimators(), "mock")
 
-	expected := []*TargetClusterWrapper{
-		{ClusterName: "cluster1", Spec: 3, Ready: 2, Unschedulable: 1},
-		{ClusterName: "cluster2", Spec: 2, Ready: 1, Unschedulable: 1},
+			tt.helper.FillUnschedulableReplicas(time.Minute)
+
+			if !reflect.DeepEqual(tt.helper.TargetClusters, tt.expected) {
+				t.Errorf("FillUnschedulableReplicas() = %v, want %v", tt.helper.TargetClusters, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSchedulingResultHelper_GetUndesiredClusters(t *testing.T) {
+	tests := []struct {
+		name             string
+		helper           *SchedulingResultHelper
+		expectedClusters []*TargetClusterWrapper
+		expectedNames    []string
+	}{
+		{
+			name: "Mixed desired and undesired clusters",
+			helper: &SchedulingResultHelper{
+				TargetClusters: []*TargetClusterWrapper{
+					{ClusterName: "cluster1", Spec: 3, Ready: 2},
+					{ClusterName: "cluster2", Spec: 2, Ready: 2},
+					{ClusterName: "cluster3", Spec: 4, Ready: 1},
+				},
+			},
+			expectedClusters: []*TargetClusterWrapper{
+				{ClusterName: "cluster1", Spec: 3, Ready: 2},
+				{ClusterName: "cluster3", Spec: 4, Ready: 1},
+			},
+			expectedNames: []string{"cluster1", "cluster3"},
+		},
+		{
+			name: "All clusters desired",
+			helper: &SchedulingResultHelper{
+				TargetClusters: []*TargetClusterWrapper{
+					{ClusterName: "cluster1", Spec: 2, Ready: 2},
+					{ClusterName: "cluster2", Spec: 3, Ready: 3},
+				},
+			},
+			expectedClusters: nil,
+			expectedNames:    nil,
+		},
 	}
 
-	if !reflect.DeepEqual(helper.TargetClusters, expected) {
-		t.Errorf("FillUnschedulableReplicas() = %v, want %v", helper.TargetClusters, expected)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clusters, names := tt.helper.GetUndesiredClusters()
+
+			if !reflect.DeepEqual(clusters, tt.expectedClusters) {
+				t.Errorf("GetUndesiredClusters() clusters = %v, want %v", clusters, tt.expectedClusters)
+			}
+			if !reflect.DeepEqual(names, tt.expectedNames) {
+				t.Errorf("GetUndesiredClusters() names = %v, want %v", names, tt.expectedNames)
+			}
+		})
 	}
 }
 
 func TestGetReadyReplicas(t *testing.T) {
-	binding := &workv1alpha2.ResourceBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-binding",
-			Namespace: "default",
+	tests := []struct {
+		name     string
+		binding  *workv1alpha2.ResourceBinding
+		expected map[string]int32
+	}{
+		{
+			name: "Valid status with readyReplicas",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding",
+					Namespace: "default",
+				},
+				Status: workv1alpha2.ResourceBindingStatus{
+					AggregatedStatus: []workv1alpha2.AggregatedStatusItem{
+						{
+							ClusterName: "cluster1",
+							Status:      &runtime.RawExtension{Raw: []byte(`{"readyReplicas": 2}`)},
+						},
+						{
+							ClusterName: "cluster2",
+							Status:      &runtime.RawExtension{Raw: []byte(`{"readyReplicas": 3}`)},
+						},
+					},
+				},
+			},
+			expected: map[string]int32{
+				"cluster1": 2,
+				"cluster2": 3,
+			},
 		},
-		Status: workv1alpha2.ResourceBindingStatus{
-			AggregatedStatus: []workv1alpha2.AggregatedStatusItem{
-				{
-					ClusterName: "cluster1",
-					Status:      &runtime.RawExtension{Raw: []byte(`{"readyReplicas": 2}`)},
+		{
+			name: "Status with missing readyReplicas field",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding",
+					Namespace: "default",
 				},
-				{
-					ClusterName: "cluster2",
-					Status:      &runtime.RawExtension{Raw: []byte(`{"readyReplicas": 3}`)},
+				Status: workv1alpha2.ResourceBindingStatus{
+					AggregatedStatus: []workv1alpha2.AggregatedStatusItem{
+						{
+							ClusterName: "cluster1",
+							Status:      &runtime.RawExtension{Raw: []byte(`{"readyReplicas": 2}`)},
+						},
+						{
+							ClusterName: "cluster2",
+							Status:      &runtime.RawExtension{Raw: []byte(`{"someOtherField": 3}`)},
+						},
+					},
 				},
-				{
-					ClusterName: "cluster3",
-					Status:      &runtime.RawExtension{Raw: []byte(`{"someOtherField": 1}`)},
+			},
+			expected: map[string]int32{
+				"cluster1": 2,
+			},
+		},
+		{
+			name: "Status with invalid JSON",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding",
+					Namespace: "default",
 				},
+				Status: workv1alpha2.ResourceBindingStatus{
+					AggregatedStatus: []workv1alpha2.AggregatedStatusItem{
+						{
+							ClusterName: "cluster1",
+							Status:      &runtime.RawExtension{Raw: []byte(`{"readyReplicas": 2}`)},
+						},
+						{
+							ClusterName: "cluster2",
+							Status:      &runtime.RawExtension{Raw: []byte(`invalid json`)},
+						},
+					},
+				},
+			},
+			expected: map[string]int32{
+				"cluster1": 2,
 			},
 		},
 	}
 
-	result := getReadyReplicas(binding)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getReadyReplicas(tt.binding)
 
-	expected := map[string]int32{
-		"cluster1": 2,
-		"cluster2": 3,
-	}
-
-	if !reflect.DeepEqual(result, expected) {
-		t.Errorf("getReadyReplicas() = %v, want %v", result, expected)
+			if !reflect.DeepEqual(result, tt.expected) {
+				t.Errorf("getReadyReplicas() = %v, want %v", result, tt.expected)
+			}
+		})
 	}
 }
 
-// mockUnschedulableReplicaEstimator is a mock implementation of the UnschedulableReplicaEstimator interface
-type mockUnschedulableReplicaEstimator struct{}
+// Mock implementation of UnschedulableReplicaEstimator
+type mockUnschedulableReplicaEstimator struct {
+	shouldError        bool
+	unauthenticCluster string
+}
 
-func (m *mockUnschedulableReplicaEstimator) GetUnschedulableReplicas(_ context.Context, _ []string, _ *workv1alpha2.ObjectReference, _ time.Duration) ([]workv1alpha2.TargetCluster, error) {
-	return []workv1alpha2.TargetCluster{
-		{Name: "cluster1", Replicas: 1},
-		{Name: "cluster2", Replicas: 1},
-	}, nil
+func (m *mockUnschedulableReplicaEstimator) GetUnschedulableReplicas(_ context.Context, clusters []string, _ *workv1alpha2.ObjectReference, _ time.Duration) ([]workv1alpha2.TargetCluster, error) {
+	if m.shouldError {
+		return nil, fmt.Errorf("mock error")
+	}
+
+	result := make([]workv1alpha2.TargetCluster, len(clusters))
+	for i, cluster := range clusters {
+		replicas := int32(1)
+		if cluster == m.unauthenticCluster {
+			replicas = client.UnauthenticReplica
+		}
+		result[i] = workv1alpha2.TargetCluster{Name: cluster, Replicas: replicas}
+	}
+	return result, nil
 }
