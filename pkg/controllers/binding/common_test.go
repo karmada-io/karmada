@@ -21,7 +21,6 @@ import (
 	"sort"
 	"testing"
 
-	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
@@ -30,7 +29,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
-func Test_mergeTargetClusters(t *testing.T) {
+func Test_calcTargetClusters(t *testing.T) {
 	tests := []struct {
 		name                      string
 		targetClusters            []workv1alpha2.TargetCluster
@@ -94,14 +93,14 @@ func Test_mergeTargetClusters(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := mergeTargetClusters(tt.targetClusters, tt.requiredByBindingSnapshot); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("mergeTargetClusters() = %v, want %v", got, tt.want)
+			if got := calcTargetClusters(tt.targetClusters, tt.requiredByBindingSnapshot); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("calcTargetClusters() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func Test_mergeLabel(t *testing.T) {
+func Test_mergeLabels(t *testing.T) {
 	namespace := "fake-ns"
 	bindingName := "fake-bindingName"
 	rbID := "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"
@@ -110,7 +109,6 @@ func Test_mergeLabel(t *testing.T) {
 		name     string
 		workload *unstructured.Unstructured
 		binding  metav1.Object
-		scope    v1.ResourceScope
 		want     map[string]string
 	}{
 		{
@@ -134,7 +132,6 @@ func Test_mergeLabel(t *testing.T) {
 					},
 				},
 			},
-			scope: v1.NamespaceScoped,
 			want: map[string]string{
 				workv1alpha2.ResourceBindingPermanentIDLabel: rbID,
 			},
@@ -158,7 +155,6 @@ func Test_mergeLabel(t *testing.T) {
 					},
 				},
 			},
-			scope: v1.ClusterScoped,
 			want: map[string]string{
 				workv1alpha2.ClusterResourceBindingPermanentIDLabel: rbID,
 			},
@@ -175,8 +171,9 @@ func Test_mergeLabel(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := mergeLabel(tt.workload, tt.binding, tt.scope); !checker(got, tt.want) {
-				t.Errorf("mergeLabel() = %v, want %v", got, tt.want)
+			labels := setupWorkLabels(tt.binding)
+			if workload := mergeLabels(tt.workload, labels); !checker(workload.GetLabels(), tt.want) {
+				t.Errorf("mergeLabels() = %v, want %v", workload.GetLabels(), tt.want)
 			}
 		})
 	}
@@ -190,7 +187,6 @@ func Test_mergeAnnotations(t *testing.T) {
 		name     string
 		workload *unstructured.Unstructured
 		binding  metav1.Object
-		scope    v1.ResourceScope
 		want     map[string]string
 	}{
 		{
@@ -211,7 +207,6 @@ func Test_mergeAnnotations(t *testing.T) {
 					Namespace: namespace,
 				},
 			},
-			scope: v1.NamespaceScoped,
 			want: map[string]string{
 				workv1alpha2.ResourceBindingNamespaceAnnotationKey: namespace,
 				workv1alpha2.ResourceBindingNameAnnotationKey:      bindingName,
@@ -233,7 +228,6 @@ func Test_mergeAnnotations(t *testing.T) {
 					Name: bindingName,
 				},
 			},
-			scope: v1.ClusterScoped,
 			want: map[string]string{
 				workv1alpha2.ClusterResourceBindingAnnotationKey: bindingName,
 			},
@@ -241,8 +235,9 @@ func Test_mergeAnnotations(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := mergeAnnotations(tt.workload, tt.binding, tt.scope); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("mergeAnnotations() = %v, want %v", got, tt.want)
+			annotation := setupWorkAnnotations(tt.binding)
+			if workload := mergeAnnotations(tt.workload, annotation); !reflect.DeepEqual(workload.GetAnnotations(), tt.want) {
+				t.Errorf("mergeAnnotations() = %v, want %v", workload.GetAnnotations(), tt.want)
 			}
 		})
 	}
@@ -312,8 +307,8 @@ func Test_mergeConflictResolution(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := mergeConflictResolution(tt.workload, tt.conflictResolutionInBinding, tt.annotations); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("mergeConflictResolution() = %v, want %v", got, tt.want)
+			if got := setupConflictResolution(tt.workload, tt.conflictResolutionInBinding, tt.annotations); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("setupConflictResolution() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -374,7 +369,7 @@ func Test_shouldSuspendDispatching(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := shouldSuspendDispatching(tt.args.suspension, tt.args.targetCluster); got != tt.want {
+			if got := shouldSuspendDispatching(tt.args.suspension, tt.args.targetCluster.Name); got != tt.want {
 				t.Errorf("shouldSuspendDispatching() = %v, want %v", got, tt.want)
 			}
 		})
@@ -444,9 +439,20 @@ func Test_divideReplicasByJobCompletions(t *testing.T) {
 		wantErr  bool
 	}{
 		{
+			name: "not job kind workload",
+			workload: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"kind": "Deployment",
+				},
+			},
+			want:    nil,
+			wantErr: false,
+		},
+		{
 			name: "completions found",
 			workload: &unstructured.Unstructured{
 				Object: map[string]interface{}{
+					"kind": "Job",
 					"spec": map[string]interface{}{
 						"completions": int64(10),
 					},
@@ -466,6 +472,7 @@ func Test_divideReplicasByJobCompletions(t *testing.T) {
 			name: "error in NestedInt64",
 			workload: &unstructured.Unstructured{
 				Object: map[string]interface{}{
+					"kind": "Job",
 					"spec": "invalid",
 				},
 			},
