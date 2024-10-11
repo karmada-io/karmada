@@ -296,6 +296,100 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 				Message: "spec.overrideRules[0].overriders.fieldOverrider[0].yaml[0].subPath: Invalid value: \"invalidSubPath\": JSON pointer must be empty or start with a \"/",
 			},
 		},
+		{
+			name: "Handle_InvalidJSONValue_DeniesAdmission_OverriderOpReplace",
+			decoder: &fakeValidationDecoder{
+				obj: &policyv1alpha1.OverridePolicy{
+					Spec: policyv1alpha1.OverrideSpec{
+						OverrideRules: []policyv1alpha1.RuleWithCluster{
+							{
+								Overriders: policyv1alpha1.Overriders{
+									FieldOverrider: []policyv1alpha1.FieldOverrider{
+										{
+											FieldPath: "/data/config",
+											JSON: []policyv1alpha1.JSONPatchOperation{
+												{
+													SubPath:  "/db-config",
+													Operator: policyv1alpha1.OverriderOpReplace,
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			req: admission.Request{},
+			want: TestResponse{
+				Type:    Denied,
+				Message: "spec.overrideRules[0].overriders.fieldOverrider[0].json[0].value: Invalid value: v1.JSON{Raw:[]uint8(nil)}: value is required for add or replace operation",
+			},
+		},
+		{
+			name: "Handle_InvalidJSONValue_DeniesAdmission_OverriderOpAdd",
+			decoder: &fakeValidationDecoder{
+				obj: &policyv1alpha1.OverridePolicy{
+					Spec: policyv1alpha1.OverrideSpec{
+						OverrideRules: []policyv1alpha1.RuleWithCluster{
+							{
+								Overriders: policyv1alpha1.Overriders{
+									FieldOverrider: []policyv1alpha1.FieldOverrider{
+										{
+											FieldPath: "/data/config",
+											JSON: []policyv1alpha1.JSONPatchOperation{
+												{
+													SubPath:  "/db-config",
+													Operator: policyv1alpha1.OverriderOpAdd,
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			req: admission.Request{},
+			want: TestResponse{
+				Type:    Denied,
+				Message: "spec.overrideRules[0].overriders.fieldOverrider[0].json[0].value: Invalid value: v1.JSON{Raw:[]uint8(nil)}: value is required for add or replace operation",
+			},
+		},
+		{
+			name: "Handle_InvalidJSONValue_DeniesAdmission_OverriderOpRemove",
+			decoder: &fakeValidationDecoder{
+				obj: &policyv1alpha1.OverridePolicy{
+					Spec: policyv1alpha1.OverrideSpec{
+						OverrideRules: []policyv1alpha1.RuleWithCluster{
+							{
+								Overriders: policyv1alpha1.Overriders{
+									FieldOverrider: []policyv1alpha1.FieldOverrider{
+										{
+											FieldPath: "/data/config",
+											JSON: []policyv1alpha1.JSONPatchOperation{
+												{
+													SubPath:  "/db-config",
+													Operator: policyv1alpha1.OverriderOpRemove,
+													Value:    apiextensionsv1.JSON{Raw: []byte(`{"db": "new"}`)},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			req: admission.Request{},
+			want: TestResponse{
+				Type:    Denied,
+				Message: "spec.overrideRules[0].overriders.fieldOverrider[0].json[0].value: Invalid value: v1.JSON{Raw:[]uint8{0x7b, 0x22, 0x64, 0x62, 0x22, 0x3a, 0x20, 0x22, 0x6e, 0x65, 0x77, 0x22, 0x7d}}: value is not allowed for remove operation",
+			},
+		},
 	}
 
 	for _, tt := range tests {
