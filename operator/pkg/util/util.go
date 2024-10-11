@@ -75,11 +75,12 @@ func (d *Downloader) Read(p []byte) (n int, err error) {
 	return
 }
 
+var httpClient = http.Client{
+	Timeout: 60 * time.Second,
+}
+
 // DownloadFile Download files via URL
 func DownloadFile(url, filePath string) error {
-	httpClient := http.Client{
-		Timeout: 60 * time.Second,
-	}
 	resp, err := httpClient.Get(url)
 	if err != nil {
 		return err
@@ -87,7 +88,7 @@ func DownloadFile(url, filePath string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("failed download file. url: %s code: %v", url, resp.StatusCode)
+		return fmt.Errorf("failed to download file. url: %s code: %v", url, resp.StatusCode)
 	}
 
 	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, util.DefaultFilePerm)
