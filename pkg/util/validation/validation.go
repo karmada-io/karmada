@@ -21,6 +21,7 @@ import (
 
 	"github.com/go-openapi/jsonpointer"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -340,6 +341,7 @@ func validateJSONPatchSubPaths(patches []policyv1alpha1.JSONPatchOperation, fiel
 		if _, err := jsonpointer.New(patch.SubPath); err != nil {
 			allErrs = append(allErrs, field.Invalid(patchPath.Child("subPath"), patch.SubPath, err.Error()))
 		}
+		allErrs = append(allErrs, validateOverrideOperator(patch.Operator, patch.Value, patchPath.Child("value"))...)
 	}
 	return allErrs
 }
@@ -350,6 +352,22 @@ func validateYAMLPatchSubPaths(patches []policyv1alpha1.YAMLPatchOperation, fiel
 		patchPath := fieldPath.Index(index)
 		if _, err := jsonpointer.New(patch.SubPath); err != nil {
 			allErrs = append(allErrs, field.Invalid(patchPath.Child("subPath"), patch.SubPath, err.Error()))
+		}
+		allErrs = append(allErrs, validateOverrideOperator(patch.Operator, patch.Value, patchPath.Child("value"))...)
+	}
+	return allErrs
+}
+
+func validateOverrideOperator(operator policyv1alpha1.OverriderOperator, value apiextensionsv1.JSON, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+	switch operator {
+	case policyv1alpha1.OverriderOpAdd, policyv1alpha1.OverriderOpReplace:
+		if value.Size() == 0 {
+			allErrs = append(allErrs, field.Invalid(fldPath, value, "value is required for add or replace operation"))
+		}
+	case policyv1alpha1.OverriderOpRemove:
+		if value.Size() != 0 {
+			allErrs = append(allErrs, field.Invalid(fldPath, value, "value is not allowed for remove operation"))
 		}
 	}
 	return allErrs
