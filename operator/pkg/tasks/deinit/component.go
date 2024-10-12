@@ -83,10 +83,10 @@ func runRemoveComponentSubTask(component string, workloadNameFunc util.Namefunc,
 			return fmt.Errorf("remove-%s task invoked with an invalid data struct", component)
 		}
 
-		// Although we found the workload by name, we cannot be sure that the
-		// workload was created by the karmada operator. if the workload exists the
-		// label "app.kubernetes.io/managed-by": "karmada-operator", we think it
-		// must be created by karmada operator.
+		// Even though we found the workload by name, we can't be certain that it was
+		// created by the Karmada operator. If the workload has the label
+		// "app.kubernetes.io/managed-by": "karmada-operator", we can assume it was
+		// created by the Karmada operator.
 		err := apiclient.DeleteDeploymentIfHasLabels(
 			data.RemoteClient(),
 			workloadNameFunc(data.GetName()),
