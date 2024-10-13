@@ -2,7 +2,47 @@ apiVersion: v1
 entries:
   karmada:
   - apiVersion: v2
-    appVersion: latest
+    appVersion: v1.1.0
+    created: "2024-09-21T12:09:38.421759709+08:00"
+    dependencies:
+    - name: common
+      repository: https://charts.bitnami.com/bitnami
+      version: 2.x.x
+    description: A Helm chart for karmada
+    digest: d4d9bbbda5ac03a4ba9349b17973b3df9047849398735dcb36cec4ec39140046
+    kubeVersion: '>= 1.16.0-0'
+    maintainers:
+    - email: chaosi@zju.edu.cn
+      name: chaosi-zju
+    - email: amiralavi7@gmail.com
+      name: a7i
+    name: karmada
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.11.0/karmada-chart-v1.11.0.tgz
+    version: v1.11.0
+  - apiVersion: v2
+    appVersion: v1.1.0
+    created: "2024-09-21T12:04:45.631679376+08:00"
+    dependencies:
+    - name: common
+      repository: https://charts.bitnami.com/bitnami
+      version: 2.x.x
+    description: A Helm chart for karmada
+    digest: c381332dfebd6a4473cfcdb68abfca4916d415088cc90707b7336001e8cb20db
+    kubeVersion: '>= 1.16.0-0'
+    maintainers:
+    - email: chaosi@zju.edu.cn
+      name: chaosi-zju
+    - email: amiralavi7@gmail.com
+      name: a7i
+    name: karmada
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.10.0/karmada-chart-v1.10.0.tgz
+    version: v1.10.0
+  - apiVersion: v2
+    appVersion: v1.1.0
     created: "2024-02-29T16:55:17.965911-05:00"
     dependencies:
     - name: common
@@ -244,6 +284,68 @@ entries:
   karmada-operator:
   - apiVersion: v2
     appVersion: v1.1.0
+    created: "2024-09-21T15:01:05.712207268+08:00"
+    dependencies:
+    - name: common
+      repository: https://charts.bitnami.com/bitnami
+      version: 1.x.x
+    description: A Helm chart for karmada-operator
+    digest: d0aecd28e92ebfa5e9cb4836a38b878c3355f2f068f3645b7152a00625c168c6
+    kubeVersion: '>= 1.16.0-0'
+    maintainers:
+    - email: wen.chen@daocloud.io
+      name: calvin0327
+    - email: chaosi@zju.edu.cn
+      name: chaosi-zju
+    - email: amiralavi7@gmail.com
+      name: a7i
+    name: karmada-operator
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.11.0/karmada-operator-chart-v1.11.0.tgz
+    version: v1.11.0
+  - apiVersion: v2
+    appVersion: v1.1.0
+    created: "2024-09-21T14:59:09.729691529+08:00"
+    dependencies:
+    - name: common
+      repository: https://charts.bitnami.com/bitnami
+      version: 1.x.x
+    description: A Helm chart for karmada-operator
+    digest: a8794bcbfcf96d5ad2a7f7e976fac4d599437858f05d94acd7bf6c493ec6401e
+    kubeVersion: '>= 1.16.0-0'
+    maintainers:
+    - email: wen.chen@daocloud.io
+      name: calvin0327
+    - email: chaosi@zju.edu.cn
+      name: chaosi-zju
+    - email: amiralavi7@gmail.com
+      name: a7i
+    name: karmada-operator
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.10.0/karmada-operator-chart-v1.10.0.tgz
+    version: v1.10.0
+  - apiVersion: v2
+    appVersion: v1.1.0
+    created: "2024-09-21T14:56:28.687039261+08:00"
+    dependencies:
+    - name: common
+      repository: https://charts.bitnami.com/bitnami
+      version: 1.x.x
+    description: A Helm chart for karmada-operator
+    digest: 609743e4c8bbe381fbc822e0957ccb1ba47ff5a84f33f86ee16f9f3c6d4c7eed
+    kubeVersion: '>= 1.16.0-0'
+    maintainers:
+    - email: wen.chen@daocloud.io
+      name: calvin0327
+    name: karmada-operator
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.9.0/karmada-operator-chart-v1.9.0.tgz
+    version: v1.9.0
+  - apiVersion: v2
+    appVersion: v1.1.0
     created: "2023-11-30T11:47:32.390757-08:00"
     dependencies:
     - name: common
@@ -260,4 +362,4 @@ entries:
     urls:
     - https://github.com/karmada-io/karmada/releases/download/v1.8.0/karmada-operator-chart-v1.8.0.tgz
     version: v1.8.0
-generated: "2024-02-29T16:55:17.961702-05:00"
+generated: "2024-09-21T15:01:05.710041947+08:00"

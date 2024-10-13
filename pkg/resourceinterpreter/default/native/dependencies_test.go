@@ -861,6 +861,39 @@ func Test_getStatefulSetDependencies(t *testing.T) {
 			want:    testPairs[2].dependentObjectReference,
 			wantErr: false,
 		},
+		{
+			name: "statefulset with partial dependencies 4",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "StatefulSet",
+					"metadata": map[string]interface{}{
+						"name":      "fake-statefulset",
+						"namespace": namespace,
+					},
+					"spec": map[string]interface{}{
+						"serviceName": "fake-service",
+						"selector": map[string]interface{}{
+							"matchLabels": map[string]interface{}{
+								"app": "fake",
+							},
+						},
+						"template": map[string]interface{}{
+							"spec": testPairs[0].podSpecsWithDependencies.Object,
+						},
+						"volumeClaimTemplates": []interface{}{
+							map[string]interface{}{
+								"metadata": map[string]interface{}{
+									"name": "test-pvc",
+								},
+							},
+						},
+					},
+				},
+			},
+			want:    testPairs[0].dependentObjectReference[:3], // remove the pvc dependency because it was found in the volumeClaimTemplates
+			wantErr: false,
+		},
 	}
 
 	for i := range tests {

@@ -24,6 +24,7 @@ import (
 	"strings"
 	"testing"
 
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -152,6 +153,241 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 			want: TestResponse{
 				Type:    Allowed,
 				Message: "",
+			},
+		},
+		{
+			name: "Handle_FieldOverrider_ContainsBothYAMLAndJSON_DeniesAdmission",
+			decoder: &fakeValidationDecoder{
+				obj: &policyv1alpha1.OverridePolicy{
+					Spec: policyv1alpha1.OverrideSpec{
+						ResourceSelectors: []policyv1alpha1.ResourceSelector{
+							{APIVersion: "test-apiversion", Kind: "test"},
+						},
+						OverrideRules: []policyv1alpha1.RuleWithCluster{
+							{
+								TargetCluster: &policyv1alpha1.ClusterAffinity{
+									ClusterNames: []string{"member1"},
+								},
+								Overriders: policyv1alpha1.Overriders{
+									FieldOverrider: []policyv1alpha1.FieldOverrider{
+										{
+											FieldPath: "/data/config",
+											JSON: []policyv1alpha1.JSONPatchOperation{
+												{
+													SubPath:  "/db-config",
+													Operator: policyv1alpha1.OverriderOpReplace,
+													Value:    apiextensionsv1.JSON{Raw: []byte(`{"db": "new"}`)},
+												},
+											},
+											YAML: []policyv1alpha1.YAMLPatchOperation{
+												{
+													SubPath:  "/db-config",
+													Operator: policyv1alpha1.OverriderOpReplace,
+													Value:    apiextensionsv1.JSON{Raw: []byte("db: new")},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			req: admission.Request{},
+			want: TestResponse{
+				Type:    Denied,
+				Message: "FieldOverrider has both YAML and JSON set. Only one is allowed",
+			},
+		},
+		{
+			name: "Handle_InvalidFieldPathInYAML_DeniesAdmission",
+			decoder: &fakeValidationDecoder{
+				obj: &policyv1alpha1.OverridePolicy{
+					Spec: policyv1alpha1.OverrideSpec{
+						OverrideRules: []policyv1alpha1.RuleWithCluster{
+							{
+								Overriders: policyv1alpha1.Overriders{
+									FieldOverrider: []policyv1alpha1.FieldOverrider{
+										{
+											FieldPath: "invalidPath",
+											YAML: []policyv1alpha1.YAMLPatchOperation{
+												{
+													SubPath:  "/db-config",
+													Operator: policyv1alpha1.OverriderOpReplace,
+													Value:    apiextensionsv1.JSON{Raw: []byte("db: new")},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			req: admission.Request{},
+			want: TestResponse{
+				Type:    Denied,
+				Message: "spec.overrideRules[0].overriders.fieldOverrider[0].fieldPath: Invalid value: \"invalidPath\": JSON pointer must be empty or start with a \"/",
+			},
+		},
+		{
+			name: "Handle_InvalidJSONSubPath_DeniesAdmission",
+			decoder: &fakeValidationDecoder{
+				obj: &policyv1alpha1.OverridePolicy{
+					Spec: policyv1alpha1.OverrideSpec{
+						OverrideRules: []policyv1alpha1.RuleWithCluster{
+							{
+								Overriders: policyv1alpha1.Overriders{
+									FieldOverrider: []policyv1alpha1.FieldOverrider{
+										{
+											FieldPath: "/data/config",
+											JSON: []policyv1alpha1.JSONPatchOperation{
+												{
+													SubPath:  "invalidSubPath",
+													Operator: policyv1alpha1.OverriderOpReplace,
+													Value:    apiextensionsv1.JSON{Raw: []byte(`{"db": "new"}`)},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			req: admission.Request{},
+			want: TestResponse{
+				Type:    Denied,
+				Message: "spec.overrideRules[0].overriders.fieldOverrider[0].json[0].subPath: Invalid value: \"invalidSubPath\": JSON pointer must be empty or start with a \"/",
+			},
+		},
+		{
+			name: "Handle_InvalidYAMLSubPath_DeniesAdmission",
+			decoder: &fakeValidationDecoder{
+				obj: &policyv1alpha1.OverridePolicy{
+					Spec: policyv1alpha1.OverrideSpec{
+						OverrideRules: []policyv1alpha1.RuleWithCluster{
+							{
+								Overriders: policyv1alpha1.Overriders{
+									FieldOverrider: []policyv1alpha1.FieldOverrider{
+										{
+											FieldPath: "/data/config",
+											YAML: []policyv1alpha1.YAMLPatchOperation{
+												{
+													SubPath:  "invalidSubPath",
+													Operator: policyv1alpha1.OverriderOpReplace,
+													Value:    apiextensionsv1.JSON{Raw: []byte("db: new")},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			req: admission.Request{},
+			want: TestResponse{
+				Type:    Denied,
+				Message: "spec.overrideRules[0].overriders.fieldOverrider[0].yaml[0].subPath: Invalid value: \"invalidSubPath\": JSON pointer must be empty or start with a \"/",
+			},
+		},
+		{
+			name: "Handle_InvalidJSONValue_DeniesAdmission_OverriderOpReplace",
+			decoder: &fakeValidationDecoder{
+				obj: &policyv1alpha1.OverridePolicy{
+					Spec: policyv1alpha1.OverrideSpec{
+						OverrideRules: []policyv1alpha1.RuleWithCluster{
+							{
+								Overriders: policyv1alpha1.Overriders{
+									FieldOverrider: []policyv1alpha1.FieldOverrider{
+										{
+											FieldPath: "/data/config",
+											JSON: []policyv1alpha1.JSONPatchOperation{
+												{
+													SubPath:  "/db-config",
+													Operator: policyv1alpha1.OverriderOpReplace,
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			req: admission.Request{},
+			want: TestResponse{
+				Type:    Denied,
+				Message: "spec.overrideRules[0].overriders.fieldOverrider[0].json[0].value: Invalid value: v1.JSON{Raw:[]uint8(nil)}: value is required for add or replace operation",
+			},
+		},
+		{
+			name: "Handle_InvalidJSONValue_DeniesAdmission_OverriderOpAdd",
+			decoder: &fakeValidationDecoder{
+				obj: &policyv1alpha1.OverridePolicy{
+					Spec: policyv1alpha1.OverrideSpec{
+						OverrideRules: []policyv1alpha1.RuleWithCluster{
+							{
+								Overriders: policyv1alpha1.Overriders{
+									FieldOverrider: []policyv1alpha1.FieldOverrider{
+										{
+											FieldPath: "/data/config",
+											JSON: []policyv1alpha1.JSONPatchOperation{
+												{
+													SubPath:  "/db-config",
+													Operator: policyv1alpha1.OverriderOpAdd,
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			req: admission.Request{},
+			want: TestResponse{
+				Type:    Denied,
+				Message: "spec.overrideRules[0].overriders.fieldOverrider[0].json[0].value: Invalid value: v1.JSON{Raw:[]uint8(nil)}: value is required for add or replace operation",
+			},
+		},
+		{
+			name: "Handle_InvalidJSONValue_DeniesAdmission_OverriderOpRemove",
+			decoder: &fakeValidationDecoder{
+				obj: &policyv1alpha1.OverridePolicy{
+					Spec: policyv1alpha1.OverrideSpec{
+						OverrideRules: []policyv1alpha1.RuleWithCluster{
+							{
+								Overriders: policyv1alpha1.Overriders{
+									FieldOverrider: []policyv1alpha1.FieldOverrider{
+										{
+											FieldPath: "/data/config",
+											JSON: []policyv1alpha1.JSONPatchOperation{
+												{
+													SubPath:  "/db-config",
+													Operator: policyv1alpha1.OverriderOpRemove,
+													Value:    apiextensionsv1.JSON{Raw: []byte(`{"db": "new"}`)},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			req: admission.Request{},
+			want: TestResponse{
+				Type:    Denied,
+				Message: "spec.overrideRules[0].overriders.fieldOverrider[0].json[0].value: Invalid value: v1.JSON{Raw:[]uint8{0x7b, 0x22, 0x64, 0x62, 0x22, 0x3a, 0x20, 0x22, 0x6e, 0x65, 0x77, 0x22, 0x7d}}: value is not allowed for remove operation",
 			},
 		},
 	}
