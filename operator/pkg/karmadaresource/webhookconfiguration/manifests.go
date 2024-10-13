@@ -22,7 +22,7 @@ const (
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: mutating-config
+  name: karmada-mutations
   labels:
     app: karmada-webhook
 webhooks:
@@ -145,7 +145,7 @@ webhooks:
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: validating-config
+  name: karmada-validations
   labels:
     app: karmada-webhook
 webhooks:
