@@ -17253,7 +17253,7 @@
       }
     },
     "com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.Cluster": {
-      "description": "Cluster represents the desire state and status of a member cluster.",
+      "description": "Cluster represents the desired state and status of a member cluster.",
       "type": "object",
       "required": [
         "spec"
@@ -17291,7 +17291,7 @@
       ]
     },
     "com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.ClusterList": {
-      "description": "ClusterList contains a list of member cluster",
+      "description": "ClusterList contains a list of member clusters",
       "type": "object",
       "required": [
         "items"
@@ -17338,11 +17338,11 @@
           "type": "string"
         },
         "id": {
-          "description": "ID is the unique identifier for the cluster. It is different from the object uid(.metadata.uid) and typically collected automatically from member cluster during the progress of registration.\n\nThe value is collected in order: 1. If the registering cluster enabled ClusterProperty API and defined the cluster ID by\n  creating a ClusterProperty object with name 'cluster.clusterset.k8s.io', Karmada would\n  take the defined value in the ClusterProperty object.\n  See https://github.com/kubernetes-sigs/about-api for more details about ClusterProperty API.\n2. Take the uid of 'kube-system' namespace on the registering cluster.\n\nPlease don't update this value unless you know what you are doing, because it will/may be used to : - uniquely identify the clusters within the Karmada system. - compose the DNS name of multi-cluster services.",
+          "description": "ID is the unique identifier for the cluster. It is different from the object uid(.metadata.uid) and is typically collected automatically from each member cluster during the process of registration.\n\nThe value is collected in order: 1. If the registering cluster enabled ClusterProperty API and defined the cluster ID by\n  creating a ClusterProperty object with name 'cluster.clusterset.k8s.io', Karmada would\n  take the defined value in the ClusterProperty object.\n  See https://github.com/kubernetes-sigs/about-api for more details about ClusterProperty API.\n2. Take the uid of 'kube-system' namespace on the registering cluster.\n\nPlease don't update this value unless you know what you are doing, because it will/may be used to : - uniquely identify the clusters within the Karmada system. - compose the DNS name of multi-cluster services.",
           "type": "string"
         },
         "impersonatorSecretRef": {
-          "description": "ImpersonatorSecretRef represents the secret contains the token of impersonator. The secret should hold credentials as follows: - secret.data.token",
+          "description": "ImpersonatorSecretRef represents the secret that contains the token of impersonator. The secret should hold credentials as follows: - secret.data.token",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.LocalSecretReference"
         },
         "insecureSkipTLSVerification": {
@@ -17354,7 +17354,7 @@
           "type": "string"
         },
         "proxyHeader": {
-          "description": "ProxyHeader is the HTTP header required by proxy server. The key in the key-value pair is HTTP header key and value is the associated header payloads. For the header with multiple values, the values should be separated by comma(e.g. 'k1': 'v1,v2,v3').",
+          "description": "ProxyHeader is the HTTP header required by proxy server. The key in the key-value pair is HTTP header key and the value is the associated header payloads. For the header with multiple values, the values should be separated by comma(e.g. 'k1': 'v1,v2,v3').",
           "type": "object",
           "additionalProperties": {
             "type": "string",
@@ -17362,11 +17362,11 @@
           }
         },
         "proxyURL": {
-          "description": "ProxyURL is the proxy URL for the cluster. If not empty, the karmada control plane will use this proxy to talk to the cluster. More details please refer to: https://github.com/kubernetes/client-go/issues/351",
+          "description": "ProxyURL is the proxy URL for the cluster. If not empty, the karmada control plane will use this proxy to talk to the cluster. For more details please refer to: https://github.com/kubernetes/client-go/issues/351",
           "type": "string"
         },
         "region": {
-          "description": "Region represents the region of the member cluster locate in.",
+          "description": "Region represents the region in which the member cluster is located.",
           "type": "string"
         },
         "resourceModels": {
@@ -17378,16 +17378,16 @@
           }
         },
         "secretRef": {
-          "description": "SecretRef represents the secret contains mandatory credentials to access the member cluster. The secret should hold credentials as follows: - secret.data.token - secret.data.caBundle",
+          "description": "SecretRef represents the secret that contains mandatory credentials to access the member cluster. The secret should hold credentials as follows: - secret.data.token - secret.data.caBundle",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.LocalSecretReference"
         },
         "syncMode": {
-          "description": "SyncMode describes how a cluster sync resources from karmada control plane.",
+          "description": "SyncMode describes how a cluster syncs resources from karmada control plane.",
           "type": "string",
           "default": ""
         },
         "taints": {
-          "description": "Taints attached to the member cluster. Taints on the cluster have the \"effect\" on any resource that does not tolerate the Taint.",
+          "description": "Taints are attached to the member cluster. Taints on the cluster have the \"effect\" on any resource that does not tolerate the Taint.",
           "type": "array",
           "items": {
             "default": {},
@@ -17395,7 +17395,7 @@
           }
         },
         "zone": {
-          "description": "Zone represents the zone of the member cluster locate in. Deprecated: This filed was never been used by Karmada, and it will not be removed from v1alpha1 for backward compatibility, use Zones instead.",
+          "description": "Zone represents the zone in which the member cluster is located. Deprecated: This field was never been used by Karmada, and it will not be removed from v1alpha1 for backward compatibility, use Zones instead.",
           "type": "string"
         },
         "zones": {
@@ -17413,7 +17413,7 @@
       "type": "object",
       "properties": {
         "apiEnablements": {
-          "description": "APIEnablements represents the list of APIs installed in the member cluster.",
+          "description": "APIEnablements represents the list of APIs installed on the member cluster.",
           "type": "array",
           "items": {
             "default": {},
@@ -17459,7 +17459,7 @@
       ],
       "properties": {
         "name": {
-          "description": "Name is the name of resource being referenced.",
+          "description": "Name is the name of the resource being referenced.",
           "type": "string",
           "default": ""
         },
@@ -17511,7 +17511,7 @@
       }
     },
     "com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.ResourceModelRange": {
-      "description": "ResourceModelRange describes the detail of each modeling quota that ranges from min to max. Please pay attention, by default, the value of min can be inclusive, and the value of max cannot be inclusive. E.g. in an interval, min = 2, max =10 is set, which means the interval [2,10). This rule ensure that all intervals have the same meaning. If the last interval is infinite, it is definitely unreachable. Therefore, we define the right interval as the open interval. For a valid interval, the value on the right is greater than the value on the left, in other words, max must be greater than min. It is strongly recommended that the [Min, Max) of all ResourceModelRanges can make a continuous interval.",
+      "description": "ResourceModelRange describes the detail of each modeling quota that ranges from min to max. Please pay attention, by default, the value of min can be inclusive, and the value of max cannot be inclusive. E.g. in an interval, min = 2, max = 10 is set, which means the interval [2,10). This rule ensures that all intervals have the same meaning. If the last interval is infinite, it is definitely unreachable. Therefore, we define the right interval as the open interval. For a valid interval, the value on the right is greater than the value on the left, in other words, max must be greater than min. It is strongly recommended that the [Min, Max) of all ResourceModelRanges can make a continuous interval.",
       "type": "object",
       "required": [
         "name",
