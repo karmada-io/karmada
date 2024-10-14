@@ -83,7 +83,7 @@ const (
 	// NOTE: A nil status is also considered as "Success".
 	Success Code = iota
 	// Unschedulable is used when a plugin finds the resource unschedulable.
-	// The accompanying status message should explain why the it is unschedulable.
+	// The accompanying status message should explain why it is unschedulable.
 	Unschedulable
 	// Error is used for internal plugin errors, unexpected input, etc.
 	Error
