@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/endpoints/request"
 
@@ -68,7 +69,7 @@ func TestConnectCluster(t *testing.T) {
 			name: "apiEndpoint is empty",
 			args: args{
 				cluster: &clusterapis.Cluster{
-					ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "cluster"},
+					ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "cluster", UID: uuid.NewUUID()},
 					Spec:       clusterapis.ClusterSpec{},
 				},
 				secretGetter: nil,
@@ -80,7 +81,7 @@ func TestConnectCluster(t *testing.T) {
 			name: "apiEndpoint is invalid",
 			args: args{
 				cluster: &clusterapis.Cluster{
-					ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "cluster"},
+					ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "cluster", UID: uuid.NewUUID()},
 					Spec:       clusterapis.ClusterSpec{APIEndpoint: "h :/ invalid"},
 				},
 				secretGetter: nil,
@@ -92,7 +93,7 @@ func TestConnectCluster(t *testing.T) {
 			name: "ProxyURL is invalid",
 			args: args{
 				cluster: &clusterapis.Cluster{
-					ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "cluster"},
+					ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "cluster", UID: uuid.NewUUID()},
 					Spec: clusterapis.ClusterSpec{
 						APIEndpoint: s.URL,
 						ProxyURL:    "h :/ invalid",
@@ -107,7 +108,7 @@ func TestConnectCluster(t *testing.T) {
 			name: "ImpersonatorSecretRef is nil",
 			args: args{
 				cluster: &clusterapis.Cluster{
-					ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "cluster"},
+					ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "cluster", UID: uuid.NewUUID()},
 					Spec: clusterapis.ClusterSpec{
 						APIEndpoint: s.URL,
 						ProxyURL:    "http://proxy",
@@ -122,7 +123,7 @@ func TestConnectCluster(t *testing.T) {
 			name: "secret not found",
 			args: args{
 				cluster: &clusterapis.Cluster{
-					ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "cluster"},
+					ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "cluster", UID: uuid.NewUUID()},
 					Spec: clusterapis.ClusterSpec{
 						APIEndpoint:           s.URL,
 						ImpersonatorSecretRef: &clusterapis.LocalSecretReference{Namespace: "ns", Name: "secret"},
@@ -139,7 +140,7 @@ func TestConnectCluster(t *testing.T) {
 			name: "SecretTokenKey not found",
 			args: args{
 				cluster: &clusterapis.Cluster{
-					ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "cluster"},
+					ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "cluster", UID: uuid.NewUUID()},
 					Spec: clusterapis.ClusterSpec{
 						APIEndpoint:           s.URL,
 						ImpersonatorSecretRef: &clusterapis.LocalSecretReference{Namespace: "ns", Name: "secret"},
@@ -160,7 +161,7 @@ func TestConnectCluster(t *testing.T) {
 			args: args{
 				ctx: context.TODO(),
 				cluster: &clusterapis.Cluster{
-					ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "cluster"},
+					ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "cluster", UID: uuid.NewUUID()},
 					Spec: clusterapis.ClusterSpec{
 						APIEndpoint:           s.URL,
 						ImpersonatorSecretRef: &clusterapis.LocalSecretReference{Namespace: "ns", Name: "secret"},
@@ -181,7 +182,7 @@ func TestConnectCluster(t *testing.T) {
 			args: args{
 				ctx: request.WithUser(request.NewContext(), &user.DefaultInfo{Name: testUser, Groups: []string{testGroup, user.AllAuthenticated, user.AllUnauthenticated}}),
 				cluster: &clusterapis.Cluster{
-					ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "cluster"},
+					ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "cluster", UID: uuid.NewUUID()},
 					Spec: clusterapis.ClusterSpec{
 						APIEndpoint:                 s.URL,
 						ImpersonatorSecretRef:       &clusterapis.LocalSecretReference{Namespace: "ns", Name: "secret"},
