@@ -1493,7 +1493,7 @@ func schema_pkg_apis_cluster_v1alpha1_Cluster(ref common.ReferenceCallback) comm
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "Cluster represents the desire state and status of a member cluster.",
+				Description: "Cluster represents the desired state and status of a member cluster.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -1543,7 +1543,7 @@ func schema_pkg_apis_cluster_v1alpha1_ClusterList(ref common.ReferenceCallback) 
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ClusterList contains a list of member cluster",
+				Description: "ClusterList contains a list of member clusters",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -1632,14 +1632,14 @@ func schema_pkg_apis_cluster_v1alpha1_ClusterSpec(ref common.ReferenceCallback) 
 				Properties: map[string]spec.Schema{
 					"id": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ID is the unique identifier for the cluster. It is different from the object uid(.metadata.uid) and typically collected automatically from member cluster during the progress of registration.\n\nThe value is collected in order: 1. If the registering cluster enabled ClusterProperty API and defined the cluster ID by\n  creating a ClusterProperty object with name 'cluster.clusterset.k8s.io', Karmada would\n  take the defined value in the ClusterProperty object.\n  See https://github.com/kubernetes-sigs/about-api for more details about ClusterProperty API.\n2. Take the uid of 'kube-system' namespace on the registering cluster.\n\nPlease don't update this value unless you know what you are doing, because it will/may be used to : - uniquely identify the clusters within the Karmada system. - compose the DNS name of multi-cluster services.",
+							Description: "ID is the unique identifier for the cluster. It is different from the object uid(.metadata.uid) and is typically collected automatically from each member cluster during the process of registration.\n\nThe value is collected in order: 1. If the registering cluster enabled ClusterProperty API and defined the cluster ID by\n  creating a ClusterProperty object with name 'cluster.clusterset.k8s.io', Karmada would\n  take the defined value in the ClusterProperty object.\n  See https://github.com/kubernetes-sigs/about-api for more details about ClusterProperty API.\n2. Take the uid of 'kube-system' namespace on the registering cluster.\n\nPlease don't update this value unless you know what you are doing, because it will/may be used to : - uniquely identify the clusters within the Karmada system. - compose the DNS name of multi-cluster services.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"syncMode": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SyncMode describes how a cluster sync resources from karmada control plane.",
+							Description: "SyncMode describes how a cluster syncs resources from karmada control plane.",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -1654,13 +1654,13 @@ func schema_pkg_apis_cluster_v1alpha1_ClusterSpec(ref common.ReferenceCallback) 
 					},
 					"secretRef": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SecretRef represents the secret contains mandatory credentials to access the member cluster. The secret should hold credentials as follows: - secret.data.token - secret.data.caBundle",
+							Description: "SecretRef represents the secret that contains mandatory credentials to access the member cluster. The secret should hold credentials as follows: - secret.data.token - secret.data.caBundle",
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.LocalSecretReference"),
 						},
 					},
 					"impersonatorSecretRef": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ImpersonatorSecretRef represents the secret contains the token of impersonator. The secret should hold credentials as follows: - secret.data.token",
+							Description: "ImpersonatorSecretRef represents the secret that contains the token of impersonator. The secret should hold credentials as follows: - secret.data.token",
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.LocalSecretReference"),
 						},
 					},
@@ -1673,14 +1673,14 @@ func schema_pkg_apis_cluster_v1alpha1_ClusterSpec(ref common.ReferenceCallback) 
 					},
 					"proxyURL": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ProxyURL is the proxy URL for the cluster. If not empty, the karmada control plane will use this proxy to talk to the cluster. More details please refer to: https://github.com/kubernetes/client-go/issues/351",
+							Description: "ProxyURL is the proxy URL for the cluster. If not empty, the karmada control plane will use this proxy to talk to the cluster. For more details please refer to: https://github.com/kubernetes/client-go/issues/351",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"proxyHeader": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ProxyHeader is the HTTP header required by proxy server. The key in the key-value pair is HTTP header key and value is the associated header payloads. For the header with multiple values, the values should be separated by comma(e.g. 'k1': 'v1,v2,v3').",
+							Description: "ProxyHeader is the HTTP header required by proxy server. The key in the key-value pair is HTTP header key and the value is the associated header payloads. For the header with multiple values, the values should be separated by comma(e.g. 'k1': 'v1,v2,v3').",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
 								Allows: true,
@@ -1703,14 +1703,14 @@ func schema_pkg_apis_cluster_v1alpha1_ClusterSpec(ref common.ReferenceCallback) 
 					},
 					"region": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Region represents the region of the member cluster locate in.",
+							Description: "Region represents the region in which the member cluster is located.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"zone": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Zone represents the zone of the member cluster locate in. Deprecated: This filed was never been used by Karmada, and it will not be removed from v1alpha1 for backward compatibility, use Zones instead.",
+							Description: "Zone represents the zone in which the member cluster is located. Deprecated: This field was never been used by Karmada, and it will not be removed from v1alpha1 for backward compatibility, use Zones instead.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1732,7 +1732,7 @@ func schema_pkg_apis_cluster_v1alpha1_ClusterSpec(ref common.ReferenceCallback) 
 					},
 					"taints": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Taints attached to the member cluster. Taints on the cluster have the \"effect\" on any resource that does not tolerate the Taint.",
+							Description: "Taints are attached to the member cluster. Taints on the cluster have the \"effect\" on any resource that does not tolerate the Taint.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -1783,7 +1783,7 @@ func schema_pkg_apis_cluster_v1alpha1_ClusterStatus(ref common.ReferenceCallback
 					},
 					"apiEnablements": {
 						SchemaProps: spec.SchemaProps{
-							Description: "APIEnablements represents the list of APIs installed in the member cluster.",
+							Description: "APIEnablements represents the list of APIs installed on the member cluster.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -1861,7 +1861,7 @@ func schema_pkg_apis_cluster_v1alpha1_LocalSecretReference(ref common.ReferenceC
 					},
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name is the name of resource being referenced.",
+							Description: "Name is the name of the resource being referenced.",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -1943,7 +1943,7 @@ func schema_pkg_apis_cluster_v1alpha1_ResourceModelRange(ref common.ReferenceCal
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ResourceModelRange describes the detail of each modeling quota that ranges from min to max. Please pay attention, by default, the value of min can be inclusive, and the value of max cannot be inclusive. E.g. in an interval, min = 2, max =10 is set, which means the interval [2,10). This rule ensure that all intervals have the same meaning. If the last interval is infinite, it is definitely unreachable. Therefore, we define the right interval as the open interval. For a valid interval, the value on the right is greater than the value on the left, in other words, max must be greater than min. It is strongly recommended that the [Min, Max) of all ResourceModelRanges can make a continuous interval.",
+				Description: "ResourceModelRange describes the detail of each modeling quota that ranges from min to max. Please pay attention, by default, the value of min can be inclusive, and the value of max cannot be inclusive. E.g. in an interval, min = 2, max = 10 is set, which means the interval [2,10). This rule ensures that all intervals have the same meaning. If the last interval is infinite, it is definitely unreachable. Therefore, we define the right interval as the open interval. For a valid interval, the value on the right is greater than the value on the left, in other words, max must be greater than min. It is strongly recommended that the [Min, Max) of all ResourceModelRanges can make a continuous interval.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
