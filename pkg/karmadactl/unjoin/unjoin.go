@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util/templates"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
@@ -151,7 +152,7 @@ func (j *CommandUnjoinOption) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&j.ClusterKubeConfig, "cluster-kubeconfig", "",
 		"Path of the cluster's kubeconfig.")
 	flags.BoolVar(&j.forceDeletion, "force", false,
-		"Delete cluster and secret resources even if resources in the cluster targeted for unjoin are not removed successfully.")
+		"If true, when the unjoin process fails due to a timeout, force unjoin the member cluster by removing the finalizer from the related work, namespace, and cluster resources. Note that forcing the unjoin of a member cluster may result in residual resources and requires confirmation.")
 	flags.DurationVar(&j.Wait, "wait", 60*time.Second, "wait for the unjoin command execution process(default 60s), if there is no success after this time, timeout will be returned.")
 	flags.BoolVar(&j.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 }
@@ -185,9 +186,10 @@ func (j *CommandUnjoinOption) Run(f cmdutil.Factory) error {
 // RunUnJoinCluster unJoin the cluster from karmada.
 func (j *CommandUnjoinOption) RunUnJoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config) error {
 	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
+	controlPlaneKubeClient := kubeclient.NewForConfigOrDie(controlPlaneRestConfig)
 
 	// delete the cluster object in host cluster that associates the unjoining cluster
-	err := j.deleteClusterObject(controlPlaneKarmadaClient)
+	err := j.deleteClusterObject(controlPlaneKubeClient, controlPlaneKarmadaClient)
 	if err != nil {
 		klog.Errorf("Failed to delete cluster object. cluster name: %s, error: %v", j.ClusterName, err)
 		return err
@@ -226,7 +228,7 @@ func (j *CommandUnjoinOption) RunUnJoinCluster(controlPlaneRestConfig, clusterCo
 }
 
 // deleteClusterObject delete the cluster object in host cluster that associates the unjoining cluster
-func (j *CommandUnjoinOption) deleteClusterObject(controlPlaneKarmadaClient *karmadaclientset.Clientset) error {
+func (j *CommandUnjoinOption) deleteClusterObject(controlPlaneKubeClient *kubeclient.Clientset, controlPlaneKarmadaClient *karmadaclientset.Clientset) error {
 	if j.DryRun {
 		return nil
 	}
@@ -253,11 +255,34 @@ func (j *CommandUnjoinOption) deleteClusterObject(controlPlaneKarmadaClient *kar
 		klog.Infof("Waiting for the cluster object %s to be deleted", j.ClusterName)
 		return false, nil
 	})
-	if err != nil {
+
+	if err == nil {
+		return nil
+	}
+
+	if !j.forceDeletion {
 		klog.Errorf("Failed to delete cluster object. cluster name: %s, error: %v", j.ClusterName, err)
 		return err
 	}
 
+	klog.Infof("Start forced deletion. cluster name: %s", j.ClusterName)
+	executionSpaceName := names.GenerateExecutionSpaceName(j.ClusterName)
+	err = removeWorkFinalizer(executionSpaceName, controlPlaneKarmadaClient)
+	if err != nil {
+		klog.Errorf("Force deletion. Failed to remove the finalizer of Work, error: %v", err)
+	}
+
+	err = removeExecutionSpaceFinalizer(executionSpaceName, controlPlaneKubeClient)
+	if err != nil {
+		klog.Errorf("Force deletion. Failed to remove the finalizer of Namespace(%s), error: %v", executionSpaceName, err)
+	}
+
+	err = removeClusterFinalizer(j.ClusterName, controlPlaneKarmadaClient)
+	if err != nil {
+		klog.Errorf("Force deletion. Failed to remove the finalizer of Cluster(%s), error: %v", j.ClusterName, err)
+	}
+
+	klog.Infof("Forced deletion is complete.")
 	return nil
 }
 
@@ -323,4 +348,59 @@ func deleteNamespaceFromUnjoinCluster(clusterKubeClient kubeclient.Interface, na
 	}
 
 	return nil
+}
+
+// removeWorkFinalizer removes the finalizer of works from the executionSpace
+func removeWorkFinalizer(executionSpaceName string, controlPlaneKarmadaClient *karmadaclientset.Clientset) error {
+	list, err := controlPlaneKarmadaClient.WorkV1alpha1().Works(executionSpaceName).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to list work in executionSpace %s", executionSpaceName)
+	}
+
+	for i := range list.Items {
+		work := &list.Items[i]
+		if !controllerutil.ContainsFinalizer(work, util.ExecutionControllerFinalizer) {
+			continue
+		}
+		controllerutil.RemoveFinalizer(work, util.ExecutionControllerFinalizer)
+		_, err = controlPlaneKarmadaClient.WorkV1alpha1().Works(executionSpaceName).Update(context.TODO(), work, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// removeExecutionSpaceFinalizer removes the finalizer of executionSpace
+func removeExecutionSpaceFinalizer(executionSpaceName string, controlPlaneKubeClient *kubeclient.Clientset) error {
+	executionSpace, err := controlPlaneKubeClient.CoreV1().Namespaces().Get(context.TODO(), executionSpaceName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get Namespace(%s)", executionSpaceName)
+	}
+
+	if !controllerutil.ContainsFinalizer(executionSpace, "kubernetes") {
+		return nil
+	}
+
+	controllerutil.RemoveFinalizer(executionSpace, "kubernetes")
+	_, err = controlPlaneKubeClient.CoreV1().Namespaces().Update(context.TODO(), executionSpace, metav1.UpdateOptions{})
+
+	return err
+}
+
+// removeClusterFinalizer removes the finalizer of cluster object
+func removeClusterFinalizer(clusterName string, controlPlaneKarmadaClient *karmadaclientset.Clientset) error {
+	cluster, err := controlPlaneKarmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), clusterName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get Cluster(%s)", clusterName)
+	}
+
+	if !controllerutil.ContainsFinalizer(cluster, util.ClusterControllerFinalizer) {
+		return nil
+	}
+
+	controllerutil.RemoveFinalizer(cluster, util.ClusterControllerFinalizer)
+	_, err = controlPlaneKarmadaClient.ClusterV1alpha1().Clusters().Update(context.TODO(), cluster, metav1.UpdateOptions{})
+
+	return err
 }
