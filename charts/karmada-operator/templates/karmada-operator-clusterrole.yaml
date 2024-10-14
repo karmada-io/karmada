@@ -4,8 +4,77 @@ metadata:
   name: {{ include "common.names.fullname" . }}
   labels: {{- include "common.labels.standard" . | nindent 4 }}
 rules:
-  - apiGroups: ['*']
-    resources: ['*']
-    verbs: ["*"]
-  - nonResourceURLs: ['*']
-    verbs: ["get"]
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - create
+      - update
+  - apiGroups:
+      - operator.karmada.io
+    resources:
+      - karmadas
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+  - apiGroups:
+      - operator.karmada.io
+    resources:
+      - karmadas/status
+    verbs:
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - list
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - create
+      - update
+      - delete
+  - apiGroups:
+      - apps
+    resources:
+      - statefulsets
+    verbs:
+      - get
+      - create
+      - update
+      - delete
+  - apiGroups:
+      - apps
+    resources:
+      - deployments
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - get
+      - create
+      - update
+      - delete
