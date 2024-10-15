@@ -40,12 +40,20 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/events"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
+
+type FakeResourceInterpreter struct {
+	*native.DefaultInterpreter
+}
+
+var _ resourceinterpreter.ResourceInterpreter = &FakeResourceInterpreter{}
 
 const (
 	podNamespace = "default"
@@ -227,12 +235,13 @@ func newController(work *workv1alpha1.Work, recorder *record.FakeRecorder) Contr
 			DynamicClientSet: dynamicClientSet,
 		}, nil
 	}
+	resourceInterpreter := FakeResourceInterpreter{DefaultInterpreter: native.NewDefaultInterpreter()}
 	return Controller{
 		Client:          fakeClient,
 		InformerManager: informerManager,
 		EventRecorder:   recorder,
 		RESTMapper:      restMapper,
-		ObjectWatcher:   objectwatcher.NewObjectWatcher(fakeClient, restMapper, clusterClientSetFunc, nil),
+		ObjectWatcher:   objectwatcher.NewObjectWatcher(fakeClient, restMapper, clusterClientSetFunc, resourceInterpreter),
 	}
 }
 
@@ -261,4 +270,8 @@ func newCluster(name string, clusterType string, clusterStatus metav1.ConditionS
 			},
 		},
 	}
+}
+
+func (f FakeResourceInterpreter) Start(context.Context) error {
+	return nil
 }
