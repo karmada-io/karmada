@@ -65,12 +65,14 @@ spec:
                             description: |-
                               CAData is an SSL Certificate Authority file used to secure etcd communication.
                               Required if using a TLS connection.
+                              Deprecated: This field is deprecated and will be removed in a future version. Use SecretRef for providing client connection credentials.
                             format: byte
                             type: string
                           certData:
                             description: |-
                               CertData is an SSL certification file used to secure etcd communication.
                               Required if using a TLS connection.
+                              Deprecated: This field is deprecated and will be removed in a future version. Use SecretRef for providing client connection credentials.
                             format: byte
                             type: string
                           endpoints:
@@ -82,13 +84,29 @@ spec:
                             description: |-
                               KeyData is an SSL key file used to secure etcd communication.
                               Required if using a TLS connection.
+                              Deprecated: This field is deprecated and will be removed in a future version. Use SecretRef for providing client connection credentials.
                             format: byte
                             type: string
+                          secretRef:
+                            description: |-
+                              SecretRef references a Kubernetes secret containing the etcd connection credentials.
+                              The secret must contain the following data keys:
+                              ca.crt: The Certificate Authority (CA) certificate data.
+                              tls.crt: The TLS certificate data used for verifying the etcd server's certificate.
+                              tls.key: The TLS private key.
+                              Required to configure the connection to an external etcd cluster.
+                            properties:
+                              name:
+                                description: Name is the name of resource being referenced.
+                                type: string
+                              namespace:
+                                description: Namespace is the namespace for the resource
+                                  being referenced.
+                                type: string
+                            type: object
                         required:
-                        - caData
-                        - certData
                         - endpoints
-                        - keyData
+                        - secretRef
                         type: object
                       local:
                         description: |-
