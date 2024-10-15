@@ -83,7 +83,7 @@ kubectl --context="${MEMBER_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/agen
 kubectl --context="${MEMBER_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/agent/clusterrolebinding.yaml"
 
 # create secret
-kubectl --context="${MEMBER_CLUSTER_NAME}" create secret generic karmada-kubeconfig --from-file=karmada-kubeconfig="${KARMADA_APISERVER_KUBECONFIG}" -n "${KARMADA_SYSTEM_NAMESPACE}"
+kubectl --context="${MEMBER_CLUSTER_NAME}" create secret generic karmada-agent-config --from-file=karmada.config="${KARMADA_APISERVER_KUBECONFIG}" -n "${KARMADA_SYSTEM_NAMESPACE}"
 
 # extract api endpoint of member cluster
 MEMBER_CLUSTER=$(kubectl config view -o jsonpath='{.contexts[?(@.name == "'${MEMBER_CLUSTER_NAME}'")].context.cluster}')

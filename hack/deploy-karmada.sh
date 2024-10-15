@@ -96,7 +96,6 @@ function generate_cert_secret {
     TEMP_PATH=$(mktemp -d)
 
     cp -rf "${REPO_ROOT}"/artifacts/deploy/karmada-cert-secret.yaml "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
-    cp -rf "${REPO_ROOT}"/artifacts/deploy/secret.yaml "${TEMP_PATH}"/secret-tmp.yaml
     cp -rf "${REPO_ROOT}"/artifacts/deploy/karmada-webhook-cert-secret.yaml "${TEMP_PATH}"/karmada-webhook-cert-secret-tmp.yaml
 
     sed -i'' -e "s/{{ca_crt}}/${karmada_ca}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
@@ -116,17 +115,26 @@ function generate_cert_secret {
     sed -i'' -e "s/{{etcd_client_crt}}/${ETCD_CLIENT_CRT}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
     sed -i'' -e "s/{{etcd_client_key}}/${ETCD_CLIENT_KEY}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
 
-    sed -i'' -e "s/{{ca_crt}}/${karmada_ca}/g" "${TEMP_PATH}"/secret-tmp.yaml
-    sed -i'' -e "s/{{client_crt}}/${KARMADA_CRT}/g" "${TEMP_PATH}"/secret-tmp.yaml
-    sed -i'' -e "s/{{client_key}}/${KARMADA_KEY}/g" "${TEMP_PATH}"/secret-tmp.yaml
-
     sed -i'' -e "s/{{server_key}}/${KARMADA_KEY}/g" "${TEMP_PATH}"/karmada-webhook-cert-secret-tmp.yaml
     sed -i'' -e "s/{{server_certificate}}/${KARMADA_CRT}/g" "${TEMP_PATH}"/karmada-webhook-cert-secret-tmp.yaml
 
     kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
-    kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${TEMP_PATH}"/secret-tmp.yaml
     kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${TEMP_PATH}"/karmada-webhook-cert-secret-tmp.yaml
+
+    components=(karmada-aggregated-apiserver karmada-controller-manager kube-controller-manager karmada-scheduler karmada-descheduler karmada-metrics-adapter karmada-search karmada-webhook karmada-interpreter-webhook-example)
+    for component in "${components[@]}"
+    do
+      generate_config_secret ${component} ${karmada_ca} ${KARMADA_CRT} ${KARMADA_KEY}
+    done
+
     rm -rf "${TEMP_PATH}"
+}
+
+function generate_config_secret() {
+  export component=$1 ca_crt=$2 client_crt=$3 client_key=$4
+  envsubst < "${REPO_ROOT}"/artifacts/deploy/karmada-config-secret.yaml > "${TEMP_PATH}"/${component}-config-secret.yaml
+  kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${TEMP_PATH}"/${component}-config-secret.yaml
+  unset component ca_crt client_crt client_key
 }
 
 # install Karmada's APIs
