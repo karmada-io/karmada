@@ -136,9 +136,9 @@ func (info *GroupClustersInfo) calcGroupScore(clusters []ClusterDetailInfo, rbSp
 	// Group Score = sum(Cluster Score × Weight)
 	var score int64
 	for _, cluster := range clusters {
-		score += info.calcWight(cluster, rbSpec)
+		score += cluster.Score * info.calcWight(cluster, rbSpec)
 	}
-	return score
+	return score / int64(len(clusters))
 }
 
 func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.ClusterScoreList, rbSpec *workv1alpha2.ResourceBindingSpec) {
