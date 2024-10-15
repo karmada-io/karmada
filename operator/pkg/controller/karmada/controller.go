@@ -55,7 +55,7 @@ const (
 	DisableCascadingDeletionLabel = "operator.karmada.io/disable-cascading-deletion"
 
 	// ValidationErrorReason is the reason for a validation error
-	ValidationErrorReason = "ValidationErrorReason"
+	ValidationErrorReason = "ValidationError"
 )
 
 // Controller controls the Karmada resource.
