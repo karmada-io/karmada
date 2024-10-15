@@ -126,7 +126,7 @@ const (
 	// APIServiceName defines the karmada aggregated apiserver APIService resource name.
 	APIServiceName = "v1alpha1.cluster.karmada.io"
 
-	// KarmadaApiserverEtcdClientCertNameSuffix defines the suffix for Karmada operator etcd client cert secret name
+	// KarmadaApiserverEtcdClientCertNameSuffix defines the suffix for the Karmada API server etcd client cert name
 	KarmadaApiserverEtcdClientCertNameSuffix = "karmada-apiserver-etcd-client-cert"
 )
 
