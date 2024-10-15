@@ -139,6 +139,7 @@ func (in *ExternalEtcd) DeepCopyInto(out *ExternalEtcd) {
 		*out = make([]byte, len(*in))
 		copy(*out, *in)
 	}
+	out.SecretRef = in.SecretRef
 	return
 }
 
