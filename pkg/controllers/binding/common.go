@@ -48,6 +48,7 @@ func ensureWork(
 	var replicas int32
 	var conflictResolutionInBinding policyv1alpha1.ConflictResolution
 	var suspension *policyv1alpha1.Suspension
+	var preserveResourcesOnDeletion *bool
 	switch scope {
 	case apiextensionsv1.NamespaceScoped:
 		bindingObj := binding.(*workv1alpha2.ResourceBinding)
@@ -57,6 +58,7 @@ func ensureWork(
 		replicas = bindingObj.Spec.Replicas
 		conflictResolutionInBinding = bindingObj.Spec.ConflictResolution
 		suspension = bindingObj.Spec.Suspension
+		preserveResourcesOnDeletion = bindingObj.Spec.PreserveResourcesOnDeletion
 	case apiextensionsv1.ClusterScoped:
 		bindingObj := binding.(*workv1alpha2.ClusterResourceBinding)
 		targetClusters = bindingObj.Spec.Clusters
@@ -65,6 +67,7 @@ func ensureWork(
 		replicas = bindingObj.Spec.Replicas
 		conflictResolutionInBinding = bindingObj.Spec.ConflictResolution
 		suspension = bindingObj.Spec.Suspension
+		preserveResourcesOnDeletion = bindingObj.Spec.PreserveResourcesOnDeletion
 	}
 
 	targetClusters = mergeTargetClusters(targetClusters, requiredByBindingSnapshot)
@@ -133,9 +136,14 @@ func ensureWork(
 			Annotations: annotations,
 		}
 
-		suspendDispatching := shouldSuspendDispatching(suspension, targetCluster)
-
-		if err = helper.CreateOrUpdateWork(ctx, c, workMeta, clonedWorkload, &suspendDispatching); err != nil {
+		if err = helper.CreateOrUpdateWork(
+			ctx,
+			c,
+			workMeta,
+			clonedWorkload,
+			helper.WithSuspendDispatching(shouldSuspendDispatching(suspension, targetCluster)),
+			helper.WithPreserveResourcesOnDeletion(ptr.Deref(preserveResourcesOnDeletion, false)),
+		); err != nil {
 			return err
 		}
 	}

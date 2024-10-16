@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,7 +38,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/detector"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
@@ -102,15 +106,8 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	}
 
 	if !work.DeletionTimestamp.IsZero() {
-		// Abort deleting workload if cluster is unready when unjoining cluster, otherwise the unjoin process will be failed.
-		if util.IsClusterReady(&cluster.Status) {
-			err := c.tryDeleteWorkload(ctx, clusterName, work)
-			if err != nil {
-				klog.Errorf("Failed to delete work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
-				return controllerruntime.Result{}, err
-			}
-		} else if cluster.DeletionTimestamp.IsZero() { // cluster is unready, but not terminating
-			return controllerruntime.Result{}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
+		if err := c.handleWorkDelete(ctx, work, cluster); err != nil {
+			return controllerruntime.Result{}, err
 		}
 
 		return c.removeFinalizer(ctx, work)
@@ -151,14 +148,92 @@ func (c *Controller) syncWork(ctx context.Context, clusterName string, work *wor
 	metrics.ObserveSyncWorkloadLatency(err, start)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to sync work(%s/%s) to cluster(%s), err: %v", work.Namespace, work.Name, clusterName, err)
-		klog.Errorf(msg)
+		klog.Error(msg)
 		c.EventRecorder.Event(work, corev1.EventTypeWarning, events.EventReasonSyncWorkloadFailed, msg)
 		return controllerruntime.Result{}, err
 	}
 	msg := fmt.Sprintf("Sync work(%s/%s) to cluster(%s) successful.", work.Namespace, work.Name, clusterName)
-	klog.V(4).Infof(msg)
+	klog.V(4).Info(msg)
 	c.EventRecorder.Event(work, corev1.EventTypeNormal, events.EventReasonSyncWorkloadSucceed, msg)
 	return controllerruntime.Result{}, nil
+}
+
+func (c *Controller) handleWorkDelete(ctx context.Context, work *workv1alpha1.Work, cluster *clusterv1alpha1.Cluster) error {
+	if ptr.Deref(work.Spec.PreserveResourcesOnDeletion, false) {
+		if err := c.cleanupPolicyClaimMetadata(ctx, work, cluster); err != nil {
+			klog.Errorf("Failed to remove annotations and labels in on cluster(%s)", cluster.Name)
+			return err
+		}
+		klog.V(4).Infof("Preserving resource on deletion from work(%s/%s) on cluster(%s)", work.Namespace, work.Name, cluster.Name)
+		return nil
+	}
+
+	// Abort deleting workload if cluster is unready when unjoining cluster, otherwise the unjoin process will be failed.
+	if util.IsClusterReady(&cluster.Status) {
+		err := c.tryDeleteWorkload(ctx, cluster.Name, work)
+		if err != nil {
+			klog.Errorf("Failed to delete work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
+			return err
+		}
+	} else if cluster.DeletionTimestamp.IsZero() { // cluster is unready, but not terminating
+		return fmt.Errorf("cluster(%s) not ready", cluster.Name)
+	}
+
+	return nil
+}
+
+func (c *Controller) cleanupPolicyClaimMetadata(ctx context.Context, work *workv1alpha1.Work, cluster *clusterv1alpha1.Cluster) error {
+	for _, manifest := range work.Spec.Workload.Manifests {
+		workload := &unstructured.Unstructured{}
+		if err := workload.UnmarshalJSON(manifest.Raw); err != nil {
+			klog.Errorf("Failed to unmarshal workload from work(%s/%s), error is: %v", err, work.GetNamespace(), work.GetName())
+			return err
+		}
+
+		fedKey, err := keys.FederatedKeyFunc(cluster.Name, workload)
+		if err != nil {
+			klog.Errorf("Failed to get the federated key resource(kind=%s, %s/%s) from member cluster(%s), err is %v ",
+				workload.GetKind(), workload.GetNamespace(), workload.GetName(), cluster.Name, err)
+			return err
+		}
+
+		clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
+		if err != nil {
+			klog.Errorf("Failed to get the resource(kind=%s, %s/%s) from member cluster(%s) cache, err is %v ",
+				workload.GetKind(), workload.GetNamespace(), workload.GetName(), cluster.Name, err)
+			return err
+		}
+
+		if workload.GetNamespace() == corev1.NamespaceAll {
+			detector.CleanupCPPClaimMetadata(workload)
+		} else {
+			detector.CleanupPPClaimMetadata(workload)
+		}
+		util.RemoveLabels(
+			workload,
+			workv1alpha2.ResourceBindingPermanentIDLabel,
+			workv1alpha2.WorkPermanentIDLabel,
+			util.ManagedByKarmadaLabel,
+		)
+		util.RemoveAnnotations(
+			workload,
+			workv1alpha2.ManagedAnnotation,
+			workv1alpha2.ManagedLabels,
+			workv1alpha2.ResourceBindingNamespaceAnnotationKey,
+			workv1alpha2.ResourceBindingNameAnnotationKey,
+			workv1alpha2.ResourceTemplateUIDAnnotation,
+			workv1alpha2.ResourceTemplateGenerationAnnotationKey,
+			workv1alpha2.WorkNameAnnotation,
+			workv1alpha2.WorkNamespaceAnnotation,
+		)
+
+		if err := c.ObjectWatcher.Update(ctx, cluster.Name, workload, clusterObj); err != nil {
+			klog.Errorf("Failed to update metadata in the given member cluster %v, err is %v", cluster.Name, err)
+			return err
+		}
+	}
+
+	return nil
 }
 
 // tryDeleteWorkload tries to delete resources in the given member cluster.

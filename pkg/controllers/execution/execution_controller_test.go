@@ -23,6 +23,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -33,16 +34,31 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/events"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	testhelper "github.com/karmada-io/karmada/test/helper"
+)
+
+type FakeResourceInterpreter struct {
+	*native.DefaultInterpreter
+}
+
+var _ resourceinterpreter.ResourceInterpreter = &FakeResourceInterpreter{}
+
+const (
+	podNamespace = "default"
+	podName      = "test"
+	clusterName  = "cluster"
 )
 
 func TestExecutionController_Reconcile(t *testing.T) {
@@ -54,6 +70,7 @@ func TestExecutionController_Reconcile(t *testing.T) {
 		expectCondition    *metav1.Condition
 		expectEventMessage string
 		existErr           bool
+		resourceExists     *bool
 	}{
 		{
 			name:      "work dispatching is suspended, no error, no apply",
@@ -112,10 +129,52 @@ func TestExecutionController_Reconcile(t *testing.T) {
 				work.Spec.SuspendDispatching = ptr.To(true)
 			}),
 		},
+		{
+			name:           "PreserveResourcesOnDeletion=true, deletion timestamp set, does not delete resource",
+			ns:             "karmada-es-cluster",
+			expectRes:      controllerruntime.Result{},
+			existErr:       false,
+			resourceExists: ptr.To(true),
+			work: newWork(func(work *workv1alpha1.Work) {
+				now := metav1.Now()
+				work.SetDeletionTimestamp(&now)
+				work.SetFinalizers([]string{util.ExecutionControllerFinalizer})
+				work.Spec.PreserveResourcesOnDeletion = ptr.To(true)
+			}),
+		},
+		{
+			name:           "PreserveResourcesOnDeletion=false, deletion timestamp set, deletes resource",
+			ns:             "karmada-es-cluster",
+			expectRes:      controllerruntime.Result{},
+			existErr:       false,
+			resourceExists: ptr.To(false),
+			work: newWork(func(work *workv1alpha1.Work) {
+				now := metav1.Now()
+				work.SetDeletionTimestamp(&now)
+				work.SetFinalizers([]string{util.ExecutionControllerFinalizer})
+				work.Spec.PreserveResourcesOnDeletion = ptr.To(false)
+			}),
+		},
+		{
+			name:           "PreserveResourcesOnDeletion unset, deletion timestamp set, deletes resource",
+			ns:             "karmada-es-cluster",
+			expectRes:      controllerruntime.Result{},
+			existErr:       false,
+			resourceExists: ptr.To(false),
+			work: newWork(func(work *workv1alpha1.Work) {
+				now := metav1.Now()
+				work.SetDeletionTimestamp(&now)
+				work.SetFinalizers([]string{util.ExecutionControllerFinalizer})
+			}),
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Cleanup(func() {
+				genericmanager.GetInstance().Stop(clusterName)
+			})
+
 			req := controllerruntime.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      "work",
@@ -143,32 +202,51 @@ func TestExecutionController_Reconcile(t *testing.T) {
 				e := <-eventRecorder.Events
 				assert.Equal(t, tt.expectEventMessage, e)
 			}
+
+			if tt.resourceExists != nil {
+				resourceInterface := c.InformerManager.GetSingleClusterManager(clusterName).GetClient().
+					Resource(corev1.SchemeGroupVersion.WithResource("pods")).Namespace(podNamespace)
+				_, err = resourceInterface.Get(context.TODO(), podName, metav1.GetOptions{})
+				if *tt.resourceExists {
+					assert.NoErrorf(t, err, "unable to query pod (%s/%s)", podNamespace, podName)
+				} else {
+					assert.True(t, apierrors.IsNotFound(err), "pod (%s/%s) was not deleted", podNamespace, podName)
+				}
+			}
 		})
 	}
 }
 
-func newController(work *workv1alpha1.Work, eventRecorder *record.FakeRecorder) Controller {
-	cluster := newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
-	pod := testhelper.NewPod("default", "test")
-	client := fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(cluster, work, pod).WithStatusSubresource(work).Build()
+func newController(work *workv1alpha1.Work, recorder *record.FakeRecorder) Controller {
+	cluster := newCluster(clusterName, clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
+	pod := testhelper.NewPod(podNamespace, podName)
+	pod.SetLabels(map[string]string{util.ManagedByKarmadaLabel: util.ManagedByKarmadaLabelValue})
 	restMapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
 	restMapper.Add(corev1.SchemeGroupVersion.WithKind(pod.Kind), meta.RESTScopeNamespace)
+	fakeClient := fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(cluster, work).WithStatusSubresource(work).WithRESTMapper(restMapper).Build()
 	dynamicClientSet := dynamicfake.NewSimpleDynamicClient(scheme.Scheme, pod)
 	informerManager := genericmanager.GetInstance()
 	informerManager.ForCluster(cluster.Name, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 	informerManager.Start(cluster.Name)
 	informerManager.WaitForCacheSync(cluster.Name)
+	clusterClientSetFunc := func(string, client.Client) (*util.DynamicClusterClient, error) {
+		return &util.DynamicClusterClient{
+			ClusterName:      clusterName,
+			DynamicClientSet: dynamicClientSet,
+		}, nil
+	}
+	resourceInterpreter := FakeResourceInterpreter{DefaultInterpreter: native.NewDefaultInterpreter()}
 	return Controller{
-		Client:          client,
+		Client:          fakeClient,
 		InformerManager: informerManager,
-		EventRecorder:   eventRecorder,
+		EventRecorder:   recorder,
 		RESTMapper:      restMapper,
-		ObjectWatcher:   objectwatcher.NewObjectWatcher(client, restMapper, util.NewClusterDynamicClientSetForAgent, nil),
+		ObjectWatcher:   objectwatcher.NewObjectWatcher(fakeClient, restMapper, clusterClientSetFunc, resourceInterpreter),
 	}
 }
 
 func newWork(applyFunc func(work *workv1alpha1.Work)) *workv1alpha1.Work {
-	pod := testhelper.NewPod("default", "test")
+	pod := testhelper.NewPod(podNamespace, podName)
 	bytes, _ := json.Marshal(pod)
 	work := testhelper.NewWork("work", "karmada-es-cluster", string(uuid.NewUUID()), bytes)
 	if applyFunc != nil {
@@ -192,4 +270,8 @@ func newCluster(name string, clusterType string, clusterStatus metav1.ConditionS
 			},
 		},
 	}
+}
+
+func (f FakeResourceInterpreter) Start(context.Context) error {
+	return nil
 }
