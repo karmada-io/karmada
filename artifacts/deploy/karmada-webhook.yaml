@@ -31,7 +31,7 @@ spec:
             - --default-not-ready-toleration-seconds=30
             - --default-unreachable-toleration-seconds=30
             - --secure-port=8443
-            - --cert-dir=/var/serving-cert
+            - --cert-dir=/etc/karmada/pki/server
             - --v=4
           ports:
             - containerPort: 8443
@@ -46,16 +46,16 @@ spec:
           volumeMounts:
             - name: karmada-config
               mountPath: /etc/karmada/config
-            - name: cert
-              mountPath: /var/serving-cert
+            - name: server-cert
+              mountPath: /etc/karmada/pki/server
               readOnly: true
       volumes:
         - name: karmada-config
           secret:
             secretName: karmada-webhook-config
-        - name: cert
+        - name: server-cert
           secret:
-            secretName: webhook-cert
+            secretName: karmada-webhook-cert
 ---
 apiVersion: v1
 kind: Service
