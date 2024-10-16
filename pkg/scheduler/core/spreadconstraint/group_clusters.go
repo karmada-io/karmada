@@ -109,9 +109,9 @@ func groupClustersBasedTopology(
 	}
 	groupClustersInfo.calAvailableReplicasFunc = calAvailableReplicasFunc
 	groupClustersInfo.generateClustersInfo(clustersScore, rbSpec)
-	groupClustersInfo.generateZoneInfo(spreadConstraints)
-	groupClustersInfo.generateRegionInfo(spreadConstraints)
-	groupClustersInfo.generateProviderInfo(spreadConstraints)
+	groupClustersInfo.generateZoneInfo(spreadConstraints, 10)
+	groupClustersInfo.generateRegionInfo(spreadConstraints, 10)
+	groupClustersInfo.generateProviderInfo(spreadConstraints, 10)
 
 	return groupClustersInfo
 }
@@ -132,12 +132,12 @@ func (info *GroupClustersInfo) calcWight(clusters ClusterDetailInfo) int64 {
 	return clusters.AvailableReplicas
 }
 
-func (info *GroupClustersInfo) calcGroupScore(clusters []ClusterDetailInfo) int64 {
+func (info *GroupClustersInfo) calcGroupScore(clusters []ClusterDetailInfo, betaScore int64) int64 {
 	// Group Score = sum(Cluster Score × Weight)
 	var score int64
 	for _, cluster := range clusters {
 		// avoid the score is 0
-		score += (cluster.Score + 10) * info.calcWight(cluster)
+		score += (cluster.Score + betaScore) * info.calcWight(cluster)
 	}
 	return score / int64(len(clusters))
 }
@@ -167,7 +167,7 @@ func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.Clus
 	})
 }
 
-func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
+func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alpha1.SpreadConstraint, betaScore int64) {
 	if !IsSpreadConstraintExisted(spreadConstraints, policyv1alpha1.SpreadByFieldZone) {
 		return
 	}
@@ -193,12 +193,12 @@ func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alph
 	}
 
 	for zone, zoneInfo := range info.Zones {
-		zoneInfo.Score = info.calcGroupScore(zoneInfo.Clusters)
+		zoneInfo.Score = info.calcGroupScore(zoneInfo.Clusters, betaScore)
 		info.Zones[zone] = zoneInfo
 	}
 }
 
-func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
+func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1alpha1.SpreadConstraint, betaScore int64) {
 	if !IsSpreadConstraintExisted(spreadConstraints, policyv1alpha1.SpreadByFieldRegion) {
 		return
 	}
@@ -227,12 +227,12 @@ func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1al
 	}
 
 	for region, regionInfo := range info.Regions {
-		regionInfo.Score = info.calcGroupScore(regionInfo.Clusters)
+		regionInfo.Score = info.calcGroupScore(regionInfo.Clusters, betaScore)
 		info.Regions[region] = regionInfo
 	}
 }
 
-func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
+func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1alpha1.SpreadConstraint, betaScore int64) {
 	if !IsSpreadConstraintExisted(spreadConstraints, policyv1alpha1.SpreadByFieldProvider) {
 		return
 	}
@@ -267,7 +267,7 @@ func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1
 	}
 
 	for provider, providerInfo := range info.Providers {
-		providerInfo.Score = info.calcGroupScore(providerInfo.Clusters)
+		providerInfo.Score = info.calcGroupScore(providerInfo.Clusters, betaScore)
 		info.Providers[provider] = providerInfo
 	}
 }

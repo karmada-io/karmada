@@ -221,68 +221,6 @@ func Test_GroupClustersWithScore(t *testing.T) {
 	}
 }
 
-type RbSpecMap map[string]*workv1alpha2.ResourceBindingSpec
-
-//var duplicated = "duplicated"
-//var aggregated = "aggregated"
-//var dynamicWeight = "dynamicWeight"
-//var staticWeight = "staticWeight"
-//
-//func generateRbSpec() RbSpecMap {
-//	rbspecDuplicated := &workv1alpha2.ResourceBindingSpec{
-//		Replicas: 20,
-//		Placement: &policyv1alpha1.Placement{
-//			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-//				ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDuplicated,
-//			},
-//		},
-//	}
-//	rbspecAggregated := &workv1alpha2.ResourceBindingSpec{
-//		Replicas: 20,
-//		Placement: &policyv1alpha1.Placement{
-//			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-//				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-//				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceAggregated,
-//			},
-//		},
-//	}
-//	rbspecDynamicWeight := &workv1alpha2.ResourceBindingSpec{
-//		Replicas: 20,
-//		Placement: &policyv1alpha1.Placement{
-//			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-//				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-//				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-//				WeightPreference: &policyv1alpha1.ClusterPreferences{
-//					DynamicWeight: "AvailableReplicas",
-//				},
-//			},
-//		},
-//	}
-//	rbspecStaticWeight := &workv1alpha2.ResourceBindingSpec{
-//		Replicas: 20,
-//		Placement: &policyv1alpha1.Placement{
-//			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-//				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-//				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-//				WeightPreference: &policyv1alpha1.ClusterPreferences{
-//					StaticWeightList: []policyv1alpha1.StaticClusterWeight{
-//						{
-//							TargetCluster: policyv1alpha1.ClusterAffinity{},
-//							Weight:        20,
-//						},
-//					},
-//				},
-//			},
-//		},
-//	}
-//	return RbSpecMap{
-//		"duplicated":    rbspecDuplicated,
-//		"aggregated":    rbspecAggregated,
-//		"dynamicWeight": rbspecDynamicWeight,
-//		"staticWeight":  rbspecStaticWeight,
-//	}
-//}
-
 func generateClusterScores(n int, scores []int64, replicas []int64) []ClusterDetailInfo {
 	info := make([]ClusterDetailInfo, n)
 	for i := 0; i < n; i++ {
@@ -296,6 +234,7 @@ func generateClusterScores(n int, scores []int64, replicas []int64) []ClusterDet
 }
 
 type GroupScoreArgs struct {
+	id        int
 	clusters1 []ClusterDetailInfo
 	clusters2 []ClusterDetailInfo
 	want      bool
@@ -303,260 +242,190 @@ type GroupScoreArgs struct {
 }
 
 func generateArgs() []GroupScoreArgs {
+
 	argsList := []GroupScoreArgs{
-		// simple 1
 		{
-			clusters1: generateClusterScores(3, []int64{0, 100, 0}, []int64{42, 7, 99}),
-			clusters2: generateClusterScores(3, []int64{100, 0, 100}, []int64{15, 60, 23}),
+			id:        1,
+			clusters1: generateClusterScores(5, []int64{100, 100, 0, 0, 0}, []int64{78, 729, 840, 722, 708}),
+			clusters2: generateClusterScores(5, []int64{100, 0, 0, 0, 0}, []int64{226, 405, 385, 486, 282}),
+			want:      true,
+		},
+		{
+			id:        2,
+			clusters1: generateClusterScores(3, []int64{100, 100, 100}, []int64{630141, 421020, 507178}),
+			clusters2: generateClusterScores(3, []int64{0, 0, 0}, []int64{448783, 963163, 693666}),
+			want:      true,
+		},
+		{
+			id:        3,
+			clusters1: generateClusterScores(4, []int64{0, 0, 0, 0}, []int64{21, 80, 44, 16}),
+			clusters2: generateClusterScores(4, []int64{100, 100, 100, 100}, []int64{29, 93, 45, 46}),
 			want:      false,
 		},
-		// simple 2
 		{
-			clusters1: generateClusterScores(5, []int64{100, 0, 100, 0, 100}, []int64{10, 20, 30, 40, 50}),
-			clusters2: generateClusterScores(5, []int64{0, 0, 0, 0, 0}, []int64{100, 200, 300, 400, 500}),
+			id:        4,
+			clusters1: generateClusterScores(6, []int64{100, 100, 0, 0, 0, 0}, []int64{453, 867, 140, 770, 213, 56}),
+			clusters2: generateClusterScores(6, []int64{100, 100, 100, 0, 0, 0}, []int64{657, 670, 341, 44, 892, 182}),
 			want:      false,
 		},
-		// simple 3
 		{
-			clusters1: generateClusterScores(4, []int64{0, 100, 0, 100}, []int64{13, 26, 39, 52}),
-			clusters2: generateClusterScores(4, []int64{100, 0, 100, 0}, []int64{52, 39, 26, 13}),
+			id:        5,
+			clusters1: generateClusterScores(2, []int64{100, 0}, []int64{740319, 6935856}),
+			clusters2: generateClusterScores(2, []int64{100, 0}, []int64{134411, 1764495}),
+			want:      true,
 		},
-		// simple 4
 		{
-			clusters1: generateClusterScores(6, []int64{100, 0, 0, 100, 0, 0}, []int64{1000, 2000, 3000, 4000, 5000, 6000}),
-			clusters2: generateClusterScores(6, []int64{0, 100, 100, 0, 100, 100}, []int64{6000, 5000, 4000, 3000, 2000, 1000}),
+			id:        6,
+			clusters1: generateClusterScores(7, []int64{100, 100, 100, 0, 0, 0, 0}, []int64{797417, 7837026, 1964746, 9664532, 3172027, 3602837, 4939293}),
+			clusters2: generateClusterScores(7, []int64{100, 100, 0, 0, 0, 0, 0}, []int64{8334825, 4935171, 9218829, 3038557, 8879763, 9799731, 4838061}),
+			want:      false,
 		},
-		// simple 5
 		{
-			clusters1: generateClusterScores(2, []int64{0, 100}, []int64{123456, 654321}),
-			clusters2: generateClusterScores(2, []int64{100, 0}, []int64{654321, 123456}),
+			id:        7,
+			clusters1: generateClusterScores(12, []int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, []int64{591, 892, 735, 348, 732, 339, 452, 276, 342, 791, 667, 271}),
+			clusters2: generateClusterScores(12, []int64{100, 100, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0}, []int64{644, 933, 256, 679, 497, 88, 596, 295, 980, 966, 567, 244}),
+			want:      false,
 		},
-		// simple 6
 		{
-			clusters1: generateClusterScores(7, []int64{0, 0, 0, 0, 0, 0, 0}, []int64{1, 2, 3, 4, 5, 6, 7}),
-			clusters2: generateClusterScores(7, []int64{100, 100, 100, 100, 100, 100, 100}, []int64{7, 6, 5, 4, 3, 2, 1}),
+			id:        8,
+			clusters1: generateClusterScores(4, []int64{100, 100, 100, 100}, []int64{2, 91, 160, 369, 388}),
+			clusters2: generateClusterScores(4, []int64{100, 100, 0, 0}, []int64{874, 705, 443, 365, 645}),
+			want:      false,
 		},
-		// simple 7
 		{
-			clusters1: generateClusterScores(5, []int64{0, 100, 0, 100, 0}, []int64{0, 0, 0, 0, 0}),
-			clusters2: generateClusterScores(5, []int64{100, 0, 100, 0, 100}, []int64{99999, 88888, 77777, 66666, 55555}),
+			id:        9,
+			clusters1: generateClusterScores(3, []int64{0, 0, 0}, []int64{96, 793, 207}),
+			clusters2: generateClusterScores(3, []int64{100, 100, 100}, []int64{890, 292, 719}),
+			want:      false,
 		},
-		// simple 8
 		{
-			clusters1: generateClusterScores(9, []int64{0, 100, 0, 100, 0, 100, 0, 100, 0}, []int64{1, 3, 5, 7, 9, 11, 13, 15, 17}),
-			clusters2: generateClusterScores(9, []int64{100, 0, 100, 0, 100, 0, 100, 0, 100}, []int64{2, 4, 6, 8, 10, 12, 14, 16, 18}),
+			id:        10,
+			clusters1: generateClusterScores(5, []int64{100, 100, 100, 100, 100}, []int64{568, 48, 396, 403, 219}),
+			clusters2: generateClusterScores(5, []int64{100, 100, 0, 0, 0}, []int64{794, 466, 401, 56, 579}),
+			want:      true,
 		},
-		// simple 9
 		{
-			clusters1: generateClusterScores(1, []int64{0}, []int64{2147483647}),
-			clusters2: generateClusterScores(1, []int64{100}, []int64{2147483647}),
+			id:        11,
+			clusters1: generateClusterScores(5, []int64{100, 100, 0, 0, 0}, []int64{812, 673, 290, 418, 546}),
+			clusters2: generateClusterScores(5, []int64{100, 0, 0, 0, 0}, []int64{759, 834, 621, 237, 490}),
+			want:      true,
 		},
-		// simple 10
 		{
-			clusters1: generateClusterScores(4, []int64{0, 0, 100, 100}, []int64{17, 29, 31, 37}),
-			clusters2: generateClusterScores(4, []int64{100, 100, 0, 0}, []int64{37, 31, 29, 17}),
+			id:        12,
+			clusters1: generateClusterScores(3, []int64{0, 0, 0}, []int64{142, 658, 913}),
+			clusters2: generateClusterScores(3, []int64{100, 100, 100}, []int64{84, 297, 466}),
+			want:      false,
 		},
-		// simple 11
 		{
-			clusters1: generateClusterScores(3, []int64{100, 100, 100}, []int64{1000000, 2000000, 3000000}),
-			clusters2: generateClusterScores(3, []int64{0, 0, 0}, []int64{3000000, 2000000, 1000000}),
+			id:        13,
+			clusters1: generateClusterScores(6, []int64{100, 100, 100, 0, 0, 0}, []int64{376, 589, 710, 843, 257, 634}),
+			clusters2: generateClusterScores(6, []int64{100, 100, 0, 0, 0, 0}, []int64{455, 502, 391, 678, 849, 120}),
+			want:      true,
 		},
-		// simple 12
 		{
-			clusters1: generateClusterScores(6, []int64{0, 0, 100, 100, 0, 0}, []int64{17, 19, 23, 29, 31, 37}),
-			clusters2: generateClusterScores(6, []int64{100, 100, 0, 0, 100, 100}, []int64{37, 31, 29, 23, 19, 17}),
+			id:        14,
+			clusters1: generateClusterScores(4, []int64{100, 100, 0, 0}, []int64{950, 860, 740, 630}),
+			clusters2: generateClusterScores(4, []int64{100, 100, 100, 100}, []int64{150, 250, 350, 450}),
+			want:      true,
 		},
-		// simple 13
 		{
-			clusters1: generateClusterScores(5, []int64{0, 100, 0, 100, 0}, []int64{2, 4, 6, 8, 10}),
-			clusters2: generateClusterScores(5, []int64{100, 0, 100, 0, 100}, []int64{1, 3, 5, 7, 9}),
+			id:        15,
+			clusters1: generateClusterScores(2, []int64{100, 0}, []int64{520, 810}),
+			clusters2: generateClusterScores(2, []int64{100, 0}, []int64{630, 700}),
+			want:      false,
 		},
-		// simple 14
 		{
-			clusters1: generateClusterScores(8, []int64{0, 0, 0, 0, 100, 100, 100, 100}, []int64{11, 22, 33, 44, 55, 66, 77, 88}),
-			clusters2: generateClusterScores(8, []int64{100, 100, 100, 100, 0, 0, 0, 0}, []int64{88, 77, 66, 55, 44, 33, 22, 11}),
+			id:        16,
+			clusters1: generateClusterScores(7, []int64{100, 100, 100, 100, 100, 100, 100}, []int64{712, 645, 578, 511, 444, 377, 310}),
+			clusters2: generateClusterScores(7, []int64{100, 100, 100, 100, 0, 0, 0}, []int64{689, 622, 555, 488, 421, 354, 287}),
+			want:      true,
 		},
-		// simple 15
 		{
-			clusters1: generateClusterScores(2, []int64{100, 0}, []int64{123, 321}),
-			clusters2: generateClusterScores(2, []int64{0, 100}, []int64{321, 123}),
+			id:        17,
+			clusters1: generateClusterScores(5, []int64{100, 100, 0, 0, 0}, []int64{372, 461, 550, 639, 728}),
+			clusters2: generateClusterScores(5, []int64{0, 0, 0, 0, 0}, []int64{817, 906, 995, 184, 273}),
+			want:      true,
 		},
-		// simple 16
 		{
-			clusters1: generateClusterScores(7, []int64{0, 100, 0, 100, 0, 100, 0}, []int64{14, 28, 42, 56, 70, 84, 98}),
-			clusters2: generateClusterScores(7, []int64{100, 0, 100, 0, 100, 0, 100}, []int64{98, 84, 70, 56, 42, 28, 14}),
+			id:        18,
+			clusters1: generateClusterScores(6, []int64{0, 0, 0, 0, 0, 0}, []int64{110, 220, 330, 440, 550, 660}),
+			clusters2: generateClusterScores(6, []int64{0, 0, 0, 0, 0, 0}, []int64{165, 275, 385, 495, 605, 715}),
+			want:      false,
 		},
-		// simple 17
 		{
-			clusters1: generateClusterScores(5, []int64{0, 0, 0, 0, 0}, []int64{999, 888, 777, 666, 555}),
-			clusters2: generateClusterScores(5, []int64{100, 100, 100, 100, 100}, []int64{555, 666, 777, 888, 999}),
+			id:        19,
+			clusters1: generateClusterScores(4, []int64{100, 100, 0, 0}, []int64{1020, 2040, 3060, 4080}),
+			clusters2: generateClusterScores(4, []int64{100, 0, 0, 0}, []int64{1530, 2550, 3570, 4590}),
+			want:      true,
 		},
-		// simple 18
 		{
-			clusters1: generateClusterScores(9, []int64{100, 0, 100, 0, 100, 0, 100, 0, 100}, []int64{12, 24, 36, 48, 60, 72, 84, 96, 108}),
-			clusters2: generateClusterScores(9, []int64{0, 100, 0, 100, 0, 100, 0, 100, 0}, []int64{108, 96, 84, 72, 60, 48, 36, 24, 12}),
+			id:        20,
+			clusters1: generateClusterScores(5, []int64{100, 100, 100, 100, 100}, []int64{15, 30, 45, 60, 75}),
+			clusters2: generateClusterScores(5, []int64{100, 100, 100, 0, 0}, []int64{20, 35, 50, 65, 80}),
+			want:      true,
 		},
-		// simple 19
 		{
-			clusters1: generateClusterScores(1, []int64{0}, []int64{0}),
-			clusters2: generateClusterScores(1, []int64{100}, []int64{999999999}),
+			id:        21,
+			clusters1: generateClusterScores(5, []int64{100, 100, 0, 0, 0}, []int64{314, 159, 265, 358, 979}),
+			clusters2: generateClusterScores(5, []int64{100, 0, 0, 0, 0}, []int64{323, 846, 264, 338, 327}),
+			want:      true,
 		},
-		// simple 20
 		{
-			clusters1: generateClusterScores(4, []int64{0, 100, 0, 100}, []int64{50, 100, 150, 200}),
-			clusters2: generateClusterScores(4, []int64{100, 0, 100, 0}, []int64{200, 150, 100, 50}),
+			id:        22,
+			clusters1: generateClusterScores(3, []int64{100, 100, 100}, []int64{271, 828, 182}),
+			clusters2: generateClusterScores(3, []int64{0, 0, 0}, []int64{459, 230, 781}),
+			want:      true,
 		},
-		// simple 21
 		{
-			clusters1: generateClusterScores(3, []int64{0, 100, 0}, []int64{333, 666, 999}),
-			clusters2: generateClusterScores(3, []int64{100, 0, 100}, []int64{999, 666, 333}),
+			id:        23,
+			clusters1: generateClusterScores(4, []int64{0, 0, 0, 0}, []int64{112, 358, 132, 134}),
+			clusters2: generateClusterScores(4, []int64{100, 100, 100, 100}, []int64{558, 907, 176, 164}),
+			want:      false,
 		},
-		// simple 22
 		{
-			clusters1: generateClusterScores(6, []int64{0, 100, 0, 100, 0, 100}, []int64{1, 4, 9, 16, 25, 36}),
-			clusters2: generateClusterScores(6, []int64{100, 0, 100, 0, 100, 0}, []int64{36, 25, 16, 9, 4, 1}),
+			id:        24,
+			clusters1: generateClusterScores(6, []int64{100, 100, 0, 0, 0, 0}, []int64{625, 349, 360, 288, 419, 716}),
+			clusters2: generateClusterScores(6, []int64{100, 100, 100, 0, 0, 0}, []int64{939, 937, 510, 582, 97, 494}),
+			want:      false,
 		},
-		// simple 23
 		{
-			clusters1: generateClusterScores(2, []int64{100, 0}, []int64{111111, 222222}),
-			clusters2: generateClusterScores(2, []int64{0, 100}, []int64{222222, 111111}),
+			id:        25,
+			clusters1: generateClusterScores(2, []int64{100, 0}, []int64{4592, 307}),
+			clusters2: generateClusterScores(2, []int64{100, 0}, []int64{8164, 62}),
+			want:      false,
 		},
-		// simple 24
 		{
-			clusters1: generateClusterScores(5, []int64{100, 100, 0, 0, 100}, []int64{7, 14, 21, 28, 35}),
-			clusters2: generateClusterScores(5, []int64{0, 0, 100, 100, 0}, []int64{35, 28, 21, 14, 7}),
+			id:        26,
+			clusters1: generateClusterScores(7, []int64{100, 100, 100, 100, 100, 100, 100}, []int64{862, 803, 482, 534, 211, 706, 798}),
+			clusters2: generateClusterScores(7, []int64{100, 100, 100, 100, 100, 0, 0}, []int64{214, 808, 651, 328, 230, 780, 729}),
+			want:      true,
 		},
-		// simple 25
 		{
-			clusters1: generateClusterScores(8, []int64{0, 0, 100, 100, 0, 0, 100, 100}, []int64{100, 200, 300, 400, 500, 600, 700, 800}),
-			clusters2: generateClusterScores(8, []int64{100, 100, 0, 0, 100, 100, 0, 0}, []int64{800, 700, 600, 500, 400, 300, 200, 100}),
+			id:        27,
+			clusters1: generateClusterScores(5, []int64{100, 100, 100, 0, 0}, []int64{716, 939, 937, 510, 582}),
+			clusters2: generateClusterScores(5, []int64{100, 100, 100, 100, 0}, []int64{97, 494, 459, 230, 781}),
+			want:      true,
 		},
-		// simple 26
 		{
-			clusters1: generateClusterScores(7, []int64{0, 100, 0, 100, 0, 100, 0}, []int64{13, 26, 39, 52, 65, 78, 91}),
-			clusters2: generateClusterScores(7, []int64{100, 0, 100, 0, 100, 0, 100}, []int64{91, 78, 65, 52, 39, 26, 13}),
+			id:        28,
+			clusters1: generateClusterScores(4, []int64{0, 0, 0, 0}, []int64{640, 628, 620, 899}),
+			clusters2: generateClusterScores(4, []int64{0, 0, 0, 0}, []int64{862, 803, 482, 534}),
+			want:      true,
 		},
-		// simple 27
 		{
-			clusters1: generateClusterScores(5, []int64{0, 0, 100, 100, 0}, []int64{17, 19, 23, 29, 31}),
-			clusters2: generateClusterScores(5, []int64{100, 100, 0, 0, 100}, []int64{31, 29, 23, 19, 17}),
+			id:        29,
+			clusters1: generateClusterScores(3, []int64{100, 0, 0}, []int64{211, 706, 798}),
+			clusters2: generateClusterScores(3, []int64{100, 100, 0}, []int64{214, 808, 651}),
+			want:      false,
 		},
-		// simple 28
 		{
-			clusters1: generateClusterScores(2, []int64{0, 100}, []int64{1000000000, 2000000000}),
-			clusters2: generateClusterScores(2, []int64{100, 0}, []int64{2000000000, 1000000000}),
-		},
-		// simple 29
-		{
-			clusters1: generateClusterScores(6, []int64{100, 0, 100, 0, 100, 0}, []int64{5, 10, 15, 20, 25, 30}),
-			clusters2: generateClusterScores(6, []int64{0, 100, 0, 100, 0, 100}, []int64{30, 25, 20, 15, 10, 5}),
-		},
-		// simple 30
-		{
-			clusters1: generateClusterScores(9, []int64{0, 100, 0, 100, 0, 100, 0, 100, 0}, []int64{1, 8, 27, 64, 125, 216, 343, 512, 729}),
-			clusters2: generateClusterScores(9, []int64{100, 0, 100, 0, 100, 0, 100, 0, 100}, []int64{729, 512, 343, 216, 125, 64, 27, 8, 1}),
-		},
-		// simple 31
-		{
-			clusters1: generateClusterScores(4, []int64{100, 100, 0, 0}, []int64{100, 200, 300, 400}),
-			clusters2: generateClusterScores(4, []int64{0, 0, 100, 100}, []int64{400, 300, 200, 100}),
-		},
-		// simple 32
-		{
-			clusters1: generateClusterScores(3, []int64{0, 100, 0}, []int64{17, 34, 51}),
-			clusters2: generateClusterScores(3, []int64{100, 0, 100}, []int64{51, 34, 17}),
-		},
-		// simple 33
-		{
-			clusters1: generateClusterScores(7, []int64{100, 0, 100, 0, 100, 0, 100}, []int64{13, 26, 39, 52, 65, 78, 91}),
-			clusters2: generateClusterScores(7, []int64{0, 100, 0, 100, 0, 100, 0}, []int64{91, 78, 65, 52, 39, 26, 13}),
-		},
-		// simple 34
-		{
-			clusters1: generateClusterScores(5, []int64{0, 100, 0, 100, 0}, []int64{1000, 2000, 3000, 4000, 5000}),
-			clusters2: generateClusterScores(5, []int64{100, 0, 100, 0, 100}, []int64{5000, 4000, 3000, 2000, 1000}),
-		},
-		// simple 35
-		{
-			clusters1: generateClusterScores(8, []int64{100, 0, 100, 0, 100, 0, 100, 0}, []int64{2, 4, 6, 8, 10, 12, 14, 16}),
-			clusters2: generateClusterScores(8, []int64{0, 100, 0, 100, 0, 100, 0, 100}, []int64{16, 14, 12, 10, 8, 6, 4, 2}),
-		},
-		// simple 36
-		{
-			clusters1: generateClusterScores(2, []int64{0, 0}, []int64{777777777, 888888888}),
-			clusters2: generateClusterScores(2, []int64{100, 100}, []int64{888888888, 777777777}),
-		},
-		// simple 37
-		{
-			clusters1: generateClusterScores(6, []int64{0, 100, 0, 100, 0, 100}, []int64{15, 30, 45, 60, 75, 90}),
-			clusters2: generateClusterScores(6, []int64{100, 0, 100, 0, 100, 0}, []int64{90, 75, 60, 45, 30, 15}),
-		},
-		// simple 38
-		{
-			clusters1: generateClusterScores(9, []int64{0, 0, 100, 100, 0, 0, 100, 100, 0}, []int64{19, 23, 29, 31, 37, 41, 43, 47, 53}),
-			clusters2: generateClusterScores(9, []int64{100, 100, 0, 0, 100, 100, 0, 0, 100}, []int64{53, 47, 43, 41, 37, 31, 29, 23, 19}),
-		},
-		// simple 39
-		{
-			clusters1: generateClusterScores(4, []int64{100, 0, 100, 0}, []int64{500, 1000, 1500, 2000}),
-			clusters2: generateClusterScores(4, []int64{0, 100, 0, 100}, []int64{2000, 1500, 1000, 500}),
-		},
-		// simple 40
-		{
-			clusters1: generateClusterScores(5, []int64{0, 0, 0, 0, 0}, []int64{1, 1, 1, 1, 1}),
-			clusters2: generateClusterScores(5, []int64{100, 100, 100, 100, 100}, []int64{1, 1, 1, 1, 1}),
-		},
-		// simple 41
-		{
-			clusters1: generateClusterScores(3, []int64{0, 100, 0}, []int64{9999, 8888, 7777}),
-			clusters2: generateClusterScores(3, []int64{100, 0, 100}, []int64{7777, 8888, 9999}),
-		},
-		// simple 42
-		{
-			clusters1: generateClusterScores(6, []int64{100, 0, 100, 0, 100, 0}, []int64{1, 8, 27, 64, 125, 216}),
-			clusters2: generateClusterScores(6, []int64{0, 100, 0, 100, 0, 100}, []int64{216, 125, 64, 27, 8, 1}),
-		},
-		// simple 43
-		{
-			clusters1: generateClusterScores(2, []int64{0, 100}, []int64{555555555, 666666666}),
-			clusters2: generateClusterScores(2, []int64{100, 0}, []int64{666666666, 555555555}),
-		},
-		// simple 44
-		{
-			clusters1: generateClusterScores(5, []int64{100, 100, 0, 0, 100}, []int64{9, 18, 27, 36, 45}),
-			clusters2: generateClusterScores(5, []int64{0, 0, 100, 100, 0}, []int64{45, 36, 27, 18, 9}),
-		},
-		// simple 45
-		{
-			clusters1: generateClusterScores(8, []int64{0, 0, 100, 100, 0, 0, 100, 100}, []int64{11, 22, 33, 44, 55, 66, 77, 88}),
-			clusters2: generateClusterScores(8, []int64{100, 100, 0, 0, 100, 100, 0, 0}, []int64{88, 77, 66, 55, 44, 33, 22, 11}),
-		},
-		// simple 46
-		{
-			clusters1: generateClusterScores(7, []int64{0, 100, 0, 100, 0, 100, 0}, []int64{21, 42, 63, 84, 105, 126, 147}),
-			clusters2: generateClusterScores(7, []int64{100, 0, 100, 0, 100, 0, 100}, []int64{147, 126, 105, 84, 63, 42, 21}),
-		},
-		// simple 47
-		{
-			clusters1: generateClusterScores(5, []int64{0, 0, 100, 100, 0}, []int64{2, 3, 5, 7, 11}),
-			clusters2: generateClusterScores(5, []int64{100, 100, 0, 0, 100}, []int64{11, 7, 5, 3, 2}),
-		},
-		// simple 48
-		{
-			clusters1: generateClusterScores(2, []int64{100, 0}, []int64{999999999, 888888888}),
-			clusters2: generateClusterScores(2, []int64{0, 100}, []int64{888888888, 999999999}),
-		},
-		// simple 49
-		{
-			clusters1: generateClusterScores(6, []int64{0, 100, 0, 100, 0, 100}, []int64{2, 4, 6, 8, 10, 12}),
-			clusters2: generateClusterScores(6, []int64{100, 0, 100, 0, 100, 0}, []int64{12, 10, 8, 6, 4, 2}),
-		},
-		// simple 50
-		{
-			clusters1: generateClusterScores(9, []int64{100, 0, 100, 0, 100, 0, 100, 0, 100}, []int64{5, 10, 15, 20, 25, 30, 35, 40, 45}),
-			clusters2: generateClusterScores(9, []int64{0, 100, 0, 100, 0, 100, 0, 100, 0}, []int64{45, 40, 35, 30, 25, 20, 15, 10, 5}),
+			id:        30,
+			clusters1: generateClusterScores(5, []int64{100, 100, 100, 0, 0}, []int64{328, 230, 780, 729, 716}),
+			clusters2: generateClusterScores(5, []int64{100, 100, 100, 0, 0}, []int64{939, 937, 510, 582, 97}),
+			want:      false,
 		},
 	}
+
 	return argsList
 }
 
@@ -570,11 +439,11 @@ func Test_CalcGroupScore(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run("", func(t *testing.T) {
-			score1 := groupClustersInfo.calcGroupScore(tt.clusters1)
-			score2 := groupClustersInfo.calcGroupScore(tt.clusters2)
-			t.Logf("score1 = %v, score2 = %v, score1 > score 2 res: %v", score1, score2, score1 > score2)
-			if tt.want != (score1 > score2) {
-				t.Errorf("score1 = %v, score2 = %v, score1 > score 2 want %v, but not", score1, score2, tt.want)
+			score1 := groupClustersInfo.calcGroupScore(tt.clusters1, 10)
+			score2 := groupClustersInfo.calcGroupScore(tt.clusters2, 10)
+			t.Logf("test ID: %v, score1 = %v, score2 = %v, score1 >= score 2 res: %v", tt.id, score1, score2, score1 > score2)
+			if tt.want != (score1 >= score2) {
+				t.Errorf("test ID: %v, score1 = %v, score2 = %v, score1 >= score 2 want %v, but res is %v", tt.id, score1, score2, tt.want, score1 > score2)
 			}
 		})
 	}
