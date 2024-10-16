@@ -1222,6 +1222,87 @@ var _ = ginkgo.Describe("Karmadactl options testing", func() {
 	})
 })
 
+var _ = ginkgo.Describe("Karmadactl show init images testing", func() {
+	var (
+		timeout = 10 * time.Second
+	)
+
+	ginkgo.Context("Karmadactl init images list", func() {
+		var (
+			cmdArgs  []string
+			expected string
+		)
+
+		ginkgo.It("list images without any flags", func() {
+			cmdArgs = []string{"init", "show-images"}
+			expected = `registry.k8s.io/kube-apiserver:v1.30.4
+registry.k8s.io/kube-controller-manager:v1.30.4
+registry.k8s.io/etcd:3.5.13-0
+docker.io/alpine:3.19.1
+docker.io/karmada/karmada-scheduler:v0.0.0-master
+docker.io/karmada/karmada-controller-manager:v0.0.0-master
+docker.io/karmada/karmada-webhook:v0.0.0-master
+docker.io/karmada/karmada-aggregated-apiserver:v0.0.0-master`
+
+			cmd := framework.NewKarmadactlCommand(kubeconfig, "", karmadactlPath, "", timeout, cmdArgs...)
+			output, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			gomega.Expect(strings.Contains(output, expected)).Should(gomega.BeTrue(), "Output: %s, Expected: %s", output, expected)
+		})
+
+		ginkgo.It("list images with private-image-registry flag", func() {
+			cmdArgs = []string{"init", "show-images", "--private-image-registry=registry.k8s.io2"}
+			expected = `registry.k8s.io2/kube-apiserver:v1.30.4
+registry.k8s.io2/kube-controller-manager:v1.30.4
+registry.k8s.io2/etcd:3.5.13-0
+registry.k8s.io2/alpine:3.19.1
+registry.k8s.io2/karmada-scheduler:v0.0.0-master
+registry.k8s.io2/karmada-controller-manager:v0.0.0-master
+registry.k8s.io2/karmada-webhook:v0.0.0-master
+registry.k8s.io2/karmada-aggregated-apiserver:v0.0.0-master`
+
+			cmd := framework.NewKarmadactlCommand(kubeconfig, "", karmadactlPath, "", timeout, cmdArgs...)
+			output, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			gomega.Expect(strings.Contains(output, expected)).Should(gomega.BeTrue(), "Output: %s, Expected: %s", output, expected)
+		})
+
+		ginkgo.It("list images with kube-image-country flag", func() {
+			cmdArgs = []string{"init", "show-images", "--kube-image-country=cn"}
+			expected = `registry.cn-hangzhou.aliyuncs.com/google_containers/kube-apiserver:v1.30.4
+registry.cn-hangzhou.aliyuncs.com/google_containers/kube-controller-manager:v1.30.4
+registry.cn-hangzhou.aliyuncs.com/google_containers/etcd:3.5.13-0
+docker.io/alpine:3.19.1
+docker.io/karmada/karmada-scheduler:v0.0.0-master
+docker.io/karmada/karmada-controller-manager:v0.0.0-master
+docker.io/karmada/karmada-webhook:v0.0.0-master
+docker.io/karmada/karmada-aggregated-apiserver:v0.0.0-master`
+
+			cmd := framework.NewKarmadactlCommand(kubeconfig, "", karmadactlPath, "", timeout, cmdArgs...)
+			output, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			gomega.Expect(strings.Contains(output, expected)).Should(gomega.BeTrue(), "Output: %s, Expected: %s", output, expected)
+		})
+	})
+
+	ginkgo.Context("Karmadactl init images list with invalid flags", func() {
+		var (
+			cmdArgs  []string
+			expected string
+		)
+
+		ginkgo.It("invalid flag --unknown-flag", func() {
+			cmdArgs = []string{"init", "show-images", "--unknown-flag"}
+			expected = "unknown flag"
+
+			cmd := framework.NewKarmadactlCommand(kubeconfig, "", karmadactlPath, "", timeout, cmdArgs...)
+			_, err := cmd.ExecOrDie()
+			gomega.Expect(err).Should(gomega.HaveOccurred())
+			gomega.Expect(strings.Contains(err.Error(), expected)).Should(gomega.BeTrue(), "Stderr: %s, Expected: %s", err.Error(), expected)
+		})
+	})
+})
+
 var _ = framework.SerialDescribe("Karmadactl taint testing", ginkgo.Labels{NeedCreateCluster}, func() {
 	ginkgo.Context("Test karmadactl taint command with different effects", func() {
 		var (
