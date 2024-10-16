@@ -243,6 +243,18 @@ function util::create_certkey {
 EOF
 }
 
+# util::create_key_pair generates a new public and private key pair.
+function util::create_key_pair {
+  local sudo=$1
+  local dest_dir=$2
+  local name=$3
+  ${sudo} /usr/bin/env bash -e <<EOF
+  cd ${dest_dir}
+  openssl genrsa -out ${name}.key 3072
+  openssl rsa -in ${name}.key -pubout -out ${name}.pub
+EOF
+}
+
 # util::append_client_kubeconfig creates a new context including a cluster and a user to the existed kubeconfig file
 function util::append_client_kubeconfig {
     local kubeconfig_path=$1
