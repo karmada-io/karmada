@@ -29,12 +29,14 @@ import (
 	"strings"
 	"time"
 
+	crdsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/yaml"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
+	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
 	"github.com/karmada-io/karmada/pkg/util"
 )
@@ -48,6 +50,11 @@ var (
 	// BuildClientFromSecretRefFactory constructs a Kubernetes clientset using a LocalSecretReference.
 	BuildClientFromSecretRefFactory = func(client clientset.Interface, ref *operatorv1alpha1.LocalSecretReference) (clientset.Interface, error) {
 		return BuildClientFromSecretRef(client, ref)
+	}
+
+	// CrdsClientFactory constructs a CRD client from the provided control plane config.
+	CrdsClientFactory = func(controlplaneConfig *rest.Config) (crdsclient.Interface, error) {
+		return apiclient.NewCRDsClient(controlplaneConfig)
 	}
 )
 
