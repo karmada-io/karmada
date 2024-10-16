@@ -253,7 +253,7 @@ func generateArgs() []GroupScoreArgs {
 			id:        2,
 			clusters1: generateClusterScores(3, []int64{100, 100, 100}, []int64{630141, 421020, 507178}),
 			clusters2: generateClusterScores(3, []int64{0, 0, 0}, []int64{448783, 963163, 693666}),
-			want:      true,
+			want:      false,
 		},
 		{
 			id:        3,
@@ -301,19 +301,19 @@ func generateArgs() []GroupScoreArgs {
 			id:        10,
 			clusters1: generateClusterScores(5, []int64{100, 100, 100, 100, 100}, []int64{568, 48, 396, 403, 219}),
 			clusters2: generateClusterScores(5, []int64{100, 100, 0, 0, 0}, []int64{794, 466, 401, 56, 579}),
-			want:      true,
+			want:      false,
 		},
 		{
 			id:        11,
 			clusters1: generateClusterScores(5, []int64{100, 100, 0, 0, 0}, []int64{812, 673, 290, 418, 546}),
 			clusters2: generateClusterScores(5, []int64{100, 0, 0, 0, 0}, []int64{759, 834, 621, 237, 490}),
-			want:      true,
+			want:      false,
 		},
 		{
 			id:        12,
 			clusters1: generateClusterScores(3, []int64{0, 0, 0}, []int64{142, 658, 913}),
 			clusters2: generateClusterScores(3, []int64{100, 100, 100}, []int64{84, 297, 466}),
-			want:      false,
+			want:      true,
 		},
 		{
 			id:        13,
@@ -331,7 +331,7 @@ func generateArgs() []GroupScoreArgs {
 			id:        15,
 			clusters1: generateClusterScores(2, []int64{100, 0}, []int64{520, 810}),
 			clusters2: generateClusterScores(2, []int64{100, 0}, []int64{630, 700}),
-			want:      false,
+			want:      true,
 		},
 		{
 			id:        16,
@@ -343,7 +343,7 @@ func generateArgs() []GroupScoreArgs {
 			id:        17,
 			clusters1: generateClusterScores(5, []int64{100, 100, 0, 0, 0}, []int64{372, 461, 550, 639, 728}),
 			clusters2: generateClusterScores(5, []int64{0, 0, 0, 0, 0}, []int64{817, 906, 995, 184, 273}),
-			want:      true,
+			want:      false,
 		},
 		{
 			id:        18,
@@ -355,25 +355,25 @@ func generateArgs() []GroupScoreArgs {
 			id:        19,
 			clusters1: generateClusterScores(4, []int64{100, 100, 0, 0}, []int64{1020, 2040, 3060, 4080}),
 			clusters2: generateClusterScores(4, []int64{100, 0, 0, 0}, []int64{1530, 2550, 3570, 4590}),
-			want:      true,
+			want:      false,
 		},
 		{
 			id:        20,
 			clusters1: generateClusterScores(5, []int64{100, 100, 100, 100, 100}, []int64{15, 30, 45, 60, 75}),
 			clusters2: generateClusterScores(5, []int64{100, 100, 100, 0, 0}, []int64{20, 35, 50, 65, 80}),
-			want:      true,
+			want:      false,
 		},
 		{
 			id:        21,
 			clusters1: generateClusterScores(5, []int64{100, 100, 0, 0, 0}, []int64{314, 159, 265, 358, 979}),
 			clusters2: generateClusterScores(5, []int64{100, 0, 0, 0, 0}, []int64{323, 846, 264, 338, 327}),
-			want:      true,
+			want:      false,
 		},
 		{
 			id:        22,
 			clusters1: generateClusterScores(3, []int64{100, 100, 100}, []int64{271, 828, 182}),
 			clusters2: generateClusterScores(3, []int64{0, 0, 0}, []int64{459, 230, 781}),
-			want:      true,
+			want:      false,
 		},
 		{
 			id:        23,
@@ -415,7 +415,7 @@ func generateArgs() []GroupScoreArgs {
 			id:        29,
 			clusters1: generateClusterScores(3, []int64{100, 0, 0}, []int64{211, 706, 798}),
 			clusters2: generateClusterScores(3, []int64{100, 100, 0}, []int64{214, 808, 651}),
-			want:      false,
+			want:      true,
 		},
 		{
 			id:        30,
@@ -438,8 +438,8 @@ func Test_CalcGroupScore(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run("", func(t *testing.T) {
-			score1 := groupClustersInfo.calcGroupScore(tt.clusters1, 10)
-			score2 := groupClustersInfo.calcGroupScore(tt.clusters2, 10)
+			score1 := groupClustersInfo.calcGroupScore(tt.clusters1)
+			score2 := groupClustersInfo.calcGroupScore(tt.clusters2)
 			t.Logf("test ID: %v, score1 = %v, score2 = %v, score1 >= score 2 res: %v", tt.id, score1, score2, score1 > score2)
 			if tt.want != (score1 >= score2) {
 				t.Errorf("test ID: %v, score1 = %v, score2 = %v, score1 >= score 2 want %v, but res is %v", tt.id, score1, score2, tt.want, score1 > score2)
