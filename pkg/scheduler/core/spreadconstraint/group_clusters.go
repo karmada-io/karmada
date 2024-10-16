@@ -109,9 +109,9 @@ func groupClustersBasedTopology(
 	}
 	groupClustersInfo.calAvailableReplicasFunc = calAvailableReplicasFunc
 	groupClustersInfo.generateClustersInfo(clustersScore, rbSpec)
-	groupClustersInfo.generateZoneInfo(spreadConstraints, rbSpec)
-	groupClustersInfo.generateRegionInfo(spreadConstraints, rbSpec)
-	groupClustersInfo.generateProviderInfo(spreadConstraints, rbSpec)
+	groupClustersInfo.generateZoneInfo(spreadConstraints)
+	groupClustersInfo.generateRegionInfo(spreadConstraints)
+	groupClustersInfo.generateProviderInfo(spreadConstraints)
 
 	return groupClustersInfo
 }
@@ -128,35 +128,16 @@ func groupClustersIgnoringTopology(
 	return groupClustersInfo
 }
 
-func checkIfDuplicate(rbSpec *workv1alpha2.ResourceBindingSpec) bool {
-	return rbSpec.Placement == nil ||
-		rbSpec.Placement.ReplicaScheduling == nil ||
-		rbSpec.Placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated
-}
-
-func checkIfStaticWeight(rbSpec *workv1alpha2.ResourceBindingSpec) bool {
-	return rbSpec.Placement != nil && rbSpec.Placement.ReplicaScheduling != nil &&
-		rbSpec.Placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided &&
-		rbSpec.Placement.ReplicaScheduling.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceWeighted &&
-		(rbSpec.Placement.ReplicaScheduling.WeightPreference == nil ||
-			len(rbSpec.Placement.ReplicaScheduling.WeightPreference.StaticWeightList) != 0 && rbSpec.Placement.ReplicaScheduling.WeightPreference.DynamicWeight == "")
-}
-
-func (info *GroupClustersInfo) calcWight(clusters ClusterDetailInfo, rbSpec *workv1alpha2.ResourceBindingSpec) int64 {
-	// if duplicate or static weight  =>
-	if checkIfDuplicate(rbSpec) || checkIfStaticWeight(rbSpec) {
-		return 1
-	}
-
-	// if dynamic weight or aggregated =>
+func (info *GroupClustersInfo) calcWight(clusters ClusterDetailInfo) int64 {
 	return clusters.AvailableReplicas
 }
 
-func (info *GroupClustersInfo) calcGroupScore(clusters []ClusterDetailInfo, rbSpec *workv1alpha2.ResourceBindingSpec) int64 {
+func (info *GroupClustersInfo) calcGroupScore(clusters []ClusterDetailInfo) int64 {
 	// Group Score = sum(Cluster Score × Weight)
 	var score int64
 	for _, cluster := range clusters {
-		score += cluster.Score * info.calcWight(cluster, rbSpec)
+		// avoid the score is 0
+		score += (cluster.Score + 10) * info.calcWight(cluster)
 	}
 	return score / int64(len(clusters))
 }
@@ -186,8 +167,7 @@ func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.Clus
 	})
 }
 
-func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alpha1.SpreadConstraint,
-	rbSpec *workv1alpha2.ResourceBindingSpec) {
+func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
 	if !IsSpreadConstraintExisted(spreadConstraints, policyv1alpha1.SpreadByFieldZone) {
 		return
 	}
@@ -213,13 +193,12 @@ func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alph
 	}
 
 	for zone, zoneInfo := range info.Zones {
-		zoneInfo.Score = info.calcGroupScore(zoneInfo.Clusters, rbSpec)
+		zoneInfo.Score = info.calcGroupScore(zoneInfo.Clusters)
 		info.Zones[zone] = zoneInfo
 	}
 }
 
-func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1alpha1.SpreadConstraint,
-	rbSpec *workv1alpha2.ResourceBindingSpec) {
+func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
 	if !IsSpreadConstraintExisted(spreadConstraints, policyv1alpha1.SpreadByFieldRegion) {
 		return
 	}
@@ -248,13 +227,12 @@ func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1al
 	}
 
 	for region, regionInfo := range info.Regions {
-		regionInfo.Score = info.calcGroupScore(regionInfo.Clusters, rbSpec)
+		regionInfo.Score = info.calcGroupScore(regionInfo.Clusters)
 		info.Regions[region] = regionInfo
 	}
 }
 
-func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1alpha1.SpreadConstraint,
-	rbSpec *workv1alpha2.ResourceBindingSpec) {
+func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
 	if !IsSpreadConstraintExisted(spreadConstraints, policyv1alpha1.SpreadByFieldProvider) {
 		return
 	}
@@ -289,7 +267,7 @@ func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1
 	}
 
 	for provider, providerInfo := range info.Providers {
-		providerInfo.Score = info.calcGroupScore(providerInfo.Clusters, rbSpec)
+		providerInfo.Score = info.calcGroupScore(providerInfo.Clusters)
 		info.Providers[provider] = providerInfo
 	}
 }
