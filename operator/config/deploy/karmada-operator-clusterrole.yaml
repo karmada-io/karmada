@@ -1,8 +1,10 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "common.names.fullname" . }}
-  labels: {{- include "common.labels.standard" . | nindent 4 }}
+  name: karmada-operator
+  labels:
+    app.kubernetes.io/instance: karmada-operator
+    app.kubernetes.io/name: karmada-operator
 rules:
   - apiGroups:
       - coordination.k8s.io
