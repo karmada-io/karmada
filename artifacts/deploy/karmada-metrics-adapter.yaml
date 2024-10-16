@@ -29,9 +29,9 @@ spec:
             - --kubeconfig=/etc/karmada/config/karmada.config
             - --authentication-kubeconfig=/etc/karmada/config/karmada.config
             - --authorization-kubeconfig=/etc/karmada/config/karmada.config
-            - --client-ca-file=/etc/karmada/pki/ca.crt
-            - --tls-cert-file=/etc/karmada/pki/karmada.crt
-            - --tls-private-key-file=/etc/karmada/pki/karmada.key
+            - --client-ca-file=/etc/karmada/pki/server/ca.crt
+            - --tls-cert-file=/etc/karmada/pki/server/tls.crt
+            - --tls-private-key-file=/etc/karmada/pki/server/tls.key
             - --audit-log-path=-
             - --audit-log-maxage=0
             - --audit-log-maxbackup=0
@@ -60,16 +60,16 @@ spec:
           volumeMounts:
             - name: karmada-config
               mountPath: /etc/karmada/config
-            - name: karmada-certs
-              mountPath: /etc/karmada/pki
+            - name: server-cert
+              mountPath: /etc/karmada/pki/server
               readOnly: true
       volumes:
         - name: karmada-config
           secret:
             secretName: karmada-metrics-adapter-config
-        - name: karmada-certs
+        - name: server-cert
           secret:
-            secretName: karmada-cert-secret
+            secretName: karmada-metrics-adapter-cert
 ---
 apiVersion: v1
 kind: Service
