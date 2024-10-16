@@ -17,12 +17,14 @@ limitations under the License.
 package spreadconstraint
 
 import (
+	"math"
+
+	"k8s.io/utils/ptr"
+
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
-	"k8s.io/utils/ptr"
-	"math"
 )
 
 // GroupClustersInfo indicate the cluster global view
