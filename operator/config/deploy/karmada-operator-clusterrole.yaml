@@ -3,8 +3,7 @@ kind: ClusterRole
 metadata:
   name: karmada-operator
   labels:
-    app.kubernetes.io/instance: karmada-operator
-    app.kubernetes.io/name: karmada-operator
+    karmada-app: karmada-operator
 rules:
   - apiGroups:
       - coordination.k8s.io

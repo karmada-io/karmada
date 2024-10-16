@@ -4,22 +4,16 @@ metadata:
   name: karmada-operator
   namespace: karmada-system
   labels:
-    app: karmada-operator
-    app.kubernetes.io/instance: karmada-operator
-    app.kubernetes.io/name: karmada-operator
+    karmada-app: karmada-operator
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: karmada-operator
-      app.kubernetes.io/instance: karmada-operator
-      app.kubernetes.io/name: karmada-operator
+      karmada-app: karmada-operator
   template:
     metadata:
       labels:
-        app: karmada-operator
-        app.kubernetes.io/instance: karmada-operator
-        app.kubernetes.io/name: karmada-operator
+        karmada-app: karmada-operator
     spec:
       containers:
       - name: karmada-operator
