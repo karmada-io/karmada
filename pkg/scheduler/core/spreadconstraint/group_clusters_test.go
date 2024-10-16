@@ -242,7 +242,6 @@ type GroupScoreArgs struct {
 }
 
 func generateArgs() []GroupScoreArgs {
-
 	argsList := []GroupScoreArgs{
 		{
 			id:        1,
