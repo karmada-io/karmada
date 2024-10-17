@@ -17,6 +17,8 @@ limitations under the License.
 package spreadconstraint
 
 import (
+	"math"
+
 	"k8s.io/utils/ptr"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -109,9 +111,9 @@ func groupClustersBasedTopology(
 	}
 	groupClustersInfo.calAvailableReplicasFunc = calAvailableReplicasFunc
 	groupClustersInfo.generateClustersInfo(clustersScore, rbSpec)
-	groupClustersInfo.generateZoneInfo(spreadConstraints, rbSpec)
-	groupClustersInfo.generateRegionInfo(spreadConstraints, rbSpec)
-	groupClustersInfo.generateProviderInfo(spreadConstraints, rbSpec)
+	groupClustersInfo.generateZoneInfo(spreadConstraints)
+	groupClustersInfo.generateRegionInfo(spreadConstraints)
+	groupClustersInfo.generateProviderInfo(spreadConstraints)
 
 	return groupClustersInfo
 }
@@ -128,15 +130,20 @@ func groupClustersIgnoringTopology(
 	return groupClustersInfo
 }
 
-func (info *GroupClustersInfo) calcWight(clusters ClusterDetailInfo, rbSpec *workv1alpha2.ResourceBindingSpec) int64 {
-	return clusters.Score * int64(rbSpec.AssignedReplicasForCluster(clusters.Name))
-}
-
-func (info *GroupClustersInfo) calcGroupScore(clusters []ClusterDetailInfo, rbSpec *workv1alpha2.ResourceBindingSpec) int64 {
+func (info *GroupClustersInfo) calcGroupScore(clusters []ClusterDetailInfo) int64 {
 	// Group Score = sum(Cluster Score × Weight)
 	var score int64
 	for _, cluster := range clusters {
-		score += cluster.Score * info.calcWight(cluster, rbSpec)
+		weight := cluster.AvailableReplicas
+		if weight > math.MaxInt64/1000 {
+			weight = math.MaxInt64
+		} else {
+			weight = weight * 1000
+		}
+		if score > math.MaxInt64-(cluster.Score+weight) {
+			return math.MaxInt64
+		}
+		score += cluster.Score + weight
 	}
 	return score / int64(len(clusters))
 }
@@ -166,8 +173,7 @@ func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.Clus
 	})
 }
 
-func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alpha1.SpreadConstraint,
-	rbSpec *workv1alpha2.ResourceBindingSpec) {
+func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
 	if !IsSpreadConstraintExisted(spreadConstraints, policyv1alpha1.SpreadByFieldZone) {
 		return
 	}
@@ -193,13 +199,12 @@ func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alph
 	}
 
 	for zone, zoneInfo := range info.Zones {
-		zoneInfo.Score = info.calcGroupScore(zoneInfo.Clusters, rbSpec)
+		zoneInfo.Score = info.calcGroupScore(zoneInfo.Clusters)
 		info.Zones[zone] = zoneInfo
 	}
 }
 
-func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1alpha1.SpreadConstraint,
-	rbSpec *workv1alpha2.ResourceBindingSpec) {
+func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
 	if !IsSpreadConstraintExisted(spreadConstraints, policyv1alpha1.SpreadByFieldRegion) {
 		return
 	}
@@ -228,13 +233,12 @@ func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1al
 	}
 
 	for region, regionInfo := range info.Regions {
-		regionInfo.Score = info.calcGroupScore(regionInfo.Clusters, rbSpec)
+		regionInfo.Score = info.calcGroupScore(regionInfo.Clusters)
 		info.Regions[region] = regionInfo
 	}
 }
 
-func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1alpha1.SpreadConstraint,
-	rbSpec *workv1alpha2.ResourceBindingSpec) {
+func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
 	if !IsSpreadConstraintExisted(spreadConstraints, policyv1alpha1.SpreadByFieldProvider) {
 		return
 	}
@@ -269,7 +273,7 @@ func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1
 	}
 
 	for provider, providerInfo := range info.Providers {
-		providerInfo.Score = info.calcGroupScore(providerInfo.Clusters, rbSpec)
+		providerInfo.Score = info.calcGroupScore(providerInfo.Clusters)
 		info.Providers[provider] = providerInfo
 	}
 }
