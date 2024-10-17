@@ -186,7 +186,7 @@ func (ctl *Controller) reconcile(util.QueueKey) error {
 	if err != nil {
 		return err
 	}
-
+	registeredResources := make(map[schema.GroupVersionResource]struct{})
 	resourcesByClusters := make(map[string]map[schema.GroupVersionResource]*store.MultiNamespace)
 	for _, registry := range registries {
 		matchedResources := make(map[schema.GroupVersionResource]*store.MultiNamespace, len(registry.Spec.ResourceSelectors))
@@ -203,8 +203,8 @@ func (ctl *Controller) reconcile(util.QueueKey) error {
 				matchedResources[gvr] = nsSelector
 			}
 			nsSelector.Add(selector.Namespace)
+			registeredResources[gvr] = struct{}{}
 		}
-
 		if len(matchedResources) == 0 {
 			continue
 		}
@@ -238,7 +238,7 @@ func (ctl *Controller) reconcile(util.QueueKey) error {
 		}
 	}
 
-	return ctl.store.UpdateCache(resourcesByClusters)
+	return ctl.store.UpdateCache(resourcesByClusters, registeredResources)
 }
 
 type errorHTTPHandler struct {
