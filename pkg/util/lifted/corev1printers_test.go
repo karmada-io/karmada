@@ -586,6 +586,862 @@ func TestPrintNodeList(t *testing.T) {
 	}
 }
 
+func TestPrintPodList(t *testing.T) {
+	testCases := []struct {
+		name     string
+		podList  *corev1.PodList
+		options  printers.GenerateOptions
+		expected func(*testing.T, []metav1.TableRow)
+	}{
+		{
+			name:    "Empty pod list",
+			podList: &corev1.PodList{},
+			options: printers.GenerateOptions{},
+			expected: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Empty(t, rows)
+			},
+		},
+		{
+			name: "Single running pod",
+			podList: &corev1.PodList{
+				Items: []corev1.Pod{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:              "pod1",
+							Namespace:         "default",
+							CreationTimestamp: metav1.Time{Time: time.Now().Add(-1 * time.Hour)},
+						},
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{Name: "container1"},
+							},
+						},
+						Status: corev1.PodStatus{
+							Phase: corev1.PodRunning,
+							ContainerStatuses: []corev1.ContainerStatus{
+								{
+									Ready: true,
+									State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}},
+								},
+							},
+						},
+					},
+				},
+			},
+			options: printers.GenerateOptions{},
+			expected: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Len(t, rows, 1)
+				assert.Equal(t, "pod1", rows[0].Cells[0])
+				assert.Equal(t, "1/1", rows[0].Cells[1])
+				assert.Equal(t, "Running", rows[0].Cells[2])
+				assert.NotEmpty(t, rows[0].Cells[4])
+			},
+		},
+		{
+			name: "Multiple pods with different states",
+			podList: &corev1.PodList{
+				Items: []corev1.Pod{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:              "pod1",
+							Namespace:         "default",
+							CreationTimestamp: metav1.Time{Time: time.Now().Add(-1 * time.Hour)},
+						},
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{Name: "container1"},
+							},
+						},
+						Status: corev1.PodStatus{
+							Phase: corev1.PodRunning,
+							ContainerStatuses: []corev1.ContainerStatus{
+								{
+									Ready: true,
+									State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}},
+								},
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:              "pod2",
+							Namespace:         "kube-system",
+							CreationTimestamp: metav1.Time{Time: time.Now().Add(-2 * time.Hour)},
+						},
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{Name: "container2"},
+							},
+						},
+						Status: corev1.PodStatus{
+							Phase: corev1.PodPending,
+							ContainerStatuses: []corev1.ContainerStatus{
+								{
+									Ready: false,
+									State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: "ContainerCreating"}},
+								},
+							},
+						},
+					},
+				},
+			},
+			options: printers.GenerateOptions{},
+			expected: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Len(t, rows, 2)
+				assert.Equal(t, "pod1", rows[0].Cells[0])
+				assert.Equal(t, "1/1", rows[0].Cells[1])
+				assert.Equal(t, "Running", rows[0].Cells[2])
+				assert.NotEmpty(t, rows[0].Cells[4])
+				assert.Equal(t, "pod2", rows[1].Cells[0])
+				assert.Equal(t, "0/1", rows[1].Cells[1])
+				assert.Contains(t, []string{"Pending", "ContainerCreating"}, rows[1].Cells[2])
+				assert.NotEmpty(t, rows[1].Cells[4])
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			rows, err := printPodList(tc.podList, tc.options)
+			assert.NoError(t, err)
+			tc.expected(t, rows)
+		})
+	}
+}
+
+func TestPrintPod(t *testing.T) {
+	testCases := []struct {
+		name           string
+		pod            *corev1.Pod
+		options        printers.GenerateOptions
+		expectedChecks func(*testing.T, []metav1.TableRow)
+	}{
+		{
+			name: "Running pod",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "running-pod",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-1 * time.Hour)},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Name: "container1"}},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+					ContainerStatuses: []corev1.ContainerStatus{
+						{Ready: true, State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}}},
+					},
+				},
+			},
+			options: printers.GenerateOptions{},
+			expectedChecks: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Len(t, rows, 1)
+				assert.Len(t, rows[0].Cells, 5)
+				assert.Equal(t, "running-pod", rows[0].Cells[0])
+				assert.Equal(t, "1/1", rows[0].Cells[1])
+				assert.Equal(t, "Running", rows[0].Cells[2])
+				assert.Equal(t, int64(0), rows[0].Cells[3])
+				assert.Regexp(t, `\d+[hm]`, rows[0].Cells[4])
+			},
+		},
+		{
+			name: "Pending pod with ContainerCreating",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "pending-pod",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-30 * time.Minute)},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Name: "container1"}},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodPending,
+					ContainerStatuses: []corev1.ContainerStatus{
+						{Ready: false, State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: "ContainerCreating"}}},
+					},
+				},
+			},
+			options: printers.GenerateOptions{},
+			expectedChecks: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Len(t, rows, 1)
+				assert.Len(t, rows[0].Cells, 5)
+				assert.Equal(t, "pending-pod", rows[0].Cells[0])
+				assert.Equal(t, "0/1", rows[0].Cells[1])
+				assert.Equal(t, "ContainerCreating", rows[0].Cells[2])
+				assert.Equal(t, int64(0), rows[0].Cells[3])
+				assert.Regexp(t, `\d+m`, rows[0].Cells[4])
+			},
+		},
+		{
+			name: "Succeeded pod",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "succeeded-pod",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-3 * time.Hour)},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Name: "container1"}},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodSucceeded,
+				},
+			},
+			options: printers.GenerateOptions{},
+			expectedChecks: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Len(t, rows, 1)
+				assert.Equal(t, "succeeded-pod", rows[0].Cells[0])
+				assert.Equal(t, "0/1", rows[0].Cells[1])
+				assert.Equal(t, "Succeeded", rows[0].Cells[2])
+				assert.Equal(t, int64(0), rows[0].Cells[3])
+				assert.Regexp(t, `\d+h`, rows[0].Cells[4])
+				assert.Equal(t, podSuccessConditions, rows[0].Conditions)
+			},
+		},
+		{
+			name: "Failed pod",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "failed-pod",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-2 * time.Hour)},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Name: "container1"}},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodFailed,
+					ContainerStatuses: []corev1.ContainerStatus{
+						{Ready: false, State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{Reason: "Error"}}},
+					},
+				},
+			},
+			options: printers.GenerateOptions{},
+			expectedChecks: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Len(t, rows, 1)
+				assert.Equal(t, "failed-pod", rows[0].Cells[0])
+				assert.Equal(t, "0/1", rows[0].Cells[1])
+				assert.Equal(t, "Error", rows[0].Cells[2])
+				assert.Equal(t, int64(0), rows[0].Cells[3])
+				assert.Regexp(t, `(\d+h|\d+m)`, rows[0].Cells[4]) // Match either hours or minutes
+				assert.Equal(t, podFailedConditions, rows[0].Conditions)
+			},
+		},
+		{
+			name: "Pod with multiple containers and restarts",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "multi-container-pod",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-3 * time.Hour)},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Name: "container1"}, {Name: "container2"}},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+					ContainerStatuses: []corev1.ContainerStatus{
+						{Ready: true, RestartCount: 2, State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}}},
+						{Ready: true, RestartCount: 1, State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}}},
+					},
+				},
+			},
+			options: printers.GenerateOptions{},
+			expectedChecks: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Len(t, rows, 1)
+				assert.Len(t, rows[0].Cells, 5)
+				assert.Equal(t, "multi-container-pod", rows[0].Cells[0])
+				assert.Equal(t, "2/2", rows[0].Cells[1])
+				assert.Equal(t, "Running", rows[0].Cells[2])
+				assert.Equal(t, int64(3), rows[0].Cells[3])
+				assert.Regexp(t, `\d+h`, rows[0].Cells[4])
+			},
+		},
+		{
+			name: "Pod with readiness gates",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "readiness-gate-pod",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-4 * time.Hour)},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Name: "container1"}},
+					ReadinessGates: []corev1.PodReadinessGate{
+						{ConditionType: "custom-condition"},
+					},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+					ContainerStatuses: []corev1.ContainerStatus{
+						{Ready: true, State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}}},
+					},
+					Conditions: []corev1.PodCondition{
+						{Type: "custom-condition", Status: corev1.ConditionTrue},
+					},
+				},
+			},
+			options: printers.GenerateOptions{Wide: true},
+			expectedChecks: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Len(t, rows, 1)
+				assert.Len(t, rows[0].Cells, 9)
+				assert.Equal(t, "readiness-gate-pod", rows[0].Cells[0])
+				assert.Equal(t, "1/1", rows[0].Cells[1])
+				assert.Equal(t, "Running", rows[0].Cells[2])
+				assert.Equal(t, int64(0), rows[0].Cells[3])
+				assert.Regexp(t, `\d+h`, rows[0].Cells[4])
+				assert.Equal(t, "<none>", rows[0].Cells[5]) // IP
+				assert.Equal(t, "<none>", rows[0].Cells[6]) // Node
+				assert.Equal(t, "<none>", rows[0].Cells[7]) // Nominated Node
+				assert.Equal(t, "1/1", rows[0].Cells[8])    // Readiness Gates
+			},
+		},
+		{
+			name: "Pod with init container - waiting",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "init-pod-waiting",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-1 * time.Hour)},
+				},
+				Spec: corev1.PodSpec{
+					InitContainers: []corev1.Container{{Name: "init-container"}},
+					Containers:     []corev1.Container{{Name: "main-container"}},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodPending,
+					InitContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name:  "init-container",
+							Ready: false,
+							State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: "ContainerCreating"}},
+						},
+					},
+				},
+			},
+			options: printers.GenerateOptions{},
+			expectedChecks: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Len(t, rows, 1)
+				assert.Len(t, rows[0].Cells, 5)
+				assert.Equal(t, "init-pod-waiting", rows[0].Cells[0])
+				assert.Equal(t, "0/1", rows[0].Cells[1])
+				assert.Equal(t, "Init:ContainerCreating", rows[0].Cells[2])
+				assert.Equal(t, int64(0), rows[0].Cells[3])
+				assert.Regexp(t, `\d+[hm]`, rows[0].Cells[4])
+			},
+		},
+		{
+			name: "Terminating pod",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "terminating-pod",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-6 * time.Hour)},
+					DeletionTimestamp: &metav1.Time{Time: time.Now().Add(-5 * time.Minute)},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Name: "container1"}},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+					ContainerStatuses: []corev1.ContainerStatus{
+						{Ready: true, State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}}},
+					},
+				},
+			},
+			options: printers.GenerateOptions{},
+			expectedChecks: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Len(t, rows, 1)
+				assert.Len(t, rows[0].Cells, 5)
+				assert.Equal(t, "terminating-pod", rows[0].Cells[0])
+				assert.Equal(t, "1/1", rows[0].Cells[1])
+				assert.Equal(t, "Terminating", rows[0].Cells[2])
+				assert.Equal(t, int64(0), rows[0].Cells[3])
+				assert.Regexp(t, `\d+h`, rows[0].Cells[4])
+			},
+		},
+		{
+			name: "Node unreachable pod",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "unreachable-pod",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-7 * time.Hour)},
+					DeletionTimestamp: &metav1.Time{Time: time.Now().Add(-10 * time.Minute)},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Name: "container1"}},
+				},
+				Status: corev1.PodStatus{
+					Phase:  corev1.PodRunning,
+					Reason: NodeUnreachablePodReason,
+				},
+			},
+			options: printers.GenerateOptions{},
+			expectedChecks: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Len(t, rows, 1)
+				assert.Equal(t, "unreachable-pod", rows[0].Cells[0])
+				assert.Equal(t, "0/1", rows[0].Cells[1])
+				assert.Equal(t, "Unknown", rows[0].Cells[2])
+				assert.Equal(t, int64(0), rows[0].Cells[3])
+				assert.Regexp(t, `\d+h`, rows[0].Cells[4])
+			},
+		},
+		{
+			name: "Pod with init container terminated with signal",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "init-signal-pod",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-30 * time.Minute)},
+				},
+				Spec: corev1.PodSpec{
+					InitContainers: []corev1.Container{{Name: "init-container"}},
+					Containers:     []corev1.Container{{Name: "main-container"}},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodPending,
+					InitContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name: "init-container",
+							State: corev1.ContainerState{
+								Terminated: &corev1.ContainerStateTerminated{
+									Signal: 9,
+								},
+							},
+						},
+					},
+				},
+			},
+			options: printers.GenerateOptions{},
+			expectedChecks: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Len(t, rows, 1)
+				assert.Equal(t, "init-signal-pod", rows[0].Cells[0])
+				assert.Equal(t, "0/1", rows[0].Cells[1])
+				assert.Equal(t, "Pending", rows[0].Cells[2])
+			},
+		},
+		{
+			name: "Pod with init container terminated with exit code",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "init-exit-code-pod",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-35 * time.Minute)},
+				},
+				Spec: corev1.PodSpec{
+					InitContainers: []corev1.Container{{Name: "init-container"}},
+					Containers:     []corev1.Container{{Name: "main-container"}},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodPending,
+					InitContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name: "init-container",
+							State: corev1.ContainerState{
+								Terminated: &corev1.ContainerStateTerminated{
+									ExitCode: 1,
+								},
+							},
+						},
+					},
+				},
+			},
+			options: printers.GenerateOptions{},
+			expectedChecks: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Len(t, rows, 1)
+				assert.Equal(t, "init-exit-code-pod", rows[0].Cells[0])
+				assert.Equal(t, "0/1", rows[0].Cells[1])
+				assert.Equal(t, "Init:ExitCode:1", rows[0].Cells[2])
+			},
+		},
+		{
+			name: "Pod with init container terminated with reason",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "init-reason-pod",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-40 * time.Minute)},
+				},
+				Spec: corev1.PodSpec{
+					InitContainers: []corev1.Container{{Name: "init-container"}},
+					Containers:     []corev1.Container{{Name: "main-container"}},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodPending,
+					InitContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name: "init-container",
+							State: corev1.ContainerState{
+								Terminated: &corev1.ContainerStateTerminated{
+									Reason: "Error",
+								},
+							},
+						},
+					},
+				},
+			},
+			options: printers.GenerateOptions{},
+			expectedChecks: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Len(t, rows, 1)
+				assert.Equal(t, "init-reason-pod", rows[0].Cells[0])
+				assert.Equal(t, "0/1", rows[0].Cells[1])
+				assert.Equal(t, "Pending", rows[0].Cells[2])
+			},
+		},
+		{
+			name: "Pod with multiple init containers, some pending",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "multi-init-pod",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-45 * time.Minute)},
+				},
+				Spec: corev1.PodSpec{
+					InitContainers: []corev1.Container{
+						{Name: "init-container-1"},
+						{Name: "init-container-2"},
+						{Name: "init-container-3"},
+					},
+					Containers: []corev1.Container{{Name: "main-container"}},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodPending,
+					InitContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name:  "init-container-1",
+							Ready: true,
+							State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{ExitCode: 0}},
+						},
+						{
+							Name:  "init-container-2",
+							Ready: false,
+							State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{}},
+						},
+						{
+							Name:  "init-container-3",
+							Ready: false,
+							State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{}},
+						},
+					},
+				},
+			},
+			options: printers.GenerateOptions{},
+			expectedChecks: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Len(t, rows, 1)
+				assert.Equal(t, "multi-init-pod", rows[0].Cells[0])
+				assert.Equal(t, "0/1", rows[0].Cells[1])
+				assert.Equal(t, "Init:1/3", rows[0].Cells[2])
+			},
+		},
+		{
+			name: "Pod with container terminated with signal",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "terminated-signal-pod",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-1 * time.Hour)},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Name: "container1"}},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name: "container1",
+							State: corev1.ContainerState{
+								Terminated: &corev1.ContainerStateTerminated{
+									Signal: 15,
+								},
+							},
+						},
+					},
+				},
+			},
+			options: printers.GenerateOptions{},
+			expectedChecks: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Len(t, rows, 1)
+				assert.Equal(t, "terminated-signal-pod", rows[0].Cells[0])
+				assert.Equal(t, "0/1", rows[0].Cells[1])
+				assert.Equal(t, "Signal:15", rows[0].Cells[2])
+			},
+		},
+		{
+			name: "Pod with container terminated with exit code",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "terminated-exit-pod",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-2 * time.Hour)},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Name: "container1"}},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name: "container1",
+							State: corev1.ContainerState{
+								Terminated: &corev1.ContainerStateTerminated{
+									ExitCode: 2,
+								},
+							},
+						},
+					},
+				},
+			},
+			options: printers.GenerateOptions{},
+			expectedChecks: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Len(t, rows, 1)
+				assert.Equal(t, "terminated-exit-pod", rows[0].Cells[0])
+				assert.Equal(t, "0/1", rows[0].Cells[1])
+				assert.Equal(t, "ExitCode:2", rows[0].Cells[2])
+			},
+		},
+		{
+			name: "Running pod with ready condition",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "ready-pod",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-3 * time.Hour)},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Name: "container1"}},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+					Conditions: []corev1.PodCondition{
+						{Type: corev1.PodReady, Status: corev1.ConditionTrue},
+					},
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name:  "container1",
+							Ready: true,
+							State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}},
+						},
+					},
+				},
+			},
+			options: printers.GenerateOptions{},
+			expectedChecks: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Len(t, rows, 1)
+				assert.Equal(t, "ready-pod", rows[0].Cells[0])
+				assert.Equal(t, "1/1", rows[0].Cells[1])
+				assert.Equal(t, "Running", rows[0].Cells[2])
+			},
+		},
+		{
+			name: "Running pod without ready condition",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "not-ready-pod",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-4 * time.Hour)},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Name: "container1"}},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name:  "container1",
+							Ready: false,
+							State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}},
+						},
+					},
+				},
+			},
+			options: printers.GenerateOptions{},
+			expectedChecks: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Len(t, rows, 1)
+				assert.Equal(t, "not-ready-pod", rows[0].Cells[0])
+				assert.Equal(t, "0/1", rows[0].Cells[1])
+				assert.Equal(t, "Running", rows[0].Cells[2])
+			},
+		},
+		{
+			name: "Running pod with container not ready",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "running-not-ready-pod",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-55 * time.Minute)},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Name: "main-container"}},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name:  "main-container",
+							Ready: false,
+							State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}},
+						},
+					},
+				},
+			},
+			options: printers.GenerateOptions{},
+			expectedChecks: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Len(t, rows, 1)
+				assert.Equal(t, "running-not-ready-pod", rows[0].Cells[0])
+				assert.Equal(t, "0/1", rows[0].Cells[1])
+				assert.Equal(t, "Running", rows[0].Cells[2])
+			},
+		},
+		{
+			name: "Completed pod with running container",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "completed-running-pod",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-50 * time.Minute)},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Name: "main-container"}},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+					Conditions: []corev1.PodCondition{
+						{Type: corev1.PodReady, Status: corev1.ConditionTrue},
+					},
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name:  "main-container",
+							Ready: true,
+							State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}},
+						},
+					},
+				},
+			},
+			options: printers.GenerateOptions{},
+			expectedChecks: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Len(t, rows, 1)
+				assert.Equal(t, "completed-running-pod", rows[0].Cells[0])
+				assert.Equal(t, "1/1", rows[0].Cells[1])
+				assert.Equal(t, "Running", rows[0].Cells[2])
+			},
+		},
+		{
+			name: "Pod with multiple IPs",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "multi-ip-pod",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-5 * time.Hour)},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Name: "container1"}},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+					PodIPs: []corev1.PodIP{
+						{IP: "192.168.1.10"},
+						{IP: "fd00::10"},
+					},
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name:  "container1",
+							Ready: true,
+							State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}},
+						},
+					},
+				},
+			},
+			options: printers.GenerateOptions{Wide: true},
+			expectedChecks: func(t *testing.T, rows []metav1.TableRow) {
+				assert.Len(t, rows, 1)
+				assert.Equal(t, "multi-ip-pod", rows[0].Cells[0])
+				assert.Equal(t, "1/1", rows[0].Cells[1])
+				assert.Equal(t, "Running", rows[0].Cells[2])
+				assert.Equal(t, "192.168.1.10", rows[0].Cells[5]) // IP column in wide output
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			rows, err := printPod(tc.pod, tc.options)
+			assert.NoError(t, err)
+			tc.expectedChecks(t, rows)
+			assert.Equal(t, runtime.RawExtension{Object: tc.pod}, rows[0].Object)
+		})
+	}
+}
+
+func TestHasPodReadyCondition(t *testing.T) {
+	testCases := []struct {
+		name       string
+		conditions []corev1.PodCondition
+		expected   bool
+	}{
+		{
+			name:       "Empty conditions",
+			conditions: []corev1.PodCondition{},
+			expected:   false,
+		},
+		{
+			name: "Ready condition is true",
+			conditions: []corev1.PodCondition{
+				{
+					Type:   corev1.PodReady,
+					Status: corev1.ConditionTrue,
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Ready condition is false",
+			conditions: []corev1.PodCondition{
+				{
+					Type:   corev1.PodReady,
+					Status: corev1.ConditionFalse,
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Ready condition is unknown",
+			conditions: []corev1.PodCondition{
+				{
+					Type:   corev1.PodReady,
+					Status: corev1.ConditionUnknown,
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Multiple conditions, Ready is true",
+			conditions: []corev1.PodCondition{
+				{
+					Type:   corev1.PodInitialized,
+					Status: corev1.ConditionTrue,
+				},
+				{
+					Type:   corev1.PodReady,
+					Status: corev1.ConditionTrue,
+				},
+				{
+					Type:   corev1.ContainersReady,
+					Status: corev1.ConditionTrue,
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Multiple conditions, Ready is false",
+			conditions: []corev1.PodCondition{
+				{
+					Type:   corev1.PodInitialized,
+					Status: corev1.ConditionTrue,
+				},
+				{
+					Type:   corev1.PodReady,
+					Status: corev1.ConditionFalse,
+				},
+				{
+					Type:   corev1.ContainersReady,
+					Status: corev1.ConditionTrue,
+				},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := hasPodReadyCondition(tc.conditions)
+			assert.Equal(t, tc.expected, result, "hasPodReadyCondition returned unexpected result")
+		})
+	}
+}
+
 func TestPrintCoreV1(t *testing.T) {
 	testCases := []struct {
 		pod             corev1.Pod
