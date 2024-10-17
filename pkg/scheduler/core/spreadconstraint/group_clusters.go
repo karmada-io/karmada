@@ -131,10 +131,11 @@ func groupClustersIgnoringTopology(
 }
 
 func (info *GroupClustersInfo) calcGroupScore(clusters []ClusterDetailInfo) int64 {
-	// Group Score = sum(Cluster Score × Weight)
+	// Group Score = sum(Cluster Score + Weight * 1000)
 	var score int64
 	for _, cluster := range clusters {
 		weight := cluster.AvailableReplicas
+		// check, Avoid integer out of bounds.
 		if weight > math.MaxInt64/1000 {
 			weight = math.MaxInt64
 		} else {
