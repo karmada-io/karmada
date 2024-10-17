@@ -60,3 +60,12 @@ func PatchSecret(client kubeclient.Interface, namespace, name string, pt types.P
 	}
 	return nil
 }
+
+// DeleteSecret just try to delete the Secret.
+func DeleteSecret(client kubeclient.Interface, namespace, name string) error {
+	err := client.CoreV1().Secrets(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
