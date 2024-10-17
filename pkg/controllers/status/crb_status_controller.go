@@ -45,13 +45,14 @@ const CRBStatusControllerName = "cluster-resource-binding-status-controller"
 // CRBStatusController is to sync status of ClusterResourceBinding
 // and aggregate status to the resource template.
 type CRBStatusController struct {
-	client.Client                                                   // used to operate ClusterResourceBinding resources.
-	DynamicClient       dynamic.Interface                           // used to fetch arbitrary resources from api server.
-	InformerManager     genericmanager.SingleClusterInformerManager // used to fetch arbitrary resources from cache.
-	EventRecorder       record.EventRecorder
-	RESTMapper          meta.RESTMapper
-	ResourceInterpreter resourceinterpreter.ResourceInterpreter
-	RateLimiterOptions  ratelimiterflag.Options
+	client.Client                                                    // used to operate ClusterResourceBinding resources.
+	DynamicClient        dynamic.Interface                           // used to fetch arbitrary resources from api server.
+	InformerManager      genericmanager.SingleClusterInformerManager // used to fetch arbitrary resources from cache.
+	EventRecorder        record.EventRecorder
+	RESTMapper           meta.RESTMapper
+	ResourceInterpreter  resourceinterpreter.ResourceInterpreter
+	RateLimiterOptions   ratelimiterflag.Options
+	SkipStatusCollection bool
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -116,9 +117,12 @@ func (c *CRBStatusController) syncBindingStatus(ctx context.Context, binding *wo
 		return err
 	}
 
-	err = updateResourceStatus(ctx, c.DynamicClient, c.RESTMapper, c.ResourceInterpreter, c.EventRecorder, binding.Spec.Resource, binding.Status)
-	if err != nil {
-		return err
+	if !c.SkipStatusCollection {
+		err = updateResourceStatus(ctx, c.DynamicClient, c.RESTMapper, c.ResourceInterpreter, c.EventRecorder, binding.Spec.Resource, binding.Status)
+		if err != nil {
+			return err
+		}
 	}
+
 	return nil
 }

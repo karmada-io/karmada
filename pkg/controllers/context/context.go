@@ -99,6 +99,10 @@ type Options struct {
 	KarmadaKubeconfigNamespace string
 	// HPAControllerConfiguration is the config of federatedHPA-controller.
 	HPAControllerConfiguration config.HPAControllerConfiguration
+	// SkipStatusCollection specifies whether to bypass the aggregation and collection of resource statuses.
+	// By default, it is set to false, meaning resource statuses will reflect in the federated control-plane.
+	// When set to true, the aggregated resource statuses will not reflect.
+	SkipStatusCollection bool
 }
 
 // Context defines the context object for controller.

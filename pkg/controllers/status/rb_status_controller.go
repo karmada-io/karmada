@@ -45,13 +45,14 @@ const RBStatusControllerName = "resource-binding-status-controller"
 // RBStatusController is to sync status of ResourceBinding
 // and aggregate status to the resource template.
 type RBStatusController struct {
-	client.Client                                                   // used to operate ResourceBinding resources.
-	DynamicClient       dynamic.Interface                           // used to fetch arbitrary resources from api server.
-	InformerManager     genericmanager.SingleClusterInformerManager // used to fetch arbitrary resources from cache.
-	ResourceInterpreter resourceinterpreter.ResourceInterpreter
-	EventRecorder       record.EventRecorder
-	RESTMapper          meta.RESTMapper
-	RateLimiterOptions  ratelimiterflag.Options
+	client.Client                                                    // used to operate ResourceBinding resources.
+	DynamicClient        dynamic.Interface                           // used to fetch arbitrary resources from api server.
+	InformerManager      genericmanager.SingleClusterInformerManager // used to fetch arbitrary resources from cache.
+	ResourceInterpreter  resourceinterpreter.ResourceInterpreter
+	EventRecorder        record.EventRecorder
+	RESTMapper           meta.RESTMapper
+	RateLimiterOptions   ratelimiterflag.Options
+	SkipStatusCollection bool
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -118,9 +119,11 @@ func (c *RBStatusController) syncBindingStatus(ctx context.Context, binding *wor
 		return err
 	}
 
-	err = updateResourceStatus(ctx, c.DynamicClient, c.RESTMapper, c.ResourceInterpreter, c.EventRecorder, binding.Spec.Resource, binding.Status)
-	if err != nil {
-		return err
+	if !c.SkipStatusCollection {
+		err = updateResourceStatus(ctx, c.DynamicClient, c.RESTMapper, c.ResourceInterpreter, c.EventRecorder, binding.Spec.Resource, binding.Status)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
