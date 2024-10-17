@@ -1339,6 +1339,51 @@ spec:
                   - type
                   type: object
                 type: array
+              failoverHistory:
+                description: FailoverHistory represents the history of the failover
+                  of the resource
+                items:
+                  description: FailoverHistoryItem represents either a failover event
+                    in the history.
+                  properties:
+                    failoverTime:
+                      description: StartTime is the timestamp of when the failover
+                        occurred.
+                      format: date-time
+                      type: string
+                    originCluster:
+                      description: OriginCluster is the name of the cluster from which
+                        the application migrated.
+                      type: string
+                    originalClusters:
+                      description: ClustersBeforeFailover records the clusters where
+                        running the application before failover.
+                      items:
+                        type: string
+                      type: array
+                    preservedLabelState:
+                      additionalProperties:
+                        type: string
+                      description: |-
+                        PreservedLabelState represents the application state information collected from the original cluster,
+                        and it will be injected into the new cluster in the form of application labels.
+                      type: object
+                    reason:
+                      description: Reason denotes the type of failover.
+                      type: string
+                    targetClusters:
+                      description: ClustersAfterFailover records the clusters where
+                        running the application after failover.
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - failoverTime
+                  - originCluster
+                  - originalClusters
+                  - reason
+                  type: object
+                type: array
               lastScheduledTime:
                 description: |-
                   LastScheduledTime representing the latest timestamp when scheduler successfully finished a scheduling.
