@@ -134,6 +134,8 @@ func (info *GroupClustersInfo) calcWight(clusters ClusterDetailInfo) int64 {
 	return clusters.AvailableReplicas
 }
 
+const weightUnit int64 = 1000
+
 func (info *GroupClustersInfo) calcGroupScore(clusters []ClusterDetailInfo) int64 {
 	// Group Score = sum(Cluster Score × Weight)
 	var score int64
@@ -141,10 +143,14 @@ func (info *GroupClustersInfo) calcGroupScore(clusters []ClusterDetailInfo) int6
 		// cluster.Score == 100 or cluster.Score == 0
 		weight := info.calcWight(cluster)
 		// check, Avoid integer out of bounds.
-		if weight > math.MaxInt64/100 {
+		if weight > math.MaxInt64/weightUnit {
 			weight = math.MaxInt64
 		} else {
-			weight = weight * 100
+			// cluster.Score is 0 or 100. To minimize the impact of Score,
+			// set the atomic value of Weight to 1000. This way,
+			// when sorting by Group Score, Weight will be considered first,
+			// and if the Weights are the same, then Score will be considered.
+			weight = weight * weightUnit
 		}
 		if score > math.MaxInt64-(cluster.Score+weight) {
 			return math.MaxInt64
