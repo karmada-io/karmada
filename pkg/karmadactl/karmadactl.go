@@ -56,6 +56,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/token"
 	"github.com/karmada-io/karmada/pkg/karmadactl/top"
 	"github.com/karmada-io/karmada/pkg/karmadactl/unjoin"
+	"github.com/karmada-io/karmada/pkg/karmadactl/unregister"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	utilcomp "github.com/karmada-io/karmada/pkg/karmadactl/util/completion"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
@@ -123,6 +124,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 				unjoin.NewCmdUnjoin(f, parentCommand),
 				token.NewCmdToken(f, parentCommand, ioStreams),
 				register.NewCmdRegister(parentCommand),
+				unregister.NewCmdUnregister(parentCommand),
 			},
 		},
 		{

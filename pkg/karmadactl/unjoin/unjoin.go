@@ -17,15 +17,11 @@ limitations under the License.
 package unjoin
 
 import (
-	"context"
 	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -187,7 +183,7 @@ func (j *CommandUnjoinOption) RunUnJoinCluster(controlPlaneRestConfig, clusterCo
 	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
 
 	// delete the cluster object in host cluster that associates the unjoining cluster
-	err := j.deleteClusterObject(controlPlaneKarmadaClient)
+	err := cmdutil.DeleteClusterObject(controlPlaneKarmadaClient, j.ClusterName, j.Wait, j.DryRun)
 	if err != nil {
 		klog.Errorf("Failed to delete cluster object. cluster name: %s, error: %v", j.ClusterName, err)
 		return err
@@ -220,42 +216,6 @@ func (j *CommandUnjoinOption) RunUnJoinCluster(controlPlaneRestConfig, clusterCo
 			klog.Errorf("Failed to delete namespace in unjoining cluster %q: %v", j.ClusterName, err)
 			return err
 		}
-	}
-
-	return nil
-}
-
-// deleteClusterObject delete the cluster object in host cluster that associates the unjoining cluster
-func (j *CommandUnjoinOption) deleteClusterObject(controlPlaneKarmadaClient *karmadaclientset.Clientset) error {
-	if j.DryRun {
-		return nil
-	}
-
-	err := controlPlaneKarmadaClient.ClusterV1alpha1().Clusters().Delete(context.TODO(), j.ClusterName, metav1.DeleteOptions{})
-	if apierrors.IsNotFound(err) {
-		return fmt.Errorf("no cluster object %s found in karmada control Plane", j.ClusterName)
-	}
-	if err != nil {
-		klog.Errorf("Failed to delete cluster object. cluster name: %s, error: %v", j.ClusterName, err)
-		return err
-	}
-
-	// make sure the given cluster object has been deleted
-	err = wait.PollUntilContextTimeout(context.TODO(), 1*time.Second, j.Wait, false, func(context.Context) (done bool, err error) {
-		_, err = controlPlaneKarmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), j.ClusterName, metav1.GetOptions{})
-		if apierrors.IsNotFound(err) {
-			return true, nil
-		}
-		if err != nil {
-			klog.Errorf("Failed to get cluster %s. err: %v", j.ClusterName, err)
-			return false, err
-		}
-		klog.Infof("Waiting for the cluster object %s to be deleted", j.ClusterName)
-		return false, nil
-	})
-	if err != nil {
-		klog.Errorf("Failed to delete cluster object. cluster name: %s, error: %v", j.ClusterName, err)
-		return err
 	}
 
 	return nil
