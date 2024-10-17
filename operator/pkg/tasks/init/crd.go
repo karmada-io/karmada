@@ -17,12 +17,14 @@ limitations under the License.
 package tasks
 
 import (
+	"archive/tar"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"k8s.io/klog/v2"
@@ -35,6 +37,7 @@ import (
 var (
 	crdsFileSuffix = "crds.tar.gz"
 	crdPathSuffix  = "crds"
+	crdsArchive    = []string{"crds", "crds/bases", "crds/patches"}
 )
 
 // NewPrepareCrdsTask init a prepare-crds task
@@ -52,6 +55,10 @@ func NewPrepareCrdsTask() workflow.Task {
 			{
 				Name: "Unpack",
 				Run:  runUnpack,
+			},
+			{
+				Name: "post-check",
+				Run:  postCheck,
 			},
 		},
 	}
@@ -154,6 +161,9 @@ func runUnpack(r workflow.RunData) error {
 	exist, _ := util.PathExists(crdsPath)
 	if !exist {
 		klog.V(2).InfoS("[runUnpack] CRD yaml files do not exist, unpacking tar file", "unpackDir", crdsDir)
+		if err = validCrdsTar(crdsTarPath); err != nil {
+			return fmt.Errorf("[unpack] inValid crd tar, err: %w", err)
+		}
 		if err := util.Unpack(crdsTarPath, crdsDir); err != nil {
 			return fmt.Errorf("[unpack] failed to unpack crd tar, err: %w", err)
 		}
@@ -162,6 +172,29 @@ func runUnpack(r workflow.RunData) error {
 	}
 
 	klog.V(2).InfoS("[unpack] Successfully unpacked crd tar", "karmada", klog.KObj(data))
+	return nil
+}
+
+func postCheck(r workflow.RunData) error {
+	data, ok := r.(InitData)
+	if !ok {
+		return errors.New("post-check task invoked with an invalid data struct")
+	}
+
+	crdsDir, err := getCrdsDir(data)
+	if err != nil {
+		return fmt.Errorf("[post-check] failed to get CRD dir, err: %w", err)
+	}
+
+	for _, archive := range crdsArchive {
+		expectedDir := filepath.Join(crdsDir, archive)
+		exist, _ := util.PathExists(expectedDir)
+		if !exist {
+			return fmt.Errorf("[post-check] Lacking the necessary file path: %s", expectedDir)
+		}
+	}
+
+	klog.V(2).InfoS("[post-check] Successfully post-check the crd tar archive", "karmada", klog.KObj(data))
 	return nil
 }
 
@@ -183,4 +216,36 @@ func getCrdsDir(data InitData) (string, error) {
 	hash := sha256.Sum256([]byte(key))
 	hashedKey := hex.EncodeToString(hash[:])
 	return path.Join(data.DataDir(), "cache", hashedKey), nil
+}
+
+// validCrdsTar checks if the CRDs package complies with file specifications.
+// It verifies the following:
+// 1. Whether the path is absolute.
+// 2. Whether the file directory structure meets expectations.
+func validCrdsTar(crdsTarPath string) error {
+	check := func(header *tar.Header) error {
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if !filepath.IsAbs("/"+header.Name) || !isExpectedPath(header.Name, crdsArchive) {
+				return fmt.Errorf("the given file contains inValid file dir: %s", header.Name)
+			}
+		case tar.TypeReg:
+			if !filepath.IsAbs("/"+header.Name) || !isExpectedPath(header.Name, crdsArchive) {
+				return fmt.Errorf("the given file contains inValid file path: %s", header.Name)
+			}
+		default:
+			fmt.Printf("unknown type: %v in %s\n", header.Typeflag, header.Name)
+		}
+		return nil
+	}
+	return util.CheckGzFiles(crdsTarPath, check)
+}
+
+func isExpectedPath(path string, expectedDirs []string) bool {
+	for _, dir := range expectedDirs {
+		if path == dir || strings.HasPrefix(path, dir+"/") {
+			return true
+		}
+	}
+	return false
 }
