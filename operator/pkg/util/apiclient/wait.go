@@ -91,13 +91,16 @@ func (w *KarmadaWaiter) WaitForAPI() error {
 	})
 }
 
-var aggregateClientFromConfigBuilder = func(karmadaConfig *rest.Config) (aggregator.Interface, error) {
+// AggregateClientFromConfigBuilder creates a new aggregator client using the provided
+// Karmada configuration. It returns an aggregator.Interface or an error if the configuration
+// is invalid or the client cannot be created.
+var AggregateClientFromConfigBuilder = func(karmadaConfig *rest.Config) (aggregator.Interface, error) {
 	return aggregator.NewForConfig(karmadaConfig)
 }
 
 // WaitForAPIService waits for the APIService condition to become "true"
 func (w *KarmadaWaiter) WaitForAPIService(name string) error {
-	aggregateClient, err := aggregateClientFromConfigBuilder(w.karmadaConfig)
+	aggregateClient, err := AggregateClientFromConfigBuilder(w.karmadaConfig)
 	if err != nil {
 		return err
 	}
