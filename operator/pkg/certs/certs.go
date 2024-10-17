@@ -455,7 +455,7 @@ func etcdServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, 
 		IPs:      []net.IP{net.IPv4(127, 0, 0, 1)},
 	}
 
-	if cfg.Components.Etcd.Local != nil {
+	if cfg.Components != nil && cfg.Components.Etcd != nil && cfg.Components.Etcd.Local != nil {
 		appendSANsToAltNames(altNames, cfg.Components.Etcd.Local.ServerCertSANs)
 	}
 
@@ -488,7 +488,7 @@ func apiServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, e
 			fmt.Sprintf("*.%s.svc", cfg.Namespace)})
 	}
 
-	if len(cfg.Components.KarmadaAPIServer.CertSANs) > 0 {
+	if cfg.Components != nil && cfg.Components.KarmadaAPIServer != nil && len(cfg.Components.KarmadaAPIServer.CertSANs) > 0 {
 		appendSANsToAltNames(altNames, cfg.Components.KarmadaAPIServer.CertSANs)
 	}
 	if len(cfg.ControlplaneAddress) > 0 {
