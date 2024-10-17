@@ -137,7 +137,7 @@ func (info *GroupClustersInfo) calcWight(clusters ClusterDetailInfo) int64 {
 const weightUnit int64 = 1000
 
 func (info *GroupClustersInfo) calcGroupScore(clusters []ClusterDetailInfo) int64 {
-	// Group Score = sum(Cluster Score × Weight)
+	// Group Score = sum(Cluster Score + Weight * 1000)
 	var score int64
 	for _, cluster := range clusters {
 		// cluster.Score == 100 or cluster.Score == 0
