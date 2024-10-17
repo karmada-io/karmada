@@ -39,7 +39,7 @@ func VerifyClustersExist(input []string, clusters *clusterv1alpha1.ClusterList) 
 		}
 	}
 	if len(nonExistClusters) != 0 {
-		return fmt.Errorf("clusters don't exist: " + strings.Join(nonExistClusters, ","))
+		return fmt.Errorf("clusters don't exist: %s", strings.Join(nonExistClusters, ","))
 	}
 
 	return nil
