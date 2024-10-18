@@ -23,7 +23,6 @@ import (
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	utilversion "k8s.io/apimachinery/pkg/util/version"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -39,6 +38,24 @@ import (
 )
 
 var (
+	// DefaultInitTasks contains the default tasks to be executed during the initialization process.
+	DefaultInitTasks = []workflow.Task{
+		tasks.NewPrepareCrdsTask(),
+		tasks.NewCertTask(),
+		tasks.NewNamespaceTask(),
+		tasks.NewUploadCertsTask(),
+		tasks.NewEtcdTask(),
+		tasks.NewKarmadaApiserverTask(),
+		tasks.NewUploadKubeconfigTask(),
+		tasks.NewKarmadaAggregatedApiserverTask(),
+		tasks.NewCheckApiserverHealthTask(),
+		tasks.NewKarmadaResourcesTask(),
+		tasks.NewRBACTask(),
+		tasks.NewComponentTask(),
+		tasks.NewWaitControlPlaneTask(),
+	}
+
+	// defaultCrdURL is the URL for fetching CRDs.
 	defaultCrdURL = "https://github.com/karmada-io/karmada/releases/download/%s/crds.tar.gz"
 )
 
@@ -55,14 +72,12 @@ type InitOptions struct {
 
 // Validate is used to validate the initOptions before creating initJob.
 func (opt *InitOptions) Validate() error {
-	var errs []error
-
 	if len(opt.Name) == 0 || len(opt.Namespace) == 0 {
 		return errors.New("unexpected empty name or namespace")
 	}
 	if opt.CRDTarball.HTTPSource != nil {
 		if _, err := url.Parse(opt.CRDTarball.HTTPSource.URL); err != nil {
-			return fmt.Errorf("unexpected invalid crds remote url %s", opt.CRDTarball.HTTPSource.URL)
+			return fmt.Errorf("unexpected invalid crds remote url %s, err: %w", opt.CRDTarball.HTTPSource.URL, err)
 		}
 	}
 	if !util.IsInCluster(opt.Karmada.Spec.HostCluster) && opt.Karmada.Spec.Components.KarmadaAPIServer.ServiceType == corev1.ServiceTypeClusterIP {
@@ -81,7 +96,7 @@ func (opt *InitOptions) Validate() error {
 		}
 	}
 
-	return utilerrors.NewAggregate(errs)
+	return nil
 }
 
 // InitOpt defines a type of function to set InitOptions values.
@@ -111,23 +126,13 @@ type initData struct {
 
 // NewInitJob initializes a job with list of init sub-task. and build
 // init runData object.
-func NewInitJob(opt *InitOptions) *workflow.Job {
+func NewInitJob(opt *InitOptions, initTasks []workflow.Task) *workflow.Job {
 	initJob := workflow.NewJob()
 
 	// add the all tasks to the init job workflow.
-	initJob.AppendTask(tasks.NewPrepareCrdsTask())
-	initJob.AppendTask(tasks.NewCertTask())
-	initJob.AppendTask(tasks.NewNamespaceTask())
-	initJob.AppendTask(tasks.NewUploadCertsTask())
-	initJob.AppendTask(tasks.NewEtcdTask())
-	initJob.AppendTask(tasks.NewKarmadaApiserverTask())
-	initJob.AppendTask(tasks.NewUploadKubeconfigTask())
-	initJob.AppendTask(tasks.NewKarmadaAggregatedApiserverTask())
-	initJob.AppendTask(tasks.NewCheckApiserverHealthTask())
-	initJob.AppendTask(tasks.NewKarmadaResourcesTask())
-	initJob.AppendTask(tasks.NewRBACTask())
-	initJob.AppendTask(tasks.NewComponentTask())
-	initJob.AppendTask(tasks.NewWaitControlPlaneTask())
+	for _, task := range initTasks {
+		initJob.AppendTask(task)
+	}
 
 	initJob.SetDataInitializer(func() (workflow.RunData, error) {
 		return newRunData(opt)
@@ -141,7 +146,7 @@ func newRunData(opt *InitOptions) (*initData, error) {
 		return nil, err
 	}
 
-	localClusterClient, err := clientset.NewForConfig(opt.Kubeconfig)
+	localClusterClient, err := util.ClientFactory(opt.Kubeconfig)
 	if err != nil {
 		return nil, fmt.Errorf("error when creating local cluster client, err: %w", err)
 	}
@@ -152,7 +157,7 @@ func newRunData(opt *InitOptions) (*initData, error) {
 	if util.IsInCluster(opt.Karmada.Spec.HostCluster) {
 		remoteClient = localClusterClient
 	} else {
-		remoteClient, err = util.BuildClientFromSecretRef(localClusterClient, opt.Karmada.Spec.HostCluster.SecretRef)
+		remoteClient, err = util.BuildClientFromSecretRefFactory(localClusterClient, opt.Karmada.Spec.HostCluster.SecretRef)
 		if err != nil {
 			return nil, fmt.Errorf("error when creating cluster client to install karmada, err: %w", err)
 		}
