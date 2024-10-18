@@ -39,6 +39,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	controllerUtils "github.com/karmada-io/karmada/pkg/controllers/utils"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
@@ -154,6 +155,9 @@ func (c *RBApplicationFailoverController) syncBinding(ctx context.Context, bindi
 
 func (c *RBApplicationFailoverController) evictBinding(binding *workv1alpha2.ResourceBinding, clusters []string) error {
 	for _, cluster := range clusters {
+		if err := controllerUtils.UpdateFailoverStatus(c.Client, binding, cluster, workv1alpha2.EvictionReasonApplicationFailure); err != nil {
+			klog.Errorf("Failed to update status with failover information. Error: %v", err)
+		}
 		switch binding.Spec.Failover.Application.PurgeMode {
 		case policyv1alpha1.Graciously:
 			if features.FeatureGate.Enabled(features.GracefulEviction) {

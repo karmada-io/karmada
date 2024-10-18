@@ -169,6 +169,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.BindingSnapshot":                               schema_pkg_apis_work_v1alpha2_BindingSnapshot(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ClusterResourceBinding":                        schema_pkg_apis_work_v1alpha2_ClusterResourceBinding(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ClusterResourceBindingList":                    schema_pkg_apis_work_v1alpha2_ClusterResourceBindingList(ref),
+		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.FailoverHistoryItem":                           schema_pkg_apis_work_v1alpha2_FailoverHistoryItem(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.GracefulEvictionTask":                          schema_pkg_apis_work_v1alpha2_GracefulEvictionTask(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.NodeClaim":                                     schema_pkg_apis_work_v1alpha2_NodeClaim(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ObjectReference":                               schema_pkg_apis_work_v1alpha2_ObjectReference(ref),
@@ -6817,6 +6818,90 @@ func schema_pkg_apis_work_v1alpha2_ClusterResourceBindingList(ref common.Referen
 	}
 }
 
+func schema_pkg_apis_work_v1alpha2_FailoverHistoryItem(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "FailoverHistoryItem represents either a failover event in the history.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"originCluster": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OriginCluster is the name of the cluster from which the application migrated.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"reason": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Reason denotes the type of failover.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"failoverTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartTime is the timestamp of when the failover occurred.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"originalClusters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClustersBeforeFailover records the clusters where running the application before failover.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"targetClusters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClustersAfterFailover records the clusters where running the application after failover.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"preservedLabelState": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PreservedLabelState represents the application state information collected from the original cluster, and it will be injected into the new cluster in the form of application labels.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"originCluster", "reason", "failoverTime", "originalClusters"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
 func schema_pkg_apis_work_v1alpha2_GracefulEvictionTask(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -7335,11 +7420,25 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingStatus(ref common.ReferenceCal
 							},
 						},
 					},
+					"failoverHistory": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FailoverHistory represents the history of the failover of the resource",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.FailoverHistoryItem"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.AggregatedStatusItem", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.AggregatedStatusItem", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.FailoverHistoryItem", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
