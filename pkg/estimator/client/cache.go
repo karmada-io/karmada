@@ -18,6 +18,7 @@ package client
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -108,20 +109,20 @@ func EstablishConnection(kubeClient kubernetes.Interface, serviceInfo SchedulerE
 		return nil
 	}
 
-	serverAddr, err := resolveCluster(kubeClient, serviceInfo.Namespace,
+	serverAddrs, err := resolveCluster(kubeClient, serviceInfo.Namespace,
 		names.GenerateEstimatorServiceName(serviceInfo.NamePrefix, serviceInfo.Name), int32(grpcConfig.TargetPort))
 	if err != nil {
 		return err
 	}
 
-	klog.Infof("Start dialing estimator server(%s) of cluster(%s).", serverAddr, serviceInfo.Name)
-	cc, err := grpcConfig.DialWithTimeOut(serverAddr, 5*time.Second)
+	klog.Infof("Start dialing estimator server(%s) of cluster(%s).", strings.Join(serverAddrs, ","), serviceInfo.Name)
+	cc, err := grpcConfig.DialWithTimeOut(serverAddrs, 5*time.Second)
 	if err != nil {
 		klog.Errorf("Failed to dial cluster(%s): %v.", serviceInfo.Name, err)
 		return err
 	}
 	c := estimatorservice.NewEstimatorClient(cc)
 	estimatorCache.AddCluster(serviceInfo.Name, cc, c)
-	klog.Infof("Connection with estimator server(%s) of cluster(%s) has been established.", serverAddr, serviceInfo.Name)
+	klog.Infof("Connection with estimator server(%s) of cluster(%s) has been established.", cc.Target(), serviceInfo.Name)
 	return nil
 }
