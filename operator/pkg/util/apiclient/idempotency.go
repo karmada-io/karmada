@@ -206,7 +206,7 @@ func CreateOrUpdateAPIService(apiRegistrationClient aggregator.Interface, apiser
 }
 
 // CreateCustomResourceDefinitionIfNeed creates a CustomResourceDefinition if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
-func CreateCustomResourceDefinitionIfNeed(client *crdsclient.Clientset, obj *apiextensionsv1.CustomResourceDefinition) error {
+func CreateCustomResourceDefinitionIfNeed(client crdsclient.Interface, obj *apiextensionsv1.CustomResourceDefinition) error {
 	crdClient := client.ApiextensionsV1().CustomResourceDefinitions()
 	if _, err := crdClient.Create(context.TODO(), obj, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
@@ -222,7 +222,7 @@ func CreateCustomResourceDefinitionIfNeed(client *crdsclient.Clientset, obj *api
 }
 
 // PatchCustomResourceDefinition patches a crd resource.
-func PatchCustomResourceDefinition(client *crdsclient.Clientset, name string, data []byte) error {
+func PatchCustomResourceDefinition(client crdsclient.Interface, name string, data []byte) error {
 	crd := client.ApiextensionsV1().CustomResourceDefinitions()
 	if _, err := crd.Patch(context.TODO(), name, types.StrategicMergePatchType, data, metav1.PatchOptions{}); err != nil {
 		return err
@@ -312,7 +312,7 @@ func DeleteDeploymentIfHasLabels(client clientset.Interface, name, namespace str
 	deployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.V(4).InfoS("Can not delete Deployment, it was not fount", "Deployment", name)
+			klog.V(4).InfoS("Can not delete Deployment, it was not found", "Deployment", name)
 			return nil
 		}
 		return err
