@@ -127,7 +127,7 @@ func runCertTask(cc, caCert *certs.CertConfig) func(d workflow.RunData) error {
 		}
 
 		if cc.CAName != caCert.Name {
-			return fmt.Errorf("expected CAname for %s, but was %s", cc.CAName, cc.Name)
+			return fmt.Errorf("mismatched CA name: expected %s but got %s", cc.CAName, caCert.Name)
 		}
 
 		if err := mutateCertConfig(data, cc); err != nil {
