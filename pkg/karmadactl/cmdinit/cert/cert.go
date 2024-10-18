@@ -54,13 +54,20 @@ const (
 // NewPrivateKey returns a new private key.
 var NewPrivateKey = GeneratePrivateKey
 
-// GeneratePrivateKey Generate CA Private Key
+// GeneratePrivateKey generates a certificate key. It supports both
+// ECDSA (using the P-256 elliptic curve) and RSA algorithms. For RSA,
+// the key is generated with a size of 3072 bits. If the keyType is
+// x509.UnknownPublicKeyAlgorithm, the function defaults to generating
+// an RSA key.
 func GeneratePrivateKey(keyType x509.PublicKeyAlgorithm) (crypto.Signer, error) {
-	if keyType == x509.ECDSA {
+	switch keyType {
+	case x509.ECDSA:
 		return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	case x509.RSA, x509.UnknownPublicKeyAlgorithm:
+		return rsa.GenerateKey(rand.Reader, rsaKeySize)
+	default:
+		return nil, fmt.Errorf("unsupported key type: %T, supported key types are RSA and ECDSA", keyType)
 	}
-
-	return rsa.GenerateKey(rand.Reader, rsaKeySize)
 }
 
 // CertsConfig is a wrapper around certutil.Config extending it with PublicKeyAlgorithm.
