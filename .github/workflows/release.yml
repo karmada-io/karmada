@@ -172,7 +172,7 @@ jobs:
         scan-type: 'fs'
         format: 'spdx'
         output: 'sbom-karmada.spdx'
-        scan-ref: "/github/workspace/"
+        scan-ref: "${{ github.workspace }}/"
     - name: Tar the sbom files
       run: |
         tar -zcf sbom.tar.gz *.spdx
