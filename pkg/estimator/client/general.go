@@ -54,7 +54,7 @@ func (ge *GeneralEstimator) MaxAvailableReplicas(_ context.Context, clusters []*
 }
 
 func (ge *GeneralEstimator) maxAvailableReplicas(cluster *clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) int32 {
-	resourceSummary := cluster.Status.ResourceSummary
+	resourceSummary := cluster.Status.ResourceSummary.DeepCopy()
 	if resourceSummary == nil {
 		return 0
 	}
