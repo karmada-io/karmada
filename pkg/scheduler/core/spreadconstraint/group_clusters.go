@@ -138,11 +138,10 @@ func checkIfDuplicate(rbSpec *workv1alpha2.ResourceBindingSpec) bool {
 func (info *GroupClustersInfo) calcGroupScore4Duplicate(
 	clusters []ClusterDetailInfo,
 	rbSpec *workv1alpha2.ResourceBindingSpec) int64 {
-
 	targetReplica := int64(rbSpec.Replicas)
-	var validClusters int64 = 0
+	var validClusters int64
 	// validClusters is the number of clusters that have available replicas.
-	var sumValidScore int64 = 0
+	var sumValidScore int64
 	for _, cluster := range clusters {
 		if cluster.AvailableReplicas >= targetReplica {
 			validClusters++
@@ -159,7 +158,6 @@ func (info *GroupClustersInfo) calcGroupScore(
 	clusters []ClusterDetailInfo,
 	rbSpec *workv1alpha2.ResourceBindingSpec,
 	minGroups int) int64 {
-
 	if checkIfDuplicate(rbSpec) {
 		// if the replica scheduling type is duplicated, the score is calculated by calcGroupScore4Duplicate.
 		return info.calcGroupScore4Duplicate(clusters, rbSpec)
@@ -173,9 +171,9 @@ func (info *GroupClustersInfo) calcGroupScore(
 
 	// clusters have been sorted by cluster.Score descending,
 	// and if the cluster.Score is the same, the cluster.availableReplica is ascending.
-	var sumAvailableReplica int64 = 0
-	var sumScore int64 = 0
-	var validClusters int64 = 0
+	var sumAvailableReplica int64
+	var sumScore int64
+	var validClusters int64
 	for _, cluster := range clusters {
 		sumAvailableReplica += cluster.AvailableReplicas
 		sumScore += cluster.Score
