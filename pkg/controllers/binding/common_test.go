@@ -125,7 +125,7 @@ func Test_mergeLabel(t *testing.T) {
 					},
 				},
 			},
-			binding: &workv1alpha2.ClusterResourceBinding{
+			binding: &workv1alpha2.ResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      bindingName,
 					Namespace: namespace,

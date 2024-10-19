@@ -523,9 +523,8 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinity(rb *workv1alpha2.
 
 	klog.V(4).Infof("ResourceBinding(%s/%s) scheduled to clusters %v", rb.Namespace, rb.Name, scheduleResult.SuggestedClusters)
 	patchErr := s.patchScheduleResultForResourceBinding(rb, string(placementBytes), scheduleResult.SuggestedClusters)
-	if patchErr != nil {
-		err = utilerrors.NewAggregate([]error{err, patchErr})
-	}
+	patchFailoverHistoryErr := patchBindingStatusWithUpdatedFailoverHistory(s.KarmadaClient, rb, scheduleResult.SuggestedClusters)
+	err = utilerrors.NewAggregate([]error{err, patchErr, patchFailoverHistoryErr})
 	s.recordScheduleResultEventForResourceBinding(rb, scheduleResult.SuggestedClusters, err)
 	return err
 }
@@ -589,8 +588,10 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinities(rb *workv1alpha
 
 	klog.V(4).Infof("ResourceBinding(%s/%s) scheduled to clusters %v", rb.Namespace, rb.Name, scheduleResult.SuggestedClusters)
 	patchErr := s.patchScheduleResultForResourceBinding(rb, string(placementBytes), scheduleResult.SuggestedClusters)
+	// ToDo: Consider moving these into a single update status func
 	patchStatusErr := patchBindingStatusWithAffinityName(s.KarmadaClient, rb, updatedStatus.SchedulerObservedAffinityName)
-	scheduleErr := utilerrors.NewAggregate([]error{patchErr, patchStatusErr})
+	patchFailoverHistoryErr := patchBindingStatusWithUpdatedFailoverHistory(s.KarmadaClient, rb, scheduleResult.SuggestedClusters)
+	scheduleErr := utilerrors.NewAggregate([]error{patchErr, patchStatusErr, patchFailoverHistoryErr})
 	s.recordScheduleResultEventForResourceBinding(rb, nil, scheduleErr)
 	return scheduleErr
 }
@@ -833,6 +834,20 @@ func patchBindingStatusCondition(karmadaClient karmadaclientset.Interface, rb *w
 	if reflect.DeepEqual(rb.Status, updateRB.Status) {
 		return nil
 	}
+	return patchBindingStatus(karmadaClient, rb, updateRB)
+}
+
+// patchBindingStatusWIthUpdatedFailoverHistory patches the ClustersAfterFailover attribute of the most recent FailoverHistory
+// with the schedule status
+func patchBindingStatusWithUpdatedFailoverHistory(karmadaClient karmadaclientset.Interface, rb *workv1alpha2.ResourceBinding, scheduleResult []workv1alpha2.TargetCluster) error {
+	// If the failover history is empty, then the resource being scheduled doesn't support this feature - skip.
+	if rb.Status.FailoverHistory == nil {
+		return nil
+	}
+	klog.V(4).Infof("Begin to patch failoverHistory with scheduling result(%v) to ResourceBinding(%s/%s).", scheduleResult, rb.Namespace, rb.Name)
+	updateRB := rb.DeepCopy()
+	historyLength := len(updateRB.Status.FailoverHistory)
+	updateRB.Status.FailoverHistory[historyLength-1].ClustersAfterFailover = scheduleResult
 	return patchBindingStatus(karmadaClient, rb, updateRB)
 }
 

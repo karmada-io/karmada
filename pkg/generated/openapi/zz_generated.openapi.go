@@ -6825,9 +6825,9 @@ func schema_pkg_apis_work_v1alpha2_FailoverHistoryItem(ref common.ReferenceCallb
 				Description: "FailoverHistoryItem represents either a failover event in the history.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"originCluster": {
+					"fromCluster": {
 						SchemaProps: spec.SchemaProps{
-							Description: "OriginCluster is the name of the cluster from which the application migrated.",
+							Description: "FromCluster which cluster the eviction perform from.",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -6841,37 +6841,35 @@ func schema_pkg_apis_work_v1alpha2_FailoverHistoryItem(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
-					"failoverTime": {
+					"startTime": {
 						SchemaProps: spec.SchemaProps{
 							Description: "StartTime is the timestamp of when the failover occurred.",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
-					"originalClusters": {
+					"clustersBeforeFailover": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ClustersBeforeFailover records the clusters where running the application before failover.",
+							Description: "ClustersBeforeFailover records the clusters where the application was running prior to failover.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster"),
 									},
 								},
 							},
 						},
 					},
-					"targetClusters": {
+					"clustersAfterFailover": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ClustersAfterFailover records the clusters where running the application after failover.",
+							Description: "ClustersAfterFailover records the clusters where the application is running after failover.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster"),
 									},
 								},
 							},
@@ -6894,11 +6892,11 @@ func schema_pkg_apis_work_v1alpha2_FailoverHistoryItem(ref common.ReferenceCallb
 						},
 					},
 				},
-				Required: []string{"originCluster", "reason", "failoverTime", "originalClusters"},
+				Required: []string{"fromCluster", "reason", "startTime", "clustersBeforeFailover", "clustersAfterFailover"},
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

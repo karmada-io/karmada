@@ -19,6 +19,7 @@ package clustereviction
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,11 +31,12 @@ import (
 
 func TestClusterEviction_Filter(t *testing.T) {
 	tests := []struct {
-		name         string
-		bindingSpec  *workv1alpha2.ResourceBindingSpec
-		cluster      *clusterv1alpha1.Cluster
-		expectedCode framework.Code
-		expectError  bool
+		name          string
+		bindingSpec   *workv1alpha2.ResourceBindingSpec
+		bindingStatus *workv1alpha2.ResourceBindingStatus
+		cluster       *clusterv1alpha1.Cluster
+		expectedCode  framework.Code
+		expectError   bool
 	}{
 		{
 			name: "cluster is in graceful eviction tasks",
@@ -45,6 +47,7 @@ func TestClusterEviction_Filter(t *testing.T) {
 					},
 				},
 			},
+			bindingStatus: &workv1alpha2.ResourceBindingStatus{},
 			cluster: &clusterv1alpha1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "cluster1",
@@ -62,6 +65,7 @@ func TestClusterEviction_Filter(t *testing.T) {
 					},
 				},
 			},
+			bindingStatus: &workv1alpha2.ResourceBindingStatus{},
 			cluster: &clusterv1alpha1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "cluster1",
@@ -71,8 +75,29 @@ func TestClusterEviction_Filter(t *testing.T) {
 			expectError:  false,
 		},
 		{
-			name:        "no graceful eviction tasks",
+			name:        "cluster has just been failed over from",
 			bindingSpec: &workv1alpha2.ResourceBindingSpec{},
+			bindingStatus: &workv1alpha2.ResourceBindingStatus{
+				FailoverHistory: []workv1alpha2.FailoverHistoryItem{
+					{
+						FromCluster: "cluster1",
+						Reason:      workv1alpha2.ApplicationFailover,
+						StartTime:   metav1.Time{Time: time.Now()},
+					},
+				},
+			},
+			cluster: &clusterv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "cluster1",
+				},
+			},
+			expectedCode: framework.Unschedulable,
+			expectError:  true,
+		},
+		{
+			name:          "no graceful eviction tasks",
+			bindingSpec:   &workv1alpha2.ResourceBindingSpec{},
+			bindingStatus: &workv1alpha2.ResourceBindingStatus{},
 			cluster: &clusterv1alpha1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "cluster1",
@@ -86,7 +111,7 @@ func TestClusterEviction_Filter(t *testing.T) {
 	p := &ClusterEviction{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := p.Filter(context.Background(), tt.bindingSpec, nil, tt.cluster)
+			result := p.Filter(context.Background(), tt.bindingSpec, tt.bindingStatus, tt.cluster)
 			assert.Equal(t, tt.expectedCode, result.Code())
 			assert.Equal(t, tt.expectError, result.AsError() != nil)
 		})

@@ -20026,28 +20026,33 @@
       "description": "FailoverHistoryItem represents either a failover event in the history.",
       "type": "object",
       "required": [
-        "originCluster",
+        "fromCluster",
         "reason",
-        "failoverTime",
-        "originalClusters"
+        "startTime",
+        "clustersBeforeFailover",
+        "clustersAfterFailover"
       ],
       "properties": {
-        "failoverTime": {
-          "description": "StartTime is the timestamp of when the failover occurred.",
-          "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
-        },
-        "originCluster": {
-          "description": "OriginCluster is the name of the cluster from which the application migrated.",
-          "type": "string",
-          "default": ""
-        },
-        "originalClusters": {
-          "description": "ClustersBeforeFailover records the clusters where running the application before failover.",
+        "clustersAfterFailover": {
+          "description": "ClustersAfterFailover records the clusters where the application is running after failover.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.TargetCluster"
           }
+        },
+        "clustersBeforeFailover": {
+          "description": "ClustersBeforeFailover records the clusters where the application was running prior to failover.",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.TargetCluster"
+          }
+        },
+        "fromCluster": {
+          "description": "FromCluster which cluster the eviction perform from.",
+          "type": "string",
+          "default": ""
         },
         "preservedLabelState": {
           "description": "PreservedLabelState represents the application state information collected from the original cluster, and it will be injected into the new cluster in the form of application labels.",
@@ -20062,13 +20067,9 @@
           "type": "string",
           "default": ""
         },
-        "targetClusters": {
-          "description": "ClustersAfterFailover records the clusters where running the application after failover.",
-          "type": "array",
-          "items": {
-            "type": "string",
-            "default": ""
-          }
+        "startTime": {
+          "description": "StartTime is the timestamp of when the failover occurred.",
+          "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
         }
       }
     },

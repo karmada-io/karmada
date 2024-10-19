@@ -30,59 +30,65 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
+// FailoverHistoryInfoIsSupported verifies that the resource's placement supports FailoverHistory feature
+func FailoverHistoryInfoIsSupported(binding *workv1alpha2.ResourceBinding) bool {
+	placementPtr := binding.Spec.Placement
+	if placementPtr == nil {
+		return false
+	}
+	return verifySchedulingTypeSupported(placementPtr.ReplicaScheduling, placementPtr.SpreadConstraints)
+}
+
 // FailoverHistoryInfo is currently not supported for the following scheduling types
 //  1. Duplicated (as these resources do not failover)
 //  2. Divided resources that can be scheduled across multiple clusters. In this case, state is harder to conserve since
 //     the application's replicas will not be migrating together.
-func restrictFailoverHistoryInfo(binding *workv1alpha2.ResourceBinding) bool {
-	placement := binding.Spec.Placement
-	// Check if replica scheduling type is Duplicated
-	if placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
-		return true
+func verifySchedulingTypeSupported(schedulingPtr *policyv1alpha1.ReplicaSchedulingStrategy, spreadConstraints []policyv1alpha1.SpreadConstraint) bool {
+	if schedulingPtr == nil {
+		return false
 	}
-
-	// Check if replica scheduling type is Divided with no spread constraints or invalid spread constraints
-	if placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided {
-		if len(placement.SpreadConstraints) == 0 {
-			return true
+	switch schedulingType := schedulingPtr.ReplicaSchedulingType; schedulingType {
+	case policyv1alpha1.ReplicaSchedulingTypeDuplicated:
+		return false
+	// Handles divided and nil case
+	default:
+		if len(spreadConstraints) == 0 {
+			return false
 		}
-
-		for _, spreadConstraint := range placement.SpreadConstraints {
+		for _, spreadConstraint := range spreadConstraints {
 			if spreadConstraint.SpreadByLabel != "" {
-				return true
+				return false
 			}
 			if spreadConstraint.SpreadByField == "cluster" && (spreadConstraint.MaxGroups > 1 || spreadConstraint.MinGroups > 1) {
-				return true
+				return false
 			}
 		}
 	}
-
-	return false
+	return true
 }
 
 // UpdateFailoverStatus adds a failoverHistoryItem to the failoverHistory field in the ResourceBinding.
 func UpdateFailoverStatus(client client.Client, binding *workv1alpha2.ResourceBinding, cluster string, failoverType workv1alpha2.FailoverReason) (err error) {
-	if restrictFailoverHistoryInfo(binding) {
-		return nil
-	}
-	klog.V(4).Infof("Failover triggered for replica on cluster %s", cluster)
-	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		_, err = helper.UpdateStatus(context.Background(), client, binding, func() error {
-			failoverHistoryItem := workv1alpha2.FailoverHistoryItem{
-				StartTime:     metav1.Time{Time: time.Now()},
-				OriginCluster: cluster,
-				Reason:        failoverType,
-				// TODO: Add remaining attributes here
-			}
-			binding.Status.FailoverHistory = append(binding.Status.FailoverHistory, failoverHistoryItem)
-			return nil
+	if FailoverHistoryInfoIsSupported(binding) {
+		klog.V(4).Infof("Failover triggered for replica on cluster %s", cluster)
+		err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+			_, err = helper.UpdateStatus(context.Background(), client, binding, func() error {
+				failoverHistoryItem := workv1alpha2.FailoverHistoryItem{
+					FromCluster:            cluster,
+					StartTime:              metav1.Time{Time: time.Now()},
+					Reason:                 failoverType,
+					ClustersBeforeFailover: binding.Spec.Clusters,
+				}
+				binding.Status.FailoverHistory = append(binding.Status.FailoverHistory, failoverHistoryItem)
+				return nil
+			})
+			return err
 		})
-		return err
-	})
 
-	if err != nil {
-		klog.Errorf("Failed to update FailoverHistoryInfo to ResourceBinding %s/%s. Error: %v", binding.Namespace, binding.Name, err)
-		return err
+		if err != nil {
+			klog.Errorf("Failed to update FailoverHistoryInfo to ResourceBinding %s/%s. Error: %v", binding.Namespace, binding.Name, err)
+			return err
+		}
 	}
 	return nil
 }

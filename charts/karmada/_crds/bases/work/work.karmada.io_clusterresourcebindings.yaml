@@ -1346,21 +1346,46 @@ spec:
                   description: FailoverHistoryItem represents either a failover event
                     in the history.
                   properties:
-                    failoverTime:
-                      description: StartTime is the timestamp of when the failover
-                        occurred.
-                      format: date-time
-                      type: string
-                    originCluster:
-                      description: OriginCluster is the name of the cluster from which
-                        the application migrated.
-                      type: string
-                    originalClusters:
-                      description: ClustersBeforeFailover records the clusters where
-                        running the application before failover.
+                    clustersAfterFailover:
+                      description: ClustersAfterFailover records the clusters where
+                        the application is running after failover.
                       items:
-                        type: string
+                        description: TargetCluster represents the identifier of a
+                          member cluster.
+                        properties:
+                          name:
+                            description: Name of target cluster.
+                            type: string
+                          replicas:
+                            description: Replicas in target cluster
+                            format: int32
+                            type: integer
+                        required:
+                        - name
+                        type: object
                       type: array
+                    clustersBeforeFailover:
+                      description: ClustersBeforeFailover records the clusters where
+                        the application was running prior to failover.
+                      items:
+                        description: TargetCluster represents the identifier of a
+                          member cluster.
+                        properties:
+                          name:
+                            description: Name of target cluster.
+                            type: string
+                          replicas:
+                            description: Replicas in target cluster
+                            format: int32
+                            type: integer
+                        required:
+                        - name
+                        type: object
+                      type: array
+                    fromCluster:
+                      description: FromCluster which cluster the eviction perform
+                        from.
+                      type: string
                     preservedLabelState:
                       additionalProperties:
                         type: string
@@ -1371,17 +1396,17 @@ spec:
                     reason:
                       description: Reason denotes the type of failover.
                       type: string
-                    targetClusters:
-                      description: ClustersAfterFailover records the clusters where
-                        running the application after failover.
-                      items:
-                        type: string
-                      type: array
+                    startTime:
+                      description: StartTime is the timestamp of when the failover
+                        occurred.
+                      format: date-time
+                      type: string
                   required:
-                  - failoverTime
-                  - originCluster
-                  - originalClusters
+                  - clustersAfterFailover
+                  - clustersBeforeFailover
+                  - fromCluster
                   - reason
+                  - startTime
                   type: object
                 type: array
               lastScheduledTime:

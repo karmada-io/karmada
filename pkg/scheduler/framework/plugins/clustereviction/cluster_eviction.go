@@ -52,7 +52,7 @@ func (p *ClusterEviction) Filter(_ context.Context, bindingSpec *workv1alpha2.Re
 	failoverHistory := bindingStatus.FailoverHistory
 	if len(failoverHistory) != 0 {
 		lastFailover := failoverHistory[len(failoverHistory)-1]
-		if lastFailover.OriginCluster == cluster.Name {
+		if lastFailover.FromCluster == cluster.Name {
 			klog.V(2).Infof("Workload has been failed over from this cluster %s.", cluster.Name)
 			return framework.NewResult(framework.Unschedulable, fmt.Sprintf("workload has been failed over from this cluster %s", cluster.Name))
 		}

@@ -334,7 +334,7 @@ type ResourceBindingStatus struct {
 	AggregatedStatus []AggregatedStatusItem `json:"aggregatedStatus,omitempty"`
 
 	// FailoverHistory represents the history of the failover of the resource
-	// + optional
+	// +optional
 	FailoverHistory []FailoverHistoryItem `json:"failoverHistory,omitempty"`
 }
 
@@ -368,9 +368,9 @@ type AggregatedStatusItem struct {
 
 // FailoverHistoryItem represents either a failover event in the history.
 type FailoverHistoryItem struct {
-	// OriginCluster is the name of the cluster from which the application migrated.
+	// FromCluster which cluster the eviction perform from.
 	// +required
-	OriginCluster string `json:"originCluster"`
+	FromCluster string `json:"fromCluster"`
 
 	// Reason denotes the type of failover.
 	// +required
@@ -378,15 +378,15 @@ type FailoverHistoryItem struct {
 
 	// StartTime is the timestamp of when the failover occurred.
 	// +required
-	StartTime metav1.Time `json:"failoverTime"`
+	StartTime metav1.Time `json:"startTime"`
 
-	// ClustersBeforeFailover records the clusters where running the application before failover.
+	// ClustersBeforeFailover records the clusters where the application was running prior to failover.
 	// +required
-	ClustersBeforeFailover []string `json:"originalClusters"`
+	ClustersBeforeFailover []TargetCluster `json:"clustersBeforeFailover"`
 
-	// ClustersAfterFailover records the clusters where running the application after failover.
-	// +optional
-	ClustersAfterFailover []string `json:"targetClusters,omitempty"`
+	// ClustersAfterFailover records the clusters where the application is running after failover.
+	// +required
+	ClustersAfterFailover []TargetCluster `json:"clustersAfterFailover"`
 
 	// PreservedLabelState represents the application state information collected from the original cluster,
 	// and it will be injected into the new cluster in the form of application labels.
