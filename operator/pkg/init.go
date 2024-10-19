@@ -81,6 +81,12 @@ func (opt *InitOptions) Validate() error {
 		}
 	}
 
+	// When configuration the connection to an external etcd cluster, endpoints must be specified
+	externalEtcdConfig := opt.Karmada.Spec.Components.Etcd.External
+	if externalEtcdConfig != nil && len(externalEtcdConfig.Endpoints) < 1 {
+		errs = append(errs, fmt.Errorf("invalid external etcd endpoints %s", externalEtcdConfig.Endpoints))
+	}
+
 	return utilerrors.NewAggregate(errs)
 }
 
@@ -119,7 +125,38 @@ func NewInitJob(opt *InitOptions) *workflow.Job {
 	initJob.AppendTask(tasks.NewCertTask())
 	initJob.AppendTask(tasks.NewNamespaceTask())
 	initJob.AppendTask(tasks.NewUploadCertsTask())
-	initJob.AppendTask(tasks.NewEtcdTask())
+
+	// In-cluster and external etcd configurations are mutually exclusive.
+	// As such, we should only provision an in-cluster etcd cluster if external etcd configuration is not set.
+
+	// During the execution of this reconciliation, there's a possibility that we have one of the following transitions:
+	// 1. in-cluster configuration -> external cluster configuration
+	// 2. external cluster configuration -> internal cluster configuration
+	// We should sensibly handle both cases.
+
+	// CASE 1: In-cluster -> External Configuration
+	// In this scenario, an internal etcd cluster has previsioned been provisioned by the operator, so we have two possible ways forward:
+
+	// a. Tear it down
+	// When provisioning an in-cluster etcd cluster, the operator will create a stateful set, headless service, service and volumes for data storage.
+	// To move forward with this option , for data safety, we must take great care to ensure data volumes are left intact while deleting the other resources.
+
+	// b. Leave as is and do nothing
+	// This is the simplest and safest option to reason about and requires no work
+
+	// Here we'll move forward with option b for the following reasons:
+	// - It's the simplest option.
+	// - It's the safest option.
+	// - Etcd data storage serves as the backbone of the cluster. As such, a transition from an in-cluster to external cluster configuration, if even attempted, is a change that
+	// must be carefully thought through and would at the very least require data migration.
+
+	// CASE 2: External -> In-cluster Configuration
+	// Not too much thought is required here. There's no cleanup required, so we'll just let the operator continue with reconciliation as it normally would.
+	etcdConfig := opt.Karmada.Spec.Components.Etcd
+	if etcdConfig.Local != nil {
+		initJob.AppendTask(tasks.NewEtcdTask())
+	}
+
 	initJob.AppendTask(tasks.NewKarmadaApiserverTask())
 	initJob.AppendTask(tasks.NewUploadKubeconfigTask())
 	initJob.AppendTask(tasks.NewKarmadaAggregatedApiserverTask())
