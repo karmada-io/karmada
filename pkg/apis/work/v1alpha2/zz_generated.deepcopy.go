@@ -135,16 +135,6 @@ func (in *ClusterResourceBindingList) DeepCopyObject() runtime.Object {
 func (in *FailoverHistoryItem) DeepCopyInto(out *FailoverHistoryItem) {
 	*out = *in
 	in.StartTime.DeepCopyInto(&out.StartTime)
-	if in.ClustersBeforeFailover != nil {
-		in, out := &in.ClustersBeforeFailover, &out.ClustersBeforeFailover
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
-	if in.ClustersAfterFailover != nil {
-		in, out := &in.ClustersAfterFailover, &out.ClustersAfterFailover
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
 	if in.PreservedLabelState != nil {
 		in, out := &in.PreservedLabelState, &out.PreservedLabelState
 		*out = make(map[string]string, len(*in))

@@ -1351,16 +1351,10 @@ spec:
                         occurred.
                       format: date-time
                       type: string
-                    originCluster:
-                      description: OriginCluster is the name of the cluster from which
-                        the application migrated.
+                    originalCluster:
+                      description: ClustersBeforeFailover records the cluster where
+                        the application was running prior to failover.
                       type: string
-                    originalClusters:
-                      description: ClustersBeforeFailover records the clusters where
-                        running the application before failover.
-                      items:
-                        type: string
-                      type: array
                     preservedLabelState:
                       additionalProperties:
                         type: string
@@ -1371,16 +1365,13 @@ spec:
                     reason:
                       description: Reason denotes the type of failover.
                       type: string
-                    targetClusters:
-                      description: ClustersAfterFailover records the clusters where
-                        running the application after failover.
-                      items:
-                        type: string
-                      type: array
+                    targetCluster:
+                      description: ClustersAfterFailover records the cluster where
+                        the application is running after failover.
+                      type: string
                   required:
                   - failoverTime
-                  - originCluster
-                  - originalClusters
+                  - originalCluster
                   - reason
                   type: object
                 type: array

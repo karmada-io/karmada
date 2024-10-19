@@ -368,10 +368,6 @@ type AggregatedStatusItem struct {
 
 // FailoverHistoryItem represents either a failover event in the history.
 type FailoverHistoryItem struct {
-	// OriginCluster is the name of the cluster from which the application migrated.
-	// +required
-	OriginCluster string `json:"originCluster"`
-
 	// Reason denotes the type of failover.
 	// +required
 	Reason FailoverReason `json:"reason"`
@@ -380,13 +376,13 @@ type FailoverHistoryItem struct {
 	// +required
 	StartTime metav1.Time `json:"failoverTime"`
 
-	// ClustersBeforeFailover records the clusters where running the application before failover.
+	// ClustersBeforeFailover records the cluster where the application was running prior to failover.
 	// +required
-	ClustersBeforeFailover []string `json:"originalClusters"`
+	ClusterBeforeFailover string `json:"originalCluster"`
 
-	// ClustersAfterFailover records the clusters where running the application after failover.
+	// ClustersAfterFailover records the cluster where the application is running after failover.
 	// +optional
-	ClustersAfterFailover []string `json:"targetClusters,omitempty"`
+	ClusterAfterFailover string `json:"targetCluster,omitempty"`
 
 	// PreservedLabelState represents the application state information collected from the original cluster,
 	// and it will be injected into the new cluster in the form of application labels.

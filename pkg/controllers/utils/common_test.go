@@ -19,57 +19,109 @@ package utils
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/util/gclient"
 )
 
 func TestUpdateFailoverStatus(t *testing.T) {
 	tests := []struct {
-		name         string
-		binding      *workv1alpha2.ResourceBinding
-		cluster      string
-		failoverType workv1alpha2.FailoverReason
-		wantErr      bool
+		name            string
+		binding         *workv1alpha2.ResourceBinding
+		supportExpected bool
 	}{
 		{
-			name: "application failover",
+			name: "replicas divided amongst cluster, skip failover history",
 			binding: &workv1alpha2.ResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "binding",
 					Namespace: "default",
 				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{
+						APIVersion: "v1",
+						Kind:       "Pod",
+						Namespace:  "default",
+						Name:       "pod",
+					},
+					Placement: &policyv1alpha1.Placement{
+						ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+							ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided,
+						},
+						SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+							{MinGroups: 1, MaxGroups: 3, SpreadByField: policyv1alpha1.SpreadByFieldCluster},
+						},
+					},
+				},
 			},
-			cluster:      "cluster1",
-			failoverType: workv1alpha2.ApplicationFailover,
-			wantErr:      false,
+			supportExpected: false,
 		},
 		{
-			name: "cluster failover",
+			name: "scheduling strategy undefined, skip failover history",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "binding",
+					Namespace: "default",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{
+						APIVersion: "v1",
+						Kind:       "Pod",
+						Namespace:  "default",
+						Name:       "pod",
+					},
+					Placement: &policyv1alpha1.Placement{
+						SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+							{MinGroups: 1, MaxGroups: 1, SpreadByField: policyv1alpha1.SpreadByFieldCluster},
+						},
+					},
+				},
+			},
+			supportExpected: false,
+		},
+		{
+			name: "scheduling strategy divided and replicas constrained to single cluster, succeed",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "binding",
+					Namespace: "default",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{
+						APIVersion: "v1",
+						Kind:       "Pod",
+						Namespace:  "default",
+						Name:       "pod",
+					},
+					Placement: &policyv1alpha1.Placement{
+						ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+							ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided,
+						},
+						SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+							{MinGroups: 1, MaxGroups: 1, SpreadByField: policyv1alpha1.SpreadByFieldCluster},
+						},
+					},
+				},
+			},
+			supportExpected: true,
+		},
+		{
+			name: "placement is empty, skip failover history",
 			binding: &workv1alpha2.ResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "binding",
 					Namespace: "default",
 				},
 			},
-			cluster:      "cluster2",
-			failoverType: workv1alpha2.ClusterFailover,
-			wantErr:      false,
+			supportExpected: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fakeClient := fake.NewClientBuilder().WithScheme(gclient.NewSchema()).Build()
-
-			err := UpdateFailoverStatus(fakeClient, tt.binding, tt.cluster, tt.failoverType)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
+			supportActual := FailoverHistoryInfoIsSupported(tt.binding)
+			if supportActual != tt.supportExpected {
+				t.Errorf("Failed case, expected: %v, actual: %v", tt.supportExpected, supportActual)
 			}
 		})
 	}

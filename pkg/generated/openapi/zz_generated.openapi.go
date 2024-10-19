@@ -6825,14 +6825,6 @@ func schema_pkg_apis_work_v1alpha2_FailoverHistoryItem(ref common.ReferenceCallb
 				Description: "FailoverHistoryItem represents either a failover event in the history.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"originCluster": {
-						SchemaProps: spec.SchemaProps{
-							Description: "OriginCluster is the name of the cluster from which the application migrated.",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"reason": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Reason denotes the type of failover.",
@@ -6847,34 +6839,19 @@ func schema_pkg_apis_work_v1alpha2_FailoverHistoryItem(ref common.ReferenceCallb
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
-					"originalClusters": {
+					"originalCluster": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ClustersBeforeFailover records the clusters where running the application before failover.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
+							Description: "ClustersBeforeFailover records the cluster where the application was running prior to failover.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
-					"targetClusters": {
+					"targetCluster": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ClustersAfterFailover records the clusters where running the application after failover.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
+							Description: "ClustersAfterFailover records the cluster where the application is running after failover.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"preservedLabelState": {
@@ -6894,7 +6871,7 @@ func schema_pkg_apis_work_v1alpha2_FailoverHistoryItem(ref common.ReferenceCallb
 						},
 					},
 				},
-				Required: []string{"originCluster", "reason", "failoverTime", "originalClusters"},
+				Required: []string{"reason", "failoverTime", "originalCluster"},
 			},
 		},
 		Dependencies: []string{

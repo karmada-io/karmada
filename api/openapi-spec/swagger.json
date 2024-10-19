@@ -20026,28 +20026,19 @@
       "description": "FailoverHistoryItem represents either a failover event in the history.",
       "type": "object",
       "required": [
-        "originCluster",
         "reason",
         "failoverTime",
-        "originalClusters"
+        "originalCluster"
       ],
       "properties": {
         "failoverTime": {
           "description": "StartTime is the timestamp of when the failover occurred.",
           "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
         },
-        "originCluster": {
-          "description": "OriginCluster is the name of the cluster from which the application migrated.",
+        "originalCluster": {
+          "description": "ClustersBeforeFailover records the cluster where the application was running prior to failover.",
           "type": "string",
           "default": ""
-        },
-        "originalClusters": {
-          "description": "ClustersBeforeFailover records the clusters where running the application before failover.",
-          "type": "array",
-          "items": {
-            "type": "string",
-            "default": ""
-          }
         },
         "preservedLabelState": {
           "description": "PreservedLabelState represents the application state information collected from the original cluster, and it will be injected into the new cluster in the form of application labels.",
@@ -20062,13 +20053,9 @@
           "type": "string",
           "default": ""
         },
-        "targetClusters": {
-          "description": "ClustersAfterFailover records the clusters where running the application after failover.",
-          "type": "array",
-          "items": {
-            "type": "string",
-            "default": ""
-          }
+        "targetCluster": {
+          "description": "ClustersAfterFailover records the cluster where the application is running after failover.",
+          "type": "string"
         }
       }
     },
