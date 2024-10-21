@@ -546,6 +546,7 @@ func (d *DependenciesDistributor) removeScheduleResultFromAttachedBindings(bindi
 		delete(attachedBindings[index].Labels, bindingLabelKey)
 		updatedSnapshot := deleteBindingFromSnapshot(bindingNamespace, bindingName, attachedBindings[index].Spec.RequiredBy)
 		attachedBindings[index].Spec.RequiredBy = updatedSnapshot
+		attachedBindings[index].Spec.PreserveResourcesOnDeletion = nil
 		if err := d.Client.Update(context.TODO(), attachedBindings[index]); err != nil {
 			klog.Errorf("Failed to update binding(%s/%s): %v", binding.Namespace, binding.Name, err)
 			errs = append(errs, err)
@@ -563,6 +564,7 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding 
 		existBinding.Spec.RequiredBy = mergeBindingSnapshot(existBinding.Spec.RequiredBy, attachedBinding.Spec.RequiredBy)
 		existBinding.Labels = util.DedupeAndMergeLabels(existBinding.Labels, attachedBinding.Labels)
 		existBinding.Spec.Resource = attachedBinding.Spec.Resource
+		existBinding.Spec.PreserveResourcesOnDeletion = attachedBinding.Spec.PreserveResourcesOnDeletion
 
 		if err := d.Client.Update(context.TODO(), existBinding); err != nil {
 			klog.Errorf("Failed to update resourceBinding(%s): %v", bindingKey, err)
@@ -703,7 +705,8 @@ func buildAttachedBinding(independentBinding *workv1alpha2.ResourceBinding, obje
 				Name:            object.GetName(),
 				ResourceVersion: object.GetResourceVersion(),
 			},
-			RequiredBy: result,
+			RequiredBy:                  result,
+			PreserveResourcesOnDeletion: independentBinding.Spec.PreserveResourcesOnDeletion,
 		},
 	}
 }
