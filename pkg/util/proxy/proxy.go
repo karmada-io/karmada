@@ -18,16 +18,21 @@ package proxy
 
 import (
 	"context"
+	"crypto/md5" //nolint:gosec
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"path"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
+	"golang.org/x/sync/singleflight"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/httpstream"
@@ -43,6 +48,13 @@ import (
 
 // SecretGetterFunc is a function to get secret.
 type SecretGetterFunc func(context.Context, string, string) (*corev1.Secret, error)
+
+type clusterEndpointInfo struct {
+	Transport *http.Transport
+}
+
+var clusterEndpointInfoStore sync.Map
+var singleExecution singleflight.Group
 
 // ConnectCluster returns a handler for proxy cluster.
 func ConnectCluster(ctx context.Context, cluster *clusterapis.Cluster, proxyPath string, secretGetter SecretGetterFunc, responder registryrest.Responder) (http.Handler, error) {
@@ -159,12 +171,33 @@ func Location(cluster *clusterapis.Cluster, tlsConfig *tls.Config) (*url.URL, ht
 		return nil, nil, err
 	}
 
-	proxyTransport, err := createProxyTransport(cluster, tlsConfig)
+	clusterHash := generateMd5HashForCluster(cluster)
+	if v, ok := clusterEndpointInfoStore.Load(clusterHash); ok {
+		clusterEndpointsInfo := v.(clusterEndpointInfo)
+		return location, clusterEndpointsInfo.Transport, nil
+	}
+
+	endpointInfo, err, _ := singleExecution.Do(clusterHash, func() (interface{}, error) {
+		if value, ok := clusterEndpointInfoStore.Load(clusterHash); ok {
+			return value, nil
+		}
+		proxyTransport, err := createProxyTransport(cluster, tlsConfig)
+		if err != nil {
+			return nil, err
+		}
+		clusterEndpoint := clusterEndpointInfo{
+			Transport: proxyTransport,
+		}
+		clusterEndpointInfoStore.Store(clusterHash, clusterEndpointInfo{
+			Transport: proxyTransport,
+		})
+		return clusterEndpoint, nil
+	})
 	if err != nil {
 		return nil, nil, err
 	}
-
-	return location, proxyTransport, nil
+	transport := endpointInfo.(clusterEndpointInfo).Transport
+	return location, transport, nil
 }
 
 func constructLocation(cluster *clusterapis.Cluster) (*url.URL, error) {
@@ -237,4 +270,19 @@ func SkipGroup(group string) bool {
 	default:
 		return false
 	}
+}
+
+func generateMd5HashForCluster(cluster *clusterapis.Cluster) string {
+	usedFields := make([]string, 0)
+	proxyHeaderKeys := make([]string, 0, len(cluster.Spec.ProxyHeader))
+	for key := range cluster.Spec.ProxyHeader {
+		proxyHeaderKeys = append(proxyHeaderKeys, key)
+	}
+	sort.Strings(proxyHeaderKeys)
+	for _, key := range proxyHeaderKeys {
+		usedFields = append(usedFields, key, cluster.Spec.ProxyHeader[key])
+	}
+	usedFields = append(usedFields, string(cluster.UID), cluster.Spec.ProxyURL, cluster.Spec.APIEndpoint)
+	hash := md5.Sum([]byte(strings.Join(usedFields, ""))) //nolint:gosec
+	return hex.EncodeToString(hash[:])
 }
