@@ -44,10 +44,10 @@ spec:
           image: {{ .Image }}
           imagePullPolicy: IfNotPresent
           volumeMounts:
-            - name: k8s-certs
+            - name: karmada-certs
               mountPath: /etc/karmada/pki
               readOnly: true
-            - name: kubeconfig
+            - name: karmada-kubeconfig
               subPath: kubeconfig
               mountPath: /etc/kubeconfig
           command:
@@ -82,12 +82,12 @@ spec:
             requests:
               cpu: 100m
       volumes:
-        - name: k8s-certs
+        - name: karmada-certs
           secret:
-            secretName: karmada-cert
-        - name: kubeconfig
+            secretName: karmada-certs
+        - name: karmada-kubeconfig
           secret:
-            secretName: kubeconfig
+            secretName: karmada-kubeconfig
 `
 
 	karmadaMetricsAdapterService = `
