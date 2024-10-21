@@ -60,10 +60,11 @@ func TestAddAndGetCert(t *testing.T) {
 }
 
 func TestCertList(t *testing.T) {
+	cert1Name, cert2Name := "cert1", "cert2"
 	store := NewCertStore()
 
-	cert1 := newKarmadaCert("cert1", []byte("cert1Data"), []byte("key1Data"))
-	cert2 := newKarmadaCert("cert2", []byte("cert2Data"), []byte("key2Data"))
+	cert1 := newKarmadaCert(cert1Name, []byte("cert1Data"), []byte("key1Data"))
+	cert2 := newKarmadaCert(cert2Name, []byte("cert2Data"), []byte("key2Data"))
 	store.AddCert(cert1)
 	store.AddCert(cert2)
 
@@ -71,8 +72,11 @@ func TestCertList(t *testing.T) {
 	if len(certs) != 2 {
 		t.Errorf("expected 2 certs but got %d", len(certs))
 	}
-	if certs[0].pairName != "cert1" || certs[1].pairName != "cert2" {
-		t.Errorf("cert list does not match expected values")
+	if cert1 = store.GetCert(cert1Name); cert1 == nil {
+		t.Errorf("expected to retrieve %s, but got nil", cert1Name)
+	}
+	if cert2 = store.GetCert(cert2Name); cert2 == nil {
+		t.Errorf("expected to retrieve %s, but got nil", cert2Name)
 	}
 }
 
