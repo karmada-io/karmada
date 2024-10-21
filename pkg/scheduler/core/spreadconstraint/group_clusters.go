@@ -17,11 +17,12 @@ limitations under the License.
 package spreadconstraint
 
 import (
+	"k8s.io/utils/ptr"
+
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
-	"k8s.io/utils/ptr"
 )
 
 // GroupClustersInfo indicate the cluster global view
@@ -249,10 +250,12 @@ func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alph
 
 	isGroupByZone := false
 	var minGroups int
-	for _, sc := range rbSpec.Placement.SpreadConstraints {
-		if sc.SpreadByField == policyv1alpha1.SpreadByFieldZone {
-			isGroupByZone = true
-			minGroups = sc.MinGroups
+	if rbSpec != nil && rbSpec.Placement != nil && rbSpec.Placement.SpreadConstraints != nil {
+		for _, sc := range rbSpec.Placement.SpreadConstraints {
+			if sc.SpreadByField == policyv1alpha1.SpreadByFieldZone {
+				isGroupByZone = true
+				minGroups = sc.MinGroups
+			}
 		}
 	}
 
@@ -294,10 +297,12 @@ func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1al
 
 	isGroupByRegion := false
 	var minGroups int
-	for _, sc := range rbSpec.Placement.SpreadConstraints {
-		if sc.SpreadByField == policyv1alpha1.SpreadByFieldRegion {
-			isGroupByRegion = true
-			minGroups = sc.MinGroups
+	if rbSpec != nil && rbSpec.Placement != nil && rbSpec.Placement.SpreadConstraints != nil {
+		for _, sc := range rbSpec.Placement.SpreadConstraints {
+			if sc.SpreadByField == policyv1alpha1.SpreadByFieldRegion {
+				isGroupByRegion = true
+				minGroups = sc.MinGroups
+			}
 		}
 	}
 
@@ -345,10 +350,13 @@ func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1
 
 	isGroupByProvider := false
 	var minGroups int
-	for _, sc := range rbSpec.Placement.SpreadConstraints {
-		if sc.SpreadByField == policyv1alpha1.SpreadByFieldProvider {
-			isGroupByProvider = true
-			minGroups = sc.MinGroups
+
+	if rbSpec != nil && rbSpec.Placement != nil && rbSpec.Placement.SpreadConstraints != nil {
+		for _, sc := range rbSpec.Placement.SpreadConstraints {
+			if sc.SpreadByField == policyv1alpha1.SpreadByFieldProvider {
+				isGroupByProvider = true
+				minGroups = sc.MinGroups
+			}
 		}
 	}
 	for provider, providerInfo := range info.Providers {
