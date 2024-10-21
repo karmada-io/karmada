@@ -30,6 +30,15 @@ import (
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
 )
 
+var (
+	// DefaultDeInitTasks contains the default tasks to be executed during the deinitialization process.
+	DefaultDeInitTasks = []workflow.Task{
+		tasks.NewRemoveComponentTask(),
+		tasks.NewCleanupCertTask(),
+		tasks.NewCleanupKubeconfigTask(),
+	}
+)
+
 // DeInitOptions defines all the Deinit workflow options.
 type DeInitOptions struct {
 	Name        string
@@ -53,15 +62,19 @@ type deInitData struct {
 
 // NewDeInitDataJob initializes a deInit job with a list of sub tasks. and build
 // deinit runData object
-func NewDeInitDataJob(opt *DeInitOptions) *workflow.Job {
+func NewDeInitDataJob(opt *DeInitOptions, deInitTasks []workflow.Task) *workflow.Job {
 	deInitJob := workflow.NewJob()
 
-	deInitJob.AppendTask(tasks.NewRemoveComponentTask())
-	deInitJob.AppendTask(tasks.NewCleanupCertTask())
-	deInitJob.AppendTask(tasks.NewCleanupKubeconfigTask())
+	for _, task := range deInitTasks {
+		deInitJob.AppendTask(task)
+	}
 
 	deInitJob.SetDataInitializer(func() (workflow.RunData, error) {
-		localClusterClient, err := clientset.NewForConfig(opt.Kubeconfig)
+		if len(opt.Name) == 0 || len(opt.Namespace) == 0 {
+			return nil, errors.New("unexpected empty name or namespace")
+		}
+
+		localClusterClient, err := util.ClientFactory(opt.Kubeconfig)
 		if err != nil {
 			return nil, fmt.Errorf("error when creating local cluster client, err: %w", err)
 		}
@@ -72,14 +85,10 @@ func NewDeInitDataJob(opt *DeInitOptions) *workflow.Job {
 		if util.IsInCluster(opt.HostCluster) {
 			remoteClient = localClusterClient
 		} else {
-			remoteClient, err = util.BuildClientFromSecretRef(localClusterClient, opt.HostCluster.SecretRef)
+			remoteClient, err = util.BuildClientFromSecretRefFactory(localClusterClient, opt.HostCluster.SecretRef)
 			if err != nil {
 				return nil, fmt.Errorf("error when creating cluster client to install karmada, err: %w", err)
 			}
-		}
-
-		if len(opt.Name) == 0 || len(opt.Namespace) == 0 {
-			return nil, errors.New("unexpected empty name or namespace")
 		}
 
 		return &deInitData{
