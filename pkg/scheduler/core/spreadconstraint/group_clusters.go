@@ -135,7 +135,7 @@ func checkIfDuplicate(rbSpec *workv1alpha2.ResourceBindingSpec) bool {
 		rbSpec.Placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated
 }
 
-func (info *GroupClustersInfo) calcGroupScore4Duplicate(
+func (info *GroupClustersInfo) calcGroupScoreForDuplicate(
 	clusters []ClusterDetailInfo,
 	rbSpec *workv1alpha2.ResourceBindingSpec) int64 {
 	targetReplica := int64(rbSpec.Replicas)
@@ -159,8 +159,8 @@ func (info *GroupClustersInfo) calcGroupScore(
 	rbSpec *workv1alpha2.ResourceBindingSpec,
 	minGroups int) int64 {
 	if checkIfDuplicate(rbSpec) {
-		// if the replica scheduling type is duplicated, the score is calculated by calcGroupScore4Duplicate.
-		return info.calcGroupScore4Duplicate(clusters, rbSpec)
+		// if the replica scheduling type is duplicated, the score is calculated by calcGroupScoreForDuplicate.
+		return info.calcGroupScoreForDuplicate(clusters, rbSpec)
 	}
 
 	// if the replica scheduling type is divided, the score is calculated by followed.
