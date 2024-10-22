@@ -62,3 +62,45 @@ jobs:
           name: karmadactl_test_logs_${{ matrix.k8s }}
           path: ${{ github.workspace }}/karmadactl-test-logs/${{ matrix.k8s }}/
 
+  init-config:
+    name: init with config file
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # Latest three minor releases of Kubernetes
+        k8s: [ v1.29.0, v1.30.0, v1.31.0 ]
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: run karmadactl init with config file test
+        run: |
+          export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
+          
+          # Run custom test for workload configuration deployment
+          hack/cli-testing-init-with-config.sh
+          
+          # run a single e2e
+          export KUBECONFIG=${HOME}/karmada/karmada-apiserver.config
+          GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
+          ginkgo -v --race --trace -p  --focus="[BasicPropagation] propagation testing deployment propagation testing"  ./test/e2e/
+      - name: export logs for config test
+        if: always()
+        run: |
+          export ARTIFACTS_PATH=${{ github.workspace }}/karmadactl-test-logs/${{ matrix.k8s }}/config
+          mkdir -p $ARTIFACTS_PATH
+          
+          mkdir -p $ARTIFACTS_PATH/karmada-host
+          kind export logs --name=karmada-host $ARTIFACTS_PATH/karmada-host
+      - name: upload config test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: karmadactl_config_test_logs_${{ matrix.k8s }}
+          path: ${{ github.workspace }}/karmadactl-test-logs/${{ matrix.k8s }}/config/
