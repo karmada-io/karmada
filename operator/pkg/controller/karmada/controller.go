@@ -40,8 +40,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
-	"github.com/karmada-io/karmada/operator/pkg/constants"
 	operatorscheme "github.com/karmada-io/karmada/operator/pkg/scheme"
+	"github.com/karmada-io/karmada/operator/pkg/util"
 )
 
 const (
@@ -112,7 +112,7 @@ func (ctrl *Controller) Reconcile(ctx context.Context, req controllerruntime.Req
 // validateKarmada ensures the Karmada resource adheres to validation rules
 func (ctrl *Controller) validateKarmada(karmada *operatorv1alpha1.Karmada) error {
 	if karmada.Spec.Components.Etcd != nil && karmada.Spec.Components.Etcd.External != nil {
-		expectedSecretName := fmt.Sprintf("%s-%s", karmada.Name, constants.KarmadaApiserverEtcdClientCertNameSuffix)
+		expectedSecretName := util.EtcdCertSecretName(karmada.Name)
 		if karmada.Spec.Components.Etcd.External.SecretRef.Name != expectedSecretName {
 			errorMessage := fmt.Sprintf("Secret name for external etcd client must be %s, but got %s", expectedSecretName, karmada.Spec.Components.Etcd.External.SecretRef.Name)
 			ctrl.EventRecorder.Event(karmada, corev1.EventTypeWarning, ValidationErrorReason, errorMessage)

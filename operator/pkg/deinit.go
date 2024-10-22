@@ -36,6 +36,7 @@ type DeInitOptions struct {
 	Namespace   string
 	Kubeconfig  *rest.Config
 	HostCluster *operatorv1alpha1.HostCluster
+	Karmada     *operatorv1alpha1.Karmada
 }
 
 // DeInitOpt defines a type of function to set DeInitOptions values.
@@ -56,8 +57,8 @@ type deInitData struct {
 func NewDeInitDataJob(opt *DeInitOptions) *workflow.Job {
 	deInitJob := workflow.NewJob()
 
-	deInitJob.AppendTask(tasks.NewRemoveComponentTask())
-	deInitJob.AppendTask(tasks.NewCleanupCertTask())
+	deInitJob.AppendTask(tasks.NewRemoveComponentTask(opt.Karmada))
+	deInitJob.AppendTask(tasks.NewCleanupCertTask(opt.Karmada))
 	deInitJob.AppendTask(tasks.NewCleanupKubeconfigTask())
 
 	deInitJob.SetDataInitializer(func() (workflow.RunData, error) {
@@ -126,6 +127,7 @@ func defaultJobDeInitOptions() *DeInitOptions {
 // NewDeInitOptWithKarmada returns a DeInitOpt function to initialize DeInitOptions with karmada resource
 func NewDeInitOptWithKarmada(karmada *operatorv1alpha1.Karmada) DeInitOpt {
 	return func(o *DeInitOptions) {
+		o.Karmada = karmada
 		o.Name = karmada.GetName()
 		o.Namespace = karmada.GetNamespace()
 

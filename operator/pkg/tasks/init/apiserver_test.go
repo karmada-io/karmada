@@ -194,7 +194,11 @@ func TestRunKarmadaAPIServer(t *testing.T) {
 		{
 			name: "RunKarmadaAPIServer_NilKarmadaAPIServer_RunIsCompletedWithoutErrors",
 			runData: &TestInitData{
-				ComponentsUnits: &operatorv1alpha1.KarmadaComponents{},
+				ComponentsUnits: &operatorv1alpha1.KarmadaComponents{
+					Etcd: &operatorv1alpha1.Etcd{
+						Local: &operatorv1alpha1.LocalEtcd{},
+					},
+				},
 			},
 			wantErr: false,
 		},
@@ -212,6 +216,9 @@ func TestRunKarmadaAPIServer(t *testing.T) {
 							ImagePullPolicy: corev1.PullIfNotPresent,
 						},
 						ServiceSubnet: ptr.To("10.96.0.0/12"),
+					},
+					Etcd: &operatorv1alpha1.Etcd{
+						Local: &operatorv1alpha1.LocalEtcd{},
 					},
 				},
 				RemoteClientConnector: fakeclientset.NewSimpleClientset(),
@@ -329,7 +336,11 @@ func TestRunKarmadaAggregatedAPIServer(t *testing.T) {
 		{
 			name: "RunKarmadaAggregatedAPIServer_NilKarmadaAggregatedAPIServer_RunIsCompletedWithoutErrors",
 			runData: &TestInitData{
-				ComponentsUnits: &operatorv1alpha1.KarmadaComponents{},
+				ComponentsUnits: &operatorv1alpha1.KarmadaComponents{
+					Etcd: &operatorv1alpha1.Etcd{
+						Local: &operatorv1alpha1.LocalEtcd{},
+					},
+				},
 			},
 			prep:    func() error { return nil },
 			wantErr: false,
@@ -347,6 +358,9 @@ func TestRunKarmadaAggregatedAPIServer(t *testing.T) {
 							Resources:       corev1.ResourceRequirements{},
 							ImagePullPolicy: corev1.PullIfNotPresent,
 						},
+					},
+					Etcd: &operatorv1alpha1.Etcd{
+						Local: &operatorv1alpha1.LocalEtcd{},
 					},
 				},
 				RemoteClientConnector: fakeclientset.NewSimpleClientset(),
