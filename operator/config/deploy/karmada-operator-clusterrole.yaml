@@ -1,8 +1,9 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "common.names.fullname" . }}
-  labels: {{- include "common.labels.standard" . | nindent 4 }}
+  name: karmada-operator
+  labels:
+    karmada-app: karmada-operator
 rules:
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"] # karmada-operator requires access to the Lease resource for leader election
