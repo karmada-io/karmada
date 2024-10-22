@@ -17,8 +17,6 @@ limitations under the License.
 package spreadconstraint
 
 import (
-	"math"
-
 	"k8s.io/utils/ptr"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -111,9 +109,9 @@ func groupClustersBasedTopology(
 	}
 	groupClustersInfo.calAvailableReplicasFunc = calAvailableReplicasFunc
 	groupClustersInfo.generateClustersInfo(clustersScore, rbSpec)
-	groupClustersInfo.generateZoneInfo(spreadConstraints)
-	groupClustersInfo.generateRegionInfo(spreadConstraints)
-	groupClustersInfo.generateProviderInfo(spreadConstraints)
+	groupClustersInfo.generateZoneInfo(spreadConstraints, rbSpec)
+	groupClustersInfo.generateRegionInfo(spreadConstraints, rbSpec)
+	groupClustersInfo.generateProviderInfo(spreadConstraints, rbSpec)
 
 	return groupClustersInfo
 }
@@ -130,23 +128,45 @@ func groupClustersIgnoringTopology(
 	return groupClustersInfo
 }
 
-func (info *GroupClustersInfo) calcGroupScore(clusters []ClusterDetailInfo) int64 {
-	// Group Score = sum(Cluster Score + Weight * 1000)
-	var score int64
+const weightUnit int64 = 1000
+
+func (info *GroupClustersInfo) calcGroupScore(
+	clusters []ClusterDetailInfo,
+	rbSpec *workv1alpha2.ResourceBindingSpec,
+	minGroups int) int64 {
+
+	// if the replica scheduling type is divided, the score is calculated by followed.
+	int32MinGroups := int32(minGroups)
+	restReplica := rbSpec.Replicas % int32MinGroups
+	replica := rbSpec.Replicas - restReplica
+	targetReplica := int64(replica/int32MinGroups + 1)
+
+	// clusters have been sorted by cluster.Score descending,
+	// and if the cluster.Score is the same, the cluster.availableReplica is ascending.
+	var sumAvailableReplica int64
+	var sumScore int64
+	var validClusters int64
 	for _, cluster := range clusters {
-		weight := cluster.AvailableReplicas
-		// check, Avoid integer out of bounds.
-		if weight > math.MaxInt64/1000 {
-			weight = math.MaxInt64
-		} else {
-			weight = weight * 1000
+		sumAvailableReplica += cluster.AvailableReplicas
+		sumScore += cluster.Score
+		validClusters++
+		if sumAvailableReplica >= targetReplica {
+			break
 		}
-		if score > math.MaxInt64-(cluster.Score+weight) {
-			return math.MaxInt64
-		}
-		score += cluster.Score + weight
 	}
-	return score / int64(len(clusters))
+
+	// cluster.Score is 0 or 100. To minimize the impact of Score,
+	// set the atomic value of targetReplica to 1000. This way,
+	// when sorting by Group Score, targetReplica will be considered first,
+	// and if the Weights are the same, then Score will be considered.
+
+	if sumAvailableReplica < targetReplica {
+		sumAvailableReplica = sumAvailableReplica * weightUnit
+		return sumAvailableReplica + sumScore/int64(len(clusters))
+	}
+
+	targetReplica = targetReplica * weightUnit
+	return targetReplica + sumScore/validClusters
 }
 
 func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.ClusterScoreList, rbSpec *workv1alpha2.ResourceBindingSpec) {
@@ -174,7 +194,7 @@ func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.Clus
 	})
 }
 
-func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
+func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alpha1.SpreadConstraint, rbSpec *workv1alpha2.ResourceBindingSpec) {
 	if !IsSpreadConstraintExisted(spreadConstraints, policyv1alpha1.SpreadByFieldZone) {
 		return
 	}
@@ -199,13 +219,26 @@ func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alph
 		}
 	}
 
+	isGroupByZone := false
+	var minGroups int
+	if rbSpec != nil && rbSpec.Placement != nil && rbSpec.Placement.SpreadConstraints != nil {
+		for _, sc := range rbSpec.Placement.SpreadConstraints {
+			if sc.SpreadByField == policyv1alpha1.SpreadByFieldZone {
+				isGroupByZone = true
+				minGroups = sc.MinGroups
+			}
+		}
+	}
+
 	for zone, zoneInfo := range info.Zones {
-		zoneInfo.Score = info.calcGroupScore(zoneInfo.Clusters)
+		if isGroupByZone {
+			zoneInfo.Score = info.calcGroupScore(zoneInfo.Clusters, rbSpec, minGroups)
+		}
 		info.Zones[zone] = zoneInfo
 	}
 }
 
-func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
+func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1alpha1.SpreadConstraint, rbSpec *workv1alpha2.ResourceBindingSpec) {
 	if !IsSpreadConstraintExisted(spreadConstraints, policyv1alpha1.SpreadByFieldRegion) {
 		return
 	}
@@ -233,13 +266,26 @@ func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1al
 		info.Regions[region] = regionInfo
 	}
 
+	isGroupByRegion := false
+	var minGroups int
+	if rbSpec != nil && rbSpec.Placement != nil && rbSpec.Placement.SpreadConstraints != nil {
+		for _, sc := range rbSpec.Placement.SpreadConstraints {
+			if sc.SpreadByField == policyv1alpha1.SpreadByFieldRegion {
+				isGroupByRegion = true
+				minGroups = sc.MinGroups
+			}
+		}
+	}
+
 	for region, regionInfo := range info.Regions {
-		regionInfo.Score = info.calcGroupScore(regionInfo.Clusters)
+		if isGroupByRegion {
+			regionInfo.Score = info.calcGroupScore(regionInfo.Clusters, rbSpec, minGroups)
+		}
 		info.Regions[region] = regionInfo
 	}
 }
 
-func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
+func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1alpha1.SpreadConstraint, rbSpec *workv1alpha2.ResourceBindingSpec) {
 	if !IsSpreadConstraintExisted(spreadConstraints, policyv1alpha1.SpreadByFieldProvider) {
 		return
 	}
@@ -273,8 +319,21 @@ func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1
 		info.Providers[provider] = providerInfo
 	}
 
+	isGroupByProvider := false
+	var minGroups int
+
+	if rbSpec != nil && rbSpec.Placement != nil && rbSpec.Placement.SpreadConstraints != nil {
+		for _, sc := range rbSpec.Placement.SpreadConstraints {
+			if sc.SpreadByField == policyv1alpha1.SpreadByFieldProvider {
+				isGroupByProvider = true
+				minGroups = sc.MinGroups
+			}
+		}
+	}
 	for provider, providerInfo := range info.Providers {
-		providerInfo.Score = info.calcGroupScore(providerInfo.Clusters)
+		if isGroupByProvider {
+			providerInfo.Score = info.calcGroupScore(providerInfo.Clusters, rbSpec, minGroups)
+		}
 		info.Providers[provider] = providerInfo
 	}
 }
