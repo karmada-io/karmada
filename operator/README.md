@@ -33,18 +33,20 @@ helm install karmada-operator -n karmada-system --create-namespace --dependency-
 
 #### Using YAML resource
 
-The `karmada-operator` workload requires a kubeconfig of the local cluster to establish a connection with the cluster and watch CR resources.
-In preparation for this, create a secret containing the kubeconfig for the karmada-operator.
+The `karmada-operator` workload requires ClusterRole to watch and manage CR resources.
+In preparation for this, create a ClusterRole (with a ClusterRoleBinding and a ServiceAccount) containing the required privileges for the karmada-operator.
 
 ```shell
 kubectl create namespace karmada-system
-kubectl create secret generic my-kubeconfig --from-file=$HOME/.kube/config -n karmada-system
+kubectl apply -f operator/config/deploy/karmada-operator-clusterrole.yaml
+kubectl apply -f operator/config/deploy/karmada-operator-clusterrolebinding.yaml
+kubectl apply -f operator/config/deploy/karmada-operator-serviceaccount.yaml
 ```
 
 Deploy the `karmada-operator` workload.
 
 ```shell
-kubectl apply -f operator/config/deploy/karmada-operator.yaml
+kubectl apply -f operator/config/deploy/karmada-operator-deployment.yaml
 ```
 
 The pod of `karmada-operator` in the `karmada-system` namespace will be running.
