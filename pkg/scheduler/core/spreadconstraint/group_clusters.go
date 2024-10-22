@@ -109,9 +109,9 @@ func groupClustersBasedTopology(
 	}
 	groupClustersInfo.calAvailableReplicasFunc = calAvailableReplicasFunc
 	groupClustersInfo.generateClustersInfo(clustersScore, rbSpec)
-	groupClustersInfo.generateZoneInfo(spreadConstraints)
-	groupClustersInfo.generateRegionInfo(spreadConstraints)
-	groupClustersInfo.generateProviderInfo(spreadConstraints)
+	groupClustersInfo.generateZoneInfo(spreadConstraints, rbSpec)
+	groupClustersInfo.generateRegionInfo(spreadConstraints, rbSpec)
+	groupClustersInfo.generateProviderInfo(spreadConstraints, rbSpec)
 
 	return groupClustersInfo
 }
@@ -128,23 +128,43 @@ func groupClustersIgnoringTopology(
 	return groupClustersInfo
 }
 
-func (info *GroupClustersInfo) calcWight(clusters ClusterDetailInfo) int64 {
-	return clusters.AvailableReplicas
-}
-
 const weightUnit int64 = 1000
 
-func (info *GroupClustersInfo) calcGroupScore(clusters []ClusterDetailInfo) int64 {
-	// Group Score = sum(Cluster Score + Weight * 1000)
-	var score int64
+func checkIfDuplicate(rbSpec *workv1alpha2.ResourceBindingSpec) bool {
+	return rbSpec.Placement == nil ||
+		rbSpec.Placement.ReplicaScheduling == nil ||
+		rbSpec.Placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated
+}
+
+func (info *GroupClustersInfo) calcGroupScoreForDuplicate(
+	clusters []ClusterDetailInfo,
+	rbSpec *workv1alpha2.ResourceBindingSpec) int64 {
+	targetReplica := int64(rbSpec.Replicas)
+	var validClusters int64
+	// validClusters is the number of clusters that have available replicas.
+	var sumValidScore int64
 	for _, cluster := range clusters {
-		// cluster.Score is 0 or 100. To minimize the impact of Score,
-		// set the atomic value of Weight to 1000. This way,
-		// when sorting by Group Score, Weight will be considered first,
-		// and if the Weights are the same, then Score will be considered.
-		score += cluster.Score + info.calcWight(cluster)*weightUnit
+		if cluster.AvailableReplicas >= targetReplica {
+			validClusters++
+			sumValidScore += cluster.Score
+		}
 	}
-	return score / int64(len(clusters))
+
+	// the priority of validClusters is higher than sumValidScore.
+	weightedValidClusters := validClusters * weightUnit
+	return weightedValidClusters + sumValidScore/validClusters
+}
+
+func (info *GroupClustersInfo) calcGroupScore(
+	clusters []ClusterDetailInfo,
+	rbSpec *workv1alpha2.ResourceBindingSpec,
+	minGroups int) int64 {
+	if checkIfDuplicate(rbSpec) {
+		// if the replica scheduling type is duplicated, the score is calculated by calcGroupScoreForDuplicate.
+		return info.calcGroupScoreForDuplicate(clusters, rbSpec)
+	}
+
+	return -1
 }
 
 func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.ClusterScoreList, rbSpec *workv1alpha2.ResourceBindingSpec) {
@@ -172,7 +192,7 @@ func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.Clus
 	})
 }
 
-func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
+func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alpha1.SpreadConstraint, rbSpec *workv1alpha2.ResourceBindingSpec) {
 	if !IsSpreadConstraintExisted(spreadConstraints, policyv1alpha1.SpreadByFieldZone) {
 		return
 	}
@@ -197,13 +217,26 @@ func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alph
 		}
 	}
 
+	isGroupByZone := false
+	var minGroups int
+	if rbSpec != nil && rbSpec.Placement != nil && rbSpec.Placement.SpreadConstraints != nil {
+		for _, sc := range rbSpec.Placement.SpreadConstraints {
+			if sc.SpreadByField == policyv1alpha1.SpreadByFieldZone {
+				isGroupByZone = true
+				minGroups = sc.MinGroups
+			}
+		}
+	}
+
 	for zone, zoneInfo := range info.Zones {
-		zoneInfo.Score = info.calcGroupScore(zoneInfo.Clusters)
+		if isGroupByZone {
+			zoneInfo.Score = info.calcGroupScore(zoneInfo.Clusters, rbSpec, minGroups)
+		}
 		info.Zones[zone] = zoneInfo
 	}
 }
 
-func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
+func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1alpha1.SpreadConstraint, rbSpec *workv1alpha2.ResourceBindingSpec) {
 	if !IsSpreadConstraintExisted(spreadConstraints, policyv1alpha1.SpreadByFieldRegion) {
 		return
 	}
@@ -231,13 +264,26 @@ func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1al
 		info.Regions[region] = regionInfo
 	}
 
+	isGroupByRegion := false
+	var minGroups int
+	if rbSpec != nil && rbSpec.Placement != nil && rbSpec.Placement.SpreadConstraints != nil {
+		for _, sc := range rbSpec.Placement.SpreadConstraints {
+			if sc.SpreadByField == policyv1alpha1.SpreadByFieldRegion {
+				isGroupByRegion = true
+				minGroups = sc.MinGroups
+			}
+		}
+	}
+
 	for region, regionInfo := range info.Regions {
-		regionInfo.Score = info.calcGroupScore(regionInfo.Clusters)
+		if isGroupByRegion {
+			regionInfo.Score = info.calcGroupScore(regionInfo.Clusters, rbSpec, minGroups)
+		}
 		info.Regions[region] = regionInfo
 	}
 }
 
-func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
+func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1alpha1.SpreadConstraint, rbSpec *workv1alpha2.ResourceBindingSpec) {
 	if !IsSpreadConstraintExisted(spreadConstraints, policyv1alpha1.SpreadByFieldProvider) {
 		return
 	}
@@ -271,8 +317,21 @@ func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1
 		info.Providers[provider] = providerInfo
 	}
 
+	isGroupByProvider := false
+	var minGroups int
+
+	if rbSpec != nil && rbSpec.Placement != nil && rbSpec.Placement.SpreadConstraints != nil {
+		for _, sc := range rbSpec.Placement.SpreadConstraints {
+			if sc.SpreadByField == policyv1alpha1.SpreadByFieldProvider {
+				isGroupByProvider = true
+				minGroups = sc.MinGroups
+			}
+		}
+	}
 	for provider, providerInfo := range info.Providers {
-		providerInfo.Score = info.calcGroupScore(providerInfo.Clusters)
+		if isGroupByProvider {
+			providerInfo.Score = info.calcGroupScore(providerInfo.Clusters, rbSpec, minGroups)
+		}
 		info.Providers[provider] = providerInfo
 	}
 }
