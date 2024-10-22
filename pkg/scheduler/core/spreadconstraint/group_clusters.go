@@ -134,7 +134,6 @@ func (info *GroupClustersInfo) calcGroupScore(
 	clusters []ClusterDetailInfo,
 	rbSpec *workv1alpha2.ResourceBindingSpec,
 	minGroups int) int64 {
-
 	// if the replica scheduling type is divided, the score is calculated by followed.
 	int32MinGroups := int32(minGroups)
 	restReplica := rbSpec.Replicas % int32MinGroups
