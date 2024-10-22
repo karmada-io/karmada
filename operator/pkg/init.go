@@ -119,7 +119,13 @@ func NewInitJob(opt *InitOptions) *workflow.Job {
 	initJob.AppendTask(tasks.NewCertTask())
 	initJob.AppendTask(tasks.NewNamespaceTask())
 	initJob.AppendTask(tasks.NewUploadCertsTask())
-	initJob.AppendTask(tasks.NewEtcdTask())
+
+	etcdConfig := opt.Karmada.Spec.Components.Etcd
+	// Only required if local etcd is configured
+	if etcdConfig.Local != nil {
+		initJob.AppendTask(tasks.NewEtcdTask())
+	}
+
 	initJob.AppendTask(tasks.NewKarmadaApiserverTask())
 	initJob.AppendTask(tasks.NewUploadKubeconfigTask())
 	initJob.AppendTask(tasks.NewKarmadaAggregatedApiserverTask())

@@ -54,6 +54,9 @@ func TestEnsureKarmadaAPIServer(t *testing.T) {
 			ServiceSubnet: ptr.To(serviceSubnet),
 			ExtraArgs:     map[string]string{"cmd1": "arg1", "cmd2": "arg2"},
 		},
+		Etcd: &operatorv1alpha1.Etcd{
+			Local: &operatorv1alpha1.LocalEtcd{},
+		},
 	}
 
 	fakeClient := fakeclientset.NewSimpleClientset()
@@ -89,6 +92,9 @@ func TestEnsureKarmadaAggregatedAPIServer(t *testing.T) {
 				ImagePullPolicy: imagePullPolicy,
 			},
 			ExtraArgs: map[string]string{"cmd1": "arg1", "cmd2": "arg2"},
+		},
+		Etcd: &operatorv1alpha1.Etcd{
+			Local: &operatorv1alpha1.LocalEtcd{},
 		},
 	}
 
@@ -133,11 +139,13 @@ func TestInstallKarmadaAPIServer(t *testing.T) {
 		ServiceSubnet: ptr.To(serviceSubnet),
 		ExtraArgs:     map[string]string{"cmd1": "arg1", "cmd2": "arg2"},
 	}
-
+	etcdCfg := &operatorv1alpha1.Etcd{
+		Local: &operatorv1alpha1.LocalEtcd{},
+	}
 	featureGates := map[string]bool{"FeatureA": true}
 
 	// Call the function under test.
-	err := installKarmadaAPIServer(fakeClient, cfg, name, namespace, featureGates)
+	err := installKarmadaAPIServer(fakeClient, cfg, etcdCfg, name, namespace, featureGates)
 	if err != nil {
 		t.Fatalf("expected no error, but got: %v", err)
 	}
@@ -228,8 +236,10 @@ func TestInstallKarmadaAggregatedAPIServer(t *testing.T) {
 	}
 
 	featureGates := map[string]bool{"FeatureA": true}
-
-	err := installKarmadaAggregatedAPIServer(fakeClient, cfg, name, namespace, featureGates)
+	etcdCfg := &operatorv1alpha1.Etcd{
+		Local: &operatorv1alpha1.LocalEtcd{},
+	}
+	err := installKarmadaAggregatedAPIServer(fakeClient, cfg, etcdCfg, name, namespace, featureGates)
 	if err != nil {
 		t.Fatalf("Failed to install Karmada Aggregated API Server: %v", err)
 	}
