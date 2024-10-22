@@ -164,7 +164,7 @@ func (info *GroupClustersInfo) calcGroupScore(
 		return info.calcGroupScoreForDuplicate(clusters, rbSpec)
 	}
 
-	return -1
+	return int64(-1 * minGroups)
 }
 
 func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.ClusterScoreList, rbSpec *workv1alpha2.ResourceBindingSpec) {
