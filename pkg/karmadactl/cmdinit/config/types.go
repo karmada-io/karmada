@@ -30,8 +30,7 @@ var SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: "v1alpha
 
 // KarmadaInitConfig defines the configuration for initializing Karmada
 type KarmadaInitConfig struct {
-	metav1.TypeMeta   `json:",inline" yaml:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+	metav1.TypeMeta `json:",inline" yaml:",inline"`
 
 	// Spec defines the desired state for initializing Karmada
 	// +optional
