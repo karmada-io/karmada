@@ -168,7 +168,7 @@ spec:
 )
 
 // GenExamples Generate sample files
-func GenExamples(path, parentCommand, printRegisterCommand string) {
+func GenExamples(path, parentCommand string) {
 	karmadaAgentStr := fmt.Sprintf(karmadaAgent, options.ClusterName)
 	if err := BytesToFile(path, "karmada-agent.yaml", []byte(karmadaAgentStr)); err != nil {
 		klog.Warning(err)
@@ -206,11 +206,15 @@ Step 2: Show members of karmada
 
 Register cluster with 'Pull' mode
 
-Step 1: Use "%[2]s register" command to register the cluster to Karmada control plane. "--cluster-name" is set to cluster of current-context by default.
-(In member cluster)~# %[2]s%[3]s
+Step 1: Create bootstrap tokens and get the full '%[2]s register' flag needed to register the member cluster using the token.
+(In karmada)~# %[2]s token create --print-register-command --kubeconfig %[1]s/karmada-apiserver.config
+%[2]s register [karmada-apiserver-endpoint] --token [token] --discovery-token-ca-cert-hash [ca-cert-hash]
 
-Step 2: Show members of karmada
-(In karmada)~# kubectl --kubeconfig %[1]s/karmada-apiserver.config get clusters
+Step 2: Use the output result from step 1 to register the cluster to Karmada control plane. "--cluster-name" is set to cluster of current-context by default.
+(In member cluster)~# %[2]s register [karmada-apiserver-endpoint] --token [token] --discovery-token-ca-cert-hash [ca-cert-hash]
 
-`, path, parentCommand, printRegisterCommand)
+Step 3: Show members of karmada
+(In karmada)~# karmadactl --kubeconfig %[1]s/karmada-apiserver.config get clusters
+
+`, path, parentCommand)
 }
