@@ -17,12 +17,15 @@ limitations under the License.
 package kubernetes
 
 import (
+	"archive/tar"
 	"context"
+	"fmt"
 	"net"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -494,5 +497,97 @@ func TestKarmadaSchedulerImage(t *testing.T) {
 				t.Errorf("Unexpected result: %s, expected: %s", result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestCheckCtlCrdsTar(t *testing.T) {
+	testItems := []struct {
+		name        string
+		header      *tar.Header
+		expectedErr error
+	}{
+		{
+			name: "unclean file dir 'crds/../'",
+			header: &tar.Header{
+				Name:     "crds/../",
+				Typeflag: tar.TypeDir,
+			},
+			expectedErr: fmt.Errorf("the given file contains unclean file dir: %s", "crds/../"),
+		},
+		{
+			name: "unclean file dir 'crds/..'",
+			header: &tar.Header{
+				Name:     "crds/..",
+				Typeflag: tar.TypeDir,
+			},
+			expectedErr: fmt.Errorf("the given file contains unclean file dir: %s", "crds/.."),
+		},
+		{
+			name: "unexpected file dir '../crds'",
+			header: &tar.Header{
+				Name:     "../crds",
+				Typeflag: tar.TypeDir,
+			},
+			expectedErr: fmt.Errorf("the given file contains unexpected file dir: %s", "../crds"),
+		},
+		{
+			name: "unexpected file dir '..'",
+			header: &tar.Header{
+				Name:     "..",
+				Typeflag: tar.TypeDir,
+			},
+			expectedErr: fmt.Errorf("the given file contains unexpected file dir: %s", ".."),
+		},
+		{
+			name: "expected file dir 'crds/'",
+			header: &tar.Header{
+				Name:     "crds/",
+				Typeflag: tar.TypeDir,
+			},
+			expectedErr: nil,
+		},
+		{
+			name: "expected file dir 'crds'",
+			header: &tar.Header{
+				Name:     "crds",
+				Typeflag: tar.TypeDir,
+			},
+			expectedErr: nil,
+		},
+		{
+			name: "unclean file path 'crds/../a.yaml'",
+			header: &tar.Header{
+				Name:     "crds/../a.yaml",
+				Typeflag: tar.TypeReg,
+			},
+			expectedErr: fmt.Errorf("the given file contains unclean file path: %s", "crds/../a.yaml"),
+		},
+		{
+			name: "unexpected file path '../crds/a.yaml'",
+			header: &tar.Header{
+				Name:     "../crds/a.yaml",
+				Typeflag: tar.TypeReg,
+			},
+			expectedErr: fmt.Errorf("the given file contains unexpected file path: %s", "../crds/a.yaml"),
+		},
+		{
+			name: "unexpected file path '../a.yaml'",
+			header: &tar.Header{
+				Name:     "../a.yaml",
+				Typeflag: tar.TypeReg,
+			},
+			expectedErr: fmt.Errorf("the given file contains unexpected file path: %s", "../a.yaml"),
+		},
+		{
+			name: "expected file path 'crds/a.yaml'",
+			header: &tar.Header{
+				Name:     "crds/a.yaml",
+				Typeflag: tar.TypeReg,
+			},
+			expectedErr: nil,
+		},
+	}
+	for _, item := range testItems {
+		assert.Equal(t, item.expectedErr, checkCtlCrdsTar(item.header))
 	}
 }

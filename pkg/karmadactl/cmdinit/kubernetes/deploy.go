@@ -17,12 +17,14 @@ limitations under the License.
 package kubernetes
 
 import (
+	"archive/tar"
 	"context"
 	"encoding/base64"
 	"fmt"
 	"net"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -50,6 +52,8 @@ var (
 		"global": "registry.k8s.io",
 		"cn":     "registry.cn-hangzhou.aliyuncs.com/google_containers",
 	}
+
+	crdsArchive = []string{"crds", "crds/bases", "crds/patches"}
 
 	certList = []string{
 		globaloptions.CaCertAndKeyName,
@@ -366,19 +370,34 @@ func (i *CommandInitOption) genCerts() error {
 
 // prepareCRD download or unzip `crds.tar.gz` to `options.DataPath`
 func (i *CommandInitOption) prepareCRD() error {
+	var filename string
 	if strings.HasPrefix(i.CRDs, "http") {
-		filename := i.KarmadaDataPath + "/" + path.Base(i.CRDs)
+		filename = i.KarmadaDataPath + "/" + path.Base(i.CRDs)
 		klog.Infof("download crds file:%s", i.CRDs)
 		if err := utils.DownloadFile(i.CRDs, filename); err != nil {
 			return err
 		}
-		if err := utils.DeCompress(filename, i.KarmadaDataPath); err != nil {
-			return err
-		}
-		return nil
+	} else {
+		filename = i.CRDs
+		klog.Infoln("local crds file name:", i.CRDs)
 	}
-	klog.Infoln("local crds file name:", i.CRDs)
-	return utils.DeCompress(i.CRDs, i.KarmadaDataPath)
+
+	if err := utils.CheckGzFiles(filename, checkCtlCrdsTar); err != nil {
+		return fmt.Errorf("inValid crd tar, err: %w", err)
+	}
+
+	if err := utils.DeCompress(filename, i.KarmadaDataPath); err != nil {
+		return err
+	}
+
+	for _, archive := range crdsArchive {
+		expectedDir := filepath.Join(i.KarmadaDataPath, archive)
+		exist, _ := utils.PathExists(expectedDir)
+		if !exist {
+			return fmt.Errorf("lacking the necessary file path: %s", expectedDir)
+		}
+	}
+	return nil
 }
 
 func (i *CommandInitOption) createCertsSecrets() error {
@@ -743,4 +762,50 @@ func generateServerURL(serverIP string, nodePort int32) (string, error) {
 // SupportedStorageMode Return install etcd supported storage mode
 func SupportedStorageMode() []string {
 	return []string{etcdStorageModeEmptyDir, etcdStorageModeHostPath, etcdStorageModePVC}
+}
+
+// checkCtlCrdsTar checks if the CRDs package complies with file specifications.
+// It verifies the following:
+// 1. Whether the path is clean.
+// 2. Whether the file directory structure meets expectations.
+func checkCtlCrdsTar(header *tar.Header) error {
+	switch header.Typeflag {
+	case tar.TypeDir:
+		// in Unix-like systems, directory paths in tar archives end with a slash (/) to distinguish them from file paths.
+		if strings.HasSuffix(header.Name, "/") && len(header.Name) > 1 {
+			if !isCleanPath(header.Name[:len(header.Name)-1]) {
+				return fmt.Errorf("the given file contains unclean file dir: %s", header.Name)
+			}
+		} else {
+			if !isCleanPath(header.Name) {
+				return fmt.Errorf("the given file contains unclean file dir: %s", header.Name)
+			}
+		}
+		if !isExpectedPath(header.Name, crdsArchive) {
+			return fmt.Errorf("the given file contains unexpected file dir: %s", header.Name)
+		}
+	case tar.TypeReg:
+		if !isCleanPath(header.Name) {
+			return fmt.Errorf("the given file contains unclean file path: %s", header.Name)
+		}
+		if !isExpectedPath(header.Name, crdsArchive) {
+			return fmt.Errorf("the given file contains unexpected file path: %s", header.Name)
+		}
+	default:
+		fmt.Printf("unknown type: %v in %s\n", header.Typeflag, header.Name)
+	}
+	return nil
+}
+
+func isExpectedPath(path string, expectedDirs []string) bool {
+	for _, dir := range expectedDirs {
+		if path == dir || strings.HasPrefix(path, dir+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+func isCleanPath(path string) bool {
+	return path == filepath.Clean(path)
 }

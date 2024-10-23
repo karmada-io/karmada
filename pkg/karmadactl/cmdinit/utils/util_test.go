@@ -20,6 +20,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -62,6 +63,13 @@ func TestDownloadFile(t *testing.T) {
 		return buf
 	}()
 
+	check := func(header *tar.Header) error {
+		if header.Name != testFileName {
+			return fmt.Errorf("expected: %s, but got: %s", testFileName, header.Name)
+		}
+		return nil
+	}
+
 	s := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
 		if _, err := io.Copy(rw, serverTar); err != nil {
 			t.Fatal(err)
@@ -79,6 +87,10 @@ func TestDownloadFile(t *testing.T) {
 
 	downloadTar := filepath.Join(tmpDir, "test.tar.gz")
 	err = DownloadFile(s.URL, downloadTar)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = CheckGzFiles(downloadTar, check)
 	if err != nil {
 		t.Fatal(err)
 	}
