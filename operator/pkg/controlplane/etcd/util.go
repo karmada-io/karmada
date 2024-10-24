@@ -30,7 +30,7 @@ import (
 )
 
 // ConfigureClientCredentials configures etcd client credentials for Karmada core and aggregated API servers
-func ConfigureClientCredentials(apiServerDeployment *appsv1.Deployment, etcdCfg *operatorv1alpha1.Etcd, name, namespace string) error {
+func ConfigureClientCredentials(apiServerDeployment *appsv1.Deployment, etcdCfg *operatorv1alpha1.Etcd, name, namespace, dnsDomain string) error {
 	etcdClientServiceName := util.KarmadaEtcdClientName(name)
 	etcdCertSecretName := util.EtcdCertSecretName(name)
 	if etcdCfg.External == nil {
@@ -38,7 +38,7 @@ func ConfigureClientCredentials(apiServerDeployment *appsv1.Deployment, etcdCfg 
 			fmt.Sprintf("--etcd-cafile=%s/%s.crt", constants.EtcdClientCredentialsMountPath, constants.EtcdCaCertAndKeyName),
 			fmt.Sprintf("--etcd-certfile=%s/%s.crt", constants.EtcdClientCredentialsMountPath, constants.EtcdClientCertAndKeyName),
 			fmt.Sprintf("--etcd-keyfile=%s/%s.key", constants.EtcdClientCredentialsMountPath, constants.EtcdClientCertAndKeyName),
-			fmt.Sprintf("--etcd-servers=https://%s.%s.svc.cluster.local:%s", etcdClientServiceName, namespace, strconv.Itoa(constants.EtcdListenClientPort)),
+			fmt.Sprintf("--etcd-servers=https://%s.%s.svc.%s:%s", etcdClientServiceName, namespace, dnsDomain, strconv.Itoa(constants.EtcdListenClientPort)),
 		}
 		apiServerDeployment.Spec.Template.Spec.Containers[0].Command = append(apiServerDeployment.Spec.Template.Spec.Containers[0].Command, etcdClientCredentialsArgs...)
 

@@ -52,7 +52,7 @@ spec:
         - --enable-bootstrap-token-auth=true
         - --bind-address=0.0.0.0
         - --secure-port=5443
-        - --service-account-issuer=https://kubernetes.default.svc.cluster.local
+        - --service-account-issuer=https://kubernetes.default.svc.{{ .DNSDomain }}
         - --service-account-key-file=/etc/karmada/pki/karmada.key
         - --service-account-signing-key-file=/etc/karmada/pki/karmada.key
         - --service-cluster-ip-range={{ .ServiceSubnet }}

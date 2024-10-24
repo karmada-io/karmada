@@ -58,6 +58,7 @@ type TestInitData struct {
 	KarmadaClientConnector clientset.Interface
 	ControlplaneAddr       string
 	Certs                  []*certs.KarmadaCert
+	DNSDomain              string
 }
 
 // Ensure TestInitData implements InitData interface at compile time.
@@ -71,6 +72,11 @@ func (t *TestInitData) GetName() string {
 // GetNamespace returns the namespace of the current Karmada installation.
 func (t *TestInitData) GetNamespace() string {
 	return t.Namespace
+}
+
+// GetDNSDomain returns the dnsDomain of the current Karmada installation.
+func (t *TestInitData) GetDNSDomain() string {
+	return t.DNSDomain
 }
 
 // SetControlplaneConfig sets the control plane configuration for Karmada.

@@ -60,7 +60,7 @@ func TestEnsureKarmadaEtcd(t *testing.T) {
 	// Create fake clientset.
 	fakeClient := fakeclientset.NewSimpleClientset()
 
-	err := EnsureKarmadaEtcd(fakeClient, cfg, name, namespace)
+	err := EnsureKarmadaEtcd(fakeClient, cfg, name, namespace, constants.KarmadaDefaultDNSDomain)
 	if err != nil {
 		t.Fatalf("expected no error, but got: %v", err)
 	}
@@ -98,7 +98,7 @@ func TestInstallKarmadaEtcd(t *testing.T) {
 	// Create fake clientset.
 	fakeClient := fakeclientset.NewSimpleClientset()
 
-	err := installKarmadaEtcd(fakeClient, name, namespace, cfg)
+	err := installKarmadaEtcd(fakeClient, name, namespace, constants.KarmadaDefaultDNSDomain, cfg)
 	if err != nil {
 		t.Fatalf("failed to install karmada etcd, got: %v", err)
 	}
@@ -292,7 +292,7 @@ func verifyStatefulSetDetails(statefulSet *appsv1.StatefulSet, replicas int32, i
 
 // verifyEtcdServers checks that the container command includes the correct etcd server argument.
 func verifyEtcdServers(container *corev1.Container, name, namespace string) error {
-	etcdServersArg := fmt.Sprintf("https://%s.%s.svc.cluster.local:%d,", util.KarmadaEtcdClientName(name), namespace, constants.EtcdListenClientPort)
+	etcdServersArg := fmt.Sprintf("https://%s.%s.svc.%s:%d,", util.KarmadaEtcdClientName(name), namespace, constants.KarmadaDefaultDNSDomain, constants.EtcdListenClientPort)
 	etcdServersArg = fmt.Sprintf("--advertise-client-urls=%s", etcdServersArg[:len(etcdServersArg)-1])
 	if !contains(container.Command, etcdServersArg) {
 		return fmt.Errorf("etcd servers argument '%s' not found in container command", etcdServersArg)
@@ -338,10 +338,11 @@ func verifyInitialClusters(container *corev1.Container, replicas int32, name, na
 	expectedInitialClusters := make([]string, replicas)
 	for i := 0; i < int(replicas); i++ {
 		memberName := fmt.Sprintf("%s-%d", util.KarmadaEtcdName(name), i)
-		memberPeerURL := fmt.Sprintf("http://%s.%s.%s.svc.cluster.local:%v",
+		memberPeerURL := fmt.Sprintf("http://%s.%s.%s.svc.%s:%v",
 			memberName,
 			util.KarmadaEtcdName(name),
 			namespace,
+			constants.KarmadaDefaultDNSDomain,
 			constants.EtcdListenPeerPort,
 		)
 		expectedInitialClusters[i] = fmt.Sprintf("%s=%s", memberName, memberPeerURL)

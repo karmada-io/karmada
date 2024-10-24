@@ -69,7 +69,7 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 	switch data.Components().KarmadaAPIServer.ServiceType {
 	case corev1.ServiceTypeClusterIP:
 		apiserverName := util.KarmadaAPIServerName(data.GetName())
-		endpoint = fmt.Sprintf("https://%s.%s.svc.cluster.local:%d", apiserverName, data.GetNamespace(), constants.KarmadaAPIserverListenClientPort)
+		endpoint = fmt.Sprintf("https://%s.%s.svc.%s:%d", apiserverName, data.GetNamespace(), data.GetDNSDomain(), constants.KarmadaAPIserverListenClientPort)
 
 	case corev1.ServiceTypeNodePort:
 		service, err := apiclient.GetService(data.RemoteClient(), util.KarmadaAPIServerName(data.GetName()), data.GetNamespace())

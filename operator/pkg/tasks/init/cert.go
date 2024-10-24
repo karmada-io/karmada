@@ -154,6 +154,7 @@ func mutateCertConfig(data InitData, cc *certs.CertConfig) error {
 			Namespace:           data.GetNamespace(),
 			Components:          data.Components(),
 			ControlplaneAddress: data.ControlplaneAddress(),
+			DNSDomain:           data.GetDNSDomain(),
 		}, cc)
 
 		if err != nil {

@@ -61,7 +61,7 @@ func TestEnsureKarmadaAPIServer(t *testing.T) {
 
 	fakeClient := fakeclientset.NewSimpleClientset()
 
-	err := EnsureKarmadaAPIServer(fakeClient, cfg, name, namespace, map[string]bool{})
+	err := EnsureKarmadaAPIServer(fakeClient, cfg, name, namespace, constants.KarmadaDefaultDNSDomain, map[string]bool{})
 	if err != nil {
 		t.Fatalf("expected no error, but got: %v", err)
 	}
@@ -102,7 +102,7 @@ func TestEnsureKarmadaAggregatedAPIServer(t *testing.T) {
 
 	fakeClient := fakeclientset.NewSimpleClientset()
 
-	err := EnsureKarmadaAggregatedAPIServer(fakeClient, cfg, name, namespace, featureGates)
+	err := EnsureKarmadaAggregatedAPIServer(fakeClient, cfg, name, namespace, constants.KarmadaDefaultDNSDomain, featureGates)
 	if err != nil {
 		t.Fatalf("expected no error, but got: %v", err)
 	}
@@ -145,7 +145,7 @@ func TestInstallKarmadaAPIServer(t *testing.T) {
 	featureGates := map[string]bool{"FeatureA": true}
 
 	// Call the function under test.
-	err := installKarmadaAPIServer(fakeClient, cfg, etcdCfg, name, namespace, featureGates)
+	err := installKarmadaAPIServer(fakeClient, cfg, etcdCfg, name, namespace, constants.KarmadaDefaultDNSDomain, featureGates)
 	if err != nil {
 		t.Fatalf("expected no error, but got: %v", err)
 	}
@@ -239,7 +239,7 @@ func TestInstallKarmadaAggregatedAPIServer(t *testing.T) {
 	etcdCfg := &operatorv1alpha1.Etcd{
 		Local: &operatorv1alpha1.LocalEtcd{},
 	}
-	err := installKarmadaAggregatedAPIServer(fakeClient, cfg, etcdCfg, name, namespace, featureGates)
+	err := installKarmadaAggregatedAPIServer(fakeClient, cfg, etcdCfg, name, namespace, constants.KarmadaDefaultDNSDomain, featureGates)
 	if err != nil {
 		t.Fatalf("Failed to install Karmada Aggregated API Server: %v", err)
 	}
@@ -385,7 +385,7 @@ func verifyDeploymentDetails(deployment *appsv1.Deployment, replicas *int32, ima
 		}
 	}
 
-	etcdServersArg := fmt.Sprintf("https://%s.%s.svc.cluster.local:%d,", util.KarmadaEtcdClientName(name), namespace, constants.EtcdListenClientPort)
+	etcdServersArg := fmt.Sprintf("https://%s.%s.svc.%s:%d,", util.KarmadaEtcdClientName(name), namespace, constants.KarmadaDefaultDNSDomain, constants.EtcdListenClientPort)
 	etcdServersArg = fmt.Sprintf("--etcd-servers=%s", etcdServersArg[:len(etcdServersArg)-1])
 	if !contains(container.Command, etcdServersArg) {
 		return fmt.Errorf("etcd servers argument '%s' not found in container command", etcdServersArg)

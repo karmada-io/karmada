@@ -51,7 +51,7 @@ spec:
         - --name=$(KARMADA_ETCD_NAME)
         - --listen-client-urls= https://0.0.0.0:{{ .EtcdListenClientPort }}
         - --listen-peer-urls=http://0.0.0.0:{{ .EtcdListenPeerPort }}
-        - --advertise-client-urls=https://{{ .EtcdClientService }}.{{ .Namespace }}.svc.cluster.local:{{ .EtcdListenClientPort }}
+        - --advertise-client-urls=https://{{ .EtcdClientService }}.{{ .Namespace }}.svc.{{ .DNSDomain }}:{{ .EtcdListenClientPort }}
         - --initial-cluster={{ .InitialCluster }}
         - --initial-cluster-state=new
         - --client-cert-auth=true

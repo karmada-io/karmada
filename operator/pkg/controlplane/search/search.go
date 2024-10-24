@@ -33,15 +33,15 @@ import (
 )
 
 // EnsureKarmadaSearch creates karmada search deployment and service resource.
-func EnsureKarmadaSearch(client clientset.Interface, cfg *operatorv1alpha1.KarmadaSearch, etcdCfg *operatorv1alpha1.Etcd, name, namespace string, featureGates map[string]bool) error {
-	if err := installKarmadaSearch(client, cfg, etcdCfg, name, namespace, featureGates); err != nil {
+func EnsureKarmadaSearch(client clientset.Interface, cfg *operatorv1alpha1.KarmadaSearch, etcdCfg *operatorv1alpha1.Etcd, name, namespace, dnsDomain string, featureGates map[string]bool) error {
+	if err := installKarmadaSearch(client, cfg, etcdCfg, name, namespace, dnsDomain, featureGates); err != nil {
 		return err
 	}
 
 	return createKarmadaSearchService(client, name, namespace)
 }
 
-func installKarmadaSearch(client clientset.Interface, cfg *operatorv1alpha1.KarmadaSearch, etcdCfg *operatorv1alpha1.Etcd, name, namespace string, _ map[string]bool) error {
+func installKarmadaSearch(client clientset.Interface, cfg *operatorv1alpha1.KarmadaSearch, etcdCfg *operatorv1alpha1.Etcd, name, namespace, dnsDomain string, _ map[string]bool) error {
 	searchDeploymentSetBytes, err := util.ParseTemplate(KarmadaSearchDeployment, struct {
 		DeploymentName, Namespace, Image, ImagePullPolicy, KarmadaCertsSecret string
 		KubeconfigSecret                                                      string
@@ -64,7 +64,7 @@ func installKarmadaSearch(client clientset.Interface, cfg *operatorv1alpha1.Karm
 		return fmt.Errorf("err when decoding KarmadaSearch Deployment: %w", err)
 	}
 
-	err = etcd.ConfigureClientCredentials(searchDeployment, etcdCfg, name, namespace)
+	err = etcd.ConfigureClientCredentials(searchDeployment, etcdCfg, name, namespace, dnsDomain)
 	if err != nil {
 		return err
 	}

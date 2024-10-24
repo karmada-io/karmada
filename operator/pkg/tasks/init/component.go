@@ -267,6 +267,7 @@ func runKarmadaSearch(r workflow.RunData) error {
 		cfg.Etcd,
 		data.GetName(),
 		data.GetNamespace(),
+		data.GetDNSDomain(),
 		data.FeatureGates(),
 	)
 	if err != nil {

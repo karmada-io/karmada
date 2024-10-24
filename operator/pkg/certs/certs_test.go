@@ -44,7 +44,7 @@ var (
 		"kubernetes",
 		"kubernetes.default",
 		"kubernetes.default.svc",
-		fmt.Sprintf("*.%s.svc.cluster.local", constants.KarmadaSystemNamespace),
+		fmt.Sprintf("*.%s.svc.%s", constants.KarmadaSystemNamespace, constants.KarmadaDefaultDNSDomain),
 		fmt.Sprintf("*.%s.svc", constants.KarmadaSystemNamespace),
 	}
 	expectedAPIServerAltIPs = []net.IP{net.IPv4(127, 0, 0, 1)}
@@ -94,7 +94,9 @@ func TestKarmadaCertRootCA(t *testing.T) {
 func TestKarmadaCertAdmin(t *testing.T) {
 	certConfig := KarmadaCertAdmin()
 
-	err := certConfig.AltNamesMutatorFunc(&AltNamesMutatorConfig{}, certConfig)
+	err := certConfig.AltNamesMutatorFunc(&AltNamesMutatorConfig{
+		DNSDomain: constants.KarmadaDefaultDNSDomain,
+	}, certConfig)
 	if err != nil {
 		t.Fatalf("AltNamesMutatorFunc() returned error: %v", err)
 	}
@@ -135,7 +137,9 @@ func TestKarmadaCertAdmin(t *testing.T) {
 func TestKarmadaCertApiserver(t *testing.T) {
 	certConfig := KarmadaCertApiserver()
 
-	err := certConfig.AltNamesMutatorFunc(&AltNamesMutatorConfig{}, certConfig)
+	err := certConfig.AltNamesMutatorFunc(&AltNamesMutatorConfig{
+		DNSDomain: constants.KarmadaDefaultDNSDomain,
+	}, certConfig)
 	if err != nil {
 		t.Fatalf("AltNamesMutatorFunc() returned error: %v", err)
 	}
@@ -176,6 +180,7 @@ func TestKarmadaCertClient(t *testing.T) {
 
 	err := certConfig.AltNamesMutatorFunc(&AltNamesMutatorConfig{
 		ControlplaneAddress: newControlPlaneAddress,
+		DNSDomain:           constants.KarmadaDefaultDNSDomain,
 		Components: &v1alpha1.KarmadaComponents{
 			KarmadaAPIServer: &v1alpha1.KarmadaAPIServer{
 				CertSANs: []string{newCertSAN},
@@ -277,7 +282,10 @@ func TestKarmadaCertEtcdCA(t *testing.T) {
 func TestKarmadaCertEtcdServer(t *testing.T) {
 	certConfig := KarmadaCertEtcdServer()
 
-	cfg := &AltNamesMutatorConfig{Namespace: constants.KarmadaSystemNamespace}
+	cfg := &AltNamesMutatorConfig{
+		Namespace: constants.KarmadaSystemNamespace,
+		DNSDomain: constants.KarmadaDefaultDNSDomain,
+	}
 	err := certConfig.AltNamesMutatorFunc(cfg, certConfig)
 	if err != nil {
 		t.Fatalf("AltNamesMutatorFunc() returned error: %v", err)
@@ -287,8 +295,8 @@ func TestKarmadaCertEtcdServer(t *testing.T) {
 	expectedUsages := []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
 	expectedDNSNames := []string{
 		"localhost",
-		fmt.Sprintf("%s.%s.svc.cluster.local", util.KarmadaEtcdClientName(cfg.Name), cfg.Namespace),
-		fmt.Sprintf("*.%s.%s.svc.cluster.local", util.KarmadaEtcdName(cfg.Name), cfg.Namespace),
+		fmt.Sprintf("%s.%s.svc.%s", util.KarmadaEtcdClientName(cfg.Name), cfg.Namespace, constants.KarmadaDefaultDNSDomain),
+		fmt.Sprintf("*.%s.%s.svc.%s", util.KarmadaEtcdName(cfg.Name), cfg.Namespace, constants.KarmadaDefaultDNSDomain),
 	}
 	expectedIPs := []net.IP{net.IPv4(127, 0, 0, 1)}
 
