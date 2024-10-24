@@ -207,6 +207,10 @@ func (data *initData) GetNamespace() string {
 	return data.namespace
 }
 
+func (data *initData) GetDNSDomain() string {
+	return data.dnsDomain
+}
+
 func (data *initData) RemoteClient() clientset.Interface {
 	return data.remoteClient
 }

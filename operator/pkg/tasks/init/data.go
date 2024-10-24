@@ -29,6 +29,7 @@ type InitData interface {
 	certs.CertStore
 	GetName() string
 	GetNamespace() string
+	GetDNSDomain() string
 	SetControlplaneConfig(config *rest.Config)
 	ControlplaneConfig() *rest.Config
 	ControlplaneAddress() string

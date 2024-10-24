@@ -58,7 +58,7 @@ func TestEnsureKarmadaSearch(t *testing.T) {
 	etcdCfg := &operatorv1alpha1.Etcd{
 		Local: &operatorv1alpha1.LocalEtcd{},
 	}
-	err := EnsureKarmadaSearch(fakeClient, cfg, etcdCfg, name, namespace, map[string]bool{})
+	err := EnsureKarmadaSearch(fakeClient, cfg, etcdCfg, name, namespace, constants.KarmadaDefaultDNSDomain, map[string]bool{})
 	if err != nil {
 		t.Fatalf("failed to ensure karmada search, but got: %v", err)
 	}
@@ -99,7 +99,7 @@ func TestInstallKarmadaSearch(t *testing.T) {
 	etcdCfg := &operatorv1alpha1.Etcd{
 		Local: &operatorv1alpha1.LocalEtcd{},
 	}
-	err := installKarmadaSearch(fakeClient, cfg, etcdCfg, name, namespace, map[string]bool{})
+	err := installKarmadaSearch(fakeClient, cfg, etcdCfg, name, namespace, constants.KarmadaDefaultDNSDomain, map[string]bool{})
 	if err != nil {
 		t.Fatalf("failed to install karmada search: %v", err)
 	}
@@ -249,7 +249,7 @@ func verifySecrets(deployment *appsv1.Deployment, name string) error {
 
 // verifyEtcdServers checks that the container command includes the correct etcd server argument.
 func verifyEtcdServers(container *corev1.Container, name, namespace string) error {
-	etcdServersArg := fmt.Sprintf("https://%s.%s.svc.cluster.local:%d,", util.KarmadaEtcdClientName(name), namespace, constants.EtcdListenClientPort)
+	etcdServersArg := fmt.Sprintf("https://%s.%s.svc.%s:%d,", util.KarmadaEtcdClientName(name), namespace, constants.KarmadaDefaultDNSDomain, constants.EtcdListenClientPort)
 	etcdServersArg = fmt.Sprintf("--etcd-servers=%s", etcdServersArg[:len(etcdServersArg)-1])
 	if !contains(container.Command, etcdServersArg) {
 		return fmt.Errorf("etcd servers argument '%s' not found in container command", etcdServersArg)

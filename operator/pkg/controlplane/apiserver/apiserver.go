@@ -34,8 +34,8 @@ import (
 )
 
 // EnsureKarmadaAPIServer creates karmada apiserver deployment and service resource
-func EnsureKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaComponents, name, namespace string, featureGates map[string]bool) error {
-	if err := installKarmadaAPIServer(client, cfg.KarmadaAPIServer, cfg.Etcd, name, namespace, featureGates); err != nil {
+func EnsureKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaComponents, name, namespace, dnsDomain string, featureGates map[string]bool) error {
+	if err := installKarmadaAPIServer(client, cfg.KarmadaAPIServer, cfg.Etcd, name, namespace, dnsDomain, featureGates); err != nil {
 		return fmt.Errorf("failed to install karmada apiserver, err: %w", err)
 	}
 
@@ -43,21 +43,22 @@ func EnsureKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.Ka
 }
 
 // EnsureKarmadaAggregatedAPIServer creates karmada aggregated apiserver deployment and service resource
-func EnsureKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaComponents, name, namespace string, featureGates map[string]bool) error {
-	if err := installKarmadaAggregatedAPIServer(client, cfg.KarmadaAggregatedAPIServer, cfg.Etcd, name, namespace, featureGates); err != nil {
+func EnsureKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaComponents, name, namespace, dnsDomain string, featureGates map[string]bool) error {
+	if err := installKarmadaAggregatedAPIServer(client, cfg.KarmadaAggregatedAPIServer, cfg.Etcd, name, namespace, dnsDomain, featureGates); err != nil {
 		return err
 	}
 	return createKarmadaAggregatedAPIServerService(client, name, namespace)
 }
 
-func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaAPIServer, etcdCfg *operatorv1alpha1.Etcd, name, namespace string, _ map[string]bool) error {
+func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaAPIServer, etcdCfg *operatorv1alpha1.Etcd, name, namespace, dnsDomain string, _ map[string]bool) error {
 	apiserverDeploymentBytes, err := util.ParseTemplate(KarmadaApiserverDeployment, struct {
 		DeploymentName, Namespace, Image, ImagePullPolicy string
-		ServiceSubnet, KarmadaCertsSecret                 string
+		ServiceSubnet, KarmadaCertsSecret, DNSDomain      string
 		Replicas                                          *int32
 	}{
 		DeploymentName:     util.KarmadaAPIServerName(name),
 		Namespace:          namespace,
+		DNSDomain:          dnsDomain,
 		Image:              cfg.Image.Name(),
 		ImagePullPolicy:    string(cfg.ImagePullPolicy),
 		ServiceSubnet:      *cfg.ServiceSubnet,
@@ -73,7 +74,7 @@ func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.K
 		return fmt.Errorf("error when decoding karmadaApiserver deployment: %w", err)
 	}
 
-	err = etcd.ConfigureClientCredentials(apiserverDeployment, etcdCfg, name, namespace)
+	err = etcd.ConfigureClientCredentials(apiserverDeployment, etcdCfg, name, namespace, dnsDomain)
 	if err != nil {
 		return err
 	}
@@ -114,7 +115,7 @@ func createKarmadaAPIServerService(client clientset.Interface, cfg *operatorv1al
 	return nil
 }
 
-func installKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaAggregatedAPIServer, etcdCfg *operatorv1alpha1.Etcd, name, namespace string, featureGates map[string]bool) error {
+func installKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaAggregatedAPIServer, etcdCfg *operatorv1alpha1.Etcd, name, namespace, dnsDomain string, featureGates map[string]bool) error {
 	aggregatedAPIServerDeploymentBytes, err := util.ParseTemplate(KarmadaAggregatedAPIServerDeployment, struct {
 		DeploymentName, Namespace, Image, ImagePullPolicy string
 		KubeconfigSecret, KarmadaCertsSecret              string
@@ -137,7 +138,7 @@ func installKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operator
 		return fmt.Errorf("err when decoding karmadaApiserver deployment: %w", err)
 	}
 
-	err = etcd.ConfigureClientCredentials(aggregatedAPIServerDeployment, etcdCfg, name, namespace)
+	err = etcd.ConfigureClientCredentials(aggregatedAPIServerDeployment, etcdCfg, name, namespace, dnsDomain)
 	if err != nil {
 		return err
 	}

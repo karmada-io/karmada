@@ -55,6 +55,7 @@ const (
 type AltNamesMutatorConfig struct {
 	Name                string
 	Namespace           string
+	DNSDomain           string
 	ControlplaneAddress string
 	Components          *operatorv1alpha1.KarmadaComponents
 }
@@ -452,8 +453,8 @@ func makeAltNamesMutator(f func(cfg *AltNamesMutatorConfig) (*certutil.AltNames,
 }
 
 func etcdServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, error) {
-	etcdClientServiceDNS := fmt.Sprintf("%s.%s.svc.cluster.local", util.KarmadaEtcdClientName(cfg.Name), cfg.Namespace)
-	etcdPeerServiceDNS := fmt.Sprintf("*.%s.%s.svc.cluster.local", util.KarmadaEtcdName(cfg.Name), cfg.Namespace)
+	etcdClientServiceDNS := fmt.Sprintf("%s.%s.svc.%s", util.KarmadaEtcdClientName(cfg.Name), cfg.Namespace, cfg.DNSDomain)
+	etcdPeerServiceDNS := fmt.Sprintf("*.%s.%s.svc.%s", util.KarmadaEtcdName(cfg.Name), cfg.Namespace, cfg.DNSDomain)
 
 	altNames := &certutil.AltNames{
 		DNSNames: []string{"localhost", etcdClientServiceDNS, etcdPeerServiceDNS},
@@ -474,7 +475,7 @@ func apiServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, e
 			"kubernetes",
 			"kubernetes.default",
 			"kubernetes.default.svc",
-			fmt.Sprintf("*.%s.svc.cluster.local", constants.KarmadaSystemNamespace),
+			fmt.Sprintf("*.%s.svc.%s", constants.KarmadaSystemNamespace, cfg.DNSDomain),
 			fmt.Sprintf("*.%s.svc", constants.KarmadaSystemNamespace),
 		},
 		IPs: []net.IP{
@@ -487,9 +488,9 @@ func apiServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, e
 	// if its altNames contains 'karmada-demo-aggregated-apiserver.karmada-system.svc';
 	// 2.When karmada-apiserver access webhook, the cert of 'karmada-demo-webhook' will be verified to see
 	// if its altNames contains 'karmada-demo-webhook.test.svc'.
-	// Therefore, the certificate's altNames should contain both 'karmada-system.svc.cluster.local' and 'test.svc.cluster.local'.
+	// Therefore, the certificate's altNames should contain both 'karmada-system.svc.${dnsDomain}' and 'test.svc.${dnsDomain}'.
 	if cfg.Namespace != constants.KarmadaSystemNamespace {
-		appendSANsToAltNames(altNames, []string{fmt.Sprintf("*.%s.svc.cluster.local", cfg.Namespace),
+		appendSANsToAltNames(altNames, []string{fmt.Sprintf("*.%s.svc.%s", cfg.Namespace, cfg.DNSDomain),
 			fmt.Sprintf("*.%s.svc", cfg.Namespace)})
 	}
 

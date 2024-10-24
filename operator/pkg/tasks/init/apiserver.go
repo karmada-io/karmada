@@ -104,6 +104,7 @@ func runKarmadaAPIServer(r workflow.RunData) error {
 		cfg,
 		data.GetName(),
 		data.GetNamespace(),
+		data.GetDNSDomain(),
 		data.FeatureGates())
 	if err != nil {
 		return fmt.Errorf("failed to install karmada apiserver component, err: %w", err)
@@ -147,6 +148,7 @@ func runKarmadaAggregatedAPIServer(r workflow.RunData) error {
 		cfg,
 		data.GetName(),
 		data.GetNamespace(),
+		data.GetDNSDomain(),
 		data.FeatureGates())
 	if err != nil {
 		return fmt.Errorf("failed to install karmada aggregated apiserver, err: %w", err)
