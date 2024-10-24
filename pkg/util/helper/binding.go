@@ -397,6 +397,9 @@ func GenerateReplicaRequirements(podTemplate *corev1.PodTemplateSpec) *workv1alp
 			// PriorityClassName is set from podTemplate
 			// If it is not set from podTemplate, it is default to an empty string
 			replicaRequirements.PriorityClassName = podTemplate.Spec.PriorityClassName
+			// Priority is set from podTemplate
+			// If it is not set from podTemplate, it defaultes to 0
+			replicaRequirements.Priority = *podTemplate.Spec.Priority
 		}
 		return replicaRequirements
 	}
