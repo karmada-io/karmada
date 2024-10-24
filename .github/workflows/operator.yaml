@@ -1,0 +1,82 @@
+name: Operator
+on:
+  # Run this workflow every time a new commit pushed to upstream/fork repository.
+  # Run workflow on fork repository will help contributors find and resolve issues before sending a PR.
+  push:
+    # Exclude branches created by Dependabot to avoid triggering current workflow
+    # for PRs initiated by Dependabot.
+    branches-ignore:
+      - 'dependabot/**'
+  pull_request:
+# https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#concurrency
+concurrency:
+  group: ${{ github.workflow }}-${{ github.actor }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+permissions:
+  contents: read  # for actions/checkout to fetch code
+jobs:
+  test-on-kubernetes-matrix:
+    name: Test on Kubernetes
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # Here support the latest three minor releases of Kubernetes, this can be considered to be roughly
+        # the same as the End of Life of the Kubernetes release: https://kubernetes.io/releases/
+        # Please remember to update the CI Schedule Workflow when we add a new version.
+        k8s: [ v1.29.0, v1.30.0, v1.31.0 ]
+    steps:
+      # Free up disk space on Ubuntu
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed, if set to "true" but frees about 6 GB
+          tool-cache: false
+          # all of these default to true, but feel free to set to "false" if necessary for your workflow
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+      - name: checkout code
+        uses: actions/checkout@v4
+        with:
+          # Number of commits to fetch. 0 indicates all history for all branches and tags.
+          # We need to guess version via git tags.
+          fetch-depth: 0
+      - name: install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: setup operator test environment
+        run: |
+          export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
+          hack/local-up-karmada-by-operator.sh
+      - name: run operator test
+        run: |
+          # run a single e2e
+          export KUBECONFIG=${HOME}/.kube/karmada.config
+          kubectl config use-context karmada-apiserver
+          GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
+          ginkgo -v --race --trace -p  --focus="[BasicPropagation] propagation testing deployment propagation testing"  ./test/e2e/
+      - name: export logs
+        if: always()
+        run: |
+          export ARTIFACTS_PATH=${{ github.workspace }}/karmada-operator-test-logs/${{ matrix.k8s }}/
+          mkdir -p $ARTIFACTS_PATH
+
+          mkdir -p $ARTIFACTS_PATH/karmada-host
+          kind export logs --name=karmada-host $ARTIFACTS_PATH/karmada-host
+      - name: upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: karmada_operator_test_logs_${{ matrix.k8s }}
+          path: ${{ github.workspace }}/karmada-operator-test-logs/${{ matrix.k8s }}/
+      - name: upload kind logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: karmada_kind_log_${{ matrix.k8s }}
+          path: /tmp/karmada/
