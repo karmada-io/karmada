@@ -20,7 +20,11 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
 func BenchmarkEventFilterNoSkipNameSpaces(b *testing.B) {
@@ -155,6 +159,47 @@ func BenchmarkEventFilterExtensionApiserverAuthentication(b *testing.B) {
 					"namespace": "kube-system",
 				},
 			},
+		})
+	}
+}
+
+func TestNeedCleanupPolicyMarks(t *testing.T) {
+	tests := []struct {
+		name        string
+		obj         metav1.Object
+		targetMarks map[string]string
+		needCleanup bool
+	}{
+		{
+			name: "need cleanup",
+			obj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels":      map[string]interface{}{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979"},
+						"annotations": map[string]interface{}{policyv1alpha1.ClusterPropagationPolicyAnnotation: "cpp-example"},
+					},
+				},
+			},
+			targetMarks: map[string]string{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979"},
+			needCleanup: true,
+		},
+		{
+			name: "no need cleanup",
+			obj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels":      map[string]interface{}{policyv1alpha1.PropagationPolicyPermanentIDLabel: "b0907cgb-f3f3-4a4b-b289-5691a4fef979"},
+						"annotations": map[string]interface{}{policyv1alpha1.PropagationPolicyNamespaceAnnotation: "default", policyv1alpha1.PropagationPolicyNameAnnotation: "pp-example"},
+					},
+				},
+			},
+			targetMarks: map[string]string{policyv1alpha1.PropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979"},
+			needCleanup: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.needCleanup, NeedCleanupPolicyMarks(tt.obj, tt.targetMarks))
 		})
 	}
 }
