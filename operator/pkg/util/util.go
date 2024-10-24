@@ -153,6 +153,38 @@ func Unpack(file, targetPath string) error {
 	return nil
 }
 
+// CheckGzFiles check if the given file meet the check function.
+func CheckGzFiles(file string, check func(*tar.Header) error) error {
+	r, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	gr, err := gzip.NewReader(r)
+	if err != nil {
+		return fmt.Errorf("new reader failed. %v", err)
+	}
+	defer gr.Close()
+
+	tr := tar.NewReader(gr)
+	for {
+		header, err := tr.Next()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+
+		if err = check(header); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // ioCopyN fix Potential DoS vulnerability via decompression bomb.
 func ioCopyN(outFile *os.File, tr *tar.Reader) error {
 	for {
