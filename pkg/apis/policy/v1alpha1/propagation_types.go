@@ -290,6 +290,9 @@ type FailoverBehavior struct {
 	// If this value is nil, failover is disabled.
 	// +optional
 	// Cluster *ClusterFailoverBehavior `json:"cluster,omitempty"`
+
+	// TODO: Consider moving StatePreservation out from Application, so that
+	// in case of Cluster failover sceanrio can share.
 }
 
 // ApplicationFailoverBehavior indicates application failover behaviors.
@@ -318,6 +321,8 @@ type ApplicationFailoverBehavior struct {
 	// Value must be positive integer.
 	// +optional
 	GracePeriodSeconds *int32 `json:"gracePeriodSeconds,omitempty"`
+
+	// TODO: Add StatePreservation attribute for stateful failover use-cases
 }
 
 // DecisionConditions represents the decision conditions of performing the failover process.
