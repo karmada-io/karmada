@@ -27,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 
+	"github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
@@ -45,15 +46,24 @@ func TestNewCleanupCertTask(t *testing.T) {
 				RunSubTasks: true,
 				Tasks: []workflow.Task{
 					newCleanupCertSubTask("karmada", util.KarmadaCertSecretName),
-					newCleanupCertSubTask("etcd", util.EtcdCertSecretName),
 					newCleanupCertSubTask("webhook", util.WebhookCertSecretName),
+					newCleanupCertSubTask("etcd", util.EtcdCertSecretName),
 				},
 			},
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cleanupCertTask := NewCleanupCertTask()
+			karmada := &v1alpha1.Karmada{
+				Spec: v1alpha1.KarmadaSpec{
+					Components: &v1alpha1.KarmadaComponents{
+						Etcd: &v1alpha1.Etcd{
+							Local: &v1alpha1.LocalEtcd{},
+						},
+					},
+				},
+			}
+			cleanupCertTask := NewCleanupCertTask(karmada)
 			if err := util.DeepEqualTasks(cleanupCertTask, test.wantTask); err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}

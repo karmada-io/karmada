@@ -51,6 +51,13 @@ func TestNewPlannerFor(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: name,
 				},
+				Spec: operatorv1alpha1.KarmadaSpec{
+					Components: &operatorv1alpha1.KarmadaComponents{
+						Etcd: &operatorv1alpha1.Etcd{
+							Local: &operatorv1alpha1.LocalEtcd{},
+						},
+					},
+				},
 			},
 			client:     fake.NewFakeClient(),
 			config:     &rest.Config{},
@@ -65,7 +72,15 @@ func TestNewPlannerFor(t *testing.T) {
 					DeletionTimestamp: &metav1.Time{
 						Time: time.Now().Add(-5 * time.Minute),
 					},
+
 					Finalizers: []string{ControllerFinalizerName},
+				},
+				Spec: operatorv1alpha1.KarmadaSpec{
+					Components: &operatorv1alpha1.KarmadaComponents{
+						Etcd: &operatorv1alpha1.Etcd{
+							Local: &operatorv1alpha1.LocalEtcd{},
+						},
+					},
 				},
 			},
 			client:     fake.NewFakeClient(),
@@ -107,6 +122,13 @@ func TestPreRunJob(t *testing.T) {
 					Name:      name,
 					Namespace: namespace,
 				},
+				Spec: operatorv1alpha1.KarmadaSpec{
+					Components: &operatorv1alpha1.KarmadaComponents{
+						Etcd: &operatorv1alpha1.Etcd{
+							Local: &operatorv1alpha1.LocalEtcd{},
+						},
+					},
+				},
 			},
 			config:  &rest.Config{},
 			action:  InitAction,
@@ -124,6 +146,13 @@ func TestPreRunJob(t *testing.T) {
 					},
 					Finalizers: []string{ControllerFinalizerName},
 				},
+				Spec: operatorv1alpha1.KarmadaSpec{
+					Components: &operatorv1alpha1.KarmadaComponents{
+						Etcd: &operatorv1alpha1.Etcd{
+							Local: &operatorv1alpha1.LocalEtcd{},
+						},
+					},
+				},
 			},
 			config:  &rest.Config{},
 			action:  DeInitAction,
@@ -136,6 +165,13 @@ func TestPreRunJob(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
 					Namespace: namespace,
+				},
+				Spec: operatorv1alpha1.KarmadaSpec{
+					Components: &operatorv1alpha1.KarmadaComponents{
+						Etcd: &operatorv1alpha1.Etcd{
+							Local: &operatorv1alpha1.LocalEtcd{},
+						},
+					},
 				},
 			},
 			config: &rest.Config{},
@@ -197,7 +233,13 @@ func TestAfterRunJob(t *testing.T) {
 					Name:      name,
 					Namespace: namespace,
 				},
-				Spec: operatorv1alpha1.KarmadaSpec{},
+				Spec: operatorv1alpha1.KarmadaSpec{
+					Components: &operatorv1alpha1.KarmadaComponents{
+						Etcd: &operatorv1alpha1.Etcd{
+							Local: &operatorv1alpha1.LocalEtcd{},
+						},
+					},
+				},
 			},
 			config: &rest.Config{},
 			action: InitAction,
@@ -232,6 +274,13 @@ func TestAfterRunJob(t *testing.T) {
 						Time: time.Now().Add(-5 * time.Minute),
 					},
 					Finalizers: []string{ControllerFinalizerName},
+				},
+				Spec: operatorv1alpha1.KarmadaSpec{
+					Components: &operatorv1alpha1.KarmadaComponents{
+						Etcd: &operatorv1alpha1.Etcd{
+							Local: &operatorv1alpha1.LocalEtcd{},
+						},
+					},
 				},
 			},
 			config: &rest.Config{},
@@ -288,7 +337,13 @@ func TestRunJobErr(t *testing.T) {
 					Name:      name,
 					Namespace: namespace,
 				},
-				Spec: operatorv1alpha1.KarmadaSpec{},
+				Spec: operatorv1alpha1.KarmadaSpec{
+					Components: &operatorv1alpha1.KarmadaComponents{
+						Etcd: &operatorv1alpha1.Etcd{
+							Local: &operatorv1alpha1.LocalEtcd{},
+						},
+					},
+				},
 			},
 			config:  &rest.Config{},
 			jobErr:  errors.New("test error"),
