@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -31,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
@@ -61,6 +63,8 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
+
+var dependedByLabelKeyPrefix = "resourcebinding.karmada.io/depended-by-"
 
 // ResourceDetector is a resource watcher which watches all resources and reconcile the events.
 type ResourceDetector struct {
@@ -105,6 +109,10 @@ type ResourceDetector struct {
 	// RateLimiterOptions is the configuration for rate limiter which may significantly influence the performance of
 	// the controller.
 	RateLimiterOptions ratelimiterflag.Options
+
+	// DisableMultiDependencyDistribution indicates disable the ability to a resource from being depended on by multiple
+	// resources or being distributed by PropagationPolicy/ClusterPropagationPolicy while being depended on.
+	DisableMultiDependencyDistribution bool
 
 	stopCh <-chan struct{}
 }
@@ -245,8 +253,20 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 			// currently we do that by setting owner reference to derived objects.
 			return nil
 		}
-		klog.Errorf("Failed to get unstructured object(%s), error: %v", clusterWideKeyWithConfig, err)
+		klog.Errorf("Failed to get unstructured object(%s), error: %v", clusterWideKeyWithConfig.ClusterWideKey, err)
 		return err
+	}
+
+	if d.DisableMultiDependencyDistribution {
+		skip, err := skipForPropagatedByDependent(d.Client, object)
+		if err != nil {
+			klog.Errorf("Failed to calc skipForPropagatedByDependent with object(%s), error: %v", clusterWideKeyWithConfig.ClusterWideKey, err)
+			return err
+		}
+		if skip {
+			klog.Warningf("Skip to propagate resource(%s) for it has been propagated by the dependency", clusterWideKeyWithConfig.ClusterWideKey)
+			return nil
+		}
 	}
 
 	resourceTemplateClaimedBy := util.GetLabelValue(object.GetLabels(), util.ResourceTemplateClaimedByLabel)
@@ -258,6 +278,30 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 	}
 
 	return d.propagateResource(object, clusterWideKey, resourceChangeByKarmada)
+}
+
+func skipForPropagatedByDependent(c client.Client, object *unstructured.Unstructured) (bool, error) {
+	// cluster scope resource can not be propagated by dependent
+	if object.GetNamespace() == "" {
+		return false, nil
+	}
+
+	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
+	binding := &workv1alpha2.ResourceBinding{}
+	err := c.Get(context.TODO(), types.NamespacedName{Namespace: object.GetNamespace(), Name: bindingName}, binding)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	for k := range binding.Labels {
+		if strings.HasPrefix(k, dependedByLabelKeyPrefix) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // EventFilter tells if an object should be taken care of.

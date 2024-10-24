@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -29,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/cache"
@@ -47,6 +49,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
@@ -100,6 +103,9 @@ type DependenciesDistributor struct {
 	RESTMapper          meta.RESTMapper
 	ResourceInterpreter resourceinterpreter.ResourceInterpreter
 	RateLimiterOptions  ratelimiterflag.Options
+	// DisableMultiDependencyDistribution indicates disable the ability to a resource from being depended on by multiple
+	// resources or being distributed by PropagationPolicy/ClusterPropagationPolicy while being depended on.
+	DisableMultiDependencyDistribution bool
 
 	eventHandler      cache.ResourceEventHandler
 	resourceProcessor util.AsyncWorker
@@ -163,6 +169,12 @@ func (d *DependenciesDistributor) reconcileResourceTemplate(key util.QueueKey) e
 		return fmt.Errorf("invalid key")
 	}
 	klog.V(4).Infof("DependenciesDistributor start to reconcile object: %s", resourceTemplateKey)
+
+	if d.DisableMultiDependencyDistribution && resourceTemplateClaimedByPolicy(resourceTemplateKey.Labels) {
+		klog.V(4).Infof("Skip object(%s) as it has been claimed by PropagationPolicy/ClusterPropagationPolicy", resourceTemplateKey)
+		return nil
+	}
+
 	bindingList := &workv1alpha2.ResourceBindingList{}
 	err := d.Client.List(context.TODO(), bindingList, &client.ListOptions{
 		Namespace:     resourceTemplateKey.Namespace,
@@ -188,6 +200,12 @@ func (d *DependenciesDistributor) reconcileResourceTemplate(key util.QueueKey) e
 	}
 
 	return nil
+}
+
+func resourceTemplateClaimedByPolicy(resourceLabels map[string]string) bool {
+	_, ppClaimed := resourceLabels[policyv1alpha1.PropagationPolicyPermanentIDLabel]
+	_, cppClaimed := resourceLabels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]
+	return ppClaimed || cppClaimed
 }
 
 // matchesWithBindingDependencies tells if the given object(resource template) is matched
@@ -333,6 +351,7 @@ func (d *DependenciesDistributor) handleDependentResource(
 		Namespace:  dependent.Namespace,
 		Name:       dependent.Name,
 	}
+	independentBindingID := independentBinding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel]
 
 	switch {
 	case len(dependent.Name) != 0:
@@ -344,6 +363,17 @@ func (d *DependenciesDistributor) handleDependentResource(
 			}
 			return err
 		}
+
+		if d.DisableMultiDependencyDistribution {
+			hasBeenPropagated, err := objHasBeenPropagatedByOther(d.Client, rawObject, independentBindingID)
+			if err != nil {
+				return err
+			}
+			if hasBeenPropagated {
+				return nil
+			}
+		}
+
 		attachedBinding := buildAttachedBinding(independentBinding, rawObject)
 		return d.createOrUpdateAttachedBinding(attachedBinding)
 	case dependent.LabelSelector != nil:
@@ -357,6 +387,16 @@ func (d *DependenciesDistributor) handleDependentResource(
 			return err
 		}
 		for _, rawObject := range rawObjects {
+			if d.DisableMultiDependencyDistribution {
+				hasBeenPropagated, err := objHasBeenPropagatedByOther(d.Client, rawObject, independentBindingID)
+				if err != nil {
+					return err
+				}
+				if hasBeenPropagated {
+					continue
+				}
+			}
+
 			attachedBinding := buildAttachedBinding(independentBinding, rawObject)
 			if err := d.createOrUpdateAttachedBinding(attachedBinding); err != nil {
 				return err
@@ -366,6 +406,37 @@ func (d *DependenciesDistributor) handleDependentResource(
 	}
 	// can not reach here
 	return fmt.Errorf("the Name and LabelSelector in the DependentObjectReference cannot be empty at the same time")
+}
+
+func objHasBeenPropagatedByOther(c client.Client, object *unstructured.Unstructured, independentBindingID string) (bool, error) {
+	if resourceTemplateClaimedByPolicy(object.GetLabels()) {
+		klog.Warningf("Skip object(%s,kind=%s %s/%s) as it has been claimed by PropagationPolicy/ClusterPropagationPolicy",
+			object.GetAPIVersion(), object.GetKind(), object.GetNamespace(), object.GetName())
+		return true, nil
+	}
+
+	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
+	binding := &workv1alpha2.ResourceBinding{}
+	err := c.Get(context.TODO(), types.NamespacedName{Namespace: object.GetNamespace(), Name: bindingName}, binding)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	for k, v := range binding.Labels {
+		if !strings.HasPrefix(k, dependedByLabelKeyPrefix) {
+			continue
+		}
+
+		if v != independentBindingID {
+			klog.Warningf("Skip object(%s,kind=%s %s/%s) as it has been propagated by other dependent resource",
+				object.GetAPIVersion(), object.GetKind(), object.GetNamespace(), object.GetName())
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (d *DependenciesDistributor) syncScheduleResultToAttachedBindings(ctx context.Context, independentBinding *workv1alpha2.ResourceBinding, dependencies []configv1alpha1.DependentObjectReference) (err error) {
