@@ -265,7 +265,7 @@ else
 fi
 
 # write karmada api server config to kubeconfig file
-util::append_client_kubeconfig "${HOST_CLUSTER_KUBECONFIG}" "${ROOT_CA_FILE}" "${CERT_DIR}/client.crt" "${CERT_DIR}/client.key" "${KARMADA_APISERVER_IP}" "${KARMADA_APISERVER_SECURE_PORT}" karmada-apiserver
+util::append_client_kubeconfig "${HOST_CLUSTER_KUBECONFIG}" "${ROOT_CA_FILE}" "${CERT_DIR}/client.crt" "${CERT_DIR}/client.key" "https://${KARMADA_APISERVER_IP}:${KARMADA_APISERVER_SECURE_PORT}" karmada-apiserver
 
 # deploy kube controller manager
 cp "${REPO_ROOT}"/artifacts/deploy/kube-controller-manager.yaml "${TEMP_PATH_APISERVER}"/kube-controller-manager.yaml
