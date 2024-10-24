@@ -283,7 +283,7 @@ func GenCerts(pkiPath, caCertFile, caKeyFile string, etcdServerCertCfg, etcdClie
 	if err != nil {
 		return err
 	}
-	if err = WriteCertAndKey(pkiPath, options.KarmadaCertAndKeyName, karmadaCert, &karmadaKey); err != nil {
+	if err = WriteCertAndKey(pkiPath, options.KarmadaClientCertAndKeyName, karmadaCert, &karmadaKey); err != nil {
 		return err
 	}
 
@@ -291,7 +291,7 @@ func GenCerts(pkiPath, caCertFile, caKeyFile string, etcdServerCertCfg, etcdClie
 	if err != nil {
 		return err
 	}
-	if err = WriteCertAndKey(pkiPath, options.ApiserverCertAndKeyName, apiserverCert, &apiserverKey); err != nil {
+	if err = WriteCertAndKey(pkiPath, options.KarmadaServerCertAndKeyName, apiserverCert, &apiserverKey); err != nil {
 		return err
 	}
 

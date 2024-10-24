@@ -29,7 +29,9 @@ import (
 	certutil "k8s.io/client-go/util/cert"
 	"k8s.io/klog/v2"
 
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+	globaloptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
 )
 
 const (
@@ -40,14 +42,22 @@ const (
 )
 
 var certFiles = []string{
-	"apiserver.crt", "apiserver.key",
-	"ca.crt", "ca.key",
-	"etcd-ca.crt", "etcd-ca.key",
-	"etcd-client.crt", "etcd-client.key",
-	"etcd-server.crt", "etcd-server.key",
-	"front-proxy-ca.crt", "front-proxy-ca.key",
-	"front-proxy-client.crt", "front-proxy-client.key",
-	"karmada.crt", "karmada.key",
+	fmt.Sprintf("%s.crt", globaloptions.CaCertAndKeyName),
+	fmt.Sprintf("%s.key", globaloptions.CaCertAndKeyName),
+	fmt.Sprintf("%s.crt", options.KarmadaServerCertAndKeyName),
+	fmt.Sprintf("%s.key", options.KarmadaServerCertAndKeyName),
+	fmt.Sprintf("%s.crt", options.KarmadaClientCertAndKeyName),
+	fmt.Sprintf("%s.key", options.KarmadaClientCertAndKeyName),
+	fmt.Sprintf("%s.crt", options.EtcdCaCertAndKeyName),
+	fmt.Sprintf("%s.key", options.EtcdCaCertAndKeyName),
+	fmt.Sprintf("%s.crt", options.EtcdClientCertAndKeyName),
+	fmt.Sprintf("%s.key", options.EtcdClientCertAndKeyName),
+	fmt.Sprintf("%s.crt", options.EtcdServerCertAndKeyName),
+	fmt.Sprintf("%s.key", options.EtcdServerCertAndKeyName),
+	fmt.Sprintf("%s.crt", options.FrontProxyCaCertAndKeyName),
+	fmt.Sprintf("%s.key", options.FrontProxyCaCertAndKeyName),
+	fmt.Sprintf("%s.crt", options.FrontProxyClientCertAndKeyName),
+	fmt.Sprintf("%s.key", options.FrontProxyClientCertAndKeyName),
 }
 
 func TestGenCerts(t *testing.T) {
