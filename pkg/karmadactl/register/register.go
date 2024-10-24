@@ -90,8 +90,14 @@ const (
 	// KarmadaAgentKubeConfigFileName defines the file name for the kubeconfig that the karmada-agent will use to do
 	// the TLS bootstrap to get itself an unique credential
 	KarmadaAgentKubeConfigFileName = "karmada-agent.conf"
-	// KarmadaKubeconfigName is the name of karmada kubeconfig
-	KarmadaKubeconfigName = "karmada-kubeconfig"
+	// KarmadaConfigSecretName is the secret name of karmada config for agent
+	KarmadaConfigSecretName = "karmada-agent-config" //nolint:gosec
+	// KarmadaConfigSecretKey is the key name in karmada config secret
+	KarmadaConfigSecretKey = "karmada.config" //nolint:gosec
+	// KarmadaConfigVolume is the volume name to mount karmada config secret
+	KarmadaConfigVolume = "karmada-config"
+	// KarmadaConfigMountPath is the mount path of karmada config secret
+	KarmadaConfigMountPath = "/etc/karmada/config"
 	// KarmadaAgentName is the name of karmada-agent
 	KarmadaAgentName = "karmada-agent"
 	// KarmadaAgentServiceAccountName is the name of karmada-agent serviceaccount
@@ -419,9 +425,9 @@ func (o *CommandRegisterOption) preflight() []error {
 	// check if relative resources already exist in member cluster
 	_, err := o.memberClusterClient.CoreV1().Namespaces().Get(context.TODO(), o.Namespace, metav1.GetOptions{})
 	if err == nil {
-		_, err = o.memberClusterClient.CoreV1().Secrets(o.Namespace).Get(context.TODO(), KarmadaKubeconfigName, metav1.GetOptions{})
+		_, err = o.memberClusterClient.CoreV1().Secrets(o.Namespace).Get(context.TODO(), KarmadaConfigSecretName, metav1.GetOptions{})
 		if err == nil {
-			errlist = append(errlist, fmt.Errorf("%s/%s Secret already exists", o.Namespace, KarmadaKubeconfigName))
+			errlist = append(errlist, fmt.Errorf("%s/%s Secret already exists", o.Namespace, KarmadaConfigSecretName))
 		} else if !apierrors.IsNotFound(err) {
 			errlist = append(errlist, err)
 		}
@@ -605,12 +611,12 @@ func (o *CommandRegisterOption) createSecretAndRBACInMemberCluster(karmadaAgentC
 			Kind:       "Secret",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      KarmadaKubeconfigName,
+			Name:      KarmadaConfigSecretName,
 			Namespace: o.Namespace,
 			Labels:    labels,
 		},
 		Type:       corev1.SecretTypeOpaque,
-		StringData: map[string]string{KarmadaKubeconfigName: string(configBytes)},
+		StringData: map[string]string{KarmadaConfigSecretKey: string(configBytes)},
 	}
 
 	// create karmada-kubeconfig secret to be used by karmada-agent component.
@@ -711,7 +717,7 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 				Image: o.KarmadaAgentImage,
 				Command: []string{
 					"/bin/karmada-agent",
-					"--karmada-kubeconfig=/etc/kubeconfig/karmada-kubeconfig",
+					fmt.Sprintf("--karmada-kubeconfig=%s", filepath.Join(KarmadaConfigMountPath, KarmadaConfigSecretKey)),
 					fmt.Sprintf("--cluster-name=%s", o.ClusterName),
 					fmt.Sprintf("--cluster-api-endpoint=%s", o.memberClusterEndpoint),
 					fmt.Sprintf("--cluster-provider=%s", o.ClusterProvider),
@@ -735,18 +741,18 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 				},
 				VolumeMounts: []corev1.VolumeMount{
 					{
-						Name:      "kubeconfig",
-						MountPath: "/etc/kubeconfig",
+						Name:      KarmadaConfigVolume,
+						MountPath: KarmadaConfigMountPath,
 					},
 				},
 			},
 		},
 		Volumes: []corev1.Volume{
 			{
-				Name: "kubeconfig",
+				Name: KarmadaConfigVolume,
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: KarmadaKubeconfigName,
+						SecretName: KarmadaConfigSecretName,
 					},
 				},
 			},

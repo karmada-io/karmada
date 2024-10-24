@@ -134,6 +134,7 @@ rules:
   - watch
   - patch
   - update
+  - delete
 - apiGroups:
   - cluster.karmada.io
   resources:
