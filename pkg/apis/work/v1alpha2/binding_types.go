@@ -368,10 +368,6 @@ type AggregatedStatusItem struct {
 
 // FailoverHistoryItem represents either a failover event in the history.
 type FailoverHistoryItem struct {
-	// FromCluster which cluster the eviction perform from.
-	// +required
-	FromCluster string `json:"fromCluster"`
-
 	// Reason denotes the type of failover.
 	// +required
 	Reason FailoverReason `json:"reason"`

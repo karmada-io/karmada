@@ -80,9 +80,9 @@ func TestClusterEviction_Filter(t *testing.T) {
 			bindingStatus: &workv1alpha2.ResourceBindingStatus{
 				FailoverHistory: []workv1alpha2.FailoverHistoryItem{
 					{
-						FromCluster: "cluster1",
-						Reason:      workv1alpha2.ApplicationFailover,
-						StartTime:   metav1.Time{Time: time.Now()},
+						ClustersBeforeFailover: []workv1alpha2.TargetCluster{{Name: "cluster1", Replicas: 2}},
+						Reason:                 workv1alpha2.ApplicationFailover,
+						StartTime:              metav1.Time{Time: time.Now()},
 					},
 				},
 			},

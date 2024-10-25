@@ -841,7 +841,8 @@ func patchBindingStatusCondition(karmadaClient karmadaclientset.Interface, rb *w
 // with the schedule status
 func patchBindingStatusWithUpdatedFailoverHistory(karmadaClient karmadaclientset.Interface, rb *workv1alpha2.ResourceBinding, scheduleResult []workv1alpha2.TargetCluster) error {
 	// If the failover history is empty, then the resource being scheduled doesn't support this feature - skip.
-	if rb.Status.FailoverHistory == nil {
+	// If scheduleResult is nil, that means the scheduler could not find a suitable cluster - skip.
+	if rb.Status.FailoverHistory == nil || scheduleResult == nil {
 		return nil
 	}
 	klog.V(4).Infof("Begin to patch failoverHistory with scheduling result(%v) to ResourceBinding(%s/%s).", scheduleResult, rb.Namespace, rb.Name)

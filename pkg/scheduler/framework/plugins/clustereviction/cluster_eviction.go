@@ -52,7 +52,7 @@ func (p *ClusterEviction) Filter(_ context.Context, bindingSpec *workv1alpha2.Re
 	failoverHistory := bindingStatus.FailoverHistory
 	if len(failoverHistory) != 0 {
 		lastFailover := failoverHistory[len(failoverHistory)-1]
-		if lastFailover.FromCluster == cluster.Name {
+		if containsCluster(lastFailover.ClustersBeforeFailover, cluster.Name) {
 			klog.V(2).Infof("Workload has been failed over from this cluster %s.", cluster.Name)
 			return framework.NewResult(framework.Unschedulable, fmt.Sprintf("workload has been failed over from this cluster %s", cluster.Name))
 		}
@@ -64,4 +64,14 @@ func (p *ClusterEviction) Filter(_ context.Context, bindingSpec *workv1alpha2.Re
 	}
 
 	return framework.NewResult(framework.Success)
+}
+
+// containsCluster checks if selected cluster has been previously failed over from
+func containsCluster(clusters []workv1alpha2.TargetCluster, findCluster string) bool {
+	for _, cluster := range clusters {
+		if cluster.Name == findCluster {
+			return true
+		}
+	}
+	return false
 }

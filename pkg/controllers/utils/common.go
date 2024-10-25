@@ -68,27 +68,30 @@ func verifySchedulingTypeSupported(schedulingPtr *policyv1alpha1.ReplicaScheduli
 }
 
 // UpdateFailoverStatus adds a failoverHistoryItem to the failoverHistory field in the ResourceBinding.
-func UpdateFailoverStatus(client client.Client, binding *workv1alpha2.ResourceBinding, cluster string, failoverType workv1alpha2.FailoverReason) (err error) {
-	if FailoverHistoryInfoIsSupported(binding) {
-		klog.V(4).Infof("Failover triggered for replica on cluster %s", cluster)
-		err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-			_, err = helper.UpdateStatus(context.Background(), client, binding, func() error {
-				failoverHistoryItem := workv1alpha2.FailoverHistoryItem{
-					FromCluster:            cluster,
-					StartTime:              metav1.Time{Time: time.Now()},
-					Reason:                 failoverType,
-					ClustersBeforeFailover: binding.Spec.Clusters,
-				}
-				binding.Status.FailoverHistory = append(binding.Status.FailoverHistory, failoverHistoryItem)
-				return nil
-			})
-			return err
+func UpdateFailoverStatus(client client.Client, binding *workv1alpha2.ResourceBinding, failoverType workv1alpha2.FailoverReason) (err error) {
+	klog.V(4).Infof("Updating failover status for ResourceBinding(%s/%s)", binding.Name, binding.Namespace)
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		_, err = helper.UpdateStatus(context.Background(), client, binding, func() error {
+			failoverHistoryItem := workv1alpha2.FailoverHistoryItem{
+				StartTime:              metav1.Time{Time: time.Now()},
+				Reason:                 failoverType,
+				ClustersBeforeFailover: binding.Spec.Clusters,
+				ClustersAfterFailover:  []workv1alpha2.TargetCluster{},
+			}
+			binding.Status.FailoverHistory = append(binding.Status.FailoverHistory, failoverHistoryItem)
+			// ToDo: Consider parametrizing failover history length
+			historyLength := len(binding.Status.FailoverHistory)
+			if historyLength >= 3 {
+				binding.Status.FailoverHistory = binding.Status.FailoverHistory[historyLength-3:]
+			}
+			return nil
 		})
+		return err
+	})
 
-		if err != nil {
-			klog.Errorf("Failed to update FailoverHistoryInfo to ResourceBinding %s/%s. Error: %v", binding.Namespace, binding.Name, err)
-			return err
-		}
+	if err != nil {
+		klog.Errorf("Failed to update FailoverHistoryInfo to ResourceBinding %s/%s. Error: %v", binding.Namespace, binding.Name, err)
+		return err
 	}
 	return nil
 }

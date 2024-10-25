@@ -135,13 +135,12 @@ func (c *RBApplicationFailoverController) syncBinding(ctx context.Context, bindi
 	unhealthyClusters, others := distinguishUnhealthyClustersWithOthers(binding.Status.AggregatedStatus, binding.Spec)
 	duration, needEvictClusters := c.detectFailure(unhealthyClusters, tolerationSeconds, key)
 
-	err := c.evictBinding(binding, needEvictClusters)
-	if err != nil {
-		klog.Errorf("Failed to evict binding(%s/%s), err: %v.", binding.Namespace, binding.Name, err)
-		return 0, err
-	}
-
 	if len(needEvictClusters) != 0 {
+		err := c.evictBinding(binding, needEvictClusters)
+		if err != nil {
+			klog.Errorf("Failed to evict binding(%s/%s), err: %v.", binding.Namespace, binding.Name, err)
+			return 0, err
+		}
 		if err = c.updateBinding(ctx, binding, allClusters, needEvictClusters); err != nil {
 			return 0, err
 		}
@@ -154,10 +153,10 @@ func (c *RBApplicationFailoverController) syncBinding(ctx context.Context, bindi
 }
 
 func (c *RBApplicationFailoverController) evictBinding(binding *workv1alpha2.ResourceBinding, clusters []string) error {
+	if err := controllerUtils.UpdateFailoverStatus(c.Client, binding, workv1alpha2.EvictionReasonApplicationFailure); err != nil {
+		klog.Errorf("Failed to update status with failover information. Error: %v", err)
+	}
 	for _, cluster := range clusters {
-		if err := controllerUtils.UpdateFailoverStatus(c.Client, binding, cluster, workv1alpha2.EvictionReasonApplicationFailure); err != nil {
-			klog.Errorf("Failed to update status with failover information. Error: %v", err)
-		}
 		switch binding.Spec.Failover.Application.PurgeMode {
 		case policyv1alpha1.Graciously:
 			if features.FeatureGate.Enabled(features.GracefulEviction) {

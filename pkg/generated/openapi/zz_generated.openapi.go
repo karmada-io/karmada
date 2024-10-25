@@ -6825,14 +6825,6 @@ func schema_pkg_apis_work_v1alpha2_FailoverHistoryItem(ref common.ReferenceCallb
 				Description: "FailoverHistoryItem represents either a failover event in the history.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"fromCluster": {
-						SchemaProps: spec.SchemaProps{
-							Description: "FromCluster which cluster the eviction perform from.",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"reason": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Reason denotes the type of failover.",
@@ -6892,7 +6884,7 @@ func schema_pkg_apis_work_v1alpha2_FailoverHistoryItem(ref common.ReferenceCallb
 						},
 					},
 				},
-				Required: []string{"fromCluster", "reason", "startTime", "clustersBeforeFailover", "clustersAfterFailover"},
+				Required: []string{"reason", "startTime", "clustersBeforeFailover", "clustersAfterFailover"},
 			},
 		},
 		Dependencies: []string{

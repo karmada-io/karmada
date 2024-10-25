@@ -1382,10 +1382,6 @@ spec:
                         - name
                         type: object
                       type: array
-                    fromCluster:
-                      description: FromCluster which cluster the eviction perform
-                        from.
-                      type: string
                     preservedLabelState:
                       additionalProperties:
                         type: string
@@ -1404,7 +1400,6 @@ spec:
                   required:
                   - clustersAfterFailover
                   - clustersBeforeFailover
-                  - fromCluster
                   - reason
                   - startTime
                   type: object
