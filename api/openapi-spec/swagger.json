@@ -20026,7 +20026,6 @@
       "description": "FailoverHistoryItem represents either a failover event in the history.",
       "type": "object",
       "required": [
-        "fromCluster",
         "reason",
         "startTime",
         "clustersBeforeFailover",
@@ -20048,11 +20047,6 @@
             "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.TargetCluster"
           }
-        },
-        "fromCluster": {
-          "description": "FromCluster which cluster the eviction perform from.",
-          "type": "string",
-          "default": ""
         },
         "preservedLabelState": {
           "description": "PreservedLabelState represents the application state information collected from the original cluster, and it will be injected into the new cluster in the form of application labels.",
