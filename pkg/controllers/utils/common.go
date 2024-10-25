@@ -25,47 +25,9 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
-
-// FailoverHistoryInfoIsSupported verifies that the resource's placement supports FailoverHistory feature
-func FailoverHistoryInfoIsSupported(binding *workv1alpha2.ResourceBinding) bool {
-	placementPtr := binding.Spec.Placement
-	if placementPtr == nil {
-		return false
-	}
-	return verifySchedulingTypeSupported(placementPtr.ReplicaScheduling, placementPtr.SpreadConstraints)
-}
-
-// FailoverHistoryInfo is currently not supported for the following scheduling types
-//  1. Duplicated (as these resources do not failover)
-//  2. Divided resources that can be scheduled across multiple clusters. In this case, state is harder to conserve since
-//     the application's replicas will not be migrating together.
-func verifySchedulingTypeSupported(schedulingPtr *policyv1alpha1.ReplicaSchedulingStrategy, spreadConstraints []policyv1alpha1.SpreadConstraint) bool {
-	if schedulingPtr == nil {
-		return false
-	}
-	switch schedulingType := schedulingPtr.ReplicaSchedulingType; schedulingType {
-	case policyv1alpha1.ReplicaSchedulingTypeDuplicated:
-		return false
-	// Handles divided and nil case
-	default:
-		if len(spreadConstraints) == 0 {
-			return false
-		}
-		for _, spreadConstraint := range spreadConstraints {
-			if spreadConstraint.SpreadByLabel != "" {
-				return false
-			}
-			if spreadConstraint.SpreadByField == "cluster" && (spreadConstraint.MaxGroups > 1 || spreadConstraint.MinGroups > 1) {
-				return false
-			}
-		}
-	}
-	return true
-}
 
 // UpdateFailoverStatus adds a failoverHistoryItem to the failoverHistory field in the ResourceBinding.
 func UpdateFailoverStatus(client client.Client, binding *workv1alpha2.ResourceBinding, failoverType workv1alpha2.FailoverReason) (err error) {
