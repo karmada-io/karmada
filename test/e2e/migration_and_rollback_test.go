@@ -34,7 +34,7 @@ import (
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/util"
+	pkgutil "github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	"github.com/karmada-io/karmada/test/helper"
@@ -43,17 +43,6 @@ import (
 var _ = ginkgo.Describe("Seamless migration and rollback testing", func() {
 	var member1 string
 	var member1Client kubernetes.Interface
-	karmadaLabels := []string{workv1alpha2.ResourceBindingPermanentIDLabel, workv1alpha2.WorkPermanentIDLabel, util.ManagedByKarmadaLabel}
-	karmadaAnnotations := []string{
-		workv1alpha2.ManagedAnnotation,
-		workv1alpha2.ManagedLabels,
-		workv1alpha2.ResourceBindingNamespaceAnnotationKey,
-		workv1alpha2.ResourceBindingNameAnnotationKey,
-		workv1alpha2.ResourceTemplateUIDAnnotation,
-		workv1alpha2.ResourceTemplateGenerationAnnotationKey,
-		workv1alpha2.WorkNameAnnotation,
-		workv1alpha2.WorkNamespaceAnnotation,
-	}
 
 	ginkgo.BeforeEach(func() {
 		member1 = framework.ClusterNames()[0]
@@ -144,12 +133,7 @@ var _ = ginkgo.Describe("Seamless migration and rollback testing", func() {
 				framework.WaitForWorkToDisappear(karmadaClient, workNamespace, workName)
 
 				// Check member cluster resource is preserved
-				framework.WaitDeploymentPresentOnClusterFitWith(member1, deployment.Namespace, deployment.Name,
-					func(memberDeploy *appsv1.Deployment) bool {
-						// ensure resource exist in member cluster while related labels/annotations is cleared
-						return allFlagsCleared(memberDeploy.Labels, karmadaLabels) &&
-							allFlagsCleared(memberDeploy.Annotations, karmadaAnnotations)
-					})
+				framework.WaitDeploymentPresentOnClusterFitWith(member1, deployment.Namespace, deployment.Name, isResourceNotManagedByKarmada)
 
 			})
 		})
@@ -225,12 +209,7 @@ var _ = ginkgo.Describe("Seamless migration and rollback testing", func() {
 				framework.WaitForWorkToDisappear(karmadaClient, workNamespace, workName)
 
 				// Check member cluster resource is preserved
-				framework.WaitClusterRolePresentOnClusterFitWith(member1, clusterRole.Name,
-					func(memberClusterRole *rbacv1.ClusterRole) bool {
-						// ensure resource exist in member cluster while related labels/annotations is cleared
-						return allFlagsCleared(memberClusterRole.Labels, karmadaLabels) &&
-							allFlagsCleared(memberClusterRole.Annotations, karmadaAnnotations)
-					})
+				framework.WaitClusterRolePresentOnClusterFitWith(member1, clusterRole.Name, isResourceNotManagedByKarmada)
 
 			})
 		})
@@ -299,12 +278,7 @@ var _ = ginkgo.Describe("Seamless migration and rollback testing", func() {
 				framework.WaitForWorkToDisappear(karmadaClient, workNamespace, workName)
 
 				// Check member cluster resource is preserved
-				framework.WaitServicePresentOnClusterFitWith(member1, service.Namespace, service.Name,
-					func(memberService *corev1.Service) bool {
-						// ensure resource exist in member cluster while related labels/annotations is cleared
-						return allFlagsCleared(memberService.Labels, karmadaLabels) &&
-							allFlagsCleared(memberService.Annotations, karmadaAnnotations)
-					})
+				framework.WaitServicePresentOnClusterFitWith(member1, service.Namespace, service.Name, isResourceNotManagedByKarmada)
 			})
 		})
 	})
@@ -390,22 +364,26 @@ var _ = ginkgo.Describe("Seamless migration and rollback testing", func() {
 				framework.WaitForWorkToDisappear(karmadaClient, workNamespace, workName)
 
 				// Check member cluster secret is preserved
-				framework.WaitSecretPresentOnClusterFitWith(member1, secret.Namespace, secret.Name,
-					func(memberSecret *corev1.Secret) bool {
-						// ensure resource exist in member cluster while related labels/annotations is cleared
-						return allFlagsCleared(memberSecret.Labels, karmadaLabels) &&
-							allFlagsCleared(memberSecret.Annotations, karmadaAnnotations)
-					})
+				framework.WaitSecretPresentOnClusterFitWith(member1, secret.Namespace, secret.Name, isResourceNotManagedByKarmada)
 			})
 		})
 	})
 })
 
-func allFlagsCleared(flags map[string]string, checkingKeys []string) bool {
-	for _, key := range checkingKeys {
-		if _, exist := flags[key]; exist {
+// isResourceNotManagedByKarmada checks if resource is missing all karmada managed labels/annotations
+// which indicates that it's not managed by Karmada.
+func isResourceNotManagedByKarmada[T metav1.Object](obj T) bool {
+	for _, key := range pkgutil.ManagedResourceLabels {
+		if _, exist := obj.GetLabels()[key]; exist {
 			return false
 		}
 	}
+
+	for _, key := range pkgutil.ManagedResourceAnnotations {
+		if _, exist := obj.GetAnnotations()[key]; exist {
+			return false
+		}
+	}
+
 	return true
 }

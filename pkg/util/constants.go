@@ -20,6 +20,8 @@ import (
 	"time"
 
 	discoveryv1 "k8s.io/api/discovery/v1"
+
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
 // Define labels used by karmada system.
@@ -251,4 +253,27 @@ var (
 const (
 	// DefaultFilePerm default file perm
 	DefaultFilePerm = 0640
+)
+
+var (
+	// ManagedResourceLabels is the list of labels that are applied to
+	// resources in member clusters.
+	ManagedResourceLabels = []string{
+		workv1alpha2.ResourceBindingPermanentIDLabel,
+		workv1alpha2.WorkPermanentIDLabel,
+		ManagedByKarmadaLabel,
+	}
+
+	// ManagedResourceAnnotations is the list of annotations that are applied to
+	// resources in member clusters.
+	ManagedResourceAnnotations = []string{
+		workv1alpha2.ManagedAnnotation,
+		workv1alpha2.ManagedLabels,
+		workv1alpha2.ResourceBindingNamespaceAnnotationKey,
+		workv1alpha2.ResourceBindingNameAnnotationKey,
+		workv1alpha2.ResourceTemplateUIDAnnotation,
+		workv1alpha2.ResourceTemplateGenerationAnnotationKey,
+		workv1alpha2.WorkNameAnnotation,
+		workv1alpha2.WorkNamespaceAnnotation,
+	}
 )
