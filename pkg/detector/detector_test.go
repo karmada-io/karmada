@@ -26,12 +26,16 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -1023,7 +1027,812 @@ func TestApplyClusterPolicy(t *testing.T) {
 	}
 }
 
+func TestClaimPolicyForObject(t *testing.T) {
+	tests := []struct {
+		name                string
+		object              *unstructured.Unstructured
+		policy              *policyv1alpha1.PropagationPolicy
+		expectedLabels      map[string]string
+		expectedAnnotations map[string]string
+	}{
+		{
+			name: "claim policy for object without existing labels",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "test-deployment",
+						"namespace": "default",
+					},
+				},
+			},
+			policy: &policyv1alpha1.PropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-policy",
+					Namespace: "default",
+					Labels: map[string]string{
+						policyv1alpha1.PropagationPolicyPermanentIDLabel: "test-id",
+					},
+				},
+			},
+			expectedLabels: map[string]string{
+				policyv1alpha1.PropagationPolicyPermanentIDLabel: "test-id",
+			},
+			expectedAnnotations: map[string]string{
+				policyv1alpha1.PropagationPolicyNamespaceAnnotation: "default",
+				policyv1alpha1.PropagationPolicyNameAnnotation:      "test-policy",
+			},
+		},
+		{
+			name: "claim policy for object with existing labels",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "test-deployment",
+						"namespace": "default",
+						"labels": map[string]interface{}{
+							"existing-label": "existing-value",
+						},
+					},
+				},
+			},
+			policy: &policyv1alpha1.PropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-policy",
+					Namespace: "default",
+					Labels: map[string]string{
+						policyv1alpha1.PropagationPolicyPermanentIDLabel: "test-id",
+					},
+				},
+			},
+			expectedLabels: map[string]string{
+				"existing-label": "existing-value",
+				policyv1alpha1.PropagationPolicyPermanentIDLabel: "test-id",
+			},
+			expectedAnnotations: map[string]string{
+				policyv1alpha1.PropagationPolicyNamespaceAnnotation: "default",
+				policyv1alpha1.PropagationPolicyNameAnnotation:      "test-policy",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scheme := setupTestScheme()
+			fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+			mockCl := &mockClient{
+				Client: fakeClient,
+				updateFunc: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+					// This simulates the actual update behavior
+					unstructuredObj := obj.(*unstructured.Unstructured)
+					tt.object.Object = unstructuredObj.Object
+					return nil
+				},
+			}
+
+			d := &ResourceDetector{
+				Client: mockCl,
+			}
+
+			policyID, err := d.ClaimPolicyForObject(tt.object, tt.policy)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.policy.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel], policyID)
+
+			assert.Equal(t, tt.expectedLabels, tt.object.GetLabels())
+			assert.Equal(t, tt.expectedAnnotations, tt.object.GetAnnotations())
+		})
+	}
+}
+
+func TestClaimClusterPolicyForObject(t *testing.T) {
+	tests := []struct {
+		name                string
+		object              *unstructured.Unstructured
+		policy              *policyv1alpha1.ClusterPropagationPolicy
+		expectedLabels      map[string]string
+		expectedAnnotations map[string]string
+	}{
+		{
+			name: "claim cluster policy for object without existing labels",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "test-deployment",
+						"namespace": "default",
+					},
+				},
+			},
+			policy: &policyv1alpha1.ClusterPropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster-policy",
+					Labels: map[string]string{
+						policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "test-cluster-id",
+					},
+				},
+			},
+			expectedLabels: map[string]string{
+				policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "test-cluster-id",
+			},
+			expectedAnnotations: map[string]string{
+				policyv1alpha1.ClusterPropagationPolicyAnnotation: "test-cluster-policy",
+			},
+		},
+		{
+			name: "claim cluster policy for object with existing labels",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "test-deployment",
+						"namespace": "default",
+						"labels": map[string]interface{}{
+							"existing-label": "existing-value",
+						},
+					},
+				},
+			},
+			policy: &policyv1alpha1.ClusterPropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster-policy",
+					Labels: map[string]string{
+						policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "test-cluster-id",
+					},
+				},
+			},
+			expectedLabels: map[string]string{
+				"existing-label": "existing-value",
+				policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "test-cluster-id",
+			},
+			expectedAnnotations: map[string]string{
+				policyv1alpha1.ClusterPropagationPolicyAnnotation: "test-cluster-policy",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scheme := setupTestScheme()
+			fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+			mockCl := &mockClient{
+				Client: fakeClient,
+				updateFunc: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+					// This simulates the actual update behavior
+					unstructuredObj := obj.(*unstructured.Unstructured)
+					tt.object.Object = unstructuredObj.Object
+					return nil
+				},
+			}
+
+			d := &ResourceDetector{
+				Client: mockCl,
+			}
+
+			policyID, err := d.ClaimClusterPolicyForObject(tt.object, tt.policy)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.policy.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel], policyID)
+
+			assert.Equal(t, tt.expectedLabels, tt.object.GetLabels())
+			assert.Equal(t, tt.expectedAnnotations, tt.object.GetAnnotations())
+		})
+	}
+}
+
+func TestBuildResourceBinding(t *testing.T) {
+	tests := []struct {
+		name       string
+		object     *unstructured.Unstructured
+		policy     *policyv1alpha1.PropagationSpec
+		policyID   string
+		policyMeta metav1.ObjectMeta
+		expected   *workv1alpha2.ResourceBinding
+	}{
+		{
+			name: "build resource binding",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "test-deployment",
+						"namespace": "default",
+						"uid":       "test-uid",
+					},
+				},
+			},
+			policy: &policyv1alpha1.PropagationSpec{
+				PropagateDeps: true,
+				SchedulerName: "test-scheduler",
+				Placement:     policyv1alpha1.Placement{},
+			},
+			policyID: "test-policy-id",
+			policyMeta: metav1.ObjectMeta{
+				Name:        "test-policy",
+				Labels:      map[string]string{"test": "label"},
+				Annotations: map[string]string{"test": "annotation"},
+			},
+			expected: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "test-deployment-deployment",
+					Namespace:  "default",
+					Finalizers: []string{"karmada.io/binding-controller"},
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							APIVersion:         "apps/v1",
+							Kind:               "Deployment",
+							Name:               "test-deployment",
+							UID:                "test-uid",
+							Controller:         func() *bool { b := true; return &b }(),
+							BlockOwnerDeletion: func() *bool { b := true; return &b }(),
+						},
+					},
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					PropagateDeps: true,
+					SchedulerName: "test-scheduler",
+					Resource: workv1alpha2.ObjectReference{
+						APIVersion: "apps/v1",
+						Kind:       "Deployment",
+						Name:       "test-deployment",
+						Namespace:  "default",
+						UID:        "test-uid",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &ResourceDetector{
+				ResourceInterpreter: &mockResourceInterpreter{},
+			}
+
+			binding, err := d.BuildResourceBinding(tt.object, tt.policy, tt.policyID, tt.policyMeta, AddCPPClaimMetadata)
+			if err != nil {
+				t.Fatalf("BuildResourceBinding returned unexpected error: %v", err)
+			}
+			if binding == nil {
+				t.Fatal("Expected non-nil binding, got nil")
+			}
+
+			assert.Equal(t, tt.expected.Name, binding.Name)
+			assert.Equal(t, tt.expected.Namespace, binding.Namespace)
+			assert.Equal(t, tt.expected.OwnerReferences, binding.OwnerReferences)
+			assert.Equal(t, tt.expected.Finalizers, binding.Finalizers)
+			assert.Equal(t, tt.expected.Spec.PropagateDeps, binding.Spec.PropagateDeps)
+			assert.Equal(t, tt.expected.Spec.SchedulerName, binding.Spec.SchedulerName)
+			assert.Equal(t, tt.expected.Spec.Resource, binding.Spec.Resource)
+			assert.NotNil(t, binding.Spec.Placement)
+		})
+	}
+}
+
+func TestBuildClusterResourceBinding(t *testing.T) {
+	tests := []struct {
+		name       string
+		object     *unstructured.Unstructured
+		policy     *policyv1alpha1.PropagationSpec
+		policyID   string
+		policyMeta metav1.ObjectMeta
+		expected   *workv1alpha2.ClusterResourceBinding
+	}{
+		{
+			name: "build cluster resource binding",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "rbac.authorization.k8s.io/v1",
+					"kind":       "ClusterRole",
+					"metadata": map[string]interface{}{
+						"name": "test-clusterrole",
+						"uid":  "test-uid",
+					},
+				},
+			},
+			policy: &policyv1alpha1.PropagationSpec{
+				PropagateDeps: true,
+				SchedulerName: "test-scheduler",
+				Placement:     policyv1alpha1.Placement{},
+			},
+			policyID: "test-policy-id",
+			policyMeta: metav1.ObjectMeta{
+				Name:        "test-policy",
+				Labels:      map[string]string{"test": "label"},
+				Annotations: map[string]string{"test": "annotation"},
+			},
+			expected: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "test-clusterrole-clusterrole",
+					Finalizers: []string{"karmada.io/cluster-resource-binding-controller"},
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							APIVersion:         "rbac.authorization.k8s.io/v1",
+							Kind:               "ClusterRole",
+							Name:               "test-clusterrole",
+							UID:                "test-uid",
+							Controller:         func() *bool { b := true; return &b }(),
+							BlockOwnerDeletion: func() *bool { b := true; return &b }(),
+						},
+					},
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					PropagateDeps: true,
+					SchedulerName: "test-scheduler",
+					Resource: workv1alpha2.ObjectReference{
+						APIVersion: "rbac.authorization.k8s.io/v1",
+						Kind:       "ClusterRole",
+						Name:       "test-clusterrole",
+						UID:        "test-uid",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &ResourceDetector{
+				ResourceInterpreter: &mockResourceInterpreter{},
+			}
+
+			binding, err := d.BuildClusterResourceBinding(tt.object, tt.policy, tt.policyID, tt.policyMeta)
+			if err != nil {
+				t.Fatalf("BuildClusterResourceBinding returned unexpected error: %v", err)
+			}
+			if binding == nil {
+				t.Fatal("Expected non-nil binding, got nil")
+			}
+
+			assert.Equal(t, tt.expected.Name, binding.Name)
+			assert.Equal(t, tt.expected.OwnerReferences, binding.OwnerReferences)
+			assert.Equal(t, tt.expected.Finalizers, binding.Finalizers)
+			assert.Equal(t, tt.expected.Spec.PropagateDeps, binding.Spec.PropagateDeps)
+			assert.Equal(t, tt.expected.Spec.SchedulerName, binding.Spec.SchedulerName)
+			assert.Equal(t, tt.expected.Spec.Resource, binding.Spec.Resource)
+			assert.NotNil(t, binding.Spec.Placement)
+		})
+	}
+}
+
+func TestIsWaiting(t *testing.T) {
+	tests := []struct {
+		name     string
+		key      keys.ClusterWideKey
+		waiting  map[keys.ClusterWideKey]struct{}
+		expected bool
+	}{
+		{
+			name: "object is waiting",
+			key:  keys.ClusterWideKey{Namespace: "default", Name: "test-obj"},
+			waiting: map[keys.ClusterWideKey]struct{}{
+				{Namespace: "default", Name: "test-obj"}: {},
+			},
+			expected: true,
+		},
+		{
+			name:     "object is not waiting",
+			key:      keys.ClusterWideKey{Namespace: "default", Name: "test-obj"},
+			waiting:  map[keys.ClusterWideKey]struct{}{},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &ResourceDetector{
+				waitingObjects: tt.waiting,
+			}
+			result := d.isWaiting(tt.key)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestAddWaiting(t *testing.T) {
+	tests := []struct {
+		name           string
+		key            keys.ClusterWideKey
+		initialWaiting map[keys.ClusterWideKey]struct{}
+		expectedLength int
+	}{
+		{
+			name:           "add new object to empty waiting list",
+			key:            keys.ClusterWideKey{Namespace: "default", Name: "test-obj"},
+			initialWaiting: map[keys.ClusterWideKey]struct{}{},
+			expectedLength: 1,
+		},
+		{
+			name: "add new object to non-empty waiting list",
+			key:  keys.ClusterWideKey{Namespace: "default", Name: "test-obj-2"},
+			initialWaiting: map[keys.ClusterWideKey]struct{}{
+				{Namespace: "default", Name: "test-obj-1"}: {},
+			},
+			expectedLength: 2,
+		},
+		{
+			name: "add existing object to waiting list",
+			key:  keys.ClusterWideKey{Namespace: "default", Name: "test-obj"},
+			initialWaiting: map[keys.ClusterWideKey]struct{}{
+				{Namespace: "default", Name: "test-obj"}: {},
+			},
+			expectedLength: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &ResourceDetector{
+				waitingObjects: tt.initialWaiting,
+			}
+			d.AddWaiting(tt.key)
+			assert.Equal(t, tt.expectedLength, len(d.waitingObjects))
+			assert.Contains(t, d.waitingObjects, tt.key)
+		})
+	}
+}
+
+func TestRemoveWaiting(t *testing.T) {
+	tests := []struct {
+		name           string
+		key            keys.ClusterWideKey
+		initialWaiting map[keys.ClusterWideKey]struct{}
+		expectedLength int
+	}{
+		{
+			name: "remove existing object from waiting list",
+			key:  keys.ClusterWideKey{Namespace: "default", Name: "test-obj"},
+			initialWaiting: map[keys.ClusterWideKey]struct{}{
+				{Namespace: "default", Name: "test-obj"}: {},
+			},
+			expectedLength: 0,
+		},
+		{
+			name: "remove non-existing object from waiting list",
+			key:  keys.ClusterWideKey{Namespace: "default", Name: "test-obj-2"},
+			initialWaiting: map[keys.ClusterWideKey]struct{}{
+				{Namespace: "default", Name: "test-obj-1"}: {},
+			},
+			expectedLength: 1,
+		},
+		{
+			name:           "remove from empty waiting list",
+			key:            keys.ClusterWideKey{Namespace: "default", Name: "test-obj"},
+			initialWaiting: map[keys.ClusterWideKey]struct{}{},
+			expectedLength: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &ResourceDetector{
+				waitingObjects: tt.initialWaiting,
+			}
+			d.RemoveWaiting(tt.key)
+			assert.Equal(t, tt.expectedLength, len(d.waitingObjects))
+			assert.NotContains(t, d.waitingObjects, tt.key)
+		})
+	}
+}
+
+func TestOnPropagationPolicyAdd(t *testing.T) {
+	mockWorker := &mockAsyncWorker{}
+	d := &ResourceDetector{
+		policyReconcileWorker: mockWorker,
+	}
+
+	policy := &policyv1alpha1.PropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-policy",
+			Namespace: "default",
+		},
+	}
+
+	d.OnPropagationPolicyAdd(policy)
+	assert.Equal(t, 1, mockWorker.enqueueCount, "PropagationPolicy should be enqueued")
+}
+
+func TestOnPropagationPolicyUpdate(t *testing.T) {
+	mockWorker := &mockAsyncWorker{}
+	d := &ResourceDetector{
+		policyReconcileWorker: mockWorker,
+	}
+
+	oldPolicy := &policyv1alpha1.PropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-policy",
+			Namespace: "default",
+		},
+	}
+
+	priority := int32(1)
+	newPolicy := &policyv1alpha1.PropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-policy",
+			Namespace: "default",
+		},
+		Spec: policyv1alpha1.PropagationSpec{
+			Priority: &priority,
+		},
+	}
+
+	d.OnPropagationPolicyUpdate(oldPolicy, newPolicy)
+	assert.Equal(t, 1, mockWorker.enqueueCount, "Updated PropagationPolicy should be enqueued")
+}
+
+func TestOnClusterPropagationPolicyAdd(t *testing.T) {
+	mockWorker := &mockAsyncWorker{}
+	d := &ResourceDetector{
+		clusterPolicyReconcileWorker: mockWorker,
+	}
+
+	policy := &policyv1alpha1.ClusterPropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-cluster-policy",
+		},
+	}
+
+	d.OnClusterPropagationPolicyAdd(policy)
+	assert.Equal(t, 1, mockWorker.enqueueCount, "ClusterPropagationPolicy should be enqueued")
+}
+
+func TestOnClusterPropagationPolicyUpdate(t *testing.T) {
+	mockWorker := &mockAsyncWorker{}
+	d := &ResourceDetector{
+		clusterPolicyReconcileWorker: mockWorker,
+	}
+
+	oldPolicy := &policyv1alpha1.ClusterPropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-cluster-policy",
+		},
+	}
+
+	priority := int32(1)
+	newPolicy := &policyv1alpha1.ClusterPropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-cluster-policy",
+		},
+		Spec: policyv1alpha1.PropagationSpec{
+			Priority: &priority,
+		},
+	}
+
+	d.OnClusterPropagationPolicyUpdate(oldPolicy, newPolicy)
+	assert.Equal(t, 1, mockWorker.enqueueCount, "Updated ClusterPropagationPolicy should be enqueued")
+}
+
+func TestHandlePropagationPolicyDeletion(t *testing.T) {
+	tests := []struct {
+		name      string
+		policyID  string
+		objects   []runtime.Object
+		expectErr bool
+	}{
+		{
+			name:     "delete propagation policy with existing bindings",
+			policyID: "test-policy-id",
+			objects: []runtime.Object{
+				&workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-binding-1",
+						Namespace: "default",
+						Labels: map[string]string{
+							policyv1alpha1.PropagationPolicyPermanentIDLabel: "test-policy-id",
+						},
+					},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Resource: workv1alpha2.ObjectReference{
+							APIVersion: "apps/v1",
+							Kind:       "Deployment",
+							Name:       "test-deployment",
+							Namespace:  "default",
+						},
+					},
+				},
+			},
+			expectErr: false,
+		},
+		{
+			name:      "delete propagation policy without bindings",
+			policyID:  "non-existent-policy-id",
+			objects:   []runtime.Object{},
+			expectErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scheme := setupTestScheme()
+			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(tt.objects...).Build()
+
+			dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
+
+			d := &ResourceDetector{
+				Client:        fakeClient,
+				DynamicClient: dynamicClient,
+				RESTMapper:    &mockRESTMapper{},
+			}
+
+			err := d.HandlePropagationPolicyDeletion(tt.policyID)
+			if tt.expectErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			// Verify that the bindings have been cleaned up
+			rbList := &workv1alpha2.ResourceBindingList{}
+			err = fakeClient.List(context.TODO(), rbList, &client.ListOptions{
+				LabelSelector: labels.SelectorFromSet(labels.Set{
+					policyv1alpha1.PropagationPolicyPermanentIDLabel: tt.policyID,
+				}),
+			})
+			assert.NoError(t, err)
+			assert.Empty(t, rbList.Items, "All ResourceBindings should be cleaned up")
+		})
+	}
+}
+
+func TestHandleClusterPropagationPolicyDeletion(t *testing.T) {
+	scheme := setupTestScheme()
+
+	policyID := "test-policy-id"
+	crb := &workv1alpha2.ClusterResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-crb",
+			Labels: map[string]string{
+				policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: policyID,
+			},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Resource: workv1alpha2.ObjectReference{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Name:       "test-deployment",
+			},
+		},
+	}
+
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(crb).Build()
+
+	d := &ResourceDetector{
+		Client:        fakeClient,
+		RESTMapper:    &mockRESTMapper{},
+		DynamicClient: &mockDynamicClient{},
+	}
+
+	err := d.HandleClusterPropagationPolicyDeletion(policyID)
+	assert.NoError(t, err)
+
+	// Check if the ClusterResourceBinding's labels were cleaned up
+	updatedCRB := &workv1alpha2.ClusterResourceBinding{}
+	err = fakeClient.Get(context.TODO(), client.ObjectKey{Name: "test-crb"}, updatedCRB)
+	assert.NoError(t, err)
+	assert.NotContains(t, updatedCRB.Labels, policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel)
+}
+
+func TestHandlePropagationPolicyCreationOrUpdate(t *testing.T) {
+	scheme := setupTestScheme()
+
+	policy := &policyv1alpha1.PropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-policy",
+			Namespace: "default",
+			Labels: map[string]string{
+				policyv1alpha1.PropagationPolicyPermanentIDLabel: "test-policy-id",
+			},
+		},
+		Spec: policyv1alpha1.PropagationSpec{
+			ResourceSelectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+			},
+		},
+	}
+
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+	fakeRecorder := record.NewFakeRecorder(10)
+	mockProcessor := &mockAsyncWorker{}
+
+	d := &ResourceDetector{
+		Client:        fakeClient,
+		EventRecorder: fakeRecorder,
+		Processor:     mockProcessor,
+	}
+
+	err := d.HandlePropagationPolicyCreationOrUpdate(policy)
+	assert.NoError(t, err)
+}
+
+func TestHandleClusterPropagationPolicyCreationOrUpdate(t *testing.T) {
+	scheme := setupTestScheme()
+
+	policy := &policyv1alpha1.ClusterPropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-cluster-policy",
+			Labels: map[string]string{
+				policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "test-cluster-policy-id",
+			},
+		},
+		Spec: policyv1alpha1.PropagationSpec{
+			ResourceSelectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+			},
+		},
+	}
+
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+	fakeRecorder := record.NewFakeRecorder(10)
+	mockProcessor := &mockAsyncWorker{}
+
+	d := &ResourceDetector{
+		Client:        fakeClient,
+		EventRecorder: fakeRecorder,
+		Processor:     mockProcessor,
+	}
+
+	err := d.HandleClusterPropagationPolicyCreationOrUpdate(policy)
+	assert.NoError(t, err)
+}
+
 //Helper Functions
+
+// shallowCopyUnstructured creates a shallow copy of an Unstructured object
+func shallowCopyUnstructured(obj *unstructured.Unstructured) *unstructured.Unstructured {
+	newObj := &unstructured.Unstructured{
+		Object: make(map[string]interface{}),
+	}
+	for k, v := range obj.Object {
+		if k == "metadata" {
+			newObj.Object[k] = copyMetadata(v.(map[string]interface{}))
+		} else {
+			newObj.Object[k] = v
+		}
+	}
+	return newObj
+}
+
+// copyMetadata creates a deep copy of the metadata map
+func copyMetadata(metadata map[string]interface{}) map[string]interface{} {
+	newMetadata := make(map[string]interface{})
+	for k, v := range metadata {
+		if k == "labels" || k == "annotations" {
+			switch typedV := v.(type) {
+			case map[string]string:
+				newMap := make(map[string]string)
+				for subK, subV := range typedV {
+					newMap[subK] = subV
+				}
+				newMetadata[k] = newMap
+			case map[string]interface{}:
+				newMap := make(map[string]interface{})
+				for subK, subV := range typedV {
+					newMap[subK] = subV
+				}
+				newMetadata[k] = newMap
+			default:
+				// If it's neither map[string]string nor map[string]interface{},
+				// just assign it as is
+				newMetadata[k] = v
+			}
+		} else {
+			newMetadata[k] = v
+		}
+	}
+	return newMetadata
+}
 
 // setupTestScheme creates a runtime scheme with necessary types for testing
 func setupTestScheme() *runtime.Scheme {
@@ -1274,4 +2083,139 @@ func (m *mockResourceInterpreter) ReflectStatus(_ *unstructured.Unstructured) (*
 
 func (m *mockResourceInterpreter) InterpretHealth(_ *unstructured.Unstructured) (bool, error) {
 	return true, nil
+}
+
+// mockDynamicClient is a custom implementation of dynamic.Interface that avoids deep copying
+type mockDynamicClient struct {
+	objects map[string]*unstructured.Unstructured
+}
+
+func (c *mockDynamicClient) Resource(resource schema.GroupVersionResource) dynamic.NamespaceableResourceInterface {
+	return &mockNamespaceableResourceClient{client: c, resource: resource}
+}
+
+// mockNamespaceableResourceClient implements dynamic.NamespaceableResourceInterface
+type mockNamespaceableResourceClient struct {
+	client   *mockDynamicClient
+	resource schema.GroupVersionResource
+}
+
+func (c *mockNamespaceableResourceClient) Namespace(ns string) dynamic.ResourceInterface {
+	return &mockResourceClient{client: c.client, namespace: ns, resource: c.resource}
+}
+
+func (c *mockNamespaceableResourceClient) Create(ctx context.Context, obj *unstructured.Unstructured, options metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {
+	return c.Namespace("").Create(ctx, obj, options, subresources...)
+}
+
+func (c *mockNamespaceableResourceClient) Update(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions, subresources ...string) (*unstructured.Unstructured, error) {
+	return c.Namespace("").Update(ctx, obj, options, subresources...)
+}
+
+func (c *mockNamespaceableResourceClient) UpdateStatus(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions) (*unstructured.Unstructured, error) {
+	return c.Namespace("").UpdateStatus(ctx, obj, options)
+}
+
+func (c *mockNamespaceableResourceClient) Delete(ctx context.Context, name string, options metav1.DeleteOptions, subresources ...string) error {
+	return c.Namespace("").Delete(ctx, name, options, subresources...)
+}
+
+func (c *mockNamespaceableResourceClient) DeleteCollection(ctx context.Context, options metav1.DeleteOptions, listOptions metav1.ListOptions) error {
+	return c.Namespace("").DeleteCollection(ctx, options, listOptions)
+}
+
+func (c *mockNamespaceableResourceClient) Get(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*unstructured.Unstructured, error) {
+	return c.Namespace("").Get(ctx, name, options, subresources...)
+}
+
+func (c *mockNamespaceableResourceClient) List(ctx context.Context, opts metav1.ListOptions) (*unstructured.UnstructuredList, error) {
+	return c.Namespace("").List(ctx, opts)
+}
+
+func (c *mockNamespaceableResourceClient) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+	return c.Namespace("").Watch(ctx, opts)
+}
+
+func (c *mockNamespaceableResourceClient) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, options metav1.PatchOptions, subresources ...string) (*unstructured.Unstructured, error) {
+	return c.Namespace("").Patch(ctx, name, pt, data, options, subresources...)
+}
+
+func (c *mockNamespaceableResourceClient) Apply(ctx context.Context, name string, obj *unstructured.Unstructured, options metav1.ApplyOptions, subresources ...string) (*unstructured.Unstructured, error) {
+	return c.Namespace("").Apply(ctx, name, obj, options, subresources...)
+}
+
+func (c *mockNamespaceableResourceClient) ApplyStatus(ctx context.Context, name string, obj *unstructured.Unstructured, options metav1.ApplyOptions) (*unstructured.Unstructured, error) {
+	return c.Namespace("").ApplyStatus(ctx, name, obj, options)
+}
+
+// mockResourceClient implements dynamic.ResourceInterface
+type mockResourceClient struct {
+	client    *mockDynamicClient
+	namespace string
+	resource  schema.GroupVersionResource
+}
+
+func (c *mockResourceClient) Create(_ context.Context, obj *unstructured.Unstructured, _ metav1.CreateOptions, _ ...string) (*unstructured.Unstructured, error) {
+	key := fmt.Sprintf("%s/%s/%s", c.resource.Resource, c.namespace, obj.GetName())
+	c.client.objects[key] = shallowCopyUnstructured(obj)
+	return obj, nil
+}
+
+func (c *mockResourceClient) Update(_ context.Context, obj *unstructured.Unstructured, _ metav1.UpdateOptions, _ ...string) (*unstructured.Unstructured, error) {
+	key := fmt.Sprintf("%s/%s/%s", c.resource.Resource, c.namespace, obj.GetName())
+	c.client.objects[key] = shallowCopyUnstructured(obj)
+	return obj, nil
+}
+
+func (c *mockResourceClient) UpdateStatus(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions) (*unstructured.Unstructured, error) {
+	return c.Update(ctx, obj, options)
+}
+
+func (c *mockResourceClient) Delete(_ context.Context, name string, _ metav1.DeleteOptions, _ ...string) error {
+	key := fmt.Sprintf("%s/%s/%s", c.resource.Resource, c.namespace, name)
+	delete(c.client.objects, key)
+	return nil
+}
+
+func (c *mockResourceClient) DeleteCollection(_ context.Context, _ metav1.DeleteOptions, _ metav1.ListOptions) error {
+	return nil
+}
+
+func (c *mockResourceClient) Get(_ context.Context, name string, _ metav1.GetOptions, _ ...string) (*unstructured.Unstructured, error) {
+	key := fmt.Sprintf("%s/%s/%s", c.resource.Resource, c.namespace, name)
+	obj, ok := c.client.objects[key]
+	if !ok {
+		return nil, apierrors.NewNotFound(c.resource.GroupResource(), name)
+	}
+	return shallowCopyUnstructured(obj), nil
+}
+
+func (c *mockResourceClient) List(_ context.Context, _ metav1.ListOptions) (*unstructured.UnstructuredList, error) {
+	return &unstructured.UnstructuredList{}, nil
+}
+
+func (c *mockResourceClient) Watch(_ context.Context, _ metav1.ListOptions) (watch.Interface, error) {
+	return watch.NewEmptyWatch(), nil
+}
+
+func (c *mockResourceClient) Patch(_ context.Context, _ string, _ types.PatchType, _ []byte, _ metav1.PatchOptions, _ ...string) (*unstructured.Unstructured, error) {
+	return nil, nil
+}
+
+func (c *mockResourceClient) Apply(ctx context.Context, _ string, obj *unstructured.Unstructured, _ metav1.ApplyOptions, _ ...string) (*unstructured.Unstructured, error) {
+	return c.Update(ctx, obj, metav1.UpdateOptions{})
+}
+
+func (c *mockResourceClient) ApplyStatus(ctx context.Context, _ string, obj *unstructured.Unstructured, _ metav1.ApplyOptions) (*unstructured.Unstructured, error) {
+	return c.UpdateStatus(ctx, obj, metav1.UpdateOptions{})
+}
+
+// mockClient is a mock implementation of client.Client
+type mockClient struct {
+	client.Client
+	updateFunc func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error
+}
+
+func (m *mockClient) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+	return m.updateFunc(ctx, obj, opts...)
 }
