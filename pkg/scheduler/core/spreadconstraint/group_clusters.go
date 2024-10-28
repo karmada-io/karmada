@@ -135,17 +135,101 @@ func groupClustersIgnoringTopology(
 // Thus, when sorting by Group Score, targetReplica will be considered first, and if the Weights are the same, then Score will be considered.
 const weightUnit int64 = 1000
 
+func (info *GroupClustersInfo) calcGroupScoreForDuplicate(
+	clusters []ClusterDetailInfo,
+	rbSpec *workv1alpha2.ResourceBindingSpec) int64 {
+	targetReplica := int64(rbSpec.Replicas)
+	var validClusters int64
+	// validClusters is the number of clusters that have available replicas.
+	var sumValidScore int64
+	for _, cluster := range clusters {
+		if cluster.AvailableReplicas >= targetReplica {
+			validClusters++
+			sumValidScore += cluster.Score
+		}
+	}
+
+	// Here is an example, the rbSpec.Replicas == 50.
+
+	// There is the Group 1, it has five clusters as follows.
+	// ----------------------------------------------------------------------
+	// | clusterName      | member1 | member2 | member3 | member4 | member5 |
+	// |---------------------------------------------------------------------
+	// | score            |   100   |   100   |   100   |   100   |   100   |
+	// |------------------------------------------------|---------|---------|
+	// |AvailableReplicas |   60    |    70   |    40   |    30   |    10   |
+	// |------------------------------------------------|---------|---------|
+
+	// There is the Group 2, it has four clusters as follows.
+	// ------------------------------------------------------------
+	// | clusterName      | member1 | member2 | member3 | member4 |
+	// |-----------------------------------------------------------
+	// | score            |    0    |    0    |    0    |    0    |
+	// |------------------------------------------------|---------|
+	// |AvailableReplicas |   60    |    60   |    60   |    60   |
+	// |------------------------------------------------|---------|
+
+	// According to our expectations, Group 2 is a more ideal choice than Group 1,
+	// as the number of clusters in Group 2 that meet the Replica requirements
+	// for available copies is greater. Although the average Cluster.Score in Group 1 is higher,
+	// under the Duplicate replica allocation strategy,
+	// we prioritize whether the number of available replicas in each Cluster
+	// meets the Replica requirements. Based on our algorithm, the score for Group 2
+	// is also higher than that of Group 1.
+
+	// Group1's Score = 2 * 1000 + 100 = 2100
+	// Group2's Score = 4 * 1000 + 0 = 4000
+
+	// There is another example, the rbSpec.Replicas == 50.
+
+	// There is the Group 1, it has five clusters as follows.
+	// ----------------------------------------------------------------------
+	// | clusterName      | member1 | member2 | member3 | member4 | member5 |
+	// |---------------------------------------------------------------------
+	// | score            |   100   |   100   |   100   |   100   |   100   |
+	// |------------------------------------------------|---------|---------|
+	// |AvailableReplicas |   60    |    70   |    10   |    10   |    5    |
+	// |------------------------------------------------|---------|---------|
+
+	// There is the Group 2, it has four clusters as follows.
+	// ------------------------------------------------------------
+	// | clusterName      | member1 | member2 | member3 | member4 |
+	// |-----------------------------------------------------------
+	// | score            |    0    |    0    |    0    |    0    |
+	// |------------------------------------------------|---------|
+	// |AvailableReplicas |   100   |    100  |    10   |    10   |
+	// |------------------------------------------------|---------|
+
+	// According to our expectations, Group 1 is a more ideal choice than Group 2.
+	// Although the number of clusters meeting the Replica requirements for available
+	// copies is the same in both Group 1 and Group 2, the average Cluster.Score in Group 1 is higher.
+	// Therefore, Group 1 is the better choice. Based on our algorithm,
+	// the score for Group 1 is also higher than that of Group 2.
+
+	// Group1's Score = 2 * 1000 + 100 = 2100
+	// Group2's Score = 2 * 1000 + 0 = 2000
+
+	// the priority of validClusters is higher than sumValidScore.
+	weightedValidClusters := validClusters * weightUnit
+	return weightedValidClusters + sumValidScore/validClusters
+}
+
 func (info *GroupClustersInfo) calcGroupScore(
 	clusters []ClusterDetailInfo,
 	rbSpec *workv1alpha2.ResourceBindingSpec,
 	minGroups int) int64 {
+	if rbSpec.Placement == nil || rbSpec.Placement.ReplicaSchedulingType() == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
+		// if the replica scheduling type is duplicated, the score is calculated by calcGroupScoreForDuplicate.
+		return info.calcGroupScoreForDuplicate(clusters, rbSpec)
+	}
+
 	// if the replica scheduling type is divided, the score is calculated by followed.
 	float64MinGroups := float64(minGroups)
 	targetReplica := int64(math.Ceil(float64(rbSpec.Replicas) / float64MinGroups))
 
 	// get the minGroups of Cluster.
 	var clusterMinGroups int
-	if rbSpec.Placement != nil && rbSpec.Placement.SpreadConstraints != nil {
+	if rbSpec.Placement.SpreadConstraints != nil {
 		for _, sc := range rbSpec.Placement.SpreadConstraints {
 			if sc.SpreadByField == policyv1alpha1.SpreadByFieldCluster {
 				clusterMinGroups = sc.MinGroups
