@@ -102,7 +102,7 @@ func TestMutatingAdmission_Handle_FullCoverage(t *testing.T) {
 		},
 	}
 
-	// Create the initial mcs with default values for testing.
+	// Create the initial mcs object with default values for testing.
 	mcsObj := &networkingv1alpha1.MultiClusterService{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            name,
@@ -174,10 +174,10 @@ func TestMutatingAdmission_Handle_FullCoverage(t *testing.T) {
 		obj: mcsObj,
 	}
 
-	// Marshal the expected policy to simulate the final mutated object.
+	// Marshal the expected mcs object to simulate the final mutated object.
 	wantBytes, err := json.Marshal(wantMCSObj)
 	if err != nil {
-		t.Fatalf("Failed to marshal expected policy: %v", err)
+		t.Fatalf("Failed to marshal expected mcs object: %v", err)
 	}
 	req.Object.Raw = wantBytes
 
@@ -189,12 +189,16 @@ func TestMutatingAdmission_Handle_FullCoverage(t *testing.T) {
 	// Call the Handle function.
 	got := mutatingHandler.Handle(context.Background(), req)
 
-	// Verify that the only patch applied is for the UUID label. If any other patches are present, it indicates that the mcs object was not handled as expected.
-	if len(got.Patches) > 0 {
-		firstPatch := got.Patches[0]
-		if firstPatch.Operation != "replace" || firstPatch.Path != "/metadata/labels/multiclusterservice.karmada.io~1permanent-id" {
-			t.Errorf("Handle() returned unexpected patches. Only the UUID patch was expected. Received patches: %v", got.Patches)
-		}
+	// Check if exactly one patch is applied.
+	if len(got.Patches) != 1 {
+		t.Errorf("Handle() returned an unexpected number of patches. Expected one patch, received: %v", got.Patches)
+	}
+
+	// Verify that the only patch applied is for the UUID label.
+	// If any other patches are present, it indicates that the mcs object was not handled as expected.
+	firstPatch := got.Patches[0]
+	if firstPatch.Operation != "replace" || firstPatch.Path != "/metadata/labels/multiclusterservice.karmada.io~1permanent-id" {
+		t.Errorf("Handle() returned unexpected patches. Only the UUID patch was expected. Received patches: %v", got.Patches)
 	}
 
 	// Check if the admission request was allowed.
