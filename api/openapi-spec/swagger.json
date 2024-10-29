@@ -20036,16 +20036,16 @@
           "description": "ClustersAfterFailover records the clusters where the application is running after failover.",
           "type": "array",
           "items": {
-            "default": {},
-            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.TargetCluster"
+            "type": "string",
+            "default": ""
           }
         },
         "clustersBeforeFailover": {
           "description": "ClustersBeforeFailover records the clusters where the application was running prior to failover.",
           "type": "array",
           "items": {
-            "default": {},
-            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.TargetCluster"
+            "type": "string",
+            "default": ""
           }
         },
         "preservedLabelState": {

@@ -30,15 +30,15 @@ import (
 )
 
 // UpdateFailoverStatus adds a failoverHistoryItem to the failoverHistory field in the ResourceBinding.
-func UpdateFailoverStatus(client client.Client, binding *workv1alpha2.ResourceBinding, failoverType workv1alpha2.FailoverReason) (err error) {
+func UpdateFailoverStatus(client client.Client, binding *workv1alpha2.ResourceBinding, clusters []string, failoverType workv1alpha2.FailoverReason) (err error) {
 	klog.V(4).Infof("Updating failover status for ResourceBinding(%s/%s)", binding.Name, binding.Namespace)
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		_, err = helper.UpdateStatus(context.Background(), client, binding, func() error {
 			failoverHistoryItem := workv1alpha2.FailoverHistoryItem{
 				StartTime:              metav1.Time{Time: time.Now()},
 				Reason:                 failoverType,
-				ClustersBeforeFailover: binding.Spec.Clusters,
-				ClustersAfterFailover:  []workv1alpha2.TargetCluster{},
+				ClustersBeforeFailover: clusters,
+				ClustersAfterFailover:  []string{},
 			}
 			binding.Status.FailoverHistory = append(binding.Status.FailoverHistory, failoverHistoryItem)
 			// ToDo: Consider parametrizing failover history length

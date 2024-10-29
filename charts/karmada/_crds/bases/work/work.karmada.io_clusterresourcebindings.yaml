@@ -1350,37 +1350,13 @@ spec:
                       description: ClustersAfterFailover records the clusters where
                         the application is running after failover.
                       items:
-                        description: TargetCluster represents the identifier of a
-                          member cluster.
-                        properties:
-                          name:
-                            description: Name of target cluster.
-                            type: string
-                          replicas:
-                            description: Replicas in target cluster
-                            format: int32
-                            type: integer
-                        required:
-                        - name
-                        type: object
+                        type: string
                       type: array
                     clustersBeforeFailover:
                       description: ClustersBeforeFailover records the clusters where
                         the application was running prior to failover.
                       items:
-                        description: TargetCluster represents the identifier of a
-                          member cluster.
-                        properties:
-                          name:
-                            description: Name of target cluster.
-                            type: string
-                          replicas:
-                            description: Replicas in target cluster
-                            format: int32
-                            type: integer
-                        required:
-                        - name
-                        type: object
+                        type: string
                       type: array
                     preservedLabelState:
                       additionalProperties:

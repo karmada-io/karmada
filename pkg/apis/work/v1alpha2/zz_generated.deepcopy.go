@@ -137,12 +137,12 @@ func (in *FailoverHistoryItem) DeepCopyInto(out *FailoverHistoryItem) {
 	in.StartTime.DeepCopyInto(&out.StartTime)
 	if in.ClustersBeforeFailover != nil {
 		in, out := &in.ClustersBeforeFailover, &out.ClustersBeforeFailover
-		*out = make([]TargetCluster, len(*in))
+		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
 	if in.ClustersAfterFailover != nil {
 		in, out := &in.ClustersAfterFailover, &out.ClustersAfterFailover
-		*out = make([]TargetCluster, len(*in))
+		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
 	if in.PreservedLabelState != nil {

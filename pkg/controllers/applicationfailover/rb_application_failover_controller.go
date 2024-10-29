@@ -153,7 +153,7 @@ func (c *RBApplicationFailoverController) syncBinding(ctx context.Context, bindi
 }
 
 func (c *RBApplicationFailoverController) evictBinding(binding *workv1alpha2.ResourceBinding, clusters []string) error {
-	if err := controllerUtils.UpdateFailoverStatus(c.Client, binding, workv1alpha2.EvictionReasonApplicationFailure); err != nil {
+	if err := controllerUtils.UpdateFailoverStatus(c.Client, binding, clusters, workv1alpha2.EvictionReasonApplicationFailure); err != nil {
 		klog.Errorf("Failed to update status with failover information. Error: %v", err)
 	}
 	for _, cluster := range clusters {

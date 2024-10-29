@@ -6846,8 +6846,9 @@ func schema_pkg_apis_work_v1alpha2_FailoverHistoryItem(ref common.ReferenceCallb
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster"),
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -6860,8 +6861,9 @@ func schema_pkg_apis_work_v1alpha2_FailoverHistoryItem(ref common.ReferenceCallb
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster"),
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -6888,7 +6890,7 @@ func schema_pkg_apis_work_v1alpha2_FailoverHistoryItem(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

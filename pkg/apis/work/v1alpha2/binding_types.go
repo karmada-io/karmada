@@ -378,11 +378,11 @@ type FailoverHistoryItem struct {
 
 	// ClustersBeforeFailover records the clusters where the application was running prior to failover.
 	// +required
-	ClustersBeforeFailover []TargetCluster `json:"clustersBeforeFailover"`
+	ClustersBeforeFailover []string `json:"clustersBeforeFailover"`
 
 	// ClustersAfterFailover records the clusters where the application is running after failover.
 	// +required
-	ClustersAfterFailover []TargetCluster `json:"clustersAfterFailover"`
+	ClustersAfterFailover []string `json:"clustersAfterFailover"`
 
 	// PreservedLabelState represents the application state information collected from the original cluster,
 	// and it will be injected into the new cluster in the form of application labels.

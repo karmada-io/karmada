@@ -67,9 +67,9 @@ func (p *ClusterEviction) Filter(_ context.Context, bindingSpec *workv1alpha2.Re
 }
 
 // containsCluster checks if selected cluster has been previously failed over from
-func containsCluster(clusters []workv1alpha2.TargetCluster, findCluster string) bool {
+func containsCluster(clusters []string, findCluster string) bool {
 	for _, cluster := range clusters {
-		if cluster.Name == findCluster {
+		if cluster == findCluster {
 			return true
 		}
 	}

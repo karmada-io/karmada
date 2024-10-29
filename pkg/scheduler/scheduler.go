@@ -845,10 +845,14 @@ func patchBindingStatusWithUpdatedFailoverHistory(karmadaClient karmadaclientset
 	if rb.Status.FailoverHistory == nil || scheduleResult == nil {
 		return nil
 	}
+	var clusters []string
+	for _, cluster := range scheduleResult {
+		clusters = append(clusters, cluster.Name)
+	}
 	klog.V(4).Infof("Begin to patch failoverHistory with scheduling result(%v) to ResourceBinding(%s/%s).", scheduleResult, rb.Namespace, rb.Name)
 	updateRB := rb.DeepCopy()
 	historyLength := len(updateRB.Status.FailoverHistory)
-	updateRB.Status.FailoverHistory[historyLength-1].ClustersAfterFailover = scheduleResult
+	updateRB.Status.FailoverHistory[historyLength-1].ClustersAfterFailover = clusters
 	return patchBindingStatus(karmadaClient, rb, updateRB)
 }
 
