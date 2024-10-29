@@ -128,10 +128,10 @@ type CommandUnregisterOption struct {
 	DryRun bool
 
 	// ControlPlaneClient control plane client set
-	ControlPlaneClient *karmadaclientset.Clientset
+	ControlPlaneClient karmadaclientset.Interface
 
 	// MemberClusterClient member cluster client set
-	MemberClusterClient *kubeclient.Clientset
+	MemberClusterClient kubeclient.Interface
 }
 
 // AddFlags adds flags to the specified FlagSet.
