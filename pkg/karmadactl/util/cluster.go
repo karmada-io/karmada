@@ -30,7 +30,7 @@ import (
 )
 
 // DeleteClusterObject deletes the cluster object from the Karmada control plane.
-func DeleteClusterObject(controlPlaneKarmadaClient *karmadaclientset.Clientset, clusterName string,
+func DeleteClusterObject(controlPlaneKarmadaClient karmadaclientset.Interface, clusterName string,
 	timeout time.Duration, dryRun bool) error {
 	if dryRun {
 		return nil
