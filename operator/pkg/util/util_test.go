@@ -17,9 +17,308 @@ limitations under the License.
 package util
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"k8s.io/utils/ptr"
 )
+
+// mockReader is a simple io.Reader that returns an error after being called.
+type mockReader struct {
+	data []byte
+	err  error
+}
+
+func (m *mockReader) Read(p []byte) (n int, err error) {
+	if m.data == nil {
+		return 0, m.err
+	}
+	n = copy(p, m.data)
+	m.data = m.data[n:]
+	return n, m.err
+}
+
+type mockRoundTripper struct {
+	response *http.Response
+	err      error
+}
+
+func (m *mockRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.response, nil
+}
+
+func TestRead(t *testing.T) {
+	tests := []struct {
+		name       string
+		downloader *Downloader
+		data       string
+		prep       func(downloader *Downloader, data string) error
+		wantErr    bool
+		errMsg     string
+	}{
+		{
+			name: "Read_FailedToReadFromDataSource_ReadFailed",
+			downloader: &Downloader{
+				Reader: &mockReader{
+					err: errors.New("unexpected read error"),
+				},
+			},
+			prep: func(*Downloader, string) error {
+				return nil
+			},
+			wantErr: true,
+			errMsg:  "unexpected read error",
+		},
+		{
+			name: "Read_FailedToReadWithEOF_ReadFailed",
+			downloader: &Downloader{
+				Reader: &mockReader{
+					err: io.EOF,
+				},
+			},
+			prep: func(*Downloader, string) error {
+				return nil
+			},
+			wantErr: true,
+			errMsg:  "EOF",
+		},
+		{
+			name: "Read_FromValidDataSource_ReadSucceeded",
+			downloader: &Downloader{
+				Current: 3,
+				Total:   10,
+			},
+			data: "test data",
+			prep: func(downloader *Downloader, data string) error {
+				downloader.Reader = &mockReader{data: []byte(data)}
+				return nil
+			},
+			wantErr: false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := test.prep(test.downloader, test.data); err != nil {
+				t.Fatalf("failed to prep before reading the data, got: %v", err)
+			}
+			buffer := test.downloader.Reader.(*mockReader).data
+			_, err := test.downloader.Read(buffer)
+			if err == nil && test.wantErr {
+				t.Fatal("expected an error, but got none")
+			}
+			if err != nil && !test.wantErr {
+				t.Errorf("unexpected error, got: %v", err)
+			}
+			if err != nil && test.wantErr && !strings.Contains(err.Error(), test.errMsg) {
+				t.Errorf("expected error message %s to be in %s", test.errMsg, err.Error())
+			}
+			if string(buffer) != test.data {
+				t.Errorf("expected read buffer data to be %s, but got %s", test.data, string(buffer))
+			}
+		})
+	}
+}
+
+func TestDownloadFile(t *testing.T) {
+	tests := []struct {
+		name     string
+		url      string
+		filePath string
+		prep     func(url, filePath string) error
+		verify   func(filePath string) error
+		wantErr  bool
+		errMsg   string
+	}{
+		{
+			name: "DownloadFile_UrlIsNotFound_FailedToGetResponse",
+			url:  "not-found-url",
+			prep: func(url, _ string) error {
+				httpClient = http.Client{
+					Transport: &mockRoundTripper{
+						err: fmt.Errorf("failed to get url %s, url is not found", url),
+					},
+					Timeout: time.Second,
+				}
+				return nil
+			},
+			verify:  func(string) error { return nil },
+			wantErr: true,
+			errMsg:  "failed to get url not-found-url, url is not found",
+		},
+		{
+			name: "DownloadFile_ServiceIsUnavailable_FailedToReachTheService",
+			url:  "https://www.example.com/test-file",
+			prep: func(_, _ string) error {
+				httpClient = http.Client{
+					Transport: &mockRoundTripper{
+						response: &http.Response{
+							StatusCode: http.StatusServiceUnavailable,
+						},
+					},
+					Timeout: time.Second,
+				}
+				return nil
+			},
+			verify:  func(string) error { return nil },
+			wantErr: true,
+			errMsg:  "failed to download file",
+		},
+		{
+			name:     "DownloadFile_FileDownlaoded_",
+			url:      "https://www.example.com/test-file",
+			filePath: filepath.Join(os.TempDir(), "temp-download-file.txt"),
+			prep: func(_, filePath string) error {
+				// Create temp download filepath.
+				tempFile, err := os.Create(filePath)
+				if err != nil {
+					return fmt.Errorf("failed to create temp download file: %w", err)
+				}
+				defer tempFile.Close()
+
+				// Create HTTP client.
+				httpClient = http.Client{
+					Transport: &mockRoundTripper{
+						response: &http.Response{
+							StatusCode:    http.StatusOK,
+							Body:          io.NopCloser(bytes.NewReader([]byte("Hello, World!"))),
+							ContentLength: int64(len("Hello, World!")),
+						},
+					},
+					Timeout: time.Second,
+				}
+
+				return nil
+			},
+			verify: func(filePath string) error {
+				// Read the content of the downloaded file.
+				content, err := os.ReadFile(filePath)
+				if err != nil {
+					return fmt.Errorf("failed   to read file: %w", err)
+				}
+
+				// Verify the content of the file.
+				expected := "Hello, World!"
+				if string(content) != expected {
+					return fmt.Errorf("unexpected file content: got %q, want %q", string(content), expected)
+				}
+
+				if err := os.Remove(filePath); err != nil {
+					return fmt.Errorf("failed to clean up %s", filePath)
+				}
+
+				return nil
+			},
+			wantErr: false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := test.prep(test.url, test.filePath); err != nil {
+				t.Fatalf("failed to prep before downloading the file, got: %v", err)
+			}
+			err := DownloadFile(test.url, test.filePath)
+			if err == nil && test.wantErr {
+				t.Fatal("expected an error, but got none")
+			}
+			if err != nil && !test.wantErr {
+				t.Errorf("unexpected error, got: %v", err)
+			}
+			if err != nil && test.wantErr && !strings.Contains(err.Error(), test.errMsg) {
+				t.Errorf("expected error message %s to be in %s", test.errMsg, err.Error())
+			}
+			if err := test.verify(test.filePath); err != nil {
+				t.Errorf("failed to verify the actual of download of file: %v", err)
+			}
+		})
+	}
+}
+
+func TestUnpack(t *testing.T) {
+	tests := []struct {
+		name        string
+		tarFile     string
+		regularFile string
+		targetPath  *string
+		prep        func(tarFile, regularFile string, targetPath *string) error
+		verify      func(regularFile string, targetPath string) error
+		wantErr     bool
+		errMsg      string
+	}{
+		{
+			name:       "Unpack_InvalidGzipFileHeader_InvalidHeader",
+			tarFile:    "invalid.tar.gz",
+			targetPath: ptr.To(""),
+			prep: func(tarFile, _ string, targetPath *string) error {
+				var err error
+				*targetPath, err = os.MkdirTemp("", "test-unpack-*")
+				if err != nil {
+					return err
+				}
+				f, err := os.Create(filepath.Join(*targetPath, tarFile))
+				if err != nil {
+					return err
+				}
+				defer f.Close()
+				_, err = f.WriteString("Invalid gzip content")
+				return err
+			},
+			verify: func(_, targetPath string) error {
+				return os.RemoveAll(targetPath)
+			},
+			wantErr: true,
+			errMsg:  gzip.ErrHeader.Error(),
+		},
+		{
+			name:        "Unpack_ValidTarGzipped_UnpackedSuccessfully",
+			tarFile:     "valid.tar.gz",
+			regularFile: "test-file.txt",
+			targetPath:  ptr.To(""),
+			prep:        verifyValidTarGzipped,
+			verify: func(regularFile string, targetPath string) error {
+				fileExpected := filepath.Join(targetPath, "test", regularFile)
+				_, err := os.Stat(fileExpected)
+				if err != nil {
+					return fmt.Errorf("failed to find the file %s, got error: %v", fileExpected, err)
+				}
+				return os.RemoveAll(targetPath)
+			},
+			wantErr: false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := test.prep(test.tarFile, test.regularFile, test.targetPath); err != nil {
+				t.Fatalf("failed to prep before unpacking the tar file: %v", err)
+			}
+			err := Unpack(filepath.Join(*test.targetPath, test.tarFile), *test.targetPath)
+			if err == nil && test.wantErr {
+				t.Fatal("expected an error, but got none")
+			}
+			if err != nil && !test.wantErr {
+				t.Errorf("unexpected error, got: %v", err)
+			}
+			if err != nil && test.wantErr && !strings.Contains(err.Error(), test.errMsg) {
+				t.Errorf("expected error message %s to be in %s", test.errMsg, err.Error())
+			}
+			if err := test.verify(test.regularFile, *test.targetPath); err != nil {
+				t.Errorf("failed to verify unpacking process, got: %v", err)
+			}
+		})
+	}
+}
 
 func TestListFileWithSuffix(t *testing.T) {
 	suffix := ".yaml"
@@ -34,4 +333,53 @@ func TestListFileWithSuffix(t *testing.T) {
 			t.Errorf("Want suffix with %s , but not exist, path is:%s", suffix, f.AbsPath)
 		}
 	}
+}
+
+// verifyValidTarGzipped creates a tar.gz file in a temporary directory.
+// The archive contains a "test" directory and a file with the specified name,
+// containing the message "Hello, World!".
+func verifyValidTarGzipped(tarFile, regularFile string, targetPath *string) error {
+	var err error
+	*targetPath, err = os.MkdirTemp("", "test-unpack-*")
+	if err != nil {
+		return err
+	}
+	f, err := os.Create(filepath.Join(*targetPath, tarFile))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	// Create a gzip writer.
+	gw := gzip.NewWriter(f)
+	defer gw.Close()
+
+	// Create a tar writer.
+	tw := tar.NewWriter(gw)
+	defer tw.Close()
+
+	// Add a directory to the tar.
+	if err := tw.WriteHeader(&tar.Header{
+		Name:     "test" + string(filepath.Separator),
+		Typeflag: tar.TypeDir,
+		Mode:     0755,
+	}); err != nil {
+		return err
+	}
+
+	// Add a file to the tar.
+	message := "Hello, World!"
+	if err := tw.WriteHeader(&tar.Header{
+		Name:     filepath.Join("test", regularFile),
+		Mode:     0644,
+		Size:     int64(len(message)),
+		Typeflag: tar.TypeReg,
+	}); err != nil {
+		return err
+	}
+	if _, err := tw.Write([]byte(message)); err != nil {
+		return err
+	}
+
+	return nil
 }
