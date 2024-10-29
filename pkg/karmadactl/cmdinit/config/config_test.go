@@ -31,8 +31,6 @@ import (
 const testConfig = `
 apiVersion: config.karmada.io/v1alpha1
 kind: KarmadaInitConfig
-metadata:
- name: karmada-init
 spec:
  certificates:
    caCertFile: "/etc/karmada/pki/ca.crt"
@@ -130,9 +128,6 @@ func TestLoadInitConfiguration(t *testing.T) {
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "KarmadaInitConfig",
 			APIVersion: "config.karmada.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "karmada-init",
 		},
 		Spec: KarmadaInitSpec{
 			WaitComponentReadyTimeout: 120,
