@@ -43,7 +43,7 @@ type GlobalCommandOptions struct {
 	// Cluster holds the name of member cluster to enable or disable scheduler estimator
 	Cluster string
 
-	KubeClientSet *kubernetes.Clientset
+	KubeClientSet kubernetes.Interface
 
 	KarmadaRestConfig *rest.Config
 
