@@ -92,12 +92,6 @@ metadata:
   name: system:karmada:agent
 rules:
 - apiGroups:
-  - authentication.k8s.io
-  resources:
-  - tokenreviews
-  verbs:
-  - create
-- apiGroups:
   - cluster.karmada.io
   resources:
   - clusters
@@ -106,15 +100,12 @@ rules:
   - get
   - list
   - watch
-  - patch
-  - update
   - delete
 - apiGroups:
   - cluster.karmada.io
   resources:
   - clusters/status
   verbs:
-  - patch
   - update
 - apiGroups:
   - work.karmada.io
@@ -149,17 +140,12 @@ rules:
   - namespaces
   verbs:
   - get
-  - list
-  - watch
-  - create
 - apiGroups:
   - ""
   resources:
   - secrets
   verbs:
   - get
-  - list
-  - watch
   - create
   - patch
 - apiGroups:
@@ -168,9 +154,7 @@ rules:
   - leases
   verbs:
   - create
-  - delete
   - get
-  - patch
   - update
 - apiGroups:
   - certificates.k8s.io
@@ -179,8 +163,6 @@ rules:
   verbs:
   - create
   - get
-  - list
-  - watch
 - apiGroups:
   - ""
   resources:
@@ -203,3 +185,170 @@ subjects:
 - apiGroup: rbac.authorization.k8s.io
   kind: Group
   name: system:nodes
+
+# To ensure the agent has the minimal RBAC permissions, the ideal approach is to
+# use different RBAC configurations for different agents of member clusters with pull mode.
+# Below is the minimal set of RBAC permissions required for a single pull mode member cluster.
+# Here are the definitions of the variables used:
+#
+# - clustername: the name of the member cluster.
+# - cluster_namespace: the namespace where the member cluster secrets are stored, default to karmada-cluster.
+#
+# ---
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: ClusterRole
+# metadata:
+#   name: system:karmada:agent
+# rules:
+# - apiGroups:
+#   - cluster.karmada.io
+#   resources:
+#   - clusters
+#   resourceNames:
+#   - {{clustername}}
+#   verbs:
+#   - create
+#   - get
+#   - delete
+# - apiGroups:
+#   - cluster.karmada.io
+#   resources:
+#   - clusters
+#   verbs:
+#   - list
+#   - watch
+# - apiGroups:
+#   - cluster.karmada.io
+#   resources:
+#   - clusters/status
+#   resourceNames:
+#   - {{clustername}}
+#   verbs:
+#   - update
+# - apiGroups:
+#   - config.karmada.io
+#   resources:
+#   - resourceinterpreterwebhookconfigurations
+#   - resourceinterpretercustomizations
+#   verbs:
+#   - get
+#   - list
+#   - watch
+# - apiGroups:
+#   - ""
+#   resources:
+#   - namespaces
+#   verbs:
+#   - get
+# - apiGroups:
+#   - coordination.k8s.io
+#   resources:
+#   - leases
+#   verbs:
+#   - create
+#   - get
+#   - update
+# - apiGroups:
+#   - certificates.k8s.io
+#   resources:
+#   - certificatesigningrequests
+#   verbs:
+#   - create
+#   - get
+# - apiGroups:
+#   - ""
+#   resources:
+#   - events
+#   verbs:
+#   - create
+#   - patch
+#   - update
+#
+# ---
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: ClusterRoleBinding
+# metadata:
+#   name: system:karmada:agent
+# roleRef:
+#   apiGroup: rbac.authorization.k8s.io
+#   kind: ClusterRole
+#   name: system:karmada:agent
+# subjects:
+# - apiGroup: rbac.authorization.k8s.io
+#   kind: Group
+#   name: system:nodes
+#
+# ---
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: Role
+# metadata:
+#   name: system:karmada:agent-secret
+#   namespace: "{{cluster_namespace}}"
+# rules:
+# - apiGroups:
+#   - ""
+#   resources:
+#   - secrets
+#   resourceNames:
+#   - {{clustername}}-impersonator
+#   - {{clustername}}
+#   verbs:
+#   - get
+#   - create
+#   - patch
+#
+# ---
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: RoleBinding
+# metadata:
+#   name: system:karmada:agent-secret
+#   namespace: "{{cluster_namespace}}"
+# roleRef:
+#   apiGroup: rbac.authorization.k8s.io
+#   kind: Role
+#   name: system:karmada:agent-secret
+# subjects:
+# - apiGroup: rbac.authorization.k8s.io
+#   kind: Group
+#   name: system:nodes
+#
+# ---
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: Role
+# metadata:
+#   name: system:karmada:agent-work
+#   namespace: "karmada-es-{{clustername}}"
+# rules:
+# - apiGroups:
+#   - work.karmada.io
+#   resources:
+#   - works
+#   verbs:
+#   - create
+#   - get
+#   - list
+#   - watch
+#   - update
+#   - delete
+# - apiGroups:
+#   - work.karmada.io
+#   resources:
+#   - works/status
+#   verbs:
+#   - patch
+#   - update
+#
+# ---
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: RoleBinding
+# metadata:
+#   name: system:karmada:agent-work
+#   namespace: "karmada-es-{{clustername}}"
+# roleRef:
+#   apiGroup: rbac.authorization.k8s.io
+#   kind: Role
+#   name: system:karmada:agent-work
+# subjects:
+# - apiGroup: rbac.authorization.k8s.io
+#   kind: Group
+#   name: system:nodes
