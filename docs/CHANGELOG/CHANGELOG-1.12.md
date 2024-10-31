@@ -2,9 +2,9 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.12.0-alpha.1](#v1120-alpha1)
-  - [Downloads for v1.12.0-alpha.1](#downloads-for-v1120-alpha1)
-  - [Changelog since v1.11.0](#changelog-since-v1110)
+- [v1.12.0-beta.0](#v1120-beta0)
+  - [Downloads for v1.12.0-beta.0](#downloads-for-v1120-beta0)
+  - [Changelog since v1.12.0-alpha.1](#changelog-since-v1120-alpha1)
   - [Urgent Update Notes](#urgent-update-notes)
   - [Changes by Kind](#changes-by-kind)
     - [API Changes](#api-changes)
@@ -16,8 +16,66 @@
     - [Dependencies](#dependencies)
     - [Helm Charts](#helm-charts)
     - [Instrumentation](#instrumentation)
+- [v1.12.0-alpha.1](#v1120-alpha1)
+  - [Downloads for v1.12.0-alpha.1](#downloads-for-v1120-alpha1)
+  - [Changelog since v1.11.0](#changelog-since-v1110)
+  - [Urgent Update Notes](#urgent-update-notes-1)
+  - [Changes by Kind](#changes-by-kind-1)
+    - [API Changes](#api-changes-1)
+    - [Features & Enhancements](#features--enhancements-1)
+    - [Deprecation](#deprecation-1)
+    - [Bug Fixes](#bug-fixes-1)
+    - [Security](#security-1)
+  - [Other](#other-1)
+    - [Dependencies](#dependencies-1)
+    - [Helm Charts](#helm-charts-1)
+    - [Instrumentation](#instrumentation-1)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.12.0-beta.0
+## Downloads for v1.12.0-beta.0
+
+Download v1.12.0-beta.0 in the [v1.12.0-beta.0 release page](https://github.com/karmada-io/karmada/releases/tag/v1.12.0-beta.0).
+
+## Changelog since v1.12.0-alpha.1
+
+## Urgent Update Notes
+
+## Changes by Kind
+
+### API Changes
+- Introduced `SecretRef` to `Karmada` API as part of the configuration for connecting to an external etcd cluster can be used to reference a secret that contains credentials for connecting to an external etcd cluster. ([#5699](https://github.com/karmada-io/karmada/pull/5699), @jabellard)
+
+### Features & Enhancements
+- Standardize the naming of karmada secrets in local up installation method. ([#5423](https://github.com/karmada-io/karmada/pull/5423), @chaosi-zju)
+- `karmada-scheduler-estimator`: grpc connection adds the support for custom DNS Domain. ([#5472](https://github.com/karmada-io/karmada/pull/5472), @zhzhuang-zju)
+- `karmada-operator`: The new `SecretRef` field added as part of the configuration for connecting to an external etcd cluster can be used to reference a secret that contains credentials for connecting to an external etcd cluster. ([#5699](https://github.com/karmada-io/karmada/pull/5699), @jabellard)
+- `karmada-operator`: Adds one-click script to install a Karmada instance through the `karmada-operator`. ([#5519](https://github.com/karmada-io/karmada/pull/5519), @zhzhuang-zju)
+- `karmada-controller-manager`: keep preserveResourcesOnDeletion of the dependent resource consistent with that of the primary resource. ([#5717](https://github.com/karmada-io/karmada/pull/5717), @XiShanYongYe-Chang)
+- `karmada-controller-manager`: set conflictResolution for dependent resources. ([#4418](https://github.com/karmada-io/karmada/pull/4418), @@chaunceyjiang)
+- `karmadactl`: `karmadactl init` supports deployment through configuration files. ([#5357](https://github.com/karmada-io/karmada/pull/5357), @tiansuo114)
+- `karmadactl`: new command `karmadactl unregister` supports unregister a pull mode cluster. ([#5626](https://github.com/karmada-io/karmada/pull/5626), @wulemao)
+- `karmada-scheduler`: implement group score calculation instead of take the highest score of clusters. ([#5621](https://github.com/karmada-io/karmada/pull/5621), @ipsum-0320)
+
+### Deprecation
+- `ExternalEtcd.CAData`, `ExternalEtcd.CertData` and `ExternalEtcd.KeyData` in `Karmada` API are deprecated and will be removed in a future version. Use SecretRef for providing client connection credentials. ([#5699](https://github.com/karmada-io/karmada/pull/5699), @jabellard)
+
+### Bug Fixes
+- `karmada-scheduler`: Fixed unexpected modification of original `ResourceSummary` due to lack of deep copy. ([#5685](https://github.com/karmada-io/karmada/pull/5685), @LivingCcj)
+- `karmada-scheduler`: Fixes an issue where resource model grades were incorrectly matched based on resource requests. Now only grades that can provide sufficient resources will be selected. ([#5706](https://github.com/karmada-io/karmada/pull/5706), @RainbowMango)
+- `karmada-search`: Modify the logic of checking whether the resource is registered when selecting the plugin. ([#5662](https://github.com/karmada-io/karmada/pull/5662), @yanfeng1992)
+
+### Security
+- `karmada-operator`: minimize the rbac permissions for karmada-operator. ([#5586](https://github.com/karmada-io/karmada/pull/5586), @B1F030)
+- `local up`: add CA data to generated karmada config for enhanced security. ([#5739](https://github.com/karmada-io/karmada/pull/5739), @chaosi-zju)
+
+## Other
+### Dependencies
+
+### Helm Charts
+
+### Instrumentation
 
 # v1.12.0-alpha.1
 ## Downloads for v1.12.0-alpha.1
