@@ -51,6 +51,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/apis/cluster/validation"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	addonutils "github.com/karmada-io/karmada/pkg/karmadactl/addons/utils"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
@@ -398,7 +399,7 @@ func (o *CommandRegisterOption) Run(parentCommand string) error {
 		return err
 	}
 
-	if err := cmdutil.WaitForDeploymentRollout(o.memberClusterClient, KarmadaAgentDeployment, int(o.Timeout)); err != nil {
+	if err := addonutils.WaitForDeploymentRollout(o.memberClusterClient, KarmadaAgentDeployment, int(o.Timeout)); err != nil {
 		return err
 	}
 

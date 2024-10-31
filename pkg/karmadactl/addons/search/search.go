@@ -182,7 +182,7 @@ func installComponentsOnHostCluster(opts *addoninit.CommandAddonsEnableOption) e
 		return fmt.Errorf("create karmada search deployment error: %v", err)
 	}
 
-	if err := cmdutil.WaitForDeploymentRollout(opts.KubeClientSet, karmadaSearchDeployment, opts.WaitComponentReadyTimeout); err != nil {
+	if err := addonutils.WaitForDeploymentRollout(opts.KubeClientSet, karmadaSearchDeployment, opts.WaitComponentReadyTimeout); err != nil {
 		return fmt.Errorf("wait karmada search pod status ready timeout: %v", err)
 	}
 
