@@ -2,12 +2,18 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.11.1](#v1111)
-  - [Downloads for v1.11.1](#downloads-for-v1111)
-  - [Changelog since v1.11.0](#changelog-since-v1110)
+- [v1.11.2](#v1112)
+  - [Downloads for v1.11.2](#downloads-for-v1112)
+  - [Changelog since v1.11.1](#changelog-since-v1111)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
+- [v1.11.1](#v1111)
+  - [Downloads for v1.11.1](#downloads-for-v1111)
+  - [Changelog since v1.11.0](#changelog-since-v1110)
+    - [Changes by Kind](#changes-by-kind-1)
+      - [Bug Fixes](#bug-fixes-1)
+      - [Others](#others-1)
 - [v1.11.0](#v1110)
   - [Downloads for v1.11.0](#downloads-for-v1110)
   - [What's New](#whats-new)
@@ -18,7 +24,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-1)
+    - [Bug Fixes](#bug-fixes-2)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -28,6 +34,22 @@
   - [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.11.2
+## Downloads for v1.11.2
+
+Download v1.11.2 in the [v1.11.2 release page](https://github.com/karmada-io/karmada/releases/tag/v1.11.2).
+
+## Changelog since v1.11.1
+### Changes by Kind
+#### Bug Fixes
+- `karmada-controller-manager`: Ignored StatefulSet Dependencies with PVCs created via the VolumeClaimTemplates. ([#5686](https://github.com/karmada-io/karmada/pull/5686), @seanlaii)
+- `karmada-scheduler`: Fixed unexpected modification of original `ResourceSummary` due to lack of deep copy. ([#5724](https://github.com/karmada-io/karmada/pull/5724), @RainbowMango)
+- `karmada-scheduler`: Fixes an issue where resource model grades were incorrectly matched based on resource requests. Now only grades that can provide sufficient resources will be selected. ([#5728](https://github.com/karmada-io/karmada/pull/5728), @RainbowMango)
+- `karmada-search`: Modify the logic of checking whether the resource is registered when selecting the plugin. ([#5737](https://github.com/karmada-io/karmada/pull/5737), @seanlaii)
+
+#### Others
+None.
 
 # v1.11.1
 ## Downloads for v1.11.1
