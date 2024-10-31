@@ -2,36 +2,42 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.10.5](#v1105)
-  - [Downloads for v1.10.5](#downloads-for-v1105)
-  - [Changelog since v1.10.4](#changelog-since-v1104)
+- [v1.10.6](#v1106)
+  - [Downloads for v1.10.6](#downloads-for-v1106)
+  - [Changelog since v1.10.5](#changelog-since-v1105)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
-- [v1.10.4](#v1104)
-  - [Downloads for v1.10.4](#downloads-for-v1104)
-  - [Changelog since v1.10.3](#changelog-since-v1103)
+- [v1.10.5](#v1105)
+  - [Downloads for v1.10.5](#downloads-for-v1105)
+  - [Changelog since v1.10.4](#changelog-since-v1104)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
-- [v1.10.3](#v1103)
-  - [Downloads for v1.10.3](#downloads-for-v1103)
-  - [Changelog since v1.10.2](#changelog-since-v1102)
+- [v1.10.4](#v1104)
+  - [Downloads for v1.10.4](#downloads-for-v1104)
+  - [Changelog since v1.10.3](#changelog-since-v1103)
     - [Changes by Kind](#changes-by-kind-2)
       - [Bug Fixes](#bug-fixes-2)
       - [Others](#others-2)
-- [v1.10.2](#v1102)
-  - [Downloads for v1.10.2](#downloads-for-v1102)
-  - [Changelog since v1.10.1](#changelog-since-v1101)
+- [v1.10.3](#v1103)
+  - [Downloads for v1.10.3](#downloads-for-v1103)
+  - [Changelog since v1.10.2](#changelog-since-v1102)
     - [Changes by Kind](#changes-by-kind-3)
       - [Bug Fixes](#bug-fixes-3)
       - [Others](#others-3)
-- [v1.10.1](#v1101)
-  - [Downloads for v1.10.1](#downloads-for-v1101)
-  - [Changelog since v1.10.0](#changelog-since-v1100)
+- [v1.10.2](#v1102)
+  - [Downloads for v1.10.2](#downloads-for-v1102)
+  - [Changelog since v1.10.1](#changelog-since-v1101)
     - [Changes by Kind](#changes-by-kind-4)
       - [Bug Fixes](#bug-fixes-4)
       - [Others](#others-4)
+- [v1.10.1](#v1101)
+  - [Downloads for v1.10.1](#downloads-for-v1101)
+  - [Changelog since v1.10.0](#changelog-since-v1100)
+    - [Changes by Kind](#changes-by-kind-5)
+      - [Bug Fixes](#bug-fixes-5)
+      - [Others](#others-5)
 - [v1.10.0](#v1100)
   - [Downloads for v1.10.0](#downloads-for-v1100)
   - [What's New](#whats-new)
@@ -40,7 +46,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-5)
+    - [Bug Fixes](#bug-fixes-6)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -50,6 +56,23 @@
   - [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.10.6
+## Downloads for v1.10.6
+
+Download v1.10.6 in the [v1.10.6 release page](https://github.com/karmada-io/karmada/releases/tag/v1.10.6).
+
+## Changelog since v1.10.5
+### Changes by Kind
+#### Bug Fixes
+- `karmada-aggregated-apiserver`: User can append a "/" at the end when configuring the cluster's apiEndpoint. ([#5556](https://github.com/karmada-io/karmada/pull/5556), @spiritNO1)
+- `karmada-controller-manager`: Ignored StatefulSet Dependencies with PVCs created via the VolumeClaimTemplates. ([#5687](https://github.com/karmada-io/karmada/pull/5687), @seanlaii)
+- `karmada-scheduler`: Fixed unexpected modification of original `ResourceSummary` due to lack of deep copy. ([#5725](https://github.com/karmada-io/karmada/pull/5725), @RainbowMango)
+- `karmada-scheduler`: Fixes an issue where resource model grades were incorrectly matched based on resource requests. Now only grades that can provide sufficient resources will be selected. ([#5729](https://github.com/karmada-io/karmada/pull/5729), @RainbowMango)
+- `karmada-search`: Modify the logic of checking whether the resource is registered when selecting the plugin. ([#5736](https://github.com/karmada-io/karmada/pull/5736), @seanlaii)
+
+#### Others
+None.
 
 # v1.10.5
 ## Downloads for v1.10.5

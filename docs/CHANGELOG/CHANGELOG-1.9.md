@@ -2,48 +2,54 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.9.7](#v197)
-  - [Downloads for v1.9.7](#downloads-for-v197)
-  - [Changelog since v1.9.6](#changelog-since-v196)
+- [v1.9.8](#v198)
+  - [Downloads for v1.9.8](#downloads-for-v198)
+  - [Changelog since v1.9.7](#changelog-since-v197)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
-- [v1.9.6](#v196)
-  - [Downloads for v1.9.6](#downloads-for-v196)
-  - [Changelog since v1.9.5](#changelog-since-v195)
+- [v1.9.7](#v197)
+  - [Downloads for v1.9.7](#downloads-for-v197)
+  - [Changelog since v1.9.6](#changelog-since-v196)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
-- [v1.9.5](#v195)
-  - [Downloads for v1.9.5](#downloads-for-v195)
-  - [Changelog since v1.9.4](#changelog-since-v194)
+- [v1.9.6](#v196)
+  - [Downloads for v1.9.6](#downloads-for-v196)
+  - [Changelog since v1.9.5](#changelog-since-v195)
     - [Changes by Kind](#changes-by-kind-2)
       - [Bug Fixes](#bug-fixes-2)
       - [Others](#others-2)
-- [v1.9.4](#v194)
-  - [Downloads for v1.9.4](#downloads-for-v194)
-  - [Changelog since v1.9.3](#changelog-since-v193)
+- [v1.9.5](#v195)
+  - [Downloads for v1.9.5](#downloads-for-v195)
+  - [Changelog since v1.9.4](#changelog-since-v194)
     - [Changes by Kind](#changes-by-kind-3)
       - [Bug Fixes](#bug-fixes-3)
       - [Others](#others-3)
-- [v1.9.3](#v193)
-  - [Downloads for v1.9.3](#downloads-for-v193)
-  - [Changelog since v1.9.2](#changelog-since-v192)
+- [v1.9.4](#v194)
+  - [Downloads for v1.9.4](#downloads-for-v194)
+  - [Changelog since v1.9.3](#changelog-since-v193)
     - [Changes by Kind](#changes-by-kind-4)
       - [Bug Fixes](#bug-fixes-4)
       - [Others](#others-4)
-- [v1.9.2](#v192)
-  - [Downloads for v1.9.2](#downloads-for-v192)
-  - [Changelog since v1.9.1](#changelog-since-v191)
+- [v1.9.3](#v193)
+  - [Downloads for v1.9.3](#downloads-for-v193)
+  - [Changelog since v1.9.2](#changelog-since-v192)
     - [Changes by Kind](#changes-by-kind-5)
       - [Bug Fixes](#bug-fixes-5)
       - [Others](#others-5)
-- [v1.9.1](#v191)
-  - [Downloads for v1.9.1](#downloads-for-v191)
-  - [Changelog since v1.9.0](#changelog-since-v190)
+- [v1.9.2](#v192)
+  - [Downloads for v1.9.2](#downloads-for-v192)
+  - [Changelog since v1.9.1](#changelog-since-v191)
     - [Changes by Kind](#changes-by-kind-6)
       - [Bug Fixes](#bug-fixes-6)
       - [Others](#others-6)
+- [v1.9.1](#v191)
+  - [Downloads for v1.9.1](#downloads-for-v191)
+  - [Changelog since v1.9.0](#changelog-since-v190)
+    - [Changes by Kind](#changes-by-kind-7)
+      - [Bug Fixes](#bug-fixes-7)
+      - [Others](#others-7)
 - [v1.9.0](#v190)
   - [Downloads for v1.9.0](#downloads-for-v190)
   - [What's New](#whats-new)
@@ -53,7 +59,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-7)
+    - [Bug Fixes](#bug-fixes-8)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -63,6 +69,23 @@
   - [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.9.8
+## Downloads for v1.9.8
+
+Download v1.9.8 in the [v1.9.8 release page](https://github.com/karmada-io/karmada/releases/tag/v1.9.8).
+
+## Changelog since v1.9.7
+### Changes by Kind
+#### Bug Fixes
+- `karmada-aggregated-apiserver`: User can append a "/" at the end when configuring the cluster's apiEndpoint. ([#5557](https://github.com/karmada-io/karmada/pull/5557), @spiritNO1)
+- `karmada-controller-manager`: Ignored StatefulSet Dependencies with PVCs created via the VolumeClaimTemplates. ([#5688](https://github.com/karmada-io/karmada/pull/5688), @seanlaii)
+- `karmada-scheduler`: Fixed unexpected modification of original `ResourceSummary` due to lack of deep copy. ([#5726](https://github.com/karmada-io/karmada/pull/5726), @RainbowMango)
+- `karmada-scheduler`: Fixes an issue where resource model grades were incorrectly matched based on resource requests. Now only grades that can provide sufficient resources will be selected. ([#5730](https://github.com/karmada-io/karmada/pull/5730), @RainbowMango)
+- `karmada-search`: Modify the logic of checking whether the resource is registered when selecting the plugin. ([#5735](https://github.com/karmada-io/karmada/pull/5735), @seanlaii)
+
+#### Others
+None.
 
 # v1.9.7
 ## Downloads for v1.9.7
