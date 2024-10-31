@@ -169,7 +169,7 @@ func installComponentsOnHostCluster(opts *addoninit.CommandAddonsEnableOption) e
 		return fmt.Errorf("create karmada metrics adapter deployment error: %v", err)
 	}
 
-	if err = cmdutil.WaitForDeploymentRollout(opts.KubeClientSet, karmadaMetricsAdapterDeployment, opts.WaitComponentReadyTimeout); err != nil {
+	if err = addonutils.WaitForDeploymentRollout(opts.KubeClientSet, karmadaMetricsAdapterDeployment, opts.WaitComponentReadyTimeout); err != nil {
 		return fmt.Errorf("wait karmada metrics adapter pod status ready timeout: %v", err)
 	}
 

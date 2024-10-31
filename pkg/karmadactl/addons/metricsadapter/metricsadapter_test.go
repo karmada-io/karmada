@@ -24,12 +24,10 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	kuberuntime "k8s.io/apimachinery/pkg/runtime"
 	clientset "k8s.io/client-go/kubernetes"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
-	coretesting "k8s.io/client-go/testing"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	aggregator "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 	fakeAggregator "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset/fake"
@@ -69,7 +67,7 @@ func TestStatus(t *testing.T) {
 				},
 			},
 			prep: func(listOpts *addoninit.CommandAddonsListOption) error {
-				return simulateNetworkErrorOnOp(listOpts.KubeClientSet, "get", "deployments")
+				return addonutils.SimulateNetworkErrorOnOp(listOpts.KubeClientSet, "get", "deployments")
 			},
 			wantStatus: addoninit.AddonUnknownStatus,
 			wantErr:    true,
@@ -87,7 +85,7 @@ func TestStatus(t *testing.T) {
 				if err := createKarmadaMetricsDeployment(listOpts.KubeClientSet, replicas, listOpts.Namespace); err != nil {
 					return fmt.Errorf("failed to create karmada metrics deployment, got error: %v", err)
 				}
-				return simulateKarmadaMetricsDeploymentUnready(listOpts.KubeClientSet, name, listOpts.Namespace)
+				return addonutils.SimulateDeploymentUnready(listOpts.KubeClientSet, name, listOpts.Namespace)
 			},
 			wantStatus: addoninit.AddonUnhealthyStatus,
 		},
@@ -167,15 +165,6 @@ func TestStatus(t *testing.T) {
 	}
 }
 
-// simulateNetworkErrorOnOp simulates a network error during the specified
-// operation on a resource by prepending a reactor to the fake client.
-func simulateNetworkErrorOnOp(c clientset.Interface, operation, resource string) error {
-	c.(*fakeclientset.Clientset).Fake.PrependReactor(operation, resource, func(coretesting.Action) (bool, runtime.Object, error) {
-		return true, nil, fmt.Errorf("unexpected error: encountered a network issue while %s the %s", operation, resource)
-	})
-	return nil
-}
-
 // createKarmadaMetricsDeployment creates or updates a Deployment for the Karmada metrics adapter
 // in the specified namespace with the provided number of replicas.
 // It parses and decodes the template for the Deployment before applying it to the cluster.
@@ -233,24 +222,6 @@ func updateAAAPIServicesCondition(services []*apiregistrationv1.APIService, a ag
 			return fmt.Errorf("failed to update status of apiservice, got error: %v", err)
 		}
 	}
-	return nil
-}
-
-// simulateKarmadaMetricsDeploymentUnready simulates a "not ready" status by incrementing the replicas
-// of the specified Deployment, thus marking it as unready. This is useful for testing the handling
-// of Deployment readiness in Karmada.
-func simulateKarmadaMetricsDeploymentUnready(c clientset.Interface, name, namespace string) error {
-	deployment, err := c.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get deployment %s in namespace %s, got error: %v", name, namespace, err)
-	}
-
-	deployment.Status.Replicas = *deployment.Spec.Replicas + 1
-	_, err = c.AppsV1().Deployments(namespace).UpdateStatus(context.TODO(), deployment, metav1.UpdateOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to update replicas status of deployment %s in namespace %s, got error: %v", name, namespace, err)
-	}
-
 	return nil
 }
 
