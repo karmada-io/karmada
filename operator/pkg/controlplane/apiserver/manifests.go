@@ -48,7 +48,6 @@ spec:
         - --authorization-mode=Node,RBAC
         - --client-ca-file=/etc/karmada/pki/ca.crt
         - --disable-admission-plugins=StorageObjectInUseProtection,ServiceAccount
-        - --enable-admission-plugins=NodeRestriction
         - --enable-bootstrap-token-auth=true
         - --bind-address=0.0.0.0
         - --secure-port=5443
