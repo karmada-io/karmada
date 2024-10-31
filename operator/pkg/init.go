@@ -65,6 +65,9 @@ func (opt *InitOptions) Validate() error {
 			return fmt.Errorf("unexpected invalid crds remote url %s", opt.CRDTarball.HTTPSource.URL)
 		}
 	}
+	if opt.Karmada == nil || opt.Karmada.Spec.Components == nil || opt.Karmada.Spec.Components.KarmadaAPIServer == nil {
+		return fmt.Errorf("invalid Karmada configuration: Karmada, Karmada components, and Karmada API server must be defined")
+	}
 	if !util.IsInCluster(opt.Karmada.Spec.HostCluster) && opt.Karmada.Spec.Components.KarmadaAPIServer.ServiceType == corev1.ServiceTypeClusterIP {
 		return fmt.Errorf("if karmada is installed in a remote cluster, the service type of karmada-apiserver must be either NodePort or LoadBalancer")
 	}
@@ -73,7 +76,7 @@ func (opt *InitOptions) Validate() error {
 		return fmt.Errorf("unexpected karmada invalid version %s", opt.KarmadaVersion)
 	}
 
-	if opt.Karmada.Spec.Components.Etcd.Local != nil && opt.Karmada.Spec.Components.Etcd.Local.CommonSettings.Replicas != nil {
+	if opt.Karmada.Spec.Components.Etcd != nil && opt.Karmada.Spec.Components.Etcd.Local != nil && opt.Karmada.Spec.Components.Etcd.Local.CommonSettings.Replicas != nil {
 		replicas := *opt.Karmada.Spec.Components.Etcd.Local.CommonSettings.Replicas
 
 		if (replicas % 2) == 0 {
@@ -183,6 +186,11 @@ func newRunData(opt *InitOptions) (*initData, error) {
 		}
 	}
 
+	var hostClusterDNSDomain string
+	if opt.Karmada.Spec.HostCluster != nil && opt.Karmada.Spec.HostCluster.Networking != nil && opt.Karmada.Spec.HostCluster.Networking.DNSDomain != nil {
+		hostClusterDNSDomain = *opt.Karmada.Spec.HostCluster.Networking.DNSDomain
+	}
+
 	return &initData{
 		name:                opt.Name,
 		namespace:           opt.Namespace,
@@ -194,7 +202,7 @@ func newRunData(opt *InitOptions) (*initData, error) {
 		privateRegistry:     privateRegistry,
 		components:          opt.Karmada.Spec.Components,
 		featureGates:        opt.Karmada.Spec.FeatureGates,
-		dnsDomain:           *opt.Karmada.Spec.HostCluster.Networking.DNSDomain,
+		dnsDomain:           hostClusterDNSDomain,
 		CertStore:           certs.NewCertStore(),
 	}, nil
 }
