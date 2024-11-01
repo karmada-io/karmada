@@ -277,8 +277,12 @@ type KarmadaAPIServer struct {
 	// +optional
 	ServiceSubnet *string `json:"serviceSubnet,omitempty"`
 
-	// ServiceType represents the service type of karmada apiserver.
-	// it is ClusterIP by default.
+	// ServiceType represents the service type of Karmada API server.
+	// Valid options are: "ClusterIP", "NodePort", "LoadBalancer".
+	// Defaults to "ClusterIP".
+	//
+	// +kubebuilder:default="ClusterIP"
+	// +kubebuilder:validation:Enum=ClusterIP;NodePort;LoadBalancer
 	// +optional
 	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`
 
