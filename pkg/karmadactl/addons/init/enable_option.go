@@ -18,11 +18,13 @@ package init
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/strings/slices"
 
@@ -140,9 +142,17 @@ func (o *CommandAddonsEnableOption) Complete() error {
 	return nil
 }
 
+var validateMemberConfig = func(memberContext, memberKubeConfig string) (*rest.Config, error) {
+	return apiclient.RestConfig(memberContext, memberKubeConfig)
+}
+
+var memberKubeClientBuilder = func(memberCfg *rest.Config) kubernetes.Interface {
+	return kubernetes.NewForConfigOrDie(memberCfg)
+}
+
 // Validate Check that there are enough conditions to run addon enable.
 func (o *CommandAddonsEnableOption) Validate(args []string) error {
-	err := validAddonNames(args)
+	err := validateAddonNames(args)
 	if err != nil {
 		return err
 	}
@@ -153,26 +163,27 @@ func (o *CommandAddonsEnableOption) Validate(args []string) error {
 		if apierrors.IsNotFound(err) {
 			return fmt.Errorf("secrets `kubeconfig` is not found in namespace %s, please execute karmadactl init to deploy karmada first", o.Namespace)
 		}
+		return err
 	}
 
 	if o.Cluster == "" {
 		if slices.Contains(args, EstimatorResourceName) {
-			return fmt.Errorf("member cluster is needed when enable karmada-scheduler-estimator,use `--cluster=member --member-kubeconfig /root/.kube/config --member-context member1` to enable karmada-scheduler-estimator")
+			return errors.New("member cluster is needed when enable karmada-scheduler-estimator,use `--cluster=member --member-kubeconfig /root/.kube/config --member-context member1` to enable karmada-scheduler-estimator")
 		}
 	} else {
 		if !slices.Contains(args, EstimatorResourceName) && !slices.Contains(args, "all") {
-			return fmt.Errorf("cluster is needed only when enable karmada-scheduler-estimator or enable all")
+			return errors.New("cluster is needed only when enable karmada-scheduler-estimator or enable all")
 		}
 		if o.MemberKubeConfig == "" {
-			return fmt.Errorf("member config is needed when enable karmada-scheduler-estimator,use `--cluster=member --member-kubeconfig /root/.kube/member.config --member-context member1` to enable karmada-scheduler-estimator")
+			return errors.New("member config is needed when enable karmada-scheduler-estimator,use `--cluster=member --member-kubeconfig /root/.kube/member.config --member-context member1` to enable karmada-scheduler-estimator")
 		}
 
 		// Check member kubeconfig and context is valid
-		memberConfig, err := apiclient.RestConfig(o.MemberContext, o.MemberKubeConfig)
+		memberConfig, err := validateMemberConfig(o.MemberContext, o.MemberKubeConfig)
 		if err != nil {
 			return fmt.Errorf("failed to get member cluster config. error: %v", err)
 		}
-		memberKubeClient := kubernetes.NewForConfigOrDie(memberConfig)
+		memberKubeClient := memberKubeClientBuilder(memberConfig)
 		_, err = memberKubeClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to get nodes from cluster %s with member-kubeconfig and member-context. error: %v, Please check the Role or ClusterRole of the serviceAccount in your member-kubeconfig", o.Cluster, err)
@@ -213,10 +224,10 @@ func (o *CommandAddonsEnableOption) Run(args []string) error {
 	return nil
 }
 
-// validAddonNames valid whether addon names is supported now
-func validAddonNames(addonNames []string) error {
+// validateAddonNames validate whether addon names is supported now
+func validateAddonNames(addonNames []string) error {
 	if len(addonNames) == 0 {
-		return fmt.Errorf("addonNames must be not be null")
+		return errors.New("addonNames must be not be null")
 	}
 	for _, addonName := range addonNames {
 		if addonName == "all" {
