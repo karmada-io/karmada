@@ -227,7 +227,8 @@ func (j *CommandJoinOption) RunJoinCluster(controlPlaneRestConfig, clusterConfig
 	}
 
 	if !ok {
-		return fmt.Errorf("the same cluster has been registered with name %s", name)
+		return fmt.Errorf("the same cluster has been registered with name %s, "+
+			"if you still wish to register this cluster, please remove the existing one first", name)
 	}
 
 	registerOption.ClusterID = id
