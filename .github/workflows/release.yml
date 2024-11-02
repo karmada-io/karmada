@@ -98,11 +98,3 @@ jobs:
       with:
         files: |
           sbom.tar.gz
-  update-krew-index:
-    needs: release-assests
-    name: Update krew-index
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v4
-    - name: Update new version in krew-index
-      uses: rajatjindal/krew-release-bot@v0.0.46
