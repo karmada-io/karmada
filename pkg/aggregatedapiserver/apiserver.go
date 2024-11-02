@@ -17,7 +17,9 @@ limitations under the License.
 package aggregatedapiserver
 
 import (
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
@@ -70,6 +72,13 @@ func (cfg *Config) Complete() CompletedConfig {
 	return CompletedConfig{&c}
 }
 
+var newClusterStorageBuilder = func(scheme *runtime.Scheme, restConfig *restclient.Config, secretLister listcorev1.SecretLister, optsGetter generic.RESTOptionsGetter) (*clusterstorage.ClusterStorage, error) {
+	return clusterstorage.NewStorage(scheme, restConfig, secretLister, optsGetter)
+}
+var apiGroupInstaller = func(server *APIServer, apiGroupInfo *genericapiserver.APIGroupInfo) error {
+	return server.GenericAPIServer.InstallAPIGroup(apiGroupInfo)
+}
+
 func (c completedConfig) New(restConfig *restclient.Config, secretLister listcorev1.SecretLister) (*APIServer, error) {
 	genericServer, err := c.GenericConfig.New("aggregated-apiserver", genericapiserver.NewEmptyDelegate())
 	if err != nil {
@@ -82,7 +91,7 @@ func (c completedConfig) New(restConfig *restclient.Config, secretLister listcor
 
 	apiGroupInfo := genericapiserver.NewDefaultAPIGroupInfo(clusterapis.GroupName, clusterscheme.Scheme, clusterscheme.ParameterCodec, clusterscheme.Codecs)
 
-	clusterStorage, err := clusterstorage.NewStorage(clusterscheme.Scheme, restConfig, secretLister, c.GenericConfig.RESTOptionsGetter)
+	clusterStorage, err := newClusterStorageBuilder(clusterscheme.Scheme, restConfig, secretLister, c.GenericConfig.RESTOptionsGetter)
 	if err != nil {
 		klog.Errorf("Unable to create REST storage for a resource due to %v, will die", err)
 		return nil, err
@@ -93,7 +102,7 @@ func (c completedConfig) New(restConfig *restclient.Config, secretLister listcor
 	v1alpha1cluster["clusters/proxy"] = clusterStorage.Proxy
 	apiGroupInfo.VersionedResourcesStorageMap["v1alpha1"] = v1alpha1cluster
 
-	if err = server.GenericAPIServer.InstallAPIGroup(&apiGroupInfo); err != nil {
+	if err = apiGroupInstaller(server, &apiGroupInfo); err != nil {
 		return nil, err
 	}
 
