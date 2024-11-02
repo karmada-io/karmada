@@ -2539,9 +2539,15 @@ spec:
                           Defaults to "10.96.0.0/12".
                         type: string
                       serviceType:
+                        default: ClusterIP
                         description: |-
-                          ServiceType represents the service type of karmada apiserver.
-                          it is ClusterIP by default.
+                          ServiceType represents the service type of Karmada API server.
+                          Valid options are: "ClusterIP", "NodePort", "LoadBalancer".
+                          Defaults to "ClusterIP".
+                        enum:
+                        - ClusterIP
+                        - NodePort
+                        - LoadBalancer
                         type: string
                     type: object
                   karmadaAggregatedAPIServer:
