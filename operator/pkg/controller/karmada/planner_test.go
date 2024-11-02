@@ -259,6 +259,13 @@ func TestAfterRunJob(t *testing.T) {
 				if err := verifyJobInCommon(planner, metav1.ConditionTrue, conditionMsg, "Completed"); err != nil {
 					return fmt.Errorf("failed to verify after run job, got error: %v", err)
 				}
+				if planner.karmada.Status.APIServerService == nil {
+					return fmt.Errorf("expected API Server service ref to be set, but got nil")
+				}
+				expectedAPIServerName := util.KarmadaAPIServerName(karmada.GetName())
+				if planner.karmada.Status.APIServerService.Name != expectedAPIServerName {
+					return fmt.Errorf("expected API Server service Name to be %s, but got %s", expectedAPIServerName, planner.karmada.Status.APIServerService.Name)
+				}
 
 				return nil
 			},

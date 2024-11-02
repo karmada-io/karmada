@@ -180,6 +180,9 @@ func (p *Planner) afterRunJob() error {
 			Namespace: p.karmada.GetNamespace(),
 			Name:      util.AdminKubeconfigSecretName(p.karmada.GetName()),
 		}
+		p.karmada.Status.APIServerService = &operatorv1alpha1.APIServerService{
+			Name: util.KarmadaAPIServerName(p.karmada.GetName()),
+		}
 		return p.Client.Status().Update(context.TODO(), p.karmada)
 	}
 	// if it is deInit workflow, the cr will be deleted with karmada is be deleted, so we need not to

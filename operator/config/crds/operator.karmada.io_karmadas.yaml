@@ -3724,6 +3724,19 @@ spec:
           status:
             description: Most recently observed status of the Karmada.
             properties:
+              apiServerService:
+                description: |-
+                  APIServerService reports the location of the Karmada API server service which
+                  can be used by third-party applications to discover the Karmada Service, e.g.
+                  expose the service outside the cluster by Ingress.
+                properties:
+                  name:
+                    description: Name represents the name of the Karmada API Server
+                      service.
+                    type: string
+                required:
+                - name
+                type: object
               conditions:
                 description: Conditions represents the latest available observations
                   of a karmada's current state.
