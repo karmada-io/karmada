@@ -190,6 +190,10 @@ func Run(ctx context.Context, opts *options.Options) error {
 	crtlmetrics.Registry.MustRegister(metrics.ResourceCollectors()...)
 	crtlmetrics.Registry.MustRegister(metrics.PoolCollectors()...)
 
+	if err := helper.IndexWork(ctx, controllerManager); err != nil {
+		klog.Fatalf("Failed to index Work: %v", err)
+	}
+
 	setupControllers(controllerManager, opts, ctx.Done())
 
 	// blocks until the context is done.

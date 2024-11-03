@@ -22,6 +22,7 @@ import (
 
 	"github.com/onsi/ginkgo/v2"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/rand"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -80,7 +81,11 @@ var _ = ginkgo.Describe("ClusterResourceBinding test", func() {
 
 		ginkgo.It("creates work with permanent ID label", func() {
 			framework.WaitClusterResourceBindingFitWith(karmadaClient, bindingName, func(clusterResourceBinding *workv1alpha2.ClusterResourceBinding) bool {
-				workList, err := helper.GetWorksByBindingID(context.Background(), controlPlaneClient, clusterResourceBinding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel], false)
+				workList, err := helper.GetWorksByLabelsSet(context.Background(), controlPlaneClient,
+					labels.Set{
+						workv1alpha2.ClusterResourceBindingPermanentIDLabel: clusterResourceBinding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel],
+					},
+				)
 				if err != nil {
 					return false
 				}
