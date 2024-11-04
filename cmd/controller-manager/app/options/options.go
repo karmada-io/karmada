@@ -143,6 +143,10 @@ type Options struct {
 	// in scenario of dynamic replica assignment based on cluster free resources.
 	// Disable if it does not fit your cases for better performance.
 	EnableClusterResourceModeling bool
+	// SkipStatusCollection specifies whether to bypass the aggregation and collection of resource statuses.
+	// By default, it is set to false, meaning resource statuses will reflect in the federated control-plane.
+	// When set to true, the aggregated resource statuses will not reflect.
+	SkipStatusCollection bool
 }
 
 // NewOptions builds an empty options.
@@ -224,6 +228,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 	flags.BoolVar(&o.EnableClusterResourceModeling, "enable-cluster-resource-modeling", true, "Enable means controller would build resource modeling for each cluster by syncing Nodes and Pods resources.\n"+
 		"The resource modeling might be used by the scheduler to make scheduling decisions in scenario of dynamic replica assignment based on cluster free resources.\n"+
 		"Disable if it does not fit your cases for better performance.")
+	flags.BoolVar(&o.SkipStatusCollection, "skip-status-collection", false, "Skip status collection. By default, it is false which means that resource status will be reflected in federated control-plane.")
 
 	o.RateLimiterOpts.AddFlags(flags)
 	o.ProfileOpts.AddFlags(flags)
