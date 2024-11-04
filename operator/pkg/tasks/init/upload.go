@@ -70,7 +70,6 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 	case corev1.ServiceTypeClusterIP:
 		apiserverName := util.KarmadaAPIServerName(data.GetName())
 		endpoint = fmt.Sprintf("https://%s.%s.svc.cluster.local:%d", apiserverName, data.GetNamespace(), constants.KarmadaAPIserverListenClientPort)
-
 	case corev1.ServiceTypeNodePort:
 		service, err := apiclient.GetService(data.RemoteClient(), util.KarmadaAPIServerName(data.GetName()), data.GetNamespace())
 		if err != nil {
@@ -78,6 +77,21 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 		}
 		nodePort := getNodePortFromAPIServerService(service)
 		endpoint = fmt.Sprintf("https://%s:%d", data.ControlplaneAddress(), nodePort)
+	case corev1.ServiceTypeLoadBalancer:
+		service, err := apiclient.GetService(data.RemoteClient(), util.KarmadaAPIServerName(data.GetName()), data.GetNamespace())
+		if err != nil {
+			return err
+		}
+		if len(service.Status.LoadBalancer.Ingress) == 0 {
+			return fmt.Errorf("no loadbalancer ingress found in service (%s/%s)", data.GetName(), data.GetNamespace())
+		}
+		loadbalancerAddress := getLoadbalancerAddress(service.Status.LoadBalancer.Ingress)
+		if loadbalancerAddress == "" {
+			return fmt.Errorf("can not find loadbalancer ip or hostname in service (%s/%s)", data.GetName(), data.GetNamespace())
+		}
+		endpoint = fmt.Sprintf("https://%s:%d", loadbalancerAddress, constants.KarmadaAPIserverListenClientPort)
+	default:
+		return errors.New("not supported service type for Karmada API server")
 	}
 
 	kubeconfig, err := buildKubeConfigFromSpec(data, endpoint)
@@ -125,6 +139,17 @@ func getNodePortFromAPIServerService(service *corev1.Service) int32 {
 	}
 
 	return nodePort
+}
+
+func getLoadbalancerAddress(ingress []corev1.LoadBalancerIngress) string {
+	for _, in := range ingress {
+		if in.Hostname != "" {
+			return in.Hostname
+		} else if in.IP != "" {
+			return in.IP
+		}
+	}
+	return ""
 }
 
 func buildKubeConfigFromSpec(data InitData, serverURL string) (*clientcmdapi.Config, error) {
