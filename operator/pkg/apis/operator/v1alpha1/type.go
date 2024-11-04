@@ -694,6 +694,21 @@ type KarmadaStatus struct {
 	// Conditions represents the latest available observations of a karmada's current state.
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// APIServerService reports the location of the Karmada API server service which
+	// can be used by third-party applications to discover the Karmada Service, e.g.
+	// expose the service outside the cluster by Ingress.
+	// +optional
+	APIServerService *APIServerService `json:"apiServerService,omitempty"`
+}
+
+// APIServerService tells the location of Karmada API server service.
+// Currently, it only includes the name of the service. The namespace
+// of the service is the same as the namespace of the current Karmada object.
+type APIServerService struct {
+	// Name represents the name of the Karmada API Server service.
+	// +required
+	Name string `json:"name"`
 }
 
 // LocalSecretReference is a reference to a secret within the enclosing
