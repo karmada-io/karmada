@@ -52,15 +52,18 @@ var (
 		"cn":     "registry.cn-hangzhou.aliyuncs.com/google_containers",
 	}
 
-	certList = []string{
+	karmadaCertsList = []string{
 		globaloptions.CaCertAndKeyName,
+		options.KarmadaClientCertAndKeyName,
+		options.KarmadaServerCertAndKeyName,
+		options.FrontProxyCaCertAndKeyName,
+		options.FrontProxyClientCertAndKeyName,
+	}
+
+	etcdCertList = []string{
 		options.EtcdCaCertAndKeyName,
 		options.EtcdServerCertAndKeyName,
 		options.EtcdClientCertAndKeyName,
-		options.KarmadaCertAndKeyName,
-		options.ApiserverCertAndKeyName,
-		options.FrontProxyCaCertAndKeyName,
-		options.FrontProxyClientCertAndKeyName,
 	}
 
 	emptyByteSlice                 = make([]byte, 0)
@@ -329,8 +332,8 @@ func (i *CommandInitOption) genCerts() error {
 			DNSNames: etcdServerCertDNS,
 			IPs:      []net.IP{utils.StringToNetIP("127.0.0.1")},
 		}
-		etcdServerCertConfig = cert.NewCertConfig("karmada-etcd-server", []string{}, etcdServerAltNames, &notAfter)
-		etcdClientCertCfg = cert.NewCertConfig("karmada-etcd-client", []string{}, certutil.AltNames{}, &notAfter)
+		etcdServerCertConfig = cert.NewCertConfig("etcd-server", []string{}, etcdServerAltNames, &notAfter)
+		etcdClientCertCfg = cert.NewCertConfig("etcd-client", []string{}, certutil.AltNames{}, &notAfter)
 	}
 
 	karmadaDNS := []string{
@@ -368,12 +371,12 @@ func (i *CommandInitOption) genCerts() error {
 		DNSNames: karmadaDNS,
 		IPs:      karmadaIPs,
 	}
-	karmadaCertCfg := cert.NewCertConfig("system:admin", []string{"system:masters"}, karmadaAltNames, &notAfter)
+	karmadaClientCertCfg := cert.NewCertConfig("system:admin", []string{"system:masters"}, karmadaAltNames, &notAfter)
 
-	apiserverCertCfg := cert.NewCertConfig("karmada-apiserver", []string{""}, karmadaAltNames, &notAfter)
+	karmadaServerCertCfg := cert.NewCertConfig("karmada-apiserver", []string{""}, karmadaAltNames, &notAfter)
 
 	frontProxyClientCertCfg := cert.NewCertConfig("front-proxy-client", []string{}, certutil.AltNames{}, &notAfter)
-	if err = cert.GenCerts(i.KarmadaPkiPath, i.CaCertFile, i.CaKeyFile, etcdServerCertConfig, etcdClientCertCfg, karmadaCertCfg, apiserverCertCfg, frontProxyClientCertCfg); err != nil {
+	if err = cert.GenCerts(i.KarmadaPkiPath, i.CaCertFile, i.CaKeyFile, etcdServerCertConfig, etcdClientCertCfg, karmadaClientCertCfg, karmadaServerCertCfg, frontProxyClientCertCfg); err != nil {
 		return err
 	}
 	return nil
@@ -397,44 +400,46 @@ func (i *CommandInitOption) prepareCRD() error {
 }
 
 func (i *CommandInitOption) createCertsSecrets() error {
-	// Create kubeconfig Secret
+	// 1. Create karmada-kubeconfig Secret
 	karmadaServerURL := fmt.Sprintf("https://%s.%s.svc.%s:%v", karmadaAPIServerDeploymentAndServiceName, i.Namespace, i.HostClusterDomain, karmadaAPIServerContainerPort)
 	config := utils.CreateWithCerts(karmadaServerURL, options.UserName, options.UserName, i.CertAndKeyFileData[fmt.Sprintf("%s.crt", globaloptions.CaCertAndKeyName)],
-		i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)], i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)])
+		i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaClientCertAndKeyName)], i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaClientCertAndKeyName)])
 	configBytes, err := clientcmd.Write(*config)
 	if err != nil {
 		return fmt.Errorf("failure while serializing admin kubeConfig. %v", err)
 	}
 
-	kubeConfigSecret := i.SecretFromSpec(KubeConfigSecretAndMountName, corev1.SecretTypeOpaque, map[string]string{KubeConfigSecretAndMountName: string(configBytes)})
+	kubeConfigSecret := i.SecretFromSpec(KubeConfigSecretAndMountName, corev1.SecretTypeOpaque, map[string]string{kubeConfigSubPathName: string(configBytes)})
 	if err = util.CreateOrUpdateSecret(i.KubeClientSet, kubeConfigSecret); err != nil {
 		return err
 	}
-	// Create certs Secret
-	etcdCert := map[string]string{
-		fmt.Sprintf("%s.crt", options.EtcdCaCertAndKeyName):     string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.EtcdCaCertAndKeyName)]),
-		fmt.Sprintf("%s.key", options.EtcdCaCertAndKeyName):     string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.EtcdCaCertAndKeyName)]),
-		fmt.Sprintf("%s.crt", options.EtcdServerCertAndKeyName): string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.EtcdServerCertAndKeyName)]),
-		fmt.Sprintf("%s.key", options.EtcdServerCertAndKeyName): string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.EtcdServerCertAndKeyName)]),
+
+	// 2. Create karmada-certs Secret
+	karmadaCerts := map[string]string{}
+	for _, v := range karmadaCertsList {
+		karmadaCerts[fmt.Sprintf("%s.crt", v)] = string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", v)])
+		karmadaCerts[fmt.Sprintf("%s.key", v)] = string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", v)])
+	}
+	karmadaSecret := i.SecretFromSpec(globaloptions.KarmadaCertsName, corev1.SecretTypeOpaque, karmadaCerts)
+	if err := util.CreateOrUpdateSecret(i.KubeClientSet, karmadaSecret); err != nil {
+		return err
+	}
+
+	// 3. Create karmada-etcd-cert Secret
+	etcdCert := map[string]string{}
+	for _, v := range etcdCertList {
+		etcdCert[fmt.Sprintf("%s.crt", v)] = string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", v)])
+		etcdCert[fmt.Sprintf("%s.key", v)] = string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", v)])
 	}
 	etcdSecret := i.SecretFromSpec(etcdCertName, corev1.SecretTypeOpaque, etcdCert)
 	if err := util.CreateOrUpdateSecret(i.KubeClientSet, etcdSecret); err != nil {
 		return err
 	}
 
-	karmadaCert := map[string]string{}
-	for _, v := range certList {
-		karmadaCert[fmt.Sprintf("%s.crt", v)] = string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", v)])
-		karmadaCert[fmt.Sprintf("%s.key", v)] = string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", v)])
-	}
-	karmadaSecret := i.SecretFromSpec(globaloptions.KarmadaCertsName, corev1.SecretTypeOpaque, karmadaCert)
-	if err := util.CreateOrUpdateSecret(i.KubeClientSet, karmadaSecret); err != nil {
-		return err
-	}
-
+	// 4. Create karmada-webhook-cert Secret
 	karmadaWebhookCert := map[string]string{
-		"tls.crt": string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)]),
-		"tls.key": string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)]),
+		"tls.crt": string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaServerCertAndKeyName)]),
+		"tls.key": string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaServerCertAndKeyName)]),
 	}
 	karmadaWebhookSecret := i.SecretFromSpec(webhookCertsName, corev1.SecretTypeOpaque, karmadaWebhookCert)
 	if err := util.CreateOrUpdateSecret(i.KubeClientSet, karmadaWebhookSecret); err != nil {
@@ -548,6 +553,7 @@ func (i *CommandInitOption) RunInit(parentCommand string) error {
 
 	i.CertAndKeyFileData = map[string][]byte{}
 
+	certList := append(karmadaCertsList, etcdCertList...)
 	for _, v := range certList {
 		if isExternalEtcdCert, err := i.readExternalEtcdCert(v); err != nil {
 			return fmt.Errorf("read external etcd certificate failed, %s. %v", v, err)
@@ -621,8 +627,8 @@ func (i *CommandInitOption) createKarmadaConfig() error {
 		return err
 	}
 	if err := utils.WriteKubeConfigFromSpec(serverURL, options.UserName, options.ClusterName, i.KarmadaDataPath, options.KarmadaKubeConfigName,
-		i.CertAndKeyFileData[fmt.Sprintf("%s.crt", globaloptions.CaCertAndKeyName)], i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)],
-		i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)]); err != nil {
+		i.CertAndKeyFileData[fmt.Sprintf("%s.crt", globaloptions.CaCertAndKeyName)], i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaClientCertAndKeyName)],
+		i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaClientCertAndKeyName)]); err != nil {
 		return fmt.Errorf("failed to create karmada kubeconfig file. %v", err)
 	}
 	klog.Info("Create karmada kubeconfig success.")

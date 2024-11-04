@@ -45,8 +45,8 @@ const (
 	etcdConfigName                     = "etcd.conf"
 	etcdEnvPodName                     = "POD_NAME"
 	etcdEnvPodIP                       = "POD_IP"
-	//secrets name
-	etcdCertName = "etcd-cert"
+	etcdCertName                       = "karmada-etcd-cert"
+	etcdCertVolumeMountPath            = "/etc/etcd/pki"
 )
 
 var (
@@ -163,12 +163,12 @@ cipher-suites: %s
 `,
 			etcdContainerConfigDataMountPath, etcdConfigName,
 			etcdEnvPodName,
-			karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
+			etcdCertVolumeMountPath, options.EtcdCaCertAndKeyName,
+			etcdCertVolumeMountPath, options.EtcdServerCertAndKeyName,
+			etcdCertVolumeMountPath, options.EtcdServerCertAndKeyName,
+			etcdCertVolumeMountPath, options.EtcdCaCertAndKeyName,
+			etcdCertVolumeMountPath, options.EtcdServerCertAndKeyName,
+			etcdCertVolumeMountPath, options.EtcdServerCertAndKeyName,
 			strings.TrimRight(etcdClusterConfig, ","),
 			etcdEnvPodIP, etcdContainerServerPort,
 			etcdEnvPodIP, etcdContainerClientPort, etcdContainerClientPort,
@@ -289,7 +289,7 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 					{
 						Name:      etcdCertName,
 						ReadOnly:  true,
-						MountPath: karmadaCertsVolumeMountPath,
+						MountPath: etcdCertVolumeMountPath,
 					},
 				},
 				LivenessProbe: livenesProbe,

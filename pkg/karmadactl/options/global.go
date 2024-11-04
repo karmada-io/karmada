@@ -35,7 +35,7 @@ const DefaultKarmadactlCommandDuration = 60 * time.Second
 
 const (
 	// KarmadaCertsName the secret name of karmada certs
-	KarmadaCertsName = "karmada-cert"
+	KarmadaCertsName = "karmada-certs"
 	// CaCertAndKeyName ca certificate cert/key name in karmada certs secret
 	CaCertAndKeyName = "ca"
 )
