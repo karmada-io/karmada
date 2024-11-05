@@ -127,7 +127,7 @@ var enableEstimator = func(opts *addoninit.CommandAddonsEnableOption) error {
 		return fmt.Errorf("create or update scheduler estimator deployment error: %v", err)
 	}
 
-	if err := cmdutil.WaitForDeploymentRollout(opts.KubeClientSet, karmadaEstimatorDeployment, opts.WaitComponentReadyTimeout); err != nil {
+	if err := addonutils.WaitForDeploymentRollout(opts.KubeClientSet, karmadaEstimatorDeployment, opts.WaitComponentReadyTimeout); err != nil {
 		klog.Warning(err)
 	}
 	klog.Infof("Karmada scheduler estimator of member cluster %s is installed successfully.", opts.Cluster)

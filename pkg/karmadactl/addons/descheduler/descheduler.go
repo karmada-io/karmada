@@ -76,7 +76,7 @@ var enableDescheduler = func(opts *addoninit.CommandAddonsEnableOption) error {
 		return fmt.Errorf("create karmada descheduler deployment error: %v", err)
 	}
 
-	if err := cmdutil.WaitForDeploymentRollout(opts.KubeClientSet, karmadaDeschedulerDeployment, opts.WaitComponentReadyTimeout); err != nil {
+	if err := addonutils.WaitForDeploymentRollout(opts.KubeClientSet, karmadaDeschedulerDeployment, opts.WaitComponentReadyTimeout); err != nil {
 		return fmt.Errorf("wait karmada descheduler pod timeout: %v", err)
 	}
 
