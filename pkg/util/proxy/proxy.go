@@ -183,8 +183,9 @@ func constructLocation(cluster *clusterapis.Cluster) (*url.URL, error) {
 func createProxyTransport(cluster *clusterapis.Cluster, tlsConfig *tls.Config) (*http.Transport, error) {
 	var proxyDialerFn utilnet.DialFunc
 	trans := utilnet.SetTransportDefaults(&http.Transport{
-		DialContext:     proxyDialerFn,
-		TLSClientConfig: tlsConfig,
+		DialContext:       proxyDialerFn,
+		TLSClientConfig:   tlsConfig,
+		DisableKeepAlives: true,
 	})
 
 	if proxyURL := cluster.Spec.ProxyURL; proxyURL != "" {
