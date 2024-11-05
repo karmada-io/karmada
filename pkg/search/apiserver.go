@@ -17,7 +17,9 @@ limitations under the License.
 package search
 
 import (
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/klog/v2"
@@ -73,6 +75,13 @@ func (cfg *Config) Complete() CompletedConfig {
 	return CompletedConfig{&c}
 }
 
+var resourceRegistryStorageBuilder = func(scheme *runtime.Scheme, optsGetter generic.RESTOptionsGetter) (*searchstorage.ResourceRegistryStorage, error) {
+	return searchstorage.NewResourceRegistryStorage(scheme, optsGetter)
+}
+var apiGroupInstaller = func(server *APIServer, apiGroupInfo *genericapiserver.APIGroupInfo) error {
+	return server.GenericAPIServer.InstallAPIGroup(apiGroupInfo)
+}
+
 func (c completedConfig) New() (*APIServer, error) {
 	genericServer, err := c.GenericConfig.New("karmada-search", genericapiserver.NewEmptyDelegate())
 	if err != nil {
@@ -85,7 +94,7 @@ func (c completedConfig) New() (*APIServer, error) {
 
 	apiGroupInfo := genericapiserver.NewDefaultAPIGroupInfo(searchapis.GroupName, searchscheme.Scheme, searchscheme.ParameterCodec, searchscheme.Codecs)
 
-	resourceRegistryStorage, err := searchstorage.NewResourceRegistryStorage(searchscheme.Scheme, c.GenericConfig.RESTOptionsGetter)
+	resourceRegistryStorage, err := resourceRegistryStorageBuilder(searchscheme.Scheme, c.GenericConfig.RESTOptionsGetter)
 	if err != nil {
 		klog.Errorf("unable to create REST storage for a resource due to %v, will die", err)
 		return nil, err
@@ -110,7 +119,7 @@ func (c completedConfig) New() (*APIServer, error) {
 
 	apiGroupInfo.VersionedResourcesStorageMap["v1alpha1"] = v1alpha1search
 
-	if err = server.GenericAPIServer.InstallAPIGroup(&apiGroupInfo); err != nil {
+	if err = apiGroupInstaller(server, &apiGroupInfo); err != nil {
 		return nil, err
 	}
 
