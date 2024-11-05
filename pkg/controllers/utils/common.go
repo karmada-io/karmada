@@ -25,12 +25,18 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 // UpdateFailoverStatus adds a failoverHistoryItem to the failoverHistory field in the ResourceBinding.
 func UpdateFailoverStatus(client client.Client, binding *workv1alpha2.ResourceBinding, clusters []string, failoverType workv1alpha2.FailoverReason) (err error) {
+	// If the resource is Duplicated, then it does not have a concept of failover. We skip attaching that status here.
+	placement := binding.Spec.Placement
+	if placement != nil && placement.ReplicaSchedulingType() == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
+		return nil
+	}
 	klog.V(4).Infof("Updating failover status for ResourceBinding(%s/%s)", binding.Name, binding.Namespace)
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		_, err = helper.UpdateStatus(context.Background(), client, binding, func() error {
