@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
 
+	"github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
@@ -47,6 +48,9 @@ var (
 	karmadaSchedulerLabels           = labels.Set{"karmada-app": constants.KarmadaScheduler}
 	karmadaWebhookLabels             = labels.Set{"karmada-app": constants.KarmadaWebhook}
 	karmadaMetricAdapterLabels       = labels.Set{"karmada-app": constants.KarmadaMetricsAdapter}
+
+	KarmadaDeschedulerLabels = labels.Set{"karmada-app": constants.KarmadaDescheduler}
+	KarmadaSearchLabels      = labels.Set{"karmada-app": constants.KarmadaSearch}
 )
 
 // NewCheckApiserverHealthTask init wait-apiserver task
@@ -89,6 +93,19 @@ func NewWaitControlPlaneTask() workflow.Task {
 	}
 }
 
+// NewWaitAddonTask init wait-addon task
+func NewWaitAddonTask() workflow.Task {
+	return workflow.Task{
+		Name:        "wait-addons",
+		Run:         runWaitAddon,
+		RunSubTasks: true,
+		Tasks: []workflow.Task{
+			newWaitAddonSubTask(constants.KarmadaDeschedulerComponent, KarmadaDeschedulerLabels),
+			newWaitAddonSubTask(constants.KarmadaSearchComponent, KarmadaSearchLabels),
+		},
+	}
+}
+
 func runWaitControlPlane(r workflow.RunData) error {
 	data, ok := r.(InitData)
 	if !ok {
@@ -96,6 +113,16 @@ func runWaitControlPlane(r workflow.RunData) error {
 	}
 
 	klog.V(4).InfoS("[wait-controlPlane] Running wait-controlPlane task", "karmada", klog.KObj(data))
+	return nil
+}
+
+func runWaitAddon(r workflow.RunData) error {
+	data, ok := r.(InitData)
+	if !ok {
+		return errors.New("wait-addon task invoked with an invalid data struct")
+	}
+
+	klog.V(4).InfoS("[wait-addon] Running wait-addon task", "karmada", klog.KObj(data))
 	return nil
 }
 
@@ -120,5 +147,44 @@ func runWaitControlPlaneSubTask(component string, ls labels.Set) func(r workflow
 
 		klog.V(2).InfoS("[wait-ControlPlane] component status is ready", "component", component, "karmada", klog.KObj(data))
 		return nil
+	}
+}
+
+func newWaitAddonSubTask(component string, ls labels.Set) workflow.Task {
+	return workflow.Task{
+		Name: component,
+		Run:  runWaitAddonSubTask(component, ls),
+	}
+}
+
+func runWaitAddonSubTask(component string, ls labels.Set) func(r workflow.RunData) error {
+	return func(r workflow.RunData) error {
+		data, ok := r.(InitData)
+		if !ok {
+			return errors.New("wait-addons task invoked with an invalid data struct")
+		}
+		// Addon is not installed by default, so if it is not installed, just skip it.
+		if !isAddonInstalled(component, data.Components()) {
+			klog.V(2).Infof("skip wait for addon %s/%s", data.GetNamespace(), component)
+			return nil
+		}
+		waiter := apiclient.NewKarmadaWaiter(nil, data.RemoteClient(), componentBeReadyTimeout)
+		if err := waiter.WaitForSomePods(ls.String(), data.GetNamespace(), 1); err != nil {
+			return fmt.Errorf("waiting for %s to ready timeout, err: %w", component, err)
+		}
+
+		klog.V(2).InfoS("[wait-addons] component status is ready", "component", component, "karmada", klog.KObj(data))
+		return nil
+	}
+}
+
+func isAddonInstalled(name string, components *v1alpha1.KarmadaComponents) bool {
+	switch name {
+	case constants.KarmadaDeschedulerComponent:
+		return components.KarmadaDescheduler != nil
+	case constants.KarmadaSearchComponent:
+		return components.KarmadaSearch != nil
+	default:
+		return false
 	}
 }
