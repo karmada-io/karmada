@@ -170,7 +170,7 @@ func generateKey(obj interface{}) (util.QueueKey, error) {
 func getClusterNameFromAnnotation(resource *unstructured.Unstructured) (string, error) {
 	workNamespace, exist := resource.GetAnnotations()[workv1alpha2.WorkNamespaceAnnotation]
 	if !exist {
-		klog.V(4).Infof("Ignore resource(kind=%s, %s/%s) which is not managed by Karmada.", resource.GetKind(), resource.GetNamespace(), resource.GetName())
+		klog.V(5).Infof("Ignore resource(kind=%s, %s/%s) which is not managed by Karmada.", resource.GetKind(), resource.GetNamespace(), resource.GetName())
 		return "", nil
 	}
 
