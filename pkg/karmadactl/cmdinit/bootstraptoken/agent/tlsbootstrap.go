@@ -45,7 +45,7 @@ const (
 )
 
 // AllowBootstrapTokensToPostCSRs creates RBAC rules in a way the makes Karmada Agent Bootstrap Tokens able to post CSRs
-func AllowBootstrapTokensToPostCSRs(clientSet *kubernetes.Clientset) error {
+func AllowBootstrapTokensToPostCSRs(clientSet kubernetes.Interface) error {
 	klog.Infoln("[bootstrap-token] configured RBAC rules to allow Karmada Agent Bootstrap tokens to post CSRs in order for agent to get long term certificate credentials")
 
 	clusterRoleBinding := utils.ClusterRoleBindingFromSubjects(KarmadaAgentBootstrap, KarmadaAgentBootstrapperClusterRoleName,
@@ -59,7 +59,7 @@ func AllowBootstrapTokensToPostCSRs(clientSet *kubernetes.Clientset) error {
 }
 
 // AutoApproveKarmadaAgentBootstrapTokens creates RBAC rules in a way that makes Karmada Agent Bootstrap Tokens' CSR auto-approved by the csrapprover controller
-func AutoApproveKarmadaAgentBootstrapTokens(clientSet *kubernetes.Clientset) error {
+func AutoApproveKarmadaAgentBootstrapTokens(clientSet kubernetes.Interface) error {
 	klog.Infoln("[bootstrap-token] configured RBAC rules to allow the csrapprover controller automatically approve CSRs from a Karmada Agent Bootstrap Token")
 
 	clusterRoleBinding := utils.ClusterRoleBindingFromSubjects(KarmadaAgentAutoApproveBootstrapClusterRoleBinding, CSRAutoApprovalClusterRoleName,
@@ -73,7 +73,7 @@ func AutoApproveKarmadaAgentBootstrapTokens(clientSet *kubernetes.Clientset) err
 }
 
 // AutoApproveAgentCertificateRotation creates RBAC rules in a way that makes Agent certificate rotation CSR auto-approved by the csrapprover controller
-func AutoApproveAgentCertificateRotation(clientSet *kubernetes.Clientset) error {
+func AutoApproveAgentCertificateRotation(clientSet kubernetes.Interface) error {
 	klog.Infoln("[bootstrap-token] configured RBAC rules to allow certificate rotation for all agent client certificates in the member cluster")
 
 	clusterRoleBinding := utils.ClusterRoleBindingFromSubjects(KarmadaAgentAutoApproveCertificateRotationClusterRoleBinding, KarmadaAgentSelfCSRAutoApprovalClusterRoleName,
