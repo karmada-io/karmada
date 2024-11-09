@@ -87,7 +87,7 @@ func (c *RemedyController) Reconcile(ctx context.Context, req controllerruntime.
 func (c *RemedyController) SetupWithManager(mgr controllerruntime.Manager) error {
 	remedyController, err := controller.New(ControllerName, mgr, controller.Options{
 		Reconciler:  c,
-		RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimitOptions),
+		RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimitOptions),
 	})
 	if err != nil {
 		return err

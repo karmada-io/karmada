@@ -166,7 +166,7 @@ func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntim
 		For(&workv1alpha2.ClusterResourceBinding{}).
 		Watches(&policyv1alpha1.ClusterOverridePolicy{}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
-		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
+		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).
 		Complete(c)
 }
 

@@ -31,6 +31,7 @@ import (
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericfilters "k8s.io/apiserver/pkg/server/filters"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
+	utilversion "k8s.io/apiserver/pkg/util/version"
 	"k8s.io/client-go/rest"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
@@ -177,6 +178,7 @@ func config(o *options.Options, outOfTreeRegistryOptions ...Option) (*search.Con
 
 	serverConfig.ClientConfig.QPS = o.KubeAPIQPS
 	serverConfig.ClientConfig.Burst = o.KubeAPIBurst
+	serverConfig.Config.EffectiveVersion = utilversion.NewEffectiveVersion("1.0")
 
 	httpClient, err := rest.HTTPClientFor(serverConfig.ClientConfig)
 	if err != nil {
