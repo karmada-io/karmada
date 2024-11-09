@@ -52,7 +52,7 @@ message NodeClaim {
   // Note that only PodSpec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
   // is included here because it has a hard limit on pod scheduling.
   // +optional
-  optional k8s.io.api.core.v1.NodeSelector nodeAffinity = 1;
+  optional .k8s.io.api.core.v1.NodeSelector nodeAffinity = 1;
 
   // NodeSelector is a selector which must be true for the pod to fit on a node.
   // Selector which must match a node's labels for the pod to be scheduled on that node.
@@ -61,7 +61,7 @@ message NodeClaim {
 
   // If specified, the pod's tolerations.
   // +optional
-  repeated k8s.io.api.core.v1.Toleration tolerations = 3;
+  repeated .k8s.io.api.core.v1.Toleration tolerations = 3;
 }
 
 // ObjectReference contains enough information to locate the referenced object inside current cluster.
@@ -94,7 +94,7 @@ message ReplicaRequirements {
 
   // ResourceRequest represents the resources required by each replica.
   // +optional
-  map<string, k8s.io.apimachinery.pkg.api.resource.Quantity> resourceRequest = 2;
+  map<string, .k8s.io.apimachinery.pkg.api.resource.Quantity> resourceRequest = 2;
 
   // Namespace represents the namespaces belonged to a ResourceRequest
   // +optional

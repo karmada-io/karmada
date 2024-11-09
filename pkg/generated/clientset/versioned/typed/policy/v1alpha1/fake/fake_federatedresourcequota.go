@@ -41,22 +41,24 @@ var federatedresourcequotasKind = v1alpha1.SchemeGroupVersion.WithKind("Federate
 
 // Get takes name of the federatedResourceQuota, and returns the corresponding federatedResourceQuota object, and an error if there is any.
 func (c *FakeFederatedResourceQuotas) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.FederatedResourceQuota, err error) {
+	emptyResult := &v1alpha1.FederatedResourceQuota{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(federatedresourcequotasResource, c.ns, name), &v1alpha1.FederatedResourceQuota{})
+		Invokes(testing.NewGetActionWithOptions(federatedresourcequotasResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.FederatedResourceQuota), err
 }
 
 // List takes label and field selectors, and returns the list of FederatedResourceQuotas that match those selectors.
 func (c *FakeFederatedResourceQuotas) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.FederatedResourceQuotaList, err error) {
+	emptyResult := &v1alpha1.FederatedResourceQuotaList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(federatedresourcequotasResource, federatedresourcequotasKind, c.ns, opts), &v1alpha1.FederatedResourceQuotaList{})
+		Invokes(testing.NewListActionWithOptions(federatedresourcequotasResource, federatedresourcequotasKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -75,40 +77,43 @@ func (c *FakeFederatedResourceQuotas) List(ctx context.Context, opts v1.ListOpti
 // Watch returns a watch.Interface that watches the requested federatedResourceQuotas.
 func (c *FakeFederatedResourceQuotas) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(federatedresourcequotasResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(federatedresourcequotasResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a federatedResourceQuota and creates it.  Returns the server's representation of the federatedResourceQuota, and an error, if there is any.
 func (c *FakeFederatedResourceQuotas) Create(ctx context.Context, federatedResourceQuota *v1alpha1.FederatedResourceQuota, opts v1.CreateOptions) (result *v1alpha1.FederatedResourceQuota, err error) {
+	emptyResult := &v1alpha1.FederatedResourceQuota{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(federatedresourcequotasResource, c.ns, federatedResourceQuota), &v1alpha1.FederatedResourceQuota{})
+		Invokes(testing.NewCreateActionWithOptions(federatedresourcequotasResource, c.ns, federatedResourceQuota, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.FederatedResourceQuota), err
 }
 
 // Update takes the representation of a federatedResourceQuota and updates it. Returns the server's representation of the federatedResourceQuota, and an error, if there is any.
 func (c *FakeFederatedResourceQuotas) Update(ctx context.Context, federatedResourceQuota *v1alpha1.FederatedResourceQuota, opts v1.UpdateOptions) (result *v1alpha1.FederatedResourceQuota, err error) {
+	emptyResult := &v1alpha1.FederatedResourceQuota{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(federatedresourcequotasResource, c.ns, federatedResourceQuota), &v1alpha1.FederatedResourceQuota{})
+		Invokes(testing.NewUpdateActionWithOptions(federatedresourcequotasResource, c.ns, federatedResourceQuota, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.FederatedResourceQuota), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeFederatedResourceQuotas) UpdateStatus(ctx context.Context, federatedResourceQuota *v1alpha1.FederatedResourceQuota, opts v1.UpdateOptions) (*v1alpha1.FederatedResourceQuota, error) {
+func (c *FakeFederatedResourceQuotas) UpdateStatus(ctx context.Context, federatedResourceQuota *v1alpha1.FederatedResourceQuota, opts v1.UpdateOptions) (result *v1alpha1.FederatedResourceQuota, err error) {
+	emptyResult := &v1alpha1.FederatedResourceQuota{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(federatedresourcequotasResource, "status", c.ns, federatedResourceQuota), &v1alpha1.FederatedResourceQuota{})
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(federatedresourcequotasResource, "status", c.ns, federatedResourceQuota, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.FederatedResourceQuota), err
 }
@@ -123,7 +128,7 @@ func (c *FakeFederatedResourceQuotas) Delete(ctx context.Context, name string, o
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeFederatedResourceQuotas) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(federatedresourcequotasResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(federatedresourcequotasResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.FederatedResourceQuotaList{})
 	return err
@@ -131,11 +136,12 @@ func (c *FakeFederatedResourceQuotas) DeleteCollection(ctx context.Context, opts
 
 // Patch applies the patch and returns the patched federatedResourceQuota.
 func (c *FakeFederatedResourceQuotas) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.FederatedResourceQuota, err error) {
+	emptyResult := &v1alpha1.FederatedResourceQuota{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(federatedresourcequotasResource, c.ns, name, pt, data, subresources...), &v1alpha1.FederatedResourceQuota{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(federatedresourcequotasResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.FederatedResourceQuota), err
 }

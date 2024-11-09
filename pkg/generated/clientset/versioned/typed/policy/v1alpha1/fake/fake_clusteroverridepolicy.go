@@ -40,20 +40,22 @@ var clusteroverridepoliciesKind = v1alpha1.SchemeGroupVersion.WithKind("ClusterO
 
 // Get takes name of the clusterOverridePolicy, and returns the corresponding clusterOverridePolicy object, and an error if there is any.
 func (c *FakeClusterOverridePolicies) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ClusterOverridePolicy, err error) {
+	emptyResult := &v1alpha1.ClusterOverridePolicy{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(clusteroverridepoliciesResource, name), &v1alpha1.ClusterOverridePolicy{})
+		Invokes(testing.NewRootGetActionWithOptions(clusteroverridepoliciesResource, name, options), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.ClusterOverridePolicy), err
 }
 
 // List takes label and field selectors, and returns the list of ClusterOverridePolicies that match those selectors.
 func (c *FakeClusterOverridePolicies) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.ClusterOverridePolicyList, err error) {
+	emptyResult := &v1alpha1.ClusterOverridePolicyList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(clusteroverridepoliciesResource, clusteroverridepoliciesKind, opts), &v1alpha1.ClusterOverridePolicyList{})
+		Invokes(testing.NewRootListActionWithOptions(clusteroverridepoliciesResource, clusteroverridepoliciesKind, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -72,25 +74,27 @@ func (c *FakeClusterOverridePolicies) List(ctx context.Context, opts v1.ListOpti
 // Watch returns a watch.Interface that watches the requested clusterOverridePolicies.
 func (c *FakeClusterOverridePolicies) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(clusteroverridepoliciesResource, opts))
+		InvokesWatch(testing.NewRootWatchActionWithOptions(clusteroverridepoliciesResource, opts))
 }
 
 // Create takes the representation of a clusterOverridePolicy and creates it.  Returns the server's representation of the clusterOverridePolicy, and an error, if there is any.
 func (c *FakeClusterOverridePolicies) Create(ctx context.Context, clusterOverridePolicy *v1alpha1.ClusterOverridePolicy, opts v1.CreateOptions) (result *v1alpha1.ClusterOverridePolicy, err error) {
+	emptyResult := &v1alpha1.ClusterOverridePolicy{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(clusteroverridepoliciesResource, clusterOverridePolicy), &v1alpha1.ClusterOverridePolicy{})
+		Invokes(testing.NewRootCreateActionWithOptions(clusteroverridepoliciesResource, clusterOverridePolicy, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.ClusterOverridePolicy), err
 }
 
 // Update takes the representation of a clusterOverridePolicy and updates it. Returns the server's representation of the clusterOverridePolicy, and an error, if there is any.
 func (c *FakeClusterOverridePolicies) Update(ctx context.Context, clusterOverridePolicy *v1alpha1.ClusterOverridePolicy, opts v1.UpdateOptions) (result *v1alpha1.ClusterOverridePolicy, err error) {
+	emptyResult := &v1alpha1.ClusterOverridePolicy{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(clusteroverridepoliciesResource, clusterOverridePolicy), &v1alpha1.ClusterOverridePolicy{})
+		Invokes(testing.NewRootUpdateActionWithOptions(clusteroverridepoliciesResource, clusterOverridePolicy, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.ClusterOverridePolicy), err
 }
@@ -104,7 +108,7 @@ func (c *FakeClusterOverridePolicies) Delete(ctx context.Context, name string, o
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeClusterOverridePolicies) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(clusteroverridepoliciesResource, listOpts)
+	action := testing.NewRootDeleteCollectionActionWithOptions(clusteroverridepoliciesResource, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.ClusterOverridePolicyList{})
 	return err
@@ -112,10 +116,11 @@ func (c *FakeClusterOverridePolicies) DeleteCollection(ctx context.Context, opts
 
 // Patch applies the patch and returns the patched clusterOverridePolicy.
 func (c *FakeClusterOverridePolicies) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ClusterOverridePolicy, err error) {
+	emptyResult := &v1alpha1.ClusterOverridePolicy{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(clusteroverridepoliciesResource, name, pt, data, subresources...), &v1alpha1.ClusterOverridePolicy{})
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(clusteroverridepoliciesResource, name, pt, data, opts, subresources...), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.ClusterOverridePolicy), err
 }
