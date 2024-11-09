@@ -83,7 +83,7 @@ func NewAsyncWorker(opt Options) AsyncWorker {
 	return &asyncWorker{
 		keyFunc:       opt.KeyFunc,
 		reconcileFunc: opt.ReconcileFunc,
-		queue: workqueue.NewRateLimitingQueueWithConfig(ratelimiterflag.DefaultControllerRateLimiter(opt.RateLimiterOptions), workqueue.RateLimitingQueueConfig{
+		queue: workqueue.NewRateLimitingQueueWithConfig(ratelimiterflag.LegacyControllerRateLimiter(opt.RateLimiterOptions), workqueue.RateLimitingQueueConfig{
 			Name: opt.Name,
 		}),
 	}
