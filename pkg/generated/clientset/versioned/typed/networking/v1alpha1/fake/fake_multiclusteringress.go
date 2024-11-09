@@ -41,22 +41,24 @@ var multiclusteringressesKind = v1alpha1.SchemeGroupVersion.WithKind("MultiClust
 
 // Get takes name of the multiClusterIngress, and returns the corresponding multiClusterIngress object, and an error if there is any.
 func (c *FakeMultiClusterIngresses) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.MultiClusterIngress, err error) {
+	emptyResult := &v1alpha1.MultiClusterIngress{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(multiclusteringressesResource, c.ns, name), &v1alpha1.MultiClusterIngress{})
+		Invokes(testing.NewGetActionWithOptions(multiclusteringressesResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.MultiClusterIngress), err
 }
 
 // List takes label and field selectors, and returns the list of MultiClusterIngresses that match those selectors.
 func (c *FakeMultiClusterIngresses) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.MultiClusterIngressList, err error) {
+	emptyResult := &v1alpha1.MultiClusterIngressList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(multiclusteringressesResource, multiclusteringressesKind, c.ns, opts), &v1alpha1.MultiClusterIngressList{})
+		Invokes(testing.NewListActionWithOptions(multiclusteringressesResource, multiclusteringressesKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -75,40 +77,43 @@ func (c *FakeMultiClusterIngresses) List(ctx context.Context, opts v1.ListOption
 // Watch returns a watch.Interface that watches the requested multiClusterIngresses.
 func (c *FakeMultiClusterIngresses) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(multiclusteringressesResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(multiclusteringressesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a multiClusterIngress and creates it.  Returns the server's representation of the multiClusterIngress, and an error, if there is any.
 func (c *FakeMultiClusterIngresses) Create(ctx context.Context, multiClusterIngress *v1alpha1.MultiClusterIngress, opts v1.CreateOptions) (result *v1alpha1.MultiClusterIngress, err error) {
+	emptyResult := &v1alpha1.MultiClusterIngress{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(multiclusteringressesResource, c.ns, multiClusterIngress), &v1alpha1.MultiClusterIngress{})
+		Invokes(testing.NewCreateActionWithOptions(multiclusteringressesResource, c.ns, multiClusterIngress, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.MultiClusterIngress), err
 }
 
 // Update takes the representation of a multiClusterIngress and updates it. Returns the server's representation of the multiClusterIngress, and an error, if there is any.
 func (c *FakeMultiClusterIngresses) Update(ctx context.Context, multiClusterIngress *v1alpha1.MultiClusterIngress, opts v1.UpdateOptions) (result *v1alpha1.MultiClusterIngress, err error) {
+	emptyResult := &v1alpha1.MultiClusterIngress{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(multiclusteringressesResource, c.ns, multiClusterIngress), &v1alpha1.MultiClusterIngress{})
+		Invokes(testing.NewUpdateActionWithOptions(multiclusteringressesResource, c.ns, multiClusterIngress, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.MultiClusterIngress), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeMultiClusterIngresses) UpdateStatus(ctx context.Context, multiClusterIngress *v1alpha1.MultiClusterIngress, opts v1.UpdateOptions) (*v1alpha1.MultiClusterIngress, error) {
+func (c *FakeMultiClusterIngresses) UpdateStatus(ctx context.Context, multiClusterIngress *v1alpha1.MultiClusterIngress, opts v1.UpdateOptions) (result *v1alpha1.MultiClusterIngress, err error) {
+	emptyResult := &v1alpha1.MultiClusterIngress{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(multiclusteringressesResource, "status", c.ns, multiClusterIngress), &v1alpha1.MultiClusterIngress{})
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(multiclusteringressesResource, "status", c.ns, multiClusterIngress, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.MultiClusterIngress), err
 }
@@ -123,7 +128,7 @@ func (c *FakeMultiClusterIngresses) Delete(ctx context.Context, name string, opt
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeMultiClusterIngresses) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(multiclusteringressesResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(multiclusteringressesResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.MultiClusterIngressList{})
 	return err
@@ -131,11 +136,12 @@ func (c *FakeMultiClusterIngresses) DeleteCollection(ctx context.Context, opts v
 
 // Patch applies the patch and returns the patched multiClusterIngress.
 func (c *FakeMultiClusterIngresses) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.MultiClusterIngress, err error) {
+	emptyResult := &v1alpha1.MultiClusterIngress{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(multiclusteringressesResource, c.ns, name, pt, data, subresources...), &v1alpha1.MultiClusterIngress{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(multiclusteringressesResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.MultiClusterIngress), err
 }

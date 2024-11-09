@@ -41,22 +41,24 @@ var cronfederatedhpasKind = v1alpha1.SchemeGroupVersion.WithKind("CronFederatedH
 
 // Get takes name of the cronFederatedHPA, and returns the corresponding cronFederatedHPA object, and an error if there is any.
 func (c *FakeCronFederatedHPAs) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.CronFederatedHPA, err error) {
+	emptyResult := &v1alpha1.CronFederatedHPA{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(cronfederatedhpasResource, c.ns, name), &v1alpha1.CronFederatedHPA{})
+		Invokes(testing.NewGetActionWithOptions(cronfederatedhpasResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.CronFederatedHPA), err
 }
 
 // List takes label and field selectors, and returns the list of CronFederatedHPAs that match those selectors.
 func (c *FakeCronFederatedHPAs) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.CronFederatedHPAList, err error) {
+	emptyResult := &v1alpha1.CronFederatedHPAList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(cronfederatedhpasResource, cronfederatedhpasKind, c.ns, opts), &v1alpha1.CronFederatedHPAList{})
+		Invokes(testing.NewListActionWithOptions(cronfederatedhpasResource, cronfederatedhpasKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -75,40 +77,43 @@ func (c *FakeCronFederatedHPAs) List(ctx context.Context, opts v1.ListOptions) (
 // Watch returns a watch.Interface that watches the requested cronFederatedHPAs.
 func (c *FakeCronFederatedHPAs) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(cronfederatedhpasResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(cronfederatedhpasResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a cronFederatedHPA and creates it.  Returns the server's representation of the cronFederatedHPA, and an error, if there is any.
 func (c *FakeCronFederatedHPAs) Create(ctx context.Context, cronFederatedHPA *v1alpha1.CronFederatedHPA, opts v1.CreateOptions) (result *v1alpha1.CronFederatedHPA, err error) {
+	emptyResult := &v1alpha1.CronFederatedHPA{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(cronfederatedhpasResource, c.ns, cronFederatedHPA), &v1alpha1.CronFederatedHPA{})
+		Invokes(testing.NewCreateActionWithOptions(cronfederatedhpasResource, c.ns, cronFederatedHPA, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.CronFederatedHPA), err
 }
 
 // Update takes the representation of a cronFederatedHPA and updates it. Returns the server's representation of the cronFederatedHPA, and an error, if there is any.
 func (c *FakeCronFederatedHPAs) Update(ctx context.Context, cronFederatedHPA *v1alpha1.CronFederatedHPA, opts v1.UpdateOptions) (result *v1alpha1.CronFederatedHPA, err error) {
+	emptyResult := &v1alpha1.CronFederatedHPA{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(cronfederatedhpasResource, c.ns, cronFederatedHPA), &v1alpha1.CronFederatedHPA{})
+		Invokes(testing.NewUpdateActionWithOptions(cronfederatedhpasResource, c.ns, cronFederatedHPA, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.CronFederatedHPA), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeCronFederatedHPAs) UpdateStatus(ctx context.Context, cronFederatedHPA *v1alpha1.CronFederatedHPA, opts v1.UpdateOptions) (*v1alpha1.CronFederatedHPA, error) {
+func (c *FakeCronFederatedHPAs) UpdateStatus(ctx context.Context, cronFederatedHPA *v1alpha1.CronFederatedHPA, opts v1.UpdateOptions) (result *v1alpha1.CronFederatedHPA, err error) {
+	emptyResult := &v1alpha1.CronFederatedHPA{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(cronfederatedhpasResource, "status", c.ns, cronFederatedHPA), &v1alpha1.CronFederatedHPA{})
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(cronfederatedhpasResource, "status", c.ns, cronFederatedHPA, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.CronFederatedHPA), err
 }
@@ -123,7 +128,7 @@ func (c *FakeCronFederatedHPAs) Delete(ctx context.Context, name string, opts v1
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeCronFederatedHPAs) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(cronfederatedhpasResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(cronfederatedhpasResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.CronFederatedHPAList{})
 	return err
@@ -131,11 +136,12 @@ func (c *FakeCronFederatedHPAs) DeleteCollection(ctx context.Context, opts v1.De
 
 // Patch applies the patch and returns the patched cronFederatedHPA.
 func (c *FakeCronFederatedHPAs) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.CronFederatedHPA, err error) {
+	emptyResult := &v1alpha1.CronFederatedHPA{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(cronfederatedhpasResource, c.ns, name, pt, data, subresources...), &v1alpha1.CronFederatedHPA{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(cronfederatedhpasResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.CronFederatedHPA), err
 }

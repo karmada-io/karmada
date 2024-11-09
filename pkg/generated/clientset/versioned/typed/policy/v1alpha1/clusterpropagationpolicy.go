@@ -20,14 +20,13 @@ package v1alpha1
 
 import (
 	"context"
-	"time"
 
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	rest "k8s.io/client-go/rest"
+	gentype "k8s.io/client-go/gentype"
 )
 
 // ClusterPropagationPoliciesGetter has a method to return a ClusterPropagationPolicyInterface.
@@ -51,118 +50,18 @@ type ClusterPropagationPolicyInterface interface {
 
 // clusterPropagationPolicies implements ClusterPropagationPolicyInterface
 type clusterPropagationPolicies struct {
-	client rest.Interface
+	*gentype.ClientWithList[*v1alpha1.ClusterPropagationPolicy, *v1alpha1.ClusterPropagationPolicyList]
 }
 
 // newClusterPropagationPolicies returns a ClusterPropagationPolicies
 func newClusterPropagationPolicies(c *PolicyV1alpha1Client) *clusterPropagationPolicies {
 	return &clusterPropagationPolicies{
-		client: c.RESTClient(),
+		gentype.NewClientWithList[*v1alpha1.ClusterPropagationPolicy, *v1alpha1.ClusterPropagationPolicyList](
+			"clusterpropagationpolicies",
+			c.RESTClient(),
+			scheme.ParameterCodec,
+			"",
+			func() *v1alpha1.ClusterPropagationPolicy { return &v1alpha1.ClusterPropagationPolicy{} },
+			func() *v1alpha1.ClusterPropagationPolicyList { return &v1alpha1.ClusterPropagationPolicyList{} }),
 	}
-}
-
-// Get takes name of the clusterPropagationPolicy, and returns the corresponding clusterPropagationPolicy object, and an error if there is any.
-func (c *clusterPropagationPolicies) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ClusterPropagationPolicy, err error) {
-	result = &v1alpha1.ClusterPropagationPolicy{}
-	err = c.client.Get().
-		Resource("clusterpropagationpolicies").
-		Name(name).
-		VersionedParams(&options, scheme.ParameterCodec).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// List takes label and field selectors, and returns the list of ClusterPropagationPolicies that match those selectors.
-func (c *clusterPropagationPolicies) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.ClusterPropagationPolicyList, err error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	result = &v1alpha1.ClusterPropagationPolicyList{}
-	err = c.client.Get().
-		Resource("clusterpropagationpolicies").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Watch returns a watch.Interface that watches the requested clusterPropagationPolicies.
-func (c *clusterPropagationPolicies) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	opts.Watch = true
-	return c.client.Get().
-		Resource("clusterpropagationpolicies").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Watch(ctx)
-}
-
-// Create takes the representation of a clusterPropagationPolicy and creates it.  Returns the server's representation of the clusterPropagationPolicy, and an error, if there is any.
-func (c *clusterPropagationPolicies) Create(ctx context.Context, clusterPropagationPolicy *v1alpha1.ClusterPropagationPolicy, opts v1.CreateOptions) (result *v1alpha1.ClusterPropagationPolicy, err error) {
-	result = &v1alpha1.ClusterPropagationPolicy{}
-	err = c.client.Post().
-		Resource("clusterpropagationpolicies").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(clusterPropagationPolicy).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Update takes the representation of a clusterPropagationPolicy and updates it. Returns the server's representation of the clusterPropagationPolicy, and an error, if there is any.
-func (c *clusterPropagationPolicies) Update(ctx context.Context, clusterPropagationPolicy *v1alpha1.ClusterPropagationPolicy, opts v1.UpdateOptions) (result *v1alpha1.ClusterPropagationPolicy, err error) {
-	result = &v1alpha1.ClusterPropagationPolicy{}
-	err = c.client.Put().
-		Resource("clusterpropagationpolicies").
-		Name(clusterPropagationPolicy.Name).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(clusterPropagationPolicy).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Delete takes name of the clusterPropagationPolicy and deletes it. Returns an error if one occurs.
-func (c *clusterPropagationPolicies) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	return c.client.Delete().
-		Resource("clusterpropagationpolicies").
-		Name(name).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *clusterPropagationPolicies) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	var timeout time.Duration
-	if listOpts.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
-	}
-	return c.client.Delete().
-		Resource("clusterpropagationpolicies").
-		VersionedParams(&listOpts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// Patch applies the patch and returns the patched clusterPropagationPolicy.
-func (c *clusterPropagationPolicies) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ClusterPropagationPolicy, err error) {
-	result = &v1alpha1.ClusterPropagationPolicy{}
-	err = c.client.Patch(pt).
-		Resource("clusterpropagationpolicies").
-		Name(name).
-		SubResource(subresources...).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(data).
-		Do(ctx).
-		Into(result)
-	return
 }
