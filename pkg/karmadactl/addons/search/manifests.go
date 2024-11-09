@@ -43,18 +43,11 @@ spec:
         - name: karmada-search
           image: {{ .Image }}
           imagePullPolicy: IfNotPresent
-          volumeMounts:
-            - name: k8s-certs
-              mountPath: /etc/karmada/pki
-              readOnly: true
-            - name: kubeconfig
-              subPath: kubeconfig
-              mountPath: /etc/kubeconfig
           command:
             - /bin/karmada-search
-            - --kubeconfig=/etc/kubeconfig
-            - --authentication-kubeconfig=/etc/kubeconfig
-            - --authorization-kubeconfig=/etc/kubeconfig
+            - --kubeconfig=/etc/karmada/config/karmada.config
+            - --authentication-kubeconfig=/etc/karmada/config/karmada.config
+            - --authorization-kubeconfig=/etc/karmada/config/karmada.config
             - --etcd-servers={{ .ETCDSevers }}
             - --etcd-cafile=/etc/karmada/pki/etcd-ca.crt
             - --etcd-certfile=/etc/karmada/pki/etcd-client.crt
@@ -78,13 +71,19 @@ spec:
           resources:
             requests:
               cpu: 100m
+          volumeMounts:
+            - name: karmada-config
+              mountPath: /etc/karmada/config
+            - name: k8s-certs
+              mountPath: /etc/karmada/pki
+              readOnly: true
       volumes:
+        - name: karmada-config
+          secret:
+            secretName: karmada-search-config
         - name: k8s-certs
           secret:
             secretName: karmada-cert
-        - name: kubeconfig
-          secret:
-            secretName: kubeconfig
 `
 
 	karmadaSearchService = `
