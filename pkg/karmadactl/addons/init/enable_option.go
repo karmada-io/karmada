@@ -26,7 +26,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/strings/slices"
 
-	cmdinit "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/kubernetes"
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	"github.com/karmada-io/karmada/pkg/version"
 )
@@ -148,10 +148,17 @@ func (o *CommandAddonsEnableOption) Validate(args []string) error {
 	}
 
 	secretClient := o.KubeClientSet.CoreV1().Secrets(o.Namespace)
-	_, err = secretClient.Get(context.TODO(), cmdinit.KubeConfigSecretAndMountName, metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return fmt.Errorf("secrets `kubeconfig` is not found in namespace %s, please execute karmadactl init to deploy karmada first", o.Namespace)
+	for _, addon := range getEnableAddons(args) {
+		if addon.Name == EstimatorResourceName {
+			// estimator not rely on karmada config secret
+			continue
+		}
+		karmadaConfigSecretName := addon.Name + options.KarmadaConfigSecretSuffix
+		_, err = secretClient.Get(context.TODO(), karmadaConfigSecretName, metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return fmt.Errorf("secrets `%s` is not found in namespace %s, please execute karmadactl init to deploy karmada first", karmadaConfigSecretName, o.Namespace)
+			}
 		}
 	}
 
@@ -187,21 +194,8 @@ func (o *CommandAddonsEnableOption) Validate(args []string) error {
 
 // Run start enable Karmada addons
 func (o *CommandAddonsEnableOption) Run(args []string) error {
-	var enableAddons = map[string]*Addon{}
-
-	// collect enabled addons
-	for _, item := range args {
-		if item == "all" {
-			enableAddons = Addons
-			break
-		}
-		if addon := Addons[item]; addon != nil {
-			enableAddons[item] = addon
-		}
-	}
-
 	// enable addons
-	for name, addon := range enableAddons {
+	for name, addon := range getEnableAddons(args) {
 		klog.Infof("Start to enable addon %s", name)
 		if err := addon.Enable(o); err != nil {
 			klog.Errorf("Install addon %s failed", name)
@@ -228,4 +222,21 @@ func validAddonNames(addonNames []string) error {
 		}
 	}
 	return nil
+}
+
+func getEnableAddons(addonNames []string) map[string]*Addon {
+	var enableAddons = map[string]*Addon{}
+
+	// collect enabled addons
+	for _, item := range addonNames {
+		if item == "all" {
+			enableAddons = Addons
+			break
+		}
+		if addon := Addons[item]; addon != nil {
+			enableAddons[item] = addon
+		}
+	}
+
+	return enableAddons
 }

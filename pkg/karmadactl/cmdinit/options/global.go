@@ -39,4 +39,25 @@ const (
 	KarmadaKubeConfigName = "karmada-apiserver.config"
 	// WaitComponentReadyTimeout wait component ready time
 	WaitComponentReadyTimeout = 120
+
+	// KarmadaConfigSecretSuffix karmada config secret suffix
+	KarmadaConfigSecretSuffix = "-config" //nolint:gosec
+	// KarmadaConfigFieldName the field stores karmada config in karmada config secret
+	KarmadaConfigFieldName = "karmada.config" //nolint:gosec
+	// KarmadaAggregatedApiserverConfig karmada config of karmada-aggregated-apiserver
+	KarmadaAggregatedApiserverConfig = "karmada-aggregated-apiserver" + KarmadaConfigSecretSuffix
+	// KarmadaControllerManagerConfig karmada config of karmada-controller-manager
+	KarmadaControllerManagerConfig = "karmada-controller-manager" + KarmadaConfigSecretSuffix
+	// KubeControllerManagerConfig karmada config of kube-controller-manager
+	KubeControllerManagerConfig = "kube-controller-manager" + KarmadaConfigSecretSuffix
+	// KarmadaSchedulerConfig karmada config of karmada-scheduler
+	KarmadaSchedulerConfig = "karmada-scheduler" + KarmadaConfigSecretSuffix
+	// KarmadaDeschedulerConfig karmada config of karmada-descheduler
+	KarmadaDeschedulerConfig = "karmada-descheduler" + KarmadaConfigSecretSuffix
+	// KarmadaMetricsAdapterConfig karmada config of karmada-metrics-adapter
+	KarmadaMetricsAdapterConfig = "karmada-metrics-adapter" + KarmadaConfigSecretSuffix
+	// KarmadaSearchConfig karmada config of karmada-search
+	KarmadaSearchConfig = "karmada-search" + KarmadaConfigSecretSuffix
+	// KarmadaWebhookConfig karmada config of karmada-webhook
+	KarmadaWebhookConfig = "karmada-webhook" + KarmadaConfigSecretSuffix
 )
