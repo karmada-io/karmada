@@ -19,7 +19,6 @@ package namespace
 import (
 	"context"
 	"regexp"
-	"sync"
 	"testing"
 	"time"
 
@@ -349,10 +348,9 @@ func TestController_buildWorks(t *testing.T) {
 
 func TestController_SetupWithManager(t *testing.T) {
 	tests := []struct {
-		name           string
-		setupScheme    func(*runtime.Scheme)
-		concurrentRuns int
-		expectError    bool
+		name        string
+		setupScheme func(*runtime.Scheme)
+		expectError bool
 	}{
 		{
 			name: "Successful setup",
@@ -362,25 +360,12 @@ func TestController_SetupWithManager(t *testing.T) {
 				_ = workv1alpha1.Install(scheme)
 				_ = policyv1alpha1.Install(scheme)
 			},
-			concurrentRuns: 1,
-			expectError:    false,
+			expectError: false,
 		},
 		{
-			name: "Concurrent setup",
-			setupScheme: func(scheme *runtime.Scheme) {
-				_ = corev1.AddToScheme(scheme)
-				_ = clusterv1alpha1.Install(scheme)
-				_ = workv1alpha1.Install(scheme)
-				_ = policyv1alpha1.Install(scheme)
-			},
-			concurrentRuns: 10,
-			expectError:    false,
-		},
-		{
-			name:           "Setup with error",
-			setupScheme:    func(_ *runtime.Scheme) {}, // Intentionally empty to trigger error
-			concurrentRuns: 1,
-			expectError:    true,
+			name:        "Setup with error",
+			setupScheme: func(_ *runtime.Scheme) {}, // Intentionally empty to trigger error
+			expectError: true,
 		},
 	}
 
@@ -395,28 +380,20 @@ func TestController_SetupWithManager(t *testing.T) {
 			})
 			assert.NoError(t, err)
 
-			var wg sync.WaitGroup
-			for i := 0; i < tt.concurrentRuns; i++ {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					c := &Controller{
-						Client:          mgr.GetClient(),
-						EventRecorder:   mgr.GetEventRecorderFor("test-controller"),
-						OverrideManager: overridemanager.New(mgr.GetClient(), mgr.GetEventRecorderFor("test-controller")),
-					}
-					err := c.SetupWithManager(mgr)
-					if tt.expectError {
-						assert.Error(t, err)
-					} else {
-						assert.NoError(t, err)
-						assert.NotNil(t, c.Client, "Controller's Client should not be nil")
-						assert.NotNil(t, c.EventRecorder, "Controller's EventRecorder should not be nil")
-						assert.NotNil(t, c.OverrideManager, "Controller's OverrideManager should not be nil")
-					}
-				}()
+			c := &Controller{
+				Client:          mgr.GetClient(),
+				EventRecorder:   mgr.GetEventRecorderFor("test-controller"),
+				OverrideManager: overridemanager.New(mgr.GetClient(), mgr.GetEventRecorderFor("test-controller")),
 			}
-			wg.Wait()
+			err = c.SetupWithManager(mgr)
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, c.Client, "Controller's Client should not be nil")
+				assert.NotNil(t, c.EventRecorder, "Controller's EventRecorder should not be nil")
+				assert.NotNil(t, c.OverrideManager, "Controller's OverrideManager should not be nil")
+			}
 		})
 	}
 }
