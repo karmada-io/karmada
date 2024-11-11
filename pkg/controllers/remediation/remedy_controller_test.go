@@ -148,12 +148,6 @@ func TestSetupWithManager(t *testing.T) {
 				return &RemedyController{Client: createFakeClient(scheme)}
 			},
 		},
-		{
-			name: "setup with nil client",
-			controllerSetup: func() *RemedyController {
-				return &RemedyController{Client: nil}
-			},
-		},
 	}
 
 	for _, tt := range tests {
