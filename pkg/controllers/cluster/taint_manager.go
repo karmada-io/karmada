@@ -39,7 +39,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
-// TaintManagerName is the controller name that will be used for taint management.
+// TaintManagerName is the controller name that will be used when reporting events and metrics.
 const TaintManagerName = "taint-manager"
 
 // NoExecuteTaintManager listens to Taint/Toleration changes and is responsible for removing objects
@@ -291,7 +291,7 @@ func (tc *NoExecuteTaintManager) needEviction(clusterName string, annotations ma
 // SetupWithManager creates a controller and register to controller manager.
 func (tc *NoExecuteTaintManager) SetupWithManager(mgr controllerruntime.Manager) error {
 	return utilerrors.NewAggregate([]error{
-		controllerruntime.NewControllerManagedBy(mgr).For(&clusterv1alpha1.Cluster{}).Complete(tc),
+		controllerruntime.NewControllerManagedBy(mgr).Named(TaintManagerName).For(&clusterv1alpha1.Cluster{}).Complete(tc),
 		mgr.Add(tc),
 	})
 }

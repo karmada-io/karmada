@@ -40,7 +40,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
-// EndpointSliceControllerName is the controller name that will be used when reporting events.
+// EndpointSliceControllerName is the controller name that will be used when reporting events and metrics.
 const EndpointSliceControllerName = "endpointslice-controller"
 
 // EndpointSliceController is to collect EndpointSlice which reported by member cluster from executionNamespace to serviceexport namespace.
@@ -115,7 +115,10 @@ func (c *EndpointSliceController) SetupWithManager(mgr controllerruntime.Manager
 			return false
 		},
 	}
-	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{}, builder.WithPredicates(serviceImportPredicateFun)).Complete(c)
+	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(EndpointSliceControllerName).
+		For(&workv1alpha1.Work{}, builder.WithPredicates(serviceImportPredicateFun)).
+		Complete(c)
 }
 
 func (c *EndpointSliceController) collectEndpointSliceFromWork(ctx context.Context, work *workv1alpha1.Work) error {

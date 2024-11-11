@@ -51,7 +51,7 @@ import (
 )
 
 const (
-	// ControllerName is the controller name that will be used when reporting events.
+	// ControllerName is the controller name that will be used when reporting events and metrics.
 	ControllerName = "cluster-controller"
 	// MonitorRetrySleepTime is the amount of time the cluster controller that should
 	// sleep between retrying cluster health updates.
@@ -215,7 +215,7 @@ func (c *Controller) Start(ctx context.Context) error {
 func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	c.clusterHealthMap = newClusterHealthMap()
 	return utilerrors.NewAggregate([]error{
-		controllerruntime.NewControllerManagedBy(mgr).For(&clusterv1alpha1.Cluster{}).Complete(c),
+		controllerruntime.NewControllerManagedBy(mgr).Named(ControllerName).For(&clusterv1alpha1.Cluster{}).Complete(c),
 		mgr.Add(c),
 	})
 }

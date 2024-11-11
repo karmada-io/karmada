@@ -61,6 +61,11 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
+const (
+	// ControllerName is the controller name that will be used when reporting events and metrics.
+	ControllerName = "dependencies-distributor"
+)
+
 // well-know labels
 const (
 	// dependedByLabelKeyPrefix is added to the attached binding, it is the
@@ -622,7 +627,9 @@ func (d *DependenciesDistributor) SetupWithManager(mgr controllerruntime.Manager
 	d.genericEvent = make(chan event.TypedGenericEvent[*workv1alpha2.ResourceBinding])
 	return utilerrors.NewAggregate([]error{
 		mgr.Add(d),
-		controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha2.ResourceBinding{}).
+		controllerruntime.NewControllerManagedBy(mgr).
+			Named(ControllerName).
+			For(&workv1alpha2.ResourceBinding{}).
 			WithEventFilter(predicate.Funcs{
 				CreateFunc: func(event event.CreateEvent) bool {
 					bindingObject := event.Object.(*workv1alpha2.ResourceBinding)

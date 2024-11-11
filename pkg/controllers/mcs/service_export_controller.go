@@ -55,7 +55,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
-// ServiceExportControllerName is the controller name that will be used when reporting events.
+// ServiceExportControllerName is the controller name that will be used when reporting events and metrics.
 const ServiceExportControllerName = "service-export-controller"
 
 // ServiceExportController is to sync ServiceExport and report EndpointSlices of exported service to control-plane.
@@ -131,7 +131,7 @@ func (c *ServiceExportController) Reconcile(ctx context.Context, req controllerr
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ServiceExportController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{}, builder.WithPredicates(c.PredicateFunc)).Complete(c)
+	return controllerruntime.NewControllerManagedBy(mgr).Named(ServiceExportControllerName).For(&workv1alpha1.Work{}, builder.WithPredicates(c.PredicateFunc)).Complete(c)
 }
 
 // RunWorkQueue initializes worker and run it, worker will process resource asynchronously.

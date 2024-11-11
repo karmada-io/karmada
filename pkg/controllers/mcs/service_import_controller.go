@@ -35,7 +35,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
-// ServiceImportControllerName is the controller name that will be used when reporting events.
+// ServiceImportControllerName is the controller name that will be used when reporting events and metrics.
 const ServiceImportControllerName = "service-import-controller"
 
 // ServiceImportController is to sync derived service from ServiceImport.
@@ -71,7 +71,10 @@ func (c *ServiceImportController) Reconcile(ctx context.Context, req controllerr
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ServiceImportController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&mcsv1alpha1.ServiceImport{}).Complete(c)
+	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(ServiceImportControllerName).
+		For(&mcsv1alpha1.ServiceImport{}).
+		Complete(c)
 }
 
 func (c *ServiceImportController) deleteDerivedService(ctx context.Context, svcImport types.NamespacedName) (controllerruntime.Result, error) {

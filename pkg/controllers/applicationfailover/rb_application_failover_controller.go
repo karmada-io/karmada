@@ -45,7 +45,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
-// RBApplicationFailoverControllerName is the controller name that will be used when reporting events.
+// RBApplicationFailoverControllerName is the controller name that will be used when reporting events and metrics.
 const RBApplicationFailoverControllerName = "resource-binding-application-failover-controller"
 
 // RBApplicationFailoverController is to sync ResourceBinding's application failover behavior.
@@ -232,6 +232,7 @@ func (c *RBApplicationFailoverController) SetupWithManager(mgr controllerruntime
 	}
 
 	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(RBApplicationFailoverControllerName).
 		For(&workv1alpha2.ResourceBinding{}, builder.WithPredicates(resourceBindingPredicateFn)).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
 		Complete(c)
