@@ -39,7 +39,7 @@ import (
 )
 
 const (
-	// ControllerName is the controller name that will be used when reporting events.
+	// ControllerName is the controller name that will be used when reporting events and metrics.
 	ControllerName = "cronfederatedhpa-controller"
 )
 
@@ -118,6 +118,7 @@ func (c *CronFHPAController) Reconcile(ctx context.Context, req controllerruntim
 func (c *CronFHPAController) SetupWithManager(mgr controllerruntime.Manager) error {
 	c.CronHandler = NewCronHandler(mgr.GetClient(), mgr.GetEventRecorderFor(ControllerName))
 	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(ControllerName).
 		For(&autoscalingv1alpha1.CronFederatedHPA{}).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).

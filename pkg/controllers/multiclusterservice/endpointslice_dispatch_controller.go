@@ -49,7 +49,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
-// EndpointsliceDispatchControllerName is the controller name that will be used when reporting events.
+// EndpointsliceDispatchControllerName is the controller name that will be used when reporting events and metrics.
 const EndpointsliceDispatchControllerName = "endpointslice-dispatch-controller"
 
 // EndpointsliceDispatchController will reconcile a MultiClusterService object
@@ -160,7 +160,9 @@ func (c *EndpointsliceDispatchController) SetupWithManager(mgr controllerruntime
 			return false
 		},
 	}
-	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{}, builder.WithPredicates(workPredicateFun)).
+	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(EndpointsliceDispatchControllerName).
+		For(&workv1alpha1.Work{}, builder.WithPredicates(workPredicateFun)).
 		Watches(&networkingv1alpha1.MultiClusterService{}, handler.EnqueueRequestsFromMapFunc(c.newMultiClusterServiceFunc())).
 		Watches(&clusterv1alpha1.Cluster{}, handler.EnqueueRequestsFromMapFunc(c.newClusterFunc())).
 		Complete(c)

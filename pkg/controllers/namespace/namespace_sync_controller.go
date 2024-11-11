@@ -48,7 +48,7 @@ import (
 )
 
 const (
-	// ControllerName is the controller name that will be used when reporting events.
+	// ControllerName is the controller name that will be used when reporting events and metrics.
 	ControllerName = "namespace-sync-controller"
 )
 
@@ -273,6 +273,7 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	})
 
 	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(ControllerName).
 		For(&corev1.Namespace{}).
 		Watches(&clusterv1alpha1.Cluster{},
 			handler.EnqueueRequestsFromMapFunc(clusterNamespaceFn),

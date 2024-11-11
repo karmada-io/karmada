@@ -39,7 +39,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
-// CRBStatusControllerName is the controller name that will be used when reporting events.
+// CRBStatusControllerName is the controller name that will be used when reporting events and metrics.
 const CRBStatusControllerName = "cluster-resource-binding-status-controller"
 
 // CRBStatusController is to sync status of ClusterResourceBinding
@@ -101,7 +101,8 @@ func (c *CRBStatusController) SetupWithManager(mgr controllerruntime.Manager) er
 			return requests
 		})
 
-	return controllerruntime.NewControllerManagedBy(mgr).Named("clusterResourceBinding_status_controller").
+	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(CRBStatusControllerName).
 		For(&workv1alpha2.ClusterResourceBinding{}, bindingPredicateFn).
 		Watches(&workv1alpha1.Work{}, handler.EnqueueRequestsFromMapFunc(workMapFunc), workPredicateFn).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).

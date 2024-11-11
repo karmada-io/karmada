@@ -45,7 +45,7 @@ import (
 )
 
 const (
-	// ControllerName is the controller name that will be used when reporting events.
+	// ControllerName is the controller name that will be used when reporting events and metrics.
 	ControllerName = "karmada-operator-controller"
 
 	// ControllerFinalizerName is the name of the karmada controller finalizer
@@ -185,6 +185,7 @@ func (ctrl *Controller) ensureKarmada(ctx context.Context, karmada *operatorv1al
 // SetupWithManager creates a controller and register to controller manager.
 func (ctrl *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(ControllerName).
 		For(&operatorv1alpha1.Karmada{},
 			builder.WithPredicates(predicate.Funcs{
 				UpdateFunc: ctrl.onKarmadaUpdate,

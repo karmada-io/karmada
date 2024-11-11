@@ -50,7 +50,7 @@ import (
 )
 
 const (
-	// CertRotationControllerName is the controller name that will be used when reporting events.
+	// CertRotationControllerName is the controller name that will be used when reporting events and metrics.
 	CertRotationControllerName = "cert-rotation-controller"
 
 	// SignerName defines the signer name for csr, 'kubernetes.io/kube-apiserver-client-kubelet' can sign the csr automatically
@@ -129,6 +129,7 @@ func (c *CertRotationController) Reconcile(ctx context.Context, req controllerru
 // SetupWithManager creates a controller and register to controller manager.
 func (c *CertRotationController) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(CertRotationControllerName).
 		For(&clusterv1alpha1.Cluster{}, builder.WithPredicates(c.PredicateFunc)).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithOptions(controller.Options{

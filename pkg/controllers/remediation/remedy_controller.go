@@ -34,7 +34,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
-// ControllerName is the controller name that will be used when reporting events.
+// ControllerName is the controller name that will be used when reporting events and metrics.
 const ControllerName = "remedy-controller"
 
 // RemedyController is to sync Cluster resource, according to the cluster status

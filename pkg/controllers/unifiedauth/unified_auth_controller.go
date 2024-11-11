@@ -44,7 +44,7 @@ import (
 )
 
 const (
-	// ControllerName is the controller name that will be used when reporting events.
+	// ControllerName is the controller name that will be used when reporting events and metrics.
 	ControllerName = "unified-auth-controller"
 
 	karmadaImpersonatorName = "karmada-impersonator"
@@ -255,6 +255,7 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	}
 
 	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(ControllerName).
 		For(&clusterv1alpha1.Cluster{}, builder.WithPredicates(clusterPredicateFunc)).
 		Watches(&rbacv1.ClusterRole{}, handler.EnqueueRequestsFromMapFunc(c.newClusterRoleMapFunc())).
 		Watches(&rbacv1.ClusterRoleBinding{}, handler.EnqueueRequestsFromMapFunc(c.newClusterRoleBindingMapFunc())).

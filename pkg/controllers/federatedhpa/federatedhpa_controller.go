@@ -62,7 +62,7 @@ import (
 // FederatedHPA-controller is borrowed from the HPA controller of Kubernetes.
 // The referenced code has been marked in the comment.
 
-// ControllerName is the controller name that will be used when reporting events.
+// ControllerName is the controller name that will be used when reporting events and metrics.
 const ControllerName = "federatedHPA-controller"
 
 var (
@@ -128,6 +128,7 @@ func (c *FHPAController) SetupWithManager(mgr controllerruntime.Manager) error {
 	c.hpaSelectors = selectors.NewBiMultimap()
 	c.monitor = monitor.New()
 	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(ControllerName).
 		For(&autoscalingv1alpha1.FederatedHPA{}).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
