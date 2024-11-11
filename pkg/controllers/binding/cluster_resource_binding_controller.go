@@ -49,7 +49,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 )
 
-// ClusterResourceBindingControllerName is the controller name that will be used when reporting events.
+// ClusterResourceBindingControllerName is the controller name that will be used when reporting events and metrics.
 const ClusterResourceBindingControllerName = "cluster-resource-binding-controller"
 
 // ClusterResourceBindingController is to sync ClusterResourceBinding.
@@ -161,7 +161,9 @@ func (c *ClusterResourceBindingController) removeOrphanWorks(ctx context.Context
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha2.ClusterResourceBinding{}).
+	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(ClusterResourceBindingControllerName).
+		For(&workv1alpha2.ClusterResourceBinding{}).
 		Watches(&policyv1alpha1.ClusterOverridePolicy{}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).

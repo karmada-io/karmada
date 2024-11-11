@@ -49,7 +49,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 )
 
-// ControllerName is the controller name that will be used when reporting events.
+// ControllerName is the controller name that will be used when reporting events and metrics.
 const ControllerName = "binding-controller"
 
 // ResourceBindingController is to sync ResourceBinding.
@@ -165,7 +165,9 @@ func (c *ResourceBindingController) removeOrphanWorks(ctx context.Context, bindi
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha2.ResourceBinding{}).
+	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(ControllerName).
+		For(&workv1alpha2.ResourceBinding{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Watches(&policyv1alpha1.OverridePolicy{}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		Watches(&policyv1alpha1.ClusterOverridePolicy{}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).

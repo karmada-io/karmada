@@ -74,6 +74,9 @@ var (
 	multiClusterServiceGVK = networkingv1alpha1.SchemeGroupVersion.WithKind("MultiClusterService")
 )
 
+// EndpointSliceCollectControllerName is the controller name that will be used when reporting events and metrics.
+const EndpointSliceCollectControllerName = "endpointslice-collect-controller"
+
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 func (c *EndpointSliceCollectController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Reconciling Work %s", req.NamespacedName.String())
@@ -115,6 +118,7 @@ func (c *EndpointSliceCollectController) Reconcile(ctx context.Context, req cont
 // SetupWithManager creates a controller and register to controller manager.
 func (c *EndpointSliceCollectController) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(EndpointSliceCollectControllerName).
 		For(&workv1alpha1.Work{}, builder.WithPredicates(c.PredicateFunc)).Complete(c)
 }
 

@@ -48,7 +48,7 @@ import (
 )
 
 const (
-	// StatusControllerName is the controller name that will be used when reporting events.
+	// StatusControllerName is the controller name that will be used when reporting events and metrics.
 	StatusControllerName = "federated-resource-quota-status-controller"
 )
 
@@ -129,6 +129,7 @@ func (c *StatusController) SetupWithManager(mgr controllerruntime.Manager) error
 		},
 	})
 	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(StatusControllerName).
 		For(&policyv1alpha1.FederatedResourceQuota{}).
 		Watches(&workv1alpha1.Work{}, handler.EnqueueRequestsFromMapFunc(fn), workPredicate).
 		Complete(c)

@@ -39,7 +39,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
-// RBStatusControllerName is the controller name that will be used when reporting events.
+// RBStatusControllerName is the controller name that will be used when reporting events and metrics.
 const RBStatusControllerName = "resource-binding-status-controller"
 
 // RBStatusController is to sync status of ResourceBinding
@@ -103,7 +103,8 @@ func (c *RBStatusController) SetupWithManager(mgr controllerruntime.Manager) err
 			return requests
 		})
 
-	return controllerruntime.NewControllerManagedBy(mgr).Named("resourceBinding_status_controller").
+	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(RBStatusControllerName).
 		For(&workv1alpha2.ResourceBinding{}, bindingPredicateFn).
 		Watches(&workv1alpha1.Work{}, handler.EnqueueRequestsFromMapFunc(workMapFunc), workPredicateFn).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).

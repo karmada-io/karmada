@@ -45,7 +45,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
-// CRBApplicationFailoverControllerName is the controller name that will be used when reporting events.
+// CRBApplicationFailoverControllerName is the controller name that will be used when reporting events and metrics.
 const CRBApplicationFailoverControllerName = "cluster-resource-binding-application-failover-controller"
 
 // CRBApplicationFailoverController is to sync ClusterResourceBinding's application failover behavior.
@@ -230,6 +230,7 @@ func (c *CRBApplicationFailoverController) SetupWithManager(mgr controllerruntim
 	}
 
 	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(CRBApplicationFailoverControllerName).
 		For(&workv1alpha2.ClusterResourceBinding{}, builder.WithPredicates(clusterResourceBindingPredicateFn)).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
 		Complete(c)

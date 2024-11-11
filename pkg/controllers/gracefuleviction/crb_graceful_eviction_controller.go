@@ -37,7 +37,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
-// CRBGracefulEvictionControllerName is the controller name that will be used when reporting events.
+// CRBGracefulEvictionControllerName is the controller name that will be used when reporting events and metrics.
 const CRBGracefulEvictionControllerName = "cluster-resource-binding-graceful-eviction-controller"
 
 // CRBGracefulEvictionController is to sync ClusterResourceBinding.spec.gracefulEvictionTasks.
@@ -125,6 +125,7 @@ func (c *CRBGracefulEvictionController) SetupWithManager(mgr controllerruntime.M
 	}
 
 	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(CRBGracefulEvictionControllerName).
 		For(&workv1alpha2.ClusterResourceBinding{}, builder.WithPredicates(clusterResourceBindingPredicateFn)).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
 		Complete(c)

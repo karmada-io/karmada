@@ -54,7 +54,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
-// ControllerName is the controller name that will be used when reporting events.
+// ControllerName is the controller name that will be used when reporting events and metrics.
 const ControllerName = "multiclusterservice-controller"
 
 // MCSController is to sync MultiClusterService.
@@ -600,6 +600,7 @@ func (c *MCSController) SetupWithManager(mgr controllerruntime.Manager) error {
 		})
 
 	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(ControllerName).
 		For(&networkingv1alpha1.MultiClusterService{}, builder.WithPredicates(mcsPredicateFunc)).
 		Watches(&corev1.Service{}, handler.EnqueueRequestsFromMapFunc(svcMapFunc), builder.WithPredicates(svcPredicateFunc)).
 		Watches(&clusterv1alpha1.Cluster{}, handler.EnqueueRequestsFromMapFunc(c.clusterMapFunc())).

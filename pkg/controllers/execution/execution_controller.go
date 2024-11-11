@@ -53,7 +53,7 @@ import (
 )
 
 const (
-	// ControllerName is the controller name that will be used when reporting events.
+	// ControllerName is the controller name that will be used when reporting events and metrics.
 	ControllerName = "execution-controller"
 	// WorkSuspendDispatchingConditionMessage is the condition and event message when dispatching is suspended.
 	WorkSuspendDispatchingConditionMessage = "Work dispatching is in a suspended state."
@@ -133,6 +133,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 // SetupWithManager creates a controller and register to controller manager.
 func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(ControllerName).
 		For(&workv1alpha1.Work{}, builder.WithPredicates(c.PredicateFunc)).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithOptions(controller.Options{

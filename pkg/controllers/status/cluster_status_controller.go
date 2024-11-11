@@ -58,7 +58,7 @@ import (
 )
 
 const (
-	// ControllerName is the controller name that will be used when reporting events.
+	// ControllerName is the controller name that will be used when reporting events and metrics.
 	ControllerName            = "cluster-status-controller"
 	clusterReady              = "ClusterReady"
 	clusterHealthy            = "cluster is healthy and ready to accept workloads"
@@ -171,6 +171,7 @@ func (c *ClusterStatusController) SetupWithManager(mgr controllerruntime.Manager
 		failureThreshold: c.ClusterFailureThreshold.Duration,
 	}
 	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(ControllerName).
 		For(&clusterv1alpha1.Cluster{}, builder.WithPredicates(c.PredicateFunc)).
 		WithOptions(controller.Options{
 			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions),
