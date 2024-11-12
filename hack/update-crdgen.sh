@@ -19,7 +19,7 @@ set -o nounset
 set -o pipefail
 
 CONTROLLER_GEN_PKG="sigs.k8s.io/controller-tools/cmd/controller-gen"
-CONTROLLER_GEN_VER="v0.14.0"
+CONTROLLER_GEN_VER="v0.16.5"
 
 source hack/util.sh
 
