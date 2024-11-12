@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.5
   name: resourceinterpretercustomizations.config.karmada.io
 spec:
   group: config.karmada.io
@@ -74,7 +74,6 @@ spec:
                           a specific resource.
                           The script should implement a function as follows:
 
-
                           ```
                             luaScript: >
                                 function GetDependencies(desiredObj)
@@ -92,15 +91,12 @@ spec:
                                 end
                           ```
 
-
                           The content of the LuaScript needs to be a whole function including both
                           declaration and implementation.
-
 
                           The parameters will be supplied by the system:
                             - desiredObj: the object represents the configuration to be applied
                                 to the member cluster.
-
 
                           The returned value should be expressed by a slice of DependentObjectReference.
                         type: string
@@ -118,7 +114,6 @@ spec:
                           a specific resource.
                           The script should implement a function as follows:
 
-
                           ```
                             luaScript: >
                                 function InterpretHealth(observedObj)
@@ -128,15 +123,12 @@ spec:
                                 end
                           ```
 
-
                           The content of the LuaScript needs to be a whole function including both
                           declaration and implementation.
-
 
                           The parameters will be supplied by the system:
                             - observedObj: the object represents the configuration that is observed
                                 from a specific member cluster.
-
 
                           The returned boolean value indicates the health status.
                         type: string
@@ -158,9 +150,7 @@ spec:
                           LuaScript holds the Lua script that is used to discover the resource's
                           replica as well as resource requirements
 
-
                           The script should implement a function as follows:
-
 
                           ```
                             luaScript: >
@@ -175,15 +165,12 @@ spec:
                                 end
                           ```
 
-
                           The content of the LuaScript needs to be a whole function including both
                           declaration and implementation.
-
 
                           The parameters will be supplied by the system:
                             - desiredObj: the object represents the configuration to be applied
                                 to the member cluster.
-
 
                           The function expects two return values:
                             - replica: the declared replica number
@@ -208,7 +195,6 @@ spec:
                           LuaScript holds the Lua script that is used to revise replicas in the desired specification.
                           The script should implement a function as follows:
 
-
                           ```
                             luaScript: >
                                 function ReviseReplica(desiredObj, desiredReplica)
@@ -217,16 +203,13 @@ spec:
                                 end
                           ```
 
-
                           The content of the LuaScript needs to be a whole function including both
                           declaration and implementation.
-
 
                           The parameters will be supplied by the system:
                             - desiredObj: the object represents the configuration to be applied
                                 to the member cluster.
                             - desiredReplica: the replica number should be applied with.
-
 
                           The returned object should be a revised configuration which will be
                           applied to member cluster eventually.
@@ -249,9 +232,7 @@ spec:
                           LuaScript holds the Lua script that is used to retain runtime values
                           to the desired specification.
 
-
                           The script should implement a function as follows:
-
 
                           ```
                             luaScript: >
@@ -261,17 +242,14 @@ spec:
                                 end
                           ```
 
-
                           The content of the LuaScript needs to be a whole function including both
                           declaration and implementation.
-
 
                           The parameters will be supplied by the system:
                             - desiredObj: the object represents the configuration to be applied
                                 to the member cluster.
                             - observedObj: the object represents the configuration that is observed
                                 from a specific member cluster.
-
 
                           The returned object should be a retained configuration which will be
                           applied to member cluster eventually.
@@ -293,7 +271,6 @@ spec:
                           to the desired specification.
                           The script should implement a function as follows:
 
-
                           ```
                             luaScript: >
                                 function AggregateStatus(desiredObj, statusItems)
@@ -304,15 +281,12 @@ spec:
                                 end
                           ```
 
-
                           The content of the LuaScript needs to be a whole function including both
                           declaration and implementation.
-
 
                           The parameters will be supplied by the system:
                             - desiredObj: the object represents a resource template.
                             - statusItems: the slice of status expressed with AggregatedStatusItem.
-
 
                           The returned object should be a whole object with status aggregated.
                         type: string
@@ -331,7 +305,6 @@ spec:
                           LuaScript holds the Lua script that is used to get the status from the observed specification.
                           The script should implement a function as follows:
 
-
                           ```
                             luaScript: >
                                 function ReflectStatus(observedObj)
@@ -341,15 +314,12 @@ spec:
                                 end
                           ```
 
-
                           The content of the LuaScript needs to be a whole function including both
                           declaration and implementation.
-
 
                           The parameters will be supplied by the system:
                             - observedObj: the object represents the configuration that is observed
                                 from a specific member cluster.
-
 
                           The returned status could be the whole status or part of it and will
                           be set into both Work and ResourceBinding(ClusterResourceBinding).

@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.5
   name: overridepolicies.policy.karmada.io
 spec:
   group: policy.karmada.io
@@ -80,6 +80,7 @@ spec:
                                 type: object
                             required:
                             - operator
+                            - value
                             type: object
                           type: array
                         argsOverrider:
@@ -268,7 +269,6 @@ spec:
                                 description: |-
                                   Predicate filters images before applying the rule.
 
-
                                   Defaults to nil, in that case, the system will automatically detect image fields if the resource type is
                                   Pod, ReplicaSet, Deployment, StatefulSet, DaemonSet or Job by following rule:
                                     - Pod: /spec/containers/<N>/image
@@ -278,7 +278,6 @@ spec:
                                     - StatefulSet: /spec/template/spec/containers/<N>/image
                                     - Job: /spec/template/spec/containers/<N>/image
                                   In addition, all images will be processed if the resource object has more than one container.
-
 
                                   If not nil, only images matches the filters will be processed.
                                 properties:
@@ -326,6 +325,7 @@ spec:
                                 type: object
                             required:
                             - operator
+                            - value
                             type: object
                           type: array
                         plaintext:
@@ -474,7 +474,6 @@ spec:
                 description: |-
                   Overriders represents the override rules that would apply on resources
 
-
                   Deprecated: This filed is deprecated in v1.0 and please use the OverrideRules instead.
                 properties:
                   annotationsOverrider:
@@ -503,6 +502,7 @@ spec:
                           type: object
                       required:
                       - operator
+                      - value
                       type: object
                     type: array
                   argsOverrider:
@@ -691,7 +691,6 @@ spec:
                           description: |-
                             Predicate filters images before applying the rule.
 
-
                             Defaults to nil, in that case, the system will automatically detect image fields if the resource type is
                             Pod, ReplicaSet, Deployment, StatefulSet, DaemonSet or Job by following rule:
                               - Pod: /spec/containers/<N>/image
@@ -701,7 +700,6 @@ spec:
                               - StatefulSet: /spec/template/spec/containers/<N>/image
                               - Job: /spec/template/spec/containers/<N>/image
                             In addition, all images will be processed if the resource object has more than one container.
-
 
                             If not nil, only images matches the filters will be processed.
                           properties:
@@ -748,6 +746,7 @@ spec:
                           type: object
                       required:
                       - operator
+                      - value
                       type: object
                     type: array
                   plaintext:
@@ -863,7 +862,6 @@ spec:
                   TargetCluster defines restrictions on this override policy
                   that only applies to resources propagated to the matching clusters.
                   nil means matching all clusters.
-
 
                   Deprecated: This filed is deprecated in v1.0 and please use the OverrideRules instead.
                 properties:
