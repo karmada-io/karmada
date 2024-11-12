@@ -128,6 +128,8 @@ type Options struct {
 	ConcurrentClusterPropagationPolicySyncs int
 	// ConcurrentResourceTemplateSyncs is the number of resource templates that are allowed to sync concurrently.
 	ConcurrentResourceTemplateSyncs int
+	// ConcurrentDependentResourceSyncs is the number of dependent resource that are allowed to sync concurrently.
+	ConcurrentDependentResourceSyncs int
 	// If set to true enables NoExecute Taints and will evict all not-tolerating
 	// objects propagating on Clusters tainted with this kind of Taints.
 	EnableTaintManager bool
@@ -219,6 +221,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 	flags.IntVar(&o.ConcurrentPropagationPolicySyncs, "concurrent-propagation-policy-syncs", 1, "The number of PropagationPolicy that are allowed to sync concurrently.")
 	flags.IntVar(&o.ConcurrentClusterPropagationPolicySyncs, "concurrent-cluster-propagation-policy-syncs", 1, "The number of ClusterPropagationPolicy that are allowed to sync concurrently.")
 	flags.IntVar(&o.ConcurrentResourceTemplateSyncs, "concurrent-resource-template-syncs", 5, "The number of resource templates that are allowed to sync concurrently.")
+	flags.IntVar(&o.ConcurrentDependentResourceSyncs, "concurrent-dependent-resource-syncs", 2, "The number of dependent resource that are allowed to sync concurrently.")
 	flags.BoolVar(&o.EnableTaintManager, "enable-taint-manager", true, "If set to true enables NoExecute Taints and will evict all not-tolerating objects propagating on Clusters tainted with this kind of Taints.")
 	flags.DurationVar(&o.GracefulEvictionTimeout.Duration, "graceful-eviction-timeout", 10*time.Minute, "Specifies the timeout period waiting for the graceful-eviction-controller performs the final removal since the workload(resource) has been moved to the graceful eviction tasks.")
 	flags.BoolVar(&o.EnableClusterResourceModeling, "enable-cluster-resource-modeling", true, "Enable means controller would build resource modeling for each cluster by syncing Nodes and Pods resources.\n"+
