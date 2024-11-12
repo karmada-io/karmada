@@ -35,6 +35,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -349,6 +350,13 @@ func (c *Controller) getRegistryBackendHandler(cluster string, matchedRegistries
 	return handler, nil
 }
 
+var controlPlaneClientBuilder = func(restConfig *rest.Config) client.Client {
+	return gclient.NewForConfigOrDie(restConfig)
+}
+var clusterDynamicClientBuilder = func(cluster string, controlPlaneClient client.Client) (*util.DynamicClusterClient, error) {
+	return util.NewClusterDynamicClientSet(cluster, controlPlaneClient)
+}
+
 // doCacheCluster processes the resourceRegistry object
 // TODO: update status
 func (c *Controller) doCacheCluster(cluster string) error {
@@ -386,9 +394,9 @@ func (c *Controller) doCacheCluster(cluster string) error {
 	// STEP2: added/updated cluster, builds an informer manager for a specific cluster.
 	if !c.InformerManager.IsManagerExist(cluster) {
 		klog.Info("Try to build informer manager for cluster ", cluster)
-		controlPlaneClient := gclient.NewForConfigOrDie(c.restConfig)
+		controlPlaneClient := controlPlaneClientBuilder(c.restConfig)
 
-		clusterDynamicClient, err := util.NewClusterDynamicClientSet(cluster, controlPlaneClient)
+		clusterDynamicClient, err := clusterDynamicClientBuilder(cluster, controlPlaneClient)
 		if err != nil {
 			return err
 		}
