@@ -110,6 +110,8 @@ type DependenciesDistributor struct {
 	resourceProcessor util.AsyncWorker
 	genericEvent      chan event.TypedGenericEvent[*workv1alpha2.ResourceBinding]
 	stopCh            <-chan struct{}
+	// ConcurrentDependentResourceSyncs is the number of dependent resource that are allowed to sync concurrently.
+	ConcurrentDependentResourceSyncs int
 }
 
 // Check if our DependenciesDistributor implements necessary interfaces
@@ -615,7 +617,7 @@ func (d *DependenciesDistributor) Start(ctx context.Context) error {
 	}
 	d.eventHandler = fedinformer.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
 	d.resourceProcessor = util.NewAsyncWorker(resourceWorkerOptions)
-	d.resourceProcessor.Run(2, d.stopCh)
+	d.resourceProcessor.Run(d.ConcurrentDependentResourceSyncs, d.stopCh)
 	<-d.stopCh
 
 	klog.Infof("Stopped as stopCh closed.")
