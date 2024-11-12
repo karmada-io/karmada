@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.5
   name: karmadas.operator.karmada.io
 spec:
   group: operator.karmada.io
@@ -169,10 +169,8 @@ spec:
                                   Claims lists the names of resources, defined in spec.resourceClaims,
                                   that are used by this container.
 
-
                                   This is an alpha field and requires enabling the
                                   DynamicResourceAllocation feature gate.
-
 
                                   This field is immutable. It can only be set for containers.
                                 items:
@@ -261,9 +259,6 @@ spec:
                                   used for system agents or other privileged things that are allowed
                                   to see the host machine. Most containers will NOT need this.
                                   More info: https://kubernetes.io/docs/concepts/storage/volumes#hostpath
-                                  ---
-                                  TODO(jonesdl) We need to restrict who can use host directory mounts and who can/can not
-                                  mount host directories as read/write.
                                 properties:
                                   path:
                                     description: |-
@@ -550,13 +545,11 @@ spec:
                           override. A key in this map is the flag name as it appears on the command line except
                           without leading dash(es).
 
-
                           Note: This is a temporary solution to allow for the configuration of the
                           kube-apiserver component. In the future, we will provide a more structured way
                           to configure the component. Once that is done, this field will be discouraged to be used.
                           Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
                           state. Before you do it, please confirm that you understand the risks of this configuration.
-
 
                           For supported flags, please see
                           https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
@@ -601,9 +594,7 @@ spec:
                                 RecursiveReadOnly specifies whether read-only mounts should be handled
                                 recursively.
 
-
                                 If ReadOnly is false, this field has no meaning and must be unspecified.
-
 
                                 If ReadOnly is true, and this field is set to Disabled, the mount is not made
                                 recursively read-only.  If this field is set to IfPossible, the mount is made
@@ -612,10 +603,8 @@ spec:
                                 supported by the container runtime, otherwise the pod will not be started and
                                 an error will be generated to indicate the reason.
 
-
                                 If this field is set to IfPossible or Enabled, MountPropagation must be set to
                                 None (or be unspecified, which defaults to None).
-
 
                                 If this field is not specified, it is treated as an equivalent of Disabled.
                               type: string
@@ -660,7 +649,6 @@ spec:
                                     Tip: Ensure that the filesystem type is supported by the host operating system.
                                     Examples: "ext4", "xfs", "ntfs". Implicitly inferred to be "ext4" if unspecified.
                                     More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore
-                                    TODO: how do we prevent errors in the filesystem from compromising the machine
                                   type: string
                                 partition:
                                   description: |-
@@ -781,9 +769,7 @@ spec:
                                         This field is effectively required, but due to backwards compatibility is
                                         allowed to be empty. Instances of this type with an empty value here are
                                         almost certainly wrong.
-                                        TODO: Add other useful fields. apiVersion, kind, uid?
                                         More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                        TODO: Drop `kubebuilder:default` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896.
                                       type: string
                                   type: object
                                   x-kubernetes-map-type: atomic
@@ -825,9 +811,7 @@ spec:
                                         This field is effectively required, but due to backwards compatibility is
                                         allowed to be empty. Instances of this type with an empty value here are
                                         almost certainly wrong.
-                                        TODO: Add other useful fields. apiVersion, kind, uid?
                                         More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                        TODO: Drop `kubebuilder:default` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896.
                                       type: string
                                   type: object
                                   x-kubernetes-map-type: atomic
@@ -900,9 +884,7 @@ spec:
                                     This field is effectively required, but due to backwards compatibility is
                                     allowed to be empty. Instances of this type with an empty value here are
                                     almost certainly wrong.
-                                    TODO: Add other useful fields. apiVersion, kind, uid?
                                     More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                    TODO: Drop `kubebuilder:default` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896.
                                   type: string
                                 optional:
                                   description: optional specify whether the ConfigMap
@@ -941,9 +923,7 @@ spec:
                                         This field is effectively required, but due to backwards compatibility is
                                         allowed to be empty. Instances of this type with an empty value here are
                                         almost certainly wrong.
-                                        TODO: Add other useful fields. apiVersion, kind, uid?
                                         More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                        TODO: Drop `kubebuilder:default` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896.
                                       type: string
                                   type: object
                                   x-kubernetes-map-type: atomic
@@ -1084,7 +1064,6 @@ spec:
                                 The volume's lifecycle is tied to the pod that defines it - it will be created before the pod starts,
                                 and deleted when the pod is removed.
 
-
                                 Use this if:
                                 a) the volume is only needed while the pod runs,
                                 b) features of normal volumes like restoring from snapshot or capacity
@@ -1095,16 +1074,13 @@ spec:
                                    information on the connection between this volume type
                                    and PersistentVolumeClaim).
 
-
                                 Use PersistentVolumeClaim or one of the vendor-specific
                                 APIs for volumes that persist for longer than the lifecycle
                                 of an individual pod.
 
-
                                 Use CSI for light-weight local ephemeral volumes if the CSI driver is meant to
                                 be used that way - see the documentation of the driver for
                                 more information.
-
 
                                 A pod can use both types of ephemeral volumes and
                                 persistent volumes at the same time.
@@ -1119,7 +1095,6 @@ spec:
                                     entry. Pod validation will reject the pod if the concatenated name
                                     is not valid for a PVC (for example, too long).
 
-
                                     An existing PVC with that name that is not owned by the pod
                                     will *not* be used for the pod to avoid using an unrelated
                                     volume by mistake. Starting the pod is then blocked until
@@ -1129,10 +1104,8 @@ spec:
                                     this should not be necessary, but it may be useful when
                                     manually reconstructing a broken cluster.
 
-
                                     This field is read-only and no changes will be made by Kubernetes
                                     to the PVC after it has been created.
-
 
                                     Required, must not be nil.
                                   properties:
@@ -1380,7 +1353,6 @@ spec:
                                     fsType is the filesystem type to mount.
                                     Must be a filesystem type supported by the host operating system.
                                     Ex. "ext4", "xfs", "ntfs". Implicitly inferred to be "ext4" if unspecified.
-                                    TODO: how do we prevent errors in the filesystem from compromising the machine
                                   type: string
                                 lun:
                                   description: 'lun is Optional: FC target lun number'
@@ -1448,9 +1420,7 @@ spec:
                                         This field is effectively required, but due to backwards compatibility is
                                         allowed to be empty. Instances of this type with an empty value here are
                                         almost certainly wrong.
-                                        TODO: Add other useful fields. apiVersion, kind, uid?
                                         More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                        TODO: Drop `kubebuilder:default` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896.
                                       type: string
                                   type: object
                                   x-kubernetes-map-type: atomic
@@ -1484,7 +1454,6 @@ spec:
                                     Tip: Ensure that the filesystem type is supported by the host operating system.
                                     Examples: "ext4", "xfs", "ntfs". Implicitly inferred to be "ext4" if unspecified.
                                     More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk
-                                    TODO: how do we prevent errors in the filesystem from compromising the machine
                                   type: string
                                 partition:
                                   description: |-
@@ -1565,9 +1534,6 @@ spec:
                                 used for system agents or other privileged things that are allowed
                                 to see the host machine. Most containers will NOT need this.
                                 More info: https://kubernetes.io/docs/concepts/storage/volumes#hostpath
-                                ---
-                                TODO(jonesdl) We need to restrict who can use host directory mounts and who can/can not
-                                mount host directories as read/write.
                               properties:
                                 path:
                                   description: |-
@@ -1604,7 +1570,6 @@ spec:
                                     Tip: Ensure that the filesystem type is supported by the host operating system.
                                     Examples: "ext4", "xfs", "ntfs". Implicitly inferred to be "ext4" if unspecified.
                                     More info: https://kubernetes.io/docs/concepts/storage/volumes#iscsi
-                                    TODO: how do we prevent errors in the filesystem from compromising the machine
                                   type: string
                                 initiatorName:
                                   description: |-
@@ -1648,9 +1613,7 @@ spec:
                                         This field is effectively required, but due to backwards compatibility is
                                         allowed to be empty. Instances of this type with an empty value here are
                                         almost certainly wrong.
-                                        TODO: Add other useful fields. apiVersion, kind, uid?
                                         More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                        TODO: Drop `kubebuilder:default` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896.
                                       type: string
                                   type: object
                                   x-kubernetes-map-type: atomic
@@ -1779,13 +1742,10 @@ spec:
                                           ClusterTrustBundle allows a pod to access the `.spec.trustBundle` field
                                           of ClusterTrustBundle objects in an auto-updating file.
 
-
                                           Alpha, gated by the ClusterTrustBundleProjection feature gate.
-
 
                                           ClusterTrustBundle objects can either be selected by name, or by the
                                           combination of signer name and a label selector.
-
 
                                           Kubelet performs aggressive normalization of the PEM contents written
                                           into the pod filesystem.  Esoteric PEM features such as inter-block
@@ -1921,9 +1881,7 @@ spec:
                                               This field is effectively required, but due to backwards compatibility is
                                               allowed to be empty. Instances of this type with an empty value here are
                                               almost certainly wrong.
-                                              TODO: Add other useful fields. apiVersion, kind, uid?
                                               More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                              TODO: Drop `kubebuilder:default` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896.
                                             type: string
                                           optional:
                                             description: optional specify whether
@@ -2065,9 +2023,7 @@ spec:
                                               This field is effectively required, but due to backwards compatibility is
                                               allowed to be empty. Instances of this type with an empty value here are
                                               almost certainly wrong.
-                                              TODO: Add other useful fields. apiVersion, kind, uid?
                                               More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                              TODO: Drop `kubebuilder:default` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896.
                                             type: string
                                           optional:
                                             description: optional field specify whether
@@ -2157,7 +2113,6 @@ spec:
                                     Tip: Ensure that the filesystem type is supported by the host operating system.
                                     Examples: "ext4", "xfs", "ntfs". Implicitly inferred to be "ext4" if unspecified.
                                     More info: https://kubernetes.io/docs/concepts/storage/volumes#rbd
-                                    TODO: how do we prevent errors in the filesystem from compromising the machine
                                   type: string
                                 image:
                                   description: |-
@@ -2204,9 +2159,7 @@ spec:
                                         This field is effectively required, but due to backwards compatibility is
                                         allowed to be empty. Instances of this type with an empty value here are
                                         almost certainly wrong.
-                                        TODO: Add other useful fields. apiVersion, kind, uid?
                                         More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                        TODO: Drop `kubebuilder:default` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896.
                                       type: string
                                   type: object
                                   x-kubernetes-map-type: atomic
@@ -2256,9 +2209,7 @@ spec:
                                         This field is effectively required, but due to backwards compatibility is
                                         allowed to be empty. Instances of this type with an empty value here are
                                         almost certainly wrong.
-                                        TODO: Add other useful fields. apiVersion, kind, uid?
                                         More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                        TODO: Drop `kubebuilder:default` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896.
                                       type: string
                                   type: object
                                   x-kubernetes-map-type: atomic
@@ -2381,9 +2332,7 @@ spec:
                                         This field is effectively required, but due to backwards compatibility is
                                         allowed to be empty. Instances of this type with an empty value here are
                                         almost certainly wrong.
-                                        TODO: Add other useful fields. apiVersion, kind, uid?
                                         More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                        TODO: Drop `kubebuilder:default` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896.
                                       type: string
                                   type: object
                                   x-kubernetes-map-type: atomic
@@ -2480,10 +2429,8 @@ spec:
                               Claims lists the names of resources, defined in spec.resourceClaims,
                               that are used by this container.
 
-
                               This is an alpha field and requires enabling the
                               DynamicResourceAllocation feature gate.
-
 
                               This field is immutable. It can only be set for containers.
                             items:
@@ -2577,13 +2524,11 @@ spec:
                           override. A key in this map is the flag name as it appears on the command line except
                           without leading dash(es).
 
-
                           Note: This is a temporary solution to allow for the configuration of the
                           karmada-aggregated-apiserver component. In the future, we will provide a more structured way
                           to configure the component. Once that is done, this field will be discouraged to be used.
                           Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
                           state. Before you do it, please confirm that you understand the risks of this configuration.
-
 
                           For supported flags, please see
                           https://karmada.io/docs/reference/components/karmada-aggregated-apiserver
@@ -2638,10 +2583,8 @@ spec:
                               Claims lists the names of resources, defined in spec.resourceClaims,
                               that are used by this container.
 
-
                               This is an alpha field and requires enabling the
                               DynamicResourceAllocation feature gate.
-
 
                               This field is immutable. It can only be set for containers.
                             items:
@@ -2705,7 +2648,6 @@ spec:
                           'foo' enables the controller named 'foo', '-foo' disables the controller named
                           'foo'.
 
-
                           All controllers: binding, cluster, clusterStatus, endpointSlice, execution,
                           federatedResourceQuotaStatus, federatedResourceQuotaSync, hpa, namespace,
                           serviceExport, serviceImport, unifiedAuth, workStatus.
@@ -2724,13 +2666,11 @@ spec:
                           override. A key in this map is the flag name as it appears on the command line except
                           without leading dash(es).
 
-
                           Note: This is a temporary solution to allow for the configuration of the
                           karmada-controller-manager component. In the future, we will provide a more structured way
                           to configure the component. Once that is done, this field will be discouraged to be used.
                           Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
                           state. Before you do it, please confirm that you understand the risks of this configuration.
-
 
                           For supported flags, please see
                           https://karmada.io/docs/reference/components/karmada-controller-manager
@@ -2788,10 +2728,8 @@ spec:
                               Claims lists the names of resources, defined in spec.resourceClaims,
                               that are used by this container.
 
-
                               This is an alpha field and requires enabling the
                               DynamicResourceAllocation feature gate.
-
 
                               This field is immutable. It can only be set for containers.
                             items:
@@ -2857,13 +2795,11 @@ spec:
                           A key in this map is the flag name as it appears on the command line except without
                           leading dash(es).
 
-
                           Note: This is a temporary solution to allow for the configuration of the karmada-descheduler
                           component. In the future, we will provide a more structured way to configure the component.
                           Once that is done, this field will be discouraged to be used.
                           Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
                           state. Before you do it, please confirm that you understand the risks of this configuration.
-
 
                           For supported flags, please see
                           https://karmada.io/docs/reference/components/karmada-descheduler
@@ -2910,10 +2846,8 @@ spec:
                               Claims lists the names of resources, defined in spec.resourceClaims,
                               that are used by this container.
 
-
                               This is an alpha field and requires enabling the
                               DynamicResourceAllocation feature gate.
-
 
                               This field is immutable. It can only be set for containers.
                             items:
@@ -2979,13 +2913,11 @@ spec:
                           A key in this map is the flag name as it appears on the command line except without
                           leading dash(es).
 
-
                           Note: This is a temporary solution to allow for the configuration of the karmada-metrics-adapter
                           component. In the future, we will provide a more structured way to configure the component.
                           Once that is done, this field will be discouraged to be used.
                           Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
                           state. Before you do it, please confirm that you understand the risks of this configuration.
-
 
                           For supported flags, please see
                           https://karmada.io/docs/reference/components/karmada-metrics-adapter
@@ -3032,10 +2964,8 @@ spec:
                               Claims lists the names of resources, defined in spec.resourceClaims,
                               that are used by this container.
 
-
                               This is an alpha field and requires enabling the
                               DynamicResourceAllocation feature gate.
-
 
                               This field is immutable. It can only be set for containers.
                             items:
@@ -3101,13 +3031,11 @@ spec:
                           A key in this map is the flag name as it appears on the command line except without
                           leading dash(es).
 
-
                           Note: This is a temporary solution to allow for the configuration of the karmada-scheduler
                           component. In the future, we will provide a more structured way to configure the component.
                           Once that is done, this field will be discouraged to be used.
                           Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
                           state. Before you do it, please confirm that you understand the risks of this configuration.
-
 
                           For supported flags, please see
                           https://karmada.io/docs/reference/components/karmada-scheduler
@@ -3162,10 +3090,8 @@ spec:
                               Claims lists the names of resources, defined in spec.resourceClaims,
                               that are used by this container.
 
-
                               This is an alpha field and requires enabling the
                               DynamicResourceAllocation feature gate.
-
 
                               This field is immutable. It can only be set for containers.
                             items:
@@ -3231,13 +3157,11 @@ spec:
                           A key in this map is the flag name as it appears on the command line except without
                           leading dash(es).
 
-
                           Note: This is a temporary solution to allow for the configuration of the karmada-search
                           component. In the future, we will provide a more structured way to configure the component.
                           Once that is done, this field will be discouraged to be used.
                           Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
                           state. Before you do it, please confirm that you understand the risks of this configuration.
-
 
                           For supported flags, please see
                           https://karmada.io/docs/reference/components/karmada-search
@@ -3284,10 +3208,8 @@ spec:
                               Claims lists the names of resources, defined in spec.resourceClaims,
                               that are used by this container.
 
-
                               This is an alpha field and requires enabling the
                               DynamicResourceAllocation feature gate.
-
 
                               This field is immutable. It can only be set for containers.
                             items:
@@ -3353,13 +3275,11 @@ spec:
                           override. A key in this map is the flag name as it appears on the command line except
                           without leading dash(es).
 
-
                           Note: This is a temporary solution to allow for the configuration of the
                           karmada-webhook component. In the future, we will provide a more structured way
                           to configure the component. Once that is done, this field will be discouraged to be used.
                           Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
                           state. Before you do it, please confirm that you understand the risks of this configuration.
-
 
                           For supported flags, please see
                           https://karmada.io/docs/reference/components/karmada-webhook
@@ -3406,10 +3326,8 @@ spec:
                               Claims lists the names of resources, defined in spec.resourceClaims,
                               that are used by this container.
 
-
                               This is an alpha field and requires enabling the
                               DynamicResourceAllocation feature gate.
-
 
                               This field is immutable. It can only be set for containers.
                             items:
@@ -3473,7 +3391,6 @@ spec:
                           'foo' enables the controller named 'foo', '-foo' disables the controller named
                           'foo'.
 
-
                           All controllers: attachdetach, bootstrapsigner, cloud-node-lifecycle,
                           clusterrole-aggregation, cronjob, csrapproving, csrcleaner, csrsigning,
                           daemonset, deployment, disruption, endpoint, endpointslice,
@@ -3488,7 +3405,6 @@ spec:
                           https://kubernetes.io/docs/reference/command-line-tools-reference/kube-controller-manager/
                           for details.
 
-
                           However, Karmada uses Kubernetes Native API definitions for federated resource template,
                           so it doesn't need enable some resource related controllers like daemonset, deployment etc.
                           On the other hand, Karmada leverages the capabilities of the Kubernetes controller to
@@ -3497,12 +3413,10 @@ spec:
                           and the `garbagecollector` controller handles automatic clean-up of redundant items in
                           your karmada.
 
-
                           According to the user feedback and karmada requirements, the following controllers are
                           enabled by default: namespace, garbagecollector, serviceaccount-token, ttl-after-finished,
                           bootstrapsigner,csrapproving,csrcleaner,csrsigning. See
                           https://karmada.io/docs/administrator/configuration/configure-controllers#kubernetes-controllers
-
 
                           Others are disabled by default. If you want to enable or disable other controllers, you
                           have to explicitly specify all the controllers that kube-controller-manager should enable
@@ -3518,13 +3432,11 @@ spec:
                           override. A key in this map is the flag name as it appears on the command line except
                           without leading dash(es).
 
-
                           Note: This is a temporary solution to allow for the configuration of the
                           kube-controller-manager component. In the future, we will provide a more structured way
                           to configure the component. Once that is done, this field will be discouraged to be used.
                           Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
                           state. Before you do it, please confirm that you understand the risks of this configuration.
-
 
                           For supported flags, please see
                           https://kubernetes.io/docs/reference/command-line-tools-reference/kube-controller-manager/
@@ -3578,10 +3490,8 @@ spec:
                               Claims lists the names of resources, defined in spec.resourceClaims,
                               that are used by this container.
 
-
                               This is an alpha field and requires enabling the
                               DynamicResourceAllocation feature gate.
-
 
                               This field is immutable. It can only be set for containers.
                             items:
@@ -3626,6 +3536,8 @@ spec:
                             type: object
                         type: object
                     type: object
+                required:
+                - etcd
                 type: object
               crdTarball:
                 description: |-
@@ -3741,16 +3653,8 @@ spec:
                 description: Conditions represents the latest available observations
                   of a karmada's current state.
                 items:
-                  description: "Condition contains details for one aspect of the current
-                    state of this API Resource.\n---\nThis struct is intended for
-                    direct use as an array at the field path .status.conditions.  For
-                    example,\n\n\n\ttype FooStatus struct{\n\t    // Represents the
-                    observations of a foo's current state.\n\t    // Known .status.conditions.type
-                    are: \"Available\", \"Progressing\", and \"Degraded\"\n\t    //
-                    +patchMergeKey=type\n\t    // +patchStrategy=merge\n\t    // +listType=map\n\t
-                    \   // +listMapKey=type\n\t    Conditions []metav1.Condition `json:\"conditions,omitempty\"
-                    patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"`\n\n\n\t
-                    \   // other fields\n\t}"
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
                   properties:
                     lastTransitionTime:
                       description: |-
@@ -3791,12 +3695,7 @@ spec:
                       - Unknown
                       type: string
                     type:
-                      description: |-
-                        type of condition in CamelCase or in foo.example.com/CamelCase.
-                        ---
-                        Many .condition.type values are consistent across resources like Available, but because arbitrary conditions can be
-                        useful (see .node.status.conditions), the ability to deconflict is important.
-                        The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
                       maxLength: 316
                       pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
                       type: string
