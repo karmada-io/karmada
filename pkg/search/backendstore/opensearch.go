@@ -282,6 +282,10 @@ func (os *OpenSearch) indexName(us *unstructured.Unstructured) (string, error) {
 	return name, nil
 }
 
+var openSearchClientBuilder = func(cfg opensearch.Config) (*opensearch.Client, error) {
+	return opensearch.NewClient(cfg)
+}
+
 func (os *OpenSearch) initClient(bsc *searchv1alpha1.BackendStoreConfig) error {
 	if bsc == nil || bsc.OpenSearch == nil {
 		return errors.New("opensearch config is nil")
@@ -312,7 +316,7 @@ func (os *OpenSearch) initClient(bsc *searchv1alpha1.BackendStoreConfig) error {
 		cfg.Password = pwd
 	}
 
-	client, err := opensearch.NewClient(cfg)
+	client, err := openSearchClientBuilder(cfg)
 	if err != nil {
 		return fmt.Errorf("cannot create opensearch client: %v", err)
 	}
