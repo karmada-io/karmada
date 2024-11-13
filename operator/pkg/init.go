@@ -19,11 +19,9 @@ package karmada
 import (
 	"errors"
 	"fmt"
-	"net/url"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	utilversion "k8s.io/apimachinery/pkg/util/version"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -55,33 +53,16 @@ type InitOptions struct {
 
 // Validate is used to validate the initOptions before creating initJob.
 func (opt *InitOptions) Validate() error {
-	var errs []error
-
 	if len(opt.Name) == 0 || len(opt.Namespace) == 0 {
 		return errors.New("unexpected empty name or namespace")
 	}
-	if opt.CRDTarball.HTTPSource != nil {
-		if _, err := url.Parse(opt.CRDTarball.HTTPSource.URL); err != nil {
-			return fmt.Errorf("unexpected invalid crds remote url %s", opt.CRDTarball.HTTPSource.URL)
-		}
-	}
-	if !util.IsInCluster(opt.Karmada.Spec.HostCluster) && opt.Karmada.Spec.Components.KarmadaAPIServer.ServiceType == corev1.ServiceTypeClusterIP {
-		return fmt.Errorf("if karmada is installed in a remote cluster, the service type of karmada-apiserver must be either NodePort or LoadBalancer")
-	}
+
 	_, err := utilversion.ParseGeneric(opt.KarmadaVersion)
 	if err != nil {
 		return fmt.Errorf("unexpected karmada invalid version %s", opt.KarmadaVersion)
 	}
 
-	if opt.Karmada.Spec.Components.Etcd.Local != nil && opt.Karmada.Spec.Components.Etcd.Local.CommonSettings.Replicas != nil {
-		replicas := *opt.Karmada.Spec.Components.Etcd.Local.CommonSettings.Replicas
-
-		if (replicas % 2) == 0 {
-			klog.Warningf("invalid etcd replicas %d, expected an odd number", replicas)
-		}
-	}
-
-	return utilerrors.NewAggregate(errs)
+	return nil
 }
 
 // InitOpt defines a type of function to set InitOptions values.
