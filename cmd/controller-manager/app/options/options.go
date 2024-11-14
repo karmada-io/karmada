@@ -143,6 +143,17 @@ type Options struct {
 	// in scenario of dynamic replica assignment based on cluster free resources.
 	// Disable if it does not fit your cases for better performance.
 	EnableClusterResourceModeling bool
+
+	// DisableMultiDependencyDistribution indicates disable the ability to a resource from being depended on by multiple
+	// resources or being distributed by PropagationPolicy/ClusterPropagationPolicy while being depended on.
+	//
+	// Before v1.12, this capability is allowed by default. If you still wish to enable this capability, you can set
+	// this flag to false. However, you will need to bear some side effects that come with it.
+	// For example, you can refer to https://github.com/karmada-io/karmada/pull/5717. When the primary resource is deleted,
+	// it does not consider other resources that currently depend on the resource or any PropagationPolicy associated with it.
+	//
+	// It is recommended that you adapt your business accordingly to avoid continued use.
+	DisableMultiDependencyDistribution bool
 }
 
 // NewOptions builds an empty options.
@@ -224,6 +235,9 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 	flags.BoolVar(&o.EnableClusterResourceModeling, "enable-cluster-resource-modeling", true, "Enable means controller would build resource modeling for each cluster by syncing Nodes and Pods resources.\n"+
 		"The resource modeling might be used by the scheduler to make scheduling decisions in scenario of dynamic replica assignment based on cluster free resources.\n"+
 		"Disable if it does not fit your cases for better performance.")
+	flags.BoolVar(&o.DisableMultiDependencyDistribution, "disable-multi-dependency-distribution", true, "True value means disable the ability to a resource from being depended on by multiple resources or being distributed by PropagationPolicy/ClusterPropagationPolicy while being depended on.\n"+
+		"Before v1.12, this capability is allowed by default. If you still wish to enable this capability, you can set this flag to false. However, you will need to bear some side effects that come with it. For example, you can refer to https://github.com/karmada-io/karmada/pull/5717. When the primary resource is deleted, it does not consider other resources that currently depend on the resource or any PropagationPolicy associated with it.\n"+
+		"It is recommended that you adapt your business accordingly to avoid continued use.")
 
 	o.RateLimiterOpts.AddFlags(flags)
 	o.ProfileOpts.AddFlags(flags)
