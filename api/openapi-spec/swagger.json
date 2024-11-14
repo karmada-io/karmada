@@ -20080,6 +20080,10 @@
           "type": "string",
           "default": ""
         },
+        "purgeMode": {
+          "description": "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Immediately\", \"Graciously\" and \"Never\".",
+          "type": "string"
+        },
         "reason": {
           "description": "Reason contains a programmatic identifier indicating the reason for the eviction. Producers may define expected values and meanings for this field, and whether the values are considered a guaranteed API. The value should be a CamelCase string. This field may not be empty.",
           "type": "string",
