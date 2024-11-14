@@ -240,6 +240,13 @@ type GracefulEvictionTask struct {
 	// +required
 	FromCluster string `json:"fromCluster"`
 
+	// PurgeMode represents how to deal with the legacy applications on the
+	// cluster from which the application is migrated.
+	// Valid options are "Immediately", "Graciously" and "Never".
+	// +kubebuilder:validation:Enum=Immediately;Graciously;Never
+	// +optional
+	PurgeMode policyv1alpha1.PurgeMode `json:"purgeMode,omitempty"`
+
 	// Replicas indicates the number of replicas should be evicted.
 	// Should be ignored for resource type that doesn't have replica.
 	// +optional
