@@ -53,6 +53,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
+	"github.com/karmada-io/karmada/pkg/util/worker"
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
@@ -325,7 +326,7 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 }
 
 func TestWorkStatusController_getEventHandler(t *testing.T) {
-	opt := util.Options{
+	opt := worker.Options{
 		Name:          "opt",
 		KeyFunc:       nil,
 		ReconcileFunc: nil,
@@ -339,7 +340,7 @@ func TestWorkStatusController_getEventHandler(t *testing.T) {
 		ClusterCacheSyncTimeout:     metav1.Duration{},
 		RateLimiterOptions:          ratelimiterflag.Options{},
 		eventHandler:                nil,
-		worker:                      util.NewAsyncWorker(opt),
+		worker:                      worker.NewAsyncWorker(opt),
 	}
 
 	eventHandler := c.getEventHandler()
@@ -980,12 +981,12 @@ func TestWorkStatusController_registerInformersAndStart(t *testing.T) {
 	defer close(stopCh)
 	dynamicClientSet := dynamicfake.NewSimpleDynamicClient(scheme.Scheme)
 	c := newWorkStatusController(cluster)
-	opt := util.Options{
+	opt := worker.Options{
 		Name:          "opt",
 		KeyFunc:       nil,
 		ReconcileFunc: nil,
 	}
-	c.worker = util.NewAsyncWorker(opt)
+	c.worker = worker.NewAsyncWorker(opt)
 
 	workUID := "92345678-1234-5678-1234-567812345678"
 	raw := []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`)

@@ -29,6 +29,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/worker"
 )
 
 type labelEventKind int
@@ -45,7 +46,7 @@ type labelEvent struct {
 	hpa  *autoscalingv2.HorizontalPodAutoscaler
 }
 
-func (r *HpaScaleTargetMarker) reconcileScaleRef(key util.QueueKey) (err error) {
+func (r *HpaScaleTargetMarker) reconcileScaleRef(key worker.QueueKey) (err error) {
 	event, ok := key.(labelEvent)
 	if !ok {
 		klog.Errorf("Found invalid key when reconciling hpa scale ref: %+v", key)

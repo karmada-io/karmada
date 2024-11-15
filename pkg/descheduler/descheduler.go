@@ -42,10 +42,10 @@ import (
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 	worklister "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/grpcconnection"
+	"github.com/karmada-io/karmada/pkg/util/worker"
 )
 
 const (
@@ -68,11 +68,11 @@ type Descheduler struct {
 	schedulerEstimatorServiceNamespace string
 	schedulerEstimatorServicePrefix    string
 	schedulerEstimatorClientConfig     *grpcconnection.ClientConfig
-	schedulerEstimatorWorker           util.AsyncWorker
+	schedulerEstimatorWorker           worker.AsyncWorker
 
 	unschedulableThreshold time.Duration
 	deschedulingInterval   time.Duration
-	deschedulerWorker      util.AsyncWorker
+	deschedulerWorker      worker.AsyncWorker
 }
 
 // NewDescheduler instantiates a descheduler
@@ -103,20 +103,20 @@ func NewDescheduler(karmadaClient karmadaclientset.Interface, kubeClient kuberne
 	_ = desched.bindingInformer.SetTransform(fedinformer.StripUnusedFields)
 	_ = desched.clusterInformer.SetTransform(fedinformer.StripUnusedFields)
 
-	schedulerEstimatorWorkerOptions := util.Options{
+	schedulerEstimatorWorkerOptions := worker.Options{
 		Name:          "scheduler-estimator",
 		KeyFunc:       nil,
 		ReconcileFunc: desched.reconcileEstimatorConnection,
 	}
-	desched.schedulerEstimatorWorker = util.NewAsyncWorker(schedulerEstimatorWorkerOptions)
+	desched.schedulerEstimatorWorker = worker.NewAsyncWorker(schedulerEstimatorWorkerOptions)
 	schedulerEstimator := estimatorclient.NewSchedulerEstimator(desched.schedulerEstimatorCache, opts.SchedulerEstimatorTimeout.Duration)
 	estimatorclient.RegisterSchedulerEstimator(schedulerEstimator)
-	deschedulerWorkerOptions := util.Options{
+	deschedulerWorkerOptions := worker.Options{
 		Name:          "descheduler",
-		KeyFunc:       util.MetaNamespaceKeyFunc,
+		KeyFunc:       worker.MetaNamespaceKeyFunc,
 		ReconcileFunc: desched.worker,
 	}
-	desched.deschedulerWorker = util.NewAsyncWorker(deschedulerWorkerOptions)
+	desched.deschedulerWorker = worker.NewAsyncWorker(deschedulerWorkerOptions)
 
 	_, err := desched.clusterInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    desched.addCluster,
@@ -169,7 +169,7 @@ func (d *Descheduler) descheduleOnce() {
 	}
 }
 
-func (d *Descheduler) worker(key util.QueueKey) error {
+func (d *Descheduler) worker(key worker.QueueKey) error {
 	namespacedName, ok := key.(string)
 	if !ok {
 		return fmt.Errorf("failed to deschedule as invalid key: %v", key)
@@ -297,7 +297,7 @@ func (d *Descheduler) establishEstimatorConnections() {
 	}
 }
 
-func (d *Descheduler) reconcileEstimatorConnection(key util.QueueKey) error {
+func (d *Descheduler) reconcileEstimatorConnection(key worker.QueueKey) error {
 	name, ok := key.(string)
 	if !ok {
 		return fmt.Errorf("failed to reconcile estimator connection as invalid key: %v", key)

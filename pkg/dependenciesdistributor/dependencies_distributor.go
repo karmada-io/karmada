@@ -59,6 +59,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
+	"github.com/karmada-io/karmada/pkg/util/worker"
 )
 
 const (
@@ -107,7 +108,7 @@ type DependenciesDistributor struct {
 	RateLimiterOptions  ratelimiterflag.Options
 
 	eventHandler      cache.ResourceEventHandler
-	resourceProcessor util.AsyncWorker
+	resourceProcessor worker.AsyncWorker
 	genericEvent      chan event.TypedGenericEvent[*workv1alpha2.ResourceBinding]
 	stopCh            <-chan struct{}
 }
@@ -161,7 +162,7 @@ func (d *DependenciesDistributor) OnDelete(obj interface{}) {
 // reconcileResourceTemplate coordinates resources that may need to be distributed, such as Configmap, Service, etc.
 // When the resource is confirmed to need to be distributed, it will be processed by DependenciesDistributor.Reconcile.
 // The key will be re-queued if an error is non-nil.
-func (d *DependenciesDistributor) reconcileResourceTemplate(key util.QueueKey) error {
+func (d *DependenciesDistributor) reconcileResourceTemplate(key worker.QueueKey) error {
 	resourceTemplateKey, ok := key.(*LabelsKey)
 	if !ok {
 		klog.Error("Invalid key")
@@ -595,9 +596,9 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding 
 func (d *DependenciesDistributor) Start(ctx context.Context) error {
 	klog.Infof("Starting dependencies distributor.")
 	d.stopCh = ctx.Done()
-	resourceWorkerOptions := util.Options{
+	resourceWorkerOptions := worker.Options{
 		Name: "dependencies resource detector",
-		KeyFunc: func(obj interface{}) (util.QueueKey, error) {
+		KeyFunc: func(obj interface{}) (worker.QueueKey, error) {
 			key, err := keys.ClusterWideKeyFunc(obj)
 			if err != nil {
 				return nil, err
@@ -614,7 +615,7 @@ func (d *DependenciesDistributor) Start(ctx context.Context) error {
 		ReconcileFunc: d.reconcileResourceTemplate,
 	}
 	d.eventHandler = fedinformer.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
-	d.resourceProcessor = util.NewAsyncWorker(resourceWorkerOptions)
+	d.resourceProcessor = worker.NewAsyncWorker(resourceWorkerOptions)
 	d.resourceProcessor.Run(2, d.stopCh)
 	<-d.stopCh
 

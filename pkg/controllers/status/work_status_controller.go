@@ -53,6 +53,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
+	"github.com/karmada-io/karmada/pkg/util/worker"
 )
 
 // WorkStatusControllerName is the controller name that will be used when reporting events and metrics.
@@ -66,7 +67,7 @@ type WorkStatusController struct {
 	InformerManager genericmanager.MultiClusterInformerManager
 	eventHandler    cache.ResourceEventHandler // eventHandler knows how to handle events from the member cluster.
 	StopChan        <-chan struct{}
-	worker          util.AsyncWorker // worker process resources periodic from rateLimitingQueue.
+	worker          worker.AsyncWorker // worker process resources periodic from rateLimitingQueue.
 	// ConcurrentWorkStatusSyncs is the number of Work status that are allowed to sync concurrently.
 	ConcurrentWorkStatusSyncs   int
 	ObjectWatcher               objectwatcher.ObjectWatcher
@@ -142,17 +143,17 @@ func (c *WorkStatusController) getEventHandler() cache.ResourceEventHandler {
 
 // RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
 func (c *WorkStatusController) RunWorkQueue() {
-	workerOptions := util.Options{
+	workerOptions := worker.Options{
 		Name:          "work-status",
 		KeyFunc:       generateKey,
 		ReconcileFunc: c.syncWorkStatus,
 	}
-	c.worker = util.NewAsyncWorker(workerOptions)
+	c.worker = worker.NewAsyncWorker(workerOptions)
 	c.worker.Run(c.ConcurrentWorkStatusSyncs, c.StopChan)
 }
 
 // generateKey generates a key from obj, the key contains cluster, GVK, namespace and name.
-func generateKey(obj interface{}) (util.QueueKey, error) {
+func generateKey(obj interface{}) (worker.QueueKey, error) {
 	resource := obj.(*unstructured.Unstructured)
 	cluster, err := getClusterNameFromAnnotation(resource)
 	if err != nil {
@@ -183,7 +184,7 @@ func getClusterNameFromAnnotation(resource *unstructured.Unstructured) (string, 
 }
 
 // syncWorkStatus will collect status of object referencing by key and update to work which holds the object.
-func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
+func (c *WorkStatusController) syncWorkStatus(key worker.QueueKey) error {
 	ctx := context.Background()
 	fedKey, ok := key.(keys.FederatedKey)
 	if !ok {

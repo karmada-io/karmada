@@ -33,6 +33,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	"github.com/karmada-io/karmada/pkg/util/worker"
 )
 
 func newNoExecuteTaintManager() *NoExecuteTaintManager {
@@ -57,19 +58,19 @@ func newNoExecuteTaintManager() *NoExecuteTaintManager {
 			WithIndex(&workv1alpha2.ResourceBinding{}, rbClusterKeyIndex, rbIndexerFunc).
 			WithIndex(&workv1alpha2.ClusterResourceBinding{}, crbClusterKeyIndex, crbIndexerFunc).Build(),
 	}
-	bindingEvictionWorkerOptions := util.Options{
+	bindingEvictionWorkerOptions := worker.Options{
 		Name:          "binding-eviction",
 		KeyFunc:       nil,
 		ReconcileFunc: mgr.syncBindingEviction,
 	}
-	mgr.bindingEvictionWorker = util.NewAsyncWorker(bindingEvictionWorkerOptions)
+	mgr.bindingEvictionWorker = worker.NewAsyncWorker(bindingEvictionWorkerOptions)
 
-	clusterBindingEvictionWorkerOptions := util.Options{
+	clusterBindingEvictionWorkerOptions := worker.Options{
 		Name:          "cluster-binding-eviction",
 		KeyFunc:       nil,
 		ReconcileFunc: mgr.syncClusterBindingEviction,
 	}
-	mgr.clusterBindingEvictionWorker = util.NewAsyncWorker(clusterBindingEvictionWorkerOptions)
+	mgr.clusterBindingEvictionWorker = worker.NewAsyncWorker(clusterBindingEvictionWorkerOptions)
 	return mgr
 }
 

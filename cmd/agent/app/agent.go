@@ -234,6 +234,7 @@ func run(ctx context.Context, opts *options.Options) error {
 	crtlmetrics.Registry.MustRegister(metrics.ClusterCollectors()...)
 	crtlmetrics.Registry.MustRegister(metrics.ResourceCollectorsForAgent()...)
 	crtlmetrics.Registry.MustRegister(metrics.PoolCollectors()...)
+	crtlmetrics.Registry.MustRegister(metrics.AsyncWorkerCollectors()...)
 
 	if err = setupControllers(controllerManager, opts, ctx.Done()); err != nil {
 		return err

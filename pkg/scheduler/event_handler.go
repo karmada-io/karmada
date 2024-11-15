@@ -38,6 +38,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/worker"
 )
 
 // addAllEventHandlers is a helper function used in Scheduler
@@ -245,7 +246,7 @@ func schedulerNameFilter(schedulerNameFromOptions, schedulerName string) bool {
 	return schedulerNameFromOptions == schedulerName
 }
 
-func (s *Scheduler) reconcileCluster(key util.QueueKey) error {
+func (s *Scheduler) reconcileCluster(key worker.QueueKey) error {
 	cluster, ok := key.(*clusterv1alpha1.Cluster)
 	if !ok {
 		return fmt.Errorf("invalid cluster key: %s", key)

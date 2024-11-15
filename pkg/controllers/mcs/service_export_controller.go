@@ -53,6 +53,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
+	"github.com/karmada-io/karmada/pkg/util/worker"
 )
 
 // ServiceExportControllerName is the controller name that will be used when reporting events and metrics.
@@ -75,7 +76,7 @@ type ServiceExportController struct {
 	// "member1": instance of ResourceEventHandler
 	eventHandlers sync.Map
 	// worker process resources periodic from rateLimitingQueue.
-	worker util.AsyncWorker
+	worker worker.AsyncWorker
 }
 
 var (
@@ -136,12 +137,12 @@ func (c *ServiceExportController) SetupWithManager(mgr controllerruntime.Manager
 
 // RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
 func (c *ServiceExportController) RunWorkQueue() {
-	workerOptions := util.Options{
+	workerOptions := worker.Options{
 		Name:          "service-export",
 		KeyFunc:       nil,
 		ReconcileFunc: c.syncServiceExportOrEndpointSlice,
 	}
-	c.worker = util.NewAsyncWorker(workerOptions)
+	c.worker = worker.NewAsyncWorker(workerOptions)
 	c.worker.Run(c.WorkerNumber, c.StopChan)
 
 	go c.enqueueReportedEpsServiceExport()
@@ -191,7 +192,7 @@ func (c *ServiceExportController) enqueueReportedEpsServiceExport() {
 	}
 }
 
-func (c *ServiceExportController) syncServiceExportOrEndpointSlice(key util.QueueKey) error {
+func (c *ServiceExportController) syncServiceExportOrEndpointSlice(key worker.QueueKey) error {
 	ctx := context.Background()
 	fedKey, ok := key.(keys.FederatedKey)
 	if !ok {

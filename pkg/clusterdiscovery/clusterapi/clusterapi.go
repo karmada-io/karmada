@@ -38,11 +38,11 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/unjoin"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
-	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/worker"
 )
 
 const (
@@ -62,7 +62,7 @@ type ClusterDetector struct {
 	ClusterAPIClient      client.Client
 	InformerManager       genericmanager.SingleClusterInformerManager
 	EventHandler          cache.ResourceEventHandler
-	Processor             util.AsyncWorker
+	Processor             worker.AsyncWorker
 	ConcurrentReconciles  int
 
 	stopCh <-chan struct{}
@@ -74,12 +74,12 @@ func (d *ClusterDetector) Start(ctx context.Context) error {
 	d.stopCh = ctx.Done()
 
 	d.EventHandler = fedinformer.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
-	workerOptions := util.Options{
+	workerOptions := worker.Options{
 		Name:          "cluster-api cluster detector",
 		KeyFunc:       ClusterWideKeyFunc,
 		ReconcileFunc: d.Reconcile,
 	}
-	d.Processor = util.NewAsyncWorker(workerOptions)
+	d.Processor = worker.NewAsyncWorker(workerOptions)
 	d.Processor.Run(d.ConcurrentReconciles, d.stopCh)
 	d.discoveryCluster()
 
@@ -120,7 +120,7 @@ func (d *ClusterDetector) OnDelete(obj interface{}) {
 
 // Reconcile performs a full reconciliation for the object referred to by the key.
 // The key will be re-queued if an error is non-nil.
-func (d *ClusterDetector) Reconcile(key util.QueueKey) error {
+func (d *ClusterDetector) Reconcile(key worker.QueueKey) error {
 	clusterWideKey, ok := key.(keys.ClusterWideKey)
 	if !ok {
 		klog.Errorf("Invalid key")

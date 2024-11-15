@@ -50,6 +50,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
+	"github.com/karmada-io/karmada/pkg/util/worker"
 )
 
 const workKey = "key"
@@ -62,7 +63,7 @@ type Controller struct {
 	secretLister   listcorev1.SecretLister
 	clusterLister  clusterlisters.ClusterLister
 	registryLister searchlisters.ResourceRegistryLister
-	worker         util.AsyncWorker
+	worker         worker.AsyncWorker
 	store          store.Store
 
 	proxy framework.Proxy
@@ -106,12 +107,12 @@ func NewController(option NewControllerOption) (*Controller, error) {
 		proxy:                proxy,
 	}
 
-	workerOptions := util.Options{
+	workerOptions := worker.Options{
 		Name:          "proxy-controller",
 		KeyFunc:       nil,
 		ReconcileFunc: ctl.reconcile,
 	}
-	ctl.worker = util.NewAsyncWorker(workerOptions)
+	ctl.worker = worker.NewAsyncWorker(workerOptions)
 
 	resourceEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(interface{}) {
@@ -176,7 +177,7 @@ func (ctl *Controller) Stop() {
 }
 
 // reconcile cache
-func (ctl *Controller) reconcile(util.QueueKey) error {
+func (ctl *Controller) reconcile(worker.QueueKey) error {
 	clusters, err := ctl.clusterLister.List(labels.Everything())
 	if err != nil {
 		return err

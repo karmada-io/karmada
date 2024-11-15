@@ -34,9 +34,9 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/features"
-	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/worker"
 )
 
 // TaintManagerName is the controller name that will be used when reporting events and metrics.
@@ -51,8 +51,8 @@ type NoExecuteTaintManager struct {
 	ClusterTaintEvictionRetryFrequency time.Duration
 	ConcurrentReconciles               int
 
-	bindingEvictionWorker        util.AsyncWorker
-	clusterBindingEvictionWorker util.AsyncWorker
+	bindingEvictionWorker        worker.AsyncWorker
+	clusterBindingEvictionWorker worker.AsyncWorker
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -117,27 +117,27 @@ func (tc *NoExecuteTaintManager) syncCluster(ctx context.Context, cluster *clust
 
 // Start starts an asynchronous loop that handle evictions.
 func (tc *NoExecuteTaintManager) Start(ctx context.Context) error {
-	bindingEvictionWorkerOptions := util.Options{
+	bindingEvictionWorkerOptions := worker.Options{
 		Name:          "binding-eviction",
 		KeyFunc:       nil,
 		ReconcileFunc: tc.syncBindingEviction,
 	}
-	tc.bindingEvictionWorker = util.NewAsyncWorker(bindingEvictionWorkerOptions)
+	tc.bindingEvictionWorker = worker.NewAsyncWorker(bindingEvictionWorkerOptions)
 	tc.bindingEvictionWorker.Run(tc.ConcurrentReconciles, ctx.Done())
 
-	clusterBindingEvictionWorkerOptions := util.Options{
+	clusterBindingEvictionWorkerOptions := worker.Options{
 		Name:          "cluster-binding-eviction",
 		KeyFunc:       nil,
 		ReconcileFunc: tc.syncClusterBindingEviction,
 	}
-	tc.clusterBindingEvictionWorker = util.NewAsyncWorker(clusterBindingEvictionWorkerOptions)
+	tc.clusterBindingEvictionWorker = worker.NewAsyncWorker(clusterBindingEvictionWorkerOptions)
 	tc.clusterBindingEvictionWorker.Run(tc.ConcurrentReconciles, ctx.Done())
 
 	<-ctx.Done()
 	return nil
 }
 
-func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
+func (tc *NoExecuteTaintManager) syncBindingEviction(key worker.QueueKey) error {
 	fedKey, ok := key.(keys.FederatedKey)
 	if !ok {
 		klog.Errorf("Failed to sync binding eviction as invalid key: %v", key)
@@ -193,7 +193,7 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 	return nil
 }
 
-func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) error {
+func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key worker.QueueKey) error {
 	fedKey, ok := key.(keys.FederatedKey)
 	if !ok {
 		klog.Errorf("Failed to sync cluster binding eviction as invalid key: %v", key)

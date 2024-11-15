@@ -14,17 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package util
+package worker
 
 import (
+	"errors"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
+	utilmetrics "github.com/karmada-io/karmada/pkg/util/metrics"
 )
 
 // AsyncWorker maintains a rate limiting queue and the items in the queue will be reconciled by a "ReconcileFunc".
@@ -60,6 +64,8 @@ type KeyFunc func(obj interface{}) (QueueKey, error)
 type ReconcileFunc func(key QueueKey) error
 
 type asyncWorker struct {
+	// name will be used to emit metrics.
+	name string
 	// keyFunc is the function that make keys for API objects.
 	keyFunc KeyFunc
 	// reconcileFunc is the function that process keys from the queue.
@@ -127,9 +133,20 @@ func (w *asyncWorker) worker() {
 		return
 	}
 	defer w.queue.Done(key)
+	startTime := time.Now()
+	defer func() {
+		metrics.ObserveReconcileLatency(w.name, startTime)
+	}()
 
+	metrics.AddActiveWorkers(w.name, 1)
+	defer metrics.AddActiveWorkers(w.name, -1)
 	err := w.reconcileFunc(key)
 	if err != nil {
+		if errors.Is(err, reconcile.TerminalError(nil)) {
+			metrics.IncTerminalReconcileErrors(w.name)
+		}
+		metrics.IncReconcileErrors(w.name)
+		metrics.IncReconcileTotal(w.name, utilmetrics.ResultError)
 		w.queue.AddRateLimited(key)
 		return
 	}
@@ -138,6 +155,7 @@ func (w *asyncWorker) worker() {
 }
 
 func (w *asyncWorker) Run(workerNumber int, stopChan <-chan struct{}) {
+	metrics.InitAsyncWorkerMetrics(w.name, workerNumber)
 	for i := 0; i < workerNumber; i++ {
 		go wait.Until(w.worker, 0, stopChan)
 	}
