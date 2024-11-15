@@ -381,6 +381,16 @@ spec:
                       description: Producer indicates the controller who triggered
                         the eviction.
                       type: string
+                    purgeMode:
+                      description: |-
+                        PurgeMode represents how to deal with the legacy applications on the
+                        cluster from which the application is migrated.
+                        Valid options are "Immediately", "Graciously" and "Never".
+                      enum:
+                      - Immediately
+                      - Graciously
+                      - Never
+                      type: string
                     reason:
                       description: |-
                         Reason contains a programmatic identifier indicating the reason for the eviction.
