@@ -22,6 +22,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/workqueue"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllertest"
@@ -35,7 +36,7 @@ import (
 func Test_clusterEventHandler(t *testing.T) {
 	type args struct {
 		operation string
-		q         workqueue.RateLimitingInterface
+		q         workqueue.TypedRateLimitingInterface[controllerruntime.Request]
 		obj       *clusterv1alpha1.Cluster
 		oldObj    *clusterv1alpha1.Cluster
 	}
@@ -48,7 +49,7 @@ func Test_clusterEventHandler(t *testing.T) {
 			name: "create event",
 			args: args{
 				operation: "Create",
-				q:         &controllertest.Queue{Interface: workqueue.New()},
+				q:         &controllertest.TypedQueue[controllerruntime.Request]{TypedInterface: workqueue.NewTyped[controllerruntime.Request]()},
 				obj: &clusterv1alpha1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{Name: "member1"},
 				},
@@ -59,7 +60,7 @@ func Test_clusterEventHandler(t *testing.T) {
 			name: "delete event",
 			args: args{
 				operation: "Delete",
-				q:         &controllertest.Queue{Interface: workqueue.New()},
+				q:         &controllertest.TypedQueue[controllerruntime.Request]{TypedInterface: workqueue.NewTyped[controllerruntime.Request]()},
 				obj: &clusterv1alpha1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{Name: "member1"},
 				},
@@ -70,7 +71,7 @@ func Test_clusterEventHandler(t *testing.T) {
 			name: "update event: equal cluster condition",
 			args: args{
 				operation: "Update",
-				q:         &controllertest.Queue{Interface: workqueue.New()},
+				q:         &controllertest.TypedQueue[controllerruntime.Request]{TypedInterface: workqueue.NewTyped[controllerruntime.Request]()},
 				obj: &clusterv1alpha1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{Name: "member1"},
 					Status: clusterv1alpha1.ClusterStatus{
@@ -100,7 +101,7 @@ func Test_clusterEventHandler(t *testing.T) {
 			name: "update event: not equal cluster condition",
 			args: args{
 				operation: "Update",
-				q:         &controllertest.Queue{Interface: workqueue.New()},
+				q:         &controllertest.TypedQueue[controllerruntime.Request]{TypedInterface: workqueue.NewTyped[controllerruntime.Request]()},
 				obj: &clusterv1alpha1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{Name: "member1"},
 					Status: clusterv1alpha1.ClusterStatus{
@@ -130,7 +131,7 @@ func Test_clusterEventHandler(t *testing.T) {
 			name: "generic event",
 			args: args{
 				operation: "Generic",
-				q:         &controllertest.Queue{Interface: workqueue.New()},
+				q:         &controllertest.TypedQueue[controllerruntime.Request]{TypedInterface: workqueue.NewTyped[controllerruntime.Request]()},
 				obj: &clusterv1alpha1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{Name: "member1"},
 				},

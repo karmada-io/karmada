@@ -239,7 +239,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 	for _, opt := range opts {
 		opt(&options)
 	}
-	queue := workqueue.NewRateLimitingQueueWithConfig(ratelimiterflag.DefaultControllerRateLimiter(options.RateLimiterOptions), workqueue.RateLimitingQueueConfig{Name: "scheduler-queue"})
+	queue := workqueue.NewRateLimitingQueueWithConfig(ratelimiterflag.LegacyControllerRateLimiter(options.RateLimiterOptions), workqueue.RateLimitingQueueConfig{Name: "scheduler-queue"})
 	registry := frameworkplugins.NewInTreeRegistry()
 	if err := registry.Merge(options.outOfTreeRegistry); err != nil {
 		return nil, err

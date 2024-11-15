@@ -30,6 +30,8 @@ import (
 	"k8s.io/apiserver/pkg/registry/rest"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
+	"k8s.io/apiserver/pkg/util/feature"
+	"k8s.io/apiserver/pkg/util/version"
 	"k8s.io/klog/v2"
 	"k8s.io/kube-openapi/pkg/builder"
 	"k8s.io/kube-openapi/pkg/common"
@@ -87,6 +89,7 @@ func RenderOpenAPISpec(cfg Config) (string, error) {
 	serverConfig.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(cfg.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(cfg.Scheme))
 	serverConfig.OpenAPIV3Config = genericapiserver.DefaultOpenAPIV3Config(cfg.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(cfg.Scheme))
 	serverConfig.OpenAPIConfig.Info.InfoProps = cfg.Info
+	serverConfig.EffectiveVersion, serverConfig.FeatureGate = version.DefaultComponentGlobalsRegistry.ComponentGlobalsOrRegister(version.DefaultKubeComponent, version.DefaultBuildEffectiveVersion(), feature.DefaultMutableFeatureGate)
 
 	genericServer, err := serverConfig.Complete().New("karmada-openapi-server", genericapiserver.NewEmptyDelegate())
 	if err != nil {

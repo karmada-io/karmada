@@ -20,14 +20,13 @@ package v1alpha1
 
 import (
 	"context"
-	"time"
 
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	rest "k8s.io/client-go/rest"
+	gentype "k8s.io/client-go/gentype"
 )
 
 // PropagationPoliciesGetter has a method to return a PropagationPolicyInterface.
@@ -51,128 +50,18 @@ type PropagationPolicyInterface interface {
 
 // propagationPolicies implements PropagationPolicyInterface
 type propagationPolicies struct {
-	client rest.Interface
-	ns     string
+	*gentype.ClientWithList[*v1alpha1.PropagationPolicy, *v1alpha1.PropagationPolicyList]
 }
 
 // newPropagationPolicies returns a PropagationPolicies
 func newPropagationPolicies(c *PolicyV1alpha1Client, namespace string) *propagationPolicies {
 	return &propagationPolicies{
-		client: c.RESTClient(),
-		ns:     namespace,
+		gentype.NewClientWithList[*v1alpha1.PropagationPolicy, *v1alpha1.PropagationPolicyList](
+			"propagationpolicies",
+			c.RESTClient(),
+			scheme.ParameterCodec,
+			namespace,
+			func() *v1alpha1.PropagationPolicy { return &v1alpha1.PropagationPolicy{} },
+			func() *v1alpha1.PropagationPolicyList { return &v1alpha1.PropagationPolicyList{} }),
 	}
-}
-
-// Get takes name of the propagationPolicy, and returns the corresponding propagationPolicy object, and an error if there is any.
-func (c *propagationPolicies) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.PropagationPolicy, err error) {
-	result = &v1alpha1.PropagationPolicy{}
-	err = c.client.Get().
-		Namespace(c.ns).
-		Resource("propagationpolicies").
-		Name(name).
-		VersionedParams(&options, scheme.ParameterCodec).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// List takes label and field selectors, and returns the list of PropagationPolicies that match those selectors.
-func (c *propagationPolicies) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.PropagationPolicyList, err error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	result = &v1alpha1.PropagationPolicyList{}
-	err = c.client.Get().
-		Namespace(c.ns).
-		Resource("propagationpolicies").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Watch returns a watch.Interface that watches the requested propagationPolicies.
-func (c *propagationPolicies) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	opts.Watch = true
-	return c.client.Get().
-		Namespace(c.ns).
-		Resource("propagationpolicies").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Watch(ctx)
-}
-
-// Create takes the representation of a propagationPolicy and creates it.  Returns the server's representation of the propagationPolicy, and an error, if there is any.
-func (c *propagationPolicies) Create(ctx context.Context, propagationPolicy *v1alpha1.PropagationPolicy, opts v1.CreateOptions) (result *v1alpha1.PropagationPolicy, err error) {
-	result = &v1alpha1.PropagationPolicy{}
-	err = c.client.Post().
-		Namespace(c.ns).
-		Resource("propagationpolicies").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(propagationPolicy).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Update takes the representation of a propagationPolicy and updates it. Returns the server's representation of the propagationPolicy, and an error, if there is any.
-func (c *propagationPolicies) Update(ctx context.Context, propagationPolicy *v1alpha1.PropagationPolicy, opts v1.UpdateOptions) (result *v1alpha1.PropagationPolicy, err error) {
-	result = &v1alpha1.PropagationPolicy{}
-	err = c.client.Put().
-		Namespace(c.ns).
-		Resource("propagationpolicies").
-		Name(propagationPolicy.Name).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(propagationPolicy).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Delete takes name of the propagationPolicy and deletes it. Returns an error if one occurs.
-func (c *propagationPolicies) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	return c.client.Delete().
-		Namespace(c.ns).
-		Resource("propagationpolicies").
-		Name(name).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *propagationPolicies) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	var timeout time.Duration
-	if listOpts.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
-	}
-	return c.client.Delete().
-		Namespace(c.ns).
-		Resource("propagationpolicies").
-		VersionedParams(&listOpts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// Patch applies the patch and returns the patched propagationPolicy.
-func (c *propagationPolicies) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.PropagationPolicy, err error) {
-	result = &v1alpha1.PropagationPolicy{}
-	err = c.client.Patch(pt).
-		Namespace(c.ns).
-		Resource("propagationpolicies").
-		Name(name).
-		SubResource(subresources...).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(data).
-		Do(ctx).
-		Into(result)
-	return
 }

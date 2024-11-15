@@ -196,6 +196,11 @@ func (s *store) RequestWatchProgress(context.Context) error {
 	return fmt.Errorf("not implemented")
 }
 
+// ReadinessCheck checks if the storage is ready for accepting requests.
+func (s *store) ReadinessCheck() error {
+	return fmt.Errorf("not implemented")
+}
+
 func (s *store) client(namespace string) (dynamic.ResourceInterface, error) {
 	client, err := s.newClientFunc()
 	if err != nil {

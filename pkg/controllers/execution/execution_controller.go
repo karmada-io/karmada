@@ -137,7 +137,7 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 		For(&workv1alpha1.Work{}, builder.WithPredicates(c.PredicateFunc)).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithOptions(controller.Options{
-			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RatelimiterOptions),
+			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RatelimiterOptions),
 		}).
 		Complete(c)
 }

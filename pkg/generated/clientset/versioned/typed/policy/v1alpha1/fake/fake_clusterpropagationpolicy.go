@@ -40,20 +40,22 @@ var clusterpropagationpoliciesKind = v1alpha1.SchemeGroupVersion.WithKind("Clust
 
 // Get takes name of the clusterPropagationPolicy, and returns the corresponding clusterPropagationPolicy object, and an error if there is any.
 func (c *FakeClusterPropagationPolicies) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ClusterPropagationPolicy, err error) {
+	emptyResult := &v1alpha1.ClusterPropagationPolicy{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(clusterpropagationpoliciesResource, name), &v1alpha1.ClusterPropagationPolicy{})
+		Invokes(testing.NewRootGetActionWithOptions(clusterpropagationpoliciesResource, name, options), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.ClusterPropagationPolicy), err
 }
 
 // List takes label and field selectors, and returns the list of ClusterPropagationPolicies that match those selectors.
 func (c *FakeClusterPropagationPolicies) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.ClusterPropagationPolicyList, err error) {
+	emptyResult := &v1alpha1.ClusterPropagationPolicyList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(clusterpropagationpoliciesResource, clusterpropagationpoliciesKind, opts), &v1alpha1.ClusterPropagationPolicyList{})
+		Invokes(testing.NewRootListActionWithOptions(clusterpropagationpoliciesResource, clusterpropagationpoliciesKind, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -72,25 +74,27 @@ func (c *FakeClusterPropagationPolicies) List(ctx context.Context, opts v1.ListO
 // Watch returns a watch.Interface that watches the requested clusterPropagationPolicies.
 func (c *FakeClusterPropagationPolicies) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(clusterpropagationpoliciesResource, opts))
+		InvokesWatch(testing.NewRootWatchActionWithOptions(clusterpropagationpoliciesResource, opts))
 }
 
 // Create takes the representation of a clusterPropagationPolicy and creates it.  Returns the server's representation of the clusterPropagationPolicy, and an error, if there is any.
 func (c *FakeClusterPropagationPolicies) Create(ctx context.Context, clusterPropagationPolicy *v1alpha1.ClusterPropagationPolicy, opts v1.CreateOptions) (result *v1alpha1.ClusterPropagationPolicy, err error) {
+	emptyResult := &v1alpha1.ClusterPropagationPolicy{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(clusterpropagationpoliciesResource, clusterPropagationPolicy), &v1alpha1.ClusterPropagationPolicy{})
+		Invokes(testing.NewRootCreateActionWithOptions(clusterpropagationpoliciesResource, clusterPropagationPolicy, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.ClusterPropagationPolicy), err
 }
 
 // Update takes the representation of a clusterPropagationPolicy and updates it. Returns the server's representation of the clusterPropagationPolicy, and an error, if there is any.
 func (c *FakeClusterPropagationPolicies) Update(ctx context.Context, clusterPropagationPolicy *v1alpha1.ClusterPropagationPolicy, opts v1.UpdateOptions) (result *v1alpha1.ClusterPropagationPolicy, err error) {
+	emptyResult := &v1alpha1.ClusterPropagationPolicy{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(clusterpropagationpoliciesResource, clusterPropagationPolicy), &v1alpha1.ClusterPropagationPolicy{})
+		Invokes(testing.NewRootUpdateActionWithOptions(clusterpropagationpoliciesResource, clusterPropagationPolicy, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.ClusterPropagationPolicy), err
 }
@@ -104,7 +108,7 @@ func (c *FakeClusterPropagationPolicies) Delete(ctx context.Context, name string
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeClusterPropagationPolicies) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(clusterpropagationpoliciesResource, listOpts)
+	action := testing.NewRootDeleteCollectionActionWithOptions(clusterpropagationpoliciesResource, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.ClusterPropagationPolicyList{})
 	return err
@@ -112,10 +116,11 @@ func (c *FakeClusterPropagationPolicies) DeleteCollection(ctx context.Context, o
 
 // Patch applies the patch and returns the patched clusterPropagationPolicy.
 func (c *FakeClusterPropagationPolicies) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ClusterPropagationPolicy, err error) {
+	emptyResult := &v1alpha1.ClusterPropagationPolicy{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(clusterpropagationpoliciesResource, name, pt, data, subresources...), &v1alpha1.ClusterPropagationPolicy{})
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(clusterpropagationpoliciesResource, name, pt, data, opts, subresources...), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.ClusterPropagationPolicy), err
 }

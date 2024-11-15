@@ -95,17 +95,16 @@ func TestGetSecret(t *testing.T) {
 		{
 			name: "not found error",
 			args: args{
-				client:    fake.NewSimpleClientset(),
+				client:    fake.NewClientset(),
 				namespace: metav1.NamespaceDefault,
 				name:      "test",
 			},
-			want:    nil,
 			wantErr: true,
 		},
 		{
 			name: "get success",
 			args: args{
-				client:    fake.NewSimpleClientset(makeSecret("test")),
+				client:    fake.NewClientset(makeSecret("test")),
 				namespace: metav1.NamespaceDefault,
 				name:      "test",
 			},
@@ -116,10 +115,14 @@ func TestGetSecret(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GetSecret(tt.args.client, tt.args.namespace, tt.args.name)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetSecret() error = %v, wantErr %v", err, tt.wantErr)
+			if (err != nil) && tt.wantErr {
 				return
 			}
+
+			if (err != nil) && !tt.wantErr {
+				t.Fatalf("GetSecret() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetSecret() got = %v, want %v", got, tt.want)
 			}

@@ -16,6 +16,8 @@ limitations under the License.
 
 package metricsadapter
 
+import "context"
+
 // MetricsServer is a metrics server
 type MetricsServer struct {
 	metricsController *MetricsController
@@ -31,7 +33,7 @@ func NewMetricsServer(controller *MetricsController, metricsAdapter *MetricsAdap
 }
 
 // StartServer starts the metrics server
-func (m *MetricsServer) StartServer(stopCh <-chan struct{}) error {
-	go m.metricsController.startController(stopCh)
-	return m.metricsAdapter.Run(stopCh)
+func (m *MetricsServer) StartServer(ctx context.Context) error {
+	go m.metricsController.startController(ctx.Done())
+	return m.metricsAdapter.Run(ctx)
 }

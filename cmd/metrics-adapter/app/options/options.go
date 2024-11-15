@@ -144,5 +144,5 @@ func (o *Options) Run(ctx context.Context) error {
 		return err
 	}
 
-	return metricsServer.StartServer(stopCh)
+	return metricsServer.StartServer(ctx)
 }

@@ -27,6 +27,7 @@ import (
 	"k8s.io/apiserver/pkg/endpoints/openapi"
 	"k8s.io/apiserver/pkg/registry/generic"
 	genericapiserver "k8s.io/apiserver/pkg/server"
+	"k8s.io/apiserver/pkg/util/version"
 	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
@@ -65,7 +66,8 @@ func TestNewAggregatedAPIServer(t *testing.T) {
 				BuildHandlerChainFunc: func(http.Handler, *genericapiserver.Config) (secure http.Handler) {
 					return nil
 				},
-				ExternalAddress: "10.0.0.0:10000",
+				ExternalAddress:  "10.0.0.0:10000",
+				EffectiveVersion: version.NewEffectiveVersion("1.0"),
 			},
 			client: fakeclientset.NewSimpleClientset(),
 			prep: func(cfg *completedConfig, genericAPIServerCfg *genericapiserver.Config, client clientset.Interface) error {
@@ -94,8 +96,9 @@ func TestNewAggregatedAPIServer(t *testing.T) {
 				BuildHandlerChainFunc: func(http.Handler, *genericapiserver.Config) (secure http.Handler) {
 					return nil
 				},
-				OpenAPIV3Config: genericapiserver.DefaultOpenAPIV3Config(generatedopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(clusterscheme.Scheme)),
-				ExternalAddress: "10.0.0.0:10000",
+				OpenAPIV3Config:  genericapiserver.DefaultOpenAPIV3Config(generatedopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(clusterscheme.Scheme)),
+				ExternalAddress:  "10.0.0.0:10000",
+				EffectiveVersion: version.NewEffectiveVersion("1.0"),
 			},
 			prep: func(cfg *completedConfig, genericAPIServerCfg *genericapiserver.Config, client clientset.Interface) error {
 				sharedInformer := informers.NewSharedInformerFactory(client, 0)
@@ -129,8 +132,9 @@ func TestNewAggregatedAPIServer(t *testing.T) {
 				BuildHandlerChainFunc: func(http.Handler, *genericapiserver.Config) (secure http.Handler) {
 					return nil
 				},
-				OpenAPIV3Config: genericapiserver.DefaultOpenAPIV3Config(generatedopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(clusterscheme.Scheme)),
-				ExternalAddress: "10.0.0.0:10000",
+				OpenAPIV3Config:  genericapiserver.DefaultOpenAPIV3Config(generatedopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(clusterscheme.Scheme)),
+				ExternalAddress:  "10.0.0.0:10000",
+				EffectiveVersion: version.NewEffectiveVersion("1.0"),
 			},
 			prep: func(cfg *completedConfig, genericAPIServerCfg *genericapiserver.Config, client clientset.Interface) error {
 				sharedInformer := informers.NewSharedInformerFactory(client, 0)

@@ -70,7 +70,7 @@ var (
 // NewCmdLogs new logs command.
 func NewCmdLogs(f util.Factory, parentCommand string, streams genericiooptions.IOStreams) *cobra.Command {
 	o := &CommandLogsOptions{
-		KubectlLogsOptions: kubectllogs.NewLogsOptions(streams, false),
+		KubectlLogsOptions: kubectllogs.NewLogsOptions(streams),
 	}
 
 	cmd := &cobra.Command{
