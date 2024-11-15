@@ -16,8 +16,11 @@ limitations under the License.
 
 package v1alpha2
 
+import policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+
 // TaskOptions represents options for GracefulEvictionTasks.
 type TaskOptions struct {
+	purgeMode          policyv1alpha1.PurgeMode
 	producer           string
 	reason             string
 	message            string
@@ -36,6 +39,13 @@ func NewTaskOptions(opts ...Option) *TaskOptions {
 	}
 
 	return &options
+}
+
+// WithPurgeMode sets the purgeMode for TaskOptions
+func WithPurgeMode(purgeMode policyv1alpha1.PurgeMode) Option {
+	return func(o *TaskOptions) {
+		o.purgeMode = purgeMode
+	}
 }
 
 // WithProducer sets the producer for TaskOptions
@@ -154,6 +164,7 @@ func (s *ResourceBindingSpec) GracefulEvictCluster(name string, options *TaskOpt
 	evictingCluster := evictCluster.DeepCopy()
 	evictionTask := GracefulEvictionTask{
 		FromCluster:        evictingCluster.Name,
+		PurgeMode:          options.purgeMode,
 		Reason:             options.reason,
 		Message:            options.message,
 		Producer:           options.producer,
