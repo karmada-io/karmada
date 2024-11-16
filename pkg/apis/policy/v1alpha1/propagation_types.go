@@ -259,13 +259,19 @@ type SuspendClusters struct {
 	ClusterNames []string `json:"clusterNames,omitempty"`
 }
 
-// PurgeMode represents that how to deal with the legacy applications on the
+// PurgeMode represents how to deal with the legacy application on the
 // cluster from which the application is migrated.
 type PurgeMode string
 
 const (
 	// Immediately represents that Karmada will immediately evict the legacy
-	// application.
+	// application. This is useful in scenarios where an application can not
+	// tolerate two instances running simultaneously.
+	// For example, the Flink application supports exactly-once state consistency,
+	// which means it requires that no two instances of the application are running
+	// at the same time. During a failover, it is crucial to ensure that the old
+	// application is removed before creating a new one to avoid duplicate
+	// processing and maintaining state consistency.
 	Immediately PurgeMode = "Immediately"
 	// Graciously represents that Karmada will wait for the application to
 	// come back to healthy on the new cluster or after a timeout is reached
