@@ -129,7 +129,7 @@ func (c *Controller) addAllEventHandlers() {
 
 // Start the controller
 func (c *Controller) Start(stopCh <-chan struct{}) {
-	klog.Infof("Starting karmada search controller")
+	klog.Info("Starting karmada search controller")
 
 	defer runtime.HandleCrash()
 
@@ -140,7 +140,7 @@ func (c *Controller) Start(stopCh <-chan struct{}) {
 	go func() {
 		<-stopCh
 		genericmanager.StopInstance()
-		klog.Infof("Shutting down karmada search controller")
+		klog.Info("Shutting down karmada search controller")
 	}()
 }
 
@@ -189,7 +189,7 @@ func (c *Controller) getClusterMatchedRegistries(cluster *clusterv1alpha1.Cluste
 		return
 	}
 	if len(registries) == 0 {
-		klog.Infof("No resource registries, no need to reconcile cluster")
+		klog.Info("No resource registries, no need to reconcile cluster")
 		return
 	}
 	indexedByName = make(map[string]*searchv1alpha1.ResourceRegistry, len(registries))

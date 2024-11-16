@@ -20,16 +20,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/opensearch-project/opensearch-go"
+	"github.com/opensearch-project/opensearch-go/opensearchapi"
+	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	fakedynamic "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/restmapper"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -41,7 +46,43 @@ import (
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	"github.com/karmada-io/karmada/pkg/search/backendstore"
 	"github.com/karmada-io/karmada/pkg/util"
+	testing3 "github.com/karmada-io/karmada/pkg/util/testing"
 )
+
+var apiGroupResources = []*restmapper.APIGroupResources{
+	{
+		Group: metav1.APIGroup{
+			Name: "apps",
+			Versions: []metav1.GroupVersionForDiscovery{
+				{GroupVersion: "apps/v1", Version: "v1"},
+			},
+			PreferredVersion: metav1.GroupVersionForDiscovery{
+				GroupVersion: "apps/v1", Version: "v1",
+			},
+		},
+		VersionedResources: map[string][]metav1.APIResource{
+			"v1": {
+				{Name: "deployments", SingularName: "deployment", Namespaced: true, Kind: "Deployment"},
+			},
+		},
+	},
+	{
+		Group: metav1.APIGroup{
+			Name: "",
+			Versions: []metav1.GroupVersionForDiscovery{
+				{GroupVersion: "v1", Version: "v1"},
+			},
+			PreferredVersion: metav1.GroupVersionForDiscovery{
+				GroupVersion: "v1", Version: "v1",
+			},
+		},
+		VersionedResources: map[string][]metav1.APIResource{
+			"v1": {
+				{Name: "pods", SingularName: "pod", Namespaced: true, Kind: "Pod"},
+			},
+		},
+	},
+}
 
 func TestNewKarmadaSearchController(t *testing.T) {
 	tests := []struct {
@@ -229,7 +270,7 @@ func TestDeleteClusterEventHandler(t *testing.T) {
 			restConfig:         &rest.Config{},
 			client:             fakekarmadaclient.NewSimpleClientset(),
 			controlPlaneClient: fake.NewFakeClient(),
-			restMapper:         meta.NewDefaultRESTMapper(nil),
+			restMapper:         restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			stopCh:             make(chan struct{}),
 			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, 0)
@@ -277,7 +318,7 @@ func TestDeleteClusterEventHandler(t *testing.T) {
 
 				// Wait a bit to allow for addResourceRegistry background
 				// thread to complete its execution.
-				if err := upsertResourceRegistry(clientConnector, resourceSelectors, registryName, resourceVersion, []string{clusterName}); err != nil {
+				if err := upsertResourceRegistry(clientConnector, resourceSelectors, nil, registryName, resourceVersion, []string{clusterName}); err != nil {
 					return err
 				}
 				time.Sleep(time.Millisecond * 250)
@@ -324,6 +365,7 @@ func TestDeleteClusterEventHandler(t *testing.T) {
 }
 
 func TestAddResourceRegistryEventHandler(t *testing.T) {
+	secretName, namespace := "opensearch-credentials", "default"
 	tests := []struct {
 		name               string
 		restConfig         *rest.Config
@@ -339,7 +381,7 @@ func TestAddResourceRegistryEventHandler(t *testing.T) {
 			restConfig:         &rest.Config{},
 			client:             fakekarmadaclient.NewSimpleClientset(),
 			controlPlaneClient: fake.NewFakeClient(),
-			restMapper:         meta.NewDefaultRESTMapper(nil),
+			restMapper:         restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			stopCh:             make(chan struct{}),
 			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, 0)
@@ -379,9 +421,45 @@ func TestAddResourceRegistryEventHandler(t *testing.T) {
 					return err
 				}
 
+				// Mock OpenSearch Client Builder.
+				backendstore.OpenSearchClientBuilder = func(opensearch.Config) (*opensearch.Client, error) {
+					mTransport := &testing3.MockOpenSearchTransport{}
+					mTransport.PerformFunc = func(*http.Request) (*http.Response, error) {
+						return &http.Response{
+							StatusCode: http.StatusOK,
+							Body:       http.NoBody,
+						}, nil
+					}
+					client := &opensearch.Client{Transport: mTransport}
+					client.API = opensearchapi.New(client)
+					return client, nil
+				}
+
+				backendStoreCfg := &searchv1alpha1.BackendStoreConfig{
+					OpenSearch: &searchv1alpha1.OpenSearchConfig{
+						Addresses: []string{"https://10.0.0.1:9200"},
+						SecretRef: clusterv1alpha1.LocalSecretReference{
+							Name:      secretName,
+							Namespace: namespace,
+						},
+					},
+				}
+
+				err := controlPlaneClient.Create(context.TODO(), &appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-deployment",
+						Namespace: "default",
+					},
+				})
+				if err != nil {
+					return err
+				}
+
+				// controlPlaneClient.Create(context.TODO(), appsv1.)
+
 				// Wait a bit to allow addResourceRegistry background
 				// thread to complete its execution.
-				if err := upsertResourceRegistry(clientConnector, resourceSelectors, registryName, resourceVersion, []string{clusterName}); err != nil {
+				if err := upsertResourceRegistry(clientConnector, resourceSelectors, backendStoreCfg, registryName, resourceVersion, []string{clusterName}); err != nil {
 					return err
 				}
 				time.Sleep(time.Millisecond * 250)
@@ -426,7 +504,7 @@ func TestUpdateResourceRegistryEventHandler(t *testing.T) {
 			name:       "AddAllEventHandlers_TriggerUpdateResourceRegistryEvent_UpdatedResourceRegistryAddedToWorkQueue",
 			restConfig: &rest.Config{},
 			client:     fakekarmadaclient.NewSimpleClientset(),
-			restMapper: meta.NewDefaultRESTMapper(nil),
+			restMapper: restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			stopCh:     make(chan struct{}),
 			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, 0)
@@ -467,7 +545,7 @@ func TestUpdateResourceRegistryEventHandler(t *testing.T) {
 
 				// Wait a bit to allow addResourceRegistry background thread
 				// to complete its execution.
-				if err := upsertResourceRegistry(clientConnector, resourceSelectors, registryName, resourceVersion, []string{clusterName}); err != nil {
+				if err := upsertResourceRegistry(clientConnector, resourceSelectors, nil, registryName, resourceVersion, []string{clusterName}); err != nil {
 					return err
 				}
 				time.Sleep(time.Millisecond * 250)
@@ -477,7 +555,7 @@ func TestUpdateResourceRegistryEventHandler(t *testing.T) {
 
 				// Wait a bit to allow updateResourceRegistry background thread
 				// to complete its execution.
-				if err := upsertResourceRegistry(clientConnector, resourceSelectorsUpdated, registryName, resourceVersion, []string{clusterName}); err != nil {
+				if err := upsertResourceRegistry(clientConnector, resourceSelectorsUpdated, nil, registryName, resourceVersion, []string{clusterName}); err != nil {
 					return err
 				}
 				time.Sleep(time.Millisecond * 250)
@@ -524,7 +602,7 @@ func TestDeleteResourceRegistryEventHandler(t *testing.T) {
 			restConfig:         &rest.Config{},
 			client:             fakekarmadaclient.NewSimpleClientset(),
 			controlPlaneClient: fake.NewFakeClient(),
-			restMapper:         meta.NewDefaultRESTMapper(nil),
+			restMapper:         restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			stopCh:             make(chan struct{}),
 			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, 0)
@@ -566,7 +644,7 @@ func TestDeleteResourceRegistryEventHandler(t *testing.T) {
 
 				// Wait a bit to allow addResourceRegistry
 				// background thread to complete its execution.
-				if err := upsertResourceRegistry(clientConnector, resourceSelectors, registryName, resourceVersion, []string{clusterName}); err != nil {
+				if err := upsertResourceRegistry(clientConnector, resourceSelectors, nil, registryName, resourceVersion, []string{clusterName}); err != nil {
 					return err
 				}
 				time.Sleep(time.Millisecond * 250)
@@ -637,6 +715,26 @@ func upsertCluster(client *fakekarmadaclient.Clientset, labels map[string]string
 					Status: metav1.ConditionTrue,
 				},
 			},
+			APIEnablements: []clusterv1alpha1.APIEnablement{
+				{
+					GroupVersion: "apps/v1",
+					Resources: []clusterv1alpha1.APIResource{
+						{
+							Name: "Deployments",
+							Kind: "Deployment",
+						},
+					},
+				},
+				{
+					GroupVersion: "v1",
+					Resources: []clusterv1alpha1.APIResource{
+						{
+							Name: "Pods",
+							Kind: "Pod",
+						},
+					},
+				},
+			},
 		},
 	}
 
@@ -678,6 +776,26 @@ func upsertClusterControllerRuntime(controlPlaneClient client.Client, labels map
 					Status: metav1.ConditionTrue,
 				},
 			},
+			APIEnablements: []clusterv1alpha1.APIEnablement{
+				{
+					GroupVersion: "apps/v1",
+					Resources: []clusterv1alpha1.APIResource{
+						{
+							Name: "Deployments",
+							Kind: "Deployment",
+						},
+					},
+				},
+				{
+					GroupVersion: "v1",
+					Resources: []clusterv1alpha1.APIResource{
+						{
+							Name: "Pods",
+							Kind: "Pod",
+						},
+					},
+				},
+			},
 		},
 	}
 
@@ -701,7 +819,7 @@ func upsertClusterControllerRuntime(controlPlaneClient client.Client, labels map
 
 // upsertResourceRegistry creates or updates a ResourceRegistry resource in the Kubernetes API.
 // It uses the provided client, resource selectors, registry name, resource version, and target cluster names.
-func upsertResourceRegistry(client *fakekarmadaclient.Clientset, resourceSelectors []searchv1alpha1.ResourceSelector, registryName, resourceVersion string, clusterNames []string) error {
+func upsertResourceRegistry(client *fakekarmadaclient.Clientset, resourceSelectors []searchv1alpha1.ResourceSelector, backendStoreCfg *searchv1alpha1.BackendStoreConfig, registryName, resourceVersion string, clusterNames []string) error {
 	resourceRegistry := &searchv1alpha1.ResourceRegistry{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            registryName,
@@ -712,6 +830,7 @@ func upsertResourceRegistry(client *fakekarmadaclient.Clientset, resourceSelecto
 				ClusterNames: clusterNames,
 			},
 			ResourceSelectors: resourceSelectors,
+			BackendStore:      backendStoreCfg,
 		},
 	}
 
