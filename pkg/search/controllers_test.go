@@ -30,6 +30,7 @@ import (
 	fakedynamic "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/restmapper"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -41,6 +42,41 @@ import (
 	"github.com/karmada-io/karmada/pkg/search/backendstore"
 	"github.com/karmada-io/karmada/pkg/util"
 )
+
+var apiGroupResources = []*restmapper.APIGroupResources{
+	{
+		Group: metav1.APIGroup{
+			Name: "apps",
+			Versions: []metav1.GroupVersionForDiscovery{
+				{GroupVersion: "apps/v1", Version: "v1"},
+			},
+			PreferredVersion: metav1.GroupVersionForDiscovery{
+				GroupVersion: "apps/v1", Version: "v1",
+			},
+		},
+		VersionedResources: map[string][]metav1.APIResource{
+			"v1": {
+				{Name: "deployments", SingularName: "deployment", Namespaced: true, Kind: "Deployment"},
+			},
+		},
+	},
+	{
+		Group: metav1.APIGroup{
+			Name: "",
+			Versions: []metav1.GroupVersionForDiscovery{
+				{GroupVersion: "v1", Version: "v1"},
+			},
+			PreferredVersion: metav1.GroupVersionForDiscovery{
+				GroupVersion: "v1", Version: "v1",
+			},
+		},
+		VersionedResources: map[string][]metav1.APIResource{
+			"v1": {
+				{Name: "pods", SingularName: "pod", Namespaced: true, Kind: "Pod"},
+			},
+		},
+	},
+}
 
 func TestNewKarmadaSearchController(t *testing.T) {
 	tests := []struct {
@@ -114,7 +150,7 @@ func TestAddClusterEventHandler(t *testing.T) {
 				if err := upsertCluster(clientConnector, labels, apiEndpoint, clusterName, resourceVersion); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
+				time.Sleep(time.Millisecond * 500)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
@@ -156,7 +192,7 @@ func TestUpdateClusterEventHandler(t *testing.T) {
 			name:       "AddAllEventHandlers_TriggerUpdateClusterEvent_UpdatedClusterAddedToWorkQueue",
 			restConfig: &rest.Config{},
 			client:     fakekarmadaclient.NewSimpleClientset(),
-			restMapper: meta.NewDefaultRESTMapper(nil),
+			restMapper: restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			stopCh:     make(chan struct{}),
 			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, 0)
@@ -174,7 +210,7 @@ func TestUpdateClusterEventHandler(t *testing.T) {
 				if err := upsertCluster(clientConnector, oldLabels, apiEndpoint, clusterName, resourceVersion); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
+				time.Sleep(time.Millisecond * 500)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
@@ -184,7 +220,7 @@ func TestUpdateClusterEventHandler(t *testing.T) {
 				if err := upsertCluster(clientConnector, newLabels, apiEndpoint, clusterName, updatedResourceVerison); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
+				time.Sleep(time.Millisecond * 500)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
@@ -226,7 +262,7 @@ func TestDeleteClusterEventHandler(t *testing.T) {
 			name:       "AddAllEventHandlers_TriggerDeleteClusterEvent_DeletedClusterAddedToWorkQueue",
 			restConfig: &rest.Config{},
 			client:     fakekarmadaclient.NewSimpleClientset(),
-			restMapper: meta.NewDefaultRESTMapper(nil),
+			restMapper: restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			stopCh:     make(chan struct{}),
 			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, 0)
@@ -258,7 +294,7 @@ func TestDeleteClusterEventHandler(t *testing.T) {
 				if err := upsertCluster(clientConnector, labels, apiEndpoint, clusterName, resourceVersion); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
+				time.Sleep(time.Millisecond * 500)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
@@ -268,7 +304,7 @@ func TestDeleteClusterEventHandler(t *testing.T) {
 				if err := upsertResourceRegistry(clientConnector, resourceSelectors, registryName, resourceVersion, []string{clusterName}); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
+				time.Sleep(time.Millisecond * 500)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
@@ -278,10 +314,7 @@ func TestDeleteClusterEventHandler(t *testing.T) {
 				if err := deleteCluster(clientConnector, clusterName); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
-				if err := cacheNextWrapper(controller); err != nil {
-					return err
-				}
+				time.Sleep(time.Millisecond * 500)
 
 				// Verify no backend store for this deleted cluster.
 				if backend := backendstore.GetBackend(clusterName); backend != nil {
@@ -357,7 +390,7 @@ func TestAddResourceRegistryEventHandler(t *testing.T) {
 				if err := upsertCluster(clientConnector, labels, apiEndpoint, clusterName, resourceVersion); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
+				time.Sleep(time.Millisecond * 500)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
@@ -367,7 +400,7 @@ func TestAddResourceRegistryEventHandler(t *testing.T) {
 				if err := upsertResourceRegistry(clientConnector, resourceSelectors, registryName, resourceVersion, []string{clusterName}); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
+				time.Sleep(time.Millisecond * 500)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
@@ -403,13 +436,13 @@ func TestUpdateResourceRegistryEventHandler(t *testing.T) {
 		restMapper meta.RESTMapper
 		stopCh     chan struct{}
 		prep       func(*fakekarmadaclient.Clientset, *rest.Config, meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error)
-		verify     func(*fakekarmadaclient.Clientset, *Controller) error
+		verify     func(clientConnector *fakekarmadaclient.Clientset, controller *Controller) error
 	}{
 		{
 			name:       "AddAllEventHandlers_TriggerUpdateResourceRegistryEvent_UpdatedResourceRegistryAddedToWorkQueue",
 			restConfig: &rest.Config{},
 			client:     fakekarmadaclient.NewSimpleClientset(),
-			restMapper: meta.NewDefaultRESTMapper(nil),
+			restMapper: restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			stopCh:     make(chan struct{}),
 			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, 0)
@@ -438,12 +471,19 @@ func TestUpdateResourceRegistryEventHandler(t *testing.T) {
 					}
 				)
 
+				clusterDynamicClientBuilder = func(string, client.Client) (*util.DynamicClusterClient, error) {
+					return &util.DynamicClusterClient{
+						DynamicClientSet: fakedynamic.NewSimpleDynamicClient(scheme.Scheme),
+						ClusterName:      clusterName,
+					}, nil
+				}
+
 				// Wait a bit to allow addCluster background thread
 				// to complete its execution.
 				if err := upsertCluster(clientConnector, labels, apiEndpoint, clusterName, resourceVersion); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
+				time.Sleep(time.Millisecond * 500)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
@@ -453,7 +493,7 @@ func TestUpdateResourceRegistryEventHandler(t *testing.T) {
 				if err := upsertResourceRegistry(clientConnector, resourceSelectors, registryName, resourceVersion, []string{clusterName}); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
+				time.Sleep(time.Millisecond * 500)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
@@ -463,7 +503,7 @@ func TestUpdateResourceRegistryEventHandler(t *testing.T) {
 				if err := upsertResourceRegistry(clientConnector, resourceSelectorsUpdated, registryName, resourceVersion, []string{clusterName}); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
+				time.Sleep(time.Millisecond * 500)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
@@ -505,7 +545,7 @@ func TestDeleteResourceRegistryEventHandler(t *testing.T) {
 			name:       "AddAllEventHandlers_TriggerDeleteResourceRegistryEvent_DeletedResourceRegistryAddedToWorkQueue",
 			restConfig: &rest.Config{},
 			client:     fakekarmadaclient.NewSimpleClientset(),
-			restMapper: meta.NewDefaultRESTMapper(nil),
+			restMapper: restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			stopCh:     make(chan struct{}),
 			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, 0)
@@ -537,7 +577,7 @@ func TestDeleteResourceRegistryEventHandler(t *testing.T) {
 				if err := upsertCluster(clientConnector, labels, apiEndpoint, clusterName, resourceVersion); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
+				time.Sleep(time.Millisecond * 500)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
@@ -547,7 +587,7 @@ func TestDeleteResourceRegistryEventHandler(t *testing.T) {
 				if err := upsertResourceRegistry(clientConnector, resourceSelectors, registryName, resourceVersion, []string{clusterName}); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
+				time.Sleep(time.Millisecond * 500)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
@@ -557,7 +597,7 @@ func TestDeleteResourceRegistryEventHandler(t *testing.T) {
 				if err := deleteResourceRegistry(clientConnector, registryName); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
+				time.Sleep(time.Millisecond * 500)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
@@ -613,6 +653,26 @@ func upsertCluster(client *fakekarmadaclient.Clientset, labels map[string]string
 				{
 					Type:   clusterv1alpha1.ClusterConditionReady,
 					Status: metav1.ConditionTrue,
+				},
+			},
+			APIEnablements: []clusterv1alpha1.APIEnablement{
+				{
+					GroupVersion: "apps/v1",
+					Resources: []clusterv1alpha1.APIResource{
+						{
+							Name: "Deployments",
+							Kind: "Deployment",
+						},
+					},
+				},
+				{
+					GroupVersion: "v1",
+					Resources: []clusterv1alpha1.APIResource{
+						{
+							Name: "Pods",
+							Kind: "Pod",
+						},
+					},
 				},
 			},
 		},
