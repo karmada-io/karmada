@@ -1,6 +1,6 @@
 module github.com/karmada-io/karmada
 
-go 1.22.7 // keep in sync with .go-version, Readme.md#Prerequisites, hack/util.sh
+go 1.22.9 // keep in sync with .go-version and hack/util.sh
 
 require (
 	github.com/adhocore/gronx v1.6.3
