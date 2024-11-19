@@ -65,7 +65,7 @@ type asyncWorker struct {
 	// reconcileFunc is the function that process keys from the queue.
 	reconcileFunc ReconcileFunc
 	// queue allowing parallel processing of resources.
-	queue workqueue.RateLimitingInterface
+	queue workqueue.TypedRateLimitingInterface[any]
 }
 
 // Options are the arguments for creating a new AsyncWorker.
@@ -83,7 +83,7 @@ func NewAsyncWorker(opt Options) AsyncWorker {
 	return &asyncWorker{
 		keyFunc:       opt.KeyFunc,
 		reconcileFunc: opt.ReconcileFunc,
-		queue: workqueue.NewRateLimitingQueueWithConfig(ratelimiterflag.LegacyControllerRateLimiter(opt.RateLimiterOptions), workqueue.RateLimitingQueueConfig{
+		queue: workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiterflag.DefaultControllerRateLimiter[any](opt.RateLimiterOptions), workqueue.TypedRateLimitingQueueConfig[any]{
 			Name: opt.Name,
 		}),
 	}
