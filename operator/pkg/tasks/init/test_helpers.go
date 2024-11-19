@@ -46,18 +46,19 @@ func (m *MyTestData) Get() string {
 
 // TestInitData contains the configuration and state required to initialize Karmada components.
 type TestInitData struct {
-	Name                   string
-	Namespace              string
-	ControlplaneConfigREST *rest.Config
-	DataDirectory          string
-	CrdTarballArchive      operatorv1alpha1.CRDTarball
-	KarmadaVersionRelease  string
-	ComponentsUnits        *operatorv1alpha1.KarmadaComponents
-	FeatureGatesOptions    map[string]bool
-	RemoteClientConnector  clientset.Interface
-	KarmadaClientConnector clientset.Interface
-	ControlplaneAddr       string
-	Certs                  []*certs.KarmadaCert
+	Name                    string
+	Namespace               string
+	ControlplaneConfigREST  *rest.Config
+	DataDirectory           string
+	CrdTarballArchive       operatorv1alpha1.CRDTarball
+	CustomCertificateConfig operatorv1alpha1.CustomCertificate
+	KarmadaVersionRelease   string
+	ComponentsUnits         *operatorv1alpha1.KarmadaComponents
+	FeatureGatesOptions     map[string]bool
+	RemoteClientConnector   clientset.Interface
+	KarmadaClientConnector  clientset.Interface
+	ControlplaneAddr        string
+	Certs                   []*certs.KarmadaCert
 }
 
 // Ensure TestInitData implements InitData interface at compile time.
@@ -106,6 +107,10 @@ func (t *TestInitData) DataDir() string {
 // CrdTarball returns the CRD tarball used for Karmada installation.
 func (t *TestInitData) CrdTarball() operatorv1alpha1.CRDTarball {
 	return t.CrdTarballArchive
+}
+
+func (t *TestInitData) CustomCertificate() operatorv1alpha1.CustomCertificate {
+	return t.CustomCertificateConfig
 }
 
 // KarmadaVersion returns the version of Karmada being used.
