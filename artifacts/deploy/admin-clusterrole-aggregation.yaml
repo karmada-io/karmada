@@ -4,13 +4,8 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  annotations:
-    # refer to https://kubernetes.io/docs/reference/access-authn-authz/rbac/#auto-reconciliation
-    # and https://kubernetes.io/docs/reference/access-authn-authz/rbac/#kubectl-auth-reconcile
-    rbac.authorization.kubernetes.io/autoupdate: "true"
   labels:
-    # refer to https://kubernetes.io/docs/reference/access-authn-authz/rbac/#default-roles-and-role-bindings
-    kubernetes.io/bootstrapping: rbac-defaults
+    karmada.io/bootstrapping: rbac-defaults
     # used to aggregate rules to view clusterrole
     rbac.authorization.k8s.io/aggregate-to-view: "true"
   name: karmada-view
@@ -73,13 +68,8 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  annotations:
-    # refer to https://kubernetes.io/docs/reference/access-authn-authz/rbac/#auto-reconciliation
-    # and https://kubernetes.io/docs/reference/access-authn-authz/rbac/#kubectl-auth-reconcile
-    rbac.authorization.kubernetes.io/autoupdate: "true"
   labels:
-    # refer to https://kubernetes.io/docs/reference/access-authn-authz/rbac/#default-roles-and-role-bindings
-    kubernetes.io/bootstrapping: rbac-defaults
+    karmada.io/bootstrapping: rbac-defaults
     # used to aggregate rules to view clusterrole
     rbac.authorization.k8s.io/aggregate-to-edit: "true"
   name: karmada-edit
