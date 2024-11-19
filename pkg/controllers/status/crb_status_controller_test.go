@@ -33,10 +33,12 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	utilhelper "github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 func generateCRBStatusController() *CRBStatusController {
@@ -50,7 +52,11 @@ func generateCRBStatusController() *CRBStatusController {
 	m.WaitForCacheSync()
 
 	c := &CRBStatusController{
-		Client:          fake.NewClientBuilder().WithScheme(gclient.NewSchema()).Build(),
+		Client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithIndex(
+			&workv1alpha1.Work{},
+			workv1alpha2.ClusterResourceBindingPermanentIDLabel,
+			utilhelper.IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
+		).Build(),
 		DynamicClient:   dynamicClient,
 		InformerManager: m,
 		RESTMapper: func() meta.RESTMapper {
@@ -130,7 +136,9 @@ func TestCRBStatusController_Reconcile(t *testing.T) {
 
 			// Prepare binding and create it in client
 			if tt.binding != nil {
-				c.Client = fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(tt.binding).WithStatusSubresource(tt.binding).Build()
+				c.Client = fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(tt.binding).WithStatusSubresource(tt.binding).
+					WithIndex(&workv1alpha1.Work{}, workv1alpha2.ClusterResourceBindingPermanentIDLabel, utilhelper.IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel)).
+					Build()
 			}
 
 			res, err := c.Reconcile(context.Background(), req)
@@ -200,7 +208,9 @@ func TestCRBStatusController_syncBindingStatus(t *testing.T) {
 			}
 
 			if tt.resourceExistInClient {
-				c.Client = fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(binding).WithStatusSubresource(binding).Build()
+				c.Client = fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(binding).WithStatusSubresource(binding).
+					WithIndex(&workv1alpha1.Work{}, workv1alpha2.ClusterResourceBindingPermanentIDLabel, utilhelper.IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel)).
+					Build()
 			}
 
 			err := c.syncBindingStatus(context.Background(), binding)

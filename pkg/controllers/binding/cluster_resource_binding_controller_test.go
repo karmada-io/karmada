@@ -37,20 +37,27 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	testing2 "github.com/karmada-io/karmada/pkg/search/proxy/testing"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	utilhelper "github.com/karmada-io/karmada/pkg/util/helper"
 	testing3 "github.com/karmada-io/karmada/pkg/util/testing"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
 func makeFakeCRBCByResource(rs *workv1alpha2.ObjectReference) (*ClusterResourceBindingController, error) {
+	c := fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithIndex(
+		&workv1alpha1.Work{},
+		workv1alpha2.ClusterResourceBindingPermanentIDLabel,
+		utilhelper.IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
+	).Build()
 	tempDyClient := fakedynamic.NewSimpleDynamicClient(scheme.Scheme)
 	if rs == nil {
 		return &ClusterResourceBindingController{
-			Client:          fake.NewClientBuilder().WithScheme(gclient.NewSchema()).Build(),
+			Client:          c,
 			RESTMapper:      testing2.RestMapper,
 			InformerManager: genericmanager.NewSingleClusterInformerManager(tempDyClient, 0, nil),
 			DynamicClient:   tempDyClient,
@@ -77,7 +84,7 @@ func makeFakeCRBCByResource(rs *workv1alpha2.ObjectReference) (*ClusterResourceB
 	}
 
 	return &ClusterResourceBindingController{
-		Client:          fake.NewClientBuilder().WithScheme(gclient.NewSchema()).Build(),
+		Client:          c,
 		RESTMapper:      helper.NewGroupRESTMapper(rs.Kind, meta.RESTScopeNamespace),
 		InformerManager: testing3.NewSingleClusterInformerManagerByRS(src, obj),
 		DynamicClient:   tempDyClient,

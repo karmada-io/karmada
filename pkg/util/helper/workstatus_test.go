@@ -199,6 +199,11 @@ func TestAggregateResourceBindingWorkStatus(t *testing.T) {
 
 			c := fake.NewClientBuilder().
 				WithScheme(scheme).
+				WithIndex(
+					&workv1alpha1.Work{},
+					workv1alpha2.ResourceBindingPermanentIDLabel,
+					IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel),
+				).
 				WithObjects(objects...).
 				WithStatusSubresource(tt.binding).
 				Build()
@@ -391,6 +396,11 @@ func TestAggregateClusterResourceBindingWorkStatus(t *testing.T) {
 
 			c := fake.NewClientBuilder().
 				WithScheme(scheme).
+				WithIndex(
+					&workv1alpha1.Work{},
+					workv1alpha2.ClusterResourceBindingPermanentIDLabel,
+					IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
+				).
 				WithObjects(objects...).
 				WithStatusSubresource(tt.binding).
 				Build()
