@@ -60,6 +60,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
+	"github.com/karmada-io/karmada/pkg/util/worker"
 )
 
 // ResourceDetector is a resource watcher which watches all resources and reconcile the events.
@@ -72,7 +73,7 @@ type ResourceDetector struct {
 	DynamicClient                dynamic.Interface
 	InformerManager              genericmanager.SingleClusterInformerManager
 	EventHandler                 cache.ResourceEventHandler
-	Processor                    util.AsyncWorker
+	Processor                    worker.AsyncWorker
 	SkippedResourceConfig        *util.SkippedResourceConfig
 	SkippedPropagatingNamespaces []*regexp.Regexp
 	// ResourceInterpreter knows the details of resource structure.
@@ -80,12 +81,12 @@ type ResourceDetector struct {
 	EventRecorder       record.EventRecorder
 	// policyReconcileWorker maintains a rate limited queue which used to store PropagationPolicy's key and
 	// a reconcile function to consume the items in queue.
-	policyReconcileWorker   util.AsyncWorker
+	policyReconcileWorker   worker.AsyncWorker
 	propagationPolicyLister cache.GenericLister
 
 	// clusterPolicyReconcileWorker maintains a rate limited queue which used to store ClusterPropagationPolicy's key and
 	// a reconcile function to consume the items in queue.
-	clusterPolicyReconcileWorker   util.AsyncWorker
+	clusterPolicyReconcileWorker   worker.AsyncWorker
 	clusterPropagationPolicyLister cache.GenericLister
 
 	RESTMapper meta.RESTMapper
@@ -116,19 +117,19 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 	d.stopCh = ctx.Done()
 
 	// setup policy reconcile worker
-	policyWorkerOptions := util.Options{
+	policyWorkerOptions := worker.Options{
 		Name:          "propagationPolicy reconciler",
 		KeyFunc:       ClusterWideKeyFunc,
 		ReconcileFunc: d.ReconcilePropagationPolicy,
 	}
-	d.policyReconcileWorker = util.NewAsyncWorker(policyWorkerOptions)
+	d.policyReconcileWorker = worker.NewAsyncWorker(policyWorkerOptions)
 	d.policyReconcileWorker.Run(d.ConcurrentPropagationPolicySyncs, d.stopCh)
-	clusterPolicyWorkerOptions := util.Options{
+	clusterPolicyWorkerOptions := worker.Options{
 		Name:          "clusterPropagationPolicy reconciler",
 		KeyFunc:       ClusterWideKeyFunc,
 		ReconcileFunc: d.ReconcileClusterPropagationPolicy,
 	}
-	d.clusterPolicyReconcileWorker = util.NewAsyncWorker(clusterPolicyWorkerOptions)
+	d.clusterPolicyReconcileWorker = worker.NewAsyncWorker(clusterPolicyWorkerOptions)
 	d.clusterPolicyReconcileWorker.Run(d.ConcurrentClusterPropagationPolicySyncs, d.stopCh)
 
 	// watch and enqueue PropagationPolicy changes.
@@ -151,7 +152,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 	d.InformerManager.ForResource(clusterPropagationPolicyGVR, clusterPolicyHandler)
 	d.clusterPropagationPolicyLister = d.InformerManager.Lister(clusterPropagationPolicyGVR)
 
-	detectorWorkerOptions := util.Options{
+	detectorWorkerOptions := worker.Options{
 		Name:               "resource detector",
 		KeyFunc:            ResourceItemKeyFunc,
 		ReconcileFunc:      d.Reconcile,
@@ -159,7 +160,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 	}
 
 	d.EventHandler = fedinformer.NewFilteringHandlerOnAllEvents(d.EventFilter, d.OnAdd, d.OnUpdate, d.OnDelete)
-	d.Processor = util.NewAsyncWorker(detectorWorkerOptions)
+	d.Processor = worker.NewAsyncWorker(detectorWorkerOptions)
 	d.Processor.Run(d.ConcurrentResourceTemplateSyncs, d.stopCh)
 	go d.discoverResources(30 * time.Second)
 
@@ -224,7 +225,7 @@ func (d *ResourceDetector) NeedLeaderElection() bool {
 
 // Reconcile performs a full reconciliation for the object referred to by the key.
 // The key will be re-queued if an error is non-nil.
-func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
+func (d *ResourceDetector) Reconcile(key worker.QueueKey) error {
 	clusterWideKeyWithConfig, ok := key.(keys.ClusterWideKeyWithConfig)
 	if !ok {
 		klog.Error("Invalid key")
@@ -908,7 +909,7 @@ func (d *ResourceDetector) OnPropagationPolicyUpdate(oldObj, newObj interface{})
 // put the object to queue.
 // When removing a PropagationPolicy, the relevant ResourceBinding will be removed and
 // the relevant objects will be put into queue again to try another policy.
-func (d *ResourceDetector) ReconcilePropagationPolicy(key util.QueueKey) error {
+func (d *ResourceDetector) ReconcilePropagationPolicy(key worker.QueueKey) error {
 	ckey, ok := key.(keys.ClusterWideKey)
 	if !ok { // should not happen
 		klog.Error("Found invalid key when reconciling propagation policy.")
@@ -1009,7 +1010,7 @@ func (d *ResourceDetector) OnClusterPropagationPolicyUpdate(oldObj, newObj inter
 // put the object to queue.
 // When removing a ClusterPropagationPolicy, the relevant ClusterResourceBinding will be removed and
 // the relevant objects will be put into queue again to try another policy.
-func (d *ResourceDetector) ReconcileClusterPropagationPolicy(key util.QueueKey) error {
+func (d *ResourceDetector) ReconcileClusterPropagationPolicy(key worker.QueueKey) error {
 	ckey, ok := key.(keys.ClusterWideKey)
 	if !ok { // should not happen
 		klog.Error("Found invalid key when reconciling cluster propagation policy.")

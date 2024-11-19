@@ -49,6 +49,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
+	"github.com/karmada-io/karmada/pkg/util/worker"
 )
 
 // EndpointSliceCollectController collects EndpointSlice from member clusters and reports them to control-plane.
@@ -64,7 +65,7 @@ type EndpointSliceCollectController struct {
 	// Each handler takes the cluster name as key and takes the handler function as the value, e.g.
 	// "member1": instance of ResourceEventHandler
 	eventHandlers sync.Map
-	worker        util.AsyncWorker // worker process resources periodic from rateLimitingQueue.
+	worker        worker.AsyncWorker // worker process resources periodic from rateLimitingQueue.
 
 	ClusterCacheSyncTimeout metav1.Duration
 }
@@ -124,16 +125,16 @@ func (c *EndpointSliceCollectController) SetupWithManager(mgr controllerruntime.
 
 // RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
 func (c *EndpointSliceCollectController) RunWorkQueue() {
-	workerOptions := util.Options{
+	workerOptions := worker.Options{
 		Name:          "endpointslice-collect",
 		KeyFunc:       nil,
 		ReconcileFunc: c.collectEndpointSlice,
 	}
-	c.worker = util.NewAsyncWorker(workerOptions)
+	c.worker = worker.NewAsyncWorker(workerOptions)
 	c.worker.Run(c.WorkerNumber, c.StopChan)
 }
 
-func (c *EndpointSliceCollectController) collectEndpointSlice(key util.QueueKey) error {
+func (c *EndpointSliceCollectController) collectEndpointSlice(key worker.QueueKey) error {
 	ctx := context.Background()
 	fedKey, ok := key.(keys.FederatedKey)
 	if !ok {

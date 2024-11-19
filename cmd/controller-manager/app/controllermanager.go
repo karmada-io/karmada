@@ -189,6 +189,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 	crtlmetrics.Registry.MustRegister(metrics.ClusterCollectors()...)
 	crtlmetrics.Registry.MustRegister(metrics.ResourceCollectors()...)
 	crtlmetrics.Registry.MustRegister(metrics.PoolCollectors()...)
+	crtlmetrics.Registry.MustRegister(metrics.AsyncWorkerCollectors()...)
 
 	if err := helper.IndexWork(ctx, controllerManager); err != nil {
 		klog.Fatalf("Failed to index Work: %v", err)

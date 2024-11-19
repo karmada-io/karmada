@@ -21,12 +21,12 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
+	"github.com/karmada-io/karmada/pkg/util/worker"
 )
 
 // ClusterWideKeyFunc generates a ClusterWideKey for object.
-func ClusterWideKeyFunc(obj interface{}) (util.QueueKey, error) {
+func ClusterWideKeyFunc(obj interface{}) (worker.QueueKey, error) {
 	return keys.ClusterWideKeyFunc(obj)
 }
 
@@ -42,7 +42,7 @@ type ResourceItem struct {
 }
 
 // ResourceItemKeyFunc generates a ClusterWideKeyWithConfig for object.
-func ResourceItemKeyFunc(obj interface{}) (util.QueueKey, error) {
+func ResourceItemKeyFunc(obj interface{}) (worker.QueueKey, error) {
 	var err error
 	key := keys.ClusterWideKeyWithConfig{}
 

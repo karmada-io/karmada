@@ -25,7 +25,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 
-	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/worker"
 )
 
 const (
@@ -40,16 +40,16 @@ type HpaScaleTargetMarker struct {
 	DynamicClient dynamic.Interface
 	RESTMapper    meta.RESTMapper
 
-	scaleTargetWorker util.AsyncWorker
+	scaleTargetWorker worker.AsyncWorker
 }
 
 // SetupWithManager creates a controller and register to controller manager.
 func (r *HpaScaleTargetMarker) SetupWithManager(mgr controllerruntime.Manager) error {
-	scaleTargetWorkerOptions := util.Options{
+	scaleTargetWorkerOptions := worker.Options{
 		Name:          "scale target worker",
 		ReconcileFunc: r.reconcileScaleRef,
 	}
-	r.scaleTargetWorker = util.NewAsyncWorker(scaleTargetWorkerOptions)
+	r.scaleTargetWorker = worker.NewAsyncWorker(scaleTargetWorkerOptions)
 	r.scaleTargetWorker.Run(scaleTargetWorkerNum, context.Background().Done())
 
 	return controllerruntime.NewControllerManagedBy(mgr).

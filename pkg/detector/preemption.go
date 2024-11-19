@@ -36,6 +36,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
+	"github.com/karmada-io/karmada/pkg/util/worker"
 )
 
 // PriorityKey is the unique propagation policy key with priority.
@@ -350,7 +351,7 @@ func (d *ResourceDetector) HandleDeprioritizedClusterPropagationPolicy(oldPolicy
 }
 
 // requeuePotentialKeys re-queues potential policy keys.
-func requeuePotentialKeys(sortedPotentialKeys *pq.Queue, worker util.AsyncWorker) {
+func requeuePotentialKeys(sortedPotentialKeys *pq.Queue, worker worker.AsyncWorker) {
 	for {
 		key, ok := sortedPotentialKeys.Dequeue()
 		if !ok {

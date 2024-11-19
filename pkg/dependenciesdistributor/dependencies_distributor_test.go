@@ -44,6 +44,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
+	"github.com/karmada-io/karmada/pkg/util/worker"
 )
 
 type MockAsyncWorker struct {
@@ -159,7 +160,7 @@ func Test_OnUpdate(t *testing.T) {
 
 func Test_reconcileResourceTemplate(t *testing.T) {
 	type args struct {
-		key util.QueueKey
+		key worker.QueueKey
 	}
 	type fields struct {
 		Client client.Client

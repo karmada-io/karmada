@@ -59,6 +59,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/grpcconnection"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	utilmetrics "github.com/karmada-io/karmada/pkg/util/metrics"
+	"github.com/karmada-io/karmada/pkg/util/worker"
 )
 
 // ScheduleType defines the schedule type of a binding object should be performed.
@@ -94,7 +95,7 @@ type Scheduler struct {
 
 	// clusterReconcileWorker reconciles cluster changes to trigger corresponding
 	// ResourceBinding/ClusterResourceBinding rescheduling.
-	clusterReconcileWorker util.AsyncWorker
+	clusterReconcileWorker worker.AsyncWorker
 	// TODO: implement a priority scheduling queue
 	queue workqueue.RateLimitingInterface
 
@@ -108,7 +109,7 @@ type Scheduler struct {
 	schedulerEstimatorCache             *estimatorclient.SchedulerEstimatorCache
 	schedulerEstimatorServiceNamespace  string
 	schedulerEstimatorServicePrefix     string
-	schedulerEstimatorWorker            util.AsyncWorker
+	schedulerEstimatorWorker            worker.AsyncWorker
 	schedulerEstimatorClientConfig      *grpcconnection.ClientConfig
 	schedulerName                       string
 
@@ -263,7 +264,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 		schedulerCache:       schedulerCache,
 	}
 
-	sched.clusterReconcileWorker = util.NewAsyncWorker(util.Options{
+	sched.clusterReconcileWorker = worker.NewAsyncWorker(worker.Options{
 		Name:          "ClusterReconcileWorker",
 		ReconcileFunc: sched.reconcileCluster,
 	})
@@ -275,12 +276,12 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 		sched.schedulerEstimatorServiceNamespace = options.schedulerEstimatorServiceNamespace
 		sched.schedulerEstimatorClientConfig = options.schedulerEstimatorClientConfig
 		sched.schedulerEstimatorCache = estimatorclient.NewSchedulerEstimatorCache()
-		schedulerEstimatorWorkerOptions := util.Options{
+		schedulerEstimatorWorkerOptions := worker.Options{
 			Name:          "scheduler-estimator",
 			KeyFunc:       nil,
 			ReconcileFunc: sched.reconcileEstimatorConnection,
 		}
-		sched.schedulerEstimatorWorker = util.NewAsyncWorker(schedulerEstimatorWorkerOptions)
+		sched.schedulerEstimatorWorker = worker.NewAsyncWorker(schedulerEstimatorWorkerOptions)
 		schedulerEstimator := estimatorclient.NewSchedulerEstimator(sched.schedulerEstimatorCache, options.schedulerEstimatorTimeout.Duration)
 		estimatorclient.RegisterSchedulerEstimator(schedulerEstimator)
 	}
@@ -769,7 +770,7 @@ func (s *Scheduler) handleErr(err error, key interface{}) {
 	metrics.CountSchedulerBindings(metrics.ScheduleAttemptFailure)
 }
 
-func (s *Scheduler) reconcileEstimatorConnection(key util.QueueKey) error {
+func (s *Scheduler) reconcileEstimatorConnection(key worker.QueueKey) error {
 	name, ok := key.(string)
 	if !ok {
 		return fmt.Errorf("failed to reconcile estimator connection as invalid key: %v", key)

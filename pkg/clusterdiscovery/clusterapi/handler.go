@@ -17,11 +17,11 @@ limitations under the License.
 package clusterapi
 
 import (
-	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
+	"github.com/karmada-io/karmada/pkg/util/worker"
 )
 
 // ClusterWideKeyFunc generates a ClusterWideKey for object.
-func ClusterWideKeyFunc(obj interface{}) (util.QueueKey, error) {
+func ClusterWideKeyFunc(obj interface{}) (worker.QueueKey, error) {
 	return keys.ClusterWideKeyFunc(obj)
 }
