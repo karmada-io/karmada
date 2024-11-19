@@ -16,7 +16,9 @@ data:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: karmada:bootstrap-signer-clusterinfo
+  labels:
+    karmada.io/bootstrapping: rbac-defaults
+  name: system:karmada:bootstrap-signer-clusterinfo
   namespace: kube-public
 rules:
 - apiGroups:
@@ -32,12 +34,14 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: karmada:bootstrap-signer-clusterinfo
+  labels:
+    karmada.io/bootstrapping: rbac-defaults
+  name: system:karmada:bootstrap-signer-clusterinfo
   namespace: kube-public
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: karmada:bootstrap-signer-clusterinfo
+  name: system:karmada:bootstrap-signer-clusterinfo
 subjects:
 - apiGroup: rbac.authorization.k8s.io
   kind: User
@@ -47,7 +51,9 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: karmada:agent-bootstrap
+  labels:
+    karmada.io/bootstrapping: rbac-defaults
+  name: system:karmada:agent-bootstrap
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -61,7 +67,9 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: karmada:agent-autoapprove-bootstrap
+  labels:
+    karmada.io/bootstrapping: rbac-defaults
+  name: system:karmada:agent-autoapprove-bootstrap
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -75,7 +83,9 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: karmada:agent-autoapprove-certificate-rotation
+  labels:
+    karmada.io/bootstrapping: rbac-defaults
+  name: system:karmada:agent-autoapprove-certificate-rotation
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -89,6 +99,8 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  labels:
+    karmada.io/bootstrapping: rbac-defaults
   name: system:karmada:agent
 rules:
 - apiGroups:
@@ -176,6 +188,8 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
+  labels:
+    karmada.io/bootstrapping: rbac-defaults
   name: system:karmada:agent
 roleRef:
   apiGroup: rbac.authorization.k8s.io

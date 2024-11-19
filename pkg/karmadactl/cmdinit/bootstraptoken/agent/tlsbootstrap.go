@@ -29,13 +29,13 @@ const (
 	// KarmadaAgentBootstrapperClusterRoleName defines the name of the auto-bootstrapped ClusterRole for letting someone post a CSR
 	KarmadaAgentBootstrapperClusterRoleName = "system:node-bootstrapper"
 	// KarmadaAgentBootstrap defines the name of the ClusterRoleBinding that lets Karmada Agent post CSRs
-	KarmadaAgentBootstrap = "karmada:agent-bootstrap"
+	KarmadaAgentBootstrap = "system:karmada:agent-bootstrap"
 	// KarmadaAgentGroup defines the group of Karmada Agent
 	KarmadaAgentGroup = "system:nodes"
 	// KarmadaAgentAutoApproveBootstrapClusterRoleBinding defines the name of the ClusterRoleBinding that makes the csrapprover approve agent CSRs
-	KarmadaAgentAutoApproveBootstrapClusterRoleBinding = "karmada:agent-autoapprove-bootstrap"
+	KarmadaAgentAutoApproveBootstrapClusterRoleBinding = "system:karmada:agent-autoapprove-bootstrap"
 	// KarmadaAgentAutoApproveCertificateRotationClusterRoleBinding defines name of the ClusterRoleBinding that makes the csrapprover approve agent auto rotated CSRs
-	KarmadaAgentAutoApproveCertificateRotationClusterRoleBinding = "karmada:agent-autoapprove-certificate-rotation"
+	KarmadaAgentAutoApproveCertificateRotationClusterRoleBinding = "system:karmada:agent-autoapprove-certificate-rotation"
 	// CSRAutoApprovalClusterRoleName defines the name of the auto-bootstrapped ClusterRole for making the csrapprover controller auto-approve the CSR
 	CSRAutoApprovalClusterRoleName = "system:certificates.k8s.io:certificatesigningrequests:nodeclient"
 	// KarmadaAgentSelfCSRAutoApprovalClusterRoleName is a role for automatic CSR approvals for automatically rotated agent certificates
