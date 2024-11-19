@@ -23,7 +23,7 @@ data:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: karmada:bootstrap-signer-clusterinfo
+  name: system:karmada:bootstrap-signer-clusterinfo
   namespace: kube-public
   {{- if "karmada.commonLabels" }}
   labels:
@@ -42,7 +42,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: karmada:bootstrap-signer-clusterinfo
+  name: system:karmada:bootstrap-signer-clusterinfo
   namespace: kube-public
   {{- if "karmada.commonLabels" }}
   labels:
@@ -51,7 +51,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: karmada:bootstrap-signer-clusterinfo
+  name: system:karmada:bootstrap-signer-clusterinfo
 subjects:
 - apiGroup: rbac.authorization.k8s.io
   kind: User
@@ -60,7 +60,7 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: karmada:agent-bootstrap
+  name: system:karmada:agent-bootstrap
   {{- if "karmada.commonLabels" }}
   labels:
     {{- include "karmada.commonLabels" . | nindent 4 }}
@@ -77,7 +77,7 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: karmada:agent-autoapprove-bootstrap
+  name: system:karmada:agent-autoapprove-bootstrap
   {{- if "karmada.commonLabels" }}
   labels:
     {{- include "karmada.commonLabels" . | nindent 4 }}
@@ -94,7 +94,7 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: karmada:agent-autoapprove-certificate-rotation
+  name: system:karmada:agent-autoapprove-certificate-rotation
   {{- if "karmada.commonLabels" }}
   labels:
     {{- include "karmada.commonLabels" . | nindent 4 }}

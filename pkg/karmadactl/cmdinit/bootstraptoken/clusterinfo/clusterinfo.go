@@ -34,7 +34,7 @@ import (
 
 const (
 	// BootstrapSignerClusterRoleName sets the name for the ClusterRole that allows access to ConfigMaps in the kube-public ns
-	BootstrapSignerClusterRoleName = "karmada:bootstrap-signer-clusterinfo"
+	BootstrapSignerClusterRoleName = "system:karmada:bootstrap-signer-clusterinfo"
 )
 
 // CreateBootstrapConfigMapIfNotExists creates the kube-public ConfigMap if it doesn't exist already
