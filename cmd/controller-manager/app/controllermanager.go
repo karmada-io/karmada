@@ -773,13 +773,14 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 	if features.FeatureGate.Enabled(features.PropagateDeps) {
 		dependenciesDistributor := &dependenciesdistributor.DependenciesDistributor{
-			Client:              mgr.GetClient(),
-			DynamicClient:       dynamicClientSet,
-			InformerManager:     controlPlaneInformerManager,
-			ResourceInterpreter: resourceInterpreter,
-			RESTMapper:          mgr.GetRESTMapper(),
-			EventRecorder:       mgr.GetEventRecorderFor("dependencies-distributor"),
-			RateLimiterOptions:  opts.RateLimiterOpts,
+			Client:                           mgr.GetClient(),
+			DynamicClient:                    dynamicClientSet,
+			InformerManager:                  controlPlaneInformerManager,
+			ResourceInterpreter:              resourceInterpreter,
+			RESTMapper:                       mgr.GetRESTMapper(),
+			EventRecorder:                    mgr.GetEventRecorderFor("dependencies-distributor"),
+			RateLimiterOptions:               opts.RateLimiterOpts,
+			ConcurrentDependentResourceSyncs: opts.ConcurrentDependentResourceSyncs,
 		}
 		if err := dependenciesDistributor.SetupWithManager(mgr); err != nil {
 			klog.Fatalf("Failed to setup dependencies distributor: %v", err)
