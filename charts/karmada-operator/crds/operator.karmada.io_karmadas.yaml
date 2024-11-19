@@ -3673,6 +3673,32 @@ spec:
                         type: string
                     type: object
                 type: object
+              customCertificate:
+                description: |-
+                  CustomCertificate specifies the configuration to customize the certificates
+                  for Karmada components or control the certificate generation process, such as
+                  the algorithm, validity period, etc.
+                  Currently, it only supports customizing the CA certificate for limited components.
+                properties:
+                  apiServerCACert:
+                    description: |-
+                      APIServerCACert references a Kubernetes secret containing the CA certificate
+                      for component karmada-apiserver.
+                      The secret must contain the following data keys:
+                      - tls.crt: The TLS certificate.
+                      - tls.key: The TLS private key.
+                      If specified, this CA will be used to issue client certificates for
+                      all components that access the APIServer as clients.
+                    properties:
+                      name:
+                        description: Name is the name of resource being referenced.
+                        type: string
+                      namespace:
+                        description: Namespace is the namespace for the resource being
+                          referenced.
+                        type: string
+                    type: object
+                type: object
               featureGates:
                 additionalProperties:
                   type: boolean

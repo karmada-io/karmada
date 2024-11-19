@@ -42,13 +42,14 @@ var (
 
 // InitOptions defines all the init workflow options.
 type InitOptions struct {
-	Name           string
-	Namespace      string
-	Kubeconfig     *rest.Config
-	KarmadaVersion string
-	CRDTarball     operatorv1alpha1.CRDTarball
-	KarmadaDataDir string
-	Karmada        *operatorv1alpha1.Karmada
+	Name                    string
+	Namespace               string
+	Kubeconfig              *rest.Config
+	KarmadaVersion          string
+	CRDTarball              operatorv1alpha1.CRDTarball
+	CustomCertificateConfig operatorv1alpha1.CustomCertificate
+	KarmadaDataDir          string
+	Karmada                 *operatorv1alpha1.Karmada
 }
 
 // Validate is used to validate the initOptions before creating initJob.
@@ -75,19 +76,20 @@ var _ tasks.InitData = &initData{}
 type initData struct {
 	sync.Once
 	certs.CertStore
-	name                string
-	namespace           string
-	karmadaVersion      *utilversion.Version
-	controlplaneConfig  *rest.Config
-	controlplaneAddress string
-	remoteClient        clientset.Interface
-	karmadaClient       clientset.Interface
-	dnsDomain           string
-	CRDTarball          operatorv1alpha1.CRDTarball
-	karmadaDataDir      string
-	privateRegistry     string
-	featureGates        map[string]bool
-	components          *operatorv1alpha1.KarmadaComponents
+	name                    string
+	namespace               string
+	karmadaVersion          *utilversion.Version
+	controlplaneConfig      *rest.Config
+	controlplaneAddress     string
+	remoteClient            clientset.Interface
+	karmadaClient           clientset.Interface
+	dnsDomain               string
+	CRDTarball              operatorv1alpha1.CRDTarball
+	CustomCertificateConfig operatorv1alpha1.CustomCertificate
+	karmadaDataDir          string
+	privateRegistry         string
+	featureGates            map[string]bool
+	components              *operatorv1alpha1.KarmadaComponents
 }
 
 // NewInitJob initializes a job with list of init sub-task. and build
@@ -165,18 +167,19 @@ func newRunData(opt *InitOptions) (*initData, error) {
 	}
 
 	return &initData{
-		name:                opt.Name,
-		namespace:           opt.Namespace,
-		karmadaVersion:      version,
-		controlplaneAddress: address,
-		remoteClient:        remoteClient,
-		CRDTarball:          opt.CRDTarball,
-		karmadaDataDir:      opt.KarmadaDataDir,
-		privateRegistry:     privateRegistry,
-		components:          opt.Karmada.Spec.Components,
-		featureGates:        opt.Karmada.Spec.FeatureGates,
-		dnsDomain:           *opt.Karmada.Spec.HostCluster.Networking.DNSDomain,
-		CertStore:           certs.NewCertStore(),
+		name:                    opt.Name,
+		namespace:               opt.Namespace,
+		karmadaVersion:          version,
+		controlplaneAddress:     address,
+		remoteClient:            remoteClient,
+		CRDTarball:              opt.CRDTarball,
+		CustomCertificateConfig: opt.CustomCertificateConfig,
+		karmadaDataDir:          opt.KarmadaDataDir,
+		privateRegistry:         privateRegistry,
+		components:              opt.Karmada.Spec.Components,
+		featureGates:            opt.Karmada.Spec.FeatureGates,
+		dnsDomain:               *opt.Karmada.Spec.HostCluster.Networking.DNSDomain,
+		CertStore:               certs.NewCertStore(),
 	}, nil
 }
 
@@ -224,6 +227,10 @@ func (data *initData) DataDir() string {
 
 func (data *initData) CrdTarball() operatorv1alpha1.CRDTarball {
 	return data.CRDTarball
+}
+
+func (data *initData) CustomCertificate() operatorv1alpha1.CustomCertificate {
+	return data.CustomCertificateConfig
 }
 
 func (data *initData) KarmadaVersion() string {
@@ -277,6 +284,9 @@ func NewInitOptWithKarmada(karmada *operatorv1alpha1.Karmada) InitOpt {
 		o.Namespace = karmada.GetNamespace()
 		if karmada.Spec.CRDTarball != nil {
 			o.CRDTarball = *karmada.Spec.CRDTarball
+		}
+		if karmada.Spec.CustomCertificate != nil {
+			o.CustomCertificateConfig = *karmada.Spec.CustomCertificate
 		}
 	}
 }
