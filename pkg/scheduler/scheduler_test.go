@@ -1084,7 +1084,7 @@ func TestWorkerAndScheduleNext(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+			queue := workqueue.NewTypedRateLimitingQueue[any](workqueue.DefaultTypedControllerRateLimiter[any]())
 			bindingLister := &fakeBindingLister{binding: resourceBinding}
 			clusterBindingLister := &fakeClusterBindingLister{binding: clusterResourceBinding}
 

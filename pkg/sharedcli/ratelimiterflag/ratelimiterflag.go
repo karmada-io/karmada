@@ -68,25 +68,3 @@ func DefaultControllerRateLimiter[T comparable](opts Options) workqueue.TypedRat
 		&workqueue.TypedBucketRateLimiter[T]{Limiter: rate.NewLimiter(rate.Limit(opts.RateLimiterQPS), opts.RateLimiterBucketSize)},
 	)
 }
-
-// LegacyControllerRateLimiter provide a default rate limiter for controller, and users can tune it by corresponding flags.
-// TODO(@RainbowMango): This function will only used by asyncWorker and will be removed after bump Kubernetes dependency to v1.31.
-func LegacyControllerRateLimiter(opts Options) workqueue.RateLimiter {
-	// set defaults
-	if opts.RateLimiterBaseDelay <= 0 {
-		opts.RateLimiterBaseDelay = 5 * time.Millisecond
-	}
-	if opts.RateLimiterMaxDelay <= 0 {
-		opts.RateLimiterMaxDelay = 1000 * time.Second
-	}
-	if opts.RateLimiterQPS <= 0 {
-		opts.RateLimiterQPS = 10
-	}
-	if opts.RateLimiterBucketSize <= 0 {
-		opts.RateLimiterBucketSize = 100
-	}
-	return workqueue.NewMaxOfRateLimiter(
-		workqueue.NewItemExponentialFailureRateLimiter(opts.RateLimiterBaseDelay, opts.RateLimiterMaxDelay),
-		&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(opts.RateLimiterQPS), opts.RateLimiterBucketSize)},
-	)
-}

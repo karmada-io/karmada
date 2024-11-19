@@ -68,7 +68,7 @@ type Controller struct {
 	restMapper      meta.RESTMapper
 	informerFactory informerfactory.SharedInformerFactory
 	clusterLister   clusterlister.ClusterLister
-	queue           workqueue.RateLimitingInterface
+	queue           workqueue.TypedRateLimitingInterface[any]
 
 	clusterRegistry sync.Map
 
@@ -78,7 +78,7 @@ type Controller struct {
 // NewController returns a new ResourceRegistry controller
 func NewController(restConfig *rest.Config, factory informerfactory.SharedInformerFactory, restMapper meta.RESTMapper) (*Controller, error) {
 	clusterLister := factory.Cluster().V1alpha1().Clusters().Lister()
-	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+	queue := workqueue.NewTypedRateLimitingQueue[any](workqueue.DefaultTypedControllerRateLimiter[any]())
 
 	c := &Controller{
 		restConfig:      restConfig,

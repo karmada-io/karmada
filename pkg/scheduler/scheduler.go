@@ -96,7 +96,7 @@ type Scheduler struct {
 	// ResourceBinding/ClusterResourceBinding rescheduling.
 	clusterReconcileWorker util.AsyncWorker
 	// TODO: implement a priority scheduling queue
-	queue workqueue.RateLimitingInterface
+	queue workqueue.TypedRateLimitingInterface[any]
 
 	Algorithm      core.ScheduleAlgorithm
 	schedulerCache schedulercache.Cache
@@ -239,7 +239,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 	for _, opt := range opts {
 		opt(&options)
 	}
-	queue := workqueue.NewRateLimitingQueueWithConfig(ratelimiterflag.LegacyControllerRateLimiter(options.RateLimiterOptions), workqueue.RateLimitingQueueConfig{Name: "scheduler-queue"})
+	queue := workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiterflag.DefaultControllerRateLimiter[any](options.RateLimiterOptions), workqueue.TypedRateLimitingQueueConfig[any]{Name: "scheduler-queue"})
 	registry := frameworkplugins.NewInTreeRegistry()
 	if err := registry.Merge(options.outOfTreeRegistry); err != nil {
 		return nil, err
