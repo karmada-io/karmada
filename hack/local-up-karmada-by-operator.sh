@@ -156,7 +156,7 @@ tar -zcvf ../../crds.tar.gz crds
 cd -
 
 # copy the local crds.tar.gz file to the specified path of the karmada-operator, so that the karmada-operator will skip the step of downloading CRDs.
-CRDTARBALL_URL="local"
+CRDTARBALL_URL="http://local"
 DATA_DIR="/var/lib/karmada"
 CRD_CACHE_DIR=$(getCrdsDir "${DATA_DIR}" "${CRDTARBALL_URL}")
 OPERATOR_POD_NAME=$(kubectl --kubeconfig="${MAIN_KUBECONFIG}" --context="${HOST_CLUSTER_NAME}" get pods -n ${KARMADA_SYSTEM_NAMESPACE} -l karmada-app=karmada-operator -o custom-columns=NAME:.metadata.name --no-headers)
