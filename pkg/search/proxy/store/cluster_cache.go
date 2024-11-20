@@ -17,6 +17,7 @@ limitations under the License.
 package store
 
 import (
+	"fmt"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -117,4 +118,23 @@ func (c *clusterCache) cacheForResource(gvr schema.GroupVersionResource) *resour
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	return c.cache[gvr]
+}
+
+// readinessCheck checks if the storage is ready for accepting requests.
+func (c *clusterCache) readinessCheck() error {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
+	var failedChecks []string
+	for gvr, rc := range c.cache {
+		if rc.ReadinessCheck() != nil {
+			failedChecks = append(failedChecks, gvr.String())
+		}
+	}
+	if len(failedChecks) == 0 {
+		klog.Infof("ClusterCache(%s) is ready for all registered resources", c.clusterName)
+		return nil
+	}
+	klog.V(4).Infof("ClusterCache(%s) is not ready for: %v", c.clusterName, failedChecks)
+	return fmt.Errorf("ClusterCache(%s) is not ready for: %v", c.clusterName, failedChecks)
 }

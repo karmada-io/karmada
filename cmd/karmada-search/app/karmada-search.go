@@ -133,6 +133,8 @@ func run(ctx context.Context, o *options.Options, registryOptions ...Option) err
 		return nil
 	})
 
+	server.GenericAPIServer.AddPostStartHookOrDie("search-storage-cache-readiness", config.ExtraConfig.ProxyController.Hook)
+
 	if config.ExtraConfig.Controller != nil {
 		server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-search-controller", func(context genericapiserver.PostStartHookContext) error {
 			// start ResourceRegistry controller
@@ -210,12 +212,13 @@ func config(o *options.Options, outOfTreeRegistryOptions ...Option) (*search.Con
 		}
 
 		proxyCtl, err = proxy.NewController(proxy.NewControllerOption{
-			RestConfig:        serverConfig.ClientConfig,
-			RestMapper:        restMapper,
-			KubeFactory:       serverConfig.SharedInformerFactory,
-			KarmadaFactory:    factory,
-			MinRequestTimeout: time.Second * time.Duration(serverConfig.Config.MinRequestTimeout),
-			OutOfTreeRegistry: outOfTreeRegistry,
+			RestConfig:                   serverConfig.ClientConfig,
+			RestMapper:                   restMapper,
+			KubeFactory:                  serverConfig.SharedInformerFactory,
+			KarmadaFactory:               factory,
+			MinRequestTimeout:            time.Second * time.Duration(serverConfig.Config.MinRequestTimeout),
+			StorageInitializationTimeout: serverConfig.StorageInitializationTimeout,
+			OutOfTreeRegistry:            outOfTreeRegistry,
 		})
 
 		if err != nil {

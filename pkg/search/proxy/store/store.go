@@ -197,6 +197,9 @@ func (s *store) RequestWatchProgress(context.Context) error {
 }
 
 // ReadinessCheck checks if the storage is ready for accepting requests.
+// Since store itself does not actually hold the data but only provides
+// methods for querying, and the caller will not use this method to detect
+// the ready status, so it is not necessary to implement this interface.
 func (s *store) ReadinessCheck() error {
 	return fmt.Errorf("not implemented")
 }
