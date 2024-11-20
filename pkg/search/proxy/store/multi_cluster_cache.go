@@ -48,6 +48,9 @@ type Store interface {
 	Get(ctx context.Context, gvr schema.GroupVersionResource, name string, options *metav1.GetOptions) (runtime.Object, error)
 	List(ctx context.Context, gvr schema.GroupVersionResource, options *metainternalversion.ListOptions) (runtime.Object, error)
 	Watch(ctx context.Context, gvr schema.GroupVersionResource, options *metainternalversion.ListOptions) (watch.Interface, error)
+
+	// ReadinessCheck checks if the storage is ready for accepting requests.
+	ReadinessCheck() error
 }
 
 // MultiClusterCache caches resource from multi member clusters
@@ -70,6 +73,25 @@ func NewMultiClusterCache(newClientFunc func(string) (dynamic.Interface, error),
 		cache:               map[string]*clusterCache{},
 		registeredResources: map[schema.GroupVersionResource]struct{}{},
 	}
+}
+
+// ReadinessCheck checks if the storage is ready for accepting requests.
+func (c *MultiClusterCache) ReadinessCheck() error {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
+	var failedChecks []string
+	for cluster, cc := range c.cache {
+		if cc.readinessCheck() != nil {
+			failedChecks = append(failedChecks, cluster)
+		}
+	}
+	if len(failedChecks) == 0 {
+		klog.Infof("MultiClusterCache is ready for all registered clusters")
+		return nil
+	}
+	klog.V(4).Infof("ClusterCache is not ready for clusters: %v", failedChecks)
+	return fmt.Errorf("ClusterCache is not ready for clusters: %v", failedChecks)
 }
 
 // UpdateCache update cache for multi clusters

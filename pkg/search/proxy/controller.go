@@ -18,6 +18,7 @@ package proxy
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
@@ -26,10 +27,12 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apiserver/pkg/endpoints/handlers/responsewriters"
 	"k8s.io/apiserver/pkg/endpoints/metrics"
 	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
+	genericapiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -66,6 +69,8 @@ type Controller struct {
 	store          store.Store
 
 	proxy framework.Proxy
+
+	storageInitializationTimeout time.Duration
 }
 
 // NewControllerOption is the Option for NewController().
@@ -76,7 +81,8 @@ type NewControllerOption struct {
 	KubeFactory    informers.SharedInformerFactory
 	KarmadaFactory informerfactory.SharedInformerFactory
 
-	MinRequestTimeout time.Duration
+	MinRequestTimeout            time.Duration
+	StorageInitializationTimeout time.Duration
 
 	OutOfTreeRegistry pluginruntime.Registry
 }
@@ -97,13 +103,14 @@ func NewController(option NewControllerOption) (*Controller, error) {
 	proxy := pluginruntime.NewFramework(allPlugins)
 
 	ctl := &Controller{
-		restMapper:           option.RestMapper,
-		negotiatedSerializer: scheme.Codecs.WithoutConversion(),
-		secretLister:         secretLister,
-		clusterLister:        clusterLister,
-		registryLister:       option.KarmadaFactory.Search().V1alpha1().ResourceRegistries().Lister(),
-		store:                multiClusterStore,
-		proxy:                proxy,
+		restMapper:                   option.RestMapper,
+		negotiatedSerializer:         scheme.Codecs.WithoutConversion(),
+		secretLister:                 secretLister,
+		clusterLister:                clusterLister,
+		registryLister:               option.KarmadaFactory.Search().V1alpha1().ResourceRegistries().Lister(),
+		store:                        multiClusterStore,
+		storageInitializationTimeout: option.StorageInitializationTimeout,
+		proxy:                        proxy,
 	}
 
 	workerOptions := util.Options{
@@ -311,4 +318,30 @@ func dynamicClientForClusterFunc(clusterLister clusterlisters.ClusterLister,
 		}
 		return dynamic.NewForConfig(clusterConfig)
 	}
+}
+
+func (ctl *Controller) storageReadinessCheck() bool {
+	return ctl.store.ReadinessCheck() == nil
+}
+
+// Hook waits for the controller to be in a storage ready state.
+// Here, even if the initialization is not completed within the timeout interval,
+// nil is still returned because the cache is per-type and per-cluster layer,
+// and we want to avoid making the whole component as not ready, if the request for
+// one of the resource types requires reinitialization, requests for all other
+// resource types can still be handled properly.
+func (ctl *Controller) Hook(ctx genericapiserver.PostStartHookContext) error {
+	deadlineCtx, cancel := context.WithTimeout(ctx, ctl.storageInitializationTimeout)
+	defer cancel()
+	err := wait.PollUntilContextCancel(deadlineCtx, 100*time.Millisecond, true,
+		func(_ context.Context) (bool, error) {
+			if ok := ctl.storageReadinessCheck(); ok {
+				return true, nil
+			}
+			return false, nil
+		})
+	if errors.Is(err, context.DeadlineExceeded) {
+		klog.Warningf("Deadline exceeded while waiting for storage readiness... ignoring")
+	}
+	return nil
 }
