@@ -218,6 +218,7 @@ type KarmadaCert struct {
 	key      []byte
 }
 
+// NewKarmadaCert is used to create a new Karmada cert
 func NewKarmadaCert(pairName, caName string, cert, key []byte) *KarmadaCert {
 	return &KarmadaCert{pairName: pairName, caName: caName, cert: cert, key: key}
 }
