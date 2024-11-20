@@ -17,6 +17,7 @@ limitations under the License.
 package describe
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -146,7 +147,7 @@ func (o *CommandDescribeOptions) Validate() error {
 		return err
 	}
 	if o.OperationScope == options.Members && len(o.Cluster) == 0 {
-		return fmt.Errorf("must specify a member cluster")
+		return errors.New("must specify a member cluster")
 	}
 	return nil
 }
