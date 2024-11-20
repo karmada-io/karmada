@@ -109,6 +109,7 @@ func (t *TestInitData) CrdTarball() operatorv1alpha1.CRDTarball {
 	return t.CrdTarballArchive
 }
 
+// CustomCertificate returns the custom certificate config.
 func (t *TestInitData) CustomCertificate() operatorv1alpha1.CustomCertificate {
 	return t.CustomCertificateConfig
 }
