@@ -22,12 +22,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// Helper function to create a new KarmadaCert with given PairName.
+// Helper function to create a new KarmadaCert with given pairName.
 func newKarmadaCert(pairName string, certData, keyData []byte) *KarmadaCert {
 	return &KarmadaCert{
-		PairName: pairName,
-		Cert:     certData,
-		Key:      keyData,
+		pairName: pairName,
+		cert:     certData,
+		key:      keyData,
 	}
 }
 
@@ -51,11 +51,11 @@ func TestAddAndGetCert(t *testing.T) {
 	if retrievedCert == nil {
 		t.Fatalf("expected to retrieve cert but got nil")
 	}
-	if string(retrievedCert.Cert) != "certData" {
-		t.Errorf("expected certData but got %s", string(retrievedCert.Cert))
+	if string(retrievedCert.cert) != "certData" {
+		t.Errorf("expected certData but got %s", string(retrievedCert.cert))
 	}
-	if string(retrievedCert.Key) != "keyData" {
-		t.Errorf("expected keyData but got %s", string(retrievedCert.Key))
+	if string(retrievedCert.key) != "keyData" {
+		t.Errorf("expected keyData but got %s", string(retrievedCert.key))
 	}
 }
 
@@ -98,13 +98,13 @@ func TestLoadCertFromSecret(t *testing.T) {
 	}
 
 	cert1 := store.GetCert("cert1")
-	if cert1 == nil || string(cert1.Cert) != "cert1CertData" || string(cert1.Key) != "cert1KeyData" {
-		t.Errorf("cert1 content is incorrect expected cert %s key %s, got cert %s key %s", "cert1CertData", "cert1KeyData", string(cert1.Cert), string(cert1.Key))
+	if cert1 == nil || string(cert1.cert) != "cert1CertData" || string(cert1.key) != "cert1KeyData" {
+		t.Errorf("cert1 content is incorrect expected cert %s key %s, got cert %s key %s", "cert1CertData", "cert1KeyData", string(cert1.cert), string(cert1.key))
 	}
 
 	cert2 := store.GetCert("cert2")
-	if cert2 == nil || string(cert2.Cert) != "cert2CertData" || string(cert2.Key) != "cert2KeyData" {
-		t.Errorf("cert2 content is incorrect expected cert %s key %s, got cert %s key %s", "cert2CertData", "cert2KeyData", string(cert2.Cert), string(cert2.Key))
+	if cert2 == nil || string(cert2.cert) != "cert2CertData" || string(cert2.key) != "cert2KeyData" {
+		t.Errorf("cert2 content is incorrect expected cert %s key %s, got cert %s key %s", "cert2CertData", "cert2KeyData", string(cert2.cert), string(cert2.key))
 	}
 }
 
@@ -144,10 +144,10 @@ func TestLoadCertFromSecret_InvalidFormat(t *testing.T) {
 	}
 
 	karmadaCert := store.GetCert(pairName)
-	if len(karmadaCert.Key) != 0 {
-		t.Errorf("expected the cert data content to be empty but got %v", karmadaCert.Cert)
+	if len(karmadaCert.key) != 0 {
+		t.Errorf("expected the cert data content to be empty but got %v", karmadaCert.cert)
 	}
-	if len(karmadaCert.Key) != 0 {
-		t.Errorf("expected the key data content to be empty but got %v", karmadaCert.Key)
+	if len(karmadaCert.key) != 0 {
+		t.Errorf("expected the key data content to be empty but got %v", karmadaCert.key)
 	}
 }

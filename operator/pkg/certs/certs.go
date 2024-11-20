@@ -212,25 +212,29 @@ func KarmadaCertEtcdClient() *CertConfig {
 // KarmadaCert is karmada certificate, it includes certificate basic message.
 // we can directly get the byte array of certificate key and cert from the object.
 type KarmadaCert struct {
-	PairName string
-	CAName   string
-	Cert     []byte
-	Key      []byte
+	pairName string
+	caName   string
+	cert     []byte
+	key      []byte
+}
+
+func NewKarmadaCert(pairName, caName string, cert, key []byte) *KarmadaCert {
+	return &KarmadaCert{pairName: pairName, caName: caName, cert: cert, key: key}
 }
 
 // CertData returns certificate cert data.
 func (cert *KarmadaCert) CertData() []byte {
-	return cert.Cert
+	return cert.cert
 }
 
 // KeyData returns certificate key data.
 func (cert *KarmadaCert) KeyData() []byte {
-	return cert.Key
+	return cert.key
 }
 
 // CertName returns cert file name. its default suffix is ".crt".
 func (cert *KarmadaCert) CertName() string {
-	pair := cert.PairName
+	pair := cert.pairName
 	if len(pair) == 0 {
 		pair = "cert"
 	}
@@ -239,7 +243,7 @@ func (cert *KarmadaCert) CertName() string {
 
 // KeyName returns cert key file name. its default suffix is ".key".
 func (cert *KarmadaCert) KeyName() string {
-	pair := cert.PairName
+	pair := cert.pairName
 	if len(pair) == 0 {
 		pair = "cert"
 	}
@@ -282,10 +286,10 @@ func NewCertificateAuthority(cc *CertConfig) (*KarmadaCert, error) {
 	}
 
 	return &KarmadaCert{
-		PairName: cc.Name,
-		CAName:   cc.CAName,
-		Cert:     EncodeCertPEM(cert),
-		Key:      encoded,
+		pairName: cc.Name,
+		caName:   cc.CAName,
+		cert:     EncodeCertPEM(cert),
+		key:      encoded,
 	}, nil
 }
 
@@ -329,10 +333,10 @@ func CreateCertAndKeyFilesWithCA(cc *CertConfig, caCertData, caKeyData []byte) (
 	}
 
 	return &KarmadaCert{
-		PairName: cc.Name,
-		CAName:   cc.CAName,
-		Cert:     EncodeCertPEM(cert),
-		Key:      encoded,
+		pairName: cc.Name,
+		caName:   cc.CAName,
+		cert:     EncodeCertPEM(cert),
+		key:      encoded,
 	}, nil
 }
 
