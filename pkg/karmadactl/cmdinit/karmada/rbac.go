@@ -26,10 +26,11 @@ import (
 )
 
 const (
-	karmadaViewClusterRole        = "karmada-view"
-	karmadaEditClusterRole        = "karmada-edit"
-	karmadaAgentAccessClusterRole = "system:karmada:agent"
-	karmadaAgentGroup             = "system:nodes"
+	karmadaViewClusterRole                      = "karmada-view"
+	karmadaEditClusterRole                      = "karmada-edit"
+	karmadaAgentRBACGeneratorClusterRole        = "system:karmada:agent-rbac-generator"
+	karmadaAgentRBACGeneratorClusterRoleBinding = "system:karmada:agent-rbac-generator"
+	agentRBACGenerator                          = "system:karmada:agent:rbac-generator"
 )
 
 // grantProxyPermissionToAdmin grants the proxy permission to "system:admin"
@@ -62,63 +63,13 @@ func grantProxyPermissionToAdmin(clientSet kubernetes.Interface) error {
 	return nil
 }
 
-// grantAccessPermissionToAgent grants the limited access permission to 'karmada-agent'
-func grantAccessPermissionToAgent(clientSet kubernetes.Interface) error {
-	clusterRole := utils.ClusterRoleFromRules(karmadaAgentAccessClusterRole, []rbacv1.PolicyRule{
+// grantAccessPermissionToAgentRBACGenerator grants the access permission to 'karmada-agent-rbac-generator'
+func grantAccessPermissionToAgentRBACGenerator(clientSet kubernetes.Interface) error {
+	clusterRole := utils.ClusterRoleFromRules(karmadaAgentRBACGeneratorClusterRole, []rbacv1.PolicyRule{
 		{
-			APIGroups: []string{"authentication.k8s.io"},
-			Resources: []string{"tokenreviews"},
-			Verbs:     []string{"create"},
-		},
-		{
-			APIGroups: []string{"cluster.karmada.io"},
-			Resources: []string{"clusters"},
-			Verbs:     []string{"create", "get", "list", "watch", "patch", "update", "delete"},
-		},
-		{
-			APIGroups: []string{"cluster.karmada.io"},
-			Resources: []string{"clusters/status"},
-			Verbs:     []string{"patch", "update"},
-		},
-		{
-			APIGroups: []string{"work.karmada.io"},
-			Resources: []string{"works"},
-			Verbs:     []string{"create", "get", "list", "watch", "update", "delete"},
-		},
-		{
-			APIGroups: []string{"work.karmada.io"},
-			Resources: []string{"works/status"},
-			Verbs:     []string{"patch", "update"},
-		},
-		{
-			APIGroups: []string{"config.karmada.io"},
-			Resources: []string{"resourceinterpreterwebhookconfigurations", "resourceinterpretercustomizations"},
-			Verbs:     []string{"get", "list", "watch"},
-		},
-		{
-			APIGroups: []string{""},
-			Resources: []string{"namespaces"},
-			Verbs:     []string{"get", "list", "watch", "create"},
-		},
-		{
-			APIGroups: []string{""},
-			Resources: []string{"secrets"},
-			Verbs:     []string{"get", "list", "watch", "create", "patch"},
-		},
-		{
-			APIGroups: []string{"coordination.k8s.io"},
-			Resources: []string{"leases"},
-			Verbs:     []string{"create", "delete", "get", "patch", "update"},
-		},
-		{
-			APIGroups: []string{"certificates.k8s.io"},
-			Resources: []string{"certificatesigningrequests"},
-			Verbs:     []string{"create", "get", "list", "watch"},
-		},
-		{
-			APIGroups: []string{""},
-			Resources: []string{"events"},
-			Verbs:     []string{"create", "patch", "update"},
+			APIGroups: []string{"*"},
+			Resources: []string{"*"},
+			Verbs:     []string{"*"},
 		},
 	}, nil, nil)
 	err := cmdutil.CreateOrUpdateClusterRole(clientSet, clusterRole)
@@ -126,14 +77,14 @@ func grantAccessPermissionToAgent(clientSet kubernetes.Interface) error {
 		return err
 	}
 
-	clusterRoleBinding := utils.ClusterRoleBindingFromSubjects(karmadaAgentAccessClusterRole, karmadaAgentAccessClusterRole,
+	clusterRoleBinding := utils.ClusterRoleBindingFromSubjects(karmadaAgentRBACGeneratorClusterRoleBinding, karmadaAgentRBACGeneratorClusterRole,
 		[]rbacv1.Subject{
 			{
-				Kind: rbacv1.GroupKind,
-				Name: karmadaAgentGroup,
+				Kind: rbacv1.UserKind,
+				Name: agentRBACGenerator,
 			}}, nil)
 
-	klog.V(1).Info("Grant the limited access permission to 'karmada-agent'")
+	klog.V(1).Info("Grant the access permission to 'karmada-agent-rbac-generator'")
 	err = cmdutil.CreateOrUpdateClusterRoleBinding(clientSet, clusterRoleBinding)
 	if err != nil {
 		return err

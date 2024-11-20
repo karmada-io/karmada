@@ -191,3 +191,49 @@ func GenerateImpersonationRules(subjects []rbacv1.Subject) []rbacv1.PolicyRule {
 
 	return rules
 }
+
+// CreateRole just try to create the Role.
+func CreateRole(client kubeclient.Interface, roleObj *rbacv1.Role) (*rbacv1.Role, error) {
+	createdObj, err := client.RbacV1().Roles(roleObj.GetNamespace()).Create(context.TODO(), roleObj, metav1.CreateOptions{})
+	if err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			return roleObj, nil
+		}
+
+		return nil, err
+	}
+
+	return createdObj, nil
+}
+
+// CreateRoleBinding just try to create the RoleBinding.
+func CreateRoleBinding(client kubeclient.Interface, roleBindingObj *rbacv1.RoleBinding) (*rbacv1.RoleBinding, error) {
+	createdObj, err := client.RbacV1().RoleBindings(roleBindingObj.GetNamespace()).Create(context.TODO(), roleBindingObj, metav1.CreateOptions{})
+	if err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			return roleBindingObj, nil
+		}
+
+		return nil, err
+	}
+
+	return createdObj, nil
+}
+
+// DeleteRole just try to delete the Role.
+func DeleteRole(client kubeclient.Interface, namespace, name string) error {
+	err := client.RbacV1().Roles(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
+
+// DeleteRoleBinding just try to delete the RoleBinding.
+func DeleteRoleBinding(client kubeclient.Interface, namespace, name string) error {
+	err := client.RbacV1().RoleBindings(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
