@@ -117,12 +117,7 @@ func runCATask(kc *certs.CertConfig) func(d workflow.RunData) error {
 
 			klog.V(2).InfoS("[certs] Successfully loaded custom CA certificate", "secret", secretRef.Name)
 
-			customKarmadaCert := &certs.KarmadaCert{
-				PairName: kc.Name,
-				CAName:   kc.CAName,
-				Cert:     certData,
-				Key:      keyData,
-			}
+			customKarmadaCert := certs.NewKarmadaCert(kc.Name, kc.CAName, certData, keyData)
 
 			data.AddCert(customKarmadaCert)
 			klog.V(2).InfoS("[certs] Successfully added custom CA certificate to cert store", "certName", kc.Name)

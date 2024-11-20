@@ -428,23 +428,23 @@ func TestNewCertificateAuthority(t *testing.T) {
 		t.Fatal("NewCertificateAuthority() returned nil cert")
 	}
 
-	if cert.PairName != cc.Name {
-		t.Errorf("expected pairName to be %s, got %s", cc.Name, cert.PairName)
+	if cert.pairName != cc.Name {
+		t.Errorf("expected pairName to be %s, got %s", cc.Name, cert.pairName)
 	}
 
-	if cert.CAName != cc.CAName {
-		t.Errorf("expected caName to be %s, got %s", cc.CAName, cert.CAName)
+	if cert.caName != cc.CAName {
+		t.Errorf("expected caName to be %s, got %s", cc.CAName, cert.caName)
 	}
 
-	if cert.Cert == nil {
+	if cert.cert == nil {
 		t.Error("expected cert to be non-nil")
 	}
 
-	if cert.Key == nil {
+	if cert.key == nil {
 		t.Error("expected key to be non-nil")
 	}
 
-	block, _ := pem.Decode(cert.Cert)
+	block, _ := pem.Decode(cert.cert)
 	if block == nil || block.Type != CertificateBlockType {
 		t.Errorf("expected PEM block type to be %s, got %v", CertificateBlockType, block)
 	}
@@ -524,19 +524,19 @@ func TestCreateCertAndKeyFilesWithCA(t *testing.T) {
 		t.Fatal("CreateCertAndKeyFilesWithCA() returned nil cert")
 	}
 
-	if cert.Cert == nil || cert.Key == nil {
+	if cert.cert == nil || cert.key == nil {
 		t.Error("Expected cert and key to be non-nil")
 	}
 
-	if cert.PairName != certConfig.Name {
-		t.Errorf("expected pairName to be %s, got %s", certConfig.Name, cert.PairName)
+	if cert.pairName != certConfig.Name {
+		t.Errorf("expected pairName to be %s, got %s", certConfig.Name, cert.pairName)
 	}
 
-	if cert.CAName != certConfig.CAName {
-		t.Errorf("expected caName to be %s, got %s", certConfig.CAName, cert.CAName)
+	if cert.caName != certConfig.CAName {
+		t.Errorf("expected caName to be %s, got %s", certConfig.CAName, cert.caName)
 	}
 
-	block, _ := pem.Decode(cert.Cert)
+	block, _ := pem.Decode(cert.cert)
 	if block == nil || block.Type != CertificateBlockType {
 		t.Errorf("expected PEM block type to be %s, got %v", CertificateBlockType, block)
 	}
@@ -566,7 +566,7 @@ func TestNewSignedCert_Success(t *testing.T) {
 	}
 	caCert := caCerts[0]
 
-	caKey, err := ParsePrivateKeyPEM(caKarmadaCert.Key)
+	caKey, err := ParsePrivateKeyPEM(caKarmadaCert.key)
 	if err != nil {
 		t.Error(err)
 	}

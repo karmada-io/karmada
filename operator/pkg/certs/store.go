@@ -66,15 +66,15 @@ func NewCertStore() CertStore {
 	}
 }
 
-// AddCert adds a cert to cert store, the cache key is cert PairName by default.
+// AddCert adds a cert to cert store, the cache key is cert pairName by default.
 func (store *KarmadaCertStore) AddCert(cert *KarmadaCert) {
-	store.certs[cert.PairName] = cert
+	store.certs[cert.pairName] = cert
 }
 
-// GetCert get cert from store by cert PairName.
+// GetCert get cert from store by cert pairName.
 func (store *KarmadaCertStore) GetCert(name string) *KarmadaCert {
 	for _, c := range store.certs {
-		if c.PairName == name {
+		if c.pairName == name {
 			return c
 		}
 	}
@@ -105,15 +105,15 @@ func (store *KarmadaCertStore) LoadCertFromSecret(secret *corev1.Secret) error {
 		kc := store.GetCert(pairName)
 		if kc == nil {
 			kc = &KarmadaCert{
-				PairName: pairName,
+				pairName: pairName,
 			}
 		}
 
 		if strings.Contains(name, certExtension) {
-			kc.Cert = data
+			kc.cert = data
 		}
 		if strings.Contains(name, keyExtension) {
-			kc.Key = data
+			kc.key = data
 		}
 
 		store.AddCert(kc)
