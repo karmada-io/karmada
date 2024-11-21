@@ -81,7 +81,9 @@ type NewControllerOption struct {
 	KubeFactory    informers.SharedInformerFactory
 	KarmadaFactory informerfactory.SharedInformerFactory
 
-	MinRequestTimeout            time.Duration
+	MinRequestTimeout time.Duration
+	// StorageInitializationTimeout defines the maximum amount of time to wait for storage initialization
+	// before declaring apiserver ready.
 	StorageInitializationTimeout time.Duration
 
 	OutOfTreeRegistry pluginruntime.Registry

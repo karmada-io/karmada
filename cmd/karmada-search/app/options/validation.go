@@ -30,5 +30,6 @@ func (o *Options) Validate() error {
 	errs = append(errs, o.Audit.Validate()...)
 	errs = append(errs, o.Features.Validate()...)
 	errs = append(errs, o.CoreAPI.Validate()...)
+	errs = append(errs, o.ServerRunOptions.Validate()...)
 	return utilerrors.NewAggregate(errs)
 }
