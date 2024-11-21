@@ -56,7 +56,7 @@ type MetricsController struct {
 	InformerManager       genericmanager.MultiClusterInformerManager
 	TypedInformerManager  typedmanager.MultiClusterInformerManager
 	MultiClusterDiscovery multiclient.MultiClusterDiscoveryInterface
-	queue                 workqueue.RateLimitingInterface
+	queue                 workqueue.TypedRateLimitingInterface[any]
 	restConfig            *rest.Config
 }
 
@@ -70,7 +70,7 @@ func NewMetricsController(stopCh <-chan struct{}, restConfig *rest.Config, facto
 		InformerManager:       genericmanager.GetInstance(),
 		TypedInformerManager:  newInstance(stopCh),
 		restConfig:            restConfig,
-		queue: workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
+		queue: workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[any](), workqueue.TypedRateLimitingQueueConfig[any]{
 			Name: "metrics-adapter",
 		}),
 	}
