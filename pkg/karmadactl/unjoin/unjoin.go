@@ -17,15 +17,11 @@ limitations under the License.
 package unjoin
 
 import (
-	"context"
 	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -149,7 +145,7 @@ func (j *CommandUnjoinOption) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&j.ClusterKubeConfig, "cluster-kubeconfig", "",
 		"Path of the cluster's kubeconfig.")
 	flags.BoolVar(&j.forceDeletion, "force", false,
-		"Delete cluster and secret resources even if resources in the cluster targeted for unjoin are not removed successfully.")
+		"When set, the unjoin command will attempt to clean up resources in the member cluster before deleting the Cluster object. If the cleanup fails within the timeout period, the Cluster object will still be deleted, potentially leaving some resources behind in the member cluster.")
 	flags.DurationVar(&j.Wait, "wait", 60*time.Second, "wait for the unjoin command execution process(default 60s), if there is no success after this time, timeout will be returned.")
 	flags.BoolVar(&j.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 }
@@ -183,9 +179,10 @@ func (j *CommandUnjoinOption) Run(f cmdutil.Factory) error {
 // RunUnJoinCluster unJoin the cluster from karmada.
 func (j *CommandUnjoinOption) RunUnJoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config) error {
 	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
+	controlPlaneKubeClient := kubeclient.NewForConfigOrDie(controlPlaneRestConfig)
 
 	// delete the cluster object in host cluster that associates the unjoining cluster
-	err := j.deleteClusterObject(controlPlaneKarmadaClient)
+	err := cmdutil.DeleteClusterObject(controlPlaneKubeClient, controlPlaneKarmadaClient, j.ClusterName, j.Wait, j.DryRun, j.forceDeletion)
 	if err != nil {
 		klog.Errorf("Failed to delete cluster object. cluster name: %s, error: %v", j.ClusterName, err)
 		return err
@@ -218,42 +215,6 @@ func (j *CommandUnjoinOption) RunUnJoinCluster(controlPlaneRestConfig, clusterCo
 			klog.Errorf("Failed to delete namespace in unjoining cluster %q: %v", j.ClusterName, err)
 			return err
 		}
-	}
-
-	return nil
-}
-
-// deleteClusterObject delete the cluster object in host cluster that associates the unjoining cluster
-func (j *CommandUnjoinOption) deleteClusterObject(controlPlaneKarmadaClient *karmadaclientset.Clientset) error {
-	if j.DryRun {
-		return nil
-	}
-
-	err := controlPlaneKarmadaClient.ClusterV1alpha1().Clusters().Delete(context.TODO(), j.ClusterName, metav1.DeleteOptions{})
-	if apierrors.IsNotFound(err) {
-		return fmt.Errorf("no cluster object %s found in karmada control Plane", j.ClusterName)
-	}
-	if err != nil {
-		klog.Errorf("Failed to delete cluster object. cluster name: %s, error: %v", j.ClusterName, err)
-		return err
-	}
-
-	// make sure the given cluster object has been deleted
-	err = wait.PollUntilContextTimeout(context.TODO(), 1*time.Second, j.Wait, false, func(context.Context) (done bool, err error) {
-		_, err = controlPlaneKarmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), j.ClusterName, metav1.GetOptions{})
-		if apierrors.IsNotFound(err) {
-			return true, nil
-		}
-		if err != nil {
-			klog.Errorf("Failed to get cluster %s. err: %v", j.ClusterName, err)
-			return false, err
-		}
-		klog.Infof("Waiting for the cluster object %s to be deleted", j.ClusterName)
-		return false, nil
-	})
-	if err != nil {
-		klog.Errorf("Failed to delete cluster object. cluster name: %s, error: %v", j.ClusterName, err)
-		return err
 	}
 
 	return nil
