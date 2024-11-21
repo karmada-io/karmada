@@ -63,6 +63,17 @@ var (
 		options.FrontProxyClientCertAndKeyName,
 	}
 
+	karmadaConfigList = []string{
+		options.KarmadaAggregatedApiserverConfig,
+		options.KarmadaControllerManagerConfig,
+		options.KubeControllerManagerConfig,
+		options.KarmadaSchedulerConfig,
+		options.KarmadaDeschedulerConfig,
+		options.KarmadaMetricsAdapterConfig,
+		options.KarmadaSearchConfig,
+		options.KarmadaWebhookConfig,
+	}
+
 	emptyByteSlice                 = make([]byte, 0)
 	externalEtcdCertSpecialization = map[string]func(*CommandInitOption) ([]byte, []byte, error){
 		options.EtcdCaCertAndKeyName: func(option *CommandInitOption) (cert, key []byte, err error) {
@@ -397,7 +408,7 @@ func (i *CommandInitOption) prepareCRD() error {
 }
 
 func (i *CommandInitOption) createCertsSecrets() error {
-	// Create kubeconfig Secret
+	// 1. Create karmada-config Secret
 	karmadaServerURL := fmt.Sprintf("https://%s.%s.svc.%s:%v", karmadaAPIServerDeploymentAndServiceName, i.Namespace, i.HostClusterDomain, karmadaAPIServerContainerPort)
 	config := utils.CreateWithCerts(karmadaServerURL, options.UserName, options.UserName, i.CertAndKeyFileData[fmt.Sprintf("%s.crt", globaloptions.CaCertAndKeyName)],
 		i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)], i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)])
@@ -406,10 +417,13 @@ func (i *CommandInitOption) createCertsSecrets() error {
 		return fmt.Errorf("failure while serializing admin kubeConfig. %v", err)
 	}
 
-	kubeConfigSecret := i.SecretFromSpec(KubeConfigSecretAndMountName, corev1.SecretTypeOpaque, map[string]string{KubeConfigSecretAndMountName: string(configBytes)})
-	if err = util.CreateOrUpdateSecret(i.KubeClientSet, kubeConfigSecret); err != nil {
-		return err
+	for _, karmadaConfigSecretName := range karmadaConfigList {
+		kubeConfigSecret := i.SecretFromSpec(karmadaConfigSecretName, corev1.SecretTypeOpaque, map[string]string{options.KarmadaConfigFieldName: string(configBytes)})
+		if err = util.CreateOrUpdateSecret(i.KubeClientSet, kubeConfigSecret); err != nil {
+			return err
+		}
 	}
+
 	// Create certs Secret
 	etcdCert := map[string]string{
 		fmt.Sprintf("%s.crt", options.EtcdCaCertAndKeyName):     string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.EtcdCaCertAndKeyName)]),

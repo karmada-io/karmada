@@ -18,6 +18,7 @@ package kubernetes
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -38,10 +39,9 @@ const (
 	metricsPortName      = "metrics"
 	defaultMetricsPort   = 8080
 
-	// KubeConfigSecretAndMountName is the secret and volume mount name of karmada kubeconfig
-	KubeConfigSecretAndMountName                                = "kubeconfig"
 	karmadaCertsVolumeMountPath                                 = "/etc/karmada/pki"
-	kubeConfigContainerMountPath                                = "/etc/kubeconfig"
+	karmadaConfigVolumeName                                     = "karmada-config"
+	karmadaConfigVolumeMountPath                                = "/etc/karmada/config"
 	karmadaAPIServerDeploymentAndServiceName                    = "karmada-apiserver"
 	karmadaAPIServerContainerPort                               = 5443
 	serviceClusterIP                                            = "10.96.0.0/12"
@@ -303,8 +303,9 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 				Command: []string{
 					"kube-controller-manager",
 					"--allocate-node-cidrs=true",
-					"--authentication-kubeconfig=/etc/kubeconfig",
-					"--authorization-kubeconfig=/etc/kubeconfig",
+					fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, options.KarmadaConfigFieldName)),
+					fmt.Sprintf("--authentication-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, options.KarmadaConfigFieldName)),
+					fmt.Sprintf("--authorization-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, options.KarmadaConfigFieldName)),
 					"--bind-address=0.0.0.0",
 					fmt.Sprintf("--client-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
 					"--cluster-cidr=10.244.0.0/16",
@@ -312,7 +313,6 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 					fmt.Sprintf("--cluster-signing-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
 					fmt.Sprintf("--cluster-signing-key-file=%s/%s.key", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
 					"--controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrapproving,csrcleaner,csrsigning,clusterrole-aggregation",
-					"--kubeconfig=/etc/kubeconfig",
 					"--leader-elect=true",
 					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
 					"--node-cidr-mask-size=24",
@@ -332,10 +332,9 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 				},
 				VolumeMounts: []corev1.VolumeMount{
 					{
-						Name:      KubeConfigSecretAndMountName,
+						Name:      karmadaConfigVolumeName,
 						ReadOnly:  true,
-						MountPath: kubeConfigContainerMountPath,
-						SubPath:   KubeConfigSecretAndMountName,
+						MountPath: karmadaConfigVolumeMountPath,
 					},
 					{
 						Name:      globaloptions.KarmadaCertsName,
@@ -347,10 +346,10 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 		},
 		Volumes: []corev1.Volume{
 			{
-				Name: KubeConfigSecretAndMountName,
+				Name: karmadaConfigVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: KubeConfigSecretAndMountName,
+						SecretName: options.KubeControllerManagerConfig,
 					},
 				},
 			},
@@ -448,7 +447,7 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 				ImagePullPolicy: corev1.PullPolicy(i.ImagePullPolicy),
 				Command: []string{
 					"/bin/karmada-scheduler",
-					"--kubeconfig=/etc/kubeconfig",
+					fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, options.KarmadaConfigFieldName)),
 					"--metrics-bind-address=0.0.0.0:8080",
 					"--health-probe-bind-address=0.0.0.0:10351",
 					"--enable-scheduler-estimator=true",
@@ -469,10 +468,9 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 				},
 				VolumeMounts: []corev1.VolumeMount{
 					{
-						Name:      KubeConfigSecretAndMountName,
+						Name:      karmadaConfigVolumeName,
 						ReadOnly:  true,
-						MountPath: kubeConfigContainerMountPath,
-						SubPath:   KubeConfigSecretAndMountName,
+						MountPath: karmadaConfigVolumeMountPath,
 					},
 					{
 						Name:      globaloptions.KarmadaCertsName,
@@ -484,10 +482,10 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 		},
 		Volumes: []corev1.Volume{
 			{
-				Name: KubeConfigSecretAndMountName,
+				Name: karmadaConfigVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: KubeConfigSecretAndMountName,
+						SecretName: options.KarmadaSchedulerConfig,
 					},
 				},
 			},
@@ -587,7 +585,7 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 				ImagePullPolicy: corev1.PullPolicy(i.ImagePullPolicy),
 				Command: []string{
 					"/bin/karmada-controller-manager",
-					"--kubeconfig=/etc/kubeconfig",
+					fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, options.KarmadaConfigFieldName)),
 					"--metrics-bind-address=:8080",
 					"--health-probe-bind-address=0.0.0.0:10357",
 					"--cluster-status-update-frequency=10s",
@@ -609,20 +607,19 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 				},
 				VolumeMounts: []corev1.VolumeMount{
 					{
-						Name:      KubeConfigSecretAndMountName,
+						Name:      karmadaConfigVolumeName,
 						ReadOnly:  true,
-						MountPath: kubeConfigContainerMountPath,
-						SubPath:   KubeConfigSecretAndMountName,
+						MountPath: karmadaConfigVolumeMountPath,
 					},
 				},
 			},
 		},
 		Volumes: []corev1.Volume{
 			{
-				Name: KubeConfigSecretAndMountName,
+				Name: karmadaConfigVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: KubeConfigSecretAndMountName,
+						SecretName: options.KarmadaControllerManagerConfig,
 					},
 				},
 			},
@@ -711,7 +708,7 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 				ImagePullPolicy: corev1.PullPolicy(i.ImagePullPolicy),
 				Command: []string{
 					"/bin/karmada-webhook",
-					"--kubeconfig=/etc/kubeconfig",
+					fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, options.KarmadaConfigFieldName)),
 					"--bind-address=0.0.0.0",
 					"--metrics-bind-address=:8080",
 					fmt.Sprintf("--secure-port=%v", webhookTargetPort),
@@ -732,10 +729,9 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 				},
 				VolumeMounts: []corev1.VolumeMount{
 					{
-						Name:      KubeConfigSecretAndMountName,
+						Name:      karmadaConfigVolumeName,
 						ReadOnly:  true,
-						MountPath: kubeConfigContainerMountPath,
-						SubPath:   KubeConfigSecretAndMountName,
+						MountPath: karmadaConfigVolumeMountPath,
 					},
 					{
 						Name:      webhookCertsName,
@@ -748,10 +744,10 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 		},
 		Volumes: []corev1.Volume{
 			{
-				Name: KubeConfigSecretAndMountName,
+				Name: karmadaConfigVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: KubeConfigSecretAndMountName,
+						SecretName: options.KarmadaWebhookConfig,
 					},
 				},
 			},
@@ -842,9 +838,9 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 	}
 	command := []string{
 		"/bin/karmada-aggregated-apiserver",
-		"--kubeconfig=/etc/kubeconfig",
-		"--authentication-kubeconfig=/etc/kubeconfig",
-		"--authorization-kubeconfig=/etc/kubeconfig",
+		fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, options.KarmadaConfigFieldName)),
+		fmt.Sprintf("--authentication-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, options.KarmadaConfigFieldName)),
+		fmt.Sprintf("--authorization-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, options.KarmadaConfigFieldName)),
 		fmt.Sprintf("--etcd-servers=%s", etcdServers),
 		fmt.Sprintf("--etcd-cafile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName),
 		fmt.Sprintf("--etcd-certfile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
@@ -886,19 +882,6 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 				Image:           i.karmadaAggregatedAPIServerImage(),
 				ImagePullPolicy: corev1.PullPolicy(i.ImagePullPolicy),
 				Command:         command,
-				VolumeMounts: []corev1.VolumeMount{
-					{
-						Name:      KubeConfigSecretAndMountName,
-						ReadOnly:  true,
-						MountPath: kubeConfigContainerMountPath,
-						SubPath:   KubeConfigSecretAndMountName,
-					},
-					{
-						Name:      globaloptions.KarmadaCertsName,
-						ReadOnly:  true,
-						MountPath: karmadaCertsVolumeMountPath,
-					},
-				},
 				ReadinessProbe: readinesProbe,
 				LivenessProbe:  livenesProbe,
 				Resources: corev1.ResourceRequirements{
@@ -906,14 +889,26 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 						corev1.ResourceCPU: resource.MustParse("100m"),
 					},
 				},
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      karmadaConfigVolumeName,
+						ReadOnly:  true,
+						MountPath: karmadaConfigVolumeMountPath,
+					},
+					{
+						Name:      globaloptions.KarmadaCertsName,
+						ReadOnly:  true,
+						MountPath: karmadaCertsVolumeMountPath,
+					},
+				},
 			},
 		},
 		Volumes: []corev1.Volume{
 			{
-				Name: KubeConfigSecretAndMountName,
+				Name: karmadaConfigVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: KubeConfigSecretAndMountName,
+						SecretName: options.KarmadaAggregatedApiserverConfig,
 					},
 				},
 			},
