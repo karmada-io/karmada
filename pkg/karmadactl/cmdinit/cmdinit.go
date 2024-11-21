@@ -67,7 +67,7 @@ var (
 		%[1]s init --etcd-storage-mode hostPath --etcd-node-selector-labels karmada.io/etcd=true
 
 		# Private registry can be specified for all images
-		%[1]s init --etcd-image local.registry.com/library/etcd:3.5.13-0
+		%[1]s init --etcd-image local.registry.com/library/etcd:3.5.16-0
 
 		# Specify Karmada API Server IP address. If not set, the address on the master node will be used.
 		%[1]s init --karmada-apiserver-advertise-address 192.168.1.2

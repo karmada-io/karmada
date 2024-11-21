@@ -29,7 +29,7 @@ const (
 	// KarmadaDefaultRepository defines the default of the karmada image repository
 	KarmadaDefaultRepository = "docker.io/karmada"
 	// EtcdDefaultVersion defines the default of the karmada etcd image tag
-	EtcdDefaultVersion = "3.5.13-0"
+	EtcdDefaultVersion = "3.5.16-0"
 	// KubeDefaultVersion defines the default of the karmada apiserver and kubeControllerManager image tag
 	KubeDefaultVersion = "v1.31.3"
 	// KarmadaDefaultServiceSubnet defines the default of the subnet used by k8s services.
