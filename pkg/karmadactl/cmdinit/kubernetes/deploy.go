@@ -84,7 +84,7 @@ var (
 
 	karmadaRelease string
 
-	defaultEtcdImage = "etcd:3.5.13-0"
+	defaultEtcdImage = "etcd:3.5.16-0"
 
 	// DefaultCrdURL Karmada crds resource
 	DefaultCrdURL string
