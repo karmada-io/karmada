@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
 	"strings"
 	"testing"
 
@@ -30,6 +29,7 @@ import (
 	fakedynamic "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/restmapper"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -41,6 +41,41 @@ import (
 	"github.com/karmada-io/karmada/pkg/search/backendstore"
 	"github.com/karmada-io/karmada/pkg/util"
 )
+
+var apiGroupResources = []*restmapper.APIGroupResources{
+	{
+		Group: metav1.APIGroup{
+			Name: "apps",
+			Versions: []metav1.GroupVersionForDiscovery{
+				{GroupVersion: "apps/v1", Version: "v1"},
+			},
+			PreferredVersion: metav1.GroupVersionForDiscovery{
+				GroupVersion: "apps/v1", Version: "v1",
+			},
+		},
+		VersionedResources: map[string][]metav1.APIResource{
+			"v1": {
+				{Name: "deployments", SingularName: "deployment", Namespaced: true, Kind: "Deployment"},
+			},
+		},
+	},
+	{
+		Group: metav1.APIGroup{
+			Name: "",
+			Versions: []metav1.GroupVersionForDiscovery{
+				{GroupVersion: "v1", Version: "v1"},
+			},
+			PreferredVersion: metav1.GroupVersionForDiscovery{
+				GroupVersion: "v1", Version: "v1",
+			},
+		},
+		VersionedResources: map[string][]metav1.APIResource{
+			"v1": {
+				{Name: "pods", SingularName: "pod", Namespaced: true, Kind: "Pod"},
+			},
+		},
+	},
+}
 
 func TestNewKarmadaSearchController(t *testing.T) {
 	tests := []struct {
@@ -126,8 +161,6 @@ func TestAddClusterEventHandler(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
-
-			// start the informer to watch for changes.
 			informer.Start(test.stopCh)
 			defer close(test.stopCh)
 
@@ -189,8 +222,6 @@ func TestUpdateClusterEventHandler(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
-
-			// start the informer to watch for changes.
 			informer.Start(test.stopCh)
 			defer close(test.stopCh)
 
@@ -215,7 +246,7 @@ func TestDeleteClusterEventHandler(t *testing.T) {
 			name:       "AddAllEventHandlers_TriggerDeleteClusterEvent_DeletedClusterAddedToWorkQueue",
 			restConfig: &rest.Config{},
 			client:     fakekarmadaclient.NewSimpleClientset(),
-			restMapper: meta.NewDefaultRESTMapper(nil),
+			restMapper: restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			stopCh:     make(chan struct{}),
 			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, 0)
@@ -278,8 +309,6 @@ func TestDeleteClusterEventHandler(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
-
-			// start the informer to watch for changes.
 			informer.Start(test.stopCh)
 			defer close(test.stopCh)
 
@@ -304,7 +333,7 @@ func TestAddResourceRegistryEventHandler(t *testing.T) {
 			name:       "AddAllEventHandlers_TriggerAddResourceRegistryEvent_ResourceRegistryAddedToWorkQueue",
 			restConfig: &rest.Config{},
 			client:     fakekarmadaclient.NewSimpleClientset(),
-			restMapper: meta.NewDefaultRESTMapper(nil),
+			restMapper: restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			stopCh:     make(chan struct{}),
 			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, 0)
@@ -355,8 +384,6 @@ func TestAddResourceRegistryEventHandler(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
-
-			// start the informer to watch for changes.
 			informer.Start(test.stopCh)
 			defer close(test.stopCh)
 
@@ -381,7 +408,7 @@ func TestUpdateResourceRegistryEventHandler(t *testing.T) {
 			name:       "AddAllEventHandlers_TriggerUpdateResourceRegistryEvent_UpdatedResourceRegistryAddedToWorkQueue",
 			restConfig: &rest.Config{},
 			client:     fakekarmadaclient.NewSimpleClientset(),
-			restMapper: meta.NewDefaultRESTMapper(nil),
+			restMapper: restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			stopCh:     make(chan struct{}),
 			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, 0)
@@ -409,6 +436,13 @@ func TestUpdateResourceRegistryEventHandler(t *testing.T) {
 						},
 					}
 				)
+
+				clusterDynamicClientBuilder = func(string, client.Client) (*util.DynamicClusterClient, error) {
+					return &util.DynamicClusterClient{
+						DynamicClientSet: fakedynamic.NewSimpleDynamicClient(scheme.Scheme),
+						ClusterName:      clusterName,
+					}, nil
+				}
 
 				if err := upsertCluster(clientConnector, labels, apiEndpoint, clusterName, resourceVersion); err != nil {
 					return err
@@ -441,8 +475,6 @@ func TestUpdateResourceRegistryEventHandler(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
-
-			// start the informer to watch for changes.
 			informer.Start(test.stopCh)
 			defer close(test.stopCh)
 
@@ -467,7 +499,7 @@ func TestDeleteResourceRegistryEventHandler(t *testing.T) {
 			name:       "AddAllEventHandlers_TriggerDeleteResourceRegistryEvent_DeletedResourceRegistryAddedToWorkQueue",
 			restConfig: &rest.Config{},
 			client:     fakekarmadaclient.NewSimpleClientset(),
-			restMapper: meta.NewDefaultRESTMapper(nil),
+			restMapper: restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			stopCh:     make(chan struct{}),
 			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, 0)
@@ -525,8 +557,6 @@ func TestDeleteResourceRegistryEventHandler(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
-
-			// start the informer to watch for changes.
 			informer.Start(test.stopCh)
 			defer close(test.stopCh)
 
