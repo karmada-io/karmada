@@ -20,9 +20,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"strings"
 	"testing"
-	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -31,12 +31,11 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
-	versioned "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	fakekarmadaclient "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	"github.com/karmada-io/karmada/pkg/search/backendstore"
@@ -110,12 +109,9 @@ func TestAddClusterEventHandler(t *testing.T) {
 					apiEndpoint, labels          = "10.0.0.1", map[string]string{}
 				)
 
-				// Wait a bit to allow addCluster
-				// background thread to complete its execution.
 				if err := upsertCluster(clientConnector, labels, apiEndpoint, clusterName, resourceVersion); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
@@ -131,8 +127,7 @@ func TestAddClusterEventHandler(t *testing.T) {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
 
-			// Add event handlers and start the informer to watch for changes.
-			controller.addAllEventHandlers()
+			// start the informer to watch for changes.
 			informer.Start(test.stopCh)
 			defer close(test.stopCh)
 
@@ -170,22 +165,16 @@ func TestUpdateClusterEventHandler(t *testing.T) {
 					apiEndpoint, oldLabels, newLabels                    = "10.0.0.1", map[string]string{"status": "old"}, map[string]string{"status": "new"}
 				)
 
-				// Wait a bit to allow addCluster
-				// background thread to complete its execution.
 				if err := upsertCluster(clientConnector, oldLabels, apiEndpoint, clusterName, resourceVersion); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
 
-				// Wait a bit to allow updateCluster
-				// background thread to complete its execution.
 				if err := upsertCluster(clientConnector, newLabels, apiEndpoint, clusterName, updatedResourceVerison); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
@@ -201,8 +190,7 @@ func TestUpdateClusterEventHandler(t *testing.T) {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
 
-			// Add event handlers and start the informer to watch for changes.
-			controller.addAllEventHandlers()
+			// start the informer to watch for changes.
 			informer.Start(test.stopCh)
 			defer close(test.stopCh)
 
@@ -215,28 +203,26 @@ func TestUpdateClusterEventHandler(t *testing.T) {
 
 func TestDeleteClusterEventHandler(t *testing.T) {
 	tests := []struct {
-		name               string
-		restConfig         *rest.Config
-		client             *fakekarmadaclient.Clientset
-		controlPlaneClient client.WithWatch
-		restMapper         meta.RESTMapper
-		stopCh             chan struct{}
-		prep               func(*fakekarmadaclient.Clientset, *rest.Config, meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error)
-		verify             func(*fakekarmadaclient.Clientset, *Controller, client.Client) error
+		name       string
+		restConfig *rest.Config
+		client     *fakekarmadaclient.Clientset
+		restMapper meta.RESTMapper
+		stopCh     chan struct{}
+		prep       func(*fakekarmadaclient.Clientset, *rest.Config, meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error)
+		verify     func(*fakekarmadaclient.Clientset, *Controller) error
 	}{
 		{
-			name:               "AddAllEventHandlers_TriggerDeleteClusterEvent_DeletedClusterAddedToWorkQueue",
-			restConfig:         &rest.Config{},
-			client:             fakekarmadaclient.NewSimpleClientset(),
-			controlPlaneClient: fake.NewFakeClient(),
-			restMapper:         meta.NewDefaultRESTMapper(nil),
-			stopCh:             make(chan struct{}),
+			name:       "AddAllEventHandlers_TriggerDeleteClusterEvent_DeletedClusterAddedToWorkQueue",
+			restConfig: &rest.Config{},
+			client:     fakekarmadaclient.NewSimpleClientset(),
+			restMapper: meta.NewDefaultRESTMapper(nil),
+			stopCh:     make(chan struct{}),
 			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, 0)
 				controller, err := createController(restConfig, factory, restMapper)
 				return controller, factory, err
 			},
-			verify: func(clientConnector *fakekarmadaclient.Clientset, controller *Controller, controlPlaneClient client.Client) error {
+			verify: func(clientConnector *fakekarmadaclient.Clientset, controller *Controller) error {
 				var (
 					registryName, clusterName    = "test-registry", "test-cluster"
 					resourceVersion, apiEndpoint = "1000", "10.0.0.1"
@@ -249,15 +235,6 @@ func TestDeleteClusterEventHandler(t *testing.T) {
 					}
 				)
 
-				if err := clusterv1alpha1.Install(scheme.Scheme); err != nil {
-					return fmt.Errorf("failed to install scheme: %w", err)
-				}
-				if err := upsertClusterControllerRuntime(controlPlaneClient, labels, clusterName, apiEndpoint); err != nil {
-					return err
-				}
-				controlPlaneClientBuilder = func(*rest.Config) client.Client {
-					return controlPlaneClient
-				}
 				clusterDynamicClientBuilder = func(string, client.Client) (*util.DynamicClusterClient, error) {
 					return &util.DynamicClusterClient{
 						DynamicClientSet: fakedynamic.NewSimpleDynamicClient(scheme.Scheme),
@@ -265,32 +242,23 @@ func TestDeleteClusterEventHandler(t *testing.T) {
 					}, nil
 				}
 
-				// Wait a bit to allow for addCluster background
-				// thread to complete its execution.
 				if err := upsertCluster(clientConnector, labels, apiEndpoint, clusterName, resourceVersion); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
 
-				// Wait a bit to allow for addResourceRegistry background
-				// thread to complete its execution.
 				if err := upsertResourceRegistry(clientConnector, resourceSelectors, registryName, resourceVersion, []string{clusterName}); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
 
-				// Wait a bit to allow for deleteCluster on the controller
-				// background thread to complete its execution.
 				if err := deleteCluster(clientConnector, clusterName); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
@@ -311,12 +279,11 @@ func TestDeleteClusterEventHandler(t *testing.T) {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
 
-			// Add event handlers and start the informer to watch for changes.
-			controller.addAllEventHandlers()
+			// start the informer to watch for changes.
 			informer.Start(test.stopCh)
 			defer close(test.stopCh)
 
-			if err := test.verify(test.client, controller, test.controlPlaneClient); err != nil {
+			if err := test.verify(test.client, controller); err != nil {
 				t.Errorf("failed to verify controller, got: %v", err)
 			}
 		})
@@ -325,28 +292,26 @@ func TestDeleteClusterEventHandler(t *testing.T) {
 
 func TestAddResourceRegistryEventHandler(t *testing.T) {
 	tests := []struct {
-		name               string
-		restConfig         *rest.Config
-		client             *fakekarmadaclient.Clientset
-		controlPlaneClient client.WithWatch
-		restMapper         meta.RESTMapper
-		stopCh             chan struct{}
-		prep               func(*fakekarmadaclient.Clientset, *rest.Config, meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error)
-		verify             func(*fakekarmadaclient.Clientset, *Controller, client.Client) error
+		name       string
+		restConfig *rest.Config
+		client     *fakekarmadaclient.Clientset
+		restMapper meta.RESTMapper
+		stopCh     chan struct{}
+		prep       func(*fakekarmadaclient.Clientset, *rest.Config, meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error)
+		verify     func(*fakekarmadaclient.Clientset, *Controller) error
 	}{
 		{
-			name:               "AddAllEventHandlers_TriggerAddResourceRegistryEvent_ResourceRegistryAddedToWorkQueue",
-			restConfig:         &rest.Config{},
-			client:             fakekarmadaclient.NewSimpleClientset(),
-			controlPlaneClient: fake.NewFakeClient(),
-			restMapper:         meta.NewDefaultRESTMapper(nil),
-			stopCh:             make(chan struct{}),
+			name:       "AddAllEventHandlers_TriggerAddResourceRegistryEvent_ResourceRegistryAddedToWorkQueue",
+			restConfig: &rest.Config{},
+			client:     fakekarmadaclient.NewSimpleClientset(),
+			restMapper: meta.NewDefaultRESTMapper(nil),
+			stopCh:     make(chan struct{}),
 			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, 0)
 				controller, err := createController(restConfig, factory, restMapper)
 				return controller, factory, err
 			},
-			verify: func(clientConnector *fakekarmadaclient.Clientset, controller *Controller, controlPlaneClient client.Client) error {
+			verify: func(clientConnector *fakekarmadaclient.Clientset, controller *Controller) error {
 				var (
 					registryName, clusterName    = "test-registry", "test-cluster"
 					resourceVersion, apiEndpoint = "1000", "10.0.0.1"
@@ -359,9 +324,6 @@ func TestAddResourceRegistryEventHandler(t *testing.T) {
 					}
 				)
 
-				controlPlaneClientBuilder = func(*rest.Config) client.Client {
-					return controlPlaneClient
-				}
 				clusterDynamicClientBuilder = func(string, client.Client) (*util.DynamicClusterClient, error) {
 					return &util.DynamicClusterClient{
 						DynamicClientSet: fakedynamic.NewSimpleDynamicClient(scheme.Scheme),
@@ -369,22 +331,16 @@ func TestAddResourceRegistryEventHandler(t *testing.T) {
 					}, nil
 				}
 
-				// Wait a bit to allow addCluster background
-				// thread to complete its execution.
 				if err := upsertCluster(clientConnector, labels, apiEndpoint, clusterName, resourceVersion); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
 
-				// Wait a bit to allow addResourceRegistry background
-				// thread to complete its execution.
 				if err := upsertResourceRegistry(clientConnector, resourceSelectors, registryName, resourceVersion, []string{clusterName}); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
@@ -400,12 +356,11 @@ func TestAddResourceRegistryEventHandler(t *testing.T) {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
 
-			// Add event handlers and start the informer to watch for changes.
-			controller.addAllEventHandlers()
+			// start the informer to watch for changes.
 			informer.Start(test.stopCh)
 			defer close(test.stopCh)
 
-			if err := test.verify(test.client, controller, test.controlPlaneClient); err != nil {
+			if err := test.verify(test.client, controller); err != nil {
 				t.Errorf("failed to verify controller, got: %v", err)
 			}
 		})
@@ -455,32 +410,23 @@ func TestUpdateResourceRegistryEventHandler(t *testing.T) {
 					}
 				)
 
-				// Wait a bit to allow addCluster background thread
-				// to complete its execution.
 				if err := upsertCluster(clientConnector, labels, apiEndpoint, clusterName, resourceVersion); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
 
-				// Wait a bit to allow addResourceRegistry background thread
-				// to complete its execution.
 				if err := upsertResourceRegistry(clientConnector, resourceSelectors, registryName, resourceVersion, []string{clusterName}); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
 
-				// Wait a bit to allow updateResourceRegistry background thread
-				// to complete its execution.
 				if err := upsertResourceRegistry(clientConnector, resourceSelectorsUpdated, registryName, resourceVersion, []string{clusterName}); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
@@ -496,8 +442,7 @@ func TestUpdateResourceRegistryEventHandler(t *testing.T) {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
 
-			// Add event handlers and start the informer to watch for changes.
-			controller.addAllEventHandlers()
+			// start the informer to watch for changes.
 			informer.Start(test.stopCh)
 			defer close(test.stopCh)
 
@@ -510,28 +455,26 @@ func TestUpdateResourceRegistryEventHandler(t *testing.T) {
 
 func TestDeleteResourceRegistryEventHandler(t *testing.T) {
 	tests := []struct {
-		name               string
-		restConfig         *rest.Config
-		client             *fakekarmadaclient.Clientset
-		controlPlaneClient client.WithWatch
-		restMapper         meta.RESTMapper
-		stopCh             chan struct{}
-		prep               func(*fakekarmadaclient.Clientset, *rest.Config, meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error)
-		verify             func(*fakekarmadaclient.Clientset, *Controller, client.Client) error
+		name       string
+		restConfig *rest.Config
+		client     *fakekarmadaclient.Clientset
+		restMapper meta.RESTMapper
+		stopCh     chan struct{}
+		prep       func(*fakekarmadaclient.Clientset, *rest.Config, meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error)
+		verify     func(*fakekarmadaclient.Clientset, *Controller) error
 	}{
 		{
-			name:               "AddAllEventHandlers_TriggerDeleteResourceRegistryEvent_DeletedResourceRegistryAddedToWorkQueue",
-			restConfig:         &rest.Config{},
-			client:             fakekarmadaclient.NewSimpleClientset(),
-			controlPlaneClient: fake.NewFakeClient(),
-			restMapper:         meta.NewDefaultRESTMapper(nil),
-			stopCh:             make(chan struct{}),
+			name:       "AddAllEventHandlers_TriggerDeleteResourceRegistryEvent_DeletedResourceRegistryAddedToWorkQueue",
+			restConfig: &rest.Config{},
+			client:     fakekarmadaclient.NewSimpleClientset(),
+			restMapper: meta.NewDefaultRESTMapper(nil),
+			stopCh:     make(chan struct{}),
 			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, 0)
 				controller, err := createController(restConfig, factory, restMapper)
 				return controller, factory, err
 			},
-			verify: func(clientConnector *fakekarmadaclient.Clientset, controller *Controller, controlPlaneClient client.Client) error {
+			verify: func(clientConnector *fakekarmadaclient.Clientset, controller *Controller) error {
 				var (
 					registryName, clusterName    = "test-registry", "test-cluster"
 					resourceVersion, apiEndpoint = "1000", "10.0.0.1"
@@ -544,9 +487,6 @@ func TestDeleteResourceRegistryEventHandler(t *testing.T) {
 					}
 				)
 
-				controlPlaneClientBuilder = func(*rest.Config) client.Client {
-					return controlPlaneClient
-				}
 				clusterDynamicClientBuilder = func(string, client.Client) (*util.DynamicClusterClient, error) {
 					return &util.DynamicClusterClient{
 						DynamicClientSet: fakedynamic.NewSimpleDynamicClient(scheme.Scheme),
@@ -554,32 +494,23 @@ func TestDeleteResourceRegistryEventHandler(t *testing.T) {
 					}, nil
 				}
 
-				// Wait a bit to allow addCluster
-				// background thread to complete its execution.
 				if err := upsertCluster(clientConnector, labels, apiEndpoint, clusterName, resourceVersion); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
 
-				// Wait a bit to allow addResourceRegistry
-				// background thread to complete its execution.
 				if err := upsertResourceRegistry(clientConnector, resourceSelectors, registryName, resourceVersion, []string{clusterName}); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
 
-				// Wait a bit to allow deleteResourceRegistry
-				// background thread to complete its execution.
 				if err := deleteResourceRegistry(clientConnector, registryName); err != nil {
 					return err
 				}
-				time.Sleep(time.Millisecond * 250)
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
@@ -595,12 +526,11 @@ func TestDeleteResourceRegistryEventHandler(t *testing.T) {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
 
-			// Add event handlers and start the informer to watch for changes.
-			controller.addAllEventHandlers()
+			// start the informer to watch for changes.
 			informer.Start(test.stopCh)
 			defer close(test.stopCh)
 
-			if err := test.verify(test.client, controller, test.controlPlaneClient); err != nil {
+			if err := test.verify(test.client, controller); err != nil {
 				t.Errorf("failed to verify controller, got: %v", err)
 			}
 		})
@@ -657,45 +587,6 @@ func upsertCluster(client *fakekarmadaclient.Clientset, labels map[string]string
 	}
 
 	// Return any other errors encountered.
-	return err
-}
-
-// upsertClusterControllerRuntime creates or updates a Cluster resource using the controller-runtime
-// client. The function takes labels, API endpoint, and cluster name to define the Cluster.
-func upsertClusterControllerRuntime(controlPlaneClient client.Client, labels map[string]string, clusterName, apiEndpoint string) error {
-	cluster := &clusterv1alpha1.Cluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   clusterName,
-			Labels: labels,
-		},
-		Spec: clusterv1alpha1.ClusterSpec{
-			APIEndpoint: apiEndpoint,
-		},
-		Status: clusterv1alpha1.ClusterStatus{
-			Conditions: []metav1.Condition{
-				{
-					Type:   clusterv1alpha1.ClusterConditionReady,
-					Status: metav1.ConditionTrue,
-				},
-			},
-		},
-	}
-
-	// Try to create the Cluster.
-	err := controlPlaneClient.Create(context.TODO(), cluster)
-	if err == nil {
-		// Successfully created the Cluster.
-		return nil
-	}
-
-	// If the Cluster already exists, update it.
-	if apierrors.IsAlreadyExists(err) {
-		if updateErr := controlPlaneClient.Update(context.TODO(), cluster); updateErr != nil {
-			return fmt.Errorf("failed to update cluster: %v", updateErr)
-		}
-		return nil
-	}
-
 	return err
 }
 
