@@ -22,9 +22,12 @@ import (
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
+	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/certs"
+	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
 )
@@ -101,6 +104,26 @@ func runCATask(kc *certs.CertConfig) func(d workflow.RunData) error {
 		if kc.CAName != "" {
 			return fmt.Errorf("this function should only be used for CAs, but cert %s has CA %s", kc.Name, kc.CAName)
 		}
+
+		customCertConfig := data.CustomCertificate()
+		if kc.Name == constants.CaCertAndKeyName && customCertConfig.APIServerCACert != nil {
+			secretRef := customCertConfig.APIServerCACert
+			klog.V(4).InfoS("[certs] Loading custom CA certificate", "secret", secretRef.Name, "namespace", secretRef.Namespace)
+
+			certData, keyData, err := loadCACertFromSecret(data.RemoteClient(), secretRef)
+			if err != nil {
+				return fmt.Errorf("failed to load custom CA certificate: %w", err)
+			}
+
+			klog.V(2).InfoS("[certs] Successfully loaded custom CA certificate", "secret", secretRef.Name)
+
+			customKarmadaCert := certs.NewKarmadaCert(kc.Name, kc.CAName, certData, keyData)
+
+			data.AddCert(customKarmadaCert)
+			klog.V(2).InfoS("[certs] Successfully added custom CA certificate to cert store", "certName", kc.Name)
+			return nil
+		}
+
 		klog.V(4).InfoS("[certs] Creating a new certificate authority", "certName", kc.Name)
 
 		cert, err := certs.NewCertificateAuthority(kc)
@@ -113,6 +136,22 @@ func runCATask(kc *certs.CertConfig) func(d workflow.RunData) error {
 		data.AddCert(cert)
 		return nil
 	}
+}
+
+func loadCACertFromSecret(client clientset.Interface, ref *operatorv1alpha1.LocalSecretReference) ([]byte, []byte, error) {
+	secret, err := client.CoreV1().Secrets(ref.Namespace).Get(context.TODO(), ref.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to retrieve secret %s/%s: %w", ref.Namespace, ref.Name, err)
+	}
+
+	certData := secret.Data[constants.TLSCertDataKey]
+	keyData := secret.Data[constants.TLSPrivateKeyDataKey]
+
+	if len(certData) == 0 || len(keyData) == 0 {
+		return nil, nil, fmt.Errorf("secret %s/%s is missing required keys: %s and %s", ref.Namespace, ref.Name, constants.TLSCertDataKey, constants.TLSPrivateKeyDataKey)
+	}
+
+	return certData, keyData, nil
 }
 
 func runCertTask(cc, caCert *certs.CertConfig) func(d workflow.RunData) error {
