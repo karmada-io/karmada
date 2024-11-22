@@ -124,12 +124,12 @@ func run(ctx context.Context, o *options.Options, registryOptions ...Option) err
 	}
 
 	server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-search-informers", func(context genericapiserver.PostStartHookContext) error {
-		config.GenericConfig.SharedInformerFactory.Start(context.StopCh)
+		config.GenericConfig.SharedInformerFactory.Start(context.Done())
 		return nil
 	})
 
 	server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-informers", func(context genericapiserver.PostStartHookContext) error {
-		config.ExtraConfig.KarmadaSharedInformerFactory.Start(context.StopCh)
+		config.ExtraConfig.KarmadaSharedInformerFactory.Start(context.Done())
 		return nil
 	})
 
@@ -138,14 +138,14 @@ func run(ctx context.Context, o *options.Options, registryOptions ...Option) err
 	if config.ExtraConfig.Controller != nil {
 		server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-search-controller", func(context genericapiserver.PostStartHookContext) error {
 			// start ResourceRegistry controller
-			config.ExtraConfig.Controller.Start(context.StopCh)
+			config.ExtraConfig.Controller.Start(context.Done())
 			return nil
 		})
 	}
 
 	if config.ExtraConfig.ProxyController != nil {
 		server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-proxy-controller", func(context genericapiserver.PostStartHookContext) error {
-			config.ExtraConfig.ProxyController.Start(context.StopCh)
+			config.ExtraConfig.ProxyController.Start(context.Done())
 			return nil
 		})
 
@@ -155,7 +155,7 @@ func run(ctx context.Context, o *options.Options, registryOptions ...Option) err
 		})
 	}
 
-	return server.GenericAPIServer.PrepareRun().Run(ctx.Done())
+	return server.GenericAPIServer.PrepareRun().RunWithContext(ctx)
 }
 
 // `config` returns config for the api server given Options
