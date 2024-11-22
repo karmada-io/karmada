@@ -130,11 +130,11 @@ func (o *Options) Run(ctx context.Context) error {
 	}
 
 	server.GenericAPIServer.AddPostStartHookOrDie("start-aggregated-server-informers", func(context genericapiserver.PostStartHookContext) error {
-		config.GenericConfig.SharedInformerFactory.Start(context.StopCh)
+		config.GenericConfig.SharedInformerFactory.Start(context.Done())
 		return nil
 	})
 
-	return server.GenericAPIServer.PrepareRun().Run(ctx.Done())
+	return server.GenericAPIServer.PrepareRun().RunWithContext(ctx)
 }
 
 // Config returns config for the api server given Options

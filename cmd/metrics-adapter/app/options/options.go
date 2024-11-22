@@ -114,9 +114,9 @@ func (o *Options) Config(stopCh <-chan struct{}) (*metricsadapter.MetricsServer,
 
 	err = server.GenericAPIServer.AddPostStartHook("start-karmada-informers", func(context genericapiserver.PostStartHookContext) error {
 		kubeFactory.Core().V1().Secrets().Informer()
-		kubeFactory.Start(context.StopCh)
-		kubeFactory.WaitForCacheSync(context.StopCh)
-		factory.Start(context.StopCh)
+		kubeFactory.Start(context.Done())
+		kubeFactory.WaitForCacheSync(context.Done())
+		factory.Start(context.Done())
 		return nil
 	})
 	if err != nil {
