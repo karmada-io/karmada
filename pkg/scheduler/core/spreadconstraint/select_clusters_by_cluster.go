@@ -30,9 +30,9 @@ func selectBestClustersByCluster(spreadConstraint policyv1alpha1.SpreadConstrain
 		return nil, fmt.Errorf("the number of feasible clusters is less than spreadConstraint.MinGroups")
 	}
 
-	needCnt := spreadConstraint.MaxGroups
-	if totalClusterCnt < spreadConstraint.MaxGroups {
-		needCnt = totalClusterCnt
+	needCnt := totalClusterCnt
+	if spreadConstraint.MaxGroups != 0 && spreadConstraint.MaxGroups < totalClusterCnt {
+		needCnt = spreadConstraint.MaxGroups
 	}
 
 	var clusterInfos []ClusterDetailInfo
