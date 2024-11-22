@@ -29,6 +29,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -190,7 +191,7 @@ func (c *ResourceBindingController) newOverridePolicyFunc() handler.MapFunc {
 		}
 
 		bindingList := &workv1alpha2.ResourceBindingList{}
-		if err := c.Client.List(ctx, bindingList); err != nil {
+		if err := c.Client.List(ctx, bindingList, &client.ListOptions{UnsafeDisableDeepCopy: ptr.To(true)}); err != nil {
 			klog.Errorf("Failed to list resourceBindings, error: %v", err)
 			return nil
 		}
