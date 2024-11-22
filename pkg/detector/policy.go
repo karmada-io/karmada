@@ -107,19 +107,13 @@ func (d *ResourceDetector) propagateResource(object *unstructured.Unstructured,
 
 func (d *ResourceDetector) getAndApplyPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey,
 	resourceChangeByKarmada bool, policyNamespace, policyName, claimedID string) error {
-	policyObject, err := d.propagationPolicyLister.ByNamespace(policyNamespace).Get(policyName)
+	policyObject, err := d.propagationPolicyLister.PropagationPolicies(policyNamespace).Get(policyName)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("PropagationPolicy(%s/%s) has been removed.", policyNamespace, policyName)
 			return d.HandlePropagationPolicyDeletion(claimedID)
 		}
 		klog.Errorf("Failed to get claimed policy(%s/%s),: %v", policyNamespace, policyName, err)
-		return err
-	}
-
-	matchedPropagationPolicy := &policyv1alpha1.PropagationPolicy{}
-	if err = helper.ConvertToTypedObject(policyObject, matchedPropagationPolicy); err != nil {
-		klog.Errorf("Failed to convert PropagationPolicy from unstructured object: %v", err)
 		return err
 	}
 
@@ -130,17 +124,17 @@ func (d *ResourceDetector) getAndApplyPolicy(object *unstructured.Unstructured, 
 	// to the member clusters, the detector will listen two resource creation events:
 	// Ingress(networking.k8s.io/v1) and Ingress(extensions/v1beta1). In order to prevent
 	// Ingress(extensions/v1beta1) from being propagated, we need to ignore it.
-	if !util.ResourceMatchSelectors(object, matchedPropagationPolicy.Spec.ResourceSelectors...) {
+	if !util.ResourceMatchSelectors(object, policyObject.Spec.ResourceSelectors...) {
 		return nil
 	}
 
 	// return err when dependents not present, that we can retry at next reconcile.
-	if present, err := helper.IsDependentOverridesPresent(d.Client, matchedPropagationPolicy); err != nil || !present {
+	if present, err := helper.IsDependentOverridesPresent(d.Client, policyObject); err != nil || !present {
 		klog.Infof("Waiting for dependent overrides present for policy(%s/%s)", policyNamespace, policyName)
 		return fmt.Errorf("waiting for dependent overrides")
 	}
 
-	return d.ApplyPolicy(object, objectKey, resourceChangeByKarmada, matchedPropagationPolicy)
+	return d.ApplyPolicy(object, objectKey, resourceChangeByKarmada, policyObject)
 }
 
 func (d *ResourceDetector) getAndApplyClusterPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey,
@@ -156,12 +150,6 @@ func (d *ResourceDetector) getAndApplyClusterPolicy(object *unstructured.Unstruc
 		return err
 	}
 
-	matchedClusterPropagationPolicy := &policyv1alpha1.ClusterPropagationPolicy{}
-	if err = helper.ConvertToTypedObject(policyObject, matchedClusterPropagationPolicy); err != nil {
-		klog.Errorf("Failed to convert ClusterPropagationPolicy from unstructured object: %v", err)
-		return err
-	}
-
 	// Some resources are available in more than one group in the same kubernetes version.
 	// Therefore, the following scenarios occurs:
 	// In v1.21 kubernetes cluster, Ingress are available in both networking.k8s.io and extensions groups.
@@ -169,17 +157,17 @@ func (d *ResourceDetector) getAndApplyClusterPolicy(object *unstructured.Unstruc
 	// propagate it to the member clusters, the detector will listen two resource creation events:
 	// Ingress(networking.k8s.io/v1) and Ingress(extensions/v1beta1). In order to prevent
 	// Ingress(extensions/v1beta1) from being propagated, we need to ignore it.
-	if !util.ResourceMatchSelectors(object, matchedClusterPropagationPolicy.Spec.ResourceSelectors...) {
+	if !util.ResourceMatchSelectors(object, policyObject.Spec.ResourceSelectors...) {
 		return nil
 	}
 
 	// return err when dependents not present, that we can retry at next reconcile.
-	if present, err := helper.IsDependentClusterOverridesPresent(d.Client, matchedClusterPropagationPolicy); err != nil || !present {
+	if present, err := helper.IsDependentClusterOverridesPresent(d.Client, policyObject); err != nil || !present {
 		klog.Infof("Waiting for dependent overrides present for policy(%s)", policyName)
 		return fmt.Errorf("waiting for dependent overrides")
 	}
 
-	return d.ApplyClusterPolicy(object, objectKey, resourceChangeByKarmada, matchedClusterPropagationPolicy)
+	return d.ApplyClusterPolicy(object, objectKey, resourceChangeByKarmada, policyObject)
 }
 
 func (d *ResourceDetector) cleanPPUnmatchedRBs(policyID, policyNamespace, policyName string, selectors []policyv1alpha1.ResourceSelector) error {
