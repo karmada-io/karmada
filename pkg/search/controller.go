@@ -350,9 +350,6 @@ func (c *Controller) getRegistryBackendHandler(cluster string, matchedRegistries
 	return handler, nil
 }
 
-var controlPlaneClientBuilder = func(restConfig *rest.Config) client.Client {
-	return gclient.NewForConfigOrDie(restConfig)
-}
 var clusterDynamicClientBuilder = func(cluster string, controlPlaneClient client.Client) (*util.DynamicClusterClient, error) {
 	return util.NewClusterDynamicClientSet(cluster, controlPlaneClient)
 }
@@ -394,7 +391,7 @@ func (c *Controller) doCacheCluster(cluster string) error {
 	// STEP2: added/updated cluster, builds an informer manager for a specific cluster.
 	if !c.InformerManager.IsManagerExist(cluster) {
 		klog.Info("Try to build informer manager for cluster ", cluster)
-		controlPlaneClient := controlPlaneClientBuilder(c.restConfig)
+		controlPlaneClient := gclient.NewForConfigOrDie(c.restConfig)
 
 		clusterDynamicClient, err := clusterDynamicClientBuilder(cluster, controlPlaneClient)
 		if err != nil {
