@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -36,6 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/client-go/dynamic"
 	fakedynamic "k8s.io/client-go/dynamic/fake"
@@ -418,6 +420,15 @@ func TestMultiClusterCache_Get(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			err = wait.PollUntilContextCancel(tt.args.ctx, 100*time.Millisecond, true,
+				func(_ context.Context) (bool, error) {
+					if checkErr := cache.ReadinessCheck(); checkErr == nil {
+						return true, nil
+					}
+					return false, nil
+				})
+			assert.NoError(t, err, "Deadline exceeded while waiting for storage readiness")
+
 			obj, err := cache.Get(tt.args.ctx, tt.args.gvr, tt.args.name, tt.args.options)
 			if !tt.want.errAssert(err) {
 				t.Errorf("Unexpected error: %v", err)
