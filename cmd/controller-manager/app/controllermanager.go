@@ -51,6 +51,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/clusterdiscovery/clusterapi"
 	"github.com/karmada-io/karmada/pkg/controllers/applicationfailover"
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
+	"github.com/karmada-io/karmada/pkg/controllers/certificate/approver"
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	controllerscontext "github.com/karmada-io/karmada/pkg/controllers/context"
 	"github.com/karmada-io/karmada/pkg/controllers/cronfederatedhpa"
@@ -209,7 +210,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 var controllers = make(controllerscontext.Initializers)
 
 // controllersDisabledByDefault is the set of controllers which is disabled by default
-var controllersDisabledByDefault = sets.New("hpaScaleTargetMarker", "deploymentReplicasSyncer")
+var controllersDisabledByDefault = sets.New("hpaScaleTargetMarker", "deploymentReplicasSyncer", "agentcsrapproving")
 
 func init() {
 	controllers["cluster"] = startClusterController
@@ -236,6 +237,7 @@ func init() {
 	controllers["endpointsliceDispatch"] = startEndpointSliceDispatchController
 	controllers["remedy"] = startRemedyController
 	controllers["workloadRebalancer"] = startWorkloadRebalancerController
+	controllers["agentcsrapproving"] = startAgentCSRApprovingController
 }
 
 func startClusterController(ctx controllerscontext.Context) (enabled bool, err error) {
@@ -720,6 +722,15 @@ func startWorkloadRebalancerController(ctx controllerscontext.Context) (enabled 
 		return false, err
 	}
 
+	return true, nil
+}
+
+func startAgentCSRApprovingController(ctx controllerscontext.Context) (enabled bool, err error) {
+	agentCSRApprover := approver.AgentCSRApprovingController{Client: ctx.KubeClientSet}
+	err = agentCSRApprover.SetupWithManager(ctx.Mgr)
+	if err != nil {
+		return false, err
+	}
 	return true, nil
 }
 
