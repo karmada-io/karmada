@@ -18,17 +18,11 @@ package util
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
 	"encoding/base64"
-	"encoding/pem"
 	"errors"
 	"fmt"
-	"math/big"
 	"strings"
 	"testing"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,6 +32,7 @@ import (
 	coretesting "k8s.io/client-go/testing"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
+	testingutil "github.com/karmada-io/karmada/pkg/util/testing"
 )
 
 func TestBuildClientFromSecretRef(t *testing.T) {
@@ -120,7 +115,7 @@ users:
 			},
 			prep: func(client clientset.Interface) error {
 				// Generate kubeconfig bytes.
-				caCert, err := generateTestCACertificate()
+				caCert, _, err := testingutil.GenerateTestCACertificate()
 				if err != nil {
 					return fmt.Errorf("failed to generate CA certificate: %v", err)
 				}
@@ -209,44 +204,4 @@ func TestIsInCluster(t *testing.T) {
 			}
 		})
 	}
-}
-
-// generateTestCACertificate returns a self-signed CA certificate as a PEM string.
-func generateTestCACertificate() (string, error) {
-	// Generate a new RSA private key
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return "", err
-	}
-
-	// Set the certificate parameters.
-	notBefore := time.Now()
-	notAfter := notBefore.Add(365 * 24 * time.Hour)
-
-	serialNumber, err := rand.Int(rand.Reader, big.NewInt(1<<62))
-	if err != nil {
-		return "", err
-	}
-
-	cert := &x509.Certificate{
-		SerialNumber:          serialNumber,
-		NotBefore:             notBefore,
-		NotAfter:              notAfter,
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
-		BasicConstraintsValid: true,
-		IsCA:                  true,
-	}
-
-	// Create the certificate.
-	certDER, err := x509.CreateCertificate(rand.Reader, cert, cert, &priv.PublicKey, priv)
-	if err != nil {
-		return "", err
-	}
-
-	// PEM encode the certificate.
-	certPEM := &pem.Block{Type: "CERTIFICATE", Bytes: certDER}
-	certPEMData := pem.EncodeToMemory(certPEM)
-
-	return string(certPEMData), nil
 }
