@@ -44,7 +44,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	utilhelper "github.com/karmada-io/karmada/pkg/util/helper"
-	testing3 "github.com/karmada-io/karmada/pkg/util/testing"
+	testingutil "github.com/karmada-io/karmada/pkg/util/testing"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -93,7 +93,7 @@ func makeFakeRBCByResource(rs *workv1alpha2.ObjectReference) (*ResourceBindingCo
 	return &ResourceBindingController{
 		Client:          c,
 		RESTMapper:      helper.NewGroupRESTMapper(rs.Kind, meta.RESTScopeNamespace),
-		InformerManager: testing3.NewSingleClusterInformerManagerByRS(src, obj),
+		InformerManager: testingutil.NewSingleClusterInformerManagerByRS(src, obj),
 		DynamicClient:   tempDyClient,
 		EventRecorder:   record.NewFakeRecorder(1024),
 	}, nil
