@@ -618,7 +618,7 @@ func TestAssembleWorkStatus(t *testing.T) {
 									Name:      "test-deployment",
 								},
 								Status: &runtime.RawExtension{Raw: statusRaw},
-								Health: "Healthy",
+								Health: workv1alpha1.ResourceHealthy,
 							},
 						},
 					}
@@ -632,6 +632,47 @@ func TestAssembleWorkStatus(t *testing.T) {
 					Status:      &runtime.RawExtension{Raw: statusRaw},
 					Applied:     true,
 					Health:      workv1alpha2.ResourceHealthy,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "work not applied with unhealthy status",
+			works: []workv1alpha1.Work{
+				func() workv1alpha1.Work {
+					w := createWork("test-work", baseManifest)
+					w.Status = workv1alpha1.WorkStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   workv1alpha1.WorkApplied,
+								Status: metav1.ConditionTrue,
+							},
+						},
+						ManifestStatuses: []workv1alpha1.ManifestStatus{
+							{
+								Identifier: workv1alpha1.ResourceIdentifier{
+									Ordinal:   0,
+									Group:     "apps",
+									Version:   "v1",
+									Kind:      "Deployment",
+									Namespace: "test-ns",
+									Name:      "test-deployment",
+								},
+								Status: &runtime.RawExtension{Raw: statusRaw},
+								Health: workv1alpha1.ResourceUnhealthy,
+							},
+						},
+					}
+					return w
+				}(),
+			},
+			objRef: baseObjRef,
+			expectedItems: []workv1alpha2.AggregatedStatusItem{
+				{
+					ClusterName:    "member1",
+					Applied:        false,
+					AppliedMessage: "Failed to apply",
+					Health:         workv1alpha2.ResourceUnhealthy,
 				},
 			},
 			wantErr: false,
@@ -749,6 +790,7 @@ func TestWorksFullyApplied(t *testing.T) {
 					{
 						ClusterName: "member1",
 						Applied:     true,
+						Health:      workv1alpha2.ResourceHealthy,
 					},
 				},
 				targetClusters: nil,
@@ -770,6 +812,7 @@ func TestWorksFullyApplied(t *testing.T) {
 					{
 						ClusterName: "member1",
 						Applied:     true,
+						Health:      workv1alpha2.ResourceHealthy,
 					},
 				},
 				targetClusters: sets.New("member1", "member2"),
@@ -783,10 +826,12 @@ func TestWorksFullyApplied(t *testing.T) {
 					{
 						ClusterName: "member1",
 						Applied:     true,
+						Health:      workv1alpha2.ResourceHealthy,
 					},
 					{
 						ClusterName: "member2",
 						Applied:     true,
+						Health:      workv1alpha2.ResourceHealthy,
 					},
 				},
 				targetClusters: sets.New("member1", "member2"),
@@ -800,6 +845,7 @@ func TestWorksFullyApplied(t *testing.T) {
 					{
 						ClusterName: "member1",
 						Applied:     true,
+						Health:      workv1alpha2.ResourceHealthy,
 					},
 					{
 						ClusterName: "member2",
@@ -817,6 +863,7 @@ func TestWorksFullyApplied(t *testing.T) {
 					{
 						ClusterName: "member1",
 						Applied:     true,
+						Health:      workv1alpha2.ResourceHealthy,
 					},
 				},
 				targetClusters: sets.New("member2"),

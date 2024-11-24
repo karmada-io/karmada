@@ -283,6 +283,10 @@ func worksFullyApplied(aggregatedStatuses []workv1alpha2.AggregatedStatusItem, t
 			return false
 		}
 
+		if aggregatedStatusItem.Health != workv1alpha2.ResourceHealthy {
+			return false
+		}
+
 		if !targetClusters.Has(aggregatedStatusItem.ClusterName) {
 			return false
 		}
