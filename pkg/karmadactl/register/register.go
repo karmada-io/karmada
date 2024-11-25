@@ -924,7 +924,7 @@ func (o *CommandRegisterOption) constructKubeConfig(bootstrapClient *kubeclient.
 		}
 
 		klog.V(1).Infof(fmt.Sprintf("Waiting for the client certificate of csr %s to be issued", csrName))
-		klog.V(1).Infof("Approve the CSR %s manually by executing `kubectl certificate approve %s` on the control plane", csrName, csrName)
+		klog.V(1).Infof("Approve the CSR %s manually by executing `kubectl certificate approve %s` on the control plane\nOr enable the agentcsrapproving controller of karmada-controller-manager to automatically approve agent CSR.", csrName, csrName)
 		return false, nil
 	})
 	if err != nil {

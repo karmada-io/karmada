@@ -311,7 +311,7 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 					fmt.Sprintf("--cluster-name=%s", options.ClusterName),
 					fmt.Sprintf("--cluster-signing-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
 					fmt.Sprintf("--cluster-signing-key-file=%s/%s.key", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
-					"--controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrapproving,csrcleaner,csrsigning,clusterrole-aggregation",
+					"--controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrcleaner,csrsigning,clusterrole-aggregation",
 					"--kubeconfig=/etc/kubeconfig",
 					"--leader-elect=true",
 					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
