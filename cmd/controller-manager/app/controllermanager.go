@@ -210,7 +210,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 var controllers = make(controllerscontext.Initializers)
 
 // controllersDisabledByDefault is the set of controllers which is disabled by default
-var controllersDisabledByDefault = sets.New("hpaScaleTargetMarker", "deploymentReplicasSyncer", "agentcsrapproving")
+var controllersDisabledByDefault = sets.New("hpaScaleTargetMarker", "deploymentReplicasSyncer")
 
 func init() {
 	controllers["cluster"] = startClusterController
