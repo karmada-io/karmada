@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -172,9 +173,15 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 	if needEviction || tolerationTime == 0 {
 		// update final result to evict the target cluster
 		if features.FeatureGate.Enabled(features.GracefulEviction) {
-			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager), workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
+			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
+				workv1alpha2.WithPurgeMode(policyv1alpha1.Graciously),
+				workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager),
+				workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
 		} else {
-			binding.Spec.RemoveCluster(cluster)
+			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
+				workv1alpha2.WithPurgeMode(policyv1alpha1.Immediately),
+				workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager),
+				workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
 		}
 		if err = tc.Update(context.TODO(), binding); err != nil {
 			helper.EmitClusterEvictionEventForResourceBinding(binding, cluster, tc.EventRecorder, err)
@@ -228,9 +235,15 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 	if needEviction || tolerationTime == 0 {
 		// update final result to evict the target cluster
 		if features.FeatureGate.Enabled(features.GracefulEviction) {
-			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager), workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
+			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
+				workv1alpha2.WithPurgeMode(policyv1alpha1.Graciously),
+				workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager),
+				workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
 		} else {
-			binding.Spec.RemoveCluster(cluster)
+			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
+				workv1alpha2.WithPurgeMode(policyv1alpha1.Immediately),
+				workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager),
+				workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
 		}
 		if err = tc.Update(context.TODO(), binding); err != nil {
 			helper.EmitClusterEvictionEventForClusterResourceBinding(binding, cluster, tc.EventRecorder, err)
