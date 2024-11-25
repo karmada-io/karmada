@@ -47,7 +47,7 @@ jobs:
           export REGISTRY="docker.io/karmada"
           make image-${{ matrix.target }}
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.29.0
         env:
           ACTIONS_RUNTIME_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
@@ -58,7 +58,7 @@ jobs:
           vuln-type: 'os,library'
           output: '${{ matrix.target }}:${{ matrix.karmada-version }}.trivy-results.sarif'
       - name: display scan results
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.29.0
         env:
           TRIVY_SKIP_DB_UPDATE: true # Avoid updating the vulnerability db as it was cached in the previous step.
         with:

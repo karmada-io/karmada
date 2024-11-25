@@ -167,7 +167,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Generate sbom for karmada file system
-      uses: aquasecurity/trivy-action@0.28.0
+      uses: aquasecurity/trivy-action@0.29.0
       with:
         scan-type: 'fs'
         format: 'spdx'
