@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -134,7 +135,7 @@ func TestAddClusterEventHandler(t *testing.T) {
 			restMapper: meta.NewDefaultRESTMapper(nil),
 			stopCh:     make(chan struct{}),
 			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
-				factory := informerfactory.NewSharedInformerFactory(clientConnector, 0)
+				factory := informerfactory.NewSharedInformerFactory(clientConnector, time.Second)
 				controller, err := createController(restConfig, factory, restMapper)
 				return controller, factory, err
 			},
@@ -162,6 +163,7 @@ func TestAddClusterEventHandler(t *testing.T) {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
 			informer.Start(test.stopCh)
+			defer informer.Shutdown()
 			defer close(test.stopCh)
 
 			if err := test.verify(test.client, controller); err != nil {
@@ -188,7 +190,7 @@ func TestUpdateClusterEventHandler(t *testing.T) {
 			restMapper: meta.NewDefaultRESTMapper(nil),
 			stopCh:     make(chan struct{}),
 			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
-				factory := informerfactory.NewSharedInformerFactory(clientConnector, 0)
+				factory := informerfactory.NewSharedInformerFactory(clientConnector, time.Second)
 				controller, err := createController(restConfig, factory, restMapper)
 				return controller, factory, err
 			},
@@ -223,6 +225,7 @@ func TestUpdateClusterEventHandler(t *testing.T) {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
 			informer.Start(test.stopCh)
+			defer informer.Shutdown()
 			defer close(test.stopCh)
 
 			if err := test.verify(test.client, controller); err != nil {
@@ -249,7 +252,7 @@ func TestDeleteClusterEventHandler(t *testing.T) {
 			restMapper: restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			stopCh:     make(chan struct{}),
 			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
-				factory := informerfactory.NewSharedInformerFactory(clientConnector, 0)
+				factory := informerfactory.NewSharedInformerFactory(clientConnector, time.Second)
 				controller, err := createController(restConfig, factory, restMapper)
 				return controller, factory, err
 			},
@@ -310,6 +313,7 @@ func TestDeleteClusterEventHandler(t *testing.T) {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
 			informer.Start(test.stopCh)
+			defer informer.Shutdown()
 			defer close(test.stopCh)
 
 			if err := test.verify(test.client, controller); err != nil {
@@ -336,7 +340,7 @@ func TestAddResourceRegistryEventHandler(t *testing.T) {
 			restMapper: restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			stopCh:     make(chan struct{}),
 			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
-				factory := informerfactory.NewSharedInformerFactory(clientConnector, 0)
+				factory := informerfactory.NewSharedInformerFactory(clientConnector, time.Second)
 				controller, err := createController(restConfig, factory, restMapper)
 				return controller, factory, err
 			},
@@ -385,6 +389,7 @@ func TestAddResourceRegistryEventHandler(t *testing.T) {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
 			informer.Start(test.stopCh)
+			defer informer.Shutdown()
 			defer close(test.stopCh)
 
 			if err := test.verify(test.client, controller); err != nil {
@@ -411,7 +416,7 @@ func TestUpdateResourceRegistryEventHandler(t *testing.T) {
 			restMapper: restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			stopCh:     make(chan struct{}),
 			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
-				factory := informerfactory.NewSharedInformerFactory(clientConnector, 0)
+				factory := informerfactory.NewSharedInformerFactory(clientConnector, time.Second)
 				controller, err := createController(restConfig, factory, restMapper)
 				return controller, factory, err
 			},
@@ -476,6 +481,7 @@ func TestUpdateResourceRegistryEventHandler(t *testing.T) {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
 			informer.Start(test.stopCh)
+			defer informer.Shutdown()
 			defer close(test.stopCh)
 
 			if err := test.verify(test.client, controller); err != nil {
@@ -502,7 +508,7 @@ func TestDeleteResourceRegistryEventHandler(t *testing.T) {
 			restMapper: restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			stopCh:     make(chan struct{}),
 			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
-				factory := informerfactory.NewSharedInformerFactory(clientConnector, 0)
+				factory := informerfactory.NewSharedInformerFactory(clientConnector, time.Second)
 				controller, err := createController(restConfig, factory, restMapper)
 				return controller, factory, err
 			},
@@ -558,6 +564,7 @@ func TestDeleteResourceRegistryEventHandler(t *testing.T) {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
 			informer.Start(test.stopCh)
+			defer informer.Shutdown()
 			defer close(test.stopCh)
 
 			if err := test.verify(test.client, controller); err != nil {
@@ -595,6 +602,26 @@ func upsertCluster(client *fakekarmadaclient.Clientset, labels map[string]string
 				{
 					Type:   clusterv1alpha1.ClusterConditionReady,
 					Status: metav1.ConditionTrue,
+				},
+			},
+			APIEnablements: []clusterv1alpha1.APIEnablement{
+				{
+					GroupVersion: "apps/v1",
+					Resources: []clusterv1alpha1.APIResource{
+						{
+							Name: "deployments",
+							Kind: "Deployment",
+						},
+					},
+				},
+				{
+					GroupVersion: "v1",
+					Resources: []clusterv1alpha1.APIResource{
+						{
+							Name: "pods",
+							Kind: "Pod",
+						},
+					},
 				},
 			},
 		},
