@@ -157,8 +157,11 @@ func (c *RBApplicationFailoverController) evictBinding(binding *workv1alpha2.Res
 		switch binding.Spec.Failover.Application.PurgeMode {
 		case policyv1alpha1.Graciously:
 			if features.FeatureGate.Enabled(features.GracefulEviction) {
-				binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(workv1alpha2.WithProducer(RBApplicationFailoverControllerName),
-					workv1alpha2.WithReason(workv1alpha2.EvictionReasonApplicationFailure), workv1alpha2.WithGracePeriodSeconds(binding.Spec.Failover.Application.GracePeriodSeconds)))
+				binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
+					workv1alpha2.WithPurgeMode(policyv1alpha1.Graciously),
+					workv1alpha2.WithProducer(RBApplicationFailoverControllerName),
+					workv1alpha2.WithReason(workv1alpha2.EvictionReasonApplicationFailure),
+					workv1alpha2.WithGracePeriodSeconds(binding.Spec.Failover.Application.GracePeriodSeconds)))
 			} else {
 				err := fmt.Errorf("GracefulEviction featureGate must be enabled when purgeMode is %s", policyv1alpha1.Graciously)
 				klog.Error(err)
@@ -166,15 +169,21 @@ func (c *RBApplicationFailoverController) evictBinding(binding *workv1alpha2.Res
 			}
 		case policyv1alpha1.Never:
 			if features.FeatureGate.Enabled(features.GracefulEviction) {
-				binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(workv1alpha2.WithProducer(RBApplicationFailoverControllerName),
-					workv1alpha2.WithReason(workv1alpha2.EvictionReasonApplicationFailure), workv1alpha2.WithSuppressDeletion(ptr.To[bool](true))))
+				binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
+					workv1alpha2.WithPurgeMode(policyv1alpha1.Never),
+					workv1alpha2.WithProducer(RBApplicationFailoverControllerName),
+					workv1alpha2.WithReason(workv1alpha2.EvictionReasonApplicationFailure),
+					workv1alpha2.WithSuppressDeletion(ptr.To[bool](true))))
 			} else {
 				err := fmt.Errorf("GracefulEviction featureGate must be enabled when purgeMode is %s", policyv1alpha1.Never)
 				klog.Error(err)
 				return err
 			}
 		case policyv1alpha1.Immediately:
-			binding.Spec.RemoveCluster(cluster)
+			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
+				workv1alpha2.WithPurgeMode(policyv1alpha1.Immediately),
+				workv1alpha2.WithProducer(RBApplicationFailoverControllerName),
+				workv1alpha2.WithReason(workv1alpha2.EvictionReasonApplicationFailure)))
 		}
 	}
 
