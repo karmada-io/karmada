@@ -47,7 +47,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
-	tokenutil "github.com/karmada-io/karmada/pkg/karmadactl/util/bootstraptoken"
 )
 
 const (
@@ -126,38 +125,6 @@ func InitKarmadaResources(dir, caBase64, systemNamespace string) error {
 	}
 
 	return nil
-}
-
-// InitKarmadaBootstrapToken create initial bootstrap token
-func InitKarmadaBootstrapToken(dir string) (string, error) {
-	restConfig, err := apiclient.RestConfig("", filepath.Join(dir, options.KarmadaKubeConfigName))
-	if err != nil {
-		return "", err
-	}
-
-	clientSet, err := apiclient.NewClientSet(restConfig)
-	if err != nil {
-		return "", err
-	}
-	// Create initial bootstrap token
-	klog.Info("Initialize karmada bootstrap token")
-	bootstrapToken, err := tokenutil.GenerateRandomBootstrapToken(&metav1.Duration{Duration: tokenutil.DefaultTokenDuration}, "", tokenutil.DefaultGroups, tokenutil.DefaultUsages)
-	if err != nil {
-		return "", err
-	}
-
-	if err := tokenutil.CreateNewToken(clientSet, bootstrapToken); err != nil {
-		return "", err
-	}
-
-	tokenStr := bootstrapToken.Token.ID + "." + bootstrapToken.Token.Secret
-
-	registerCommand, err := tokenutil.GenerateRegisterCommand(filepath.Join(dir, options.KarmadaKubeConfigName), "", tokenStr, "")
-	if err != nil {
-		return "", fmt.Errorf("failed to get register command, err: %w", err)
-	}
-
-	return registerCommand, nil
 }
 
 func createExtraResources(clientSet *kubernetes.Clientset, dir string) error {
