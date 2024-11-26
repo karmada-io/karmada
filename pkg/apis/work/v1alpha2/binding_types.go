@@ -339,6 +339,10 @@ type ResourceBindingStatus struct {
 	// AggregatedStatus represents status list of the resource running in each member cluster.
 	// +optional
 	AggregatedStatus []AggregatedStatusItem `json:"aggregatedStatus,omitempty"`
+
+	// FailoverHistory represents the history of the failover of the resource
+	// +optional
+	FailoverHistory []FailoverHistoryItem `json:"failoverHistory,omitempty"`
 }
 
 // AggregatedStatusItem represents status of the resource running in a member cluster.
@@ -368,6 +372,41 @@ type AggregatedStatusItem struct {
 	// +optional
 	Health ResourceHealth `json:"health,omitempty"`
 }
+
+// FailoverHistoryItem represents either a failover event in the history.
+type FailoverHistoryItem struct {
+	// Reason denotes the type of failover.
+	// +required
+	Reason FailoverReason `json:"reason"`
+
+	// StartTime is the timestamp of when the failover occurred.
+	// +required
+	StartTime metav1.Time `json:"startTime"`
+
+	// ClustersBeforeFailover records the clusters where the application was running prior to failover.
+	// +required
+	ClustersBeforeFailover []string `json:"clustersBeforeFailover"`
+
+	// ClustersAfterFailover records the clusters where the application is running after failover.
+	// +required
+	ClustersAfterFailover []string `json:"clustersAfterFailover"`
+
+	// PreservedLabelState represents the application state information collected from the original cluster,
+	// and it will be injected into the new cluster in the form of application labels.
+	// +optional
+	PreservedLabelState map[string]string `json:"preservedLabelState,omitempty"`
+}
+
+// FailoverReason represents the reason for the failover.
+type FailoverReason string
+
+const (
+	// ClusterFailover represents the failover is due to cluster issues.
+	ClusterFailover FailoverReason = "ClusterFailover"
+
+	// ApplicationFailover represents the failover is due to application issues.
+	ApplicationFailover FailoverReason = "ApplicationFailover" // Failover due to application issues, handled by health interpretation.
+)
 
 // Conditions definition
 const (

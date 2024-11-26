@@ -39,6 +39,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	controllerUtils "github.com/karmada-io/karmada/pkg/controllers/utils"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
@@ -134,13 +135,12 @@ func (c *RBApplicationFailoverController) syncBinding(ctx context.Context, bindi
 	unhealthyClusters, others := distinguishUnhealthyClustersWithOthers(binding.Status.AggregatedStatus, binding.Spec)
 	duration, needEvictClusters := c.detectFailure(unhealthyClusters, tolerationSeconds, key)
 
-	err := c.evictBinding(binding, needEvictClusters)
-	if err != nil {
-		klog.Errorf("Failed to evict binding(%s/%s), err: %v.", binding.Namespace, binding.Name, err)
-		return 0, err
-	}
-
 	if len(needEvictClusters) != 0 {
+		err := c.evictBinding(binding, needEvictClusters)
+		if err != nil {
+			klog.Errorf("Failed to evict binding(%s/%s), err: %v.", binding.Namespace, binding.Name, err)
+			return 0, err
+		}
 		if err = c.updateBinding(ctx, binding, allClusters, needEvictClusters); err != nil {
 			return 0, err
 		}
@@ -153,6 +153,9 @@ func (c *RBApplicationFailoverController) syncBinding(ctx context.Context, bindi
 }
 
 func (c *RBApplicationFailoverController) evictBinding(binding *workv1alpha2.ResourceBinding, clusters []string) error {
+	if err := controllerUtils.UpdateFailoverStatus(c.Client, binding, clusters, workv1alpha2.EvictionReasonApplicationFailure); err != nil {
+		klog.Errorf("Failed to update status with failover information. Error: %v", err)
+	}
 	for _, cluster := range clusters {
 		switch binding.Spec.Failover.Application.PurgeMode {
 		case policyv1alpha1.Graciously:
