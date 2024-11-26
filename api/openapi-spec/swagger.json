@@ -18289,6 +18289,10 @@
         "purgeMode": {
           "description": "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Immediately\", \"Graciously\" and \"Never\". Defaults to \"Graciously\".",
           "type": "string"
+        },
+        "statePreservation": {
+          "description": "StatePreservation defines the policy for preserving and restoring state data during failover events for stateful applications.\n\nWhen an application fails over from one cluster to another, this policy enables the extraction of critical data from the original resource configuration. Upon successful migration, the extracted data is then re-injected into the new resource, ensuring that the application can resume operation with its previous state intact. This is particularly useful for stateful applications where maintaining data consistency across failover events is crucial. If not specified, means no state data will be preserved.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StatePreservation"
         }
       }
     },
@@ -19309,6 +19313,43 @@
         }
       }
     },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StatePreservation": {
+      "description": "StatePreservation defines the policy for preserving state during failover events.",
+      "type": "object",
+      "required": [
+        "rules"
+      ],
+      "properties": {
+        "rules": {
+          "description": "Rules contains a list of StatePreservationRule configurations. Each rule specifies a JSONPath expression targeting specific pieces of state data to be preserved during failover events. An AliasLabelName is associated with each rule, serving as a label key when the preserved data is passed to the new cluster.",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StatePreservationRule"
+          }
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StatePreservationRule": {
+      "description": "StatePreservationRule defines a single rule for state preservation. It includes a JSONPath expression and an alias name that will be used as a label key when passing state information to the new cluster.",
+      "type": "object",
+      "required": [
+        "aliasLabelName",
+        "jsonPath"
+      ],
+      "properties": {
+        "aliasLabelName": {
+          "description": "AliasLabelName is the name that will be used as a label key when the preserved data is passed to the new cluster. This facilitates the injection of the preserved state back into the application resources during recovery.",
+          "type": "string",
+          "default": ""
+        },
+        "jsonPath": {
+          "description": "JSONPath is the JSONPath template used to identify the state data to be preserved from the original resource configuration. The JSONPath syntax follows the Kubernetes specification: https://kubernetes.io/docs/reference/kubectl/jsonpath/\n\nNote: The JSONPath expression will start searching from the \"status\" field of the API resource object by default. For example, to extract the \"availableReplicas\" from a Deployment, the JSONPath expression should be \"{.availableReplicas}\", not \"{.status.availableReplicas}\".",
+          "type": "string",
+          "default": ""
+        }
+      }
+    },
     "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StaticClusterAssignment": {
       "description": "StaticClusterAssignment represents the set of desired hard limits for a specific cluster.",
       "type": "object",
@@ -20074,6 +20115,14 @@
         "message": {
           "description": "Message is a human-readable message indicating details about the eviction. This may be an empty string.",
           "type": "string"
+        },
+        "preservedLabelState": {
+          "description": "PreservedLabelState represents the application state information collected from the original cluster, and it will be injected into the new cluster in form of application labels.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "default": ""
+          }
         },
         "producer": {
           "description": "Producer indicates the controller who triggered the eviction.",

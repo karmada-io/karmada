@@ -287,6 +287,11 @@ type GracefulEvictionTask struct {
 	// +optional
 	SuppressDeletion *bool `json:"suppressDeletion,omitempty"`
 
+	// PreservedLabelState represents the application state information collected from the original cluster,
+	// and it will be injected into the new cluster in form of application labels.
+	// +optional
+	PreservedLabelState map[string]string `json:"preservedLabelState,omitempty"`
+
 	// CreationTimestamp is a timestamp representing the server time when this object was
 	// created.
 	// Clients should not set this value to avoid the time inconsistency issue.
