@@ -82,10 +82,6 @@ linters-settings:
       - name: unexported-return
       - name: time-naming
       - name: empty-block
-  staticcheck:
-    # TODO(@RainbowMango): Disable deprecation check temporary for Kubernetes dependency update.
-    # This is tracked by https://github.com/karmada-io/karmada/issues/5796.
-    checks: ["all", "-SA1019"]
 
 issues:
   # The list of ids of default excludes to include or disable. By default it's empty.
