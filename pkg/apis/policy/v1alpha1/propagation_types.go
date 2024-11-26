@@ -324,6 +324,20 @@ type ApplicationFailoverBehavior struct {
 	// Value must be positive integer.
 	// +optional
 	GracePeriodSeconds *int32 `json:"gracePeriodSeconds,omitempty"`
+
+	// StatePreservation defines the policy for preserving and restoring state data
+	// during failover events for stateful applications.
+	//
+	// When an application fails over from one cluster to another, this policy enables
+	// the extraction of critical data from the original resource configuration.
+	// Upon successful migration, the extracted data is then re-injected into the new
+	// resource, ensuring that the application can resume operation with its previous
+	// state intact.
+	// This is particularly useful for stateful applications where maintaining data
+	// consistency across failover events is crucial.
+	// If not specified, means no state data will be preserved.
+	// +optional
+	StatePreservation *StatePreservation `json:"statePreservation,omitempty"`
 }
 
 // DecisionConditions represents the decision conditions of performing the failover process.
@@ -335,6 +349,41 @@ type DecisionConditions struct {
 	// +kubebuilder:default=300
 	// +optional
 	TolerationSeconds *int32 `json:"tolerationSeconds,omitempty"`
+}
+
+// StatePreservation defines the policy for preserving state during failover events.
+type StatePreservation struct {
+	// Rules contains a list of StatePreservationRule configurations.
+	// Each rule specifies a JSONPath expression targeting specific pieces of
+	// state data to be preserved during failover events. An AliasLabelName is associated
+	// with each rule, serving as a label key when the preserved data is passed
+	// to the new cluster.
+	// +required
+	Rules []StatePreservationRule `json:"rules"`
+}
+
+// StatePreservationRule defines a single rule for state preservation.
+// It includes a JSONPath expression and an alias name that will be used
+// as a label key when passing state information to the new cluster.
+type StatePreservationRule struct {
+	// AliasLabelName is the name that will be used as a label key when the preserved
+	// data is passed to the new cluster. This facilitates the injection of the
+	// preserved state back into the application resources during recovery.
+	// +required
+	AliasLabelName string `json:"aliasLabelName"`
+
+	// JSONPath is the JSONPath template used to identify the state data
+	// to be preserved from the original resource configuration.
+	// The JSONPath syntax follows the Kubernetes specification:
+	// https://kubernetes.io/docs/reference/kubectl/jsonpath/
+	//
+	// Note: The JSONPath expression will start searching from the "status" field of
+	// the API resource object by default. For example, to extract the "availableReplicas"
+	// from a Deployment, the JSONPath expression should be "{.availableReplicas}", not
+	// "{.status.availableReplicas}".
+	//
+	// +required
+	JSONPath string `json:"jsonPath"`
 }
 
 // Placement represents the rule for select clusters.

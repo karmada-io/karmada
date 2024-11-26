@@ -149,6 +149,13 @@ func (in *GracefulEvictionTask) DeepCopyInto(out *GracefulEvictionTask) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.PreservedLabelState != nil {
+		in, out := &in.PreservedLabelState, &out.PreservedLabelState
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.CreationTimestamp != nil {
 		in, out := &in.CreationTimestamp, &out.CreationTimestamp
 		*out = (*in).DeepCopy()
