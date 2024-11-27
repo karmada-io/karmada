@@ -43,6 +43,79 @@ NAME                               READY   STATUS    RESTARTS   AGE
 karmada-operator-df95586f6-d5bll   1/1     Running   0          6s
 ```
 
+## Creating Karmada Instances
+Once the Karmada Operator is installed and running, you can now create Karmada objects
+
+- Prepare a manifest for a Karmada instance like the following:
+```yaml
+apiVersion: operator.karmada.io/v1alpha1
+kind: Karmada
+metadata:
+  name: tenant1
+  namespace: karmada-system
+spec:
+  components:
+    karmadaAPIServer:
+      serviceType: ClusterIP
+```
+
+- Apply the manifest:
+```shell
+kubectl apply -f tenant1.yaml
+```
+
+-  Use the following command to wait for the Ready condition of the Karmada object:
+```shell
+kubectl wait --for=condition=Ready karmada/tenant1 -n karmada-system --timeout=300s
+```
+
+This command will block until the Karmada object becomes ready or until the timeout (300 seconds) is reached.
+
+Alternatively, you can check the status manually:
+```shell
+kubectl get karmada tenant1 -n karmada-system -o=jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+```
+
+If the output is `True`, the `Karmada` instance is ready.
+
+Once the `Karmada` instance has reached `Ready` state, you'll have references to both the admin kubeconfig and the API Server service.
+The kubeconfig can be used to access the instance. Info of the API Server service is important in contexts where the `Karmada` instance is owned by a
+higher level operator that must perform additional tasks such as setting up ingress traffic once the `Karmada` instead has reached ready state.
+Run the following command to inspect the instance:
+```shell
+ kubectl -n karmada-system describe karmada tenant1 
+```
+
+Sample output (trimmed for brevity):
+```text
+Name:         tenant1
+Namespace:    karmada-system
+API Version:  operator.karmada.io/v1alpha1
+Kind:         Karmada
+.
+.
+.
+Spec:
+.
+.
+.
+Status:
+  API Server Service:
+    Name:  tenant1-karmada-apiserver
+  Conditions:
+    Last Transition Time:  2024-11-27T01:16:26Z
+    Message:               karmada init job is completed
+    Reason:                Completed
+    Status:                True
+    Type:                  Ready
+  Secret Ref:
+    Name:       tenant1-karmada-admin-config
+    Namespace:  karmada-system
+.
+.
+.
+```
+
 ## Uninstalling the Chart
 
 To uninstall/delete the `karmada-operator` helm release in the `karmada-system` namespace, run:
