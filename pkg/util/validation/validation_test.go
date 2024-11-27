@@ -721,7 +721,7 @@ func TestValidateApplicationFailover(t *testing.T) {
 	}
 }
 
-func TestCheckOperatorCrdsTar(t *testing.T) {
+func TestValidateCrdsTarBall(t *testing.T) {
 	testItems := []struct {
 		name        string
 		header      *tar.Header
