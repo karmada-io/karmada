@@ -20098,6 +20098,14 @@
         "producer"
       ],
       "properties": {
+        "clustersBeforeFailover": {
+          "description": "ClustersBeforeFailover records the clusters where running the application before failover.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "default": ""
+          }
+        },
         "creationTimestamp": {
           "description": "CreationTimestamp is a timestamp representing the server time when this object was created. Clients should not set this value to avoid the time inconsistency issue. It is represented in RFC3339 form(like '2021-04-25T10:02:10Z') and is in UTC.\n\nPopulated by the system. Read-only.",
           "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time"

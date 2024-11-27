@@ -20,12 +20,14 @@ import policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 
 // TaskOptions represents options for GracefulEvictionTasks.
 type TaskOptions struct {
-	purgeMode          policyv1alpha1.PurgeMode
-	producer           string
-	reason             string
-	message            string
-	gracePeriodSeconds *int32
-	suppressDeletion   *bool
+	purgeMode              policyv1alpha1.PurgeMode
+	producer               string
+	reason                 string
+	message                string
+	gracePeriodSeconds     *int32
+	suppressDeletion       *bool
+	preservedLabelState    map[string]string
+	clustersBeforeFailover []string
 }
 
 // Option configures a TaskOptions
@@ -80,6 +82,20 @@ func WithGracePeriodSeconds(gracePeriodSeconds *int32) Option {
 func WithSuppressDeletion(suppressDeletion *bool) Option {
 	return func(o *TaskOptions) {
 		o.suppressDeletion = suppressDeletion
+	}
+}
+
+// WithPreservedLabelState sets the preservedLabelState for TaskOptions
+func WithPreservedLabelState(preservedLabelState map[string]string) Option {
+	return func(o *TaskOptions) {
+		o.preservedLabelState = preservedLabelState
+	}
+}
+
+// WithClustersBeforeFailover sets the clustersBeforeFailover for TaskOptions
+func WithClustersBeforeFailover(clustersBeforeFailover []string) Option {
+	return func(o *TaskOptions) {
+		o.clustersBeforeFailover = clustersBeforeFailover
 	}
 }
 
@@ -163,13 +179,15 @@ func (s *ResourceBindingSpec) GracefulEvictCluster(name string, options *TaskOpt
 	// build eviction task
 	evictingCluster := evictCluster.DeepCopy()
 	evictionTask := GracefulEvictionTask{
-		FromCluster:        evictingCluster.Name,
-		PurgeMode:          options.purgeMode,
-		Reason:             options.reason,
-		Message:            options.message,
-		Producer:           options.producer,
-		GracePeriodSeconds: options.gracePeriodSeconds,
-		SuppressDeletion:   options.suppressDeletion,
+		FromCluster:            evictingCluster.Name,
+		PurgeMode:              options.purgeMode,
+		Reason:                 options.reason,
+		Message:                options.message,
+		Producer:               options.producer,
+		GracePeriodSeconds:     options.gracePeriodSeconds,
+		SuppressDeletion:       options.suppressDeletion,
+		PreservedLabelState:    options.preservedLabelState,
+		ClustersBeforeFailover: options.clustersBeforeFailover,
 	}
 	if evictingCluster.Replicas > 0 {
 		evictionTask.Replicas = &evictingCluster.Replicas
