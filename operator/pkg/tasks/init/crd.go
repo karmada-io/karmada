@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"k8s.io/klog/v2"
@@ -30,6 +31,7 @@ import (
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
+	"github.com/karmada-io/karmada/pkg/util/validation"
 )
 
 var (
@@ -52,6 +54,10 @@ func NewPrepareCrdsTask() workflow.Task {
 			{
 				Name: "Unpack",
 				Run:  runUnpack,
+			},
+			{
+				Name: "post-check",
+				Run:  postCheck,
 			},
 		},
 	}
@@ -154,6 +160,9 @@ func runUnpack(r workflow.RunData) error {
 	exist, _ := util.PathExists(crdsPath)
 	if !exist {
 		klog.V(2).InfoS("[runUnpack] CRD yaml files do not exist, unpacking tar file", "unpackDir", crdsDir)
+		if err = validation.ValidateTarball(crdsTarPath, validation.ValidateCrdsTarBall); err != nil {
+			return fmt.Errorf("[unpack] inValid crd tar, err: %w", err)
+		}
 		if err := util.Unpack(crdsTarPath, crdsDir); err != nil {
 			return fmt.Errorf("[unpack] failed to unpack crd tar, err: %w", err)
 		}
@@ -162,6 +171,29 @@ func runUnpack(r workflow.RunData) error {
 	}
 
 	klog.V(2).InfoS("[unpack] Successfully unpacked crd tar", "karmada", klog.KObj(data))
+	return nil
+}
+
+func postCheck(r workflow.RunData) error {
+	data, ok := r.(InitData)
+	if !ok {
+		return errors.New("post-check task invoked with an invalid data struct")
+	}
+
+	crdsDir, err := getCrdsDir(data)
+	if err != nil {
+		return fmt.Errorf("[post-check] failed to get CRD dir, err: %w", err)
+	}
+
+	for _, archive := range validation.CrdsArchive {
+		expectedDir := filepath.Join(crdsDir, archive)
+		exist, _ := util.PathExists(expectedDir)
+		if !exist {
+			return fmt.Errorf("[post-check] Lacking the necessary file path: %s", expectedDir)
+		}
+	}
+
+	klog.V(2).InfoS("[post-check] Successfully post-check the crd tar archive", "karmada", klog.KObj(data))
 	return nil
 }
 

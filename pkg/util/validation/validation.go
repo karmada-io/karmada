@@ -17,7 +17,13 @@ limitations under the License.
 package validation
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/go-openapi/jsonpointer"
 	corev1 "k8s.io/api/core/v1"
@@ -371,4 +377,86 @@ func validateOverrideOperator(operator policyv1alpha1.OverriderOperator, value a
 		}
 	}
 	return allErrs
+}
+
+// CrdsArchive defines the expected tar archive.
+var CrdsArchive = []string{"crds", "crds/bases", "crds/patches"}
+
+// ValidateTarball opens a .tar.gz file, and validates each
+// entry in the tar archive using a provided validate function.
+func ValidateTarball(tarball string, validate func(*tar.Header) error) error {
+	r, err := os.Open(tarball)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	gr, err := gzip.NewReader(r)
+	if err != nil {
+		return fmt.Errorf("new reader failed. %v", err)
+	}
+	defer gr.Close()
+
+	tr := tar.NewReader(gr)
+	for {
+		header, err := tr.Next()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+
+		if err = validate(header); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ValidateCrdsTarBall checks if the CRDs package complies with file specifications.
+// It verifies the following:
+// 1. Whether the path is clean.
+// 2. Whether the file directory structure meets expectations.
+func ValidateCrdsTarBall(header *tar.Header) error {
+	switch header.Typeflag {
+	case tar.TypeDir:
+		// in Unix-like systems, directory paths in tar archives end with a slash (/) to distinguish them from file paths.
+		if strings.HasSuffix(header.Name, "/") && len(header.Name) > 1 {
+			if !isCleanPath(header.Name[:len(header.Name)-1]) {
+				return fmt.Errorf("the given file contains unclean file dir: %s", header.Name)
+			}
+		} else {
+			if !isCleanPath(header.Name) {
+				return fmt.Errorf("the given file contains unclean file dir: %s", header.Name)
+			}
+		}
+		if !isExpectedPath(header.Name, CrdsArchive) {
+			return fmt.Errorf("the given file contains unexpected file dir: %s", header.Name)
+		}
+	case tar.TypeReg:
+		if !isCleanPath(header.Name) {
+			return fmt.Errorf("the given file contains unclean file path: %s", header.Name)
+		}
+		if !isExpectedPath(header.Name, CrdsArchive) {
+			return fmt.Errorf("the given file contains unexpected file path: %s", header.Name)
+		}
+	default:
+		return fmt.Errorf("unknown type: %v in %s", header.Typeflag, header.Name)
+	}
+	return nil
+}
+
+func isExpectedPath(path string, expectedDirs []string) bool {
+	for _, dir := range expectedDirs {
+		if path == dir || strings.HasPrefix(path, dir+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+func isCleanPath(path string) bool {
+	return path == filepath.Clean(path)
 }
