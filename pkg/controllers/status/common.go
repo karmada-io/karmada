@@ -43,7 +43,13 @@ import (
 )
 
 var bindingPredicateFn = builder.WithPredicates(predicate.Funcs{
-	CreateFunc: func(event.CreateEvent) bool { return false },
+	CreateFunc: func(event.CreateEvent) bool {
+		// Although we don't need to process the ResourceBinding immediately upon its creation,
+		// but it's necessary to ensure that all existing ResourceBindings are processed
+		// uniformly once when the component restarts.
+		// This guarantees that no ResourceBinding is missed after a controller restart.
+		return true
+	},
 	UpdateFunc: func(e event.UpdateEvent) bool {
 		var oldResourceVersion, newResourceVersion string
 
