@@ -194,7 +194,7 @@ func TestUpdateClusterEventHandler(t *testing.T) {
 			},
 			verify: func(clientConnector *fakekarmadaclient.Clientset, controller *Controller) error {
 				var (
-					clusterName, resourceVersion, updatedResourceVerison = "test-cluster", "1000", "1001"
+					clusterName, resourceVersion, updatedResourceVersion = "test-cluster", "1000", "1001"
 					apiEndpoint, oldLabels, newLabels                    = "10.0.0.1", map[string]string{"status": "old"}, map[string]string{"status": "new"}
 				)
 
@@ -205,7 +205,7 @@ func TestUpdateClusterEventHandler(t *testing.T) {
 					return err
 				}
 
-				if err := upsertCluster(clientConnector, newLabels, apiEndpoint, clusterName, updatedResourceVerison); err != nil {
+				if err := upsertCluster(clientConnector, newLabels, apiEndpoint, clusterName, updatedResourceVersion); err != nil {
 					return err
 				}
 				if err := cacheNextWrapper(controller); err != nil {

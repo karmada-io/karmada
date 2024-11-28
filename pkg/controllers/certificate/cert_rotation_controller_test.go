@@ -165,7 +165,7 @@ func TestCertRotationController_syncCertRotation(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name: "shoud not rotate cert",
+			name: "should not rotate cert",
 			secret: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret"},
 				Data: map[string][]byte{"karmada-kubeconfig": []byte(`apiVersion: v1
