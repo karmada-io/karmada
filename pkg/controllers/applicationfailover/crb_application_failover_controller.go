@@ -18,7 +18,6 @@ package applicationfailover
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"time"
 
@@ -28,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,7 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
@@ -153,40 +150,15 @@ func (c *CRBApplicationFailoverController) syncBinding(ctx context.Context, bind
 }
 
 func (c *CRBApplicationFailoverController) evictBinding(binding *workv1alpha2.ClusterResourceBinding, clusters []string) error {
+	clustersBeforeFailover := getClusterNamesFromTargetClusters(binding.Spec.Clusters)
 	for _, cluster := range clusters {
-		switch binding.Spec.Failover.Application.PurgeMode {
-		case policyv1alpha1.Graciously:
-			if features.FeatureGate.Enabled(features.GracefulEviction) {
-				binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
-					workv1alpha2.WithPurgeMode(policyv1alpha1.Graciously),
-					workv1alpha2.WithProducer(CRBApplicationFailoverControllerName),
-					workv1alpha2.WithReason(workv1alpha2.EvictionReasonApplicationFailure),
-					workv1alpha2.WithGracePeriodSeconds(binding.Spec.Failover.Application.GracePeriodSeconds)))
-			} else {
-				err := fmt.Errorf("GracefulEviction featureGate must be enabled when purgeMode is %s", policyv1alpha1.Graciously)
-				klog.Error(err)
-				return err
-			}
-		case policyv1alpha1.Never:
-			if features.FeatureGate.Enabled(features.GracefulEviction) {
-				binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
-					workv1alpha2.WithPurgeMode(policyv1alpha1.Never),
-					workv1alpha2.WithProducer(CRBApplicationFailoverControllerName),
-					workv1alpha2.WithReason(workv1alpha2.EvictionReasonApplicationFailure),
-					workv1alpha2.WithSuppressDeletion(ptr.To[bool](true))))
-			} else {
-				err := fmt.Errorf("GracefulEviction featureGate must be enabled when purgeMode is %s", policyv1alpha1.Never)
-				klog.Error(err)
-				return err
-			}
-		case policyv1alpha1.Immediately:
-			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
-				workv1alpha2.WithPurgeMode(policyv1alpha1.Immediately),
-				workv1alpha2.WithProducer(CRBApplicationFailoverControllerName),
-				workv1alpha2.WithReason(workv1alpha2.EvictionReasonApplicationFailure)))
+		taskOpts, err := buildTaskOptions(binding.Spec.Failover.Application, binding.Status.AggregatedStatus, cluster, CRBApplicationFailoverControllerName, clustersBeforeFailover)
+		if err != nil {
+			klog.Errorf("failed to build TaskOptions for ClusterResourceBinding(%s) under Cluster(%s): %v", binding.Name, cluster, err)
+			return err
 		}
+		binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(taskOpts...))
 	}
-
 	return nil
 }
 
