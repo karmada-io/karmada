@@ -18,6 +18,7 @@ package promote
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -91,6 +92,18 @@ var (
 
 		# Support to use '--cluster-kubeconfig' and '--cluster-context' to specify the configuration of member cluster
 		%[1]s promote deployment nginx -n default -C cluster1 --cluster-kubeconfig=<CLUSTER_KUBECONFIG_PATH> --cluster-context=<CLUSTER_CONTEXT>`)
+)
+
+var (
+	dynamicClientBuilder = func(cfg *rest.Config) dynamic.Interface {
+		return dynamic.NewForConfigOrDie(cfg)
+	}
+	kubeClientBuilder = func(cfg *rest.Config) kubeclientset.Interface {
+		return kubeclientset.NewForConfigOrDie(cfg)
+	}
+	karmadaClientBuilder = func(cfg *rest.Config) karmadaclientset.Interface {
+		return karmadaclientset.NewForConfigOrDie(cfg)
+	}
 )
 
 // NewCmdPromote defines the `promote` command that promote resources from legacy clusters
@@ -197,7 +210,7 @@ func (o *CommandPromoteOption) Complete(f util.Factory, args []string) error {
 	var err error
 
 	if len(args) != 2 {
-		return fmt.Errorf("incorrect command format, please use correct command format")
+		return errors.New("incorrect command format, please use correct command format")
 	}
 
 	o.name = args[1]
@@ -235,11 +248,11 @@ func (o *CommandPromoteOption) Complete(f util.Factory, args []string) error {
 // Validate checks to the PromoteOptions to see if there is sufficient information run the command
 func (o *CommandPromoteOption) Validate() error {
 	if o.Cluster == "" {
-		return fmt.Errorf("the cluster cannot be empty")
+		return errors.New("the cluster cannot be empty")
 	}
 
 	if o.OutputFormat != "" && o.OutputFormat != "yaml" && o.OutputFormat != "json" {
-		return fmt.Errorf("output format is only one of json and yaml")
+		return errors.New("invalid output format: supported formats are json and yaml")
 	}
 
 	return nil
@@ -294,11 +307,11 @@ func (o *CommandPromoteOption) Run(f util.Factory, args []string) error {
 		}
 	}
 
-	return o.promote(controlPlaneRestConfig, obj, gvr, o.Deps)
+	return o.promote(controlPlaneRestConfig, obj, gvr)
 }
 
 // revertPromotedDeps reverts promoted dependencies of the resource
-func (o *CommandPromoteOption) revertPromotedDeps(memberClusterFactory cmdutil.Factory, dependencies []configv1alpha1.DependentObjectReference, mapper meta.RESTMapper, controlPlaneDynamicClient *dynamic.DynamicClient, index int) {
+func (o *CommandPromoteOption) revertPromotedDeps(memberClusterFactory cmdutil.Factory, dependencies []configv1alpha1.DependentObjectReference, mapper meta.RESTMapper, controlPlaneDynamicClient dynamic.Interface, index int) {
 	memberDynamicClient, err := memberClusterFactory.DynamicClient()
 	if err != nil {
 		klog.Errorf("revertPromotedDeps failed to get dynamic client of member cluster: %v", err)
@@ -364,7 +377,7 @@ func (o *CommandPromoteOption) revertPromotedDeps(memberClusterFactory cmdutil.F
 
 // doPromoteDeps promotes dependencies of the resource
 func (o *CommandPromoteOption) doPromoteDeps(memberClusterFactory cmdutil.Factory, dependencies []configv1alpha1.DependentObjectReference, mapper meta.RESTMapper, config *rest.Config) error {
-	controlPlaneDynamicClient := dynamic.NewForConfigOrDie(config)
+	controlPlaneDynamicClient := dynamicClientBuilder(config)
 	for i, dep := range dependencies {
 		depInfo, err := o.getObjInfo(memberClusterFactory, o.Cluster, []string{dep.Kind, dep.Name})
 		if err != nil {
@@ -441,17 +454,17 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 	// create resource interpreter
 	stopCh := make(chan struct{})
 	defer close(stopCh)
-	dynamicClientSet := dynamic.NewForConfigOrDie(config)
+	dynamicClientSet := dynamicClientBuilder(config)
 
 	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopCh)
-	controlPlaneKubeClientSet := kubeclientset.NewForConfigOrDie(config)
+	controlPlaneKubeClientSet := kubeClientBuilder(config)
 	sharedFactory := informers.NewSharedInformerFactory(controlPlaneKubeClientSet, 0)
 	serviceLister := sharedFactory.Core().V1().Services().Lister()
 	sharedFactory.Start(stopCh)
 	sharedFactory.WaitForCacheSync(stopCh)
 	controlPlaneInformerManager.Start()
 	if sync := controlPlaneInformerManager.WaitForCacheSync(); sync == nil {
-		return fmt.Errorf("informer factory for cluster does not exist")
+		return errors.New("informer factory for cluster does not exist")
 	}
 
 	defaultInterpreter := native.NewDefaultInterpreter()
@@ -468,7 +481,7 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 		!configurableInterpreter.HookEnabled(obj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretDependency) &&
 		!customizedInterpreter.HookEnabled(obj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretDependency) {
 		// if there is no interpreter configured, abort this dependency promotion but continue to promote the resource
-		klog.Warningf("there is no interpreter configured support to interpret dependencies")
+		klog.Warning("there is no interpreter configured support to interpret dependencies")
 		return nil
 	}
 
@@ -478,7 +491,7 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 		return fmt.Errorf("configurable interpreter failed to get dependencies of resource %q(%s/%s): %v", gvr, obj.GetNamespace(), obj.GetName(), err)
 	}
 	if hookEnabled {
-		fmt.Printf("use configurable interpreter\n")
+		fmt.Println("use configurable interpreter")
 		err := o.doPromoteDeps(memberClusterFactory, dependencies, mapper, config)
 		return err
 	}
@@ -492,7 +505,7 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 		return fmt.Errorf("customized interpreter failed to get dependencies of resource %q(%s/%s): %v", gvr, obj.GetNamespace(), obj.GetName(), err)
 	}
 	if hookEnabled {
-		fmt.Printf("use customized interpreter\n")
+		fmt.Println("use customized interpreter")
 		err := o.doPromoteDeps(memberClusterFactory, dependencies, mapper, config)
 		return err
 	}
@@ -500,10 +513,10 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 	// thirdparty interpreter has higher priority than default interpreter
 	dependencies, hookEnabled, err = thirdpartyInterpreter.GetDependencies(obj)
 	if err != nil {
-		return fmt.Errorf("thirdparty interpreter failed to get dependencies of resource %q(%s/%s): %v", gvr, obj.GetNamespace(), obj.GetName(), err)
+		return fmt.Errorf("third-party interpreter failed to get dependencies of resource %q(%s/%s): %v", gvr, obj.GetNamespace(), obj.GetName(), err)
 	}
 	if hookEnabled {
-		fmt.Printf("use thirdparty interpreter\n")
+		fmt.Println("use third-party interpreter")
 		err := o.doPromoteDeps(memberClusterFactory, dependencies, mapper, config)
 		return err
 	}
@@ -513,12 +526,12 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 	if err != nil {
 		return fmt.Errorf("default interpreter failed to get dependencies of resource %q(%s/%s): %v", gvr, obj.GetNamespace(), obj.GetName(), err)
 	}
-	fmt.Printf("use default interpreter\n")
+	fmt.Println("use default interpreter")
 	err = o.doPromoteDeps(memberClusterFactory, dependencies, mapper, config)
 	return err
 }
 
-func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj *unstructured.Unstructured, gvr schema.GroupVersionResource, isDep bool) error {
+func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj *unstructured.Unstructured, gvr schema.GroupVersionResource) error {
 	if err := preprocessResource(obj); err != nil {
 		return fmt.Errorf("failed to preprocess resource %q(%s/%s) in control plane: %v", gvr, o.Namespace, o.name, err)
 	}
@@ -534,11 +547,11 @@ func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj 
 		return nil
 	}
 
-	controlPlaneDynamicClient := dynamic.NewForConfigOrDie(controlPlaneRestConfig)
+	controlPlaneDynamicClient := dynamicClientBuilder(controlPlaneRestConfig)
+	karmadaClient := karmadaClientBuilder(controlPlaneRestConfig)
 
-	karmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
-
-	if len(obj.GetNamespace()) == 0 {
+	isClusterScoped := len(obj.GetNamespace()) == 0
+	if isClusterScoped {
 		_, err := controlPlaneDynamicClient.Resource(gvr).Get(context.TODO(), o.name, metav1.GetOptions{})
 		if err == nil {
 			klog.Warningf("Resource %q(%s) already exist in karmada control plane, you can edit PropagationPolicy and OverridePolicy to propagate it\n",
@@ -557,7 +570,7 @@ func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj 
 		fmt.Printf("ResourceTemplate (%s/%s) is created successfully\n", o.Namespace, o.name)
 
 		if o.AutoCreatePolicy {
-			policyName, err := o.createClusterPropagationPolicy(karmadaClient, gvr, isDep)
+			policyName, err := o.createClusterPropagationPolicy(karmadaClient, gvr)
 			if err != nil {
 				return err
 			}
@@ -584,7 +597,7 @@ func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj 
 		fmt.Printf("ResourceTemplate (%s/%s) is created successfully\n", o.Namespace, o.name)
 
 		if o.AutoCreatePolicy {
-			policyName, err := o.createPropagationPolicy(karmadaClient, gvr, isDep)
+			policyName, err := o.createPropagationPolicy(karmadaClient, gvr)
 			if err != nil {
 				return err
 			}
@@ -663,7 +676,7 @@ func (o *CommandPromoteOption) printObjectAndPolicy(obj *unstructured.Unstructur
 }
 
 // createPropagationPolicy create PropagationPolicy in karmada control plane
-func (o *CommandPromoteOption) createPropagationPolicy(karmadaClient *karmadaclientset.Clientset, gvr schema.GroupVersionResource, isDep bool) (string, error) {
+func (o *CommandPromoteOption) createPropagationPolicy(karmadaClient karmadaclientset.Interface, gvr schema.GroupVersionResource) (string, error) {
 	var policyName string
 	if o.PolicyName == "" {
 		policyName = names.GeneratePolicyName(o.Namespace, o.name, o.gvk.String())
@@ -673,7 +686,7 @@ func (o *CommandPromoteOption) createPropagationPolicy(karmadaClient *karmadacli
 
 	_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(o.Namespace).Get(context.TODO(), policyName, metav1.GetOptions{})
 	if err != nil && apierrors.IsNotFound(err) {
-		pp := buildPropagationPolicy(o.name, policyName, o.Namespace, o.Cluster, gvr, o.gvk, isDep)
+		pp := buildPropagationPolicy(o.name, policyName, o.Namespace, o.Cluster, gvr, o.gvk, o.Deps)
 		_, err = karmadaClient.PolicyV1alpha1().PropagationPolicies(o.Namespace).Create(context.TODO(), pp, metav1.CreateOptions{})
 
 		return policyName, err
@@ -687,7 +700,7 @@ func (o *CommandPromoteOption) createPropagationPolicy(karmadaClient *karmadacli
 }
 
 // createClusterPropagationPolicy create ClusterPropagationPolicy in karmada control plane
-func (o *CommandPromoteOption) createClusterPropagationPolicy(karmadaClient *karmadaclientset.Clientset, gvr schema.GroupVersionResource, isDep bool) (string, error) {
+func (o *CommandPromoteOption) createClusterPropagationPolicy(karmadaClient karmadaclientset.Interface, gvr schema.GroupVersionResource) (string, error) {
 	var policyName string
 	if o.PolicyName == "" {
 		policyName = names.GeneratePolicyName("", o.name, o.gvk.String())
@@ -697,7 +710,7 @@ func (o *CommandPromoteOption) createClusterPropagationPolicy(karmadaClient *kar
 
 	_, err := karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Get(context.TODO(), policyName, metav1.GetOptions{})
 	if err != nil && apierrors.IsNotFound(err) {
-		cpp := buildClusterPropagationPolicy(o.name, policyName, o.Cluster, gvr, o.gvk, isDep)
+		cpp := buildClusterPropagationPolicy(o.name, policyName, o.Cluster, gvr, o.gvk, o.Deps)
 		_, err = karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Create(context.TODO(), cpp, metav1.CreateOptions{})
 
 		return policyName, err
