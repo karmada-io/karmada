@@ -81,6 +81,7 @@ func ensureWork(
 		}
 	}
 
+	var createOrUpdateWorkArgs []*CreateOrUpdateWorkArg
 	for i := range targetClusters {
 		targetCluster := targetClusters[i]
 		clonedWorkload := workload.DeepCopy()
@@ -135,16 +136,24 @@ func ensureWork(
 			Labels:      workLabel,
 			Annotations: annotations,
 		}
-
-		if err = helper.CreateOrUpdateWork(
-			ctx,
-			c,
-			workMeta,
-			clonedWorkload,
-			helper.WithSuspendDispatching(shouldSuspendDispatching(suspension, targetCluster)),
-			helper.WithPreserveResourcesOnDeletion(ptr.Deref(preserveResourcesOnDeletion, false)),
-		); err != nil {
-			return err
+		createOrUpdateWorkArgs = append(createOrUpdateWorkArgs, &CreateOrUpdateWorkArg{
+			WorkMeta:       workMeta,
+			ClonedWorkload: clonedWorkload,
+			Options:        []helper.WorkOption{helper.WithSuspendDispatching(shouldSuspendDispatching(suspension, targetCluster)), helper.WithPreserveResourcesOnDeletion(ptr.Deref(preserveResourcesOnDeletion, false))},
+		})
+	}
+	resChan := make(chan error)
+	for _, item := range createOrUpdateWorkArgs {
+		go CreateOrUpdateWorkParallel(ctx, resChan, c, item)
+	}
+	for i := 0; i < len(targetClusters); i++ {
+		select {
+		case res := <-resChan:
+			if res != nil {
+				return err
+			}
+		case <-ctx.Done():
+			return nil
 		}
 	}
 	return nil
@@ -292,4 +301,23 @@ func shouldSuspendDispatching(suspension *policyv1alpha1.Suspension, targetClust
 		}
 	}
 	return suspendDispatching
+}
+
+// CreateOrUpdateWorkArg create or update work args struct.
+type CreateOrUpdateWorkArg struct {
+	WorkMeta       metav1.ObjectMeta
+	ClonedWorkload *unstructured.Unstructured
+	Options        []helper.WorkOption
+}
+
+// CreateOrUpdateWorkParallel creates or update work object parallel.
+func CreateOrUpdateWorkParallel(ctx context.Context, resChan chan error, c client.Client, createOrUpdateWorkArg *CreateOrUpdateWorkArg) {
+	err := helper.CreateOrUpdateWork(
+		ctx,
+		c,
+		createOrUpdateWorkArg.WorkMeta,
+		createOrUpdateWorkArg.ClonedWorkload,
+		createOrUpdateWorkArg.Options...,
+	)
+	resChan <- err
 }
