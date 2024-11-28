@@ -158,7 +158,7 @@ users:
 				t.Errorf("unexpected error, got: %v", err)
 			}
 			if err != nil && test.wantErr && !strings.Contains(err.Error(), test.errMsg) {
-				t.Errorf("expceted error message %s to be in %s", test.errMsg, err.Error())
+				t.Errorf("expected error message %s to be in %s", test.errMsg, err.Error())
 			}
 		})
 	}

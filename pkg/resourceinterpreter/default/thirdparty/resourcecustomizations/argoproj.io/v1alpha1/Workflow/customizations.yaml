@@ -74,7 +74,7 @@ spec:
           if desiredObj.spec.volumes ~= nil then
             volumes = desiredObj.spec.volumes
           end
-          for volumnIndex, volume in pairs(volumes) do 
+          for volumeIndex, volume in pairs(volumes) do 
             if volume.configMap ~= nil and volume.configMap.name ~= nil and volume.configMap.name ~= '' then
               dependentConfigMaps[volume.configMap.name] = true
             end
