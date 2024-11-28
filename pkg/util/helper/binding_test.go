@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
@@ -334,6 +335,36 @@ func TestObtainBindingSpecExistingClusters(t *testing.T) {
 				},
 			},
 			want: sets.New("member1", "member2", "member3"),
+		},
+		{
+			name: "unique cluster names with GracefulEvictionTasks with PurgeMode Immediately",
+			bindingSpec: workv1alpha2.ResourceBindingSpec{
+				Clusters: []workv1alpha2.TargetCluster{
+					{
+						Name:     "member1",
+						Replicas: 2,
+					},
+					{
+						Name:     "member2",
+						Replicas: 3,
+					},
+				},
+				GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
+					{
+						FromCluster: "member3",
+						PurgeMode:   policyv1alpha1.Immediately,
+					},
+					{
+						FromCluster: "member4",
+						PurgeMode:   policyv1alpha1.Graciously,
+					},
+					{
+						FromCluster: "member5",
+						PurgeMode:   policyv1alpha1.Never,
+					},
+				},
+			},
+			want: sets.New("member1", "member2", "member4", "member5"),
 		},
 	}
 	for _, tt := range tests {
