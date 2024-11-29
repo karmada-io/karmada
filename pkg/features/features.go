@@ -22,11 +22,22 @@ import (
 )
 
 const (
-	// Failover indicates if scheduler should reschedule on cluster failure.
+	// Failover controls whether the scheduler should reschedule
+	// workloads on cluster failure.
+	// When enabled, Karmada will automatically migrate workloads
+	// from a failed cluster to other available clusters.
+	//
+	// Note: This feature does not control application failover,
+	// which is managed separately via the PropagationPolicy or
+	// ClusterPropagationPolicy.
 	Failover featuregate.Feature = "Failover"
 
-	// GracefulEviction indicates if enable grace eviction.
-	// Takes effect only when the Failover feature is enabled.
+	// GracefulEviction controls whether to perform graceful evictions
+	// during both cluster failover and application failover.
+	// When used for cluster failover, it takes effect only when the
+	// Failover feature is enabled.
+	// Graceful eviction ensures that workloads are migrated in a
+	// controlled manner, minimizing disruption to applications.
 	GracefulEviction featuregate.Feature = "GracefulEviction"
 
 	// PropagateDeps indicates if relevant resources should be propagated automatically
@@ -60,7 +71,11 @@ var (
 
 	// DefaultFeatureGates is the default feature gates of Karmada.
 	DefaultFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
-		Failover:                          {Default: true, PreRelease: featuregate.Beta},
+		// Failover(cluster failover) is disabled by default because it involves migrating
+		// all resources in the cluster, which can have significant impacts, it should be
+		// explicitly enabled by administrators after fully evaluation to avoid unexpected
+		// incidents.
+		Failover:                          {Default: false, PreRelease: featuregate.Beta},
 		GracefulEviction:                  {Default: true, PreRelease: featuregate.Beta},
 		PropagateDeps:                     {Default: true, PreRelease: featuregate.Beta},
 		CustomizedClusterResourceModeling: {Default: true, PreRelease: featuregate.Beta},

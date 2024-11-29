@@ -190,9 +190,6 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 		}
 		klog.V(2).Infof("Success to evict Cluster(%s) from ResourceBinding(%s) schedule result",
 			fedKey.ClusterWideKey.NamespaceKey(), fedKey.Cluster)
-		if !features.FeatureGate.Enabled(features.GracefulEviction) {
-			helper.EmitClusterEvictionEventForResourceBinding(binding, cluster, tc.EventRecorder, nil)
-		}
 	} else if tolerationTime > 0 {
 		tc.bindingEvictionWorker.AddAfter(fedKey, tolerationTime)
 	}
@@ -252,9 +249,6 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 		}
 		klog.V(2).Infof("Success to evict Cluster(%s) from ClusterResourceBinding(%s) schedule result",
 			fedKey.ClusterWideKey.NamespaceKey(), fedKey.Cluster)
-		if !features.FeatureGate.Enabled(features.GracefulEviction) {
-			helper.EmitClusterEvictionEventForClusterResourceBinding(binding, cluster, tc.EventRecorder, nil)
-		}
 	} else if tolerationTime > 0 {
 		tc.clusterBindingEvictionWorker.AddAfter(fedKey, tolerationTime)
 		return nil
