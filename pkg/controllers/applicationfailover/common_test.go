@@ -19,6 +19,7 @@ package applicationfailover
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -186,6 +187,8 @@ func TestDistinguishUnhealthyClustersWithOthers(t *testing.T) {
 }
 
 func Test_parseJSONValue(t *testing.T) {
+	// This json value describes a DeploymentList object, it contains two deployment elements.
+	var deploymentListStrBytes = []byte(`{"apiVersion":"v1","items":[{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"creationTimestamp":"2024-11-27T07:59:13Z","generation":2,"labels":{"app":"nginx","propagationpolicy.karmada.io/permanent-id":"89a95e21-57ec-4f5d-b8c6-15bc196c1449"},"name":"nginx-01","namespace":"default","resourceVersion":"1148","uid":"12cf1e9f-61fd-4e47-a14e-e844165c7f93"},"spec":{"progressDeadlineSeconds":600,"replicas":2,"revisionHistoryLimit":10,"selector":{"matchLabels":{"app":"nginx"}},"strategy":{"rollingUpdate":{"maxSurge":"25%","maxUnavailable":"25%"},"type":"RollingUpdate"},"template":{"metadata":{"creationTimestamp":null,"labels":{"app":"nginx"}},"spec":{"containers":[{"image":"nginx","imagePullPolicy":"Always","name":"nginx","resources":{},"terminationMessagePath":"/dev/termination-log","terminationMessagePolicy":"File"}],"dnsPolicy":"ClusterFirst","restartPolicy":"Always","schedulerName":"default-scheduler","securityContext":{},"terminationGracePeriodSeconds":30}}},"status":{"availableReplicas":2,"observedGeneration":2,"readyReplicas":2,"replicas":2,"updatedReplicas":2}},{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"creationTimestamp":"2024-11-27T07:59:13Z","generation":2,"labels":{"app":"nginx","propagationpolicy.karmada.io/permanent-id":"89a95e21-57ec-4f5d-b8c6-15bc196c1449"},"name":"nginx-02","namespace":"default","resourceVersion":"1149","uid":"12cf1e9f-61fd-4e47-a14e-e844165c7f93"},"spec":{"progressDeadlineSeconds":600,"replicas":2,"revisionHistoryLimit":10,"selector":{"matchLabels":{"app":"nginx"}},"strategy":{"rollingUpdate":{"maxSurge":"25%","maxUnavailable":"25%"},"type":"RollingUpdate"},"template":{"metadata":{"creationTimestamp":null,"labels":{"app":"nginx"}},"spec":{"containers":[{"image":"nginx","imagePullPolicy":"Always","name":"nginx","resources":{},"terminationMessagePath":"/dev/termination-log","terminationMessagePolicy":"File"}],"dnsPolicy":"ClusterFirst","restartPolicy":"Always","schedulerName":"default-scheduler","securityContext":{},"terminationGracePeriodSeconds":30}}},"status":{"availableReplicas":2,"observedGeneration":2,"readyReplicas":2,"replicas":2,"updatedReplicas":2}}],"kind":"List","metadata":{"resourceVersion":""}}`)
 	type args struct {
 		rawStatus []byte
 		jsonPath  string
@@ -196,6 +199,7 @@ func Test_parseJSONValue(t *testing.T) {
 		want    string
 		wantErr assert.ErrorAssertionFunc
 	}{
+		// Build the following test cases from the perspective of parsing application state
 		{
 			name: "target field not found",
 			args: args{
@@ -221,14 +225,80 @@ func Test_parseJSONValue(t *testing.T) {
 			wantErr: assert.NoError,
 			want:    "2",
 		},
+		// Build the following test cases in terms of what the function supports (which we don't use now).
+		// Please refer to Function Support: https://kubernetes.io/docs/reference/kubectl/jsonpath/
+		{
+			name: "the current object parse",
+			args: args{
+				rawStatus: deploymentListStrBytes,
+				jsonPath:  "{ @ }",
+			},
+			wantErr: assert.NoError,
+			want:    string(deploymentListStrBytes),
+		},
+		{
+			name: "child operator parse",
+			args: args{
+				rawStatus: deploymentListStrBytes,
+				jsonPath:  "{ ['kind'] }",
+			},
+			wantErr: assert.NoError,
+			want:    "List",
+		},
+		{
+			name: "recursive descent parse",
+			args: args{
+				rawStatus: deploymentListStrBytes,
+				jsonPath:  "{ ..resourceVersion }",
+			},
+			wantErr: assert.NoError,
+			want:    "1148 1149",
+		},
+		{
+			name: "wildcard get all objects parse",
+			args: args{
+				rawStatus: deploymentListStrBytes,
+				jsonPath:  "{ .items[*].metadata.name }",
+			},
+			wantErr: assert.NoError,
+			want:    "nginx-01 nginx-02",
+		},
+		{
+			name: "subscript operator parse",
+			args: args{
+				rawStatus: deploymentListStrBytes,
+				jsonPath:  "{ .items[0].metadata.name }",
+			},
+			wantErr: assert.NoError,
+			want:    "nginx-01",
+		},
+		{
+			name: "filter parse",
+			args: args{
+				rawStatus: deploymentListStrBytes,
+				jsonPath:  "{ .items[?(@.metadata.name==\"nginx-01\")].metadata.name }",
+			},
+			wantErr: assert.NoError,
+			want:    "nginx-01",
+		},
+		{
+			name: "iterate list parse",
+			args: args{
+				rawStatus: deploymentListStrBytes,
+				jsonPath:  "{range .items[*]}[{.metadata.name}, {.metadata.namespace}] {end}",
+			},
+			wantErr: assert.NoError,
+			want:    "[nginx-01, default] [nginx-02, default]",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := parseJSONValue(tt.args.rawStatus, tt.args.jsonPath)
-			if !tt.wantErr(t, err, fmt.Sprintf("parseJSONValue(%v, %v)", tt.args.rawStatus, tt.args.jsonPath)) {
+			if !tt.wantErr(t, err, fmt.Sprintf("parseJSONValue(%s, %v)", tt.args.rawStatus, tt.args.jsonPath)) {
 				return
 			}
-			assert.Equalf(t, tt.want, got, "parseJSONValue(%v, %v)", tt.args.rawStatus, tt.args.jsonPath)
+			got = strings.Trim(got, " ")
+			assert.Equalf(t, tt.want, got, "parseJSONValue(%s, %v)", tt.args.rawStatus, tt.args.jsonPath)
 		})
 	}
 }
@@ -378,10 +448,10 @@ func Test_buildPreservedLabelState(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := buildPreservedLabelState(tt.args.statePreservation, tt.args.rawStatus)
-			if !tt.wantErr(t, err, fmt.Sprintf("buildPreservedLabelState(%v, %v)", tt.args.statePreservation, tt.args.rawStatus)) {
+			if !tt.wantErr(t, err, fmt.Sprintf("buildPreservedLabelState(%v, %s)", tt.args.statePreservation, tt.args.rawStatus)) {
 				return
 			}
-			assert.Equalf(t, tt.want, got, "buildPreservedLabelState(%v, %v)", tt.args.statePreservation, tt.args.rawStatus)
+			assert.Equalf(t, tt.want, got, "buildPreservedLabelState(%v, %s)", tt.args.statePreservation, tt.args.rawStatus)
 		})
 	}
 }
