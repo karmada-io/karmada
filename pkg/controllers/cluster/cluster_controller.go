@@ -45,6 +45,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/features"
+	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/util"
 	utilhelper "github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -238,8 +239,13 @@ func (c *Controller) syncCluster(ctx context.Context, cluster *clusterv1alpha1.C
 	return c.ensureFinalizer(ctx, cluster)
 }
 
-func (c *Controller) removeCluster(ctx context.Context, cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
+func (c *Controller) removeCluster(ctx context.Context, cluster *clusterv1alpha1.Cluster) (ret controllerruntime.Result, retErr error) {
 	// add terminating taint before cluster is deleted
+	defer func() {
+		if retErr == nil {
+			metrics.RemoveClusterStatus(cluster)
+		}
+	}()
 	if err := c.updateClusterTaints(ctx, []*corev1.Taint{TerminatingTaintTemplate}, nil, cluster); err != nil {
 		klog.ErrorS(err, "Failed to update terminating taint", "cluster", cluster.Name)
 		return controllerruntime.Result{}, err
