@@ -36,7 +36,6 @@ import (
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -172,11 +171,6 @@ func (c *CRBApplicationFailoverController) updateBinding(ctx context.Context, bi
 	}
 	for _, cluster := range needEvictClusters {
 		allClusters.Delete(cluster)
-	}
-	if !features.FeatureGate.Enabled(features.GracefulEviction) {
-		for _, cluster := range needEvictClusters {
-			helper.EmitClusterEvictionEventForClusterResourceBinding(binding, cluster, c.EventRecorder, nil)
-		}
 	}
 
 	return nil
