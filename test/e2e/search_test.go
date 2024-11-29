@@ -18,6 +18,8 @@ package e2e
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -536,6 +538,26 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 						_, err := c.CoreV1().Nodes().Patch(context.TODO(), name, types.StrategicMergePatchType, data, metav1.PatchOptions{})
 						klog.Warningf("Clean node %v's annotation %v failed: %v", name, anno, err)
 					}
+
+					decodeMultiClusterRV = func(mcrv string) map[string]string {
+						decoded, err := base64.RawURLEncoding.DecodeString(mcrv)
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+						m := make(map[string]string)
+						err = json.Unmarshal(decoded, &m)
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						return m
+					}
+
+					decodeMultiClusterContinue = func(mcc string) (rv, cluster, continuous string) {
+						decoded, err := base64.RawURLEncoding.DecodeString(mcc)
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+						m := make(map[string]string)
+						err = json.Unmarshal(decoded, &m)
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						return m["cluster"], m["rv"], m["continue"]
+					}
 				)
 
 				ginkgo.BeforeAll(func() {
@@ -640,6 +662,55 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 					})
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 					gomega.Expect(list2.Items).Should(gomega.HaveLen(total - len(list1.Items)))
+				})
+
+				ginkgo.It("could chunk list nodes with rv=0", func() {
+					fromM1, err := m1Client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					ginkgo.By(fmt.Sprintf("list %v nodes from member1", len(fromM1.Items)))
+
+					fromM2, err := m2Client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					ginkgo.By(fmt.Sprintf("list %v nodes from member2", len(fromM2.Items)))
+
+					var list1 *corev1.NodeList
+					ginkgo.By("1st list", func() {
+						gomega.Eventually(func(g gomega.Gomega) {
+							var err error
+							list1, err = proxyClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{Limit: 1, ResourceVersion: "0"})
+							g.Expect(err).ShouldNot(gomega.HaveOccurred())
+							g.Expect(list1.Items).ShouldNot(gomega.BeEmpty())
+						}, pollTimeout, pollInterval).Should(gomega.Succeed())
+
+						gomega.Expect(list1.Items).Should(gomega.HaveLen(len(fromM1.Items)))
+
+						mcrv := decodeMultiClusterRV(list1.ResourceVersion)
+						gomega.Expect(mcrv[member1]).ShouldNot(gomega.BeEmpty())
+						gomega.Expect(mcrv[member2]).ShouldNot(gomega.BeEmpty())
+
+						cluster, rv, continuous := decodeMultiClusterContinue(list1.Continue)
+						gomega.Expect(cluster).Should(gomega.Equal(member2))
+						gomega.Expect(rv).Should(gomega.Equal("0"))
+						gomega.Expect(continuous).Should(gomega.BeEmpty())
+					})
+
+					ginkgo.By("2nd list", func() {
+						var list2 *corev1.NodeList
+						gomega.Eventually(func(g gomega.Gomega) {
+							var err error
+							list2, err = proxyClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{Limit: 1, Continue: list1.Continue})
+							g.Expect(err).ShouldNot(gomega.HaveOccurred())
+							g.Expect(list2.Items).ShouldNot(gomega.BeEmpty())
+						}, pollTimeout, pollInterval).Should(gomega.Succeed())
+
+						gomega.Expect(list2.Items).Should(gomega.HaveLen(len(fromM2.Items)))
+
+						mcrv := decodeMultiClusterRV(list2.ResourceVersion)
+						gomega.Expect(mcrv[member1]).ShouldNot(gomega.BeEmpty())
+						gomega.Expect(mcrv[member2]).ShouldNot(gomega.BeEmpty())
+
+						gomega.Expect(list2.Continue).Should(gomega.BeEmpty())
+					})
 				})
 
 				ginkgo.It("could list & watch nodes", func() {
