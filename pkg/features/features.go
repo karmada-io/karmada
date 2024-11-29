@@ -43,6 +43,15 @@ const (
 
 	// ResourceQuotaEstimate indicates if enable resource quota check in estimator
 	ResourceQuotaEstimate featuregate.Feature = "ResourceQuotaEstimate"
+
+	// StatefulFailoverInjection controls whether Karmada collects state information
+	// from the source cluster during a failover event for stateful applications and
+	// injects this information into the application configuration when it is moved
+	// to the target cluster.
+	//
+	// owner: @mszacillo, @XiShanYongYe-Chang
+	// alpha: v1.12
+	StatefulFailoverInjection featuregate.Feature = "StatefulFailoverInjection"
 )
 
 var (
@@ -58,6 +67,7 @@ var (
 		PolicyPreemption:                  {Default: false, PreRelease: featuregate.Alpha},
 		MultiClusterService:               {Default: false, PreRelease: featuregate.Alpha},
 		ResourceQuotaEstimate:             {Default: false, PreRelease: featuregate.Alpha},
+		StatefulFailoverInjection:         {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
 

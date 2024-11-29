@@ -31,6 +31,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -113,9 +114,11 @@ func ensureWork(
 			return err
 		}
 
-		// we need to figure out if the targetCluster is in the cluster we are going to migrate application to.
-		// If yes, we have to inject the preserved label state to clonedWorkload with the label.
-		clonedWorkload = injectReservedLabelState(bindingSpec, targetCluster, clonedWorkload, len(targetClusters))
+		if features.FeatureGate.Enabled(features.StatefulFailoverInjection) {
+			// we need to figure out if the targetCluster is in the cluster we are going to migrate application to.
+			// If yes, we have to inject the preserved label state to the clonedWorkload.
+			clonedWorkload = injectReservedLabelState(bindingSpec, targetCluster, clonedWorkload, len(targetClusters))
+		}
 
 		workMeta := metav1.ObjectMeta{
 			Name:        names.GenerateWorkName(clonedWorkload.GetKind(), clonedWorkload.GetName(), clonedWorkload.GetNamespace()),

@@ -336,6 +336,9 @@ type ApplicationFailoverBehavior struct {
 	// This is particularly useful for stateful applications where maintaining data
 	// consistency across failover events is crucial.
 	// If not specified, means no state data will be preserved.
+	//
+	// Note: This requires the StatefulFailoverInjection feature gate to be enabled,
+	// which is alpha.
 	// +optional
 	StatePreservation *StatePreservation `json:"statePreservation,omitempty"`
 }
