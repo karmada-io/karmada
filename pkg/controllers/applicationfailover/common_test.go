@@ -30,6 +30,7 @@ import (
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/features"
 )
 
 func TestTimeStampProcess(t *testing.T) {
@@ -645,6 +646,8 @@ func Test_buildTaskOptions(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		err := features.FeatureGate.Set(fmt.Sprintf("%s=%t", features.StatefulFailoverInjection, true))
+		assert.NoError(t, err)
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := buildTaskOptions(tt.args.failoverBehavior, tt.args.aggregatedStatus, tt.args.cluster, tt.args.producer, tt.args.clustersBeforeFailover)
 			if !tt.wantErr(t, err, fmt.Sprintf("buildTaskOptions(%v, %v, %v, %v, %v)", tt.args.failoverBehavior, tt.args.aggregatedStatus, tt.args.cluster, tt.args.producer, tt.args.clustersBeforeFailover)) {
