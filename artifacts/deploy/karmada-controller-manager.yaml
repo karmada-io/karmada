@@ -30,7 +30,7 @@ spec:
             - --cluster-status-update-frequency=10s
             - --failover-eviction-timeout=30s
             - --controllers=*,hpaScaleTargetMarker,deploymentReplicasSyncer
-            - --feature-gates=PropagationPolicyPreemption=true,MultiClusterService=true
+            - --feature-gates=PropagationPolicyPreemption=true,MultiClusterService=true,StatefulFailoverInjection=true
             - --health-probe-bind-address=0.0.0.0:10357
             - --v=4
           livenessProbe:
