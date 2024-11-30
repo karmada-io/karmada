@@ -18,6 +18,7 @@ package cluster
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -33,6 +34,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -420,20 +422,24 @@ func TestController_monitorClusterHealth(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			err := features.FeatureGate.Set(fmt.Sprintf("%s=%t", features.Failover, true))
+			if err != nil {
+				t.Fatalf("Failed to enable failover feature gate: %v", err)
+			}
 			c := newClusterController()
 			if tt.cluster != nil {
-				if err := c.Create(context.Background(), tt.cluster, &client.CreateOptions{}); err != nil {
+				if err = c.Create(context.Background(), tt.cluster, &client.CreateOptions{}); err != nil {
 					t.Fatalf("failed to create cluster: %v", err)
 				}
 			}
 
-			if err := c.monitorClusterHealth(context.Background()); (err != nil) != tt.wantErr {
+			if err = c.monitorClusterHealth(context.Background()); (err != nil) != tt.wantErr {
 				t.Errorf("Controller.monitorClusterHealth() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
 			cluster := &clusterv1alpha1.Cluster{}
-			if err := c.Get(context.Background(), types.NamespacedName{Name: "test-cluster"}, cluster, &client.GetOptions{}); err != nil {
+			if err = c.Get(context.Background(), types.NamespacedName{Name: "test-cluster"}, cluster, &client.GetOptions{}); err != nil {
 				t.Errorf("failed to get cluster: %v", err)
 				return
 			}

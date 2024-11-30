@@ -219,13 +219,7 @@ func buildTaskOptions(failoverBehavior *policyv1alpha1.ApplicationFailoverBehavi
 			return nil, err
 		}
 	case policyv1alpha1.Never:
-		if features.FeatureGate.Enabled(features.GracefulEviction) {
-			taskOpts = append(taskOpts, workv1alpha2.WithSuppressDeletion(ptr.To[bool](true)))
-		} else {
-			err := fmt.Errorf("GracefulEviction featureGate must be enabled when purgeMode is %s", policyv1alpha1.Never)
-			klog.Error(err)
-			return nil, err
-		}
+		taskOpts = append(taskOpts, workv1alpha2.WithSuppressDeletion(ptr.To[bool](true)))
 	}
 
 	return taskOpts, nil

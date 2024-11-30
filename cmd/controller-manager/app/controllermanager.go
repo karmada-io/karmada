@@ -567,9 +567,6 @@ func startFederatedResourceQuotaStatusController(ctx controllerscontext.Context)
 }
 
 func startGracefulEvictionController(ctx controllerscontext.Context) (enabled bool, err error) {
-	if !features.FeatureGate.Enabled(features.GracefulEviction) {
-		return false, nil
-	}
 	rbGracefulEvictionController := &gracefuleviction.RBGracefulEvictionController{
 		Client:                  ctx.Mgr.GetClient(),
 		EventRecorder:           ctx.Mgr.GetEventRecorderFor(gracefuleviction.RBGracefulEvictionControllerName),
@@ -594,9 +591,6 @@ func startGracefulEvictionController(ctx controllerscontext.Context) (enabled bo
 }
 
 func startApplicationFailoverController(ctx controllerscontext.Context) (enabled bool, err error) {
-	if !features.FeatureGate.Enabled(features.Failover) {
-		return false, nil
-	}
 	rbApplicationFailoverController := applicationfailover.RBApplicationFailoverController{
 		Client:              ctx.Mgr.GetClient(),
 		EventRecorder:       ctx.Mgr.GetEventRecorderFor(applicationfailover.RBApplicationFailoverControllerName),
