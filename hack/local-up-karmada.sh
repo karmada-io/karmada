@@ -80,7 +80,7 @@ util::verify_go_version
 util::verify_docker
 
 # install kind and kubectl
-kind_version=v0.24.0
+kind_version=v0.25.0
 echo -n "Preparing: 'kind' existence check - "
 if util::cmd_exist kind; then
   echo "passed"
