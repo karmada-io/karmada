@@ -17,6 +17,7 @@ limitations under the License.
 package join
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -135,10 +136,10 @@ func (j *CommandJoinOption) Complete(args []string) error {
 // Validate checks option and return a slice of found errs.
 func (j *CommandJoinOption) Validate(args []string) error {
 	if len(args) > 1 {
-		return fmt.Errorf("only the cluster name is allowed as an argument")
+		return errors.New("only the cluster name is allowed as an argument")
 	}
 	if len(j.ClusterName) == 0 {
-		return fmt.Errorf("cluster name is required")
+		return errors.New("cluster name is required")
 	}
 	if errMsgs := validation.ValidateClusterName(j.ClusterName); len(errMsgs) != 0 {
 		return fmt.Errorf("invalid cluster name(%s): %s", j.ClusterName, strings.Join(errMsgs, ";"))
@@ -196,11 +197,21 @@ func (j *CommandJoinOption) Run(f cmdutil.Factory) error {
 	return j.RunJoinCluster(controlPlaneRestConfig, clusterConfig)
 }
 
+var controlPlaneKubeClientBuilder = func(controlPlaneRestConfig *rest.Config) kubeclient.Interface {
+	return kubeclient.NewForConfigOrDie(controlPlaneRestConfig)
+}
+var karmadaClientBuilder = func(controlPlaneRestConfig *rest.Config) karmadaclientset.Interface {
+	return karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
+}
+var clusterKubeClientBuilder = func(clusterConfig *rest.Config) kubeclient.Interface {
+	return kubeclient.NewForConfigOrDie(clusterConfig)
+}
+
 // RunJoinCluster join the cluster into karmada.
 func (j *CommandJoinOption) RunJoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config) (err error) {
-	controlPlaneKubeClient := kubeclient.NewForConfigOrDie(controlPlaneRestConfig)
-	karmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
-	clusterKubeClient := kubeclient.NewForConfigOrDie(clusterConfig)
+	controlPlaneKubeClient := controlPlaneKubeClientBuilder(controlPlaneRestConfig)
+	karmadaClient := karmadaClientBuilder(controlPlaneRestConfig)
+	clusterKubeClient := clusterKubeClientBuilder(clusterConfig)
 
 	klog.V(1).Infof("Joining cluster config. endpoint: %s", clusterConfig.Host)
 
@@ -288,7 +299,7 @@ func generateClusterInControllerPlane(opts util.ClusterRegisterOption) (*cluster
 		clusterObj.Spec.ProxyURL = url.String()
 	}
 
-	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(opts.ControlPlaneConfig)
+	controlPlaneKarmadaClient := karmadaClientBuilder(opts.ControlPlaneConfig)
 	cluster, err := util.CreateClusterObject(controlPlaneKarmadaClient, clusterObj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cluster(%s) object. error: %v", opts.ClusterName, err)
