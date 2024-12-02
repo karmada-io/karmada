@@ -68,19 +68,19 @@ func TestGetCronFederatedHPASuccessHistoryLimits(t *testing.T) {
 		expected int
 	}{
 		{
-			name:     "successful history limit is nil",
+			name:     "returns default limit when history limit is unspecified",
 			rule:     autoscalingv1alpha1.CronFederatedHPARule{},
-			expected: 3,
+			expected: DefaultHistoryLimit,
 		},
 		{
-			name: "successful history limit is set to 5",
+			name: "returns custom limit when specified",
 			rule: autoscalingv1alpha1.CronFederatedHPARule{
 				SuccessfulHistoryLimit: ptr.To[int32](5),
 			},
 			expected: 5,
 		},
 		{
-			name: "successful history limit is set to 0",
+			name: "returns zero when limit is explicitly set to zero",
 			rule: autoscalingv1alpha1.CronFederatedHPARule{
 				SuccessfulHistoryLimit: ptr.To[int32](0),
 			},
@@ -103,19 +103,19 @@ func TestGetCronFederatedHPAFailedHistoryLimits(t *testing.T) {
 		expected int
 	}{
 		{
-			name:     "failed history limit is nil",
+			name:     "returns default limit when history limit is unspecified",
 			rule:     autoscalingv1alpha1.CronFederatedHPARule{},
-			expected: 3,
+			expected: DefaultHistoryLimit,
 		},
 		{
-			name: "failed history limit is set to 5",
+			name: "returns custom limit when specified",
 			rule: autoscalingv1alpha1.CronFederatedHPARule{
 				FailedHistoryLimit: ptr.To[int32](5),
 			},
 			expected: 5,
 		},
 		{
-			name: "failed history limit is set to 0",
+			name: "returns zero when limit is explicitly set to zero",
 			rule: autoscalingv1alpha1.CronFederatedHPARule{
 				FailedHistoryLimit: ptr.To[int32](0),
 			},
