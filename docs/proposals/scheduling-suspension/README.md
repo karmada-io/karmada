@@ -1,12 +1,19 @@
 ---
 title: Support for resource scheduling suspend and resume capabilities
+
 authors:
 - "@Vacant2333"
-reviewers:
-- TBD
-approvers:
-- TBD
+- "@Monokaix"
 
+reviewers:
+- "@RainbowMango"
+- "@XiShanYongYe-Chang"
+- "@a7i"
+
+approvers:
+- "@kevin-wangzefeng"
+- "@RainbowMango"
+- "@XiShanYongYe-Chang"
 creation-date: 2024-10-13
 
 ---
@@ -18,41 +25,57 @@ creation-date: 2024-10-13
 <!--
 Karmada 目前已经允许用户通过 Suspension 来暂停和恢复资源的 propagation 行为，这提高了 Karmada 的灵活性。
 
-但是我认为目前 Suspension 支持的不够彻底，在 Karmada 中资源的分发可以简单理解为两个阶段，资源的调度和资源的传播。
-目前传播阶段可以较为灵活的由用户暂停和恢复，但是调度阶段用户无法介入。
+但是目前 Suspension 支持的不够彻底，在 Karmada 中资源的分发可以简单理解为两个阶段，资源的调度和资源的传播。
 
-在 Pod/Job 资源中，Pod.Spec.SchedulingGates/Job.Spec.Suspend 提供了暂停调度的能力。用户可以较为轻松的基于这些字段来暂停负载的调度，
-通过自定义控制器来实现优先级/队列的能力后逐个恢复负载的调度。但是在 Karmada 中无法这样做到，目前 Karmada Scheduler 没有队列的能力，
-所有的负载遵循先来后到进行调度。我们希望通过调度暂停的形式在Karmada之外实现队列能力，从而将集群有限的资源优先调度给高优先级的负载和任务。
+目前传播阶段可以较为灵活的由用户暂停和恢复，但是没有在调度阶段，没有提供暂停和恢复的能力。
 
-本文提供了一种在 Suspension 的基础之上，暂停资源调度的能力。
+我们希望在 Karmada 的基础之上，通过暂停调度的方式，实现队列和配额管理等高阶能力，从而将集群有限的资源优先调度给高优先级的工作负载，增强 Karmada 在多集群调度的能力，从而满足用户在复杂场景下的需求。
+
+本文基于 [#5118](https://github.com/karmada-io/karmada/pull/5118) 在其中的 Suspension 基础之上，提供了暂停资源调度的能力。
 -->
 
-**Karmada** currently allows users to pause and resume resource propagation behavior through **Suspension**, enhancing Karmada's flexibility.
+Karmada currently allows users to suspend and resume resource propagation behavior via `Suspension`, which improves the flexibility of Karmada.
 
-However, I believe the support for Suspension is not thorough enough. In Karmada, resource distribution can be simplified into two stages: the scheduling and the propagation of resources. Currently, the propagation stage can be paused and resumed flexibly by users, but the scheduling stage does not allow user intervention.
+However, the current support for Suspension is not thorough enough. Resource propagation in Karmada can be simply understood as two phases, resource scheduling and resource propagation.
 
-In the context of **Pod/Job** resources, `Pod.Spec.SchedulingGates` and `Job.Spec.Suspend` provide the ability to pause scheduling. Users can easily pause workload scheduling based on these fields and, with a custom controller, implement priority/queue capabilities to gradually resume workload scheduling. However, this is not achievable in Karmada. The current **Karmada Scheduler** lacks queuing capabilities, and all workloads are scheduled on a first-come, first-served basis. We hope to implement queuing capabilities outside of Karmada by pausing scheduling, thereby prioritizing the cluster's limited resources for high-priority workloads and tasks.
+At present, the propagation phase can be flexibly suspended and resumed by the user, but there is no suspension and resumption capability in the scheduling phase.
 
-This article proposes a method to pause resource scheduling based on Suspension.
+On the basis of Karmada, we hope to realize high-order capabilities such as queue and quota management through pause scheduling, so as to prioritize the limited resources of the cluster to high-priority workloads and enhance Karmada's multi-cluster scheduling capabilities, thereby meeting the needs of users in complex scenarios.
+
+This proposal is based on `Suspension` definition in [#5118](https://github.com/karmada-io/karmada/pull/5118), which provides the ability to suspend resource scheduling.
 
 ## Motivation
 
 <!--
-当前的 Karmada 无法提供队列和优先级等能力，来将有限的资源分配给高优先级任务/负载的能力。当用户有这类需求时，他们只能手动按顺序创建
-PropagationPolicy 来优先调度。在负载和任务较少时这样没有问题，但是当一个联邦系统有大量的Job类负载时，手动无疑是效率低下和不精确的。
 
-同时不同的用户会有不同的需求，如多租户/多队列/优先级队列调度能力。当 ResourceBinding 支持暂停调度后，用户就可以去实现自己的 Controller 并
-设计自己的队列系统。
+当使用Karmada管理不同的集群时，不同的集群可能对用着不同的租户，这些租户在使用资源时需要有优先级的控制，即实现多租场景下公平和优先级调度，
+因此需要在调度的时候对不同的工作负载进行优先级的区分，根据不同租户的优先级进行工作负载排序，并且在资源不足时进行排队等待。
+
+不同的租户对资源的使用量也有一些配额限制，因此需要调度时对资源进行一些配额校验，当资源足够时才允许工作负载的调度和下发，否则就忽略工作负载，直到资源得到满足。
+
+在K8s原生的资源中，Pod和Job都提供了类似的调度暂停和准入机制，Pod.Spec.SchedulingGates/Job.Spec.Suspend 字段分别表示了Pod和Job的暂停调度能力，用户可以较为轻松的基于这些字段来暂停负载的调度，
+为了在多集群场景解决类似的需求，Karmada也需要提供相应的能力。
+
+因此Karmada实现调度暂停后，就可以给外部controller提供一个契机，用户就可以去使用自己的 Controller，实现多租户队列优先级调度和配额管理等能力。
+
 -->
 
-**Karmada** currently lacks capabilities such as queuing and prioritization, which are necessary to allocate limited resources to high-priority tasks/workloads. When users have such needs, they can only manually create `PropagationPolicy` in sequence to prioritize scheduling. This is not a problem when there are fewer workloads and tasks, but it is inefficient and imprecise when a federated system has a large number of job-type workloads.
+When using Karmada to manage different clusters, different clusters may use different tenants, these tenants need to have priority control when using resources, i.e., to achieve fair and priority scheduling in multi-tenancy scenarios.
 
-Different users also have different requirements, such as multi-tenant, multi-queue, and priority queue scheduling capabilities. Once `ResourceBinding` supports the suspension of scheduling, users will be able to implement their own Controllers and design their own queuing systems.
+Therefore, it is necessary to prioritize different workloads during scheduling, sort workloads according to the priority of different tenants, and queue up when resources are insufficient.
+
+Different tenants also have some quota restrictions on the amount of resources used, so we need to do some quota checks on the resources when scheduling, when the resources are sufficient to allow workload scheduling and distribution, otherwise the workload is ignored until the resources are satisfied.
+
+In K8s native resources, Pod and Job both provide similar scheduling pause and admission mechanisms, `Pod.Spec.SchedulingGates`/`Job.Spec.Suspend` fields represent the pause scheduling capabilities of Pod and Job respectively, and the user can pause the scheduling of loads based on these fields more easily.
+
+In order to address similar needs in a multi-cluster scenario, Karmada needs to provide the corresponding capabilities.
+
+Therefore, after Karmada realizes scheduling suspension, it can provide an opportunity for external controllers, and users can go to use their own controllers to realize multi-tenant queue priority scheduling and quota management and other capabilities.
 
 ### Goals
 
 - Provide the capability to **pause resource scheduling**
+
 - Provide the capability to **resume resource scheduling**
 
 ## Proposal
@@ -62,53 +85,92 @@ Different users also have different requirements, such as multi-tenant, multi-qu
 #### Story 1
 
 <!--
-作为一名管理者，我希望 Karmada 能够允许我们通过一些方式在外部实现队列能力，从而在调度各部门的 Job 时能够限制各自的容量以及优先级，
-当资源不足时能够做到 Karmada 优先调度高优先级任务，这将帮助集群更好的利用有限的资源。
+作为一名集群管理员，我使用Karmada纳管了不同租户下的集群资源，我希望Karmada在调度工作负载到不同集群时，可以根据不同租户的优先级进行作业调度和分发，
+以保证高优先级的工作负载优先调度，同时兼顾公平性，因此我希望Karmada可以提供一种资源调度暂停的能力，这样我可以在上层进行工作负载的排序等操作，待排完序
+之后再恢复调度。
 -->
 
-As a manager, I hope that **Karmada** could allow us to implement external queue capabilities, which would enable us to limit the capacity and priority of jobs from different departments when scheduling. When resources are scarce, Karmada should prioritize higher-priority tasks. This will help the cluster make better use of limited resources.
+As a cluster administrator, I use Karmada to manage cluster resources under different tenants. I hope that Karmada can schedule and distribute workloads according to the priorities of different tenants when scheduling workloads to different clusters.
+In order to ensure that high-priority workloads are scheduled first while taking into account fairness, I hope that Karmada can provide a resource scheduling pause capability so that I can perform workload sorting and other operations on the upper layer until the sorting is completed.
+and then resume scheduling after that.
 
 #### Story 2
 
 <!--
-作为一名用户，我希望当我创建了负载和对应的 PropagationPolicy 之后不要立刻调度，直到我取消调度暂停。
+作为一名集群管理员，我使用Karmada纳管了不同租户下的集群资源，不同租户可以使用的资源配额量不同，我希望Karmada在调度工作负载到不同集群时可以先暂停调度，然后我们在
+Karmada之上构建一层配额管理和调度准入机制，只有租户资源足够时才进行工作负载的下发，否则保持工作负载暂停调度，以实现多租户的配额控制。
 -->
 
-As a user, I would like the scheduling not to start immediately after I have created the workload and the corresponding **PropagationPolicy**, until I lift the scheduling pause.
+As a cluster administrator, I use Karmada to manage cluster resources under different tenants. Different tenants have different resource quotas. I hope that Karmada can pause the scheduling first when scheduling workloads to different clusters, and then we can
+A layer of quota management and scheduling access mechanism is built on top of Karmada. Workloads will be dispatched only when the tenant resources are sufficient. Otherwise, the workload will be suspended for scheduling to achieve multi-tenant quota control.
 
 ## Design Details
 
 <!--
-通过拓展 PropagationPolicy/ClusterPropagationPolicy.Spec.Suspension，在其结构中我们引入了 SuspendScheduling 字段来表示暂停调度，
-同时此字段会传递到 ResourceBinding/ClusterResourceBinding 资源，Karmada Scheduler 组件需要根据 SuspendScheduling 来决定此时
-是否要开始调度对应的 ResourceBinding/ClusterResourceBinding。
+通过拓展 ResourceBinding.ResourceBindingSpec.Spec.Suspension字段，在其结构中加入 Suspension.Scheduling 字段来表示暂停调度，
+Karmada Scheduler 组件需要根据 Suspension.Scheduling 的值来决定此时是否要开始调度对应的 ResourceBinding/ClusterResourceBinding，
+当 Suspension.Scheduling 为true时，暂停调度，并刷新对用的condition，当 Suspension.Scheduling 为false时，恢复调度。默认创建的ResourceBinding
+该字段为空，表示默认允许调度，从而不影响现有行为。
 -->
 
-By extending `PropagationPolicy/ClusterPropagationPolicy.Spec.Suspension`, we have introduced the `SuspendScheduling` field to indicate a pause in scheduling. This field is also propagated to `ResourceBinding/ClusterResourceBinding` resources. The **Karmada Scheduler** component needs to determine whether to start scheduling the corresponding `ResourceBinding/ClusterResourceBinding` based on `SuspendScheduling`.
+By expanding the `ResourceBinding.ResourceBindingSpec.Spec.Suspension` field, and add the `Suspension.Scheduling` field to its structure to indicate suspension of scheduling.
+The Karmada Scheduler component needs to decide whether to start scheduling the corresponding `ResourceBinding/ClusterResourceBinding` at this time based on the value of `Suspension.Scheduling`.
+When `Suspension.Scheduling` is true, scheduling is suspended and the corresponding conditions are refreshed. When `Suspension.Scheduling` is false, scheduling is resumed. `ResourceBinding` created by default
+This field is empty, indicating that scheduling is allowed by default and does not affect existing behavior.
 
 ### API Change
 
 ```go
+type ResourceBindingSpec struct {
+    // Suspension declares the policy for suspending different aspects of propagation.
+    // nil means no suspension. no default values. 
+    // +optional 
+    // Suspension *policyv1alpha1.Suspension `json:"suspension,omitempty"`
+}
+
 // Suspension defines the policy for suspending different aspects of propagation.
 type Suspension struct {
-	...
-	
-    // SuspendScheduling controls whether scheduling should be suspended.
+    // Dispatching controls whether dispatching should be suspended.
+    // nil means not suspend, no default value, only accepts 'true'.
+    // Note: true means stop propagating to all clusters. Can not co-exist
+    // with DispatchingOnClusters which is used to suspend particular clusters.
     // +optional
-    SuspendScheduling *bool `json:"suspendScheduling,omitempty"`
+    Dispatching *bool `json:"dispatching,omitempty"`
+
+    // DispatchingOnClusters declares a list of clusters to which the dispatching
+    // should be suspended.
+    // Note: Can not co-exist with Dispatching which is used to suspend all.
+    // +optional
+    DispatchingOnClusters *SuspendClusters `json:"dispatchingOnClusters,omitempty"`
+	
+    // New Added
+    // Scheduling controls whether scheduling should be suspended.
+    // nil means not suspend, no default value, only accepts 'true'.
+    // Karmada scheduler will pause scheduling when value is true and resume scheduling when it's nil.
+    Scheduling *bool `json:"scheduling,omitempty"`
 }
 ```
 
-### User usage example
-
-#### Story 1 example
+### Implementations
 
 <!--
-用户可以通过自定义的 Webhook + Controller 来实现自己期望的队列和多租户能力，通过 Webhook 在 ResourceBinding 创建时将其 Suspend，
+Karmada scheduler监听rb状态，当ResourceBinding.Suspension.Scheduling=true时忽略该RB资源，暂停调度，当ResourceBinding.Suspension.Scheduling=false时恢复调度。
+并且当RB已经调度成功后，不再允许修改rb从非暂停到暂停，同时ResourceBinding.Suspension.Scheduling设置为true或者false时，在RB中的status中刷新相应的condition。
+-->
+Karmada scheduler listens the `ResourceBinding` resource , ignores the `ResourceBinding` resource when `ResourceBinding.Suspension.Scheduling`=true, pauses scheduling, and resumes scheduling when `ResourceBinding.Suspension.Scheduling`=false.
+
+And when the `ResourceBinding` has been successfully scheduled, it is no longer allowed to modify the `ResourceBinding` from non-suspended to suspended, and when `ResourceBinding.Suspension.Scheduling` is set to true or false, the corresponding condition is refreshed in the status of the `ResourceBinding`.
+
+### User usage example
+
+<!--
+用户可以通过自定义的 Webhook + Controller 来实现自己期望的队列/多租户/资源配额能力，通过 Webhook 在 ResourceBinding 创建时将其 Suspension.Scheduling设置为true，
 从而交由自定义的队列 Controller 处理，用户的 Workload/Job 就能够有序的按照如优先级来逐个调度。
 -->
 
-Users can implement their desired queue and multi-tenancy capabilities through a custom **Webhook + Controller**. By using the Webhook to suspend the `ResourceBinding` at the time of creation, the custom queue Controller can take over, allowing users' `Workload/Job` to be scheduled in an orderly manner according to priority.
+Users can use customized Webhook + Controller to achieve their desired queue/multi-tenant/resource quota capabilities, and set `Suspension.Scheduling` to true when the ResourceBinding is created through Webhook.
+
+And then handled by the custom controller, and the user's Workload/Job can be scheduled one by one in an orderly manner according to priority.
 
 ```yaml
 apiVersion: admissionregistration.k8s.io/v1
@@ -132,29 +194,6 @@ webhooks:
         scope: "Namespaced"
     sideEffects: None
     timeoutSeconds: 3
-```
-
-#### Story 2 example
-
-<!--
-用户在 PropagationPolicy 中设置 Deployment(default/nginx) 资源调度为暂停状态，Karmada 将不会开始调度该负载，
-同时也不会有对应的 Work 资源存在，只会创建出待调度的 ResourceBinding 资源。
--->
-
-When a user sets the scheduling of the `Deployment(default/nginx)` resource to a paused state in the `PropagationPolicy`, **Karmada** will not begin scheduling that workload. No corresponding `Work` resources will exist; only the `ResourceBinding` resource awaiting scheduling will be created.
-
-```yaml
-apiVersion: policy.karmada.io/v1alpha1
-kind: PropagationPolicy
-metadata:
-  name: nginx-propagation
-spec:
-  resourceSelectors:
-    - apiVersion: apps/v1
-      kind: Deployment
-      name: nginx
-  suspension:
-    suspendScheduling: true
 ```
 
 ### Test Plan
