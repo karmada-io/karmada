@@ -17,6 +17,7 @@ limitations under the License.
 package init
 
 import (
+	"errors"
 	"fmt"
 
 	"k8s.io/client-go/kubernetes"
@@ -53,13 +54,13 @@ func (o *CommandAddonsDisableOption) Complete() error {
 
 // Validate Check that there are enough conditions to run the disable.
 func (o *CommandAddonsDisableOption) Validate(args []string) error {
-	err := validAddonNames(args)
+	err := validateAddonNames(args)
 	if err != nil {
 		return err
 	}
 
 	if slices.Contains(args, EstimatorResourceName) && o.Cluster == "" {
-		return fmt.Errorf("member cluster and config is needed when disable karmada-scheduler-estimator,use `--cluster=member --member-kubeconfig /root/.kube/config --member-context member1` to disable karmada-scheduler-estimator")
+		return errors.New("member cluster and config is needed when disable karmada-scheduler-estimator,use `--cluster=member --member-kubeconfig /root/.kube/config --member-context member1` to disable karmada-scheduler-estimator")
 	}
 	return nil
 }
