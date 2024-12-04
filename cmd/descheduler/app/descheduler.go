@@ -42,6 +42,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
@@ -80,7 +81,7 @@ func NewDeschedulerCommand(stopChan <-chan struct{}) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use: "karmada-descheduler",
+		Use: names.KarmadaDeschedulerComponentName,
 		Long: `The karmada-descheduler evicts replicas from member clusters
 if they are failed to be scheduled for a period of time. It relies on 
 karmada-scheduler-estimator to get replica status.`,
@@ -113,7 +114,7 @@ karmada-scheduler-estimator to get replica status.`,
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
 
-	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-descheduler"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion(names.KarmadaDeschedulerComponentName))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 

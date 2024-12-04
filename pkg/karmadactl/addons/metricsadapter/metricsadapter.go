@@ -38,6 +38,7 @@ import (
 	initkarmada "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/karmada"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 // aaAPIServiceName define apiservice name install on karmada control plane
@@ -49,7 +50,7 @@ var aaAPIServices = []string{
 
 // AddonMetricsAdapter describe the metrics-adapter addon command process
 var AddonMetricsAdapter = &addoninit.Addon{
-	Name:    addoninit.MetricsAdapterResourceName,
+	Name:    names.KarmadaMetricsAdapterComponentName,
 	Status:  status,
 	Enable:  enableMetricsAdapter,
 	Disable: disableMetricsAdapter,
@@ -58,7 +59,7 @@ var AddonMetricsAdapter = &addoninit.Addon{
 var status = func(opts *addoninit.CommandAddonsListOption) (string, error) {
 	// check karmada-metrics-adapter deployment status on host cluster
 	deployClient := opts.KubeClientSet.AppsV1().Deployments(opts.Namespace)
-	deployment, err := deployClient.Get(context.TODO(), addoninit.MetricsAdapterResourceName, metav1.GetOptions{})
+	deployment, err := deployClient.Get(context.TODO(), names.KarmadaMetricsAdapterComponentName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return addoninit.AddonDisabledStatus, nil
@@ -102,21 +103,21 @@ var enableMetricsAdapter = func(opts *addoninit.CommandAddonsEnableOption) error
 var disableMetricsAdapter = func(opts *addoninit.CommandAddonsDisableOption) error {
 	// delete karmada metrics adapter service on host cluster
 	serviceClient := opts.KubeClientSet.CoreV1().Services(opts.Namespace)
-	if err := serviceClient.Delete(context.TODO(), addoninit.MetricsAdapterResourceName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+	if err := serviceClient.Delete(context.TODO(), names.KarmadaMetricsAdapterComponentName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 	klog.Infof("Uninstall karmada metrics adapter service on host cluster successfully")
 
 	// delete karmada metrics adapter deployment on host cluster
 	deployClient := opts.KubeClientSet.AppsV1().Deployments(opts.Namespace)
-	if err := deployClient.Delete(context.TODO(), addoninit.MetricsAdapterResourceName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+	if err := deployClient.Delete(context.TODO(), names.KarmadaMetricsAdapterComponentName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 	klog.Infof("Uninstall karmada metrics adapter deployment on host cluster successfully")
 
 	// delete karmada metrics adapter aa service on karmada control plane
 	karmadaServiceClient := opts.KarmadaKubeClientSet.CoreV1().Services(opts.Namespace)
-	if err := karmadaServiceClient.Delete(context.TODO(), addoninit.MetricsAdapterResourceName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+	if err := karmadaServiceClient.Delete(context.TODO(), names.KarmadaMetricsAdapterComponentName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 	klog.Infof("Uninstall karmada metrics adapter AA service on karmada control plane successfully")

@@ -44,6 +44,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
@@ -92,7 +93,7 @@ func NewSchedulerCommand(stopChan <-chan struct{}, registryOptions ...Option) *c
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use: "karmada-scheduler",
+		Use: names.KarmadaSchedulerComponentName,
 		Long: `The karmada-scheduler is a control plane process which assigns resources to the clusters it manages.
 The scheduler determines which clusters are valid placements for each resource in the scheduling queue according to
 constraints and available resources. The scheduler then ranks each valid cluster and binds the resource to
@@ -125,7 +126,7 @@ the most suitable cluster.`,
 	// Set klog flags
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
-	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-scheduler"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion(names.KarmadaSchedulerComponentName))
 
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)

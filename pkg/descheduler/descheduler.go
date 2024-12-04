@@ -46,6 +46,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/grpcconnection"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 const (
@@ -131,7 +132,7 @@ func NewDescheduler(karmadaClient karmadaclientset.Interface, kubeClient kuberne
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartStructuredLogging(0)
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: kubeClient.CoreV1().Events(metav1.NamespaceAll)})
-	desched.eventRecorder = eventBroadcaster.NewRecorder(gclient.NewSchema(), corev1.EventSource{Component: "karmada-descheduler"})
+	desched.eventRecorder = eventBroadcaster.NewRecorder(gclient.NewSchema(), corev1.EventSource{Component: names.KarmadaDeschedulerComponentName})
 
 	return desched
 }

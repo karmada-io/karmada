@@ -35,10 +35,11 @@ import (
 	addoninit "github.com/karmada-io/karmada/pkg/karmadactl/addons/init"
 	addonutils "github.com/karmada-io/karmada/pkg/karmadactl/addons/utils"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 func TestKarmadaSearchAddonStatus(t *testing.T) {
-	name, namespace := addoninit.SearchResourceName, "test"
+	name, namespace := names.KarmadaSearchComponentName, "test"
 	var replicas int32 = 2
 	tests := []struct {
 		name       string

@@ -52,6 +52,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
@@ -299,7 +300,7 @@ func (ctl *Controller) Connect(ctx context.Context, proxyPath string, responder 
 		}
 
 		h = metrics.InstrumentHandlerFunc(requestInfo.Verb, requestInfo.APIGroup, requestInfo.APIVersion, requestInfo.Resource, requestInfo.Subresource,
-			"", "karmada-search", false, "", h.ServeHTTP)
+			"", names.KarmadaSearchComponentName, false, "", h.ServeHTTP)
 		h.ServeHTTP(rw, newReq)
 	}), nil
 }

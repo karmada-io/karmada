@@ -35,7 +35,6 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	fakekarmadaclient "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
-	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -72,7 +71,7 @@ func TestValidate(t *testing.T) {
 			name: "Validate_WithNameSpaceKarmadaSystem_WarningIssuedAndValidated",
 			joinOpts: &CommandJoinOption{
 				ClusterName:      "cluster1",
-				ClusterNamespace: util.NamespaceKarmadaSystem,
+				ClusterNamespace: names.NamespaceKarmadaSystem,
 			},
 			args:    []string{"cluster2"},
 			wantErr: false,
