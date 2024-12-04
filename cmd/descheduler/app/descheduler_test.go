@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/karmada-io/karmada/cmd/descheduler/app/options"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 func TestNewDeschedulerCommand(t *testing.T) {
@@ -32,7 +33,7 @@ func TestNewDeschedulerCommand(t *testing.T) {
 	cmd := NewDeschedulerCommand(stopCh)
 
 	assert.NotNil(t, cmd)
-	assert.Equal(t, "karmada-descheduler", cmd.Use)
+	assert.Equal(t, names.KarmadaDeschedulerComponentName, cmd.Use)
 	assert.NotEmpty(t, cmd.Long)
 }
 

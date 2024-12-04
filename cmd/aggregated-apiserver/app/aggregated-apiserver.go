@@ -26,6 +26,7 @@ import (
 	"github.com/karmada-io/karmada/cmd/aggregated-apiserver/app/options"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
 
@@ -34,7 +35,7 @@ func NewAggregatedApiserverCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use: "karmada-aggregated-apiserver",
+		Use: names.KarmadaAggregatedAPIServerComponentName,
 		Long: `The karmada-aggregated-apiserver starts an aggregated server. 
 It is responsible for registering the Cluster API and provides the ability to aggregate APIs, 
 allowing users to access member clusters from the control plane directly.`,
@@ -61,7 +62,7 @@ allowing users to access member clusters from the control plane directly.`,
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
 
-	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-aggregated-apiserver"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion(names.KarmadaAggregatedAPIServerComponentName))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 

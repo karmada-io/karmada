@@ -25,6 +25,7 @@ import (
 	addonsinit "github.com/karmada-io/karmada/pkg/karmadactl/addons/init"
 	"github.com/karmada-io/karmada/pkg/karmadactl/addons/metricsadapter"
 	"github.com/karmada-io/karmada/pkg/karmadactl/addons/search"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 func TestInstall(t *testing.T) {
@@ -38,22 +39,22 @@ func TestInstall(t *testing.T) {
 	}{
 		{
 			name:          "Install_WithKarmadaDeschedulerAddon_Installed",
-			key:           "karmada-descheduler",
+			key:           names.KarmadaDeschedulerComponentName,
 			expectedAddon: descheduler.AddonDescheduler,
 		},
 		{
 			name:          "Install_WithKarmadaMetricsAdapterAddon_Installed",
-			key:           "karmada-metrics-adapter",
+			key:           names.KarmadaMetricsAdapterComponentName,
 			expectedAddon: metricsadapter.AddonMetricsAdapter,
 		},
 		{
 			name:          "Install_WithKarmadaSchedulerEstimatorAddon_Installed",
-			key:           "karmada-scheduler-estimator",
+			key:           names.KarmadaSchedulerEstimatorComponentName,
 			expectedAddon: estimator.AddonEstimator,
 		},
 		{
 			name:          "Install_WithKarmadaSearchAddon_Installed",
-			key:           "karmada-search",
+			key:           names.KarmadaSearchComponentName,
 			expectedAddon: search.AddonSearch,
 		},
 	}

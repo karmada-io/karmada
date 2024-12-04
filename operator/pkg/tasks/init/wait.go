@@ -27,6 +27,7 @@ import (
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 var (
@@ -41,12 +42,12 @@ var (
 
 	etcdLabels                       = labels.Set{"karmada-app": constants.Etcd}
 	karmadaApiserverLabels           = labels.Set{"karmada-app": constants.KarmadaAPIServer}
-	karmadaAggregatedAPIServerLabels = labels.Set{"karmada-app": constants.KarmadaAggregatedAPIServer}
+	karmadaAggregatedAPIServerLabels = labels.Set{"karmada-app": names.KarmadaAggregatedAPIServerComponentName}
 	kubeControllerManagerLabels      = labels.Set{"karmada-app": constants.KubeControllerManager}
-	karmadaControllerManagerLabels   = labels.Set{"karmada-app": constants.KarmadaControllerManager}
-	karmadaSchedulerLabels           = labels.Set{"karmada-app": constants.KarmadaScheduler}
-	karmadaWebhookLabels             = labels.Set{"karmada-app": constants.KarmadaWebhook}
-	karmadaMetricAdapterLabels       = labels.Set{"karmada-app": constants.KarmadaMetricsAdapter}
+	karmadaControllerManagerLabels   = labels.Set{"karmada-app": names.KarmadaControllerManagerComponentName}
+	karmadaSchedulerLabels           = labels.Set{"karmada-app": names.KarmadaSchedulerComponentName}
+	karmadaWebhookLabels             = labels.Set{"karmada-app": names.KarmadaWebhookComponentName}
+	karmadaMetricAdapterLabels       = labels.Set{"karmada-app": names.KarmadaMetricsAdapterComponentName}
 )
 
 // NewCheckApiserverHealthTask init wait-apiserver task

@@ -39,6 +39,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 	"github.com/karmada-io/karmada/pkg/webhook/clusteroverridepolicy"
@@ -63,7 +64,7 @@ func NewWebhookCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use: "karmada-webhook",
+		Use: names.KarmadaWebhookComponentName,
 		Long: `The karmada-webhook starts a webhook server and manages policies about how to mutate and validate
 Karmada resources including 'PropagationPolicy', 'OverridePolicy' and so on.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
@@ -96,7 +97,7 @@ Karmada resources including 'PropagationPolicy', 'OverridePolicy' and so on.`,
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
 
-	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-webhook"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion(names.KarmadaWebhookComponentName))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 

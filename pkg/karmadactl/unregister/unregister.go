@@ -148,7 +148,7 @@ func (j *CommandUnregisterOption) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&j.KarmadaContext, "karmada-context", "", "Context in karmada-config to access karmada-apiserver, optional, defaults to current context.")
 
 	flags.StringVarP(&j.Namespace, "namespace", "n", "karmada-system", "Namespace of the karmada-agent component deployed.")
-	flags.StringVarP(&j.AgentName, "agent-name", "", register.KarmadaAgentName, "Deployment name of the karmada-agent component deployed.")
+	flags.StringVarP(&j.AgentName, "agent-name", "", names.KarmadaAgentComponentName, "Deployment name of the karmada-agent component deployed.")
 	flags.StringVar(&j.ClusterNamespace, "cluster-namespace", options.DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster secrets are stored.")
 	flags.DurationVar(&j.Wait, "wait", 60*time.Second, "wait for the unjoin command execution process(default 60s), if there is no success after this time, timeout will be returned.")
 	flags.BoolVar(&j.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
@@ -410,11 +410,11 @@ func (j *CommandUnregisterOption) listMemberClusterResources() []register.Obj {
 		{Kind: "Namespace", Name: j.ClusterNamespace},
 
 		// the deployment of karmada-agent
-		{Kind: "Deployment", Namespace: j.Namespace, Name: register.KarmadaAgentName},
+		{Kind: "Deployment", Namespace: j.Namespace, Name: names.KarmadaAgentComponentName},
 		// the rbac resources used by karmada-agent to access the member cluster's kube-apiserver
 		{Kind: "ServiceAccount", Namespace: j.Namespace, Name: register.KarmadaAgentServiceAccountName},
-		{Kind: "ClusterRole", Name: register.KarmadaAgentName},
-		{Kind: "ClusterRoleBinding", Name: register.KarmadaAgentName},
+		{Kind: "ClusterRole", Name: names.KarmadaAgentComponentName},
+		{Kind: "ClusterRoleBinding", Name: names.KarmadaAgentComponentName},
 		// the karmada config used by karmada-agent to access karmada-apiserver
 		{Kind: "Secret", Namespace: j.Namespace, Name: register.KarmadaKubeconfigName},
 	}

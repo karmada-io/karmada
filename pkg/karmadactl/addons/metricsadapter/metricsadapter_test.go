@@ -36,10 +36,11 @@ import (
 	addoninit "github.com/karmada-io/karmada/pkg/karmadactl/addons/init"
 	addonutils "github.com/karmada-io/karmada/pkg/karmadactl/addons/utils"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 func TestStatus(t *testing.T) {
-	name, namespace := addoninit.MetricsAdapterResourceName, "test"
+	name, namespace := names.KarmadaMetricsAdapterComponentName, "test"
 	var replicas int32 = 2
 	tests := []struct {
 		name       string
