@@ -121,6 +121,7 @@ jobs:
   release-charts:
     permissions:
       contents: write  # for softprops/action-gh-release to create GitHub release
+      pull-requests: write
     name: Release charts
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
@@ -145,6 +146,14 @@ jobs:
       run: |
         cd _output/charts
         echo "hashes=$(sha256sum *.tgz|base64 -w0)" >> "$GITHUB_OUTPUT"
+    - name: update chart index
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        git config user.name "$GITHUB_ACTOR"
+        git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+        export tag=${{ github.ref_name }}
+        hack/update-chart-index.sh
   charts-provenance:
     needs: [release-charts]
     permissions:
