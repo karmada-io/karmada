@@ -15,8 +15,8 @@ concurrency:
 permissions:
   contents: read  # Required to check out the code
 jobs:
-  init:
-    name: init
+  test-on-kubernetes-matrix:
+    name: Test on Kubernetes
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
