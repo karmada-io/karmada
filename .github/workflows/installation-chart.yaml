@@ -1,13 +1,8 @@
 # validate any chart changes under charts directory
-name: Chart Lint
-
+name: Chart
 env:
   HELM_VERSION: v3.11.2
   KUSTOMIZE_VERSION: 5.4.3
-  KIND_VERSION: v0.22.0
-  KIND_NODE_IMAGE: kindest/node:v1.29.0
-  K8S_VERSION: v1.29.0
-
 on:
   push:
     # Exclude branches created by Dependabot to avoid triggering current workflow
@@ -15,15 +10,23 @@ on:
     branches-ignore:
       - 'dependabot/**'
   pull_request:
-    paths:
-      - "charts/**"
-
+# https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#concurrency
+concurrency:
+  group: ${{ github.workflow }}-${{ github.actor }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 permissions:
   contents: read
-
 jobs:
-  chart-lint-test:
+  test-on-kubernetes-matrix:
+    name: Test on Kubernetes
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # Here support the latest three minor releases of Kubernetes, this can be considered to be roughly
+        # the same as the End of Life of the Kubernetes release: https://kubernetes.io/releases/
+        # Please remember to update the CI Schedule Workflow when we add a new version.
+        k8s: [ v1.29.0, v1.30.0, v1.31.0 ]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -99,15 +102,11 @@ jobs:
         if: steps.list-changed.outputs.changed == 'true'
         run: ct lint --debug --check-version-increment=false
 
-      - name: Create kind cluster
-        uses: helm/kind-action@v1.10.0
-        if: steps.list-changed.outputs.changed == 'true'
-        with:
-          wait: 120s
-          version: ${{ env.KIND_VERSION }}
-          node_image: ${{ env.KIND_NODE_IMAGE }}
-          kubectl_version: ${{ env.K8S_VERSION }}
-
       - name: Run chart-testing (install)
-        if: steps.list-changed.outputs.changed == 'true'
-        run: ct install --debug --helm-extra-args "--timeout 800s"
+        run: |
+          export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
+          hack/setup-dev-base.sh
+          export KUBECONFIG=~/.kube/karmada.config
+          
+          ct install --charts charts/karmada --debug --helm-extra-set-args '--set components={search,metricsAdapter,descheduler},apiServer.hostNetwork=true' --helm-extra-args "--timeout 800s" --skip-clean-up
+          kubectl get pods -A
