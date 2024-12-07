@@ -35,6 +35,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/metricsadapter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/version"
 )
 
@@ -96,7 +97,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*metricsadapter.MetricsServer,
 	metricsAdapter := metricsadapter.NewMetricsAdapter(metricsController, o.CustomMetricsAdapterServerOptions)
 	metricsAdapter.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(generatedopenapi.GetOpenAPIDefinitions, openapinamer.NewDefinitionNamer(api.Scheme))
 	metricsAdapter.OpenAPIV3Config = genericapiserver.DefaultOpenAPIV3Config(generatedopenapi.GetOpenAPIDefinitions, openapinamer.NewDefinitionNamer(api.Scheme))
-	metricsAdapter.OpenAPIConfig.Info.Title = "karmada-metrics-adapter"
+	metricsAdapter.OpenAPIConfig.Info.Title = names.KarmadaMetricsAdapterComponentName
 	metricsAdapter.OpenAPIConfig.Info.Version = "1.0.0"
 
 	// Explicitly specify the remote kubeconfig file here to solve the issue that metrics adapter requires to build

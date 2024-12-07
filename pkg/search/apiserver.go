@@ -29,6 +29,7 @@ import (
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	searchstorage "github.com/karmada-io/karmada/pkg/registry/search/storage"
 	"github.com/karmada-io/karmada/pkg/search/proxy"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 // ExtraConfig holds custom apiserver config
@@ -79,7 +80,7 @@ var apiGroupInstaller = func(server *APIServer, apiGroupInfo *genericapiserver.A
 }
 
 func (c completedConfig) New() (*APIServer, error) {
-	genericServer, err := c.GenericConfig.New("karmada-search", genericapiserver.NewEmptyDelegate())
+	genericServer, err := c.GenericConfig.New(names.KarmadaSearchComponentName, genericapiserver.NewEmptyDelegate())
 	if err != nil {
 		return nil, err
 	}

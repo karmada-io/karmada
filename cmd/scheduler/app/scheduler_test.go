@@ -25,13 +25,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/karmada-io/karmada/cmd/scheduler/app/options"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 func TestNewSchedulerCommand(t *testing.T) {
 	stopCh := make(chan struct{})
 	cmd := NewSchedulerCommand(stopCh)
 	assert.NotNil(t, cmd)
-	assert.Equal(t, "karmada-scheduler", cmd.Use)
+	assert.Equal(t, names.KarmadaSchedulerComponentName, cmd.Use)
 	assert.NotEmpty(t, cmd.Long)
 }
 

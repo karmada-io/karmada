@@ -39,6 +39,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
@@ -77,7 +78,7 @@ func NewSchedulerEstimatorCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use: "karmada-scheduler-estimator",
+		Use: names.KarmadaSchedulerEstimatorComponentName,
 		Long: `The karmada-scheduler-estimator runs an accurate scheduler estimator of a cluster. It 
 provides the scheduler with more accurate cluster resource information.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
@@ -101,7 +102,7 @@ provides the scheduler with more accurate cluster resource information.`,
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
 
-	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-scheduler-estimator"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion(names.KarmadaSchedulerEstimatorComponentName))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 

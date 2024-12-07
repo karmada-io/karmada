@@ -57,6 +57,7 @@ import (
 	tokenutil "github.com/karmada-io/karmada/pkg/karmadactl/util/bootstraptoken"
 	karmadautil "github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/lifted/pubkeypin"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/version"
 )
 
@@ -94,8 +95,6 @@ const (
 	KarmadaAgentKubeConfigFileName = "karmada-agent.conf"
 	// KarmadaKubeconfigName is the name of karmada kubeconfig
 	KarmadaKubeconfigName = "karmada-kubeconfig"
-	// KarmadaAgentName is the name of karmada-agent
-	KarmadaAgentName = "karmada-agent"
 	// KarmadaAgentServiceAccountName is the name of karmada-agent serviceaccount
 	KarmadaAgentServiceAccountName = "karmada-agent-sa"
 	// SignerName defines the signer name for csr, 'kubernetes.io/kube-apiserver-client' can sign the csr with `O=system:agents,CN=system:agent:` automatically if agentcsrapproving controller if enabled.
@@ -114,7 +113,7 @@ const (
 	DefaultCertExpirationSeconds int32 = 86400 * 365
 )
 
-var karmadaAgentLabels = map[string]string{"app": KarmadaAgentName}
+var karmadaAgentLabels = map[string]string{"app": names.KarmadaAgentComponentName}
 
 // BootstrapTokenDiscovery is used to set the options for bootstrap token based discovery
 type BootstrapTokenDiscovery struct {
@@ -494,9 +493,9 @@ func (o *CommandRegisterOption) preflight() []error {
 			errlist = append(errlist, err)
 		}
 
-		_, err = o.memberClusterClient.AppsV1().Deployments(o.Namespace).Get(context.TODO(), KarmadaAgentName, metav1.GetOptions{})
+		_, err = o.memberClusterClient.AppsV1().Deployments(o.Namespace).Get(context.TODO(), names.KarmadaAgentComponentName, metav1.GetOptions{})
 		if err == nil {
-			errlist = append(errlist, fmt.Errorf("%s/%s Deployment already exists", o.Namespace, KarmadaAgentName))
+			errlist = append(errlist, fmt.Errorf("%s/%s Deployment already exists", o.Namespace, names.KarmadaAgentComponentName))
 		} else if !apierrors.IsNotFound(err) {
 			errlist = append(errlist, err)
 		}
@@ -999,7 +998,7 @@ func (o *CommandRegisterOption) createSecretAndRBACInMemberCluster(karmadaAgentC
 
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   KarmadaAgentName,
+			Name:   names.KarmadaAgentComponentName,
 			Labels: labels,
 		},
 		Rules: []rbacv1.PolicyRule{
@@ -1036,7 +1035,7 @@ func (o *CommandRegisterOption) createSecretAndRBACInMemberCluster(karmadaAgentC
 
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   KarmadaAgentName,
+			Name:   names.KarmadaAgentComponentName,
 			Labels: labels,
 		},
 		RoleRef: rbacv1.RoleRef{
@@ -1069,7 +1068,7 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 			Kind:       "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      KarmadaAgentName,
+			Name:      names.KarmadaAgentComponentName,
 			Namespace: o.Namespace,
 			Labels:    karmadaAgentLabels,
 		},
@@ -1086,7 +1085,7 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 		ServiceAccountName: KarmadaAgentServiceAccountName,
 		Containers: []corev1.Container{
 			{
-				Name:  KarmadaAgentName,
+				Name:  names.KarmadaAgentComponentName,
 				Image: o.KarmadaAgentImage,
 				Command: []string{
 					"/bin/karmada-agent",
@@ -1140,7 +1139,7 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 	// PodTemplateSpec
 	podTemplateSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      KarmadaAgentName,
+			Name:      names.KarmadaAgentComponentName,
 			Namespace: o.Namespace,
 			Labels:    karmadaAgentLabels,
 		},

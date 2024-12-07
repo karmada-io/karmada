@@ -28,6 +28,7 @@ import (
 
 	cmdinit "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/kubernetes"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/version"
 )
 
@@ -156,11 +157,11 @@ func (o *CommandAddonsEnableOption) Validate(args []string) error {
 	}
 
 	if o.Cluster == "" {
-		if slices.Contains(args, EstimatorResourceName) {
+		if slices.Contains(args, names.KarmadaSchedulerEstimatorComponentName) {
 			return fmt.Errorf("member cluster is needed when enable karmada-scheduler-estimator,use `--cluster=member --member-kubeconfig /root/.kube/config --member-context member1` to enable karmada-scheduler-estimator")
 		}
 	} else {
-		if !slices.Contains(args, EstimatorResourceName) && !slices.Contains(args, "all") {
+		if !slices.Contains(args, names.KarmadaSchedulerEstimatorComponentName) && !slices.Contains(args, "all") {
 			return fmt.Errorf("cluster is needed only when enable karmada-scheduler-estimator or enable all")
 		}
 		if o.MemberKubeConfig == "" {

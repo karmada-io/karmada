@@ -30,6 +30,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 const (
@@ -81,9 +82,9 @@ func TestGenCerts(t *testing.T) {
 		"kubernetes.default",
 		"kubernetes.default.svc",
 		"karmada-apiserver",
-		"karmada-webhook",
+		names.KarmadaWebhookComponentName,
 		fmt.Sprintf("%s.%s.svc.cluster.local", "karmada-apiserver", namespace),
-		fmt.Sprintf("%s.%s.svc.cluster.local", "karmada-webhook", namespace),
+		fmt.Sprintf("%s.%s.svc.cluster.local", names.KarmadaWebhookComponentName, namespace),
 		fmt.Sprintf("*.%s.svc.cluster.local", namespace),
 		fmt.Sprintf("*.%s.svc", namespace),
 	}

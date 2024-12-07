@@ -30,6 +30,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	fakekarmadaclient "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
 	"github.com/karmada-io/karmada/pkg/karmadactl/register"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 const (
@@ -153,7 +154,7 @@ func TestCommandUnregisterOption_getKarmadaAgentConfig(t *testing.T) {
 				MemberClusterClient: fake.NewSimpleClientset(tt.clusterResources...),
 			}
 			agent := &appsv1.Deployment{
-				ObjectMeta: metav1.ObjectMeta{Name: register.KarmadaAgentName, Namespace: namespace},
+				ObjectMeta: metav1.ObjectMeta{Name: names.KarmadaAgentComponentName, Namespace: namespace},
 				Spec: appsv1.DeploymentSpec{
 					Template: corev1.PodTemplateSpec{
 						Spec: corev1.PodSpec{

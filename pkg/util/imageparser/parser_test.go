@@ -19,6 +19,8 @@ package imageparser
 import (
 	"fmt"
 	"testing"
+
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 func TestParse(t *testing.T) {
@@ -209,7 +211,7 @@ func ExampleComponents_SetTagOrDigest() {
 func ExampleComponents_String() {
 	key := Components{
 		hostname:   "fictional.registry.example",
-		repository: "karmada-scheduler",
+		repository: names.KarmadaSchedulerComponentName,
 		tag:        "v1.0.0",
 	}
 	pKey := &key

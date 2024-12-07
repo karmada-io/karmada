@@ -36,6 +36,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	utilcomp "github.com/karmada-io/karmada/pkg/karmadactl/util/completion"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 var (
@@ -145,7 +146,7 @@ func (j *CommandJoinOption) Validate(args []string) error {
 		return fmt.Errorf("invalid cluster name(%s): %s", j.ClusterName, strings.Join(errMsgs, ";"))
 	}
 
-	if j.ClusterNamespace == util.NamespaceKarmadaSystem {
+	if j.ClusterNamespace == names.NamespaceKarmadaSystem {
 		klog.Warningf("karmada-system is always reserved for Karmada control plane. We do not recommend using karmada-system to store secrets of member clusters. It may cause mistaken cleanup of resources.")
 	}
 

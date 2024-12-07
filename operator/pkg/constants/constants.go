@@ -45,22 +45,8 @@ const (
 	KarmadaAPIServer = "karmada-apiserver"
 	// KubeAPIServer defines the repository name of the kube apiserver
 	KubeAPIServer = "kube-apiserver"
-	// KarmadaAggregatedAPIServer defines the name of the karmada-aggregated-apiserver component
-	KarmadaAggregatedAPIServer = "karmada-aggregated-apiserver"
 	// KubeControllerManager defines the name of the kube-controller-manager component
 	KubeControllerManager = "kube-controller-manager"
-	// KarmadaControllerManager defines the name of the karmada-controller-manager component
-	KarmadaControllerManager = "karmada-controller-manager"
-	// KarmadaScheduler defines the name of the karmada-scheduler component
-	KarmadaScheduler = "karmada-scheduler"
-	// KarmadaWebhook defines the name of the karmada-webhook component
-	KarmadaWebhook = "karmada-webhook"
-	// KarmadaSearch defines the name of the karmada-search component
-	KarmadaSearch = "karmada-search"
-	// KarmadaDescheduler defines the name of the karmada-descheduler component
-	KarmadaDescheduler = "karmada-descheduler"
-	// KarmadaMetricsAdapter defines the name of the karmada-metrics-adapter component
-	KarmadaMetricsAdapter = "karmada-metrics-adapter"
 
 	// KarmadaSystemNamespace defines the leader selection namespace for karmada components
 	KarmadaSystemNamespace = "karmada-system"

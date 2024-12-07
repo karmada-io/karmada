@@ -51,6 +51,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
@@ -63,7 +64,7 @@ func NewKarmadaSearchCommand(ctx context.Context, registryOptions ...Option) *co
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use: "karmada-search",
+		Use: names.KarmadaSearchComponentName,
 		Long: `The karmada-search starts an aggregated server. It provides 
 capabilities such as global search and resource proxy in a multi-cloud environment.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
@@ -89,7 +90,7 @@ capabilities such as global search and resource proxy in a multi-cloud environme
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
 
-	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-search"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion(names.KarmadaSearchComponentName))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 
@@ -173,7 +174,7 @@ func config(o *options.Options, outOfTreeRegistryOptions ...Option) (*search.Con
 		sets.NewString("attach", "exec", "proxy", "log", "portforward"))
 	serverConfig.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(generatedopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(searchscheme.Scheme))
 	serverConfig.OpenAPIV3Config = genericapiserver.DefaultOpenAPIV3Config(generatedopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(searchscheme.Scheme))
-	serverConfig.OpenAPIConfig.Info.Title = "karmada-search"
+	serverConfig.OpenAPIConfig.Info.Title = names.KarmadaSearchComponentName
 	if err := o.ApplyTo(serverConfig); err != nil {
 		return nil, err
 	}

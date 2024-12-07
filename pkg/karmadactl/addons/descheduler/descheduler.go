@@ -30,18 +30,19 @@ import (
 	addoninit "github.com/karmada-io/karmada/pkg/karmadactl/addons/init"
 	addonutils "github.com/karmada-io/karmada/pkg/karmadactl/addons/utils"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 // AddonDescheduler describe the descheduler addon command process
 var AddonDescheduler = &addoninit.Addon{
-	Name:    addoninit.DeschedulerResourceName,
+	Name:    names.KarmadaDeschedulerComponentName,
 	Status:  status,
 	Enable:  enableDescheduler,
 	Disable: disableDescheduler,
 }
 
 var status = func(opts *addoninit.CommandAddonsListOption) (string, error) {
-	deployment, err := opts.KubeClientSet.AppsV1().Deployments(opts.Namespace).Get(context.TODO(), addoninit.DeschedulerResourceName, metav1.GetOptions{})
+	deployment, err := opts.KubeClientSet.AppsV1().Deployments(opts.Namespace).Get(context.TODO(), names.KarmadaDeschedulerComponentName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return addoninit.AddonDisabledStatus, nil
@@ -87,7 +88,7 @@ var enableDescheduler = func(opts *addoninit.CommandAddonsEnableOption) error {
 var disableDescheduler = func(opts *addoninit.CommandAddonsDisableOption) error {
 	// uninstall karmada descheduler deployment on host cluster
 	deployClient := opts.KubeClientSet.AppsV1().Deployments(opts.Namespace)
-	if err := deployClient.Delete(context.TODO(), addoninit.DeschedulerResourceName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+	if err := deployClient.Delete(context.TODO(), names.KarmadaDeschedulerComponentName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
