@@ -23,7 +23,6 @@ set -o nounset
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 source ${REPO_ROOT}/hack/util.sh
 
-KARMADA_SYSTEM_NAMESPACE="karmada-system"
 KARMADA_INSTANCE_NAME=${KARMADA_INSTANCE_NAME:-"karmada-demo"}
 KARMADA_INSTANCE_NAMESPACE=${KARMADA_INSTANCE_NAMESPACE:-"test"}
 
