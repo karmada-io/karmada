@@ -17,6 +17,7 @@ limitations under the License.
 package detector
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -24,9 +25,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,6 +33,7 @@ import (
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	fakegeneratedclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 )
 
@@ -79,17 +79,11 @@ func TestHandleDeprioritizedPropagationPolicy(t *testing.T) {
 	utilruntime.Must(v1alpha2.Install(scheme))
 	utilruntime.Must(policyv1alpha1.Install(scheme))
 
-	propagationPolicyGVR := schema.GroupVersionResource{
-		Group:    policyv1alpha1.GroupVersion.Group,
-		Version:  policyv1alpha1.GroupVersion.Version,
-		Resource: policyv1alpha1.ResourcePluralPropagationPolicy,
-	}
-
 	tests := []struct {
 		name          string
 		newPolicy     *policyv1alpha1.PropagationPolicy
 		oldPolicy     *policyv1alpha1.PropagationPolicy
-		objects       []runtime.Object
+		objects       []*policyv1alpha1.PropagationPolicy
 		setupClient   func() *fake.ClientBuilder
 		wantQueueSize int
 	}{
@@ -123,8 +117,8 @@ func TestHandleDeprioritizedPropagationPolicy(t *testing.T) {
 					},
 				},
 			},
-			objects: []runtime.Object{
-				&policyv1alpha1.PropagationPolicy{
+			objects: []*policyv1alpha1.PropagationPolicy{
+				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "foo",
 						Namespace: "test",
@@ -202,8 +196,8 @@ func TestHandleDeprioritizedPropagationPolicy(t *testing.T) {
 					},
 				},
 			},
-			objects: []runtime.Object{
-				&policyv1alpha1.PropagationPolicy{
+			objects: []*policyv1alpha1.PropagationPolicy{
+				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "foo",
 						Namespace: "test",
@@ -224,7 +218,7 @@ func TestHandleDeprioritizedPropagationPolicy(t *testing.T) {
 						},
 					},
 				},
-				&policyv1alpha1.PropagationPolicy{
+				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "foo-2",
 						Namespace: "test",
@@ -336,20 +330,24 @@ func TestHandleDeprioritizedPropagationPolicy(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := tt.setupClient().Build()
+			generatedClientSet := fakegeneratedclientset.NewSimpleClientset()
 			stopCh := make(chan struct{})
 			defer close(stopCh)
-			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.objects...)
-			genMgr := genericmanager.NewSingleClusterInformerManager(fakeDynamicClient, 0, stopCh)
+			generatedInformerManager := genericmanager.NewGeneratedInformerManager(generatedClientSet, time.Second, stopCh)
 			resourceDetector := &ResourceDetector{
 				Client:                  fakeClient,
-				DynamicClient:           fakeDynamicClient,
-				InformerManager:         genMgr,
-				propagationPolicyLister: genMgr.Lister(propagationPolicyGVR),
+				propagationPolicyLister: generatedInformerManager.PropagationPolicyLister(),
+			}
+			for _, policyObj := range tt.objects {
+				_, err := generatedClientSet.PolicyV1alpha1().PropagationPolicies(policyObj.Namespace).Create(context.TODO(), policyObj, metav1.CreateOptions{})
+				if err != nil {
+					t.Errorf("Failed to create propagationPolicy (%s/%s), err:%v", policyObj.Namespace, policyObj.Name, err)
+				}
 			}
 			mockWorker := &MockAsyncWorker{}
 			resourceDetector.policyReconcileWorker = mockWorker
-			resourceDetector.InformerManager.Start()
-			resourceDetector.InformerManager.WaitForCacheSync()
+			generatedInformerManager.Start()
+			generatedInformerManager.WaitForCacheSync()
 
 			resourceDetector.HandleDeprioritizedPropagationPolicy(*tt.oldPolicy, *tt.newPolicy)
 
@@ -368,24 +366,18 @@ func TestHandleDeprioritizedClusterPropagationPolicy(t *testing.T) {
 	utilruntime.Must(v1alpha2.Install(scheme))
 	utilruntime.Must(policyv1alpha1.Install(scheme))
 
-	clusterPropagationPolicyGVR := schema.GroupVersionResource{
-		Group:    policyv1alpha1.GroupVersion.Group,
-		Version:  policyv1alpha1.GroupVersion.Version,
-		Resource: policyv1alpha1.ResourcePluralClusterPropagationPolicy,
-	}
-
 	tests := []struct {
 		name          string
 		newPolicy     *policyv1alpha1.ClusterPropagationPolicy
 		oldPolicy     *policyv1alpha1.ClusterPropagationPolicy
-		objects       []runtime.Object
+		objects       []*policyv1alpha1.ClusterPropagationPolicy
 		setupClient   func() *fake.ClientBuilder
 		wantQueueSize int
 	}{
 		{
 			name: "preempt deprioritized cluster propagation policy of len 1",
 			newPolicy: &policyv1alpha1.ClusterPropagationPolicy{
-				ObjectMeta: metav1.ObjectMeta{Name: "app", Namespace: "test"},
+				ObjectMeta: metav1.ObjectMeta{Name: "app"},
 				Spec: policyv1alpha1.PropagationSpec{
 					Priority: ptr.To[int32](2),
 					ResourceSelectors: []policyv1alpha1.ResourceSelector{
@@ -399,7 +391,7 @@ func TestHandleDeprioritizedClusterPropagationPolicy(t *testing.T) {
 				},
 			},
 			oldPolicy: &policyv1alpha1.ClusterPropagationPolicy{
-				ObjectMeta: metav1.ObjectMeta{Name: "app", Namespace: "test"},
+				ObjectMeta: metav1.ObjectMeta{Name: "app"},
 				Spec: policyv1alpha1.PropagationSpec{
 					Priority: ptr.To[int32](4),
 					ResourceSelectors: []policyv1alpha1.ResourceSelector{
@@ -412,11 +404,10 @@ func TestHandleDeprioritizedClusterPropagationPolicy(t *testing.T) {
 					},
 				},
 			},
-			objects: []runtime.Object{
-				&policyv1alpha1.ClusterPropagationPolicy{
+			objects: []*policyv1alpha1.ClusterPropagationPolicy{
+				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "foo",
-						Namespace: "bar",
+						Name: "foo",
 						Labels: map[string]string{
 							policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "policy-1",
 						},
@@ -438,8 +429,7 @@ func TestHandleDeprioritizedClusterPropagationPolicy(t *testing.T) {
 			setupClient: func() *fake.ClientBuilder {
 				obj := &policyv1alpha1.ClusterPropagationPolicy{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "foo",
-						Namespace: "bar",
+						Name: "foo",
 						Labels: map[string]string{
 							policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "policy-1",
 						},
@@ -464,7 +454,7 @@ func TestHandleDeprioritizedClusterPropagationPolicy(t *testing.T) {
 		{
 			name: "preempt deprioritized cluster propagation policy of len 2",
 			newPolicy: &policyv1alpha1.ClusterPropagationPolicy{
-				ObjectMeta: metav1.ObjectMeta{Name: "app", Namespace: "test"},
+				ObjectMeta: metav1.ObjectMeta{Name: "app"},
 				Spec: policyv1alpha1.PropagationSpec{
 					Priority: ptr.To[int32](2),
 					ResourceSelectors: []policyv1alpha1.ResourceSelector{
@@ -491,11 +481,10 @@ func TestHandleDeprioritizedClusterPropagationPolicy(t *testing.T) {
 					},
 				},
 			},
-			objects: []runtime.Object{
-				&policyv1alpha1.ClusterPropagationPolicy{
+			objects: []*policyv1alpha1.ClusterPropagationPolicy{
+				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "foo",
-						Namespace: "bar",
+						Name: "foo",
 						Labels: map[string]string{
 							policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "policy-1",
 						},
@@ -513,10 +502,9 @@ func TestHandleDeprioritizedClusterPropagationPolicy(t *testing.T) {
 						},
 					},
 				},
-				&policyv1alpha1.ClusterPropagationPolicy{
+				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "foo-2",
-						Namespace: "bar-2",
+						Name: "foo-2",
 						Labels: map[string]string{
 							policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "policy-2",
 						},
@@ -539,8 +527,7 @@ func TestHandleDeprioritizedClusterPropagationPolicy(t *testing.T) {
 				obj := []client.Object{
 					&policyv1alpha1.ClusterPropagationPolicy{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      "foo",
-							Namespace: "bar",
+							Name: "foo",
 							Labels: map[string]string{
 								policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "policy-1",
 							},
@@ -560,8 +547,7 @@ func TestHandleDeprioritizedClusterPropagationPolicy(t *testing.T) {
 					},
 					&policyv1alpha1.ClusterPropagationPolicy{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      "foo-2",
-							Namespace: "bar-2",
+							Name: "foo-2",
 							Labels: map[string]string{
 								policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "policy-2",
 							},
@@ -625,20 +611,24 @@ func TestHandleDeprioritizedClusterPropagationPolicy(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := tt.setupClient().Build()
+			generatedClientSet := fakegeneratedclientset.NewSimpleClientset()
 			stopCh := make(chan struct{})
 			defer close(stopCh)
-			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.objects...)
-			genMgr := genericmanager.NewSingleClusterInformerManager(fakeDynamicClient, 0, stopCh)
+			generatedInformerManager := genericmanager.NewGeneratedInformerManager(generatedClientSet, time.Second, stopCh)
+			for _, policyObj := range tt.objects {
+				_, err := generatedClientSet.PolicyV1alpha1().ClusterPropagationPolicies().Create(context.TODO(), policyObj, metav1.CreateOptions{})
+				if err != nil {
+					t.Errorf("Failed to create clusterPropagationPolicy (%s), err: %v", policyObj.Name, err)
+				}
+			}
 			resourceDetector := &ResourceDetector{
 				Client:                         fakeClient,
-				DynamicClient:                  fakeDynamicClient,
-				InformerManager:                genMgr,
-				clusterPropagationPolicyLister: genMgr.Lister(clusterPropagationPolicyGVR),
+				clusterPropagationPolicyLister: generatedInformerManager.ClusterPropagationPolicyLister(),
 			}
 			mockWorker := &MockAsyncWorker{}
 			resourceDetector.clusterPolicyReconcileWorker = mockWorker
-			resourceDetector.InformerManager.Start()
-			resourceDetector.InformerManager.WaitForCacheSync()
+			generatedInformerManager.Start()
+			generatedInformerManager.WaitForCacheSync()
 
 			resourceDetector.HandleDeprioritizedClusterPropagationPolicy(*tt.oldPolicy, *tt.newPolicy)
 

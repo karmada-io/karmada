@@ -29,11 +29,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -41,7 +39,9 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	fakegeneratedclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 )
 
@@ -677,13 +677,14 @@ func TestLookForMatchedPolicy(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			scheme := setupTestScheme()
+			stopChan := make(chan struct{})
 			fakeClient := dynamicfake.NewSimpleDynamicClient(scheme)
+			generatedClientSet := fakegeneratedclientset.NewSimpleClientset()
+			generatedInformerManager := genericmanager.NewGeneratedInformerManager(generatedClientSet, time.Second, stopChan)
 
 			d := &ResourceDetector{
-				DynamicClient: fakeClient,
-				propagationPolicyLister: &mockPropagationPolicyLister{
-					policies: tt.policies,
-				},
+				DynamicClient:           fakeClient,
+				propagationPolicyLister: generatedInformerManager.PropagationPolicyLister(),
 			}
 
 			objectKey := keys.ClusterWideKey{
@@ -691,6 +692,14 @@ func TestLookForMatchedPolicy(t *testing.T) {
 				Namespace: tt.object.GetNamespace(),
 				Kind:      tt.object.GetKind(),
 			}
+			for _, object := range tt.policies {
+				_, err := generatedClientSet.PolicyV1alpha1().PropagationPolicies(object.Namespace).Create(context.TODO(), object, metav1.CreateOptions{})
+				if err != nil {
+					t.Errorf("Create PropagationPolicy failed: %v", err)
+				}
+			}
+			generatedInformerManager.Start()
+			generatedInformerManager.WaitForCacheSync()
 
 			policy, err := d.LookForMatchedPolicy(tt.object, objectKey)
 
@@ -766,13 +775,14 @@ func TestLookForMatchedClusterPolicy(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			scheme := setupTestScheme()
+			stopChan := make(chan struct{})
 			fakeClient := dynamicfake.NewSimpleDynamicClient(scheme)
+			generatedClientSet := fakegeneratedclientset.NewSimpleClientset()
+			generatedInformerManager := genericmanager.NewGeneratedInformerManager(generatedClientSet, time.Second, stopChan)
 
 			d := &ResourceDetector{
-				DynamicClient: fakeClient,
-				clusterPropagationPolicyLister: &mockClusterPropagationPolicyLister{
-					policies: tt.policies,
-				},
+				DynamicClient:                  fakeClient,
+				clusterPropagationPolicyLister: generatedInformerManager.ClusterPropagationPolicyLister(),
 			}
 
 			objectKey := keys.ClusterWideKey{
@@ -780,6 +790,14 @@ func TestLookForMatchedClusterPolicy(t *testing.T) {
 				Namespace: tt.object.GetNamespace(),
 				Kind:      tt.object.GetKind(),
 			}
+			for _, object := range tt.policies {
+				_, err := generatedClientSet.PolicyV1alpha1().ClusterPropagationPolicies().Create(context.TODO(), object, metav1.CreateOptions{})
+				if err != nil {
+					t.Errorf("Create PropagationPolicy failed: %v", err)
+				}
+			}
+			generatedInformerManager.Start()
+			generatedInformerManager.WaitForCacheSync()
 
 			policy, err := d.LookForMatchedClusterPolicy(tt.object, objectKey)
 
@@ -1131,110 +1149,6 @@ func (m *mockResourceDetector) BuildClusterResourceBinding(object *unstructured.
 		return m.mockBuildClusterResourceBinding(object, labels, annotations, spec)
 	}
 	return &workv1alpha2.ClusterResourceBinding{}, nil
-}
-
-// mockPropagationPolicyLister is a mock implementation of the PropagationPolicyLister
-type mockPropagationPolicyLister struct {
-	policies []*policyv1alpha1.PropagationPolicy
-}
-
-func (m *mockPropagationPolicyLister) List(_ labels.Selector) (ret []runtime.Object, err error) {
-	var result []runtime.Object
-	for _, p := range m.policies {
-		u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(p)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, &unstructured.Unstructured{Object: u})
-	}
-	return result, nil
-}
-
-func (m *mockPropagationPolicyLister) Get(name string) (runtime.Object, error) {
-	for _, p := range m.policies {
-		if p.Name == name {
-			u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(p)
-			if err != nil {
-				return nil, err
-			}
-			return &unstructured.Unstructured{Object: u}, nil
-		}
-	}
-	return nil, nil
-}
-
-func (m *mockPropagationPolicyLister) ByNamespace(namespace string) cache.GenericNamespaceLister {
-	return &mockGenericNamespaceLister{
-		policies:  m.policies,
-		namespace: namespace,
-	}
-}
-
-// mockGenericNamespaceLister is a mock implementation of cache.GenericNamespaceLister
-type mockGenericNamespaceLister struct {
-	policies  []*policyv1alpha1.PropagationPolicy
-	namespace string
-}
-
-func (m *mockGenericNamespaceLister) List(_ labels.Selector) (ret []runtime.Object, err error) {
-	var result []runtime.Object
-	for _, p := range m.policies {
-		if p.Namespace == m.namespace {
-			u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(p)
-			if err != nil {
-				return nil, err
-			}
-			result = append(result, &unstructured.Unstructured{Object: u})
-		}
-	}
-	return result, nil
-}
-
-func (m *mockGenericNamespaceLister) Get(name string) (runtime.Object, error) {
-	for _, p := range m.policies {
-		if p.Name == name && p.Namespace == m.namespace {
-			u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(p)
-			if err != nil {
-				return nil, err
-			}
-			return &unstructured.Unstructured{Object: u}, nil
-		}
-	}
-	return nil, nil
-}
-
-// mockClusterPropagationPolicyLister is a mock implementation of the ClusterPropagationPolicyLister
-type mockClusterPropagationPolicyLister struct {
-	policies []*policyv1alpha1.ClusterPropagationPolicy
-}
-
-func (m *mockClusterPropagationPolicyLister) List(_ labels.Selector) (ret []runtime.Object, err error) {
-	var result []runtime.Object
-	for _, p := range m.policies {
-		u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(p)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, &unstructured.Unstructured{Object: u})
-	}
-	return result, nil
-}
-
-func (m *mockClusterPropagationPolicyLister) Get(name string) (runtime.Object, error) {
-	for _, p := range m.policies {
-		if p.Name == name {
-			u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(p)
-			if err != nil {
-				return nil, err
-			}
-			return &unstructured.Unstructured{Object: u}, nil
-		}
-	}
-	return nil, nil
-}
-
-func (m *mockClusterPropagationPolicyLister) ByNamespace(_ string) cache.GenericNamespaceLister {
-	return nil // ClusterPropagationPolicies are not namespaced
 }
 
 // mockResourceInterpreter is a mock implementation of the ResourceInterpreter interface
