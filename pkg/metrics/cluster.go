@@ -135,6 +135,20 @@ func RecordClusterSyncStatusDuration(cluster *v1alpha1.Cluster, startTime time.T
 	clusterSyncStatusDuration.WithLabelValues(cluster.Name).Observe(utilmetrics.DurationInSeconds(startTime))
 }
 
+// RemoveClusterStatus removes the cluster status metrics when the cluster is deleted.
+func RemoveClusterStatus(cluster *v1alpha1.Cluster) {
+	clusterReadyGauge.DeleteLabelValues(cluster.Name)
+	clusterTotalNodeNumberGauge.DeleteLabelValues(cluster.Name)
+	clusterReadyNodeNumberGauge.DeleteLabelValues(cluster.Name)
+	clusterMemoryAllocatableGauge.DeleteLabelValues(cluster.Name)
+	clusterCPUAllocatableGauge.DeleteLabelValues(cluster.Name)
+	clusterPodAllocatableGauge.DeleteLabelValues(cluster.Name)
+	clusterMemoryAllocatedGauge.DeleteLabelValues(cluster.Name)
+	clusterCPUAllocatedGauge.DeleteLabelValues(cluster.Name)
+	clusterPodAllocatedGauge.DeleteLabelValues(cluster.Name)
+	clusterSyncStatusDuration.DeleteLabelValues(cluster.Name)
+}
+
 // ClusterCollectors returns the collectors about clusters.
 func ClusterCollectors() []prometheus.Collector {
 	return []prometheus.Collector{
