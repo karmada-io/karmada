@@ -7461,7 +7461,7 @@ func schema_pkg_apis_work_v1alpha2_Suspension(ref common.ReferenceCallback) comm
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "Suspension defines the policy for suspending of propagation.",
+				Description: "Suspension defines the policy for suspending dispatching and scheduling.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"dispatching": {
@@ -7475,6 +7475,13 @@ func schema_pkg_apis_work_v1alpha2_Suspension(ref common.ReferenceCallback) comm
 						SchemaProps: spec.SchemaProps{
 							Description: "DispatchingOnClusters declares a list of clusters to which the dispatching should be suspended. Note: Can not co-exist with Dispatching which is used to suspend all.",
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SuspendClusters"),
+						},
+					},
+					"scheduling": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Scheduling controls whether scheduling should be suspended, the scheduler will pause scheduling and not process resource binding when the value is true and resume scheduling when it's false or nil. This is designed for third-party systems to temporarily pause the scheduling of applications, which enabling manage resource allocation, prioritize critical workloads, etc. It is expected that third-party systems use an admission webhook to suspend scheduling at the time of ResourceBinding creation. Once a ResourceBinding has been scheduled, it cannot be paused afterward, as it may lead to ineffective suspension.",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 				},

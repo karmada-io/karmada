@@ -421,6 +421,11 @@ func (in *ResourceBindingStatus) DeepCopy() *ResourceBindingStatus {
 func (in *Suspension) DeepCopyInto(out *Suspension) {
 	*out = *in
 	in.Suspension.DeepCopyInto(&out.Suspension)
+	if in.Scheduling != nil {
+		in, out := &in.Scheduling, &out.Scheduling
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
