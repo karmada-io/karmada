@@ -33,6 +33,10 @@ func getHighestPriorityPropagationPolicy(policies []*policyv1alpha1.PropagationP
 	var matchedPolicy *policyv1alpha1.PropagationPolicy
 
 	for _, policy := range policies {
+		if !policy.DeletionTimestamp.IsZero() {
+			klog.V(4).Infof("Propagation policy(%s/%s) cannot match any resource template because it's being deleted.", policy.Namespace, policy.Name)
+			continue
+		}
 		implicitPriority := util.ResourceMatchSelectorsPriority(resource, policy.Spec.ResourceSelectors...)
 		if implicitPriority <= util.PriorityMisMatch {
 			continue
@@ -70,6 +74,10 @@ func getHighestPriorityClusterPropagationPolicy(policies []*policyv1alpha1.Clust
 	var matchedClusterPolicy *policyv1alpha1.ClusterPropagationPolicy
 
 	for _, policy := range policies {
+		if !policy.DeletionTimestamp.IsZero() {
+			klog.V(4).Infof("Cluster propagation policy(%s) cannot match any resource template because it's being deleted.", policy.Name)
+			continue
+		}
 		implicitPriority := util.ResourceMatchSelectorsPriority(resource, policy.Spec.ResourceSelectors...)
 		if implicitPriority <= util.PriorityMisMatch {
 			continue
