@@ -195,7 +195,9 @@ if [[ "${BUILD_FROM_SOURCE}" == "true" ]]; then
 fi
 
 #step7. deploy karmada agent in pull mode member clusters
-"${REPO_ROOT}"/hack/deploy-agent-and-estimator.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${MAIN_KUBECONFIG}" "${KARMADA_APISERVER_CLUSTER_NAME}" "${PULL_MODE_CLUSTER_TMP_CONFIG}" "${PULL_MODE_CLUSTER_NAME}"
+KARMADA_REGISTER_COMMAND=$(${KARMADACTL_BIN} token create --print-register-command  --kubeconfig ${MAIN_KUBECONFIG} --karmada-context ${KARMADA_APISERVER_CLUSTER_NAME})
+eval ${KARMADA_REGISTER_COMMAND} --kubeconfig "${PULL_MODE_CLUSTER_TMP_CONFIG}" --context "${PULL_MODE_CLUSTER_NAME}" --karmada-agent-image "${REGISTRY}/karmada-agent:${VERSION}"
+"${REPO_ROOT}"/hack/deploy-scheduler-estimator.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${PULL_MODE_CLUSTER_TMP_CONFIG}" "${PULL_MODE_CLUSTER_NAME}"
 
 #step8. deploy metrics-server in member clusters
 "${REPO_ROOT}"/hack/deploy-k8s-metrics-server.sh "${MEMBER_CLUSTER_1_TMP_CONFIG}" "${MEMBER_CLUSTER_1_NAME}"
