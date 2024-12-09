@@ -206,6 +206,10 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     needs: 
     - release-assests
+    # prevent job running from forked repository, otherwise
+    # 1. running on the forked repository would use unnecessary GitHub Action time.
+    # 2. running on the forked repository would open a PR to publish an inaccurate version of karmada in repo kubernetes-sigs/krew-index.
+    if: ${{ github.repository == 'karmada-io/karmada' }}
     name: Update krew-index
     runs-on: ubuntu-22.04
     steps:
