@@ -248,6 +248,13 @@ type Suspension struct {
 	// Note: Can not co-exist with Dispatching which is used to suspend all.
 	// +optional
 	DispatchingOnClusters *SuspendClusters `json:"dispatchingOnClusters,omitempty"`
+
+	// Scheduling controls whether scheduling should be suspended.
+	// nil means not suspend, no default value, only accepts 'true'.
+	// scheduler will pause scheduling and not process resource binding after it's created when value is true
+	// and resume scheduling when it's nil. This is usually used for admission checks such as quota check,
+	// multi-tenancy prioritization and maybe more checks in the future before scheduler really does scheduling.
+	Scheduling *bool `json:"scheduling,omitempty"`
 }
 
 // SuspendClusters represents a group of clusters that should be suspended from propagating.

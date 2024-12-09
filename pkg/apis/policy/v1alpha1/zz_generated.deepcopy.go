@@ -1111,6 +1111,11 @@ func (in *Suspension) DeepCopyInto(out *Suspension) {
 		*out = new(SuspendClusters)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Scheduling != nil {
+		in, out := &in.Scheduling, &out.Scheduling
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
