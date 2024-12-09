@@ -22,6 +22,8 @@ import (
 
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 func TestNewOptions(t *testing.T) {
@@ -30,7 +32,7 @@ func TestNewOptions(t *testing.T) {
 	assert.True(t, opts.LeaderElection.LeaderElect, "Expected default LeaderElect to be true")
 	assert.Equal(t, "karmada-system", opts.LeaderElection.ResourceNamespace, "Unexpected default ResourceNamespace")
 	assert.Equal(t, 15*time.Second, opts.LeaderElection.LeaseDuration.Duration, "Unexpected default LeaseDuration")
-	assert.Equal(t, "karmada-scheduler", opts.LeaderElection.ResourceName, "Unexpected default ResourceName")
+	assert.Equal(t, names.KarmadaSchedulerComponentName, opts.LeaderElection.ResourceName, "Unexpected default ResourceName")
 }
 
 func TestAddFlags(t *testing.T) {

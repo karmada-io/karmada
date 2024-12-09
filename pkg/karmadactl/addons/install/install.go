@@ -22,12 +22,13 @@ import (
 	addonsinit "github.com/karmada-io/karmada/pkg/karmadactl/addons/init"
 	"github.com/karmada-io/karmada/pkg/karmadactl/addons/metricsadapter"
 	"github.com/karmada-io/karmada/pkg/karmadactl/addons/search"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 // Install install the karmada addons process in Addons
 func Install() {
-	addonsinit.Addons["karmada-descheduler"] = descheduler.AddonDescheduler
-	addonsinit.Addons["karmada-metrics-adapter"] = metricsadapter.AddonMetricsAdapter
-	addonsinit.Addons["karmada-scheduler-estimator"] = estimator.AddonEstimator
-	addonsinit.Addons["karmada-search"] = search.AddonSearch
+	addonsinit.Addons[names.KarmadaDeschedulerComponentName] = descheduler.AddonDescheduler
+	addonsinit.Addons[names.KarmadaMetricsAdapterComponentName] = metricsadapter.AddonMetricsAdapter
+	addonsinit.Addons[names.KarmadaSchedulerEstimatorComponentName] = estimator.AddonEstimator
+	addonsinit.Addons[names.KarmadaSearchComponentName] = search.AddonSearch
 }

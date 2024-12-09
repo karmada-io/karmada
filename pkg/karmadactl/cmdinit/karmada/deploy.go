@@ -45,15 +45,16 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/bootstraptoken/clusterinfo"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
-	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 const (
 	clusterProxyAdminRole = "cluster-proxy-admin"
 	clusterProxyAdminUser = "system:admin"
 
-	aggregatedApiserverServiceName = "karmada-aggregated-apiserver"
+	aggregatedApiserverServiceName = names.KarmadaAggregatedAPIServerComponentName
 )
 
 // InitKarmadaResources Initialize karmada resource
@@ -69,7 +70,7 @@ func InitKarmadaResources(dir, caBase64, systemNamespace string) error {
 	}
 
 	// create namespace
-	if err := util.CreateOrUpdateNamespace(clientSet, util.NewNamespace(systemNamespace)); err != nil {
+	if err := cmdutil.CreateOrUpdateNamespace(clientSet, cmdutil.NewNamespace(systemNamespace)); err != nil {
 		klog.Exitln(err)
 	}
 
@@ -264,7 +265,7 @@ func initAggregatedAPIService(clientSet *kubernetes.Clientset, restConfig *rest.
 			ExternalName: fmt.Sprintf("%s.%s.svc", aggregatedApiserverServiceName, systemNamespace),
 		},
 	}
-	if err := util.CreateOrUpdateService(clientSet, aaService); err != nil {
+	if err := cmdutil.CreateOrUpdateService(clientSet, aaService); err != nil {
 		return err
 	}
 
@@ -282,7 +283,7 @@ func initAggregatedAPIService(clientSet *kubernetes.Clientset, restConfig *rest.
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   aaAPIServiceObjName,
-			Labels: map[string]string{"app": "karmada-aggregated-apiserver", "apiserver": "true"},
+			Labels: map[string]string{"app": names.KarmadaAggregatedAPIServerComponentName, "apiserver": "true"},
 		},
 		Spec: apiregistrationv1.APIServiceSpec{
 			CABundle:             caBytes,
@@ -297,7 +298,7 @@ func initAggregatedAPIService(clientSet *kubernetes.Clientset, restConfig *rest.
 		},
 	}
 
-	if err = util.CreateOrUpdateAPIService(apiRegistrationClient, aaAPIService); err != nil {
+	if err = cmdutil.CreateOrUpdateAPIService(apiRegistrationClient, aaAPIService); err != nil {
 		return err
 	}
 

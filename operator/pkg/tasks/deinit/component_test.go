@@ -31,6 +31,7 @@ import (
 	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -89,16 +90,16 @@ func TestRunRemoveComponentSubTask(t *testing.T) {
 	}{
 		{
 			name:      "RunRemoveComponentSubTask_InvalidTypeAssertion_TypeAssertionIsInvalid",
-			component: constants.KarmadaControllerManager,
+			component: names.KarmadaControllerManagerComponentName,
 			runData:   &MyTestData{Data: "test"},
 			prep:      func(workflow.RunData, *appsv1.Deployment, *corev1.Service) error { return nil },
 			verify:    func(workflow.RunData, *appsv1.Deployment, *corev1.Service) error { return nil },
 			wantErr:   true,
-			errMsg:    fmt.Sprintf("remove-%s task invoked with an invalid data struct", constants.KarmadaControllerManager),
+			errMsg:    fmt.Sprintf("remove-%s task invoked with an invalid data struct", names.KarmadaControllerManagerComponentName),
 		},
 		{
 			name:             "RunRemoveComponentSubTask_DeleteKarmadaControllerManagerDeploymentWithSecret_DeploymentAndSecretDeleted",
-			component:        constants.KarmadaControllerManager,
+			component:        names.KarmadaControllerManagerComponentName,
 			workloadNameFunc: util.KarmadaControllerManagerName,
 			deployment:       helper.NewDeployment(namespace, util.KarmadaControllerManagerName(name)),
 			service:          helper.NewService(namespace, util.KarmadaControllerManagerName(name), corev1.ServiceTypeClusterIP),
