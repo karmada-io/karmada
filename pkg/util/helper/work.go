@@ -18,6 +18,7 @@ package helper
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -54,7 +55,7 @@ func CreateOrUpdateWork(ctx context.Context, client client.Client, workMeta meta
 		}
 	}
 
-	workloadJSON, err := resource.MarshalJSON()
+	workloadJSON, err := json.Marshal(resource)
 	if err != nil {
 		klog.Errorf("Failed to marshal workload(%s/%s), error: %v", resource.GetNamespace(), resource.GetName(), err)
 		return err
