@@ -44,6 +44,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/controllers/binding"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -1242,6 +1243,42 @@ var _ = ginkgo.Describe("[Suspension] PropagationPolicy testing", func() {
 				func(event corev1.Event) bool {
 					return event.Reason == events.EventReasonWorkDispatching &&
 						event.Message == execution.WorkSuspendDispatchingConditionMessage
+				})
+		})
+	})
+
+	ginkgo.It("suspend the PP scheduling", func() {
+		ginkgo.By("update the pp suspension scheduling to true", func() {
+			policy.Spec.Suspension = &policyv1alpha1.Suspension{
+				Scheduling: ptr.To(true),
+			}
+			framework.UpdatePropagationPolicyWithSpec(karmadaClient, policy.Namespace, policy.Name, policy.Spec)
+		})
+
+		ginkgo.By("check RB suspension spec", func() {
+			framework.WaitResourceBindingFitWith(karmadaClient, deployment.Namespace, names.GenerateBindingName(deployment.Kind, deployment.Name),
+				func(binding *workv1alpha2.ResourceBinding) bool {
+					return binding.Spec.Suspension != nil && ptr.Deref(binding.Spec.Suspension.Scheduling, false)
+				})
+		})
+
+		ginkgo.By("check RB Scheduling status condition", func() {
+			rbName := names.GenerateBindingName(deployment.Kind, deployment.Name)
+			gomega.Eventually(func() bool {
+				rb, err := karmadaClient.WorkV1alpha2().ResourceBindings(testNamespace).Get(context.TODO(), rbName, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+				return rb != nil && meta.IsStatusConditionPresentAndEqual(rb.Status.Conditions, workv1alpha2.Suspended, metav1.ConditionTrue)
+			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+		})
+
+		ginkgo.By("check scheduling event", func() {
+			rbName := names.GenerateBindingName(deployment.Kind, deployment.Name)
+			framework.WaitEventFitWith(kubeClient, testNamespace, rbName,
+				func(event corev1.Event) bool {
+					return event.Reason == events.EventReasonBindingScheduling &&
+						event.Message == binding.SuspendedSchedulingConditionMessage
 				})
 		})
 	})

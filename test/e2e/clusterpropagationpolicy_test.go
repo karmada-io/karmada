@@ -24,6 +24,7 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -37,6 +38,8 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/controllers/binding"
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
@@ -1148,6 +1151,39 @@ var _ = ginkgo.Describe("[Suspension] ClusterPropagationPolicy testing", func() 
 				}
 				return work != nil && meta.IsStatusConditionPresentAndEqual(work.Status.Conditions, workv1alpha1.WorkDispatching, metav1.ConditionFalse)
 			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+		})
+	})
+
+	ginkgo.It("suspend the CPP scheduling", func() {
+		ginkgo.By("update the cpp suspension scheduling to true", func() {
+			policy.Spec.Suspension = &policyv1alpha1.Suspension{
+				Scheduling: ptr.To(true),
+			}
+			framework.UpdateClusterPropagationPolicyWithSpec(karmadaClient, policy.Name, policy.Spec)
+		})
+
+		ginkgo.By("check CRB suspension spec", func() {
+			framework.WaitClusterResourceBindingFitWith(karmadaClient, resourceBindingName, func(binding *workv1alpha2.ClusterResourceBinding) bool {
+				return binding.Spec.Suspension != nil && ptr.Deref(binding.Spec.Suspension.Scheduling, false)
+			})
+		})
+
+		ginkgo.By("check Work Scheduling status condition", func() {
+			gomega.Eventually(func() bool {
+				crb, err := karmadaClient.WorkV1alpha2().ClusterResourceBindings().Get(context.TODO(), resourceBindingName, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+				return crb != nil && meta.IsStatusConditionPresentAndEqual(crb.Status.Conditions, workv1alpha2.Suspended, metav1.ConditionTrue)
+			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+		})
+
+		ginkgo.By("check scheduling event", func() {
+			framework.WaitEventFitWith(kubeClient, "", resourceBindingName,
+				func(event corev1.Event) bool {
+					return event.Reason == events.EventReasonBindingScheduling &&
+						event.Message == binding.SuspendedSchedulingConditionMessage
+				})
 		})
 	})
 })
