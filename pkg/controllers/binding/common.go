@@ -20,10 +20,13 @@ import (
 	"context"
 	"strconv"
 
+	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,12 +34,25 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
+)
+
+const (
+	// SuspendedSchedulingConditionMessage is the condition and event message when scheduling is suspended.
+	SuspendedSchedulingConditionMessage = "Binding scheduling is suspended."
+	// SchedulingConditionMessage is the condition and event message when scheduling is not suspended.
+	SchedulingConditionMessage = "Binding scheduling resumed."
+
+	// SuspendedSchedulingConditionReason is the reason for the Suspending condition when scheduling is suspended.
+	SuspendedSchedulingConditionReason = "SchedulingSuspended"
+	// ResumedConditionReason is the reason for the Suspending condition when scheduling is not suspended.
+	ResumedConditionReason = "SchedulingResumed"
 )
 
 // ensureWork ensure Work to be created or updated.
@@ -318,4 +334,73 @@ func shouldSuspendDispatching(suspension *policyv1alpha1.Suspension, targetClust
 		}
 	}
 	return suspendDispatching
+}
+
+func updateBindingDispatchingConditionIfNeeded(ctx context.Context, client client.Client, eventRecorder record.EventRecorder, binding client.Object, scope apiextensionsv1.ResourceScope) error {
+	newBindingSchedulingCondition := metav1.Condition{
+		Type:               workv1alpha2.Suspended,
+		LastTransitionTime: metav1.Now(),
+	}
+
+	bindingSuspendScheduling := false
+	var conditions *[]metav1.Condition
+	switch scope {
+	case apiextensionsv1.NamespaceScoped:
+		bindingObj := binding.(*workv1alpha2.ResourceBinding)
+		bindingSuspendScheduling = util.IsBindingSuspendScheduling(bindingObj)
+		conditions = &bindingObj.Status.Conditions
+	case apiextensionsv1.ClusterScoped:
+		bindingObj := binding.(*workv1alpha2.ClusterResourceBinding)
+		bindingSuspendScheduling = util.IsClusterBindingSuspendScheduling(bindingObj)
+		conditions = &bindingObj.Status.Conditions
+	default:
+		klog.ErrorS(nil, "Unsupported resource binding scope")
+		return nil
+	}
+
+	if bindingSuspendScheduling {
+		newBindingSchedulingCondition.Status = metav1.ConditionTrue
+		newBindingSchedulingCondition.Message = SuspendedSchedulingConditionMessage
+		newBindingSchedulingCondition.Reason = SuspendedSchedulingConditionReason
+	} else {
+		// There is no need to set an extra Suspended condition when scheduling not suspended and Suspended condition not exists.
+		if meta.FindStatusCondition(*conditions, workv1alpha2.Suspended) == nil {
+			return nil
+		}
+		newBindingSchedulingCondition.Status = metav1.ConditionFalse
+		newBindingSchedulingCondition.Message = SchedulingConditionMessage
+		newBindingSchedulingCondition.Reason = ResumedConditionReason
+	}
+
+	if meta.IsStatusConditionPresentAndEqual(*conditions, newBindingSchedulingCondition.Type, newBindingSchedulingCondition.Status) {
+		return nil
+	}
+	if err := updateStatusCondition(ctx, client, binding, conditions, newBindingSchedulingCondition); err != nil {
+		return err
+	}
+
+	obj, err := helper.ToUnstructured(binding)
+	if err != nil {
+		return err
+	}
+
+	eventf(eventRecorder, obj, corev1.EventTypeNormal, events.EventReasonBindingScheduling, newBindingSchedulingCondition.Message)
+	return nil
+}
+
+func updateStatusCondition(ctx context.Context, client client.Client, binding client.Object, condition *[]metav1.Condition, newCondition metav1.Condition) error {
+	_, err := helper.UpdateStatus(ctx, client, binding, func() error {
+		meta.SetStatusCondition(condition, newCondition)
+		return nil
+	})
+	return err
+}
+
+func eventf(eventRecorder record.EventRecorder, object *unstructured.Unstructured, eventType, reason, messageFmt string, args ...interface{}) {
+	ref, err := helper.GenEventRef(object)
+	if err != nil {
+		klog.Errorf("Ignore event(%s) as failed to build event reference for: kind=%s, %s due to %v", reason, object.GetKind(), klog.KObj(object), err)
+		return
+	}
+	eventRecorder.Eventf(ref, eventType, reason, messageFmt, args...)
 }

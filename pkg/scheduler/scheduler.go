@@ -357,7 +357,6 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		klog.V(4).InfoS("Skip schedule deleting ResourceBinding", "ResourceBinding", klog.KObj(rb))
 		return nil
 	}
-
 	rb = rb.DeepCopy()
 
 	if rb.Spec.Placement == nil {
@@ -427,7 +426,6 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 		klog.V(4).InfoS("Skip schedule deleting ClusterResourceBinding", "ClusterResourceBinding", klog.KObj(crb))
 		return nil
 	}
-
 	crb = crb.DeepCopy()
 
 	if crb.Spec.Placement == nil {

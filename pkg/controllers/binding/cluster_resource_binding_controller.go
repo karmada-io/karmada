@@ -89,6 +89,11 @@ func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req co
 		return c.removeFinalizer(ctx, clusterResourceBinding)
 	}
 
+	if err := updateBindingDispatchingConditionIfNeeded(ctx, c.Client, c.EventRecorder, clusterResourceBinding, apiextensionsv1.ClusterScoped); err != nil {
+		klog.ErrorS(err, "Failed to update binding condition.", "name", klog.KObj(clusterResourceBinding), "type", workv1alpha2.Suspended)
+		return controllerruntime.Result{}, err
+	}
+
 	return c.syncBinding(ctx, clusterResourceBinding)
 }
 
