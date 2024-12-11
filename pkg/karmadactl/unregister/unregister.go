@@ -138,6 +138,8 @@ type CommandUnregisterOption struct {
 
 	// rbacResources contains RBAC resources that grant the necessary permissions for the unregistering cluster to access to Karmada control plane.
 	rbacResources *register.RBACResources
+
+	forceDeletion bool
 }
 
 // AddFlags adds flags to the specified FlagSet.
@@ -152,6 +154,8 @@ func (j *CommandUnregisterOption) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&j.ClusterNamespace, "cluster-namespace", options.DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster secrets are stored.")
 	flags.DurationVar(&j.Wait, "wait", 60*time.Second, "wait for the unjoin command execution process(default 60s), if there is no success after this time, timeout will be returned.")
 	flags.BoolVar(&j.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
+	flags.BoolVar(&j.forceDeletion, "force", false,
+		"When set, the unregister command will attempt to clean up resources in the member cluster before deleting the Cluster object. If the cleanup fails within the timeout period, the Cluster object will still be deleted, potentially leaving some resources behind in the member cluster.")
 }
 
 // Complete ensures that options are valid and marshals them if necessary.
@@ -318,7 +322,7 @@ func (j *CommandUnregisterOption) RunUnregisterCluster() error {
 	// 1. delete the work object from the Karmada control plane
 	// When deleting a cluster, the deletion triggers the removal of executionSpace, which can lead to the deletion of RBAC roles related to work.
 	// Therefore, the deletion of work should be performed before deleting the cluster.
-	err := cmdutil.EnsureWorksDeleted(j.ControlPlaneClient, names.GenerateExecutionSpaceName(j.ClusterName), j.Wait)
+	err := cmdutil.EnsureWorksDeleted(j.ControlPlaneClient, names.GenerateExecutionSpaceName(j.ClusterName), j.Wait, j.forceDeletion)
 	if err != nil {
 		klog.Errorf("Failed to delete works object. cluster name: %s, error: %v", j.ClusterName, err)
 		return err
@@ -326,8 +330,7 @@ func (j *CommandUnregisterOption) RunUnregisterCluster() error {
 	j.Wait = j.Wait - time.Since(start)
 
 	// 2. delete the cluster object from the Karmada control plane
-	//TODO: add flag --force to implement force deletion.
-	if err = cmdutil.DeleteClusterObject(j.ControlPlaneKubeClient, j.ControlPlaneClient, j.ClusterName, j.Wait, j.DryRun, false); err != nil {
+	if err = cmdutil.DeleteClusterObject(j.ControlPlaneKubeClient, j.ControlPlaneClient, j.ClusterName, j.Wait, j.DryRun, j.forceDeletion); err != nil {
 		klog.Errorf("Failed to delete cluster object. cluster name: %s, error: %v", j.ClusterName, err)
 		return err
 	}
