@@ -66,6 +66,8 @@ const (
 	EventReasonSyncScheduleResultToDependenciesSucceed = "SyncScheduleResultToDependenciesSucceed"
 	// EventReasonSyncScheduleResultToDependenciesFailed indicates sync schedule result to attached bindings failed.
 	EventReasonSyncScheduleResultToDependenciesFailed = "SyncScheduleResultToDependenciesFailed"
+	// EventReasonBindingScheduling indicates that binding is scheduling or not.
+	EventReasonBindingScheduling = "BindingScheduling"
 )
 
 // Define events for ResourceBinding, ClusterResourceBinding objects and their associated resources.
