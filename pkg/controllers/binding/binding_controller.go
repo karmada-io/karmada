@@ -89,6 +89,11 @@ func (c *ResourceBindingController) Reconcile(ctx context.Context, req controlle
 		return c.removeFinalizer(ctx, binding)
 	}
 
+	if err := updateBindingDispatchingConditionIfNeeded(ctx, c.Client, c.EventRecorder, binding, apiextensionsv1.NamespaceScoped); err != nil {
+		klog.ErrorS(err, "Failed to update binding condition.", "name", klog.KObj(binding), "type", workv1alpha2.Suspended)
+		return controllerruntime.Result{}, err
+	}
+
 	return c.syncBinding(ctx, binding)
 }
 
