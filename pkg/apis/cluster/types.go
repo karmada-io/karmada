@@ -266,6 +266,9 @@ type LocalSecretReference struct {
 const (
 	// ClusterConditionReady means the cluster is healthy and ready to accept workloads.
 	ClusterConditionReady = "Ready"
+
+	// ClusterConditionCompleteAPIEnablements indicates whether the cluster's API enablements(.status.apiEnablements) is complete.
+	ClusterConditionCompleteAPIEnablements = "CompleteAPIEnablements"
 )
 
 // ClusterStatus contains information about the current status of a
