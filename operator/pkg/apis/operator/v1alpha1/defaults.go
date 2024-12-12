@@ -74,6 +74,7 @@ func SetObjectDefaultsKarmada(in *Karmada) {
 func setDefaultsKarmada(obj *Karmada) {
 	setDefaultsHostCluster(obj)
 	setDefaultsKarmadaComponents(obj)
+	setDefaultsCertConfig(obj)
 }
 
 func setDefaultsKarmadaComponents(obj *Karmada) {
@@ -105,6 +106,23 @@ func setDefaultsHostCluster(obj *Karmada) {
 	}
 	if hc.Networking.DNSDomain == nil {
 		hc.Networking.DNSDomain = ptr.To[string](constants.KarmadaDefaultDNSDomain)
+	}
+}
+
+func setDefaultsCertConfig(obj *Karmada) {
+	if obj.Spec.CustomCertificate == nil {
+		obj.Spec.CustomCertificate = &CustomCertificate{
+			CertConfig: &CertConfig{},
+		}
+	}
+	if obj.Spec.CustomCertificate.CertConfig == nil {
+		obj.Spec.CustomCertificate.CertConfig = &CertConfig{}
+	}
+	if obj.Spec.CustomCertificate.CertConfig.Expiry == 0 {
+		obj.Spec.CustomCertificate.CertConfig.Expiry = 365
+	}
+	if obj.Spec.CustomCertificate.CertConfig.PublicKeyAlgorithm == nil {
+		obj.Spec.CustomCertificate.CertConfig.PublicKeyAlgorithm = ptr.To[string]("RSA")
 	}
 }
 
