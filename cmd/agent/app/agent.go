@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
@@ -234,6 +235,11 @@ func run(ctx context.Context, opts *options.Options) error {
 	crtlmetrics.Registry.MustRegister(metrics.ClusterCollectors()...)
 	crtlmetrics.Registry.MustRegister(metrics.ResourceCollectorsForAgent()...)
 	crtlmetrics.Registry.MustRegister(metrics.PoolCollectors()...)
+
+	if err := util.RegisterEqualityCheckFunctions(&equality.Semantic); err != nil {
+		klog.Errorf("Failed to register equality check functions: %v", err)
+		return err
+	}
 
 	if err = setupControllers(controllerManager, opts, ctx.Done()); err != nil {
 		return err
