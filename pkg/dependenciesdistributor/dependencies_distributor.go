@@ -656,11 +656,6 @@ func (d *DependenciesDistributor) SetupWithManager(mgr controllerruntime.Manager
 						return false
 					}
 
-					// prevent newBindingObject from the queue if it's not scheduled yet.
-					if len(oldBindingObject.Spec.Clusters) == 0 && len(newBindingObject.Spec.Clusters) == 0 {
-						klog.V(4).Infof("Dropping resource binding(%s/%s) as it is not scheduled yet.", newBindingObject.Namespace, newBindingObject.Name)
-						return false
-					}
 					return oldBindingObject.Spec.PropagateDeps || newBindingObject.Spec.PropagateDeps
 				},
 			}).
