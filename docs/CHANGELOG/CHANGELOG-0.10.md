@@ -1,3 +1,15 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [What's New](#whats-new)
+  - [Resource Interpreter Webhook](#resource-interpreter-webhook)
+  - [Significant Scheduling Enhancement](#significant-scheduling-enhancement)
+  - [Workloads Observation from Karmada Control Plane](#workloads-observation-from-karmada-control-plane)
+- [Other Notable Changes](#other-notable-changes)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # What's New
 ## Resource Interpreter Webhook
 The newly introduced Resource Interpreter Webhook framework allows users to implement their own CRD plugins that will be

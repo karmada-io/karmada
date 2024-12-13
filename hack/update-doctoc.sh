@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright 2021 The Karmada Authors.
+# Copyright 2024 The Karmada Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,16 +18,23 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
-# vendor should be updated first because we build code-gen tools from vendor.
-bash "$REPO_ROOT/hack/update-vendor.sh"
-bash "$REPO_ROOT/hack/update-codegen.sh"
-bash "$REPO_ROOT/hack/update-crdgen.sh"
-bash "$REPO_ROOT/hack/update-estimator-protobuf.sh"
-bash "$REPO_ROOT/hack/update-import-aliases.sh"
-bash "$REPO_ROOT/hack/update-swagger-docs.sh"
-bash "$REPO_ROOT/hack/update-lifted.sh"
-bash "$REPO_ROOT/hack/update-mocks.sh"
-bash "$REPO_ROOT/hack/update-gofmt.sh"
-bash "$REPO_ROOT/hack/update-doctoc.sh"
+DIFFDOCTOCDIR="${SCRIPT_ROOT}/docs/CHANGELOG"
+
+# check if doctoc is installed.
+if ! command -v doctoc &> /dev/null
+then
+    echo "doctoc is not installed, downloading now..."
+    npm install -g doctoc
+
+    if [ $? -ne 0 ]; then
+        echo "doctoc installation failed, check your network connection or npm configuration."
+        exit 1
+    fi
+
+    echo "doctoc has been successfully installed."
+fi
+
+# updating all relevant CHANGELOG files using doctoc.
+doctoc ${DIFFDOCTOCDIR}
