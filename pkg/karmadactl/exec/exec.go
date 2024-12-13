@@ -17,6 +17,7 @@ limitations under the License.
 package exec
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -151,7 +152,7 @@ func (o *CommandExecOptions) Validate() error {
 		return err
 	}
 	if o.OperationScope == options.Members && len(o.Cluster) == 0 {
-		return fmt.Errorf("must specify a member cluster")
+		return errors.New("must specify a member cluster")
 	}
 	return o.KubectlExecOptions.Validate()
 }

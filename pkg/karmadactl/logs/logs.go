@@ -17,6 +17,7 @@ limitations under the License.
 package logs
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -70,7 +71,7 @@ var (
 // NewCmdLogs new logs command.
 func NewCmdLogs(f util.Factory, parentCommand string, streams genericiooptions.IOStreams) *cobra.Command {
 	o := &CommandLogsOptions{
-		KubectlLogsOptions: kubectllogs.NewLogsOptions(streams, false),
+		KubectlLogsOptions: kubectllogs.NewLogsOptions(streams),
 	}
 
 	cmd := &cobra.Command{
@@ -120,7 +121,7 @@ type CommandLogsOptions struct {
 // Complete ensures that options are valid and marshals them if necessary
 func (o *CommandLogsOptions) Complete(cmd *cobra.Command, args []string, f util.Factory) error {
 	if o.Cluster == "" {
-		return fmt.Errorf("must specify a cluster")
+		return errors.New("must specify a cluster")
 	}
 
 	// print correct usage message when the given arguments are invalid

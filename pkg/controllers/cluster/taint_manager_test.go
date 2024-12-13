@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
@@ -237,6 +238,7 @@ func TestNoExecuteTaintManager_syncBindingEviction(t *testing.T) {
 					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
 						{
 							FromCluster: "test-cluster",
+							PurgeMode:   policyv1alpha1.Graciously,
 							Replicas:    &replica,
 							Reason:      workv1alpha2.EvictionReasonTaintUntolerated,
 							Producer:    workv1alpha2.EvictionProducerTaintManager,
@@ -403,6 +405,7 @@ func TestNoExecuteTaintManager_syncClusterBindingEviction(t *testing.T) {
 					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
 						{
 							FromCluster: "test-cluster",
+							PurgeMode:   policyv1alpha1.Graciously,
 							Replicas:    &replica,
 							Reason:      workv1alpha2.EvictionReasonTaintUntolerated,
 							Producer:    workv1alpha2.EvictionProducerTaintManager,

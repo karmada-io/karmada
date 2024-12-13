@@ -23,6 +23,7 @@ import (
 	"net"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -43,6 +44,7 @@ import (
 	globaloptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
+	"github.com/karmada-io/karmada/pkg/util/validation"
 	"github.com/karmada-io/karmada/pkg/version"
 )
 
@@ -84,7 +86,7 @@ var (
 
 	karmadaRelease string
 
-	defaultEtcdImage = "etcd:3.5.13-0"
+	defaultEtcdImage = "etcd:3.5.16-0"
 
 	// DefaultCrdURL Karmada crds resource
 	DefaultCrdURL string
@@ -381,19 +383,34 @@ func (i *CommandInitOption) genCerts() error {
 
 // prepareCRD download or unzip `crds.tar.gz` to `options.DataPath`
 func (i *CommandInitOption) prepareCRD() error {
+	var filename string
 	if strings.HasPrefix(i.CRDs, "http") {
-		filename := i.KarmadaDataPath + "/" + path.Base(i.CRDs)
+		filename = i.KarmadaDataPath + "/" + path.Base(i.CRDs)
 		klog.Infof("download crds file:%s", i.CRDs)
 		if err := utils.DownloadFile(i.CRDs, filename); err != nil {
 			return err
 		}
-		if err := utils.DeCompress(filename, i.KarmadaDataPath); err != nil {
-			return err
-		}
-		return nil
+	} else {
+		filename = i.CRDs
+		klog.Infoln("local crds file name:", i.CRDs)
 	}
-	klog.Infoln("local crds file name:", i.CRDs)
-	return utils.DeCompress(i.CRDs, i.KarmadaDataPath)
+
+	if err := validation.ValidateTarball(filename, validation.ValidateCrdsTarBall); err != nil {
+		return fmt.Errorf("inValid crd tar, err: %w", err)
+	}
+
+	if err := utils.DeCompress(filename, i.KarmadaDataPath); err != nil {
+		return err
+	}
+
+	for _, archive := range validation.CrdsArchive {
+		expectedDir := filepath.Join(i.KarmadaDataPath, archive)
+		exist, _ := utils.PathExists(expectedDir)
+		if !exist {
+			return fmt.Errorf("lacking the necessary file path: %s", expectedDir)
+		}
+	}
+	return nil
 }
 
 func (i *CommandInitOption) createCertsSecrets() error {
@@ -599,18 +616,12 @@ func (i *CommandInitOption) RunInit(parentCommand string) error {
 		return err
 	}
 
-	// Create bootstrap token in karmada
-	registerCommand, err := karmada.InitKarmadaBootstrapToken(i.KarmadaDataPath)
-	if err != nil {
-		return err
-	}
-
 	// install karmada Component
 	if err := i.initKarmadaComponent(); err != nil {
 		return err
 	}
 
-	utils.GenExamples(i.KarmadaDataPath, parentCommand, registerCommand)
+	utils.GenExamples(i.KarmadaDataPath, parentCommand)
 	return nil
 }
 

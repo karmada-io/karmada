@@ -34,11 +34,11 @@ import (
 
 const (
 	// BootstrapSignerClusterRoleName sets the name for the ClusterRole that allows access to ConfigMaps in the kube-public ns
-	BootstrapSignerClusterRoleName = "karmada:bootstrap-signer-clusterinfo"
+	BootstrapSignerClusterRoleName = "system:karmada:bootstrap-signer-clusterinfo"
 )
 
 // CreateBootstrapConfigMapIfNotExists creates the kube-public ConfigMap if it doesn't exist already
-func CreateBootstrapConfigMapIfNotExists(clientSet *kubernetes.Clientset, file string) error {
+func CreateBootstrapConfigMapIfNotExists(clientSet kubernetes.Interface, file string) error {
 	klog.V(1).Infoln("[bootstrap-token] loading karmada admin kubeconfig")
 	adminConfig, err := clientcmd.LoadFromFile(file)
 	if err != nil {
@@ -75,7 +75,7 @@ func CreateBootstrapConfigMapIfNotExists(clientSet *kubernetes.Clientset, file s
 }
 
 // CreateClusterInfoRBACRules creates the RBAC rules for exposing the cluster-info ConfigMap in the kube-public namespace to unauthenticated users
-func CreateClusterInfoRBACRules(clientSet *kubernetes.Clientset) error {
+func CreateClusterInfoRBACRules(clientSet kubernetes.Interface) error {
 	klog.V(1).Info("Creating the RBAC rules for exposing the cluster-info ConfigMap in the kube-public namespace")
 	err := cmdutil.CreateOrUpdateRole(clientSet, &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{

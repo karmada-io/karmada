@@ -216,7 +216,7 @@ func CreateOrUpdateClusterRoleBinding(client kubernetes.Interface, clusterRoleBi
 
 // CreateOrUpdateConfigMap creates a ConfigMap if the target resource doesn't exist.
 // If the resource exists already, this function will update the resource instead.
-func CreateOrUpdateConfigMap(client *kubernetes.Clientset, cm *corev1.ConfigMap) error {
+func CreateOrUpdateConfigMap(client kubernetes.Interface, cm *corev1.ConfigMap) error {
 	if _, err := client.CoreV1().ConfigMaps(cm.Namespace).Create(context.TODO(), cm, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return fmt.Errorf("unable to create ConfigMap: %v", err)

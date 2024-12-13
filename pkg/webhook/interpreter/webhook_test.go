@@ -105,7 +105,7 @@ func TestComplete(t *testing.T) {
 			verify: verifyResourceInterpreterCompleteResponse,
 		},
 		{
-			name: "TestComplete_OverrideResponseUIDAndStatusCode_ResponseUIDAndStatusCodeAreOverrided",
+			name: "TestComplete_OverrideResponseUIDAndStatusCode_ResponseUIDAndStatusCodeAreOverridden",
 			req: Request{
 				ResourceInterpreterRequest: configv1alpha1.ResourceInterpreterRequest{
 					UID: "test-uid",

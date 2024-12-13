@@ -133,7 +133,7 @@ func (c *CertRotationController) SetupWithManager(mgr controllerruntime.Manager)
 		For(&clusterv1alpha1.Cluster{}, builder.WithPredicates(c.PredicateFunc)).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithOptions(controller.Options{
-			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RatelimiterOptions),
+			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RatelimiterOptions),
 		}).
 		Complete(c)
 }

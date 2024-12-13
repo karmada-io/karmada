@@ -20,8 +20,8 @@ package v1alpha1
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -39,30 +39,10 @@ type ResourceInterpreterCustomizationLister interface {
 
 // resourceInterpreterCustomizationLister implements the ResourceInterpreterCustomizationLister interface.
 type resourceInterpreterCustomizationLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1alpha1.ResourceInterpreterCustomization]
 }
 
 // NewResourceInterpreterCustomizationLister returns a new ResourceInterpreterCustomizationLister.
 func NewResourceInterpreterCustomizationLister(indexer cache.Indexer) ResourceInterpreterCustomizationLister {
-	return &resourceInterpreterCustomizationLister{indexer: indexer}
-}
-
-// List lists all ResourceInterpreterCustomizations in the indexer.
-func (s *resourceInterpreterCustomizationLister) List(selector labels.Selector) (ret []*v1alpha1.ResourceInterpreterCustomization, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.ResourceInterpreterCustomization))
-	})
-	return ret, err
-}
-
-// Get retrieves the ResourceInterpreterCustomization from the index for a given name.
-func (s *resourceInterpreterCustomizationLister) Get(name string) (*v1alpha1.ResourceInterpreterCustomization, error) {
-	obj, exists, err := s.indexer.GetByKey(name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("resourceinterpretercustomization"), name)
-	}
-	return obj.(*v1alpha1.ResourceInterpreterCustomization), nil
+	return &resourceInterpreterCustomizationLister{listers.New[*v1alpha1.ResourceInterpreterCustomization](indexer, v1alpha1.Resource("resourceinterpretercustomization"))}
 }

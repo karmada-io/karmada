@@ -23,7 +23,7 @@ data:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: karmada:bootstrap-signer-clusterinfo
+  name: system:karmada:bootstrap-signer-clusterinfo
   namespace: kube-public
   {{- if "karmada.commonLabels" }}
   labels:
@@ -42,7 +42,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: karmada:bootstrap-signer-clusterinfo
+  name: system:karmada:bootstrap-signer-clusterinfo
   namespace: kube-public
   {{- if "karmada.commonLabels" }}
   labels:
@@ -51,7 +51,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: karmada:bootstrap-signer-clusterinfo
+  name: system:karmada:bootstrap-signer-clusterinfo
 subjects:
 - apiGroup: rbac.authorization.k8s.io
   kind: User
@@ -60,7 +60,7 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: karmada:agent-bootstrap
+  name: system:karmada:agent-bootstrap
   {{- if "karmada.commonLabels" }}
   labels:
     {{- include "karmada.commonLabels" . | nindent 4 }}
@@ -75,151 +75,25 @@ subjects:
   name: system:bootstrappers:karmada:default-cluster-token
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: karmada:agent-autoapprove-bootstrap
-  {{- if "karmada.commonLabels" }}
-  labels:
-    {{- include "karmada.commonLabels" . | nindent 4 }}
-  {{- end }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: system:certificates.k8s.io:certificatesigningrequests:nodeclient
-subjects:
-- apiGroup: rbac.authorization.k8s.io
-  kind: Group
-  name: system:bootstrappers:karmada:default-cluster-token
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: karmada:agent-autoapprove-certificate-rotation
-  {{- if "karmada.commonLabels" }}
-  labels:
-    {{- include "karmada.commonLabels" . | nindent 4 }}
-  {{- end }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: system:certificates.k8s.io:certificatesigningrequests:selfnodeclient
-subjects:
-- apiGroup: rbac.authorization.k8s.io
-  kind: Group
-  name: system:nodes
----
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: system:karmada:agent
+  name: system:karmada:certificatesigningrequest:autoapprover
   {{- if "karmada.commonLabels" }}
   labels:
     {{- include "karmada.commonLabels" . | nindent 4 }}
   {{- end }}
 rules:
 - apiGroups:
-  - authentication.k8s.io
-  resources:
-  - tokenreviews
-  verbs:
-  - create
-- apiGroups:
-  - cluster.karmada.io
-  resources:
-  - clusters
-  verbs:
-  - create
-  - get
-  - list
-  - watch
-  - patch
-  - update
-  - delete
-- apiGroups:
-  - cluster.karmada.io
-  resources:
-  - clusters/status
-  verbs:
-  - patch
-  - update
-- apiGroups:
-  - work.karmada.io
-  resources:
-  - works
-  verbs:
-  - create
-  - get
-  - list
-  - watch
-  - update
-  - delete
-- apiGroups:
-  - work.karmada.io
-  resources:
-  - works/status
-  verbs:
-  - patch
-  - update
-- apiGroups:
-  - config.karmada.io
-  resources:
-  - resourceinterpreterwebhookconfigurations
-  - resourceinterpretercustomizations
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - namespaces
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - patch
-- apiGroups:
-  - coordination.k8s.io
-  resources:
-  - leases
-  verbs:
-  - create
-  - delete
-  - get
-  - patch
-  - update
-- apiGroups:
   - certificates.k8s.io
   resources:
-  - certificatesigningrequests
+  - certificatesigningrequests/clusteragent
   verbs:
   - create
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
-  - patch
-  - update
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: system:karmada:agent
+  name: system:karmada:agent-autoapprove-bootstrap
   {{- if "karmada.commonLabels" }}
   labels:
     {{- include "karmada.commonLabels" . | nindent 4 }}
@@ -227,9 +101,75 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: system:karmada:agent
+  name: system:karmada:certificatesigningrequest:autoapprover
 subjects:
 - apiGroup: rbac.authorization.k8s.io
   kind: Group
-  name: system:nodes
+  name: system:bootstrappers:karmada:default-cluster-token
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: system:karmada:certificatesigningrequest:selfautoapprover
+  {{- if "karmada.commonLabels" }}
+  labels:
+    {{- include "karmada.commonLabels" . | nindent 4 }}
+  {{- end }}
+rules:
+- apiGroups:
+  - certificates.k8s.io
+  resources:
+  - certificatesigningrequests/selfclusteragent
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: system:karmada:agent-autoapprove-certificate-rotation
+  {{- if "karmada.commonLabels" }}
+  labels:
+    {{- include "karmada.commonLabels" . | nindent 4 }}
+  {{- end }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:karmada:certificatesigningrequest:selfautoapprover
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  name: system:karmada:agents
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: system:karmada:agent-rbac-generator
+  {{- if "karmada.commonLabels" }}
+  labels:
+    {{- include "karmada.commonLabels" . | nindent 4 }}
+  {{- end }}
+rules:
+- apiGroups:
+  - "*"
+  resources:
+  - "*"
+  verbs:
+  - "*"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: system:karmada:agent-rbac-generator
+  {{- if "karmada.commonLabels" }}
+  labels:
+    {{- include "karmada.commonLabels" . | nindent 4 }}
+  {{- end }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:karmada:agent-rbac-generator
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: system:karmada:agent:rbac-generator
 {{- end -}}

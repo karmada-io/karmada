@@ -186,7 +186,11 @@ func ObtainBindingSpecExistingClusters(bindingSpec workv1alpha2.ResourceBindingS
 	}
 
 	for _, task := range bindingSpec.GracefulEvictionTasks {
-		clusterNames.Insert(task.FromCluster)
+		// EvictionTasks with Immediately PurgeMode should not be treated as existing clusters
+		// Work on those clusters should be removed immediately and treated as orphans
+		if task.PurgeMode != policyv1alpha1.Immediately {
+			clusterNames.Insert(task.FromCluster)
+		}
 	}
 
 	return clusterNames

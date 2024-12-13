@@ -103,6 +103,8 @@ func (s *ServerConfig) NewServer() (*grpc.Server, error) {
 // DialWithTimeOut will attempt to create a client connection based on the given targets, one at a time, until a client connection is successfully established.
 func (c *ClientConfig) DialWithTimeOut(paths []string, timeout time.Duration) (*grpc.ClientConn, error) {
 	opts := []grpc.DialOption{
+		// grpc.WithBlock is deprecated. TODO: Perhaps need to reconsider the approach in a future PR
+		//nolint:staticcheck
 		grpc.WithBlock(),
 	}
 
@@ -155,6 +157,8 @@ func createGRPCConnection(path string, timeout time.Duration, opts ...grpc.DialO
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
+	// grpc.DialContext is deprecated. TODO: Perhaps need to reconsider the approach in a future PR
+	//nolint:staticcheck
 	cc, err := grpc.DialContext(ctx, path, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("dial %s error: %v", path, err)

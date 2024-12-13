@@ -130,7 +130,7 @@ func (c *FHPAController) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(ControllerName).
 		For(&autoscalingv1alpha1.FederatedHPA{}).
-		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
+		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Complete(c)
 }

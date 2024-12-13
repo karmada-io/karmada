@@ -37,12 +37,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	testing2 "github.com/karmada-io/karmada/pkg/search/proxy/testing"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
-	testing3 "github.com/karmada-io/karmada/pkg/util/testing"
+	utilhelper "github.com/karmada-io/karmada/pkg/util/helper"
+	testingutil "github.com/karmada-io/karmada/pkg/util/testing"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -50,10 +52,16 @@ import (
 // Currently support kind: Pod,Node. If you want support more kind, pls add it.
 // rs is nil means use default RestMapper, see: github.com/karmada-io/karmada/pkg/search/proxy/testing/constant.go
 func makeFakeRBCByResource(rs *workv1alpha2.ObjectReference) (*ResourceBindingController, error) {
+	c := fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithIndex(
+		&workv1alpha1.Work{},
+		workv1alpha2.ResourceBindingPermanentIDLabel,
+		utilhelper.IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel),
+	).Build()
+
 	tempDyClient := fakedynamic.NewSimpleDynamicClient(scheme.Scheme)
 	if rs == nil {
 		return &ResourceBindingController{
-			Client:          fake.NewClientBuilder().WithScheme(gclient.NewSchema()).Build(),
+			Client:          c,
 			RESTMapper:      testing2.RestMapper,
 			InformerManager: genericmanager.NewSingleClusterInformerManager(tempDyClient, 0, nil),
 			DynamicClient:   tempDyClient,
@@ -83,9 +91,9 @@ func makeFakeRBCByResource(rs *workv1alpha2.ObjectReference) (*ResourceBindingCo
 	}
 
 	return &ResourceBindingController{
-		Client:          fake.NewClientBuilder().WithScheme(gclient.NewSchema()).Build(),
+		Client:          c,
 		RESTMapper:      helper.NewGroupRESTMapper(rs.Kind, meta.RESTScopeNamespace),
-		InformerManager: testing3.NewSingleClusterInformerManagerByRS(src, obj),
+		InformerManager: testingutil.NewSingleClusterInformerManagerByRS(src, obj),
 		DynamicClient:   tempDyClient,
 		EventRecorder:   record.NewFakeRecorder(1024),
 	}, nil

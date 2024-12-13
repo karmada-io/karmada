@@ -1,0 +1,112 @@
+# validate any chart changes under charts directory
+name: Chart
+env:
+  HELM_VERSION: v3.11.2
+  KUSTOMIZE_VERSION: 5.4.3
+on:
+  push:
+    # Exclude branches created by Dependabot to avoid triggering current workflow
+    # for PRs initiated by Dependabot.
+    branches-ignore:
+      - 'dependabot/**'
+  pull_request:
+# https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#concurrency
+concurrency:
+  group: ${{ github.workflow }}-${{ github.actor }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  test-on-kubernetes-matrix:
+    name: Test on Kubernetes
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # Here support the latest three minor releases of Kubernetes, this can be considered to be roughly
+        # the same as the End of Life of the Kubernetes release: https://kubernetes.io/releases/
+        # Please remember to update the CI Schedule Workflow when we add a new version.
+        k8s: [ v1.29.0, v1.30.0, v1.31.0 ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Set up Kustomize
+        uses: syntaqx/setup-kustomize@v1
+        with:
+          kustomize-version: ${{ env.KUSTOMIZE_VERSION }}
+
+      - name: Run chart-testing (template)
+        run: |
+          cat <<EOF > post-render.sh
+          #!/bin/sh
+          # save helm stdout to file, kustomize will read this
+          cat > all.yaml
+          kustomize build
+          EOF
+
+          chmod +x post-render.sh
+
+          cat <<EOF > kustomization.yaml
+          resources:
+            - all.yaml
+          EOF
+
+          helm template --set components={"search,descheduler,schedulerEstimator"} --dependency-update ./charts/karmada \
+            --post-renderer ./post-render.sh --debug > /dev/null
+          helm template --set components={"search,descheduler,schedulerEstimator"},certs.mode=custom --dependency-update \
+            ./charts/karmada --post-renderer ./post-render.sh --debug > /dev/null
+          helm template --set components={"search,descheduler,schedulerEstimator"},installMode=component --dependency-update \
+            ./charts/karmada --post-renderer ./post-render.sh --debug > /dev/null
+          helm template --set installMode=agent --dependency-update ./charts/karmada --post-renderer ./post-render.sh --debug > /dev/null
+          helm template --dependency-update ./charts/karmada-operator --post-renderer ./post-render.sh --debug > /dev/null
+
+          rm post-render.sh all.yaml kustomization.yaml
+
+      # Python is required because `ct lint` runs Yamale (https://github.com/23andMe/Yamale) and
+      # yamllint (https://github.com/adrienverge/yamllint) which require Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.9
+          check-latest: true
+
+      - name: Set up chart-testing
+        uses: helm/chart-testing-action@v2.6.1
+
+      - name: Add dependency chart repos
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+
+      - name: Run chart-testing (list-changed)
+        id: list-changed
+        run: |
+          changed=$( ct list-changed )
+          if [[ -n "$changed" ]]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run chart-testing (lint)
+        if: steps.list-changed.outputs.changed == 'true'
+        run: ct lint --debug --check-version-increment=false
+
+      - name: Run chart-testing (install)
+        run: |
+          export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
+          hack/setup-dev-base.sh
+          export KUBECONFIG=~/.kube/karmada.config
+          
+          ct install --charts charts/karmada --debug --helm-extra-set-args '--set components={search,metricsAdapter,descheduler},apiServer.hostNetwork=true' --helm-extra-args "--timeout 800s" --skip-clean-up
+          kubectl get pods -A

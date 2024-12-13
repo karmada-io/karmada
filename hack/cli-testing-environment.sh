@@ -35,7 +35,7 @@ BUILD_PATH=${BUILD_PATH:-"_output/bin/linux/amd64"}
 
 
 # install kind and kubectl
-kind_version=v0.22.0
+kind_version=v0.25.0
 echo -n "Preparing: 'kind' existence check - "
 if util::cmd_exist kind; then
   echo "passed"

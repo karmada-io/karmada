@@ -33,10 +33,11 @@ import (
 	addoninit "github.com/karmada-io/karmada/pkg/karmadactl/addons/init"
 	addonutils "github.com/karmada-io/karmada/pkg/karmadactl/addons/utils"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 func TestStatus(t *testing.T) {
-	name, namespace := addoninit.DeschedulerResourceName, "test"
+	name, namespace := names.KarmadaDeschedulerComponentName, "test"
 	var replicas int32 = 2
 	tests := []struct {
 		name       string
@@ -126,7 +127,7 @@ func TestStatus(t *testing.T) {
 }
 
 func TestEnableDescheduler(t *testing.T) {
-	name, namespace := addoninit.DeschedulerResourceName, "test"
+	name, namespace := names.KarmadaDeschedulerComponentName, "test"
 	var replicas int32 = 2
 	tests := []struct {
 		name       string
@@ -174,7 +175,7 @@ func TestEnableDescheduler(t *testing.T) {
 }
 
 func TestDisableDescheduler(t *testing.T) {
-	name, namespace := addoninit.DeschedulerResourceName, "test"
+	name, namespace := names.KarmadaDeschedulerComponentName, "test"
 	client := fakeclientset.NewSimpleClientset()
 	var replicas int32 = 2
 	tests := []struct {

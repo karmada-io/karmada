@@ -39,6 +39,7 @@ import (
 	initkarmada "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/karmada"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 const (
@@ -56,7 +57,7 @@ const (
 
 // AddonSearch describe the search addon command process
 var AddonSearch = &addoninit.Addon{
-	Name:    addoninit.SearchResourceName,
+	Name:    names.KarmadaSearchComponentName,
 	Status:  status,
 	Enable:  enableSearch,
 	Disable: disableSearch,
@@ -65,7 +66,7 @@ var AddonSearch = &addoninit.Addon{
 var status = func(opts *addoninit.CommandAddonsListOption) (string, error) {
 	// check karmada-search deployment status on host cluster
 	deployClient := opts.KubeClientSet.AppsV1().Deployments(opts.Namespace)
-	deployment, err := deployClient.Get(context.TODO(), addoninit.SearchResourceName, metav1.GetOptions{})
+	deployment, err := deployClient.Get(context.TODO(), names.KarmadaSearchComponentName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return addoninit.AddonDisabledStatus, nil
@@ -109,21 +110,21 @@ var enableSearch = func(opts *addoninit.CommandAddonsEnableOption) error {
 var disableSearch = func(opts *addoninit.CommandAddonsDisableOption) error {
 	// delete karmada search service on host cluster
 	serviceClient := opts.KubeClientSet.CoreV1().Services(opts.Namespace)
-	if err := serviceClient.Delete(context.TODO(), addoninit.SearchResourceName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+	if err := serviceClient.Delete(context.TODO(), names.KarmadaSearchComponentName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 	klog.Infof("Uninstall karmada search service on host cluster successfully")
 
 	// delete karmada search deployment on host cluster
 	deployClient := opts.KubeClientSet.AppsV1().Deployments(opts.Namespace)
-	if err := deployClient.Delete(context.TODO(), addoninit.SearchResourceName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+	if err := deployClient.Delete(context.TODO(), names.KarmadaSearchComponentName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 	klog.Infof("Uninstall karmada search deployment on host cluster successfully")
 
 	// delete karmada search aa service on karmada control plane
 	karmadaServiceClient := opts.KarmadaKubeClientSet.CoreV1().Services(opts.Namespace)
-	if err := karmadaServiceClient.Delete(context.TODO(), addoninit.SearchResourceName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+	if err := karmadaServiceClient.Delete(context.TODO(), names.KarmadaSearchComponentName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 	klog.Infof("Uninstall karmada search AA service on karmada control plane successfully")

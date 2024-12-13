@@ -51,6 +51,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/clusterdiscovery/clusterapi"
 	"github.com/karmada-io/karmada/pkg/controllers/applicationfailover"
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
+	"github.com/karmada-io/karmada/pkg/controllers/certificate/approver"
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	controllerscontext "github.com/karmada-io/karmada/pkg/controllers/context"
 	"github.com/karmada-io/karmada/pkg/controllers/cronfederatedhpa"
@@ -83,6 +84,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/typedmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -95,7 +97,7 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use: "karmada-controller-manager",
+		Use: names.KarmadaControllerManagerComponentName,
 		Long: `The karmada-controller-manager runs various controllers.
 The controllers watch Karmada objects and then talk to the underlying clusters' API servers
 to create regular Kubernetes resources.`,
@@ -123,7 +125,7 @@ to create regular Kubernetes resources.`,
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
 
-	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-controller-manager"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion(names.KarmadaControllerManagerComponentName))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 
@@ -190,6 +192,10 @@ func Run(ctx context.Context, opts *options.Options) error {
 	crtlmetrics.Registry.MustRegister(metrics.ResourceCollectors()...)
 	crtlmetrics.Registry.MustRegister(metrics.PoolCollectors()...)
 
+	if err := helper.IndexWork(ctx, controllerManager); err != nil {
+		klog.Fatalf("Failed to index Work: %v", err)
+	}
+
 	setupControllers(controllerManager, opts, ctx.Done())
 
 	// blocks until the context is done.
@@ -232,6 +238,7 @@ func init() {
 	controllers["endpointsliceDispatch"] = startEndpointSliceDispatchController
 	controllers["remedy"] = startRemedyController
 	controllers["workloadRebalancer"] = startWorkloadRebalancerController
+	controllers["agentcsrapproving"] = startAgentCSRApprovingController
 }
 
 func startClusterController(ctx controllerscontext.Context) (enabled bool, err error) {
@@ -561,9 +568,6 @@ func startFederatedResourceQuotaStatusController(ctx controllerscontext.Context)
 }
 
 func startGracefulEvictionController(ctx controllerscontext.Context) (enabled bool, err error) {
-	if !features.FeatureGate.Enabled(features.GracefulEviction) {
-		return false, nil
-	}
 	rbGracefulEvictionController := &gracefuleviction.RBGracefulEvictionController{
 		Client:                  ctx.Mgr.GetClient(),
 		EventRecorder:           ctx.Mgr.GetEventRecorderFor(gracefuleviction.RBGracefulEvictionControllerName),
@@ -588,9 +592,6 @@ func startGracefulEvictionController(ctx controllerscontext.Context) (enabled bo
 }
 
 func startApplicationFailoverController(ctx controllerscontext.Context) (enabled bool, err error) {
-	if !features.FeatureGate.Enabled(features.Failover) {
-		return false, nil
-	}
 	rbApplicationFailoverController := applicationfailover.RBApplicationFailoverController{
 		Client:              ctx.Mgr.GetClient(),
 		EventRecorder:       ctx.Mgr.GetEventRecorderFor(applicationfailover.RBApplicationFailoverControllerName),
@@ -719,6 +720,15 @@ func startWorkloadRebalancerController(ctx controllerscontext.Context) (enabled 
 	return true, nil
 }
 
+func startAgentCSRApprovingController(ctx controllerscontext.Context) (enabled bool, err error) {
+	agentCSRApprover := approver.AgentCSRApprovingController{Client: ctx.KubeClientSet}
+	err = agentCSRApprover.SetupWithManager(ctx.Mgr)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // setupControllers initialize controllers and setup one by one.
 func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) {
 	restConfig := mgr.GetConfig()
@@ -769,13 +779,14 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 	if features.FeatureGate.Enabled(features.PropagateDeps) {
 		dependenciesDistributor := &dependenciesdistributor.DependenciesDistributor{
-			Client:              mgr.GetClient(),
-			DynamicClient:       dynamicClientSet,
-			InformerManager:     controlPlaneInformerManager,
-			ResourceInterpreter: resourceInterpreter,
-			RESTMapper:          mgr.GetRESTMapper(),
-			EventRecorder:       mgr.GetEventRecorderFor("dependencies-distributor"),
-			RateLimiterOptions:  opts.RateLimiterOpts,
+			Client:                           mgr.GetClient(),
+			DynamicClient:                    dynamicClientSet,
+			InformerManager:                  controlPlaneInformerManager,
+			ResourceInterpreter:              resourceInterpreter,
+			RESTMapper:                       mgr.GetRESTMapper(),
+			EventRecorder:                    mgr.GetEventRecorderFor("dependencies-distributor"),
+			RateLimiterOptions:               opts.RateLimiterOpts,
+			ConcurrentDependentResourceSyncs: opts.ConcurrentDependentResourceSyncs,
 		}
 		if err := dependenciesDistributor.SetupWithManager(mgr); err != nil {
 			klog.Fatalf("Failed to setup dependencies distributor: %v", err)

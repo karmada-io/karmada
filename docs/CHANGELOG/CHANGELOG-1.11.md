@@ -2,18 +2,24 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.11.2](#v1112)
-  - [Downloads for v1.11.2](#downloads-for-v1112)
-  - [Changelog since v1.11.1](#changelog-since-v1111)
+- [v1.11.3](#v1113)
+  - [Downloads for v1.11.3](#downloads-for-v1113)
+  - [Changelog since v1.11.2](#changelog-since-v1112)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
-- [v1.11.1](#v1111)
-  - [Downloads for v1.11.1](#downloads-for-v1111)
-  - [Changelog since v1.11.0](#changelog-since-v1110)
+- [v1.11.2](#v1112)
+  - [Downloads for v1.11.2](#downloads-for-v1112)
+  - [Changelog since v1.11.1](#changelog-since-v1111)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
+- [v1.11.1](#v1111)
+  - [Downloads for v1.11.1](#downloads-for-v1111)
+  - [Changelog since v1.11.0](#changelog-since-v1110)
+    - [Changes by Kind](#changes-by-kind-2)
+      - [Bug Fixes](#bug-fixes-2)
+      - [Others](#others-2)
 - [v1.11.0](#v1110)
   - [Downloads for v1.11.0](#downloads-for-v1110)
   - [What's New](#whats-new)
@@ -24,7 +30,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-2)
+    - [Bug Fixes](#bug-fixes-3)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -34,6 +40,19 @@
   - [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.11.3
+## Downloads for v1.11.3
+
+Download v1.11.3 in the [v1.11.3 release page](https://github.com/karmada-io/karmada/releases/tag/v1.11.3).
+
+## Changelog since v1.11.2
+### Changes by Kind
+#### Bug Fixes
+- `karmadactl`: The `--force` option of `unjoin` command now try to clean up resources propagated in member clusters. ([#5848](https://github.com/karmada-io/karmada/pull/5848), @chaosi-zju)
+
+#### Others
+None.
 
 # v1.11.2
 ## Downloads for v1.11.2

@@ -110,6 +110,8 @@ type DependenciesDistributor struct {
 	resourceProcessor util.AsyncWorker
 	genericEvent      chan event.TypedGenericEvent[*workv1alpha2.ResourceBinding]
 	stopCh            <-chan struct{}
+	// ConcurrentDependentResourceSyncs is the number of dependent resource that are allowed to sync concurrently.
+	ConcurrentDependentResourceSyncs int
 }
 
 // Check if our DependenciesDistributor implements necessary interfaces
@@ -615,7 +617,7 @@ func (d *DependenciesDistributor) Start(ctx context.Context) error {
 	}
 	d.eventHandler = fedinformer.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
 	d.resourceProcessor = util.NewAsyncWorker(resourceWorkerOptions)
-	d.resourceProcessor.Run(2, d.stopCh)
+	d.resourceProcessor.Run(d.ConcurrentDependentResourceSyncs, d.stopCh)
 	<-d.stopCh
 
 	klog.Infof("Stopped as stopCh closed.")
@@ -654,17 +656,11 @@ func (d *DependenciesDistributor) SetupWithManager(mgr controllerruntime.Manager
 						return false
 					}
 
-					// prevent newBindingObject from the queue if it's not scheduled yet.
-					if len(oldBindingObject.Spec.Clusters) == 0 && len(newBindingObject.Spec.Clusters) == 0 {
-						klog.V(4).Infof("Dropping resource binding(%s/%s) as it is not scheduled yet.", newBindingObject.Namespace, newBindingObject.Name)
-						return false
-					}
 					return oldBindingObject.Spec.PropagateDeps || newBindingObject.Spec.PropagateDeps
 				},
 			}).
 			WithOptions(controller.Options{
-				RateLimiter:             ratelimiterflag.DefaultControllerRateLimiter(d.RateLimiterOptions),
-				MaxConcurrentReconciles: 2,
+				RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](d.RateLimiterOptions),
 			}).
 			WatchesRawSource(source.Channel(d.genericEvent, &handler.TypedEnqueueRequestForObject[*workv1alpha2.ResourceBinding]{})).
 			Complete(d),

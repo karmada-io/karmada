@@ -20,8 +20,8 @@ package v1alpha1
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -38,25 +38,17 @@ type FederatedResourceQuotaLister interface {
 
 // federatedResourceQuotaLister implements the FederatedResourceQuotaLister interface.
 type federatedResourceQuotaLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1alpha1.FederatedResourceQuota]
 }
 
 // NewFederatedResourceQuotaLister returns a new FederatedResourceQuotaLister.
 func NewFederatedResourceQuotaLister(indexer cache.Indexer) FederatedResourceQuotaLister {
-	return &federatedResourceQuotaLister{indexer: indexer}
-}
-
-// List lists all FederatedResourceQuotas in the indexer.
-func (s *federatedResourceQuotaLister) List(selector labels.Selector) (ret []*v1alpha1.FederatedResourceQuota, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.FederatedResourceQuota))
-	})
-	return ret, err
+	return &federatedResourceQuotaLister{listers.New[*v1alpha1.FederatedResourceQuota](indexer, v1alpha1.Resource("federatedresourcequota"))}
 }
 
 // FederatedResourceQuotas returns an object that can list and get FederatedResourceQuotas.
 func (s *federatedResourceQuotaLister) FederatedResourceQuotas(namespace string) FederatedResourceQuotaNamespaceLister {
-	return federatedResourceQuotaNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return federatedResourceQuotaNamespaceLister{listers.NewNamespaced[*v1alpha1.FederatedResourceQuota](s.ResourceIndexer, namespace)}
 }
 
 // FederatedResourceQuotaNamespaceLister helps list and get FederatedResourceQuotas.
@@ -74,26 +66,5 @@ type FederatedResourceQuotaNamespaceLister interface {
 // federatedResourceQuotaNamespaceLister implements the FederatedResourceQuotaNamespaceLister
 // interface.
 type federatedResourceQuotaNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all FederatedResourceQuotas in the indexer for a given namespace.
-func (s federatedResourceQuotaNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.FederatedResourceQuota, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.FederatedResourceQuota))
-	})
-	return ret, err
-}
-
-// Get retrieves the FederatedResourceQuota from the indexer for a given namespace and name.
-func (s federatedResourceQuotaNamespaceLister) Get(name string) (*v1alpha1.FederatedResourceQuota, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("federatedresourcequota"), name)
-	}
-	return obj.(*v1alpha1.FederatedResourceQuota), nil
+	listers.ResourceIndexer[*v1alpha1.FederatedResourceQuota]
 }

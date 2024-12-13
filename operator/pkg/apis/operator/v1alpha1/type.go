@@ -113,6 +113,26 @@ type KarmadaSpec struct {
 	// By default, the operator will only attempt to download the tarball if it's not yet present in the local cache.
 	// +optional
 	CRDTarball *CRDTarball `json:"crdTarball,omitempty"`
+
+	// CustomCertificate specifies the configuration to customize the certificates
+	// for Karmada components or control the certificate generation process, such as
+	// the algorithm, validity period, etc.
+	// Currently, it only supports customizing the CA certificate for limited components.
+	// +optional
+	CustomCertificate *CustomCertificate `json:"customCertificate,omitempty"`
+}
+
+// CustomCertificate holds the configuration for generating the certificate.
+type CustomCertificate struct {
+	// APIServerCACert references a Kubernetes secret containing the CA certificate
+	// for component karmada-apiserver.
+	// The secret must contain the following data keys:
+	// - tls.crt: The TLS certificate.
+	// - tls.key: The TLS private key.
+	// If specified, this CA will be used to issue client certificates for
+	// all components that access the APIServer as clients.
+	// +optional
+	APIServerCACert *LocalSecretReference `json:"apiServerCACert,omitempty"`
 }
 
 // ImageRegistry represents an image registry as well as the

@@ -16623,6 +16623,32 @@
           "$ref": "#/parameters/watch-XNNPZGbK"
         }
       ]
+    },
+    "/version/": {
+      "get": {
+        "description": "get the code version",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "version"
+        ],
+        "operationId": "getCodeVersion",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/io.k8s.apimachinery.pkg.version.Info"
+            }
+          }
+        }
+      }
     }
   },
   "definitions": {
@@ -17227,7 +17253,7 @@
       }
     },
     "com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.Cluster": {
-      "description": "Cluster represents the desire state and status of a member cluster.",
+      "description": "Cluster represents the desired state and status of a member cluster.",
       "type": "object",
       "required": [
         "spec"
@@ -17265,7 +17291,7 @@
       ]
     },
     "com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.ClusterList": {
-      "description": "ClusterList contains a list of member cluster",
+      "description": "ClusterList contains a list of member clusters",
       "type": "object",
       "required": [
         "items"
@@ -17312,11 +17338,11 @@
           "type": "string"
         },
         "id": {
-          "description": "ID is the unique identifier for the cluster. It is different from the object uid(.metadata.uid) and typically collected automatically from member cluster during the progress of registration.\n\nThe value is collected in order: 1. If the registering cluster enabled ClusterProperty API and defined the cluster ID by\n  creating a ClusterProperty object with name 'cluster.clusterset.k8s.io', Karmada would\n  take the defined value in the ClusterProperty object.\n  See https://github.com/kubernetes-sigs/about-api for more details about ClusterProperty API.\n2. Take the uid of 'kube-system' namespace on the registering cluster.\n\nPlease don't update this value unless you know what you are doing, because it will/may be used to : - uniquely identify the clusters within the Karmada system. - compose the DNS name of multi-cluster services.",
+          "description": "ID is the unique identifier for the cluster. It is different from the object uid(.metadata.uid) and is typically collected automatically from each member cluster during the process of registration.\n\nThe value is collected in order: 1. If the registering cluster enabled ClusterProperty API and defined the cluster ID by\n  creating a ClusterProperty object with name 'cluster.clusterset.k8s.io', Karmada would\n  take the defined value in the ClusterProperty object.\n  See https://github.com/kubernetes-sigs/about-api for more details about ClusterProperty API.\n2. Take the uid of 'kube-system' namespace on the registering cluster.\n\nPlease don't update this value unless you know what you are doing, because it will/may be used to : - uniquely identify the clusters within the Karmada system. - compose the DNS name of multi-cluster services.",
           "type": "string"
         },
         "impersonatorSecretRef": {
-          "description": "ImpersonatorSecretRef represents the secret contains the token of impersonator. The secret should hold credentials as follows: - secret.data.token",
+          "description": "ImpersonatorSecretRef represents the secret that contains the token of impersonator. The secret should hold credentials as follows: - secret.data.token",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.LocalSecretReference"
         },
         "insecureSkipTLSVerification": {
@@ -17328,7 +17354,7 @@
           "type": "string"
         },
         "proxyHeader": {
-          "description": "ProxyHeader is the HTTP header required by proxy server. The key in the key-value pair is HTTP header key and value is the associated header payloads. For the header with multiple values, the values should be separated by comma(e.g. 'k1': 'v1,v2,v3').",
+          "description": "ProxyHeader is the HTTP header required by proxy server. The key in the key-value pair is HTTP header key and the value is the associated header payloads. For the header with multiple values, the values should be separated by comma(e.g. 'k1': 'v1,v2,v3').",
           "type": "object",
           "additionalProperties": {
             "type": "string",
@@ -17336,11 +17362,11 @@
           }
         },
         "proxyURL": {
-          "description": "ProxyURL is the proxy URL for the cluster. If not empty, the karmada control plane will use this proxy to talk to the cluster. More details please refer to: https://github.com/kubernetes/client-go/issues/351",
+          "description": "ProxyURL is the proxy URL for the cluster. If not empty, the karmada control plane will use this proxy to talk to the cluster. For more details please refer to: https://github.com/kubernetes/client-go/issues/351",
           "type": "string"
         },
         "region": {
-          "description": "Region represents the region of the member cluster locate in.",
+          "description": "Region represents the region in which the member cluster is located.",
           "type": "string"
         },
         "resourceModels": {
@@ -17352,16 +17378,16 @@
           }
         },
         "secretRef": {
-          "description": "SecretRef represents the secret contains mandatory credentials to access the member cluster. The secret should hold credentials as follows: - secret.data.token - secret.data.caBundle",
+          "description": "SecretRef represents the secret that contains mandatory credentials to access the member cluster. The secret should hold credentials as follows: - secret.data.token - secret.data.caBundle",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.LocalSecretReference"
         },
         "syncMode": {
-          "description": "SyncMode describes how a cluster sync resources from karmada control plane.",
+          "description": "SyncMode describes how a cluster syncs resources from karmada control plane.",
           "type": "string",
           "default": ""
         },
         "taints": {
-          "description": "Taints attached to the member cluster. Taints on the cluster have the \"effect\" on any resource that does not tolerate the Taint.",
+          "description": "Taints are attached to the member cluster. Taints on the cluster have the \"effect\" on any resource that does not tolerate the Taint.",
           "type": "array",
           "items": {
             "default": {},
@@ -17369,7 +17395,7 @@
           }
         },
         "zone": {
-          "description": "Zone represents the zone of the member cluster locate in. Deprecated: This filed was never been used by Karmada, and it will not be removed from v1alpha1 for backward compatibility, use Zones instead.",
+          "description": "Zone represents the zone in which the member cluster is located. Deprecated: This field was never been used by Karmada, and it will not be removed from v1alpha1 for backward compatibility, use Zones instead.",
           "type": "string"
         },
         "zones": {
@@ -17387,7 +17413,7 @@
       "type": "object",
       "properties": {
         "apiEnablements": {
-          "description": "APIEnablements represents the list of APIs installed in the member cluster.",
+          "description": "APIEnablements represents the list of APIs installed on the member cluster.",
           "type": "array",
           "items": {
             "default": {},
@@ -17433,7 +17459,7 @@
       ],
       "properties": {
         "name": {
-          "description": "Name is the name of resource being referenced.",
+          "description": "Name is the name of the resource being referenced.",
           "type": "string",
           "default": ""
         },
@@ -17485,7 +17511,7 @@
       }
     },
     "com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.ResourceModelRange": {
-      "description": "ResourceModelRange describes the detail of each modeling quota that ranges from min to max. Please pay attention, by default, the value of min can be inclusive, and the value of max cannot be inclusive. E.g. in an interval, min = 2, max =10 is set, which means the interval [2,10). This rule ensure that all intervals have the same meaning. If the last interval is infinite, it is definitely unreachable. Therefore, we define the right interval as the open interval. For a valid interval, the value on the right is greater than the value on the left, in other words, max must be greater than min. It is strongly recommended that the [Min, Max) of all ResourceModelRanges can make a continuous interval.",
+      "description": "ResourceModelRange describes the detail of each modeling quota that ranges from min to max. Please pay attention, by default, the value of min can be inclusive, and the value of max cannot be inclusive. E.g. in an interval, min = 2, max = 10 is set, which means the interval [2,10). This rule ensures that all intervals have the same meaning. If the last interval is infinite, it is definitely unreachable. Therefore, we define the right interval as the open interval. For a valid interval, the value on the right is greater than the value on the left, in other words, max must be greater than min. It is strongly recommended that the [Min, Max) of all ResourceModelRanges can make a continuous interval.",
       "type": "object",
       "required": [
         "name",
@@ -18263,6 +18289,10 @@
         "purgeMode": {
           "description": "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Immediately\", \"Graciously\" and \"Never\". Defaults to \"Graciously\".",
           "type": "string"
+        },
+        "statePreservation": {
+          "description": "StatePreservation defines the policy for preserving and restoring state data during failover events for stateful applications.\n\nWhen an application fails over from one cluster to another, this policy enables the extraction of critical data from the original resource configuration. Upon successful migration, the extracted data is then re-injected into the new resource, ensuring that the application can resume operation with its previous state intact. This is particularly useful for stateful applications where maintaining data consistency across failover events is crucial. If not specified, means no state data will be preserved.\n\nNote: This requires the StatefulFailoverInjection feature gate to be enabled, which is alpha.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StatePreservation"
         }
       }
     },
@@ -19283,6 +19313,43 @@
         }
       }
     },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StatePreservation": {
+      "description": "StatePreservation defines the policy for preserving state during failover events.",
+      "type": "object",
+      "required": [
+        "rules"
+      ],
+      "properties": {
+        "rules": {
+          "description": "Rules contains a list of StatePreservationRule configurations. Each rule specifies a JSONPath expression targeting specific pieces of state data to be preserved during failover events. An AliasLabelName is associated with each rule, serving as a label key when the preserved data is passed to the new cluster.",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StatePreservationRule"
+          }
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StatePreservationRule": {
+      "description": "StatePreservationRule defines a single rule for state preservation. It includes a JSONPath expression and an alias name that will be used as a label key when passing state information to the new cluster.",
+      "type": "object",
+      "required": [
+        "aliasLabelName",
+        "jsonPath"
+      ],
+      "properties": {
+        "aliasLabelName": {
+          "description": "AliasLabelName is the name that will be used as a label key when the preserved data is passed to the new cluster. This facilitates the injection of the preserved state back into the application resources during recovery.",
+          "type": "string",
+          "default": ""
+        },
+        "jsonPath": {
+          "description": "JSONPath is the JSONPath template used to identify the state data to be preserved from the original resource configuration. The JSONPath syntax follows the Kubernetes specification: https://kubernetes.io/docs/reference/kubectl/jsonpath/\n\nNote: The JSONPath expression will start searching from the \"status\" field of the API resource object by default. For example, to extract the \"availableReplicas\" from a Deployment, the JSONPath expression should be \"{.availableReplicas}\", not \"{.status.availableReplicas}\".",
+          "type": "string",
+          "default": ""
+        }
+      }
+    },
     "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StaticClusterAssignment": {
       "description": "StaticClusterAssignment represents the set of desired hard limits for a specific cluster.",
       "type": "object",
@@ -20031,6 +20098,14 @@
         "producer"
       ],
       "properties": {
+        "clustersBeforeFailover": {
+          "description": "ClustersBeforeFailover records the clusters where running the application before failover.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "default": ""
+          }
+        },
         "creationTimestamp": {
           "description": "CreationTimestamp is a timestamp representing the server time when this object was created. Clients should not set this value to avoid the time inconsistency issue. It is represented in RFC3339 form(like '2021-04-25T10:02:10Z') and is in UTC.\n\nPopulated by the system. Read-only.",
           "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
@@ -20049,10 +20124,22 @@
           "description": "Message is a human-readable message indicating details about the eviction. This may be an empty string.",
           "type": "string"
         },
+        "preservedLabelState": {
+          "description": "PreservedLabelState represents the application state information collected from the original cluster, and it will be injected into the new cluster in form of application labels.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "default": ""
+          }
+        },
         "producer": {
           "description": "Producer indicates the controller who triggered the eviction.",
           "type": "string",
           "default": ""
+        },
+        "purgeMode": {
+          "description": "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Immediately\", \"Graciously\" and \"Never\".",
+          "type": "string"
         },
         "reason": {
           "description": "Reason contains a programmatic identifier indicating the reason for the eviction. Producers may define expected values and meanings for this field, and whether the values are considered a guaranteed API. The value should be a CamelCase string. This field may not be empty.",
@@ -21439,7 +21526,8 @@
           "type": "integer",
           "format": "int32"
         }
-      }
+      },
+      "x-kubernetes-map-type": "atomic"
     },
     "io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSON": {
       "description": "JSON represents any valid JSON value. These types are supported: bool, int64, float64, string, []interface{}, map[string]interface{} and nil."
@@ -21864,6 +21952,11 @@
         {
           "group": "coordination.k8s.io",
           "kind": "DeleteOptions",
+          "version": "v1alpha1"
+        },
+        {
+          "group": "coordination.k8s.io",
+          "kind": "DeleteOptions",
           "version": "v1beta1"
         },
         {
@@ -21994,7 +22087,7 @@
         {
           "group": "resource.k8s.io",
           "kind": "DeleteOptions",
-          "version": "v1alpha2"
+          "version": "v1alpha3"
         },
         {
           "group": "scheduling.k8s.io",
@@ -22403,11 +22496,6 @@
           "group": "",
           "kind": "Status",
           "version": "v1"
-        },
-        {
-          "group": "resource.k8s.io",
-          "kind": "Status",
-          "version": "v1alpha2"
         }
       ]
     },
@@ -22626,6 +22714,11 @@
         {
           "group": "coordination.k8s.io",
           "kind": "WatchEvent",
+          "version": "v1alpha1"
+        },
+        {
+          "group": "coordination.k8s.io",
+          "kind": "WatchEvent",
           "version": "v1beta1"
         },
         {
@@ -22756,7 +22849,7 @@
         {
           "group": "resource.k8s.io",
           "kind": "WatchEvent",
-          "version": "v1alpha2"
+          "version": "v1alpha3"
         },
         {
           "group": "scheduling.k8s.io",
@@ -22813,6 +22906,59 @@
     "io.k8s.apimachinery.pkg.runtime.RawExtension": {
       "description": "RawExtension is used to hold extensions in external versions.\n\nTo use this, make a field which has RawExtension as its type in your external, versioned struct, and Object in your internal struct. You also need to register your various plugin types.\n\n// Internal package:\n\n\ttype MyAPIObject struct {\n\t\truntime.TypeMeta `json:\",inline\"`\n\t\tMyPlugin runtime.Object `json:\"myPlugin\"`\n\t}\n\n\ttype PluginA struct {\n\t\tAOption string `json:\"aOption\"`\n\t}\n\n// External package:\n\n\ttype MyAPIObject struct {\n\t\truntime.TypeMeta `json:\",inline\"`\n\t\tMyPlugin runtime.RawExtension `json:\"myPlugin\"`\n\t}\n\n\ttype PluginA struct {\n\t\tAOption string `json:\"aOption\"`\n\t}\n\n// On the wire, the JSON will look something like this:\n\n\t{\n\t\t\"kind\":\"MyAPIObject\",\n\t\t\"apiVersion\":\"v1\",\n\t\t\"myPlugin\": {\n\t\t\t\"kind\":\"PluginA\",\n\t\t\t\"aOption\":\"foo\",\n\t\t},\n\t}\n\nSo what happens? Decode first uses json or yaml to unmarshal the serialized data into your external MyAPIObject. That causes the raw JSON to be stored, but not unpacked. The next step is to copy (using pkg/conversion) into the internal struct. The runtime package's DefaultScheme has conversion functions installed which will unpack the JSON stored in RawExtension, turning it into the correct object type, and storing it in the Object. (TODO: In the case where the object is of an unknown type, a runtime.Unknown object will be created and stored.)",
       "type": "object"
+    },
+    "io.k8s.apimachinery.pkg.version.Info": {
+      "description": "Info contains versioning information. how we'll want to distribute that information.",
+      "type": "object",
+      "required": [
+        "major",
+        "minor",
+        "gitVersion",
+        "gitCommit",
+        "gitTreeState",
+        "buildDate",
+        "goVersion",
+        "compiler",
+        "platform"
+      ],
+      "properties": {
+        "buildDate": {
+          "type": "string",
+          "default": ""
+        },
+        "compiler": {
+          "type": "string",
+          "default": ""
+        },
+        "gitCommit": {
+          "type": "string",
+          "default": ""
+        },
+        "gitTreeState": {
+          "type": "string",
+          "default": ""
+        },
+        "gitVersion": {
+          "type": "string",
+          "default": ""
+        },
+        "goVersion": {
+          "type": "string",
+          "default": ""
+        },
+        "major": {
+          "type": "string",
+          "default": ""
+        },
+        "minor": {
+          "type": "string",
+          "default": ""
+        },
+        "platform": {
+          "type": "string",
+          "default": ""
+        }
+      }
     }
   },
   "parameters": {

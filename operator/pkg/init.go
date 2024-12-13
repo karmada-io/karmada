@@ -19,11 +19,9 @@ package karmada
 import (
 	"errors"
 	"fmt"
-	"net/url"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	utilversion "k8s.io/apimachinery/pkg/util/version"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -44,44 +42,28 @@ var (
 
 // InitOptions defines all the init workflow options.
 type InitOptions struct {
-	Name           string
-	Namespace      string
-	Kubeconfig     *rest.Config
-	KarmadaVersion string
-	CRDTarball     operatorv1alpha1.CRDTarball
-	KarmadaDataDir string
-	Karmada        *operatorv1alpha1.Karmada
+	Name                    string
+	Namespace               string
+	Kubeconfig              *rest.Config
+	KarmadaVersion          string
+	CRDTarball              operatorv1alpha1.CRDTarball
+	CustomCertificateConfig operatorv1alpha1.CustomCertificate
+	KarmadaDataDir          string
+	Karmada                 *operatorv1alpha1.Karmada
 }
 
 // Validate is used to validate the initOptions before creating initJob.
 func (opt *InitOptions) Validate() error {
-	var errs []error
-
 	if len(opt.Name) == 0 || len(opt.Namespace) == 0 {
 		return errors.New("unexpected empty name or namespace")
 	}
-	if opt.CRDTarball.HTTPSource != nil {
-		if _, err := url.Parse(opt.CRDTarball.HTTPSource.URL); err != nil {
-			return fmt.Errorf("unexpected invalid crds remote url %s", opt.CRDTarball.HTTPSource.URL)
-		}
-	}
-	if !util.IsInCluster(opt.Karmada.Spec.HostCluster) && opt.Karmada.Spec.Components.KarmadaAPIServer.ServiceType == corev1.ServiceTypeClusterIP {
-		return fmt.Errorf("if karmada is installed in a remote cluster, the service type of karmada-apiserver must be either NodePort or LoadBalancer")
-	}
+
 	_, err := utilversion.ParseGeneric(opt.KarmadaVersion)
 	if err != nil {
 		return fmt.Errorf("unexpected karmada invalid version %s", opt.KarmadaVersion)
 	}
 
-	if opt.Karmada.Spec.Components.Etcd.Local != nil && opt.Karmada.Spec.Components.Etcd.Local.CommonSettings.Replicas != nil {
-		replicas := *opt.Karmada.Spec.Components.Etcd.Local.CommonSettings.Replicas
-
-		if (replicas % 2) == 0 {
-			klog.Warningf("invalid etcd replicas %d, expected an odd number", replicas)
-		}
-	}
-
-	return utilerrors.NewAggregate(errs)
+	return nil
 }
 
 // InitOpt defines a type of function to set InitOptions values.
@@ -94,19 +76,20 @@ var _ tasks.InitData = &initData{}
 type initData struct {
 	sync.Once
 	certs.CertStore
-	name                string
-	namespace           string
-	karmadaVersion      *utilversion.Version
-	controlplaneConfig  *rest.Config
-	controlplaneAddress string
-	remoteClient        clientset.Interface
-	karmadaClient       clientset.Interface
-	dnsDomain           string
-	CRDTarball          operatorv1alpha1.CRDTarball
-	karmadaDataDir      string
-	privateRegistry     string
-	featureGates        map[string]bool
-	components          *operatorv1alpha1.KarmadaComponents
+	name                    string
+	namespace               string
+	karmadaVersion          *utilversion.Version
+	controlplaneConfig      *rest.Config
+	controlplaneAddress     string
+	remoteClient            clientset.Interface
+	karmadaClient           clientset.Interface
+	dnsDomain               string
+	CRDTarball              operatorv1alpha1.CRDTarball
+	CustomCertificateConfig operatorv1alpha1.CustomCertificate
+	karmadaDataDir          string
+	privateRegistry         string
+	featureGates            map[string]bool
+	components              *operatorv1alpha1.KarmadaComponents
 }
 
 // NewInitJob initializes a job with list of init sub-task. and build
@@ -184,18 +167,19 @@ func newRunData(opt *InitOptions) (*initData, error) {
 	}
 
 	return &initData{
-		name:                opt.Name,
-		namespace:           opt.Namespace,
-		karmadaVersion:      version,
-		controlplaneAddress: address,
-		remoteClient:        remoteClient,
-		CRDTarball:          opt.CRDTarball,
-		karmadaDataDir:      opt.KarmadaDataDir,
-		privateRegistry:     privateRegistry,
-		components:          opt.Karmada.Spec.Components,
-		featureGates:        opt.Karmada.Spec.FeatureGates,
-		dnsDomain:           *opt.Karmada.Spec.HostCluster.Networking.DNSDomain,
-		CertStore:           certs.NewCertStore(),
+		name:                    opt.Name,
+		namespace:               opt.Namespace,
+		karmadaVersion:          version,
+		controlplaneAddress:     address,
+		remoteClient:            remoteClient,
+		CRDTarball:              opt.CRDTarball,
+		CustomCertificateConfig: opt.CustomCertificateConfig,
+		karmadaDataDir:          opt.KarmadaDataDir,
+		privateRegistry:         privateRegistry,
+		components:              opt.Karmada.Spec.Components,
+		featureGates:            opt.Karmada.Spec.FeatureGates,
+		dnsDomain:               *opt.Karmada.Spec.HostCluster.Networking.DNSDomain,
+		CertStore:               certs.NewCertStore(),
 	}, nil
 }
 
@@ -243,6 +227,10 @@ func (data *initData) DataDir() string {
 
 func (data *initData) CrdTarball() operatorv1alpha1.CRDTarball {
 	return data.CRDTarball
+}
+
+func (data *initData) CustomCertificate() operatorv1alpha1.CustomCertificate {
+	return data.CustomCertificateConfig
 }
 
 func (data *initData) KarmadaVersion() string {
@@ -296,6 +284,9 @@ func NewInitOptWithKarmada(karmada *operatorv1alpha1.Karmada) InitOpt {
 		o.Namespace = karmada.GetNamespace()
 		if karmada.Spec.CRDTarball != nil {
 			o.CRDTarball = *karmada.Spec.CRDTarball
+		}
+		if karmada.Spec.CustomCertificate != nil {
+			o.CustomCertificateConfig = *karmada.Spec.CustomCertificate
 		}
 	}
 }

@@ -177,7 +177,7 @@ func TestDownloadFile(t *testing.T) {
 			errMsg:  "failed to download file",
 		},
 		{
-			name:     "DownloadFile_FileDownlaoded_",
+			name:     "DownloadFile_FileDownloaded_",
 			url:      "https://www.example.com/test-file",
 			filePath: filepath.Join(os.TempDir(), "temp-download-file.txt"),
 			prep: func(_, filePath string) error {

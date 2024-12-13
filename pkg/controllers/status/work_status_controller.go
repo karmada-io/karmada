@@ -549,7 +549,7 @@ func (c *WorkStatusController) SetupWithManager(mgr controllerruntime.Manager) e
 		Named(WorkStatusControllerName).
 		For(&workv1alpha1.Work{}, builder.WithPredicates(c.PredicateFunc)).
 		WithOptions(controller.Options{
-			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions),
+			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions),
 		}).Complete(c)
 }
 

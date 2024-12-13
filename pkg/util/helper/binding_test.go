@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
@@ -335,6 +336,36 @@ func TestObtainBindingSpecExistingClusters(t *testing.T) {
 			},
 			want: sets.New("member1", "member2", "member3"),
 		},
+		{
+			name: "unique cluster names with GracefulEvictionTasks with PurgeMode Immediately",
+			bindingSpec: workv1alpha2.ResourceBindingSpec{
+				Clusters: []workv1alpha2.TargetCluster{
+					{
+						Name:     "member1",
+						Replicas: 2,
+					},
+					{
+						Name:     "member2",
+						Replicas: 3,
+					},
+				},
+				GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
+					{
+						FromCluster: "member3",
+						PurgeMode:   policyv1alpha1.Immediately,
+					},
+					{
+						FromCluster: "member4",
+						PurgeMode:   policyv1alpha1.Graciously,
+					},
+					{
+						FromCluster: "member5",
+						PurgeMode:   policyv1alpha1.Never,
+					},
+				},
+			},
+			want: sets.New("member1", "member2", "member4", "member5"),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -433,6 +464,10 @@ func TestFindOrphanWorks(t *testing.T) {
 							},
 						},
 					},
+				).WithIndex(
+					&workv1alpha1.Work{},
+					workv1alpha2.ResourceBindingPermanentIDLabel,
+					IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel),
 				).Build(),
 				bindingNamespace: "default",
 				bindingName:      "binding",
@@ -478,6 +513,10 @@ func TestFindOrphanWorks(t *testing.T) {
 							},
 						},
 					},
+				).WithIndex(
+					&workv1alpha1.Work{},
+					workv1alpha2.ResourceBindingPermanentIDLabel,
+					IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel),
 				).Build(),
 				bindingNamespace: "default",
 				bindingName:      "binding",
@@ -530,6 +569,10 @@ func TestFindOrphanWorks(t *testing.T) {
 							},
 						},
 					},
+				).WithIndex(
+					&workv1alpha1.Work{},
+					workv1alpha2.ClusterResourceBindingPermanentIDLabel,
+					IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
 				).Build(),
 				bindingNamespace: "",
 				bindingName:      "binding",
@@ -987,7 +1030,11 @@ func TestDeleteWorkByRBNamespaceAndName(t *testing.T) {
 		{
 			name: "work is not found",
 			args: args{
-				c:         fake.NewClientBuilder().WithScheme(gclient.NewSchema()).Build(),
+				c: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithIndex(
+					&workv1alpha1.Work{},
+					workv1alpha2.ResourceBindingPermanentIDLabel,
+					IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel),
+				).Build(),
 				namespace: "default",
 				name:      "foo",
 				bindingID: "3617252f-b1bb-43b0-98a1-c7de833c472c",
@@ -1011,6 +1058,10 @@ func TestDeleteWorkByRBNamespaceAndName(t *testing.T) {
 							},
 						},
 					},
+				).WithIndex(
+					&workv1alpha1.Work{},
+					workv1alpha2.ResourceBindingPermanentIDLabel,
+					IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel),
 				).Build(),
 				namespace: "default",
 				name:      "foo",
@@ -1034,6 +1085,10 @@ func TestDeleteWorkByRBNamespaceAndName(t *testing.T) {
 							},
 						},
 					},
+				).WithIndex(
+					&workv1alpha1.Work{},
+					workv1alpha2.ClusterResourceBindingPermanentIDLabel,
+					IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
 				).Build(),
 				name:      "foo",
 				bindingID: "3617252f-b1bb-43b0-98a1-c7de833c472c",

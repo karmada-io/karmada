@@ -83,7 +83,7 @@ type Detector struct {
 	nodeName    string
 	clusterName string
 
-	queue            workqueue.RateLimitingInterface
+	queue            workqueue.TypedRateLimitingInterface[any]
 	eventBroadcaster record.EventBroadcaster
 	eventRecorder    record.EventRecorder
 }
@@ -122,7 +122,7 @@ func NewCorednsDetector(memberClusterClient kubernetes.Interface, karmadaClient 
 		cacheSynced:         []cache.InformerSynced{nodeInformer.Informer().HasSynced},
 		eventBroadcaster:    broadcaster,
 		eventRecorder:       recorder,
-		queue:               workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{Name: name}),
+		queue:               workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[any](), workqueue.TypedRateLimitingQueueConfig[any]{Name: name}),
 		lec: leaderelection.LeaderElectionConfig{
 			Lock:          rl,
 			LeaseDuration: baselec.LeaseDuration.Duration,

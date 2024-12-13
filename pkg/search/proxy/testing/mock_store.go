@@ -98,3 +98,8 @@ func (c *MockStore) Watch(ctx context.Context, gvr schema.GroupVersionResource, 
 
 	return c.WatchFunc(ctx, gvr, options)
 }
+
+// ReadinessCheck checks if the storage is ready for accepting requests.
+func (c *MockStore) ReadinessCheck() error {
+	return nil
+}

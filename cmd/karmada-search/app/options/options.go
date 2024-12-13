@@ -23,7 +23,6 @@ import (
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 	"k8s.io/apiserver/pkg/storage/storagebackend"
-	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/kubernetes"
 
 	searchscheme "github.com/karmada-io/karmada/pkg/apis/search/scheme"
@@ -35,13 +34,14 @@ const defaultEtcdPathPrefix = "/registry"
 
 // Options contains command line parameters for karmada-search.
 type Options struct {
-	Etcd           *genericoptions.EtcdOptions
-	SecureServing  *genericoptions.SecureServingOptionsWithLoopback
-	Authentication *genericoptions.DelegatingAuthenticationOptions
-	Authorization  *genericoptions.DelegatingAuthorizationOptions
-	Audit          *genericoptions.AuditOptions
-	Features       *genericoptions.FeatureOptions
-	CoreAPI        *genericoptions.CoreAPIOptions
+	Etcd             *genericoptions.EtcdOptions
+	SecureServing    *genericoptions.SecureServingOptionsWithLoopback
+	Authentication   *genericoptions.DelegatingAuthenticationOptions
+	Authorization    *genericoptions.DelegatingAuthorizationOptions
+	Audit            *genericoptions.AuditOptions
+	Features         *genericoptions.FeatureOptions
+	CoreAPI          *genericoptions.CoreAPIOptions
+	ServerRunOptions *genericoptions.ServerRunOptions
 
 	// KubeAPIQPS is the QPS to use while talking with karmada-search.
 	KubeAPIQPS float32
@@ -57,13 +57,14 @@ type Options struct {
 // NewOptions returns a new Options.
 func NewOptions() *Options {
 	o := &Options{
-		Etcd:           genericoptions.NewEtcdOptions(storagebackend.NewDefaultConfig(defaultEtcdPathPrefix, searchscheme.Codecs.LegacyCodec(schema.GroupVersion{Group: searchv1alpha1.GroupVersion.Group, Version: searchv1alpha1.GroupVersion.Version}))),
-		SecureServing:  genericoptions.NewSecureServingOptions().WithLoopback(),
-		Authentication: genericoptions.NewDelegatingAuthenticationOptions(),
-		Authorization:  genericoptions.NewDelegatingAuthorizationOptions(),
-		Audit:          genericoptions.NewAuditOptions(),
-		Features:       genericoptions.NewFeatureOptions(),
-		CoreAPI:        genericoptions.NewCoreAPIOptions(),
+		Etcd:             genericoptions.NewEtcdOptions(storagebackend.NewDefaultConfig(defaultEtcdPathPrefix, searchscheme.Codecs.LegacyCodec(schema.GroupVersion{Group: searchv1alpha1.GroupVersion.Group, Version: searchv1alpha1.GroupVersion.Version}))),
+		SecureServing:    genericoptions.NewSecureServingOptions().WithLoopback(),
+		Authentication:   genericoptions.NewDelegatingAuthenticationOptions(),
+		Authorization:    genericoptions.NewDelegatingAuthorizationOptions(),
+		Audit:            genericoptions.NewAuditOptions(),
+		Features:         genericoptions.NewFeatureOptions(),
+		CoreAPI:          genericoptions.NewCoreAPIOptions(),
+		ServerRunOptions: genericoptions.NewServerRunOptions(),
 	}
 	o.Etcd.StorageConfig.EncodeVersioner = runtime.NewMultiGroupVersioner(schema.GroupVersion{Group: searchv1alpha1.GroupVersion.Group, Version: searchv1alpha1.GroupVersion.Version},
 		schema.GroupKind{Group: searchv1alpha1.GroupName})
@@ -79,6 +80,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	o.Audit.AddFlags(flags)
 	o.Features.AddFlags(flags)
 	o.CoreAPI.AddFlags(flags)
+	o.ServerRunOptions.AddUniversalFlags(flags)
 
 	flags.Lookup("kubeconfig").Usage = "Path to karmada control plane kubeconfig file."
 
@@ -87,7 +89,6 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&o.DisableSearch, "disable-search", false, "Disable search feature that would save memory usage significantly.")
 	flags.BoolVar(&o.DisableProxy, "disable-proxy", false, "Disable proxy feature that would save memory usage significantly.")
 
-	utilfeature.DefaultMutableFeatureGate.AddFlag(flags)
 	o.ProfileOpts.AddFlags(flags)
 }
 
@@ -111,6 +112,9 @@ func (o *Options) ApplyTo(config *genericapiserver.RecommendedConfig) error {
 	if err := o.CoreAPI.ApplyTo(config); err != nil {
 		return err
 	}
+	if err := o.ServerRunOptions.ApplyTo(&config.Config); err != nil {
+		return err
+	}
 	kubeClient, err := kubernetes.NewForConfig(config.ClientConfig)
 	if err != nil {
 		return err
@@ -123,5 +127,5 @@ func (o *Options) ApplyTo(config *genericapiserver.RecommendedConfig) error {
 
 // Complete fills in fields required to have valid data.
 func (o *Options) Complete() error {
-	return nil
+	return o.ServerRunOptions.Complete()
 }

@@ -157,7 +157,7 @@ func TestWaitForAPIService(t *testing.T) {
 			prep: func(client aggregator.Interface, apiService *apiregistrationv1.APIService) error {
 				apiServiceCreated, err := client.ApiregistrationV1().APIServices().Create(context.TODO(), apiService, metav1.CreateOptions{})
 				if err != nil {
-					return fmt.Errorf("faield to create api service %s, got err: %v", apiService.Name, err)
+					return fmt.Errorf("failed to create api service %s, got err: %v", apiService.Name, err)
 				}
 				apiServiceCreated.Status = apiregistrationv1.APIServiceStatus{
 					Conditions: []apiregistrationv1.APIServiceCondition{

@@ -374,7 +374,7 @@ apiServer:
   image:
     registry: registry.k8s.io
     repository: kube-apiserver
-    tag: "v1.30.4"
+    tag: "v1.31.3"
     ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
     pullPolicy: IfNotPresent
     ## Optionally specify an array of imagePullSecrets.
@@ -572,7 +572,7 @@ kubeControllerManager:
   image:
     registry: registry.k8s.io
     repository: kube-controller-manager
-    tag: "v1.30.4"
+    tag: "v1.31.3"
     ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
     pullPolicy: IfNotPresent
     ## Optionally specify an array of imagePullSecrets.
@@ -607,7 +607,7 @@ kubeControllerManager:
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 50%
-  controllers: namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrapproving,csrcleaner,csrsigning,clusterrole-aggregation
+  controllers: namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrcleaner,csrsigning,clusterrole-aggregation
   ## @param apiServer.podDisruptionBudget
   podDisruptionBudget: *podDisruptionBudget
   serviceClusterIPRange: "10.96.0.0/12"
@@ -668,7 +668,7 @@ etcd:
     image:
       registry: registry.k8s.io
       repository: etcd
-      tag: "3.5.13-0"
+      tag: "3.5.16-0"
       ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
       pullPolicy: IfNotPresent
     ## @param etcd.internal.storageType storage type for etcd data

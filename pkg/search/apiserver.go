@@ -18,10 +18,10 @@ package search
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
 	genericapiserver "k8s.io/apiserver/pkg/server"
+	utilversion "k8s.io/apiserver/pkg/util/version"
 	"k8s.io/klog/v2"
 
 	searchapis "github.com/karmada-io/karmada/pkg/apis/search"
@@ -29,6 +29,7 @@ import (
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	searchstorage "github.com/karmada-io/karmada/pkg/registry/search/storage"
 	"github.com/karmada-io/karmada/pkg/search/proxy"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 // ExtraConfig holds custom apiserver config
@@ -63,14 +64,10 @@ type CompletedConfig struct {
 // Complete fills in any fields not set that are required to have valid data. It's mutating the receiver.
 func (cfg *Config) Complete() CompletedConfig {
 	c := completedConfig{
-		cfg.GenericConfig.Complete(),
-		&cfg.ExtraConfig,
+		GenericConfig: cfg.GenericConfig.Complete(),
+		ExtraConfig:   &cfg.ExtraConfig,
 	}
-
-	c.GenericConfig.Version = &version.Info{
-		Major: "1",
-		Minor: "0",
-	}
+	c.GenericConfig.EffectiveVersion = utilversion.NewEffectiveVersion("1.0")
 
 	return CompletedConfig{&c}
 }
@@ -83,7 +80,7 @@ var apiGroupInstaller = func(server *APIServer, apiGroupInfo *genericapiserver.A
 }
 
 func (c completedConfig) New() (*APIServer, error) {
-	genericServer, err := c.GenericConfig.New("karmada-search", genericapiserver.NewEmptyDelegate())
+	genericServer, err := c.GenericConfig.New(names.KarmadaSearchComponentName, genericapiserver.NewEmptyDelegate())
 	if err != nil {
 		return nil, err
 	}

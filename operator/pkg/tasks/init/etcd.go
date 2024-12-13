@@ -68,10 +68,6 @@ func runDeployEtcd(r workflow.RunData) error {
 		return nil
 	}
 
-	if cfg.Etcd.Local == nil {
-		return errors.New("unexpected empty etcd local configuration")
-	}
-
 	err := etcd.EnsureKarmadaEtcd(data.RemoteClient(), cfg.Etcd.Local, data.GetName(), data.GetNamespace())
 	if err != nil {
 		return fmt.Errorf("failed to install etcd component, err: %w", err)

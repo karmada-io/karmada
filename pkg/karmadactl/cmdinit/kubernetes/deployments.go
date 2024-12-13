@@ -29,6 +29,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	globaloptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 const (
@@ -47,16 +48,16 @@ const (
 	serviceClusterIP                                            = "10.96.0.0/12"
 	kubeControllerManagerClusterRoleAndDeploymentAndServiceName = "kube-controller-manager"
 	kubeControllerManagerPort                                   = 10257
-	schedulerDeploymentNameAndServiceAccountName                = "karmada-scheduler"
-	controllerManagerDeploymentAndServiceName                   = "karmada-controller-manager"
+	schedulerDeploymentNameAndServiceAccountName                = names.KarmadaSchedulerComponentName
+	controllerManagerDeploymentAndServiceName                   = names.KarmadaControllerManagerComponentName
 	controllerManagerSecurePort                                 = 10357
-	webhookDeploymentAndServiceAccountAndServiceName            = "karmada-webhook"
+	webhookDeploymentAndServiceAccountAndServiceName            = names.KarmadaWebhookComponentName
 	webhookCertsName                                            = "karmada-webhook-cert"
 	webhookCertVolumeMountPath                                  = "/var/serving-cert"
 	webhookPortName                                             = "webhook"
 	webhookTargetPort                                           = 8443
 	webhookPort                                                 = 443
-	karmadaAggregatedAPIServerDeploymentAndServiceName          = "karmada-aggregated-apiserver"
+	karmadaAggregatedAPIServerDeploymentAndServiceName          = names.KarmadaAggregatedAPIServerComponentName
 )
 
 var (
@@ -311,7 +312,7 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 					fmt.Sprintf("--cluster-name=%s", options.ClusterName),
 					fmt.Sprintf("--cluster-signing-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
 					fmt.Sprintf("--cluster-signing-key-file=%s/%s.key", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
-					"--controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrapproving,csrcleaner,csrsigning,clusterrole-aggregation",
+					"--controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrcleaner,csrsigning,clusterrole-aggregation",
 					"--kubeconfig=/etc/kubeconfig",
 					"--leader-elect=true",
 					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),

@@ -304,7 +304,7 @@ func TestStrategy_WarningsOnCreate(t *testing.T) {
 
 	wrs := clusterStrategy.WarningsOnCreate(ctx, cluster)
 	if len(wrs) > 0 {
-		t.Errorf("Cluster is validate but go warings: %v", wrs)
+		t.Errorf("Cluster is validate but go warnings: %v", wrs)
 	}
 }
 
@@ -372,6 +372,6 @@ func TestStrategy_WarningsOnUpdate(t *testing.T) {
 
 	wrs := clusterStrategy.WarningsOnUpdate(ctx, cluster, nil)
 	if len(wrs) > 0 {
-		t.Errorf("Cluster is validate but go warings: %v", wrs)
+		t.Errorf("Cluster is validate but go warnings: %v", wrs)
 	}
 }

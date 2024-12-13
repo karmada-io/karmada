@@ -40,20 +40,22 @@ var workloadrebalancersKind = v1alpha1.SchemeGroupVersion.WithKind("WorkloadReba
 
 // Get takes name of the workloadRebalancer, and returns the corresponding workloadRebalancer object, and an error if there is any.
 func (c *FakeWorkloadRebalancers) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.WorkloadRebalancer, err error) {
+	emptyResult := &v1alpha1.WorkloadRebalancer{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(workloadrebalancersResource, name), &v1alpha1.WorkloadRebalancer{})
+		Invokes(testing.NewRootGetActionWithOptions(workloadrebalancersResource, name, options), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.WorkloadRebalancer), err
 }
 
 // List takes label and field selectors, and returns the list of WorkloadRebalancers that match those selectors.
 func (c *FakeWorkloadRebalancers) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.WorkloadRebalancerList, err error) {
+	emptyResult := &v1alpha1.WorkloadRebalancerList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(workloadrebalancersResource, workloadrebalancersKind, opts), &v1alpha1.WorkloadRebalancerList{})
+		Invokes(testing.NewRootListActionWithOptions(workloadrebalancersResource, workloadrebalancersKind, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -72,36 +74,39 @@ func (c *FakeWorkloadRebalancers) List(ctx context.Context, opts v1.ListOptions)
 // Watch returns a watch.Interface that watches the requested workloadRebalancers.
 func (c *FakeWorkloadRebalancers) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(workloadrebalancersResource, opts))
+		InvokesWatch(testing.NewRootWatchActionWithOptions(workloadrebalancersResource, opts))
 }
 
 // Create takes the representation of a workloadRebalancer and creates it.  Returns the server's representation of the workloadRebalancer, and an error, if there is any.
 func (c *FakeWorkloadRebalancers) Create(ctx context.Context, workloadRebalancer *v1alpha1.WorkloadRebalancer, opts v1.CreateOptions) (result *v1alpha1.WorkloadRebalancer, err error) {
+	emptyResult := &v1alpha1.WorkloadRebalancer{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(workloadrebalancersResource, workloadRebalancer), &v1alpha1.WorkloadRebalancer{})
+		Invokes(testing.NewRootCreateActionWithOptions(workloadrebalancersResource, workloadRebalancer, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.WorkloadRebalancer), err
 }
 
 // Update takes the representation of a workloadRebalancer and updates it. Returns the server's representation of the workloadRebalancer, and an error, if there is any.
 func (c *FakeWorkloadRebalancers) Update(ctx context.Context, workloadRebalancer *v1alpha1.WorkloadRebalancer, opts v1.UpdateOptions) (result *v1alpha1.WorkloadRebalancer, err error) {
+	emptyResult := &v1alpha1.WorkloadRebalancer{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(workloadrebalancersResource, workloadRebalancer), &v1alpha1.WorkloadRebalancer{})
+		Invokes(testing.NewRootUpdateActionWithOptions(workloadrebalancersResource, workloadRebalancer, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.WorkloadRebalancer), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeWorkloadRebalancers) UpdateStatus(ctx context.Context, workloadRebalancer *v1alpha1.WorkloadRebalancer, opts v1.UpdateOptions) (*v1alpha1.WorkloadRebalancer, error) {
+func (c *FakeWorkloadRebalancers) UpdateStatus(ctx context.Context, workloadRebalancer *v1alpha1.WorkloadRebalancer, opts v1.UpdateOptions) (result *v1alpha1.WorkloadRebalancer, err error) {
+	emptyResult := &v1alpha1.WorkloadRebalancer{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceAction(workloadrebalancersResource, "status", workloadRebalancer), &v1alpha1.WorkloadRebalancer{})
+		Invokes(testing.NewRootUpdateSubresourceActionWithOptions(workloadrebalancersResource, "status", workloadRebalancer, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.WorkloadRebalancer), err
 }
@@ -115,7 +120,7 @@ func (c *FakeWorkloadRebalancers) Delete(ctx context.Context, name string, opts 
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeWorkloadRebalancers) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(workloadrebalancersResource, listOpts)
+	action := testing.NewRootDeleteCollectionActionWithOptions(workloadrebalancersResource, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.WorkloadRebalancerList{})
 	return err
@@ -123,10 +128,11 @@ func (c *FakeWorkloadRebalancers) DeleteCollection(ctx context.Context, opts v1.
 
 // Patch applies the patch and returns the patched workloadRebalancer.
 func (c *FakeWorkloadRebalancers) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.WorkloadRebalancer, err error) {
+	emptyResult := &v1alpha1.WorkloadRebalancer{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(workloadrebalancersResource, name, pt, data, subresources...), &v1alpha1.WorkloadRebalancer{})
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(workloadrebalancersResource, name, pt, data, opts, subresources...), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.WorkloadRebalancer), err
 }

@@ -40,20 +40,22 @@ var remediesKind = v1alpha1.SchemeGroupVersion.WithKind("Remedy")
 
 // Get takes name of the remedy, and returns the corresponding remedy object, and an error if there is any.
 func (c *FakeRemedies) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.Remedy, err error) {
+	emptyResult := &v1alpha1.Remedy{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(remediesResource, name), &v1alpha1.Remedy{})
+		Invokes(testing.NewRootGetActionWithOptions(remediesResource, name, options), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.Remedy), err
 }
 
 // List takes label and field selectors, and returns the list of Remedies that match those selectors.
 func (c *FakeRemedies) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.RemedyList, err error) {
+	emptyResult := &v1alpha1.RemedyList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(remediesResource, remediesKind, opts), &v1alpha1.RemedyList{})
+		Invokes(testing.NewRootListActionWithOptions(remediesResource, remediesKind, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -72,25 +74,27 @@ func (c *FakeRemedies) List(ctx context.Context, opts v1.ListOptions) (result *v
 // Watch returns a watch.Interface that watches the requested remedies.
 func (c *FakeRemedies) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(remediesResource, opts))
+		InvokesWatch(testing.NewRootWatchActionWithOptions(remediesResource, opts))
 }
 
 // Create takes the representation of a remedy and creates it.  Returns the server's representation of the remedy, and an error, if there is any.
 func (c *FakeRemedies) Create(ctx context.Context, remedy *v1alpha1.Remedy, opts v1.CreateOptions) (result *v1alpha1.Remedy, err error) {
+	emptyResult := &v1alpha1.Remedy{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(remediesResource, remedy), &v1alpha1.Remedy{})
+		Invokes(testing.NewRootCreateActionWithOptions(remediesResource, remedy, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.Remedy), err
 }
 
 // Update takes the representation of a remedy and updates it. Returns the server's representation of the remedy, and an error, if there is any.
 func (c *FakeRemedies) Update(ctx context.Context, remedy *v1alpha1.Remedy, opts v1.UpdateOptions) (result *v1alpha1.Remedy, err error) {
+	emptyResult := &v1alpha1.Remedy{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(remediesResource, remedy), &v1alpha1.Remedy{})
+		Invokes(testing.NewRootUpdateActionWithOptions(remediesResource, remedy, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.Remedy), err
 }
@@ -104,7 +108,7 @@ func (c *FakeRemedies) Delete(ctx context.Context, name string, opts v1.DeleteOp
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeRemedies) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(remediesResource, listOpts)
+	action := testing.NewRootDeleteCollectionActionWithOptions(remediesResource, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.RemedyList{})
 	return err
@@ -112,10 +116,11 @@ func (c *FakeRemedies) DeleteCollection(ctx context.Context, opts v1.DeleteOptio
 
 // Patch applies the patch and returns the patched remedy.
 func (c *FakeRemedies) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.Remedy, err error) {
+	emptyResult := &v1alpha1.Remedy{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(remediesResource, name, pt, data, subresources...), &v1alpha1.Remedy{})
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(remediesResource, name, pt, data, opts, subresources...), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.Remedy), err
 }

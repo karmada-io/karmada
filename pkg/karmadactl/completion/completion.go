@@ -44,9 +44,9 @@ const defaultBoilerPlate = `
 
 var (
 	completionLong = templates.LongDesc(i18n.T(`
-		Output shell completion code for the specified shell (bash, zsh).
+		Output shell completion code for the specified shell (bash, zsh, fish).
 		The shell code must be evaluated to provide interactive
-		completion of kubectl commands.  This can be done by sourcing it from
+		completion of %[1]s commands. This can be done by sourcing it from
 		the .bash_profile.
 
 		Note for zsh users: zsh completions are only supported in versions of zsh >= 5.2.`))
@@ -66,14 +66,19 @@ var (
 		# Load the %[1]s completion code for zsh into the current shell
 		    source <(%[1]s completion zsh)
 		# Set the %[1]s completion code for zsh to autoload on startup
-		    %[1]s completion zsh > "${fpath[1]}/%[1]s"`))
+		    %[1]s completion zsh > "${fpath[1]}/%[1]s"
+
+		# Load the %[1]s completion code for fish into the current shell
+		    %[1]s completion fish | source
+		# To load completions for each session, execute once:
+		    %[1]s completion fish > ~/.config/fish/completions/%[1]s.fish`))
 )
 
 var (
-	// TODO: support output shell completion code for more specified shell, like `fish` and `powershell`.
 	completionShells = map[string]func(out io.Writer, boilerPlate string, cmd *cobra.Command) error{
 		"bash": runCompletionBash,
 		"zsh":  runCompletionZsh,
+		"fish": runCompletionFish,
 	}
 )
 
@@ -87,8 +92,8 @@ func NewCmdCompletion(parentCommand string, out io.Writer, boilerPlate string) *
 	cmd := &cobra.Command{
 		Use:                   "completion SHELL",
 		DisableFlagsInUseLine: true,
-		Short:                 "Output shell completion code for the specified shell (bash, zsh)",
-		Long:                  completionLong,
+		Short:                 "Output shell completion code for the specified shell (bash, zsh, fish)",
+		Long:                  fmt.Sprintf(completionLong, parentCommand),
 		Example:               fmt.Sprintf(completionExample, parentCommand),
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(RunCompletion(out, boilerPlate, cmd, args))
@@ -140,4 +145,14 @@ func runCompletionZsh(out io.Writer, boilerPlate string, cmd *cobra.Command) err
 	}
 
 	return cmd.GenZshCompletion(out)
+}
+
+func runCompletionFish(out io.Writer, boilerPlate string, cmd *cobra.Command) error {
+	if len(boilerPlate) == 0 {
+		boilerPlate = defaultBoilerPlate
+	}
+	if _, err := out.Write([]byte(boilerPlate)); err != nil {
+		return err
+	}
+	return cmd.GenFishCompletion(out, true)
 }

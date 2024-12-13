@@ -76,7 +76,7 @@ func TestRunCerts(t *testing.T) {
 			errMsg:  "certs task invoked with an invalid data struct",
 		},
 		{
-			name:    "RunCerts_ValidTypeAssertion_TypeAssertionSuceeded",
+			name:    "RunCerts_ValidTypeAssertion_TypeAssertionSucceeded",
 			runData: &TestInitData{},
 			wantErr: false,
 		},
@@ -119,7 +119,7 @@ func TestSkipCerts(t *testing.T) {
 			errMsg:   "certs task invoked with an invalid data struct",
 		},
 		{
-			name: "SkipCerts_ValidTypeAssertion_TypeAssertionSuceeded",
+			name: "SkipCerts_ValidTypeAssertion_TypeAssertionSucceeded",
 			runData: &TestInitData{
 				Name:                  "karmada-demo",
 				Namespace:             "test",

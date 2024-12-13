@@ -120,7 +120,7 @@ func TestRunAggregatedAPIServer(t *testing.T) {
 			errMsg:  "aggregated-apiserver task invoked with an invalid data struct",
 		},
 		{
-			name:    "RunAggregatedApiserver_ValidTypeAssertion_TypeAssertionSuceeded",
+			name:    "RunAggregatedApiserver_ValidTypeAssertion_TypeAssertionSucceeded",
 			runData: &TestInitData{},
 			wantErr: false,
 		},
@@ -156,7 +156,7 @@ func TestRunAPIServer(t *testing.T) {
 			errMsg:  "apiserver task invoked with an invalid data struct",
 		},
 		{
-			name:    "RunAPIServer_ValidTypeAssertion_TypeAssertionSuceeded",
+			name:    "RunAPIServer_ValidTypeAssertion_TypeAssertionSucceeded",
 			runData: &TestInitData{},
 			wantErr: false,
 		},

@@ -105,7 +105,7 @@ func createKarmadaAPIServerService(client clientset.Interface, cfg *operatorv1al
 		return fmt.Errorf("error when decoding karmadaApiserver serive: %w", err)
 	}
 
-	// merge annotaions with configuration of karmada apiserver.
+	// merge annotations with configuration of karmada apiserver.
 	karmadaApiserverService.Annotations = labels.Merge(karmadaApiserverService.Annotations, cfg.ServiceAnnotations)
 
 	if err := apiclient.CreateOrUpdateService(client, karmadaApiserverService); err != nil {

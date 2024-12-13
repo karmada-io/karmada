@@ -263,7 +263,7 @@ func (e *CustomizedInterpreter) callHook(ctx context.Context, hook configmanager
 	if err != nil {
 		return nil, &webhookutil.ErrCallingWebhook{
 			WebhookName: hook.GetUID(),
-			Reason:      fmt.Errorf("reveived invalid webhook response: %w", err),
+			Reason:      fmt.Errorf("received invalid webhook response: %w", err),
 		}
 	}
 

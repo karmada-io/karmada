@@ -544,10 +544,12 @@ var _ = ginkgo.Describe("Karmadactl top testing", func() {
 		ginkgo.It("Karmadactl top pod which does not exist", func() {
 			podName := podNamePrefix + rand.String(RandomStrLength)
 			for _, clusterName := range framework.ClusterNames() {
-				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "top", "pod", podName, "-n", testNamespace, "-C", clusterName)
-				_, err := cmd.ExecOrDie()
-				gomega.Expect(err).Should(gomega.HaveOccurred())
-				gomega.Expect(strings.Contains(err.Error(), fmt.Sprintf("pods \"%s\" not found", podName))).To(gomega.BeTrue(), "should not found", fmt.Sprintf("errMsg: %s", err.Error()))
+				gomega.Eventually(func() bool {
+					cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "top", "pod", podName, "-n", testNamespace, "-C", clusterName)
+					_, err := cmd.ExecOrDie()
+					fmt.Printf("Should receive a NotFound error, and actually received: %+v\n", err)
+					return err != nil && strings.Contains(err.Error(), fmt.Sprintf("pods \"%s\" not found", podName))
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			}
 		})
 	})

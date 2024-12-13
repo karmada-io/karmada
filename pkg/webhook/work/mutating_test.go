@@ -33,7 +33,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
@@ -268,7 +268,7 @@ func TestMutatingAdmission_Handle_FullCoverage(t *testing.T) {
 
 	// Unmarshal JSON into unstructured object.
 	if err = json.Unmarshal(wantDeploymentJSON, wantDeploymentUnstructured); err != nil {
-		t.Errorf("Error unmarshaling to unstructured: %v", err)
+		t.Errorf("Error unmarshalling to unstructured: %v", err)
 	}
 
 	// Remove the status and creationTimestamp fields to simulate what happen after mutations.

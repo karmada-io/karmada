@@ -32,6 +32,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 var (
@@ -128,6 +129,8 @@ type Options struct {
 	ConcurrentClusterPropagationPolicySyncs int
 	// ConcurrentResourceTemplateSyncs is the number of resource templates that are allowed to sync concurrently.
 	ConcurrentResourceTemplateSyncs int
+	// ConcurrentDependentResourceSyncs is the number of dependent resource that are allowed to sync concurrently.
+	ConcurrentDependentResourceSyncs int
 	// If set to true enables NoExecute Taints and will evict all not-tolerating
 	// objects propagating on Clusters tainted with this kind of Taints.
 	EnableTaintManager bool
@@ -151,8 +154,8 @@ func NewOptions() *Options {
 		LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
 			LeaderElect:       true,
 			ResourceLock:      resourcelock.LeasesResourceLock,
-			ResourceNamespace: util.NamespaceKarmadaSystem,
-			ResourceName:      "karmada-controller-manager",
+			ResourceNamespace: names.NamespaceKarmadaSystem,
+			ResourceName:      names.KarmadaControllerManagerComponentName,
 		},
 	}
 }
@@ -166,7 +169,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 	flags.DurationVar(&o.ClusterStatusUpdateFrequency.Duration, "cluster-status-update-frequency", 10*time.Second,
 		"Specifies how often karmada-controller-manager posts cluster status to karmada-apiserver.")
 	flags.BoolVar(&o.LeaderElection.LeaderElect, "leader-elect", true, "Start a leader election client and gain leadership before executing the main loop. Enable this when running replicated components for high availability.")
-	flags.StringVar(&o.LeaderElection.ResourceNamespace, "leader-elect-resource-namespace", util.NamespaceKarmadaSystem, "The namespace of resource object that is used for locking during leader election.")
+	flags.StringVar(&o.LeaderElection.ResourceNamespace, "leader-elect-resource-namespace", names.NamespaceKarmadaSystem, "The namespace of resource object that is used for locking during leader election.")
 	flags.DurationVar(&o.LeaderElection.LeaseDuration.Duration, "leader-elect-lease-duration", defaultElectionLeaseDuration.Duration, ""+
 		"The duration that non-leader candidates will wait after observing a leadership "+
 		"renewal until attempting to acquire leadership of a led but unrenewed leader "+
@@ -219,6 +222,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 	flags.IntVar(&o.ConcurrentPropagationPolicySyncs, "concurrent-propagation-policy-syncs", 1, "The number of PropagationPolicy that are allowed to sync concurrently.")
 	flags.IntVar(&o.ConcurrentClusterPropagationPolicySyncs, "concurrent-cluster-propagation-policy-syncs", 1, "The number of ClusterPropagationPolicy that are allowed to sync concurrently.")
 	flags.IntVar(&o.ConcurrentResourceTemplateSyncs, "concurrent-resource-template-syncs", 5, "The number of resource templates that are allowed to sync concurrently.")
+	flags.IntVar(&o.ConcurrentDependentResourceSyncs, "concurrent-dependent-resource-syncs", 2, "The number of dependent resource that are allowed to sync concurrently.")
 	flags.BoolVar(&o.EnableTaintManager, "enable-taint-manager", true, "If set to true enables NoExecute Taints and will evict all not-tolerating objects propagating on Clusters tainted with this kind of Taints.")
 	flags.DurationVar(&o.GracefulEvictionTimeout.Duration, "graceful-eviction-timeout", 10*time.Minute, "Specifies the timeout period waiting for the graceful-eviction-controller performs the final removal since the workload(resource) has been moved to the graceful eviction tasks.")
 	flags.BoolVar(&o.EnableClusterResourceModeling, "enable-cluster-resource-modeling", true, "Enable means controller would build resource modeling for each cluster by syncing Nodes and Pods resources.\n"+

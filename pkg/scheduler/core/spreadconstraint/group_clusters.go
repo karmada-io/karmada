@@ -265,7 +265,7 @@ func (info *GroupClustersInfo) calcGroupScore(
 	// Here is an example, the rbSpec.Replicas == 100 and the Group.minGroups == 2, Cluster.minGroups == 1.
 	// Thus, the targetReplica is 50, and the int64ClusterMinGroups == 2, because int64ClusterMinGroups == max(Group.minGroups, Cluster.minGroups).
 
-	// There is the Group 1, it has three clusters as follows.
+	// There is the Group 1, it has five clusters as follows.
 	// ----------------------------------------------------------------------
 	// | clusterName      | member1 | member2 | member3 | member4 | member5 |
 	// |---------------------------------------------------------------------
@@ -294,7 +294,7 @@ func (info *GroupClustersInfo) calcGroupScore(
 	// There is another example, the targetReplica is 50, and the int64ClusterMinGroups == 2.
 	// The difference now is the situation of the Groups; both Groups now meet the requirements for available replica capacity.
 
-	// There is the Group 1, it has three clusters as follows.
+	// There is the Group 1, it has five clusters as follows.
 	// ----------------------------------------------------------------------
 	// | clusterName      | member1 | member2 | member3 | member4 | member5 |
 	// |---------------------------------------------------------------------

@@ -240,6 +240,13 @@ type GracefulEvictionTask struct {
 	// +required
 	FromCluster string `json:"fromCluster"`
 
+	// PurgeMode represents how to deal with the legacy applications on the
+	// cluster from which the application is migrated.
+	// Valid options are "Immediately", "Graciously" and "Never".
+	// +kubebuilder:validation:Enum=Immediately;Graciously;Never
+	// +optional
+	PurgeMode policyv1alpha1.PurgeMode `json:"purgeMode,omitempty"`
+
 	// Replicas indicates the number of replicas should be evicted.
 	// Should be ignored for resource type that doesn't have replica.
 	// +optional
@@ -280,6 +287,11 @@ type GracefulEvictionTask struct {
 	// +optional
 	SuppressDeletion *bool `json:"suppressDeletion,omitempty"`
 
+	// PreservedLabelState represents the application state information collected from the original cluster,
+	// and it will be injected into the new cluster in form of application labels.
+	// +optional
+	PreservedLabelState map[string]string `json:"preservedLabelState,omitempty"`
+
 	// CreationTimestamp is a timestamp representing the server time when this object was
 	// created.
 	// Clients should not set this value to avoid the time inconsistency issue.
@@ -288,6 +300,9 @@ type GracefulEvictionTask struct {
 	// Populated by the system. Read-only.
 	// +optional
 	CreationTimestamp *metav1.Time `json:"creationTimestamp,omitempty"`
+
+	// ClustersBeforeFailover records the clusters where running the application before failover.
+	ClustersBeforeFailover []string `json:"clustersBeforeFailover,omitempty"`
 }
 
 // BindingSnapshot is a snapshot of a ResourceBinding or ClusterResourceBinding.

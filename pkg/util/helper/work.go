@@ -23,6 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -117,15 +118,19 @@ func GetWorksByLabelsSet(ctx context.Context, c client.Client, ls labels.Set) (*
 }
 
 // GetWorksByBindingID gets WorkList by matching same binding's permanent id.
+// Caller should ensure Work is indexed by binding's permanent id.
 func GetWorksByBindingID(ctx context.Context, c client.Client, bindingID string, namespaced bool) (*workv1alpha1.WorkList, error) {
-	var ls labels.Set
+	var key string
 	if namespaced {
-		ls = labels.Set{workv1alpha2.ResourceBindingPermanentIDLabel: bindingID}
+		key = workv1alpha2.ResourceBindingPermanentIDLabel
 	} else {
-		ls = labels.Set{workv1alpha2.ClusterResourceBindingPermanentIDLabel: bindingID}
+		key = workv1alpha2.ClusterResourceBindingPermanentIDLabel
 	}
-
-	return GetWorksByLabelsSet(ctx, c, ls)
+	workList := &workv1alpha1.WorkList{}
+	listOpt := &client.ListOptions{
+		FieldSelector: fields.OneTermEqualSelector(key, bindingID),
+	}
+	return workList, c.List(ctx, workList, listOpt)
 }
 
 // GenEventRef returns the event reference. sets the UID(.spec.uid) that might be missing for fire events.

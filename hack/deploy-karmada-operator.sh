@@ -55,7 +55,7 @@ export REGISTRY="docker.io/karmada"
 make image-karmada-operator GOOS="linux" --directory=.
 
 # load the karmada-operator images
-kind load docker-image "${REGISTRY}/karmada-controller-manager:${VERSION}" --name="${CONTEXT_NAME}"
+kind load docker-image "${REGISTRY}/karmada-operator:${VERSION}" --name="${CONTEXT_NAME}"
 
 # create namespace `karmada-system`
 kubectl --kubeconfig="${KUBECONFIG}" --context="${CONTEXT_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/namespace.yaml"

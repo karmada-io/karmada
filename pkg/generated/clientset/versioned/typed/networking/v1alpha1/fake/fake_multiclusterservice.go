@@ -41,22 +41,24 @@ var multiclusterservicesKind = v1alpha1.SchemeGroupVersion.WithKind("MultiCluste
 
 // Get takes name of the multiClusterService, and returns the corresponding multiClusterService object, and an error if there is any.
 func (c *FakeMultiClusterServices) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.MultiClusterService, err error) {
+	emptyResult := &v1alpha1.MultiClusterService{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(multiclusterservicesResource, c.ns, name), &v1alpha1.MultiClusterService{})
+		Invokes(testing.NewGetActionWithOptions(multiclusterservicesResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.MultiClusterService), err
 }
 
 // List takes label and field selectors, and returns the list of MultiClusterServices that match those selectors.
 func (c *FakeMultiClusterServices) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.MultiClusterServiceList, err error) {
+	emptyResult := &v1alpha1.MultiClusterServiceList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(multiclusterservicesResource, multiclusterservicesKind, c.ns, opts), &v1alpha1.MultiClusterServiceList{})
+		Invokes(testing.NewListActionWithOptions(multiclusterservicesResource, multiclusterservicesKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -75,40 +77,43 @@ func (c *FakeMultiClusterServices) List(ctx context.Context, opts v1.ListOptions
 // Watch returns a watch.Interface that watches the requested multiClusterServices.
 func (c *FakeMultiClusterServices) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(multiclusterservicesResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(multiclusterservicesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a multiClusterService and creates it.  Returns the server's representation of the multiClusterService, and an error, if there is any.
 func (c *FakeMultiClusterServices) Create(ctx context.Context, multiClusterService *v1alpha1.MultiClusterService, opts v1.CreateOptions) (result *v1alpha1.MultiClusterService, err error) {
+	emptyResult := &v1alpha1.MultiClusterService{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(multiclusterservicesResource, c.ns, multiClusterService), &v1alpha1.MultiClusterService{})
+		Invokes(testing.NewCreateActionWithOptions(multiclusterservicesResource, c.ns, multiClusterService, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.MultiClusterService), err
 }
 
 // Update takes the representation of a multiClusterService and updates it. Returns the server's representation of the multiClusterService, and an error, if there is any.
 func (c *FakeMultiClusterServices) Update(ctx context.Context, multiClusterService *v1alpha1.MultiClusterService, opts v1.UpdateOptions) (result *v1alpha1.MultiClusterService, err error) {
+	emptyResult := &v1alpha1.MultiClusterService{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(multiclusterservicesResource, c.ns, multiClusterService), &v1alpha1.MultiClusterService{})
+		Invokes(testing.NewUpdateActionWithOptions(multiclusterservicesResource, c.ns, multiClusterService, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.MultiClusterService), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeMultiClusterServices) UpdateStatus(ctx context.Context, multiClusterService *v1alpha1.MultiClusterService, opts v1.UpdateOptions) (*v1alpha1.MultiClusterService, error) {
+func (c *FakeMultiClusterServices) UpdateStatus(ctx context.Context, multiClusterService *v1alpha1.MultiClusterService, opts v1.UpdateOptions) (result *v1alpha1.MultiClusterService, err error) {
+	emptyResult := &v1alpha1.MultiClusterService{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(multiclusterservicesResource, "status", c.ns, multiClusterService), &v1alpha1.MultiClusterService{})
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(multiclusterservicesResource, "status", c.ns, multiClusterService, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.MultiClusterService), err
 }
@@ -123,7 +128,7 @@ func (c *FakeMultiClusterServices) Delete(ctx context.Context, name string, opts
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeMultiClusterServices) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(multiclusterservicesResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(multiclusterservicesResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.MultiClusterServiceList{})
 	return err
@@ -131,11 +136,12 @@ func (c *FakeMultiClusterServices) DeleteCollection(ctx context.Context, opts v1
 
 // Patch applies the patch and returns the patched multiClusterService.
 func (c *FakeMultiClusterServices) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.MultiClusterService, err error) {
+	emptyResult := &v1alpha1.MultiClusterService{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(multiclusterservicesResource, c.ns, name, pt, data, subresources...), &v1alpha1.MultiClusterService{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(multiclusterservicesResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.MultiClusterService), err
 }

@@ -20,8 +20,8 @@ package v1alpha1
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -38,25 +38,17 @@ type ResourceBindingLister interface {
 
 // resourceBindingLister implements the ResourceBindingLister interface.
 type resourceBindingLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1alpha1.ResourceBinding]
 }
 
 // NewResourceBindingLister returns a new ResourceBindingLister.
 func NewResourceBindingLister(indexer cache.Indexer) ResourceBindingLister {
-	return &resourceBindingLister{indexer: indexer}
-}
-
-// List lists all ResourceBindings in the indexer.
-func (s *resourceBindingLister) List(selector labels.Selector) (ret []*v1alpha1.ResourceBinding, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.ResourceBinding))
-	})
-	return ret, err
+	return &resourceBindingLister{listers.New[*v1alpha1.ResourceBinding](indexer, v1alpha1.Resource("resourcebinding"))}
 }
 
 // ResourceBindings returns an object that can list and get ResourceBindings.
 func (s *resourceBindingLister) ResourceBindings(namespace string) ResourceBindingNamespaceLister {
-	return resourceBindingNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return resourceBindingNamespaceLister{listers.NewNamespaced[*v1alpha1.ResourceBinding](s.ResourceIndexer, namespace)}
 }
 
 // ResourceBindingNamespaceLister helps list and get ResourceBindings.
@@ -74,26 +66,5 @@ type ResourceBindingNamespaceLister interface {
 // resourceBindingNamespaceLister implements the ResourceBindingNamespaceLister
 // interface.
 type resourceBindingNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all ResourceBindings in the indexer for a given namespace.
-func (s resourceBindingNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.ResourceBinding, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.ResourceBinding))
-	})
-	return ret, err
-}
-
-// Get retrieves the ResourceBinding from the indexer for a given namespace and name.
-func (s resourceBindingNamespaceLister) Get(name string) (*v1alpha1.ResourceBinding, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("resourcebinding"), name)
-	}
-	return obj.(*v1alpha1.ResourceBinding), nil
+	listers.ResourceIndexer[*v1alpha1.ResourceBinding]
 }

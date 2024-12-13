@@ -37,9 +37,9 @@ KARMADA_METRICS_ADAPTER_LABEL="karmada-metrics-adapter"
 
 KARMADA_GO_PACKAGE="github.com/karmada-io/karmada"
 
-MIN_Go_VERSION=go1.22.7
+MIN_Go_VERSION=go1.22.9
 
-DEFAULT_CLUSTER_VERSION="kindest/node:v1.31.0"
+DEFAULT_CLUSTER_VERSION="kindest/node:v1.31.2"
 
 KARMADA_TARGET_SOURCE=(
   karmada-aggregated-apiserver=cmd/aggregated-apiserver

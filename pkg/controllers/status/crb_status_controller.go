@@ -105,7 +105,7 @@ func (c *CRBStatusController) SetupWithManager(mgr controllerruntime.Manager) er
 		Named(CRBStatusControllerName).
 		For(&workv1alpha2.ClusterResourceBinding{}, bindingPredicateFn).
 		Watches(&workv1alpha1.Work{}, handler.EnqueueRequestsFromMapFunc(workMapFunc), workPredicateFn).
-		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
+		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).
 		Complete(c)
 }
 

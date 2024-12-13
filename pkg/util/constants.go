@@ -227,11 +227,6 @@ const (
 	CompletionsField = "completions"
 )
 
-const (
-	// NamespaceKarmadaSystem is the karmada system namespace.
-	NamespaceKarmadaSystem = "karmada-system"
-)
-
 // ContextKey is the key of context.
 type ContextKey string
 
