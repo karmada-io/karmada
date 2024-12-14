@@ -121,3 +121,12 @@ KARMADA_APISERVER=$(cat ~/.kube/${KARMADA_INSTANCE_NAME}-${KARMADA_INSTANCE_NAME
 # write karmada api server config to kubeconfig file
 util::append_client_kubeconfig "${HOST_CLUSTER_KUBECONFIG}" "${CERT_DIR}/ca.crt" "${CERT_DIR}/karmada.crt" "${CERT_DIR}/karmada.key" "${KARMADA_APISERVER}" ${KARMADA_CONTEXT_NAME}
 rm ~/.kube/${KARMADA_INSTANCE_NAME}-${KARMADA_INSTANCE_NAMESPACE}-tmp-apiserver.config
+
+# deploy bootstrap token configuration for registering member clusters with PULL mode
+karmada_ca=$(base64 < "${CERT_DIR}/ca.crt" | tr -d '\r\n')
+TEMP_PATH_BOOTSTRAP=$(mktemp -d)
+trap '{ rm -rf ${TEMP_PATH_BOOTSTRAP}; }' EXIT
+cp -rf "${REPO_ROOT}"/artifacts/deploy/bootstrap-token-configuration.yaml "${TEMP_PATH_BOOTSTRAP}"/bootstrap-token-configuration-tmp.yaml
+sed -i'' -e "s/{{ca_crt}}/${karmada_ca}/g" "${TEMP_PATH_BOOTSTRAP}"/bootstrap-token-configuration-tmp.yaml
+sed -i'' -e "s|{{apiserver_address}}|${KARMADA_APISERVER}|g" "${TEMP_PATH_BOOTSTRAP}"/bootstrap-token-configuration-tmp.yaml
+kubectl --kubeconfig="${HOST_CLUSTER_KUBECONFIG}" --context="${KARMADA_CONTEXT_NAME}" apply -f "${TEMP_PATH_BOOTSTRAP}"/bootstrap-token-configuration-tmp.yaml
