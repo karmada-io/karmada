@@ -2,60 +2,67 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
+- [v1.9.10](#v1910)
+  - [Downloads for v1.9.10](#downloads-for-v1910)
+  - [Changelog since v1.9.9](#changelog-since-v199)
+    - [Changes by Kind](#changes-by-kind)
+      - [Urgent Upgrade Notes](#urgent-upgrade-notes)
+      - [Bug Fixes](#bug-fixes)
+      - [Others](#others)
 - [v1.9.9](#v199)
   - [Downloads for v1.9.9](#downloads-for-v199)
   - [Changelog since v1.9.8](#changelog-since-v198)
-    - [Changes by Kind](#changes-by-kind)
-      - [Bug Fixes](#bug-fixes)
-      - [Others](#others)
-- [v1.9.8](#v198)
-  - [Downloads for v1.9.8](#downloads-for-v198)
-  - [Changelog since v1.9.7](#changelog-since-v197)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
-- [v1.9.7](#v197)
-  - [Downloads for v1.9.7](#downloads-for-v197)
-  - [Changelog since v1.9.6](#changelog-since-v196)
+- [v1.9.8](#v198)
+  - [Downloads for v1.9.8](#downloads-for-v198)
+  - [Changelog since v1.9.7](#changelog-since-v197)
     - [Changes by Kind](#changes-by-kind-2)
       - [Bug Fixes](#bug-fixes-2)
       - [Others](#others-2)
-- [v1.9.6](#v196)
-  - [Downloads for v1.9.6](#downloads-for-v196)
-  - [Changelog since v1.9.5](#changelog-since-v195)
+- [v1.9.7](#v197)
+  - [Downloads for v1.9.7](#downloads-for-v197)
+  - [Changelog since v1.9.6](#changelog-since-v196)
     - [Changes by Kind](#changes-by-kind-3)
       - [Bug Fixes](#bug-fixes-3)
       - [Others](#others-3)
-- [v1.9.5](#v195)
-  - [Downloads for v1.9.5](#downloads-for-v195)
-  - [Changelog since v1.9.4](#changelog-since-v194)
+- [v1.9.6](#v196)
+  - [Downloads for v1.9.6](#downloads-for-v196)
+  - [Changelog since v1.9.5](#changelog-since-v195)
     - [Changes by Kind](#changes-by-kind-4)
       - [Bug Fixes](#bug-fixes-4)
       - [Others](#others-4)
-- [v1.9.4](#v194)
-  - [Downloads for v1.9.4](#downloads-for-v194)
-  - [Changelog since v1.9.3](#changelog-since-v193)
+- [v1.9.5](#v195)
+  - [Downloads for v1.9.5](#downloads-for-v195)
+  - [Changelog since v1.9.4](#changelog-since-v194)
     - [Changes by Kind](#changes-by-kind-5)
       - [Bug Fixes](#bug-fixes-5)
       - [Others](#others-5)
-- [v1.9.3](#v193)
-  - [Downloads for v1.9.3](#downloads-for-v193)
-  - [Changelog since v1.9.2](#changelog-since-v192)
+- [v1.9.4](#v194)
+  - [Downloads for v1.9.4](#downloads-for-v194)
+  - [Changelog since v1.9.3](#changelog-since-v193)
     - [Changes by Kind](#changes-by-kind-6)
       - [Bug Fixes](#bug-fixes-6)
       - [Others](#others-6)
-- [v1.9.2](#v192)
-  - [Downloads for v1.9.2](#downloads-for-v192)
-  - [Changelog since v1.9.1](#changelog-since-v191)
+- [v1.9.3](#v193)
+  - [Downloads for v1.9.3](#downloads-for-v193)
+  - [Changelog since v1.9.2](#changelog-since-v192)
     - [Changes by Kind](#changes-by-kind-7)
       - [Bug Fixes](#bug-fixes-7)
       - [Others](#others-7)
-- [v1.9.1](#v191)
-  - [Downloads for v1.9.1](#downloads-for-v191)
-  - [Changelog since v1.9.0](#changelog-since-v190)
+- [v1.9.2](#v192)
+  - [Downloads for v1.9.2](#downloads-for-v192)
+  - [Changelog since v1.9.1](#changelog-since-v191)
     - [Changes by Kind](#changes-by-kind-8)
       - [Bug Fixes](#bug-fixes-8)
       - [Others](#others-8)
+- [v1.9.1](#v191)
+  - [Downloads for v1.9.1](#downloads-for-v191)
+  - [Changelog since v1.9.0](#changelog-since-v190)
+    - [Changes by Kind](#changes-by-kind-9)
+      - [Bug Fixes](#bug-fixes-9)
+      - [Others](#others-9)
 - [v1.9.0](#v190)
   - [Downloads for v1.9.0](#downloads-for-v190)
   - [What's New](#whats-new)
@@ -65,7 +72,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-9)
+    - [Bug Fixes](#bug-fixes-10)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -75,6 +82,26 @@
   - [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.9.10
+## Downloads for v1.9.10
+
+Download v1.9.10 in the [v1.9.10 release page](https://github.com/karmada-io/karmada/releases/tag/v1.9.10).
+
+## Changelog since v1.9.9
+### Changes by Kind
+#### Urgent Upgrade Notes
+- The feature `Failover` now has been disabled by default, which should be explicitly enabled to avoid unexpected incidents. ([#5948](https://github.com/karmada-io/karmada/pull/5948), @XiShanYongYe-Chang)
+
+If you are using the feature `Failover`, please enable it explicitly by adding the `--feature-gates=Failover=true,<other feature>` flag to the `karmada-controller-manager` component. If you are not using this feature, this change will have no impact.
+
+#### Bug Fixes
+- `karmadactl`: Fixed `karmada-metrics-adapter` use the incorrect certificate issue when deployed via karmadactl `init`. ([#5859](https://github.com/karmada-io/karmada/pull/5859), @seanlaii)
+- `karmada-controller-manager`: Fixed the corner case where the reconciliation of aggregating status might be missed in case of component restart. ([#5884](https://github.com/karmada-io/karmada/pull/5884), @liangyuanpeng)
+- `karmada-scheduler`: Avoid filtering out clusters if the API enablement is incomplete during re-scheduling. ([#5932](https://github.com/karmada-io/karmada/pull/5932), @XiShanYongYe-Chang)
+
+#### Others
+- The base image `alpine` now has been promoted from `alpine:3.20.3` to `alpine:3.21.0`. ([#5922](https://github.com/karmada-io/karmada/pull/5922))
 
 # v1.9.9
 ## Downloads for v1.9.9
