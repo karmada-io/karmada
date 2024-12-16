@@ -2,48 +2,55 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
+- [v1.10.8](#v1108)
+  - [Downloads for v1.10.8](#downloads-for-v1108)
+  - [Changelog since v1.10.7](#changelog-since-v1107)
+    - [Changes by Kind](#changes-by-kind)
+      - [Urgent Upgrade Notes](#urgent-upgrade-notes)
+      - [Bug Fixes](#bug-fixes)
+      - [Others](#others)
 - [v1.10.7](#v1107)
   - [Downloads for v1.10.7](#downloads-for-v1107)
   - [Changelog since v1.10.6](#changelog-since-v1106)
-    - [Changes by Kind](#changes-by-kind)
-      - [Bug Fixes](#bug-fixes)
-      - [Others](#others)
-- [v1.10.6](#v1106)
-  - [Downloads for v1.10.6](#downloads-for-v1106)
-  - [Changelog since v1.10.5](#changelog-since-v1105)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
-- [v1.10.5](#v1105)
-  - [Downloads for v1.10.5](#downloads-for-v1105)
-  - [Changelog since v1.10.4](#changelog-since-v1104)
+- [v1.10.6](#v1106)
+  - [Downloads for v1.10.6](#downloads-for-v1106)
+  - [Changelog since v1.10.5](#changelog-since-v1105)
     - [Changes by Kind](#changes-by-kind-2)
       - [Bug Fixes](#bug-fixes-2)
       - [Others](#others-2)
-- [v1.10.4](#v1104)
-  - [Downloads for v1.10.4](#downloads-for-v1104)
-  - [Changelog since v1.10.3](#changelog-since-v1103)
+- [v1.10.5](#v1105)
+  - [Downloads for v1.10.5](#downloads-for-v1105)
+  - [Changelog since v1.10.4](#changelog-since-v1104)
     - [Changes by Kind](#changes-by-kind-3)
       - [Bug Fixes](#bug-fixes-3)
       - [Others](#others-3)
-- [v1.10.3](#v1103)
-  - [Downloads for v1.10.3](#downloads-for-v1103)
-  - [Changelog since v1.10.2](#changelog-since-v1102)
+- [v1.10.4](#v1104)
+  - [Downloads for v1.10.4](#downloads-for-v1104)
+  - [Changelog since v1.10.3](#changelog-since-v1103)
     - [Changes by Kind](#changes-by-kind-4)
       - [Bug Fixes](#bug-fixes-4)
       - [Others](#others-4)
-- [v1.10.2](#v1102)
-  - [Downloads for v1.10.2](#downloads-for-v1102)
-  - [Changelog since v1.10.1](#changelog-since-v1101)
+- [v1.10.3](#v1103)
+  - [Downloads for v1.10.3](#downloads-for-v1103)
+  - [Changelog since v1.10.2](#changelog-since-v1102)
     - [Changes by Kind](#changes-by-kind-5)
       - [Bug Fixes](#bug-fixes-5)
       - [Others](#others-5)
-- [v1.10.1](#v1101)
-  - [Downloads for v1.10.1](#downloads-for-v1101)
-  - [Changelog since v1.10.0](#changelog-since-v1100)
+- [v1.10.2](#v1102)
+  - [Downloads for v1.10.2](#downloads-for-v1102)
+  - [Changelog since v1.10.1](#changelog-since-v1101)
     - [Changes by Kind](#changes-by-kind-6)
       - [Bug Fixes](#bug-fixes-6)
       - [Others](#others-6)
+- [v1.10.1](#v1101)
+  - [Downloads for v1.10.1](#downloads-for-v1101)
+  - [Changelog since v1.10.0](#changelog-since-v1100)
+    - [Changes by Kind](#changes-by-kind-7)
+      - [Bug Fixes](#bug-fixes-7)
+      - [Others](#others-7)
 - [v1.10.0](#v1100)
   - [Downloads for v1.10.0](#downloads-for-v1100)
   - [What's New](#whats-new)
@@ -52,7 +59,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-7)
+    - [Bug Fixes](#bug-fixes-8)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -62,6 +69,27 @@
   - [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.10.8
+## Downloads for v1.10.8
+
+Download v1.10.8 in the [v1.10.8 release page](https://github.com/karmada-io/karmada/releases/tag/v1.10.8).
+
+## Changelog since v1.10.7
+### Changes by Kind
+#### Urgent Upgrade Notes
+- The feature `Failover` now has been disabled by default, which should be explicitly enabled to avoid unexpected incidents. ([#5947](https://github.com/karmada-io/karmada/pull/5947), @XiShanYongYe-Chang)
+
+If you are using the feature `Failover`, please enable it explicitly by adding the `--feature-gates=Failover=true,<other feature>` flag to the `karmada-controller-manager` component. If you are not using this feature, this change will have no impact.
+
+#### Bug Fixes
+- `karmadactl`: Fixed `karmada-metrics-adapter` use the incorrect certificate issue when deployed via karmadactl `init`. ([#5860](https://github.com/karmada-io/karmada/pull/5860), @seanlaii)
+- `karmada-controller-manager`: Fixed the corner case where the reconciliation of aggregating status might be missed in case of component restart. ([#5883](https://github.com/karmada-io/karmada/pull/5883), @liangyuanpeng)
+- `karmada-controller-manager`: Fixed the problem of ResourceBinding remaining after the resource template is deleted in the dependencies distribution scenario. ([#5952](https://github.com/karmada-io/karmada/pull/5952), @XiShanYongYe-Chang)
+- `karmada-scheduler`: Avoid filtering out clusters if the API enablement is incomplete during re-scheduling. ([#5931](https://github.com/karmada-io/karmada/pull/5931), @XiShanYongYe-Chang)
+
+#### Others
+- The base image `alpine` now has been promoted from `3.20.3` to `3.21.0`. ([#5921](https://github.com/karmada-io/karmada/pull/5921))
 
 # v1.10.7
 ## Downloads for v1.10.7
