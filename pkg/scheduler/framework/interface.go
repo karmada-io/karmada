@@ -48,7 +48,7 @@ type Framework interface {
 	// the given cluster.
 	RunFilterPlugins(ctx context.Context, bindingSpec *workv1alpha2.ResourceBindingSpec, bindingStatus *workv1alpha2.ResourceBindingStatus, cluster *clusterv1alpha1.Cluster) *Result
 
-	// RunScorePlugins runs the set of configured Score plugins, it returns a map of plugin name to cores
+	// RunScorePlugins runs the set of configured Score plugins, it returns a map of plugin names to scores
 	RunScorePlugins(ctx context.Context, spec *workv1alpha2.ResourceBindingSpec, clusters []*clusterv1alpha1.Cluster) (PluginToClusterScores, *Result)
 }
 
