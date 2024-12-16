@@ -3698,6 +3698,40 @@ spec:
                           referenced.
                         type: string
                     type: object
+                  certConfig:
+                    description: CertConfig represents the config to generate certificate
+                      by karmada-operator.
+                    properties:
+                      expiry:
+                        description: |-
+                          Expiry is the duration of the certificate's validity period.
+                          The unit is days, where 1 represents one day.
+                          Defaults to 365.
+                          Ignored when NotAfter and NotBefore are not nil.
+                        format: int32
+                        type: integer
+                      notAfter:
+                        description: |-
+                          NotAfter specifies the end date of the certificate's validity period.
+                          This field can be nil, indicating that the end time will be calculated based on Expiry and NotBefore.
+                        format: date-time
+                        type: string
+                      notBefore:
+                        description: |-
+                          NotBefore specifies the start date of the certificate's validity period.
+                          If NotBefore and NotAfter are both nil, the certificate will inherit the NotBefore date from the CA certificate during its generation.
+                          If NotBefore is nil, the start date of the certificate's validity period will be calculated based on Expiry and NotAfter.
+                        format: date-time
+                        type: string
+                      publicKeyAlgorithm:
+                        description: |-
+                          PublicKeyAlgorithm is the public key algorithm used for the certificate.
+                          This can be RSA or ECDSA.
+                          For ECDSA, using the P-256 elliptic curve.
+                          For RSA, the key is generated with a size of 3072 bits.
+                          Defaults to RSA
+                        type: string
+                    type: object
                 type: object
               featureGates:
                 additionalProperties:
