@@ -50,17 +50,17 @@ spec:
             - --authentication-kubeconfig=/etc/kubeconfig
             - --authorization-kubeconfig=/etc/kubeconfig
             - --bind-address=0.0.0.0
-            - --client-ca-file=/etc/karmada/pki/server-ca.crt
+            - --client-ca-file=/etc/karmada/pki/ca.crt
             - --cluster-cidr={{ .Values.kubeControllerManager.clusterCIDR }}
             - --cluster-name=karmada
-            - --cluster-signing-cert-file=/etc/karmada/pki/server-ca.crt
-            - --cluster-signing-key-file=/etc/karmada/pki/server-ca.key
+            - --cluster-signing-cert-file=/etc/karmada/pki/ca.crt
+            - --cluster-signing-key-file=/etc/karmada/pki/ca.key
             - --controllers={{ .Values.kubeControllerManager.controllers }}
             - --kubeconfig=/etc/kubeconfig
             - --leader-elect=true
             - --node-cidr-mask-size=24
-            - --root-ca-file=/etc/karmada/pki/server-ca.crt
-            - --service-account-private-key-file=/etc/karmada/pki/karmada.key
+            - --root-ca-file=/etc/karmada/pki/ca.crt
+            - --service-account-private-key-file=/etc/karmada/pki/karmada-client.key
             - --service-cluster-ip-range={{ .Values.kubeControllerManager.serviceClusterIPRange }}
             - --use-service-account-credentials=true
             - --v=5
@@ -80,16 +80,12 @@ spec:
           resources:
           {{- toYaml .Values.kubeControllerManager.resources | nindent 12 }}
           volumeMounts:
-            - mountPath: /etc/karmada/pki
-              name: apisever-cert
-              readOnly: true
             {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
+            {{- include "karmada.karmada-certs.volumeMount" . | nindent 12 }}
       priorityClassName: system-node-critical
       volumes:
-        - name: apisever-cert
-          secret:
-            secretName: {{ $name }}-cert
         {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
+        {{- include "karmada.karmada-certs.volume" . | nindent 8 }}
 
 {{ if .Values.kubeControllerManager.podDisruptionBudget }}
 ---

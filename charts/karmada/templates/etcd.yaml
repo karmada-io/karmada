@@ -52,7 +52,7 @@ spec:
               command:
                 - /bin/sh
                 - -ec
-                - 'etcdctl get /registry --prefix --keys-only  --endpoints https://127.0.0.1:2379  --cacert /etc/kubernetes/pki/etcd/server-ca.crt --cert /etc/kubernetes/pki/etcd/karmada.crt --key /etc/kubernetes/pki/etcd/karmada.key'
+                - 'etcdctl get /registry --prefix --keys-only  --endpoints https://127.0.0.1:2379  --cacert /etc/etcd/pki/etcd-ca.crt --cert /etc/etcd/pki/etcd-client.crt --key /etc/etcd/pki/etcd-client.key'
             failureThreshold: 3
             initialDelaySeconds: 600
             periodSeconds: 60
@@ -73,11 +73,9 @@ spec:
           resources:
           {{- toYaml .Values.etcd.internal.resources | nindent 12 }}
           volumeMounts:
+            {{- include "karmada.etcd-cert.volumeMount" . | nindent 12 }}
             - mountPath: /var/lib/etcd
               name: etcd-data
-            - name: etcd-cert
-              mountPath: /etc/kubernetes/pki/etcd
-              readOnly: true
           command:
             - /usr/local/bin/etcd
             - --name
@@ -92,19 +90,17 @@ spec:
             - {{ include "etcd.initial.clusters" . }}
             - --initial-cluster-state
             - new
-            - --cert-file=/etc/kubernetes/pki/etcd/karmada.crt
+            - --cert-file=/etc/etcd/pki/etcd-server.crt
             - --client-cert-auth=true
-            - --key-file=/etc/kubernetes/pki/etcd/karmada.key
-            - --trusted-ca-file=/etc/kubernetes/pki/etcd/server-ca.crt
+            - --key-file=/etc/etcd/pki/etcd-server.key
+            - --trusted-ca-file=/etc/etcd/pki/etcd-ca.crt
             - --data-dir=/var/lib/etcd
             # Setting Golang's secure cipher suites as etcd's cipher suites.
             # They are obtained by the return value of the function CipherSuites() under the go/src/crypto/tls/cipher_suites.go package.
             # Consistent with the Preferred values of k8s’s default cipher suites.
             - --cipher-suites=TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_256_CBC_SHA,TLS_RSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305
       volumes:
-        - name: etcd-cert
-          secret:
-            secretName: {{ include "karmada.name" . }}-cert
+        {{- include "karmada.etcd-cert.volume" . | nindent 8 }}
         {{- if eq .Values.etcd.internal.storageType "hostPath" }}
         - hostPath:
             path: /var/lib/{{ include "karmada.namespace" . }}/karmada-etcd
