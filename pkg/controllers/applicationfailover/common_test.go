@@ -226,6 +226,15 @@ func Test_parseJSONValue(t *testing.T) {
 			wantErr: assert.NoError,
 			want:    "2",
 		},
+		{
+			name: "get a static value just as jsonPath write",
+			args: args{
+				rawStatus: []byte(`{"replicas": 2}`),
+				jsonPath:  "true",
+			},
+			wantErr: assert.NoError,
+			want:    "true",
+		},
 		// Build the following test cases in terms of what the function supports (which we don't use now).
 		// Please refer to Function Support: https://kubernetes.io/docs/reference/kubectl/jsonpath/
 		{
