@@ -20355,9 +20355,18 @@
           "description": "Placement represents the rule for select clusters to propagate resources.",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Placement"
         },
+        "preemptionPolicy": {
+          "description": "PreemptionPolicy controls the preemption policy of this binding. Valid values are: - Never: (default) prevents the binding from preempting other bindings - PreemptLowerPriority: allows the binding to preempt lower-priority bindings",
+          "type": "string"
+        },
         "preserveResourcesOnDeletion": {
           "description": "PreserveResourcesOnDeletion controls whether resources should be preserved on the member clusters when the binding object is deleted. If set to true, resources will be preserved on the member clusters. Default is false, which means resources will be deleted along with the binding object. This setting applies to all Work objects created under this binding object.",
           "type": "boolean"
+        },
+        "priority": {
+          "description": "Priority represents the scheduling priority of the binding. Bindings with higher priority values are scheduled ahead of bindings with lower priority values. If not specified, the priority value is set to 0.",
+          "type": "integer",
+          "format": "int32"
         },
         "propagateDeps": {
           "description": "PropagateDeps tells if relevant resources should be propagated automatically. It is inherited from PropagationPolicy or ClusterPropagationPolicy. default false.",
