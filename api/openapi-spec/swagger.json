@@ -20389,6 +20389,10 @@
           "default": {},
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ObjectReference"
         },
+        "schedulePriority": {
+          "description": "SchedulePriority represents the scheduling priority assigned to workloads.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.SchedulePriority"
+        },
         "schedulerName": {
           "description": "SchedulerName represents which scheduler to proceed the scheduling. It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).",
           "type": "string"
@@ -20431,6 +20435,17 @@
         "schedulerObservingAffinityName": {
           "description": "SchedulerObservedAffinityName is the name of affinity term that is the basis of current scheduling.",
           "type": "string"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.SchedulePriority": {
+      "description": "SchedulePriority represents the scheduling priority assigned to workloads.",
+      "type": "object",
+      "properties": {
+        "priority": {
+          "description": "Priority specifies the scheduling priority for the binding. Higher values indicate a higher priority. If not explicitly set, the default value is 0.",
+          "type": "integer",
+          "format": "int32"
         }
       }
     },

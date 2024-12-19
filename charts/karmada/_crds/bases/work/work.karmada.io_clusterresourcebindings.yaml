@@ -1252,6 +1252,19 @@ spec:
                 - kind
                 - name
                 type: object
+              schedulePriority:
+                description: SchedulePriority represents the scheduling priority assigned
+                  to workloads.
+                properties:
+                  priority:
+                    default: 0
+                    description: |-
+                      Priority specifies the scheduling priority for the binding.
+                      Higher values indicate a higher priority.
+                      If not explicitly set, the default value is 0.
+                    format: int32
+                    type: integer
+                type: object
               schedulerName:
                 description: |-
                   SchedulerName represents which scheduler to proceed the scheduling.
