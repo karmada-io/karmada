@@ -19211,6 +19211,10 @@
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ResourceSelector"
           }
         },
+        "schedulePriority": {
+          "description": "SchedulePriority defines how Karmada should resolve the priority and preemption policy for workload scheduling.\n\nThis setting is useful for controlling the scheduling behavior of offline workloads. By setting a higher or lower priority, users can control which workloads are scheduled first. Additionally, it allows specifying a preemption policy where higher-priority workloads can preempt lower-priority ones in scenarios of resource contention.\n\nNote: This feature is currently in the alpha stage. The priority-based scheduling functionality is controlled by the PriorityBasedScheduling feature gate, and preemption is controlled by the PriorityBasedPreemptiveScheduling feature gate. Currently, only priority-based scheduling is supported. Preemption functionality is not yet available and will be introduced in future releases as the feature matures.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.SchedulePriority"
+        },
         "schedulerName": {
           "description": "SchedulerName represents which scheduler to proceed the scheduling. If specified, the policy will be dispatched by specified scheduler. If not specified, the policy will be dispatched by default scheduler.",
           "type": "string"
@@ -19286,6 +19290,23 @@
         "targetCluster": {
           "description": "TargetCluster defines restrictions on this override policy that only applies to resources propagated to the matching clusters. nil means matching all clusters.",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterAffinity"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.SchedulePriority": {
+      "description": "SchedulePriority defines how Karmada should resolve the priority and preemption policy for workload scheduling.",
+      "type": "object",
+      "required": [
+        "priorityClassName"
+      ],
+      "properties": {
+        "priorityClassName": {
+          "description": "PriorityClassName specifies which PriorityClass to use. Its behavior depends on PriorityClassSource:\n\nBehavior of PriorityClassName:\n\nFor KubePriorityClass: - When specified: Uses the named Kubernetes PriorityClass. - When empty: Uses the cluster's default PriorityClass (i.e., the PriorityClass marked as the global default in the cluster). - If neither exists: Sets priority=0 and preemptionPolicy=Never.\n\nFor PodPriorityClass: - Uses PriorityClassName from the PodTemplate. - If the specified PriorityClass is not found, falls back to the cluster's default PriorityClass\n  (i.e., the PriorityClass marked as the global default in the cluster).\n- If no valid PriorityClass is found: Sets priority=0 and preemptionPolicy=Never. - Not yet implemented.\n\nFor FederatedPriorityClass: - Not yet implemented.",
+          "type": "string"
+        },
+        "priorityClassSource": {
+          "description": "PriorityClassSource specifies where Karmada should look for the PriorityClass definition. Available options: - KubePriorityClass (default): Uses Kubernetes PriorityClass (scheduling.k8s.io/v1) - PodPriorityClass: Uses PriorityClassName from PodTemplate: PodSpec.PriorityClassName (not yet implemented) - FederatedPriorityClass: Uses Karmada FederatedPriorityClass (not yet implemented)",
+          "type": "string"
         }
       }
     },
