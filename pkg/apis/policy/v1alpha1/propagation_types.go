@@ -248,6 +248,11 @@ type Suspension struct {
 	// Note: Can not co-exist with Dispatching which is used to suspend all.
 	// +optional
 	DispatchingOnClusters *SuspendClusters `json:"dispatchingOnClusters,omitempty"`
+
+	// Scheduling controls whether scheduling should be suspended.
+	// nil means not suspend, no default value, only accepts 'true'.
+	// Karmada scheduler will pause scheduling when value is true and resume scheduling when it's nil.
+	Scheduling *bool `json:"scheduling,omitempty"`
 }
 
 // SuspendClusters represents a group of clusters that should be suspended from propagating.

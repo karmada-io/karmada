@@ -21,8 +21,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -416,6 +418,118 @@ func TestRescheduleRequired(t *testing.T) {
 			if got := RescheduleRequired(tt.rescheduleTriggeredAt, tt.lastScheduledTime); got != tt.want {
 				t.Errorf("RescheduleRequired() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func TestIsBindingSuspendScheduling(t *testing.T) {
+	tests := []struct {
+		name     string
+		rb       *workv1alpha2.ResourceBinding
+		expected bool
+	}{
+		{
+			name:     "rb is nil",
+			rb:       nil,
+			expected: false,
+		},
+		{
+			name:     "rb.Spec.Suspension is nil",
+			rb:       &workv1alpha2.ResourceBinding{},
+			expected: false,
+		},
+		{
+			name: "rb.Spec.Suspension.Scheduling is nil",
+			rb: &workv1alpha2.ResourceBinding{
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Suspension: &policyv1alpha1.Suspension{},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "rb.Spec.Suspension.Scheduling is false",
+			rb: &workv1alpha2.ResourceBinding{
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Suspension: &policyv1alpha1.Suspension{
+						Scheduling: ptr.To(false),
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "rb.Spec.Suspension.Scheduling is true",
+			rb: &workv1alpha2.ResourceBinding{
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Suspension: &policyv1alpha1.Suspension{
+						Scheduling: ptr.To(true),
+					},
+				},
+			},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, IsBindingSuspendScheduling(tt.rb))
+		})
+	}
+}
+
+func TestIsClusterBindingSuspendScheduling(t *testing.T) {
+	tests := []struct {
+		name     string
+		crb      *workv1alpha2.ClusterResourceBinding
+		expected bool
+	}{
+		{
+			name:     "crb is nil",
+			crb:      nil,
+			expected: false,
+		},
+		{
+			name:     "crb.Spec.Suspension is nil",
+			crb:      &workv1alpha2.ClusterResourceBinding{},
+			expected: false,
+		},
+		{
+			name: "crb.Spec.Suspension.Scheduling is nil",
+			crb: &workv1alpha2.ClusterResourceBinding{
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Suspension: &policyv1alpha1.Suspension{},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "crb.Spec.Suspension.Scheduling is false",
+			crb: &workv1alpha2.ClusterResourceBinding{
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Suspension: &policyv1alpha1.Suspension{
+						Scheduling: ptr.To(false),
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "crb.Spec.Suspension.Scheduling is true",
+			crb: &workv1alpha2.ClusterResourceBinding{
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Suspension: &policyv1alpha1.Suspension{
+						Scheduling: ptr.To(true),
+					},
+				},
+			},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, IsClusterBindingSuspendScheduling(tt.crb))
 		})
 	}
 }

@@ -19418,6 +19418,10 @@
         "dispatchingOnClusters": {
           "description": "DispatchingOnClusters declares a list of clusters to which the dispatching should be suspended. Note: Can not co-exist with Dispatching which is used to suspend all.",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.SuspendClusters"
+        },
+        "scheduling": {
+          "description": "Scheduling controls whether scheduling should be suspended. nil means not suspend, no default value, only accepts 'true'. Karmada scheduler will pause scheduling when value is true and resume scheduling when it's nil.",
+          "type": "boolean"
         }
       }
     },

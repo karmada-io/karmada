@@ -25,6 +25,15 @@ import (
 	"testing"
 	"time"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	karmadafake "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
+	workv1alpha2lister "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/scheduler/core"
+	schedulercore "github.com/karmada-io/karmada/pkg/scheduler/core"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
+	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/grpcconnection"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,16 +45,6 @@ import (
 	clienttesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	karmadafake "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
-	workv1alpha2lister "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/scheduler/core"
-	schedulercore "github.com/karmada-io/karmada/pkg/scheduler/core"
-	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
-	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/pkg/util/grpcconnection"
 )
 
 func TestDoSchedule(t *testing.T) {
