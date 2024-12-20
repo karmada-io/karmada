@@ -26,7 +26,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -87,9 +86,6 @@ const (
 	ClusterPermissionGroups = "system:karmada:agents"
 	// AgentRBACGenerator defines the common name of karmada agent rbac generator certificate
 	AgentRBACGenerator = "system:karmada:agent:rbac-generator"
-	// KarmadaAgentBootstrapKubeConfigFileName defines the file name for the kubeconfig that the karmada-agent will use to do
-	// the TLS bootstrap to get itself an unique credential
-	KarmadaAgentBootstrapKubeConfigFileName = "bootstrap-karmada-agent.conf"
 	// KarmadaAgentKubeConfigFileName defines the file name for the kubeconfig that the karmada-agent will use to do
 	// the TLS bootstrap to get itself an unique credential
 	KarmadaAgentKubeConfigFileName = "karmada-agent.conf"
@@ -97,7 +93,7 @@ const (
 	KarmadaKubeconfigName = "karmada-kubeconfig"
 	// KarmadaAgentServiceAccountName is the name of karmada-agent serviceaccount
 	KarmadaAgentServiceAccountName = "karmada-agent-sa"
-	// SignerName defines the signer name for csr, 'kubernetes.io/kube-apiserver-client' can sign the csr with `O=system:agents,CN=system:agent:` automatically if agentcsrapproving controller if enabled.
+	// SignerName defines the signer name for csr, 'kubernetes.io/kube-apiserver-client' can sign the csr with `O=system:karmada:agents,CN=system:karmada:agent:` automatically if agentcsrapproving controller is enabled.
 	SignerName = "kubernetes.io/kube-apiserver-client"
 	// BootstrapUserName defines bootstrap user name
 	BootstrapUserName = "token-bootstrap-client"
@@ -168,7 +164,7 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 			cmdutil.TagCommandGroup: cmdutil.GroupClusterRegistration,
 		},
 
-		// We accept the control-plane location as an required positional argument karmada apiserver endpoint
+		// We accept the control-plane location as a required positional argument karmada apiserver endpoint
 		Args: cobra.ExactArgs(1),
 	}
 	flags := cmd.Flags()
@@ -189,6 +185,8 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 	flags.StringSliceVar(&opts.ClusterZones, "cluster-zones", []string{}, "The zones of the joining cluster. The Karmada scheduler can use this information to spread workloads across zones for higher availability.")
 	flags.BoolVar(&opts.EnableCertRotation, "enable-cert-rotation", false, "Enable means controller would rotate certificate for karmada-agent when the certificate is about to expire.")
 	flags.StringVar(&opts.CACertPath, "ca-cert-path", CACertPath, "The path to the SSL certificate authority used to secure communications between member cluster and karmada-control-plane.")
+	// nolint: errcheck
+	flags.MarkDeprecated("ca-cert-path", "The flag --ca-cert-path has been marked deprecated because it has never been used, and will be removed in the future release.")
 	flags.StringVar(&opts.BootstrapToken.Token, "token", "", "For token-based discovery, the token used to validate cluster information fetched from the API server.")
 	flags.StringSliceVar(&opts.BootstrapToken.CACertHashes, "discovery-token-ca-cert-hash", []string{}, "For token-based discovery, validate that the root CA public key matches this hash (format: \"<type>:<value>\").")
 	flags.BoolVar(&opts.BootstrapToken.UnsafeSkipCAVerification, "discovery-token-unsafe-skip-ca-verification", false, "For token-based discovery, allow joining without --discovery-token-ca-cert-hash pinning.")
@@ -317,10 +315,6 @@ func (o *CommandRegisterOption) Validate() error {
 		return fmt.Errorf("need to verify CACertHashes, or set --discovery-token-unsafe-skip-ca-verification=true")
 	}
 
-	if !filepath.IsAbs(o.CACertPath) || !strings.HasSuffix(o.CACertPath, ".crt") {
-		return fmt.Errorf("the ca certificate path must be an absolute path: %s", o.CACertPath)
-	}
-
 	return nil
 }
 
@@ -346,19 +340,9 @@ func (o *CommandRegisterOption) Run(parentCommand string) error {
 		return nil
 	}
 
-	bootstrapKubeConfigFile := filepath.Join(KarmadaDir, KarmadaAgentBootstrapKubeConfigFileName)
-
-	// Deletes the bootstrapKubeConfigFile, so the credential used for TLS bootstrap is removed from disk
-	defer func(name string) {
-		err := os.Remove(name)
-		if err != nil {
-			klog.Warningf("Failed to remove bootstrapKubeConfigFile: %v", err)
-		}
-	}(bootstrapKubeConfigFile)
-
 	// fetch the bootstrap client to connect to karmada apiserver temporarily
 	fmt.Println("[karmada-agent-start] Waiting to perform the TLS Bootstrap")
-	bootstrapClient, karmadaClusterInfo, err := o.discoveryBootstrapConfigAndClusterInfo(bootstrapKubeConfigFile, parentCommand)
+	bootstrapClient, karmadaClusterInfo, err := o.discoveryBootstrapConfigAndClusterInfo(parentCommand)
 	if err != nil {
 		return err
 	}
@@ -471,11 +455,6 @@ func (o *CommandRegisterOption) EnsureNecessaryResourcesExistInMemberCluster(boo
 func (o *CommandRegisterOption) preflight() []error {
 	var errlist []error
 
-	// check if the given file already exist
-	errlist = appendError(errlist, checkFileIfExist(filepath.Join(KarmadaDir, KarmadaAgentBootstrapKubeConfigFileName)))
-	errlist = appendError(errlist, checkFileIfExist(filepath.Join(KarmadaDir, KarmadaAgentKubeConfigFileName)))
-	errlist = appendError(errlist, checkFileIfExist(CACertPath))
-
 	// check if relative resources already exist in member cluster
 	_, err := o.memberClusterClient.CoreV1().Namespaces().Get(context.TODO(), o.Namespace, metav1.GetOptions{})
 	if err == nil {
@@ -504,27 +483,8 @@ func (o *CommandRegisterOption) preflight() []error {
 	return errlist
 }
 
-// appendError append err to errlist
-func appendError(errlist []error, err error) []error {
-	if err == nil {
-		return errlist
-	}
-	errlist = append(errlist, err)
-	return errlist
-}
-
-// checkFileIfExist validates if the given file already exist.
-func checkFileIfExist(filePath string) error {
-	klog.V(1).Infof("Validating the existence of file %s", filePath)
-
-	if _, err := os.Stat(filePath); err == nil {
-		return fmt.Errorf("%s already exists", filePath)
-	}
-	return nil
-}
-
 // discoveryBootstrapConfigAndClusterInfo get bootstrap-config and cluster-info from control plane
-func (o *CommandRegisterOption) discoveryBootstrapConfigAndClusterInfo(bootstrapKubeConfigFile, parentCommand string) (*kubeclient.Clientset, *clientcmdapi.Cluster, error) {
+func (o *CommandRegisterOption) discoveryBootstrapConfigAndClusterInfo(parentCommand string) (*kubeclient.Clientset, *clientcmdapi.Cluster, error) {
 	config, err := retrieveValidatedConfigInfo(nil, o.BootstrapToken, o.Timeout, DiscoveryRetryInterval, parentCommand)
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't validate the identity of the API Server: %w", err)
@@ -540,25 +500,9 @@ func (o *CommandRegisterOption) discoveryBootstrapConfigAndClusterInfo(bootstrap
 		o.BootstrapToken.Token,
 	)
 
-	// Write the TLS-Bootstrapped karmada-agent config file down to disk
-	klog.V(1).Infof("[discovery] writing bootstrap karmada-agent config file at %s", bootstrapKubeConfigFile)
-	if err := WriteToDisk(bootstrapKubeConfigFile, tlsBootstrapCfg); err != nil {
-		return nil, nil, fmt.Errorf("couldn't save %s to disk: %w", KarmadaAgentBootstrapKubeConfigFileName, err)
-	}
-
-	// Write the ca certificate to disk so karmada-agent can use it for authentication
-	cluster := tlsBootstrapCfg.Contexts[tlsBootstrapCfg.CurrentContext].Cluster
-	caPath := o.CACertPath
-	if _, err := os.Stat(caPath); os.IsNotExist(err) {
-		klog.V(1).Infof("[discovery] writing CA certificate at %s", caPath)
-		if err := certutil.WriteCert(caPath, tlsBootstrapCfg.Clusters[cluster].CertificateAuthorityData); err != nil {
-			return nil, nil, fmt.Errorf("couldn't save the CA certificate to disk: %w", err)
-		}
-	}
-
-	bootstrapClient, err := ClientSetFromFile(bootstrapKubeConfigFile)
+	bootstrapClient, err := ToClientSet(tlsBootstrapCfg)
 	if err != nil {
-		return nil, nil, fmt.Errorf("couldn't create client from kubeconfig file %q", bootstrapKubeConfigFile)
+		return nil, nil, fmt.Errorf("couldn't create bootstrap client: %w", err)
 	}
 
 	return bootstrapClient, clusterinfo, nil
@@ -944,20 +888,7 @@ func (o *CommandRegisterOption) constructKubeConfig(bootstrapClient *kubeclient.
 func (o *CommandRegisterOption) constructKarmadaAgentConfig(bootstrapClient *kubeclient.Clientset, karmadaClusterInfo *clientcmdapi.Cluster) (*clientcmdapi.Config, error) {
 	csrName := o.ClusterName + "-" + k8srand.String(5)
 
-	karmadaAgentCfg, err := o.constructKubeConfig(bootstrapClient, karmadaClusterInfo, csrName, generateAgentUserName(o.ClusterName), []string{ClusterPermissionGroups})
-	if err != nil {
-		return nil, err
-	}
-
-	kubeConfigFile := filepath.Join(KarmadaDir, KarmadaAgentKubeConfigFileName)
-
-	// Write the karmada-agent config file down to disk
-	klog.V(1).Infof("writing bootstrap karmada-agent config file at %s", kubeConfigFile)
-	if err := WriteToDisk(kubeConfigFile, karmadaAgentCfg); err != nil {
-		return nil, fmt.Errorf("couldn't save %s to disk: %w", KarmadaAgentKubeConfigFileName, err)
-	}
-
-	return karmadaAgentCfg, nil
+	return o.constructKubeConfig(bootstrapClient, karmadaClusterInfo, csrName, generateAgentUserName(o.ClusterName), []string{ClusterPermissionGroups})
 }
 
 // constructKarmadaAgentConfig constructs the kubeconfig to generate rbac config for karmada-agent.
@@ -1396,25 +1327,6 @@ func CreateBasic(serverURL, clusterName, userName string, caCert []byte) *client
 		AuthInfos:      map[string]*clientcmdapi.AuthInfo{},
 		CurrentContext: contextName,
 	}
-}
-
-// WriteToDisk writes a KubeConfig object down to disk with mode 0600
-func WriteToDisk(filename string, kubeconfig *clientcmdapi.Config) error {
-	err := clientcmd.WriteToFile(*kubeconfig, filename)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ClientSetFromFile returns a ready-to-use client from a kubeconfig file
-func ClientSetFromFile(path string) (*kubeclient.Clientset, error) {
-	config, err := clientcmd.LoadFromFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load admin kubeconfig: %w", err)
-	}
-	return ToClientSet(config)
 }
 
 // ToClientSet converts a KubeConfig object to a client
