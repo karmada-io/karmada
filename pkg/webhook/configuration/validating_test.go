@@ -271,6 +271,20 @@ func TestValidateWebhook(t *testing.T) {
 			},
 			expectedError: fmt.Sprintf("must include at least one of %v", strings.Join(acceptedInterpreterContextVersions, ", ")),
 		},
+		{
+			name: "valid webhook configuration: use Service in ClientConfig but with port unspecified",
+			hook: &configv1alpha1.ResourceInterpreterWebhook{
+				Name: "workloads.karmada.io",
+				ClientConfig: admissionregistrationv1.WebhookClientConfig{
+					Service: &admissionregistrationv1.ServiceReference{
+						Namespace: "default",
+						Name:      "svc",
+						Path:      strPtr("/interpreter"),
+					},
+				},
+				InterpreterContextVersions: []string{"v1alpha1"},
+			},
+		},
 	}
 
 	for _, test := range tests {
