@@ -89,7 +89,7 @@ type customResourceInterpreterImpl struct {
 func (i *customResourceInterpreterImpl) Start(ctx context.Context) (err error) {
 	klog.Infof("Starting custom resource interpreter.")
 
-	i.customizedInterpreter, err = webhook.NewCustomizedInterpreter(i.informer, i.serviceLister)
+	i.customizedInterpreter, err = webhook.NewCustomizedInterpreter(i.informer)
 	if err != nil {
 		return
 	}
