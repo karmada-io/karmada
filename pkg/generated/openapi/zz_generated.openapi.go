@@ -4757,6 +4757,13 @@ func schema_pkg_apis_policy_v1alpha1_Placement(ref common.ReferenceCallback) com
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ReplicaSchedulingStrategy"),
 						},
 					},
+					"priorityClassName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PriorityClassName specifies which PriorityClass object should be used to determine the binding's priority and preemption policy.\n\nA custom PriorityClassName must reference an existing PriorityClass object. If not specified, the binding will use the global default PriorityClass. If no global default PriorityClass exists, the binding will have: - priority: 0 - preemptionPolicy: \"Never\"",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
