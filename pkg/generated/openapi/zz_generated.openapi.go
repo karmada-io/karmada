@@ -5350,6 +5350,13 @@ func schema_pkg_apis_policy_v1alpha1_Suspension(ref common.ReferenceCallback) co
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SuspendClusters"),
 						},
 					},
+					"scheduling": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Scheduling controls whether scheduling should be suspended. nil means not suspend, no default value, only accepts 'true'. Karmada scheduler will pause scheduling when value is true and resume scheduling when it's nil.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

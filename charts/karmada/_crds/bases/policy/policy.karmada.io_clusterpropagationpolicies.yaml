@@ -895,6 +895,12 @@ spec:
                           type: string
                         type: array
                     type: object
+                  scheduling:
+                    description: |-
+                      Scheduling controls whether scheduling should be suspended.
+                      nil means not suspend, no default value, only accepts 'true'.
+                      Karmada scheduler will pause scheduling when value is true and resume scheduling when it's nil.
+                    type: boolean
                 type: object
             required:
             - resourceSelectors
