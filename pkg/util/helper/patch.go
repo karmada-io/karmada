@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
+	jsonpatchv2 "gomodules.xyz/jsonpatch/v2"
 )
 
 // GenMergePatch will return a merge patch document capable of converting the
@@ -65,4 +66,28 @@ func GenFieldMergePatch(fieldName string, originField interface{}, modifiedField
 	patchBytes = append(patchBytes, '}')
 	patchBytes = append([]byte(`{"`+fieldName+`":`), patchBytes...)
 	return patchBytes, nil
+}
+
+// GenJSONPatch returns a rfc6902 format json patch.
+// The merge patch format is primarily intended for use with the HTTP PATCH method
+// as a means of describing a set of modifications to a target resource's content.
+func GenJSONPatch(old, new interface{}) ([]byte, error) {
+	oldJSON, err := json.Marshal(old)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal old object: %v", err)
+	}
+	newJSON, err := json.Marshal(new)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal new object: %v", err)
+	}
+	patchBytes, err := jsonpatchv2.CreatePatch(oldJSON, newJSON)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate patch: %v", err)
+	}
+
+	patchJSON, err := json.Marshal(patchBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal patch: %v", err)
+	}
+	return patchJSON, nil
 }

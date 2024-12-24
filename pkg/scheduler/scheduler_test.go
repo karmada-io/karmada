@@ -566,7 +566,7 @@ func TestScheduleResourceBindingWithClusterAffinities(t *testing.T) {
 			expectError:    false,
 			expectedPatches: []string{
 				`{"metadata":{"annotations":{"policy.karmada.io/applied-placement":"{\"clusterAffinities\":[{\"affinityName\":\"affinity1\",\"clusterNames\":[\"cluster1\"]},{\"affinityName\":\"affinity2\",\"clusterNames\":[\"cluster2\"]}]}"}},"spec":{"clusters":[{"name":"cluster1","replicas":1}]}}`,
-				`{"status":{"schedulerObservingAffinityName":"affinity1"}}`,
+				`[{"op":"add", "path":"/status/schedulerObservingAffinityName", "value":"affinity1"}]`,
 			},
 			expectedEvent: "Normal ScheduleBindingSucceed Binding has been scheduled successfully.",
 		},
@@ -608,7 +608,7 @@ func TestScheduleResourceBindingWithClusterAffinities(t *testing.T) {
 			expectError:    false,
 			expectedPatches: []string{
 				`{"metadata":{"annotations":{"policy.karmada.io/applied-placement":"{\"clusterAffinities\":[{\"affinityName\":\"affinity1\",\"clusterNames\":[\"cluster1\"]},{\"affinityName\":\"affinity2\",\"clusterNames\":[\"cluster2\"]}]}"}},"spec":{"clusters":[{"name":"cluster2","replicas":1}]}}`,
-				`{"status":{"schedulerObservingAffinityName":"affinity2"}}`,
+				`[{"op":"add","path":"/status/schedulerObservingAffinityName","value":"affinity2"}]`,
 			},
 			expectedEvent: "Warning ScheduleBindingFailed failed to schedule ResourceBinding(default/test-binding-2) with clusterAffiliates index(0): first affinity failed",
 		},

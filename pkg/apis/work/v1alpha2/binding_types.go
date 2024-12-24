@@ -385,6 +385,9 @@ const (
 	// FullyApplied represents the condition that the resource referencing by ResourceBinding or ClusterResourceBinding
 	// has been applied to all scheduled clusters.
 	FullyApplied string = "FullyApplied"
+
+	// SchedulingSuspended represents the condition that the ResourceBinding or ClusterResourceBinding is suspended to schedule.
+	SchedulingSuspended string = "SchedulingSuspended"
 )
 
 // These are reasons for a binding's transition to a Scheduled condition.
