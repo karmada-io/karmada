@@ -31,7 +31,6 @@ import (
 	webhookutil "k8s.io/apiserver/pkg/util/webhook"
 	corev1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
-	"k8s.io/kube-aggregator/pkg/apiserver"
 	utiltrace "k8s.io/utils/trace"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -70,7 +69,7 @@ func NewCustomizedInterpreter(informer genericmanager.SingleClusterInformerManag
 	}
 
 	cm.SetAuthenticationInfoResolver(authInfoResolver)
-	cm.SetServiceResolver(apiserver.NewClusterIPServiceResolver(serviceLister))
+	cm.SetServiceResolver(NewServiceResolver(serviceLister))
 
 	return &CustomizedInterpreter{
 		hookManager:   configmanager.NewExploreConfigManager(informer),
