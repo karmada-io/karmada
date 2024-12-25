@@ -28,6 +28,7 @@ import (
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 
 	"github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
+	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/certs"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/util"
@@ -35,6 +36,18 @@ import (
 )
 
 func TestNewCertTask(t *testing.T) {
+	karmada := &operatorv1alpha1.Karmada{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "karmada",
+		},
+		Spec: operatorv1alpha1.KarmadaSpec{
+			Components: &operatorv1alpha1.KarmadaComponents{
+				Etcd: &operatorv1alpha1.Etcd{
+					Local: &operatorv1alpha1.LocalEtcd{},
+				},
+			},
+		},
+	}
 	tests := []struct {
 		name     string
 		wantTask workflow.Task
@@ -46,14 +59,14 @@ func TestNewCertTask(t *testing.T) {
 				Run:         runCerts,
 				Skip:        skipCerts,
 				RunSubTasks: true,
-				Tasks:       newCertSubTasks(),
+				Tasks:       newCertSubTasks(karmada),
 			},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			certTask := NewCertTask()
+			certTask := NewCertTask(karmada)
 			err := util.DeepEqualTasks(certTask, test.wantTask)
 			if err != nil {
 				t.Errorf("unexpected error, got %v", err)
