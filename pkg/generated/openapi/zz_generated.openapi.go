@@ -180,6 +180,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ResourceBindingList":                           schema_pkg_apis_work_v1alpha2_ResourceBindingList(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ResourceBindingSpec":                           schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ResourceBindingStatus":                         schema_pkg_apis_work_v1alpha2_ResourceBindingStatus(ref),
+		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.Suspension":                                    schema_pkg_apis_work_v1alpha2_Suspension(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster":                                 schema_pkg_apis_work_v1alpha2_TargetCluster(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TaskOptions":                                   schema_pkg_apis_work_v1alpha2_TaskOptions(ref),
 		"k8s.io/api/admissionregistration/v1.AuditAnnotation":                                                schema_k8sio_api_admissionregistration_v1_AuditAnnotation(ref),
@@ -7374,7 +7375,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 					"suspension": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Suspension declares the policy for suspending different aspects of propagation. nil means no suspension. no default values.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Suspension"),
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.Suspension"),
 						},
 					},
 					"preserveResourcesOnDeletion": {
@@ -7389,7 +7390,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Suspension", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.BindingSnapshot", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.GracefulEvictionTask", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ObjectReference", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.BindingSnapshot", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.GracefulEvictionTask", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ObjectReference", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.Suspension", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -7453,6 +7454,34 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingStatus(ref common.ReferenceCal
 		},
 		Dependencies: []string{
 			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.AggregatedStatusItem", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_pkg_apis_work_v1alpha2_Suspension(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Suspension defines the policy for suspending of propagation.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"dispatching": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Dispatching controls whether dispatching should be suspended. nil means not suspend, no default value, only accepts 'true'. Note: true means stop propagating to all clusters. Can not co-exist with DispatchingOnClusters which is used to suspend particular clusters.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"dispatchingOnClusters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DispatchingOnClusters declares a list of clusters to which the dispatching should be suspended. Note: Can not co-exist with Dispatching which is used to suspend all.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SuspendClusters"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SuspendClusters"},
 	}
 }
 
