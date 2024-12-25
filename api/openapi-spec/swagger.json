@@ -20395,7 +20395,7 @@
         },
         "suspension": {
           "description": "Suspension declares the policy for suspending different aspects of propagation. nil means no suspension. no default values.",
-          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Suspension"
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.Suspension"
         }
       }
     },
@@ -20431,6 +20431,20 @@
         "schedulerObservingAffinityName": {
           "description": "SchedulerObservedAffinityName is the name of affinity term that is the basis of current scheduling.",
           "type": "string"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.Suspension": {
+      "description": "Suspension defines the policy for suspending of propagation.",
+      "type": "object",
+      "properties": {
+        "dispatching": {
+          "description": "Dispatching controls whether dispatching should be suspended. nil means not suspend, no default value, only accepts 'true'. Note: true means stop propagating to all clusters. Can not co-exist with DispatchingOnClusters which is used to suspend particular clusters.",
+          "type": "boolean"
+        },
+        "dispatchingOnClusters": {
+          "description": "DispatchingOnClusters declares a list of clusters to which the dispatching should be suspended. Note: Can not co-exist with Dispatching which is used to suspend all.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.SuspendClusters"
         }
       }
     },

@@ -150,7 +150,7 @@ type ResourceBindingSpec struct {
 	// Suspension declares the policy for suspending different aspects of propagation.
 	// nil means no suspension. no default values.
 	// +optional
-	Suspension *policyv1alpha1.Suspension `json:"suspension,omitempty"`
+	Suspension *Suspension `json:"suspension,omitempty"`
 
 	// PreserveResourcesOnDeletion controls whether resources should be preserved on the
 	// member clusters when the binding object is deleted.
@@ -320,6 +320,11 @@ type BindingSnapshot struct {
 	// Clusters represents the scheduled result.
 	// +optional
 	Clusters []TargetCluster `json:"clusters,omitempty"`
+}
+
+// Suspension defines the policy for suspending of propagation.
+type Suspension struct {
+	policyv1alpha1.Suspension `json:",inline"`
 }
 
 // ResourceBindingStatus represents the overall status of the strategy as well as the referenced resources.

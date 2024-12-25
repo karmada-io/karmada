@@ -724,7 +724,6 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 			Placement:                   &policySpec.Placement,
 			Failover:                    policySpec.Failover,
 			ConflictResolution:          policySpec.ConflictResolution,
-			Suspension:                  policySpec.Suspension,
 			PreserveResourcesOnDeletion: policySpec.PreserveResourcesOnDeletion,
 			Resource: workv1alpha2.ObjectReference{
 				APIVersion:      object.GetAPIVersion(),
@@ -736,6 +735,11 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 			},
 		},
 	}
+
+	if policySpec.Suspension != nil {
+		propagationBinding.Spec.Suspension = &workv1alpha2.Suspension{Suspension: *policySpec.Suspension}
+	}
+
 	claimFunc(propagationBinding, policyID, policyMeta)
 
 	if d.ResourceInterpreter.HookEnabled(object.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretReplica) {
@@ -769,7 +773,6 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 			Placement:                   &policySpec.Placement,
 			Failover:                    policySpec.Failover,
 			ConflictResolution:          policySpec.ConflictResolution,
-			Suspension:                  policySpec.Suspension,
 			PreserveResourcesOnDeletion: policySpec.PreserveResourcesOnDeletion,
 			Resource: workv1alpha2.ObjectReference{
 				APIVersion:      object.GetAPIVersion(),
@@ -779,6 +782,10 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 				ResourceVersion: object.GetResourceVersion(),
 			},
 		},
+	}
+
+	if policySpec.Suspension != nil {
+		binding.Spec.Suspension = &workv1alpha2.Suspension{Suspension: *policySpec.Suspension}
 	}
 
 	AddCPPClaimMetadata(binding, policyID, policyMeta)
