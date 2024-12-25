@@ -33,13 +33,13 @@ import (
 )
 
 // NewCertTask init a Certs task to generate all of karmada certs
-func NewCertTask() workflow.Task {
+func NewCertTask(karmada *operatorv1alpha1.Karmada) workflow.Task {
 	return workflow.Task{
 		Name:        "Certs",
 		Run:         runCerts,
 		Skip:        skipCerts,
 		RunSubTasks: true,
-		Tasks:       newCertSubTasks(),
+		Tasks:       newCertSubTasks(karmada),
 	}
 }
 
@@ -74,11 +74,11 @@ func skipCerts(d workflow.RunData) (bool, error) {
 	return true, nil
 }
 
-func newCertSubTasks() []workflow.Task {
+func newCertSubTasks(karmada *operatorv1alpha1.Karmada) []workflow.Task {
 	var subTasks []workflow.Task
 	caCert := map[string]*certs.CertConfig{}
 
-	for _, cert := range certs.GetDefaultCertList() {
+	for _, cert := range certs.GetDefaultCertList(karmada) {
 		var task workflow.Task
 
 		if cert.CAName == "" {

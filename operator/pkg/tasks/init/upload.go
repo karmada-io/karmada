@@ -26,6 +26,7 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/klog/v2"
 
+	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/certs"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/util"
@@ -179,25 +180,29 @@ func buildKubeConfigFromSpec(data InitData, serverURL string) (*clientcmdapi.Con
 }
 
 // NewUploadCertsTask init a Upload-Certs task
-func NewUploadCertsTask() workflow.Task {
+func NewUploadCertsTask(karmada *operatorv1alpha1.Karmada) workflow.Task {
+	tasks := []workflow.Task{
+		{
+			Name: "Upload-KarmadaCert",
+			Run:  runUploadKarmadaCert,
+		},
+		{
+			Name: "Upload-WebHookCert",
+			Run:  runUploadWebHookCert,
+		},
+	}
+	if karmada.Spec.Components.Etcd.Local != nil {
+		uploadEtcdTask := workflow.Task{
+			Name: "Upload-EtcdCert",
+			Run:  runUploadEtcdCert,
+		}
+		tasks = append(tasks, uploadEtcdTask)
+	}
 	return workflow.Task{
 		Name:        "Upload-Certs",
 		Run:         runUploadCerts,
 		RunSubTasks: true,
-		Tasks: []workflow.Task{
-			{
-				Name: "Upload-KarmadaCert",
-				Run:  runUploadKarmadaCert,
-			},
-			{
-				Name: "Upload-EtcdCert",
-				Run:  runUploadEtcdCert,
-			},
-			{
-				Name: "Upload-WebHookCert",
-				Run:  runUploadWebHookCert,
-			},
-		},
+		Tasks:       tasks,
 	}
 }
 
