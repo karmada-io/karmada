@@ -85,8 +85,8 @@ func (config *CertConfig) defaultNotAfter() {
 }
 
 // GetDefaultCertList returns all of karmada certConfigs, it include karmada, front and etcd.
-func GetDefaultCertList() []*CertConfig {
-	return []*CertConfig{
+func GetDefaultCertList(karmada *operatorv1alpha1.Karmada) []*CertConfig {
+	certConfigs := []*CertConfig{
 		// karmada cert config.
 		KarmadaCertRootCA(),
 		KarmadaCertAdmin(),
@@ -94,11 +94,11 @@ func GetDefaultCertList() []*CertConfig {
 		// front proxy cert config.
 		KarmadaCertFrontProxyCA(),
 		KarmadaCertFrontProxyClient(),
-		// ETCD cert config.
-		KarmadaCertEtcdCA(),
-		KarmadaCertEtcdServer(),
-		KarmadaCertEtcdClient(),
 	}
+	if karmada.Spec.Components.Etcd.Local != nil {
+		certConfigs = append(certConfigs, KarmadaCertEtcdCA(), KarmadaCertEtcdServer(), KarmadaCertEtcdClient())
+	}
+	return certConfigs
 }
 
 // KarmadaCertRootCA returns karmada ca cert config.
