@@ -302,7 +302,7 @@ func needReviseReplicas(replicas int32, placement *policyv1alpha1.Placement) boo
 	return replicas > 0 && placement != nil && placement.ReplicaSchedulingType() == policyv1alpha1.ReplicaSchedulingTypeDivided
 }
 
-func shouldSuspendDispatching(suspension *policyv1alpha1.Suspension, targetCluster workv1alpha2.TargetCluster) bool {
+func shouldSuspendDispatching(suspension *workv1alpha2.Suspension, targetCluster workv1alpha2.TargetCluster) bool {
 	if suspension == nil {
 		return false
 	}

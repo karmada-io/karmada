@@ -321,7 +321,7 @@ func Test_mergeConflictResolution(t *testing.T) {
 
 func Test_shouldSuspendDispatching(t *testing.T) {
 	type args struct {
-		suspension    *policyv1alpha1.Suspension
+		suspension    *workv1alpha2.Suspension
 		targetCluster workv1alpha2.TargetCluster
 	}
 	tests := []struct {
@@ -337,28 +337,28 @@ func Test_shouldSuspendDispatching(t *testing.T) {
 		{
 			name: "false for nil dispatching",
 			args: args{
-				suspension: &policyv1alpha1.Suspension{Dispatching: nil},
+				suspension: &workv1alpha2.Suspension{Suspension: policyv1alpha1.Suspension{Dispatching: nil}},
 			},
 			want: false,
 		},
 		{
 			name: "false for not suspension",
 			args: args{
-				suspension: &policyv1alpha1.Suspension{Dispatching: ptr.To(false)},
+				suspension: &workv1alpha2.Suspension{Suspension: policyv1alpha1.Suspension{Dispatching: ptr.To(false)}},
 			},
 			want: false,
 		},
 		{
 			name: "true for suspension",
 			args: args{
-				suspension: &policyv1alpha1.Suspension{Dispatching: ptr.To(true)},
+				suspension: &workv1alpha2.Suspension{Suspension: policyv1alpha1.Suspension{Dispatching: ptr.To(true)}},
 			},
 			want: true,
 		},
 		{
 			name: "true for matching cluster",
 			args: args{
-				suspension:    &policyv1alpha1.Suspension{DispatchingOnClusters: &policyv1alpha1.SuspendClusters{ClusterNames: []string{"clusterA"}}},
+				suspension:    &workv1alpha2.Suspension{Suspension: policyv1alpha1.Suspension{DispatchingOnClusters: &policyv1alpha1.SuspendClusters{ClusterNames: []string{"clusterA"}}}},
 				targetCluster: workv1alpha2.TargetCluster{Name: "clusterA"},
 			},
 			want: true,
@@ -366,7 +366,7 @@ func Test_shouldSuspendDispatching(t *testing.T) {
 		{
 			name: "false for mismatched cluster",
 			args: args{
-				suspension:    &policyv1alpha1.Suspension{DispatchingOnClusters: &policyv1alpha1.SuspendClusters{ClusterNames: []string{"clusterB"}}},
+				suspension:    &workv1alpha2.Suspension{Suspension: policyv1alpha1.Suspension{DispatchingOnClusters: &policyv1alpha1.SuspendClusters{ClusterNames: []string{"clusterB"}}}},
 				targetCluster: workv1alpha2.TargetCluster{Name: "clusterA"},
 			},
 			want: false,
