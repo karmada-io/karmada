@@ -90,15 +90,12 @@ func (c *RebalancerController) Reconcile(ctx context.Context, req controllerrunt
 		return controllerruntime.Result{}, err
 	}
 
-	if rebalancer.Status.FinishTime == nil {
-		// should never reach here.
-		klog.Errorf("finishTime shouldn't be nil, current status: %+v", rebalancer.Status)
-		return controllerruntime.Result{}, nil
-	}
-
 	// 3. when all workloads finished, judge whether the rebalancer needs cleanup.
 	rebalancer.Status = *newStatus
 	if rebalancer.Spec.TTLSecondsAfterFinished != nil {
+		if rebalancer.Status.FinishTime == nil {
+			return controllerruntime.Result{}, fmt.Errorf("finish time should not be nil")
+		}
 		remainingTTL := timeLeft(rebalancer)
 		if remainingTTL > 0 {
 			return controllerruntime.Result{RequeueAfter: remainingTTL}, nil
