@@ -309,17 +309,17 @@ func TestGetWorksByBindingID(t *testing.T) {
 	assert.NoError(t, workv1alpha1.Install(scheme))
 
 	bindingID := "test-binding-id"
-	work1 := &workv1alpha1.Work{
+	workWithRBID := &workv1alpha1.Work{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "work1",
+			Name: "workWithRBID",
 			Labels: map[string]string{
 				workv1alpha2.ResourceBindingPermanentIDLabel: bindingID,
 			},
 		},
 	}
-	work2 := &workv1alpha1.Work{
+	workWithCRBID := &workv1alpha1.Work{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "work2",
+			Name: "workWithCRBID",
 			Labels: map[string]string{
 				workv1alpha2.ClusterResourceBindingPermanentIDLabel: bindingID,
 			},
@@ -327,36 +327,44 @@ func TestGetWorksByBindingID(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		works      []client.Object
-		bindingID  string
-		namespaced bool
-		wantWorks  []string
+		name           string
+		works          []client.Object
+		bindingID      string
+		permanentIDKey string
+		namespaced     bool
+		wantWorks      []string
 	}{
 		{
-			name:       "find namespaced binding works",
-			works:      []client.Object{work1, work2},
-			bindingID:  bindingID,
-			namespaced: true,
-			wantWorks:  []string{"work1"},
+			name:           "find namespaced binding works",
+			works:          []client.Object{workWithRBID, workWithCRBID},
+			bindingID:      bindingID,
+			permanentIDKey: workv1alpha2.ResourceBindingPermanentIDLabel,
+			namespaced:     true,
+			wantWorks:      []string{"workWithRBID"},
 		},
 		{
-			name:       "find cluster binding works",
-			works:      []client.Object{work1, work2},
-			bindingID:  bindingID,
-			namespaced: false,
-			wantWorks:  []string{"work2"},
+			name:           "find cluster binding works",
+			works:          []client.Object{workWithRBID, workWithCRBID},
+			bindingID:      bindingID,
+			permanentIDKey: workv1alpha2.ClusterResourceBindingPermanentIDLabel,
+			namespaced:     false,
+			wantWorks:      []string{"workWithCRBID"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client := fake.NewClientBuilder().
+			fakeClient := fake.NewClientBuilder().
 				WithScheme(scheme).
+				WithIndex(
+					&workv1alpha1.Work{},
+					tt.permanentIDKey,
+					IndexerFuncBasedOnLabel(tt.permanentIDKey),
+				).
 				WithObjects(tt.works...).
 				Build()
 
-			workList, err := GetWorksByBindingID(context.TODO(), client, tt.bindingID, tt.namespaced)
+			workList, err := GetWorksByBindingID(context.TODO(), fakeClient, tt.bindingID, tt.namespaced)
 
 			assert.NoError(t, err)
 			assert.Equal(t, len(tt.wantWorks), len(workList.Items))
