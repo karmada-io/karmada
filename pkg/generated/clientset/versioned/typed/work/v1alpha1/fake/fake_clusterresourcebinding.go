@@ -20,8 +20,11 @@ package fake
 
 import (
 	"context"
+	json "encoding/json"
+	"fmt"
 
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfiguration/work/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	types "k8s.io/apimachinery/pkg/types"
@@ -131,6 +134,51 @@ func (c *FakeClusterResourceBindings) Patch(ctx context.Context, name string, pt
 	emptyResult := &v1alpha1.ClusterResourceBinding{}
 	obj, err := c.Fake.
 		Invokes(testing.NewRootPatchSubresourceActionWithOptions(clusterresourcebindingsResource, name, pt, data, opts, subresources...), emptyResult)
+	if obj == nil {
+		return emptyResult, err
+	}
+	return obj.(*v1alpha1.ClusterResourceBinding), err
+}
+
+// Apply takes the given apply declarative configuration, applies it and returns the applied clusterResourceBinding.
+func (c *FakeClusterResourceBindings) Apply(ctx context.Context, clusterResourceBinding *workv1alpha1.ClusterResourceBindingApplyConfiguration, opts v1.ApplyOptions) (result *v1alpha1.ClusterResourceBinding, err error) {
+	if clusterResourceBinding == nil {
+		return nil, fmt.Errorf("clusterResourceBinding provided to Apply must not be nil")
+	}
+	data, err := json.Marshal(clusterResourceBinding)
+	if err != nil {
+		return nil, err
+	}
+	name := clusterResourceBinding.Name
+	if name == nil {
+		return nil, fmt.Errorf("clusterResourceBinding.Name must be provided to Apply")
+	}
+	emptyResult := &v1alpha1.ClusterResourceBinding{}
+	obj, err := c.Fake.
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(clusterresourcebindingsResource, *name, types.ApplyPatchType, data, opts.ToPatchOptions()), emptyResult)
+	if obj == nil {
+		return emptyResult, err
+	}
+	return obj.(*v1alpha1.ClusterResourceBinding), err
+}
+
+// ApplyStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+func (c *FakeClusterResourceBindings) ApplyStatus(ctx context.Context, clusterResourceBinding *workv1alpha1.ClusterResourceBindingApplyConfiguration, opts v1.ApplyOptions) (result *v1alpha1.ClusterResourceBinding, err error) {
+	if clusterResourceBinding == nil {
+		return nil, fmt.Errorf("clusterResourceBinding provided to Apply must not be nil")
+	}
+	data, err := json.Marshal(clusterResourceBinding)
+	if err != nil {
+		return nil, err
+	}
+	name := clusterResourceBinding.Name
+	if name == nil {
+		return nil, fmt.Errorf("clusterResourceBinding.Name must be provided to Apply")
+	}
+	emptyResult := &v1alpha1.ClusterResourceBinding{}
+	obj, err := c.Fake.
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(clusterresourcebindingsResource, *name, types.ApplyPatchType, data, opts.ToPatchOptions(), "status"), emptyResult)
 	if obj == nil {
 		return emptyResult, err
 	}
