@@ -22,51 +22,76 @@ spec:
     statusAggregation:
       luaScript: >
         function AggregateStatus(desiredObj, statusItems)
+          if desiredObj.status == nil then
+            desiredObj.status = {}
+          end
+          if desiredObj.metadata.generation == nil then
+            desiredObj.metadata.generation = 0
+          end
+          if desiredObj.status.observedGeneration == nil then
+            desiredObj.status.observedGeneration = 0
+          end
+
+          -- Initialize status fields if status doest not exist
+          -- If the Kustomization is not spread to any cluster, its status also should be aggregated
           if statusItems == nil then
+            desiredObj.status.observedGeneration = desiredObj.metadata.generation
+            desiredObj.status.lastAttemptedRevision = ''
+            desiredObj.status.lastAppliedRevision = ''
+            desiredObj.status.lastAttemptedValuesChecksum = ''
+            desiredObj.status.helmChart = ''
+            desiredObj.status.lastReleaseRevision = ''
+            desiredObj.status.failures = 0
+            desiredObj.status.upgradeFailures = 0
+            desiredObj.status.installFailures = 0
+            desiredObj.status.conditions = {}
             return desiredObj
           end
-          desiredObj.status = {}
-          desiredObj.status.conditions = {}
-          conditions = {}
+
+          local conditions = {}
+          local generation = desiredObj.metadata.generation
+          local lastAttemptedRevision = desiredObj.status.lastAttemptedRevision
+          local lastAppliedRevision = desiredObj.status.lastAppliedRevision
+          local lastAttemptedValuesChecksum = desiredObj.status.lastAttemptedValuesChecksum
+          local helmChart = desiredObj.status.helmChart
+          local lastReleaseRevision = desiredObj.status.lastReleaseRevision
+          local failures = desiredObj.status.failures
+          local upgradeFailures = desiredObj.status.upgradeFailures
+          local installFailures = desiredObj.status.installFailures
+
+          -- Count all members that their status is updated to the latest generation
+          local observedResourceTemplateGenerationCount = 0
+
           local conditionsIndex = 1
           for i = 1, #statusItems do
             if statusItems[i].status ~= nil and statusItems[i].status.lastAttemptedRevision ~= nil and statusItems[i].status.lastAttemptedRevision ~= '' then
-              desiredObj.status.lastAttemptedRevision = statusItems[i].status.lastAttemptedRevision
+              lastAttemptedRevision = statusItems[i].status.lastAttemptedRevision
             end
             if statusItems[i].status ~= nil and statusItems[i].status.lastAppliedRevision ~= nil and statusItems[i].status.lastAppliedRevision ~= '' then
-              desiredObj.status.lastAppliedRevision = statusItems[i].status.lastAppliedRevision
+              lastAppliedRevision = statusItems[i].status.lastAppliedRevision
             end        
-            if statusItems[i].status ~= nil and statusItems[i].status.lastHandledReconcileAt ~= nil and statusItems[i].status.lastHandledReconcileAt ~= '' then
-              desiredObj.status.lastHandledReconcileAt = statusItems[i].status.lastHandledReconcileAt
-            end
             if statusItems[i].status ~= nil and statusItems[i].status.lastAttemptedValuesChecksum ~= nil and statusItems[i].status.lastAttemptedValuesChecksum ~= '' then
-              desiredObj.status.lastAttemptedValuesChecksum = statusItems[i].status.lastAttemptedValuesChecksum
+              lastAttemptedValuesChecksum = statusItems[i].status.lastAttemptedValuesChecksum
             end
             if statusItems[i].status ~= nil and statusItems[i].status.helmChart ~= nil and statusItems[i].status.helmChart ~= '' then
-              desiredObj.status.helmChart = statusItems[i].status.helmChart
+              helmChart = statusItems[i].status.helmChart
             end
             if statusItems[i].status ~= nil and statusItems[i].status.lastReleaseRevision ~= nil then
-              desiredObj.status.lastReleaseRevision = statusItems[i].status.lastReleaseRevision
+              lastReleaseRevision = statusItems[i].status.lastReleaseRevision
             end
             if statusItems[i].status ~= nil and statusItems[i].status.failures ~= nil then
               if desiredObj.status.failures ~= nil then
-                desiredObj.status.failures = desiredObj.status.failures + statusItems[i].status.failures
-              else
-                desiredObj.status.failures = statusItems[i].status.failures
+                failures = failures + statusItems[i].status.failures
               end
             end
             if statusItems[i].status ~= nil and statusItems[i].status.upgradeFailures ~= nil then
               if desiredObj.status.upgradeFailures ~= nil then
-                desiredObj.status.upgradeFailures = desiredObj.status.upgradeFailures + statusItems[i].status.upgradeFailures
-              else
-                desiredObj.status.upgradeFailures = statusItems[i].status.upgradeFailures
+                upgradeFailures = upgradeFailures + statusItems[i].status.upgradeFailures
               end
             end
             if statusItems[i].status ~= nil and statusItems[i].status.installFailures ~= nil then
               if desiredObj.status.installFailures ~= nil then
-                desiredObj.status.installFailures = desiredObj.status.installFailures + statusItems[i].status.installFailures
-              else
-                desiredObj.status.installFailures = statusItems[i].status.installFailures
+                installFailures = installFailures + statusItems[i].status.installFailures
               end
             end
             if statusItems[i].status ~= nil and statusItems[i].status.conditions ~= nil then
@@ -86,9 +111,41 @@ spec:
                 end
               end
             end
+
+            -- Check if the member's status is updated to the latest generation
+            local resourceTemplateGeneration = 0
+            if statusItems[i].status ~= nil and statusItems[i].status.resourceTemplateGeneration ~= nil then 
+              resourceTemplateGeneration = statusItems[i].status.resourceTemplateGeneration
+            end
+            local memberGeneration = 0
+            if statusItems[i].status ~= nil and statusItems[i].status.generation ~= nil then
+              memberGeneration = statusItems[i].status.generation
+            end
+            local memberObservedGeneration = 0
+            if statusItems[i].status ~= nil and statusItems[i].status.observedGeneration ~= nil then
+              memberObservedGeneration = statusItems[i].status.observedGeneration
+            end
+            if resourceTemplateGeneration == generation and memberGeneration == memberObservedGeneration then
+              observedResourceTemplateGenerationCount = observedResourceTemplateGenerationCount + 1
+            end
           end
-          desiredObj.status.observedGeneration = desiredObj.metadata.generation
+
+          -- Update the observed generation based on the observedResourceTemplateGenerationCount
+          if observedResourceTemplateGenerationCount == #statusItems then
+            desiredObj.status.observedGeneration = generation
+          else
+            desiredObj.status.observedGeneration = observedGeneration 
+          end
+
           desiredObj.status.conditions = conditions
+          desiredObj.status.lastAttemptedRevision = lastAttemptedRevision
+          desiredObj.status.lastAppliedRevision = lastAppliedRevision
+          desiredObj.status.lastAttemptedValuesChecksum = lastAttemptedValuesChecksum
+          desiredObj.status.helmChart = helmChart
+          desiredObj.status.lastReleaseRevision = lastReleaseRevision
+          desiredObj.status.failures = failures
+          desiredObj.status.upgradeFailures = upgradeFailures
+          desiredObj.status.installFailures = installFailures
           return desiredObj
         end
     retention:
@@ -102,11 +159,37 @@ spec:
     statusReflection:
       luaScript: >
         function ReflectStatus (observedObj)
-          status = {}
-          if observedObj == nil or observedObj.status == nil then 
+          local status = {}
+          if observedObj == nil or observedObj.status == nil then
             return status
           end
-          return observedObj.status
+
+          status.conditions = observedObj.status.conditions
+          status.observedGeneration = observedObj.status.observedGeneration
+          status.lastAttemptedRevision = observedObj.status.lastAttemptedRevision
+          status.lastAppliedRevision = observedObj.status.lastAppliedRevision
+          status.lastAttemptedValuesChecksum = observedObj.status.lastAttemptedValuesChecksum
+          status.helmChart = observedObj.status.helmChart
+          status.lastReleaseRevision = observedObj.status.lastReleaseRevision
+          status.failures = observedObj.status.failures
+          status.upgradeFailures = observedObj.status.upgradeFailures
+          status.installFailures = observedObj.status.installFailures 
+
+          -- handle resource generation report
+          if observedObj.metadata == nil then
+            return status
+          end
+          status.generation = observedObj.metadata.generation
+
+          if observedObj.metadata.annotations == nil then
+            return status
+          end
+          local resourceTemplateGeneration = tonumber(observedObj.metadata.annotations["resourcetemplate.karmada.io/generation"])
+          if resourceTemplateGeneration ~= nil then
+              status.resourceTemplateGeneration = resourceTemplateGeneration
+          end
+
+          return status
         end
     dependencyInterpretation:
       luaScript: >

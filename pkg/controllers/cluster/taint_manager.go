@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -39,7 +40,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
-// TaintManagerName is the controller name that will be used for taint management.
+// TaintManagerName is the controller name that will be used when reporting events and metrics.
 const TaintManagerName = "taint-manager"
 
 // NoExecuteTaintManager listens to Taint/Toleration changes and is responsible for removing objects
@@ -172,9 +173,15 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 	if needEviction || tolerationTime == 0 {
 		// update final result to evict the target cluster
 		if features.FeatureGate.Enabled(features.GracefulEviction) {
-			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager), workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
+			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
+				workv1alpha2.WithPurgeMode(policyv1alpha1.Graciously),
+				workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager),
+				workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
 		} else {
-			binding.Spec.RemoveCluster(cluster)
+			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
+				workv1alpha2.WithPurgeMode(policyv1alpha1.Immediately),
+				workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager),
+				workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
 		}
 		if err = tc.Update(context.TODO(), binding); err != nil {
 			helper.EmitClusterEvictionEventForResourceBinding(binding, cluster, tc.EventRecorder, err)
@@ -183,9 +190,6 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 		}
 		klog.V(2).Infof("Success to evict Cluster(%s) from ResourceBinding(%s) schedule result",
 			fedKey.ClusterWideKey.NamespaceKey(), fedKey.Cluster)
-		if !features.FeatureGate.Enabled(features.GracefulEviction) {
-			helper.EmitClusterEvictionEventForResourceBinding(binding, cluster, tc.EventRecorder, nil)
-		}
 	} else if tolerationTime > 0 {
 		tc.bindingEvictionWorker.AddAfter(fedKey, tolerationTime)
 	}
@@ -228,9 +232,15 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 	if needEviction || tolerationTime == 0 {
 		// update final result to evict the target cluster
 		if features.FeatureGate.Enabled(features.GracefulEviction) {
-			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager), workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
+			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
+				workv1alpha2.WithPurgeMode(policyv1alpha1.Graciously),
+				workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager),
+				workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
 		} else {
-			binding.Spec.RemoveCluster(cluster)
+			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
+				workv1alpha2.WithPurgeMode(policyv1alpha1.Immediately),
+				workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager),
+				workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
 		}
 		if err = tc.Update(context.TODO(), binding); err != nil {
 			helper.EmitClusterEvictionEventForClusterResourceBinding(binding, cluster, tc.EventRecorder, err)
@@ -239,9 +249,6 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 		}
 		klog.V(2).Infof("Success to evict Cluster(%s) from ClusterResourceBinding(%s) schedule result",
 			fedKey.ClusterWideKey.NamespaceKey(), fedKey.Cluster)
-		if !features.FeatureGate.Enabled(features.GracefulEviction) {
-			helper.EmitClusterEvictionEventForClusterResourceBinding(binding, cluster, tc.EventRecorder, nil)
-		}
 	} else if tolerationTime > 0 {
 		tc.clusterBindingEvictionWorker.AddAfter(fedKey, tolerationTime)
 		return nil
@@ -291,7 +298,7 @@ func (tc *NoExecuteTaintManager) needEviction(clusterName string, annotations ma
 // SetupWithManager creates a controller and register to controller manager.
 func (tc *NoExecuteTaintManager) SetupWithManager(mgr controllerruntime.Manager) error {
 	return utilerrors.NewAggregate([]error{
-		controllerruntime.NewControllerManagedBy(mgr).For(&clusterv1alpha1.Cluster{}).Complete(tc),
+		controllerruntime.NewControllerManagedBy(mgr).Named(TaintManagerName).For(&clusterv1alpha1.Cluster{}).Complete(tc),
 		mgr.Add(tc),
 	})
 }

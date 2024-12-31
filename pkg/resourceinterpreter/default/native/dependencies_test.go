@@ -23,6 +23,7 @@ import (
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -860,6 +861,39 @@ func Test_getStatefulSetDependencies(t *testing.T) {
 			want:    testPairs[2].dependentObjectReference,
 			wantErr: false,
 		},
+		{
+			name: "statefulset with partial dependencies 4",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "StatefulSet",
+					"metadata": map[string]interface{}{
+						"name":      "fake-statefulset",
+						"namespace": namespace,
+					},
+					"spec": map[string]interface{}{
+						"serviceName": "fake-service",
+						"selector": map[string]interface{}{
+							"matchLabels": map[string]interface{}{
+								"app": "fake",
+							},
+						},
+						"template": map[string]interface{}{
+							"spec": testPairs[0].podSpecsWithDependencies.Object,
+						},
+						"volumeClaimTemplates": []interface{}{
+							map[string]interface{}{
+								"metadata": map[string]interface{}{
+									"name": "test-pvc",
+								},
+							},
+						},
+					},
+				},
+			},
+			want:    testPairs[0].dependentObjectReference[:3], // remove the pvc dependency because it was found in the volumeClaimTemplates
+			wantErr: false,
+		},
 	}
 
 	for i := range tests {
@@ -939,6 +973,93 @@ func Test_getServiceImportDependencies(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getServiceImportDependencies() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_getAllDefaultDependenciesInterpreter(t *testing.T) {
+	expectedKinds := []schema.GroupVersionKind{
+		{Group: "apps", Version: "v1", Kind: "Deployment"},
+		{Group: "batch", Version: "v1", Kind: "Job"},
+		{Group: "batch", Version: "v1", Kind: "CronJob"},
+		{Group: "", Version: "v1", Kind: "Pod"},
+		{Group: "apps", Version: "v1", Kind: "DaemonSet"},
+		{Group: "apps", Version: "v1", Kind: "StatefulSet"},
+		{Group: "networking.k8s.io", Version: "v1", Kind: "Ingress"},
+		{Group: "multicluster.x-k8s.io", Version: "v1alpha1", Kind: "ServiceImport"},
+	}
+
+	got := getAllDefaultDependenciesInterpreter()
+
+	if len(got) != len(expectedKinds) {
+		t.Errorf("getAllDefaultDependenciesInterpreter() length = %d, want %d", len(got), len(expectedKinds))
+	}
+
+	for _, key := range expectedKinds {
+		_, exists := got[key]
+		if !exists {
+			t.Errorf("getAllDefaultDependenciesInterpreter() missing key %v", key)
+		}
+	}
+}
+
+func Test_getIngressDependencies(t *testing.T) {
+	tests := []struct {
+		name    string
+		object  *unstructured.Unstructured
+		want    []configv1alpha1.DependentObjectReference
+		wantErr bool
+	}{
+		{
+			name: "ingress with dependencies 2",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "networking.k8s.io/v1",
+					"kind":       "Ingress",
+					"metadata": map[string]interface{}{
+						"name":      "test-ingress",
+						"namespace": namespace,
+					},
+					"spec": map[string]interface{}{
+						"tls": []interface{}{
+							map[string]interface{}{
+								"hosts":      []interface{}{"foo1.*.bar.com"},
+								"secretName": "cloud-secret",
+							},
+							map[string]interface{}{
+								"hosts":      []interface{}{"foo2.*.bar.com"},
+								"secretName": "test-secret",
+							},
+						},
+					},
+				},
+			},
+			want: []configv1alpha1.DependentObjectReference{
+				{
+					APIVersion: "v1",
+					Kind:       "Secret",
+					Namespace:  namespace,
+					Name:       "cloud-secret",
+				},
+				{
+					APIVersion: "v1",
+					Kind:       "Secret",
+					Namespace:  namespace,
+					Name:       "test-secret",
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getIngressDependencies(tt.object)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("getIngressDependencies() err = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getIngressDependencies() = %v, want %v", got, tt.want)
 			}
 		})
 	}

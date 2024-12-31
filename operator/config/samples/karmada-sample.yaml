@@ -1,0 +1,60 @@
+# used by hack/deploy-karmada-by-operator.sh to deploy a karmada instance
+apiVersion: operator.karmada.io/v1alpha1
+kind: Karmada
+metadata:
+  name: {{karmada_instance_name}}
+  namespace: {{karmada_instance_namespace}}
+spec:
+  hostCluster:
+    networking:
+      dnsDomain: cluster.local
+  crdTarball: {{crd_tarball}}
+  components:
+    etcd:
+      local:
+        imageRepository: registry.k8s.io/etcd
+        imageTag: 3.5.16-0
+        replicas: 1
+        volumeData:
+          # hostPath:
+          #   type: DirectoryOrCreate
+          #   path: /var/lib/karmada/etcd/karmada-demo
+          volumeClaim:
+            metadata:
+              name: etcd-data
+            spec:
+              accessModes:
+                - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 3Gi
+    karmadaAPIServer:
+      imageRepository: registry.k8s.io/kube-apiserver
+      imageTag: v1.31.3
+      replicas: 1
+      serviceType: NodePort
+      serviceSubnet: 10.96.0.0/12
+    karmadaAggregatedAPIServer:
+      imageRepository: docker.io/karmada/karmada-aggregated-apiserver
+      imageTag: {{image_tag}}
+      replicas: 1
+    karmadaControllerManager:
+      imageRepository: docker.io/karmada/karmada-controller-manager
+      imageTag: {{image_tag}}
+      replicas: 1
+    karmadaScheduler:
+      imageRepository: docker.io/karmada/karmada-scheduler
+      imageTag: {{image_tag}}
+      replicas: 1
+    karmadaWebhook:
+      imageRepository: docker.io/karmada/karmada-webhook
+      imageTag: {{image_tag}}
+      replicas: 1
+    kubeControllerManager:
+      imageRepository: registry.k8s.io/kube-controller-manager
+      imageTag: v1.31.3
+      replicas: 1
+    karmadaMetricsAdapter:
+      imageRepository: docker.io/karmada/karmada-metrics-adapter
+      imageTag: {{image_tag}}
+      replicas: 2

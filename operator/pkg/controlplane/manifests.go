@@ -64,7 +64,7 @@ spec:
         - --cluster-name=karmada
         - --cluster-signing-cert-file=/etc/karmada/pki/ca.crt
         - --cluster-signing-key-file=/etc/karmada/pki/ca.key
-        - --controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,csrapproving,csrcleaner,csrsigning,clusterrole-aggregation
+        - --controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,csrcleaner,csrsigning,clusterrole-aggregation
         - --leader-elect=true
         - --node-cidr-mask-size=24
         - --root-ca-file=/etc/karmada/pki/ca.crt
@@ -128,11 +128,11 @@ spec:
         command:
         - /bin/karmada-controller-manager
         - --kubeconfig=/etc/karmada/kubeconfig
-        - --bind-address=0.0.0.0
+        - --metrics-bind-address=:8080
         - --cluster-status-update-frequency=10s
-        - --secure-port=10357
         - --failover-eviction-timeout=30s
         - --leader-elect-resource-namespace={{ .SystemNamespace }}
+        - --health-probe-bind-address=0.0.0.0:10357
         - --v=4
         livenessProbe:
           httpGet:
@@ -143,6 +143,10 @@ spec:
           initialDelaySeconds: 15
           periodSeconds: 15
           timeoutSeconds: 5
+        ports:
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
         volumeMounts:
         - name: kubeconfig
           subPath: kubeconfig
@@ -184,8 +188,8 @@ spec:
         command:
         - /bin/karmada-scheduler
         - --kubeconfig=/etc/karmada/kubeconfig
-        - --bind-address=0.0.0.0
-        - --secure-port=10351
+        - --metrics-bind-address=0.0.0.0:8080
+        - --health-probe-bind-address=0.0.0.0:10351
         - --enable-scheduler-estimator=true
         - --leader-elect-resource-namespace={{ .SystemNamespace }}
         - --scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt
@@ -201,6 +205,10 @@ spec:
           initialDelaySeconds: 15
           periodSeconds: 15
           timeoutSeconds: 5
+        ports:
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
         volumeMounts:
         - name: karmada-certs
           mountPath: /etc/karmada/pki
@@ -248,7 +256,8 @@ spec:
         command:
         - /bin/karmada-descheduler
         - --kubeconfig=/etc/karmada/kubeconfig
-        - --bind-address=0.0.0.0
+        - --metrics-bind-address=0.0.0.0:8080
+        - --health-probe-bind-address=0.0.0.0:10358
         - --leader-elect-resource-namespace={{ .SystemNamespace }}
         - --scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt
         - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt
@@ -263,6 +272,10 @@ spec:
           initialDelaySeconds: 15
           periodSeconds: 15
           timeoutSeconds: 5
+        ports:
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
         volumeMounts:
         - name: karmada-certs
           mountPath: /etc/karmada/pki

@@ -71,7 +71,7 @@ func GenMarkdownTreeForIndex(cmd *cobra.Command, dir string) error {
 		return err
 	}
 
-	for _, tp := range []string{util.GroupBasic, util.GroupClusterRegistration, util.GroupClusterManagement, util.GroupClusterTroubleshootingAndDebugging, util.GroupAdvancedCommands} {
+	for _, tp := range []string{util.GroupBasic, util.GroupClusterRegistration, util.GroupClusterManagement, util.GroupClusterTroubleshootingAndDebugging, util.GroupAdvancedCommands, util.GroupSettingsCommands, util.GroupOtherCommands} {
 		// write header of type
 		_, err = io.WriteString(f, "## "+tp+"\n\n")
 		if err != nil {

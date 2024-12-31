@@ -25,12 +25,10 @@ import (
 	componentbaseconfig "k8s.io/component-base/config"
 
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
-	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 const (
-	defaultBindAddress            = "0.0.0.0"
-	defaultPort                   = 10358
 	defaultEstimatorPort          = 10352
 	defaultDeschedulingInterval   = 2 * time.Minute
 	defaultUnschedulableThreshold = 5 * time.Minute
@@ -47,10 +45,6 @@ type Options struct {
 	LeaderElection componentbaseconfig.LeaderElectionConfiguration
 	KubeConfig     string
 	Master         string
-	// BindAddress is the IP address on which to listen for the --secure-port port.
-	BindAddress string
-	// SecurePort is the port that the server serves at.
-	SecurePort int
 
 	KubeAPIQPS float32
 	// KubeAPIBurst is the burst to allow while talking with karmada-apiserver.
@@ -58,6 +52,8 @@ type Options struct {
 
 	// SchedulerEstimatorTimeout specifies the timeout period of calling the accurate scheduler estimator service.
 	SchedulerEstimatorTimeout metav1.Duration
+	// SchedulerEstimatorServiceNamespace specifies the namespace to be used for discovering scheduler estimator services.
+	SchedulerEstimatorServiceNamespace string
 	// SchedulerEstimatorServicePrefix presents the prefix of the accurate scheduler estimator service name.
 	SchedulerEstimatorServicePrefix string
 	// SchedulerEstimatorPort is the port that the accurate scheduler estimator server serves at.
@@ -75,6 +71,16 @@ type Options struct {
 	// UnschedulableThreshold specifies the period of pod unschedulable condition.
 	UnschedulableThreshold metav1.Duration
 	ProfileOpts            profileflag.Options
+	// MetricsBindAddress is the TCP address that the server should bind to
+	// for serving prometheus metrics.
+	// It can be set to "0" to disable the metrics serving.
+	// Defaults to ":8080".
+	MetricsBindAddress string
+	// HealthProbeBindAddress is the TCP address that the server should bind to
+	// for serving health probes
+	// It can be set to "0" to disable serving the health probe.
+	// Defaults to ":10358".
+	HealthProbeBindAddress string
 }
 
 // NewOptions builds a default descheduler options.
@@ -83,8 +89,8 @@ func NewOptions() *Options {
 		LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
 			LeaderElect:       true,
 			ResourceLock:      resourcelock.LeasesResourceLock,
-			ResourceNamespace: util.NamespaceKarmadaSystem,
-			ResourceName:      "karmada-descheduler",
+			ResourceNamespace: names.NamespaceKarmadaSystem,
+			ResourceName:      names.KarmadaDeschedulerComponentName,
 			LeaseDuration:     defaultElectionLeaseDuration,
 			RenewDeadline:     defaultElectionRenewDeadline,
 			RetryPeriod:       defaultElectionRetryPeriod,
@@ -98,11 +104,22 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 		return
 	}
 	fs.BoolVar(&o.LeaderElection.LeaderElect, "leader-elect", true, "Enable leader election, which must be true when running multi instances.")
-	fs.StringVar(&o.LeaderElection.ResourceNamespace, "leader-elect-resource-namespace", util.NamespaceKarmadaSystem, "The namespace of resource object that is used for locking during leader election.")
+	fs.StringVar(&o.LeaderElection.ResourceNamespace, "leader-elect-resource-namespace", names.NamespaceKarmadaSystem, "The namespace of resource object that is used for locking during leader election.")
+	fs.DurationVar(&o.LeaderElection.LeaseDuration.Duration, "leader-elect-lease-duration", defaultElectionLeaseDuration.Duration, ""+
+		"The duration that non-leader candidates will wait after observing a leadership "+
+		"renewal until attempting to acquire leadership of a led but unrenewed leader "+
+		"slot. This is effectively the maximum duration that a leader can be stopped "+
+		"before it is replaced by another candidate. This is only applicable if leader "+
+		"election is enabled.")
+	fs.DurationVar(&o.LeaderElection.RenewDeadline.Duration, "leader-elect-renew-deadline", defaultElectionRenewDeadline.Duration, ""+
+		"The interval between attempts by the acting master to renew a leadership slot "+
+		"before it stops leading. This must be less than or equal to the lease duration. "+
+		"This is only applicable if leader election is enabled.")
+	fs.DurationVar(&o.LeaderElection.RetryPeriod.Duration, "leader-elect-retry-period", defaultElectionRetryPeriod.Duration, ""+
+		"The duration the clients should wait between attempting acquisition and renewal "+
+		"of a leadership. This is only applicable if leader election is enabled.")
 	fs.StringVar(&o.KubeConfig, "kubeconfig", o.KubeConfig, "Path to karmada control plane kubeconfig file.")
 	fs.StringVar(&o.Master, "master", o.Master, "The address of the Kubernetes API server. Overrides any value in KubeConfig. Only required if out-of-cluster.")
-	fs.StringVar(&o.BindAddress, "bind-address", defaultBindAddress, "The IP address on which to listen for the --secure-port port.")
-	fs.IntVar(&o.SecurePort, "secure-port", defaultPort, "The secure port on which to serve HTTPS.")
 	fs.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver.")
 	fs.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver.")
 	fs.DurationVar(&o.SchedulerEstimatorTimeout.Duration, "scheduler-estimator-timeout", 3*time.Second, "Specifies the timeout period of calling the scheduler estimator service.")
@@ -111,8 +128,11 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&o.SchedulerEstimatorKeyFile, "scheduler-estimator-key-file", "", "SSL key file used to secure scheduler estimator communication.")
 	fs.StringVar(&o.SchedulerEstimatorCaFile, "scheduler-estimator-ca-file", "", "SSL Certificate Authority file used to secure scheduler estimator communication.")
 	fs.BoolVar(&o.InsecureSkipEstimatorVerify, "insecure-skip-estimator-verify", false, "Controls whether verifies the scheduler estimator's certificate chain and host name.")
-	fs.StringVar(&o.SchedulerEstimatorServicePrefix, "scheduler-estimator-service-prefix", "karmada-scheduler-estimator", "The prefix of scheduler estimator service name")
+	fs.StringVar(&o.SchedulerEstimatorServiceNamespace, "scheduler-estimator-service-namespace", names.NamespaceKarmadaSystem, "The namespace to be used for discovering scheduler estimator services.")
+	fs.StringVar(&o.SchedulerEstimatorServicePrefix, "scheduler-estimator-service-prefix", names.KarmadaSchedulerEstimatorComponentName, "The prefix of scheduler estimator service name")
 	fs.DurationVar(&o.DeschedulingInterval.Duration, "descheduling-interval", defaultDeschedulingInterval, "Time interval between two consecutive descheduler executions. Setting this value instructs the descheduler to run in a continuous loop at the interval specified.")
 	fs.DurationVar(&o.UnschedulableThreshold.Duration, "unschedulable-threshold", defaultUnschedulableThreshold, "The period of pod unschedulable condition. This value is considered as a classification standard of unschedulable replicas.")
+	fs.StringVar(&o.MetricsBindAddress, "metrics-bind-address", ":8080", "The TCP address that the server should bind to for serving prometheus metrics(e.g. 127.0.0.1:8080, :8080). It can be set to \"0\" to disable the metrics serving. Defaults to 0.0.0.0:8080.")
+	fs.StringVar(&o.HealthProbeBindAddress, "health-probe-bind-address", ":10358", "The TCP address that the server should bind to for serving health probes(e.g. 127.0.0.1:10358, :10358). It can be set to \"0\" to disable serving the health probe. Defaults to 0.0.0.0:10358.")
 	o.ProfileOpts.AddFlags(fs)
 }

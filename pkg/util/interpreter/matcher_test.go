@@ -313,3 +313,135 @@ func TestExactOrWildcard(t *testing.T) {
 		})
 	}
 }
+
+func TestMatches(t *testing.T) {
+	tests := []struct {
+		name     string
+		matcher  *Matcher
+		expected bool
+	}{
+		{
+			name: "not equal operations, equal group version and kind",
+			matcher: &Matcher{
+				ObjGVK: schema.GroupVersionKind{
+					Group:   "apps",
+					Version: "v1",
+					Kind:    "Deployment",
+				},
+				Operation: configv1alpha1.InterpreterOperationPrune,
+				Rule: configv1alpha1.RuleWithOperations{
+					Operations: []configv1alpha1.InterpreterOperation{
+						configv1alpha1.InterpreterOperationRetain,
+						configv1alpha1.InterpreterOperationInterpretReplica,
+					},
+					Rule: configv1alpha1.Rule{
+						APIGroups:   []string{"batch", "apps"},
+						APIVersions: []string{"v1", "v1beta1"},
+						Kinds:       []string{"Pod", "Deployment"},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "not equal group, equal operation version and kind",
+			matcher: &Matcher{
+				ObjGVK: schema.GroupVersionKind{
+					Group:   "apps",
+					Version: "v1",
+					Kind:    "Deployment",
+				},
+				Operation: configv1alpha1.InterpreterOperationRetain,
+				Rule: configv1alpha1.RuleWithOperations{
+					Operations: []configv1alpha1.InterpreterOperation{
+						configv1alpha1.InterpreterOperationRetain,
+						configv1alpha1.InterpreterOperationInterpretReplica,
+					},
+					Rule: configv1alpha1.Rule{
+						APIGroups:   []string{"batch"},
+						APIVersions: []string{"v1", "v1beta1"},
+						Kinds:       []string{"Pod", "Deployment"},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "not equal version, equal operation group and kind",
+			matcher: &Matcher{
+				ObjGVK: schema.GroupVersionKind{
+					Group:   "apps",
+					Version: "v1",
+					Kind:    "Deployment",
+				},
+				Operation: configv1alpha1.InterpreterOperationRetain,
+				Rule: configv1alpha1.RuleWithOperations{
+					Operations: []configv1alpha1.InterpreterOperation{
+						configv1alpha1.InterpreterOperationRetain,
+						configv1alpha1.InterpreterOperationInterpretReplica,
+					},
+					Rule: configv1alpha1.Rule{
+						APIGroups:   []string{"batch", "apps"},
+						APIVersions: []string{"v1beta1"},
+						Kinds:       []string{"Pod", "Deployment"},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "not equal kind, equal operation group and version",
+			matcher: &Matcher{
+				ObjGVK: schema.GroupVersionKind{
+					Group:   "apps",
+					Version: "v1",
+					Kind:    "Deployment",
+				},
+				Operation: configv1alpha1.InterpreterOperationRetain,
+				Rule: configv1alpha1.RuleWithOperations{
+					Operations: []configv1alpha1.InterpreterOperation{
+						configv1alpha1.InterpreterOperationRetain,
+						configv1alpha1.InterpreterOperationInterpretReplica,
+					},
+					Rule: configv1alpha1.Rule{
+						APIGroups:   []string{"batch", "apps"},
+						APIVersions: []string{"v1", "v1beta1"},
+						Kinds:       []string{"Pod"},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "operation, object matches the rule",
+			matcher: &Matcher{
+				ObjGVK: schema.GroupVersionKind{
+					Group:   "apps",
+					Version: "v1",
+					Kind:    "Deployment",
+				},
+				Operation: configv1alpha1.InterpreterOperationRetain,
+				Rule: configv1alpha1.RuleWithOperations{
+					Operations: []configv1alpha1.InterpreterOperation{
+						configv1alpha1.InterpreterOperationRetain,
+						configv1alpha1.InterpreterOperationInterpretReplica,
+					},
+					Rule: configv1alpha1.Rule{
+						APIGroups:   []string{"batch", "apps"},
+						APIVersions: []string{"v1", "v1beta1"},
+						Kinds:       []string{"Pod", "Deployment"},
+					},
+				},
+			},
+			expected: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := tt.matcher.Matches()
+			if res != tt.expected {
+				t.Errorf("Matches() = %v, want %v", res, tt.expected)
+			}
+		})
+	}
+}

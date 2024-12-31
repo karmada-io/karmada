@@ -32,6 +32,8 @@ metadata:
 spec:
   type: ExternalName
   externalName: {{ $name }}-aggregated-apiserver.{{ include "karmada.namespace" . }}.svc.{{ .Values.clusterDomain }}
+{{- end }}
+{{- if has "metricsAdapter" .Values.components }}
 ---
 apiVersion: apiregistration.k8s.io/v1
 kind: APIService

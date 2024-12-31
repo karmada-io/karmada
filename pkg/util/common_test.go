@@ -54,51 +54,74 @@ var (
 )
 
 func TestDiffKey(t *testing.T) {
-	t.Run("all old remove, all new added", func(t *testing.T) {
-		previous := map[string]sigMultiCluster{
-			"kubefed": kubefed,
-		}
-		current := map[string]string{
-			"karmada": "v1.6.0",
-		}
-		added, removed := DiffKey(previous, current)
-		if len(added) != 1 || added[0] != "karmada" {
-			t.Errorf("added = %v, want []string{\"karmada\"}", added)
-		}
-		if len(removed) != 1 || removed[0] != "kubefed" {
-			t.Errorf("removed = %v, want []string{\"kubefed\"}", removed)
-		}
-	})
-	t.Run("no old, all new added", func(t *testing.T) {
-		previous := map[string]sigMultiCluster{}
-		current := map[string]string{
-			"karmada": "v1.6.0",
-		}
-		added, removed := DiffKey(previous, current)
-		if len(added) != 1 || added[0] != "karmada" {
-			t.Errorf("added = %v, want []string{\"karmada\"}", added)
-		}
-		if len(removed) != 0 {
-			t.Errorf("removed = %v, want nil", removed)
-		}
-	})
-	t.Run("removed, added and remained", func(t *testing.T) {
-		previous := map[string]sigMultiCluster{
-			"kubefed":         kubefed,
-			"virtual-kubelet": virtualKubelet,
-		}
-		current := map[string]string{
-			"karmada":         "v1.6.0",
-			"virtual-kubelet": virtualKubelet.Comment,
-		}
-		added, removed := DiffKey(previous, current)
-		if len(added) != 1 || added[0] != "karmada" {
-			t.Errorf("added = %v, want []string{\"karmada\"}", added)
-		}
-		if len(removed) != 1 || removed[0] != "kubefed" {
-			t.Errorf("removed = %v, want []string{\"kubefed\"}", removed)
-		}
-	})
+	tests := []struct {
+		name            string
+		previous        map[string]sigMultiCluster
+		current         map[string]string
+		expectedAdded   []string
+		expectedRemoved []string
+	}{
+		{
+			name: "all old remove, all new added",
+			previous: map[string]sigMultiCluster{
+				"kubefed": kubefed,
+			},
+			current: map[string]string{
+				"karmada": "v1.6.0",
+			},
+			expectedAdded:   []string{"karmada"},
+			expectedRemoved: []string{"kubefed"},
+		},
+		{
+			name:            "no old, no new",
+			previous:        nil,
+			current:         nil,
+			expectedAdded:   nil,
+			expectedRemoved: nil,
+		},
+		{
+			name:     "no old, all new added",
+			previous: nil,
+			current: map[string]string{
+				"karmada": "v1.6.0",
+			},
+			expectedAdded:   []string{"karmada"},
+			expectedRemoved: nil,
+		},
+		{
+			name: "all old removed, no new",
+			previous: map[string]sigMultiCluster{
+				"kubefed": kubefed,
+			},
+			current:         nil,
+			expectedAdded:   nil,
+			expectedRemoved: []string{"kubefed"},
+		},
+		{
+			name: "removed, added and remained",
+			previous: map[string]sigMultiCluster{
+				"kubefed":         kubefed,
+				"virtual-kubelet": virtualKubelet,
+			},
+			current: map[string]string{
+				"karmada":         "v1.6.0",
+				"virtual-kubelet": virtualKubelet.Comment,
+			},
+			expectedAdded:   []string{"karmada"},
+			expectedRemoved: []string{"kubefed"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			added, removed := DiffKey(tt.previous, tt.current)
+			if !reflect.DeepEqual(added, tt.expectedAdded) {
+				t.Errorf("added = %v, want %v", added, tt.expectedAdded)
+			}
+			if !reflect.DeepEqual(removed, tt.expectedRemoved) {
+				t.Errorf("removed = %v want %v", removed, tt.expectedRemoved)
+			}
+		})
+	}
 }
 
 func TestStringerJoin(t *testing.T) {
@@ -111,15 +134,33 @@ func TestStringerJoin(t *testing.T) {
 }
 
 func TestKeys(t *testing.T) {
-	mcs := map[string]sigMultiCluster{
-		kubefed.Name: kubefed,
-		karmada.Name: karmada,
+	tests := []struct {
+		name   string
+		mcs    map[string]sigMultiCluster
+		expect []string
+	}{
+		{
+			name: "keys exist",
+			mcs: map[string]sigMultiCluster{
+				kubefed.Name: kubefed,
+				karmada.Name: karmada,
+			},
+			expect: []string{kubefed.Name, karmada.Name},
+		},
+		{
+			name:   "empty keys",
+			mcs:    nil,
+			expect: nil,
+		},
 	}
-	got := Keys(mcs)
-	expect := []string{kubefed.Name, karmada.Name}
-	sort.Strings(got)
-	sort.Strings(expect)
-	if !reflect.DeepEqual(got, expect) {
-		t.Errorf("got = %v, want %v", got, expect)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Keys(tt.mcs)
+			sort.Strings(got)
+			sort.Strings(tt.expect)
+			if !reflect.DeepEqual(got, tt.expect) {
+				t.Errorf("got = %v, want %v", got, tt.expect)
+			}
+		})
 	}
 }

@@ -23,27 +23,30 @@ This section describes how to install `karmada-operator` and create a Karmada in
 
 #### Helm install
 
-Go to the root directory of the `karmada-io/karmada` repo. To install the Helm Chart with
-the release name `karmada-operator` in the namespace `karmada-system`, simply run the helm command:
+Go to the root directory of the `karmada-io/karmada` repo. Before installing the Helm Chart, ensure the `karmada-operator` is set to the preferred released version. You can check the [latest tag on GitHub releases](https://github.com/karmada-io/karmada/releases/latest).
+
+To install the Helm Chart with the release name `karmada-operator` in the namespace `karmada-system`, run the following command, replacing `${preferred-released-version}` with the desired version:
 
 ```shell
-helm install karmada-operator -n karmada-system  --create-namespace --dependency-update ./charts/karmada-operator --debug
+helm install karmada-operator -n karmada-system --create-namespace --dependency-update ./charts/karmada-operator --set operator.image.tag=${preferred-released-version} --debug
 ```
 
 #### Using YAML resource
 
-The `karmada-operator` workload requires a kubeconfig of the local cluster to establish a connection with the cluster and watch CR resources.
-In preparation for this, create a secret containing the kubeconfig for the karmada-operator.
+The `karmada-operator` workload requires ClusterRole to watch and manage CR resources.
+In preparation for this, create a ClusterRole (with a ClusterRoleBinding and a ServiceAccount) containing the required privileges for the karmada-operator.
 
 ```shell
 kubectl create namespace karmada-system
-kubectl create secret generic my-kubeconfig --from-file=$HOME/.kube/config -n karmada-system
+kubectl apply -f operator/config/deploy/karmada-operator-clusterrole.yaml
+kubectl apply -f operator/config/deploy/karmada-operator-clusterrolebinding.yaml
+kubectl apply -f operator/config/deploy/karmada-operator-serviceaccount.yaml
 ```
 
 Deploy the `karmada-operator` workload.
 
 ```shell
-kubectl apply -f operator/config/deploy/karmada-operator.yaml
+kubectl apply -f operator/config/deploy/karmada-operator-deployment.yaml
 ```
 
 The pod of `karmada-operator` in the `karmada-system` namespace will be running.
@@ -211,7 +214,7 @@ You can change it to `NodePort`:
 ...
 karmadaAPIServer:
   imageRepository: registry.k8s.io/kube-apiserver
-  imageTag: v1.28.9
+  imageTag: v1.31.3
   replicas: 1
   serviceType: NodePort
   serviceSubnet: 10.96.0.0/12
@@ -226,7 +229,7 @@ You can add more SANs to karmada-apiserver certificate:
 ...
 karmadaAPIServer:
   imageRepository: registry.k8s.io/kube-apiserver
-  imageTag: v1.28.9
+  imageTag: v1.31.3
   replicas: 1
   serviceSubnet: 10.96.0.0/12
   certSANs:

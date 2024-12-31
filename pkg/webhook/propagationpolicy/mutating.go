@@ -19,23 +19,22 @@ package propagationpolicy
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
 	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/validation"
 )
 
 // MutatingAdmission mutates API request if necessary.
 type MutatingAdmission struct {
-	Decoder *admission.Decoder
+	Decoder admission.Decoder
 
 	DefaultNotReadyTolerationSeconds    int64
 	DefaultUnreachableTolerationSeconds int64
@@ -45,7 +44,7 @@ type MutatingAdmission struct {
 var _ admission.Handler = &MutatingAdmission{}
 
 // NewMutatingHandler builds a new admission.Handler.
-func NewMutatingHandler(notReadyTolerationSeconds, unreachableTolerationSeconds int64, decoder *admission.Decoder) admission.Handler {
+func NewMutatingHandler(notReadyTolerationSeconds, unreachableTolerationSeconds int64, decoder admission.Decoder) admission.Handler {
 	return &MutatingAdmission{
 		DefaultNotReadyTolerationSeconds:    notReadyTolerationSeconds,
 		DefaultUnreachableTolerationSeconds: unreachableTolerationSeconds,
@@ -74,9 +73,6 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 		}
 	}
 
-	if len(policy.Name) > validation.LabelValueMaxLength {
-		return admission.Errored(http.StatusBadRequest, fmt.Errorf("PropagationPolicy's name should be no more than %d characters", validation.LabelValueMaxLength))
-	}
 	// Set default spread constraints if both 'SpreadByField' and 'SpreadByLabel' not set.
 	helper.SetDefaultSpreadConstraints(policy.Spec.Placement.SpreadConstraints)
 	helper.AddTolerations(&policy.Spec.Placement, helper.NewNotReadyToleration(a.DefaultNotReadyTolerationSeconds),
@@ -97,6 +93,7 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 
 	if req.Operation == admissionv1.Create {
 		util.MergeLabel(policy, policyv1alpha1.PropagationPolicyPermanentIDLabel, uuid.New().String())
+		controllerutil.AddFinalizer(policy, util.PropagationPolicyControllerFinalizer)
 	}
 
 	marshaledBytes, err := json.Marshal(policy)

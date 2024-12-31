@@ -41,22 +41,24 @@ var propagationpoliciesKind = v1alpha1.SchemeGroupVersion.WithKind("PropagationP
 
 // Get takes name of the propagationPolicy, and returns the corresponding propagationPolicy object, and an error if there is any.
 func (c *FakePropagationPolicies) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.PropagationPolicy, err error) {
+	emptyResult := &v1alpha1.PropagationPolicy{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(propagationpoliciesResource, c.ns, name), &v1alpha1.PropagationPolicy{})
+		Invokes(testing.NewGetActionWithOptions(propagationpoliciesResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.PropagationPolicy), err
 }
 
 // List takes label and field selectors, and returns the list of PropagationPolicies that match those selectors.
 func (c *FakePropagationPolicies) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.PropagationPolicyList, err error) {
+	emptyResult := &v1alpha1.PropagationPolicyList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(propagationpoliciesResource, propagationpoliciesKind, c.ns, opts), &v1alpha1.PropagationPolicyList{})
+		Invokes(testing.NewListActionWithOptions(propagationpoliciesResource, propagationpoliciesKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -75,28 +77,30 @@ func (c *FakePropagationPolicies) List(ctx context.Context, opts v1.ListOptions)
 // Watch returns a watch.Interface that watches the requested propagationPolicies.
 func (c *FakePropagationPolicies) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(propagationpoliciesResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(propagationpoliciesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a propagationPolicy and creates it.  Returns the server's representation of the propagationPolicy, and an error, if there is any.
 func (c *FakePropagationPolicies) Create(ctx context.Context, propagationPolicy *v1alpha1.PropagationPolicy, opts v1.CreateOptions) (result *v1alpha1.PropagationPolicy, err error) {
+	emptyResult := &v1alpha1.PropagationPolicy{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(propagationpoliciesResource, c.ns, propagationPolicy), &v1alpha1.PropagationPolicy{})
+		Invokes(testing.NewCreateActionWithOptions(propagationpoliciesResource, c.ns, propagationPolicy, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.PropagationPolicy), err
 }
 
 // Update takes the representation of a propagationPolicy and updates it. Returns the server's representation of the propagationPolicy, and an error, if there is any.
 func (c *FakePropagationPolicies) Update(ctx context.Context, propagationPolicy *v1alpha1.PropagationPolicy, opts v1.UpdateOptions) (result *v1alpha1.PropagationPolicy, err error) {
+	emptyResult := &v1alpha1.PropagationPolicy{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(propagationpoliciesResource, c.ns, propagationPolicy), &v1alpha1.PropagationPolicy{})
+		Invokes(testing.NewUpdateActionWithOptions(propagationpoliciesResource, c.ns, propagationPolicy, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.PropagationPolicy), err
 }
@@ -111,7 +115,7 @@ func (c *FakePropagationPolicies) Delete(ctx context.Context, name string, opts 
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakePropagationPolicies) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(propagationpoliciesResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(propagationpoliciesResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.PropagationPolicyList{})
 	return err
@@ -119,11 +123,12 @@ func (c *FakePropagationPolicies) DeleteCollection(ctx context.Context, opts v1.
 
 // Patch applies the patch and returns the patched propagationPolicy.
 func (c *FakePropagationPolicies) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.PropagationPolicy, err error) {
+	emptyResult := &v1alpha1.PropagationPolicy{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(propagationpoliciesResource, c.ns, name, pt, data, subresources...), &v1alpha1.PropagationPolicy{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(propagationpoliciesResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.PropagationPolicy), err
 }

@@ -39,7 +39,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
-// CRBStatusControllerName is the controller name that will be used when reporting events.
+// CRBStatusControllerName is the controller name that will be used when reporting events and metrics.
 const CRBStatusControllerName = "cluster-resource-binding-status-controller"
 
 // CRBStatusController is to sync status of ClusterResourceBinding
@@ -75,7 +75,7 @@ func (c *CRBStatusController) Reconcile(ctx context.Context, req controllerrunti
 		return controllerruntime.Result{}, nil
 	}
 
-	err := c.syncBindingStatus(binding)
+	err := c.syncBindingStatus(ctx, binding)
 	if err != nil {
 		return controllerruntime.Result{}, err
 	}
@@ -101,35 +101,23 @@ func (c *CRBStatusController) SetupWithManager(mgr controllerruntime.Manager) er
 			return requests
 		})
 
-	return controllerruntime.NewControllerManagedBy(mgr).Named("clusterResourceBinding_status_controller").
+	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(CRBStatusControllerName).
 		For(&workv1alpha2.ClusterResourceBinding{}, bindingPredicateFn).
 		Watches(&workv1alpha1.Work{}, handler.EnqueueRequestsFromMapFunc(workMapFunc), workPredicateFn).
-		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
+		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).
 		Complete(c)
 }
 
-func (c *CRBStatusController) syncBindingStatus(binding *workv1alpha2.ClusterResourceBinding) error {
-	resource, err := helper.FetchResourceTemplate(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			// It might happen when the resource template has been removed but the garbage collector hasn't removed
-			// the ResourceBinding which dependent on resource template.
-			// So, just return without retry(requeue) would save unnecessary loop.
-			return nil
-		}
-		klog.Errorf("Failed to fetch workload for clusterResourceBinding(%s). Error: %v",
-			binding.GetName(), err)
-		return err
-	}
-
-	err = helper.AggregateClusterResourceBindingWorkStatus(c.Client, binding, resource, c.EventRecorder)
+func (c *CRBStatusController) syncBindingStatus(ctx context.Context, binding *workv1alpha2.ClusterResourceBinding) error {
+	err := helper.AggregateClusterResourceBindingWorkStatus(ctx, c.Client, binding, c.EventRecorder)
 	if err != nil {
 		klog.Errorf("Failed to aggregate workStatues to clusterResourceBinding(%s), Error: %v",
 			binding.Name, err)
 		return err
 	}
 
-	err = updateResourceStatus(c.DynamicClient, c.RESTMapper, c.ResourceInterpreter, resource, binding.Status)
+	err = updateResourceStatus(ctx, c.DynamicClient, c.RESTMapper, c.ResourceInterpreter, c.EventRecorder, binding.Spec.Resource, binding.Status)
 	if err != nil {
 		return err
 	}

@@ -17,10 +17,17 @@ limitations under the License.
 package validation
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/go-openapi/jsonpointer"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -31,9 +38,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
-// LabelValueMaxLength is a label's max length
-const LabelValueMaxLength int = 63
-
 // ValidatePropagationSpec validates a PropagationSpec before creation or update.
 func ValidatePropagationSpec(spec policyv1alpha1.PropagationSpec) field.ErrorList {
 	var allErrs field.ErrorList
@@ -43,6 +47,7 @@ func ValidatePropagationSpec(spec policyv1alpha1.PropagationSpec) field.ErrorLis
 	}
 	allErrs = append(allErrs, ValidateFailover(spec.Failover, field.NewPath("spec").Child("failover"))...)
 	allErrs = append(allErrs, validateResourceSelectorsIfPreemptionEnabled(spec, field.NewPath("spec").Child("resourceSelectors"))...)
+	allErrs = append(allErrs, validateSuspension(spec.Suspension, field.NewPath("spec").Child("suspension"))...)
 	return allErrs
 }
 
@@ -55,10 +60,25 @@ func validateResourceSelectorsIfPreemptionEnabled(spec policyv1alpha1.Propagatio
 	var allErrs field.ErrorList
 	for index, resourceSelector := range spec.ResourceSelectors {
 		if len(resourceSelector.Name) == 0 {
-			allErrs = append(allErrs, field.Invalid(fldPath.Index(index).Child("name"), resourceSelector.Name, "name can not be empty if preemption is Always, the empty name may cause unexpected resources preemption"))
+			allErrs = append(allErrs, field.Invalid(fldPath.Index(index).Child("name"), resourceSelector.Name, "name cannot be empty if preemption is Always, the empty name may cause unexpected resources preemption"))
 		}
 	}
 	return allErrs
+}
+
+// validateSuspension validates no conflicts between dispatching and dispatchingOnClusters.
+func validateSuspension(suspension *policyv1alpha1.Suspension, fldPath *field.Path) field.ErrorList {
+	if suspension == nil {
+		return nil
+	}
+
+	if (suspension.Dispatching != nil && *suspension.Dispatching) &&
+		(suspension.DispatchingOnClusters != nil && len(suspension.DispatchingOnClusters.ClusterNames) > 0) {
+		return field.ErrorList{
+			field.Invalid(fldPath.Child("suspension"), suspension, "suspension dispatching cannot co-exist with dispatchingOnClusters.clusterNames"),
+		}
+	}
+	return nil
 }
 
 // ValidatePlacement validates a placement before creation or update.
@@ -66,7 +86,7 @@ func ValidatePlacement(placement policyv1alpha1.Placement, fldPath *field.Path) 
 	var allErrs field.ErrorList
 
 	if placement.ClusterAffinity != nil && placement.ClusterAffinities != nil {
-		allErrs = append(allErrs, field.Invalid(fldPath, placement, "clusterAffinities can not co-exist with clusterAffinity"))
+		allErrs = append(allErrs, field.Invalid(fldPath, placement, "clusterAffinities cannot co-exist with clusterAffinity"))
 	}
 
 	allErrs = append(allErrs, ValidateClusterAffinity(placement.ClusterAffinity, fldPath.Child("clusterAffinity"))...)
@@ -291,13 +311,152 @@ func ValidateOverrideRules(overrideRules []policyv1alpha1.RuleWithCluster, fldPa
 		// validates predicate path.
 		for imageIndex, image := range rule.Overriders.ImageOverrider {
 			imagePath := rulePath.Child("overriders").Child("imageOverrider").Index(imageIndex)
-			if image.Predicate != nil && !strings.HasPrefix(image.Predicate.Path, "/") {
-				allErrs = append(allErrs, field.Invalid(imagePath.Child("predicate").Child("path"), image.Predicate.Path, "path should be start with / character"))
+			if image.Predicate != nil {
+				if _, err := jsonpointer.New(image.Predicate.Path); err != nil {
+					allErrs = append(allErrs, field.Invalid(imagePath.Child("predicate").Child("path"), image.Predicate.Path, err.Error()))
+				}
 			}
+		}
+
+		for fieldIndex, fieldOverrider := range rule.Overriders.FieldOverrider {
+			fieldPath := rulePath.Child("overriders").Child("fieldOverrider").Index(fieldIndex)
+			// validates that either YAML or JSON is selected for each field overrider.
+			if len(fieldOverrider.YAML) > 0 && len(fieldOverrider.JSON) > 0 {
+				allErrs = append(allErrs, field.Invalid(fieldPath, fieldOverrider, "FieldOverrider has both YAML and JSON set. Only one is allowed"))
+			}
+			// validates the field path.
+			if _, err := jsonpointer.New(fieldOverrider.FieldPath); err != nil {
+				allErrs = append(allErrs, field.Invalid(fieldPath.Child("fieldPath"), fieldOverrider.FieldPath, err.Error()))
+			}
+			// validates the JSON patch operations sub path.
+			allErrs = append(allErrs, validateJSONPatchSubPaths(fieldOverrider.JSON, fieldPath.Child("json"))...)
+			// validates the YAML patch operations sub path.
+			allErrs = append(allErrs, validateYAMLPatchSubPaths(fieldOverrider.YAML, fieldPath.Child("yaml"))...)
 		}
 
 		// validates the targetCluster.
 		allErrs = append(allErrs, ValidateClusterAffinity(rule.TargetCluster, rulePath.Child("targetCluster"))...)
 	}
 	return allErrs
+}
+
+func validateJSONPatchSubPaths(patches []policyv1alpha1.JSONPatchOperation, fieldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+	for index, patch := range patches {
+		patchPath := fieldPath.Index(index)
+		if _, err := jsonpointer.New(patch.SubPath); err != nil {
+			allErrs = append(allErrs, field.Invalid(patchPath.Child("subPath"), patch.SubPath, err.Error()))
+		}
+		allErrs = append(allErrs, validateOverrideOperator(patch.Operator, patch.Value, patchPath.Child("value"))...)
+	}
+	return allErrs
+}
+
+func validateYAMLPatchSubPaths(patches []policyv1alpha1.YAMLPatchOperation, fieldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+	for index, patch := range patches {
+		patchPath := fieldPath.Index(index)
+		if _, err := jsonpointer.New(patch.SubPath); err != nil {
+			allErrs = append(allErrs, field.Invalid(patchPath.Child("subPath"), patch.SubPath, err.Error()))
+		}
+		allErrs = append(allErrs, validateOverrideOperator(patch.Operator, patch.Value, patchPath.Child("value"))...)
+	}
+	return allErrs
+}
+
+func validateOverrideOperator(operator policyv1alpha1.OverriderOperator, value apiextensionsv1.JSON, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+	switch operator {
+	case policyv1alpha1.OverriderOpAdd, policyv1alpha1.OverriderOpReplace:
+		if value.Size() == 0 {
+			allErrs = append(allErrs, field.Invalid(fldPath, value, "value is required for add or replace operation"))
+		}
+	case policyv1alpha1.OverriderOpRemove:
+		if value.Size() != 0 {
+			allErrs = append(allErrs, field.Invalid(fldPath, value, "value is not allowed for remove operation"))
+		}
+	}
+	return allErrs
+}
+
+// CrdsArchive defines the expected tar archive.
+var CrdsArchive = []string{"crds", "crds/bases", "crds/patches"}
+
+// ValidateTarball opens a .tar.gz file, and validates each
+// entry in the tar archive using a provided validate function.
+func ValidateTarball(tarball string, validate func(*tar.Header) error) error {
+	r, err := os.Open(tarball)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	gr, err := gzip.NewReader(r)
+	if err != nil {
+		return fmt.Errorf("new reader failed. %v", err)
+	}
+	defer gr.Close()
+
+	tr := tar.NewReader(gr)
+	for {
+		header, err := tr.Next()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+
+		if err = validate(header); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ValidateCrdsTarBall checks if the CRDs package complies with file specifications.
+// It verifies the following:
+// 1. Whether the path is clean.
+// 2. Whether the file directory structure meets expectations.
+func ValidateCrdsTarBall(header *tar.Header) error {
+	switch header.Typeflag {
+	case tar.TypeDir:
+		// in Unix-like systems, directory paths in tar archives end with a slash (/) to distinguish them from file paths.
+		if strings.HasSuffix(header.Name, "/") && len(header.Name) > 1 {
+			if !isCleanPath(header.Name[:len(header.Name)-1]) {
+				return fmt.Errorf("the given file contains unclean file dir: %s", header.Name)
+			}
+		} else {
+			if !isCleanPath(header.Name) {
+				return fmt.Errorf("the given file contains unclean file dir: %s", header.Name)
+			}
+		}
+		if !isExpectedPath(header.Name, CrdsArchive) {
+			return fmt.Errorf("the given file contains unexpected file dir: %s", header.Name)
+		}
+	case tar.TypeReg:
+		if !isCleanPath(header.Name) {
+			return fmt.Errorf("the given file contains unclean file path: %s", header.Name)
+		}
+		if !isExpectedPath(header.Name, CrdsArchive) {
+			return fmt.Errorf("the given file contains unexpected file path: %s", header.Name)
+		}
+	default:
+		return fmt.Errorf("unknown type: %v in %s", header.Typeflag, header.Name)
+	}
+	return nil
+}
+
+func isExpectedPath(path string, expectedDirs []string) bool {
+	for _, dir := range expectedDirs {
+		if path == dir || strings.HasPrefix(path, dir+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+func isCleanPath(path string) bool {
+	return path == filepath.Clean(path)
 }

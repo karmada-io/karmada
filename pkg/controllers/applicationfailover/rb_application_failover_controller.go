@@ -18,7 +18,6 @@ package applicationfailover
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"time"
 
@@ -28,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,15 +35,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
-// RBApplicationFailoverControllerName is the controller name that will be used when reporting events.
+// RBApplicationFailoverControllerName is the controller name that will be used when reporting events and metrics.
 const RBApplicationFailoverControllerName = "resource-binding-application-failover-controller"
 
 // RBApplicationFailoverController is to sync ResourceBinding's application failover behavior.
@@ -79,12 +75,12 @@ func (c *RBApplicationFailoverController) Reconcile(ctx context.Context, req con
 		return controllerruntime.Result{}, nil
 	}
 
-	retryDuration, err := c.syncBinding(binding)
+	retryDuration, err := c.syncBinding(ctx, binding)
 	if err != nil {
 		return controllerruntime.Result{}, err
 	}
 	if retryDuration > 0 {
-		klog.V(4).Infof("Retry to check health status of the workload after %v minutes.", retryDuration.Minutes())
+		klog.V(4).Infof("Retry to check health status of the workload after %v seconds.", retryDuration.Seconds())
 		return controllerruntime.Result{RequeueAfter: retryDuration}, nil
 	}
 	return controllerruntime.Result{}, nil
@@ -122,7 +118,7 @@ func (c *RBApplicationFailoverController) detectFailure(clusters []string, toler
 	return duration, needEvictClusters
 }
 
-func (c *RBApplicationFailoverController) syncBinding(binding *workv1alpha2.ResourceBinding) (time.Duration, error) {
+func (c *RBApplicationFailoverController) syncBinding(ctx context.Context, binding *workv1alpha2.ResourceBinding) (time.Duration, error) {
 	key := types.NamespacedName{Name: binding.Name, Namespace: binding.Namespace}
 	tolerationSeconds := binding.Spec.Failover.Application.DecisionConditions.TolerationSeconds
 
@@ -141,7 +137,7 @@ func (c *RBApplicationFailoverController) syncBinding(binding *workv1alpha2.Reso
 	}
 
 	if len(needEvictClusters) != 0 {
-		if err = c.updateBinding(binding, allClusters, needEvictClusters); err != nil {
+		if err = c.updateBinding(ctx, binding, allClusters, needEvictClusters); err != nil {
 			return 0, err
 		}
 	}
@@ -153,36 +149,20 @@ func (c *RBApplicationFailoverController) syncBinding(binding *workv1alpha2.Reso
 }
 
 func (c *RBApplicationFailoverController) evictBinding(binding *workv1alpha2.ResourceBinding, clusters []string) error {
+	clustersBeforeFailover := getClusterNamesFromTargetClusters(binding.Spec.Clusters)
 	for _, cluster := range clusters {
-		switch binding.Spec.Failover.Application.PurgeMode {
-		case policyv1alpha1.Graciously:
-			if features.FeatureGate.Enabled(features.GracefulEviction) {
-				binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(workv1alpha2.WithProducer(RBApplicationFailoverControllerName),
-					workv1alpha2.WithReason(workv1alpha2.EvictionReasonApplicationFailure), workv1alpha2.WithGracePeriodSeconds(binding.Spec.Failover.Application.GracePeriodSeconds)))
-			} else {
-				err := fmt.Errorf("GracefulEviction featureGate must be enabled when purgeMode is %s", policyv1alpha1.Graciously)
-				klog.Error(err)
-				return err
-			}
-		case policyv1alpha1.Never:
-			if features.FeatureGate.Enabled(features.GracefulEviction) {
-				binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(workv1alpha2.WithProducer(RBApplicationFailoverControllerName),
-					workv1alpha2.WithReason(workv1alpha2.EvictionReasonApplicationFailure), workv1alpha2.WithSuppressDeletion(ptr.To[bool](true))))
-			} else {
-				err := fmt.Errorf("GracefulEviction featureGate must be enabled when purgeMode is %s", policyv1alpha1.Never)
-				klog.Error(err)
-				return err
-			}
-		case policyv1alpha1.Immediately:
-			binding.Spec.RemoveCluster(cluster)
+		taskOpts, err := buildTaskOptions(binding.Spec.Failover.Application, binding.Status.AggregatedStatus, cluster, RBApplicationFailoverControllerName, clustersBeforeFailover)
+		if err != nil {
+			klog.Errorf("failed to build TaskOptions for ResourceBinding(%s/%s) under Cluster(%s): %v", binding.Namespace, binding.Name, cluster, err)
+			return err
 		}
+		binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(taskOpts...))
 	}
-
 	return nil
 }
 
-func (c *RBApplicationFailoverController) updateBinding(binding *workv1alpha2.ResourceBinding, allClusters sets.Set[string], needEvictClusters []string) error {
-	if err := c.Update(context.TODO(), binding); err != nil {
+func (c *RBApplicationFailoverController) updateBinding(ctx context.Context, binding *workv1alpha2.ResourceBinding, allClusters sets.Set[string], needEvictClusters []string) error {
+	if err := c.Update(ctx, binding); err != nil {
 		for _, cluster := range needEvictClusters {
 			helper.EmitClusterEvictionEventForResourceBinding(binding, cluster, c.EventRecorder, err)
 		}
@@ -191,11 +171,6 @@ func (c *RBApplicationFailoverController) updateBinding(binding *workv1alpha2.Re
 	}
 	for _, cluster := range needEvictClusters {
 		allClusters.Delete(cluster)
-	}
-	if !features.FeatureGate.Enabled(features.GracefulEviction) {
-		for _, cluster := range needEvictClusters {
-			helper.EmitClusterEvictionEventForResourceBinding(binding, cluster, c.EventRecorder, nil)
-		}
 	}
 
 	return nil
@@ -232,8 +207,9 @@ func (c *RBApplicationFailoverController) SetupWithManager(mgr controllerruntime
 	}
 
 	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(RBApplicationFailoverControllerName).
 		For(&workv1alpha2.ResourceBinding{}, builder.WithPredicates(resourceBindingPredicateFn)).
-		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
+		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).
 		Complete(c)
 }
 

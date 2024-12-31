@@ -16623,6 +16623,32 @@
           "$ref": "#/parameters/watch-XNNPZGbK"
         }
       ]
+    },
+    "/version/": {
+      "get": {
+        "description": "get the code version",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "version"
+        ],
+        "operationId": "getCodeVersion",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/io.k8s.apimachinery.pkg.version.Info"
+            }
+          }
+        }
+      }
     }
   },
   "definitions": {
@@ -17227,7 +17253,7 @@
       }
     },
     "com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.Cluster": {
-      "description": "Cluster represents the desire state and status of a member cluster.",
+      "description": "Cluster represents the desired state and status of a member cluster.",
       "type": "object",
       "required": [
         "spec"
@@ -17265,7 +17291,7 @@
       ]
     },
     "com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.ClusterList": {
-      "description": "ClusterList contains a list of member cluster",
+      "description": "ClusterList contains a list of member clusters",
       "type": "object",
       "required": [
         "items"
@@ -17312,11 +17338,11 @@
           "type": "string"
         },
         "id": {
-          "description": "ID is the unique identifier for the cluster. It is different from the object uid(.metadata.uid) and typically collected automatically from member cluster during the progress of registration.\n\nThe value is collected in order: 1. If the registering cluster enabled ClusterProperty API and defined the cluster ID by\n  creating a ClusterProperty object with name 'cluster.clusterset.k8s.io', Karmada would\n  take the defined value in the ClusterProperty object.\n  See https://github.com/kubernetes-sigs/about-api for more details about ClusterProperty API.\n2. Take the uid of 'kube-system' namespace on the registering cluster.\n\nPlease don't update this value unless you know what you are doing, because it will/may be used to : - uniquely identify the clusters within the Karmada system. - compose the DNS name of multi-cluster services.",
+          "description": "ID is the unique identifier for the cluster. It is different from the object uid(.metadata.uid) and is typically collected automatically from each member cluster during the process of registration.\n\nThe value is collected in order: 1. If the registering cluster enabled ClusterProperty API and defined the cluster ID by\n  creating a ClusterProperty object with name 'cluster.clusterset.k8s.io', Karmada would\n  take the defined value in the ClusterProperty object.\n  See https://github.com/kubernetes-sigs/about-api for more details about ClusterProperty API.\n2. Take the uid of 'kube-system' namespace on the registering cluster.\n\nPlease don't update this value unless you know what you are doing, because it will/may be used to : - uniquely identify the clusters within the Karmada system. - compose the DNS name of multi-cluster services.",
           "type": "string"
         },
         "impersonatorSecretRef": {
-          "description": "ImpersonatorSecretRef represents the secret contains the token of impersonator. The secret should hold credentials as follows: - secret.data.token",
+          "description": "ImpersonatorSecretRef represents the secret that contains the token of impersonator. The secret should hold credentials as follows: - secret.data.token",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.LocalSecretReference"
         },
         "insecureSkipTLSVerification": {
@@ -17328,7 +17354,7 @@
           "type": "string"
         },
         "proxyHeader": {
-          "description": "ProxyHeader is the HTTP header required by proxy server. The key in the key-value pair is HTTP header key and value is the associated header payloads. For the header with multiple values, the values should be separated by comma(e.g. 'k1': 'v1,v2,v3').",
+          "description": "ProxyHeader is the HTTP header required by proxy server. The key in the key-value pair is HTTP header key and the value is the associated header payloads. For the header with multiple values, the values should be separated by comma(e.g. 'k1': 'v1,v2,v3').",
           "type": "object",
           "additionalProperties": {
             "type": "string",
@@ -17336,11 +17362,11 @@
           }
         },
         "proxyURL": {
-          "description": "ProxyURL is the proxy URL for the cluster. If not empty, the karmada control plane will use this proxy to talk to the cluster. More details please refer to: https://github.com/kubernetes/client-go/issues/351",
+          "description": "ProxyURL is the proxy URL for the cluster. If not empty, the karmada control plane will use this proxy to talk to the cluster. For more details please refer to: https://github.com/kubernetes/client-go/issues/351",
           "type": "string"
         },
         "region": {
-          "description": "Region represents the region of the member cluster locate in.",
+          "description": "Region represents the region in which the member cluster is located.",
           "type": "string"
         },
         "resourceModels": {
@@ -17352,16 +17378,16 @@
           }
         },
         "secretRef": {
-          "description": "SecretRef represents the secret contains mandatory credentials to access the member cluster. The secret should hold credentials as follows: - secret.data.token - secret.data.caBundle",
+          "description": "SecretRef represents the secret that contains mandatory credentials to access the member cluster. The secret should hold credentials as follows: - secret.data.token - secret.data.caBundle",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.LocalSecretReference"
         },
         "syncMode": {
-          "description": "SyncMode describes how a cluster sync resources from karmada control plane.",
+          "description": "SyncMode describes how a cluster syncs resources from karmada control plane.",
           "type": "string",
           "default": ""
         },
         "taints": {
-          "description": "Taints attached to the member cluster. Taints on the cluster have the \"effect\" on any resource that does not tolerate the Taint.",
+          "description": "Taints are attached to the member cluster. Taints on the cluster have the \"effect\" on any resource that does not tolerate the Taint.",
           "type": "array",
           "items": {
             "default": {},
@@ -17369,7 +17395,7 @@
           }
         },
         "zone": {
-          "description": "Zone represents the zone of the member cluster locate in. Deprecated: This filed was never been used by Karmada, and it will not be removed from v1alpha1 for backward compatibility, use Zones instead.",
+          "description": "Zone represents the zone in which the member cluster is located. Deprecated: This field was never been used by Karmada, and it will not be removed from v1alpha1 for backward compatibility, use Zones instead.",
           "type": "string"
         },
         "zones": {
@@ -17387,7 +17413,7 @@
       "type": "object",
       "properties": {
         "apiEnablements": {
-          "description": "APIEnablements represents the list of APIs installed in the member cluster.",
+          "description": "APIEnablements represents the list of APIs installed on the member cluster.",
           "type": "array",
           "items": {
             "default": {},
@@ -17433,7 +17459,7 @@
       ],
       "properties": {
         "name": {
-          "description": "Name is the name of resource being referenced.",
+          "description": "Name is the name of the resource being referenced.",
           "type": "string",
           "default": ""
         },
@@ -17485,7 +17511,7 @@
       }
     },
     "com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.ResourceModelRange": {
-      "description": "ResourceModelRange describes the detail of each modeling quota that ranges from min to max. Please pay attention, by default, the value of min can be inclusive, and the value of max cannot be inclusive. E.g. in an interval, min = 2, max =10 is set, which means the interval [2,10). This rule ensure that all intervals have the same meaning. If the last interval is infinite, it is definitely unreachable. Therefore, we define the right interval as the open interval. For a valid interval, the value on the right is greater than the value on the left, in other words, max must be greater than min. It is strongly recommended that the [Min, Max) of all ResourceModelRanges can make a continuous interval.",
+      "description": "ResourceModelRange describes the detail of each modeling quota that ranges from min to max. Please pay attention, by default, the value of min can be inclusive, and the value of max cannot be inclusive. E.g. in an interval, min = 2, max = 10 is set, which means the interval [2,10). This rule ensures that all intervals have the same meaning. If the last interval is infinite, it is definitely unreachable. Therefore, we define the right interval as the open interval. For a valid interval, the value on the right is greater than the value on the left, in other words, max must be greater than min. It is strongly recommended that the [Min, Max) of all ResourceModelRanges can make a continuous interval.",
       "type": "object",
       "required": [
         "name",
@@ -17944,6 +17970,9 @@
     "com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.ClusterSelector": {
       "description": "ClusterSelector specifies the cluster to be selected.",
       "type": "object",
+      "required": [
+        "name"
+      ],
       "properties": {
         "name": {
           "description": "Name is the name of the cluster to be selected.",
@@ -18260,6 +18289,10 @@
         "purgeMode": {
           "description": "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Immediately\", \"Graciously\" and \"Never\". Defaults to \"Graciously\".",
           "type": "string"
+        },
+        "statePreservation": {
+          "description": "StatePreservation defines the policy for preserving and restoring state data during failover events for stateful applications.\n\nWhen an application fails over from one cluster to another, this policy enables the extraction of critical data from the original resource configuration. Upon successful migration, the extracted data is then re-injected into the new resource, ensuring that the application can resume operation with its previous state intact. This is particularly useful for stateful applications where maintaining data consistency across failover events is crucial. If not specified, means no state data will be preserved.\n\nNote: This requires the StatefulFailoverInjection feature gate to be enabled, which is alpha.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StatePreservation"
         }
       }
     },
@@ -18688,6 +18721,36 @@
         }
       }
     },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FieldOverrider": {
+      "description": "FieldOverrider represents the rules dedicated to modifying a specific field in any Kubernetes resource. This allows changing a single field within the resource with multiple operations. It is designed to handle structured field values such as those found in ConfigMaps or Secrets. The current implementation supports JSON and YAML formats, but can easily be extended to support XML in the future. Note: In any given instance, FieldOverrider processes either JSON or YAML fields, but not both simultaneously.",
+      "type": "object",
+      "required": [
+        "fieldPath"
+      ],
+      "properties": {
+        "fieldPath": {
+          "description": "FieldPath specifies the initial location in the instance document where the operation should take place. The path uses RFC 6901 for navigating into nested structures. For example, the path \"/data/db-config.yaml\" specifies the configuration data key named \"db-config.yaml\" in a ConfigMap: \"/data/db-config.yaml\".",
+          "type": "string",
+          "default": ""
+        },
+        "json": {
+          "description": "JSON represents the operations performed on the JSON document specified by the FieldPath.",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.JSONPatchOperation"
+          }
+        },
+        "yaml": {
+          "description": "YAML represents the operations performed on the YAML document specified by the FieldPath.",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.YAMLPatchOperation"
+          }
+        }
+      }
+    },
     "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FieldSelector": {
       "description": "FieldSelector is a field filter.",
       "type": "object",
@@ -18744,11 +18807,36 @@
         }
       }
     },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.JSONPatchOperation": {
+      "description": "JSONPatchOperation represents a single field modification operation for JSON format.",
+      "type": "object",
+      "required": [
+        "subPath",
+        "operator"
+      ],
+      "properties": {
+        "operator": {
+          "description": "Operator indicates the operation on target field. Available operators are: \"add\", \"remove\", and \"replace\".",
+          "type": "string",
+          "default": ""
+        },
+        "subPath": {
+          "description": "SubPath specifies the relative location within the initial FieldPath where the operation should take place. The path uses RFC 6901 for navigating into nested structures.",
+          "type": "string",
+          "default": ""
+        },
+        "value": {
+          "description": "Value is the new value to set for the specified field if the operation is \"add\" or \"replace\". For \"remove\" operation, this field is ignored.",
+          "$ref": "#/definitions/io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSON"
+        }
+      }
+    },
     "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.LabelAnnotationOverrider": {
       "description": "LabelAnnotationOverrider represents the rules dedicated to handling workload labels/annotations",
       "type": "object",
       "required": [
-        "operator"
+        "operator",
+        "value"
       ],
       "properties": {
         "operator": {
@@ -18867,7 +18955,7 @@
       }
     },
     "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Overriders": {
-      "description": "Overriders offers various alternatives to represent the override rules.\n\nIf more than one alternative exists, they will be applied with following order: - ImageOverrider - CommandOverrider - ArgsOverrider - LabelsOverrider - AnnotationsOverrider - Plaintext",
+      "description": "Overriders offers various alternatives to represent the override rules.\n\nIf more than one alternative exists, they will be applied with following order: - ImageOverrider - CommandOverrider - ArgsOverrider - LabelsOverrider - AnnotationsOverrider - FieldOverrider - Plaintext",
       "type": "object",
       "properties": {
         "annotationsOverrider": {
@@ -18892,6 +18980,14 @@
           "items": {
             "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.CommandArgsOverrider"
+          }
+        },
+        "fieldOverrider": {
+          "description": "FieldOverrider represents the rules dedicated to modifying a specific field in any Kubernetes resource. This allows changing a single field within the resource with multiple operations. It is designed to handle structured field values such as those found in ConfigMaps or Secrets. The current implementation supports JSON and YAML formats, but can easily be extended to support XML in the future.",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FieldOverrider"
           }
         },
         "imageOverrider": {
@@ -19094,6 +19190,10 @@
             "Never"
           ]
         },
+        "preserveResourcesOnDeletion": {
+          "description": "PreserveResourcesOnDeletion controls whether resources should be preserved on the member clusters when the resource template is deleted. If set to true, resources will be preserved on the member clusters. Default is false, which means resources will be deleted along with the resource template.\n\nThis setting is particularly useful during workload migration scenarios to ensure that rollback can occur quickly without affecting the workloads running on the member clusters.\n\nAdditionally, this setting applies uniformly across all member clusters and will not selectively control preservation on only some clusters.\n\nNote: This setting does not apply to the deletion of the policy itself. When the policy is deleted, the resource templates and their corresponding propagated resources in member clusters will remain unchanged unless explicitly deleted.",
+          "type": "boolean"
+        },
         "priority": {
           "description": "Priority indicates the importance of a policy(PropagationPolicy or ClusterPropagationPolicy). A policy will be applied for the matched resource templates if there is no other policies with higher priority at the point of the resource template be processed. Once a resource template has been claimed by a policy, by default it will not be preempted by following policies even with a higher priority. See Preemption for more details.\n\nIn case of two policies have the same priority, the one with a more precise matching rules in ResourceSelectors wins: - matching by name(resourceSelector.name) has higher priority than\n  by selector(resourceSelector.labelSelector)\n- matching by selector(resourceSelector.labelSelector) has higher priority\n  than by APIVersion(resourceSelector.apiVersion) and Kind(resourceSelector.kind).\nIf there is still no winner at this point, the one with the lower alphabetic order wins, e.g. policy 'bar' has higher priority than 'foo'.\n\nThe higher the value, the higher the priority. Defaults to zero.",
           "type": "integer",
@@ -19114,6 +19214,10 @@
         "schedulerName": {
           "description": "SchedulerName represents which scheduler to proceed the scheduling. If specified, the policy will be dispatched by specified scheduler. If not specified, the policy will be dispatched by default scheduler.",
           "type": "string"
+        },
+        "suspension": {
+          "description": "Suspension declares the policy for suspending different aspects of propagation. nil means no suspension. no default values.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Suspension"
         }
       }
     },
@@ -19209,6 +19313,43 @@
         }
       }
     },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StatePreservation": {
+      "description": "StatePreservation defines the policy for preserving state during failover events.",
+      "type": "object",
+      "required": [
+        "rules"
+      ],
+      "properties": {
+        "rules": {
+          "description": "Rules contains a list of StatePreservationRule configurations. Each rule specifies a JSONPath expression targeting specific pieces of state data to be preserved during failover events. An AliasLabelName is associated with each rule, serving as a label key when the preserved data is passed to the new cluster.",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StatePreservationRule"
+          }
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StatePreservationRule": {
+      "description": "StatePreservationRule defines a single rule for state preservation. It includes a JSONPath expression and an alias name that will be used as a label key when passing state information to the new cluster.",
+      "type": "object",
+      "required": [
+        "aliasLabelName",
+        "jsonPath"
+      ],
+      "properties": {
+        "aliasLabelName": {
+          "description": "AliasLabelName is the name that will be used as a label key when the preserved data is passed to the new cluster. This facilitates the injection of the preserved state back into the application resources during recovery.",
+          "type": "string",
+          "default": ""
+        },
+        "jsonPath": {
+          "description": "JSONPath is the JSONPath template used to identify the state data to be preserved from the original resource configuration. The JSONPath syntax follows the Kubernetes specification: https://kubernetes.io/docs/reference/kubectl/jsonpath/\n\nNote: The JSONPath expression will start searching from the \"status\" field of the API resource object by default. For example, to extract the \"availableReplicas\" from a Deployment, the JSONPath expression should be \"{.availableReplicas}\", not \"{.status.availableReplicas}\".",
+          "type": "string",
+          "default": ""
+        }
+      }
+    },
     "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StaticClusterAssignment": {
       "description": "StaticClusterAssignment represents the set of desired hard limits for a specific cluster.",
       "type": "object",
@@ -19249,6 +19390,58 @@
           "type": "integer",
           "format": "int64",
           "default": 0
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.SuspendClusters": {
+      "description": "SuspendClusters represents a group of clusters that should be suspended from propagating. Note: No plan to introduce the label selector or field selector to select clusters yet, as it would make the system unpredictable.",
+      "type": "object",
+      "properties": {
+        "clusterNames": {
+          "description": "ClusterNames is the list of clusters to be selected.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "default": ""
+          }
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Suspension": {
+      "description": "Suspension defines the policy for suspending different aspects of propagation.",
+      "type": "object",
+      "properties": {
+        "dispatching": {
+          "description": "Dispatching controls whether dispatching should be suspended. nil means not suspend, no default value, only accepts 'true'. Note: true means stop propagating to all clusters. Can not co-exist with DispatchingOnClusters which is used to suspend particular clusters.",
+          "type": "boolean"
+        },
+        "dispatchingOnClusters": {
+          "description": "DispatchingOnClusters declares a list of clusters to which the dispatching should be suspended. Note: Can not co-exist with Dispatching which is used to suspend all.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.SuspendClusters"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.YAMLPatchOperation": {
+      "description": "YAMLPatchOperation represents a single field modification operation for YAML format.",
+      "type": "object",
+      "required": [
+        "subPath",
+        "operator"
+      ],
+      "properties": {
+        "operator": {
+          "description": "Operator indicates the operation on target field. Available operators are: \"add\", \"remove\", and \"replace\".",
+          "type": "string",
+          "default": ""
+        },
+        "subPath": {
+          "description": "SubPath specifies the relative location within the initial FieldPath where the operation should take place. The path uses RFC 6901 for navigating into nested structures.",
+          "type": "string",
+          "default": ""
+        },
+        "value": {
+          "description": "Value is the new value to set for the specified field if the operation is \"add\" or \"replace\". For \"remove\" operation, this field is ignored.",
+          "$ref": "#/definitions/io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSON"
         }
       }
     },
@@ -19410,7 +19603,8 @@
       "description": "OpenSearchConfig holds the necessary configuration for client to access and config an OpenSearch server.",
       "type": "object",
       "required": [
-        "addresses"
+        "addresses",
+        "secretRef"
       ],
       "properties": {
         "addresses": {
@@ -19715,6 +19909,14 @@
       "description": "WorkSpec defines the desired state of Work.",
       "type": "object",
       "properties": {
+        "preserveResourcesOnDeletion": {
+          "description": "PreserveResourcesOnDeletion controls whether resources should be preserved on the member cluster when the Work object is deleted. If set to true, resources will be preserved on the member cluster. Default is false, which means resources will be deleted along with the Work object.",
+          "type": "boolean"
+        },
+        "suspendDispatching": {
+          "description": "SuspendDispatching controls whether dispatching should be suspended, nil means not suspend. Note: true means stop propagating to the corresponding member cluster, and does not prevent status collection.",
+          "type": "boolean"
+        },
         "workload": {
           "description": "Workload represents the manifest workload to be deployed on managed cluster.",
           "default": {},
@@ -19896,6 +20098,14 @@
         "producer"
       ],
       "properties": {
+        "clustersBeforeFailover": {
+          "description": "ClustersBeforeFailover records the clusters where running the application before failover.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "default": ""
+          }
+        },
         "creationTimestamp": {
           "description": "CreationTimestamp is a timestamp representing the server time when this object was created. Clients should not set this value to avoid the time inconsistency issue. It is represented in RFC3339 form(like '2021-04-25T10:02:10Z') and is in UTC.\n\nPopulated by the system. Read-only.",
           "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
@@ -19914,10 +20124,22 @@
           "description": "Message is a human-readable message indicating details about the eviction. This may be an empty string.",
           "type": "string"
         },
+        "preservedLabelState": {
+          "description": "PreservedLabelState represents the application state information collected from the original cluster, and it will be injected into the new cluster in form of application labels.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "default": ""
+          }
+        },
         "producer": {
           "description": "Producer indicates the controller who triggered the eviction.",
           "type": "string",
           "default": ""
+        },
+        "purgeMode": {
+          "description": "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Immediately\", \"Graciously\" and \"Never\".",
+          "type": "string"
         },
         "reason": {
           "description": "Reason contains a programmatic identifier indicating the reason for the eviction. Producers may define expected values and meanings for this field, and whether the values are considered a guaranteed API. The value should be a CamelCase string. This field may not be empty.",
@@ -20133,6 +20355,10 @@
           "description": "Placement represents the rule for select clusters to propagate resources.",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Placement"
         },
+        "preserveResourcesOnDeletion": {
+          "description": "PreserveResourcesOnDeletion controls whether resources should be preserved on the member clusters when the binding object is deleted. If set to true, resources will be preserved on the member clusters. Default is false, which means resources will be deleted along with the binding object. This setting applies to all Work objects created under this binding object.",
+          "type": "boolean"
+        },
         "propagateDeps": {
           "description": "PropagateDeps tells if relevant resources should be propagated automatically. It is inherited from PropagationPolicy or ClusterPropagationPolicy. default false.",
           "type": "boolean"
@@ -20166,6 +20392,10 @@
         "schedulerName": {
           "description": "SchedulerName represents which scheduler to proceed the scheduling. It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).",
           "type": "string"
+        },
+        "suspension": {
+          "description": "Suspension declares the policy for suspending different aspects of propagation. nil means no suspension. no default values.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.Suspension"
         }
       }
     },
@@ -20201,6 +20431,20 @@
         "schedulerObservingAffinityName": {
           "description": "SchedulerObservedAffinityName is the name of affinity term that is the basis of current scheduling.",
           "type": "string"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.Suspension": {
+      "description": "Suspension defines the policy for suspending of propagation.",
+      "type": "object",
+      "properties": {
+        "dispatching": {
+          "description": "Dispatching controls whether dispatching should be suspended. nil means not suspend, no default value, only accepts 'true'. Note: true means stop propagating to all clusters. Can not co-exist with DispatchingOnClusters which is used to suspend particular clusters.",
+          "type": "boolean"
+        },
+        "dispatchingOnClusters": {
+          "description": "DispatchingOnClusters declares a list of clusters to which the dispatching should be suspended. Note: Can not co-exist with Dispatching which is used to suspend all.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.SuspendClusters"
         }
       }
     },
@@ -20838,7 +21082,8 @@
           "items": {
             "default": {},
             "$ref": "#/definitions/io.k8s.api.core.v1.LoadBalancerIngress"
-          }
+          },
+          "x-kubernetes-list-type": "atomic"
         }
       }
     },
@@ -20855,7 +21100,8 @@
           "items": {
             "default": {},
             "$ref": "#/definitions/io.k8s.api.core.v1.NodeSelectorTerm"
-          }
+          },
+          "x-kubernetes-list-type": "atomic"
         }
       },
       "x-kubernetes-map-type": "atomic"
@@ -20892,7 +21138,8 @@
           "items": {
             "type": "string",
             "default": ""
-          }
+          },
+          "x-kubernetes-list-type": "atomic"
         }
       }
     },
@@ -20906,7 +21153,8 @@
           "items": {
             "default": {},
             "$ref": "#/definitions/io.k8s.api.core.v1.NodeSelectorRequirement"
-          }
+          },
+          "x-kubernetes-list-type": "atomic"
         },
         "matchFields": {
           "description": "A list of node selector requirements by node's fields.",
@@ -20914,7 +21162,8 @@
           "items": {
             "default": {},
             "$ref": "#/definitions/io.k8s.api.core.v1.NodeSelectorRequirement"
-          }
+          },
+          "x-kubernetes-list-type": "atomic"
         }
       },
       "x-kubernetes-map-type": "atomic"
@@ -21160,7 +21409,8 @@
           "items": {
             "default": {},
             "$ref": "#/definitions/io.k8s.api.networking.v1.IngressLoadBalancerIngress"
-          }
+          },
+          "x-kubernetes-list-type": "atomic"
         }
       }
     },
@@ -21290,7 +21540,8 @@
           "type": "integer",
           "format": "int32"
         }
-      }
+      },
+      "x-kubernetes-map-type": "atomic"
     },
     "io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSON": {
       "description": "JSON represents any valid JSON value. These types are supported: bool, int64, float64, string, []interface{}, map[string]interface{} and nil."
@@ -21331,7 +21582,8 @@
           "items": {
             "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ServerAddressByClientCIDR"
-          }
+          },
+          "x-kubernetes-list-type": "atomic"
         },
         "versions": {
           "description": "versions are the versions supported in this group.",
@@ -21339,7 +21591,8 @@
           "items": {
             "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.GroupVersionForDiscovery"
-          }
+          },
+          "x-kubernetes-list-type": "atomic"
         }
       },
       "x-kubernetes-group-version-kind": [
@@ -21367,7 +21620,8 @@
           "items": {
             "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.APIGroup"
-          }
+          },
+          "x-kubernetes-list-type": "atomic"
         },
         "kind": {
           "description": "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
@@ -21399,7 +21653,8 @@
           "items": {
             "type": "string",
             "default": ""
-          }
+          },
+          "x-kubernetes-list-type": "atomic"
         },
         "group": {
           "description": "group is the preferred group of the resource.  Empty implies the group of the containing resource list. For subresources, this may have a different value, for example: Scale\".",
@@ -21426,7 +21681,8 @@
           "items": {
             "type": "string",
             "default": ""
-          }
+          },
+          "x-kubernetes-list-type": "atomic"
         },
         "singularName": {
           "description": "singularName is the singular name of the resource.  This allows clients to handle plural and singular opaquely. The singularName is more correct for reporting status on a single item and both singular and plural are allowed from the kubectl CLI interface.",
@@ -21478,7 +21734,8 @@
           "items": {
             "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.APIResource"
-          }
+          },
+          "x-kubernetes-list-type": "atomic"
         }
       },
       "x-kubernetes-group-version-kind": [
@@ -21545,7 +21802,8 @@
           "items": {
             "type": "string",
             "default": ""
-          }
+          },
+          "x-kubernetes-list-type": "atomic"
         },
         "gracePeriodSeconds": {
           "description": "The duration in seconds before the object should be deleted. Value must be non-negative integer. The value zero indicates delete immediately. If this value is nil, the default grace period for the specified type will be used. Defaults to a per object value if not specified. zero means delete immediately.",
@@ -21708,6 +21966,11 @@
         {
           "group": "coordination.k8s.io",
           "kind": "DeleteOptions",
+          "version": "v1alpha1"
+        },
+        {
+          "group": "coordination.k8s.io",
+          "kind": "DeleteOptions",
           "version": "v1beta1"
         },
         {
@@ -21838,7 +22101,7 @@
         {
           "group": "resource.k8s.io",
           "kind": "DeleteOptions",
-          "version": "v1alpha2"
+          "version": "v1alpha3"
         },
         {
           "group": "scheduling.k8s.io",
@@ -21874,6 +22137,11 @@
           "group": "storage.k8s.io",
           "kind": "DeleteOptions",
           "version": "v1beta1"
+        },
+        {
+          "group": "storagemigration.k8s.io",
+          "kind": "DeleteOptions",
+          "version": "v1alpha1"
         },
         {
           "group": "work.karmada.io",
@@ -21921,7 +22189,8 @@
           "items": {
             "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelectorRequirement"
-          }
+          },
+          "x-kubernetes-list-type": "atomic"
         },
         "matchLabels": {
           "description": "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is \"key\", the operator is \"In\", and the values array contains only \"value\". The requirements are ANDed.",
@@ -21958,7 +22227,8 @@
           "items": {
             "type": "string",
             "default": ""
-          }
+          },
+          "x-kubernetes-list-type": "atomic"
         }
       }
     },
@@ -22051,6 +22321,7 @@
             "type": "string",
             "default": ""
           },
+          "x-kubernetes-list-type": "set",
           "x-kubernetes-patch-strategy": "merge"
         },
         "generateName": {
@@ -22076,7 +22347,8 @@
           "items": {
             "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ManagedFieldsEntry"
-          }
+          },
+          "x-kubernetes-list-type": "atomic"
         },
         "name": {
           "description": "Name must be unique within a namespace. Is required when creating resources, although some resources may allow a client to request the generation of an appropriate name automatically. Name is primarily intended for creation idempotence and configuration definition. Cannot be updated. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names",
@@ -22093,6 +22365,10 @@
             "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.OwnerReference"
           },
+          "x-kubernetes-list-map-keys": [
+            "uid"
+          ],
+          "x-kubernetes-list-type": "map",
           "x-kubernetes-patch-merge-key": "uid",
           "x-kubernetes-patch-strategy": "merge"
         },
@@ -22204,7 +22480,8 @@
         },
         "details": {
           "description": "Extended data associated with the reason.  Each reason may define its own extended details. This field is optional and the data returned is not guaranteed to conform to any schema except that defined by the reason type.",
-          "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.StatusDetails"
+          "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.StatusDetails",
+          "x-kubernetes-list-type": "atomic"
         },
         "kind": {
           "description": "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
@@ -22233,11 +22510,6 @@
           "group": "",
           "kind": "Status",
           "version": "v1"
-        },
-        {
-          "group": "resource.k8s.io",
-          "kind": "Status",
-          "version": "v1alpha2"
         }
       ]
     },
@@ -22269,7 +22541,8 @@
           "items": {
             "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.StatusCause"
-          }
+          },
+          "x-kubernetes-list-type": "atomic"
         },
         "group": {
           "description": "The group attribute of the resource associated with the status StatusReason.",
@@ -22455,6 +22728,11 @@
         {
           "group": "coordination.k8s.io",
           "kind": "WatchEvent",
+          "version": "v1alpha1"
+        },
+        {
+          "group": "coordination.k8s.io",
+          "kind": "WatchEvent",
           "version": "v1beta1"
         },
         {
@@ -22585,7 +22863,7 @@
         {
           "group": "resource.k8s.io",
           "kind": "WatchEvent",
-          "version": "v1alpha2"
+          "version": "v1alpha3"
         },
         {
           "group": "scheduling.k8s.io",
@@ -22623,6 +22901,11 @@
           "version": "v1beta1"
         },
         {
+          "group": "storagemigration.k8s.io",
+          "kind": "WatchEvent",
+          "version": "v1alpha1"
+        },
+        {
           "group": "work.karmada.io",
           "kind": "WatchEvent",
           "version": "v1alpha1"
@@ -22637,6 +22920,59 @@
     "io.k8s.apimachinery.pkg.runtime.RawExtension": {
       "description": "RawExtension is used to hold extensions in external versions.\n\nTo use this, make a field which has RawExtension as its type in your external, versioned struct, and Object in your internal struct. You also need to register your various plugin types.\n\n// Internal package:\n\n\ttype MyAPIObject struct {\n\t\truntime.TypeMeta `json:\",inline\"`\n\t\tMyPlugin runtime.Object `json:\"myPlugin\"`\n\t}\n\n\ttype PluginA struct {\n\t\tAOption string `json:\"aOption\"`\n\t}\n\n// External package:\n\n\ttype MyAPIObject struct {\n\t\truntime.TypeMeta `json:\",inline\"`\n\t\tMyPlugin runtime.RawExtension `json:\"myPlugin\"`\n\t}\n\n\ttype PluginA struct {\n\t\tAOption string `json:\"aOption\"`\n\t}\n\n// On the wire, the JSON will look something like this:\n\n\t{\n\t\t\"kind\":\"MyAPIObject\",\n\t\t\"apiVersion\":\"v1\",\n\t\t\"myPlugin\": {\n\t\t\t\"kind\":\"PluginA\",\n\t\t\t\"aOption\":\"foo\",\n\t\t},\n\t}\n\nSo what happens? Decode first uses json or yaml to unmarshal the serialized data into your external MyAPIObject. That causes the raw JSON to be stored, but not unpacked. The next step is to copy (using pkg/conversion) into the internal struct. The runtime package's DefaultScheme has conversion functions installed which will unpack the JSON stored in RawExtension, turning it into the correct object type, and storing it in the Object. (TODO: In the case where the object is of an unknown type, a runtime.Unknown object will be created and stored.)",
       "type": "object"
+    },
+    "io.k8s.apimachinery.pkg.version.Info": {
+      "description": "Info contains versioning information. how we'll want to distribute that information.",
+      "type": "object",
+      "required": [
+        "major",
+        "minor",
+        "gitVersion",
+        "gitCommit",
+        "gitTreeState",
+        "buildDate",
+        "goVersion",
+        "compiler",
+        "platform"
+      ],
+      "properties": {
+        "buildDate": {
+          "type": "string",
+          "default": ""
+        },
+        "compiler": {
+          "type": "string",
+          "default": ""
+        },
+        "gitCommit": {
+          "type": "string",
+          "default": ""
+        },
+        "gitTreeState": {
+          "type": "string",
+          "default": ""
+        },
+        "gitVersion": {
+          "type": "string",
+          "default": ""
+        },
+        "goVersion": {
+          "type": "string",
+          "default": ""
+        },
+        "major": {
+          "type": "string",
+          "default": ""
+        },
+        "minor": {
+          "type": "string",
+          "default": ""
+        },
+        "platform": {
+          "type": "string",
+          "default": ""
+        }
+      }
     }
   },
   "parameters": {

@@ -20,8 +20,8 @@ package v1alpha1
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -38,25 +38,17 @@ type OverridePolicyLister interface {
 
 // overridePolicyLister implements the OverridePolicyLister interface.
 type overridePolicyLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1alpha1.OverridePolicy]
 }
 
 // NewOverridePolicyLister returns a new OverridePolicyLister.
 func NewOverridePolicyLister(indexer cache.Indexer) OverridePolicyLister {
-	return &overridePolicyLister{indexer: indexer}
-}
-
-// List lists all OverridePolicies in the indexer.
-func (s *overridePolicyLister) List(selector labels.Selector) (ret []*v1alpha1.OverridePolicy, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.OverridePolicy))
-	})
-	return ret, err
+	return &overridePolicyLister{listers.New[*v1alpha1.OverridePolicy](indexer, v1alpha1.Resource("overridepolicy"))}
 }
 
 // OverridePolicies returns an object that can list and get OverridePolicies.
 func (s *overridePolicyLister) OverridePolicies(namespace string) OverridePolicyNamespaceLister {
-	return overridePolicyNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return overridePolicyNamespaceLister{listers.NewNamespaced[*v1alpha1.OverridePolicy](s.ResourceIndexer, namespace)}
 }
 
 // OverridePolicyNamespaceLister helps list and get OverridePolicies.
@@ -74,26 +66,5 @@ type OverridePolicyNamespaceLister interface {
 // overridePolicyNamespaceLister implements the OverridePolicyNamespaceLister
 // interface.
 type overridePolicyNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all OverridePolicies in the indexer for a given namespace.
-func (s overridePolicyNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.OverridePolicy, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.OverridePolicy))
-	})
-	return ret, err
-}
-
-// Get retrieves the OverridePolicy from the indexer for a given namespace and name.
-func (s overridePolicyNamespaceLister) Get(name string) (*v1alpha1.OverridePolicy, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("overridepolicy"), name)
-	}
-	return obj.(*v1alpha1.OverridePolicy), nil
+	listers.ResourceIndexer[*v1alpha1.OverridePolicy]
 }

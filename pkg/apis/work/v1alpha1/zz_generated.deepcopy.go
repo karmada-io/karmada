@@ -381,6 +381,16 @@ func (in *WorkList) DeepCopyObject() runtime.Object {
 func (in *WorkSpec) DeepCopyInto(out *WorkSpec) {
 	*out = *in
 	in.Workload.DeepCopyInto(&out.Workload)
+	if in.SuspendDispatching != nil {
+		in, out := &in.SuspendDispatching, &out.SuspendDispatching
+		*out = new(bool)
+		**out = **in
+	}
+	if in.PreserveResourcesOnDeletion != nil {
+		in, out := &in.PreserveResourcesOnDeletion, &out.PreserveResourcesOnDeletion
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 

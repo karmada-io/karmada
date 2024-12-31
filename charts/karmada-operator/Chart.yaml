@@ -26,7 +26,7 @@ version: 0.0.1
 # This is the version number of the application being deployed. This version number should be
 # incremented each time you make changes to the application. Versions are not expected to
 # follow Semantic Versioning. They should reflect the version the application is using.
-appVersion: latest
+appVersion: v1.1.0
 
 # This is karmada dependencies
 dependencies:
@@ -38,3 +38,7 @@ dependencies:
 maintainers:
   - name: calvin0327
     email: wen.chen@daocloud.io
+  - email: chaosi@zju.edu.cn
+    name: chaosi-zju
+  - email: amiralavi7@gmail.com
+    name: a7i

@@ -29,24 +29,36 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/addons"
+	"github.com/karmada-io/karmada/pkg/karmadactl/annotate"
+	"github.com/karmada-io/karmada/pkg/karmadactl/apiresources"
 	"github.com/karmada-io/karmada/pkg/karmadactl/apply"
+	"github.com/karmada-io/karmada/pkg/karmadactl/attach"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit"
+	"github.com/karmada-io/karmada/pkg/karmadactl/completion"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cordon"
+	"github.com/karmada-io/karmada/pkg/karmadactl/create"
 	"github.com/karmada-io/karmada/pkg/karmadactl/deinit"
+	karmadactldelete "github.com/karmada-io/karmada/pkg/karmadactl/delete"
 	"github.com/karmada-io/karmada/pkg/karmadactl/describe"
+	"github.com/karmada-io/karmada/pkg/karmadactl/edit"
 	"github.com/karmada-io/karmada/pkg/karmadactl/exec"
+	"github.com/karmada-io/karmada/pkg/karmadactl/explain"
 	"github.com/karmada-io/karmada/pkg/karmadactl/get"
 	"github.com/karmada-io/karmada/pkg/karmadactl/interpret"
 	"github.com/karmada-io/karmada/pkg/karmadactl/join"
+	"github.com/karmada-io/karmada/pkg/karmadactl/label"
 	"github.com/karmada-io/karmada/pkg/karmadactl/logs"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/patch"
 	"github.com/karmada-io/karmada/pkg/karmadactl/promote"
 	"github.com/karmada-io/karmada/pkg/karmadactl/register"
 	"github.com/karmada-io/karmada/pkg/karmadactl/taint"
 	"github.com/karmada-io/karmada/pkg/karmadactl/token"
 	"github.com/karmada-io/karmada/pkg/karmadactl/top"
 	"github.com/karmada-io/karmada/pkg/karmadactl/unjoin"
+	"github.com/karmada-io/karmada/pkg/karmadactl/unregister"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	utilcomp "github.com/karmada-io/karmada/pkg/karmadactl/util/completion"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
 
@@ -82,11 +94,24 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 	_ = flag.CommandLine.Parse(nil)
 	f := util.NewFactory(options.DefaultConfigFlags)
 	ioStreams := genericiooptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
+
+	// Avoid import cycle by setting ValidArgsFunction here instead of in NewCmdGet()
+	getCmd := get.NewCmdGet(f, parentCommand, ioStreams)
+	getCmd.ValidArgsFunction = utilcomp.ResourceTypeAndNameCompletionFunc(f)
+	utilcomp.RegisterCompletionFuncForClustersFlag(getCmd)
+	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(getCmd)
+	utilcomp.RegisterCompletionFuncForNamespaceFlag(getCmd, f)
+	utilcomp.RegisterCompletionFuncForOperationScopeFlag(getCmd)
+
 	groups := templates.CommandGroups{
 		{
 			Message: "Basic Commands:",
 			Commands: []*cobra.Command{
-				get.NewCmdGet(f, parentCommand, ioStreams),
+				explain.NewCmdExplain(f, parentCommand, ioStreams),
+				getCmd,
+				create.NewCmdCreate(f, parentCommand, ioStreams),
+				karmadactldelete.NewCmdDelete(f, parentCommand, ioStreams),
+				edit.NewCmdEdit(f, parentCommand, ioStreams),
 			},
 		},
 		{
@@ -99,6 +124,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 				unjoin.NewCmdUnjoin(f, parentCommand),
 				token.NewCmdToken(f, parentCommand, ioStreams),
 				register.NewCmdRegister(parentCommand),
+				unregister.NewCmdUnregister(parentCommand),
 			},
 		},
 		{
@@ -112,6 +138,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 		{
 			Message: "Troubleshooting and Debugging Commands:",
 			Commands: []*cobra.Command{
+				attach.NewCmdAttach(f, parentCommand, ioStreams),
 				logs.NewCmdLogs(f, parentCommand, ioStreams),
 				exec.NewCmdExec(f, parentCommand, ioStreams),
 				describe.NewCmdDescribe(f, parentCommand, ioStreams),
@@ -124,6 +151,22 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 				apply.NewCmdApply(f, parentCommand, ioStreams),
 				promote.NewCmdPromote(f, parentCommand),
 				top.NewCmdTop(f, parentCommand, ioStreams),
+				patch.NewCmdPatch(f, parentCommand, ioStreams),
+			},
+		},
+		{
+			Message: "Settings Commands:",
+			Commands: []*cobra.Command{
+				label.NewCmdLabel(f, parentCommand, ioStreams),
+				annotate.NewCmdAnnotate(f, parentCommand, ioStreams),
+				completion.NewCmdCompletion(parentCommand, ioStreams.Out, ""),
+			},
+		},
+		{
+			Message: "Other Commands:",
+			Commands: []*cobra.Command{
+				apiresources.NewCmdAPIResources(f, parentCommand, ioStreams),
+				apiresources.NewCmdAPIVersions(f, parentCommand, ioStreams),
 			},
 		},
 	}
@@ -135,6 +178,8 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 	rootCmd.AddCommand(options.NewCmdOptions(parentCommand, ioStreams.Out))
 
 	templates.ActsAsRootCommand(rootCmd, filters, groups...)
+
+	utilcomp.SetFactoryForCompletion(f)
 
 	return rootCmd
 }

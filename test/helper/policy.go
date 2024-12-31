@@ -161,7 +161,7 @@ func NewClusterOverridePolicyByOverrideRules(policyName string, rsSelectors []po
 }
 
 // NewFederatedResourceQuota will build a demo FederatedResourceQuota object.
-func NewFederatedResourceQuota(ns, name string) *policyv1alpha1.FederatedResourceQuota {
+func NewFederatedResourceQuota(ns, name string, clusterNames []string) *policyv1alpha1.FederatedResourceQuota {
 	return &policyv1alpha1.FederatedResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: ns,
@@ -174,14 +174,14 @@ func NewFederatedResourceQuota(ns, name string) *policyv1alpha1.FederatedResourc
 			},
 			StaticAssignments: []policyv1alpha1.StaticClusterAssignment{
 				{
-					ClusterName: "member1",
+					ClusterName: clusterNames[0],
 					Hard: map[corev1.ResourceName]resource.Quantity{
 						"cpu":    resource.MustParse("1"),
 						"memory": resource.MustParse("2Gi"),
 					},
 				},
 				{
-					ClusterName: "member2",
+					ClusterName: clusterNames[1],
 					Hard: map[corev1.ResourceName]resource.Quantity{
 						"cpu":    resource.MustParse("1"),
 						"memory": resource.MustParse("2Gi"),

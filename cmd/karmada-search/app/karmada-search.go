@@ -31,6 +31,7 @@ import (
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericfilters "k8s.io/apiserver/pkg/server/filters"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
+	utilversion "k8s.io/apiserver/pkg/util/version"
 	"k8s.io/client-go/rest"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
@@ -50,6 +51,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
@@ -62,7 +64,7 @@ func NewKarmadaSearchCommand(ctx context.Context, registryOptions ...Option) *co
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use: "karmada-search",
+		Use: names.KarmadaSearchComponentName,
 		Long: `The karmada-search starts an aggregated server. It provides 
 capabilities such as global search and resource proxy in a multi-cloud environment.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
@@ -88,7 +90,7 @@ capabilities such as global search and resource proxy in a multi-cloud environme
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
 
-	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-search"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion(names.KarmadaSearchComponentName))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 
@@ -123,26 +125,28 @@ func run(ctx context.Context, o *options.Options, registryOptions ...Option) err
 	}
 
 	server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-search-informers", func(context genericapiserver.PostStartHookContext) error {
-		config.GenericConfig.SharedInformerFactory.Start(context.StopCh)
+		config.GenericConfig.SharedInformerFactory.Start(context.Done())
 		return nil
 	})
 
 	server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-informers", func(context genericapiserver.PostStartHookContext) error {
-		config.ExtraConfig.KarmadaSharedInformerFactory.Start(context.StopCh)
+		config.ExtraConfig.KarmadaSharedInformerFactory.Start(context.Done())
 		return nil
 	})
+
+	server.GenericAPIServer.AddPostStartHookOrDie("search-storage-cache-readiness", config.ExtraConfig.ProxyController.Hook)
 
 	if config.ExtraConfig.Controller != nil {
 		server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-search-controller", func(context genericapiserver.PostStartHookContext) error {
 			// start ResourceRegistry controller
-			config.ExtraConfig.Controller.Start(context.StopCh)
+			config.ExtraConfig.Controller.Start(context.Done())
 			return nil
 		})
 	}
 
 	if config.ExtraConfig.ProxyController != nil {
 		server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-proxy-controller", func(context genericapiserver.PostStartHookContext) error {
-			config.ExtraConfig.ProxyController.Start(context.StopCh)
+			config.ExtraConfig.ProxyController.Start(context.Done())
 			return nil
 		})
 
@@ -152,17 +156,17 @@ func run(ctx context.Context, o *options.Options, registryOptions ...Option) err
 		})
 	}
 
-	return server.GenericAPIServer.PrepareRun().Run(ctx.Done())
+	return server.GenericAPIServer.PrepareRun().RunWithContext(ctx)
 }
 
 // `config` returns config for the api server given Options
 func config(o *options.Options, outOfTreeRegistryOptions ...Option) (*search.Config, error) {
 	// TODO have a "real" external address
-	if err := o.RecommendedOptions.SecureServing.MaybeDefaultWithSelfSignedCerts("localhost", nil, []net.IP{netutils.ParseIPSloppy("127.0.0.1")}); err != nil {
+	if err := o.SecureServing.MaybeDefaultWithSelfSignedCerts("localhost", nil, []net.IP{netutils.ParseIPSloppy("127.0.0.1")}); err != nil {
 		return nil, fmt.Errorf("error creating self-signed certificates: %v", err)
 	}
 
-	o.RecommendedOptions.Features = &genericoptions.FeatureOptions{EnableProfiling: false}
+	o.Features = &genericoptions.FeatureOptions{EnableProfiling: false}
 
 	serverConfig := genericapiserver.NewRecommendedConfig(searchscheme.Codecs)
 	serverConfig.LongRunningFunc = customLongRunningRequestCheck(
@@ -170,13 +174,14 @@ func config(o *options.Options, outOfTreeRegistryOptions ...Option) (*search.Con
 		sets.NewString("attach", "exec", "proxy", "log", "portforward"))
 	serverConfig.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(generatedopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(searchscheme.Scheme))
 	serverConfig.OpenAPIV3Config = genericapiserver.DefaultOpenAPIV3Config(generatedopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(searchscheme.Scheme))
-	serverConfig.OpenAPIConfig.Info.Title = "karmada-search"
-	if err := o.RecommendedOptions.ApplyTo(serverConfig); err != nil {
+	serverConfig.OpenAPIConfig.Info.Title = names.KarmadaSearchComponentName
+	if err := o.ApplyTo(serverConfig); err != nil {
 		return nil, err
 	}
 
 	serverConfig.ClientConfig.QPS = o.KubeAPIQPS
 	serverConfig.ClientConfig.Burst = o.KubeAPIBurst
+	serverConfig.Config.EffectiveVersion = utilversion.NewEffectiveVersion("1.0")
 
 	httpClient, err := rest.HTTPClientFor(serverConfig.ClientConfig)
 	if err != nil {
@@ -208,12 +213,13 @@ func config(o *options.Options, outOfTreeRegistryOptions ...Option) (*search.Con
 		}
 
 		proxyCtl, err = proxy.NewController(proxy.NewControllerOption{
-			RestConfig:        serverConfig.ClientConfig,
-			RestMapper:        restMapper,
-			KubeFactory:       serverConfig.SharedInformerFactory,
-			KarmadaFactory:    factory,
-			MinRequestTimeout: time.Second * time.Duration(serverConfig.Config.MinRequestTimeout),
-			OutOfTreeRegistry: outOfTreeRegistry,
+			RestConfig:                   serverConfig.ClientConfig,
+			RestMapper:                   restMapper,
+			KubeFactory:                  serverConfig.SharedInformerFactory,
+			KarmadaFactory:               factory,
+			MinRequestTimeout:            time.Second * time.Duration(serverConfig.Config.MinRequestTimeout),
+			StorageInitializationTimeout: serverConfig.StorageInitializationTimeout,
+			OutOfTreeRegistry:            outOfTreeRegistry,
 		})
 
 		if err != nil {

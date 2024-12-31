@@ -33,28 +33,35 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	utilhelper "github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 func generateCRBStatusController() *CRBStatusController {
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 	dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
-		&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod1", Namespace: "default"}})
+		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "ns1"}})
 	m := genericmanager.NewSingleClusterInformerManager(dynamicClient, 0, stopCh)
-	m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+	m.Lister(corev1.SchemeGroupVersion.WithResource("namespaces"))
 	m.Start()
 	m.WaitForCacheSync()
 
 	c := &CRBStatusController{
-		Client:          fake.NewClientBuilder().WithScheme(gclient.NewSchema()).Build(),
+		Client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithIndex(
+			&workv1alpha1.Work{},
+			workv1alpha2.ClusterResourceBindingPermanentIDLabel,
+			utilhelper.IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
+		).Build(),
 		DynamicClient:   dynamicClient,
 		InformerManager: m,
 		RESTMapper: func() meta.RESTMapper {
 			m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
-			m.Add(corev1.SchemeGroupVersion.WithKind("Pod"), meta.RESTScopeNamespace)
+			m.Add(corev1.SchemeGroupVersion.WithKind("Namespace"), meta.RESTScopeNamespace)
 			return m
 		}(),
 		EventRecorder: &record.FakeRecorder{},
@@ -74,15 +81,13 @@ func TestCRBStatusController_Reconcile(t *testing.T) {
 			name: "failed in syncBindingStatus",
 			binding: &workv1alpha2.ClusterResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "binding",
-					Namespace: "default",
+					Name: "binding",
 				},
 				Spec: workv1alpha2.ResourceBindingSpec{
 					Resource: workv1alpha2.ObjectReference{
 						APIVersion: "v1",
-						Kind:       "Pod",
-						Namespace:  "default",
-						Name:       "pod",
+						Kind:       "Namespace",
+						Name:       "ns",
 					},
 				},
 			},
@@ -98,16 +103,17 @@ func TestCRBStatusController_Reconcile(t *testing.T) {
 			name: "failed in syncBindingStatus",
 			binding: &workv1alpha2.ClusterResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:              "binding",
-					Namespace:         "default",
+					Name: "binding",
+					// finalizers field is required when deletionTimestamp is defined, otherwise will encounter the
+					// error: `refusing to create obj binding with metadata.deletionTimestamp but no finalizers`.
+					Finalizers:        []string{"test"},
 					DeletionTimestamp: &preTime,
 				},
 				Spec: workv1alpha2.ResourceBindingSpec{
 					Resource: workv1alpha2.ObjectReference{
 						APIVersion: "v1",
-						Kind:       "Pod",
-						Namespace:  "default",
-						Name:       "pod",
+						Kind:       "Namespace",
+						Name:       "ns",
 					},
 				},
 			},
@@ -119,20 +125,20 @@ func TestCRBStatusController_Reconcile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := generateCRBStatusController()
+			c.ResourceInterpreter = FakeResourceInterpreter{DefaultInterpreter: native.NewDefaultInterpreter()}
 
 			// Prepare req
 			req := controllerruntime.Request{
 				NamespacedName: types.NamespacedName{
-					Name:      "binding",
-					Namespace: "default",
+					Name: "binding",
 				},
 			}
 
 			// Prepare binding and create it in client
 			if tt.binding != nil {
-				if err := c.Client.Create(context.Background(), tt.binding); err != nil {
-					t.Fatalf("Failed to create binding: %v", err)
-				}
+				c.Client = fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(tt.binding).WithStatusSubresource(tt.binding).
+					WithIndex(&workv1alpha1.Work{}, workv1alpha2.ClusterResourceBindingPermanentIDLabel, utilhelper.IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel)).
+					Build()
 			}
 
 			res, err := c.Reconcile(context.Background(), req)
@@ -148,42 +154,40 @@ func TestCRBStatusController_Reconcile(t *testing.T) {
 
 func TestCRBStatusController_syncBindingStatus(t *testing.T) {
 	tests := []struct {
-		name                   string
-		resource               workv1alpha2.ObjectReference
-		podNameInDynamicClient string
-		resourceExistInClient  bool
-		expectedError          bool
+		name                  string
+		resource              workv1alpha2.ObjectReference
+		nsNameInDynamicClient string
+		resourceExistInClient bool
+		expectedError         bool
 	}{
 		{
 			name: "failed in FetchResourceTemplate, err is NotFound",
 			resource: workv1alpha2.ObjectReference{
 				APIVersion: "v1",
-				Kind:       "Pod",
-				Namespace:  "default",
-				Name:       "pod",
+				Kind:       "Namespace",
+				Name:       "ns",
 			},
-			podNameInDynamicClient: "pod1",
-			resourceExistInClient:  true,
-			expectedError:          false,
+			nsNameInDynamicClient: "ns1",
+			resourceExistInClient: true,
+			expectedError:         false,
 		},
 		{
-			name:                   "failed in FetchResourceTemplate, err is not NotFound",
-			resource:               workv1alpha2.ObjectReference{},
-			podNameInDynamicClient: "pod",
-			resourceExistInClient:  true,
-			expectedError:          true,
+			name:                  "failed in FetchResourceTemplate, err is not NotFound",
+			resource:              workv1alpha2.ObjectReference{},
+			nsNameInDynamicClient: "ns",
+			resourceExistInClient: true,
+			expectedError:         true,
 		},
 		{
 			name: "failed in AggregateClusterResourceBindingWorkStatus",
 			resource: workv1alpha2.ObjectReference{
 				APIVersion: "v1",
-				Kind:       "Pod",
-				Namespace:  "default",
-				Name:       "pod",
+				Kind:       "Namespace",
+				Name:       "ns",
 			},
-			podNameInDynamicClient: "pod",
-			resourceExistInClient:  false,
-			expectedError:          true,
+			nsNameInDynamicClient: "ns",
+			resourceExistInClient: false,
+			expectedError:         true,
 		},
 	}
 
@@ -191,12 +195,12 @@ func TestCRBStatusController_syncBindingStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := generateCRBStatusController()
 			c.DynamicClient = dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
-				&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: tt.podNameInDynamicClient, Namespace: "default"}})
+				&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: tt.nsNameInDynamicClient}})
+			c.ResourceInterpreter = FakeResourceInterpreter{DefaultInterpreter: native.NewDefaultInterpreter()}
 
 			binding := &workv1alpha2.ClusterResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "binding",
-					Namespace: "default",
+					Name: "binding",
 				},
 				Spec: workv1alpha2.ResourceBindingSpec{
 					Resource: tt.resource,
@@ -204,12 +208,12 @@ func TestCRBStatusController_syncBindingStatus(t *testing.T) {
 			}
 
 			if tt.resourceExistInClient {
-				if err := c.Client.Create(context.Background(), binding); err != nil {
-					t.Fatalf("Failed to create binding: %v", err)
-				}
+				c.Client = fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(binding).WithStatusSubresource(binding).
+					WithIndex(&workv1alpha1.Work{}, workv1alpha2.ClusterResourceBindingPermanentIDLabel, utilhelper.IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel)).
+					Build()
 			}
 
-			err := c.syncBindingStatus(binding)
+			err := c.syncBindingStatus(context.Background(), binding)
 
 			if tt.expectedError {
 				assert.Error(t, err)

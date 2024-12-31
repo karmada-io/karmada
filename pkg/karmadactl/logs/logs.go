@@ -17,6 +17,7 @@ limitations under the License.
 package logs
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -27,6 +28,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	utilcomp "github.com/karmada-io/karmada/pkg/karmadactl/util/completion"
 )
 
 const (
@@ -69,7 +71,7 @@ var (
 // NewCmdLogs new logs command.
 func NewCmdLogs(f util.Factory, parentCommand string, streams genericiooptions.IOStreams) *cobra.Command {
 	o := &CommandLogsOptions{
-		KubectlLogsOptions: kubectllogs.NewLogsOptions(streams, false),
+		KubectlLogsOptions: kubectllogs.NewLogsOptions(streams),
 	}
 
 	cmd := &cobra.Command{
@@ -79,6 +81,7 @@ func NewCmdLogs(f util.Factory, parentCommand string, streams genericiooptions.I
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		Example:               fmt.Sprintf(logsExample, parentCommand),
+		ValidArgsFunction:     utilcomp.PodResourceNameAndContainerCompletionFunc(f),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := o.Complete(cmd, args, f); err != nil {
 				return err
@@ -98,10 +101,13 @@ func NewCmdLogs(f util.Factory, parentCommand string, streams genericiooptions.I
 
 	flags := cmd.Flags()
 	options.AddKubeConfigFlags(flags)
-	flags.StringVarP(options.DefaultConfigFlags.Namespace, "namespace", "n", *options.DefaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
+	options.AddNamespaceFlag(flags)
 	flags.StringVarP(&o.Cluster, "cluster", "C", "", "Specify a member cluster")
 	o.KubectlLogsOptions.AddFlags(cmd)
 
+	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(cmd)
+	utilcomp.RegisterCompletionFuncForNamespaceFlag(cmd, f)
+	utilcomp.RegisterCompletionFuncForClusterFlag(cmd)
 	return cmd
 }
 
@@ -115,7 +121,7 @@ type CommandLogsOptions struct {
 // Complete ensures that options are valid and marshals them if necessary
 func (o *CommandLogsOptions) Complete(cmd *cobra.Command, args []string, f util.Factory) error {
 	if o.Cluster == "" {
-		return fmt.Errorf("must specify a cluster")
+		return errors.New("must specify a cluster")
 	}
 
 	// print correct usage message when the given arguments are invalid

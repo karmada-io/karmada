@@ -56,6 +56,8 @@ func TestPrintCluster(t *testing.T) {
 				Spec: clusterapis.ClusterSpec{
 					SyncMode:    clusterapis.Push,
 					APIEndpoint: "https://kubernetes.default.svc.cluster.local:6443",
+					ProxyURL:    "https://anp-server.default.svc.cluster.local:443",
+					Zones:       []string{"foo", "bar"},
 				},
 				Status: clusterapis.ClusterStatus{
 					KubernetesVersion: "1.24.2",
@@ -65,7 +67,12 @@ func TestPrintCluster(t *testing.T) {
 				},
 			},
 			printers.GenerateOptions{Wide: true},
-			[]metav1.TableRow{{Cells: []interface{}{"test2", "1.24.2", clusterapis.ClusterSyncMode("Push"), "True", "<unknown>", "https://kubernetes.default.svc.cluster.local:6443"}}},
+			[]metav1.TableRow{{Cells: []interface{}{"test2", "1.24.2", clusterapis.ClusterSyncMode("Push"), "True", "<unknown>",
+				"foo,bar",
+				"<none>",
+				"<none>",
+				"https://kubernetes.default.svc.cluster.local:6443",
+				"https://anp-server.default.svc.cluster.local:443"}}},
 		},
 	}
 

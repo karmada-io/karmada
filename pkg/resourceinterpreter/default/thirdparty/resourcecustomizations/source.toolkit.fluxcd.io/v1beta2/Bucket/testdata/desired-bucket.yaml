@@ -3,6 +3,7 @@ kind: Bucket
 metadata:
   name: sample
   namespace: test-bucket
+  generation: 1
 spec:
   provider: generic
   interval: 5m0s

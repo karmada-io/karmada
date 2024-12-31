@@ -22,6 +22,7 @@ import (
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/errors"
@@ -187,7 +188,7 @@ func (d *ResourceDetector) cleanPPUnmatchedRBs(policyID, policyNamespace, policy
 		return err
 	}
 
-	return d.removeRBsMarks(bindings, selectors, propagationPolicyMarkedLabels, propagationPolicyMarkedAnnotations)
+	return d.removeRBsClaimMetadata(bindings, selectors, propagationPolicyClaimLabels, propagationPolicyClaimAnnotations)
 }
 
 func (d *ResourceDetector) cleanCPPUnmatchedRBs(policyID, policyName string, selectors []policyv1alpha1.ResourceSelector) error {
@@ -196,7 +197,7 @@ func (d *ResourceDetector) cleanCPPUnmatchedRBs(policyID, policyName string, sel
 		return err
 	}
 
-	return d.removeRBsMarks(bindings, selectors, clusterPropagationPolicyMarkedLabels, clusterPropagationPolicyMarkedAnnotations)
+	return d.removeRBsClaimMetadata(bindings, selectors, clusterPropagationPolicyClaimLabels, clusterPropagationPolicyClaimAnnotations)
 }
 
 func (d *ResourceDetector) cleanUnmatchedCRBs(policyID, policyName string, selectors []policyv1alpha1.ResourceSelector) error {
@@ -205,13 +206,13 @@ func (d *ResourceDetector) cleanUnmatchedCRBs(policyID, policyName string, selec
 		return err
 	}
 
-	return d.removeCRBsMarks(bindings, selectors, clusterPropagationPolicyMarkedLabels, clusterPropagationPolicyMarkedAnnotations)
+	return d.removeCRBsClaimMetadata(bindings, selectors, clusterPropagationPolicyClaimLabels, clusterPropagationPolicyClaimAnnotations)
 }
 
-func (d *ResourceDetector) removeRBsMarks(bindings *workv1alpha2.ResourceBindingList, selectors []policyv1alpha1.ResourceSelector, labels, annotations []string) error {
+func (d *ResourceDetector) removeRBsClaimMetadata(bindings *workv1alpha2.ResourceBindingList, selectors []policyv1alpha1.ResourceSelector, labels, annotations []string) error {
 	var errs []error
 	for _, binding := range bindings.Items {
-		removed, err := d.removeResourceMarksIfNotMatched(binding.Spec.Resource, selectors, labels, annotations)
+		removed, err := d.removeResourceClaimMetadataIfNotMatched(binding.Spec.Resource, selectors, labels, annotations)
 		if err != nil {
 			klog.Errorf("Failed to remove resource labels and annotations when resource not match with policy selectors, err: %v", err)
 			errs = append(errs, err)
@@ -234,11 +235,11 @@ func (d *ResourceDetector) removeRBsMarks(bindings *workv1alpha2.ResourceBinding
 	return errors.NewAggregate(errs)
 }
 
-func (d *ResourceDetector) removeCRBsMarks(bindings *workv1alpha2.ClusterResourceBindingList,
+func (d *ResourceDetector) removeCRBsClaimMetadata(bindings *workv1alpha2.ClusterResourceBindingList,
 	selectors []policyv1alpha1.ResourceSelector, removeLabels, removeAnnotations []string) error {
 	var errs []error
 	for _, binding := range bindings.Items {
-		removed, err := d.removeResourceMarksIfNotMatched(binding.Spec.Resource, selectors, removeLabels, removeAnnotations)
+		removed, err := d.removeResourceClaimMetadataIfNotMatched(binding.Spec.Resource, selectors, removeLabels, removeAnnotations)
 		if err != nil {
 			klog.Errorf("Failed to remove resource labels and annotations when resource not match with policy selectors, err: %v", err)
 			errs = append(errs, err)
@@ -261,7 +262,7 @@ func (d *ResourceDetector) removeCRBsMarks(bindings *workv1alpha2.ClusterResourc
 	return errors.NewAggregate(errs)
 }
 
-func (d *ResourceDetector) removeResourceMarksIfNotMatched(objectReference workv1alpha2.ObjectReference,
+func (d *ResourceDetector) removeResourceClaimMetadataIfNotMatched(objectReference workv1alpha2.ObjectReference,
 	selectors []policyv1alpha1.ResourceSelector, labels, annotations []string) (bool, error) {
 	objectKey, err := helper.ConstructClusterWideKey(objectReference)
 	if err != nil {
@@ -340,10 +341,10 @@ func (d *ResourceDetector) listCPPDerivedCRBs(policyID, policyName string) (*wor
 
 // excludeClusterPolicy excludes cluster propagation policy.
 // If propagation policy was claimed, cluster propagation policy should not exist.
-func excludeClusterPolicy(objLabels map[string]string) bool {
-	if _, ok := objLabels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]; !ok {
+func excludeClusterPolicy(obj metav1.Object) (hasClaimedClusterPolicy bool) {
+	if _, ok := obj.GetLabels()[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]; !ok {
 		return false
 	}
-	delete(objLabels, policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel)
+	CleanupCPPClaimMetadata(obj)
 	return true
 }

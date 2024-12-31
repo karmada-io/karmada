@@ -20,8 +20,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net"
-	"strconv"
 
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -75,7 +73,7 @@ func NewAgentCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use: "karmada-agent",
+		Use: names.KarmadaAgentComponentName,
 		Long: `The karmada-agent is the agent of member clusters. It can register a specific cluster to the Karmada control
 plane and sync manifests from the Karmada control plane to the member cluster. In addition, it also syncs the status of member
 cluster and manifests to the Karmada control plane.`,
@@ -109,7 +107,7 @@ cluster and manifests to the Karmada control plane.`,
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
 
-	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-agent"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion(names.KarmadaAgentComponentName))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 
@@ -205,7 +203,7 @@ func run(ctx context.Context, opts *options.Options) error {
 		LeaseDuration:              &opts.LeaderElection.LeaseDuration.Duration,
 		RenewDeadline:              &opts.LeaderElection.RenewDeadline.Duration,
 		RetryPeriod:                &opts.LeaderElection.RetryPeriod.Duration,
-		HealthProbeBindAddress:     net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)),
+		HealthProbeBindAddress:     opts.HealthProbeBindAddress,
 		LivenessEndpointName:       "/healthz",
 		Metrics:                    metricsserver.Options{BindAddress: opts.MetricsBindAddress},
 		MapperProvider:             restmapper.MapperProvider,

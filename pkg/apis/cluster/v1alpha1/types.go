@@ -39,7 +39,7 @@ const (
 // +kubebuilder:resource:scope="Cluster"
 // +kubebuilder:subresource:status
 
-// Cluster represents the desire state and status of a member cluster.
+// Cluster represents the desired state and status of a member cluster.
 type Cluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -55,8 +55,8 @@ type Cluster struct {
 // ClusterSpec defines the desired state of a member cluster.
 type ClusterSpec struct {
 	// ID is the unique identifier for the cluster.
-	// It is different from the object uid(.metadata.uid) and typically collected automatically
-	// from member cluster during the progress of registration.
+	// It is different from the object uid(.metadata.uid) and is typically collected automatically
+	// from each member cluster during the process of registration.
 	//
 	// The value is collected in order:
 	// 1. If the registering cluster enabled ClusterProperty API and defined the cluster ID by
@@ -74,7 +74,7 @@ type ClusterSpec struct {
 	// +kubebuilder:validation:Maxlength=128000
 	ID string `json:"id,omitempty"`
 
-	// SyncMode describes how a cluster sync resources from karmada control plane.
+	// SyncMode describes how a cluster syncs resources from karmada control plane.
 	// +kubebuilder:validation:Enum=Push;Pull
 	// +required
 	SyncMode ClusterSyncMode `json:"syncMode"`
@@ -84,14 +84,14 @@ type ClusterSpec struct {
 	// +optional
 	APIEndpoint string `json:"apiEndpoint,omitempty"`
 
-	// SecretRef represents the secret contains mandatory credentials to access the member cluster.
+	// SecretRef represents the secret that contains mandatory credentials to access the member cluster.
 	// The secret should hold credentials as follows:
 	// - secret.data.token
 	// - secret.data.caBundle
 	// +optional
 	SecretRef *LocalSecretReference `json:"secretRef,omitempty"`
 
-	// ImpersonatorSecretRef represents the secret contains the token of impersonator.
+	// ImpersonatorSecretRef represents the secret that contains the token of impersonator.
 	// The secret should hold credentials as follows:
 	// - secret.data.token
 	// +optional
@@ -106,12 +106,12 @@ type ClusterSpec struct {
 
 	// ProxyURL is the proxy URL for the cluster.
 	// If not empty, the karmada control plane will use this proxy to talk to the cluster.
-	// More details please refer to: https://github.com/kubernetes/client-go/issues/351
+	// For more details please refer to: https://github.com/kubernetes/client-go/issues/351
 	// +optional
 	ProxyURL string `json:"proxyURL,omitempty"`
 
 	// ProxyHeader is the HTTP header required by proxy server.
-	// The key in the key-value pair is HTTP header key and value is the associated header payloads.
+	// The key in the key-value pair is HTTP header key and the value is the associated header payloads.
 	// For the header with multiple values, the values should be separated by comma(e.g. 'k1': 'v1,v2,v3').
 	// +optional
 	ProxyHeader map[string]string `json:"proxyHeader,omitempty"`
@@ -120,12 +120,12 @@ type ClusterSpec struct {
 	// +optional
 	Provider string `json:"provider,omitempty"`
 
-	// Region represents the region of the member cluster locate in.
+	// Region represents the region in which the member cluster is located.
 	// +optional
 	Region string `json:"region,omitempty"`
 
-	// Zone represents the zone of the member cluster locate in.
-	// Deprecated: This filed was never been used by Karmada, and it will not be
+	// Zone represents the zone in which the member cluster is located.
+	// Deprecated: This field was never been used by Karmada, and it will not be
 	// removed from v1alpha1 for backward compatibility, use Zones instead.
 	// +optional
 	Zone string `json:"zone,omitempty"`
@@ -138,7 +138,7 @@ type ClusterSpec struct {
 	// +optional
 	Zones []string `json:"zones,omitempty"`
 
-	// Taints attached to the member cluster.
+	// Taints are attached to the member cluster.
 	// Taints on the cluster have the "effect" on
 	// any resource that does not tolerate the Taint.
 	// +optional
@@ -216,8 +216,8 @@ type ResourceModel struct {
 
 // ResourceModelRange describes the detail of each modeling quota that ranges from min to max.
 // Please pay attention, by default, the value of min can be inclusive, and the value of max cannot be inclusive.
-// E.g. in an interval, min = 2, max =10 is set, which means the interval [2,10).
-// This rule ensure that all intervals have the same meaning. If the last interval is infinite,
+// E.g. in an interval, min = 2, max = 10 is set, which means the interval [2,10).
+// This rule ensures that all intervals have the same meaning. If the last interval is infinite,
 // it is definitely unreachable. Therefore, we define the right interval as the open interval.
 // For a valid interval, the value on the right is greater than the value on the left,
 // in other words, max must be greater than min.
@@ -254,13 +254,13 @@ const (
 type ClusterSyncMode string
 
 const (
-	// Push means that the controller on the karmada control plane will in charge of synchronization.
-	// The controller watches resources change on karmada control plane then pushes them to member cluster.
+	// Push means that the controller on the karmada control plane will be in charge of synchronization.
+	// The controller watches resources change on karmada control plane and then pushes them to member cluster.
 	Push ClusterSyncMode = "Push"
 
-	// Pull means that the controller running on the member cluster will in charge of synchronization.
-	// The controller, as well known as 'agent', watches resources change on karmada control plane then fetches them
-	// and applies locally on the member cluster.
+	// Pull means that the controller running on the member cluster will be in charge of synchronization.
+	// The controller, also known as 'agent', watches resources change on karmada control plane, then fetches them
+	// and applies them locally on the member cluster.
 	Pull ClusterSyncMode = "Pull"
 )
 
@@ -270,7 +270,7 @@ type LocalSecretReference struct {
 	// Namespace is the namespace for the resource being referenced.
 	Namespace string `json:"namespace"`
 
-	// Name is the name of resource being referenced.
+	// Name is the name of the resource being referenced.
 	Name string `json:"name"`
 }
 
@@ -278,6 +278,9 @@ type LocalSecretReference struct {
 const (
 	// ClusterConditionReady means the cluster is healthy and ready to accept workloads.
 	ClusterConditionReady = "Ready"
+
+	// ClusterConditionCompleteAPIEnablements indicates whether the cluster's API enablements(.status.apiEnablements) are complete.
+	ClusterConditionCompleteAPIEnablements = "CompleteAPIEnablements"
 )
 
 // ClusterStatus contains information about the current status of a
@@ -287,7 +290,7 @@ type ClusterStatus struct {
 	// +optional
 	KubernetesVersion string `json:"kubernetesVersion,omitempty"`
 
-	// APIEnablements represents the list of APIs installed in the member cluster.
+	// APIEnablements represents the list of APIs installed on the member cluster.
 	// +optional
 	APIEnablements []APIEnablement `json:"apiEnablements,omitempty"`
 
@@ -375,7 +378,7 @@ type AllocatableModeling struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// ClusterList contains a list of member cluster
+// ClusterList contains a list of member clusters
 type ClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

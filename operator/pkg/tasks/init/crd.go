@@ -17,16 +17,21 @@ limitations under the License.
 package tasks
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"k8s.io/klog/v2"
 
+	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
+	"github.com/karmada-io/karmada/pkg/util/validation"
 )
 
 var (
@@ -50,6 +55,10 @@ func NewPrepareCrdsTask() workflow.Task {
 				Name: "Unpack",
 				Run:  runUnpack,
 			},
+			{
+				Name: "post-check",
+				Run:  postCheck,
+			},
 		},
 	}
 }
@@ -60,7 +69,11 @@ func runPrepareCrds(r workflow.RunData) error {
 		return errors.New("prepare-crds task invoked with an invalid data struct")
 	}
 
-	crdsDir := path.Join(data.DataDir(), data.KarmadaVersion())
+	crdsDir, err := getCrdsDir(data)
+	if err != nil {
+		return fmt.Errorf("[prepare-crds] failed to get CRD dir, err: %w", err)
+	}
+
 	klog.V(4).InfoS("[prepare-crds] Running prepare-crds task", "karmada", klog.KObj(data))
 	klog.V(2).InfoS("[prepare-crds] Using crd folder", "folder", crdsDir, "karmada", klog.KObj(data))
 
@@ -73,7 +86,17 @@ func skipCrdsDownload(r workflow.RunData) (bool, error) {
 		return false, errors.New("prepare-crds task invoked with an invalid data struct")
 	}
 
-	crdsDir := path.Join(data.DataDir(), data.KarmadaVersion())
+	crdTarball := data.CrdTarball()
+	if crdTarball.CRDDownloadPolicy != nil && *crdTarball.CRDDownloadPolicy == operatorv1alpha1.DownloadAlways {
+		klog.V(2).InfoS("[skipCrdsDownload] CrdDownloadPolicy is 'Always', skipping cache check")
+		return false, nil
+	}
+
+	crdsDir, err := getCrdsDir(data)
+	if err != nil {
+		return false, fmt.Errorf("[skipCrdsDownload] failed to get CRD dir, err: %w", err)
+	}
+
 	if exist, err := util.PathExists(crdsDir); !exist || err != nil {
 		return false, err
 	}
@@ -82,7 +105,6 @@ func skipCrdsDownload(r workflow.RunData) (bool, error) {
 		return false, nil
 	}
 
-	klog.V(2).InfoS("[download-crds] Skip download crd yaml files, the crd tar exists on disk", "karmada", klog.KObj(data))
 	return true, nil
 }
 
@@ -92,31 +114,33 @@ func runCrdsDownload(r workflow.RunData) error {
 		return errors.New("download-crds task invoked with an invalid data struct")
 	}
 
-	var (
-		crdsDir     = path.Join(data.DataDir(), data.KarmadaVersion())
-		crdsTarPath = path.Join(crdsDir, crdsFileSuffix)
-	)
+	crdsDir, err := getCrdsDir(data)
+	if err != nil {
+		return fmt.Errorf("[download-crds] failed to get CRD dir, err: %w", err)
+	}
+	crdsTarPath := path.Join(crdsDir, crdsFileSuffix)
 
 	exist, err := util.PathExists(crdsDir)
 	if err != nil {
 		return err
 	}
-	if !exist {
-		if err := os.MkdirAll(crdsDir, 0700); err != nil {
-			return err
+
+	if exist {
+		if err := os.RemoveAll(crdsDir); err != nil {
+			return fmt.Errorf("failed to delete CRDs directory, err: %w", err)
 		}
 	}
 
-	if !existCrdsTar(crdsDir) {
-		err := util.DownloadFile(data.CrdsRemoteURL(), crdsTarPath)
-		if err != nil {
-			return fmt.Errorf("failed to download crd tar, err: %w", err)
-		}
-	} else {
-		klog.V(2).InfoS("[download-crds] The crd tar exists on disk", "path", crdsDir, "karmada", klog.KObj(data))
+	if err := os.MkdirAll(crdsDir, 0700); err != nil {
+		return fmt.Errorf("failed to create CRDs directory, err: %w", err)
 	}
 
-	klog.V(2).InfoS("[download-crds] Successfully downloaded crd package for remote url", "karmada", klog.KObj(data))
+	crdTarball := data.CrdTarball()
+	if err := util.DownloadFile(crdTarball.HTTPSource.URL, crdsTarPath); err != nil {
+		return fmt.Errorf("failed to download CRD tar, err: %w", err)
+	}
+
+	klog.V(2).InfoS("[download-crds] Successfully downloaded crd package", "karmada", klog.KObj(data))
 	return nil
 }
 
@@ -126,15 +150,19 @@ func runUnpack(r workflow.RunData) error {
 		return errors.New("unpack task invoked with an invalid data struct")
 	}
 
-	var (
-		crdsDir     = path.Join(data.DataDir(), data.KarmadaVersion())
-		crdsTarPath = path.Join(crdsDir, crdsFileSuffix)
-		crdsPath    = path.Join(crdsDir, crdPathSuffix)
-	)
+	crdsDir, err := getCrdsDir(data)
+	if err != nil {
+		return fmt.Errorf("[unpack] failed to get CRD dir, err: %w", err)
+	}
+	crdsTarPath := path.Join(crdsDir, crdsFileSuffix)
+	crdsPath := path.Join(crdsDir, crdPathSuffix)
 
-	// TODO: check whether crd yaml is valid.
 	exist, _ := util.PathExists(crdsPath)
 	if !exist {
+		klog.V(2).InfoS("[runUnpack] CRD yaml files do not exist, unpacking tar file", "unpackDir", crdsDir)
+		if err = validation.ValidateTarball(crdsTarPath, validation.ValidateCrdsTarBall); err != nil {
+			return fmt.Errorf("[unpack] inValid crd tar, err: %w", err)
+		}
 		if err := util.Unpack(crdsTarPath, crdsDir); err != nil {
 			return fmt.Errorf("[unpack] failed to unpack crd tar, err: %w", err)
 		}
@@ -146,8 +174,32 @@ func runUnpack(r workflow.RunData) error {
 	return nil
 }
 
+func postCheck(r workflow.RunData) error {
+	data, ok := r.(InitData)
+	if !ok {
+		return errors.New("post-check task invoked with an invalid data struct")
+	}
+
+	crdsDir, err := getCrdsDir(data)
+	if err != nil {
+		return fmt.Errorf("[post-check] failed to get CRD dir, err: %w", err)
+	}
+
+	for _, archive := range validation.CrdsArchive {
+		expectedDir := filepath.Join(crdsDir, archive)
+		exist, _ := util.PathExists(expectedDir)
+		if !exist {
+			return fmt.Errorf("[post-check] Lacking the necessary file path: %s", expectedDir)
+		}
+	}
+
+	klog.V(2).InfoS("[post-check] Successfully post-check the crd tar archive", "karmada", klog.KObj(data))
+	return nil
+}
+
 func existCrdsTar(crdsDir string) bool {
 	files := util.ListFiles(crdsDir)
+	klog.V(2).InfoS("[existCrdsTar] Checking for CRD tar file in directory", "directory", crdsDir)
 
 	for _, file := range files {
 		if strings.Contains(file.Name(), crdsFileSuffix) && file.Size() > 0 {
@@ -155,4 +207,12 @@ func existCrdsTar(crdsDir string) bool {
 		}
 	}
 	return false
+}
+
+func getCrdsDir(data InitData) (string, error) {
+	crdTarball := data.CrdTarball()
+	key := strings.TrimSpace(crdTarball.HTTPSource.URL)
+	hash := sha256.Sum256([]byte(key))
+	hashedKey := hex.EncodeToString(hash[:])
+	return path.Join(data.DataDir(), "cache", hashedKey), nil
 }

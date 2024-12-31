@@ -101,6 +101,7 @@ type RuleWithCluster struct {
 // - ArgsOverrider
 // - LabelsOverrider
 // - AnnotationsOverrider
+// - FieldOverrider
 // - Plaintext
 type Overriders struct {
 	// Plaintext represents override rules defined with plaintext overriders.
@@ -126,6 +127,13 @@ type Overriders struct {
 	// AnnotationsOverrider represents the rules dedicated to handling workload annotations
 	// +optional
 	AnnotationsOverrider []LabelAnnotationOverrider `json:"annotationsOverrider,omitempty"`
+
+	// FieldOverrider represents the rules dedicated to modifying a specific field in any Kubernetes resource.
+	// This allows changing a single field within the resource with multiple operations.
+	// It is designed to handle structured field values such as those found in ConfigMaps or Secrets.
+	// The current implementation supports JSON and YAML formats, but can easily be extended to support XML in the future.
+	// +optional
+	FieldOverrider []FieldOverrider `json:"fieldOverrider,omitempty"`
 }
 
 // LabelAnnotationOverrider represents the rules dedicated to handling workload labels/annotations
@@ -254,6 +262,65 @@ const (
 	OverriderOpRemove  OverriderOperator = "remove"
 	OverriderOpReplace OverriderOperator = "replace"
 )
+
+// FieldOverrider represents the rules dedicated to modifying a specific field in any Kubernetes resource.
+// This allows changing a single field within the resource with multiple operations.
+// It is designed to handle structured field values such as those found in ConfigMaps or Secrets.
+// The current implementation supports JSON and YAML formats, but can easily be extended to support XML in the future.
+// Note: In any given instance, FieldOverrider processes either JSON or YAML fields, but not both simultaneously.
+type FieldOverrider struct {
+	// FieldPath specifies the initial location in the instance document where the operation should take place.
+	// The path uses RFC 6901 for navigating into nested structures. For example, the path "/data/db-config.yaml"
+	// specifies the configuration data key named "db-config.yaml" in a ConfigMap: "/data/db-config.yaml".
+	// +required
+	FieldPath string `json:"fieldPath"`
+
+	// JSON represents the operations performed on the JSON document specified by the FieldPath.
+	// +optional
+	JSON []JSONPatchOperation `json:"json,omitempty"`
+
+	// YAML represents the operations performed on the YAML document specified by the FieldPath.
+	// +optional
+	YAML []YAMLPatchOperation `json:"yaml,omitempty"`
+}
+
+// JSONPatchOperation represents a single field modification operation for JSON format.
+type JSONPatchOperation struct {
+	// SubPath specifies the relative location within the initial FieldPath where the operation should take place.
+	// The path uses RFC 6901 for navigating into nested structures.
+	// +required
+	SubPath string `json:"subPath"`
+
+	// Operator indicates the operation on target field.
+	// Available operators are: "add", "remove", and "replace".
+	// +kubebuilder:validation:Enum=add;remove;replace
+	// +required
+	Operator OverriderOperator `json:"operator"`
+
+	// Value is the new value to set for the specified field if the operation is "add" or "replace".
+	// For "remove" operation, this field is ignored.
+	// +optional
+	Value apiextensionsv1.JSON `json:"value,omitempty"`
+}
+
+// YAMLPatchOperation represents a single field modification operation for YAML format.
+type YAMLPatchOperation struct {
+	// SubPath specifies the relative location within the initial FieldPath where the operation should take place.
+	// The path uses RFC 6901 for navigating into nested structures.
+	// +required
+	SubPath string `json:"subPath"`
+
+	// Operator indicates the operation on target field.
+	// Available operators are: "add", "remove", and "replace".
+	// +kubebuilder:validation:Enum=add;remove;replace
+	// +required
+	Operator OverriderOperator `json:"operator"`
+
+	// Value is the new value to set for the specified field if the operation is "add" or "replace".
+	// For "remove" operation, this field is ignored.
+	// +optional
+	Value apiextensionsv1.JSON `json:"value,omitempty"`
+}
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 

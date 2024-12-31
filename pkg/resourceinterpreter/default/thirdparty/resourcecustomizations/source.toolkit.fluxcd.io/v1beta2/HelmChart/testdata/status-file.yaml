@@ -22,8 +22,11 @@ status:
     reason: ChartPullSucceeded
     status: "True"
     type: ArtifactInStorage
+  generation: 1
   observedChartName: podinfo
+  observedGeneration: 1
   observedSourceArtifactRevision: sha256:61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69
+  resourceTemplateGeneration: 1
   url: http://source-controller.flux-system.svc.cluster.local./helmchart/test-helmchart/sample/latest.tar.gz
 ---
 applied: true
@@ -50,6 +53,9 @@ status:
     reason: ChartPullSucceeded
     status: "True"
     type: ArtifactInStorage
+  generation: 1
   observedChartName: podinfo
+  observedGeneration: 1
   observedSourceArtifactRevision: sha256:61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69
+  resourceTemplateGeneration: 1  
   url: http://source-controller.flux-system.svc.cluster.local./helmchart/test-helmchart/sample/latest.tar.gz

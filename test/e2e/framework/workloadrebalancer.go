@@ -47,7 +47,7 @@ func RemoveWorkloadRebalancer(client karmada.Interface, name string) {
 	})
 }
 
-// UpdateWorkloadRebalancer udpate WorkloadRebalancer with karmada client.
+// UpdateWorkloadRebalancer updates WorkloadRebalancer with karmada client.
 // if workloads/ttl is a nil pointer, keep previous value unchanged.
 func UpdateWorkloadRebalancer(client karmada.Interface, name string, workloads *[]appsv1alpha1.ObjectReference, ttl *int32) {
 	ginkgo.By(fmt.Sprintf("Updating WorkloadRebalancer(%s)'s workloads", name), func() {

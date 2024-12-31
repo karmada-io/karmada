@@ -110,8 +110,7 @@ spec:
             {{- end }}
             - --cluster-status-update-frequency=10s
             - --leader-elect-resource-namespace={{ include "karmada.namespace" . }}
-            - --bind-address=0.0.0.0
-            - --secure-port=10357
+            - --health-probe-bind-address=0.0.0.0:10357
             - --v=4
           livenessProbe:
             httpGet:
@@ -122,6 +121,10 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 15
             timeoutSeconds: 5
+          ports:
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
           volumeMounts:
             - name: kubeconfig
               mountPath: /etc/kubeconfig

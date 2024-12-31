@@ -10,6 +10,8 @@ status:
   numberReady: 1
   observedGeneration: 1
   updatedNumberScheduled: 1
+  generation: 1
+  resourceTemplateGeneration: 1
 ---
 applied: true
 clusterName: member3
@@ -23,3 +25,5 @@ status:
   numberReady: 1
   observedGeneration: 1
   updatedNumberScheduled: 1
+  generation: 1
+  resourceTemplateGeneration: 1

@@ -41,22 +41,24 @@ var federatedhpasKind = v1alpha1.SchemeGroupVersion.WithKind("FederatedHPA")
 
 // Get takes name of the federatedHPA, and returns the corresponding federatedHPA object, and an error if there is any.
 func (c *FakeFederatedHPAs) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.FederatedHPA, err error) {
+	emptyResult := &v1alpha1.FederatedHPA{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(federatedhpasResource, c.ns, name), &v1alpha1.FederatedHPA{})
+		Invokes(testing.NewGetActionWithOptions(federatedhpasResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.FederatedHPA), err
 }
 
 // List takes label and field selectors, and returns the list of FederatedHPAs that match those selectors.
 func (c *FakeFederatedHPAs) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.FederatedHPAList, err error) {
+	emptyResult := &v1alpha1.FederatedHPAList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(federatedhpasResource, federatedhpasKind, c.ns, opts), &v1alpha1.FederatedHPAList{})
+		Invokes(testing.NewListActionWithOptions(federatedhpasResource, federatedhpasKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -75,40 +77,43 @@ func (c *FakeFederatedHPAs) List(ctx context.Context, opts v1.ListOptions) (resu
 // Watch returns a watch.Interface that watches the requested federatedHPAs.
 func (c *FakeFederatedHPAs) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(federatedhpasResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(federatedhpasResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a federatedHPA and creates it.  Returns the server's representation of the federatedHPA, and an error, if there is any.
 func (c *FakeFederatedHPAs) Create(ctx context.Context, federatedHPA *v1alpha1.FederatedHPA, opts v1.CreateOptions) (result *v1alpha1.FederatedHPA, err error) {
+	emptyResult := &v1alpha1.FederatedHPA{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(federatedhpasResource, c.ns, federatedHPA), &v1alpha1.FederatedHPA{})
+		Invokes(testing.NewCreateActionWithOptions(federatedhpasResource, c.ns, federatedHPA, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.FederatedHPA), err
 }
 
 // Update takes the representation of a federatedHPA and updates it. Returns the server's representation of the federatedHPA, and an error, if there is any.
 func (c *FakeFederatedHPAs) Update(ctx context.Context, federatedHPA *v1alpha1.FederatedHPA, opts v1.UpdateOptions) (result *v1alpha1.FederatedHPA, err error) {
+	emptyResult := &v1alpha1.FederatedHPA{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(federatedhpasResource, c.ns, federatedHPA), &v1alpha1.FederatedHPA{})
+		Invokes(testing.NewUpdateActionWithOptions(federatedhpasResource, c.ns, federatedHPA, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.FederatedHPA), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeFederatedHPAs) UpdateStatus(ctx context.Context, federatedHPA *v1alpha1.FederatedHPA, opts v1.UpdateOptions) (*v1alpha1.FederatedHPA, error) {
+func (c *FakeFederatedHPAs) UpdateStatus(ctx context.Context, federatedHPA *v1alpha1.FederatedHPA, opts v1.UpdateOptions) (result *v1alpha1.FederatedHPA, err error) {
+	emptyResult := &v1alpha1.FederatedHPA{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(federatedhpasResource, "status", c.ns, federatedHPA), &v1alpha1.FederatedHPA{})
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(federatedhpasResource, "status", c.ns, federatedHPA, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.FederatedHPA), err
 }
@@ -123,7 +128,7 @@ func (c *FakeFederatedHPAs) Delete(ctx context.Context, name string, opts v1.Del
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeFederatedHPAs) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(federatedhpasResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(federatedhpasResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.FederatedHPAList{})
 	return err
@@ -131,11 +136,12 @@ func (c *FakeFederatedHPAs) DeleteCollection(ctx context.Context, opts v1.Delete
 
 // Patch applies the patch and returns the patched federatedHPA.
 func (c *FakeFederatedHPAs) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.FederatedHPA, err error) {
+	emptyResult := &v1alpha1.FederatedHPA{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(federatedhpasResource, c.ns, name, pt, data, subresources...), &v1alpha1.FederatedHPA{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(federatedhpasResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.FederatedHPA), err
 }

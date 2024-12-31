@@ -30,20 +30,6 @@ const (
 	AddonUnknownStatus = "unknown"
 )
 
-const (
-	// DeschedulerResourceName define Descheduler Addon and component installed name
-	DeschedulerResourceName = "karmada-descheduler"
-
-	// EstimatorResourceName define Estimator Addon and component installed name
-	EstimatorResourceName = "karmada-scheduler-estimator"
-
-	// SearchResourceName define Search Addon and component installed name
-	SearchResourceName = "karmada-search"
-
-	// MetricsAdapterResourceName define metrics-adapter Addon and component installed name
-	MetricsAdapterResourceName = "karmada-metrics-adapter"
-)
-
 // Addons hosts the optional components that support by karmada
 var Addons = map[string]*Addon{}
 

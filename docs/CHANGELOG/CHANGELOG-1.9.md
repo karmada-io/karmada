@@ -2,30 +2,67 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.9.4](#v194)
-  - [Downloads for v1.9.4](#downloads-for-v194)
-  - [Changelog since v1.9.3](#changelog-since-v193)
+- [v1.9.10](#v1910)
+  - [Downloads for v1.9.10](#downloads-for-v1910)
+  - [Changelog since v1.9.9](#changelog-since-v199)
     - [Changes by Kind](#changes-by-kind)
+      - [Urgent Upgrade Notes](#urgent-upgrade-notes)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
-- [v1.9.3](#v193)
-  - [Downloads for v1.9.3](#downloads-for-v193)
-  - [Changelog since v1.9.2](#changelog-since-v192)
+- [v1.9.9](#v199)
+  - [Downloads for v1.9.9](#downloads-for-v199)
+  - [Changelog since v1.9.8](#changelog-since-v198)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
-- [v1.9.2](#v192)
-  - [Downloads for v1.9.2](#downloads-for-v192)
-  - [Changelog since v1.9.1](#changelog-since-v191)
+- [v1.9.8](#v198)
+  - [Downloads for v1.9.8](#downloads-for-v198)
+  - [Changelog since v1.9.7](#changelog-since-v197)
     - [Changes by Kind](#changes-by-kind-2)
       - [Bug Fixes](#bug-fixes-2)
       - [Others](#others-2)
-- [v1.9.1](#v191)
-  - [Downloads for v1.9.1](#downloads-for-v191)
-  - [Changelog since v1.9.0](#changelog-since-v190)
+- [v1.9.7](#v197)
+  - [Downloads for v1.9.7](#downloads-for-v197)
+  - [Changelog since v1.9.6](#changelog-since-v196)
     - [Changes by Kind](#changes-by-kind-3)
       - [Bug Fixes](#bug-fixes-3)
       - [Others](#others-3)
+- [v1.9.6](#v196)
+  - [Downloads for v1.9.6](#downloads-for-v196)
+  - [Changelog since v1.9.5](#changelog-since-v195)
+    - [Changes by Kind](#changes-by-kind-4)
+      - [Bug Fixes](#bug-fixes-4)
+      - [Others](#others-4)
+- [v1.9.5](#v195)
+  - [Downloads for v1.9.5](#downloads-for-v195)
+  - [Changelog since v1.9.4](#changelog-since-v194)
+    - [Changes by Kind](#changes-by-kind-5)
+      - [Bug Fixes](#bug-fixes-5)
+      - [Others](#others-5)
+- [v1.9.4](#v194)
+  - [Downloads for v1.9.4](#downloads-for-v194)
+  - [Changelog since v1.9.3](#changelog-since-v193)
+    - [Changes by Kind](#changes-by-kind-6)
+      - [Bug Fixes](#bug-fixes-6)
+      - [Others](#others-6)
+- [v1.9.3](#v193)
+  - [Downloads for v1.9.3](#downloads-for-v193)
+  - [Changelog since v1.9.2](#changelog-since-v192)
+    - [Changes by Kind](#changes-by-kind-7)
+      - [Bug Fixes](#bug-fixes-7)
+      - [Others](#others-7)
+- [v1.9.2](#v192)
+  - [Downloads for v1.9.2](#downloads-for-v192)
+  - [Changelog since v1.9.1](#changelog-since-v191)
+    - [Changes by Kind](#changes-by-kind-8)
+      - [Bug Fixes](#bug-fixes-8)
+      - [Others](#others-8)
+- [v1.9.1](#v191)
+  - [Downloads for v1.9.1](#downloads-for-v191)
+  - [Changelog since v1.9.0](#changelog-since-v190)
+    - [Changes by Kind](#changes-by-kind-9)
+      - [Bug Fixes](#bug-fixes-9)
+      - [Others](#others-9)
 - [v1.9.0](#v190)
   - [Downloads for v1.9.0](#downloads-for-v190)
   - [What's New](#whats-new)
@@ -35,7 +72,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-4)
+    - [Bug Fixes](#bug-fixes-10)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -45,6 +82,97 @@
   - [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.9.10
+## Downloads for v1.9.10
+
+Download v1.9.10 in the [v1.9.10 release page](https://github.com/karmada-io/karmada/releases/tag/v1.9.10).
+
+## Changelog since v1.9.9
+### Changes by Kind
+#### Urgent Upgrade Notes
+- The feature `Failover` now has been disabled by default, which should be explicitly enabled to avoid unexpected incidents. ([#5948](https://github.com/karmada-io/karmada/pull/5948), @XiShanYongYe-Chang)
+
+If you are using the feature `Failover`, please enable it explicitly by adding the `--feature-gates=Failover=true,<other feature>` flag to the `karmada-controller-manager` component. If you are not using this feature, this change will have no impact.
+
+#### Bug Fixes
+- `karmadactl`: Fixed `karmada-metrics-adapter` use the incorrect certificate issue when deployed via karmadactl `init`. ([#5859](https://github.com/karmada-io/karmada/pull/5859), @seanlaii)
+- `karmada-controller-manager`: Fixed the corner case where the reconciliation of aggregating status might be missed in case of component restart. ([#5884](https://github.com/karmada-io/karmada/pull/5884), @liangyuanpeng)
+- `karmada-scheduler`: Avoid filtering out clusters if the API enablement is incomplete during re-scheduling. ([#5932](https://github.com/karmada-io/karmada/pull/5932), @XiShanYongYe-Chang)
+
+#### Others
+- The base image `alpine` now has been promoted from `alpine:3.20.3` to `alpine:3.21.0`. ([#5922](https://github.com/karmada-io/karmada/pull/5922))
+
+# v1.9.9
+## Downloads for v1.9.9
+
+Download v1.9.9 in the [v1.9.9 release page](https://github.com/karmada-io/karmada/releases/tag/v1.9.9).
+
+## Changelog since v1.9.8
+### Changes by Kind
+#### Bug Fixes
+- `karmada-controller-manager`: Fixed the issue that status aggregation against the resource template might be missed due to slow cache sync. ([#5853](https://github.com/karmada-io/karmada/pull/5853), @chaosi-zju)
+- `karmadactl`: The `--force` option of `unjoin` command now try to clean up resources propagated in member clusters. ([#5849](https://github.com/karmada-io/karmada/pull/5849), @chaosi-zju)
+
+#### Others
+None.
+
+# v1.9.8
+## Downloads for v1.9.8
+
+Download v1.9.8 in the [v1.9.8 release page](https://github.com/karmada-io/karmada/releases/tag/v1.9.8).
+
+## Changelog since v1.9.7
+### Changes by Kind
+#### Bug Fixes
+- `karmada-aggregated-apiserver`: User can append a "/" at the end when configuring the cluster's apiEndpoint. ([#5557](https://github.com/karmada-io/karmada/pull/5557), @spiritNO1)
+- `karmada-controller-manager`: Ignored StatefulSet Dependencies with PVCs created via the VolumeClaimTemplates. ([#5688](https://github.com/karmada-io/karmada/pull/5688), @seanlaii)
+- `karmada-scheduler`: Fixed unexpected modification of original `ResourceSummary` due to lack of deep copy. ([#5726](https://github.com/karmada-io/karmada/pull/5726), @RainbowMango)
+- `karmada-scheduler`: Fixes an issue where resource model grades were incorrectly matched based on resource requests. Now only grades that can provide sufficient resources will be selected. ([#5730](https://github.com/karmada-io/karmada/pull/5730), @RainbowMango)
+- `karmada-search`: Modify the logic of checking whether the resource is registered when selecting the plugin. ([#5735](https://github.com/karmada-io/karmada/pull/5735), @seanlaii)
+
+#### Others
+None.
+
+# v1.9.7
+## Downloads for v1.9.7
+
+Download v1.9.7 in the [v1.9.7 release page](https://github.com/karmada-io/karmada/releases/tag/v1.9.7).
+
+## Changelog since v1.9.6
+### Changes by Kind
+#### Bug Fixes
+- `karmada-controller-manager`: Fixed the error of cluster status old condition update will overwrite the newest condition. ([#5402](https://github.com/karmada-io/karmada/pull/5402), @XiShanYongYe-Chang)
+
+#### Others
+- The base image `alpine` now has been promoted from `alpine:3.20.2` to `alpine:3.20.3`.
+
+# v1.9.6
+## Downloads for v1.9.6
+
+Download v1.9.6 in the [v1.9.6 release page](https://github.com/karmada-io/karmada/releases/tag/v1.9.6).
+
+## Changelog since v1.9.5
+### Changes by Kind
+#### Bug Fixes
+None.
+
+#### Others
+- The base image `alpine` now has been promoted from `alpine:3.20.1` to `alpine:3.20.2`. ([#5269](https://github.com/karmada-io/karmada/pull/5269))
+- Bump golang version to `v1.20.14`. ([#5374](https://github.com/karmada-io/karmada/pull/5374) @zhzhuang-zju)
+
+# v1.9.5
+## Downloads for v1.9.5
+
+Download v1.9.5 in the [v1.9.5 release page](https://github.com/karmada-io/karmada/releases/tag/v1.9.5).
+
+## Changelog since v1.9.4
+### Changes by Kind
+#### Bug Fixes
+- `karmada-controller-manager`: fix the issue of residual work in the MultiClusterService feature. ([#5212](https://github.com/karmada-io/karmada/pull/5212), @XiShanYongYe-Chang)
+
+#### Others
+None.
 
 # v1.9.4
 ## Downloads for v1.9.4

@@ -29,13 +29,13 @@ import (
 )
 
 const (
-	// ControllerName is the controller name that will be used when reporting events.
+	// ControllerName is the controller name that will be used when reporting events and metrics.
 	ControllerName = "hpa-scale-target-marker"
 	// scaleTargetWorkerNum is the async Worker number
 	scaleTargetWorkerNum = 1
 )
 
-// HpaScaleTargetMarker is to automatically add `retain-replicas` label to resource template mananged by HPA.
+// HpaScaleTargetMarker is to automatically add `retain-replicas` label to resource template managed by HPA.
 type HpaScaleTargetMarker struct {
 	DynamicClient dynamic.Interface
 	RESTMapper    meta.RESTMapper

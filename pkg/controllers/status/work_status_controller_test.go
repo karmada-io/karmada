@@ -25,23 +25,27 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
-	"k8s.io/client-go/informers"
-	kubernetesfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/events"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
@@ -571,10 +575,9 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 		pod                       *corev1.Pod
 		raw                       []byte
 		controllerWithoutInformer bool
-		workWithRightNS           bool
 		expectedError             bool
-		workWithDeletionTimestamp bool
 		wrongWorkNS               bool
+		workApplyFunc             func(work *workv1alpha1.Work)
 	}{
 		{
 			name:                      "failed to exec NeedUpdate",
@@ -582,7 +585,6 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRightNS:           true,
 			expectedError:             true,
 		},
 		{
@@ -591,7 +593,6 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRightNS:           true,
 			expectedError:             true,
 		},
 		{
@@ -600,7 +601,6 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: false,
-			workWithRightNS:           true,
 			expectedError:             true,
 		},
 		{
@@ -608,7 +608,6 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			obj:                       newPodObj("karmada-es-cluster"),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRightNS:           true,
 			expectedError:             false,
 		},
 		{
@@ -617,7 +616,6 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName, true),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRightNS:           true,
 			expectedError:             false,
 		},
 		{
@@ -626,8 +624,10 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRightNS:           false,
 			expectedError:             false,
+			workApplyFunc: func(work *workv1alpha1.Work) {
+				work.SetName(fmt.Sprintf("%v-test", workNs))
+			},
 		},
 		{
 			name:                      "failed to getRawManifest, wrong Manifests in work",
@@ -635,7 +635,6 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod1","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRightNS:           true,
 			expectedError:             true,
 		},
 		{
@@ -644,9 +643,30 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			pod:                       newPod(workNs, workName),
 			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
 			controllerWithoutInformer: true,
-			workWithRightNS:           true,
 			expectedError:             true,
 			wrongWorkNS:               true,
+		},
+		{
+			name:                      "skips work with suspend dispatching",
+			obj:                       newPodObj("karmada-es-cluster"),
+			pod:                       newPod(workNs, workName),
+			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
+			controllerWithoutInformer: true,
+			expectedError:             false,
+			workApplyFunc: func(work *workv1alpha1.Work) {
+				work.Spec.SuspendDispatching = ptr.To(true)
+			},
+		},
+		{
+			name:                      "skips work with deletion timestamp",
+			obj:                       newPodObj("karmada-es-cluster"),
+			pod:                       newPod(workNs, workName),
+			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
+			controllerWithoutInformer: true,
+			expectedError:             false,
+			workApplyFunc: func(work *workv1alpha1.Work) {
+				work.SetDeletionTimestamp(ptr.To(metav1.Now()))
+			},
 		},
 	}
 
@@ -671,11 +691,9 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 				c = newWorkStatusController(cluster)
 			}
 
-			var work *workv1alpha1.Work
-			if tt.workWithRightNS {
-				work = testhelper.NewWork(workName, workNs, workUID, tt.raw)
-			} else {
-				work = testhelper.NewWork(workName, fmt.Sprintf("%v-test", workNs), workUID, tt.raw)
+			work := testhelper.NewWork(workName, workNs, workUID, tt.raw)
+			if tt.workApplyFunc != nil {
+				tt.workApplyFunc(work)
 			}
 
 			key, _ := generateKey(tt.obj)
@@ -686,9 +704,9 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 
 			err := c.syncWorkStatus(key)
 			if tt.expectedError {
-				assert.NotEmpty(t, err)
+				assert.Error(t, err)
 			} else {
-				assert.Empty(t, err)
+				assert.NoError(t, err)
 			}
 		})
 	}
@@ -696,36 +714,34 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 
 func newWorkStatusController(cluster *clusterv1alpha1.Cluster, dynamicClientSets ...*dynamicfake.FakeDynamicClient) WorkStatusController {
 	c := WorkStatusController{
-		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(cluster).Build(),
+		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(cluster).WithStatusSubresource().Build(),
 		InformerManager:             genericmanager.GetInstance(),
 		PredicateFunc:               helper.NewClusterPredicateOnAgent("test"),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 		ClusterCacheSyncTimeout:     metav1.Duration{},
 		RateLimiterOptions:          ratelimiterflag.Options{},
 		eventHandler:                nil,
+		EventRecorder:               record.NewFakeRecorder(1024),
 		RESTMapper: func() meta.RESTMapper {
 			m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
 			m.Add(corev1.SchemeGroupVersion.WithKind("Pod"), meta.RESTScopeNamespace)
 			return m
 		}(),
+		ResourceInterpreter: FakeResourceInterpreter{
+			DefaultInterpreter: native.NewDefaultInterpreter(),
+		},
 	}
 
 	if len(dynamicClientSets) > 0 {
+		c.ResourceInterpreter = FakeResourceInterpreter{DefaultInterpreter: native.NewDefaultInterpreter()}
+		c.ObjectWatcher = objectwatcher.NewObjectWatcher(c.Client, c.RESTMapper, util.NewClusterDynamicClientSetForAgent, c.ResourceInterpreter)
+
+		// Generate InformerManager
 		clusterName := cluster.Name
 		dynamicClientSet := dynamicClientSets[0]
 		// Generate ResourceInterpreter and ObjectWatcher
 		stopCh := make(chan struct{})
 		defer close(stopCh)
-
-		controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopCh)
-		controlPlaneKubeClientSet := kubernetesfake.NewSimpleClientset()
-		sharedFactory := informers.NewSharedInformerFactory(controlPlaneKubeClientSet, 0)
-		serviceLister := sharedFactory.Core().V1().Services().Lister()
-
-		c.ResourceInterpreter = resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, serviceLister)
-		c.ObjectWatcher = objectwatcher.NewObjectWatcher(c.Client, c.RESTMapper, util.NewClusterDynamicClientSetForAgent, c.ResourceInterpreter)
-
-		// Generate InformerManager
 		m := genericmanager.NewMultiClusterInformerManager(stopCh)
 		m.ForCluster(clusterName, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
 		m.Start(clusterName)
@@ -866,13 +882,13 @@ func TestWorkStatusController_recreateResourceIfNeeded(t *testing.T) {
 	}
 
 	t.Run("normal case", func(t *testing.T) {
-		err := c.recreateResourceIfNeeded(work, fedKey)
+		err := c.recreateResourceIfNeeded(context.Background(), work, fedKey)
 		assert.Empty(t, err)
 	})
 
 	t.Run("failed to UnmarshalJSON", func(t *testing.T) {
 		work.Spec.Workload.Manifests[0].RawExtension.Raw = []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}},`)
-		err := c.recreateResourceIfNeeded(work, fedKey)
+		err := c.recreateResourceIfNeeded(context.Background(), work, fedKey)
 		assert.NotEmpty(t, err)
 	})
 }
@@ -1011,4 +1027,48 @@ func TestWorkStatusController_registerInformersAndStart(t *testing.T) {
 		err := c.registerInformersAndStart(cluster, work)
 		assert.NotEmpty(t, err)
 	})
+}
+
+func TestWorkStatusController_interpretHealth(t *testing.T) {
+	tests := []struct {
+		name                   string
+		clusterObj             client.Object
+		expectedResourceHealth workv1alpha1.ResourceHealth
+		expectedEventReason    string
+	}{
+		{
+			name:                   "deployment without status is interpreted as unhealthy",
+			clusterObj:             testhelper.NewDeployment("foo", "bar"),
+			expectedResourceHealth: workv1alpha1.ResourceUnhealthy,
+			expectedEventReason:    events.EventReasonInterpretHealthSucceed,
+		},
+		{
+			name:                   "cluster role without status is interpreted as healthy",
+			clusterObj:             testhelper.NewClusterRole("foo", []rbacv1.PolicyRule{}),
+			expectedResourceHealth: workv1alpha1.ResourceHealthy,
+		},
+	}
+
+	cluster := newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
+	c := newWorkStatusController(cluster)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			work := testhelper.NewWork(tt.clusterObj.GetName(), tt.clusterObj.GetNamespace(), string(uuid.NewUUID()), []byte{})
+			obj, err := helper.ToUnstructured(tt.clusterObj)
+			assert.NoError(t, err)
+
+			resourceHealth := c.interpretHealth(obj, work)
+			assert.Equalf(t, tt.expectedResourceHealth, resourceHealth, "expected resource health %v, got %v", tt.expectedResourceHealth, resourceHealth)
+
+			eventRecorder := c.EventRecorder.(*record.FakeRecorder)
+			if tt.expectedEventReason == "" {
+				assert.Empty(t, eventRecorder.Events, "expected no events to get recorded")
+			} else {
+				assert.Equal(t, 1, len(eventRecorder.Events))
+				e := <-eventRecorder.Events
+				assert.Containsf(t, e, tt.expectedEventReason, "expected event reason %v, got %v", tt.expectedEventReason, e)
+			}
+		})
+	}
 }

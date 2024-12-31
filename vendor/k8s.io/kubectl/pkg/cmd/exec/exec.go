@@ -121,22 +121,9 @@ type RemoteExecutor interface {
 type DefaultRemoteExecutor struct{}
 
 func (*DefaultRemoteExecutor) Execute(url *url.URL, config *restclient.Config, stdin io.Reader, stdout, stderr io.Writer, tty bool, terminalSizeQueue remotecommand.TerminalSizeQueue) error {
-	// Legacy SPDY executor is default. If feature gate enabled, fallback
-	// executor attempts websockets first--then SPDY.
-	exec, err := remotecommand.NewSPDYExecutor(config, "POST", url)
+	exec, err := createExecutor(url, config)
 	if err != nil {
 		return err
-	}
-	if cmdutil.RemoteCommandWebsockets.IsEnabled() {
-		// WebSocketExecutor must be "GET" method as described in RFC 6455 Sec. 4.1 (page 17).
-		websocketExec, err := remotecommand.NewWebSocketExecutor(config, "GET", url.String())
-		if err != nil {
-			return err
-		}
-		exec, err = remotecommand.NewFallbackExecutor(websocketExec, exec, httpstream.IsUpgradeFailure)
-		if err != nil {
-			return err
-		}
 	}
 	return exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
 		Stdin:             stdin,
@@ -145,6 +132,29 @@ func (*DefaultRemoteExecutor) Execute(url *url.URL, config *restclient.Config, s
 		Tty:               tty,
 		TerminalSizeQueue: terminalSizeQueue,
 	})
+}
+
+// createExecutor returns the Executor or an error if one occurred.
+func createExecutor(url *url.URL, config *restclient.Config) (remotecommand.Executor, error) {
+	exec, err := remotecommand.NewSPDYExecutor(config, "POST", url)
+	if err != nil {
+		return nil, err
+	}
+	// Fallback executor is default, unless feature flag is explicitly disabled.
+	if !cmdutil.RemoteCommandWebsockets.IsDisabled() {
+		// WebSocketExecutor must be "GET" method as described in RFC 6455 Sec. 4.1 (page 17).
+		websocketExec, err := remotecommand.NewWebSocketExecutor(config, "GET", url.String())
+		if err != nil {
+			return nil, err
+		}
+		exec, err = remotecommand.NewFallbackExecutor(websocketExec, exec, func(err error) bool {
+			return httpstream.IsUpgradeFailure(err) || httpstream.IsHTTPSProxyError(err)
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return exec, nil
 }
 
 type StreamOptions struct {
@@ -192,17 +202,8 @@ func (p *ExecOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, argsIn []s
 	}
 	if argsLenAtDash > -1 {
 		p.Command = argsIn[argsLenAtDash:]
-	} else if len(argsIn) > 1 {
-		if !p.Quiet {
-			fmt.Fprint(p.ErrOut, "kubectl exec [POD] [COMMAND] is DEPRECATED and will be removed in a future version. Use kubectl exec [POD] -- [COMMAND] instead.\n")
-		}
-		p.Command = argsIn[1:]
-	} else if len(argsIn) > 0 && len(p.FilenameOptions.Filenames) != 0 {
-		if !p.Quiet {
-			fmt.Fprint(p.ErrOut, "kubectl exec [POD] [COMMAND] is DEPRECATED and will be removed in a future version. Use kubectl exec [POD] -- [COMMAND] instead.\n")
-		}
-		p.Command = argsIn[0:]
-		p.ResourceName = ""
+	} else if len(argsIn) > 1 || (len(argsIn) > 0 && len(p.FilenameOptions.Filenames) != 0) {
+		return cmdutil.UsageErrorf(cmd, "exec [POD] [COMMAND] is not supported anymore. Use exec [POD] -- [COMMAND] instead")
 	}
 
 	var err error

@@ -36,9 +36,9 @@ const (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=works,scope=Namespaced,shortName=wk,categories={karmada-io}
-// +kubebuilder:printcolumn:JSONPath=`.spec.workload.manifests[*].kind`,name="Workload-Kind",type=string
-// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Applied")].status`,name="Applied",type=string
-// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="Age",type=date
+// +kubebuilder:printcolumn:JSONPath=`.spec.workload.manifests[*].kind`,name="WORKLOAD-KIND",type=string
+// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Applied")].status`,name="APPLIED",type=string
+// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="AGE",type=date
 
 // Work defines a list of resources to be deployed on the member cluster.
 type Work struct {
@@ -57,6 +57,20 @@ type Work struct {
 type WorkSpec struct {
 	// Workload represents the manifest workload to be deployed on managed cluster.
 	Workload WorkloadTemplate `json:"workload,omitempty"`
+
+	// SuspendDispatching controls whether dispatching should
+	// be suspended, nil means not suspend.
+	// Note: true means stop propagating to the corresponding member cluster, and
+	// does not prevent status collection.
+	// +optional
+	SuspendDispatching *bool `json:"suspendDispatching,omitempty"`
+
+	// PreserveResourcesOnDeletion controls whether resources should be preserved on the
+	// member cluster when the Work object is deleted.
+	// If set to true, resources will be preserved on the member cluster.
+	// Default is false, which means resources will be deleted along with the Work object.
+	// +optional
+	PreserveResourcesOnDeletion *bool `json:"preserveResourcesOnDeletion,omitempty"`
 }
 
 // WorkloadTemplate represents the manifest workload to be deployed on managed cluster.
@@ -146,6 +160,8 @@ const (
 	// WorkDegraded represents that the current state of Work does not match
 	// the desired state for a certain period.
 	WorkDegraded string = "Degraded"
+	// WorkDispatching represents the dispatching or suspension status of the Work resource
+	WorkDispatching string = "Dispatching"
 )
 
 // ResourceHealth represents that the health status of the reference resource.

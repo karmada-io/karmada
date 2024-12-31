@@ -17,7 +17,7 @@ spec:
   replicas: {{  $member.replicaCount }}
   selector:
     matchLabels:
-      app: karmada-scheduler-estimator-{{ $clusterName }}
+      cluster: {{ $clusterName }}
       {{- include "karmada.schedulerEstimator.labels" $ | nindent 6 }}
   {{- with $.Values.schedulerEstimator.strategy }}
   strategy:
@@ -30,7 +30,7 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        app: karmada-scheduler-estimator-{{ $clusterName }}
+        cluster: {{ $clusterName }}
         {{- include "karmada.schedulerEstimator.labels" $ | nindent 8 }}
         {{- include "karmada.schedulerEstimator.podLabels" $ | nindent 8 }}
     spec:
@@ -50,7 +50,9 @@ spec:
             - --cluster-name={{ $clusterName }}
             - --grpc-auth-cert-file=/etc/karmada/pki/karmada.crt
             - --grpc-auth-key-file=/etc/karmada/pki/karmada.key
-            - --grpc-client-ca-file=/etc/karmada/pki/ca.crt
+            - --grpc-client-ca-file=/etc/karmada/pki/server-ca.crt
+            - --metrics-bind-address=0.0.0.0:8080
+            - --health-probe-bind-address=0.0.0.0:10351
             {{- with (include "karmada.schedulerEstimator.featureGates" (dict "featureGatesArg" $.Values.schedulerEstimator.featureGates)) }}
             - {{ . }}
             {{- end}}
@@ -63,6 +65,10 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 15
             timeoutSeconds: 5
+          ports:
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
           volumeMounts:
             - name: karmada-certs
               mountPath: /etc/karmada/pki
@@ -87,7 +93,7 @@ metadata:
     cluster: {{ $clusterName }}
 spec:
   selector:
-    app: karmada-scheduler-estimator-{{ $clusterName }}
+    cluster: {{ $clusterName }}
     {{- include "karmada.schedulerEstimator.labels" $ | nindent 4 }}
   ports:
     - protocol: TCP
@@ -134,7 +140,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: karmada-scheduler-estimator-{{ $clusterName }}
+      cluster: {{ $clusterName }}
       {{- include "karmada.schedulerEstimator.labels" $ | nindent 6 }}
   {{ toYaml $.Values.schedulerEstimator.podDisruptionBudget | nindent 2 }}
 {{- end -}}

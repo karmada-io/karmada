@@ -14,7 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Given mockgen does not group imports according to our project's conventions.
+// Following the mockgen command, we run 'goimports', which reformats the
+// generated file to ensure that all imports are properly grouped and sorted,
+// maintaining consistency with the rest of our codebase.
 //go:generate mockgen -source=interface.go -destination=testing/mock_interface.go -package=testing FilterPlugin ScorePlugin ScoreExtensions
+//go:generate goimports -local "github.com/karmada-io/karmada" -w testing/mock_interface.go
 
 package framework
 
@@ -43,7 +48,7 @@ type Framework interface {
 	// the given cluster.
 	RunFilterPlugins(ctx context.Context, bindingSpec *workv1alpha2.ResourceBindingSpec, bindingStatus *workv1alpha2.ResourceBindingStatus, cluster *clusterv1alpha1.Cluster) *Result
 
-	// RunScorePlugins runs the set of configured Score plugins, it returns a map of plugin name to cores
+	// RunScorePlugins runs the set of configured Score plugins, it returns a map of plugin names to scores
 	RunScorePlugins(ctx context.Context, spec *workv1alpha2.ResourceBindingSpec, clusters []*clusterv1alpha1.Cluster) (PluginToClusterScores, *Result)
 }
 
@@ -78,7 +83,7 @@ const (
 	// NOTE: A nil status is also considered as "Success".
 	Success Code = iota
 	// Unschedulable is used when a plugin finds the resource unschedulable.
-	// The accompanying status message should explain why the it is unschedulable.
+	// The accompanying status message should explain why it is unschedulable.
 	Unschedulable
 	// Error is used for internal plugin errors, unexpected input, etc.
 	Error

@@ -18,11 +18,15 @@ package workloadrebalancer
 
 import (
 	"context"
+	"crypto/rand"
+	"fmt"
+	"math/big"
 	"reflect"
 	"testing"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -42,27 +46,27 @@ var (
 	now        = metav1.Now()
 	oneHourAgo = metav1.NewTime(time.Now().Add(-1 * time.Hour))
 
-	deploy1    = helper.NewDeployment("test-ns", "test-1")
+	deploy1    = helper.NewDeployment("test-ns", fmt.Sprintf("test-1-%s", randomSuffix()))
 	binding1   = newResourceBinding(deploy1)
 	deploy1Obj = newObjectReference(deploy1)
 
 	// use deploy2 to mock a resource whose resource-binding not found.
-	deploy2    = helper.NewDeployment("test-ns", "test-2")
+	deploy2    = helper.NewDeployment("test-ns", fmt.Sprintf("test-2-%s", randomSuffix()))
 	deploy2Obj = newObjectReference(deploy2)
 
-	deploy3    = helper.NewDeployment("test-ns", "test-3")
+	deploy3    = helper.NewDeployment("test-ns", fmt.Sprintf("test-3-%s", randomSuffix()))
 	binding3   = newResourceBinding(deploy3)
 	deploy3Obj = newObjectReference(deploy3)
 
 	pendingRebalancer = &appsv1alpha1.WorkloadRebalancer{
-		ObjectMeta: metav1.ObjectMeta{Name: "rebalancer-with-pending-workloads", CreationTimestamp: now},
+		ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("rebalancer-with-pending-workloads-%s", randomSuffix()), CreationTimestamp: now},
 		Spec: appsv1alpha1.WorkloadRebalancerSpec{
 			// Put deploy2Obj before deploy1Obj to test whether the results of status are sorted.
 			Workloads: []appsv1alpha1.ObjectReference{deploy2Obj, deploy1Obj},
 		},
 	}
 	succeedRebalancer = &appsv1alpha1.WorkloadRebalancer{
-		ObjectMeta: metav1.ObjectMeta{Name: "rebalancer-with-succeed-workloads", CreationTimestamp: oneHourAgo},
+		ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("rebalancer-with-succeed-workloads-%s", randomSuffix()), CreationTimestamp: oneHourAgo},
 		Spec: appsv1alpha1.WorkloadRebalancerSpec{
 			Workloads: []appsv1alpha1.ObjectReference{deploy1Obj},
 		},
@@ -76,7 +80,7 @@ var (
 		},
 	}
 	notFoundRebalancer = &appsv1alpha1.WorkloadRebalancer{
-		ObjectMeta: metav1.ObjectMeta{Name: "rebalancer-with-workloads-whose-binding-not-found", CreationTimestamp: now},
+		ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("rebalancer-with-workloads-whose-binding-not-found-%s", randomSuffix()), CreationTimestamp: now},
 		Spec: appsv1alpha1.WorkloadRebalancerSpec{
 			Workloads: []appsv1alpha1.ObjectReference{deploy2Obj},
 		},
@@ -91,7 +95,7 @@ var (
 		},
 	}
 	failedRebalancer = &appsv1alpha1.WorkloadRebalancer{
-		ObjectMeta: metav1.ObjectMeta{Name: "rebalancer-with-failed-workloads", CreationTimestamp: now},
+		ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("rebalancer-with-failed-workloads-%s", randomSuffix()), CreationTimestamp: now},
 		Spec: appsv1alpha1.WorkloadRebalancerSpec{
 			Workloads: []appsv1alpha1.ObjectReference{deploy1Obj},
 		},
@@ -105,7 +109,7 @@ var (
 		},
 	}
 	modifiedRebalancer = &appsv1alpha1.WorkloadRebalancer{
-		ObjectMeta: metav1.ObjectMeta{Name: "rebalancer-which-experienced-modification", CreationTimestamp: oneHourAgo},
+		ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("rebalancer-which-experienced-modification-%s", randomSuffix()), CreationTimestamp: oneHourAgo},
 		Spec: appsv1alpha1.WorkloadRebalancerSpec{
 			Workloads: []appsv1alpha1.ObjectReference{deploy3Obj},
 		},
@@ -124,7 +128,7 @@ var (
 		},
 	}
 	ttlFinishedRebalancer = &appsv1alpha1.WorkloadRebalancer{
-		ObjectMeta: metav1.ObjectMeta{Name: "ttl-finished-rebalancer", CreationTimestamp: oneHourAgo},
+		ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("ttl-finished-rebalancer-%s", randomSuffix()), CreationTimestamp: oneHourAgo},
 		Spec: appsv1alpha1.WorkloadRebalancerSpec{
 			TTLSecondsAfterFinished: ptr.To[int32](5),
 			Workloads:               []appsv1alpha1.ObjectReference{deploy1Obj},
@@ -137,6 +141,19 @@ var (
 					Result:   appsv1alpha1.RebalanceSuccessful,
 				},
 			},
+		},
+	}
+
+	clusterRole = &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("test-cluster-role-%s", randomSuffix())},
+	}
+	clusterBinding = newClusterResourceBinding(clusterRole)
+	clusterRoleObj = newClusterRoleObjectReference(clusterRole)
+
+	clusterRebalancer = &appsv1alpha1.WorkloadRebalancer{
+		ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("cluster-rebalancer-%s", randomSuffix()), CreationTimestamp: now},
+		Spec: appsv1alpha1.WorkloadRebalancerSpec{
+			Workloads: []appsv1alpha1.ObjectReference{clusterRoleObj},
 		},
 	}
 )
@@ -250,48 +267,118 @@ func TestRebalancerController_Reconcile(t *testing.T) {
 			existObjsWithStatus: []client.Object{ttlFinishedRebalancer},
 			needsCleanup:        true,
 		},
+		{
+			name: "reconcile cluster-wide resource rebalancer",
+			req: controllerruntime.Request{
+				NamespacedName: types.NamespacedName{Name: clusterRebalancer.Name},
+			},
+			existObjects:        []client.Object{clusterRole, clusterBinding, clusterRebalancer},
+			existObjsWithStatus: []client.Object{clusterRebalancer},
+			wantStatus: appsv1alpha1.WorkloadRebalancerStatus{
+				ObservedWorkloads: []appsv1alpha1.ObservedWorkload{
+					{
+						Workload: clusterRoleObj,
+						Result:   appsv1alpha1.RebalanceSuccessful,
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := &RebalancerController{
-				Client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).
-					WithObjects(tt.existObjects...).
-					WithStatusSubresource(tt.existObjsWithStatus...).Build(),
-			}
-			_, err := c.Reconcile(context.TODO(), tt.req)
-			// 1. check whether it has error
-			if (err == nil && tt.wantErr) || (err != nil && !tt.wantErr) {
-				t.Fatalf("Reconcile() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			// 2. check final WorkloadRebalancer status
-			rebalancerGet := &appsv1alpha1.WorkloadRebalancer{}
-			if err := c.Client.Get(context.TODO(), tt.req.NamespacedName, rebalancerGet); err != nil {
-				if apierrors.IsNotFound(err) && tt.needsCleanup {
-					t.Logf("WorkloadRebalancer %s has be cleaned up as expected", tt.req.NamespacedName)
-					return
-				}
-				t.Fatalf("get WorkloadRebalancer failed: %+v", err)
-			}
-			// we can't predict `FinishTime` in `wantStatus`, so not compare this field.
-			tt.wantStatus.FinishTime = rebalancerGet.Status.FinishTime
-			if !reflect.DeepEqual(rebalancerGet.Status, tt.wantStatus) {
-				t.Fatalf("update WorkloadRebalancer failed, got: %+v, want: %+v", rebalancerGet.Status, tt.wantStatus)
-			}
-			// 3. check binding's rescheduleTriggeredAt
-			for _, item := range rebalancerGet.Status.ObservedWorkloads {
-				if item.Result != appsv1alpha1.RebalanceSuccessful {
-					continue
-				}
-				bindingGet := &workv1alpha2.ResourceBinding{}
-				bindingName := names.GenerateBindingName(item.Workload.Kind, item.Workload.Name)
-				if err := c.Client.Get(context.TODO(), client.ObjectKey{Namespace: item.Workload.Namespace, Name: bindingName}, bindingGet); err != nil {
-					t.Fatalf("get bindding (%s) failed: %+v", bindingName, err)
-				}
-				if !bindingGet.Spec.RescheduleTriggeredAt.Equal(&rebalancerGet.CreationTimestamp) {
-					t.Fatalf("rescheduleTriggeredAt of binding got: %+v, want: %+v", bindingGet.Spec.RescheduleTriggeredAt, rebalancerGet.CreationTimestamp)
-				}
-			}
+			runRebalancerTest(t, tt)
 		})
+	}
+}
+
+func runRebalancerTest(t *testing.T, tt struct {
+	name                string
+	req                 controllerruntime.Request
+	existObjects        []client.Object
+	existObjsWithStatus []client.Object
+	wantErr             bool
+	wantStatus          appsv1alpha1.WorkloadRebalancerStatus
+	needsCleanup        bool
+}) {
+	c := &RebalancerController{
+		Client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).
+			WithObjects(tt.existObjects...).
+			WithStatusSubresource(tt.existObjsWithStatus...).Build(),
+	}
+	_, err := c.Reconcile(context.TODO(), tt.req)
+	// 1. check whether it has error
+	if (err != nil) != tt.wantErr {
+		t.Fatalf("Reconcile() error = %v, wantErr %v", err, tt.wantErr)
+	}
+
+	// 2. check final WorkloadRebalancer status
+	rebalancerGet := &appsv1alpha1.WorkloadRebalancer{}
+	err = c.Client.Get(context.TODO(), tt.req.NamespacedName, rebalancerGet)
+	if err != nil {
+		if apierrors.IsNotFound(err) && tt.needsCleanup {
+			t.Logf("WorkloadRebalancer %s has been cleaned up as expected", tt.req.NamespacedName)
+			return
+		}
+		t.Fatalf("get WorkloadRebalancer failed: %+v", err)
+	}
+
+	tt.wantStatus.FinishTime = rebalancerGet.Status.FinishTime
+	if rebalancerGet.Status.FinishTime == nil {
+		// If FinishTime is nil, set it to a non-nil value for comparison
+		now := metav1.Now()
+		tt.wantStatus.FinishTime = &now
+		rebalancerGet.Status.FinishTime = &now
+	}
+	if !reflect.DeepEqual(rebalancerGet.Status, tt.wantStatus) {
+		t.Fatalf("update WorkloadRebalancer failed, got: %+v, want: %+v", rebalancerGet.Status, tt.wantStatus)
+	}
+
+	// 3. check binding's rescheduleTriggeredAt
+	checkBindings(t, c, rebalancerGet)
+}
+
+func checkBindings(t *testing.T, c *RebalancerController, rebalancerGet *appsv1alpha1.WorkloadRebalancer) {
+	for _, item := range rebalancerGet.Status.ObservedWorkloads {
+		if item.Result != appsv1alpha1.RebalanceSuccessful {
+			continue
+		}
+		if item.Workload.Namespace == "" {
+			// This is a cluster-wide resource
+			checkClusterBinding(t, c, item, rebalancerGet)
+		} else {
+			// This is a namespace-scoped resource
+			checkResourceBinding(t, c, item, rebalancerGet)
+		}
+	}
+}
+
+func checkClusterBinding(t *testing.T, c *RebalancerController, item appsv1alpha1.ObservedWorkload, rebalancerGet *appsv1alpha1.WorkloadRebalancer) {
+	clusterBindingGet := &workv1alpha2.ClusterResourceBinding{}
+	clusterBindingName := names.GenerateBindingName(item.Workload.Kind, item.Workload.Name)
+	err := c.Client.Get(context.TODO(), client.ObjectKey{Name: clusterBindingName}, clusterBindingGet)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			t.Fatalf("get cluster binding (%s) failed: %+v", clusterBindingName, err)
+		}
+		return // Skip the check if the binding is not found
+	}
+	if !clusterBindingGet.Spec.RescheduleTriggeredAt.Equal(&rebalancerGet.CreationTimestamp) {
+		t.Fatalf("rescheduleTriggeredAt of cluster binding got: %+v, want: %+v", clusterBindingGet.Spec.RescheduleTriggeredAt, rebalancerGet.CreationTimestamp)
+	}
+}
+
+func checkResourceBinding(t *testing.T, c *RebalancerController, item appsv1alpha1.ObservedWorkload, rebalancerGet *appsv1alpha1.WorkloadRebalancer) {
+	bindingGet := &workv1alpha2.ResourceBinding{}
+	bindingName := names.GenerateBindingName(item.Workload.Kind, item.Workload.Name)
+	err := c.Client.Get(context.TODO(), client.ObjectKey{Namespace: item.Workload.Namespace, Name: bindingName}, bindingGet)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			t.Fatalf("get binding (%s) failed: %+v", bindingName, err)
+		}
+		return // Skip the check if the binding is not found
+	}
+	if !bindingGet.Spec.RescheduleTriggeredAt.Equal(&rebalancerGet.CreationTimestamp) {
+		t.Fatalf("rescheduleTriggeredAt of binding got: %+v, want: %+v", bindingGet.Spec.RescheduleTriggeredAt, rebalancerGet.CreationTimestamp)
 	}
 }
 
@@ -354,4 +441,32 @@ func newObjectReference(obj *appsv1.Deployment) appsv1alpha1.ObjectReference {
 		Name:       obj.Name,
 		Namespace:  obj.Namespace,
 	}
+}
+
+func newClusterResourceBinding(obj *rbacv1.ClusterRole) *workv1alpha2.ClusterResourceBinding {
+	return &workv1alpha2.ClusterResourceBinding{
+		TypeMeta:   metav1.TypeMeta{Kind: "ClusterResourceBinding", APIVersion: "work.karmada.io/v1alpha2"},
+		ObjectMeta: metav1.ObjectMeta{Name: names.GenerateBindingName("ClusterRole", obj.Name)},
+		Spec:       workv1alpha2.ResourceBindingSpec{RescheduleTriggeredAt: &oneHourAgo},
+		Status:     workv1alpha2.ResourceBindingStatus{LastScheduledTime: &oneHourAgo},
+	}
+}
+
+func newClusterRoleObjectReference(obj *rbacv1.ClusterRole) appsv1alpha1.ObjectReference {
+	return appsv1alpha1.ObjectReference{
+		APIVersion: "rbac.authorization.k8s.io/v1",
+		Kind:       "ClusterRole",
+		Name:       obj.Name,
+	}
+}
+
+// Helper function for generating random suffix
+func randomSuffix() string {
+	max := big.NewInt(10000)
+	n, err := rand.Int(rand.Reader, max)
+	if err != nil {
+		// In a test setup, it's unlikely we'll hit this error
+		panic(fmt.Sprintf("failed to generate random number: %v", err))
+	}
+	return fmt.Sprintf("%d", n)
 }

@@ -132,7 +132,7 @@ func (frw *frameworkImpl) RunScorePlugins(
 	defer func() {
 		metrics.FrameworkExtensionPointDuration.WithLabelValues(score, result.Code().String()).Observe(utilmetrics.DurationInSeconds(startTime))
 	}()
-	pluginToClusterScores := make(framework.PluginToClusterScores, len(frw.filterPlugins))
+	pluginToClusterScores := make(framework.PluginToClusterScores, len(frw.scorePlugins))
 	for _, p := range frw.scorePlugins {
 		var scoreList framework.ClusterScoreList
 		for _, cluster := range clusters {

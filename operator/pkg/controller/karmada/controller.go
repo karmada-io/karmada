@@ -40,7 +40,7 @@ import (
 )
 
 const (
-	// ControllerName is the controller name that will be used when reporting events.
+	// ControllerName is the controller name that will be used when reporting events and metrics.
 	ControllerName = "karmada-operator-controller"
 
 	// ControllerFinalizerName is the name of the karmada controller finalizer
@@ -48,6 +48,9 @@ const (
 
 	// DisableCascadingDeletionLabel is the label that determine whether to perform cascade deletion
 	DisableCascadingDeletionLabel = "operator.karmada.io/disable-cascading-deletion"
+
+	// ValidationErrorReason is the reason for a validation error
+	ValidationErrorReason = "ValidationError"
 )
 
 // Controller controls the Karmada resource.
@@ -87,6 +90,11 @@ func (ctrl *Controller) Reconcile(ctx context.Context, req controllerruntime.Req
 		}
 
 		return ctrl.removeFinalizer(ctx, karmada)
+	}
+
+	if err := ctrl.validateKarmada(ctx, karmada); err != nil {
+		klog.Errorf("Validation failed for karmada: %+v", err)
+		return controllerruntime.Result{}, nil
 	}
 
 	if err := ctrl.ensureKarmada(ctx, karmada); err != nil {
@@ -147,6 +155,7 @@ func (ctrl *Controller) ensureKarmada(ctx context.Context, karmada *operatorv1al
 // SetupWithManager creates a controller and register to controller manager.
 func (ctrl *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(ControllerName).
 		For(&operatorv1alpha1.Karmada{},
 			builder.WithPredicates(predicate.Funcs{
 				UpdateFunc: ctrl.onKarmadaUpdate,

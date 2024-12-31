@@ -161,7 +161,7 @@ func TestCreateOrUpdateEndpointSlice(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := CreateOrUpdateEndpointSlice(tt.args.client, tt.args.endpointSlice); (err != nil) != tt.wantErr {
+			if err := CreateOrUpdateEndpointSlice(context.Background(), tt.args.client, tt.args.endpointSlice); (err != nil) != tt.wantErr {
 				t.Errorf("CreateOrUpdateEndpointSlice() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
@@ -206,7 +206,7 @@ func TestDeleteEndpointSlice(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := DeleteEndpointSlice(tt.args.c, tt.args.selector); (err != nil) != tt.wantErr {
+			if err := DeleteEndpointSlice(context.Background(), tt.args.c, tt.args.selector); (err != nil) != tt.wantErr {
 				t.Errorf("DeleteEndpointSlice() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			list := &discoveryv1.EndpointSliceList{}

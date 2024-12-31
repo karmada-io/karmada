@@ -37,7 +37,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
-// CRBGracefulEvictionControllerName is the controller name that will be used when reporting events.
+// CRBGracefulEvictionControllerName is the controller name that will be used when reporting events and metrics.
 const CRBGracefulEvictionControllerName = "cluster-resource-binding-graceful-eviction-controller"
 
 // CRBGracefulEvictionController is to sync ClusterResourceBinding.spec.gracefulEvictionTasks.
@@ -66,7 +66,7 @@ func (c *CRBGracefulEvictionController) Reconcile(ctx context.Context, req contr
 		return controllerruntime.Result{}, nil
 	}
 
-	retryDuration, err := c.syncBinding(binding)
+	retryDuration, err := c.syncBinding(ctx, binding)
 	if err != nil {
 		return controllerruntime.Result{}, err
 	}
@@ -77,7 +77,7 @@ func (c *CRBGracefulEvictionController) Reconcile(ctx context.Context, req contr
 	return controllerruntime.Result{}, nil
 }
 
-func (c *CRBGracefulEvictionController) syncBinding(binding *workv1alpha2.ClusterResourceBinding) (time.Duration, error) {
+func (c *CRBGracefulEvictionController) syncBinding(ctx context.Context, binding *workv1alpha2.ClusterResourceBinding) (time.Duration, error) {
 	keptTask, evictedClusters := assessEvictionTasks(binding.Spec, binding.Status.AggregatedStatus, c.GracefulEvictionTimeout, metav1.Now())
 	if reflect.DeepEqual(binding.Spec.GracefulEvictionTasks, keptTask) {
 		return nextRetry(keptTask, c.GracefulEvictionTimeout, metav1.Now().Time), nil
@@ -86,7 +86,7 @@ func (c *CRBGracefulEvictionController) syncBinding(binding *workv1alpha2.Cluste
 	objPatch := client.MergeFrom(binding)
 	modifiedObj := binding.DeepCopy()
 	modifiedObj.Spec.GracefulEvictionTasks = keptTask
-	err := c.Client.Patch(context.TODO(), modifiedObj, objPatch)
+	err := c.Client.Patch(ctx, modifiedObj, objPatch)
 	if err != nil {
 		return 0, err
 	}
@@ -125,7 +125,8 @@ func (c *CRBGracefulEvictionController) SetupWithManager(mgr controllerruntime.M
 	}
 
 	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(CRBGracefulEvictionControllerName).
 		For(&workv1alpha2.ClusterResourceBinding{}, builder.WithPredicates(clusterResourceBindingPredicateFn)).
-		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
+		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).
 		Complete(c)
 }

@@ -24,28 +24,52 @@ spec:
     statusAggregation:
       luaScript: >
         function AggregateStatus(desiredObj, statusItems)
+          if desiredObj.status == nil then
+            desiredObj.status = {}
+          end
+          if desiredObj.metadata.generation == nil then
+            desiredObj.metadata.generation = 0
+          end
+          if desiredObj.status.observedGeneration == nil then
+            desiredObj.status.observedGeneration = 0
+          end
+
+          -- Initialize status fields if status doest not exist
+          -- If the HelmChart is not spread to any cluster, its status also should be aggregated
           if statusItems == nil then
+            desiredObj.status.artifact = {}
+            desiredObj.status.conditions = {}
+            desiredObj.status.observedChartName = ''
+            desiredObj.status.observedGeneration = desiredObj.metadata.generation
+            desiredObj.status.observedSourceArtifactRevision = ''
+            desiredObj.status.url = ''
             return desiredObj
           end
-          desiredObj.status = {}
-          desiredObj.status.conditions = {}
-          conditions = {}  
+
+          local artifact = {}
+          local conditions = {}
+          local generation = desiredObj.metadata.generation
+          local observedChartName = ''
+          local observedGeneration = desiredObj.status.observedGeneration
+          local observedSourceArtifactRevision = ''
+          local url = ''
+
+          -- Count all members that their status is updated to the latest generation
+          local observedResourceTemplateGenerationCount = 0
+
           local conditionsIndex = 1
           for i = 1, #statusItems do
             if statusItems[i].status ~= nil and statusItems[i].status.artifact ~= nil then
-              desiredObj.status.artifact = statusItems[i].status.artifact
+              artifact = statusItems[i].status.artifact
             end
             if statusItems[i].status ~= nil and statusItems[i].status.observedSourceArtifactRevision ~= nil and statusItems[i].status.observedSourceArtifactRevision ~= '' then
-              desiredObj.status.observedSourceArtifactRevision = statusItems[i].status.observedSourceArtifactRevision
+              observedSourceArtifactRevision = statusItems[i].status.observedSourceArtifactRevision
             end
             if statusItems[i].status ~= nil and statusItems[i].status.observedChartName ~= nil and statusItems[i].status.observedChartName ~= '' then
-              desiredObj.status.observedChartName = statusItems[i].status.observedChartName
-            end                        
-            if statusItems[i].status ~= nil and statusItems[i].status.lastHandledReconcileAt ~= nil and statusItems[i].status.lastHandledReconcileAt ~= '' then
-              desiredObj.status.lastHandledReconcileAt = statusItems[i].status.lastHandledReconcileAt
+              observedChartName = statusItems[i].status.observedChartName
             end
             if statusItems[i].status ~= nil and statusItems[i].status.url ~= nil and statusItems[i].status.url ~= '' then
-              desiredObj.status.url = statusItems[i].status.url
+              url = statusItems[i].status.url
             end
             if statusItems[i].status ~= nil and statusItems[i].status.conditions ~= nil then
               for conditionIndex = 1, #statusItems[i].status.conditions do
@@ -64,9 +88,37 @@ spec:
                 end
               end
             end
+
+            -- Check if the member's status is updated to the latest generation
+            local resourceTemplateGeneration = 0
+            if statusItems[i].status ~= nil and statusItems[i].status.resourceTemplateGeneration ~= nil then 
+              resourceTemplateGeneration = statusItems[i].status.resourceTemplateGeneration
+            end
+            local memberGeneration = 0
+            if statusItems[i].status ~= nil and statusItems[i].status.generation ~= nil then
+              memberGeneration = statusItems[i].status.generation
+            end
+            local memberObservedGeneration = 0
+            if statusItems[i].status ~= nil and statusItems[i].status.observedGeneration ~= nil then
+              memberObservedGeneration = statusItems[i].status.observedGeneration
+            end
+            if resourceTemplateGeneration == generation and memberGeneration == memberObservedGeneration then
+              observedResourceTemplateGenerationCount = observedResourceTemplateGenerationCount + 1
+            end
           end
-          desiredObj.status.observedGeneration = desiredObj.metadata.generation
+
+          -- Update the observed generation based on the observedResourceTemplateGenerationCount
+          if observedResourceTemplateGenerationCount == #statusItems then
+            desiredObj.status.observedGeneration = generation
+          else
+            desiredObj.status.observedGeneration = observedGeneration 
+          end
+
+          desiredObj.status.artifact = artifact
           desiredObj.status.conditions = conditions
+          desiredObj.status.observedChartName = observedChartName
+          desiredObj.status.observedSourceArtifactRevision = observedSourceArtifactRevision
+          desiredObj.status.url = url
           return desiredObj
         end
     retention:
@@ -80,16 +132,32 @@ spec:
     statusReflection:
       luaScript: >
         function ReflectStatus (observedObj)
-          status = {}
+          local status = {}
           if observedObj == nil or observedObj.status == nil then 
             return status
           end
-          status.observedSourceArtifactRevision = observedObj.status.observedSourceArtifactRevision
-          status.observedChartName = observedObj.status.observedChartName
-          status.conditions = observedObj.status.conditions
-          status.url = observedObj.status.url
+
           status.artifact = observedObj.status.artifact
-          status.lastHandledReconcileAt = observedObj.status.lastHandledReconcileAt
+          status.conditions = observedObj.status.conditions
+          status.observedChartName = observedObj.status.observedChartName
+          status.observedGeneration = observedGeneration
+          status.observedSourceArtifactRevision = observedObj.status.observedSourceArtifactRevision
+          status.url = observedObj.status.url
+
+          -- handle resource generation report
+          if observedObj.metadata == nil then
+            return status
+          end
+          status.generation = observedObj.metadata.generation
+
+          if observedObj.metadata.annotations == nil then
+            return status
+          end
+          local resourceTemplateGeneration = tonumber(observedObj.metadata.annotations["resourcetemplate.karmada.io/generation"])
+          if resourceTemplateGeneration ~= nil then
+              status.resourceTemplateGeneration = resourceTemplateGeneration
+          end
+
           return status
         end
     dependencyInterpretation:

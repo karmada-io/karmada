@@ -163,7 +163,7 @@ func (rs *ResourceSummary) clusterResourceNodeComparator(a, b interface{}) int {
 func (rs *ResourceSummary) AddToResourceSummary(crn ClusterResourceNode) {
 	index := rs.getIndex(crn)
 	if index == -1 {
-		klog.Error("ClusterResource can not add to resource summary: index is invalid.")
+		klog.Errorf("Failed to add node to resource summary due to no appropriate grade. ClusterResourceNode:%v", crn)
 		return
 	}
 	modeling := &(*rs).RMs[index]

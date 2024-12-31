@@ -61,13 +61,18 @@ func CreateBasic(serverURL, clusterName, userName string, caCert []byte) *client
 	}
 }
 
-// IsInCluster returns a bool represents whether the remote cluster is the local or not.
+// IsInCluster checks if the specified host cluster is the local cluster.
+// It returns true if:
+// - the hostCluster is nil;
+// - or its SecretRef is nil;
+// - or the SecretRef's Name is an empty string.
+// This indicates that the remote cluster is either not configured or not identifiable as the local cluster.
 func IsInCluster(hostCluster *operatorv1alpha1.HostCluster) bool {
 	return hostCluster == nil || hostCluster.SecretRef == nil || len(hostCluster.SecretRef.Name) == 0
 }
 
 // BuildClientFromSecretRef builds a clientset from the secret reference.
-func BuildClientFromSecretRef(client *clientset.Clientset, ref *operatorv1alpha1.LocalSecretReference) (*clientset.Clientset, error) {
+func BuildClientFromSecretRef(client clientset.Interface, ref *operatorv1alpha1.LocalSecretReference) (clientset.Interface, error) {
 	secret, err := client.CoreV1().Secrets(ref.Namespace).Get(context.TODO(), ref.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -81,7 +86,7 @@ func BuildClientFromSecretRef(client *clientset.Clientset, ref *operatorv1alpha1
 	return newClientSetForConfig(kubeconfigBytes)
 }
 
-func newClientSetForConfig(kubeconfig []byte) (*clientset.Clientset, error) {
+func newClientSetForConfig(kubeconfig []byte) (clientset.Interface, error) {
 	clientConfig, err := clientcmd.NewClientConfigFromBytes(kubeconfig)
 	if err != nil {
 		return nil, err

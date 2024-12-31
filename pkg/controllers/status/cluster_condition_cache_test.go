@@ -176,6 +176,60 @@ func TestThresholdAdjustedReadyCondition(t *testing.T) {
 				Status: metav1.ConditionTrue,
 			},
 		},
+		{
+			name: "ready condition changes from true to false",
+			clusterData: &clusterData{
+				readyCondition:     metav1.ConditionTrue,
+				thresholdStartTime: time.Now().Add(-10 * time.Minute),
+			},
+			currentCondition: &metav1.Condition{
+				Type:   clusterv1alpha1.ClusterConditionReady,
+				Status: metav1.ConditionTrue,
+			},
+			observedCondition: &metav1.Condition{
+				Type:   clusterv1alpha1.ClusterConditionReady,
+				Status: metav1.ConditionFalse,
+			},
+			expectedCondition: &metav1.Condition{
+				Type:   clusterv1alpha1.ClusterConditionReady,
+				Status: metav1.ConditionTrue,
+			},
+		},
+		{
+			name: "ready condition changes from false to true",
+			clusterData: &clusterData{
+				readyCondition:     metav1.ConditionFalse,
+				thresholdStartTime: time.Now().Add(-10 * time.Minute),
+			},
+			currentCondition: &metav1.Condition{
+				Type:   clusterv1alpha1.ClusterConditionReady,
+				Status: metav1.ConditionFalse,
+			},
+			observedCondition: &metav1.Condition{
+				Type:   clusterv1alpha1.ClusterConditionReady,
+				Status: metav1.ConditionTrue,
+			},
+			expectedCondition: &metav1.Condition{
+				Type:   clusterv1alpha1.ClusterConditionReady,
+				Status: metav1.ConditionFalse,
+			},
+		},
+		{
+			name: "current condition is nil, should return observed condition",
+			clusterData: &clusterData{
+				readyCondition:     metav1.ConditionFalse,
+				thresholdStartTime: time.Now().Add(-clusterFailureThreshold),
+			},
+			currentCondition: nil,
+			observedCondition: &metav1.Condition{
+				Type:   clusterv1alpha1.ClusterConditionReady,
+				Status: metav1.ConditionTrue,
+			},
+			expectedCondition: &metav1.Condition{
+				Type:   clusterv1alpha1.ClusterConditionReady,
+				Status: metav1.ConditionTrue,
+			},
+		},
 	}
 
 	for _, tt := range tests {

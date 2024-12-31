@@ -20,9 +20,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net"
 	"os"
-	"strconv"
 
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -174,7 +172,7 @@ func createControllerManager(ctx context.Context, o *options.Options) (controlle
 		RenewDeadline:              &o.LeaderElection.RenewDeadline.Duration,
 		RetryPeriod:                &o.LeaderElection.RetryPeriod.Duration,
 		LeaderElectionResourceLock: o.LeaderElection.ResourceLock,
-		HealthProbeBindAddress:     net.JoinHostPort(o.BindAddress, strconv.Itoa(o.SecurePort)),
+		HealthProbeBindAddress:     o.HealthProbeBindAddress,
 		LivenessEndpointName:       "/healthz",
 		Metrics:                    metricsserver.Options{BindAddress: o.MetricsBindAddress},
 		Controller: config.Controller{

@@ -55,15 +55,12 @@ spec:
             - --etcd-servers=https://etcd-client.{{ include "karmada.namespace" . }}.svc.{{ .Values.clusterDomain }}:2379
             {{- end }}
             - --bind-address=0.0.0.0
-            - --kubelet-client-certificate=/etc/kubernetes/pki/karmada.crt
-            - --kubelet-client-key=/etc/kubernetes/pki/karmada.key
-            - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
             - --runtime-config=
             - --secure-port=5443
             - --service-account-issuer=https://kubernetes.default.svc.{{ .Values.clusterDomain }}
             - --service-account-key-file=/etc/kubernetes/pki/karmada.key
             - --service-account-signing-key-file=/etc/kubernetes/pki/karmada.key
-            - --service-cluster-ip-range=10.96.0.0/12
+            - --service-cluster-ip-range={{ .Values.apiServer.serviceClusterIPRange }}
             - --proxy-client-cert-file=/etc/kubernetes/pki/front-proxy-client.crt
             - --proxy-client-key-file=/etc/kubernetes/pki/front-proxy-client.key
             - --requestheader-allowed-names=front-proxy-client
@@ -137,7 +134,6 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-      {{- include "karmada.init-sa-secret.volume" . | nindent 8 }}
         - name: apiserver-cert
           secret:
             secretName: {{ $name }}-cert

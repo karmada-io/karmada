@@ -21,6 +21,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 func Test_interpretDeploymentHealth(t *testing.T) {
@@ -702,6 +703,7 @@ func Test_interpretPodHealth(t *testing.T) {
 		})
 	}
 }
+
 func Test_interpretPodDisruptionBudgetHealth(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -752,5 +754,32 @@ func Test_interpretPodDisruptionBudgetHealth(t *testing.T) {
 				t.Errorf("interpretPodDisruptionBudgetHealth() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func Test_getAllDefaultHealthInterpreter(t *testing.T) {
+	expectedKinds := []schema.GroupVersionKind{
+		{Group: "apps", Version: "v1", Kind: "Deployment"},
+		{Group: "apps", Version: "v1", Kind: "StatefulSet"},
+		{Group: "apps", Version: "v1", Kind: "ReplicaSet"},
+		{Group: "apps", Version: "v1", Kind: "DaemonSet"},
+		{Group: "", Version: "v1", Kind: "Service"},
+		{Group: "networking.k8s.io", Version: "v1", Kind: "Ingress"},
+		{Group: "", Version: "v1", Kind: "PersistentVolumeClaim"},
+		{Group: "", Version: "v1", Kind: "Pod"},
+		{Group: "policy", Version: "v1", Kind: "PodDisruptionBudget"},
+	}
+
+	got := getAllDefaultHealthInterpreter()
+
+	if len(got) != len(expectedKinds) {
+		t.Errorf("getAllDefaultHealthInterpreter() length = %d, want %d", len(got), len(expectedKinds))
+	}
+
+	for _, key := range expectedKinds {
+		_, exists := got[key]
+		if !exists {
+			t.Errorf("getAllDefaultHealthInterpreter() missing key %v", key)
+		}
 	}
 }

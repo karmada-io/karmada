@@ -42,23 +42,9 @@ var (
 `)
 )
 
-// KubeConfigPath is to return kubeconfig file path in the following order:
-// 1. Via the command-line flag --kubeconfig
-// 2. Via the KUBECONFIG environment variable
-// 3. In your home directory as ~/.kube/config
-func KubeConfigPath(kubeconfigPath string) string {
-	if kubeconfigPath == "" {
-		kubeconfigPath = env.GetString("KUBECONFIG", defaultKubeConfig)
-	}
-
-	return kubeconfigPath
-}
-
 // RestConfig is to create a rest config from the context and kubeconfig passed as arguments.
 func RestConfig(context, kubeconfigPath string) (*rest.Config, error) {
-	if kubeconfigPath == "" {
-		kubeconfigPath = env.GetString("KUBECONFIG", defaultKubeConfig)
-	}
+	kubeconfigPath = KubeConfigPath(kubeconfigPath)
 	if !Exists(kubeconfigPath) {
 		// Given no kubeconfig is provided, give it a try to load the config by
 		// in-cluster mode if the client running inside a pod running on kubernetes.
@@ -92,18 +78,30 @@ func RestConfig(context, kubeconfigPath string) (*rest.Config, error) {
 	return restConfig, err
 }
 
+// KubeConfigPath is to return kubeconfig file path in the following order:
+// 1. Via the command-line flag --kubeconfig
+// 2. Via the KUBECONFIG environment variable
+// 3. In your home directory as ~/.kube/config
+func KubeConfigPath(kubeconfigPath string) string {
+	if kubeconfigPath == "" {
+		kubeconfigPath = env.GetString("KUBECONFIG", defaultKubeConfig)
+	}
+
+	return kubeconfigPath
+}
+
 // NewClientSet is to create a kubernetes ClientSet
 func NewClientSet(c *rest.Config) (*kubernetes.Clientset, error) {
 	return kubernetes.NewForConfig(c)
 }
 
 // NewCRDsClient is to create a clientset ClientSet
-func NewCRDsClient(c *rest.Config) (*clientset.Clientset, error) {
+func NewCRDsClient(c *rest.Config) (clientset.Interface, error) {
 	return clientset.NewForConfig(c)
 }
 
 // NewAPIRegistrationClient is to create an apiregistration ClientSet
-func NewAPIRegistrationClient(c *rest.Config) (*aggregator.Clientset, error) {
+func NewAPIRegistrationClient(c *rest.Config) (aggregator.Interface, error) {
 	return aggregator.NewForConfig(c)
 }
 

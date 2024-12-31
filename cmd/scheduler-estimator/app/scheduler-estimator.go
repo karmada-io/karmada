@@ -19,10 +19,8 @@ package app
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -41,6 +39,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
@@ -79,7 +78,7 @@ func NewSchedulerEstimatorCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use: "karmada-scheduler-estimator",
+		Use: names.KarmadaSchedulerEstimatorComponentName,
 		Long: `The karmada-scheduler-estimator runs an accurate scheduler estimator of a cluster. It 
 provides the scheduler with more accurate cluster resource information.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
@@ -103,7 +102,7 @@ provides the scheduler with more accurate cluster resource information.`,
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
 
-	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-scheduler-estimator"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion(names.KarmadaSchedulerEstimatorComponentName))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 
@@ -114,7 +113,7 @@ provides the scheduler with more accurate cluster resource information.`,
 
 func run(ctx context.Context, opts *options.Options) error {
 	klog.Infof("karmada-scheduler-estimator version: %s", version.Get())
-	go serveHealthzAndMetrics(net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)))
+	serveHealthzAndMetrics(opts.HealthProbeBindAddress, opts.MetricsBindAddress)
 
 	profileflag.ListenAndServe(opts.ProfileOpts)
 
@@ -143,26 +142,64 @@ func run(ctx context.Context, opts *options.Options) error {
 	return nil
 }
 
-func serveHealthzAndMetrics(address string) {
+func serveHealthzAndMetrics(healthProbeBindAddress, metricsBindAddress string) {
+	if healthProbeBindAddress == metricsBindAddress {
+		if healthProbeBindAddress != "0" {
+			go serveCombined(healthProbeBindAddress)
+		}
+	} else {
+		if healthProbeBindAddress != "0" {
+			go serveHealthz(healthProbeBindAddress)
+		}
+		if metricsBindAddress != "0" {
+			go serveMetrics(metricsBindAddress)
+		}
+	}
+}
+
+func serveCombined(address string) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok"))
-	})
+	mux.HandleFunc("/healthz", healthzHandler)
+	mux.Handle("/metrics", metricsHandler())
 
-	mux.Handle("/metrics", promhttp.HandlerFor(ctrlmetrics.Registry, promhttp.HandlerOpts{
+	serveHTTP(address, mux, "healthz and metrics")
+}
+
+func serveHealthz(address string) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", healthzHandler)
+	serveHTTP(address, mux, "healthz")
+}
+
+func serveMetrics(address string) {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", metricsHandler())
+	serveHTTP(address, mux, "metrics")
+}
+
+func healthzHandler(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("ok"))
+}
+
+func metricsHandler() http.Handler {
+	return promhttp.HandlerFor(ctrlmetrics.Registry, promhttp.HandlerOpts{
 		ErrorHandling: promhttp.HTTPErrorOnError,
-	}))
+	})
+}
 
-	httpServer := http.Server{
+func serveHTTP(address string, handler http.Handler, name string) {
+	httpServer := &http.Server{
 		Addr:              address,
-		Handler:           mux,
+		Handler:           handler,
 		ReadHeaderTimeout: ReadHeaderTimeout,
 		WriteTimeout:      WriteTimeout,
 		ReadTimeout:       ReadTimeout,
 	}
+
+	klog.Infof("Starting %s server on %s", name, address)
 	if err := httpServer.ListenAndServe(); err != nil {
-		klog.Errorf("Failed to serve healthz and metrics: %v", err)
+		klog.Errorf("Failed to serve %s on %s: %v", name, address, err)
 		os.Exit(1)
 	}
 }

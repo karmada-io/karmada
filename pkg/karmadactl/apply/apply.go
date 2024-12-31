@@ -35,6 +35,7 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	utilcomp "github.com/karmada-io/karmada/pkg/karmadactl/util/completion"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -93,6 +94,7 @@ func NewCmdApply(f util.Factory, parentCommand string, streams genericiooptions.
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		Example:               fmt.Sprintf(applyExample, parentCommand),
+		ValidArgsFunction:     utilcomp.ResourceTypeAndNameCompletionFunc(f),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := o.Complete(f, cmd, parentCommand, args); err != nil {
 				return err
@@ -110,9 +112,14 @@ func NewCmdApply(f util.Factory, parentCommand string, streams genericiooptions.
 	o.KubectlApplyFlags.AddFlags(cmd)
 	flags := cmd.Flags()
 	options.AddKubeConfigFlags(flags)
-	flags.StringVarP(options.DefaultConfigFlags.Namespace, "namespace", "n", *options.DefaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
+	options.AddNamespaceFlag(flags)
 	flags.BoolVarP(&o.AllClusters, "all-clusters", "", o.AllClusters, "If present, propagates a group of resources to all member clusters.")
 	flags.StringSliceVarP(&o.Clusters, "cluster", "C", o.Clusters, "If present, propagates a group of resources to specified clusters.")
+
+	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(cmd)
+	utilcomp.RegisterCompletionFuncForNamespaceFlag(cmd, f)
+	utilcomp.RegisterCompletionFuncForClusterFlag(cmd)
+
 	return cmd
 }
 

@@ -26,7 +26,7 @@ version: 0.0.0
 # This is the version number of the application being deployed. This version number should be
 # incremented each time you make changes to the application. Versions are not expected to
 # follow Semantic Versioning. They should reflect the version the application is using.
-appVersion: latest
+appVersion: v1.1.0
 
 # This is karmada dependencies
 dependencies:
@@ -36,9 +36,7 @@ dependencies:
 
 # This is karmada maintainers
 maintainers:
-  - name: jrkeen
-    email: jrkeen@hotmail.com
-  - name: pidb
-    email: jackson.cloudnative@gmail.com
-  - name: Poor12
-    email: shentiecheng@huawei.com
+  - email: chaosi@zju.edu.cn
+    name: chaosi-zju
+  - email: amiralavi7@gmail.com
+    name: a7i

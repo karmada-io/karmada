@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	// ControllerName is the controller name that will be used when reporting events.
+	// ControllerName is the controller name that will be used when reporting events and metrics.
 	ControllerName = "deployment-replicas-syncer"
 
 	waitDeploymentStatusInterval = 1 * time.Second

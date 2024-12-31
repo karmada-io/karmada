@@ -40,20 +40,22 @@ var resourceinterpreterwebhookconfigurationsKind = v1alpha1.SchemeGroupVersion.W
 
 // Get takes name of the resourceInterpreterWebhookConfiguration, and returns the corresponding resourceInterpreterWebhookConfiguration object, and an error if there is any.
 func (c *FakeResourceInterpreterWebhookConfigurations) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ResourceInterpreterWebhookConfiguration, err error) {
+	emptyResult := &v1alpha1.ResourceInterpreterWebhookConfiguration{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(resourceinterpreterwebhookconfigurationsResource, name), &v1alpha1.ResourceInterpreterWebhookConfiguration{})
+		Invokes(testing.NewRootGetActionWithOptions(resourceinterpreterwebhookconfigurationsResource, name, options), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.ResourceInterpreterWebhookConfiguration), err
 }
 
 // List takes label and field selectors, and returns the list of ResourceInterpreterWebhookConfigurations that match those selectors.
 func (c *FakeResourceInterpreterWebhookConfigurations) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.ResourceInterpreterWebhookConfigurationList, err error) {
+	emptyResult := &v1alpha1.ResourceInterpreterWebhookConfigurationList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(resourceinterpreterwebhookconfigurationsResource, resourceinterpreterwebhookconfigurationsKind, opts), &v1alpha1.ResourceInterpreterWebhookConfigurationList{})
+		Invokes(testing.NewRootListActionWithOptions(resourceinterpreterwebhookconfigurationsResource, resourceinterpreterwebhookconfigurationsKind, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -72,25 +74,27 @@ func (c *FakeResourceInterpreterWebhookConfigurations) List(ctx context.Context,
 // Watch returns a watch.Interface that watches the requested resourceInterpreterWebhookConfigurations.
 func (c *FakeResourceInterpreterWebhookConfigurations) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(resourceinterpreterwebhookconfigurationsResource, opts))
+		InvokesWatch(testing.NewRootWatchActionWithOptions(resourceinterpreterwebhookconfigurationsResource, opts))
 }
 
 // Create takes the representation of a resourceInterpreterWebhookConfiguration and creates it.  Returns the server's representation of the resourceInterpreterWebhookConfiguration, and an error, if there is any.
 func (c *FakeResourceInterpreterWebhookConfigurations) Create(ctx context.Context, resourceInterpreterWebhookConfiguration *v1alpha1.ResourceInterpreterWebhookConfiguration, opts v1.CreateOptions) (result *v1alpha1.ResourceInterpreterWebhookConfiguration, err error) {
+	emptyResult := &v1alpha1.ResourceInterpreterWebhookConfiguration{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(resourceinterpreterwebhookconfigurationsResource, resourceInterpreterWebhookConfiguration), &v1alpha1.ResourceInterpreterWebhookConfiguration{})
+		Invokes(testing.NewRootCreateActionWithOptions(resourceinterpreterwebhookconfigurationsResource, resourceInterpreterWebhookConfiguration, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.ResourceInterpreterWebhookConfiguration), err
 }
 
 // Update takes the representation of a resourceInterpreterWebhookConfiguration and updates it. Returns the server's representation of the resourceInterpreterWebhookConfiguration, and an error, if there is any.
 func (c *FakeResourceInterpreterWebhookConfigurations) Update(ctx context.Context, resourceInterpreterWebhookConfiguration *v1alpha1.ResourceInterpreterWebhookConfiguration, opts v1.UpdateOptions) (result *v1alpha1.ResourceInterpreterWebhookConfiguration, err error) {
+	emptyResult := &v1alpha1.ResourceInterpreterWebhookConfiguration{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(resourceinterpreterwebhookconfigurationsResource, resourceInterpreterWebhookConfiguration), &v1alpha1.ResourceInterpreterWebhookConfiguration{})
+		Invokes(testing.NewRootUpdateActionWithOptions(resourceinterpreterwebhookconfigurationsResource, resourceInterpreterWebhookConfiguration, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.ResourceInterpreterWebhookConfiguration), err
 }
@@ -104,7 +108,7 @@ func (c *FakeResourceInterpreterWebhookConfigurations) Delete(ctx context.Contex
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeResourceInterpreterWebhookConfigurations) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(resourceinterpreterwebhookconfigurationsResource, listOpts)
+	action := testing.NewRootDeleteCollectionActionWithOptions(resourceinterpreterwebhookconfigurationsResource, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.ResourceInterpreterWebhookConfigurationList{})
 	return err
@@ -112,10 +116,11 @@ func (c *FakeResourceInterpreterWebhookConfigurations) DeleteCollection(ctx cont
 
 // Patch applies the patch and returns the patched resourceInterpreterWebhookConfiguration.
 func (c *FakeResourceInterpreterWebhookConfigurations) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ResourceInterpreterWebhookConfiguration, err error) {
+	emptyResult := &v1alpha1.ResourceInterpreterWebhookConfiguration{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(resourceinterpreterwebhookconfigurationsResource, name, pt, data, subresources...), &v1alpha1.ResourceInterpreterWebhookConfiguration{})
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(resourceinterpreterwebhookconfigurationsResource, name, pt, data, opts, subresources...), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.ResourceInterpreterWebhookConfiguration), err
 }

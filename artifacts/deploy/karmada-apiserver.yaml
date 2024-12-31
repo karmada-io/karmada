@@ -36,32 +36,29 @@ spec:
             - kube-apiserver
             - --allow-privileged=true
             - --authorization-mode=Node,RBAC
-            - --client-ca-file=/etc/karmada/pki/ca.crt
             - --enable-bootstrap-token-auth=true
-            - --etcd-cafile=/etc/karmada/pki/etcd-ca.crt
-            - --etcd-certfile=/etc/karmada/pki/etcd-client.crt
-            - --etcd-keyfile=/etc/karmada/pki/etcd-client.key
+            - --etcd-cafile=/etc/karmada/pki/etcd-client/ca.crt
+            - --etcd-certfile=/etc/karmada/pki/etcd-client/tls.crt
+            - --etcd-keyfile=/etc/karmada/pki/etcd-client/tls.key
             - --etcd-servers=https://etcd-client.karmada-system.svc.cluster.local:2379
             - --bind-address=0.0.0.0
-            - --kubelet-client-certificate=/etc/karmada/pki/karmada.crt
-            - --kubelet-client-key=/etc/karmada/pki/karmada.key
-            - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
             - --disable-admission-plugins=StorageObjectInUseProtection,ServiceAccount
             - --runtime-config=
             - --secure-port=5443
             - --service-account-issuer=https://kubernetes.default.svc.cluster.local
-            - --service-account-key-file=/etc/karmada/pki/karmada.key
-            - --service-account-signing-key-file=/etc/karmada/pki/karmada.key
+            - --service-account-key-file=/etc/karmada/pki/service-account-key-pair/sa.pub
+            - --service-account-signing-key-file=/etc/karmada/pki/service-account-key-pair/sa.key
             - --service-cluster-ip-range=10.96.0.0/12
-            - --proxy-client-cert-file=/etc/karmada/pki/front-proxy-client.crt
-            - --proxy-client-key-file=/etc/karmada/pki/front-proxy-client.key
+            - --proxy-client-cert-file=/etc/karmada/pki/front-proxy-client/tls.crt
+            - --proxy-client-key-file=/etc/karmada/pki/front-proxy-client/tls.key
+            - --requestheader-client-ca-file=/etc/karmada/pki/front-proxy-client/ca.crt
             - --requestheader-allowed-names=front-proxy-client
-            - --requestheader-client-ca-file=/etc/karmada/pki/front-proxy-ca.crt
             - --requestheader-extra-headers-prefix=X-Remote-Extra-
             - --requestheader-group-headers=X-Remote-Group
             - --requestheader-username-headers=X-Remote-User
-            - --tls-cert-file=/etc/karmada/pki/apiserver.crt
-            - --tls-private-key-file=/etc/karmada/pki/apiserver.key
+            - --tls-cert-file=/etc/karmada/pki/server/tls.crt
+            - --tls-private-key-file=/etc/karmada/pki/server/tls.key
+            - --client-ca-file=/etc/karmada/pki/server/ca.crt
             - --tls-min-version=VersionTLS13
           name: karmada-apiserver
           image: registry.k8s.io/kube-apiserver:{{karmada_apiserver_version}}
@@ -91,9 +88,31 @@ spec:
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           volumeMounts:
-            - mountPath: /etc/karmada/pki
-              name: karmada-certs
+            - name: server-cert
+              mountPath: /etc/karmada/pki/server
               readOnly: true
+            - name: etcd-client-cert
+              mountPath: /etc/karmada/pki/etcd-client
+              readOnly: true
+            - name: front-proxy-client-cert
+              mountPath: /etc/karmada/pki/front-proxy-client
+              readOnly: true
+            - name: service-account-key-pair
+              mountPath: /etc/karmada/pki/service-account-key-pair
+              readOnly: true
+      volumes:
+        - name: server-cert
+          secret:
+            secretName: karmada-apiserver-cert
+        - name: etcd-client-cert
+          secret:
+            secretName: karmada-apiserver-etcd-client-cert
+        - name: front-proxy-client-cert
+          secret:
+            secretName: karmada-apiserver-front-proxy-client-cert
+        - name: service-account-key-pair
+          secret:
+            secretName: karmada-apiserver-service-account-key-pair
       dnsPolicy: ClusterFirstWithHostNet
       enableServiceLinks: true
       hostNetwork: true
@@ -107,10 +126,6 @@ spec:
       tolerations:
         - effect: NoExecute
           operator: Exists
-      volumes:
-        - name: karmada-certs
-          secret:
-            secretName: karmada-cert-secret
 ---
 apiVersion: v1
 kind: Service

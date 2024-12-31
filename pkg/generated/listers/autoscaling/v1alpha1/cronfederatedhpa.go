@@ -20,8 +20,8 @@ package v1alpha1
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -38,25 +38,17 @@ type CronFederatedHPALister interface {
 
 // cronFederatedHPALister implements the CronFederatedHPALister interface.
 type cronFederatedHPALister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1alpha1.CronFederatedHPA]
 }
 
 // NewCronFederatedHPALister returns a new CronFederatedHPALister.
 func NewCronFederatedHPALister(indexer cache.Indexer) CronFederatedHPALister {
-	return &cronFederatedHPALister{indexer: indexer}
-}
-
-// List lists all CronFederatedHPAs in the indexer.
-func (s *cronFederatedHPALister) List(selector labels.Selector) (ret []*v1alpha1.CronFederatedHPA, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.CronFederatedHPA))
-	})
-	return ret, err
+	return &cronFederatedHPALister{listers.New[*v1alpha1.CronFederatedHPA](indexer, v1alpha1.Resource("cronfederatedhpa"))}
 }
 
 // CronFederatedHPAs returns an object that can list and get CronFederatedHPAs.
 func (s *cronFederatedHPALister) CronFederatedHPAs(namespace string) CronFederatedHPANamespaceLister {
-	return cronFederatedHPANamespaceLister{indexer: s.indexer, namespace: namespace}
+	return cronFederatedHPANamespaceLister{listers.NewNamespaced[*v1alpha1.CronFederatedHPA](s.ResourceIndexer, namespace)}
 }
 
 // CronFederatedHPANamespaceLister helps list and get CronFederatedHPAs.
@@ -74,26 +66,5 @@ type CronFederatedHPANamespaceLister interface {
 // cronFederatedHPANamespaceLister implements the CronFederatedHPANamespaceLister
 // interface.
 type cronFederatedHPANamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all CronFederatedHPAs in the indexer for a given namespace.
-func (s cronFederatedHPANamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.CronFederatedHPA, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.CronFederatedHPA))
-	})
-	return ret, err
-}
-
-// Get retrieves the CronFederatedHPA from the indexer for a given namespace and name.
-func (s cronFederatedHPANamespaceLister) Get(name string) (*v1alpha1.CronFederatedHPA, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("cronfederatedhpa"), name)
-	}
-	return obj.(*v1alpha1.CronFederatedHPA), nil
+	listers.ResourceIndexer[*v1alpha1.CronFederatedHPA]
 }

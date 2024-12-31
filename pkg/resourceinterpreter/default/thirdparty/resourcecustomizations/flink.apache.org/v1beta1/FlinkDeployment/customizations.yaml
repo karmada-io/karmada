@@ -64,11 +64,19 @@ spec:
             requires.resourceRequest.memory = observedObj.spec.taskManager.resource.memory
           end
 
-          -- Until multiple podTemplates are supported, interpreter will only take affinity and toleration input to common podTemplate
+          -- Until multiple podTemplates are supported, interpreter will only take affinity, toleration, and priorityclass input to common podTemplate
 
           if observedObj.spec.podTemplate ~= nil and observedObj.spec.podTemplate.spec ~= nil then
             requires.nodeClaim.nodeSelector = observedObj.spec.podTemplate.spec.nodeSelector
             requires.nodeClaim.tolerations = observedObj.spec.podTemplate.spec.tolerations
+            priorityclass = observedObj.spec.podTemplate.spec.priorityClassName
+            if not isempty(priorityclass) then
+              requires.priorityClassName = priorityclass
+            end
+          end
+
+          if not isempty(observedObj.metadata.namespace) then
+            requires.namespace = observedObj.metadata.namespace
           end
 
           return replica, requires

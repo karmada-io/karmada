@@ -22,6 +22,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/workqueue"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllertest"
@@ -35,9 +36,9 @@ import (
 func Test_clusterEventHandler(t *testing.T) {
 	type args struct {
 		operation string
-		q         workqueue.RateLimitingInterface
-		obj       client.Object
-		oldObj    client.Object
+		q         workqueue.TypedRateLimitingInterface[controllerruntime.Request]
+		obj       *clusterv1alpha1.Cluster
+		oldObj    *clusterv1alpha1.Cluster
 	}
 	tests := []struct {
 		name     string
@@ -48,7 +49,7 @@ func Test_clusterEventHandler(t *testing.T) {
 			name: "create event",
 			args: args{
 				operation: "Create",
-				q:         &controllertest.Queue{Interface: workqueue.New()},
+				q:         &controllertest.TypedQueue[controllerruntime.Request]{TypedInterface: workqueue.NewTyped[controllerruntime.Request]()},
 				obj: &clusterv1alpha1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{Name: "member1"},
 				},
@@ -59,7 +60,7 @@ func Test_clusterEventHandler(t *testing.T) {
 			name: "delete event",
 			args: args{
 				operation: "Delete",
-				q:         &controllertest.Queue{Interface: workqueue.New()},
+				q:         &controllertest.TypedQueue[controllerruntime.Request]{TypedInterface: workqueue.NewTyped[controllerruntime.Request]()},
 				obj: &clusterv1alpha1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{Name: "member1"},
 				},
@@ -70,7 +71,7 @@ func Test_clusterEventHandler(t *testing.T) {
 			name: "update event: equal cluster condition",
 			args: args{
 				operation: "Update",
-				q:         &controllertest.Queue{Interface: workqueue.New()},
+				q:         &controllertest.TypedQueue[controllerruntime.Request]{TypedInterface: workqueue.NewTyped[controllerruntime.Request]()},
 				obj: &clusterv1alpha1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{Name: "member1"},
 					Status: clusterv1alpha1.ClusterStatus{
@@ -100,7 +101,7 @@ func Test_clusterEventHandler(t *testing.T) {
 			name: "update event: not equal cluster condition",
 			args: args{
 				operation: "Update",
-				q:         &controllertest.Queue{Interface: workqueue.New()},
+				q:         &controllertest.TypedQueue[controllerruntime.Request]{TypedInterface: workqueue.NewTyped[controllerruntime.Request]()},
 				obj: &clusterv1alpha1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{Name: "member1"},
 					Status: clusterv1alpha1.ClusterStatus{
@@ -130,7 +131,7 @@ func Test_clusterEventHandler(t *testing.T) {
 			name: "generic event",
 			args: args{
 				operation: "Generic",
-				q:         &controllertest.Queue{Interface: workqueue.New()},
+				q:         &controllertest.TypedQueue[controllerruntime.Request]{TypedInterface: workqueue.NewTyped[controllerruntime.Request]()},
 				obj: &clusterv1alpha1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{Name: "member1"},
 				},
@@ -144,16 +145,16 @@ func Test_clusterEventHandler(t *testing.T) {
 			h := newClusterEventHandler()
 			switch tt.args.operation {
 			case "Create":
-				createEvent := event.CreateEvent{Object: tt.args.obj}
+				createEvent := event.TypedCreateEvent[*clusterv1alpha1.Cluster]{Object: tt.args.obj}
 				h.Create(context.TODO(), createEvent, queue)
 			case "Delete":
-				deleteEvent := event.DeleteEvent{Object: tt.args.obj}
+				deleteEvent := event.TypedDeleteEvent[*clusterv1alpha1.Cluster]{Object: tt.args.obj}
 				h.Delete(context.TODO(), deleteEvent, queue)
 			case "Update":
-				updateEvent := event.UpdateEvent{ObjectNew: tt.args.obj, ObjectOld: tt.args.oldObj}
+				updateEvent := event.TypedUpdateEvent[*clusterv1alpha1.Cluster]{ObjectNew: tt.args.obj, ObjectOld: tt.args.oldObj}
 				h.Update(context.TODO(), updateEvent, queue)
 			case "Generic":
-				genericEvent := event.GenericEvent{Object: tt.args.obj}
+				genericEvent := event.TypedGenericEvent[*clusterv1alpha1.Cluster]{Object: tt.args.obj}
 				h.Generic(context.TODO(), genericEvent, queue)
 			default:
 				t.Errorf("no support operation %v", tt.args.operation)
@@ -170,8 +171,8 @@ func Test_clusterEventHandler(t *testing.T) {
 func Test_remedyEventHandler(t *testing.T) {
 	type args struct {
 		operation string
-		obj       client.Object
-		oldObj    client.Object
+		obj       *remedyv1alpha1.Remedy
+		oldObj    *remedyv1alpha1.Remedy
 		client    client.Client
 	}
 	tests := []struct {
@@ -328,30 +329,30 @@ func Test_remedyEventHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			clusterChan := make(chan event.GenericEvent)
+			clusterChan := make(chan event.TypedGenericEvent[*clusterv1alpha1.Cluster])
 			h := newRemedyEventHandler(clusterChan, tt.args.client)
 			switch tt.args.operation {
 			case "Create":
 				go func() {
-					createEvent := event.CreateEvent{Object: tt.args.obj}
+					createEvent := event.TypedCreateEvent[*remedyv1alpha1.Remedy]{Object: tt.args.obj}
 					h.Create(context.TODO(), createEvent, nil)
 					close(clusterChan)
 				}()
 			case "Delete":
 				go func() {
-					deleteEvent := event.DeleteEvent{Object: tt.args.obj}
+					deleteEvent := event.TypedDeleteEvent[*remedyv1alpha1.Remedy]{Object: tt.args.obj}
 					h.Delete(context.TODO(), deleteEvent, nil)
 					close(clusterChan)
 				}()
 			case "Update":
 				go func() {
-					updateEvent := event.UpdateEvent{ObjectNew: tt.args.obj, ObjectOld: tt.args.oldObj}
+					updateEvent := event.TypedUpdateEvent[*remedyv1alpha1.Remedy]{ObjectNew: tt.args.obj, ObjectOld: tt.args.oldObj}
 					h.Update(context.TODO(), updateEvent, nil)
 					close(clusterChan)
 				}()
 			case "Generic":
 				go func() {
-					genericEvent := event.GenericEvent{Object: tt.args.obj}
+					genericEvent := event.TypedGenericEvent[*remedyv1alpha1.Remedy]{Object: tt.args.obj}
 					h.Generic(context.TODO(), genericEvent, nil)
 					close(clusterChan)
 				}()

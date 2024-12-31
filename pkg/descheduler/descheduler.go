@@ -46,6 +46,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/grpcconnection"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 const (
@@ -64,10 +65,11 @@ type Descheduler struct {
 
 	eventRecorder record.EventRecorder
 
-	schedulerEstimatorCache         *estimatorclient.SchedulerEstimatorCache
-	schedulerEstimatorServicePrefix string
-	schedulerEstimatorClientConfig  *grpcconnection.ClientConfig
-	schedulerEstimatorWorker        util.AsyncWorker
+	schedulerEstimatorCache            *estimatorclient.SchedulerEstimatorCache
+	schedulerEstimatorServiceNamespace string
+	schedulerEstimatorServicePrefix    string
+	schedulerEstimatorClientConfig     *grpcconnection.ClientConfig
+	schedulerEstimatorWorker           util.AsyncWorker
 
 	unschedulableThreshold time.Duration
 	deschedulingInterval   time.Duration
@@ -93,9 +95,10 @@ func NewDescheduler(karmadaClient karmadaclientset.Interface, kubeClient kuberne
 			KeyFile:                  opts.SchedulerEstimatorKeyFile,
 			TargetPort:               opts.SchedulerEstimatorPort,
 		},
-		schedulerEstimatorServicePrefix: opts.SchedulerEstimatorServicePrefix,
-		unschedulableThreshold:          opts.UnschedulableThreshold.Duration,
-		deschedulingInterval:            opts.DeschedulingInterval.Duration,
+		schedulerEstimatorServiceNamespace: opts.SchedulerEstimatorServiceNamespace,
+		schedulerEstimatorServicePrefix:    opts.SchedulerEstimatorServicePrefix,
+		unschedulableThreshold:             opts.UnschedulableThreshold.Duration,
+		deschedulingInterval:               opts.DeschedulingInterval.Duration,
 	}
 	// ignore the error here because the informers haven't been started
 	_ = desched.bindingInformer.SetTransform(fedinformer.StripUnusedFields)
@@ -129,7 +132,7 @@ func NewDescheduler(karmadaClient karmadaclientset.Interface, kubeClient kuberne
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartStructuredLogging(0)
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: kubeClient.CoreV1().Events(metav1.NamespaceAll)})
-	desched.eventRecorder = eventBroadcaster.NewRecorder(gclient.NewSchema(), corev1.EventSource{Component: "karmada-descheduler"})
+	desched.eventRecorder = eventBroadcaster.NewRecorder(gclient.NewSchema(), corev1.EventSource{Component: names.KarmadaDeschedulerComponentName})
 
 	return desched
 }
@@ -185,6 +188,10 @@ func (d *Descheduler) worker(key util.QueueKey) error {
 			return nil
 		}
 		return fmt.Errorf("get ResourceBinding(%s) error: %v", namespacedName, err)
+	}
+	if !binding.DeletionTimestamp.IsZero() {
+		klog.Infof("ResourceBinding(%s) in work queue is being deleted, ignore.", namespacedName)
+		return nil
 	}
 
 	h := core.NewSchedulingResultHelper(binding)
@@ -280,7 +287,12 @@ func (d *Descheduler) establishEstimatorConnections() {
 		return
 	}
 	for i := range clusterList.Items {
-		if err = estimatorclient.EstablishConnection(d.KubeClient, clusterList.Items[i].Name, d.schedulerEstimatorCache, d.schedulerEstimatorServicePrefix, d.schedulerEstimatorClientConfig); err != nil {
+		serviceInfo := estimatorclient.SchedulerEstimatorServiceInfo{
+			Name:       clusterList.Items[i].Name,
+			Namespace:  d.schedulerEstimatorServiceNamespace,
+			NamePrefix: d.schedulerEstimatorServicePrefix,
+		}
+		if err = estimatorclient.EstablishConnection(d.KubeClient, serviceInfo, d.schedulerEstimatorCache, d.schedulerEstimatorClientConfig); err != nil {
 			klog.Error(err)
 		}
 	}
@@ -300,7 +312,12 @@ func (d *Descheduler) reconcileEstimatorConnection(key util.QueueKey) error {
 		}
 		return err
 	}
-	return estimatorclient.EstablishConnection(d.KubeClient, name, d.schedulerEstimatorCache, d.schedulerEstimatorServicePrefix, d.schedulerEstimatorClientConfig)
+	serviceInfo := estimatorclient.SchedulerEstimatorServiceInfo{
+		Name:       name,
+		Namespace:  d.schedulerEstimatorServiceNamespace,
+		NamePrefix: d.schedulerEstimatorServicePrefix,
+	}
+	return estimatorclient.EstablishConnection(d.KubeClient, serviceInfo, d.schedulerEstimatorCache, d.schedulerEstimatorClientConfig)
 }
 
 func (d *Descheduler) recordDescheduleResultEventForResourceBinding(rb *workv1alpha2.ResourceBinding, message string, err error) {

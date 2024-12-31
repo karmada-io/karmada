@@ -78,7 +78,7 @@ if util::cmd_exist trivy ; then
 	echo "pass"
 else
 	echo "start installing trivy"
-	curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.48.1
+	curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.56.1
 fi
 
 if [ ${IMAGEREF} ];then

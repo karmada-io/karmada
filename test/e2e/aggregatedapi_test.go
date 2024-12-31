@@ -122,7 +122,7 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 	})
 
 	ginkgo.BeforeEach(func() {
-		member1, member2 = "member1", "member2"
+		member1, member2 = framework.ClusterNames()[0], framework.ClusterNames()[1]
 
 		saName = fmt.Sprintf("tom-%s", rand.String(RandomStrLength))
 		saNamespace = testNamespace
@@ -207,7 +207,7 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 				framework.RemoveClusterRoleBinding(clusterClient, tomClusterRoleBindingOnMember.Name)
 			})
 
-			ginkgo.It("tom access the member1 cluster api with and without right", func() {
+			ginkgo.It(fmt.Sprintf("tom access the %s cluster api with and without right", member1), func() {
 				ginkgo.By(fmt.Sprintf("access the %s cluster `/api` path with right", member1), func() {
 					gomega.Eventually(func(g gomega.Gomega) (int, error) {
 						code, err := helper.DoRequest(fmt.Sprintf(karmadaHost+clusterProxy+"api", member1), tomToken)
@@ -238,7 +238,7 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 		})
 
 		ginkgo.When(fmt.Sprintf("Serviceaccount(tom) access the %s cluster", member2), func() {
-			ginkgo.It("tom access the member2 cluster without right", func() {
+			ginkgo.It(fmt.Sprintf("tom access the %s cluster without right", member2), func() {
 				ginkgo.By(fmt.Sprintf("access the %s cluster `/api` path without right", member2), func() {
 					code, err := helper.DoRequest(fmt.Sprintf(karmadaHost+clusterProxy, member2), tomToken)
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())

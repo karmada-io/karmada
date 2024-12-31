@@ -13,12 +13,14 @@ status:
     reason: InstallSucceeded
     status: "True"
     type: Released
+  generation: 1
   helmChart: test-helmrelease/test-helmrelease-sample
   lastAppliedRevision: 6.3.5
   lastAttemptedRevision: 6.3.5
   lastAttemptedValuesChecksum: da39a3ee5e6b4b0d3255bfef95601890afd80709      
   lastReleaseRevision: 1
   observedGeneration: 1
+  resourceTemplateGeneration: 1
 ---
 applied: true
 clusterName: member3
@@ -35,9 +37,11 @@ status:
     reason: InstallSucceeded
     status: "True"
     type: Released
+  generation: 1
   helmChart: test-helmrelease/test-helmrelease-sample
   lastAppliedRevision: 6.3.5
   lastAttemptedRevision: 6.3.5
   lastAttemptedValuesChecksum: da39a3ee5e6b4b0d3255bfef95601890afd80709
   lastReleaseRevision: 1
   observedGeneration: 1
+  resourceTemplateGeneration: 1

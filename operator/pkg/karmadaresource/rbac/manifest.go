@@ -167,4 +167,32 @@ rules:
       - patch
       - update
 `
+	// ClusterProxyAdminClusterRole role to proxy member clusters
+	ClusterProxyAdminClusterRole = `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cluster-proxy-admin
+rules:
+- apiGroups:
+  - 'cluster.karmada.io'
+  resources:
+  - clusters/proxy
+  verbs:
+  - '*'
+`
+	// ClusterProxyAdminClusterRoleBinding authorize system:admin to proxy member clusters
+	ClusterProxyAdminClusterRoleBinding = `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-proxy-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-proxy-admin
+subjects:
+  - kind: User
+    name: "system:admin"
+`
 )

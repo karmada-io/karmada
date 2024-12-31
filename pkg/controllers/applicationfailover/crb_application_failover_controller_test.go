@@ -199,7 +199,7 @@ func TestCRBApplicationFailoverController_syncBinding(t *testing.T) {
 		},
 	}
 
-	dur, err := c.syncBinding(binding)
+	dur, err := c.syncBinding(context.Background(), binding)
 	assert.Equal(t, 5*time.Second, dur)
 	assert.NoError(t, err)
 }
@@ -281,7 +281,7 @@ func TestCRBApplicationFailoverController_updateBinding(t *testing.T) {
 	c := generateCRBApplicationFailoverController()
 
 	t.Run("failed when c.Update", func(t *testing.T) {
-		err := c.updateBinding(binding, allClusters, needEvictClusters)
+		err := c.updateBinding(context.Background(), binding, allClusters, needEvictClusters)
 		assert.Error(t, err)
 	})
 
@@ -289,7 +289,7 @@ func TestCRBApplicationFailoverController_updateBinding(t *testing.T) {
 		if err := c.Client.Create(context.Background(), binding); err != nil {
 			t.Fatalf("Failed to create binding: %v", err)
 		}
-		err := c.updateBinding(binding, allClusters, needEvictClusters)
+		err := c.updateBinding(context.Background(), binding, allClusters, needEvictClusters)
 		assert.NoError(t, err)
 	})
 }

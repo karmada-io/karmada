@@ -20,8 +20,8 @@ package v1alpha1
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -39,30 +39,10 @@ type ResourceRegistryLister interface {
 
 // resourceRegistryLister implements the ResourceRegistryLister interface.
 type resourceRegistryLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1alpha1.ResourceRegistry]
 }
 
 // NewResourceRegistryLister returns a new ResourceRegistryLister.
 func NewResourceRegistryLister(indexer cache.Indexer) ResourceRegistryLister {
-	return &resourceRegistryLister{indexer: indexer}
-}
-
-// List lists all ResourceRegistries in the indexer.
-func (s *resourceRegistryLister) List(selector labels.Selector) (ret []*v1alpha1.ResourceRegistry, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.ResourceRegistry))
-	})
-	return ret, err
-}
-
-// Get retrieves the ResourceRegistry from the index for a given name.
-func (s *resourceRegistryLister) Get(name string) (*v1alpha1.ResourceRegistry, error) {
-	obj, exists, err := s.indexer.GetByKey(name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("resourceregistry"), name)
-	}
-	return obj.(*v1alpha1.ResourceRegistry), nil
+	return &resourceRegistryLister{listers.New[*v1alpha1.ResourceRegistry](indexer, v1alpha1.Resource("resourceregistry"))}
 }

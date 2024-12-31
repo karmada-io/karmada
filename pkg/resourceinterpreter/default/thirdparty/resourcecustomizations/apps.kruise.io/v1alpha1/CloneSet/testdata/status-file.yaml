@@ -12,6 +12,8 @@ status:
   updateRevision: sample-59df6bd888
   updatedReadyReplicas: 2
   updatedReplicas: 2
+  generation: 1
+  resourceTemplateGeneration: 1
 ---
 applied: true
 clusterName: member3
@@ -27,3 +29,5 @@ status:
   updateRevision: sample-59df6bd888
   updatedReadyReplicas: 2
   updatedReplicas: 2
+  generation: 1
+  resourceTemplateGeneration: 1

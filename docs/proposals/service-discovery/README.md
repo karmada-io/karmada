@@ -162,7 +162,7 @@ With this API, we will:
 * Use `ServiceProvisionClusters` to specify the member clusters which will provision the service backend, if leave it empty, we will collect the backend endpoints from all clusters and sync them to the `ServiceConsumptionClusters`.
 * Use `ServiceConsumptionClusters` to specify the clusters where the service will be exposed. If leave it empty, the service will be exposed to all clusters.
 
-For example, if we want access `foo`` service which are localted in member2 from member3 , we can use the following yaml:
+For example, if we want access `foo`` service which are located in member2 from member3 , we can use the following yaml:
 ```yaml
 apiVersion: v1
 kind: Service
@@ -223,10 +223,10 @@ The process of synchronizing `EndpointSlice` from `ServiceProvisionClusters` to 
 
 1. `endpointsliceDispatch` controller will list&watch `MultiClusterService`.
 1. `endpointsliceDispatch` controller will list&watch `EndpointSlice` from `MultiClusterService`'s `spec.serviceProvisionClusters`.
-1. `endpointsliceDispatch` controller will creat the corresponding Work for each `EndpointSlice` in the cluster namespace of `MultiClusterService`'s `spec.serviceConsumptionClusters`.
+1. `endpointsliceDispatch` controller will create the corresponding Work for each `EndpointSlice` in the cluster namespace of `MultiClusterService`'s `spec.serviceConsumptionClusters`.
   When creating the Work, in order to facilitate problem investigation, we should add following annotation to record the original `EndpointSlice` information:
     * `endpointslice.karmada.io/work-provision-cluster`: the cluster name of the original `EndpointSlice`.
-  Also, we should add the following annotation to the syned `EndpointSlice` record the original information:
+  Also, we should add the following annotation to the synced `EndpointSlice` record the original information:
     * `endpointslice.karmada.io/endpointslice-generation`: the resource generation of the `EndpointSlice`, it could be used to check whether the `EndpointSlice` is the newest version.
     * `endpointslice.karmada.io/provision-cluster`: the cluster location of the original `EndpointSlice`.
 1. Karmada will sync the `EndpointSlice`'s work to the member clusters.
@@ -326,7 +326,7 @@ For better monitoring, we should have following metrics:
 * For `multiclusterservice` controller, List&watch cluster creation/deletion, reconcile the work in corresponding cluster execution namespace. (10)
 * For `endpointsliceCollect` controller, List&watch mcs, collect the corresponding EndpointSlice from `serviceProvisionClusters`, and `endpointsliceDispatch` controller should sync the corresponding Work. (5d)
 * For `endpointsliceCollect` controller, List&watch cluster creation/deletion, reconcile the EndpointSlice's work in corresponding cluster execution namespace. (10d)
-* If cluster gets unhealth, mcs-eps-controller should delete the EndpointSlice from all the cluster execution namespace. (5d)
+* If cluster gets unhealthy, mcs-eps-controller should delete the EndpointSlice from all the cluster execution namespace. (5d)
 
 ### Test Plan
 

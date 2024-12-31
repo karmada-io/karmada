@@ -37,7 +37,7 @@ import (
 
 // AddonEstimator describe the estimator addon command process
 var AddonEstimator = &addoninit.Addon{
-	Name:    addoninit.EstimatorResourceName,
+	Name:    names.KarmadaSchedulerEstimatorComponentName,
 	Status:  status,
 	Enable:  enableEstimator,
 	Disable: disableEstimator,
@@ -127,7 +127,7 @@ var enableEstimator = func(opts *addoninit.CommandAddonsEnableOption) error {
 		return fmt.Errorf("create or update scheduler estimator deployment error: %v", err)
 	}
 
-	if err := cmdutil.WaitForDeploymentRollout(opts.KubeClientSet, karmadaEstimatorDeployment, opts.WaitComponentReadyTimeout); err != nil {
+	if err := addonutils.WaitForDeploymentRollout(opts.KubeClientSet, karmadaEstimatorDeployment, opts.WaitComponentReadyTimeout); err != nil {
 		klog.Warning(err)
 	}
 	klog.Infof("Karmada scheduler estimator of member cluster %s is installed successfully.", opts.Cluster)
@@ -143,13 +143,13 @@ var disableEstimator = func(opts *addoninit.CommandAddonsDisableOption) error {
 
 	//delete deployment
 	deployClient := opts.KubeClientSet.AppsV1().Deployments(opts.Namespace)
-	if err := deployClient.Delete(context.TODO(), fmt.Sprintf("%s-%s", addoninit.EstimatorResourceName, opts.Cluster), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+	if err := deployClient.Delete(context.TODO(), fmt.Sprintf("%s-%s", names.KarmadaSchedulerEstimatorComponentName, opts.Cluster), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		klog.Exitln(err)
 	}
 
 	// delete service
 	serviceClient := opts.KubeClientSet.CoreV1().Services(opts.Namespace)
-	if err := serviceClient.Delete(context.TODO(), fmt.Sprintf("%s-%s", addoninit.EstimatorResourceName, opts.Cluster), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+	if err := serviceClient.Delete(context.TODO(), fmt.Sprintf("%s-%s", names.KarmadaSchedulerEstimatorComponentName, opts.Cluster), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		klog.Exitln(err)
 	}
 

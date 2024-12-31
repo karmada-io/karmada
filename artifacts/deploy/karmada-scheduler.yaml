@@ -32,27 +32,30 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 15
             timeoutSeconds: 5
+          ports:
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
           command:
             - /bin/karmada-scheduler
-            - --kubeconfig=/etc/kubeconfig
-            - --bind-address=0.0.0.0
-            - --secure-port=10351
+            - --kubeconfig=/etc/karmada/config/karmada.config
+            - --metrics-bind-address=0.0.0.0:8080
+            - --health-probe-bind-address=0.0.0.0:10351
             - --enable-scheduler-estimator=true
-            - --scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt
-            - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt
-            - --scheduler-estimator-key-file=/etc/karmada/pki/karmada.key
+            - --scheduler-estimator-ca-file=/etc/karmada/pki/scheduler-estimator-client/ca.crt
+            - --scheduler-estimator-cert-file=/etc/karmada/pki/scheduler-estimator-client/tls.crt
+            - --scheduler-estimator-key-file=/etc/karmada/pki/scheduler-estimator-client/tls.key
             - --v=4
           volumeMounts:
-            - name: karmada-certs
-              mountPath: /etc/karmada/pki
+            - name: karmada-config
+              mountPath: /etc/karmada/config
+            - name: scheduler-estimator-client-cert
+              mountPath: /etc/karmada/pki/scheduler-estimator-client
               readOnly: true
-            - name: kubeconfig
-              subPath: kubeconfig
-              mountPath: /etc/kubeconfig
       volumes:
-        - name: karmada-certs
+        - name: karmada-config
           secret:
-            secretName: karmada-cert-secret
-        - name: kubeconfig
+            secretName: karmada-scheduler-config
+        - name: scheduler-estimator-client-cert
           secret:
-            secretName: kubeconfig
+            secretName: karmada-scheduler-scheduler-estimator-client-cert

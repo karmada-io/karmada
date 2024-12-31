@@ -5,6 +5,7 @@ metadata:
     app: sample
   name: sample
   namespace: test-cloneset
+  generation: 1
 spec:
   replicas: 4
   selector:

@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karmada-operator
+  namespace: karmada-system
+  labels:
+    karmada-app: karmada-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      karmada-app: karmada-operator
+  template:
+    metadata:
+      labels:
+        karmada-app: karmada-operator
+    spec:
+      containers:
+      - name: karmada-operator
+        image: docker.io/karmada/karmada-operator:latest
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/karmada-operator
+        - --leader-elect-resource-namespace=karmada-system
+        - --v=4
+        ports:
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
+      serviceAccountName: karmada-operator

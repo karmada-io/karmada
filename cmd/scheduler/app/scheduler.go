@@ -19,10 +19,8 @@ package app
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -46,6 +44,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
@@ -94,7 +93,7 @@ func NewSchedulerCommand(stopChan <-chan struct{}, registryOptions ...Option) *c
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use: "karmada-scheduler",
+		Use: names.KarmadaSchedulerComponentName,
 		Long: `The karmada-scheduler is a control plane process which assigns resources to the clusters it manages.
 The scheduler determines which clusters are valid placements for each resource in the scheduling queue according to
 constraints and available resources. The scheduler then ranks each valid cluster and binds the resource to
@@ -127,7 +126,7 @@ the most suitable cluster.`,
 	// Set klog flags
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
-	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-scheduler"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion(names.KarmadaSchedulerComponentName))
 
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
@@ -139,7 +138,7 @@ the most suitable cluster.`,
 
 func run(opts *options.Options, stopChan <-chan struct{}, registryOptions ...Option) error {
 	klog.Infof("karmada-scheduler version: %s", version.Get())
-	go serveHealthzAndMetrics(net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)))
+	serveHealthzAndMetrics(opts.HealthProbeBindAddress, opts.MetricsBindAddress)
 
 	profileflag.ListenAndServe(opts.ProfileOpts)
 
@@ -169,6 +168,7 @@ func run(opts *options.Options, stopChan <-chan struct{}, registryOptions ...Opt
 		scheduler.WithOutOfTreeRegistry(outOfTreeRegistry),
 		scheduler.WithEnableSchedulerEstimator(opts.EnableSchedulerEstimator),
 		scheduler.WithDisableSchedulerEstimatorInPullMode(opts.DisableSchedulerEstimatorInPullMode),
+		scheduler.WithSchedulerEstimatorServiceNamespace(opts.SchedulerEstimatorServiceNamespace),
 		scheduler.WithSchedulerEstimatorServicePrefix(opts.SchedulerEstimatorServicePrefix),
 		scheduler.WithSchedulerEstimatorConnection(opts.SchedulerEstimatorPort, opts.SchedulerEstimatorCertFile, opts.SchedulerEstimatorKeyFile, opts.SchedulerEstimatorCaFile, opts.InsecureSkipEstimatorVerify),
 		scheduler.WithSchedulerEstimatorTimeout(opts.SchedulerEstimatorTimeout),
@@ -225,26 +225,64 @@ func run(opts *options.Options, stopChan <-chan struct{}, registryOptions ...Opt
 	return nil
 }
 
-func serveHealthzAndMetrics(address string) {
+func serveHealthzAndMetrics(healthProbeBindAddress, metricsBindAddress string) {
+	if healthProbeBindAddress == metricsBindAddress {
+		if healthProbeBindAddress != "0" {
+			go serveCombined(healthProbeBindAddress)
+		}
+	} else {
+		if healthProbeBindAddress != "0" {
+			go serveHealthz(healthProbeBindAddress)
+		}
+		if metricsBindAddress != "0" {
+			go serveMetrics(metricsBindAddress)
+		}
+	}
+}
+
+func serveCombined(address string) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok"))
-	})
+	mux.HandleFunc("/healthz", healthzHandler)
+	mux.Handle("/metrics", metricsHandler())
 
-	mux.Handle("/metrics", promhttp.HandlerFor(ctrlmetrics.Registry, promhttp.HandlerOpts{
+	serveHTTP(address, mux, "healthz and metrics")
+}
+
+func serveHealthz(address string) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", healthzHandler)
+	serveHTTP(address, mux, "healthz")
+}
+
+func serveMetrics(address string) {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", metricsHandler())
+	serveHTTP(address, mux, "metrics")
+}
+
+func healthzHandler(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("ok"))
+}
+
+func metricsHandler() http.Handler {
+	return promhttp.HandlerFor(ctrlmetrics.Registry, promhttp.HandlerOpts{
 		ErrorHandling: promhttp.HTTPErrorOnError,
-	}))
+	})
+}
 
-	httpServer := http.Server{
+func serveHTTP(address string, handler http.Handler, name string) {
+	httpServer := &http.Server{
 		Addr:              address,
-		Handler:           mux,
+		Handler:           handler,
 		ReadHeaderTimeout: ReadHeaderTimeout,
 		WriteTimeout:      WriteTimeout,
 		ReadTimeout:       ReadTimeout,
 	}
+
+	klog.Infof("Starting %s server on %s", name, address)
 	if err := httpServer.ListenAndServe(); err != nil {
-		klog.Errorf("Failed to serve healthz and metrics: %v", err)
+		klog.Errorf("Failed to serve %s on %s: %v", name, address, err)
 		os.Exit(1)
 	}
 }

@@ -17,6 +17,8 @@ limitations under the License.
 package context
 
 import (
+	"errors"
+	"reflect"
 	"testing"
 
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -59,6 +61,13 @@ func TestContext_IsControllerEnabled(t *testing.T) {
 			expected:                     false,
 		},
 		{
+			name:                         "on by star, not in disabled list",
+			controllerName:               "foxtrot",
+			disabledByDefaultControllers: []string{"delta", "echo"},
+			controllers:                  []string{"*"}, // --controllers=*
+			expected:                     true,
+		},
+		{
 			name:                         "on by star, not off by name",
 			controllerName:               "alpha",
 			disabledByDefaultControllers: []string{"delta", "echo"},
@@ -79,6 +88,13 @@ func TestContext_IsControllerEnabled(t *testing.T) {
 			controllers:                  []string{"alpha", "bravo", "-charlie"}, // --controllers=alpha,bravo,-charlie
 			expected:                     false,
 		},
+		{
+			name:                         "empty controllers list",
+			controllerName:               "alpha",
+			disabledByDefaultControllers: []string{"delta", "echo"},
+			controllers:                  []string{}, // No controllers
+			expected:                     false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -89,6 +105,87 @@ func TestContext_IsControllerEnabled(t *testing.T) {
 			}
 			if got := c.IsControllerEnabled(tt.controllerName, sets.New(tt.disabledByDefaultControllers...)); got != tt.expected {
 				t.Errorf("expected %v, but got %v", tt.expected, got)
+			}
+		})
+	}
+}
+
+func TestInitializers_ControllerNames(t *testing.T) {
+	initializers := Initializers{
+		"controller1": func(_ Context) (bool, error) { return true, nil },
+		"controller2": func(_ Context) (bool, error) { return true, nil },
+		"controller3": func(_ Context) (bool, error) { return true, nil },
+	}
+
+	expected := []string{"controller1", "controller2", "controller3"}
+	result := initializers.ControllerNames()
+
+	if !reflect.DeepEqual(sets.New(result...), sets.New(expected...)) {
+		t.Errorf("expected %v, but got %v", expected, result)
+	}
+}
+
+func TestInitializers_StartControllers(t *testing.T) {
+	tests := []struct {
+		name                         string
+		initializers                 Initializers
+		enabledControllers           []string
+		disabledByDefaultControllers []string
+		expectedError                bool
+	}{
+		{
+			name: "all controllers enabled and started successfully",
+			initializers: Initializers{
+				"controller1": func(_ Context) (bool, error) { return true, nil },
+				"controller2": func(_ Context) (bool, error) { return true, nil },
+			},
+			enabledControllers:           []string{"*"},
+			disabledByDefaultControllers: []string{},
+			expectedError:                false,
+		},
+		{
+			name: "some controllers disabled",
+			initializers: Initializers{
+				"controller1": func(_ Context) (bool, error) { return true, nil },
+				"controller2": func(_ Context) (bool, error) { return true, nil },
+				"controller3": func(_ Context) (bool, error) { return true, nil },
+			},
+			enabledControllers:           []string{"controller1", "controller2"},
+			disabledByDefaultControllers: []string{"controller3"},
+			expectedError:                false,
+		},
+		{
+			name: "controller returns error",
+			initializers: Initializers{
+				"controller1": func(_ Context) (bool, error) { return true, nil },
+				"controller2": func(_ Context) (bool, error) { return false, errors.New("test error") },
+			},
+			enabledControllers:           []string{"*"},
+			disabledByDefaultControllers: []string{},
+			expectedError:                true,
+		},
+		{
+			name: "controller not started",
+			initializers: Initializers{
+				"controller1": func(_ Context) (bool, error) { return true, nil },
+				"controller2": func(_ Context) (bool, error) { return false, nil },
+			},
+			enabledControllers:           []string{"*"},
+			disabledByDefaultControllers: []string{},
+			expectedError:                false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := Context{
+				Opts: Options{
+					Controllers: tt.enabledControllers,
+				},
+			}
+			err := tt.initializers.StartControllers(ctx, sets.New(tt.disabledByDefaultControllers...))
+			if (err != nil) != tt.expectedError {
+				t.Errorf("expected error: %v, but got: %v", tt.expectedError, err)
 			}
 		})
 	}

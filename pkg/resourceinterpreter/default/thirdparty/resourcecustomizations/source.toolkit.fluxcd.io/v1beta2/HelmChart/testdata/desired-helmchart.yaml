@@ -3,6 +3,7 @@ kind: HelmChart
 metadata:
   name: sample
   namespace: test-helmchart
+  generation: 1
 spec:
   interval: 5m0s
   chart: podinfo

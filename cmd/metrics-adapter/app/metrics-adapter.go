@@ -27,6 +27,7 @@ import (
 	"github.com/karmada-io/karmada/cmd/metrics-adapter/app/options"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
 
@@ -35,7 +36,7 @@ func NewMetricsAdapterCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use:  "karmada-metrics-adapter",
+		Use:  names.KarmadaMetricsAdapterComponentName,
 		Long: `The karmada-metrics-adapter is a adapter to aggregate the metrics from member clusters.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			if err := opts.Complete(); err != nil {
@@ -68,7 +69,7 @@ func NewMetricsAdapterCommand(ctx context.Context) *cobra.Command {
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
 
-	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-metrics-adapter"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion(names.KarmadaMetricsAdapterComponentName))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 

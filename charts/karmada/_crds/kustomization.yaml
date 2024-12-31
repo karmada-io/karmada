@@ -18,6 +18,6 @@ resources:
 - bases/remedy/remedy.karmada.io_remedies.yaml
 - bases/apps/apps.karmada.io_workloadrebalancers.yaml
 
-patchesStrategicMerge:
-- patches/webhook_in_resourcebindings.yaml
-- patches/webhook_in_clusterresourcebindings.yaml
+patches:
+- path: patches/webhook_in_resourcebindings.yaml
+- path: patches/webhook_in_clusterresourcebindings.yaml

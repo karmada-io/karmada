@@ -20,8 +20,8 @@ package v1alpha1
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -38,25 +38,17 @@ type WorkLister interface {
 
 // workLister implements the WorkLister interface.
 type workLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1alpha1.Work]
 }
 
 // NewWorkLister returns a new WorkLister.
 func NewWorkLister(indexer cache.Indexer) WorkLister {
-	return &workLister{indexer: indexer}
-}
-
-// List lists all Works in the indexer.
-func (s *workLister) List(selector labels.Selector) (ret []*v1alpha1.Work, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.Work))
-	})
-	return ret, err
+	return &workLister{listers.New[*v1alpha1.Work](indexer, v1alpha1.Resource("work"))}
 }
 
 // Works returns an object that can list and get Works.
 func (s *workLister) Works(namespace string) WorkNamespaceLister {
-	return workNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return workNamespaceLister{listers.NewNamespaced[*v1alpha1.Work](s.ResourceIndexer, namespace)}
 }
 
 // WorkNamespaceLister helps list and get Works.
@@ -74,26 +66,5 @@ type WorkNamespaceLister interface {
 // workNamespaceLister implements the WorkNamespaceLister
 // interface.
 type workNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all Works in the indexer for a given namespace.
-func (s workNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.Work, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.Work))
-	})
-	return ret, err
-}
-
-// Get retrieves the Work from the indexer for a given namespace and name.
-func (s workNamespaceLister) Get(name string) (*v1alpha1.Work, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("work"), name)
-	}
-	return obj.(*v1alpha1.Work), nil
+	listers.ResourceIndexer[*v1alpha1.Work]
 }

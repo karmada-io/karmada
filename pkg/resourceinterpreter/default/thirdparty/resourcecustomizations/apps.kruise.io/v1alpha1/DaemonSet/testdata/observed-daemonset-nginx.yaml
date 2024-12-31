@@ -1,6 +1,8 @@
 apiVersion: apps.kruise.io/v1alpha1
 kind: DaemonSet
 metadata:
+  annotations:
+    resourcetemplate.karmada.io/generation: "1"
   labels:
     app: sample-daemonset
   name: sample

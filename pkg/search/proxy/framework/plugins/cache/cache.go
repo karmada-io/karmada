@@ -110,7 +110,7 @@ func (c *Cache) Connect(_ context.Context, request framework.ProxyRequest) (http
 			ClusterScoped: mapping.Scope.Name() == meta.RESTScopeNameRoot,
 		},
 		Serializer:       scheme.Codecs.WithoutConversion(),
-		Convertor:        runtime.NewScheme(),
+		Convertor:        cacheScheme,
 		Subresource:      requestInfo.Subresource,
 		MetaGroupVersion: metav1.SchemeGroupVersion,
 		TableConvertor:   r.tableConvertor,

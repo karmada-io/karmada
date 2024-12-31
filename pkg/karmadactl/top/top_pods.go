@@ -33,7 +33,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/util/completion"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 	metricsapi "k8s.io/metrics/pkg/apis/metrics"
@@ -44,6 +43,7 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	utilcomp "github.com/karmada-io/karmada/pkg/karmadactl/util/completion"
 )
 
 // PodOptions contains the options to the top command.
@@ -84,6 +84,12 @@ var (
 		# Show metrics for all pods in the default namespace
 		%[1]s top pod
 
+		# Show metrics for all pods in the default namespace in member1 cluster
+		%[1]s top pod --clusters=member1
+
+		# Show metrics for all pods in the default namespace in member1 and member2 cluster
+		%[1]s top pod --clusters=member1,member2
+
 		# Show metrics for all pods in the given namespace
 		%[1]s top pod --namespace=NAMESPACE
 
@@ -109,17 +115,20 @@ func NewCmdTopPod(f util.Factory, parentCommand string, o *PodOptions, streams g
 		Short:                 i18n.T("Display resource (CPU/memory) usage of pods of member clusters"),
 		Long:                  topPodLong,
 		Example:               fmt.Sprintf(topPodExample, parentCommand),
-		ValidArgsFunction:     completion.ResourceNameCompletionFunc(f, "pod"),
+		ValidArgsFunction:     utilcomp.ResourceNameCompletionFunc(f, "pod"),
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(f, cmd, args))
 			cmdutil.CheckErr(o.Validate())
 			cmdutil.CheckErr(o.RunTopPod(f))
 		},
 		Aliases: []string{"pods", "po"},
+		Annotations: map[string]string{
+			"parent": "top", // used for completion code to set default operation scope.
+		},
 	}
 	cmdutil.AddLabelSelectorFlagVar(cmd, &o.LabelSelector)
 	options.AddKubeConfigFlags(cmd.Flags())
-	cmd.Flags().StringVarP(options.DefaultConfigFlags.Namespace, "namespace", "n", *options.DefaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
+	options.AddNamespaceFlag(cmd.Flags())
 	cmd.Flags().StringSliceVarP(&o.Clusters, "clusters", "C", []string{}, "-C=member1,member2")
 	cmd.Flags().StringVar(&o.FieldSelector, "field-selector", o.FieldSelector, "Selector (field query) to filter on, supports '=', '==', and '!='.(e.g. --field-selector key1=value1,key2=value2). The server only supports a limited number of field queries per type.")
 	cmd.Flags().StringVar(&o.SortBy, "sort-by", o.SortBy, "If non-empty, sort pods list using specified field. The field can be either 'cpu' or 'memory'.")
@@ -128,6 +137,10 @@ func NewCmdTopPod(f util.Factory, parentCommand string, o *PodOptions, streams g
 	cmd.Flags().BoolVar(&o.NoHeaders, "no-headers", o.NoHeaders, "If present, print output without headers.")
 	cmd.Flags().BoolVar(&o.UseProtocolBuffers, "use-protocol-buffers", o.UseProtocolBuffers, "Enables using protocol-buffers to access Metrics API.")
 	cmd.Flags().BoolVar(&o.Sum, "sum", o.Sum, "Print the sum of the resource usage")
+
+	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(cmd)
+	utilcomp.RegisterCompletionFuncForNamespaceFlag(cmd, f)
+	utilcomp.RegisterCompletionFuncForClustersFlag(cmd)
 	return cmd
 }
 

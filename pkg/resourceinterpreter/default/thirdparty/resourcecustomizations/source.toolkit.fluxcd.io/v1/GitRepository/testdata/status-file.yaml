@@ -22,6 +22,9 @@ status:
     reason: Succeeded
     status: "True"
     type: ArtifactInStorage
+  generation: 1
+  observedGeneration: 1
+  resourceTemplateGeneration: 1
 ---
 applied: true
 clusterName: member3
@@ -47,3 +50,6 @@ status:
     reason: Succeeded
     status: "True"
     type: ArtifactInStorage
+  generation: 1
+  observedGeneration: 1
+  resourceTemplateGeneration: 1

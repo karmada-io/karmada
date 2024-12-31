@@ -50,9 +50,9 @@ const (
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=resourcebindings,scope=Namespaced,shortName=rb,categories={karmada-io}
 // +kubebuilder:storageversion
-// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Scheduled")].status`,name="Scheduled",type=string
-// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="FullyApplied")].status`,name="FullyApplied",type=string
-// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="Age",type=date
+// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Scheduled")].status`,name="SCHEDULED",type=string
+// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="FullyApplied")].status`,name="FULLYAPPLIED",type=string
+// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="AGE",type=date
 
 // ResourceBinding represents a binding of a kubernetes resource with a propagation policy.
 type ResourceBinding struct {
@@ -146,6 +146,19 @@ type ResourceBindingSpec struct {
 	// It is represented in RFC3339 form (like '2006-01-02T15:04:05Z') and is in UTC.
 	// +optional
 	RescheduleTriggeredAt *metav1.Time `json:"rescheduleTriggeredAt,omitempty"`
+
+	// Suspension declares the policy for suspending different aspects of propagation.
+	// nil means no suspension. no default values.
+	// +optional
+	Suspension *Suspension `json:"suspension,omitempty"`
+
+	// PreserveResourcesOnDeletion controls whether resources should be preserved on the
+	// member clusters when the binding object is deleted.
+	// If set to true, resources will be preserved on the member clusters.
+	// Default is false, which means resources will be deleted along with the binding object.
+	// This setting applies to all Work objects created under this binding object.
+	// +optional
+	PreserveResourcesOnDeletion *bool `json:"preserveResourcesOnDeletion,omitempty"`
 }
 
 // ObjectReference contains enough information to locate the referenced object inside current cluster.
@@ -227,6 +240,13 @@ type GracefulEvictionTask struct {
 	// +required
 	FromCluster string `json:"fromCluster"`
 
+	// PurgeMode represents how to deal with the legacy applications on the
+	// cluster from which the application is migrated.
+	// Valid options are "Immediately", "Graciously" and "Never".
+	// +kubebuilder:validation:Enum=Immediately;Graciously;Never
+	// +optional
+	PurgeMode policyv1alpha1.PurgeMode `json:"purgeMode,omitempty"`
+
 	// Replicas indicates the number of replicas should be evicted.
 	// Should be ignored for resource type that doesn't have replica.
 	// +optional
@@ -267,6 +287,11 @@ type GracefulEvictionTask struct {
 	// +optional
 	SuppressDeletion *bool `json:"suppressDeletion,omitempty"`
 
+	// PreservedLabelState represents the application state information collected from the original cluster,
+	// and it will be injected into the new cluster in form of application labels.
+	// +optional
+	PreservedLabelState map[string]string `json:"preservedLabelState,omitempty"`
+
 	// CreationTimestamp is a timestamp representing the server time when this object was
 	// created.
 	// Clients should not set this value to avoid the time inconsistency issue.
@@ -275,6 +300,9 @@ type GracefulEvictionTask struct {
 	// Populated by the system. Read-only.
 	// +optional
 	CreationTimestamp *metav1.Time `json:"creationTimestamp,omitempty"`
+
+	// ClustersBeforeFailover records the clusters where running the application before failover.
+	ClustersBeforeFailover []string `json:"clustersBeforeFailover,omitempty"`
 }
 
 // BindingSnapshot is a snapshot of a ResourceBinding or ClusterResourceBinding.
@@ -292,6 +320,11 @@ type BindingSnapshot struct {
 	// Clusters represents the scheduled result.
 	// +optional
 	Clusters []TargetCluster `json:"clusters,omitempty"`
+}
+
+// Suspension defines the policy for suspending of propagation.
+type Suspension struct {
+	policyv1alpha1.Suspension `json:",inline"`
 }
 
 // ResourceBindingStatus represents the overall status of the strategy as well as the referenced resources.
@@ -409,9 +442,9 @@ const (
 // +kubebuilder:resource:path=clusterresourcebindings,scope="Cluster",shortName=crb,categories={karmada-io}
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
-// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Scheduled")].status`,name="Scheduled",type=string
-// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="FullyApplied")].status`,name="FullyApplied",type=string
-// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="Age",type=date
+// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Scheduled")].status`,name="SCHEDULED",type=string
+// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="FullyApplied")].status`,name="FULLYAPPLIED",type=string
+// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="AGE",type=date
 
 // ClusterResourceBinding represents a binding of a kubernetes resource with a ClusterPropagationPolicy.
 type ClusterResourceBinding struct {

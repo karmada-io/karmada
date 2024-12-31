@@ -27,6 +27,7 @@ import (
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 var (
@@ -34,14 +35,19 @@ var (
 	// It includes the time for pulling the component image.
 	componentBeReadyTimeout = 120 * time.Second
 
+	// failureThreshold represents the maximum number of retries allowed for
+	// waiting for a component to be ready. If the threshold is exceeded,
+	// the process will stop and return an error.
+	failureThreshold = 3
+
 	etcdLabels                       = labels.Set{"karmada-app": constants.Etcd}
 	karmadaApiserverLabels           = labels.Set{"karmada-app": constants.KarmadaAPIServer}
-	karmadaAggregatedAPIServerLabels = labels.Set{"karmada-app": constants.KarmadaAggregatedAPIServer}
+	karmadaAggregatedAPIServerLabels = labels.Set{"karmada-app": names.KarmadaAggregatedAPIServerComponentName}
 	kubeControllerManagerLabels      = labels.Set{"karmada-app": constants.KubeControllerManager}
-	karmadaControllerManagerLabels   = labels.Set{"karmada-app": constants.KarmadaControllerManager}
-	karmadaSchedulerLabels           = labels.Set{"karmada-app": constants.KarmadaScheduler}
-	karmadaWebhookLabels             = labels.Set{"karmada-app": constants.KarmadaWebhook}
-	karmadaMetricAdapterLabels       = labels.Set{"karmada-app": constants.KarmadaMetricsAdapter}
+	karmadaControllerManagerLabels   = labels.Set{"karmada-app": names.KarmadaControllerManagerComponentName}
+	karmadaSchedulerLabels           = labels.Set{"karmada-app": names.KarmadaSchedulerComponentName}
+	karmadaWebhookLabels             = labels.Set{"karmada-app": names.KarmadaWebhookComponentName}
+	karmadaMetricAdapterLabels       = labels.Set{"karmada-app": names.KarmadaMetricsAdapterComponentName}
 )
 
 // NewCheckApiserverHealthTask init wait-apiserver task
@@ -62,7 +68,7 @@ func runWaitApiserver(r workflow.RunData) error {
 	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConfig(), data.RemoteClient(), componentBeReadyTimeout)
 
 	// check whether the karmada apiserver is health.
-	if err := apiclient.TryRunCommand(waiter.WaitForAPI, 3); err != nil {
+	if err := apiclient.TryRunCommand(waiter.WaitForAPI, failureThreshold); err != nil {
 		return fmt.Errorf("the karmada apiserver is unhealthy, err: %w", err)
 	}
 	klog.V(2).InfoS("[check-apiserver-health] the etcd and karmada-apiserver is healthy", "karmada", klog.KObj(data))

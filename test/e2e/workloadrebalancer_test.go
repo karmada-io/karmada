@@ -193,6 +193,12 @@ var _ = framework.SerialDescribe("workload rebalancer testing", func() {
 				framework.WaitRebalancerDisappear(karmadaClient, rebalancerName)
 			})
 		})
+
+		ginkgo.It("create rebalancer with ttl and verify it can auto clean", func() {
+			rebalancer.Spec.TTLSecondsAfterFinished = ptr.To[int32](5)
+			framework.CreateWorkloadRebalancer(karmadaClient, rebalancer)
+			framework.WaitRebalancerDisappear(karmadaClient, rebalancerName)
+		})
 	})
 
 	// 2. static weight scheduling

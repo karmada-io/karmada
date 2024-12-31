@@ -22,6 +22,9 @@ status:
     reason: Succeeded
     status: "True"
     type: ArtifactInStorage
+  generation: 1
+  observedGeneration: 1
+  resourceTemplateGeneration: 1
   url: http://source-controller.flux-system.svc.cluster.local./helmrepository/test-helmrepository/sample/index.yaml
 ---
 applied: true
@@ -48,4 +51,7 @@ status:
     reason: Succeeded
     status: "True"
     type: ArtifactInStorage
+  generation: 1
+  observedGeneration: 1
+  resourceTemplateGeneration: 1
   url: http://source-controller.flux-system.svc.cluster.local./helmrepository/test-helmrepository/sample/index.yaml

@@ -20,8 +20,8 @@ package v1alpha1
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -38,25 +38,17 @@ type FederatedHPALister interface {
 
 // federatedHPALister implements the FederatedHPALister interface.
 type federatedHPALister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1alpha1.FederatedHPA]
 }
 
 // NewFederatedHPALister returns a new FederatedHPALister.
 func NewFederatedHPALister(indexer cache.Indexer) FederatedHPALister {
-	return &federatedHPALister{indexer: indexer}
-}
-
-// List lists all FederatedHPAs in the indexer.
-func (s *federatedHPALister) List(selector labels.Selector) (ret []*v1alpha1.FederatedHPA, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.FederatedHPA))
-	})
-	return ret, err
+	return &federatedHPALister{listers.New[*v1alpha1.FederatedHPA](indexer, v1alpha1.Resource("federatedhpa"))}
 }
 
 // FederatedHPAs returns an object that can list and get FederatedHPAs.
 func (s *federatedHPALister) FederatedHPAs(namespace string) FederatedHPANamespaceLister {
-	return federatedHPANamespaceLister{indexer: s.indexer, namespace: namespace}
+	return federatedHPANamespaceLister{listers.NewNamespaced[*v1alpha1.FederatedHPA](s.ResourceIndexer, namespace)}
 }
 
 // FederatedHPANamespaceLister helps list and get FederatedHPAs.
@@ -74,26 +66,5 @@ type FederatedHPANamespaceLister interface {
 // federatedHPANamespaceLister implements the FederatedHPANamespaceLister
 // interface.
 type federatedHPANamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all FederatedHPAs in the indexer for a given namespace.
-func (s federatedHPANamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.FederatedHPA, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.FederatedHPA))
-	})
-	return ret, err
-}
-
-// Get retrieves the FederatedHPA from the indexer for a given namespace and name.
-func (s federatedHPANamespaceLister) Get(name string) (*v1alpha1.FederatedHPA, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("federatedhpa"), name)
-	}
-	return obj.(*v1alpha1.FederatedHPA), nil
+	listers.ResourceIndexer[*v1alpha1.FederatedHPA]
 }

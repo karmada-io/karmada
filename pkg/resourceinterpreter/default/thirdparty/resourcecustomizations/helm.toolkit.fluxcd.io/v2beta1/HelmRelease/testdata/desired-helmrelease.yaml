@@ -3,6 +3,7 @@ kind: HelmRelease
 metadata:
   name: sample
   namespace: default
+  generation: 1
 spec:
   interval: 5m
   chart:

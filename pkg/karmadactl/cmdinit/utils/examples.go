@@ -93,8 +93,7 @@ spec:
             - --cluster-name={member_cluster_name}
             - --cluster-api-endpoint={member_cluster_api_endpoint}
             - --cluster-status-update-frequency=10s
-            - --bind-address=0.0.0.0
-            - --secure-port=10357
+            - --health-probe-bind-address=0.0.0.0:10357
             - --v=4
           livenessProbe:
             httpGet:
@@ -141,6 +140,8 @@ spec:
             - /bin/karmada-scheduler-estimator
             - --kubeconfig=/etc/{{member_cluster_name}}-kubeconfig
             - --cluster-name={{member_cluster_name}}
+            - --metrics-bind-address=0.0.0.0:8080
+            - --health-probe-bind-address=0.0.0.0:10351
           volumeMounts:
             - name: member-kubeconfig
               subPath: {{member_cluster_name}}-kubeconfig
@@ -167,7 +168,7 @@ spec:
 )
 
 // GenExamples Generate sample files
-func GenExamples(path, parentCommand, printRegisterCommand string) {
+func GenExamples(path, parentCommand string) {
 	karmadaAgentStr := fmt.Sprintf(karmadaAgent, options.ClusterName)
 	if err := BytesToFile(path, "karmada-agent.yaml", []byte(karmadaAgentStr)); err != nil {
 		klog.Warning(err)
@@ -205,11 +206,22 @@ Step 2: Show members of karmada
 
 Register cluster with 'Pull' mode
 
-Step 1: Use "%[2]s register" command to register the cluster to Karmada control plane. "--cluster-name" is set to cluster of current-context by default.
-(In member cluster)~# %[2]s%[3]s
+Step 1: Create bootstrap token and generate the '%[2]s register' command which will be used later.
+~# %[2]s token create --print-register-command --kubeconfig=%[1]s/karmada-apiserver.config
+This command will generate a registration command similar to:
 
-Step 2: Show members of karmada
-(In karmada)~# kubectl --kubeconfig %[1]s/karmada-apiserver.config get clusters
+%[2]s register 172.18.0.5:5443 --token t8xfio.640u9gp9obc72v5d --discovery-token-ca-cert-hash sha256:9cfa542ff48f43793d1816b1dd0a78ad574e349d8f6e005e6e32e8ab528e4244
 
-`, path, parentCommand, printRegisterCommand)
+Step 2: Use the output from Step 1 to register the cluster to the Karmada control plane. 
+You need to specify the target member cluster by flag '--kubeconfig'
+~# %[2]s register 172.18.0.5:5443 --token t8xfio.640u9gp9obc72v5d --discovery-token-ca-cert-hash sha256:9cfa542ff48f43793d1816b1dd0a78ad574e349d8f6e005e6e32e8ab528e4244 --kubeconfig=<path-to-member-cluster-kubeconfig>
+
+Step 3: Show members of Karmada.
+~# %[2]s --kubeconfig=%[1]s/karmada-apiserver.config get clusters
+
+The %[2]s register command has several optional parameters for setting the properties of the member cluster. For more details, run:
+
+~# %[2]s register --help
+
+`, path, parentCommand)
 }

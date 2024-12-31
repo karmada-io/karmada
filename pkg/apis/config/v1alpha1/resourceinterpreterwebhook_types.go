@@ -99,7 +99,7 @@ type RuleWithOperations struct {
 type InterpreterOperation string
 
 const (
-	// InterpreterOperationAll indicates math all InterpreterOperation.
+	// InterpreterOperationAll indicates matching all InterpreterOperation.
 	InterpreterOperationAll InterpreterOperation = "*"
 
 	// InterpreterOperationInterpretReplica indicates that karmada want to figure out the replica declaration of a specific object.

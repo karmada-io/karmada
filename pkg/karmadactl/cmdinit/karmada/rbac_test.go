@@ -31,8 +31,8 @@ func Test_grantProxyPermissionToAdmin(t *testing.T) {
 
 func Test_grantAccessPermissionToAgent(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	if err := grantAccessPermissionToAgent(client); err != nil {
-		t.Errorf("grantAccessPermissionToAgent() expected no error, but got err: %v", err)
+	if err := grantAccessPermissionToAgentRBACGenerator(client); err != nil {
+		t.Errorf("grantAccessPermissionToAgentRBACGenerator() expected no error, but got err: %v", err)
 	}
 }
 

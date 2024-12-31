@@ -48,7 +48,7 @@ import (
 )
 
 const (
-	// StatusControllerName is the controller name that will be used when reporting events.
+	// StatusControllerName is the controller name that will be used when reporting events and metrics.
 	StatusControllerName = "federated-resource-quota-status-controller"
 )
 
@@ -77,7 +77,7 @@ func (c *StatusController) Reconcile(ctx context.Context, req controllerruntime.
 		return controllerruntime.Result{}, nil
 	}
 
-	if err := c.collectQuotaStatus(quota); err != nil {
+	if err := c.collectQuotaStatus(ctx, quota); err != nil {
 		klog.Errorf("Failed to collect status from works to federatedResourceQuota(%s), error: %v", req.NamespacedName.String(), err)
 		c.EventRecorder.Eventf(quota, corev1.EventTypeWarning, events.EventReasonCollectFederatedResourceQuotaStatusFailed, err.Error())
 		return controllerruntime.Result{}, err
@@ -129,13 +129,14 @@ func (c *StatusController) SetupWithManager(mgr controllerruntime.Manager) error
 		},
 	})
 	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(StatusControllerName).
 		For(&policyv1alpha1.FederatedResourceQuota{}).
 		Watches(&workv1alpha1.Work{}, handler.EnqueueRequestsFromMapFunc(fn), workPredicate).
 		Complete(c)
 }
 
-func (c *StatusController) collectQuotaStatus(quota *policyv1alpha1.FederatedResourceQuota) error {
-	workList, err := helper.GetWorksByLabelsSet(c.Client, labels.Set{
+func (c *StatusController) collectQuotaStatus(ctx context.Context, quota *policyv1alpha1.FederatedResourceQuota) error {
+	workList, err := helper.GetWorksByLabelsSet(ctx, c.Client, labels.Set{
 		util.FederatedResourceQuotaNamespaceLabel: quota.Namespace,
 		util.FederatedResourceQuotaNameLabel:      quota.Name,
 	})
@@ -160,7 +161,7 @@ func (c *StatusController) collectQuotaStatus(quota *policyv1alpha1.FederatedRes
 	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		_, err = helper.UpdateStatus(context.Background(), c.Client, quota, func() error {
+		_, err = helper.UpdateStatus(ctx, c.Client, quota, func() error {
 			quota.Status = *quotaStatus
 			return nil
 		})

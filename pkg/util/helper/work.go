@@ -23,12 +23,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -38,7 +40,7 @@ import (
 )
 
 // CreateOrUpdateWork creates a Work object if not exist, or updates if it already exists.
-func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resource *unstructured.Unstructured) error {
+func CreateOrUpdateWork(ctx context.Context, client client.Client, workMeta metav1.ObjectMeta, resource *unstructured.Unstructured, options ...WorkOption) error {
 	if workMeta.Labels[util.PropagationInstruction] != util.PropagationInstructionSuppressed {
 		resource = resource.DeepCopy()
 		// set labels
@@ -73,10 +75,12 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 		},
 	}
 
+	applyWorkOptions(work, options)
+
 	runtimeObject := work.DeepCopy()
 	var operationResult controllerutil.OperationResult
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), client, runtimeObject, func() error {
+		operationResult, err = controllerutil.CreateOrUpdate(ctx, client, runtimeObject, func() error {
 			if !runtimeObject.DeletionTimestamp.IsZero() {
 				return fmt.Errorf("work %s/%s is being deleted", runtimeObject.GetNamespace(), runtimeObject.GetName())
 			}
@@ -84,6 +88,7 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 			runtimeObject.Spec = work.Spec
 			runtimeObject.Labels = util.DedupeAndMergeLabels(runtimeObject.Labels, work.Labels)
 			runtimeObject.Annotations = util.DedupeAndMergeAnnotations(runtimeObject.Annotations, work.Annotations)
+			runtimeObject.Finalizers = work.Finalizers
 			return nil
 		})
 		return err
@@ -105,23 +110,27 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 }
 
 // GetWorksByLabelsSet gets WorkList by matching labels.Set.
-func GetWorksByLabelsSet(c client.Client, ls labels.Set) (*workv1alpha1.WorkList, error) {
+func GetWorksByLabelsSet(ctx context.Context, c client.Client, ls labels.Set) (*workv1alpha1.WorkList, error) {
 	workList := &workv1alpha1.WorkList{}
 	listOpt := &client.ListOptions{LabelSelector: labels.SelectorFromSet(ls)}
 
-	return workList, c.List(context.TODO(), workList, listOpt)
+	return workList, c.List(ctx, workList, listOpt)
 }
 
 // GetWorksByBindingID gets WorkList by matching same binding's permanent id.
-func GetWorksByBindingID(c client.Client, bindingID string, namespaced bool) (*workv1alpha1.WorkList, error) {
-	var ls labels.Set
+// Caller should ensure Work is indexed by binding's permanent id.
+func GetWorksByBindingID(ctx context.Context, c client.Client, bindingID string, namespaced bool) (*workv1alpha1.WorkList, error) {
+	var key string
 	if namespaced {
-		ls = labels.Set{workv1alpha2.ResourceBindingPermanentIDLabel: bindingID}
+		key = workv1alpha2.ResourceBindingPermanentIDLabel
 	} else {
-		ls = labels.Set{workv1alpha2.ClusterResourceBindingPermanentIDLabel: bindingID}
+		key = workv1alpha2.ClusterResourceBindingPermanentIDLabel
 	}
-
-	return GetWorksByLabelsSet(c, ls)
+	workList := &workv1alpha1.WorkList{}
+	listOpt := &client.ListOptions{
+		FieldSelector: fields.OneTermEqualSelector(key, bindingID),
+	}
+	return workList, c.List(ctx, workList, listOpt)
 }
 
 // GenEventRef returns the event reference. sets the UID(.spec.uid) that might be missing for fire events.
@@ -170,4 +179,9 @@ func IsWorkContains(manifests []workv1alpha1.Manifest, targetResource schema.Gro
 		}
 	}
 	return false
+}
+
+// IsWorkSuspendDispatching checks if the work is suspended from dispatching.
+func IsWorkSuspendDispatching(work *workv1alpha1.Work) bool {
+	return ptr.Deref(work.Spec.SuspendDispatching, false)
 }

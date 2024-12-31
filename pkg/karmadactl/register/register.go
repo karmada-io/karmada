@@ -26,7 +26,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -57,6 +56,7 @@ import (
 	tokenutil "github.com/karmada-io/karmada/pkg/karmadactl/util/bootstraptoken"
 	karmadautil "github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/lifted/pubkeypin"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/version"
 )
 
@@ -81,23 +81,20 @@ const (
 	// CACertPath defines default location of CA certificate on Linux
 	CACertPath = "/etc/karmada/pki/ca.crt"
 	// ClusterPermissionPrefix defines the common name of karmada agent certificate
-	ClusterPermissionPrefix = "system:node:"
+	ClusterPermissionPrefix = "system:karmada:agent:"
 	// ClusterPermissionGroups defines the organization of karmada agent certificate
-	ClusterPermissionGroups = "system:nodes"
-	// KarmadaAgentBootstrapKubeConfigFileName defines the file name for the kubeconfig that the karmada-agent will use to do
-	// the TLS bootstrap to get itself an unique credential
-	KarmadaAgentBootstrapKubeConfigFileName = "bootstrap-karmada-agent.conf"
+	ClusterPermissionGroups = "system:karmada:agents"
+	// AgentRBACGenerator defines the common name of karmada agent rbac generator certificate
+	AgentRBACGenerator = "system:karmada:agent:rbac-generator"
 	// KarmadaAgentKubeConfigFileName defines the file name for the kubeconfig that the karmada-agent will use to do
 	// the TLS bootstrap to get itself an unique credential
 	KarmadaAgentKubeConfigFileName = "karmada-agent.conf"
 	// KarmadaKubeconfigName is the name of karmada kubeconfig
 	KarmadaKubeconfigName = "karmada-kubeconfig"
-	// KarmadaAgentName is the name of karmada-agent
-	KarmadaAgentName = "karmada-agent"
 	// KarmadaAgentServiceAccountName is the name of karmada-agent serviceaccount
 	KarmadaAgentServiceAccountName = "karmada-agent-sa"
-	// SignerName defines the signer name for csr, 'kubernetes.io/kube-apiserver-client-kubelet' can sign the csr automatically
-	SignerName = "kubernetes.io/kube-apiserver-client-kubelet"
+	// SignerName defines the signer name for csr, 'kubernetes.io/kube-apiserver-client' can sign the csr with `O=system:karmada:agents,CN=system:karmada:agent:` automatically if agentcsrapproving controller is enabled.
+	SignerName = "kubernetes.io/kube-apiserver-client"
 	// BootstrapUserName defines bootstrap user name
 	BootstrapUserName = "token-bootstrap-client"
 	// DefaultClusterName defines the default cluster name
@@ -112,7 +109,7 @@ const (
 	DefaultCertExpirationSeconds int32 = 86400 * 365
 )
 
-var karmadaAgentLabels = map[string]string{"app": KarmadaAgentName}
+var karmadaAgentLabels = map[string]string{"app": names.KarmadaAgentComponentName}
 
 // BootstrapTokenDiscovery is used to set the options for bootstrap token based discovery
 type BootstrapTokenDiscovery struct {
@@ -167,7 +164,7 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 			cmdutil.TagCommandGroup: cmdutil.GroupClusterRegistration,
 		},
 
-		// We accept the control-plane location as an required positional argument karmada apiserver endpoint
+		// We accept the control-plane location as a required positional argument karmada apiserver endpoint
 		Args: cobra.ExactArgs(1),
 	}
 	flags := cmd.Flags()
@@ -188,6 +185,8 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 	flags.StringSliceVar(&opts.ClusterZones, "cluster-zones", []string{}, "The zones of the joining cluster. The Karmada scheduler can use this information to spread workloads across zones for higher availability.")
 	flags.BoolVar(&opts.EnableCertRotation, "enable-cert-rotation", false, "Enable means controller would rotate certificate for karmada-agent when the certificate is about to expire.")
 	flags.StringVar(&opts.CACertPath, "ca-cert-path", CACertPath, "The path to the SSL certificate authority used to secure communications between member cluster and karmada-control-plane.")
+	// nolint: errcheck
+	flags.MarkDeprecated("ca-cert-path", "The flag --ca-cert-path has been marked deprecated because it has never been used, and will be removed in the future release.")
 	flags.StringVar(&opts.BootstrapToken.Token, "token", "", "For token-based discovery, the token used to validate cluster information fetched from the API server.")
 	flags.StringSliceVar(&opts.BootstrapToken.CACertHashes, "discovery-token-ca-cert-hash", []string{}, "For token-based discovery, validate that the root CA public key matches this hash (format: \"<type>:<value>\").")
 	flags.BoolVar(&opts.BootstrapToken.UnsafeSkipCAVerification, "discovery-token-unsafe-skip-ca-verification", false, "For token-based discovery, allow joining without --discovery-token-ca-cert-hash pinning.")
@@ -259,6 +258,9 @@ type CommandRegisterOption struct {
 
 	memberClusterEndpoint string
 	memberClusterClient   *kubeclient.Clientset
+
+	// rbacResources contains RBAC resources that grant the necessary permissions for pull mode cluster to access to Karmada control plane.
+	rbacResources *RBACResources
 }
 
 // Complete ensures that options are valid and marshals them if necessary.
@@ -287,6 +289,8 @@ func (o *CommandRegisterOption) Complete(args []string) error {
 		o.ClusterName = config.Contexts[config.CurrentContext].Cluster
 	}
 
+	o.rbacResources = GenerateRBACResources(o.ClusterName, o.ClusterNamespace)
+
 	o.memberClusterEndpoint = restConfig.Host
 
 	o.memberClusterClient, err = apiclient.NewClientSet(restConfig)
@@ -309,10 +313,6 @@ func (o *CommandRegisterOption) Validate() error {
 
 	if !o.BootstrapToken.UnsafeSkipCAVerification && len(o.BootstrapToken.CACertHashes) == 0 {
 		return fmt.Errorf("need to verify CACertHashes, or set --discovery-token-unsafe-skip-ca-verification=true")
-	}
-
-	if !filepath.IsAbs(o.CACertPath) || !strings.HasSuffix(o.CACertPath, ".crt") {
-		return fmt.Errorf("the ca certificate path must be an absolute path: %s", o.CACertPath)
 	}
 
 	return nil
@@ -340,65 +340,31 @@ func (o *CommandRegisterOption) Run(parentCommand string) error {
 		return nil
 	}
 
-	bootstrapKubeConfigFile := filepath.Join(KarmadaDir, KarmadaAgentBootstrapKubeConfigFileName)
-
-	// Deletes the bootstrapKubeConfigFile, so the credential used for TLS bootstrap is removed from disk
-	defer func(name string) {
-		err := os.Remove(name)
-		if err != nil {
-			klog.Warningf("Failed to remove bootstrapKubeConfigFile: %v", err)
-		}
-	}(bootstrapKubeConfigFile)
-
 	// fetch the bootstrap client to connect to karmada apiserver temporarily
 	fmt.Println("[karmada-agent-start] Waiting to perform the TLS Bootstrap")
-	bootstrapClient, karmadaClusterInfo, err := o.discoveryBootstrapConfigAndClusterInfo(bootstrapKubeConfigFile, parentCommand)
+	bootstrapClient, karmadaClusterInfo, err := o.discoveryBootstrapConfigAndClusterInfo(parentCommand)
 	if err != nil {
 		return err
 	}
 
-	// construct the final kubeconfig file used by karmada agent to connect to karmada apiserver
-	fmt.Println("[karmada-agent-start] Waiting to construct karmada-agent kubeconfig")
-	karmadaAgentCfg, err := o.constructKarmadaAgentConfig(bootstrapClient, karmadaClusterInfo)
+	var rbacClient *kubeclient.Clientset
+	defer func() {
+		if err != nil && rbacClient != nil {
+			fmt.Println("karmadactl register failed and started deleting the created resources")
+			err = o.rbacResources.Delete(rbacClient)
+			if err != nil {
+				klog.Warningf("Failed to delete rbac resources: %v", err)
+			}
+		}
+	}()
+
+	rbacClient, err = o.EnsureNecessaryResourcesExistInControlPlane(bootstrapClient, karmadaClusterInfo)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("[karmada-agent-start] Waiting to check cluster exists")
-	karmadaClient, err := ToKarmadaClient(karmadaAgentCfg)
+	err = o.EnsureNecessaryResourcesExistInMemberCluster(bootstrapClient, karmadaClusterInfo)
 	if err != nil {
-		return err
-	}
-	_, exist, err := karmadautil.GetClusterWithKarmadaClient(karmadaClient, o.ClusterName)
-	if err != nil {
-		return err
-	} else if exist {
-		return fmt.Errorf("failed to register as cluster with name %s already exists", o.ClusterName)
-	}
-
-	// It's necessary to set the label of namespace to make sure that the namespace is created by Karmada.
-	labels := map[string]string{
-		karmadautil.ManagedByKarmadaLabel: karmadautil.ManagedByKarmadaLabelValue,
-	}
-	// ensure namespace where the karmada-agent resources be deployed exists in the member cluster
-	if _, err := karmadautil.EnsureNamespaceExistWithLabels(o.memberClusterClient, o.Namespace, o.DryRun, labels); err != nil {
-		return err
-	}
-
-	// create the necessary secret and RBAC in the member cluster
-	fmt.Println("[karmada-agent-start] Waiting the necessary secret and RBAC")
-	if err := o.createSecretAndRBACInMemberCluster(karmadaAgentCfg); err != nil {
-		return err
-	}
-
-	// create karmada-agent Deployment in the member cluster
-	fmt.Println("[karmada-agent-start] Waiting karmada-agent Deployment")
-	KarmadaAgentDeployment := o.makeKarmadaAgentDeployment()
-	if _, err := o.memberClusterClient.AppsV1().Deployments(o.Namespace).Create(context.TODO(), KarmadaAgentDeployment, metav1.CreateOptions{}); err != nil {
-		return err
-	}
-
-	if err := cmdutil.WaitForDeploymentRollout(o.memberClusterClient, KarmadaAgentDeployment, int(o.Timeout)); err != nil {
 		return err
 	}
 
@@ -407,14 +373,87 @@ func (o *CommandRegisterOption) Run(parentCommand string) error {
 	return nil
 }
 
+// EnsureNecessaryResourcesExistInControlPlane ensures that all necessary resources are exist in Karmada control plane.
+func (o *CommandRegisterOption) EnsureNecessaryResourcesExistInControlPlane(bootstrapClient *kubeclient.Clientset, karmadaClusterInfo *clientcmdapi.Cluster) (*kubeclient.Clientset, error) {
+	csrName := "agent-rbac-generator-" + o.ClusterName + k8srand.String(5)
+	rbacCfg, err := o.constructAgentRBACGeneratorConfig(bootstrapClient, karmadaClusterInfo, csrName)
+	if err != nil {
+		return nil, err
+	}
+
+	kubelient, err := ToClientSet(rbacCfg)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		err = kubelient.CertificatesV1().CertificateSigningRequests().Delete(context.Background(), csrName, metav1.DeleteOptions{})
+		if err != nil {
+			klog.Warningf("Failed to delete CertificateSigningRequests %s: %v", csrName, err)
+		}
+	}()
+
+	fmt.Println("[karmada-agent-start] Waiting to check cluster exists")
+	karmadaClient, err := ToKarmadaClient(rbacCfg)
+	if err != nil {
+		return kubelient, err
+	}
+	_, exist, err := karmadautil.GetClusterWithKarmadaClient(karmadaClient, o.ClusterName)
+	if err != nil {
+		return kubelient, err
+	} else if exist {
+		return kubelient, fmt.Errorf("failed to register as cluster with name %s already exists", o.ClusterName)
+	}
+
+	fmt.Println("[karmada-agent-start] Assign the necessary RBAC permissions to the agent")
+	err = o.ensureAgentRBACResourcesExistInControlPlane(kubelient)
+	if err != nil {
+		return kubelient, err
+	}
+
+	return kubelient, nil
+}
+
+// EnsureNecessaryResourcesExistInMemberCluster ensures that all necessary resources are exist in the registering cluster.
+func (o *CommandRegisterOption) EnsureNecessaryResourcesExistInMemberCluster(bootstrapClient *kubeclient.Clientset, karmadaClusterInfo *clientcmdapi.Cluster) error {
+	// construct the final kubeconfig file used by karmada agent to connect to karmada apiserver
+	fmt.Println("[karmada-agent-start] Waiting to construct karmada-agent kubeconfig")
+	karmadaAgentCfg, err := o.constructKarmadaAgentConfig(bootstrapClient, karmadaClusterInfo)
+	if err != nil {
+		return err
+	}
+
+	// It's necessary to set the label of namespace to make sure that the namespace is created by Karmada.
+	labels := map[string]string{
+		karmadautil.KarmadaSystemLabel: karmadautil.KarmadaSystemLabelValue,
+	}
+	// ensure namespace where the karmada-agent resources be deployed exists in the member cluster
+	if _, err = karmadautil.EnsureNamespaceExistWithLabels(o.memberClusterClient, o.Namespace, o.DryRun, labels); err != nil {
+		return err
+	}
+
+	// create the necessary secret and RBAC in the member cluster
+	fmt.Println("[karmada-agent-start] Waiting the necessary secret and RBAC")
+	if err = o.createSecretAndRBACInMemberCluster(karmadaAgentCfg); err != nil {
+		return err
+	}
+
+	// create karmada-agent Deployment in the member cluster
+	fmt.Println("[karmada-agent-start] Waiting karmada-agent Deployment")
+	KarmadaAgentDeployment := o.makeKarmadaAgentDeployment()
+	if _, err = o.memberClusterClient.AppsV1().Deployments(o.Namespace).Create(context.TODO(), KarmadaAgentDeployment, metav1.CreateOptions{}); err != nil {
+		return err
+	}
+
+	if err = cmdutil.WaitForDeploymentRollout(o.memberClusterClient, KarmadaAgentDeployment, int(o.Timeout)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // preflight checks the deployment environment of the member cluster
 func (o *CommandRegisterOption) preflight() []error {
 	var errlist []error
-
-	// check if the given file already exist
-	errlist = appendError(errlist, checkFileIfExist(filepath.Join(KarmadaDir, KarmadaAgentBootstrapKubeConfigFileName)))
-	errlist = appendError(errlist, checkFileIfExist(filepath.Join(KarmadaDir, KarmadaAgentKubeConfigFileName)))
-	errlist = appendError(errlist, checkFileIfExist(CACertPath))
 
 	// check if relative resources already exist in member cluster
 	_, err := o.memberClusterClient.CoreV1().Namespaces().Get(context.TODO(), o.Namespace, metav1.GetOptions{})
@@ -433,9 +472,9 @@ func (o *CommandRegisterOption) preflight() []error {
 			errlist = append(errlist, err)
 		}
 
-		_, err = o.memberClusterClient.AppsV1().Deployments(o.Namespace).Get(context.TODO(), KarmadaAgentName, metav1.GetOptions{})
+		_, err = o.memberClusterClient.AppsV1().Deployments(o.Namespace).Get(context.TODO(), names.KarmadaAgentComponentName, metav1.GetOptions{})
 		if err == nil {
-			errlist = append(errlist, fmt.Errorf("%s/%s Deployment already exists", o.Namespace, KarmadaAgentName))
+			errlist = append(errlist, fmt.Errorf("%s/%s Deployment already exists", o.Namespace, names.KarmadaAgentComponentName))
 		} else if !apierrors.IsNotFound(err) {
 			errlist = append(errlist, err)
 		}
@@ -444,27 +483,8 @@ func (o *CommandRegisterOption) preflight() []error {
 	return errlist
 }
 
-// appendError append err to errlist
-func appendError(errlist []error, err error) []error {
-	if err == nil {
-		return errlist
-	}
-	errlist = append(errlist, err)
-	return errlist
-}
-
-// checkFileIfExist validates if the given file already exist.
-func checkFileIfExist(filePath string) error {
-	klog.V(1).Infof("Validating the existence of file %s", filePath)
-
-	if _, err := os.Stat(filePath); err == nil {
-		return fmt.Errorf("%s already exists", filePath)
-	}
-	return nil
-}
-
 // discoveryBootstrapConfigAndClusterInfo get bootstrap-config and cluster-info from control plane
-func (o *CommandRegisterOption) discoveryBootstrapConfigAndClusterInfo(bootstrapKubeConfigFile, parentCommand string) (*kubeclient.Clientset, *clientcmdapi.Cluster, error) {
+func (o *CommandRegisterOption) discoveryBootstrapConfigAndClusterInfo(parentCommand string) (*kubeclient.Clientset, *clientcmdapi.Cluster, error) {
 	config, err := retrieveValidatedConfigInfo(nil, o.BootstrapToken, o.Timeout, DiscoveryRetryInterval, parentCommand)
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't validate the identity of the API Server: %w", err)
@@ -480,35 +500,324 @@ func (o *CommandRegisterOption) discoveryBootstrapConfigAndClusterInfo(bootstrap
 		o.BootstrapToken.Token,
 	)
 
-	// Write the TLS-Bootstrapped karmada-agent config file down to disk
-	klog.V(1).Infof("[discovery] writing bootstrap karmada-agent config file at %s", bootstrapKubeConfigFile)
-	if err := WriteToDisk(bootstrapKubeConfigFile, tlsBootstrapCfg); err != nil {
-		return nil, nil, fmt.Errorf("couldn't save %s to disk: %w", KarmadaAgentBootstrapKubeConfigFileName, err)
-	}
-
-	// Write the ca certificate to disk so karmada-agent can use it for authentication
-	cluster := tlsBootstrapCfg.Contexts[tlsBootstrapCfg.CurrentContext].Cluster
-	caPath := o.CACertPath
-	if _, err := os.Stat(caPath); os.IsNotExist(err) {
-		klog.V(1).Infof("[discovery] writing CA certificate at %s", caPath)
-		if err := certutil.WriteCert(caPath, tlsBootstrapCfg.Clusters[cluster].CertificateAuthorityData); err != nil {
-			return nil, nil, fmt.Errorf("couldn't save the CA certificate to disk: %w", err)
-		}
-	}
-
-	bootstrapClient, err := ClientSetFromFile(bootstrapKubeConfigFile)
+	bootstrapClient, err := ToClientSet(tlsBootstrapCfg)
 	if err != nil {
-		return nil, nil, fmt.Errorf("couldn't create client from kubeconfig file %q", bootstrapKubeConfigFile)
+		return nil, nil, fmt.Errorf("couldn't create bootstrap client: %w", err)
 	}
 
 	return bootstrapClient, clusterinfo, nil
 }
 
-// constructKarmadaAgentConfig construct the final kubeconfig used by karmada-agent
-func (o *CommandRegisterOption) constructKarmadaAgentConfig(bootstrapClient *kubeclient.Clientset, karmadaClusterInfo *clientcmdapi.Cluster) (*clientcmdapi.Config, error) {
+// ensureAgentRBACResourcesExistInControlPlane ensures that necessary RBAC resources for karmada-agent are exist in control plane.
+func (o *CommandRegisterOption) ensureAgentRBACResourcesExistInControlPlane(client kubeclient.Interface) error {
+	for i := range o.rbacResources.ClusterRoles {
+		_, err := karmadautil.CreateClusterRole(client, o.rbacResources.ClusterRoles[i])
+		if err != nil {
+			return err
+		}
+	}
+	for i := range o.rbacResources.ClusterRoleBindings {
+		_, err := karmadautil.CreateClusterRoleBinding(client, o.rbacResources.ClusterRoleBindings[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	for i := range o.rbacResources.Roles {
+		roleNamespace := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: o.rbacResources.Roles[i].GetNamespace(),
+				Labels: map[string]string{
+					karmadautil.KarmadaSystemLabel: karmadautil.KarmadaSystemLabelValue,
+				},
+			},
+		}
+		_, err := karmadautil.CreateNamespace(client, roleNamespace)
+		if err != nil {
+			return err
+		}
+		_, err = karmadautil.CreateRole(client, o.rbacResources.Roles[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	for i := range o.rbacResources.RoleBindings {
+		_, err := karmadautil.CreateRoleBinding(client, o.rbacResources.RoleBindings[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// RBACResources defines the list of rbac resources.
+type RBACResources struct {
+	ClusterRoles        []*rbacv1.ClusterRole
+	ClusterRoleBindings []*rbacv1.ClusterRoleBinding
+	Roles               []*rbacv1.Role
+	RoleBindings        []*rbacv1.RoleBinding
+}
+
+// GenerateRBACResources generates rbac resources.
+func GenerateRBACResources(clusterName, clusterNamespace string) *RBACResources {
+	return &RBACResources{
+		ClusterRoles:        []*rbacv1.ClusterRole{GenerateClusterRole(clusterName)},
+		ClusterRoleBindings: []*rbacv1.ClusterRoleBinding{GenerateClusterRoleBinding(clusterName)},
+		Roles:               []*rbacv1.Role{GenerateSecretAccessRole(clusterName, clusterNamespace), GenerateWorkAccessRole(clusterName)},
+		RoleBindings:        []*rbacv1.RoleBinding{GenerateSecretAccessRoleBinding(clusterName, clusterNamespace), GenerateWorkAccessRoleBinding(clusterName)},
+	}
+}
+
+// List return the list of rbac resources.
+func (r *RBACResources) List() []Obj {
+	var obj []Obj
+	for i := range r.ClusterRoles {
+		obj = append(obj, Obj{Kind: "ClusterRole", Name: r.ClusterRoles[i].GetName()})
+	}
+	for i := range r.ClusterRoleBindings {
+		obj = append(obj, Obj{Kind: "ClusterRoleBinding", Name: r.ClusterRoleBindings[i].GetName()})
+	}
+	for i := range r.Roles {
+		obj = append(obj, Obj{Kind: "Role", Name: r.Roles[i].GetName(), Namespace: r.Roles[i].GetNamespace()})
+	}
+	for i := range r.RoleBindings {
+		obj = append(obj, Obj{Kind: "RoleBinding", Name: r.RoleBindings[i].GetName(), Namespace: r.RoleBindings[i].GetNamespace()})
+	}
+	return obj
+}
+
+// ToString returns a list of RBAC resources in string format.
+func (r *RBACResources) ToString() string {
+	var resources []string
+	for i := range r.List() {
+		resources = append(resources, r.List()[i].ToString())
+	}
+	return strings.Join(resources, "\n")
+}
+
+// Delete deletes RBAC resources.
+func (r *RBACResources) Delete(client kubeclient.Interface) error {
+	var err error
+	for _, resource := range r.List() {
+		switch resource.Kind {
+		case "ClusterRole":
+			err = karmadautil.DeleteClusterRole(client, resource.Name)
+		case "ClusterRoleBinding":
+			err = karmadautil.DeleteClusterRoleBinding(client, resource.Name)
+		case "Role":
+			err = karmadautil.DeleteRole(client, resource.Namespace, resource.Name)
+		case "RoleBinding":
+			err = karmadautil.DeleteRoleBinding(client, resource.Namespace, resource.Name)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Obj defines the struct which contains the information of kind, name and namespace.
+type Obj struct{ Kind, Name, Namespace string }
+
+// ToString returns a string that concatenates kind, name, and namespace using "/".
+func (o *Obj) ToString() string {
+	if o.Namespace == "" {
+		return fmt.Sprintf("%s/%s", o.Kind, o.Name)
+	}
+	return fmt.Sprintf("%s/%s/%s", o.Kind, o.Namespace, o.Name)
+}
+
+// GenerateClusterRole generates the clusterRole that karmada-agent needed.
+func GenerateClusterRole(clusterName string) *rbacv1.ClusterRole {
+	clusterRoleName := fmt.Sprintf("system:karmada:%s:agent", clusterName)
+	return &rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: rbacv1.SchemeGroupVersion.String(),
+			Kind:       "ClusterRole",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: clusterRoleName,
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups:     []string{"cluster.karmada.io"},
+				Resources:     []string{"clusters"},
+				ResourceNames: []string{clusterName},
+				Verbs:         []string{"get", "delete"},
+			},
+			{
+				APIGroups: []string{"cluster.karmada.io"},
+				Resources: []string{"clusters"},
+				Verbs:     []string{"create", "list", "watch"},
+			},
+			{
+				APIGroups:     []string{"cluster.karmada.io"},
+				Resources:     []string{"clusters/status"},
+				ResourceNames: []string{clusterName},
+				Verbs:         []string{"update"},
+			},
+			{
+				APIGroups: []string{"config.karmada.io"},
+				Resources: []string{"resourceinterpreterwebhookconfigurations", "resourceinterpretercustomizations"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"namespaces"},
+				Verbs:     []string{"get"},
+			},
+			{
+				APIGroups: []string{"coordination.k8s.io"},
+				Resources: []string{"leases"},
+				Verbs:     []string{"get", "create", "update"},
+			},
+			{
+				APIGroups: []string{"certificates.k8s.io"},
+				Resources: []string{"certificatesigningrequests"},
+				Verbs:     []string{"get", "create"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"services"},
+				Verbs:     []string{"list", "watch"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"events"},
+				Verbs:     []string{"patch", "create", "update"},
+			},
+		},
+	}
+}
+
+// GenerateClusterRoleBinding generates the clusterRoleBinding that karmada-agent needed.
+func GenerateClusterRoleBinding(clusterName string) *rbacv1.ClusterRoleBinding {
+	return &rbacv1.ClusterRoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("system:karmada:%s:agent", clusterName)},
+		Subjects: []rbacv1.Subject{
+			{
+				APIGroup: "rbac.authorization.k8s.io",
+				Kind:     "User",
+				Name:     generateAgentUserName(clusterName),
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     fmt.Sprintf("system:karmada:%s:agent", clusterName),
+		},
+	}
+}
+
+// GenerateSecretAccessRole generates the secret-related Role that karmada-agent needed.
+func GenerateSecretAccessRole(clusterName, clusterNamespace string) *rbacv1.Role {
+	secretAccessRoleName := fmt.Sprintf("system:karmada:%s:agent-secret", clusterName)
+	return &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretAccessRoleName,
+			Namespace: clusterNamespace,
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				Verbs:         []string{"get", "patch"},
+				APIGroups:     []string{""},
+				Resources:     []string{"secrets"},
+				ResourceNames: []string{clusterName, clusterName + "-impersonator"},
+			},
+			{
+				Verbs:     []string{"create"},
+				APIGroups: []string{""},
+				Resources: []string{"secrets"},
+			},
+		},
+	}
+}
+
+// GenerateSecretAccessRoleBinding generates the secret-related RoleBinding that karmada-agent needed.
+func GenerateSecretAccessRoleBinding(clusterName, clusterNamespace string) *rbacv1.RoleBinding {
+	return &rbacv1.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "RoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("system:karmada:%s:agent-secret", clusterName),
+			Namespace: clusterNamespace,
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				APIGroup: "rbac.authorization.k8s.io",
+				Kind:     "User",
+				Name:     generateAgentUserName(clusterName),
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     fmt.Sprintf("system:karmada:%s:agent-secret", clusterName),
+		},
+	}
+}
+
+// GenerateWorkAccessRole generates the work-related Role that karmada-agent needed.
+func GenerateWorkAccessRole(clusterName string) *rbacv1.Role {
+	workAccessRoleName := fmt.Sprintf("system:karmada:%s:agent-work", clusterName)
+	return &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      workAccessRoleName,
+			Namespace: "karmada-es-" + clusterName,
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				Verbs:     []string{"get", "create", "list", "watch", "update", "delete"},
+				APIGroups: []string{"work.karmada.io"},
+				Resources: []string{"works"},
+			},
+			{
+				Verbs:     []string{"patch", "update"},
+				APIGroups: []string{"work.karmada.io"},
+				Resources: []string{"works/status"},
+			},
+		},
+	}
+}
+
+// GenerateWorkAccessRoleBinding generates the work-related RoleBinding that karmada-agent needed.
+func GenerateWorkAccessRoleBinding(clusterName string) *rbacv1.RoleBinding {
+	return &rbacv1.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "RoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("system:karmada:%s:agent-work", clusterName),
+			Namespace: "karmada-es-" + clusterName,
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				APIGroup: "rbac.authorization.k8s.io",
+				Kind:     "User",
+				Name:     generateAgentUserName(clusterName),
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     fmt.Sprintf("system:karmada:%s:agent-work", clusterName),
+		},
+	}
+}
+
+func (o *CommandRegisterOption) constructKubeConfig(bootstrapClient *kubeclient.Clientset, karmadaClusterInfo *clientcmdapi.Cluster, csrName, commonName string, organization []string) (*clientcmdapi.Config, error) {
 	var cert []byte
 
-	pk, csr, err := generateKeyAndCSR(o.ClusterName)
+	pk, csr, err := generateKeyAndCSR(commonName, organization)
 	if err != nil {
 		return nil, err
 	}
@@ -518,11 +827,12 @@ func (o *CommandRegisterOption) constructKarmadaAgentConfig(bootstrapClient *kub
 		return nil, err
 	}
 
-	csrName := o.ClusterName + "-" + k8srand.String(5)
-
 	certificateSigningRequest := &certificatesv1.CertificateSigningRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: csrName,
+			Labels: map[string]string{
+				karmadautil.KarmadaSystemLabel: karmadautil.KarmadaSystemLabelValue,
+			},
 		},
 		Spec: certificatesv1.CertificateSigningRequestSpec{
 			Request: pem.EncodeToMemory(&pem.Block{
@@ -543,45 +853,47 @@ func (o *CommandRegisterOption) constructKarmadaAgentConfig(bootstrapClient *kub
 	if err != nil {
 		return nil, err
 	}
-
-	klog.V(1).Infof("Waiting for the client certificate to be issued")
+	klog.V(1).Infof(fmt.Sprintf("Waiting for the client certificate %s to be issued", csrName))
 	err = wait.PollUntilContextTimeout(context.TODO(), 1*time.Second, o.Timeout, false, func(context.Context) (done bool, err error) {
 		csrOK, err := bootstrapClient.CertificatesV1().CertificateSigningRequests().Get(context.TODO(), csrName, metav1.GetOptions{})
 		if err != nil {
-			return false, fmt.Errorf("failed to get the cluster csr %s. err: %v", o.ClusterName, err)
+			return false, fmt.Errorf("failed to get the cluster csr %s. err: %v", csrName, err)
 		}
 
 		if csrOK.Status.Certificate != nil {
-			klog.V(1).Infof("Signing certificate successfully")
+			klog.V(1).Infof(fmt.Sprintf("Signing certificate of csr %s successfully", csrName))
 			cert = csrOK.Status.Certificate
 			return true, nil
 		}
 
-		klog.V(1).Infof("Waiting for the client certificate to be issued")
+		klog.V(1).Infof(fmt.Sprintf("Waiting for the client certificate of csr %s to be issued", csrName))
+		klog.V(1).Infof("Approve the CSR %s manually by executing `kubectl certificate approve %s` on the control plane\nOr enable the agentcsrapproving controller of karmada-controller-manager to automatically approve agent CSR.", csrName, csrName)
 		return false, nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	karmadaAgentCfg := CreateWithCert(
+	return CreateWithCert(
 		karmadaClusterInfo.Server,
 		DefaultClusterName,
 		o.ClusterName,
 		karmadaClusterInfo.CertificateAuthorityData,
 		cert,
 		pkData,
-	)
+	), nil
+}
 
-	kubeConfigFile := filepath.Join(KarmadaDir, KarmadaAgentKubeConfigFileName)
+// constructKarmadaAgentConfig constructs the final kubeconfig used by karmada-agent
+func (o *CommandRegisterOption) constructKarmadaAgentConfig(bootstrapClient *kubeclient.Clientset, karmadaClusterInfo *clientcmdapi.Cluster) (*clientcmdapi.Config, error) {
+	csrName := o.ClusterName + "-" + k8srand.String(5)
 
-	// Write the karmada-agent config file down to disk
-	klog.V(1).Infof("writing bootstrap karmada-agent config file at %s", kubeConfigFile)
-	if err := WriteToDisk(kubeConfigFile, karmadaAgentCfg); err != nil {
-		return nil, fmt.Errorf("couldn't save %s to disk: %w", KarmadaAgentKubeConfigFileName, err)
-	}
+	return o.constructKubeConfig(bootstrapClient, karmadaClusterInfo, csrName, generateAgentUserName(o.ClusterName), []string{ClusterPermissionGroups})
+}
 
-	return karmadaAgentCfg, nil
+// constructKarmadaAgentConfig constructs the kubeconfig to generate rbac config for karmada-agent.
+func (o *CommandRegisterOption) constructAgentRBACGeneratorConfig(bootstrapClient *kubeclient.Clientset, karmadaClusterInfo *clientcmdapi.Cluster, csrName string) (*clientcmdapi.Config, error) {
+	return o.constructKubeConfig(bootstrapClient, karmadaClusterInfo, csrName, AgentRBACGenerator, []string{ClusterPermissionGroups})
 }
 
 // createSecretAndRBACInMemberCluster create required secrets and rbac in member cluster
@@ -589,6 +901,11 @@ func (o *CommandRegisterOption) createSecretAndRBACInMemberCluster(karmadaAgentC
 	configBytes, err := clientcmd.Write(*karmadaAgentCfg)
 	if err != nil {
 		return fmt.Errorf("failure while serializing karmada-agent kubeConfig. %w", err)
+	}
+
+	// It's necessary to set the label of namespace to make sure that the namespace is created by Karmada.
+	labels := map[string]string{
+		karmadautil.KarmadaSystemLabel: karmadautil.KarmadaSystemLabelValue,
 	}
 
 	kubeConfigSecret := &corev1.Secret{
@@ -599,6 +916,7 @@ func (o *CommandRegisterOption) createSecretAndRBACInMemberCluster(karmadaAgentC
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      KarmadaKubeconfigName,
 			Namespace: o.Namespace,
+			Labels:    labels,
 		},
 		Type:       corev1.SecretTypeOpaque,
 		StringData: map[string]string{KarmadaKubeconfigName: string(configBytes)},
@@ -611,7 +929,8 @@ func (o *CommandRegisterOption) createSecretAndRBACInMemberCluster(karmadaAgentC
 
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: KarmadaAgentName,
+			Name:   names.KarmadaAgentComponentName,
+			Labels: labels,
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
@@ -635,6 +954,7 @@ func (o *CommandRegisterOption) createSecretAndRBACInMemberCluster(karmadaAgentC
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      KarmadaAgentServiceAccountName,
 			Namespace: o.Namespace,
+			Labels:    labels,
 		},
 	}
 
@@ -646,7 +966,8 @@ func (o *CommandRegisterOption) createSecretAndRBACInMemberCluster(karmadaAgentC
 
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: KarmadaAgentName,
+			Name:   names.KarmadaAgentComponentName,
+			Labels: labels,
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
@@ -678,7 +999,7 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 			Kind:       "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      KarmadaAgentName,
+			Name:      names.KarmadaAgentComponentName,
 			Namespace: o.Namespace,
 			Labels:    karmadaAgentLabels,
 		},
@@ -695,7 +1016,7 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 		ServiceAccountName: KarmadaAgentServiceAccountName,
 		Containers: []corev1.Container{
 			{
-				Name:  KarmadaAgentName,
+				Name:  names.KarmadaAgentComponentName,
 				Image: o.KarmadaAgentImage,
 				Command: []string{
 					"/bin/karmada-agent",
@@ -710,9 +1031,16 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 					fmt.Sprintf("--leader-elect-resource-namespace=%s", o.Namespace),
 					fmt.Sprintf("--cluster-namespace=%s", o.ClusterNamespace),
 					"--cluster-status-update-frequency=10s",
-					"--bind-address=0.0.0.0",
-					"--secure-port=10357",
+					"--metrics-bind-address=:8080",
+					"--health-probe-bind-address=0.0.0.0:10357",
 					"--v=4",
+				},
+				Ports: []corev1.ContainerPort{
+					{
+						Name:          "metrics",
+						ContainerPort: 8080,
+						Protocol:      corev1.ProtocolTCP,
+					},
 				},
 				VolumeMounts: []corev1.VolumeMount{
 					{
@@ -742,7 +1070,7 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 	// PodTemplateSpec
 	podTemplateSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      KarmadaAgentName,
+			Name:      names.KarmadaAgentComponentName,
 			Namespace: o.Namespace,
 			Labels:    karmadaAgentLabels,
 		},
@@ -761,7 +1089,7 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 }
 
 // generateKeyAndCSR generate private key and csr
-func generateKeyAndCSR(clusterName string) (*rsa.PrivateKey, []byte, error) {
+func generateKeyAndCSR(commonName string, organization []string) (*rsa.PrivateKey, []byte, error) {
 	pk, err := rsa.GenerateKey(rand.Reader, 3072)
 	if err != nil {
 		return nil, nil, err
@@ -769,8 +1097,8 @@ func generateKeyAndCSR(clusterName string) (*rsa.PrivateKey, []byte, error) {
 
 	csr, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{
 		Subject: pkix.Name{
-			CommonName:   ClusterPermissionPrefix + clusterName,
-			Organization: []string{ClusterPermissionGroups},
+			CommonName:   commonName,
+			Organization: organization,
 		},
 	}, pk)
 	if err != nil {
@@ -1001,25 +1329,6 @@ func CreateBasic(serverURL, clusterName, userName string, caCert []byte) *client
 	}
 }
 
-// WriteToDisk writes a KubeConfig object down to disk with mode 0600
-func WriteToDisk(filename string, kubeconfig *clientcmdapi.Config) error {
-	err := clientcmd.WriteToFile(*kubeconfig, filename)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ClientSetFromFile returns a ready-to-use client from a kubeconfig file
-func ClientSetFromFile(path string) (*kubeclient.Clientset, error) {
-	config, err := clientcmd.LoadFromFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load admin kubeconfig: %w", err)
-	}
-	return ToClientSet(config)
-}
-
 // ToClientSet converts a KubeConfig object to a client
 func ToClientSet(config *clientcmdapi.Config) (*kubeclient.Clientset, error) {
 	overrides := clientcmd.ConfigOverrides{Timeout: "10s"}
@@ -1049,4 +1358,8 @@ func ToKarmadaClient(config *clientcmdapi.Config) (*karmadaclientset.Clientset, 
 	}
 
 	return karmadaClient, nil
+}
+
+func generateAgentUserName(clusterName string) string {
+	return ClusterPermissionPrefix + clusterName
 }

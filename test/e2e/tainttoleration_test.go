@@ -51,7 +51,7 @@ var _ = framework.SerialDescribe("propagation with taint and toleration testing"
 			deploymentName = policyName
 			deployment = helper.NewDeployment(deploymentNamespace, deploymentName)
 			tolerationKey = "cluster-toleration.karmada.io"
-			tolerationValue = "member1"
+			tolerationValue = framework.ClusterNames()[0]
 
 			// set clusterTolerations to tolerate taints in member1.
 			clusterTolerations = []corev1.Toleration{

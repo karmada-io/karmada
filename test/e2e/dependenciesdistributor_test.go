@@ -38,8 +38,8 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 		var policy *policyv1alpha1.PropagationPolicy
 
 		ginkgo.BeforeEach(func() {
-			initClusterNames = []string{"member1"}
-			updateClusterNames = []string{"member2"}
+			initClusterNames = []string{framework.ClusterNames()[0]}
+			updateClusterNames = []string{framework.ClusterNames()[1]}
 
 			policyName = deploymentNamePrefix + rand.String(RandomStrLength)
 			deploymentName = policyName
@@ -351,8 +351,8 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 		var policy *policyv1alpha1.ClusterPropagationPolicy
 
 		ginkgo.BeforeEach(func() {
-			initClusterNames = []string{"member1"}
-			updateClusterNames = []string{"member2"}
+			initClusterNames = []string{framework.ClusterNames()[0]}
+			updateClusterNames = []string{framework.ClusterNames()[1]}
 
 			policyName = deploymentNamePrefix + rand.String(RandomStrLength)
 			deploymentName = policyName

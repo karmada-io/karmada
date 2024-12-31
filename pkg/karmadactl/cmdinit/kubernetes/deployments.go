@@ -29,12 +29,15 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	globaloptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 const (
 	deploymentAPIVersion = "apps/v1"
 	deploymentKind       = "Deployment"
 	portName             = "server"
+	metricsPortName      = "metrics"
+	defaultMetricsPort   = 8080
 
 	// KubeConfigSecretAndMountName is the secret and volume mount name of karmada kubeconfig
 	KubeConfigSecretAndMountName                                = "kubeconfig"
@@ -45,16 +48,16 @@ const (
 	serviceClusterIP                                            = "10.96.0.0/12"
 	kubeControllerManagerClusterRoleAndDeploymentAndServiceName = "kube-controller-manager"
 	kubeControllerManagerPort                                   = 10257
-	schedulerDeploymentNameAndServiceAccountName                = "karmada-scheduler"
-	controllerManagerDeploymentAndServiceName                   = "karmada-controller-manager"
+	schedulerDeploymentNameAndServiceAccountName                = names.KarmadaSchedulerComponentName
+	controllerManagerDeploymentAndServiceName                   = names.KarmadaControllerManagerComponentName
 	controllerManagerSecurePort                                 = 10357
-	webhookDeploymentAndServiceAccountAndServiceName            = "karmada-webhook"
+	webhookDeploymentAndServiceAccountAndServiceName            = names.KarmadaWebhookComponentName
 	webhookCertsName                                            = "karmada-webhook-cert"
 	webhookCertVolumeMountPath                                  = "/var/serving-cert"
 	webhookPortName                                             = "webhook"
 	webhookTargetPort                                           = 8443
 	webhookPort                                                 = 443
-	karmadaAggregatedAPIServerDeploymentAndServiceName          = "karmada-aggregated-apiserver"
+	karmadaAggregatedAPIServerDeploymentAndServiceName          = names.KarmadaAggregatedAPIServerComponentName
 )
 
 var (
@@ -90,9 +93,6 @@ func (i *CommandInitOption) karmadaAPIServerContainerCommand() []string {
 		fmt.Sprintf("--etcd-keyfile=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
 		fmt.Sprintf("--etcd-servers=%s", etcdServers),
 		"--bind-address=0.0.0.0",
-		fmt.Sprintf("--kubelet-client-certificate=%s/%s.crt", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
-		fmt.Sprintf("--kubelet-client-key=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
-		"--kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname",
 		"--disable-admission-plugins=StorageObjectInUseProtection,ServiceAccount",
 		"--runtime-config=",
 		fmt.Sprintf("--apiserver-count=%v", i.KarmadaAPIServerReplicas),
@@ -312,7 +312,7 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 					fmt.Sprintf("--cluster-name=%s", options.ClusterName),
 					fmt.Sprintf("--cluster-signing-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
 					fmt.Sprintf("--cluster-signing-key-file=%s/%s.key", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
-					"--controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrapproving,csrcleaner,csrsigning,clusterrole-aggregation",
+					"--controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrcleaner,csrsigning,clusterrole-aggregation",
 					"--kubeconfig=/etc/kubeconfig",
 					"--leader-elect=true",
 					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
@@ -450,8 +450,8 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 				Command: []string{
 					"/bin/karmada-scheduler",
 					"--kubeconfig=/etc/kubeconfig",
-					"--bind-address=0.0.0.0",
-					"--secure-port=10351",
+					"--metrics-bind-address=0.0.0.0:8080",
+					"--health-probe-bind-address=0.0.0.0:10351",
 					"--enable-scheduler-estimator=true",
 					"--leader-elect=true",
 					"--scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt",
@@ -461,6 +461,13 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 					"--v=4",
 				},
 				LivenessProbe: livenessProbe,
+				Ports: []corev1.ContainerPort{
+					{
+						Name:          metricsPortName,
+						ContainerPort: 8080,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				},
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      KubeConfigSecretAndMountName,
@@ -582,9 +589,9 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 				Command: []string{
 					"/bin/karmada-controller-manager",
 					"--kubeconfig=/etc/kubeconfig",
-					"--bind-address=0.0.0.0",
+					"--metrics-bind-address=:8080",
+					"--health-probe-bind-address=0.0.0.0:10357",
 					"--cluster-status-update-frequency=10s",
-					"--secure-port=10357",
 					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
 					"--v=4",
 				},
@@ -593,6 +600,11 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 					{
 						Name:          portName,
 						ContainerPort: controllerManagerSecurePort,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          metricsPortName,
+						ContainerPort: defaultMetricsPort,
 						Protocol:      corev1.ProtocolTCP,
 					},
 				},
@@ -702,6 +714,7 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 					"/bin/karmada-webhook",
 					"--kubeconfig=/etc/kubeconfig",
 					"--bind-address=0.0.0.0",
+					"--metrics-bind-address=:8080",
 					fmt.Sprintf("--secure-port=%v", webhookTargetPort),
 					fmt.Sprintf("--cert-dir=%s", webhookCertVolumeMountPath),
 					"--v=4",
@@ -710,6 +723,11 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 					{
 						Name:          webhookPortName,
 						ContainerPort: webhookTargetPort,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          metricsPortName,
+						ContainerPort: defaultMetricsPort,
 						Protocol:      corev1.ProtocolTCP,
 					},
 				},

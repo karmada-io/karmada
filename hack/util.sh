@@ -37,9 +37,9 @@ KARMADA_METRICS_ADAPTER_LABEL="karmada-metrics-adapter"
 
 KARMADA_GO_PACKAGE="github.com/karmada-io/karmada"
 
-MIN_Go_VERSION=go1.22.4
+MIN_Go_VERSION=go1.22.9
 
-DEFAULT_CLUSTER_VERSION="kindest/node:v1.27.3"
+DEFAULT_CLUSTER_VERSION="kindest/node:v1.31.2"
 
 KARMADA_TARGET_SOURCE=(
   karmada-aggregated-apiserver=cmd/aggregated-apiserver
@@ -243,16 +243,28 @@ function util::create_certkey {
 EOF
 }
 
+# util::create_key_pair generates a new public and private key pair.
+function util::create_key_pair {
+  local sudo=$1
+  local dest_dir=$2
+  local name=$3
+  ${sudo} /usr/bin/env bash -e <<EOF
+  cd ${dest_dir}
+  openssl genrsa -out ${name}.key 3072
+  openssl rsa -in ${name}.key -pubout -out ${name}.pub
+EOF
+}
+
 # util::append_client_kubeconfig creates a new context including a cluster and a user to the existed kubeconfig file
 function util::append_client_kubeconfig {
     local kubeconfig_path=$1
-    local client_certificate_file=$2
-    local client_key_file=$3
-    local api_host=$4
-    local api_port=$5
+    local ca_file=$2
+    local client_certificate_file=$3
+    local client_key_file=$4
+    local server=$5
     local client_id=$6
     local token=${7:-}
-    kubectl config set-cluster "${client_id}" --server=https://"${api_host}:${api_port}" --insecure-skip-tls-verify=true --kubeconfig="${kubeconfig_path}"
+    kubectl config set-cluster "${client_id}" --server="${server}" --embed-certs --certificate-authority="${ca_file}" --kubeconfig="${kubeconfig_path}"
     kubectl config set-credentials "${client_id}" --token="${token}" --client-certificate="${client_certificate_file}" --client-key="${client_key_file}" --embed-certs=true --kubeconfig="${kubeconfig_path}"
     kubectl config set-context "${client_id}" --cluster="${client_id}" --user="${client_id}" --kubeconfig="${kubeconfig_path}"
 }

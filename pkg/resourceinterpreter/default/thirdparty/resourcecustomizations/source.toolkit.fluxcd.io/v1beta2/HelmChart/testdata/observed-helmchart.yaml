@@ -3,6 +3,9 @@ kind: HelmChart
 metadata:
   name: sample
   namespace: test-helmchart
+  annotations:
+    resourcetemplate.karmada.io/generation: "1"
+  generation: 1
 spec:
   interval: 5m0s
   chart: podinfo

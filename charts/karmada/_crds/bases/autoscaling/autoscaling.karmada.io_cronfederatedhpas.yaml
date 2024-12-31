@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.5
   name: cronfederatedhpas.autoscaling.karmada.io
 spec:
   group: autoscaling.karmada.io
@@ -78,7 +78,6 @@ spec:
                       description: |-
                         Name of the rule.
                         Each rule in a CronFederatedHPA must have a unique name.
-
 
                         Note: the name will be used as an identifier to record its execution
                         history. Changing the name will be considered as deleting the old rule

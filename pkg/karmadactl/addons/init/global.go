@@ -43,11 +43,11 @@ type GlobalCommandOptions struct {
 	// Cluster holds the name of member cluster to enable or disable scheduler estimator
 	Cluster string
 
-	KubeClientSet *kubernetes.Clientset
+	KubeClientSet kubernetes.Interface
 
 	KarmadaRestConfig *rest.Config
 
-	KarmadaAggregatorClientSet *aggregator.Clientset
+	KarmadaAggregatorClientSet aggregator.Interface
 }
 
 // AddFlags adds flags to the specified FlagSet.

@@ -73,6 +73,38 @@ var (
 			Name:      "bar",
 		},
 	}
+	podWithEmptyGroup = &corev1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Pod",
+			APIVersion: "",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "foo",
+			Name:      "bar",
+		},
+	}
+
+	podWithEmptyKind = &corev1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "foo",
+			Name:      "bar",
+		},
+	}
+
+	secretWithEmptyNamespace = &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "",
+			Name:      "bar",
+		},
+	}
 )
 
 func TestClusterWideKeyFunc(t *testing.T) {
@@ -120,6 +152,22 @@ func TestClusterWideKeyFunc(t *testing.T) {
 			name:      "non APIVersion and kind runtime object should be error",
 			object:    deploymentObj,
 			expectErr: true,
+		},
+		{
+			name:      "resource with empty group",
+			object:    podWithEmptyGroup,
+			expectErr: true,
+		},
+		{
+			name:      "resource with empty kind",
+			object:    podWithEmptyKind,
+			expectErr: true,
+		},
+		{
+			name:         "resource with empty namespace",
+			object:       secretWithEmptyNamespace,
+			expectErr:    false,
+			expectKeyStr: "v1, kind=Secret, bar",
 		},
 	}
 

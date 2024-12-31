@@ -20,8 +20,8 @@ package v1alpha1
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -38,25 +38,17 @@ type KarmadaLister interface {
 
 // karmadaLister implements the KarmadaLister interface.
 type karmadaLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1alpha1.Karmada]
 }
 
 // NewKarmadaLister returns a new KarmadaLister.
 func NewKarmadaLister(indexer cache.Indexer) KarmadaLister {
-	return &karmadaLister{indexer: indexer}
-}
-
-// List lists all Karmadas in the indexer.
-func (s *karmadaLister) List(selector labels.Selector) (ret []*v1alpha1.Karmada, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.Karmada))
-	})
-	return ret, err
+	return &karmadaLister{listers.New[*v1alpha1.Karmada](indexer, v1alpha1.Resource("karmada"))}
 }
 
 // Karmadas returns an object that can list and get Karmadas.
 func (s *karmadaLister) Karmadas(namespace string) KarmadaNamespaceLister {
-	return karmadaNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return karmadaNamespaceLister{listers.NewNamespaced[*v1alpha1.Karmada](s.ResourceIndexer, namespace)}
 }
 
 // KarmadaNamespaceLister helps list and get Karmadas.
@@ -74,26 +66,5 @@ type KarmadaNamespaceLister interface {
 // karmadaNamespaceLister implements the KarmadaNamespaceLister
 // interface.
 type karmadaNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all Karmadas in the indexer for a given namespace.
-func (s karmadaNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.Karmada, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.Karmada))
-	})
-	return ret, err
-}
-
-// Get retrieves the Karmada from the indexer for a given namespace and name.
-func (s karmadaNamespaceLister) Get(name string) (*v1alpha1.Karmada, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("karmada"), name)
-	}
-	return obj.(*v1alpha1.Karmada), nil
+	listers.ResourceIndexer[*v1alpha1.Karmada]
 }

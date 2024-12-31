@@ -34,6 +34,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	utilcomp "github.com/karmada-io/karmada/pkg/karmadactl/util/completion"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/genericresource"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -44,13 +45,13 @@ var (
 	interpretLong = templates.LongDesc(`
         Validate, test and edit interpreter customization before applying it to the control plane.
 
-        1. Validate the ResourceInterpreterCustomization configuration as per API schema
+		1. Validate the ResourceInterpreterCustomization configuration as per API schema
            and try to load the scripts for syntax check.
 
-        2. Run the rules locally and test if the result is expected. Similar to the dry run.
+		2. Run the rules locally and test if the result is expected. Similar to the dry run.
 
 		3. Edit customization. Similar to the kubectl edit.
-`)
+	`)
 
 	interpretExample = templates.Examples(`
         # Check the customizations in file
@@ -82,7 +83,7 @@ var (
 
 		# Edit customization
 		%[1]s interpret -f customization.yml --edit
-`)
+	`)
 )
 
 const (
@@ -131,6 +132,7 @@ func NewCmdInterpret(f util.Factory, parentCommand string, streams genericioopti
 	cmdutil.AddJsonFilenameFlag(flags, &o.FilenameOptions.Filenames, "Filename, directory, or URL to files containing the customizations")
 	flags.BoolVarP(&o.FilenameOptions.Recursive, "recursive", "R", false, "Process the directory used in -f, --filename recursively. Useful when you want to manage related manifests organized within the same directory.")
 
+	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(cmd)
 	return cmd
 }
 

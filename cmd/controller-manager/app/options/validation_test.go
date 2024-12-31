@@ -31,7 +31,6 @@ type ModifyOptions func(option *Options)
 func New(modifyOptions ModifyOptions) Options {
 	option := Options{
 		SkippedPropagatingAPIs:       "cluster.karmada.io;policy.karmada.io;work.karmada.io",
-		SecurePort:                   8090,
 		ClusterStatusUpdateFrequency: metav1.Duration{Duration: 10 * time.Second},
 		ClusterLeaseDuration:         metav1.Duration{Duration: 10 * time.Second},
 		ClusterMonitorPeriod:         metav1.Duration{Duration: 10 * time.Second},
@@ -66,12 +65,6 @@ func TestValidateControllerManagerConfiguration(t *testing.T) {
 				options.SkippedPropagatingAPIs = "a/b/c/d?"
 			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("SkippedPropagatingAPIs"), "a/b/c/d?", "Invalid API string")},
-		},
-		"invalid SecurePort": {
-			opt: New(func(options *Options) {
-				options.SecurePort = -10
-			}),
-			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("SecurePort"), -10, "must be between 0 and 65535 inclusive")},
 		},
 		"invalid ClusterStatusUpdateFrequency": {
 			opt: New(func(options *Options) {

@@ -30,10 +30,15 @@ trap EXIT
 
 echo 'installing mockgen'
 source "${KARMADA_ROOT}"/hack/util.sh
-echo -n "Preparing: 'mockgen' existence check - "
+echo "Preparing: 'mockgen' existence check - "
 if [ ! $(util::cmd_exist mockgen) ]; then
   # install from vendor with the pinned version in go.mod file
   GO111MODULE=on go install "go.uber.org/mock/mockgen"
+fi
+echo "Preparing: 'goimports' existence check - "
+if [ ! $(util::cmd_exist goimports) ]; then
+  # install from vendor with the pinned version in go.mod file
+  GO111MODULE=on go install "golang.org/x/tools/cmd/goimports"
 fi
 
 find_files() {

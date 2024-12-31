@@ -140,17 +140,18 @@ func getKarmadaControllerManagerManifest(name, namespace string, featureGates ma
 
 func getKarmadaSchedulerManifest(name, namespace string, featureGates map[string]bool, cfg *operatorv1alpha1.KarmadaScheduler) (*appsv1.Deployment, error) {
 	karmadaSchedulerBytes, err := util.ParseTemplate(KarmadaSchedulerDeployment, struct {
-		Replicas                                   *int32
-		DeploymentName, Namespace, SystemNamespace string
-		Image, ImagePullPolicy, KubeconfigSecret   string
+		Replicas                                                     *int32
+		DeploymentName, Namespace, SystemNamespace                   string
+		Image, ImagePullPolicy, KubeconfigSecret, KarmadaCertsSecret string
 	}{
-		DeploymentName:   util.KarmadaSchedulerName(name),
-		Namespace:        namespace,
-		SystemNamespace:  constants.KarmadaSystemNamespace,
-		Image:            cfg.Image.Name(),
-		ImagePullPolicy:  string(cfg.ImagePullPolicy),
-		KubeconfigSecret: util.AdminKubeconfigSecretName(name),
-		Replicas:         cfg.Replicas,
+		DeploymentName:     util.KarmadaSchedulerName(name),
+		Namespace:          namespace,
+		SystemNamespace:    constants.KarmadaSystemNamespace,
+		Image:              cfg.Image.Name(),
+		ImagePullPolicy:    string(cfg.ImagePullPolicy),
+		KubeconfigSecret:   util.AdminKubeconfigSecretName(name),
+		KarmadaCertsSecret: util.KarmadaCertSecretName(name),
+		Replicas:           cfg.Replicas,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error when parsing karmada-scheduler deployment template: %w", err)
@@ -168,17 +169,18 @@ func getKarmadaSchedulerManifest(name, namespace string, featureGates map[string
 
 func getKarmadaDeschedulerManifest(name, namespace string, featureGates map[string]bool, cfg *operatorv1alpha1.KarmadaDescheduler) (*appsv1.Deployment, error) {
 	karmadaDeschedulerBytes, err := util.ParseTemplate(KarmadaDeschedulerDeployment, struct {
-		Replicas                                   *int32
-		DeploymentName, Namespace, SystemNamespace string
-		Image, ImagePullPolicy, KubeconfigSecret   string
+		Replicas                                                     *int32
+		DeploymentName, Namespace, SystemNamespace                   string
+		Image, ImagePullPolicy, KubeconfigSecret, KarmadaCertsSecret string
 	}{
-		DeploymentName:   util.KarmadaDeschedulerName(name),
-		Namespace:        namespace,
-		SystemNamespace:  constants.KarmadaSystemNamespace,
-		Image:            cfg.Image.Name(),
-		ImagePullPolicy:  string(cfg.ImagePullPolicy),
-		KubeconfigSecret: util.AdminKubeconfigSecretName(name),
-		Replicas:         cfg.Replicas,
+		DeploymentName:     util.KarmadaDeschedulerName(name),
+		Namespace:          namespace,
+		SystemNamespace:    constants.KarmadaSystemNamespace,
+		Image:              cfg.Image.Name(),
+		ImagePullPolicy:    string(cfg.ImagePullPolicy),
+		KubeconfigSecret:   util.AdminKubeconfigSecretName(name),
+		KarmadaCertsSecret: util.KarmadaCertSecretName(name),
+		Replicas:           cfg.Replicas,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error when parsing karmada-descheduler deployment template: %w", err)

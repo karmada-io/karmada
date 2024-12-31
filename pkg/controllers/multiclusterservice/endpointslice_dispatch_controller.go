@@ -49,7 +49,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
-// EndpointsliceDispatchControllerName is the controller name that will be used when reporting events.
+// EndpointsliceDispatchControllerName is the controller name that will be used when reporting events and metrics.
 const EndpointsliceDispatchControllerName = "endpointslice-dispatch-controller"
 
 // EndpointsliceDispatchController will reconcile a MultiClusterService object
@@ -98,11 +98,11 @@ func (c *EndpointsliceDispatchController) Reconcile(ctx context.Context, req con
 	var err error
 	defer func() {
 		if err != nil {
-			_ = c.updateEndpointSliceDispatched(mcs, metav1.ConditionFalse, "EndpointSliceDispatchedFailed", err.Error())
+			_ = c.updateEndpointSliceDispatched(ctx, mcs, metav1.ConditionFalse, "EndpointSliceDispatchedFailed", err.Error())
 			c.EventRecorder.Eventf(mcs, corev1.EventTypeWarning, events.EventReasonDispatchEndpointSliceFailed, err.Error())
 			return
 		}
-		_ = c.updateEndpointSliceDispatched(mcs, metav1.ConditionTrue, "EndpointSliceDispatchedSucceed", "EndpointSlice are dispatched successfully")
+		_ = c.updateEndpointSliceDispatched(ctx, mcs, metav1.ConditionTrue, "EndpointSliceDispatchedSucceed", "EndpointSlice are dispatched successfully")
 		c.EventRecorder.Eventf(mcs, corev1.EventTypeNormal, events.EventReasonDispatchEndpointSliceSucceed, "EndpointSlice are dispatched successfully")
 	}()
 
@@ -117,7 +117,7 @@ func (c *EndpointsliceDispatchController) Reconcile(ctx context.Context, req con
 	return controllerruntime.Result{}, nil
 }
 
-func (c *EndpointsliceDispatchController) updateEndpointSliceDispatched(mcs *networkingv1alpha1.MultiClusterService, status metav1.ConditionStatus, reason, message string) error {
+func (c *EndpointsliceDispatchController) updateEndpointSliceDispatched(ctx context.Context, mcs *networkingv1alpha1.MultiClusterService, status metav1.ConditionStatus, reason, message string) error {
 	EndpointSliceCollected := metav1.Condition{
 		Type:               networkingv1alpha1.EndpointSliceDispatched,
 		Status:             status,
@@ -127,7 +127,7 @@ func (c *EndpointsliceDispatchController) updateEndpointSliceDispatched(mcs *net
 	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		_, err = helper.UpdateStatus(context.Background(), c.Client, mcs, func() error {
+		_, err = helper.UpdateStatus(ctx, c.Client, mcs, func() error {
 			meta.SetStatusCondition(&mcs.Status.Conditions, EndpointSliceCollected)
 			return nil
 		})
@@ -160,14 +160,16 @@ func (c *EndpointsliceDispatchController) SetupWithManager(mgr controllerruntime
 			return false
 		},
 	}
-	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{}, builder.WithPredicates(workPredicateFun)).
+	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(EndpointsliceDispatchControllerName).
+		For(&workv1alpha1.Work{}, builder.WithPredicates(workPredicateFun)).
 		Watches(&networkingv1alpha1.MultiClusterService{}, handler.EnqueueRequestsFromMapFunc(c.newMultiClusterServiceFunc())).
 		Watches(&clusterv1alpha1.Cluster{}, handler.EnqueueRequestsFromMapFunc(c.newClusterFunc())).
 		Complete(c)
 }
 
 func (c *EndpointsliceDispatchController) newClusterFunc() handler.MapFunc {
-	return func(_ context.Context, a client.Object) []reconcile.Request {
+	return func(ctx context.Context, a client.Object) []reconcile.Request {
 		var clusterName string
 		switch t := a.(type) {
 		case *clusterv1alpha1.Cluster:
@@ -177,7 +179,7 @@ func (c *EndpointsliceDispatchController) newClusterFunc() handler.MapFunc {
 		}
 
 		mcsList := &networkingv1alpha1.MultiClusterServiceList{}
-		if err := c.Client.List(context.TODO(), mcsList, &client.ListOptions{}); err != nil {
+		if err := c.Client.List(ctx, mcsList, &client.ListOptions{}); err != nil {
 			klog.Errorf("Failed to list MultiClusterService, error: %v", err)
 			return nil
 		}
@@ -194,7 +196,7 @@ func (c *EndpointsliceDispatchController) newClusterFunc() handler.MapFunc {
 				continue
 			}
 
-			workList, err := c.getClusterEndpointSliceWorks(mcs.Namespace, mcs.Name)
+			workList, err := c.getClusterEndpointSliceWorks(ctx, mcs.Namespace, mcs.Name)
 			if err != nil {
 				klog.Errorf("Failed to list work, error: %v", err)
 				continue
@@ -214,9 +216,9 @@ func (c *EndpointsliceDispatchController) newClusterFunc() handler.MapFunc {
 	}
 }
 
-func (c *EndpointsliceDispatchController) getClusterEndpointSliceWorks(mcsNamespace, mcsName string) ([]workv1alpha1.Work, error) {
+func (c *EndpointsliceDispatchController) getClusterEndpointSliceWorks(ctx context.Context, mcsNamespace, mcsName string) ([]workv1alpha1.Work, error) {
 	workList := &workv1alpha1.WorkList{}
-	if err := c.Client.List(context.TODO(), workList, &client.ListOptions{
+	if err := c.Client.List(ctx, workList, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
 			util.MultiClusterServiceNameLabel:      mcsName,
 			util.MultiClusterServiceNamespaceLabel: mcsNamespace,
@@ -230,7 +232,7 @@ func (c *EndpointsliceDispatchController) getClusterEndpointSliceWorks(mcsNamesp
 }
 
 func (c *EndpointsliceDispatchController) newMultiClusterServiceFunc() handler.MapFunc {
-	return func(_ context.Context, a client.Object) []reconcile.Request {
+	return func(ctx context.Context, a client.Object) []reconcile.Request {
 		var mcsName, mcsNamespace string
 		switch t := a.(type) {
 		case *networkingv1alpha1.MultiClusterService:
@@ -240,7 +242,7 @@ func (c *EndpointsliceDispatchController) newMultiClusterServiceFunc() handler.M
 			return nil
 		}
 
-		workList, err := c.getClusterEndpointSliceWorks(mcsNamespace, mcsName)
+		workList, err := c.getClusterEndpointSliceWorks(ctx, mcsNamespace, mcsName)
 		if err != nil {
 			klog.Errorf("Failed to list work, error: %v", err)
 			return nil
@@ -292,7 +294,7 @@ func (c *EndpointsliceDispatchController) cleanOrphanDispatchedEndpointSlice(ctx
 			continue
 		}
 
-		if err := c.Client.Delete(ctx, work.DeepCopy()); err != nil {
+		if err = c.Client.Delete(ctx, work.DeepCopy()); err != nil {
 			klog.Errorf("Failed to delete work %s/%s, error is: %v", work.Namespace, work.Name, err)
 			return err
 		}
@@ -336,22 +338,14 @@ func (c *EndpointsliceDispatchController) dispatchEndpointSlice(ctx context.Cont
 			continue
 		}
 
-		if err := c.ensureEndpointSliceWork(mcs, work, epsSourceCluster, clusterName); err != nil {
+		if err = c.ensureEndpointSliceWork(ctx, mcs, work, epsSourceCluster, clusterName); err != nil {
 			return err
 		}
 	}
-
-	if controllerutil.AddFinalizer(work, util.MCSEndpointSliceDispatchControllerFinalizer) {
-		if err := c.Client.Update(ctx, work); err != nil {
-			klog.Errorf("Failed to add finalizer %s for work %s/%s:%v", util.MCSEndpointSliceDispatchControllerFinalizer, work.Namespace, work.Name, err)
-			return err
-		}
-	}
-
 	return nil
 }
 
-func (c *EndpointsliceDispatchController) ensureEndpointSliceWork(mcs *networkingv1alpha1.MultiClusterService,
+func (c *EndpointsliceDispatchController) ensureEndpointSliceWork(ctx context.Context, mcs *networkingv1alpha1.MultiClusterService,
 	work *workv1alpha1.Work, providerCluster, consumerCluster string) error {
 	// It couldn't happen here
 	if len(work.Spec.Workload.Manifests) == 0 {
@@ -401,7 +395,7 @@ func (c *EndpointsliceDispatchController) ensureEndpointSliceWork(mcs *networkin
 		klog.Errorf("Failed to convert typed object to unstructured object, error is: %v", err)
 		return err
 	}
-	if err := helper.CreateOrUpdateWork(c.Client, workMeta, unstructuredEPS); err != nil {
+	if err := helper.CreateOrUpdateWork(ctx, c.Client, workMeta, unstructuredEPS); err != nil {
 		klog.Errorf("Failed to dispatch EndpointSlice %s/%s from %s to cluster %s:%v",
 			work.GetNamespace(), work.GetName(), providerCluster, consumerCluster, err)
 		return err

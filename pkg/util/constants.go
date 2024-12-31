@@ -20,6 +20,8 @@ import (
 	"time"
 
 	discoveryv1 "k8s.io/api/discovery/v1"
+
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
 // Define labels used by karmada system.
@@ -52,8 +54,13 @@ const (
 	// FederatedResourceQuotaNameLabel is added to Work to specify associated FederatedResourceQuota's name.
 	FederatedResourceQuotaNameLabel = "federatedresourcequota.karmada.io/name"
 
-	// ManagedByKarmadaLabel is a reserved karmada label to indicate whether resources are managed by karmada controllers.
+	// ManagedByKarmadaLabel is a reserved karmada label to indicate whether resources are member cluster resources
+	// synchronized by karmada controllers.
 	ManagedByKarmadaLabel = "karmada.io/managed"
+
+	// KarmadaSystemLabel is a reserved karmada label to indicate whether resources are system level resources
+	// managed by karmada controllers.
+	KarmadaSystemLabel = "karmada.io/system"
 
 	// EndpointSliceDispatchControllerLabelValue indicates the endpointSlice are controlled by Karmada
 	EndpointSliceDispatchControllerLabelValue = "endpointslice-dispatch-controller.karmada.io"
@@ -71,8 +78,11 @@ const (
 )
 
 const (
-	// ManagedByKarmadaLabelValue indicates that resources are managed by karmada controllers.
+	// ManagedByKarmadaLabelValue indicates that these are workloads in member cluster synchronized by karmada controllers.
 	ManagedByKarmadaLabelValue = "true"
+
+	// KarmadaSystemLabelValue indicates that resources are system level resources managed by karmada controllers.
+	KarmadaSystemLabelValue = "true"
 
 	// RetainReplicasValue is an optional value of RetainReplicasLabel, indicating retain
 	RetainReplicasValue = "true"
@@ -130,7 +140,7 @@ const (
 	// before ClusterResourceBinding itself is deleted.
 	ClusterResourceBindingControllerFinalizer = "karmada.io/cluster-resource-binding-controller"
 
-	// MCSControllerFinalizer is added to Cluster to ensure service work is deleted before itself is deleted.
+	// MCSControllerFinalizer is added to MultiClusterService to ensure service work is deleted before itself is deleted.
 	MCSControllerFinalizer = "karmada.io/multiclusterservice-controller"
 
 	// PropagationPolicyControllerFinalizer is added to PropagationPolicy to ensure the related resources have been unbound before itself is deleted.
@@ -217,11 +227,6 @@ const (
 	CompletionsField = "completions"
 )
 
-const (
-	// NamespaceKarmadaSystem is the karmada system namespace.
-	NamespaceKarmadaSystem = "karmada-system"
-)
-
 // ContextKey is the key of context.
 type ContextKey string
 
@@ -243,4 +248,27 @@ var (
 const (
 	// DefaultFilePerm default file perm
 	DefaultFilePerm = 0640
+)
+
+var (
+	// ManagedResourceLabels is the list of labels that are applied to
+	// resources in member clusters.
+	ManagedResourceLabels = []string{
+		workv1alpha2.ResourceBindingPermanentIDLabel,
+		workv1alpha2.WorkPermanentIDLabel,
+		ManagedByKarmadaLabel,
+	}
+
+	// ManagedResourceAnnotations is the list of annotations that are applied to
+	// resources in member clusters.
+	ManagedResourceAnnotations = []string{
+		workv1alpha2.ManagedAnnotation,
+		workv1alpha2.ManagedLabels,
+		workv1alpha2.ResourceBindingNamespaceAnnotationKey,
+		workv1alpha2.ResourceBindingNameAnnotationKey,
+		workv1alpha2.ResourceTemplateUIDAnnotation,
+		workv1alpha2.ResourceTemplateGenerationAnnotationKey,
+		workv1alpha2.WorkNameAnnotation,
+		workv1alpha2.WorkNamespaceAnnotation,
+	}
 )

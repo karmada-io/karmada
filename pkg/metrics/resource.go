@@ -30,6 +30,8 @@ const (
 	policyApplyAttemptsMetricsName             = "policy_apply_attempts_total"
 	syncWorkDurationMetricsName                = "binding_sync_work_duration_seconds"
 	syncWorkloadDurationMetricsName            = "work_sync_workload_duration_seconds"
+	recreateResourceToCluster                  = "recreate_resource_to_cluster"
+	updateResourceToCluster                    = "update_resource_to_cluster"
 	policyPreemptionMetricsName                = "policy_preemption_total"
 	cronFederatedHPADurationMetricsName        = "cronfederatedhpa_process_duration_seconds"
 	cronFederatedHPARuleDurationMetricsName    = "cronfederatedhpa_rule_process_duration_seconds"
@@ -66,6 +68,16 @@ var (
 		Help:    "Duration in seconds to sync the workload to a target cluster. By the result, 'error' means a work failed to sync workloads. Otherwise 'success'.",
 		Buckets: prometheus.ExponentialBuckets(0.001, 2, 12),
 	}, []string{"result"})
+
+	recreateResourceWhenSyncWorkStatus = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: recreateResourceToCluster,
+		Help: "Number of recreating operation of the resource to a target member cluster. By the result, 'error' means a resource recreated failed. Otherwise 'success'. Cluster means the target member cluster.",
+	}, []string{"result", "apiversion", "kind", "cluster"})
+
+	updateResourceWhenSyncWorkStatus = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: updateResourceToCluster,
+		Help: "Number of updating operation of the resource to a target member cluster. By the result, 'error' means a resource updated failed. Otherwise 'success'. Cluster means the target member cluster.",
+	}, []string{"result", "apiversion", "kind", "cluster"})
 
 	policyPreemptionCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: policyPreemptionMetricsName,
@@ -118,6 +130,16 @@ func ObserveSyncWorkloadLatency(err error, start time.Time) {
 	syncWorkloadDurationHistogram.WithLabelValues(utilmetrics.GetResultByError(err)).Observe(utilmetrics.DurationInSeconds(start))
 }
 
+// CountRecreateResourceToCluster records the number of recreating operation of the resource to a target member cluster.
+func CountRecreateResourceToCluster(err error, apiVersion, kind, cluster string) {
+	recreateResourceWhenSyncWorkStatus.WithLabelValues(utilmetrics.GetResultByError(err), apiVersion, kind, cluster).Inc()
+}
+
+// CountUpdateResourceToCluster records the number of updating operation of the resource to a target member cluster.
+func CountUpdateResourceToCluster(err error, apiVersion, kind, cluster string) {
+	updateResourceWhenSyncWorkStatus.WithLabelValues(utilmetrics.GetResultByError(err), apiVersion, kind, cluster).Inc()
+}
+
 // CountPolicyPreemption records the numbers of policy preemption.
 func CountPolicyPreemption(err error) {
 	policyPreemptionCounter.WithLabelValues(utilmetrics.GetResultByError(err)).Inc()
@@ -151,6 +173,8 @@ func ResourceCollectors() []prometheus.Collector {
 		policyApplyAttempts,
 		syncWorkDurationHistogram,
 		syncWorkloadDurationHistogram,
+		recreateResourceWhenSyncWorkStatus,
+		updateResourceWhenSyncWorkStatus,
 		policyPreemptionCounter,
 		cronFederatedHPADurationHistogram,
 		cronFederatedHPARuleDurationHistogram,

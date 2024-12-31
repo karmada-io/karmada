@@ -35,7 +35,8 @@ type InitData interface {
 	RemoteClient() clientset.Interface
 	KarmadaClient() clientset.Interface
 	DataDir() string
-	CrdsRemoteURL() string
+	CrdTarball() operatorv1alpha1.CRDTarball
+	CustomCertificate() operatorv1alpha1.CustomCertificate
 	KarmadaVersion() string
 	Components() *operatorv1alpha1.KarmadaComponents
 	FeatureGates() map[string]bool

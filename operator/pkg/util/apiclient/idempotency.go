@@ -49,7 +49,7 @@ func NewCRDsClient(c *rest.Config) (*crdsclient.Clientset, error) {
 }
 
 // NewAPIRegistrationClient is to create an apiregistration ClientSet
-func NewAPIRegistrationClient(c *rest.Config) (*aggregator.Clientset, error) {
+func NewAPIRegistrationClient(c *rest.Config) (aggregator.Interface, error) {
 	return aggregator.NewForConfig(c)
 }
 
@@ -183,7 +183,7 @@ func CreateOrUpdateValidatingWebhookConfiguration(client clientset.Interface, vw
 }
 
 // CreateOrUpdateAPIService creates a APIService if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
-func CreateOrUpdateAPIService(apiRegistrationClient *aggregator.Clientset, apiservice *apiregistrationv1.APIService) error {
+func CreateOrUpdateAPIService(apiRegistrationClient aggregator.Interface, apiservice *apiregistrationv1.APIService) error {
 	_, err := apiRegistrationClient.ApiregistrationV1().APIServices().Create(context.TODO(), apiservice, metav1.CreateOptions{})
 	if err != nil {
 		if !apierrors.IsAlreadyExists(err) {
@@ -278,6 +278,32 @@ func CreateOrUpdateClusterRole(client clientset.Interface, clusterrole *rbacv1.C
 	}
 
 	klog.V(4).InfoS("Successfully created or updated clusterrole", "clusterrole", clusterrole.GetName())
+	return nil
+}
+
+// CreateOrUpdateClusterRoleBinding creates a Clusterrolebinding if the target resource doesn't exist.
+// If the resource exists already, this function will update the resource instead.
+func CreateOrUpdateClusterRoleBinding(client clientset.Interface, clusterrolebinding *rbacv1.ClusterRoleBinding) error {
+	_, err := client.RbacV1().ClusterRoleBindings().Create(context.TODO(), clusterrolebinding, metav1.CreateOptions{})
+
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+
+		older, err := client.RbacV1().ClusterRoleBindings().Get(context.TODO(), clusterrolebinding.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		clusterrolebinding.ResourceVersion = older.ResourceVersion
+		_, err = client.RbacV1().ClusterRoleBindings().Update(context.TODO(), clusterrolebinding, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	klog.V(4).InfoS("Successfully created or updated clusterrolebinding", "clusterrolebinding", clusterrolebinding.GetName())
 	return nil
 }
 

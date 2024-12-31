@@ -40,20 +40,22 @@ var clusterresourcebindingsKind = v1alpha1.SchemeGroupVersion.WithKind("ClusterR
 
 // Get takes name of the clusterResourceBinding, and returns the corresponding clusterResourceBinding object, and an error if there is any.
 func (c *FakeClusterResourceBindings) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ClusterResourceBinding, err error) {
+	emptyResult := &v1alpha1.ClusterResourceBinding{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(clusterresourcebindingsResource, name), &v1alpha1.ClusterResourceBinding{})
+		Invokes(testing.NewRootGetActionWithOptions(clusterresourcebindingsResource, name, options), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.ClusterResourceBinding), err
 }
 
 // List takes label and field selectors, and returns the list of ClusterResourceBindings that match those selectors.
 func (c *FakeClusterResourceBindings) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.ClusterResourceBindingList, err error) {
+	emptyResult := &v1alpha1.ClusterResourceBindingList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(clusterresourcebindingsResource, clusterresourcebindingsKind, opts), &v1alpha1.ClusterResourceBindingList{})
+		Invokes(testing.NewRootListActionWithOptions(clusterresourcebindingsResource, clusterresourcebindingsKind, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -72,36 +74,39 @@ func (c *FakeClusterResourceBindings) List(ctx context.Context, opts v1.ListOpti
 // Watch returns a watch.Interface that watches the requested clusterResourceBindings.
 func (c *FakeClusterResourceBindings) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(clusterresourcebindingsResource, opts))
+		InvokesWatch(testing.NewRootWatchActionWithOptions(clusterresourcebindingsResource, opts))
 }
 
 // Create takes the representation of a clusterResourceBinding and creates it.  Returns the server's representation of the clusterResourceBinding, and an error, if there is any.
 func (c *FakeClusterResourceBindings) Create(ctx context.Context, clusterResourceBinding *v1alpha1.ClusterResourceBinding, opts v1.CreateOptions) (result *v1alpha1.ClusterResourceBinding, err error) {
+	emptyResult := &v1alpha1.ClusterResourceBinding{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(clusterresourcebindingsResource, clusterResourceBinding), &v1alpha1.ClusterResourceBinding{})
+		Invokes(testing.NewRootCreateActionWithOptions(clusterresourcebindingsResource, clusterResourceBinding, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.ClusterResourceBinding), err
 }
 
 // Update takes the representation of a clusterResourceBinding and updates it. Returns the server's representation of the clusterResourceBinding, and an error, if there is any.
 func (c *FakeClusterResourceBindings) Update(ctx context.Context, clusterResourceBinding *v1alpha1.ClusterResourceBinding, opts v1.UpdateOptions) (result *v1alpha1.ClusterResourceBinding, err error) {
+	emptyResult := &v1alpha1.ClusterResourceBinding{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(clusterresourcebindingsResource, clusterResourceBinding), &v1alpha1.ClusterResourceBinding{})
+		Invokes(testing.NewRootUpdateActionWithOptions(clusterresourcebindingsResource, clusterResourceBinding, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.ClusterResourceBinding), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeClusterResourceBindings) UpdateStatus(ctx context.Context, clusterResourceBinding *v1alpha1.ClusterResourceBinding, opts v1.UpdateOptions) (*v1alpha1.ClusterResourceBinding, error) {
+func (c *FakeClusterResourceBindings) UpdateStatus(ctx context.Context, clusterResourceBinding *v1alpha1.ClusterResourceBinding, opts v1.UpdateOptions) (result *v1alpha1.ClusterResourceBinding, err error) {
+	emptyResult := &v1alpha1.ClusterResourceBinding{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceAction(clusterresourcebindingsResource, "status", clusterResourceBinding), &v1alpha1.ClusterResourceBinding{})
+		Invokes(testing.NewRootUpdateSubresourceActionWithOptions(clusterresourcebindingsResource, "status", clusterResourceBinding, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.ClusterResourceBinding), err
 }
@@ -115,7 +120,7 @@ func (c *FakeClusterResourceBindings) Delete(ctx context.Context, name string, o
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeClusterResourceBindings) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(clusterresourcebindingsResource, listOpts)
+	action := testing.NewRootDeleteCollectionActionWithOptions(clusterresourcebindingsResource, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.ClusterResourceBindingList{})
 	return err
@@ -123,10 +128,11 @@ func (c *FakeClusterResourceBindings) DeleteCollection(ctx context.Context, opts
 
 // Patch applies the patch and returns the patched clusterResourceBinding.
 func (c *FakeClusterResourceBindings) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ClusterResourceBinding, err error) {
+	emptyResult := &v1alpha1.ClusterResourceBinding{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(clusterresourcebindingsResource, name, pt, data, subresources...), &v1alpha1.ClusterResourceBinding{})
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(clusterresourcebindingsResource, name, pt, data, opts, subresources...), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.ClusterResourceBinding), err
 }

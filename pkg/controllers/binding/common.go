@@ -17,17 +17,21 @@ limitations under the License.
 package binding
 
 import (
+	"context"
 	"strconv"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -37,32 +41,22 @@ import (
 
 // ensureWork ensure Work to be created or updated.
 func ensureWork(
-	c client.Client, resourceInterpreter resourceinterpreter.ResourceInterpreter, workload *unstructured.Unstructured,
+	ctx context.Context, c client.Client, resourceInterpreter resourceinterpreter.ResourceInterpreter, workload *unstructured.Unstructured,
 	overrideManager overridemanager.OverrideManager, binding metav1.Object, scope apiextensionsv1.ResourceScope,
 ) error {
 	var targetClusters []workv1alpha2.TargetCluster
-	var placement *policyv1alpha1.Placement
-	var requiredByBindingSnapshot []workv1alpha2.BindingSnapshot
-	var replicas int32
-	var conflictResolutionInBinding policyv1alpha1.ConflictResolution
+	var bindingSpec workv1alpha2.ResourceBindingSpec
 	switch scope {
 	case apiextensionsv1.NamespaceScoped:
 		bindingObj := binding.(*workv1alpha2.ResourceBinding)
-		targetClusters = bindingObj.Spec.Clusters
-		requiredByBindingSnapshot = bindingObj.Spec.RequiredBy
-		placement = bindingObj.Spec.Placement
-		replicas = bindingObj.Spec.Replicas
-		conflictResolutionInBinding = bindingObj.Spec.ConflictResolution
+		bindingSpec = bindingObj.Spec
 	case apiextensionsv1.ClusterScoped:
 		bindingObj := binding.(*workv1alpha2.ClusterResourceBinding)
-		targetClusters = bindingObj.Spec.Clusters
-		requiredByBindingSnapshot = bindingObj.Spec.RequiredBy
-		placement = bindingObj.Spec.Placement
-		replicas = bindingObj.Spec.Replicas
-		conflictResolutionInBinding = bindingObj.Spec.ConflictResolution
+		bindingSpec = bindingObj.Spec
 	}
 
-	targetClusters = mergeTargetClusters(targetClusters, requiredByBindingSnapshot)
+	targetClusters = bindingSpec.Clusters
+	targetClusters = mergeTargetClusters(targetClusters, bindingSpec.RequiredBy)
 
 	var jobCompletions []workv1alpha2.TargetCluster
 	var err error
@@ -81,7 +75,7 @@ func ensureWork(
 
 		// If and only if the resource template has replicas, and the replica scheduling policy is divided,
 		// we need to revise replicas.
-		if needReviseReplicas(replicas, placement) {
+		if needReviseReplicas(bindingSpec.Replicas, bindingSpec.Placement) {
 			if resourceInterpreter.HookEnabled(clonedWorkload.GroupVersionKind(), configv1alpha1.InterpreterOperationReviseReplica) {
 				clonedWorkload, err = resourceInterpreter.ReviseReplica(clonedWorkload, int64(targetCluster.Replicas))
 				if err != nil {
@@ -113,11 +107,17 @@ func ensureWork(
 		workLabel := mergeLabel(clonedWorkload, binding, scope)
 
 		annotations := mergeAnnotations(clonedWorkload, binding, scope)
-		annotations = mergeConflictResolution(clonedWorkload, conflictResolutionInBinding, annotations)
+		annotations = mergeConflictResolution(clonedWorkload, bindingSpec.ConflictResolution, annotations)
 		annotations, err = RecordAppliedOverrides(cops, ops, annotations)
 		if err != nil {
 			klog.Errorf("Failed to record appliedOverrides, Error: %v", err)
 			return err
+		}
+
+		if features.FeatureGate.Enabled(features.StatefulFailoverInjection) {
+			// we need to figure out if the targetCluster is in the cluster we are going to migrate application to.
+			// If yes, we have to inject the preserved label state to the clonedWorkload.
+			clonedWorkload = injectReservedLabelState(bindingSpec, targetCluster, clonedWorkload, len(targetClusters))
 		}
 
 		workMeta := metav1.ObjectMeta{
@@ -128,11 +128,52 @@ func ensureWork(
 			Annotations: annotations,
 		}
 
-		if err = helper.CreateOrUpdateWork(c, workMeta, clonedWorkload); err != nil {
+		if err = helper.CreateOrUpdateWork(
+			ctx,
+			c,
+			workMeta,
+			clonedWorkload,
+			helper.WithSuspendDispatching(shouldSuspendDispatching(bindingSpec.Suspension, targetCluster)),
+			helper.WithPreserveResourcesOnDeletion(ptr.Deref(bindingSpec.PreserveResourcesOnDeletion, false)),
+		); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// injectReservedLabelState injects the reservedLabelState in to the failover to cluster.
+// We have the following restrictions on whether to perform injection operations:
+//  1. Only the scenario where an application is deployed in one cluster and migrated to
+//     another cluster is considered.
+//  2. If consecutive failovers occur, for example, an application is migrated form clusterA
+//     to clusterB and then to clusterC, the PreservedLabelState before the last failover is
+//     used for injection. If the PreservedLabelState is empty, the injection is skipped.
+//  3. The injection operation is performed only when PurgeMode is set to Immediately.
+func injectReservedLabelState(bindingSpec workv1alpha2.ResourceBindingSpec, moveToCluster workv1alpha2.TargetCluster, workload *unstructured.Unstructured, clustersLen int) *unstructured.Unstructured {
+	if clustersLen > 1 {
+		return workload
+	}
+
+	if len(bindingSpec.GracefulEvictionTasks) == 0 {
+		return workload
+	}
+	targetEvictionTask := bindingSpec.GracefulEvictionTasks[len(bindingSpec.GracefulEvictionTasks)-1]
+
+	if targetEvictionTask.PurgeMode != policyv1alpha1.Immediately {
+		return workload
+	}
+
+	clustersBeforeFailover := sets.NewString(targetEvictionTask.ClustersBeforeFailover...)
+	if clustersBeforeFailover.Has(moveToCluster.Name) {
+		return workload
+	}
+
+	for key, value := range targetEvictionTask.PreservedLabelState {
+		util.MergeLabel(workload, key, value)
+	}
+
+	return workload
 }
 
 func mergeTargetClusters(targetClusters []workv1alpha2.TargetCluster, requiredByBindingSnapshot []workv1alpha2.BindingSnapshot) []workv1alpha2.TargetCluster {
@@ -259,4 +300,22 @@ func divideReplicasByJobCompletions(workload *unstructured.Unstructured, cluster
 
 func needReviseReplicas(replicas int32, placement *policyv1alpha1.Placement) bool {
 	return replicas > 0 && placement != nil && placement.ReplicaSchedulingType() == policyv1alpha1.ReplicaSchedulingTypeDivided
+}
+
+func shouldSuspendDispatching(suspension *workv1alpha2.Suspension, targetCluster workv1alpha2.TargetCluster) bool {
+	if suspension == nil {
+		return false
+	}
+
+	suspendDispatching := ptr.Deref(suspension.Dispatching, false)
+
+	if !suspendDispatching && suspension.DispatchingOnClusters != nil {
+		for _, cluster := range suspension.DispatchingOnClusters.ClusterNames {
+			if cluster == targetCluster.Name {
+				suspendDispatching = true
+				break
+			}
+		}
+	}
+	return suspendDispatching
 }

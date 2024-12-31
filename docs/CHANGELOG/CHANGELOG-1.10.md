@@ -2,18 +2,55 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.10.2](#v1102)
-  - [Downloads for v1.10.2](#downloads-for-v1102)
-  - [Changelog since v1.10.1](#changelog-since-v1101)
+- [v1.10.8](#v1108)
+  - [Downloads for v1.10.8](#downloads-for-v1108)
+  - [Changelog since v1.10.7](#changelog-since-v1107)
     - [Changes by Kind](#changes-by-kind)
+      - [Urgent Upgrade Notes](#urgent-upgrade-notes)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
-- [v1.10.1](#v1101)
-  - [Downloads for v1.10.1](#downloads-for-v1101)
-  - [Changelog since v1.10.0](#changelog-since-v1100)
+- [v1.10.7](#v1107)
+  - [Downloads for v1.10.7](#downloads-for-v1107)
+  - [Changelog since v1.10.6](#changelog-since-v1106)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
+- [v1.10.6](#v1106)
+  - [Downloads for v1.10.6](#downloads-for-v1106)
+  - [Changelog since v1.10.5](#changelog-since-v1105)
+    - [Changes by Kind](#changes-by-kind-2)
+      - [Bug Fixes](#bug-fixes-2)
+      - [Others](#others-2)
+- [v1.10.5](#v1105)
+  - [Downloads for v1.10.5](#downloads-for-v1105)
+  - [Changelog since v1.10.4](#changelog-since-v1104)
+    - [Changes by Kind](#changes-by-kind-3)
+      - [Bug Fixes](#bug-fixes-3)
+      - [Others](#others-3)
+- [v1.10.4](#v1104)
+  - [Downloads for v1.10.4](#downloads-for-v1104)
+  - [Changelog since v1.10.3](#changelog-since-v1103)
+    - [Changes by Kind](#changes-by-kind-4)
+      - [Bug Fixes](#bug-fixes-4)
+      - [Others](#others-4)
+- [v1.10.3](#v1103)
+  - [Downloads for v1.10.3](#downloads-for-v1103)
+  - [Changelog since v1.10.2](#changelog-since-v1102)
+    - [Changes by Kind](#changes-by-kind-5)
+      - [Bug Fixes](#bug-fixes-5)
+      - [Others](#others-5)
+- [v1.10.2](#v1102)
+  - [Downloads for v1.10.2](#downloads-for-v1102)
+  - [Changelog since v1.10.1](#changelog-since-v1101)
+    - [Changes by Kind](#changes-by-kind-6)
+      - [Bug Fixes](#bug-fixes-6)
+      - [Others](#others-6)
+- [v1.10.1](#v1101)
+  - [Downloads for v1.10.1](#downloads-for-v1101)
+  - [Changelog since v1.10.0](#changelog-since-v1100)
+    - [Changes by Kind](#changes-by-kind-7)
+      - [Bug Fixes](#bug-fixes-7)
+      - [Others](#others-7)
 - [v1.10.0](#v1100)
   - [Downloads for v1.10.0](#downloads-for-v1100)
   - [What's New](#whats-new)
@@ -22,7 +59,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-2)
+    - [Bug Fixes](#bug-fixes-8)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -32,6 +69,98 @@
   - [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.10.8
+## Downloads for v1.10.8
+
+Download v1.10.8 in the [v1.10.8 release page](https://github.com/karmada-io/karmada/releases/tag/v1.10.8).
+
+## Changelog since v1.10.7
+### Changes by Kind
+#### Urgent Upgrade Notes
+- The feature `Failover` now has been disabled by default, which should be explicitly enabled to avoid unexpected incidents. ([#5947](https://github.com/karmada-io/karmada/pull/5947), @XiShanYongYe-Chang)
+
+If you are using the feature `Failover`, please enable it explicitly by adding the `--feature-gates=Failover=true,<other feature>` flag to the `karmada-controller-manager` component. If you are not using this feature, this change will have no impact.
+
+#### Bug Fixes
+- `karmadactl`: Fixed `karmada-metrics-adapter` use the incorrect certificate issue when deployed via karmadactl `init`. ([#5860](https://github.com/karmada-io/karmada/pull/5860), @seanlaii)
+- `karmada-controller-manager`: Fixed the corner case where the reconciliation of aggregating status might be missed in case of component restart. ([#5883](https://github.com/karmada-io/karmada/pull/5883), @liangyuanpeng)
+- `karmada-controller-manager`: Fixed the problem of ResourceBinding remaining after the resource template is deleted in the dependencies distribution scenario. ([#5952](https://github.com/karmada-io/karmada/pull/5952), @XiShanYongYe-Chang)
+- `karmada-scheduler`: Avoid filtering out clusters if the API enablement is incomplete during re-scheduling. ([#5931](https://github.com/karmada-io/karmada/pull/5931), @XiShanYongYe-Chang)
+
+#### Others
+- The base image `alpine` now has been promoted from `3.20.3` to `3.21.0`. ([#5921](https://github.com/karmada-io/karmada/pull/5921))
+
+# v1.10.7
+## Downloads for v1.10.7
+
+Download v1.10.7 in the [v1.10.7 release page](https://github.com/karmada-io/karmada/releases/tag/v1.10.7).
+
+## Changelog since v1.10.6
+### Changes by Kind
+#### Bug Fixes
+- `karmada-controller-manager`: Fixed the issue that status aggregation against the resource template might be missed due to slow cache sync. ([#5844](https://github.com/karmada-io/karmada/pull/5844), @chaosi-zju)
+- `karmadactl`: The `--force` option of `unjoin` command now try to clean up resources propagated in member clusters. ([#5845](https://github.com/karmada-io/karmada/pull/5845), @chaosi-zju)
+
+#### Others
+None.
+
+# v1.10.6
+## Downloads for v1.10.6
+
+Download v1.10.6 in the [v1.10.6 release page](https://github.com/karmada-io/karmada/releases/tag/v1.10.6).
+
+## Changelog since v1.10.5
+### Changes by Kind
+#### Bug Fixes
+- `karmada-aggregated-apiserver`: User can append a "/" at the end when configuring the cluster's apiEndpoint. ([#5556](https://github.com/karmada-io/karmada/pull/5556), @spiritNO1)
+- `karmada-controller-manager`: Ignored StatefulSet Dependencies with PVCs created via the VolumeClaimTemplates. ([#5687](https://github.com/karmada-io/karmada/pull/5687), @seanlaii)
+- `karmada-scheduler`: Fixed unexpected modification of original `ResourceSummary` due to lack of deep copy. ([#5725](https://github.com/karmada-io/karmada/pull/5725), @RainbowMango)
+- `karmada-scheduler`: Fixes an issue where resource model grades were incorrectly matched based on resource requests. Now only grades that can provide sufficient resources will be selected. ([#5729](https://github.com/karmada-io/karmada/pull/5729), @RainbowMango)
+- `karmada-search`: Modify the logic of checking whether the resource is registered when selecting the plugin. ([#5736](https://github.com/karmada-io/karmada/pull/5736), @seanlaii)
+
+#### Others
+None.
+
+# v1.10.5
+## Downloads for v1.10.5
+
+Download v1.10.5 in the [v1.10.5 release page](https://github.com/karmada-io/karmada/releases/tag/v1.10.5).
+
+## Changelog since v1.10.4
+### Changes by Kind
+#### Bug Fixes
+- `karmada-controller-manager`: Fixed the error of cluster status old condition update will overwrite the newest condition. ([#5401](https://github.com/karmada-io/karmada/pull/5401), @XiShanYongYe-Chang)
+
+#### Others
+- The base image `alpine` now has been promoted from `alpine:3.20.2` to `alpine:3.20.3`.
+
+# v1.10.4
+## Downloads for v1.10.4
+
+Download v1.10.4 in the [v1.10.4 release page](https://github.com/karmada-io/karmada/releases/tag/v1.10.4).
+
+## Changelog since v1.10.3
+### Changes by Kind
+#### Bug Fixes
+- `Helm`: fix wrong `ClusterResourceBinding` scope in `MutatingWebhookConfiguration`. ([#5262](https://github.com/karmada-io/karmada/pull/5262), @XiShanYongYe-Chang)
+
+#### Others
+- The base image `alpine` now has been promoted from `alpine:3.20.1` to `alpine:3.20.2`. ([#5268](https://github.com/karmada-io/karmada/pull/5268))
+- Bump golang version to `v1.21.13` ([#5371](https://github.com/karmada-io/karmada/pull/5371), @zhzhuang-zju)
+
+# v1.10.3
+## Downloads for v1.10.3
+
+Download v1.10.3 in the [v1.10.3 release page](https://github.com/karmada-io/karmada/releases/tag/v1.10.3).
+
+## Changelog since v1.10.2
+### Changes by Kind
+#### Bug Fixes
+- `karmada-controller-manager`: fix the issue of residual work in the MultiClusterService feature. ([#5211](https://github.com/karmada-io/karmada/pull/5211), @XiShanYongYe-Chang)
+
+#### Others
+- `karmada-scheduler`: GroupClusters will sort clusters by score and availableReplica count. ([#5180](https://github.com/karmada-io/karmada/pull/5180), @mszacillo)
 
 # v1.10.2
 ## Downloads for v1.10.2

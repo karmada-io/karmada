@@ -40,7 +40,7 @@ import (
 
 // Store is the cache for resources from multiple member clusters
 type Store interface {
-	UpdateCache(resourcesByCluster map[string]map[schema.GroupVersionResource]*MultiNamespace) error
+	UpdateCache(resourcesByCluster map[string]map[schema.GroupVersionResource]*MultiNamespace, registeredResources map[schema.GroupVersionResource]struct{}) error
 	HasResource(resource schema.GroupVersionResource) bool
 	GetResourceFromCache(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error)
 	Stop()
@@ -48,14 +48,17 @@ type Store interface {
 	Get(ctx context.Context, gvr schema.GroupVersionResource, name string, options *metav1.GetOptions) (runtime.Object, error)
 	List(ctx context.Context, gvr schema.GroupVersionResource, options *metainternalversion.ListOptions) (runtime.Object, error)
 	Watch(ctx context.Context, gvr schema.GroupVersionResource, options *metainternalversion.ListOptions) (watch.Interface, error)
+
+	// ReadinessCheck checks if the storage is ready for accepting requests.
+	ReadinessCheck() error
 }
 
 // MultiClusterCache caches resource from multi member clusters
 type MultiClusterCache struct {
-	lock            sync.RWMutex
-	cache           map[string]*clusterCache
-	cachedResources map[schema.GroupVersionResource]struct{}
-	restMapper      meta.RESTMapper
+	lock                sync.RWMutex
+	cache               map[string]*clusterCache
+	registeredResources map[schema.GroupVersionResource]struct{}
+	restMapper          meta.RESTMapper
 	// newClientFunc returns a dynamic client for member cluster apiserver
 	newClientFunc func(string) (dynamic.Interface, error)
 }
@@ -65,15 +68,34 @@ var _ Store = &MultiClusterCache{}
 // NewMultiClusterCache return a cache for resources from member clusters
 func NewMultiClusterCache(newClientFunc func(string) (dynamic.Interface, error), restMapper meta.RESTMapper) *MultiClusterCache {
 	return &MultiClusterCache{
-		restMapper:      restMapper,
-		newClientFunc:   newClientFunc,
-		cache:           map[string]*clusterCache{},
-		cachedResources: map[schema.GroupVersionResource]struct{}{},
+		restMapper:          restMapper,
+		newClientFunc:       newClientFunc,
+		cache:               map[string]*clusterCache{},
+		registeredResources: map[schema.GroupVersionResource]struct{}{},
 	}
 }
 
+// ReadinessCheck checks if the storage is ready for accepting requests.
+func (c *MultiClusterCache) ReadinessCheck() error {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
+	var failedChecks []string
+	for cluster, cc := range c.cache {
+		if cc.readinessCheck() != nil {
+			failedChecks = append(failedChecks, cluster)
+		}
+	}
+	if len(failedChecks) == 0 {
+		klog.Infof("MultiClusterCache is ready for all registered clusters")
+		return nil
+	}
+	klog.V(4).Infof("ClusterCache is not ready for clusters: %v", failedChecks)
+	return fmt.Errorf("ClusterCache is not ready for clusters: %v", failedChecks)
+}
+
 // UpdateCache update cache for multi clusters
-func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema.GroupVersionResource]*MultiNamespace) error {
+func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema.GroupVersionResource]*MultiNamespace, registeredResources map[schema.GroupVersionResource]struct{}) error {
 	if klog.V(3).Enabled() {
 		start := time.Now()
 		defer func() {
@@ -106,24 +128,7 @@ func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema
 			return err
 		}
 	}
-
-	// update cachedResource
-	newCachedResources := make(map[schema.GroupVersionResource]struct{}, len(c.cachedResources))
-	for _, resources := range resourcesByCluster {
-		for resource := range resources {
-			newCachedResources[resource] = struct{}{}
-		}
-	}
-	for resource := range c.cachedResources {
-		if _, exist := newCachedResources[resource]; !exist {
-			delete(c.cachedResources, resource)
-		}
-	}
-	for resource := range newCachedResources {
-		if _, exist := c.cachedResources[resource]; !exist {
-			c.cachedResources[resource] = struct{}{}
-		}
-	}
+	c.registeredResources = registeredResources
 	return nil
 }
 
@@ -137,11 +142,11 @@ func (c *MultiClusterCache) Stop() {
 	}
 }
 
-// HasResource return whether resource is cached.
+// HasResource return whether resource is registered.
 func (c *MultiClusterCache) HasResource(resource schema.GroupVersionResource) bool {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
-	_, ok := c.cachedResources[resource]
+	_, ok := c.registeredResources[resource]
 	return ok
 }
 

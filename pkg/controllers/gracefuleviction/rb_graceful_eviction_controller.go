@@ -37,7 +37,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
-// RBGracefulEvictionControllerName is the controller name that will be used when reporting events.
+// RBGracefulEvictionControllerName is the controller name that will be used when reporting events and metrics.
 const RBGracefulEvictionControllerName = "resource-binding-graceful-eviction-controller"
 
 // RBGracefulEvictionController is to sync ResourceBinding.spec.gracefulEvictionTasks.
@@ -66,7 +66,7 @@ func (c *RBGracefulEvictionController) Reconcile(ctx context.Context, req contro
 		return controllerruntime.Result{}, nil
 	}
 
-	retryDuration, err := c.syncBinding(binding)
+	retryDuration, err := c.syncBinding(ctx, binding)
 	if err != nil {
 		return controllerruntime.Result{}, err
 	}
@@ -77,7 +77,7 @@ func (c *RBGracefulEvictionController) Reconcile(ctx context.Context, req contro
 	return controllerruntime.Result{}, nil
 }
 
-func (c *RBGracefulEvictionController) syncBinding(binding *workv1alpha2.ResourceBinding) (time.Duration, error) {
+func (c *RBGracefulEvictionController) syncBinding(ctx context.Context, binding *workv1alpha2.ResourceBinding) (time.Duration, error) {
 	keptTask, evictedCluster := assessEvictionTasks(binding.Spec, binding.Status.AggregatedStatus, c.GracefulEvictionTimeout, metav1.Now())
 	if reflect.DeepEqual(binding.Spec.GracefulEvictionTasks, keptTask) {
 		return nextRetry(keptTask, c.GracefulEvictionTimeout, metav1.Now().Time), nil
@@ -86,7 +86,7 @@ func (c *RBGracefulEvictionController) syncBinding(binding *workv1alpha2.Resourc
 	objPatch := client.MergeFrom(binding)
 	modifiedObj := binding.DeepCopy()
 	modifiedObj.Spec.GracefulEvictionTasks = keptTask
-	err := c.Client.Patch(context.TODO(), modifiedObj, objPatch)
+	err := c.Client.Patch(ctx, modifiedObj, objPatch)
 	if err != nil {
 		return 0, err
 	}
@@ -125,7 +125,8 @@ func (c *RBGracefulEvictionController) SetupWithManager(mgr controllerruntime.Ma
 	}
 
 	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(RBGracefulEvictionControllerName).
 		For(&workv1alpha2.ResourceBinding{}, builder.WithPredicates(resourceBindingPredicateFn)).
-		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
+		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).
 		Complete(c)
 }

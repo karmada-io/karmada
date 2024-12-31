@@ -41,9 +41,9 @@ import (
 
 // ObjectWatcher manages operations for object dispatched to member clusters.
 type ObjectWatcher interface {
-	Create(clusterName string, desireObj *unstructured.Unstructured) error
-	Update(clusterName string, desireObj, clusterObj *unstructured.Unstructured) error
-	Delete(clusterName string, desireObj *unstructured.Unstructured) error
+	Create(ctx context.Context, clusterName string, desireObj *unstructured.Unstructured) error
+	Update(ctx context.Context, clusterName string, desireObj, clusterObj *unstructured.Unstructured) error
+	Delete(ctx context.Context, clusterName string, desireObj *unstructured.Unstructured) error
 	NeedsUpdate(clusterName string, desiredObj, clusterObj *unstructured.Unstructured) (bool, error)
 }
 
@@ -72,7 +72,7 @@ func NewObjectWatcher(kubeClientSet client.Client, restMapper meta.RESTMapper, c
 	}
 }
 
-func (o *objectWatcherImpl) Create(clusterName string, desireObj *unstructured.Unstructured) error {
+func (o *objectWatcherImpl) Create(ctx context.Context, clusterName string, desireObj *unstructured.Unstructured) error {
 	dynamicClusterClient, err := o.ClusterClientSetFunc(clusterName, o.KubeClientSet)
 	if err != nil {
 		klog.Errorf("Failed to build dynamic cluster client for cluster %s, err: %v.", clusterName, err)
@@ -97,7 +97,7 @@ func (o *objectWatcherImpl) Create(clusterName string, desireObj *unstructured.U
 			return err
 		}
 
-		clusterObj, err := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Create(context.TODO(), desireObj, metav1.CreateOptions{})
+		clusterObj, err := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Create(ctx, desireObj, metav1.CreateOptions{})
 		if err != nil {
 			klog.Errorf("Failed to create resource(kind=%s, %s/%s) in cluster %s, err is %v.", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
 			return err
@@ -138,7 +138,7 @@ func (o *objectWatcherImpl) retainClusterFields(desired, observed *unstructured.
 	return desired, nil
 }
 
-func (o *objectWatcherImpl) Update(clusterName string, desireObj, clusterObj *unstructured.Unstructured) error {
+func (o *objectWatcherImpl) Update(ctx context.Context, clusterName string, desireObj, clusterObj *unstructured.Unstructured) error {
 	updateAllowed := o.allowUpdate(clusterName, desireObj, clusterObj)
 	if !updateAllowed {
 		// The existing resource is not managed by Karmada, and no conflict resolution found, avoid updating the existing resource by default.
@@ -164,7 +164,7 @@ func (o *objectWatcherImpl) Update(clusterName string, desireObj, clusterObj *un
 		return err
 	}
 
-	resource, err := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Update(context.TODO(), desireObj, metav1.UpdateOptions{})
+	resource, err := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Update(ctx, desireObj, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("Failed to update resource(kind=%s, %s/%s) in cluster %s, err: %v.", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
 		return err
@@ -177,7 +177,7 @@ func (o *objectWatcherImpl) Update(clusterName string, desireObj, clusterObj *un
 	return nil
 }
 
-func (o *objectWatcherImpl) Delete(clusterName string, desireObj *unstructured.Unstructured) error {
+func (o *objectWatcherImpl) Delete(ctx context.Context, clusterName string, desireObj *unstructured.Unstructured) error {
 	fedKey, err := keys.FederatedKeyFunc(clusterName, desireObj)
 	if err != nil {
 		klog.Errorf("Failed to get FederatedKey %s, error: %v", desireObj.GetName(), err)
@@ -221,7 +221,7 @@ func (o *objectWatcherImpl) Delete(clusterName string, desireObj *unstructured.U
 		PropagationPolicy: &deleteBackground,
 	}
 
-	err = dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Delete(context.TODO(), desireObj.GetName(), deleteOption)
+	err = dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Delete(ctx, desireObj.GetName(), deleteOption)
 	if err != nil && !apierrors.IsNotFound(err) {
 		klog.Errorf("Failed to delete the resource(kind=%s, %s/%s) in the cluster %s, err: %v.", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
 		return err

@@ -54,7 +54,8 @@ func (ge *GeneralEstimator) MaxAvailableReplicas(_ context.Context, clusters []*
 }
 
 func (ge *GeneralEstimator) maxAvailableReplicas(cluster *clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) int32 {
-	resourceSummary := cluster.Status.ResourceSummary
+	//Note: resourceSummary must be deep-copied before using in the function to avoid modifying the original data structure.
+	resourceSummary := cluster.Status.ResourceSummary.DeepCopy()
 	if resourceSummary == nil {
 		return 0
 	}
@@ -209,28 +210,15 @@ func getMaximumReplicasBasedOnResourceModels(cluster *clusterv1alpha1.Cluster, r
 			return -1, fmt.Errorf("resource model is inapplicable as missing resource: %s", string(key))
 		}
 
-		for index, minValue := range quantityArray {
-			// Suppose there is the following resource model:
-			// Model1: cpu [1C,2C)
-			// Model2: cpu [2C,3C)
-			// if pod cpu request is 1.5C, we regard the nodes in model1 as meeting the requirements of the Pod.
-			// Suppose there is the following resource model:
-			// Model1: cpu [1C,2C), memory [1Gi,2Gi)
-			// Model2: cpu [2C,3C), memory [2Gi,3Gi)
-			// if pod cpu request is 1.5C and memory request is 2.5Gi
-			// We regard the node of model1 as not meeting the requirements, and the nodes of model2 and later as meeting the requirements.
-			if minValue.Cmp(value) > 0 {
-				// Since the 'min' value of the first model is always 0, hit here
-				// the index should be >=1, so it's safe to use 'index-1' here.
-				if index-1 > minCompliantModelIndex {
-					minCompliantModelIndex = index - 1
-				}
-				break
-			}
-
-			if index == len(quantityArray)-1 {
-				minCompliantModelIndex = index
-			}
+		// Find the minimum model grade for each type of resource quest, if no
+		// suitable model is found indicates that there is no appropriate model
+		// grade and return immediately.
+		minCompliantModelIndexForResource := minimumModelIndex(quantityArray, value)
+		if minCompliantModelIndexForResource == -1 {
+			return 0, nil
+		}
+		if minCompliantModelIndex <= minCompliantModelIndexForResource {
+			minCompliantModelIndex = minCompliantModelIndexForResource
 		}
 	}
 
@@ -243,4 +231,19 @@ func getMaximumReplicasBasedOnResourceModels(cluster *clusterv1alpha1.Cluster, r
 	}
 
 	return maximumReplicasForResource, nil
+}
+
+func minimumModelIndex(minimumGrades []resource.Quantity, requestValue resource.Quantity) int {
+	for index, minValue := range minimumGrades {
+		// Suppose there is the following resource model:
+		// Grade1: cpu [1C,2C)
+		// Grade2: cpu [2C,3C)
+		// If a Pod requests 1.5C of CPU, grade1 may not be able to provide sufficient resources,
+		// so we will choose grade2.
+		if minValue.Cmp(requestValue) >= 0 {
+			return index
+		}
+	}
+
+	return -1
 }

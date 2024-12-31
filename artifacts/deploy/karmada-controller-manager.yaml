@@ -25,13 +25,13 @@ spec:
           imagePullPolicy: IfNotPresent
           command:
             - /bin/karmada-controller-manager
-            - --kubeconfig=/etc/kubeconfig
-            - --bind-address=0.0.0.0
+            - --kubeconfig=/etc/karmada/config/karmada.config
+            - --metrics-bind-address=:8080
             - --cluster-status-update-frequency=10s
-            - --secure-port=10357
             - --failover-eviction-timeout=30s
             - --controllers=*,hpaScaleTargetMarker,deploymentReplicasSyncer
-            - --feature-gates=PropagationPolicyPreemption=true,MultiClusterService=true
+            - --feature-gates=Failover=true,PropagationPolicyPreemption=true,MultiClusterService=true,StatefulFailoverInjection=true
+            - --health-probe-bind-address=0.0.0.0:10357
             - --v=4
           livenessProbe:
             httpGet:
@@ -42,11 +42,14 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 15
             timeoutSeconds: 5
+          ports:
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
           volumeMounts:
-          - name: kubeconfig
-            subPath: kubeconfig
-            mountPath: /etc/kubeconfig
+          - name: karmada-config
+            mountPath: /etc/karmada/config
       volumes:
-        - name: kubeconfig
+        - name: karmada-config
           secret:
-            secretName: kubeconfig
+            secretName: karmada-controller-manager-config

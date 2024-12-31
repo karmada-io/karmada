@@ -26,6 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -94,10 +95,9 @@ func aggregateDeploymentStatus(object *unstructured.Unstructured, aggregatedStat
 
 	// The 'observedGeneration' is mainly used by GitOps tools(like 'Argo CD') to assess the health status.
 	// For more details, please refer to https://argo-cd.readthedocs.io/en/stable/operator-manual/health/.
+	newStatus.ObservedGeneration = oldStatus.ObservedGeneration
 	if observedLatestResourceTemplateGenerationCount == len(aggregatedStatusItems) {
 		newStatus.ObservedGeneration = deploy.Generation
-	} else {
-		newStatus.ObservedGeneration = oldStatus.ObservedGeneration
 	}
 
 	if oldStatus.ObservedGeneration == newStatus.ObservedGeneration &&
@@ -279,39 +279,42 @@ func aggregateDaemonSetStatus(object *unstructured.Unstructured, aggregatedStatu
 
 	oldStatus := &daemonSet.Status
 	newStatus := &appsv1.DaemonSetStatus{}
+	observedLatestResourceTemplateGenerationCount := 0
 	for _, item := range aggregatedStatusItems {
 		if item.Status == nil {
 			continue
 		}
-		temp := &appsv1.DaemonSetStatus{}
-		if err = json.Unmarshal(item.Status.Raw, temp); err != nil {
+		member := &WrappedDaemonSetStatus{}
+		if err = json.Unmarshal(item.Status.Raw, member); err != nil {
 			return nil, err
 		}
 		klog.V(3).Infof("Grab daemonSet(%s/%s) status from cluster(%s), currentNumberScheduled: %d, desiredNumberScheduled: %d, numberAvailable: %d, numberMisscheduled: %d, numberReady: %d, updatedNumberScheduled: %d, numberUnavailable: %d",
-			daemonSet.Namespace, daemonSet.Name, item.ClusterName, temp.CurrentNumberScheduled, temp.DesiredNumberScheduled, temp.NumberAvailable, temp.NumberMisscheduled, temp.NumberReady, temp.UpdatedNumberScheduled, temp.NumberUnavailable)
+			daemonSet.Namespace, daemonSet.Name, item.ClusterName, member.CurrentNumberScheduled, member.DesiredNumberScheduled, member.NumberAvailable, member.NumberMisscheduled, member.NumberReady, member.UpdatedNumberScheduled, member.NumberUnavailable)
 
-		// always set 'observedGeneration' with current generation(.metadata.generation)
-		// which is the generation Karmada 'observed'.
-		// The 'observedGeneration' is mainly used by GitOps tools(like 'Argo CD') to assess the health status.
-		// For more details, please refer to https://argo-cd.readthedocs.io/en/stable/operator-manual/health/.
-		newStatus.ObservedGeneration = daemonSet.Generation
-		newStatus.CurrentNumberScheduled += temp.CurrentNumberScheduled
-		newStatus.DesiredNumberScheduled += temp.DesiredNumberScheduled
-		newStatus.NumberAvailable += temp.NumberAvailable
-		newStatus.NumberMisscheduled += temp.NumberMisscheduled
-		newStatus.NumberReady += temp.NumberReady
-		newStatus.UpdatedNumberScheduled += temp.UpdatedNumberScheduled
-		newStatus.NumberUnavailable += temp.NumberUnavailable
+		// `memberStatus.ObservedGeneration >= memberStatus.Generation` means the member's status corresponds the latest spec revision of the member DaemonSet.
+		// `memberStatus.ResourceTemplateGeneration >= daemonSet.Generation` means the member DaemonSet has been aligned with the latest spec revision of federated DaemonSet.
+		// If both conditions are met, we consider the member's status corresponds the latest spec revision of federated DaemonSet.
+		if member.ObservedGeneration >= member.Generation &&
+			member.ResourceTemplateGeneration >= daemonSet.Generation {
+			observedLatestResourceTemplateGenerationCount++
+		}
+
+		newStatus.CurrentNumberScheduled += member.CurrentNumberScheduled
+		newStatus.DesiredNumberScheduled += member.DesiredNumberScheduled
+		newStatus.NumberAvailable += member.NumberAvailable
+		newStatus.NumberMisscheduled += member.NumberMisscheduled
+		newStatus.NumberReady += member.NumberReady
+		newStatus.UpdatedNumberScheduled += member.UpdatedNumberScheduled
+		newStatus.NumberUnavailable += member.NumberUnavailable
 	}
 
-	if oldStatus.ObservedGeneration == newStatus.ObservedGeneration &&
-		oldStatus.CurrentNumberScheduled == newStatus.CurrentNumberScheduled &&
-		oldStatus.DesiredNumberScheduled == newStatus.DesiredNumberScheduled &&
-		oldStatus.NumberAvailable == newStatus.NumberAvailable &&
-		oldStatus.NumberMisscheduled == newStatus.NumberMisscheduled &&
-		oldStatus.NumberReady == newStatus.NumberReady &&
-		oldStatus.UpdatedNumberScheduled == newStatus.UpdatedNumberScheduled &&
-		oldStatus.NumberUnavailable == newStatus.NumberUnavailable {
+	// The 'observedGeneration' is mainly used by GitOps tools(like 'Argo CD') to assess the health status.
+	// For more details, please refer to https://argo-cd.readthedocs.io/en/stable/operator-manual/health/.
+	newStatus.ObservedGeneration = oldStatus.ObservedGeneration
+	if observedLatestResourceTemplateGenerationCount == len(aggregatedStatusItems) {
+		newStatus.ObservedGeneration = daemonSet.Generation
+	}
+	if equality.Semantic.DeepEqual(oldStatus, newStatus) {
 		klog.V(3).Infof("Ignore update daemonSet(%s/%s) status as up to date", daemonSet.Namespace, daemonSet.Name)
 		return object, nil
 	}
@@ -336,27 +339,38 @@ func aggregateStatefulSetStatus(object *unstructured.Unstructured, aggregatedSta
 	}
 	oldStatus := &statefulSet.Status
 	newStatus := &appsv1.StatefulSetStatus{}
+	observedLatestResourceTemplateGenerationCount := 0
 	for _, item := range aggregatedStatusItems {
 		if item.Status == nil {
 			continue
 		}
-		temp := &appsv1.StatefulSetStatus{}
-		if err = json.Unmarshal(item.Status.Raw, temp); err != nil {
+		member := &WrappedStatefulSetStatus{}
+		if err = json.Unmarshal(item.Status.Raw, member); err != nil {
 			return nil, err
 		}
 		klog.V(3).Infof("Grab statefulSet(%s/%s) status from cluster(%s), availableReplicas: %d, currentReplicas: %d, readyReplicas: %d, replicas: %d, updatedReplicas: %d",
-			statefulSet.Namespace, statefulSet.Name, item.ClusterName, temp.AvailableReplicas, temp.CurrentReplicas, temp.ReadyReplicas, temp.Replicas, temp.UpdatedReplicas)
+			statefulSet.Namespace, statefulSet.Name, item.ClusterName, member.AvailableReplicas, member.CurrentReplicas, member.ReadyReplicas, member.Replicas, member.UpdatedReplicas)
 
-		// always set 'observedGeneration' with current generation(.metadata.generation)
-		// which is the generation Karmada 'observed'.
-		// The 'observedGeneration' is mainly used by GitOps tools(like 'Argo CD') to assess the health status.
-		// For more details, please refer to https://argo-cd.readthedocs.io/en/stable/operator-manual/health/.
+		// `memberStatus.ObservedGeneration >= memberStatus.Generation` means the member's status corresponds the latest spec revision of the member statefulset.
+		// `memberStatus.ResourceTemplateGeneration >= deploy.Generation` means the member statefulset has been aligned with the latest spec revision of federated statefulset.
+		// If both conditions are met, we consider the member's status corresponds the latest spec revision of federated statefulset.
+		if member.ObservedGeneration >= member.Generation &&
+			member.ResourceTemplateGeneration >= member.Generation {
+			observedLatestResourceTemplateGenerationCount++
+		}
+
+		newStatus.AvailableReplicas += member.AvailableReplicas
+		newStatus.CurrentReplicas += member.CurrentReplicas
+		newStatus.ReadyReplicas += member.ReadyReplicas
+		newStatus.Replicas += member.Replicas
+		newStatus.UpdatedReplicas += member.UpdatedReplicas
+	}
+
+	// The 'observedGeneration' is mainly used by GitOps tools(like 'Argo CD') to assess the health status.
+	// For more details, please refer to https://argo-cd.readthedocs.io/en/stable/operator-manual/health/.
+	newStatus.ObservedGeneration = oldStatus.ObservedGeneration
+	if observedLatestResourceTemplateGenerationCount == len(aggregatedStatusItems) {
 		newStatus.ObservedGeneration = statefulSet.Generation
-		newStatus.AvailableReplicas += temp.AvailableReplicas
-		newStatus.CurrentReplicas += temp.CurrentReplicas
-		newStatus.ReadyReplicas += temp.ReadyReplicas
-		newStatus.Replicas += temp.Replicas
-		newStatus.UpdatedReplicas += temp.UpdatedReplicas
 	}
 
 	if oldStatus.ObservedGeneration == newStatus.ObservedGeneration &&

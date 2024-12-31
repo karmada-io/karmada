@@ -20,8 +20,8 @@ package v1alpha1
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -38,25 +38,17 @@ type PropagationPolicyLister interface {
 
 // propagationPolicyLister implements the PropagationPolicyLister interface.
 type propagationPolicyLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1alpha1.PropagationPolicy]
 }
 
 // NewPropagationPolicyLister returns a new PropagationPolicyLister.
 func NewPropagationPolicyLister(indexer cache.Indexer) PropagationPolicyLister {
-	return &propagationPolicyLister{indexer: indexer}
-}
-
-// List lists all PropagationPolicies in the indexer.
-func (s *propagationPolicyLister) List(selector labels.Selector) (ret []*v1alpha1.PropagationPolicy, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.PropagationPolicy))
-	})
-	return ret, err
+	return &propagationPolicyLister{listers.New[*v1alpha1.PropagationPolicy](indexer, v1alpha1.Resource("propagationpolicy"))}
 }
 
 // PropagationPolicies returns an object that can list and get PropagationPolicies.
 func (s *propagationPolicyLister) PropagationPolicies(namespace string) PropagationPolicyNamespaceLister {
-	return propagationPolicyNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return propagationPolicyNamespaceLister{listers.NewNamespaced[*v1alpha1.PropagationPolicy](s.ResourceIndexer, namespace)}
 }
 
 // PropagationPolicyNamespaceLister helps list and get PropagationPolicies.
@@ -74,26 +66,5 @@ type PropagationPolicyNamespaceLister interface {
 // propagationPolicyNamespaceLister implements the PropagationPolicyNamespaceLister
 // interface.
 type propagationPolicyNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all PropagationPolicies in the indexer for a given namespace.
-func (s propagationPolicyNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.PropagationPolicy, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.PropagationPolicy))
-	})
-	return ret, err
-}
-
-// Get retrieves the PropagationPolicy from the indexer for a given namespace and name.
-func (s propagationPolicyNamespaceLister) Get(name string) (*v1alpha1.PropagationPolicy, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("propagationpolicy"), name)
-	}
-	return obj.(*v1alpha1.PropagationPolicy), nil
+	listers.ResourceIndexer[*v1alpha1.PropagationPolicy]
 }

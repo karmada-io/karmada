@@ -87,7 +87,7 @@ sufficient resource to accommodate all replicas, so that the application better 
 
 #### Story 4
 
-In disaster-recovery scenario, replicas migrated from primary cluster to backup cluster when primary cluster failue.
+In disaster-recovery scenario, replicas migrated from primary cluster to backup cluster when primary cluster failure.
 
 As a cluster administrator, I hope that replicas can migrate back when cluster restored, so that:
 
@@ -402,7 +402,7 @@ status:
 > 1. the `observedWorkloads` is sorted in increasing dict order of the combined string of `apiVersion/kind/namespace/name` .
 > 2. if workload referenced binding not found, it will be marked as `failed` without retry.
 > 3. if workload rebalanced failed due to occasional network error, the controller will retry, and its `result` and `reason`
-> field will left empty until it succees.
+> field will left empty until it succeeds.
 
 ### How to update this resource
 

@@ -52,7 +52,7 @@ func ConvertLuaResultInto(luaResult *lua.LTable, obj interface{}, references ...
 	// but if a field is empty struct, it will be encoded into empty slice format as '[]' (root cause is empty lua.LTable
 	// can not be distinguished from empty slice or empty struct).
 	//
-	// Supposing an object contains empty fileds, like following one has an empty slice field and an empty struct field.
+	// Supposing an object contains empty fields, like following one has an empty slice field and an empty struct field.
 	// e.g: struct{one-filed: {}, another-field: []}
 	//
 	// When it is converted to lua.LTable, empty slice and empty struct are all converted to lua.LTable{}, which can't be distinguished.
@@ -195,7 +195,7 @@ func traverseToFindEmptyField(root gjson.Result, fieldPath []string) (sets.Set[s
 //  3. when traverse to the field `spec.dd.ee`, we got an empty slice, but it also exists in `fieldOfEmptyStruct`,
 //     so, it originally is struct too, we add it into `fieldOfEmptySliceToStruct` variable.
 //  4. when traverse to the field `spec.dd.ff`, we got an empty slice, but it not exists in either map variable,
-//     so, it orinally not exist, we can't judge whether it is struct, so we add it into `fieldOfEmptySliceToDelete` variable to remove it.
+//     so, it originally not exist, we can't judge whether it is struct, so we add it into `fieldOfEmptySliceToDelete` variable to remove it.
 //
 // So, finally, fieldOfEmptySliceToStruct={"spec.aa", "spec.dd.ee"}, fieldOfEmptySliceToDelete={"spec.dd.ff"}
 func traverseToFindEmptyFieldNeededModify(root gjson.Result, fieldPath, fieldPathWithArrayIndex []string, fieldOfEmptySlice, fieldOfEmptyStruct sets.Set[string]) (sets.Set[string], sets.Set[string]) {

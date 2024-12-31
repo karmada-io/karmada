@@ -154,7 +154,7 @@ var _ = framework.SerialDescribe("The ClusterOverridePolicy with nil resourceSel
 								Path: "/spec/template/spec/containers/0/image",
 							},
 							Component: "Registry",
-							Operator:  "replace",
+							Operator:  policyv1alpha1.OverriderOpReplace,
 							Value:     "fictional.registry.us",
 						},
 					},

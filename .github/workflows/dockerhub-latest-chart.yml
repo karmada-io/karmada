@@ -22,6 +22,10 @@ jobs:
           # 0 indicates all history for all branches and tags.
           # for `git describe --tags` in Makefile.
           fetch-depth: 0
+      - name: install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
       - name: login to DockerHub
         uses: docker/login-action@v3
         with:

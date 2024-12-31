@@ -25,28 +25,52 @@ import (
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // EnsureKarmadaRBAC create karmada resource view and edit clusterrole
 func EnsureKarmadaRBAC(client clientset.Interface) error {
-	if err := grantKarmadaResourceViewClusterrole(client); err != nil {
+	if err := grantClusterProxyAdminRBAC(client); err != nil {
 		return err
 	}
-	return grantKarmadaResourceEditClusterrole(client)
+	if err := grantKarmadaResourceViewClusterRole(client); err != nil {
+		return err
+	}
+	return grantKarmadaResourceEditClusterRole(client)
 }
 
-func grantKarmadaResourceViewClusterrole(client clientset.Interface) error {
-	viewClusterrole := &rbacv1.ClusterRole{}
-	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), []byte(KarmadaResourceViewClusterRole), viewClusterrole); err != nil {
-		return fmt.Errorf("err when decoding Karmada view Clusterrole: %w", err)
+func grantClusterProxyAdminRBAC(client clientset.Interface) error {
+	role := &rbacv1.ClusterRole{}
+	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), []byte(ClusterProxyAdminClusterRole), role); err != nil {
+		return fmt.Errorf("err when decoding ClusterProxyAdmin ClusterRole: %w", err)
 	}
-	return apiclient.CreateOrUpdateClusterRole(client, viewClusterrole)
+	util.MergeLabel(role, util.KarmadaSystemLabel, util.KarmadaSystemLabelValue)
+	if err := apiclient.CreateOrUpdateClusterRole(client, role); err != nil {
+		return fmt.Errorf("failed to create or update ClusterRole: %w", err)
+	}
+
+	roleBinding := &rbacv1.ClusterRoleBinding{}
+	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), []byte(ClusterProxyAdminClusterRoleBinding), roleBinding); err != nil {
+		return fmt.Errorf("err when decoding ClusterProxyAdmin ClusterRoleBinding: %w", err)
+	}
+	util.MergeLabel(role, util.KarmadaSystemLabel, util.KarmadaSystemLabelValue)
+	return apiclient.CreateOrUpdateClusterRoleBinding(client, roleBinding)
 }
 
-func grantKarmadaResourceEditClusterrole(client clientset.Interface) error {
-	editClusterrole := &rbacv1.ClusterRole{}
-	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), []byte(KarmadaResourceEditClusterRole), editClusterrole); err != nil {
-		return fmt.Errorf("err when decoding Karmada edit Clusterrole: %w", err)
+func grantKarmadaResourceViewClusterRole(client clientset.Interface) error {
+	role := &rbacv1.ClusterRole{}
+	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), []byte(KarmadaResourceViewClusterRole), role); err != nil {
+		return fmt.Errorf("err when decoding Karmada view ClusterRole: %w", err)
 	}
-	return apiclient.CreateOrUpdateClusterRole(client, editClusterrole)
+	util.MergeLabel(role, util.KarmadaSystemLabel, util.KarmadaSystemLabelValue)
+	return apiclient.CreateOrUpdateClusterRole(client, role)
+}
+
+func grantKarmadaResourceEditClusterRole(client clientset.Interface) error {
+	role := &rbacv1.ClusterRole{}
+	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), []byte(KarmadaResourceEditClusterRole), role); err != nil {
+		return fmt.Errorf("err when decoding Karmada edit ClusterRole: %w", err)
+	}
+	util.MergeLabel(role, util.KarmadaSystemLabel, util.KarmadaSystemLabelValue)
+	return apiclient.CreateOrUpdateClusterRole(client, role)
 }

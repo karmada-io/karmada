@@ -288,7 +288,7 @@ func TestRecordManagedAnnotations(t *testing.T) {
 			},
 		},
 		{
-			name: "object has has annotations",
+			name: "object has annotations",
 			object: &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "apps/v1",
@@ -322,7 +322,7 @@ func TestRecordManagedAnnotations(t *testing.T) {
 			},
 		},
 		{
-			name: "object has has annotations and labels",
+			name: "object has annotations and labels",
 			object: &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "apps/v1",
@@ -331,6 +331,47 @@ func TestRecordManagedAnnotations(t *testing.T) {
 						"name": "demo-deployment-1",
 						"annotations": map[string]interface{}{
 							"foo": "foo",
+						},
+						"labels": map[string]interface{}{
+							"bar": "bar",
+						},
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+			expected: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name": "demo-deployment-1",
+						"annotations": map[string]interface{}{
+							workv1alpha2.ManagedAnnotation: "foo,resourcetemplate.karmada.io/managed-annotations,resourcetemplate.karmada.io/managed-labels",
+							"foo":                          "foo",
+						},
+						"labels": map[string]interface{}{
+							"bar": "bar",
+						},
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+		},
+		{
+			name: "object has recorded annotations and labels",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name": "demo-deployment-1",
+						"annotations": map[string]interface{}{
+							workv1alpha2.ManagedAnnotation: "foo,resourcetemplate.karmada.io/managed-annotations,resourcetemplate.karmada.io/managed-labels",
+							"foo":                          "foo",
 						},
 						"labels": map[string]interface{}{
 							"bar": "bar",
@@ -421,6 +462,286 @@ func TestMergeAnnotation(t *testing.T) {
 			MergeAnnotation(tt.obj, tt.annotationKey, tt.annotationValue)
 			if !reflect.DeepEqual(tt.obj.GetAnnotations(), tt.want) {
 				t.Errorf("MergeAnnotation(), obj.GetAnnotations = %v, want %v", tt.obj.GetAnnotations(), tt.want)
+			}
+		})
+	}
+}
+
+func TestDedupeAndMergeAnnotations(t *testing.T) {
+	tests := []struct {
+		name               string
+		existAnnotation    map[string]string
+		newAnnotation      map[string]string
+		expectedAnnotation map[string]string
+	}{
+		{
+			name:               "nil both annotation",
+			existAnnotation:    nil,
+			newAnnotation:      nil,
+			expectedAnnotation: nil,
+		},
+		{
+			name:            "nil existing annotation",
+			existAnnotation: nil,
+			newAnnotation: map[string]string{
+				"newAnnotationKey": "newAnnotationValues",
+			},
+			expectedAnnotation: map[string]string{
+				"newAnnotationKey": "newAnnotationValues",
+			},
+		},
+		{
+			name: "nil new annotation",
+			existAnnotation: map[string]string{
+				"existAnnotationKey": "existAnnotationValues",
+			},
+			newAnnotation: nil,
+			expectedAnnotation: map[string]string{
+				"existAnnotationKey": "existAnnotationValues",
+			},
+		},
+		{
+			name: "same annotation",
+			existAnnotation: map[string]string{
+				"existAnnotationKey": "existAnnotationValues",
+			},
+			newAnnotation: map[string]string{
+				"existAnnotationKey": "existAnnotationValues",
+			},
+			expectedAnnotation: map[string]string{
+				"existAnnotationKey": "existAnnotationValues",
+			},
+		},
+		{
+			name: "different annotation",
+			existAnnotation: map[string]string{
+				"existAnnotationKey": "existAnnotationValues",
+			},
+			newAnnotation: map[string]string{
+				"newAnnotationKey": "newAnnotationValues",
+			},
+			expectedAnnotation: map[string]string{
+				"existAnnotationKey": "existAnnotationValues",
+				"newAnnotationKey":   "newAnnotationValues",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.existAnnotation = DedupeAndMergeAnnotations(tt.existAnnotation, tt.newAnnotation)
+			if !reflect.DeepEqual(tt.existAnnotation, tt.expectedAnnotation) {
+				t.Errorf("DedupeAndMergeAnnotations(), existAnnotation = %v, want %v", tt.existAnnotation, tt.expectedAnnotation)
+			}
+		})
+	}
+}
+
+func TestRemoveAnnotations(t *testing.T) {
+	type args struct {
+		obj  *unstructured.Unstructured
+		keys []string
+	}
+	tests := []struct {
+		name     string
+		args     args
+		expected *unstructured.Unstructured
+	}{
+		{
+			name: "empty keys",
+			args: args{
+				obj: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":        "demo-deployment",
+							"annotations": map[string]interface{}{"foo": "bar"},
+						},
+						"spec": map[string]interface{}{
+							"replicas": 2,
+						},
+					},
+				},
+				keys: []string{},
+			},
+			expected: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":        "demo-deployment",
+						"annotations": map[string]interface{}{"foo": "bar"},
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+		},
+		{
+			name: "nil object annotations",
+			args: args{
+				obj: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name": "demo-deployment",
+						},
+						"spec": map[string]interface{}{
+							"replicas": 2,
+						},
+					},
+				},
+				keys: []string{"foo"},
+			},
+			expected: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name": "demo-deployment",
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+		},
+		{
+			name: "same keys",
+			args: args{
+				obj: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":        "demo-deployment",
+							"annotations": map[string]interface{}{"foo": "bar"},
+						},
+						"spec": map[string]interface{}{
+							"replicas": 2,
+						},
+					},
+				},
+				keys: []string{"foo"},
+			},
+			expected: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":        "demo-deployment",
+						"annotations": map[string]interface{}{},
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+		},
+		{
+			name: "different keys",
+			args: args{
+				obj: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":        "demo-deployment",
+							"annotations": map[string]interface{}{"foo": "bar"},
+						},
+						"spec": map[string]interface{}{
+							"replicas": 2,
+						},
+					},
+				},
+				keys: []string{"foo1"},
+			},
+			expected: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":        "demo-deployment",
+						"annotations": map[string]interface{}{"foo": "bar"},
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+		},
+		{
+			name: "same keys of different length",
+			args: args{
+				obj: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":        "demo-deployment",
+							"annotations": map[string]interface{}{"foo": "bar", "foo1": "bar1"},
+						},
+						"spec": map[string]interface{}{
+							"replicas": 2,
+						},
+					},
+				},
+				keys: []string{"foo", "foo1"},
+			},
+			expected: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":        "demo-deployment",
+						"annotations": map[string]interface{}{},
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+		},
+		{
+			name: "different keys of different length",
+			args: args{
+				obj: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":        "demo-deployment",
+							"annotations": map[string]interface{}{"foo": "bar", "foo1": "bar1"},
+						},
+						"spec": map[string]interface{}{
+							"replicas": 2,
+						},
+					},
+				},
+				keys: []string{"foo2", "foo3"},
+			},
+			expected: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":        "demo-deployment",
+						"annotations": map[string]interface{}{"foo": "bar", "foo1": "bar1"},
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			RemoveAnnotations(tt.args.obj, tt.args.keys...)
+			if !reflect.DeepEqual(tt.args.obj, tt.expected) {
+				t.Errorf("RemoveAnnotations(), tt.args.obj = %v, want %v", tt.args.obj, tt.expected)
 			}
 		})
 	}

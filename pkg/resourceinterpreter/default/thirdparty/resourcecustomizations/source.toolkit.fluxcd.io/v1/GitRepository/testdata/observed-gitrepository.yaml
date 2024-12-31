@@ -1,6 +1,9 @@
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata:
+  annotations:
+    resourcetemplate.karmada.io/generation: "1"
+  generation: 1
   name: sample
   namespace: test-gitrepository
 spec:

@@ -25,34 +25,37 @@ spec:
           imagePullPolicy: IfNotPresent
           command:
             - /bin/karmada-webhook
-            - --kubeconfig=/etc/kubeconfig
+            - --kubeconfig=/etc/karmada/config/karmada.config
             - --bind-address=0.0.0.0
+            - --metrics-bind-address=:8080
             - --default-not-ready-toleration-seconds=30
             - --default-unreachable-toleration-seconds=30
             - --secure-port=8443
-            - --cert-dir=/var/serving-cert
+            - --cert-dir=/etc/karmada/pki/server
             - --v=4
           ports:
             - containerPort: 8443
-          volumeMounts:
-            - name: kubeconfig
-              subPath: kubeconfig
-              mountPath: /etc/kubeconfig
-            - name: cert
-              mountPath: /var/serving-cert
-              readOnly: true
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
           readinessProbe:
             httpGet:
               path: /readyz
               port: 8443
               scheme: HTTPS
+          volumeMounts:
+            - name: karmada-config
+              mountPath: /etc/karmada/config
+            - name: server-cert
+              mountPath: /etc/karmada/pki/server
+              readOnly: true
       volumes:
-        - name: kubeconfig
+        - name: karmada-config
           secret:
-            secretName: kubeconfig
-        - name: cert
+            secretName: karmada-webhook-config
+        - name: server-cert
           secret:
-            secretName: webhook-cert
+            secretName: karmada-webhook-cert
 ---
 apiVersion: v1
 kind: Service

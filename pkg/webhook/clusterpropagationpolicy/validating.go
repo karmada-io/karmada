@@ -31,7 +31,7 @@ import (
 
 // ValidatingAdmission validates ClusterPropagationPolicy object when creating/updating/deleting.
 type ValidatingAdmission struct {
-	Decoder *admission.Decoder
+	Decoder admission.Decoder
 }
 
 // Check if our ValidatingAdmission implements necessary interface

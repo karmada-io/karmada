@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc"
 	grpccredentials "google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 )
 
 // ServerConfig the config of GRPC server side.
@@ -99,12 +100,11 @@ func (s *ServerConfig) NewServer() (*grpc.Server, error) {
 	return grpc.NewServer(grpc.Creds(grpccredentials.NewTLS(config))), nil
 }
 
-// DialWithTimeOut creates a client connection to the given target.
-func (c *ClientConfig) DialWithTimeOut(path string, timeout time.Duration) (*grpc.ClientConn, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
+// DialWithTimeOut will attempt to create a client connection based on the given targets, one at a time, until a client connection is successfully established.
+func (c *ClientConfig) DialWithTimeOut(paths []string, timeout time.Duration) (*grpc.ClientConn, error) {
 	opts := []grpc.DialOption{
+		// grpc.WithBlock is deprecated. TODO: Perhaps need to reconsider the approach in a future PR
+		//nolint:staticcheck
 		grpc.WithBlock(),
 	}
 
@@ -138,6 +138,27 @@ func (c *ClientConfig) DialWithTimeOut(path string, timeout time.Duration) (*grp
 	}
 
 	opts = append(opts, grpc.WithTransportCredentials(cred))
+
+	var cc *grpc.ClientConn
+	var err error
+	var allErrs []error
+	for _, path := range paths {
+		cc, err = createGRPCConnection(path, timeout, opts...)
+		if err == nil {
+			return cc, nil
+		}
+		allErrs = append(allErrs, err)
+	}
+
+	return nil, utilerrors.NewAggregate(allErrs)
+}
+
+func createGRPCConnection(path string, timeout time.Duration, opts ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	// grpc.DialContext is deprecated. TODO: Perhaps need to reconsider the approach in a future PR
+	//nolint:staticcheck
 	cc, err := grpc.DialContext(ctx, path, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("dial %s error: %v", path, err)

@@ -59,12 +59,12 @@ PACKAGES=(
 )
 
 APIMACHINERY_PKGS=(
-  +k8s.io/apimachinery/pkg/util/intstr
-  +k8s.io/apimachinery/pkg/api/resource
-  +k8s.io/apimachinery/pkg/runtime/schema
-  +k8s.io/apimachinery/pkg/runtime
-  k8s.io/apimachinery/pkg/apis/meta/v1
-  k8s.io/api/core/v1
+  -k8s.io/apimachinery/pkg/util/intstr
+  -k8s.io/apimachinery/pkg/api/resource
+  -k8s.io/apimachinery/pkg/runtime/schema
+  -k8s.io/apimachinery/pkg/runtime
+  -k8s.io/apimachinery/pkg/apis/meta/v1
+  -k8s.io/api/core/v1
 )
 
 go-to-protobuf \
@@ -72,10 +72,7 @@ go-to-protobuf \
   --apimachinery-packages=$(IFS=, ; echo "${APIMACHINERY_PKGS[*]}") \
   --packages=$(IFS=, ; echo "${PACKAGES[*]}") \
   --proto-import="${KARMADA_ROOT}/vendor" \
-  --proto-import="${KARMADA_ROOT}/third_party/protobuf"
+  --proto-import="${KARMADA_ROOT}/third_party/protobuf" \
+  --output-dir="${GOPATH}/src"
 
 go generate ./pkg/estimator/service
-
-# The `go-to-protobuf` tool will modify all import proto files in vendor, so we should use go mod vendor to prevent.
-export GOPATH=${DEFAULT_GOPATH}
-go mod vendor
