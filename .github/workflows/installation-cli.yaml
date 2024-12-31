@@ -90,6 +90,11 @@ jobs:
           export KUBECONFIG=${HOME}/karmada/karmada-apiserver.config
           GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
           ginkgo -v --race --trace -p  --focus="[BasicPropagation] propagation testing deployment propagation testing"  ./test/e2e/
+      - name: register cluster in pull mode
+        run: |
+          karmadactl register cluster \
+            --cluster-name ${{ matrix.k8s }} \
+            --mode Pull
       - name: export logs for config test
         if: always()
         run: |
