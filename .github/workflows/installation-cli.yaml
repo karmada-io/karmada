@@ -44,7 +44,7 @@ jobs:
           hack/cli-testing-environment.sh
 
           # run a single e2e
-          export KUBECONFIG=${HOME}/karmada/karmada-apiserver.config
+          export KUBECONFIG=${HOME}/.kube/karmada-host.config:${HOME}/karmada/karmada-apiserver.config
           GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
           ginkgo -v --race --trace -p  --focus="[BasicPropagation] propagation testing deployment propagation testing"  ./test/e2e/
       - name: export logs
@@ -87,7 +87,7 @@ jobs:
           hack/cli-testing-init-with-config.sh
           
           # run a single e2e
-          export KUBECONFIG=${HOME}/karmada/karmada-apiserver.config
+          export KUBECONFIG=${HOME}/.kube/karmada-host.config:${HOME}/karmada/karmada-apiserver.config
           GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
           ginkgo -v --race --trace -p  --focus="[BasicPropagation] propagation testing deployment propagation testing"  ./test/e2e/
       - name: export logs for config test

@@ -103,11 +103,13 @@ var (
 )
 
 var (
+	hostContext           string
 	karmadaContext        string
 	kubeconfig            string
 	karmadactlPath        string
 	restConfig            *rest.Config
 	karmadaHost           string
+	hostKubeClient        kubernetes.Interface
 	kubeClient            kubernetes.Interface
 	karmadaClient         karmada.Interface
 	dynamicClient         dynamic.Interface
@@ -125,7 +127,8 @@ func init() {
 	// eg. ginkgo -v --race --trace --fail-fast -p --randomize-all ./test/e2e/ -- --poll-interval=5s --poll-timeout=5m
 	flag.DurationVar(&pollInterval, "poll-interval", 5*time.Second, "poll-interval defines the interval time for a poll operation")
 	flag.DurationVar(&pollTimeout, "poll-timeout", 300*time.Second, "poll-timeout defines the time which the poll operation times out")
-	flag.StringVar(&karmadaContext, "karmada-context", karmadaContext, "Name of the cluster context in control plane kubeconfig file.")
+	flag.StringVar(&hostContext, "host-context", "karmada-host", "Name of the host cluster context in control plane kubeconfig file.")
+	flag.StringVar(&karmadaContext, "karmada-context", "karmada-apiserver", "Name of the karmada cluster context in control plane kubeconfig file.")
 }
 
 func TestE2E(t *testing.T) {
@@ -148,6 +151,13 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	gomega.Expect(karmadactlPath).ShouldNot(gomega.BeEmpty())
 
 	clusterProvider = cluster.NewProvider()
+
+	restConfig, err = framework.LoadRESTClientConfig(kubeconfig, hostContext)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	hostKubeClient, err = kubernetes.NewForConfig(restConfig)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
 	restConfig, err = framework.LoadRESTClientConfig(kubeconfig, karmadaContext)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
