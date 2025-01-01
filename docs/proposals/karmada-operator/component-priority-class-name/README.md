@@ -20,7 +20,7 @@ By enabling users to configure a custom priority class name, this feature ensure
 
 ## Motivation
 
-Currently, the priority class name for Karmada components is hardcoded to `system-cluster-critical` for some components, while others do not specify a priority class at all. This limitation can compromise 
+Currently, the priority class name for Karmada components is hardcoded to `system-node-critical` for some components, while others do not specify a priority class at all. This limitation can compromise 
 the reliability and stability of the system in environments where scheduling of critical components is essential.
 
 By allowing users to configure the priority class name, this feature ensures:
@@ -48,8 +48,8 @@ Introduce a new optional `priorityClassName` field in the `CommonSettings` struc
 type CommonSettings struct {
 	
     // PriorityClassName specifies the priority class name for the component.
-    // If not specified, it defaults to "system-cluster-critical".
-    // +kubebuilder:default="system-cluster-critical"
+    // If not specified, it defaults to "system-node-critical".
+    // +kubebuilder:default="system-node-critical"
     // +optional
     PriorityClassName string `json:"priorityClassName,omitempty"`
     
@@ -67,9 +67,9 @@ As an infrastructure engineer managing a multi-tenant cluster, I want the abilit
 
 ### Risks and Mitigations
 
-1. *Backward Compatibility*: Existing deployments might rely on the current hardcoded `system-cluster-critical` priority class for some components.
+1. *Backward Compatibility*: Existing deployments might rely on the current hardcoded `system-node-critical` priority class for some components.
 
-    - *Mitigation*: The `priorityClassName` field defaults to `system-cluster-critical` when not explicitly specified, preserving the current behavior.
+    - *Mitigation*: The `priorityClassName` field defaults to `system-node-critical` when not explicitly specified, preserving the current behavior.
 
 ## Design Details
 
@@ -79,4 +79,4 @@ During the reconciliation process, the Karmada operator will:
 - If specified:
   - Apply the specified priority class to the component’s Pod spec.
 - If not specified:
-  - Default to `system-cluster-critical` to maintain backward compatibility.
+  - Default to `system-node-critical` to maintain backward compatibility.
