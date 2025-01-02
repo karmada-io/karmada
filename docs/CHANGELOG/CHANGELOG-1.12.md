@@ -2,12 +2,18 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.12.1](#v1121)
-  - [Downloads for v1.12.1](#downloads-for-v1121)
-  - [Changelog since v1.12.0](#changelog-since-v1120)
+- [v1.12.2](#v1122)
+  - [Downloads for v1.12.2](#downloads-for-v1122)
+  - [Changelog since v1.12.1](#changelog-since-v1121)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
+- [v1.12.1](#v1121)
+  - [Downloads for v1.12.1](#downloads-for-v1121)
+  - [Changelog since v1.12.0](#changelog-since-v1120)
+    - [Changes by Kind](#changes-by-kind-1)
+      - [Bug Fixes](#bug-fixes-1)
+      - [Others](#others-1)
 - [v1.12.0](#v1120)
   - [Downloads for v1.12.0](#downloads-for-v1120)
   - [What's New](#whats-new)
@@ -18,7 +24,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-1)
+    - [Bug Fixes](#bug-fixes-2)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -30,11 +36,11 @@
   - [Downloads for v1.12.0-beta.0](#downloads-for-v1120-beta0)
   - [Changelog since v1.12.0-alpha.1](#changelog-since-v1120-alpha1)
   - [Urgent Update Notes](#urgent-update-notes)
-  - [Changes by Kind](#changes-by-kind-1)
+  - [Changes by Kind](#changes-by-kind-2)
     - [API Changes](#api-changes-1)
     - [Features & Enhancements](#features--enhancements-1)
     - [Deprecation](#deprecation-1)
-    - [Bug Fixes](#bug-fixes-2)
+    - [Bug Fixes](#bug-fixes-3)
     - [Security](#security-1)
   - [Other](#other-1)
     - [Dependencies](#dependencies-1)
@@ -44,11 +50,11 @@
   - [Downloads for v1.12.0-alpha.1](#downloads-for-v1120-alpha1)
   - [Changelog since v1.11.0](#changelog-since-v1110)
   - [Urgent Update Notes](#urgent-update-notes-1)
-  - [Changes by Kind](#changes-by-kind-2)
+  - [Changes by Kind](#changes-by-kind-3)
     - [API Changes](#api-changes-2)
     - [Features & Enhancements](#features--enhancements-2)
     - [Deprecation](#deprecation-2)
-    - [Bug Fixes](#bug-fixes-3)
+    - [Bug Fixes](#bug-fixes-4)
     - [Security](#security-2)
   - [Other](#other-2)
     - [Dependencies](#dependencies-2)
@@ -56,6 +62,22 @@
     - [Instrumentation](#instrumentation-2)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.12.2
+## Downloads for v1.12.2
+
+Download v1.12.2 in the [v1.12.2 release page](https://github.com/karmada-io/karmada/releases/tag/v1.12.2).
+
+## Changelog since v1.12.1
+### Changes by Kind
+#### Bug Fixes
+- `karmada-webhook`: Fixed panic when validating ResourceInterpreterWebhookConfiguration with unspecified service port. ([#5967](https://github.com/karmada-io/karmada/pull/5967), @seanlaii)
+- `karmada-controller-manager`: Fixed the issue of missing work queue metrics. ([#5980](https://github.com/karmada-io/karmada/pull/5980), @XiShanYongYe-Chang)
+- `karmada-controller-manager`: Fixed the bug of WorkloadRebalancer doesn't get deleted after TTL. ([#5995](https://github.com/karmada-io/karmada/pull/5995), @deefreak)
+- `karmada-operator`: Fixed the issue that external ETCD certificate be overwritten by generated in-cluster ETCD certificate. ([#6008](https://github.com/karmada-io/karmada/pull/6008), @jabellard)
+
+#### Others
+None.
 
 # v1.12.1
 ## Downloads for v1.12.1
