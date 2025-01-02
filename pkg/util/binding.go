@@ -110,3 +110,19 @@ func RescheduleRequired(rescheduleTriggeredAt, lastScheduledTime *metav1.Time) b
 	}
 	return rescheduleTriggeredAt.After(lastScheduledTime.Time)
 }
+
+// IsBindingSuspendScheduling tells whether resource binding is scheduling suspended.
+func IsBindingSuspendScheduling(rb *workv1alpha2.ResourceBinding) bool {
+	if rb == nil || rb.Spec.Suspension == nil || rb.Spec.Suspension.Scheduling == nil {
+		return false
+	}
+	return *rb.Spec.Suspension.Scheduling
+}
+
+// IsClusterBindingSuspendScheduling tells whether cluster resource binding is scheduling suspended.
+func IsClusterBindingSuspendScheduling(crb *workv1alpha2.ClusterResourceBinding) bool {
+	if crb == nil || crb.Spec.Suspension == nil || crb.Spec.Suspension.Scheduling == nil {
+		return false
+	}
+	return *crb.Spec.Suspension.Scheduling
+}
