@@ -444,6 +444,18 @@ type Placement struct {
 	// when propagating resources that have replicas in spec (e.g. deployments, statefulsets) to member clusters.
 	// +optional
 	ReplicaScheduling *ReplicaSchedulingStrategy `json:"replicaScheduling,omitempty"`
+
+	// PriorityClassName specifies which PriorityClass object should be used to determine
+	// the binding's priority and preemption policy.
+	//
+	// A custom PriorityClassName must reference an existing PriorityClass object.
+	// If not specified, the binding will use the global default PriorityClass.
+	// If no global default PriorityClass exists, the binding will have:
+	// - priority: 0
+	// - preemptionPolicy: "Never"
+	//
+	// +optional
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
 // SpreadFieldValue is the type to define valid values for SpreadConstraint.SpreadByField
