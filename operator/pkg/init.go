@@ -99,9 +99,9 @@ func NewInitJob(opt *InitOptions) *workflow.Job {
 
 	// add the all tasks to the init job workflow.
 	initJob.AppendTask(tasks.NewPrepareCrdsTask())
-	initJob.AppendTask(tasks.NewCertTask())
+	initJob.AppendTask(tasks.NewCertTask(opt.Karmada))
 	initJob.AppendTask(tasks.NewNamespaceTask())
-	initJob.AppendTask(tasks.NewUploadCertsTask())
+	initJob.AppendTask(tasks.NewUploadCertsTask(opt.Karmada))
 
 	etcdConfig := opt.Karmada.Spec.Components.Etcd
 	// Only required if local etcd is configured
