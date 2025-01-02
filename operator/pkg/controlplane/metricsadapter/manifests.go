@@ -48,6 +48,7 @@ spec:
         command:
         - /bin/karmada-metrics-adapter
         - --kubeconfig=/etc/karmada/kubeconfig
+        - --metrics-bind-address=:8080
         - --authentication-kubeconfig=/etc/karmada/kubeconfig
         - --authorization-kubeconfig=/etc/karmada/kubeconfig
         - --client-ca-file=/etc/karmada/pki/ca.crt

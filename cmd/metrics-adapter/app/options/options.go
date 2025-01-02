@@ -18,6 +18,9 @@ package options
 
 import (
 	"context"
+	"net/http"
+	"os"
+	"time"
 
 	"github.com/spf13/pflag"
 	openapinamer "k8s.io/apiserver/pkg/endpoints/openapi"
@@ -25,6 +28,8 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/component-base/metrics"
+	"k8s.io/component-base/metrics/legacyregistry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/custom-metrics-apiserver/pkg/cmd/options"
 	"sigs.k8s.io/metrics-server/pkg/api"
@@ -39,9 +44,44 @@ import (
 	"github.com/karmada-io/karmada/pkg/version"
 )
 
+const (
+	// ReadHeaderTimeout is the amount of time allowed to read
+	// request headers.
+	// HTTP timeouts are necessary to expire inactive connections
+	// and failing to do so might make the application vulnerable
+	// to attacks like slowloris which work by sending data very slow,
+	// which in case of no timeout will keep the connection active
+	// eventually leading to a denial-of-service (DoS) attack.
+	// References:
+	// - https://en.wikipedia.org/wiki/Slowloris_(computer_security)
+	ReadHeaderTimeout = 32 * time.Second
+	// WriteTimeout is the amount of time allowed to write the
+	// request data.
+	// HTTP timeouts are necessary to expire inactive connections
+	// and failing to do so might make the application vulnerable
+	// to attacks like slowloris which work by sending data very slow,
+	// which in case of no timeout will keep the connection active
+	// eventually leading to a denial-of-service (DoS) attack.
+	WriteTimeout = 5 * time.Minute
+	// ReadTimeout is the amount of time allowed to read
+	// response data.
+	// HTTP timeouts are necessary to expire inactive connections
+	// and failing to do so might make the application vulnerable
+	// to attacks like slowloris which work by sending data very slow,
+	// which in case of no timeout will keep the connection active
+	// eventually leading to a denial-of-service (DoS) attack.
+	ReadTimeout = 5 * time.Minute
+)
+
 // Options contains everything necessary to create and run metrics-adapter.
 type Options struct {
 	CustomMetricsAdapterServerOptions *options.CustomMetricsAdapterServerOptions
+
+	// MetricsBindAddress is the TCP address that the server should bind to
+	// for serving prometheus metrics.
+	// It can be set to "0" to disable the metrics serving.
+	// Defaults to ":8080".
+	MetricsBindAddress string
 
 	KubeConfig string
 	// ClusterAPIQPS is the QPS to use while talking with cluster kube-apiserver.
@@ -73,6 +113,7 @@ func (o *Options) Complete() error {
 func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	o.CustomMetricsAdapterServerOptions.AddFlags(fs)
 	o.ProfileOpts.AddFlags(fs)
+	fs.StringVar(&o.MetricsBindAddress, "metrics-bind-address", ":8080", "The TCP address that the server should bind to for serving prometheus metrics(e.g. 127.0.0.1:8080, :8080). It can be set to \"0\" to disable the metrics serving. Defaults to 0.0.0.0:8080.")
 	fs.Float32Var(&o.ClusterAPIQPS, "cluster-api-qps", 40.0, "QPS to use while talking with cluster kube-apiserver.")
 	fs.IntVar(&o.ClusterAPIBurst, "cluster-api-burst", 60, "Burst to use while talking with cluster kube-apiserver.")
 	fs.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver.")
@@ -136,6 +177,9 @@ func (o *Options) Config(stopCh <-chan struct{}) (*metricsadapter.MetricsServer,
 // Run runs the metrics-adapter with options. This should never exit.
 func (o *Options) Run(ctx context.Context) error {
 	klog.Infof("karmada-metrics-adapter version: %s", version.Get())
+	if o.MetricsBindAddress != "0" {
+		go serveMetrics(o.MetricsBindAddress)
+	}
 
 	profileflag.ListenAndServe(o.ProfileOpts)
 
@@ -146,4 +190,32 @@ func (o *Options) Run(ctx context.Context) error {
 	}
 
 	return metricsServer.StartServer(ctx)
+}
+
+func serveMetrics(address string) {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", metricsHandler())
+	serveHTTP(address, mux, "metrics")
+}
+
+func metricsHandler() http.Handler {
+	return metrics.HandlerFor(legacyregistry.DefaultGatherer, metrics.HandlerOpts{
+		ErrorHandling: metrics.HTTPErrorOnError,
+	})
+}
+
+func serveHTTP(address string, handler http.Handler, name string) {
+	httpServer := &http.Server{
+		Addr:              address,
+		Handler:           handler,
+		ReadHeaderTimeout: ReadHeaderTimeout,
+		WriteTimeout:      WriteTimeout,
+		ReadTimeout:       ReadTimeout,
+	}
+
+	klog.Infof("Starting %s server on %s", name, address)
+	if err := httpServer.ListenAndServe(); err != nil {
+		klog.Errorf("Failed to serve %s on %s: %v", name, address, err)
+		os.Exit(1)
+	}
 }
