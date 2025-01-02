@@ -2,18 +2,22 @@
 apiVersion: v1
 kind: Secret
 metadata:
-  name: {{ include "karmada.name" . }}-cert
+  name: karmada-certs
   namespace: {{ include "karmada.namespace" . }}
 type: Opaque
 data:
-  server-ca.crt: |
+  ca.crt: |
     {{ b64enc .Values.certs.custom.caCrt }}
-  server-ca.key: |
+  ca.key: |
     {{ b64enc .Values.certs.custom.caKey }}
-  karmada.crt: |
-    {{ b64enc .Values.certs.custom.crt }}
-  karmada.key: |
-    {{ b64enc .Values.certs.custom.key }}
+  karmada-client.crt: |
+    {{ b64enc .Values.certs.custom.karmadaClientCrt }}
+  karmada-client.key: |
+    {{ b64enc .Values.certs.custom.karmadaClientKey }}
+  karmada-server.crt: |
+    {{ b64enc .Values.certs.custom.karmadaServerCrt }}
+  karmada-server.key: |
+    {{ b64enc .Values.certs.custom.karmadaServerKey }}
   front-proxy-ca.crt: |
     {{ b64enc .Values.certs.custom.frontProxyCaCrt }}
   front-proxy-client.crt: |
@@ -24,30 +28,31 @@ data:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: {{ include "karmada.name" . }}-webhook-cert
+  name: karmada-etcd-cert
+  namespace: {{ include "karmada.namespace" . }}
+type: Opaque
+data:
+  etcd-ca.crt: |
+    {{ b64enc .Values.certs.custom.etcdCaCrt }}
+  etcd-server.crt: |
+    {{ b64enc .Values.certs.custom.etcdServerCrt }}
+  etcd-server.key: |
+    {{ b64enc .Values.certs.custom.etcdServerKey }}
+  etcd-client.crt: |
+    {{ b64enc .Values.certs.custom.etcdClientCrt }}
+  etcd-client.key: |
+    {{ b64enc .Values.certs.custom.etcdClientKey }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: karmada-webhook-cert
   namespace: {{ include "karmada.namespace" . }}
 type: kubernetes.io/tls
 data:
   tls.crt: |
-    {{ b64enc .Values.certs.custom.crt }}
+    {{ b64enc .Values.certs.custom.karmadaServerCrt }}
   tls.key: |
-    {{ b64enc .Values.certs.custom.key }}
----
-{{- end }}
-
-{{- if and (eq .Values.installMode "host") (eq .Values.etcd.mode "external") }}
-apiVersion: v1
-kind: Secret
-metadata:
-  name: {{ include "karmada.name" . }}-external-etcd-cert
-  namespace: {{ include "karmada.namespace" . }}
-type: Opaque
-data:
-  ca.crt: |
-    {{ b64enc .Values.etcd.external.certs.caCrt }}
-  tls.crt: |
-    {{ b64enc .Values.etcd.external.certs.crt }}
-  tls.key: |
-    {{ b64enc .Values.etcd.external.certs.key }}
+    {{ b64enc .Values.certs.custom.karmadaServerKey }}
 ---
 {{- end }}

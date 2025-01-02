@@ -52,7 +52,7 @@ spec:
             - --kubeconfig=/etc/kubeconfig
             - --bind-address=0.0.0.0
             - --secure-port=8443
-            - --cert-dir=/var/serving-cert
+            - --cert-dir=/etc/karmada/pki
           ports:
             - containerPort: 8443
             - containerPort: 8080
@@ -60,8 +60,8 @@ spec:
               protocol: TCP
           volumeMounts:
           {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
-            - name: {{ $name }}-webhook-cert-secret
-              mountPath: /var/serving-cert
+            - name: karmada-webhook-cert
+              mountPath: /etc/karmada/pki
               readOnly: true
           readinessProbe:
             httpGet:
@@ -72,9 +72,9 @@ spec:
           {{- toYaml .Values.webhook.resources | nindent 12 }}
       volumes:
       {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
-        - name: {{ $name }}-webhook-cert-secret
+        - name: karmada-webhook-cert
           secret:
-            secretName: {{ $name }}-webhook-cert
+            secretName: karmada-webhook-cert
 ---
 apiVersion: v1
 kind: Service
