@@ -45,6 +45,16 @@ const (
 	ResourceNamespaceScopedClusterResourceBinding = false
 )
 
+// PreemptionPolicy defines the preemption policy for bindings
+type PreemptionPolicy string
+
+const (
+	// PreemptLowerPriority means that binding can preempt other bindings with lower priority.
+	PreemptLowerPriority PreemptionPolicy = "PreemptLowerPriority"
+	// PreemptNever means that binding never preempts other bindings with lower priority.
+	PreemptNever PreemptionPolicy = "Never"
+)
+
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status
@@ -159,6 +169,19 @@ type ResourceBindingSpec struct {
 	// This setting applies to all Work objects created under this binding object.
 	// +optional
 	PreserveResourcesOnDeletion *bool `json:"preserveResourcesOnDeletion,omitempty"`
+
+	// Priority represents the scheduling priority of the binding.
+	// Bindings with higher priority values are scheduled ahead of bindings with lower priority values.
+	// If not specified, the priority value is set to 0.
+	// +optional
+	Priority int32 `json:"priority,omitempty"`
+
+	// PreemptionPolicy controls the preemption policy of this binding.
+	// Valid values are:
+	// - Never: (default) prevents the binding from preempting other bindings
+	// - PreemptLowerPriority: allows the binding to preempt lower-priority bindings
+	// +optional
+	PreemptionPolicy PreemptionPolicy `json:"preemptionPolicy,omitempty"`
 }
 
 // ObjectReference contains enough information to locate the referenced object inside current cluster.

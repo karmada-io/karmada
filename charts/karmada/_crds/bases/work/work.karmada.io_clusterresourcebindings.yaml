@@ -989,6 +989,13 @@ spec:
                       type: object
                     type: array
                 type: object
+              preemptionPolicy:
+                description: |-
+                  PreemptionPolicy controls the preemption policy of this binding.
+                  Valid values are:
+                  - Never: (default) prevents the binding from preempting other bindings
+                  - PreemptLowerPriority: allows the binding to preempt lower-priority bindings
+                type: string
               preserveResourcesOnDeletion:
                 description: |-
                   PreserveResourcesOnDeletion controls whether resources should be preserved on the
@@ -997,6 +1004,13 @@ spec:
                   Default is false, which means resources will be deleted along with the binding object.
                   This setting applies to all Work objects created under this binding object.
                 type: boolean
+              priority:
+                description: |-
+                  Priority represents the scheduling priority of the binding.
+                  Bindings with higher priority values are scheduled ahead of bindings with lower priority values.
+                  If not specified, the priority value is set to 0.
+                format: int32
+                type: integer
               propagateDeps:
                 description: |-
                   PropagateDeps tells if relevant resources should be propagated automatically.

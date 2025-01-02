@@ -7385,6 +7385,20 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
+					"priority": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Priority represents the scheduling priority of the binding. Bindings with higher priority values are scheduled ahead of bindings with lower priority values. If not specified, the priority value is set to 0.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"preemptionPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PreemptionPolicy controls the preemption policy of this binding. Valid values are: - Never: (default) prevents the binding from preempting other bindings - PreemptLowerPriority: allows the binding to preempt lower-priority bindings",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"resource"},
 			},
