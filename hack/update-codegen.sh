@@ -162,6 +162,13 @@ conversion-gen \
   --output-file=zz_generated.conversion.go \
   github.com/karmada-io/karmada/pkg/apis/search/v1alpha1
 
+echo "Generating with applyconfiguration-gen"
+applyconfiguration-gen \
+  --go-header-file hack/boilerplate/boilerplate.go.txt \
+  --output-pkg=github.com/karmada-io/karmada/pkg/generated/applyconfiguration \
+  --output-dir=pkg/generated/applyconfiguration \
+  github.com/karmada-io/karmada/pkg/apis/work/v1alpha1 github.com/karmada-io/karmada/pkg/apis/work/v1alpha2
+
 echo "Generating with client-gen"
 client-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
@@ -177,6 +184,17 @@ client-gen \
   --output-pkg=github.com/karmada-io/karmada/operator/pkg/generated/clientset \
   --output-dir=operator/pkg/generated/clientset \
   --clientset-name=versioned
+
+# it's a workaround here.
+echo "Generating with client-gen and applyconfiguration-gen "
+client-gen \
+  --go-header-file hack/boilerplate/boilerplate.go.txt \
+  --input-base="" \
+  --input=github.com/karmada-io/karmada/pkg/apis/work/v1alpha1,github.com/karmada-io/karmada/pkg/apis/work/v1alpha2 \
+  --output-pkg=github.com/karmada-io/karmada/pkg/generated/clientset \
+  --output-dir=pkg/generated/work \
+  --clientset-name=versioned \
+  --apply-configuration-package=github.com/karmada-io/karmada/pkg/generated/applyconfiguration
 
 echo "Generating with lister-gen"
 lister-gen \
