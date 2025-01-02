@@ -38,8 +38,11 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
+	"github.com/karmada-io/karmada/pkg/generated/applyconfiguration/work/v1alpha2"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
+	applyconfigurationsmetav1 "k8s.io/client-go/applyconfigurations/meta/v1"
 )
 
 const (
@@ -58,6 +61,7 @@ const (
 func AggregateResourceBindingWorkStatus(
 	ctx context.Context,
 	c client.Client,
+	karmadaClient karmadaclientset.Interface,
 	binding *workv1alpha2.ResourceBinding,
 	eventRecorder record.EventRecorder,
 ) error {
@@ -72,28 +76,51 @@ func AggregateResourceBindingWorkStatus(
 	}
 
 	fullyAppliedCondition := generateFullyAppliedCondition(binding.Spec, aggregatedStatuses)
+	meta.SetStatusCondition(&binding.Status.Conditions, fullyAppliedCondition)
 
-	var operationResult controllerutil.OperationResult
-	if err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		operationResult, err = UpdateStatus(ctx, c, binding, func() error {
-			binding.Status.AggregatedStatus = aggregatedStatuses
-			// set binding status with the newest condition
-			meta.SetStatusCondition(&binding.Status.Conditions, fullyAppliedCondition)
-			return nil
-		})
-		return err
-	}); err != nil {
+	condition := meta.FindStatusCondition(binding.Status.Conditions, workv1alpha2.FullyApplied)
+	binding.Status.AggregatedStatus = aggregatedStatuses
+
+	if err := updateAggregateResourceBindingWorkStatus(ctx, karmadaClient, binding, condition); err != nil {
 		eventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonAggregateStatusFailed, err.Error())
 		return err
 	}
 
-	if operationResult == controllerutil.OperationResultUpdatedStatusOnly {
-		msg := fmt.Sprintf("Update ResourceBinding(%s/%s) with AggregatedStatus successfully.", binding.Namespace, binding.Name)
-		eventRecorder.Event(binding, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
-	} else {
-		klog.Infof("New aggregatedStatuses are equal with old ResourceBinding(%s/%s) AggregatedStatus, no update required.", binding.Namespace, binding.Name)
-	}
+	msg := fmt.Sprintf("Update ResourceBinding(%s/%s) with AggregatedStatus successfully.", binding.Namespace, binding.Name)
+	eventRecorder.Event(binding, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
+
 	return nil
+}
+
+func updateAggregateResourceBindingWorkStatus(ctx context.Context, client karmadaclientset.Interface, binding *workv1alpha2.ResourceBinding, condition *metav1.Condition) error {
+	applyStatus := v1alpha2.ResourceBindingStatus()
+	if condition != nil {
+		applyCondition := applyconfigurationsmetav1.Condition().
+			WithType(condition.Type).
+			WithStatus(condition.Status).
+			WithMessage(condition.Message).
+			WithReason(condition.Reason).
+			WithLastTransitionTime(condition.LastTransitionTime)
+		applyStatus.WithConditions(applyCondition)
+	}
+
+	var aggregatedStatusItems []*v1alpha2.AggregatedStatusItemApplyConfiguration
+	for _, aggregatedStatusItem := range binding.Status.AggregatedStatus {
+		applyAggregatedStatus := v1alpha2.AggregatedStatusItem().
+			WithApplied(aggregatedStatusItem.Applied).
+			WithAppliedMessage(aggregatedStatusItem.AppliedMessage).
+			WithClusterName(aggregatedStatusItem.ClusterName).
+			WithHealth(aggregatedStatusItem.Health)
+		if aggregatedStatusItem.Status != nil {
+			applyAggregatedStatus.WithStatus(*aggregatedStatusItem.Status)
+		}
+		aggregatedStatusItems = append(aggregatedStatusItems, applyAggregatedStatus)
+	}
+	applyStatus.WithAggregatedStatus(aggregatedStatusItems...)
+
+	applyRb := v1alpha2.ResourceBinding(binding.GetName(), binding.GetNamespace()).WithStatus(applyStatus)
+	_, err := client.WorkV1alpha2().ResourceBindings(binding.GetNamespace()).ApplyStatus(ctx, applyRb, metav1.ApplyOptions{FieldManager: "karmada-status-controller"})
+	return err
 }
 
 // AggregateClusterResourceBindingWorkStatus will collect all work statuses with current ClusterResourceBinding objects,

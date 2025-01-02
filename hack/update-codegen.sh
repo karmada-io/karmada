@@ -28,6 +28,7 @@ GO111MODULE=on go install k8s.io/code-generator/cmd/conversion-gen
 GO111MODULE=on go install k8s.io/code-generator/cmd/client-gen
 GO111MODULE=on go install k8s.io/code-generator/cmd/lister-gen
 GO111MODULE=on go install k8s.io/code-generator/cmd/informer-gen
+GO111MODULE=on go install k8s.io/code-generator/cmd/applyconfiguration-gen
 GO111MODULE=on go install k8s.io/kube-openapi/cmd/openapi-gen
 export GOPATH=$(go env GOPATH | awk -F ':' '{print $1}')
 export PATH=$PATH:$GOPATH/bin
@@ -195,6 +196,9 @@ client-gen \
   --output-dir=pkg/generated/work \
   --clientset-name=versioned \
   --apply-configuration-package=github.com/karmada-io/karmada/pkg/generated/applyconfiguration
+
+# move generated work client to correct path.
+cp -r pkg/generated/work/versioned/typed/work pkg/generated/clientset/versioned/typed && rm -rf pkg/generated/work
 
 echo "Generating with lister-gen"
 lister-gen \
