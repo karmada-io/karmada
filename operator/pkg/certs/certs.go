@@ -65,8 +65,9 @@ type altNamesMutatorFunc func(*AltNamesMutatorConfig, *CertConfig) error
 type CertConfig struct {
 	Name                string
 	CAName              string
-	NotAfter            *time.Time
-	PublicKeyAlgorithm  x509.PublicKeyAlgorithm // TODO: All public key of karmada cert use the RSA algorithm by default
+	NotAfter            time.Time
+	Expiry              int32
+	PublicKeyAlgorithm  x509.PublicKeyAlgorithm
 	Config              certutil.Config
 	AltNamesMutatorFunc altNamesMutatorFunc
 }
@@ -74,13 +75,6 @@ type CertConfig struct {
 func (config *CertConfig) defaultPublicKeyAlgorithm() {
 	if config.PublicKeyAlgorithm == x509.UnknownPublicKeyAlgorithm {
 		config.PublicKeyAlgorithm = x509.RSA
-	}
-}
-
-func (config *CertConfig) defaultNotAfter() {
-	if config.NotAfter == nil {
-		notAfter := time.Now().Add(constants.CertificateValidity).UTC()
-		config.NotAfter = &notAfter
 	}
 }
 
@@ -301,9 +295,6 @@ func CreateCertAndKeyFilesWithCA(cc *CertConfig, caCertData, caKeyData []byte) (
 		return nil, fmt.Errorf("must specify at least one ExtKeyUsage")
 	}
 
-	cc.defaultNotAfter()
-	cc.defaultPublicKeyAlgorithm()
-
 	key, err := GeneratePrivateKey(cc.PublicKeyAlgorithm)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create private key, err: %w", err)
@@ -358,6 +349,21 @@ func NewSignedCert(cc *CertConfig, key crypto.Signer, caCert *x509.Certificate, 
 
 	RemoveDuplicateAltNames(&cc.Config.AltNames)
 
+	var notBefore time.Time
+	if cc.Config.NotBefore.IsZero() && cc.NotAfter.IsZero() {
+		notBefore = caCert.NotBefore
+	} else if cc.Config.NotBefore.IsZero() && !cc.NotAfter.IsZero() {
+		notBefore = cc.NotAfter.Add(-time.Hour * 24 * time.Duration(cc.Expiry))
+	} else {
+		notBefore = cc.Config.NotBefore
+	}
+	var notAfter time.Time
+	if cc.NotAfter.IsZero() {
+		notAfter = notBefore.Add(time.Hour * 24 * time.Duration(cc.Expiry))
+	} else {
+		notAfter = cc.NotAfter
+	}
+
 	certTmpl := x509.Certificate{
 		Subject: pkix.Name{
 			CommonName:   cc.Config.CommonName,
@@ -366,8 +372,8 @@ func NewSignedCert(cc *CertConfig, key crypto.Signer, caCert *x509.Certificate, 
 		DNSNames:              cc.Config.AltNames.DNSNames,
 		IPAddresses:           cc.Config.AltNames.IPs,
 		SerialNumber:          serial,
-		NotBefore:             caCert.NotBefore,
-		NotAfter:              cc.NotAfter.UTC(),
+		NotBefore:             notBefore,
+		NotAfter:              notAfter,
 		KeyUsage:              keyUsage,
 		ExtKeyUsage:           cc.Config.Usages,
 		BasicConstraintsValid: true,
