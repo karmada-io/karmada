@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/utils/ptr"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -40,13 +41,13 @@ func TestResourceBindingEventFilter(t *testing.T) {
 		{
 			name:           "ResourceBinding: Matching scheduler name, no labels",
 			schedulerName:  "test-scheduler",
-			obj:            createResourceBinding("test-rb", "test-scheduler", nil),
+			obj:            createResourceBinding("test-rb", "test-scheduler", nil, nil),
 			expectedResult: false,
 		},
 		{
 			name:           "ResourceBinding: Non-matching scheduler name",
 			schedulerName:  "test-scheduler",
-			obj:            createResourceBinding("test-rb", "other-scheduler", nil),
+			obj:            createResourceBinding("test-rb", "other-scheduler", nil, nil),
 			expectedResult: false,
 		},
 		{
@@ -54,7 +55,7 @@ func TestResourceBindingEventFilter(t *testing.T) {
 			schedulerName: "test-scheduler",
 			obj: createResourceBinding("test-rb", "test-scheduler", map[string]string{
 				policyv1alpha1.PropagationPolicyPermanentIDLabel: "test-id",
-			}),
+			}, nil),
 			expectedResult: true,
 		},
 		{
@@ -62,7 +63,7 @@ func TestResourceBindingEventFilter(t *testing.T) {
 			schedulerName: "test-scheduler",
 			obj: createResourceBinding("test-rb", "test-scheduler", map[string]string{
 				policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "test-id",
-			}),
+			}, nil),
 			expectedResult: true,
 		},
 		{
@@ -70,7 +71,7 @@ func TestResourceBindingEventFilter(t *testing.T) {
 			schedulerName: "test-scheduler",
 			obj: createResourceBinding("test-rb", "test-scheduler", map[string]string{
 				workv1alpha2.BindingManagedByLabel: "test-manager",
-			}),
+			}, nil),
 			expectedResult: true,
 		},
 		{
@@ -78,19 +79,19 @@ func TestResourceBindingEventFilter(t *testing.T) {
 			schedulerName: "test-scheduler",
 			obj: createResourceBinding("test-rb", "test-scheduler", map[string]string{
 				policyv1alpha1.PropagationPolicyPermanentIDLabel: "",
-			}),
+			}, nil),
 			expectedResult: false,
 		},
 		{
 			name:           "ClusterResourceBinding: Matching scheduler name, no labels",
 			schedulerName:  "test-scheduler",
-			obj:            createClusterResourceBinding("test-crb", "test-scheduler", nil),
+			obj:            createClusterResourceBinding("test-crb", "test-scheduler", nil, nil),
 			expectedResult: false,
 		},
 		{
 			name:           "ClusterResourceBinding: Non-matching scheduler name",
 			schedulerName:  "test-scheduler",
-			obj:            createClusterResourceBinding("test-crb", "other-scheduler", nil),
+			obj:            createClusterResourceBinding("test-crb", "other-scheduler", nil, nil),
 			expectedResult: false,
 		},
 		{
@@ -98,7 +99,7 @@ func TestResourceBindingEventFilter(t *testing.T) {
 			schedulerName: "test-scheduler",
 			obj: createClusterResourceBinding("test-crb", "test-scheduler", map[string]string{
 				policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "test-id",
-			}),
+			}, nil),
 			expectedResult: true,
 		},
 		{
@@ -111,6 +112,22 @@ func TestResourceBindingEventFilter(t *testing.T) {
 			name:           "Invalid object type",
 			schedulerName:  "test-scheduler",
 			obj:            "not-a-valid-object",
+			expectedResult: false,
+		},
+		{
+			name:          "ResourceBinding suspended",
+			schedulerName: "test-scheduler",
+			obj: createResourceBinding("test-rb", "test-scheduler", map[string]string{
+				workv1alpha2.BindingManagedByLabel: "test-manager",
+			}, &workv1alpha2.Suspension{Scheduling: ptr.To(true)}),
+			expectedResult: false,
+		},
+		{
+			name:          "ClusterResourceBinding suspended",
+			schedulerName: "test-scheduler",
+			obj: createClusterResourceBinding("test-crb", "test-scheduler", map[string]string{
+				policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "test-id",
+			}, &workv1alpha2.Suspension{Scheduling: ptr.To(true)}),
 			expectedResult: false,
 		},
 	}
@@ -404,7 +421,7 @@ func createCluster(name string, generation int64, labels map[string]string) *clu
 	}
 }
 
-func createResourceBinding(name, schedulerName string, labels map[string]string) *workv1alpha2.ResourceBinding {
+func createResourceBinding(name, schedulerName string, labels map[string]string, suspension *workv1alpha2.Suspension) *workv1alpha2.ResourceBinding {
 	return &workv1alpha2.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
@@ -412,11 +429,12 @@ func createResourceBinding(name, schedulerName string, labels map[string]string)
 		},
 		Spec: workv1alpha2.ResourceBindingSpec{
 			SchedulerName: schedulerName,
+			Suspension:    suspension,
 		},
 	}
 }
 
-func createClusterResourceBinding(name, schedulerName string, labels map[string]string) *workv1alpha2.ClusterResourceBinding {
+func createClusterResourceBinding(name, schedulerName string, labels map[string]string, suspension *workv1alpha2.Suspension) *workv1alpha2.ClusterResourceBinding {
 	return &workv1alpha2.ClusterResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
@@ -424,6 +442,7 @@ func createClusterResourceBinding(name, schedulerName string, labels map[string]
 		},
 		Spec: workv1alpha2.ResourceBindingSpec{
 			SchedulerName: schedulerName,
+			Suspension:    suspension,
 		},
 	}
 }
