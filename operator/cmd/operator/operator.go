@@ -23,7 +23,6 @@ import (
 	_ "k8s.io/component-base/logs/json/register" // for JSON log format registration
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
-	_ "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/karmada-io/karmada/operator/cmd/operator/app"
 )
