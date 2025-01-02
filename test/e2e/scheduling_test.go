@@ -696,6 +696,130 @@ var _ = ginkgo.Describe("[JobReplicaScheduling] JobReplicaSchedulingStrategy tes
 	})
 })
 
+var _ = ginkgo.Describe("[Suspension] ResourceBinding testing", func() {
+	var deploymentName string
+	var rb *workv1alpha2.ResourceBinding
+
+	ginkgo.BeforeEach(func() {
+		// Create deployment.
+		deploymentName = deploymentNamePrefix + rand.String(RandomStrLength)
+		deployment := helper.NewDeployment(testNamespace, deploymentName)
+		framework.CreateDeployment(kubeClient, deployment)
+		_, err := kubeClient.AppsV1().Deployments(testNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+		gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to get deployment")
+
+		// Create ResourceBinding.
+		rb = helper.NewResourceBinding(deploymentName, workv1alpha2.ObjectReference{
+			APIVersion: deployment.APIVersion,
+			Kind:       deployment.Kind,
+			Namespace:  testNamespace,
+			Name:       deploymentName,
+		}, &policyv1alpha1.Placement{
+			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+			},
+		}, true)
+		rb, err = karmadaClient.WorkV1alpha2().ResourceBindings(testNamespace).Create(context.TODO(), rb, metav1.CreateOptions{})
+		gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to create ResourceBinding")
+	})
+
+	ginkgo.AfterEach(func() {
+		framework.RemoveResourceBinding(karmadaClient, testNamespace, rb.Name)
+		framework.RemoveDeployment(kubeClient, testNamespace, deploymentName)
+	})
+
+	ginkgo.It("should not be scheduled when suspended and should be scheduled after resumed for resourceBinding", func() {
+		ginkgo.By("Waiting for the ResourceBinding not to be scheduled when suspended", func() {
+			gomega.Eventually(func() bool {
+				latestRB, err := karmadaClient.WorkV1alpha2().ResourceBindings(testNamespace).Get(context.TODO(), rb.Name, metav1.GetOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				return meta.IsStatusConditionTrue(latestRB.Status.Conditions, workv1alpha2.Scheduled)
+			}, pollTimeout, pollInterval).Should(gomega.BeFalse(), "ResourceBinding should not be scheduled when suspended")
+		})
+
+		ginkgo.By("Resuming the ResourceBinding", func() {
+			gomega.Eventually(func() bool {
+				newResourceBinding, err := karmadaClient.WorkV1alpha2().ResourceBindings(testNamespace).Get(context.TODO(), rb.Name, metav1.GetOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				newResourceBinding.Spec.Suspension = nil
+				_, err = karmadaClient.WorkV1alpha2().ResourceBindings(testNamespace).Update(context.TODO(), newResourceBinding, metav1.UpdateOptions{})
+				return err == nil
+			}, pollTimeout, pollInterval).Should(gomega.BeTrue(), "ResourceBinding should can be resumed")
+		})
+
+		ginkgo.By("Waiting for the ResourceBinding to be scheduled after resumed", func() {
+			gomega.Eventually(func() bool {
+				latestRB, err := karmadaClient.WorkV1alpha2().ResourceBindings(testNamespace).Get(context.TODO(), rb.Name, metav1.GetOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				return meta.IsStatusConditionTrue(latestRB.Status.Conditions, workv1alpha2.Scheduled)
+			}, pollTimeout, pollInterval).Should(gomega.BeTrue(), "ResourceBinding should be scheduled after resumed")
+		})
+	})
+})
+
+var _ = ginkgo.Describe("[Suspension] ClusterResourceBinding testing", func() {
+	var configMapName string
+	var crb *workv1alpha2.ClusterResourceBinding
+
+	ginkgo.BeforeEach(func() {
+		// Create ConfigMap.
+		configMapName = configMapNamePrefix + rand.String(RandomStrLength)
+		configMap := helper.NewConfigMap(testNamespace, configMapName, make(map[string]string))
+		framework.CreateConfigMap(kubeClient, configMap)
+		_, err := kubeClient.CoreV1().ConfigMaps(testNamespace).Get(context.TODO(), configMapName, metav1.GetOptions{})
+		gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to get ConfigMap")
+
+		// Create ClusterResourceBinding.
+		targetMember := framework.ClusterNames()[0]
+		crb = helper.NewClusterResourceBinding(configMapName, workv1alpha2.ObjectReference{
+			APIVersion: configMap.APIVersion,
+			Kind:       configMap.Kind,
+			Namespace:  testNamespace,
+			Name:       configMapName,
+		}, &policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: []string{targetMember},
+			},
+		}, true)
+		crb, err = karmadaClient.WorkV1alpha2().ClusterResourceBindings().Create(context.TODO(), crb, metav1.CreateOptions{})
+		gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to create ClusterResourceBinding")
+	})
+
+	ginkgo.AfterEach(func() {
+		framework.RemoveClusterResourceBinding(karmadaClient, crb.Name)
+		framework.RemoveConfigMap(kubeClient, testNamespace, configMapName)
+	})
+
+	ginkgo.It("should not be scheduled when suspended and should be scheduled after resumed for clusterResourceBinding", func() {
+		ginkgo.By("Waiting for the ClusterResourceBinding not to be scheduled when suspended", func() {
+			gomega.Eventually(func() bool {
+				latestCRB, err := karmadaClient.WorkV1alpha2().ClusterResourceBindings().Get(context.TODO(), crb.Name, metav1.GetOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				return meta.IsStatusConditionTrue(latestCRB.Status.Conditions, workv1alpha2.Scheduled)
+			}, pollTimeout, pollInterval).Should(gomega.BeFalse(), "ClusterResourceBinding should not be scheduled when suspended")
+		})
+
+		ginkgo.By("Resuming the ClusterResourceBinding", func() {
+			gomega.Eventually(func() bool {
+				newClusterResourceBinding, err := karmadaClient.WorkV1alpha2().ClusterResourceBindings().Get(context.TODO(), crb.Name, metav1.GetOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				newClusterResourceBinding.Spec.Suspension = nil
+				_, err = karmadaClient.WorkV1alpha2().ClusterResourceBindings().Update(context.TODO(), newClusterResourceBinding, metav1.UpdateOptions{})
+				return err == nil
+			}, pollTimeout, pollInterval).Should(gomega.BeTrue(), "ClusterResourceBinding should can be resumed")
+		})
+
+		ginkgo.By("Waiting for the ClusterResourceBinding to be scheduled after resumed", func() {
+			gomega.Eventually(func() bool {
+				latestCRB, err := karmadaClient.WorkV1alpha2().ClusterResourceBindings().Get(context.TODO(), crb.Name, metav1.GetOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				return meta.IsStatusConditionTrue(latestCRB.Status.Conditions, workv1alpha2.Scheduled)
+			}, pollTimeout, pollInterval).Should(gomega.BeTrue(), "ClusterResourceBinding should be scheduled after resumed")
+		})
+	})
+})
+
 // get the resource binding associated with the workload
 func getResourceBinding(workload interface{}) (*workv1alpha2.ResourceBinding, error) {
 	obj, err := utilhelper.ToUnstructured(workload)

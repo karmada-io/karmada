@@ -80,3 +80,11 @@ func WaitGracefulEvictionTasksDone(client karmada.Interface, namespace, name str
 		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }
+
+// RemoveResourceBinding delete ResourceBinding with karmada client.
+func RemoveResourceBinding(client karmada.Interface, namespace, name string) {
+	ginkgo.By(fmt.Sprintf("Removing ResourceBinding(%s/%s)", namespace, name), func() {
+		err := client.WorkV1alpha2().ResourceBindings(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	})
+}
