@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	uuid "k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/utils/ptr"
 
 	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
@@ -40,7 +41,9 @@ import (
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
 // These are different resource units.
@@ -992,4 +995,50 @@ func NewWorkloadRebalancer(name string, objectReferences []appsv1alpha1.ObjectRe
 			Workloads: objectReferences,
 		},
 	}
+}
+
+// NewResourceBinding will build a new resourceBinding object.
+func NewResourceBinding(name string, resource workv1alpha2.ObjectReference, placement *policyv1alpha1.Placement, suspended bool) *workv1alpha2.ResourceBinding {
+	rb := &workv1alpha2.ResourceBinding{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       workv1alpha2.ResourceKindResourceBinding,
+			APIVersion: workv1alpha2.GroupVersion.Version,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+			Labels: map[string]string{
+				policyv1alpha1.PropagationPolicyPermanentIDLabel: string(uuid.NewUUID()),
+			},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			SchedulerName: "default-scheduler",
+			Resource:      resource,
+			Placement:     placement,
+			Suspension:    &workv1alpha2.Suspension{Scheduling: &suspended},
+		},
+	}
+	return rb
+}
+
+// NewClusterResourceBinding will build a new resourceBinding object.
+func NewClusterResourceBinding(name string, resource workv1alpha2.ObjectReference, placement *policyv1alpha1.Placement, suspended bool) *workv1alpha2.ClusterResourceBinding {
+	crb := &workv1alpha2.ClusterResourceBinding{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       workv1alpha2.ResourceKindClusterResourceBinding,
+			APIVersion: workv1alpha2.GroupVersion.Version,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+			Labels: map[string]string{
+				policyv1alpha1.PropagationPolicyPermanentIDLabel: string(uuid.NewUUID()),
+			},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			SchedulerName: "default-scheduler",
+			Resource:      resource,
+			Placement:     placement,
+			Suspension:    &workv1alpha2.Suspension{Scheduling: &suspended},
+		},
+	}
+	return crb
 }
