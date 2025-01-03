@@ -408,7 +408,7 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 	if rb.Generation != rb.Status.SchedulerObservedGeneration {
 		updateRB := rb.DeepCopy()
 		updateRB.Status.SchedulerObservedGeneration = updateRB.Generation
-		return patchBindingStatus(s.KarmadaClient, rb, updateRB)
+		return helper.PatchBindingStatusFiled(s.KarmadaClient, "status.schedulerObservedGeneration", rb, updateRB)
 	}
 	return nil
 }
@@ -833,7 +833,8 @@ func patchBindingStatusCondition(karmadaClient karmadaclientset.Interface, rb *w
 	if reflect.DeepEqual(rb.Status, updateRB.Status) {
 		return nil
 	}
-	return patchBindingStatus(karmadaClient, rb, updateRB)
+	condition := meta.FindStatusCondition(updateRB.Status.Conditions, workv1alpha2.Scheduled)
+	return helper.PatchBindingStatus(karmadaClient, rb, updateRB, condition)
 }
 
 // patchBindingStatusWithAffinityName patches schedule status with affinityName of ResourceBinding when necessary.
@@ -845,26 +846,7 @@ func patchBindingStatusWithAffinityName(karmadaClient karmadaclientset.Interface
 	klog.V(4).Infof("Begin to patch status with affinityName(%s) to ResourceBinding(%s/%s).", affinityName, rb.Namespace, rb.Name)
 	updateRB := rb.DeepCopy()
 	updateRB.Status.SchedulerObservedAffinityName = affinityName
-	return patchBindingStatus(karmadaClient, rb, updateRB)
-}
-
-func patchBindingStatus(karmadaClient karmadaclientset.Interface, rb, updateRB *workv1alpha2.ResourceBinding) error {
-	patchBytes, err := helper.GenFieldMergePatch("status", rb.Status, updateRB.Status)
-	if err != nil {
-		return err
-	}
-	if len(patchBytes) == 0 {
-		return nil
-	}
-
-	_, err = karmadaClient.WorkV1alpha2().ResourceBindings(rb.Namespace).Patch(context.TODO(), rb.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
-	if err != nil {
-		klog.Errorf("Failed to patch schedule status ResourceBinding(%s/%s): %v", rb.Namespace, rb.Name, err)
-		return err
-	}
-
-	klog.V(4).Infof("Patch schedule status to ResourceBinding(%s/%s) succeed", rb.Namespace, rb.Name)
-	return nil
+	return helper.PatchBindingStatusFiled(karmadaClient, "status.SchedulerObservedAffinityName", rb, updateRB)
 }
 
 // patchClusterBindingStatusCondition patches schedule status condition of ClusterResourceBinding when necessary
