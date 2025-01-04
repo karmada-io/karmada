@@ -110,3 +110,8 @@ jobs:
           
           ct install --charts charts/karmada --debug --helm-extra-set-args '--set components={search,metricsAdapter,descheduler},apiServer.hostNetwork=true' --helm-extra-args "--timeout 800s" --skip-clean-up
           kubectl get pods -A
+      - name: register cluster in pull mode
+        run: |
+          karmadactl register cluster \
+            --cluster-name ${{ matrix.k8s }} \
+            --mode Pull
