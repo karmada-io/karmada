@@ -79,17 +79,22 @@ func ResourceSelectorPriority(resource *unstructured.Unstructured, rs policyv1al
 	}
 
 	// case 3: matches with selector
-	var s labels.Selector
-	var err error
-	if s, err = metav1.LabelSelectorAsSelector(rs.LabelSelector); err != nil {
-		// should not happen because all resource selector should be fully validated by webhook.
-		return PriorityMisMatch
-	}
-
-	if s.Matches(labels.Set(resource.GetLabels())) {
+	if MatchesSelector(resource, rs.LabelSelector) {
 		return PriorityMatchLabelSelector
 	}
 	return PriorityMisMatch
+}
+
+func MatchesSelector(resource *unstructured.Unstructured, ls *metav1.LabelSelector) bool {
+	s, err := metav1.LabelSelectorAsSelector(ls)
+	if err != nil {
+		// should not happen because all resource selector should be fully validated by webhook.
+		return false
+	}
+	if s.Matches(labels.Set(resource.GetLabels())) {
+		return true
+	}
+	return false
 }
 
 // ClusterMatches tells if specific cluster matches the affinity.
