@@ -33,12 +33,26 @@ func getHighestPriorityPropagationPolicy(policies []*policyv1alpha1.PropagationP
 	var matchedPolicy *policyv1alpha1.PropagationPolicy
 
 	for _, policy := range policies {
+		// any namespace selector matches ?
+		if len(policy.Spec.NamespaceSelectors) != 0 {
+			matched := false
+			for _, ns := range policy.Spec.NamespaceSelectors {
+				if !util.MatchesSelector(GetNamespace(resource.GetNamespace()), ns.LabelSelector) {
+					matched = true
+				}
+			}
+			if !matched {
+				continue
+			}
+		}
+
+		// any resource selector matches ?
 		implicitPriority := util.ResourceMatchSelectorsPriority(resource, policy.Spec.ResourceSelectors...)
 		if implicitPriority <= util.PriorityMisMatch {
 			continue
 		}
-		explicitPriority := policy.ExplicitPriority()
 
+		explicitPriority := policy.ExplicitPriority()
 		if matchedPolicyExplicitPriority < explicitPriority {
 			matchedPolicyImplicitPriority = implicitPriority
 			matchedPolicyExplicitPriority = explicitPriority

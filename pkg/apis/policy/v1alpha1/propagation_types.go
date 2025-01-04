@@ -68,6 +68,10 @@ type PropagationSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	ResourceSelectors []ResourceSelector `json:"resourceSelectors"`
 
+	// NamespaceSelectors used to select resources.
+	// +optional
+	NamespaceSelectors []NamespaceSelector `json:"namespaceSelectors"`
+
 	// Association tells if relevant resources should be selected automatically.
 	// e.g. a ConfigMap referred by a Deployment.
 	// default false.
@@ -225,6 +229,13 @@ type ResourceSelector struct {
 	// A label query over a set of resources.
 	// If name is not empty, labelSelector will be ignored.
 	// +optional
+	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
+}
+
+// NamespaceSelector the resource namespace will be selected.
+type NamespaceSelector struct {
+	// A label query over a set of namespaces.
+	// +required
 	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 }
 
