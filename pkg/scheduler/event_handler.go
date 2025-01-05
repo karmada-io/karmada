@@ -37,7 +37,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 // addAllEventHandlers is a helper function used in Scheduler
@@ -130,20 +129,24 @@ func (s *Scheduler) onResourceBindingAdd(obj interface{}) {
 }
 
 func (s *Scheduler) onResourceBindingUpdate(old, cur interface{}) {
-	unstructuredOldObj, err := helper.ToUnstructured(old)
+	oldMeta, err := meta.Accessor(old)
 	if err != nil {
-		klog.Errorf("Failed to transform oldObj, error: %v", err)
+		klog.Errorf("Failed to transform oldObj as metav1.Object, error: %v", err)
 		return
 	}
 
-	unstructuredNewObj, err := helper.ToUnstructured(cur)
+	newMeta, err := meta.Accessor(cur)
 	if err != nil {
-		klog.Errorf("Failed to transform newObj, error: %v", err)
+		klog.Errorf("Failed to transform newObj as metav1.Object, error: %v", err)
 		return
 	}
 
-	if unstructuredOldObj.GetGeneration() == unstructuredNewObj.GetGeneration() {
-		klog.V(4).Infof("Ignore update event of object (kind=%s, %s/%s) as specification no change", unstructuredOldObj.GetKind(), unstructuredOldObj.GetNamespace(), unstructuredOldObj.GetName())
+	if oldMeta.GetGeneration() == newMeta.GetGeneration() {
+		if oldMeta.GetNamespace() != "" {
+			klog.V(4).Infof("Ignore update event of resourceBinding %s/%s as specification no change", oldMeta.GetNamespace(), oldMeta.GetName())
+		} else {
+			klog.V(4).Infof("Ignore update event of clusterResourceBinding %s as specification no change", oldMeta.GetName())
+		}
 		return
 	}
 

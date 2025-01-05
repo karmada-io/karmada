@@ -18,6 +18,7 @@ package namespace
 
 import (
 	"context"
+	"encoding/json"
 	"regexp"
 	"testing"
 	"time"
@@ -102,6 +103,10 @@ func TestController_Reconcile(t *testing.T) {
 		{
 			name: "Namespace should be synced",
 			namespace: &corev1.Namespace{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Namespace",
+					APIVersion: corev1.SchemeGroupVersion.String(),
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-namespace",
 				},
@@ -120,6 +125,10 @@ func TestController_Reconcile(t *testing.T) {
 		{
 			name: "Namespace should not be synced",
 			namespace: &corev1.Namespace{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Namespace",
+					APIVersion: corev1.SchemeGroupVersion.String(),
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "kube-system",
 				},
@@ -144,6 +153,10 @@ func TestController_Reconcile(t *testing.T) {
 		{
 			name: "Namespace should not be synced - kube-public",
 			namespace: &corev1.Namespace{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Namespace",
+					APIVersion: corev1.SchemeGroupVersion.String(),
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "kube-public",
 				},
@@ -247,8 +260,15 @@ func TestController_buildWorks(t *testing.T) {
 	_ = policyv1alpha1.Install(scheme)
 
 	namespace := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Namespace",
+			APIVersion: corev1.SchemeGroupVersion.String(),
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-namespace",
+			Labels: map[string]string{
+				"overridden": "false",
+			},
 		},
 	}
 
@@ -272,7 +292,7 @@ func TestController_buildWorks(t *testing.T) {
 		Spec: policyv1alpha1.OverrideSpec{
 			ResourceSelectors: []policyv1alpha1.ResourceSelector{
 				{
-					APIVersion: "v1",
+					APIVersion: corev1.SchemeGroupVersion.String(),
 					Kind:       "Namespace",
 					Name:       "test-namespace",
 				},
@@ -299,16 +319,25 @@ func TestController_buildWorks(t *testing.T) {
 	}
 
 	tests := []struct {
-		name         string
-		withOverride bool
+		name           string
+		withOverride   bool
+		overrideResult map[string]string
 	}{
 		{
 			name:         "Build works without override",
 			withOverride: false,
+			overrideResult: map[string]string{
+				"cluster1": "false",
+				"cluster2": "false",
+			},
 		},
 		{
 			name:         "Build works with override",
 			withOverride: true,
+			overrideResult: map[string]string{
+				"cluster1": "true",
+				"cluster2": "false",
+			},
 		},
 	}
 
@@ -341,6 +370,12 @@ func TestController_buildWorks(t *testing.T) {
 				assert.Equal(t, namespace.Name, work.OwnerReferences[0].Name)
 
 				assert.NotEmpty(t, work.Spec.Workload.Manifests)
+
+				namespaceToExec := &corev1.Namespace{}
+				err = json.Unmarshal(work.Spec.Workload.Manifests[0].Raw, namespaceToExec)
+				assert.NoError(t, err)
+
+				assert.Equal(t, namespaceToExec.Labels["overridden"], tt.overrideResult[cluster.Name])
 			}
 		})
 	}
