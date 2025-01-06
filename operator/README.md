@@ -162,12 +162,12 @@ you can run the following command before performing the deletion operation.
 kubectl label karmada karmada-demo -n test operator.karmada.io/disable-cascading-deletion=true
 ```
 
-### Custom Karmada CR
+## Custom Karmada CR
 
 This feature allows you to configure the Karmada CR to install Karmada instances flexibly.
 For details, see [karmada.yaml](./config/samples/karmada.yaml).
 
-#### Set Karmada component replicas
+### Set Karmada component replicas
 
 The `replicas` of all Karmada components can be modified.
 For example, you can scale the etcd pod `replicas` to 3:
@@ -185,7 +185,7 @@ spec:
         replicas: 3
 ```
 
-#### Custom label and annotation
+### Custom label and annotation
 
 All Karmada components allow for custom labels and annotations to be set.
 These are merged into both pod and workload resources.
@@ -205,7 +205,7 @@ spec:
         <custom-annotation-key>: <custom-annotation-value>
 ```
 
-#### Change karmada-apiserver service type
+### Change karmada-apiserver service type
 
 The service type of karmada-apiserver is `ClusterIP` by default.
 You can change it to `NodePort`:
@@ -221,7 +221,7 @@ karmadaAPIServer:
 ...
 ```
 
-#### Add karmada-apiserver SANs
+### Add karmada-apiserver SANs
 
 You can add more SANs to karmada-apiserver certificate:
 
@@ -238,7 +238,7 @@ karmadaAPIServer:
 ...
 ```
 
-#### Install karmada addon
+### Install karmada addon
 
 By default, the Karmada operator does not install the `descheduler` and `search` addons.
 If you want to use them, you should add definitions to the Karmada CR.
@@ -256,6 +256,56 @@ spec:
 ```
 
 If you want to install with the defaults, simply define an empty struct for `descheduler`.
+
+### Expose Karmada API Server
+By default, the Karmada API Server's Service type is set to `ClusterIP`, which means it can only be accessed within 
+the Kubernetes cluster. If you wish to access the Karmada API Server from outside the cluster, there are several 
+methods to expose it. The following will introduce these methods and provide the necessary configuration steps.
+
+#### Using a LoadBalancer Service Type
+If your Kubernetes cluster runs on a cloud provider that supports LoadBalancer (such as AWS, GCP, Azure, etc.), 
+you can change the Karmada API Server's Service type to `LoadBalancer`. This will automatically allocate or use an 
+external IP address for the Karmada API Server, allowing you to access it from outside the cluster.
+
+#### Using a NodePort Service Type
+You also can change the Karmada API Server's Service type to `NodePort`. This exposes the Karmada API Server on a 
+specific port on each node, allowing you to access it via any node's IP address and that port.
+
+#### Using an Ingress Controller
+If you already have an [Ingress controller](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/)
+deployed in your cluster, you can create an `Ingress` resource to expose the Karmada API Server. The Ingress controller 
+will route external traffic to the Karmada API Server's Service, enabling external access.
+
+For example, you can create a following Ingress resource to route external traffic to the Karmada API Server:
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: karmada-apiserver-ingress
+  namespace: karmada-system
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: karmada.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: karmada-apiserver
+            port:
+              number: 443
+```
+
+#### Using Port Forwarding
+If you only need temporary access to the Karmada API Server or prefer not to permanently expose it, you can use kubectl 
+[port-forward](https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster/) to
+forward a local port to the Karmada API Server's Pod. This method is ideal for development and debugging but is not 
+recommended for production environments.
 
 ## Contributing
 
