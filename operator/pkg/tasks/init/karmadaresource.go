@@ -21,7 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -29,7 +29,9 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	crdsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
+	aggregator "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/karmadaresource/apiservice"
@@ -95,6 +97,10 @@ func runSystemNamespace(r workflow.RunData) error {
 	return nil
 }
 
+var crdsClientFactory = func(config *rest.Config) (crdsclient.Interface, error) {
+	return util.CrdsClientFactory(config)
+}
+
 func runCrds(r workflow.RunData) error {
 	data, ok := r.(InitData)
 	if !ok {
@@ -105,9 +111,9 @@ func runCrds(r workflow.RunData) error {
 	if err != nil {
 		return fmt.Errorf("failed to get CRD dir, err: %w", err)
 	}
-	crdsPath := path.Join(crdsDir, "crds/bases")
-	crdsPatchPath := path.Join(crdsDir, "crds/patches")
-	crdsClient, err := apiclient.NewCRDsClient(data.ControlplaneConfig())
+	crdsPath := filepath.Join(crdsDir, "crds", "bases")
+	crdsPatchPath := filepath.Join(crdsDir, "crds", "patches")
+	crdsClient, err := crdsClientFactory(data.ControlplaneConfig())
 	if err != nil {
 		return err
 	}
@@ -130,7 +136,7 @@ func runCrds(r workflow.RunData) error {
 	return nil
 }
 
-func createCrds(crdsClient *crdsclient.Clientset, crdsPath string) error {
+func createCrds(crdsClient crdsclient.Interface, crdsPath string) error {
 	for _, file := range util.ListFileWithSuffix(crdsPath, ".yaml") {
 		crdBytes, err := util.ReadYamlFile(file.AbsPath)
 		if err != nil {
@@ -149,7 +155,7 @@ func createCrds(crdsClient *crdsclient.Clientset, crdsPath string) error {
 	return nil
 }
 
-func patchCrds(crdsClient *crdsclient.Clientset, patchPath string, caBundle string) error {
+func patchCrds(crdsClient crdsclient.Interface, patchPath string, caBundle string) error {
 	for _, file := range util.ListFileWithSuffix(patchPath, ".yaml") {
 		reg, err := regexp.Compile("{{caBundle}}")
 		if err != nil {
@@ -189,14 +195,18 @@ func runWebhookConfiguration(r workflow.RunData) error {
 		caBase64)
 }
 
+var aggregatorClientFactory = func(config *rest.Config) (aggregator.Interface, error) {
+	return apiclient.NewAPIRegistrationClient(config)
+}
+
 func runAPIService(r workflow.RunData) error {
 	data, ok := r.(InitData)
 	if !ok {
-		return errors.New("webhookConfiguration task invoked with an invalid data struct")
+		return errors.New("[apiService] task invoked with an invalid data struct")
 	}
 
 	config := data.ControlplaneConfig()
-	client, err := apiclient.NewAPIRegistrationClient(config)
+	client, err := aggregatorClientFactory(config)
 	if err != nil {
 		return err
 	}

@@ -128,7 +128,7 @@ func TestWaitForAPIService(t *testing.T) {
 			},
 			client: fakeAggregator.NewSimpleClientset(),
 			prep: func(client aggregator.Interface, _ *apiregistrationv1.APIService) error {
-				aggregateClientFromConfigBuilder = func(*rest.Config) (aggregator.Interface, error) {
+				AggregateClientFromConfigBuilder = func(*rest.Config) (aggregator.Interface, error) {
 					return client, nil
 				}
 				return nil
@@ -170,7 +170,7 @@ func TestWaitForAPIService(t *testing.T) {
 				if _, err = client.ApiregistrationV1().APIServices().Update(context.TODO(), apiServiceCreated, metav1.UpdateOptions{}); err != nil {
 					return fmt.Errorf("failed to update api service with available status, got err: %v", err)
 				}
-				aggregateClientFromConfigBuilder = func(*rest.Config) (aggregator.Interface, error) {
+				AggregateClientFromConfigBuilder = func(*rest.Config) (aggregator.Interface, error) {
 					return client, nil
 				}
 				return nil
