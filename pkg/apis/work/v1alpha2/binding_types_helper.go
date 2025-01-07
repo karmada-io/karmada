@@ -194,3 +194,13 @@ func (s *ResourceBindingSpec) GracefulEvictCluster(name string, options *TaskOpt
 	}
 	s.GracefulEvictionTasks = append(s.GracefulEvictionTasks, evictionTask)
 }
+
+// SchedulingSuspended tells if the scheduling of ResourceBinding or
+// ClusterResourceBinding is suspended.
+func (s *ResourceBindingSpec) SchedulingSuspended() bool {
+	if s == nil || s.Suspension == nil || s.Suspension.Scheduling == nil {
+		return false
+	}
+
+	return *s.Suspension.Scheduling
+}

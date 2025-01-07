@@ -101,14 +101,14 @@ func (s *Scheduler) resourceBindingEventFilter(obj interface{}) bool {
 		if !schedulerNameFilter(s.schedulerName, t.Spec.SchedulerName) {
 			return false
 		}
-		if util.IsBindingSuspendScheduling(t) {
+		if t.Spec.SchedulingSuspended() {
 			return false
 		}
 	case *workv1alpha2.ClusterResourceBinding:
 		if !schedulerNameFilter(s.schedulerName, t.Spec.SchedulerName) {
 			return false
 		}
-		if util.IsClusterBindingSuspendScheduling(t) {
+		if t.Spec.SchedulingSuspended() {
 			return false
 		}
 	}

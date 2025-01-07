@@ -384,3 +384,60 @@ func TestResourceBindingSpec_ClusterInGracefulEvictionTasks(t *testing.T) {
 		})
 	}
 }
+
+func TestResourceBindingSpec_SchedulingSuspended(t *testing.T) {
+	tests := []struct {
+		name      string
+		rbSpec    *ResourceBindingSpec
+		Suspended bool
+	}{
+		{
+			name:      "nil ResourceBindingSpec results in not suspended",
+			rbSpec:    nil,
+			Suspended: false,
+		},
+		{
+			name: "nil Suspension results in not suspended",
+			rbSpec: &ResourceBindingSpec{
+				Suspension: nil,
+			},
+			Suspended: false,
+		},
+		{
+			name: "nil Scheduling results in not suspended",
+			rbSpec: &ResourceBindingSpec{
+				Suspension: &Suspension{
+					Scheduling: nil,
+				},
+			},
+			Suspended: false,
+		},
+		{
+			name: "false Scheduling results in not suspended",
+			rbSpec: &ResourceBindingSpec{
+				Suspension: &Suspension{
+					Scheduling: ptr.To(false),
+				},
+			},
+			Suspended: false,
+		},
+		{
+			name: "true Scheduling results in suspended",
+			rbSpec: &ResourceBindingSpec{
+				Suspension: &Suspension{
+					Scheduling: ptr.To(true),
+				},
+			},
+			Suspended: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			suspended := tc.rbSpec.SchedulingSuspended()
+			if suspended != tc.Suspended {
+				t.Fatalf("SchedulingSuspended(): expected: %t, but got: %t", tc.Suspended, suspended)
+			}
+		})
+	}
+}
