@@ -18,7 +18,9 @@ package e2e
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"regexp"
 	"strings"
@@ -1508,6 +1510,167 @@ var _ = ginkgo.Describe("Karmadactl apply testing", func() {
 		_, err := cmd.ExecOrDie()
 		gomega.Expect(err).Should(gomega.HaveOccurred())
 		gomega.Expect(strings.Contains(err.Error(), fmt.Sprintf("error: the path \"%s\" does not exist", nonExistentFile))).Should(gomega.BeTrue())
+	})
+})
+
+var _ = ginkgo.Describe("Karmadactl init testing", func() {
+	var (
+		newClusterName, clusterContext        string
+		homeDir, kubeConfigPath, controlPlane string
+		karmadaDataTempDir, karmadaPKITempDir string
+		kubeNewClient                         *kubernetes.Clientset
+	)
+
+	ginkgo.BeforeEach(func() {
+		newClusterName = "member-e2e-" + rand.String(RandomStrLength)
+		homeDir = os.Getenv("HOME")
+		kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, newClusterName)
+		controlPlane = fmt.Sprintf("%s-control-plane", newClusterName)
+		clusterContext = fmt.Sprintf("kind-%s", newClusterName)
+	})
+
+	ginkgo.BeforeEach(func() {
+		ginkgo.By("Creating temp directories required for Karmada config", func() {
+			var err error
+			karmadaDataTempDir, err = os.MkdirTemp("", "karmada-e2e-*")
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+			karmadaPKITempDir, err = os.MkdirTemp("", "karmada-e2e-*")
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+
+		ginkgo.By(fmt.Sprintf("Creating cluster: %s", newClusterName), func() {
+			err := createCluster(newClusterName, kubeConfigPath, controlPlane, clusterContext)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+
+		ginkgo.By(fmt.Sprintf("Waiting for cluster: %s to be healthy", newClusterName), func() {
+			// Generate a kube client from the new cluster kubeConfigPath.
+			config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+			kubeNewClient, err = kubernetes.NewForConfig(config)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+			gomega.Eventually(func() bool {
+				nodes, err := kubeNewClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+				if err != nil {
+					return false
+				}
+
+				for _, node := range nodes.Items {
+					for _, condition := range node.Status.Conditions {
+						if condition.Type == corev1.NodeReady && condition.Status != corev1.ConditionTrue {
+							// Node is not ready.
+							return false
+						}
+					}
+				}
+				// All nodes are ready.
+				return true
+			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+		})
+	})
+
+	ginkgo.AfterEach(func() {
+		ginkgo.By(fmt.Sprintf("Deleting clusters: %s", newClusterName), func() {
+			err := deleteCluster(newClusterName, kubeConfigPath)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			_ = os.Remove(kubeConfigPath)
+		})
+
+		ginkgo.By("Deleting temp directories of Karmada config", func() {
+			err := os.RemoveAll(karmadaDataTempDir)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+			err = os.RemoveAll(karmadaPKITempDir)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+	})
+
+	ginkgo.It("init karmada system on new cluster", func() {
+		var latestVersion string
+
+		ginkgo.By("Fetching the latest Karmada release version from GitHub", func() {
+			// Define the GitHubRelease struct inline within the function.
+			type GitHubRelease struct {
+				TagName string `json:"tag_name"`
+			}
+
+			// Fetch the latest release version.
+			resp, err := http.Get("https://api.github.com/repos/karmada-io/karmada/releases/latest")
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			defer resp.Body.Close()
+
+			var release GitHubRelease
+			err = json.NewDecoder(resp.Body).Decode(&release)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+			latestVersion = release.TagName
+			gomega.Expect(latestVersion).ShouldNot(gomega.BeEmpty())
+		})
+
+		ginkgo.By("Initializing the Karmada system on the new cluster", func() {
+			cmd := framework.NewKarmadactlCommand(
+				kubeConfigPath, "", karmadactlPath, util.NamespaceKarmadaSystem, karmadactlTimeout*50,
+				"init", "--karmada-data", karmadaDataTempDir, "--karmada-pki", karmadaPKITempDir, "--context", clusterContext,
+				"--crds", fmt.Sprintf("https://github.com/karmada-io/karmada/releases/download/%s/crds.tar.gz", latestVersion),
+				"--karmada-aggregated-apiserver-image", fmt.Sprintf("docker.io/karmada/karmada-aggregated-apiserver:%s", latestVersion),
+				"--karmada-controller-manager-image", fmt.Sprintf("docker.io/karmada/karmada-controller-manager:%s", latestVersion),
+				"--karmada-scheduler-image", fmt.Sprintf("docker.io/karmada/karmada-scheduler:%s", latestVersion),
+				"--karmada-webhook-image", fmt.Sprintf("docker.io/karmada/karmada-webhook:%s", latestVersion),
+			)
+			output, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			gomega.Expect(strings.Contains(output, "Karmada is installed successfully")).Should(gomega.BeTrue())
+		})
+
+		ginkgo.By("Verifying the ready status of Karmada system pods", func() {
+			gomega.Eventually(func() bool {
+				pods, err := kubeNewClient.CoreV1().Pods(util.NamespaceKarmadaSystem).List(context.TODO(), metav1.ListOptions{})
+				if err != nil {
+					return false
+				}
+
+				allPodsReady := true
+				for _, pod := range pods.Items {
+					if pod.Status.Phase != corev1.PodRunning {
+						allPodsReady = false
+						break
+					}
+
+					for _, containerStatus := range pod.Status.ContainerStatuses {
+						if !containerStatus.Ready {
+							allPodsReady = false
+							break
+						}
+					}
+
+					if !allPodsReady {
+						break
+					}
+				}
+				return allPodsReady
+			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
+		})
+
+		ginkgo.By("Verifying the ready status of Karmada system services", func() {
+			gomega.Eventually(func() bool {
+				services, err := kubeNewClient.CoreV1().Services(util.NamespaceKarmadaSystem).List(context.TODO(), metav1.ListOptions{})
+				if err != nil {
+					return false
+				}
+
+				allServicesAvailable := true
+				for _, service := range services.Items {
+					if service.Spec.Type == corev1.ServiceTypeClusterIP && len(service.Spec.Ports) == 0 {
+						allServicesAvailable = false
+						break
+					}
+				}
+				return allServicesAvailable
+			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
+		})
 	})
 })
 
