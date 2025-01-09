@@ -37,6 +37,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/controllers/ctrlutil"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -184,7 +185,7 @@ func (c *SyncController) buildWorks(ctx context.Context, quota *policyv1alpha1.F
 			},
 		}
 
-		err = helper.CreateOrUpdateWork(ctx, c.Client, objectMeta, resourceQuotaObj)
+		err = ctrlutil.CreateOrUpdateWork(ctx, c.Client, objectMeta, resourceQuotaObj)
 		if err != nil {
 			errs = append(errs, err)
 		}

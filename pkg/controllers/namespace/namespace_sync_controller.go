@@ -41,6 +41,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
+	"github.com/karmada-io/karmada/pkg/controllers/ctrlutil"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -157,7 +158,7 @@ func (c *Controller) buildWorks(ctx context.Context, namespace *corev1.Namespace
 				Annotations: annotations,
 			}
 
-			if err = helper.CreateOrUpdateWork(ctx, c.Client, objectMeta, clonedNamespaced); err != nil {
+			if err = ctrlutil.CreateOrUpdateWork(ctx, c.Client, objectMeta, clonedNamespaced); err != nil {
 				ch <- fmt.Errorf("sync namespace(%s) to cluster(%s) failed due to: %v", clonedNamespaced.GetName(), cluster.GetName(), err)
 				return
 			}

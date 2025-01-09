@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package helper
+package ctrlutil
 
 import workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 
