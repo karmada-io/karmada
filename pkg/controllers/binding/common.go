@@ -31,6 +31,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/controllers/ctrlutil"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -128,13 +129,13 @@ func ensureWork(
 			Annotations: annotations,
 		}
 
-		if err = helper.CreateOrUpdateWork(
+		if err = ctrlutil.CreateOrUpdateWork(
 			ctx,
 			c,
 			workMeta,
 			clonedWorkload,
-			helper.WithSuspendDispatching(shouldSuspendDispatching(bindingSpec.Suspension, targetCluster)),
-			helper.WithPreserveResourcesOnDeletion(ptr.Deref(bindingSpec.PreserveResourcesOnDeletion, false)),
+			ctrlutil.WithSuspendDispatching(shouldSuspendDispatching(bindingSpec.Suspension, targetCluster)),
+			ctrlutil.WithPreserveResourcesOnDeletion(ptr.Deref(bindingSpec.PreserveResourcesOnDeletion, false)),
 		); err != nil {
 			return err
 		}

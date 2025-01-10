@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/controllers/ctrlutil"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -237,7 +238,7 @@ func (c *Controller) buildWorks(ctx context.Context, cluster *clusterv1alpha1.Cl
 		},
 	}
 
-	if err := helper.CreateOrUpdateWork(ctx, c.Client, objectMeta, obj); err != nil {
+	if err := ctrlutil.CreateOrUpdateWork(ctx, c.Client, objectMeta, obj); err != nil {
 		return err
 	}
 
