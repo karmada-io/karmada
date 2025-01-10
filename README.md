@@ -201,8 +201,8 @@ Key:
 ## Meeting
 
 Regular Community Meeting:
-* Tuesday at 14:30 UTC+8 (Chinese)(biweekly). [Convert to your timezone](https://www.thetimezoneconverter.com/?t=14%3A30&tz=GMT%2B8&).
-* Tuesday at 08:00 Pacific Time (English)(biweekly). [Convert to your timezone](https://www.thetimezoneconverter.com/?t=8:00&tz=PT%20%28Pacific%20Time%29).
+* Tuesday at 14:30 UTC+8 (Chinese)(biweekly). [Convert to your timezone](https://dateful.com/convert/utc8?t=1430).
+* Tuesday at 15:00 UTC+0 (English)(biweekly). [Convert to your timezone](https://dateful.com/convert/coordinated-universal-time-utc?t=15).
 
 Resources:
 - [Meeting Notes and Agenda](https://docs.google.com/document/d/1y6YLVC-v7cmVAdbjedoyR5WL0-q45DBRXTvz5_I7bkA/edit)
