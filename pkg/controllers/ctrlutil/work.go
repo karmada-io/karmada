@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,10 +33,11 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/mutating"
 )
 
 // CreateOrUpdateWork creates a Work object if not exist, or updates if it already exists.
-func CreateOrUpdateWork(ctx context.Context, client client.Client, workMeta metav1.ObjectMeta, resource *unstructured.Unstructured, options ...WorkOption) error {
+func CreateOrUpdateWork(ctx context.Context, c client.Client, workMeta metav1.ObjectMeta, resource *unstructured.Unstructured, options ...WorkOption) error {
 	if workMeta.Labels[util.PropagationInstruction] != util.PropagationInstructionSuppressed {
 		resource = resource.DeepCopy()
 		// set labels
@@ -72,10 +74,35 @@ func CreateOrUpdateWork(ctx context.Context, client client.Client, workMeta meta
 
 	applyWorkOptions(work, options)
 
+	// get existing work to get the existing permanent ID
+	existingWork := &workv1alpha1.Work{}
+	err = c.Get(ctx, client.ObjectKeyFromObject(work), existingWork)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.V(2).Infof("Work %s/%s not found, will create it.", work.GetNamespace(), work.GetName())
+		} else {
+			klog.Errorf("Failed to get work %s/%s, error: %v", work.GetNamespace(), work.GetName(), err)
+			return err
+		}
+	}
+	if existingWork.Labels[workv1alpha2.WorkPermanentIDLabel] != "" {
+		if work.Labels == nil {
+			work.Labels = make(map[string]string)
+		}
+		work.Labels[workv1alpha2.WorkPermanentIDLabel] = existingWork.Labels[workv1alpha2.WorkPermanentIDLabel]
+	}
+	// mutate work here to let the deepEqual() have chance to return true, to reduce the HTTP UPDATE requests.
+	// otherwise it will always return false, because the informer cache is already mutated.
+	err = mutating.MutateWork(work)
+	if err != nil {
+		klog.Errorf("Failed to mutate work(%s/%s), error: %v", resource.GetNamespace(), resource.GetName(), err)
+		return err
+	}
+
 	runtimeObject := work.DeepCopy()
 	var operationResult controllerutil.OperationResult
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		operationResult, err = controllerutil.CreateOrUpdate(ctx, client, runtimeObject, func() error {
+		operationResult, err = controllerutil.CreateOrUpdate(ctx, c, runtimeObject, func() error {
 			if !runtimeObject.DeletionTimestamp.IsZero() {
 				return fmt.Errorf("work %s/%s is being deleted", runtimeObject.GetNamespace(), runtimeObject.GetName())
 			}
