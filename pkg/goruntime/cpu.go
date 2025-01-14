@@ -24,7 +24,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// auto set golang maxprocs
+// SetMaxProcs auto set go maxprocs
 func SetMaxProcs() {
 	l := func(format string, a ...interface{}) {
 		klog.Info(fmt.Sprintf(strings.TrimPrefix(format, "maxprocs: "), a...))
