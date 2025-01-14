@@ -119,7 +119,10 @@ func Run(ctx context.Context, o *options.Options) error {
 		return err
 	}
 
-	ctrlmetrics.Registry.Register(
+	// Unregister default NewGoCollector
+	ctrlmetrics.Registry.Unregister(collectors.NewGoCollector())
+
+	ctrlmetrics.Registry.MustRegister(
 		collectors.NewGoCollector(
 			collectors.WithGoCollectorRuntimeMetrics(
 				collectors.MetricsGC,
@@ -129,7 +132,7 @@ func Run(ctx context.Context, o *options.Options) error {
 			),
 		),
 	)
-	ctrlmetrics.Registry.Register(
+	ctrlmetrics.Registry.MustRegister(
 		prometheusversion.NewCollector("karmada_operator"),
 	)
 
