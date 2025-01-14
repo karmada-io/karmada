@@ -20,7 +20,7 @@ import (
 	"testing"
 )
 
-func TestSetMaxProcs(t *testing.T) {
+func TestSetMaxProcs(_ *testing.T) {
 	SetMaxProcs()
 	// output: Leaving GOMAXPROCS=x: CPU quota undefined
 }
