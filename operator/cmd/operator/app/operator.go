@@ -21,7 +21,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	prometheusversion "github.com/prometheus/client_golang/prometheus/collectors/version"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/sets"
 	restclient "k8s.io/client-go/rest"
@@ -32,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/karmada-io/karmada/operator/cmd/operator/app/options"
@@ -109,6 +113,25 @@ func Run(ctx context.Context, o *options.Options) error {
 		klog.Errorf("Failed to add health check endpoint: %v", err)
 		return err
 	}
+
+	if err := manager.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+		klog.Errorf("Unable to set up ready check: %v", err)
+		return err
+	}
+
+	ctrlmetrics.Registry.Register(
+		collectors.NewGoCollector(
+			collectors.WithGoCollectorRuntimeMetrics(
+				collectors.MetricsGC,
+				collectors.MetricsScheduler,
+				collectors.MetricsMemory,
+				collectors.GoRuntimeMetricsRule{Matcher: regexp.MustCompile(`^/sync/.*`)},
+			),
+		),
+	)
+	ctrlmetrics.Registry.Register(
+		prometheusversion.NewCollector("karmada_operator"),
+	)
 
 	controllerCtx := ctrlctx.Context{
 		Controllers: o.Controllers,
