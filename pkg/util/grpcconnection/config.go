@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	grpccredentials "google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
@@ -102,11 +103,7 @@ func (s *ServerConfig) NewServer() (*grpc.Server, error) {
 
 // DialWithTimeOut will attempt to create a client connection based on the given targets, one at a time, until a client connection is successfully established.
 func (c *ClientConfig) DialWithTimeOut(paths []string, timeout time.Duration) (*grpc.ClientConn, error) {
-	opts := []grpc.DialOption{
-		// grpc.WithBlock is deprecated. TODO: Perhaps need to reconsider the approach in a future PR
-		//nolint:staticcheck
-		grpc.WithBlock(),
-	}
+	var opts []grpc.DialOption
 
 	var cred grpccredentials.TransportCredentials
 	if c.ServerAuthCAFile == "" && !c.InsecureSkipServerVerify {
@@ -136,9 +133,7 @@ func (c *ClientConfig) DialWithTimeOut(paths []string, timeout time.Duration) (*
 		}
 		cred = grpccredentials.NewTLS(config)
 	}
-
 	opts = append(opts, grpc.WithTransportCredentials(cred))
-
 	var cc *grpc.ClientConn
 	var err error
 	var allErrs []error
@@ -147,7 +142,7 @@ func (c *ClientConfig) DialWithTimeOut(paths []string, timeout time.Duration) (*
 		if err == nil {
 			return cc, nil
 		}
-		allErrs = append(allErrs, err)
+		allErrs = append(allErrs, fmt.Errorf("dial %s error: %v", path, err))
 	}
 
 	return nil, utilerrors.NewAggregate(allErrs)
@@ -157,12 +152,27 @@ func createGRPCConnection(path string, timeout time.Duration, opts ...grpc.DialO
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	// grpc.DialContext is deprecated. TODO: Perhaps need to reconsider the approach in a future PR
-	//nolint:staticcheck
-	cc, err := grpc.DialContext(ctx, path, opts...)
+	cc, err := grpc.NewClient(path, opts...)
 	if err != nil {
-		return nil, fmt.Errorf("dial %s error: %v", path, err)
+		return nil, err
 	}
+	defer func() {
+		if err != nil {
+			cc.Close()
+		}
+	}()
 
-	return cc, nil
+	// A blocking dial blocks until the clientConn is ready.
+	for {
+		state := cc.GetState()
+		if state == connectivity.Idle {
+			cc.Connect()
+		}
+		if state == connectivity.Ready {
+			return cc, nil
+		}
+		if !cc.WaitForStateChange(ctx, state) {
+			return nil, fmt.Errorf("timeout waiting for connection to %s, state is %s", path, state)
+		}
+	}
 }
