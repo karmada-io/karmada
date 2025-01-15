@@ -2,9 +2,9 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.13.0-alpha.1](#v1130-alpha1)
-  - [Downloads for v1.13.0-alpha.1](#downloads-for-v1130-alpha1)
-  - [Changelog since v1.12.0](#changelog-since-v1120)
+- [v1.13.0-alpha.2](#v1130-alpha2)
+  - [Downloads for v1.13.0-alpha.2](#downloads-for-v1130-alpha2)
+  - [Changelog since v1.13.0-alpha.1](#changelog-since-v1130-alpha1)
   - [Urgent Update Notes](#urgent-update-notes)
   - [Changes by Kind](#changes-by-kind)
     - [API Changes](#api-changes)
@@ -16,8 +16,59 @@
     - [Dependencies](#dependencies)
     - [Helm Charts](#helm-charts)
     - [Instrumentation](#instrumentation)
+- [v1.13.0-alpha.1](#v1130-alpha1)
+  - [Downloads for v1.13.0-alpha.1](#downloads-for-v1130-alpha1)
+  - [Changelog since v1.12.0](#changelog-since-v1120)
+  - [Urgent Update Notes](#urgent-update-notes-1)
+  - [Changes by Kind](#changes-by-kind-1)
+    - [API Changes](#api-changes-1)
+    - [Features & Enhancements](#features--enhancements-1)
+    - [Deprecation](#deprecation-1)
+    - [Bug Fixes](#bug-fixes-1)
+    - [Security](#security-1)
+  - [Other](#other-1)
+    - [Dependencies](#dependencies-1)
+    - [Helm Charts](#helm-charts-1)
+    - [Instrumentation](#instrumentation-1)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.13.0-alpha.2
+## Downloads for v1.13.0-alpha.2
+
+Download v1.13.0-alpha.2 in the [v1.13.0-alpha.2 release page](https://github.com/karmada-io/karmada/releases/tag/v1.13.0-alpha.2).
+
+## Changelog since v1.13.0-alpha.1
+
+## Urgent Update Notes
+None.
+
+## Changes by Kind
+
+### API Changes
+None.
+
+### Features & Enhancements
+- `karmada-metrics-adapter`: Introduced `--metrics-bind-address` flag which will be used to expose Prometheus metrics. ([#6013](https://github.com/karmada-io/karmada/pull/6013), @chaosi-zju)
+
+### Deprecation
+- Replace `grpc.DialContext` and `grpc.WithBlock` with `grpc.NewClient` since DialContext and WithBlock are deprecated while maintaining the original functionality. ([#6026](https://github.com/karmada-io/karmada/pull/6026), @seanlaii)
+
+### Bug Fixes
+- `karmada-controller-manager`: Fixed the issue that newly created attached-ResourceBinding be mystically garbage collected. ([#6034](https://github.com/karmada-io/karmada/pull/6034), @whitewindmills)
+
+### Security
+None.
+
+## Other
+### Dependencies
+- The base image `alpine` now has been promoted from 3.21.0 to 3.21.2. ([#6040](https://github.com/karmada-io/karmada/pull/6040))
+
+### Helm Charts
+None.
+
+### Instrumentation
+None.
 
 # v1.13.0-alpha.1
 ## Downloads for v1.13.0-alpha.1
