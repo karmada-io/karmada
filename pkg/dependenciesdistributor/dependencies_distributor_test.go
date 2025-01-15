@@ -34,6 +34,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -2224,6 +2225,12 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 					Namespace:       "test",
 					ResourceVersion: "1000",
 					Labels:          map[string]string{"app": "nginx"},
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							UID:        "foo-bar",
+							Controller: ptr.To[bool](true),
+						},
+					},
 				},
 				Spec: workv1alpha2.ResourceBindingSpec{
 					Resource: workv1alpha2.ObjectReference{
@@ -2274,6 +2281,12 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 					Namespace:       "test",
 					ResourceVersion: "1001",
 					Labels:          map[string]string{"app": "nginx", "foo": "bar"},
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							UID:        "foo-bar",
+							Controller: ptr.To[bool](true),
+						},
+					},
 				},
 				Spec: workv1alpha2.ResourceBindingSpec{
 					Resource: workv1alpha2.ObjectReference{
@@ -2344,6 +2357,12 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 						Namespace:       "test",
 						ResourceVersion: "1000",
 						Labels:          map[string]string{"foo": "bar"},
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								UID:        "foo-bar",
+								Controller: ptr.To[bool](true),
+							},
+						},
 					},
 					Spec: workv1alpha2.ResourceBindingSpec{
 						RequiredBy: []workv1alpha2.BindingSnapshot{
@@ -2390,6 +2409,12 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 					Name:      "test-binding",
 					Namespace: "test",
 					Labels:    map[string]string{"app": "nginx"},
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							UID:        "foo-bar",
+							Controller: ptr.To[bool](true),
+						},
+					},
 				},
 				Spec: workv1alpha2.ResourceBindingSpec{
 					Resource: workv1alpha2.ObjectReference{
@@ -2440,6 +2465,12 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 					Namespace:       "test",
 					ResourceVersion: "1",
 					Labels:          map[string]string{"app": "nginx"},
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							UID:        "foo-bar",
+							Controller: ptr.To[bool](true),
+						},
+					},
 				},
 				Spec: workv1alpha2.ResourceBindingSpec{
 					Resource: workv1alpha2.ObjectReference{
@@ -2495,6 +2526,12 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 					Namespace:       "test",
 					ResourceVersion: "1000",
 					Labels:          map[string]string{"app": "nginx"},
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							UID:        "foo-bar",
+							Controller: ptr.To[bool](true),
+						},
+					},
 				},
 				Spec: workv1alpha2.ResourceBindingSpec{
 					Resource: workv1alpha2.ObjectReference{
@@ -2546,6 +2583,12 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 					Namespace:       "test",
 					ResourceVersion: "1001",
 					Labels:          map[string]string{"app": "nginx", "foo": "bar"},
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							UID:        "foo-bar",
+							Controller: ptr.To[bool](true),
+						},
+					},
 				},
 				Spec: workv1alpha2.ResourceBindingSpec{
 					Resource: workv1alpha2.ObjectReference{
@@ -2617,6 +2660,12 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 						Namespace:       "test",
 						ResourceVersion: "1000",
 						Labels:          map[string]string{"foo": "bar"},
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								UID:        "foo-bar",
+								Controller: ptr.To[bool](true),
+							},
+						},
 					},
 					Spec: workv1alpha2.ResourceBindingSpec{
 						RequiredBy: []workv1alpha2.BindingSnapshot{
@@ -2656,6 +2705,113 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 				return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb).Build()
 			},
 		},
+		{
+			name: "update attached binding which is being deleted",
+			attachedBinding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test-binding",
+					Namespace:       "test",
+					ResourceVersion: "1000",
+					Labels:          map[string]string{"app": "nginx"},
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							UID:        "foo-bar",
+							Controller: ptr.To[bool](true),
+						},
+					},
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{
+						APIVersion:      "apps/v1",
+						Kind:            "Deployment",
+						Namespace:       "fake-ns",
+						Name:            "demo-app",
+						ResourceVersion: "22222",
+					},
+					RequiredBy: []workv1alpha2.BindingSnapshot{
+						{
+							Namespace: "test-1",
+							Name:      "test-binding-1",
+							Clusters: []workv1alpha2.TargetCluster{
+								{
+									Name:     "foo",
+									Replicas: 1,
+								},
+							},
+						},
+					},
+					ConflictResolution: policyv1alpha1.ConflictOverwrite,
+				},
+			},
+			wantErr: true,
+			wantBinding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test-binding",
+					Namespace:       "test",
+					ResourceVersion: "1001",
+					Labels:          map[string]string{"app": "nginx", "foo": "bar"},
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							UID:        "foo-bar",
+							Controller: ptr.To[bool](true),
+						},
+					},
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{
+						APIVersion:      "apps/v1",
+						Kind:            "Deployment",
+						Namespace:       "fake-ns",
+						Name:            "demo-app",
+						ResourceVersion: "22222",
+					},
+					RequiredBy: []workv1alpha2.BindingSnapshot{
+						{
+							Namespace: "default-1",
+							Name:      "default-binding-1",
+							Clusters: []workv1alpha2.TargetCluster{
+								{
+									Name:     "member1",
+									Replicas: 2,
+								},
+							},
+						},
+					},
+					ConflictResolution: policyv1alpha1.ConflictOverwrite,
+				},
+			},
+			setupClient: func() client.Client {
+				rb := &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "test-binding",
+						Namespace:       "test",
+						ResourceVersion: "1000",
+						Labels:          map[string]string{"foo": "bar"},
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								UID:        "bar-foo",
+								Controller: ptr.To[bool](true),
+							},
+						},
+					},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						RequiredBy: []workv1alpha2.BindingSnapshot{
+							{
+								Namespace: "default-1",
+								Name:      "default-binding-1",
+								Clusters: []workv1alpha2.TargetCluster{
+									{
+										Name:     "member1",
+										Replicas: 2,
+									},
+								},
+							},
+						},
+					},
+				}
+				return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb).Build()
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -2666,10 +2822,13 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("createOrUpdateAttachedBinding() error = %v, wantErr %v", err, tt.wantErr)
 			}
+			if tt.wantErr {
+				return
+			}
 			existBinding := &workv1alpha2.ResourceBinding{}
 			bindingKey := client.ObjectKeyFromObject(tt.attachedBinding)
 			err = d.Client.Get(context.TODO(), bindingKey, existBinding)
-			if (err != nil) != tt.wantErr {
+			if err != nil {
 				t.Errorf("createOrUpdateAttachedBinding(), Client.Get() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !reflect.DeepEqual(existBinding, tt.wantBinding) {
