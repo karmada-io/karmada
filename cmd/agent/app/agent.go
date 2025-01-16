@@ -49,6 +49,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	"github.com/karmada-io/karmada/pkg/features"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/goruntime"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
@@ -135,6 +136,8 @@ func run(ctx context.Context, opts *options.Options) error {
 	klog.Infof("karmada-agent version: %s", version.Get())
 
 	profileflag.ListenAndServe(opts.ProfileOpts)
+
+	goruntime.SetMemLimit(opts.MemlimitRatio)
 
 	controlPlaneRestConfig, err := apiclient.RestConfig(opts.KarmadaContext, opts.KarmadaKubeConfig)
 	if err != nil {

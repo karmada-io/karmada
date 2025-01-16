@@ -3,6 +3,7 @@ module github.com/karmada-io/karmada
 go 1.22.9 // keep in sync with .go-version and hack/util.sh
 
 require (
+	github.com/KimMachineGun/automemlimit v0.7.0
 	github.com/adhocore/gronx v1.6.3
 	github.com/distribution/reference v0.5.0
 	github.com/emirpasic/gods v1.18.1
@@ -128,6 +129,7 @@ require (
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
+	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect

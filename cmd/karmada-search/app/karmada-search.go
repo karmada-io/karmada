@@ -114,6 +114,8 @@ func run(ctx context.Context, o *options.Options, registryOptions ...Option) err
 
 	profileflag.ListenAndServe(o.ProfileOpts)
 
+	goruntime.SetMemLimit(o.MemlimitRatio)
+
 	config, err := config(o, registryOptions...)
 	if err != nil {
 		return err
