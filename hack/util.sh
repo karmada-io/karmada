@@ -708,7 +708,7 @@ function util::get_version() {
 }
 
 function util::get_branch() {
-  git branch --show-current
+  git rev-parse --abbrev-ref HEAD
 }
 
 function util::get_revision() {
