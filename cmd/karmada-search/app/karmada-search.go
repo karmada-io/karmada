@@ -44,6 +44,7 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
+	"github.com/karmada-io/karmada/pkg/goruntime"
 	"github.com/karmada-io/karmada/pkg/search"
 	"github.com/karmada-io/karmada/pkg/search/proxy"
 	"github.com/karmada-io/karmada/pkg/search/proxy/framework/runtime"

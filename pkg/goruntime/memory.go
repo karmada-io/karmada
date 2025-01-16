@@ -24,6 +24,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// SetMemLimit to auto setting memory limit
 func SetMemLimit(memlimitRatio float64) {
 	if memlimitRatio >= 1.0 {
 		memlimitRatio = 1.0
