@@ -24,7 +24,6 @@ import (
 	"regexp"
 
 	"github.com/prometheus/client_golang/prometheus/collectors"
-	prometheusversion "github.com/prometheus/client_golang/prometheus/collectors/version"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/sets"
 	restclient "k8s.io/client-go/rest"
@@ -133,7 +132,7 @@ func Run(ctx context.Context, o *options.Options) error {
 		),
 	)
 	ctrlmetrics.Registry.MustRegister(
-		prometheusversion.NewCollector("karmada_operator"),
+		version.NewCollector("karmada_operator"),
 	)
 
 	controllerCtx := ctrlctx.Context{

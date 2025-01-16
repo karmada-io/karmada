@@ -707,9 +707,21 @@ function util::get_version() {
   git describe --tags --dirty
 }
 
+function util::get_branch() {
+  git branch --show-current
+}
+
+function util::get_revision() {
+  git rev-parse --short HEAD
+}
+
 function util::version_ldflags() {
   # Git information
   GIT_VERSION=$(util::get_version)
+  # Git branch
+  GIT_BRANCH=$(util::get_branch)
+  # Git revision
+  GIT_REVISION=$(util::get_revision)
   GIT_COMMIT_HASH=$(git rev-parse HEAD)
   if git_status=$(git status --porcelain 2>/dev/null) && [[ -z ${git_status} ]]; then
     GIT_TREESTATE="clean"
@@ -720,6 +732,8 @@ function util::version_ldflags() {
   LDFLAGS="-X github.com/karmada-io/karmada/pkg/version.gitVersion=${GIT_VERSION} \
                         -X github.com/karmada-io/karmada/pkg/version.gitCommit=${GIT_COMMIT_HASH} \
                         -X github.com/karmada-io/karmada/pkg/version.gitTreeState=${GIT_TREESTATE} \
+                        -X github.com/karmada-io/karmada/pkg/version.gitBranch=${GIT_BRANCH} \
+                        -X github.com/karmada-io/karmada/pkg/version.gitRevision=${GIT_REVISION} \
                         -X github.com/karmada-io/karmada/pkg/version.buildDate=${BUILDDATE}"
   echo $LDFLAGS
 }
