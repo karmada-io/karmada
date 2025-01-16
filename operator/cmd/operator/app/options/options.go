@@ -57,6 +57,10 @@ type Options struct {
 	HealthProbeBindAddress string
 	// ConcurrentKarmadaSyncs is the number of karmada objects that are allowed to sync concurrently.
 	ConcurrentKarmadaSyncs int
+
+	// The ratio of reserved GOMEMLIMIT memory to the detected maximum container or system memory.
+	// Defaults to 0.9.
+	MemlimitRatio float64
 }
 
 // NewOptions creates a new Options with a default config.
@@ -75,6 +79,7 @@ func NewOptions() *Options {
 		KubeAPIQPS:             50,
 		KubeAPIBurst:           100,
 		ConcurrentKarmadaSyncs: 5,
+		MemlimitRatio:          0.9,
 	}
 	return &o
 }
@@ -91,6 +96,8 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string, disabledB
 		"named 'foo', '-foo' disables the controller named 'foo'.\nAll controllers: %s .\nDisabled-by-default controllers: %s .",
 		strings.Join(allControllers, ", "), strings.Join(disabledByDefaultControllers, ", ")))
 	fs.IntVar(&o.ConcurrentKarmadaSyncs, "concurrent-karmada-syncs", o.ConcurrentKarmadaSyncs, "The number of karmada objects that are allowed to sync concurrently.")
+	fs.Float64Var(&o.MemlimitRatio, "auto-gomemlimit-ratio", 0.9, "The ratio of reserved GOMEMLIMIT memory to the detected maximum container or system memory. The value must be greater than 0 and less than or equal to 1.")
+
 	options.BindLeaderElectionFlags(&o.LeaderElection, fs)
 }
 
