@@ -476,8 +476,13 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 			bindingCopy.Spec.Placement = binding.Spec.Placement
 			bindingCopy.Spec.Failover = binding.Spec.Failover
 			bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
-			bindingCopy.Spec.Suspension = binding.Spec.Suspension
 			bindingCopy.Spec.PreserveResourcesOnDeletion = binding.Spec.PreserveResourcesOnDeletion
+			if binding.Spec.Suspension != nil {
+				if bindingCopy.Spec.Suspension == nil {
+					bindingCopy.Spec.Suspension = &workv1alpha2.Suspension{}
+				}
+				bindingCopy.Spec.Suspension.Suspension = binding.Spec.Suspension.Suspension
+			}
 			excludeClusterPolicy(bindingCopy)
 			return nil
 		})
@@ -565,8 +570,13 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 				bindingCopy.Spec.Placement = binding.Spec.Placement
 				bindingCopy.Spec.Failover = binding.Spec.Failover
 				bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
-				bindingCopy.Spec.Suspension = binding.Spec.Suspension
 				bindingCopy.Spec.PreserveResourcesOnDeletion = binding.Spec.PreserveResourcesOnDeletion
+				if binding.Spec.Suspension != nil {
+					if bindingCopy.Spec.Suspension == nil {
+						bindingCopy.Spec.Suspension = &workv1alpha2.Suspension{}
+					}
+					bindingCopy.Spec.Suspension.Suspension = binding.Spec.Suspension.Suspension
+				}
 				return nil
 			})
 			return err
@@ -612,8 +622,13 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 				bindingCopy.Spec.Placement = binding.Spec.Placement
 				bindingCopy.Spec.Failover = binding.Spec.Failover
 				bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
-				bindingCopy.Spec.Suspension = binding.Spec.Suspension
 				bindingCopy.Spec.PreserveResourcesOnDeletion = binding.Spec.PreserveResourcesOnDeletion
+				if binding.Spec.Suspension != nil {
+					if bindingCopy.Spec.Suspension == nil {
+						bindingCopy.Spec.Suspension = &workv1alpha2.Suspension{}
+					}
+					bindingCopy.Spec.Suspension.Suspension = binding.Spec.Suspension.Suspension
+				}
 				return nil
 			})
 			return err
