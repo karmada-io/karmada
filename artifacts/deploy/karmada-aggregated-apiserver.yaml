@@ -24,6 +24,9 @@ spec:
         - name: karmada-aggregated-apiserver
           image: docker.io/karmada/karmada-aggregated-apiserver:latest
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
           command:
             - /bin/karmada-aggregated-apiserver
             - --kubeconfig=/etc/karmada/config/karmada.config
@@ -77,6 +80,9 @@ spec:
         - name: etcd-client-cert
           secret:
             secretName: karmada-aggregated-apiserver-etcd-client-cert
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
 ---
 apiVersion: v1
 kind: Service

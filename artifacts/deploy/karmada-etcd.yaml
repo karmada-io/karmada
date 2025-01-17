@@ -33,6 +33,9 @@ spec:
         - operator: Exists
       containers:
         - name: etcd
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
           image: registry.k8s.io/etcd:3.5.16-0
           imagePullPolicy: IfNotPresent
           livenessProbe:
@@ -88,6 +91,9 @@ spec:
               mountPath: /etc/karmada/pki/server
             - name: etcd-client-cert
               mountPath: /etc/karmada/pki/etcd-client
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       volumes:
         - name: etcd-data
           hostPath:

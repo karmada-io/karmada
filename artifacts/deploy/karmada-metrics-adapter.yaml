@@ -22,6 +22,9 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: karmada-metrics-adapter
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
           image: docker.io/karmada/karmada-metrics-adapter:latest
           imagePullPolicy: IfNotPresent
           command:
@@ -71,6 +74,9 @@ spec:
         - name: server-cert
           secret:
             secretName: karmada-metrics-adapter-cert
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
 ---
 apiVersion: v1
 kind: Service

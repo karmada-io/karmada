@@ -21,6 +21,9 @@ spec:
         operator: Exists
       containers:
         - name: karmada-controller-manager
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
           image: docker.io/karmada/karmada-controller-manager:latest
           imagePullPolicy: IfNotPresent
           command:
@@ -53,3 +56,6 @@ spec:
         - name: karmada-config
           secret:
             secretName: karmada-controller-manager-config
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault

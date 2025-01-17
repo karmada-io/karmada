@@ -21,6 +21,9 @@ spec:
           operator: Exists
       containers:
         - name: karmada-descheduler
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
           image: docker.io/karmada/karmada-descheduler:latest
           imagePullPolicy: IfNotPresent
           command:
@@ -58,3 +61,6 @@ spec:
         - name: scheduler-estimator-client-cert
           secret:
             secretName: karmada-descheduler-scheduler-estimator-client-cert
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault

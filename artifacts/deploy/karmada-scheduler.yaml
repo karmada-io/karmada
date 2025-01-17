@@ -21,6 +21,9 @@ spec:
           operator: Exists
       containers:
         - name: karmada-scheduler
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
           image: docker.io/karmada/karmada-scheduler:latest
           imagePullPolicy: IfNotPresent
           livenessProbe:
@@ -59,3 +62,6 @@ spec:
         - name: scheduler-estimator-client-cert
           secret:
             secretName: karmada-scheduler-scheduler-estimator-client-cert
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
