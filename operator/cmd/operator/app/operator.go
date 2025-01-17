@@ -113,11 +113,6 @@ func Run(ctx context.Context, o *options.Options) error {
 		return err
 	}
 
-	if err := manager.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		klog.Errorf("Unable to set up ready check: %v", err)
-		return err
-	}
-
 	// Unregister default NewGoCollector
 	ctrlmetrics.Registry.Unregister(collectors.NewGoCollector())
 
