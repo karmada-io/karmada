@@ -58,6 +58,9 @@ spec:
             - --v=4
           image: registry.k8s.io/kube-controller-manager:{{karmada_apiserver_version}}
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
           livenessProbe:
             failureThreshold: 8
             httpGet:
@@ -91,3 +94,6 @@ spec:
         - name: service-account-key-pair
           secret:
             secretName: kube-controller-manager-service-account-key-pair
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault

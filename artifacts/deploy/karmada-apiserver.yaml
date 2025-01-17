@@ -100,6 +100,9 @@ spec:
             - name: service-account-key-pair
               mountPath: /etc/karmada/pki/service-account-key-pair
               readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
       volumes:
         - name: server-cert
           secret:
@@ -121,7 +124,9 @@ spec:
       priorityClassName: system-node-critical
       restartPolicy: Always
       schedulerName: default-scheduler
-      securityContext: {}
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       terminationGracePeriodSeconds: 30
       tolerations:
         - effect: NoExecute

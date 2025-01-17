@@ -21,6 +21,9 @@ spec:
           operator: Exists
       containers:
         - name: karmada-webhook
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
           image: docker.io/karmada/karmada-webhook:latest
           imagePullPolicy: IfNotPresent
           command:
@@ -56,6 +59,9 @@ spec:
         - name: server-cert
           secret:
             secretName: karmada-webhook-cert
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
 ---
 apiVersion: v1
 kind: Service

@@ -21,6 +21,9 @@ spec:
           operator: Exists
       containers:
         - name: karmada-scheduler-estimator
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
           image: docker.io/karmada/karmada-scheduler-estimator:latest
           imagePullPolicy: IfNotPresent
           command:
@@ -59,6 +62,9 @@ spec:
         - name: member-kubeconfig
           secret:
             secretName: {{member_cluster_name}}-kubeconfig
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
 ---
 apiVersion: v1
 kind: Service
