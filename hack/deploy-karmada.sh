@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 set -o errexit
 set -o nounset
 
@@ -130,31 +129,41 @@ function generate_cert_related_secrets {
 }
 
 function generate_config_secret() {
-  export component=$1 ca_crt=$2 client_crt=$3 client_key=$4
-  envsubst < "${REPO_ROOT}"/artifacts/deploy/karmada-config-secret.yaml > "${TEMP_PATH}"/${component}-config-secret.yaml
+  local component=$1
+  cp "${REPO_ROOT}"/artifacts/deploy/karmada-config-secret.yaml "${TEMP_PATH}"/${component}-config-secret.yaml
+  sed -i'' -e "s/\${component}/$1/g" "${TEMP_PATH}"/${component}-config-secret.yaml
+  sed -i'' -e "s/\${ca_crt}/$2/g" "${TEMP_PATH}"/${component}-config-secret.yaml
+  sed -i'' -e "s/\${client_crt}/$3/g" "${TEMP_PATH}"/${component}-config-secret.yaml
+  sed -i'' -e "s/\${client_key}/$4/g" "${TEMP_PATH}"/${component}-config-secret.yaml
   kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${TEMP_PATH}"/${component}-config-secret.yaml
-  unset component ca_crt client_crt client_key
 }
 
 function generate_cert_secret() {
-  export name=$1 ca_crt=$2 tls_crt=$3 tls_key=$4
-  envsubst < "${REPO_ROOT}"/artifacts/deploy/karmada-cert-secret.yaml > "${TEMP_PATH}"/${name}-cert-secret.yaml
+  local name=$1
+  cp "${REPO_ROOT}"/artifacts/deploy/karmada-cert-secret.yaml "${TEMP_PATH}"/${name}-cert-secret.yaml
+  sed -i'' -e "s/\${name}/$1/g" "${TEMP_PATH}"/${name}-cert-secret.yaml
+  sed -i'' -e "s/\${ca_crt}/$2/g" "${TEMP_PATH}"/${name}-cert-secret.yaml
+  sed -i'' -e "s/\${tls_crt}/$3/g" "${TEMP_PATH}"/${name}-cert-secret.yaml
+  sed -i'' -e "s/\${tls_key}/$4/g" "${TEMP_PATH}"/${name}-cert-secret.yaml
   kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${TEMP_PATH}"/${name}-cert-secret.yaml
-  unset name ca_crt tls_crt tls_key
 }
 
 function generate_ca_cert_secret() {
-  export component=$1 ca_crt=$2 ca_key=$3
-  envsubst < "${REPO_ROOT}"/artifacts/deploy/karmada-ca-cert-secret.yaml > "${TEMP_PATH}"/${component}-ca-cert-secret.yaml
+  local component=$1
+  cp "${REPO_ROOT}"/artifacts/deploy/karmada-ca-cert-secret.yaml "${TEMP_PATH}"/${component}-ca-cert-secret.yaml
+  sed -i'' -e "s/\${component}/$1/g" "${TEMP_PATH}"/${component}-ca-cert-secret.yaml
+  sed -i'' -e "s/\${ca_crt}/$2/g" "${TEMP_PATH}"/${component}-ca-cert-secret.yaml
+  sed -i'' -e "s/\${ca_key}/$3/g" "${TEMP_PATH}"/${component}-ca-cert-secret.yaml
   kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${TEMP_PATH}"/${component}-ca-cert-secret.yaml
-  unset component ca_crt ca_key
 }
 
 function generate_key_pair_secret() {
-  export component=$1 sa_pub=$2 sa_key=$3
-  envsubst < "${REPO_ROOT}"/artifacts/deploy/karmada-key-pair-secret.yaml > "${TEMP_PATH}"/${component}-key-pair-secret.yaml
+  local component=$1
+  cp "${REPO_ROOT}"/artifacts/deploy/karmada-key-pair-secret.yaml "${TEMP_PATH}"/${component}-key-pair-secret.yaml
+  sed -i'' -e "s/\${component}/$1/g" "${TEMP_PATH}"/${component}-key-pair-secret.yaml
+  sed -i'' -e "s/\${sa_pub}/$2/g" "${TEMP_PATH}"/${component}-key-pair-secret.yaml
+  sed -i'' -e "s/\${sa_key}/$3/g" "${TEMP_PATH}"/${component}-key-pair-secret.yaml
   kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${TEMP_PATH}"/${component}-key-pair-secret.yaml
-  unset component sa_pub sa_key
 }
 
 # install Karmada's APIs
