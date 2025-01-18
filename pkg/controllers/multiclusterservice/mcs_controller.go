@@ -404,7 +404,12 @@ func (c *MCSController) propagateService(ctx context.Context, mcs *networkingv1a
 			bindingCopy.Spec.Placement = binding.Spec.Placement
 			bindingCopy.Spec.Resource = binding.Spec.Resource
 			bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
-			bindingCopy.Spec.Suspension = binding.Spec.Suspension
+			if binding.Spec.Suspension != nil {
+				if bindingCopy.Spec.Suspension == nil {
+					bindingCopy.Spec.Suspension = &workv1alpha2.Suspension{}
+				}
+				bindingCopy.Spec.Suspension.Suspension = binding.Spec.Suspension.Suspension
+			}
 			return nil
 		})
 		if err != nil {
