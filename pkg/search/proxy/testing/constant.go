@@ -35,7 +35,12 @@ var (
 	SecretGVR  = corev1.SchemeGroupVersion.WithResource("secret")
 	ClusterGVR = clusterv1alpha1.SchemeGroupVersion.WithResource("cluster")
 
-	PodSelector  = searchv1alpha1.ResourceSelector{APIVersion: PodGVK.GroupVersion().String(), Kind: PodGVK.Kind}
+	PodSelector = searchv1alpha1.ResourceSelector{APIVersion: PodGVK.GroupVersion().String(), Kind: PodGVK.Kind}
+
+	PodSelectorWithNS1 = searchv1alpha1.ResourceSelector{APIVersion: PodGVK.GroupVersion().String(), Kind: PodGVK.Kind, Namespace: "ns1"}
+
+	PodSelectorWithNS2 = searchv1alpha1.ResourceSelector{APIVersion: PodGVK.GroupVersion().String(), Kind: PodGVK.Kind, Namespace: "ns2"}
+
 	NodeSelector = searchv1alpha1.ResourceSelector{APIVersion: NodeGVK.GroupVersion().String(), Kind: NodeGVK.Kind}
 
 	RestMapper *meta.DefaultRESTMapper

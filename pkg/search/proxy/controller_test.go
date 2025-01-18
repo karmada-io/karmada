@@ -22,8 +22,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
-	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -104,19 +102,26 @@ func TestController(t *testing.T) {
 }
 
 func TestController_reconcile(t *testing.T) {
-	echoStrings := func(ss ...string) string {
-		sort.Strings(ss)
-		return strings.Join(ss, ",")
+	newMultiNs := func(namespaces ...string) *store.MultiNamespace {
+		multiNs := store.NewMultiNamespace()
+		if len(namespaces) == 0 {
+			multiNs.Add(metav1.NamespaceAll)
+			return multiNs
+		}
+		for _, ns := range namespaces {
+			multiNs.Add(ns)
+		}
+		return multiNs
 	}
 	tests := []struct {
 		name  string
 		input []runtime.Object
-		want  map[string]string
+		want  map[string]map[string]*store.MultiNamespace
 	}{
 		{
 			name:  "all empty",
 			input: []runtime.Object{},
-			want:  map[string]string{},
+			want:  map[string]map[string]*store.MultiNamespace{},
 		},
 		{
 			name: "resource registered, while cluster not registered",
@@ -133,7 +138,7 @@ func TestController_reconcile(t *testing.T) {
 					},
 				},
 			},
-			want: map[string]string{},
+			want: map[string]map[string]*store.MultiNamespace{},
 		},
 		{
 			name: "pod and node are registered",
@@ -153,9 +158,15 @@ func TestController_reconcile(t *testing.T) {
 					},
 				},
 			},
-			want: map[string]string{
-				"cluster1": echoStrings("pods", "nodes"),
-				"cluster2": echoStrings("pods", "nodes"),
+			want: map[string]map[string]*store.MultiNamespace{
+				"cluster1": {
+					"pods":  newMultiNs(),
+					"nodes": newMultiNs(),
+				},
+				"cluster2": {
+					"pods":  newMultiNs(),
+					"nodes": newMultiNs(),
+				},
 			},
 		},
 		{
@@ -178,9 +189,13 @@ func TestController_reconcile(t *testing.T) {
 					},
 				},
 			},
-			want: map[string]string{
-				"cluster1": echoStrings("pods"),
-				"cluster2": echoStrings("nodes"),
+			want: map[string]map[string]*store.MultiNamespace{
+				"cluster1": {
+					"pods": newMultiNs(),
+				},
+				"cluster2": {
+					"nodes": newMultiNs(),
+				},
 			},
 		},
 		{
@@ -203,9 +218,14 @@ func TestController_reconcile(t *testing.T) {
 					},
 				},
 			},
-			want: map[string]string{
-				"cluster1": echoStrings("pods", "nodes"),
-				"cluster2": echoStrings("nodes"),
+			want: map[string]map[string]*store.MultiNamespace{
+				"cluster1": {
+					"pods":  newMultiNs(),
+					"nodes": newMultiNs(),
+				},
+				"cluster2": {
+					"nodes": newMultiNs(),
+				},
 			},
 		},
 		{
@@ -226,8 +246,10 @@ func TestController_reconcile(t *testing.T) {
 					},
 				},
 			},
-			want: map[string]string{
-				"cluster1": echoStrings("pods"),
+			want: map[string]map[string]*store.MultiNamespace{
+				"cluster1": {
+					"pods": newMultiNs(),
+				},
 			},
 		},
 		{
@@ -258,8 +280,10 @@ func TestController_reconcile(t *testing.T) {
 					},
 				},
 			},
-			want: map[string]string{
-				"cluster1": echoStrings("pods"),
+			want: map[string]map[string]*store.MultiNamespace{
+				"cluster1": {
+					"pods": newMultiNs(),
+				},
 			},
 		},
 		{
@@ -278,13 +302,47 @@ func TestController_reconcile(t *testing.T) {
 					},
 				},
 			},
-			want: map[string]string{},
+			want: map[string]map[string]*store.MultiNamespace{},
+		},
+		{
+			name: "register pod twice in two ResourceRegistries with different namespace",
+			input: []runtime.Object{
+				newCluster("cluster1"),
+				newCluster("cluster2"),
+				&searchv1alpha1.ResourceRegistry{
+					ObjectMeta: metav1.ObjectMeta{Name: "rr1"},
+					Spec: searchv1alpha1.ResourceRegistrySpec{
+						TargetCluster: policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{"cluster1"},
+						},
+						ResourceSelectors: []searchv1alpha1.ResourceSelector{
+							proxytest.PodSelectorWithNS1,
+						},
+					},
+				},
+				&searchv1alpha1.ResourceRegistry{
+					ObjectMeta: metav1.ObjectMeta{Name: "rr2"},
+					Spec: searchv1alpha1.ResourceRegistrySpec{
+						TargetCluster: policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{"cluster1"},
+						},
+						ResourceSelectors: []searchv1alpha1.ResourceSelector{
+							proxytest.PodSelectorWithNS2,
+						},
+					},
+				},
+			},
+			want: map[string]map[string]*store.MultiNamespace{
+				"cluster1": {
+					"pods": newMultiNs("ns1", "ns2"),
+				},
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actual := map[string]string{}
+			actual := map[string]map[string]*store.MultiNamespace{}
 			karmadaClientset := karmadafake.NewSimpleClientset(tt.input...)
 			karmadaFactory := karmadainformers.NewSharedInformerFactory(karmadaClientset, 0)
 
@@ -295,11 +353,11 @@ func TestController_reconcile(t *testing.T) {
 				store: &proxytest.MockStore{
 					UpdateCacheFunc: func(m map[string]map[schema.GroupVersionResource]*store.MultiNamespace, _ map[schema.GroupVersionResource]struct{}) error {
 						for clusterName, resources := range m {
-							resourceNames := make([]string, 0, len(resources))
-							for resource := range resources {
-								resourceNames = append(resourceNames, resource.Resource)
+							resourceCaches := map[string]*store.MultiNamespace{}
+							for resource, multiNs := range resources {
+								resourceCaches[resource.Resource] = multiNs
 							}
-							actual[clusterName] = echoStrings(resourceNames...)
+							actual[clusterName] = resourceCaches
 						}
 						if len(actual) != len(m) {
 							return fmt.Errorf("cluster duplicate: %#v", m)
