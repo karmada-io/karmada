@@ -228,27 +228,34 @@ func (ctl *Controller) reconcile(util.QueueKey) error {
 				klog.Warningf("cluster %s is notReady", cluster.Name)
 				continue
 			}
-
-			if _, exist := resourcesByClusters[cluster.Name]; !exist {
-				resourcesByClusters[cluster.Name] = make(map[schema.GroupVersionResource]*store.MultiNamespace)
-			}
-
-			for resource, multiNS := range matchedResources {
-				gvk, err := ctl.restMapper.KindFor(resource)
-				if err != nil {
-					klog.Errorf("Failed to get gvk: %v", err)
-					continue
-				}
-				if !helper.IsAPIEnabled(cluster.Status.APIEnablements, gvk.GroupVersion().String(), gvk.Kind) {
-					klog.Warningf("Resource %s is not enabled for cluster %s", resource.String(), cluster)
-					continue
-				}
-				resourcesByClusters[cluster.Name][resource] = multiNS
-			}
+			ctl.mergeResourcesByClusters(resourcesByClusters, cluster, matchedResources)
 		}
 	}
 
 	return ctl.store.UpdateCache(resourcesByClusters, registeredResources)
+}
+
+func (ctl *Controller) mergeResourcesByClusters(resourcesByClusters map[string]map[schema.GroupVersionResource]*store.MultiNamespace, cluster *clusterv1alpha1.Cluster, matchedResources map[schema.GroupVersionResource]*store.MultiNamespace) {
+	if _, exist := resourcesByClusters[cluster.Name]; !exist {
+		resourcesByClusters[cluster.Name] = make(map[schema.GroupVersionResource]*store.MultiNamespace)
+	}
+
+	for resource, multiNS := range matchedResources {
+		gvk, err := ctl.restMapper.KindFor(resource)
+		if err != nil {
+			klog.Errorf("Failed to get gvk: %v", err)
+			continue
+		}
+		if !helper.IsAPIEnabled(cluster.Status.APIEnablements, gvk.GroupVersion().String(), gvk.Kind) {
+			klog.Warningf("Resource %s is not enabled for cluster %s", resource.String(), cluster)
+			continue
+		}
+		if ns, exist := resourcesByClusters[cluster.Name][resource]; !exist {
+			resourcesByClusters[cluster.Name][resource] = multiNS
+		} else {
+			resourcesByClusters[cluster.Name][resource] = ns.Merge(multiNS)
+		}
+	}
 }
 
 type errorHTTPHandler struct {
