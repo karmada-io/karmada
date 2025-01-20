@@ -122,6 +122,7 @@ func TestInstallKarmadaAPIServer(t *testing.T) {
 	name := "karmada-apiserver"
 	namespace := "test-namespace"
 	serviceSubnet := "10.96.0.0/12"
+	priorityClassName := "system-cluster-critical"
 
 	// Create fake clientset.
 	fakeClient := fakeclientset.NewSimpleClientset()
@@ -129,12 +130,13 @@ func TestInstallKarmadaAPIServer(t *testing.T) {
 	// Define a valid KarmadaAPIServer configuration.
 	cfg := &operatorv1alpha1.KarmadaAPIServer{
 		CommonSettings: operatorv1alpha1.CommonSettings{
-			Image:           operatorv1alpha1.Image{ImageTag: image},
-			Replicas:        ptr.To[int32](replicas),
-			Annotations:     annotations,
-			Labels:          labels,
-			Resources:       corev1.ResourceRequirements{},
-			ImagePullPolicy: imagePullPolicy,
+			Image:             operatorv1alpha1.Image{ImageTag: image},
+			Replicas:          ptr.To[int32](replicas),
+			Annotations:       annotations,
+			Labels:            labels,
+			Resources:         corev1.ResourceRequirements{},
+			ImagePullPolicy:   imagePullPolicy,
+			PriorityClassName: priorityClassName,
 		},
 		ServiceSubnet: ptr.To(serviceSubnet),
 		ExtraArgs:     map[string]string{"cmd1": "arg1", "cmd2": "arg2"},
@@ -150,7 +152,7 @@ func TestInstallKarmadaAPIServer(t *testing.T) {
 		t.Fatalf("expected no error, but got: %v", err)
 	}
 
-	deployment, err := verifyDeploymentCreation(fakeClient, &replicas, imagePullPolicy, cfg.ExtraArgs, name, namespace, image, util.KarmadaAPIServerName(name))
+	deployment, err := verifyDeploymentCreation(fakeClient, &replicas, imagePullPolicy, cfg.ExtraArgs, name, namespace, image, util.KarmadaAPIServerName(name), priorityClassName)
 	if err != nil {
 		t.Fatalf("failed to verify karmada apiserver correct deployment creation correct details: %v", err)
 	}
@@ -218,6 +220,7 @@ func TestInstallKarmadaAggregatedAPIServer(t *testing.T) {
 	labelValues := map[string]string{"labelKey": "labelValue"}
 	name := "test-agg-server"
 	namespace := "test-namespace"
+	priorityClassName := "system-cluster-critical"
 
 	// Use fake clientset.
 	fakeClient := fakeclientset.NewSimpleClientset()
@@ -225,12 +228,13 @@ func TestInstallKarmadaAggregatedAPIServer(t *testing.T) {
 	// Define valid inputs.
 	cfg := &operatorv1alpha1.KarmadaAggregatedAPIServer{
 		CommonSettings: operatorv1alpha1.CommonSettings{
-			Image:           operatorv1alpha1.Image{ImageTag: image},
-			Replicas:        ptr.To[int32](replicas),
-			Annotations:     annotationValues,
-			Labels:          labelValues,
-			Resources:       corev1.ResourceRequirements{},
-			ImagePullPolicy: imagePullPolicy,
+			Image:             operatorv1alpha1.Image{ImageTag: image},
+			Replicas:          ptr.To[int32](replicas),
+			Annotations:       annotationValues,
+			Labels:            labelValues,
+			Resources:         corev1.ResourceRequirements{},
+			ImagePullPolicy:   imagePullPolicy,
+			PriorityClassName: priorityClassName,
 		},
 		ExtraArgs: map[string]string{"cmd1": "arg1", "cmd2": "arg2"},
 	}
@@ -244,7 +248,7 @@ func TestInstallKarmadaAggregatedAPIServer(t *testing.T) {
 		t.Fatalf("Failed to install Karmada Aggregated API Server: %v", err)
 	}
 
-	deployment, err := verifyDeploymentCreation(fakeClient, &replicas, imagePullPolicy, cfg.ExtraArgs, name, namespace, image, util.KarmadaAggregatedAPIServerName(name))
+	deployment, err := verifyDeploymentCreation(fakeClient, &replicas, imagePullPolicy, cfg.ExtraArgs, name, namespace, image, util.KarmadaAggregatedAPIServerName(name), priorityClassName)
 	if err != nil {
 		t.Fatalf("failed to verify karmada aggregated apiserver deployment creation correct details: %v", err)
 	}
@@ -311,7 +315,7 @@ func contains(slice []string, item string) bool {
 // based on the given parameters. It ensures that the deployment has the correct
 // number of replicas, image pull policy, extra arguments, and labels, as well
 // as the correct image for the Karmada API server.
-func verifyDeploymentCreation(client *fakeclientset.Clientset, replicas *int32, imagePullPolicy corev1.PullPolicy, extraArgs map[string]string, name, namespace, image, expectedDeploymentName string) (*appsv1.Deployment, error) {
+func verifyDeploymentCreation(client *fakeclientset.Clientset, replicas *int32, imagePullPolicy corev1.PullPolicy, extraArgs map[string]string, name, namespace, image, expectedDeploymentName, priorityClassName string) (*appsv1.Deployment, error) {
 	// Assert that a Deployment was created.
 	actions := client.Actions()
 	if len(actions) != 1 {
@@ -330,7 +334,7 @@ func verifyDeploymentCreation(client *fakeclientset.Clientset, replicas *int32, 
 	}
 
 	deployment := createAction.GetObject().(*appsv1.Deployment)
-	err := verifyDeploymentDetails(deployment, replicas, imagePullPolicy, extraArgs, name, namespace, image, expectedDeploymentName)
+	err := verifyDeploymentDetails(deployment, replicas, imagePullPolicy, extraArgs, name, namespace, image, expectedDeploymentName, priorityClassName)
 	if err != nil {
 		return nil, err
 	}
@@ -341,9 +345,13 @@ func verifyDeploymentCreation(client *fakeclientset.Clientset, replicas *int32, 
 // verifyDeploymentDetails ensures that the specified deployment contains the
 // correct configuration for replicas, image pull policy, extra args, and image.
 // It validates that the deployment matches the expected Karmada API server settings.
-func verifyDeploymentDetails(deployment *appsv1.Deployment, replicas *int32, imagePullPolicy corev1.PullPolicy, extraArgs map[string]string, name, namespace, image, expectedDeploymentName string) error {
+func verifyDeploymentDetails(deployment *appsv1.Deployment, replicas *int32, imagePullPolicy corev1.PullPolicy, extraArgs map[string]string, name, namespace, image, expectedDeploymentName, priorityClassName string) error {
 	if deployment.Name != expectedDeploymentName {
 		return fmt.Errorf("expected deployment name '%s', but got '%s'", expectedDeploymentName, deployment.Name)
+	}
+
+	if deployment.Spec.Template.Spec.PriorityClassName != priorityClassName {
+		return fmt.Errorf("expected priorityClassName to be set to %s, but got %s", priorityClassName, deployment.Spec.Template.Spec.PriorityClassName)
 	}
 
 	expectedNamespace := "test-namespace"

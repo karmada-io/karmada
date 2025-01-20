@@ -153,6 +153,12 @@ spec:
                             items:
                               type: string
                             type: array
+                          priorityClassName:
+                            default: system-node-critical
+                            description: |-
+                              PriorityClassName specifies the priority class name for the component.
+                              If not specified, it defaults to "system-node-critical".
+                            type: string
                           replicas:
                             description: |-
                               Number of desired pods. This is a pointer to distinguish between explicit
@@ -2465,6 +2471,12 @@ spec:
                           and services.
                           More info: http://kubernetes.io/docs/user-guide/labels
                         type: object
+                      priorityClassName:
+                        default: system-node-critical
+                        description: |-
+                          PriorityClassName specifies the priority class name for the component.
+                          If not specified, it defaults to "system-node-critical".
+                        type: string
                       replicas:
                         description: |-
                           Number of desired pods. This is a pointer to distinguish between explicit
@@ -2625,6 +2637,12 @@ spec:
                           and services.
                           More info: http://kubernetes.io/docs/user-guide/labels
                         type: object
+                      priorityClassName:
+                        default: system-node-critical
+                        description: |-
+                          PriorityClassName specifies the priority class name for the component.
+                          If not specified, it defaults to "system-node-critical".
+                        type: string
                       replicas:
                         description: |-
                           Number of desired pods. This is a pointer to distinguish between explicit
@@ -2776,6 +2794,12 @@ spec:
                           and services.
                           More info: http://kubernetes.io/docs/user-guide/labels
                         type: object
+                      priorityClassName:
+                        default: system-node-critical
+                        description: |-
+                          PriorityClassName specifies the priority class name for the component.
+                          If not specified, it defaults to "system-node-critical".
+                        type: string
                       replicas:
                         description: |-
                           Number of desired pods. This is a pointer to distinguish between explicit
@@ -2900,6 +2924,12 @@ spec:
                           and services.
                           More info: http://kubernetes.io/docs/user-guide/labels
                         type: object
+                      priorityClassName:
+                        default: system-node-critical
+                        description: |-
+                          PriorityClassName specifies the priority class name for the component.
+                          If not specified, it defaults to "system-node-critical".
+                        type: string
                       replicas:
                         description: |-
                           Number of desired pods. This is a pointer to distinguish between explicit
@@ -3024,6 +3054,12 @@ spec:
                           and services.
                           More info: http://kubernetes.io/docs/user-guide/labels
                         type: object
+                      priorityClassName:
+                        default: system-node-critical
+                        description: |-
+                          PriorityClassName specifies the priority class name for the component.
+                          If not specified, it defaults to "system-node-critical".
+                        type: string
                       replicas:
                         description: |-
                           Number of desired pods. This is a pointer to distinguish between explicit
@@ -3156,6 +3192,12 @@ spec:
                           and services.
                           More info: http://kubernetes.io/docs/user-guide/labels
                         type: object
+                      priorityClassName:
+                        default: system-node-critical
+                        description: |-
+                          PriorityClassName specifies the priority class name for the component.
+                          If not specified, it defaults to "system-node-critical".
+                        type: string
                       replicas:
                         description: |-
                           Number of desired pods. This is a pointer to distinguish between explicit
@@ -3280,6 +3322,12 @@ spec:
                           and services.
                           More info: http://kubernetes.io/docs/user-guide/labels
                         type: object
+                      priorityClassName:
+                        default: system-node-critical
+                        description: |-
+                          PriorityClassName specifies the priority class name for the component.
+                          If not specified, it defaults to "system-node-critical".
+                        type: string
                       replicas:
                         description: |-
                           Number of desired pods. This is a pointer to distinguish between explicit
@@ -3404,6 +3452,12 @@ spec:
                           and services.
                           More info: http://kubernetes.io/docs/user-guide/labels
                         type: object
+                      priorityClassName:
+                        default: system-node-critical
+                        description: |-
+                          PriorityClassName specifies the priority class name for the component.
+                          If not specified, it defaults to "system-node-critical".
+                        type: string
                       replicas:
                         description: |-
                           Number of desired pods. This is a pointer to distinguish between explicit
@@ -3574,6 +3628,12 @@ spec:
                           and services.
                           More info: http://kubernetes.io/docs/user-guide/labels
                         type: object
+                      priorityClassName:
+                        default: system-node-critical
+                        description: |-
+                          PriorityClassName specifies the priority class name for the component.
+                          If not specified, it defaults to "system-node-critical".
+                        type: string
                       replicas:
                         description: |-
                           Number of desired pods. This is a pointer to distinguish between explicit

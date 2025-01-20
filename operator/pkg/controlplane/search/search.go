@@ -70,6 +70,7 @@ func installKarmadaSearch(client clientset.Interface, cfg *operatorv1alpha1.Karm
 	}
 
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
+		WithPriorityClassName(cfg.CommonSettings.PriorityClassName).
 		WithExtraArgs(cfg.ExtraArgs).WithResources(cfg.Resources).ForDeployment(searchDeployment)
 
 	if err := apiclient.CreateOrUpdateDeployment(client, searchDeployment); err != nil {

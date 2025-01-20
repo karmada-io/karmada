@@ -79,6 +79,7 @@ func TestInstallKarmadaEtcd(t *testing.T) {
 	imagePullPolicy := corev1.PullIfNotPresent
 	annotations := map[string]string{"annotationKey": "annotationValue"}
 	labels := map[string]string{"labelKey": "labelValue"}
+	priorityClassName := "system-cluster-critical"
 
 	// Define a valid Etcd configuration.
 	cfg := &operatorv1alpha1.LocalEtcd{
@@ -87,11 +88,12 @@ func TestInstallKarmadaEtcd(t *testing.T) {
 				ImageRepository: image,
 				ImageTag:        imageTag,
 			},
-			Replicas:        ptr.To[int32](replicas),
-			Annotations:     annotations,
-			Labels:          labels,
-			Resources:       corev1.ResourceRequirements{},
-			ImagePullPolicy: imagePullPolicy,
+			Replicas:          ptr.To[int32](replicas),
+			Annotations:       annotations,
+			Labels:            labels,
+			Resources:         corev1.ResourceRequirements{},
+			ImagePullPolicy:   imagePullPolicy,
+			PriorityClassName: priorityClassName,
 		},
 	}
 
@@ -104,7 +106,7 @@ func TestInstallKarmadaEtcd(t *testing.T) {
 	}
 
 	err = verifyStatefulSetCreation(
-		fakeClient, replicas, imagePullPolicy, name, namespace, image, imageTag,
+		fakeClient, replicas, imagePullPolicy, name, namespace, image, imageTag, priorityClassName,
 	)
 	if err != nil {
 		t.Fatalf("failed to verify statefulset creation: %v", err)
@@ -201,7 +203,7 @@ func TestCreateEtcdService(t *testing.T) {
 // verifyStatefulSetCreation asserts that a StatefulSet was created in the given clientset.
 // It checks that exactly one action was recorded, verifies that it is a creation action for a StatefulSet,
 // and then validates the details of the created StatefulSet against the expected parameters.
-func verifyStatefulSetCreation(client *fakeclientset.Clientset, replicas int32, imagePullPolicy corev1.PullPolicy, name, namespace, image, imageTag string) error {
+func verifyStatefulSetCreation(client *fakeclientset.Clientset, replicas int32, imagePullPolicy corev1.PullPolicy, name, namespace, image, imageTag, priorityClassName string) error {
 	// Assert that a Statefulset was created.
 	actions := client.Actions()
 	if len(actions) != 1 {
@@ -219,6 +221,11 @@ func verifyStatefulSetCreation(client *fakeclientset.Clientset, replicas int32, 
 	}
 
 	statefulSet := createAction.GetObject().(*appsv1.StatefulSet)
+
+	if statefulSet.Spec.Template.Spec.PriorityClassName != priorityClassName {
+		return fmt.Errorf("expected priorityClassName to be set to %s, but got %s", priorityClassName, statefulSet.Spec.Template.Spec.PriorityClassName)
+	}
+
 	return verifyStatefulSetDetails(
 		statefulSet, replicas, imagePullPolicy, name, namespace, image, imageTag,
 	)

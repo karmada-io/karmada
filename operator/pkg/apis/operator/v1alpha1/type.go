@@ -648,6 +648,12 @@ type CommonSettings struct {
 	// More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
 	// +optional
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// PriorityClassName specifies the priority class name for the component.
+	// If not specified, it defaults to "system-node-critical".
+	// +kubebuilder:default="system-node-critical"
+	// +optional
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
 // Image allows to customize the image used for components.

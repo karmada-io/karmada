@@ -35,6 +35,7 @@ import (
 
 // Patcher defines multiple variables that need to be patched.
 type Patcher struct {
+	priorityClassName string
 	labels            map[string]string
 	annotations       map[string]string
 	extraArgs         map[string]string
@@ -65,6 +66,12 @@ func (p *Patcher) WithAnnotations(annotations labels.Set) *Patcher {
 // WithExtraArgs sets extraArgs to the patcher.
 func (p *Patcher) WithExtraArgs(extraArgs map[string]string) *Patcher {
 	p.extraArgs = extraArgs
+	return p
+}
+
+// WithPriorityClassName sets the priority class name for the patcher.
+func (p *Patcher) WithPriorityClassName(priorityClassName string) *Patcher {
+	p.priorityClassName = priorityClassName
 	return p
 }
 
@@ -105,6 +112,7 @@ func (p *Patcher) ForDeployment(deployment *appsv1.Deployment) {
 
 	deployment.Annotations = labels.Merge(deployment.Annotations, p.annotations)
 	deployment.Spec.Template.Annotations = labels.Merge(deployment.Spec.Template.Annotations, p.annotations)
+	deployment.Spec.Template.Spec.PriorityClassName = p.priorityClassName
 
 	if p.resources.Size() > 0 {
 		// It's considered the first container is the karmada component by default.
@@ -149,6 +157,7 @@ func (p *Patcher) ForStatefulSet(sts *appsv1.StatefulSet) {
 
 	sts.Annotations = labels.Merge(sts.Annotations, p.annotations)
 	sts.Spec.Template.Annotations = labels.Merge(sts.Spec.Template.Annotations, p.annotations)
+	sts.Spec.Template.Spec.PriorityClassName = p.priorityClassName
 
 	if p.volume != nil {
 		patchVolumeForStatefulSet(sts, p.volume)

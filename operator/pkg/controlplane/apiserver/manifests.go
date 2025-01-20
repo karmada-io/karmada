@@ -108,7 +108,6 @@ spec:
         - mountPath: /etc/karmada/pki
           name: apiserver-cert
           readOnly: true
-      priorityClassName: system-node-critical
       volumes:
       - name: apiserver-cert
         secret:

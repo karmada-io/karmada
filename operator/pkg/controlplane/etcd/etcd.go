@@ -91,6 +91,7 @@ func installKarmadaEtcd(client clientset.Interface, name, namespace string, cfg 
 	}
 
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
+		WithPriorityClassName(cfg.CommonSettings.PriorityClassName).
 		WithVolumeData(cfg.VolumeData).WithResources(cfg.Resources).ForStatefulSet(etcdStatefulSet)
 
 	if err := apiclient.CreateOrUpdateStatefulSet(client, etcdStatefulSet); err != nil {
