@@ -117,15 +117,26 @@ func Run(ctx context.Context, o *options.Options) error {
 	ctrlmetrics.Registry.Unregister(collectors.NewGoCollector())
 
 	ctrlmetrics.Registry.MustRegister(
+		// Go Runtime metrics about debug.GCStats (base metrics) and
+		// runtime/metrics.
 		collectors.NewGoCollector(
 			collectors.WithGoCollectorRuntimeMetrics(
+				// go runtime gc metrics. (e.g. `go_gc_duration_seconds`
+				// means garbage collection cycle pause duration)
 				collectors.MetricsGC,
+				// go runtime scheduler metrics. (e.g. `go_sched_gomaxprocs_threads`
+				// means the current runtime.GOMAXPROCS setting)
 				collectors.MetricsScheduler,
+				// go runtime memory metrics. (e.g. `go_memstats_alloc_bytes`
+				// means number of bytes allocated and still in use)
 				collectors.MetricsMemory,
+				// go runtime sync lock metrics. (e.g. `go_sync_mutex_wait_total_seconds_total`
+				// means Approximate cumulative time goroutines have spent blocked on a sync.Mutex, sync.RWMutex, or runtime-internal lock)
 				collectors.GoRuntimeMetricsRule{Matcher: regexp.MustCompile(`^/sync/.*`)},
 			),
 		),
 	)
+	// `karmada_operator_build_info` metrics for operator version upgrade
 	ctrlmetrics.Registry.MustRegister(
 		version.NewCollector("karmada_operator"),
 	)
