@@ -7,14 +7,27 @@ spec:
     apiVersion: flink.apache.org/v1beta1
     kind: FlinkDeployment
   customizations:
+# FlinkDeployment health is interpreted based on the application's state.
+#
+# Health Rules:
+# 1. If the job is in a terminal state [Failed, Finished, Canceled, Suspended] or in the Running state, it is considered healthy.
+# 2. If the job is in an ephemeral state [Reconciling, Initializing, Created]:
+#    - It is treated as healthy ONLY if there is a published error (e.g., user-related issues like an incorrect image path).
+#    - Otherwise, it is treated as unhealthy and may be rescheduled.
+# 3. Short-lived states [Cancelling, Failing, Restarting] are treated as healthy because they will directly transition to their respective terminal states:
+#    - Cancelling -> Canceled / Suspended
+#    - Failing -> Failed
+#    - Restarting triggers a restart, bringing the job back to the Created state.
+#
+# For more information on the Flink state diagram, refer to the official documentation: https://nightlies.apache.org/flink/flink-docs-release-1.20/docs/internals/job_scheduling/
     healthInterpretation:
       luaScript: >
         function InterpretHealth(observedObj)
-          if observedObj.status ~= nil and observedObj.status.jobStatus ~= nil then
-            if observedObj.status.jobStatus.state ~= 'CREATED' and observedObj.status.jobStatus.state ~= 'RECONCILING' then
+          if observedObj.status ~= nil and observedObj.status.jobStatus ~= nil and observedObj.status.jobStatus.state ~= nil then
+            if observedObj.status.jobStatus.state ~= 'CREATED' and observedObj.status.jobStatus.state ~= 'INITIALIZING' and observedObj.status.jobStatus.state ~= 'RECONCILING' then
               return true
             else
-              return observedObj.status.jobManagerDeploymentStatus == 'ERROR'
+              return observedObj.status.error ~= nil or observedObj.status.jobManagerDeploymentStatus == 'ERROR'
             end
           end
           return false
@@ -91,6 +104,7 @@ spec:
             desiredObj.status = {}
           end
           clusterInfo = {}
+          error = ''
           jobManagerDeploymentStatus = ''
           jobStatus = {}
           lifecycleState = ''
@@ -102,6 +116,7 @@ spec:
             currentStatus = statusItems[i].status
             if currentStatus ~= nil then
               clusterInfo = currentStatus.clusterInfo
+              error = currentStatus.error
               jobManagerDeploymentStatus = currentStatus.jobManagerDeploymentStatus
               jobStatus = currentStatus.jobStatus
               observedGeneration = currentStatus.observedGeneration
@@ -112,6 +127,7 @@ spec:
           end
 
           desiredObj.status.clusterInfo = clusterInfo
+          desiredObj.status.error = error
           desiredObj.status.jobManagerDeploymentStatus = jobManagerDeploymentStatus
           desiredObj.status.jobStatus = jobStatus
           desiredObj.status.lifecycleState = lifecycleState
@@ -128,6 +144,7 @@ spec:
             return status
           end
           status.clusterInfo = observedObj.status.clusterInfo
+          status.error = observedObj.status.error
           status.jobManagerDeploymentStatus = observedObj.status.jobManagerDeploymentStatus
           status.jobStatus = observedObj.status.jobStatus
           status.observedGeneration = observedObj.status.observedGeneration
