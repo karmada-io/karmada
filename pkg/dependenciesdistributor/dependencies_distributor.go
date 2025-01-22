@@ -186,7 +186,6 @@ func (d *DependenciesDistributor) reconcileResourceTemplate(key util.QueueKey) e
 
 		matched := matchesWithBindingDependencies(resourceTemplateKey, binding)
 		if !matched {
-			klog.V(4).Infof("No need to sync binding(%s/%s)", binding.Namespace, binding.Name)
 			continue
 		}
 
