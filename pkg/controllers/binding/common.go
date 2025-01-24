@@ -23,6 +23,7 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
@@ -45,19 +46,8 @@ func ensureWork(
 	ctx context.Context, c client.Client, resourceInterpreter resourceinterpreter.ResourceInterpreter, workload *unstructured.Unstructured,
 	overrideManager overridemanager.OverrideManager, binding metav1.Object, scope apiextensionsv1.ResourceScope,
 ) error {
-	var targetClusters []workv1alpha2.TargetCluster
-	var bindingSpec workv1alpha2.ResourceBindingSpec
-	switch scope {
-	case apiextensionsv1.NamespaceScoped:
-		bindingObj := binding.(*workv1alpha2.ResourceBinding)
-		bindingSpec = bindingObj.Spec
-	case apiextensionsv1.ClusterScoped:
-		bindingObj := binding.(*workv1alpha2.ClusterResourceBinding)
-		bindingSpec = bindingObj.Spec
-	}
-
-	targetClusters = bindingSpec.Clusters
-	targetClusters = mergeTargetClusters(targetClusters, bindingSpec.RequiredBy)
+	bindingSpec := getBindingSpec(binding, scope)
+	targetClusters := mergeTargetClusters(bindingSpec.Clusters, bindingSpec.RequiredBy)
 
 	var jobCompletions []workv1alpha2.TargetCluster
 	var err error
@@ -68,6 +58,7 @@ func ensureWork(
 		}
 	}
 
+	var errs []error
 	for i := range targetClusters {
 		targetCluster := targetClusters[i]
 		clonedWorkload := workload.DeepCopy()
@@ -82,7 +73,8 @@ func ensureWork(
 				if err != nil {
 					klog.Errorf("Failed to revise replica for %s/%s/%s in cluster %s, err is: %v",
 						workload.GetKind(), workload.GetNamespace(), workload.GetName(), targetCluster.Name, err)
-					return err
+					errs = append(errs, err)
+					continue
 				}
 			}
 
@@ -94,7 +86,8 @@ func ensureWork(
 				if err = helper.ApplyReplica(clonedWorkload, int64(jobCompletions[i].Replicas), util.CompletionsField); err != nil {
 					klog.Errorf("Failed to apply Completions for %s/%s/%s in cluster %s, err is: %v",
 						clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), targetCluster.Name, err)
-					return err
+					errs = append(errs, err)
+					continue
 				}
 			}
 		}
@@ -102,8 +95,10 @@ func ensureWork(
 		// We should call ApplyOverridePolicies last, as override rules have the highest priority
 		cops, ops, err := overrideManager.ApplyOverridePolicies(clonedWorkload, targetCluster.Name)
 		if err != nil {
-			klog.Errorf("Failed to apply overrides for %s/%s/%s, err is: %v", clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), err)
-			return err
+			klog.Errorf("Failed to apply overrides for %s/%s/%s in cluster %s, err is: %v",
+				clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), targetCluster.Name, err)
+			errs = append(errs, err)
+			continue
 		}
 		workLabel := mergeLabel(clonedWorkload, binding, scope)
 
@@ -111,8 +106,9 @@ func ensureWork(
 		annotations = mergeConflictResolution(clonedWorkload, bindingSpec.ConflictResolution, annotations)
 		annotations, err = RecordAppliedOverrides(cops, ops, annotations)
 		if err != nil {
-			klog.Errorf("Failed to record appliedOverrides, Error: %v", err)
-			return err
+			klog.Errorf("Failed to record appliedOverrides in cluster %s, Error: %v", targetCluster.Name, err)
+			errs = append(errs, err)
+			continue
 		}
 
 		if features.FeatureGate.Enabled(features.StatefulFailoverInjection) {
@@ -137,10 +133,27 @@ func ensureWork(
 			ctrlutil.WithSuspendDispatching(shouldSuspendDispatching(bindingSpec.Suspension, targetCluster)),
 			ctrlutil.WithPreserveResourcesOnDeletion(ptr.Deref(bindingSpec.PreserveResourcesOnDeletion, false)),
 		); err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
 	}
+	if len(errs) > 0 {
+		return errors.NewAggregate(errs)
+	}
 	return nil
+}
+
+func getBindingSpec(binding metav1.Object, scope apiextensionsv1.ResourceScope) workv1alpha2.ResourceBindingSpec {
+	var bindingSpec workv1alpha2.ResourceBindingSpec
+	switch scope {
+	case apiextensionsv1.NamespaceScoped:
+		bindingObj := binding.(*workv1alpha2.ResourceBinding)
+		bindingSpec = bindingObj.Spec
+	case apiextensionsv1.ClusterScoped:
+		bindingObj := binding.(*workv1alpha2.ClusterResourceBinding)
+		bindingSpec = bindingObj.Spec
+	}
+	return bindingSpec
 }
 
 // injectReservedLabelState injects the reservedLabelState in to the failover to cluster.
