@@ -244,7 +244,7 @@ func TestAfterRunJob(t *testing.T) {
 			config: &rest.Config{},
 			action: InitAction,
 			verify: func(karmada *operatorv1alpha1.Karmada, planner *Planner, action Action) error {
-				secretRefNameExpected := util.AdminKubeconfigSecretName(karmada.GetName())
+				secretRefNameExpected := util.AdminKarmadaConfigSecretName(karmada.GetName())
 				if planner.karmada.Status.SecretRef == nil {
 					return fmt.Errorf("expected SecretRef to be set, but got nil")
 				}

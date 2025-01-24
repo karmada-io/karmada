@@ -111,7 +111,7 @@ kubectl --kubeconfig="${HOST_CLUSTER_KUBECONFIG}" --context="${CONTEXT_NAME}" ap
 kubectl --kubeconfig="${HOST_CLUSTER_KUBECONFIG}" --context="${CONTEXT_NAME}" wait --for=condition=Ready --timeout=1000s karmada ${KARMADA_INSTANCE_NAME} -n ${KARMADA_INSTANCE_NAMESPACE}
 
 # generate kubeconfig for karmada instance
-kubectl --kubeconfig="${HOST_CLUSTER_KUBECONFIG}" --context="${CONTEXT_NAME}" get secret -n ${KARMADA_INSTANCE_NAMESPACE} ${KARMADA_INSTANCE_NAME}-admin-config -o jsonpath={.data.kubeconfig} | base64 -d > ~/.kube/${KARMADA_INSTANCE_NAME}-${KARMADA_INSTANCE_NAMESPACE}-tmp-apiserver.config
+kubectl --kubeconfig="${HOST_CLUSTER_KUBECONFIG}" --context="${CONTEXT_NAME}" get secret -n ${KARMADA_INSTANCE_NAMESPACE} ${KARMADA_INSTANCE_NAME}-admin-config -o jsonpath='{.data.karmada\.config}' | base64 -d > ~/.kube/${KARMADA_INSTANCE_NAME}-${KARMADA_INSTANCE_NAMESPACE}-tmp-apiserver.config
 cat ~/.kube/${KARMADA_INSTANCE_NAME}-${KARMADA_INSTANCE_NAMESPACE}-tmp-apiserver.config| grep "certificate-authority-data"| awk '{print $2}'| base64 -d  > ${CERT_DIR}/ca.crt
 cat ~/.kube/${KARMADA_INSTANCE_NAME}-${KARMADA_INSTANCE_NAMESPACE}-tmp-apiserver.config| grep "client-certificate-data"| awk '{print $2}'| base64 -d  > ${CERT_DIR}/karmada.crt
 cat ~/.kube/${KARMADA_INSTANCE_NAME}-${KARMADA_INSTANCE_NAMESPACE}-tmp-apiserver.config| grep "client-key-data"| awk '{print $2}'| base64 -d  > ${CERT_DIR}/karmada.key

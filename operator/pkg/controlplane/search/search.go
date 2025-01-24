@@ -53,7 +53,7 @@ func installKarmadaSearch(client clientset.Interface, cfg *operatorv1alpha1.Karm
 		ImagePullPolicy:    string(cfg.ImagePullPolicy),
 		KarmadaCertsSecret: util.KarmadaCertSecretName(name),
 		Replicas:           cfg.Replicas,
-		KubeconfigSecret:   util.AdminKubeconfigSecretName(name),
+		KubeconfigSecret:   util.ComponentKarmadaConfigSecretName(util.KarmadaSearchName(name)),
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing KarmadaSearch Deployment template: %w", err)

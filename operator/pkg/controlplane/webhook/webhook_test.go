@@ -232,7 +232,7 @@ func verifySecrets(deployment *appsv1.Deployment, name string) error {
 		extractedSecrets = append(extractedSecrets, volume.Secret.SecretName)
 	}
 	expectedSecrets := []string{
-		util.AdminKubeconfigSecretName(name),
+		util.ComponentKarmadaConfigSecretName(util.KarmadaWebhookName(name)),
 		util.WebhookCertSecretName(name),
 	}
 	for _, expectedSecret := range expectedSecrets {

@@ -51,7 +51,7 @@ func installKarmadaWebhook(client clientset.Interface, cfg *operatorv1alpha1.Kar
 		Image:              cfg.Image.Name(),
 		ImagePullPolicy:    string(cfg.ImagePullPolicy),
 		Replicas:           cfg.Replicas,
-		KubeconfigSecret:   util.AdminKubeconfigSecretName(name),
+		KubeconfigSecret:   util.ComponentKarmadaConfigSecretName(util.KarmadaWebhookName(name)),
 		WebhookCertsSecret: util.WebhookCertSecretName(name),
 	})
 	if err != nil {

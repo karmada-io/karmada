@@ -47,7 +47,7 @@ spec:
         imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - /bin/karmada-webhook
-        - --kubeconfig=/etc/karmada/kubeconfig
+        - --kubeconfig=/etc/karmada/config/karmada.config
         - --bind-address=0.0.0.0
         - --metrics-bind-address=:8080
         - --default-not-ready-toleration-seconds=30
@@ -61,9 +61,8 @@ spec:
           name: metrics
           protocol: TCP
         volumeMounts:
-        - name: kubeconfig
-          subPath: kubeconfig
-          mountPath: /etc/karmada/kubeconfig
+        - name: karmada-config
+          mountPath: /etc/karmada/config
         - name: cert
           mountPath: /var/serving-cert
           readOnly: true
@@ -73,7 +72,7 @@ spec:
             port: 8443
             scheme: HTTPS
       volumes:
-      - name: kubeconfig
+      - name: karmada-config
         secret:
           secretName: {{ .KubeconfigSecret }}
       - name: cert
