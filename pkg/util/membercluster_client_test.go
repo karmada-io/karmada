@@ -17,7 +17,9 @@ limitations under the License.
 package util
 
 import (
+	"bytes"
 	"context"
+	"encoding/pem"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -458,6 +460,13 @@ func TestNewClusterClientSet_ClientWorks(t *testing.T) {
 	}))
 	defer s.Close()
 
+	testCA := new(bytes.Buffer)
+	err := pem.Encode(testCA, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: s.Certificate().Raw,
+	})
+	assert.NoError(t, err)
+
 	const clusterName = "test"
 	hostClient := fakeclient.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
 		&clusterv1alpha1.Cluster{
@@ -469,7 +478,7 @@ func TestNewClusterClientSet_ClientWorks(t *testing.T) {
 		},
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
-			Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
+			Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA.Bytes()},
 		}).Build()
 
 	clusterClient, err := NewClusterClientSet(clusterName, hostClient, nil)
@@ -666,6 +675,13 @@ func TestNewClusterDynamicClientSet_ClientWorks(t *testing.T) {
 	}))
 	defer s.Close()
 
+	testCA := new(bytes.Buffer)
+	err := pem.Encode(testCA, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: s.Certificate().Raw,
+	})
+	assert.NoError(t, err)
+
 	const clusterName = "test"
 	hostClient := fakeclient.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
 		&clusterv1alpha1.Cluster{
@@ -677,7 +693,7 @@ func TestNewClusterDynamicClientSet_ClientWorks(t *testing.T) {
 		},
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
-			Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
+			Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA.Bytes()},
 		}).Build()
 
 	clusterClient, err := NewClusterDynamicClientSet(clusterName, hostClient)
