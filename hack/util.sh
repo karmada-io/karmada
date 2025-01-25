@@ -37,7 +37,7 @@ KARMADA_METRICS_ADAPTER_LABEL="karmada-metrics-adapter"
 
 KARMADA_GO_PACKAGE="github.com/karmada-io/karmada"
 
-MIN_Go_VERSION=go1.22.11
+MIN_GO_VERSION="go$(go list -m -f {{.GoVersion}})"
 
 DEFAULT_CLUSTER_VERSION="kindest/node:v1.31.2"
 
@@ -122,10 +122,10 @@ function util::verify_docker {
 function util::verify_go_version {
     local go_version
     IFS=" " read -ra go_version <<< "$(GOFLAGS='' go version)"
-    if [[ "${MIN_Go_VERSION}" != $(echo -e "${MIN_Go_VERSION}\n${go_version[2]}" | sort -s -t. -k 1,1 -k 2,2n -k 3,3n | head -n1) && "${go_version[2]}" != "devel" ]]; then
+    if [[ "${MIN_GO_VERSION}" != $(echo -e "${MIN_GO_VERSION}\n${go_version[2]}" | sort -s -t. -k 1,1 -k 2,2n -k 3,3n | head -n1) && "${go_version[2]}" != "devel" ]]; then
       echo "Detected go version: ${go_version[*]}."
-      echo "Karmada requires ${MIN_Go_VERSION} or greater."
-      echo "Please install ${MIN_Go_VERSION} or later."
+      echo "Karmada requires ${MIN_GO_VERSION} or greater."
+      echo "Please install ${MIN_GO_VERSION} or later."
       exit 1
     fi
 }
