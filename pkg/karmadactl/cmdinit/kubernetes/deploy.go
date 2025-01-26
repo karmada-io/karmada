@@ -44,6 +44,7 @@ import (
 	globaloptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/validation"
 	"github.com/karmada-io/karmada/pkg/version"
 )
@@ -63,6 +64,17 @@ var (
 		options.ApiserverCertAndKeyName,
 		options.FrontProxyCaCertAndKeyName,
 		options.FrontProxyClientCertAndKeyName,
+	}
+
+	karmadaConfigList = []string{
+		util.KarmadaConfigName(names.KarmadaAggregatedAPIServerComponentName),
+		util.KarmadaConfigName(names.KarmadaControllerManagerComponentName),
+		util.KarmadaConfigName(names.KubeControllerManagerComponentName),
+		util.KarmadaConfigName(names.KarmadaSchedulerComponentName),
+		util.KarmadaConfigName(names.KarmadaDeschedulerComponentName),
+		util.KarmadaConfigName(names.KarmadaMetricsAdapterComponentName),
+		util.KarmadaConfigName(names.KarmadaSearchComponentName),
+		util.KarmadaConfigName(names.KarmadaWebhookComponentName),
 	}
 
 	emptyByteSlice                 = make([]byte, 0)
@@ -414,7 +426,7 @@ func (i *CommandInitOption) prepareCRD() error {
 }
 
 func (i *CommandInitOption) createCertsSecrets() error {
-	// Create kubeconfig Secret
+	// Create karmada-config Secret
 	karmadaServerURL := fmt.Sprintf("https://%s.%s.svc.%s:%v", karmadaAPIServerDeploymentAndServiceName, i.Namespace, i.HostClusterDomain, karmadaAPIServerContainerPort)
 	config := utils.CreateWithCerts(karmadaServerURL, options.UserName, options.UserName, i.CertAndKeyFileData[fmt.Sprintf("%s.crt", globaloptions.CaCertAndKeyName)],
 		i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)], i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)])
@@ -423,10 +435,13 @@ func (i *CommandInitOption) createCertsSecrets() error {
 		return fmt.Errorf("failure while serializing admin kubeConfig. %v", err)
 	}
 
-	kubeConfigSecret := i.SecretFromSpec(KubeConfigSecretAndMountName, corev1.SecretTypeOpaque, map[string]string{KubeConfigSecretAndMountName: string(configBytes)})
-	if err = util.CreateOrUpdateSecret(i.KubeClientSet, kubeConfigSecret); err != nil {
-		return err
+	for _, karmadaConfigSecretName := range karmadaConfigList {
+		karmadaConfigSecret := i.SecretFromSpec(karmadaConfigSecretName, corev1.SecretTypeOpaque, map[string]string{util.KarmadaConfigFieldName: string(configBytes)})
+		if err = util.CreateOrUpdateSecret(i.KubeClientSet, karmadaConfigSecret); err != nil {
+			return err
+		}
 	}
+
 	// Create certs Secret
 	etcdCert := map[string]string{
 		fmt.Sprintf("%s.crt", options.EtcdCaCertAndKeyName):     string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.EtcdCaCertAndKeyName)]),
