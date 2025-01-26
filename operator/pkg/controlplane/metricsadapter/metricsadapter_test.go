@@ -38,6 +38,7 @@ func TestEnsureKarmadaMetricAdapter(t *testing.T) {
 	imagePullPolicy := corev1.PullIfNotPresent
 	annotations := map[string]string{"annotationKey": "annotationValue"}
 	labels := map[string]string{"labelKey": "labelValue"}
+	priorityClassName := "system-cluster-critical"
 
 	cfg := &operatorv1alpha1.KarmadaMetricsAdapter{
 		CommonSettings: operatorv1alpha1.CommonSettings{
@@ -45,11 +46,12 @@ func TestEnsureKarmadaMetricAdapter(t *testing.T) {
 				ImageRepository: image,
 				ImageTag:        imageTag,
 			},
-			Replicas:        ptr.To[int32](replicas),
-			Annotations:     annotations,
-			Labels:          labels,
-			Resources:       corev1.ResourceRequirements{},
-			ImagePullPolicy: imagePullPolicy,
+			Replicas:          ptr.To[int32](replicas),
+			Annotations:       annotations,
+			Labels:            labels,
+			Resources:         corev1.ResourceRequirements{},
+			ImagePullPolicy:   imagePullPolicy,
+			PriorityClassName: priorityClassName,
 		},
 	}
 
@@ -75,6 +77,7 @@ func TestInstallKarmadaMetricAdapter(t *testing.T) {
 	imagePullPolicy := corev1.PullIfNotPresent
 	annotations := map[string]string{"annotationKey": "annotationValue"}
 	labels := map[string]string{"labelKey": "labelValue"}
+	priorityClassName := "system-cluster-critical"
 
 	cfg := &operatorv1alpha1.KarmadaMetricsAdapter{
 		CommonSettings: operatorv1alpha1.CommonSettings{
@@ -82,11 +85,12 @@ func TestInstallKarmadaMetricAdapter(t *testing.T) {
 				ImageRepository: image,
 				ImageTag:        imageTag,
 			},
-			Replicas:        ptr.To[int32](replicas),
-			Annotations:     annotations,
-			Labels:          labels,
-			Resources:       corev1.ResourceRequirements{},
-			ImagePullPolicy: imagePullPolicy,
+			Replicas:          ptr.To[int32](replicas),
+			Annotations:       annotations,
+			Labels:            labels,
+			Resources:         corev1.ResourceRequirements{},
+			ImagePullPolicy:   imagePullPolicy,
+			PriorityClassName: priorityClassName,
 		},
 	}
 
@@ -99,7 +103,7 @@ func TestInstallKarmadaMetricAdapter(t *testing.T) {
 	}
 
 	err = verifyDeploymentCreation(
-		fakeClient, replicas, imagePullPolicy, name, namespace, image, imageTag,
+		fakeClient, replicas, imagePullPolicy, name, namespace, image, imageTag, priorityClassName,
 	)
 	if err != nil {
 		t.Fatalf("failed to verify deployment creation: %v", err)
@@ -147,7 +151,7 @@ func TestCreateKarmadaMetricAdapterService(t *testing.T) {
 	}
 }
 
-func verifyDeploymentCreation(client *fakeclientset.Clientset, replicas int32, imagePullPolicy corev1.PullPolicy, name, namespace, image, imageTag string) error {
+func verifyDeploymentCreation(client *fakeclientset.Clientset, replicas int32, imagePullPolicy corev1.PullPolicy, name, namespace, image, imageTag, priorityClassName string) error {
 	// Assert that a Deployment was created.
 	actions := client.Actions()
 	if len(actions) != 1 {
@@ -166,15 +170,19 @@ func verifyDeploymentCreation(client *fakeclientset.Clientset, replicas int32, i
 
 	deployment := createAction.GetObject().(*appsv1.Deployment)
 	return verifyDeploymentDetails(
-		deployment, replicas, imagePullPolicy, name, namespace, image, imageTag,
+		deployment, replicas, imagePullPolicy, name, namespace, image, imageTag, priorityClassName,
 	)
 }
 
 // verifyDeploymentDetails validates the details of a Deployment against the expected parameters.
-func verifyDeploymentDetails(deployment *appsv1.Deployment, replicas int32, imagePullPolicy corev1.PullPolicy, name, namespace, image, imageTag string) error {
+func verifyDeploymentDetails(deployment *appsv1.Deployment, replicas int32, imagePullPolicy corev1.PullPolicy, name, namespace, image, imageTag, priorityClassName string) error {
 	expectedDeploymentName := util.KarmadaMetricsAdapterName(name)
 	if deployment.Name != expectedDeploymentName {
 		return fmt.Errorf("expected deployment name '%s', but got '%s'", expectedDeploymentName, deployment.Name)
+	}
+
+	if deployment.Spec.Template.Spec.PriorityClassName != priorityClassName {
+		return fmt.Errorf("expected priorityClassName to be set to %s, but got %s", priorityClassName, deployment.Spec.Template.Spec.PriorityClassName)
 	}
 
 	if deployment.Namespace != namespace {

@@ -78,6 +78,7 @@ func TestInstallKarmadaSearch(t *testing.T) {
 	annotations := map[string]string{"annotationKey": "annotationValue"}
 	labels := map[string]string{"labelKey": "labelValue"}
 	extraArgs := map[string]string{"cmd1": "arg1", "cmd2": "arg2"}
+	priorityClassName := "system-cluster-critical"
 
 	cfg := &operatorv1alpha1.KarmadaSearch{
 		CommonSettings: operatorv1alpha1.CommonSettings{
@@ -85,11 +86,12 @@ func TestInstallKarmadaSearch(t *testing.T) {
 				ImageRepository: image,
 				ImageTag:        imageTag,
 			},
-			Replicas:        ptr.To[int32](replicas),
-			Annotations:     annotations,
-			Labels:          labels,
-			Resources:       corev1.ResourceRequirements{},
-			ImagePullPolicy: imagePullPolicy,
+			Replicas:          ptr.To[int32](replicas),
+			Annotations:       annotations,
+			Labels:            labels,
+			Resources:         corev1.ResourceRequirements{},
+			ImagePullPolicy:   imagePullPolicy,
+			PriorityClassName: priorityClassName,
 		},
 		ExtraArgs: extraArgs,
 	}
@@ -104,7 +106,7 @@ func TestInstallKarmadaSearch(t *testing.T) {
 		t.Fatalf("failed to install karmada search: %v", err)
 	}
 
-	err = verifyDeploymentCreation(fakeClient, replicas, imagePullPolicy, extraArgs, name, namespace, image, imageTag)
+	err = verifyDeploymentCreation(fakeClient, replicas, imagePullPolicy, extraArgs, name, namespace, image, imageTag, priorityClassName)
 	if err != nil {
 		t.Fatalf("failed to verify karmada search deployment creation: %v", err)
 	}
@@ -152,7 +154,7 @@ func TestCreateKarmadaSearchService(t *testing.T) {
 }
 
 // verifyDeploymentCreation validates the details of a Deployment against the expected parameters.
-func verifyDeploymentCreation(client *fakeclientset.Clientset, replicas int32, imagePullPolicy corev1.PullPolicy, extraArgs map[string]string, name, namespace, image, imageTag string) error {
+func verifyDeploymentCreation(client *fakeclientset.Clientset, replicas int32, imagePullPolicy corev1.PullPolicy, extraArgs map[string]string, name, namespace, image, imageTag, priorityClassName string) error {
 	// Assert that a Deployment was created.
 	actions := client.Actions()
 	if len(actions) != 1 {
@@ -170,14 +172,18 @@ func verifyDeploymentCreation(client *fakeclientset.Clientset, replicas int32, i
 	}
 
 	deployment := createAction.GetObject().(*appsv1.Deployment)
-	return verifyDeploymentDetails(deployment, replicas, imagePullPolicy, extraArgs, name, namespace, image, imageTag)
+	return verifyDeploymentDetails(deployment, replicas, imagePullPolicy, extraArgs, name, namespace, image, imageTag, priorityClassName)
 }
 
 // verifyDeploymentDetails validates the details of a Deployment against the expected parameters.
-func verifyDeploymentDetails(deployment *appsv1.Deployment, replicas int32, imagePullPolicy corev1.PullPolicy, extraArgs map[string]string, name, namespace, image, imageTag string) error {
+func verifyDeploymentDetails(deployment *appsv1.Deployment, replicas int32, imagePullPolicy corev1.PullPolicy, extraArgs map[string]string, name, namespace, image, imageTag, priorityClassName string) error {
 	expectedDeploymentName := util.KarmadaSearchName(name)
 	if deployment.Name != expectedDeploymentName {
 		return fmt.Errorf("expected deployment name '%s', but got '%s'", expectedDeploymentName, deployment.Name)
+	}
+
+	if deployment.Spec.Template.Spec.PriorityClassName != priorityClassName {
+		return fmt.Errorf("expected priorityClassName to be set to %s, but got %s", priorityClassName, deployment.Spec.Template.Spec.PriorityClassName)
 	}
 
 	if deployment.Namespace != namespace {

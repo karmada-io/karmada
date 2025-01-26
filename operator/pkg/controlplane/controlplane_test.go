@@ -135,6 +135,7 @@ func TestGetKubeControllerManagerManifest(t *testing.T) {
 	annotations := map[string]string{"annotationKey": "annotationValue"}
 	labels := map[string]string{"labelKey": "labelValue"}
 	extraArgs := map[string]string{"cmd1": "arg1", "cmd2": "arg2"}
+	priorityClassName := "system-cluster-critical"
 
 	cfg := &operatorv1alpha1.KubeControllerManager{
 		CommonSettings: operatorv1alpha1.CommonSettings{
@@ -142,11 +143,12 @@ func TestGetKubeControllerManagerManifest(t *testing.T) {
 				ImageRepository: image,
 				ImageTag:        imageTag,
 			},
-			Replicas:        ptr.To[int32](replicas),
-			Annotations:     annotations,
-			Labels:          labels,
-			Resources:       corev1.ResourceRequirements{},
-			ImagePullPolicy: imagePullPolicy,
+			Replicas:          ptr.To[int32](replicas),
+			Annotations:       annotations,
+			Labels:            labels,
+			Resources:         corev1.ResourceRequirements{},
+			ImagePullPolicy:   imagePullPolicy,
+			PriorityClassName: priorityClassName,
 		},
 		ExtraArgs: extraArgs,
 	}
@@ -158,7 +160,7 @@ func TestGetKubeControllerManagerManifest(t *testing.T) {
 
 	deployment, _, err = verifyDeploymentDetails(
 		deployment, replicas, imagePullPolicy, extraArgs, namespace,
-		image, imageTag, util.KubeControllerManagerName(name),
+		image, imageTag, util.KubeControllerManagerName(name), priorityClassName,
 	)
 	if err != nil {
 		t.Errorf("failed to verify kube controller manager deployment details: %v", err)
@@ -182,6 +184,7 @@ func TestGetKarmadaControllerManagerManifest(t *testing.T) {
 	annotations := map[string]string{"annotationKey": "annotationValue"}
 	labels := map[string]string{"labelKey": "labelValue"}
 	extraArgs := map[string]string{"cmd1": "arg1", "cmd2": "arg2"}
+	priorityClassName := "system-cluster-critical"
 
 	cfg := &operatorv1alpha1.KarmadaControllerManager{
 		CommonSettings: operatorv1alpha1.CommonSettings{
@@ -189,10 +192,11 @@ func TestGetKarmadaControllerManagerManifest(t *testing.T) {
 				ImageRepository: image,
 				ImageTag:        imageTag,
 			},
-			Replicas:        ptr.To[int32](replicas),
-			Annotations:     annotations,
-			Labels:          labels,
-			ImagePullPolicy: imagePullPolicy,
+			Replicas:          ptr.To[int32](replicas),
+			Annotations:       annotations,
+			Labels:            labels,
+			ImagePullPolicy:   imagePullPolicy,
+			PriorityClassName: priorityClassName,
 		},
 		ExtraArgs: extraArgs,
 	}
@@ -206,7 +210,7 @@ func TestGetKarmadaControllerManagerManifest(t *testing.T) {
 
 	deployment, container, err := verifyDeploymentDetails(
 		deployment, replicas, imagePullPolicy, extraArgs, namespace,
-		image, imageTag, util.KarmadaControllerManagerName(name),
+		image, imageTag, util.KarmadaControllerManagerName(name), priorityClassName,
 	)
 	if err != nil {
 		t.Errorf("failed to verify karmada controller manager deployment details: %v", err)
@@ -237,6 +241,7 @@ func TestGetKarmadaSchedulerManifest(t *testing.T) {
 	annotations := map[string]string{"annotationKey": "annotationValue"}
 	labels := map[string]string{"labelKey": "labelValue"}
 	extraArgs := map[string]string{"cmd1": "arg1", "cmd2": "arg2"}
+	priorityClassName := "system-cluster-critical"
 
 	cfg := &operatorv1alpha1.KarmadaScheduler{
 		CommonSettings: operatorv1alpha1.CommonSettings{
@@ -244,11 +249,12 @@ func TestGetKarmadaSchedulerManifest(t *testing.T) {
 				ImageRepository: image,
 				ImageTag:        imageTag,
 			},
-			Replicas:        ptr.To[int32](replicas),
-			Annotations:     annotations,
-			Labels:          labels,
-			Resources:       corev1.ResourceRequirements{},
-			ImagePullPolicy: imagePullPolicy,
+			Replicas:          ptr.To[int32](replicas),
+			Annotations:       annotations,
+			Labels:            labels,
+			Resources:         corev1.ResourceRequirements{},
+			ImagePullPolicy:   imagePullPolicy,
+			PriorityClassName: priorityClassName,
 		},
 		ExtraArgs: extraArgs,
 	}
@@ -262,7 +268,7 @@ func TestGetKarmadaSchedulerManifest(t *testing.T) {
 
 	deployment, container, err := verifyDeploymentDetails(
 		deployment, replicas, imagePullPolicy, extraArgs, namespace,
-		image, imageTag, util.KarmadaSchedulerName(name),
+		image, imageTag, util.KarmadaSchedulerName(name), priorityClassName,
 	)
 	if err != nil {
 		t.Errorf("failed to verify karmada scheduler deployment details: %v", err)
@@ -296,6 +302,7 @@ func TestGetKarmadaDeschedulerManifest(t *testing.T) {
 	annotations := map[string]string{"annotationKey": "annotationValue"}
 	labels := map[string]string{"labelKey": "labelValue"}
 	extraArgs := map[string]string{"cmd1": "arg1", "cmd2": "arg2"}
+	priorityClassName := "system-cluster-critical"
 
 	cfg := &operatorv1alpha1.KarmadaDescheduler{
 		CommonSettings: operatorv1alpha1.CommonSettings{
@@ -303,11 +310,12 @@ func TestGetKarmadaDeschedulerManifest(t *testing.T) {
 				ImageRepository: image,
 				ImageTag:        imageTag,
 			},
-			Replicas:        ptr.To[int32](replicas),
-			Annotations:     annotations,
-			Labels:          labels,
-			Resources:       corev1.ResourceRequirements{},
-			ImagePullPolicy: imagePullPolicy,
+			Replicas:          ptr.To[int32](replicas),
+			Annotations:       annotations,
+			Labels:            labels,
+			Resources:         corev1.ResourceRequirements{},
+			ImagePullPolicy:   imagePullPolicy,
+			PriorityClassName: priorityClassName,
 		},
 		ExtraArgs: extraArgs,
 	}
@@ -321,7 +329,7 @@ func TestGetKarmadaDeschedulerManifest(t *testing.T) {
 
 	deployment, container, err := verifyDeploymentDetails(
 		deployment, replicas, imagePullPolicy, extraArgs, namespace,
-		image, imageTag, util.KarmadaDeschedulerName(name),
+		image, imageTag, util.KarmadaDeschedulerName(name), priorityClassName,
 	)
 	if err != nil {
 		t.Errorf("failed to verify karmada descheduler deployment details: %v", err)
@@ -352,9 +360,13 @@ func TestGetKarmadaDeschedulerManifest(t *testing.T) {
 // It validates that the deployment matches the expected Karmada Controlplane settings.
 // It could be against Kube Controller Manager, Karmada Controller Manager, Karmada Scheduler,
 // and Karmada Descheduler.
-func verifyDeploymentDetails(deployment *appsv1.Deployment, replicas int32, imagePullPolicy corev1.PullPolicy, extraArgs map[string]string, namespace, image, imageTag, expectedDeploymentName string) (*appsv1.Deployment, *corev1.Container, error) {
+func verifyDeploymentDetails(deployment *appsv1.Deployment, replicas int32, imagePullPolicy corev1.PullPolicy, extraArgs map[string]string, namespace, image, imageTag, expectedDeploymentName, priorityClassName string) (*appsv1.Deployment, *corev1.Container, error) {
 	if deployment.Name != expectedDeploymentName {
 		return nil, nil, fmt.Errorf("expected deployment name '%s', but got '%s'", expectedDeploymentName, deployment.Name)
+	}
+
+	if deployment.Spec.Template.Spec.PriorityClassName != priorityClassName {
+		return nil, nil, fmt.Errorf("expected priorityClassName to be set to %s, but got %s", priorityClassName, deployment.Spec.Template.Spec.PriorityClassName)
 	}
 
 	if deployment.Namespace != namespace {

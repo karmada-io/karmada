@@ -38,7 +38,6 @@ spec:
         karmada-app: kube-controller-manager
     spec:
       automountServiceAccountToken: false
-      priorityClassName: system-node-critical
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
