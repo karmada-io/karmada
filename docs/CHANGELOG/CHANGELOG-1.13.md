@@ -2,9 +2,9 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.13.0-alpha.2](#v1130-alpha2)
-  - [Downloads for v1.13.0-alpha.2](#downloads-for-v1130-alpha2)
-  - [Changelog since v1.13.0-alpha.1](#changelog-since-v1130-alpha1)
+- [v1.13.0-beta.0](#v1130-beta0)
+  - [Downloads for v1.13.0-beta.0](#downloads-for-v1130-beta0)
+  - [Changelog since v1.13.0-alpha.2](#changelog-since-v1130-alpha2)
   - [Urgent Update Notes](#urgent-update-notes)
   - [Changes by Kind](#changes-by-kind)
     - [API Changes](#api-changes)
@@ -16,9 +16,9 @@
     - [Dependencies](#dependencies)
     - [Helm Charts](#helm-charts)
     - [Instrumentation](#instrumentation)
-- [v1.13.0-alpha.1](#v1130-alpha1)
-  - [Downloads for v1.13.0-alpha.1](#downloads-for-v1130-alpha1)
-  - [Changelog since v1.12.0](#changelog-since-v1120)
+- [v1.13.0-alpha.2](#v1130-alpha2)
+  - [Downloads for v1.13.0-alpha.2](#downloads-for-v1130-alpha2)
+  - [Changelog since v1.13.0-alpha.1](#changelog-since-v1130-alpha1)
   - [Urgent Update Notes](#urgent-update-notes-1)
   - [Changes by Kind](#changes-by-kind-1)
     - [API Changes](#api-changes-1)
@@ -30,8 +30,65 @@
     - [Dependencies](#dependencies-1)
     - [Helm Charts](#helm-charts-1)
     - [Instrumentation](#instrumentation-1)
+- [v1.13.0-alpha.1](#v1130-alpha1)
+  - [Downloads for v1.13.0-alpha.1](#downloads-for-v1130-alpha1)
+  - [Changelog since v1.12.0](#changelog-since-v1120)
+  - [Urgent Update Notes](#urgent-update-notes-2)
+  - [Changes by Kind](#changes-by-kind-2)
+    - [API Changes](#api-changes-2)
+    - [Features & Enhancements](#features--enhancements-2)
+    - [Deprecation](#deprecation-2)
+    - [Bug Fixes](#bug-fixes-2)
+    - [Security](#security-2)
+  - [Other](#other-2)
+    - [Dependencies](#dependencies-2)
+    - [Helm Charts](#helm-charts-2)
+    - [Instrumentation](#instrumentation-2)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.13.0-beta.0
+## Downloads for v1.13.0-beta.0
+
+Download v1.13.0-beta.0 in the [v1.13.0-beta.0 release page](https://github.com/karmada-io/karmada/releases/tag/v1.13.0-beta.0).
+
+## Changelog since v1.13.0-alpha.2
+
+## Urgent Update Notes
+- The Karmada Lua interpreter will no longer support the Lua functions `string.rep` and `string.gsub`. Typically, these functions are not 
+frequently used in custom Karmada resource interpreters. They are disabled due to potential security risks. Before upgrading, please review 
+your Lua scripts to verify whether these functions are being used. If they are, please replace them with alternative implementations.
+
+## Changes by Kind
+
+### API Changes
+- `API Change`: Introduced `PriorityClassName` in `Karmada` API which will be used to specify the priority class name of that component. ([#6068](https://github.com/karmada-io/karmada/pull/6068), @jabellard)
+
+### Features & Enhancements
+- `karmadactl`: standardize the naming of karmada config in karmadactl installation method. ([#5797](https://github.com/karmada-io/karmada/pull/5797), @chaosi-zju)
+
+### Deprecation
+None.
+
+### Bug Fixes
+- `karmada-controller-manager`: Fixed an issue that the scheduling suspension on ResourceBinding might be mistakenly overwritten. ([#6062](https://github.com/karmada-io/karmada/pull/6062), @Monokaix)
+- `karmada-search`: Fixed the issue that namespaces in different ResourceRegistry might be overwritten. ([#6065](https://github.com/karmada-io/karmada/pull/6065), @JimDevil)
+
+### Security
+- `karmada-controller-manager`: For security reasons, we made the following changes to restrict the string library functions used when users customize the Karmada Lua interpreter. ([#6087](https://github.com/karmada-io/karmada/pull/6087), @zhzhuang-zju)
+  1. do not allow users to use string.gsub and string.rep when interpreting resources with lua scripts, which may be used to create overly long strings.
+  2. limit the length of the string type parameters of the function to 1000,000.
+  3. add timeout checks to the internal for loops within the functions.
+
+## Other
+### Dependencies
+- Karmada now built with Golang v1.22.11. ([#6066](https://github.com/karmada-io/karmada/pull/6066), @y1hao)
+
+### Helm Charts
+None.
+
+### Instrumentation
+None.
 
 # v1.13.0-alpha.2
 ## Downloads for v1.13.0-alpha.2

@@ -2,18 +2,24 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.12.2](#v1122)
-  - [Downloads for v1.12.2](#downloads-for-v1122)
-  - [Changelog since v1.12.1](#changelog-since-v1121)
+- [v1.12.3](#v1123)
+  - [Downloads for v1.12.3](#downloads-for-v1123)
+  - [Changelog since v1.12.2](#changelog-since-v1122)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
-- [v1.12.1](#v1121)
-  - [Downloads for v1.12.1](#downloads-for-v1121)
-  - [Changelog since v1.12.0](#changelog-since-v1120)
+- [v1.12.2](#v1122)
+  - [Downloads for v1.12.2](#downloads-for-v1122)
+  - [Changelog since v1.12.1](#changelog-since-v1121)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
+- [v1.12.1](#v1121)
+  - [Downloads for v1.12.1](#downloads-for-v1121)
+  - [Changelog since v1.12.0](#changelog-since-v1120)
+    - [Changes by Kind](#changes-by-kind-2)
+      - [Bug Fixes](#bug-fixes-2)
+      - [Others](#others-2)
 - [v1.12.0](#v1120)
   - [Downloads for v1.12.0](#downloads-for-v1120)
   - [What's New](#whats-new)
@@ -24,7 +30,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-2)
+    - [Bug Fixes](#bug-fixes-3)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -36,11 +42,11 @@
   - [Downloads for v1.12.0-beta.0](#downloads-for-v1120-beta0)
   - [Changelog since v1.12.0-alpha.1](#changelog-since-v1120-alpha1)
   - [Urgent Update Notes](#urgent-update-notes)
-  - [Changes by Kind](#changes-by-kind-2)
+  - [Changes by Kind](#changes-by-kind-3)
     - [API Changes](#api-changes-1)
     - [Features & Enhancements](#features--enhancements-1)
     - [Deprecation](#deprecation-1)
-    - [Bug Fixes](#bug-fixes-3)
+    - [Bug Fixes](#bug-fixes-4)
     - [Security](#security-1)
   - [Other](#other-1)
     - [Dependencies](#dependencies-1)
@@ -50,11 +56,11 @@
   - [Downloads for v1.12.0-alpha.1](#downloads-for-v1120-alpha1)
   - [Changelog since v1.11.0](#changelog-since-v1110)
   - [Urgent Update Notes](#urgent-update-notes-1)
-  - [Changes by Kind](#changes-by-kind-3)
+  - [Changes by Kind](#changes-by-kind-4)
     - [API Changes](#api-changes-2)
     - [Features & Enhancements](#features--enhancements-2)
     - [Deprecation](#deprecation-2)
-    - [Bug Fixes](#bug-fixes-4)
+    - [Bug Fixes](#bug-fixes-5)
     - [Security](#security-2)
   - [Other](#other-2)
     - [Dependencies](#dependencies-2)
@@ -62,6 +68,20 @@
     - [Instrumentation](#instrumentation-2)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.12.3
+## Downloads for v1.12.3
+
+Download v1.12.3 in the [v1.12.3 release page](https://github.com/karmada-io/karmada/releases/tag/v1.12.3).
+
+## Changelog since v1.12.2
+### Changes by Kind
+#### Bug Fixes
+- `karmada-controller-manager`: Fixed the issue that newly created attached-ResourceBinding be mystically garbage collected. ([#6055](https://github.com/karmada-io/karmada/pull/6055), @whitewindmills)
+
+#### Others
+- The base image `alpine` now has been promoted from 3.21.0 to 3.21.2. ([#6041](https://github.com/karmada-io/karmada/pull/6041))
+- Karmada(release-1.12) now built with Golang v1.22.11. ([#6069](https://github.com/karmada-io/karmada/pull/6069), @y1hao)
 
 # v1.12.2
 ## Downloads for v1.12.2
