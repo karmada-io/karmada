@@ -182,7 +182,7 @@ func (vm *VM) setLib(l *lua.LState) error {
 		{lua.LoadLibName, lualifted.OpenPackage},
 		{lua.BaseLibName, lua.OpenBase},
 		{lua.TabLibName, lua.OpenTable},
-		{lua.StringLibName, lua.OpenString},
+		{lua.StringLibName, lualifted.OpenSafeString},
 		{lua.MathLibName, lua.OpenMath},
 		// load our 'safe' version of the OS library
 		{lua.OsLibName, lualifted.OpenSafeOs},
