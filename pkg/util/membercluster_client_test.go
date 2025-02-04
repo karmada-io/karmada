@@ -188,7 +188,7 @@ func TestNewClusterClientSetForAgent(t *testing.T) {
 			args: args{
 				clusterName:  "test-agent",
 				client:       fakeclient.NewClientBuilder().WithScheme(gclient.NewSchema()).Build(),
-				clientOption: &ClientOption{QPS: 100, Burst: 200},
+				clientOption: &ClientOption{},
 			},
 			wantErr: false,
 		},
@@ -224,8 +224,9 @@ func TestNewClusterClientSetForAgent(t *testing.T) {
 
 func TestNewClusterDynamicClientSetForAgent(t *testing.T) {
 	type args struct {
-		clusterName string
-		client      client.Client
+		clusterName         string
+		client              client.Client
+		clusterClientOption *ClientOption
 	}
 	tests := []struct {
 		name    string
@@ -256,7 +257,7 @@ func TestNewClusterDynamicClientSetForAgent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewClusterDynamicClientSetForAgent(tt.args.clusterName, tt.args.client)
+			got, err := NewClusterDynamicClientSetForAgent(tt.args.clusterName, tt.args.client, tt.args.clusterClientOption)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, got)
@@ -361,7 +362,7 @@ func TestNewClusterClientSet(t *testing.T) {
 						ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
 						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
 					}).Build(),
-				clientOption: &ClientOption{QPS: 100, Burst: 200},
+				clientOption: &ClientOption{},
 			},
 			wantErr: false,
 		},
@@ -382,7 +383,7 @@ func TestNewClusterClientSet(t *testing.T) {
 						ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
 						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token")},
 					}).Build(),
-				clientOption: &ClientOption{QPS: 100, Burst: 200},
+				clientOption: &ClientOption{},
 			},
 			wantErr: false,
 		},
@@ -402,7 +403,7 @@ func TestNewClusterClientSet(t *testing.T) {
 					&corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
 						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA}}).Build(),
-				clientOption: &ClientOption{QPS: 100, Burst: 200},
+				clientOption: &ClientOption{},
 			},
 			wantErr: true,
 		},
@@ -423,7 +424,7 @@ func TestNewClusterClientSet(t *testing.T) {
 						ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
 						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
 					}).Build(),
-				clientOption: &ClientOption{QPS: 100, Burst: 200},
+				clientOption: &ClientOption{},
 			},
 			wantErr: false,
 		},
@@ -490,8 +491,9 @@ func TestNewClusterClientSet_ClientWorks(t *testing.T) {
 
 func TestNewClusterDynamicClientSet(t *testing.T) {
 	type args struct {
-		clusterName string
-		client      client.Client
+		clusterName         string
+		client              client.Client
+		clusterClientOption *ClientOption
 	}
 	tests := []struct {
 		name    string
@@ -638,7 +640,7 @@ func TestNewClusterDynamicClientSet(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewClusterDynamicClientSet(tt.args.clusterName, tt.args.client)
+			got, err := NewClusterDynamicClientSet(tt.args.clusterName, tt.args.client, tt.args.clusterClientOption)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, got)
@@ -680,7 +682,7 @@ func TestNewClusterDynamicClientSet_ClientWorks(t *testing.T) {
 			Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
 		}).Build()
 
-	clusterClient, err := NewClusterDynamicClientSet(clusterName, hostClient)
+	clusterClient, err := NewClusterDynamicClientSet(clusterName, hostClient, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, clusterClient)
 

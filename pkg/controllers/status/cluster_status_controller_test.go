@@ -113,11 +113,8 @@ func TestClusterStatusController_Reconcile(t *testing.T) {
 				Client:                 fake.NewClientBuilder().WithScheme(gclient.NewSchema()).Build(),
 				GenericInformerManager: genericmanager.GetInstance(),
 				TypedInformerManager:   typedmanager.GetInstance(),
-				ClusterClientOption: &util.ClientOption{
-					QPS:   5,
-					Burst: 10,
-				},
-				ClusterClientSetFunc: util.NewClusterClientSet,
+				ClusterClientOption:    &util.ClientOption{},
+				ClusterClientSetFunc:   util.NewClusterClientSet,
 			}
 
 			if tt.cluster != nil {
@@ -900,11 +897,8 @@ func TestClusterStatusController_updateStatusIfNeeded(t *testing.T) {
 			).WithStatusSubresource(cluster).Build(),
 			GenericInformerManager: genericmanager.GetInstance(),
 			TypedInformerManager:   typedmanager.GetInstance(),
-			ClusterClientOption: &util.ClientOption{
-				QPS:   5,
-				Burst: 10,
-			},
-			ClusterClientSetFunc: util.NewClusterClientSet,
+			ClusterClientOption:    &util.ClientOption{},
+			ClusterClientSetFunc:   util.NewClusterClientSet,
 		}
 
 		err := c.updateStatusIfNeeded(context.Background(), cluster, currentClusterStatus)
@@ -964,11 +958,8 @@ func TestClusterStatusController_updateStatusIfNeeded(t *testing.T) {
 			Client:                 fake.NewClientBuilder().WithScheme(gclient.NewSchema()).Build(),
 			GenericInformerManager: genericmanager.GetInstance(),
 			TypedInformerManager:   typedmanager.GetInstance(),
-			ClusterClientOption: &util.ClientOption{
-				QPS:   5,
-				Burst: 10,
-			},
-			ClusterClientSetFunc: util.NewClusterClientSet,
+			ClusterClientOption:    &util.ClientOption{},
+			ClusterClientSetFunc:   util.NewClusterClientSet,
 		}
 
 		err := c.updateStatusIfNeeded(context.Background(), cluster, currentClusterStatus)
@@ -976,20 +967,17 @@ func TestClusterStatusController_updateStatusIfNeeded(t *testing.T) {
 	})
 }
 
-func NewClusterDynamicClientSetForAgentWithError(_ string, _ client.Client) (*util.DynamicClusterClient, error) {
+func NewClusterDynamicClientSetForAgentWithError(_ string, _ client.Client, _ *util.ClientOption) (*util.DynamicClusterClient, error) {
 	return nil, fmt.Errorf("err")
 }
 
 func TestClusterStatusController_initializeGenericInformerManagerForCluster(t *testing.T) {
 	t.Run("failed to create dynamicClient", func(*testing.T) {
 		c := &ClusterStatusController{
-			Client:                 fake.NewClientBuilder().WithScheme(gclient.NewSchema()).Build(),
-			GenericInformerManager: genericmanager.GetInstance(),
-			TypedInformerManager:   typedmanager.GetInstance(),
-			ClusterClientOption: &util.ClientOption{
-				QPS:   5,
-				Burst: 10,
-			},
+			Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).Build(),
+			GenericInformerManager:      genericmanager.GetInstance(),
+			TypedInformerManager:        typedmanager.GetInstance(),
+			ClusterClientOption:         &util.ClientOption{},
 			ClusterClientSetFunc:        util.NewClusterClientSet,
 			ClusterDynamicClientSetFunc: NewClusterDynamicClientSetForAgentWithError,
 		}
@@ -1002,13 +990,10 @@ func TestClusterStatusController_initializeGenericInformerManagerForCluster(t *t
 
 	t.Run("suc to create dynamicClient", func(*testing.T) {
 		c := &ClusterStatusController{
-			Client:                 fake.NewClientBuilder().WithScheme(gclient.NewSchema()).Build(),
-			GenericInformerManager: genericmanager.GetInstance(),
-			TypedInformerManager:   typedmanager.GetInstance(),
-			ClusterClientOption: &util.ClientOption{
-				QPS:   5,
-				Burst: 10,
-			},
+			Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).Build(),
+			GenericInformerManager:      genericmanager.GetInstance(),
+			TypedInformerManager:        typedmanager.GetInstance(),
+			ClusterClientOption:         &util.ClientOption{},
 			ClusterClientSetFunc:        util.NewClusterClientSet,
 			ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 		}
@@ -1022,13 +1007,10 @@ func TestClusterStatusController_initializeGenericInformerManagerForCluster(t *t
 
 func TestClusterStatusController_initLeaseController(_ *testing.T) {
 	c := &ClusterStatusController{
-		Client:                 fake.NewClientBuilder().WithScheme(gclient.NewSchema()).Build(),
-		GenericInformerManager: genericmanager.GetInstance(),
-		TypedInformerManager:   typedmanager.GetInstance(),
-		ClusterClientOption: &util.ClientOption{
-			QPS:   5,
-			Burst: 10,
-		},
+		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).Build(),
+		GenericInformerManager:      genericmanager.GetInstance(),
+		TypedInformerManager:        typedmanager.GetInstance(),
+		ClusterClientOption:         &util.ClientOption{},
 		ClusterClientSetFunc:        util.NewClusterClientSet,
 		ClusterDynamicClientSetFunc: NewClusterDynamicClientSetForAgentWithError,
 	}

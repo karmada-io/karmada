@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/informers"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/flowcontrol"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
@@ -140,8 +141,7 @@ func run(ctx context.Context, opts *options.Options) error {
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig of karmada control plane: %w", err)
 	}
-	controlPlaneRestConfig.QPS, controlPlaneRestConfig.Burst = opts.KubeAPIQPS, opts.KubeAPIBurst
-
+	controlPlaneRestConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(opts.KubeAPIQPS, opts.KubeAPIBurst)
 	clusterConfig, err := controllerruntime.GetConfig()
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig of member cluster: %w", err)
@@ -265,7 +265,10 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		return fmt.Errorf("failed to setup custom resource interpreter: %w", err)
 	}
 
-	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSetForAgent, resourceInterpreter)
+	rateLimiterGetter := util.GetRateLimiterGetter().SetLimits(opts.ClusterAPIQPS, opts.ClusterAPIBurst)
+	clusterClientOption := &util.ClientOption{RateLimiterGetter: rateLimiterGetter.GetRateLimiter}
+
+	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSetForAgent, clusterClientOption, resourceInterpreter)
 	controllerContext := controllerscontext.Context{
 		Mgr:           mgr,
 		ObjectWatcher: objectWatcher,
@@ -278,8 +281,6 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ClusterSuccessThreshold:            opts.ClusterSuccessThreshold,
 			ClusterFailureThreshold:            opts.ClusterFailureThreshold,
 			ClusterCacheSyncTimeout:            opts.ClusterCacheSyncTimeout,
-			ClusterAPIQPS:                      opts.ClusterAPIQPS,
-			ClusterAPIBurst:                    opts.ClusterAPIBurst,
 			ConcurrentWorkSyncs:                opts.ConcurrentWorkSyncs,
 			RateLimiterOptions:                 opts.RateLimiterOpts,
 			EnableClusterResourceModeling:      opts.EnableClusterResourceModeling,
@@ -289,6 +290,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		},
 		StopChan:            stopChan,
 		ResourceInterpreter: resourceInterpreter,
+		ClusterClientOption: clusterClientOption,
 	}
 
 	if err := controllers.StartControllers(controllerContext, controllersDisabledByDefault); err != nil {
@@ -315,7 +317,7 @@ func startClusterStatusController(ctx controllerscontext.Context) (bool, error) 
 		StopChan:                          ctx.StopChan,
 		ClusterClientSetFunc:              util.NewClusterClientSetForAgent,
 		ClusterDynamicClientSetFunc:       util.NewClusterDynamicClientSetForAgent,
-		ClusterClientOption:               &util.ClientOption{QPS: ctx.Opts.ClusterAPIQPS, Burst: ctx.Opts.ClusterAPIBurst},
+		ClusterClientOption:               ctx.ClusterClientOption,
 		ClusterStatusUpdateFrequency:      ctx.Opts.ClusterStatusUpdateFrequency,
 		ClusterLeaseDuration:              ctx.Opts.ClusterLeaseDuration,
 		ClusterLeaseRenewIntervalFraction: ctx.Opts.ClusterLeaseRenewIntervalFraction,
