@@ -118,15 +118,9 @@ func (d *ResourceDetector) preemptPropagationPolicy(resourceTemplate *unstructur
 		return nil
 	}
 
-	claimedPolicyObj, err := d.propagationPolicyLister.ByNamespace(claimedPolicyNamespace).Get(claimedPolicyName)
+	claimedPolicy, err := d.propagationPolicyLister.PropagationPolicies(claimedPolicyNamespace).Get(claimedPolicyName)
 	if err != nil {
 		klog.Errorf("Failed to retrieve claimed propagation policy(%s/%s): %v.", claimedPolicyNamespace, claimedPolicyName, err)
-		return err
-	}
-
-	claimedPolicy := &policyv1alpha1.PropagationPolicy{}
-	if err = helper.ConvertToTypedObject(claimedPolicyObj, claimedPolicy); err != nil {
-		klog.Errorf("Failed to convert PropagationPolicy from unstructured object: %v.", err)
 		return err
 	}
 
@@ -196,15 +190,9 @@ func (d *ResourceDetector) preemptClusterPropagationPolicy(resourceTemplate *uns
 		return nil
 	}
 
-	claimedPolicyObj, err := d.clusterPropagationPolicyLister.Get(claimedPolicyName)
+	claimedPolicy, err := d.clusterPropagationPolicyLister.Get(claimedPolicyName)
 	if err != nil {
 		klog.Errorf("Failed to retrieve claimed cluster propagation policy(%s): %v.", claimedPolicyName, err)
-		return err
-	}
-
-	claimedPolicy := &policyv1alpha1.ClusterPropagationPolicy{}
-	if err = helper.ConvertToTypedObject(claimedPolicyObj, claimedPolicy); err != nil {
-		klog.Errorf("Failed to convert ClusterPropagationPolicy from unstructured object: %v.", err)
 		return err
 	}
 
@@ -263,7 +251,7 @@ func (d *ResourceDetector) fetchResourceTemplate(rs policyv1alpha1.ResourceSelec
 // and put the PropagationPolicy in the queue to trigger preemption.
 func (d *ResourceDetector) HandleDeprioritizedPropagationPolicy(oldPolicy policyv1alpha1.PropagationPolicy, newPolicy policyv1alpha1.PropagationPolicy) {
 	klog.Infof("PropagationPolicy(%s/%s) priority changed from %d to %d", newPolicy.GetNamespace(), newPolicy.GetName(), *oldPolicy.Spec.Priority, *newPolicy.Spec.Priority)
-	policies, err := d.propagationPolicyLister.ByNamespace(newPolicy.GetNamespace()).List(labels.Everything())
+	policies, err := d.propagationPolicyLister.PropagationPolicies(newPolicy.GetNamespace()).List(labels.Everything())
 	if err != nil {
 		klog.Errorf("Failed to list PropagationPolicy from namespace: %s, error: %v", newPolicy.GetNamespace(), err)
 		return
@@ -277,11 +265,7 @@ func (d *ResourceDetector) HandleDeprioritizedPropagationPolicy(oldPolicy policy
 	// multiple preemption.
 	sortedPotentialKeys := pq.NewWith(priorityDescendingComparator)
 	for i := range policies {
-		var potentialPolicy policyv1alpha1.PropagationPolicy
-		if err = helper.ConvertToTypedObject(policies[i], &potentialPolicy); err != nil {
-			klog.Errorf("Failed to convert typed PropagationPolicy: %v", err)
-			continue
-		}
+		potentialPolicy := policies[i]
 		// Re-queue the polies that enables preemption and with the priority
 		// in range (new priority, old priority).
 		// For the polices with higher priority than old priority, it can
@@ -294,7 +278,7 @@ func (d *ResourceDetector) HandleDeprioritizedPropagationPolicy(oldPolicy policy
 			potentialPolicy.ExplicitPriority() < oldPolicy.ExplicitPriority() {
 			klog.Infof("Enqueuing PropagationPolicy(%s/%s) in case of PropagationPolicy(%s/%s) priority changes.", potentialPolicy.GetNamespace(), potentialPolicy.GetName(), newPolicy.GetNamespace(), newPolicy.GetName())
 			sortedPotentialKeys.Enqueue(&PriorityKey{
-				Object:   &potentialPolicy,
+				Object:   potentialPolicy,
 				Priority: potentialPolicy.ExplicitPriority(),
 			})
 		}
@@ -323,11 +307,7 @@ func (d *ResourceDetector) HandleDeprioritizedClusterPropagationPolicy(oldPolicy
 	// multiple preemption.
 	sortedPotentialKeys := pq.NewWith(priorityDescendingComparator)
 	for i := range policies {
-		var potentialPolicy policyv1alpha1.ClusterPropagationPolicy
-		if err = helper.ConvertToTypedObject(policies[i], &potentialPolicy); err != nil {
-			klog.Errorf("Failed to convert typed ClusterPropagationPolicy: %v", err)
-			continue
-		}
+		potentialPolicy := policies[i]
 		// Re-queue the polies that enables preemption and with the priority
 		// in range (new priority, old priority).
 		// For the polices with higher priority than old priority, it can
@@ -341,7 +321,7 @@ func (d *ResourceDetector) HandleDeprioritizedClusterPropagationPolicy(oldPolicy
 			klog.Infof("Enqueuing ClusterPropagationPolicy(%s) in case of ClusterPropagationPolicy(%s) priority changes.",
 				potentialPolicy.GetName(), newPolicy.GetName())
 			sortedPotentialKeys.Enqueue(&PriorityKey{
-				Object:   &potentialPolicy,
+				Object:   potentialPolicy,
 				Priority: potentialPolicy.ExplicitPriority(),
 			})
 		}

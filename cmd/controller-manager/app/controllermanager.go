@@ -72,6 +72,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/dependenciesdistributor"
 	"github.com/karmada-io/karmada/pkg/detector"
 	"github.com/karmada-io/karmada/pkg/features"
+	generatedclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
@@ -735,6 +736,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
 	discoverClientSet := discovery.NewDiscoveryClientForConfigOrDie(restConfig)
 	kubeClientSet := kubeclientset.NewForConfigOrDie(restConfig)
+	generatedClientSet := generatedclientset.NewForConfigOrDie(restConfig)
 
 	overrideManager := overridemanager.New(mgr.GetClient(), mgr.GetEventRecorderFor(overridemanager.OverrideManagerName))
 	skippedResourceConfig := util.NewSkippedResourceConfig()
@@ -758,10 +760,13 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet, resourceInterpreter)
 
+	generatedInformerManager := genericmanager.NewGeneratedInformerManager(generatedClientSet, opts.ResyncPeriod.Duration, stopChan)
+
 	resourceDetector := &detector.ResourceDetector{
 		DiscoveryClientSet:                      discoverClientSet,
 		Client:                                  mgr.GetClient(),
 		InformerManager:                         controlPlaneInformerManager,
+		GeneratedInformerManager:                generatedInformerManager,
 		RESTMapper:                              mgr.GetRESTMapper(),
 		DynamicClient:                           dynamicClientSet,
 		SkippedResourceConfig:                   skippedResourceConfig,
