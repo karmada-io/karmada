@@ -200,10 +200,22 @@ func TestCommandUnregisterOption_RunUnregisterCluster(t *testing.T) {
 			wantErr:          true,
 		},
 		{
-			name:             "cluster exist, but cluster resources not found",
-			clusterObject:    []runtime.Object{&clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: clusterName}}},
+			name: "cluster exist, but cluster resources not found",
+			clusterObject: []runtime.Object{&clusterv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{Name: clusterName},
+				Spec:       clusterv1alpha1.ClusterSpec{SyncMode: clusterv1alpha1.Pull}},
+			},
 			clusterResources: []runtime.Object{},
 			wantErr:          false,
+		},
+		{
+			name: "push mode member cluster",
+			clusterObject: []runtime.Object{&clusterv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{Name: clusterName},
+				Spec:       clusterv1alpha1.ClusterSpec{SyncMode: clusterv1alpha1.Push}},
+			},
+			clusterResources: []runtime.Object{},
+			wantErr:          true,
 		},
 	}
 

@@ -112,12 +112,50 @@ func TestRunUnJoinCluster(t *testing.T) {
 		errMsg                                string
 	}{
 		{
+			name:                   "RunUnJoinCluster_DeleteClusterObject_PullModeMemberCluster",
+			unjoinOpts:             &CommandUnjoinOption{ClusterName: "member1"},
+			controlPlaneRestConfig: &rest.Config{},
+			clusterConfig:          &rest.Config{},
+			karmadaClient:          fakekarmadaclient.NewSimpleClientset(),
+			prep: func(_ kubeclient.Interface, _ kubeclient.Interface, karmadaClient karmadaclientset.Interface, _ *CommandUnjoinOption) error {
+				karmadaClient.(*fakekarmadaclient.Clientset).Fake.PrependReactor("get", "clusters", func(coretesting.Action) (bool, runtime.Object, error) {
+					return true, &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "member1",
+						},
+						Spec: clusterv1alpha1.ClusterSpec{
+							SyncMode: clusterv1alpha1.Pull,
+						},
+					}, nil
+				})
+				controlPlaneKarmadaClientBuilder = func(*rest.Config) karmadaclientset.Interface {
+					return karmadaClient
+				}
+				return nil
+			},
+			verify: func(kubeclient.Interface, kubeclient.Interface, karmadaclientset.Interface, *CommandUnjoinOption) error {
+				return nil
+			},
+			wantErr: true,
+			errMsg:  "cluster member1 is a Pull mode member cluster, please use command `unregister` if you want to continue unregistering the cluster",
+		},
+		{
 			name:                   "RunUnJoinCluster_DeleteClusterObject_FailedToDeleteClusterObject",
 			unjoinOpts:             &CommandUnjoinOption{ClusterName: "member1"},
 			controlPlaneRestConfig: &rest.Config{},
 			clusterConfig:          &rest.Config{},
 			karmadaClient:          fakekarmadaclient.NewSimpleClientset(),
 			prep: func(_ kubeclient.Interface, _ kubeclient.Interface, karmadaClient karmadaclientset.Interface, _ *CommandUnjoinOption) error {
+				karmadaClient.(*fakekarmadaclient.Clientset).Fake.PrependReactor("get", "clusters", func(coretesting.Action) (bool, runtime.Object, error) {
+					return true, &clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "member1",
+						},
+						Spec: clusterv1alpha1.ClusterSpec{
+							SyncMode: clusterv1alpha1.Push,
+						},
+					}, nil
+				})
 				karmadaClient.(*fakekarmadaclient.Clientset).Fake.PrependReactor("delete", "clusters", func(coretesting.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("unexpected error: encountered a network issue while deleting the clusters")
 				})

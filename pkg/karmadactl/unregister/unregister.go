@@ -35,6 +35,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/apis/cluster/validation"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
@@ -310,6 +311,18 @@ func (j *CommandUnregisterOption) getKarmadaAgentConfig(agent *appsv1.Deployment
 
 // RunUnregisterCluster unregister the pull mode cluster from karmada.
 func (j *CommandUnregisterOption) RunUnregisterCluster() error {
+	target, err := j.ControlPlaneClient.ClusterV1alpha1().Clusters().Get(context.TODO(), j.ClusterName, metav1.GetOptions{})
+	if apierrors.IsNotFound(err) {
+		return fmt.Errorf("no cluster object %s found in karmada control Plane", j.ClusterName)
+	}
+	if err != nil {
+		klog.Errorf("Failed to get cluster object. cluster name: %s, error: %v", j.ClusterName, err)
+		return err
+	}
+	if target.Spec.SyncMode == clusterv1alpha1.Push {
+		return fmt.Errorf("cluster %s is a %s mode member cluster, please use command `unjoin` if you want to continue unjoining the cluster", j.ClusterName, target.Spec.SyncMode)
+	}
+
 	if j.DryRun {
 		return nil
 	}
@@ -318,7 +331,7 @@ func (j *CommandUnregisterOption) RunUnregisterCluster() error {
 	// 1. delete the work object from the Karmada control plane
 	// When deleting a cluster, the deletion triggers the removal of executionSpace, which can lead to the deletion of RBAC roles related to work.
 	// Therefore, the deletion of work should be performed before deleting the cluster.
-	err := cmdutil.EnsureWorksDeleted(j.ControlPlaneClient, names.GenerateExecutionSpaceName(j.ClusterName), j.Wait)
+	err = cmdutil.EnsureWorksDeleted(j.ControlPlaneClient, names.GenerateExecutionSpaceName(j.ClusterName), j.Wait)
 	if err != nil {
 		klog.Errorf("Failed to delete works object. cluster name: %s, error: %v", j.ClusterName, err)
 		return err
