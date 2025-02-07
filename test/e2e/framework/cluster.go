@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -310,7 +311,7 @@ func WaitClusterFitWith(c client.Client, clusterName string, fit func(cluster *c
 
 // LoadRESTClientConfig creates a rest.Config using the passed kubeconfig. If context is empty, current context in kubeconfig will be used.
 func LoadRESTClientConfig(kubeconfig string, context string) (*rest.Config, error) {
-	loader := &clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig}
+	loader := &clientcmd.ClientConfigLoadingRules{Precedence: filepath.SplitList(kubeconfig)}
 	loadedConfig, err := loader.Load()
 	if err != nil {
 		return nil, err
