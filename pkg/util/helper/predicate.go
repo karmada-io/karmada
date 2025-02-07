@@ -38,6 +38,7 @@ func NewExecutionPredicate(mgr controllerruntime.Manager) predicate.Funcs {
 		obj := object.(*workv1alpha1.Work)
 
 		// Ignore the object that has been suppressed.
+		//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
 		if util.GetLabelValue(obj.Labels, util.PropagationInstruction) == util.PropagationInstructionSuppressed {
 			klog.V(5).Infof("Ignored Work(%s/%s) %s event as propagation instruction is suppressed.", obj.Namespace, obj.Name, eventType)
 			return false
@@ -79,8 +80,14 @@ func NewPredicateForServiceExportController(mgr controllerruntime.Manager) predi
 	predFunc := func(eventType string, object client.Object) bool {
 		obj := object.(*workv1alpha1.Work)
 
+		//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
 		if util.GetLabelValue(obj.Labels, util.PropagationInstruction) == util.PropagationInstructionSuppressed {
 			klog.V(5).Infof("Ignored Work(%s/%s) %s event as propagation instruction is suppressed.", obj.Namespace, obj.Name, eventType)
+			return false
+		}
+
+		if IsWorkSuspendDispatching(obj) {
+			klog.V(5).Infof("Ignored Work(%s/%s) %s event as dispatching is suspended.", obj.Namespace, obj.Name, eventType)
 			return false
 		}
 
@@ -171,8 +178,14 @@ func NewPredicateForServiceExportControllerOnAgent(curClusterName string) predic
 	predFunc := func(eventType string, object client.Object) bool {
 		obj := object.(*workv1alpha1.Work)
 
+		//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
 		if util.GetLabelValue(obj.Labels, util.PropagationInstruction) == util.PropagationInstructionSuppressed {
 			klog.V(5).Infof("Ignored Work(%s/%s) %s event as propagation instruction is suppressed.", obj.Namespace, obj.Name, eventType)
+			return false
+		}
+
+		if IsWorkSuspendDispatching(obj) {
+			klog.V(5).Infof("Ignored Work(%s/%s) %s event as dispatching is suspended.", obj.Namespace, obj.Name, eventType)
 			return false
 		}
 
@@ -237,6 +250,7 @@ func NewExecutionPredicateOnAgent() predicate.Funcs {
 		obj := object.(*workv1alpha1.Work)
 
 		// Ignore the object that has been suppressed.
+		//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
 		if util.GetLabelValue(obj.Labels, util.PropagationInstruction) == util.PropagationInstructionSuppressed {
 			klog.V(5).Infof("Ignored Work(%s/%s) %s event as propagation instruction is suppressed.", obj.Namespace, obj.Name, eventType)
 			return false

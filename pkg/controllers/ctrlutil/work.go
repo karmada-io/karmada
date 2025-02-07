@@ -39,16 +39,14 @@ import (
 // CreateOrUpdateWork creates a Work object if not exist, or updates if it already exists.
 func CreateOrUpdateWork(ctx context.Context, c client.Client, workMeta metav1.ObjectMeta, resource *unstructured.Unstructured, options ...WorkOption) error {
 	resource = resource.DeepCopy()
-	if workMeta.Labels[util.PropagationInstruction] != util.PropagationInstructionSuppressed {
-		// set labels
-		util.MergeLabel(resource, util.ManagedByKarmadaLabel, util.ManagedByKarmadaLabelValue)
-		// set annotations
-		util.MergeAnnotation(resource, workv1alpha2.ResourceTemplateUIDAnnotation, string(resource.GetUID()))
-		util.MergeAnnotation(resource, workv1alpha2.WorkNameAnnotation, workMeta.Name)
-		util.MergeAnnotation(resource, workv1alpha2.WorkNamespaceAnnotation, workMeta.Namespace)
-		if conflictResolution, ok := workMeta.GetAnnotations()[workv1alpha2.ResourceConflictResolutionAnnotation]; ok {
-			util.MergeAnnotation(resource, workv1alpha2.ResourceConflictResolutionAnnotation, conflictResolution)
-		}
+	// set labels
+	util.MergeLabel(resource, util.ManagedByKarmadaLabel, util.ManagedByKarmadaLabelValue)
+	// set annotations
+	util.MergeAnnotation(resource, workv1alpha2.ResourceTemplateUIDAnnotation, string(resource.GetUID()))
+	util.MergeAnnotation(resource, workv1alpha2.WorkNameAnnotation, workMeta.Name)
+	util.MergeAnnotation(resource, workv1alpha2.WorkNamespaceAnnotation, workMeta.Namespace)
+	if conflictResolution, ok := workMeta.GetAnnotations()[workv1alpha2.ResourceConflictResolutionAnnotation]; ok {
+		util.MergeAnnotation(resource, workv1alpha2.ResourceConflictResolutionAnnotation, conflictResolution)
 	}
 	// Do the same thing as the mutating webhook does, remove the irrelevant fields for the resource.
 	// This is to avoid unnecessary updates to the Work object, especially when controller starts.
@@ -79,6 +77,7 @@ func CreateOrUpdateWork(ctx context.Context, c client.Client, workMeta metav1.Ob
 
 			// Do the same thing as the mutating webhook does, add the permanent ID to workload if not exist,
 			// This is to avoid unnecessary updates to the Work object, especially when controller starts.
+			//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
 			if runtimeObject.Labels[util.PropagationInstruction] != util.PropagationInstructionSuppressed {
 				helper.SetLabelsAndAnnotationsForWorkload(resource, runtimeObject)
 			}

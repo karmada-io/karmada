@@ -144,7 +144,6 @@ func TestGetEndpointSliceWorkMeta(t *testing.T) {
 				Labels: map[string]string{
 					util.MultiClusterServiceNamespaceLabel: "default",
 					util.MultiClusterServiceNameLabel:      "test-service",
-					util.PropagationInstruction:            util.PropagationInstructionSuppressed,
 					util.EndpointSliceWorkManagedByLabel:   util.MultiClusterServiceKind,
 				},
 			},
@@ -159,7 +158,6 @@ func TestGetEndpointSliceWorkMeta(t *testing.T) {
 				Labels: map[string]string{
 					util.MultiClusterServiceNamespaceLabel: "default",
 					util.MultiClusterServiceNameLabel:      "test-service",
-					util.PropagationInstruction:            util.PropagationInstructionSuppressed,
 					util.EndpointSliceWorkManagedByLabel:   "ExistingController.MultiClusterService",
 				},
 				Finalizers: []string{util.MCSEndpointSliceDispatchControllerFinalizer},
