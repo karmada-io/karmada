@@ -26,11 +26,14 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/yaml"
 )
 
 // mockReader is a simple io.Reader that returns an error after being called.
@@ -382,4 +385,85 @@ func verifyValidTarGzipped(tarFile, regularFile string, targetPath *string) erro
 	}
 
 	return nil
+}
+
+func TestReplaceYamlForRegs(t *testing.T) {
+	tests := []struct {
+		name            string
+		content         string
+		replacements    map[*regexp.Regexp]string
+		expectedContent string
+	}{
+		{
+			name: "simple replacement",
+			content: `
+        url: "https://{{name}}.{{namespace}}.svc:443/convert"
+        caBundle: "{{caBundle}}"
+`,
+			replacements: map[*regexp.Regexp]string{
+				regexp.MustCompile("{{caBundle}}"):  "testCaBundle",
+				regexp.MustCompile("{{name}}"):      "testName",
+				regexp.MustCompile("{{namespace}}"): "testNamespace",
+			},
+			expectedContent: `
+        url: "https://testName.testNamespace.svc:443/convert"
+        caBundle: "testCaBundle"
+`,
+		},
+		{
+			name: "partial replacement",
+			content: `
+        url: "https://{{name}}.{{namespace}}.svc:443/convert"
+        caBundle: "{{caBundle}}"
+`,
+			replacements: map[*regexp.Regexp]string{
+				regexp.MustCompile("{{caBundle}}"):  "testCaBundle",
+				regexp.MustCompile("{{namespace}}"): "testNamespace",
+			},
+			expectedContent: `
+        url: "https://{{name}}.testNamespace.svc:443/convert"
+        caBundle: "testCaBundle"
+`,
+		},
+		{
+			name: "redundant replacement",
+			content: `
+        url: "https://{{name}}.{{namespace}}.svc:443/convert"
+        caBundle: "{{caBundle}}"
+`,
+			replacements: map[*regexp.Regexp]string{
+				regexp.MustCompile("{{caBundle}}"):  "testCaBundle",
+				regexp.MustCompile("{{name}}"):      "testName",
+				regexp.MustCompile("{{namespace}}"): "testNamespace",
+				regexp.MustCompile("{{foo}}"):       "foo",
+			},
+			expectedContent: `
+        url: "https://testName.testNamespace.svc:443/convert"
+        caBundle: "testCaBundle"
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpFile, err := os.CreateTemp("", "example")
+			if err != nil {
+				t.Fatalf("failed to create temp file: %v", err)
+			}
+			defer os.Remove(tmpFile.Name())
+
+			if _, err := tmpFile.Write([]byte(tt.content)); err != nil {
+				t.Fatalf("failed to write temp file: %v", err)
+			}
+			if err := tmpFile.Close(); err != nil {
+				t.Fatalf("failed to close temp file: %v", err)
+			}
+
+			result, err := ReplaceYamlForRegs(tmpFile.Name(), tt.replacements)
+			expectedJSON, expectedErr := yaml.YAMLToJSON([]byte(tt.expectedContent))
+
+			assert.Equal(t, result, expectedJSON)
+			assert.Equal(t, err, expectedErr)
+		})
+	}
 }
