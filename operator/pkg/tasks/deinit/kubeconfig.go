@@ -39,20 +39,40 @@ func NewCleanupKubeconfigTask() workflow.Task {
 func runCleanupKubeconfig(r workflow.RunData) error {
 	data, ok := r.(DeInitData)
 	if !ok {
-		return errors.New("cleanup-kubeconfig task invoked with an invalid data struct")
+		return errors.New("cleanup-karmada-config task invoked with an invalid data struct")
 	}
 
-	klog.V(4).InfoS("[cleanup-kubeconfig] Running cleanup-kubeconfig task", "karmada", klog.KObj(data))
+	klog.V(4).InfoS("[cleanup-karmada-config] Running cleanup-karmada-config task", "karmada", klog.KObj(data))
 
-	err := apiclient.DeleteSecretIfHasLabels(
-		data.RemoteClient(),
-		util.AdminKubeconfigSecretName(data.GetName()),
-		data.GetNamespace(),
-		constants.KarmadaOperatorLabel,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to cleanup karmada kubeconfig, err: %w", err)
+	secretNames := generateComponentKubeconfigSecretNames(data)
+
+	for _, secretName := range secretNames {
+		err := apiclient.DeleteSecretIfHasLabels(
+			data.RemoteClient(),
+			secretName,
+			data.GetNamespace(),
+			constants.KarmadaOperatorLabel,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to cleanup karmada-config secret '%s', err: %w", secretName, err)
+		}
 	}
 
 	return nil
+}
+
+func generateComponentKubeconfigSecretNames(data DeInitData) []string {
+	secretNames := []string{
+		util.AdminKarmadaConfigSecretName(data.GetName()),
+		util.ComponentKarmadaConfigSecretName(util.KarmadaAggregatedAPIServerName(data.GetName())),
+		util.ComponentKarmadaConfigSecretName(util.KarmadaControllerManagerName(data.GetName())),
+		util.ComponentKarmadaConfigSecretName(util.KubeControllerManagerName(data.GetName())),
+		util.ComponentKarmadaConfigSecretName(util.KarmadaSchedulerName(data.GetName())),
+		util.ComponentKarmadaConfigSecretName(util.KarmadaDeschedulerName(data.GetName())),
+		util.ComponentKarmadaConfigSecretName(util.KarmadaMetricsAdapterName(data.GetName())),
+		util.ComponentKarmadaConfigSecretName(util.KarmadaSearchName(data.GetName())),
+		util.ComponentKarmadaConfigSecretName(util.KarmadaWebhookName(data.GetName())),
+	}
+
+	return secretNames
 }

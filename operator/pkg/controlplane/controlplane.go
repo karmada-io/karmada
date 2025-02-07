@@ -93,7 +93,7 @@ func getKubeControllerManagerManifest(name, namespace string, cfg *operatorv1alp
 		Image:              cfg.Image.Name(),
 		ImagePullPolicy:    string(cfg.ImagePullPolicy),
 		KarmadaCertsSecret: util.KarmadaCertSecretName(name),
-		KubeconfigSecret:   util.AdminKubeconfigSecretName(name),
+		KubeconfigSecret:   util.ComponentKarmadaConfigSecretName(util.KubeControllerManagerName(name)),
 		Replicas:           cfg.Replicas,
 	})
 	if err != nil {
@@ -122,7 +122,7 @@ func getKarmadaControllerManagerManifest(name, namespace string, featureGates ma
 		SystemNamespace:  constants.KarmadaSystemNamespace,
 		Image:            cfg.Image.Name(),
 		ImagePullPolicy:  string(cfg.ImagePullPolicy),
-		KubeconfigSecret: util.AdminKubeconfigSecretName(name),
+		KubeconfigSecret: util.ComponentKarmadaConfigSecretName(util.KarmadaControllerManagerName(name)),
 		Replicas:         cfg.Replicas,
 	})
 	if err != nil {
@@ -151,7 +151,7 @@ func getKarmadaSchedulerManifest(name, namespace string, featureGates map[string
 		SystemNamespace:    constants.KarmadaSystemNamespace,
 		Image:              cfg.Image.Name(),
 		ImagePullPolicy:    string(cfg.ImagePullPolicy),
-		KubeconfigSecret:   util.AdminKubeconfigSecretName(name),
+		KubeconfigSecret:   util.ComponentKarmadaConfigSecretName(util.KarmadaSchedulerName(name)),
 		KarmadaCertsSecret: util.KarmadaCertSecretName(name),
 		Replicas:           cfg.Replicas,
 	})
@@ -181,7 +181,7 @@ func getKarmadaDeschedulerManifest(name, namespace string, featureGates map[stri
 		SystemNamespace:    constants.KarmadaSystemNamespace,
 		Image:              cfg.Image.Name(),
 		ImagePullPolicy:    string(cfg.ImagePullPolicy),
-		KubeconfigSecret:   util.AdminKubeconfigSecretName(name),
+		KubeconfigSecret:   util.ComponentKarmadaConfigSecretName(util.KarmadaDeschedulerName(name)),
 		KarmadaCertsSecret: util.KarmadaCertSecretName(name),
 		Replicas:           cfg.Replicas,
 	})

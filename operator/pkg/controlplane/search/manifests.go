@@ -49,14 +49,13 @@ spec:
             - name: k8s-certs
               mountPath: /etc/karmada/pki
               readOnly: true
-            - name: kubeconfig
-              subPath: kubeconfig
-              mountPath: /etc/kubeconfig
+            - name: karmada-config
+              mountPath: /etc/karmada/config
           command:
             - /bin/karmada-search
-            - --kubeconfig=/etc/kubeconfig
-            - --authentication-kubeconfig=/etc/kubeconfig
-            - --authorization-kubeconfig=/etc/kubeconfig
+            - --kubeconfig=/etc/karmada/config/karmada.config
+            - --authentication-kubeconfig=/etc/karmada/config/karmada.config
+            - --authorization-kubeconfig=/etc/karmada/config/karmada.config
             - --tls-cert-file=/etc/karmada/pki/karmada.crt
             - --tls-private-key-file=/etc/karmada/pki/karmada.key
             - --tls-min-version=VersionTLS13
@@ -79,7 +78,7 @@ spec:
         - name: k8s-certs
           secret:
             secretName: {{ .KarmadaCertsSecret }}
-        - name: kubeconfig
+        - name: karmada-config
           secret:
             secretName: {{ .KubeconfigSecret }}
 `

@@ -73,7 +73,7 @@ func TestRunCleanupKubeconfig(t *testing.T) {
 			prep:    func(workflow.RunData, *corev1.Secret) error { return nil },
 			verify:  func(workflow.RunData, *corev1.Secret) error { return nil },
 			wantErr: true,
-			errMsg:  "cleanup-kubeconfig task invoked with an invalid data struct",
+			errMsg:  "cleanup-karmada-config task invoked with an invalid data struct",
 		},
 		{
 			name: "RunCleanupKubeconfig_DeleteSecretWithKarmadaOperatorLabel_SecretDeleted",
@@ -82,7 +82,7 @@ func TestRunCleanupKubeconfig(t *testing.T) {
 				namespace:    namespace,
 				remoteClient: fakeclientset.NewSimpleClientset(),
 			},
-			secret: helper.NewSecret(namespace, util.AdminKubeconfigSecretName(name), map[string][]byte{}),
+			secret: helper.NewSecret(namespace, util.AdminKarmadaConfigSecretName(name), map[string][]byte{}),
 			prep: func(rd workflow.RunData, s *corev1.Secret) error {
 				data := rd.(*TestDeInitData)
 				s.Labels = constants.KarmadaOperatorLabel

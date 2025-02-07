@@ -167,7 +167,7 @@ func TestGetKubeControllerManagerManifest(t *testing.T) {
 	}
 
 	expectedSecrets := []string{
-		util.AdminKubeconfigSecretName(name),
+		util.ComponentKarmadaConfigSecretName(util.KubeControllerManagerName(name)),
 		util.KarmadaCertSecretName(name),
 	}
 	err = verifySecrets(deployment, expectedSecrets)
@@ -226,7 +226,7 @@ func TestGetKarmadaControllerManagerManifest(t *testing.T) {
 		t.Errorf("failed to verify karmada controller manager system namespace: %v", err)
 	}
 
-	expectedSecrets := []string{util.AdminKubeconfigSecretName(name)}
+	expectedSecrets := []string{util.ComponentKarmadaConfigSecretName(util.KarmadaControllerManagerName(name))}
 	err = verifySecrets(deployment, expectedSecrets)
 	if err != nil {
 		t.Errorf("failed to verify karmada controller manager secrets: %v", err)
@@ -285,7 +285,7 @@ func TestGetKarmadaSchedulerManifest(t *testing.T) {
 	}
 
 	expectedSecrets := []string{
-		util.AdminKubeconfigSecretName(name),
+		util.ComponentKarmadaConfigSecretName(util.KarmadaSchedulerName(name)),
 		util.KarmadaCertSecretName(name),
 	}
 	err = verifySecrets(deployment, expectedSecrets)
@@ -346,7 +346,7 @@ func TestGetKarmadaDeschedulerManifest(t *testing.T) {
 	}
 
 	expectedSecrets := []string{
-		util.AdminKubeconfigSecretName(name),
+		util.ComponentKarmadaConfigSecretName(util.KarmadaDeschedulerName(name)),
 		util.KarmadaCertSecretName(name),
 	}
 	err = verifySecrets(deployment, expectedSecrets)

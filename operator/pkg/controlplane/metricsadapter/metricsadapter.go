@@ -51,7 +51,7 @@ func installKarmadaMetricAdapter(client clientset.Interface, cfg *operatorv1alph
 		Image:              cfg.Image.Name(),
 		ImagePullPolicy:    string(cfg.ImagePullPolicy),
 		Replicas:           cfg.Replicas,
-		KubeconfigSecret:   util.AdminKubeconfigSecretName(name),
+		KubeconfigSecret:   util.ComponentKarmadaConfigSecretName(util.KarmadaMetricsAdapterName(name)),
 		KarmadaCertsSecret: util.KarmadaCertSecretName(name),
 	})
 	if err != nil {

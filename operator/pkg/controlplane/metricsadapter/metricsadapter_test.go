@@ -221,7 +221,7 @@ func verifyDeploymentDetails(deployment *appsv1.Deployment, replicas int32, imag
 		extractedSecrets = append(extractedSecrets, volume.Secret.SecretName)
 	}
 	expectedSecrets := []string{
-		util.AdminKubeconfigSecretName(name),
+		util.ComponentKarmadaConfigSecretName(util.KarmadaMetricsAdapterName(name)),
 		util.KarmadaCertSecretName(name),
 	}
 	for _, expectedSecret := range expectedSecrets {

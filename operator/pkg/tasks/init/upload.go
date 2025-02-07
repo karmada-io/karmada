@@ -105,16 +105,13 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 		return err
 	}
 
-	err = apiclient.CreateOrUpdateSecret(data.RemoteClient(), &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: data.GetNamespace(),
-			Name:      util.AdminKubeconfigSecretName(data.GetName()),
-			Labels:    constants.KarmadaOperatorLabel,
-		},
-		Data: map[string][]byte{"kubeconfig": configBytes},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create secret of kubeconfig, err: %w", err)
+	secretList := generateComponentKubeconfigSecrets(data, string(configBytes))
+
+	for _, secret := range secretList {
+		err = apiclient.CreateOrUpdateSecret(data.RemoteClient(), secret)
+		if err != nil {
+			return fmt.Errorf("failed to create/update karmada-config secret '%s', err: %w", secret.Name, err)
+		}
 	}
 
 	// store rest config to RunData.
@@ -177,6 +174,46 @@ func buildKubeConfigFromSpec(data InitData, serverURL string) (*clientcmdapi.Con
 		client.KeyData(),
 		client.CertData(),
 	), nil
+}
+
+func generateKubeconfigSecret(name, namespace, configString string) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+			Labels:    constants.KarmadaOperatorLabel,
+		},
+		StringData: map[string]string{"karmada.config": configString},
+	}
+}
+
+func generateComponentKubeconfigSecrets(data InitData, configString string) []*corev1.Secret {
+	var secrets []*corev1.Secret
+
+	secrets = append(secrets, generateKubeconfigSecret(util.AdminKarmadaConfigSecretName(data.GetName()), data.GetNamespace(), configString))
+
+	if data.Components() == nil {
+		return secrets
+	}
+
+	componentList := map[string]interface{}{
+		util.KarmadaAggregatedAPIServerName(data.GetName()): data.Components().KarmadaAggregatedAPIServer,
+		util.KarmadaControllerManagerName(data.GetName()):   data.Components().KarmadaControllerManager,
+		util.KubeControllerManagerName(data.GetName()):      data.Components().KubeControllerManager,
+		util.KarmadaSchedulerName(data.GetName()):           data.Components().KarmadaScheduler,
+		util.KarmadaDeschedulerName(data.GetName()):         data.Components().KarmadaDescheduler,
+		util.KarmadaMetricsAdapterName(data.GetName()):      data.Components().KarmadaMetricsAdapter,
+		util.KarmadaSearchName(data.GetName()):              data.Components().KarmadaSearch,
+		util.KarmadaWebhookName(data.GetName()):             data.Components().KarmadaWebhook,
+	}
+
+	for karmadaComponentName, component := range componentList {
+		if component != nil {
+			secrets = append(secrets, generateKubeconfigSecret(util.ComponentKarmadaConfigSecretName(karmadaComponentName), data.GetNamespace(), configString))
+		}
+	}
+
+	return secrets
 }
 
 // NewUploadCertsTask init a Upload-Certs task

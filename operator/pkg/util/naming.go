@@ -24,9 +24,14 @@ import (
 // Namefunc defines a function to generate resource name according to karmada resource name.
 type Namefunc func(karmada string) string
 
-// AdminKubeconfigSecretName returns secret name of karmada-admin kubeconfig
-func AdminKubeconfigSecretName(karmada string) string {
+// AdminKarmadaConfigSecretName returns secret name of karmada-admin karmada-config
+func AdminKarmadaConfigSecretName(karmada string) string {
 	return generateResourceName(karmada, "admin-config")
+}
+
+// ComponentKarmadaConfigSecretName returns secret name of karmada component karmada-config
+func ComponentKarmadaConfigSecretName(karmadaComponent string) string {
+	return fmt.Sprintf("%s-config", karmadaComponent)
 }
 
 // KarmadaCertSecretName returns secret name of karmada certs

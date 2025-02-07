@@ -47,10 +47,10 @@ spec:
         imagePullPolicy: {{ .ImagePullPolicy }}
         command:
         - /bin/karmada-metrics-adapter
-        - --kubeconfig=/etc/karmada/kubeconfig
+        - --kubeconfig=/etc/karmada/config/karmada.config
         - --metrics-bind-address=:8080
-        - --authentication-kubeconfig=/etc/karmada/kubeconfig
-        - --authorization-kubeconfig=/etc/karmada/kubeconfig
+        - --authentication-kubeconfig=/etc/karmada/config/karmada.config
+        - --authorization-kubeconfig=/etc/karmada/config/karmada.config
         - --client-ca-file=/etc/karmada/pki/ca.crt
         - --tls-cert-file=/etc/karmada/pki/karmada.crt
         - --tls-private-key-file=/etc/karmada/pki/karmada.key
@@ -59,9 +59,8 @@ spec:
         - --audit-log-maxage=0
         - --audit-log-maxbackup=0
         volumeMounts:
-        - name: kubeconfig
-          subPath: kubeconfig
-          mountPath: /etc/karmada/kubeconfig
+        - name: karmada-config
+          mountPath: /etc/karmada/config
         - name: karmada-cert
           mountPath: /etc/karmada/pki
           readOnly: true
@@ -87,7 +86,7 @@ spec:
           requests:
             cpu: 100m
       volumes:
-      - name: kubeconfig
+      - name: karmada-config
         secret:
           secretName: {{ .KubeconfigSecret }}
       - name: karmada-cert

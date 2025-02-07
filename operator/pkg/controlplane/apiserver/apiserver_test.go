@@ -423,7 +423,7 @@ func verifyAggregatedAPIServerDeploymentAdditionalDetails(featureGates map[strin
 	for _, volume := range deployment.Spec.Template.Spec.Volumes {
 		extractedSecrets = append(extractedSecrets, volume.Secret.SecretName)
 	}
-	expectedSecrets := []string{util.AdminKubeconfigSecretName(expectedDeploymentName), util.KarmadaCertSecretName(expectedDeploymentName), util.EtcdCertSecretName(expectedDeploymentName)}
+	expectedSecrets := []string{util.ComponentKarmadaConfigSecretName(util.KarmadaAggregatedAPIServerName(expectedDeploymentName)), util.KarmadaCertSecretName(expectedDeploymentName), util.EtcdCertSecretName(expectedDeploymentName)}
 	for _, expectedSecret := range expectedSecrets {
 		if !contains(extractedSecrets, expectedSecret) {
 			return fmt.Errorf("expected secret '%s' not found in extracted secrets", expectedSecret)
