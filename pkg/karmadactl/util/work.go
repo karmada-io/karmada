@@ -24,13 +24,14 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 )
 
 // EnsureWorksDeleted ensures that all Work resources in the specified namespace are deleted.
 func EnsureWorksDeleted(controlPlaneKarmadaClient karmadaclientset.Interface, namespace string,
-	timeout time.Duration) error {
+	timeout time.Duration, forceDeletion bool) error {
 	// make sure the works object under the given namespace has been deleted.
 	err := wait.PollUntilContextTimeout(context.TODO(), 1*time.Second, timeout, false, func(context.Context) (done bool, err error) {
 		list, err := controlPlaneKarmadaClient.WorkV1alpha1().Works(namespace).List(context.TODO(), metav1.ListOptions{})
@@ -50,6 +51,22 @@ func EnsureWorksDeleted(controlPlaneKarmadaClient karmadaclientset.Interface, na
 		}
 		return false, nil
 	})
+
+	// If the Works not be deleted within the timeout period, it is likely due to the resources in the member
+	// cluster can not be cleaned up. With the option force deletion, we will try to clean up the Works object by
+	// removing the finalizers from related resources. This behavior may result in some resources remain in the member
+	// clusters.
+	if err != nil && forceDeletion {
+		klog.Warningf("Deleting the work object timed out. ExecutionSpace: %s, error: %v", namespace, err)
+		klog.Infof("Start forced deletion. Deleting finalizer of works in ExecutionSpace: %s", namespace)
+		err = RemoveWorkFinalizer(namespace, controlPlaneKarmadaClient)
+		if err != nil {
+			klog.Errorf("Force deletion. Failed to remove the finalizer of Work, error: %v", err)
+		}
+
+		klog.Infof("Work object force deletion is complete.")
+		return nil
+	}
 
 	return err
 }
