@@ -75,10 +75,7 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 			return admission.Errored(http.StatusInternalServerError, err)
 		}
 
-		// Skip label/annotate the workload of Work that is not intended to be propagated.
-		if work.Labels[util.PropagationInstruction] != util.PropagationInstructionSuppressed {
-			helper.SetLabelsAndAnnotationsForWorkload(workloadObj, work)
-		}
+		helper.SetLabelsAndAnnotationsForWorkload(workloadObj, work)
 
 		workloadJSON, err := workloadObj.MarshalJSON()
 		if err != nil {
