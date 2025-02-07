@@ -19,6 +19,7 @@ package helper
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -110,4 +111,9 @@ func IsWorkContains(manifests []workv1alpha1.Manifest, targetResource schema.Gro
 // IsWorkSuspendDispatching checks if the work is suspended from dispatching.
 func IsWorkSuspendDispatching(work *workv1alpha1.Work) bool {
 	return ptr.Deref(work.Spec.SuspendDispatching, false)
+}
+
+// GetWorkSuspendDispatching will get suspendDispatching field from work spec
+func GetWorkSuspendDispatching(spec *workv1alpha1.WorkSpec) []string {
+	return []string{strconv.FormatBool(ptr.Deref(spec.SuspendDispatching, false))}
 }
