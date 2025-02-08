@@ -18,7 +18,9 @@ package framework
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -35,4 +37,12 @@ func WaitClusterResourceBindingFitWith(client karmada.Interface, name string, fi
 		}
 		return fit(clusterResourceBinding)
 	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+}
+
+// RemoveClusterResourceBinding delete ClusterResourceBinding with karmada client.
+func RemoveClusterResourceBinding(client karmada.Interface, name string) {
+	ginkgo.By(fmt.Sprintf("Removing ClusterResourceBinding(%s)", name), func() {
+		err := client.WorkV1alpha2().ClusterResourceBindings().Delete(context.TODO(), name, metav1.DeleteOptions{})
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	})
 }
