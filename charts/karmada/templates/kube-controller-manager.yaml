@@ -81,12 +81,12 @@ spec:
           {{- toYaml .Values.kubeControllerManager.resources | nindent 12 }}
           volumeMounts:
             - mountPath: /etc/karmada/pki
-              name: apisever-cert
+              name: apiserver-cert
               readOnly: true
             {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
       priorityClassName: system-node-critical
       volumes:
-        - name: apisever-cert
+        - name: apiserver-cert
           secret:
             secretName: {{ $name }}-cert
         {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
