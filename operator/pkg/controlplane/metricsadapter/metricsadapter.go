@@ -64,6 +64,7 @@ func installKarmadaMetricAdapter(client clientset.Interface, cfg *operatorv1alph
 	}
 
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).WithPriorityClassName(cfg.CommonSettings.PriorityClassName).
+		WithExtraCommandArgs(cfg.ExtraCommandArgs).
 		WithResources(cfg.Resources).ForDeployment(metricAdapter)
 
 	if err := apiclient.CreateOrUpdateDeployment(client, metricAdapter); err != nil {

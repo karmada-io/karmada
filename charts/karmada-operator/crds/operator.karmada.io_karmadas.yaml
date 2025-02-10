@@ -122,6 +122,34 @@ spec:
                               queryable and should be preserved when modifying objects.
                               More info: http://kubernetes.io/docs/user-guide/annotations
                             type: object
+                          extraCommandArgs:
+                            description: |-
+                              ExtraCommandArgs is an extra set of flags to pass to the karmada component. A command argument name in
+                              this list is the flag name as it appears on the command line except without leading
+                              dash(es). Extra command arguments will override existing default flags. Duplicate extra command arguments are allowed.
+
+                              Note: Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
+                              state. Before you do it, please confirm that you understand the risks of this configuration.
+
+                              For supported flags for the components, please see
+                              https://karmada.io/docs/reference/components/{{ component_name }}
+                              for details.
+                            items:
+                              description: CommandArg represents a command-line parameters
+                                with a name and a value.
+                              properties:
+                                name:
+                                  description: Name the name of the command-line parameter.
+                                  type: string
+                                value:
+                                  description: Value the value of the command-line
+                                    parameter.
+                                  type: string
+                              required:
+                              - name
+                              - value
+                              type: object
+                            type: array
                           imagePullPolicy:
                             description: |-
                               ImagePullPolicy defines the policy for pulling the container image.
@@ -566,7 +594,35 @@ spec:
                           For supported flags, please see
                           https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
                           for details.
+                          Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting extra flags.
                         type: object
+                      extraCommandArgs:
+                        description: |-
+                          ExtraCommandArgs is an extra set of flags to pass to the karmada component. A command argument name in
+                          this list is the flag name as it appears on the command line except without leading
+                          dash(es). Extra command arguments will override existing default flags. Duplicate extra command arguments are allowed.
+
+                          Note: Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
+                          state. Before you do it, please confirm that you understand the risks of this configuration.
+
+                          For supported flags for the components, please see
+                          https://karmada.io/docs/reference/components/{{ component_name }}
+                          for details.
+                        items:
+                          description: CommandArg represents a command-line parameters
+                            with a name and a value.
+                          properties:
+                            name:
+                              description: Name the name of the command-line parameter.
+                              type: string
+                            value:
+                              description: Value the value of the command-line parameter.
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
                       extraVolumeMounts:
                         description: |-
                           ExtraVolumeMounts specifies a list of extra volume mounts to be mounted into the API server's container
@@ -2445,6 +2501,7 @@ spec:
                         description: |-
                           FeatureGates enabled by the user.
                           More info: https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
+                          Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting feature gates.
                         type: object
                       imagePullPolicy:
                         description: |-
@@ -2603,7 +2660,35 @@ spec:
                           For supported flags, please see
                           https://karmada.io/docs/reference/components/karmada-aggregated-apiserver
                           for details.
+                          Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting extra flags.
                         type: object
+                      extraCommandArgs:
+                        description: |-
+                          ExtraCommandArgs is an extra set of flags to pass to the karmada component. A command argument name in
+                          this list is the flag name as it appears on the command line except without leading
+                          dash(es). Extra command arguments will override existing default flags. Duplicate extra command arguments are allowed.
+
+                          Note: Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
+                          state. Before you do it, please confirm that you understand the risks of this configuration.
+
+                          For supported flags for the components, please see
+                          https://karmada.io/docs/reference/components/{{ component_name }}
+                          for details.
+                        items:
+                          description: CommandArg represents a command-line parameters
+                            with a name and a value.
+                          properties:
+                            name:
+                              description: Name the name of the command-line parameter.
+                              type: string
+                            value:
+                              description: Value the value of the command-line parameter.
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
                       featureGates:
                         additionalProperties:
                           type: boolean
@@ -2757,7 +2842,35 @@ spec:
                           For supported flags, please see
                           https://karmada.io/docs/reference/components/karmada-controller-manager
                           for details.
+                          Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting extra flags.
                         type: object
+                      extraCommandArgs:
+                        description: |-
+                          ExtraCommandArgs is an extra set of flags to pass to the karmada component. A command argument name in
+                          this list is the flag name as it appears on the command line except without leading
+                          dash(es). Extra command arguments will override existing default flags. Duplicate extra command arguments are allowed.
+
+                          Note: Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
+                          state. Before you do it, please confirm that you understand the risks of this configuration.
+
+                          For supported flags for the components, please see
+                          https://karmada.io/docs/reference/components/{{ component_name }}
+                          for details.
+                        items:
+                          description: CommandArg represents a command-line parameters
+                            with a name and a value.
+                          properties:
+                            name:
+                              description: Name the name of the command-line parameter.
+                              type: string
+                            value:
+                              description: Value the value of the command-line parameter.
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
                       featureGates:
                         additionalProperties:
                           type: boolean
@@ -2768,6 +2881,7 @@ spec:
                           - PropagateDeps: https://karmada.io/docs/userguide/scheduling/propagate-dependencies
                           - CustomizedClusterResourceModeling: https://karmada.io/docs/userguide/scheduling/cluster-resources#start-to-use-cluster-resource-models
                           More info: https://github.com/karmada-io/karmada/blob/master/pkg/features/features.go
+                          Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting feature gates.
                         type: object
                       imagePullPolicy:
                         description: |-
@@ -2898,7 +3012,35 @@ spec:
                           For supported flags, please see
                           https://karmada.io/docs/reference/components/karmada-descheduler
                           for details.
+                          Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting extra flags.
                         type: object
+                      extraCommandArgs:
+                        description: |-
+                          ExtraCommandArgs is an extra set of flags to pass to the karmada component. A command argument name in
+                          this list is the flag name as it appears on the command line except without leading
+                          dash(es). Extra command arguments will override existing default flags. Duplicate extra command arguments are allowed.
+
+                          Note: Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
+                          state. Before you do it, please confirm that you understand the risks of this configuration.
+
+                          For supported flags for the components, please see
+                          https://karmada.io/docs/reference/components/{{ component_name }}
+                          for details.
+                        items:
+                          description: CommandArg represents a command-line parameters
+                            with a name and a value.
+                          properties:
+                            name:
+                              description: Name the name of the command-line parameter.
+                              type: string
+                            value:
+                              description: Value the value of the command-line parameter.
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
                       imagePullPolicy:
                         description: |-
                           ImagePullPolicy defines the policy for pulling the container image.
@@ -3028,7 +3170,35 @@ spec:
                           For supported flags, please see
                           https://karmada.io/docs/reference/components/karmada-metrics-adapter
                           for details.
+                          Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting extra flags.
                         type: object
+                      extraCommandArgs:
+                        description: |-
+                          ExtraCommandArgs is an extra set of flags to pass to the karmada component. A command argument name in
+                          this list is the flag name as it appears on the command line except without leading
+                          dash(es). Extra command arguments will override existing default flags. Duplicate extra command arguments are allowed.
+
+                          Note: Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
+                          state. Before you do it, please confirm that you understand the risks of this configuration.
+
+                          For supported flags for the components, please see
+                          https://karmada.io/docs/reference/components/{{ component_name }}
+                          for details.
+                        items:
+                          description: CommandArg represents a command-line parameters
+                            with a name and a value.
+                          properties:
+                            name:
+                              description: Name the name of the command-line parameter.
+                              type: string
+                            value:
+                              description: Value the value of the command-line parameter.
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
                       imagePullPolicy:
                         description: |-
                           ImagePullPolicy defines the policy for pulling the container image.
@@ -3158,7 +3328,35 @@ spec:
                           For supported flags, please see
                           https://karmada.io/docs/reference/components/karmada-scheduler
                           for details.
+                          Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting extra flags.
                         type: object
+                      extraCommandArgs:
+                        description: |-
+                          ExtraCommandArgs is an extra set of flags to pass to the karmada component. A command argument name in
+                          this list is the flag name as it appears on the command line except without leading
+                          dash(es). Extra command arguments will override existing default flags. Duplicate extra command arguments are allowed.
+
+                          Note: Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
+                          state. Before you do it, please confirm that you understand the risks of this configuration.
+
+                          For supported flags for the components, please see
+                          https://karmada.io/docs/reference/components/{{ component_name }}
+                          for details.
+                        items:
+                          description: CommandArg represents a command-line parameters
+                            with a name and a value.
+                          properties:
+                            name:
+                              description: Name the name of the command-line parameter.
+                              type: string
+                            value:
+                              description: Value the value of the command-line parameter.
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
                       featureGates:
                         additionalProperties:
                           type: boolean
@@ -3166,6 +3364,7 @@ spec:
                           FeatureGates enabled by the user.
                           - CustomizedClusterResourceModeling: https://karmada.io/docs/userguide/scheduling/cluster-resources#start-to-use-cluster-resource-models
                           More info: https://github.com/karmada-io/karmada/blob/master/pkg/features/features.go
+                          Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting feature gates.
                         type: object
                       imagePullPolicy:
                         description: |-
@@ -3296,7 +3495,35 @@ spec:
                           For supported flags, please see
                           https://karmada.io/docs/reference/components/karmada-search
                           for details.
+                          Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting extra flags.
                         type: object
+                      extraCommandArgs:
+                        description: |-
+                          ExtraCommandArgs is an extra set of flags to pass to the karmada component. A command argument name in
+                          this list is the flag name as it appears on the command line except without leading
+                          dash(es). Extra command arguments will override existing default flags. Duplicate extra command arguments are allowed.
+
+                          Note: Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
+                          state. Before you do it, please confirm that you understand the risks of this configuration.
+
+                          For supported flags for the components, please see
+                          https://karmada.io/docs/reference/components/{{ component_name }}
+                          for details.
+                        items:
+                          description: CommandArg represents a command-line parameters
+                            with a name and a value.
+                          properties:
+                            name:
+                              description: Name the name of the command-line parameter.
+                              type: string
+                            value:
+                              description: Value the value of the command-line parameter.
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
                       imagePullPolicy:
                         description: |-
                           ImagePullPolicy defines the policy for pulling the container image.
@@ -3426,7 +3653,35 @@ spec:
                           For supported flags, please see
                           https://karmada.io/docs/reference/components/karmada-webhook
                           for details.
+                          Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting extra flags.
                         type: object
+                      extraCommandArgs:
+                        description: |-
+                          ExtraCommandArgs is an extra set of flags to pass to the karmada component. A command argument name in
+                          this list is the flag name as it appears on the command line except without leading
+                          dash(es). Extra command arguments will override existing default flags. Duplicate extra command arguments are allowed.
+
+                          Note: Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
+                          state. Before you do it, please confirm that you understand the risks of this configuration.
+
+                          For supported flags for the components, please see
+                          https://karmada.io/docs/reference/components/{{ component_name }}
+                          for details.
+                        items:
+                          description: CommandArg represents a command-line parameters
+                            with a name and a value.
+                          properties:
+                            name:
+                              description: Name the name of the command-line parameter.
+                              type: string
+                            value:
+                              description: Value the value of the command-line parameter.
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
                       imagePullPolicy:
                         description: |-
                           ImagePullPolicy defines the policy for pulling the container image.
@@ -3595,13 +3850,42 @@ spec:
                           For supported flags, please see
                           https://kubernetes.io/docs/reference/command-line-tools-reference/kube-controller-manager/
                           for details.
+                          Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting extra flags.
                         type: object
+                      extraCommandArgs:
+                        description: |-
+                          ExtraCommandArgs is an extra set of flags to pass to the karmada component. A command argument name in
+                          this list is the flag name as it appears on the command line except without leading
+                          dash(es). Extra command arguments will override existing default flags. Duplicate extra command arguments are allowed.
+
+                          Note: Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
+                          state. Before you do it, please confirm that you understand the risks of this configuration.
+
+                          For supported flags for the components, please see
+                          https://karmada.io/docs/reference/components/{{ component_name }}
+                          for details.
+                        items:
+                          description: CommandArg represents a command-line parameters
+                            with a name and a value.
+                          properties:
+                            name:
+                              description: Name the name of the command-line parameter.
+                              type: string
+                            value:
+                              description: Value the value of the command-line parameter.
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
                       featureGates:
                         additionalProperties:
                           type: boolean
                         description: |-
                           FeatureGates enabled by the user.
                           More info: https://kubernetes.io/docs/reference/command-line-tools-reference/kube-controller-manager/
+                          Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting feature gates.
                         type: object
                       imagePullPolicy:
                         description: |-
@@ -3769,6 +4053,7 @@ spec:
                   - PropagateDeps: https://karmada.io/docs/userguide/scheduling/propagate-dependencies
                   - CustomizedClusterResourceModeling: https://karmada.io/docs/userguide/scheduling/cluster-resources#start-to-use-cluster-resource-models
                   More info: https://github.com/karmada-io/karmada/blob/master/pkg/features/features.go
+                  Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting feature gates.
                 type: object
               hostCluster:
                 description: |-
