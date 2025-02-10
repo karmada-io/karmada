@@ -230,15 +230,19 @@ func ReadYamlFile(path string) ([]byte, error) {
 	return yaml.YAMLToJSON(data)
 }
 
-// ReplaceYamlForReg replace content of yaml file with a Regexp
-func ReplaceYamlForReg(path, destResource string, reg *regexp.Regexp) ([]byte, error) {
+// ReplaceYamlForRegs replace content of yaml file with Regexps
+func ReplaceYamlForRegs(path string, replacements map[*regexp.Regexp]string) ([]byte, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	repl := reg.ReplaceAllString(string(data), destResource)
-	return yaml.YAMLToJSON([]byte(repl))
+	src := string(data)
+	for reg, dest := range replacements {
+		src = reg.ReplaceAllString(src, dest)
+	}
+
+	return yaml.YAMLToJSON([]byte(src))
 }
 
 // ContainAllTasks checks if all tasks in the subset are present in the tasks slice.

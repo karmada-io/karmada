@@ -98,7 +98,7 @@ func InitKarmadaResources(dir, caBase64, systemNamespace string) error {
 		if path.Ext(v) != ".yaml" {
 			continue
 		}
-		if err := patchCRDs(crdClient, caBase64, v); err != nil {
+		if err := patchCRDs(crdClient, caBase64, systemNamespace, v); err != nil {
 			return err
 		}
 	}
@@ -173,7 +173,7 @@ func createExtraResources(clientSet *kubernetes.Clientset, dir string) error {
 	return nil
 }
 
-func crdPatchesResources(filename, caBundle string) ([]byte, error) {
+func crdPatchesResources(filename, caBundle, systemNamespace string) ([]byte, error) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -184,6 +184,18 @@ func crdPatchesResources(filename, caBundle string) ([]byte, error) {
 		return nil, err
 	}
 	repl := re.ReplaceAllString(string(data), caBundle)
+
+	re, err = regexp.Compile("{{name}}")
+	if err != nil {
+		return nil, err
+	}
+	repl = re.ReplaceAllString(repl, names.KarmadaWebhookComponentName)
+
+	re, err = regexp.Compile("{{namespace}}")
+	if err != nil {
+		return nil, err
+	}
+	repl = re.ReplaceAllString(repl, systemNamespace)
 
 	return []byte(repl), nil
 }
@@ -220,8 +232,8 @@ func createCRDs(crdClient clientset.Interface, filename string) error {
 }
 
 // patchCRDs patch crd resource
-func patchCRDs(crdClient clientset.Interface, caBundle, filename string) error {
-	data, err := crdPatchesResources(filename, caBundle)
+func patchCRDs(crdClient clientset.Interface, caBundle, systemNamespace, filename string) error {
+	data, err := crdPatchesResources(filename, caBundle, systemNamespace)
 	if err != nil {
 		return err
 	}

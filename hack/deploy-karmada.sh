@@ -302,7 +302,11 @@ TEMP_PATH_CRDS=$(mktemp -d)
 trap '{ rm -rf ${TEMP_PATH_CRDS}; }' EXIT
 cp -rf "${REPO_ROOT}"/charts/karmada/_crds "${TEMP_PATH_CRDS}"
 util::fill_cabundle "${ROOT_CA_FILE}" "${TEMP_PATH_CRDS}/_crds/patches/webhook_in_resourcebindings.yaml"
+sed -i'' -e "s/{{name}}/karmada-webhook/g" "${TEMP_PATH_CRDS}/_crds/patches/webhook_in_resourcebindings.yaml"
+sed -i'' -e "s/{{namespace}}/karmada-system/g" "${TEMP_PATH_CRDS}/_crds/patches/webhook_in_resourcebindings.yaml"
 util::fill_cabundle "${ROOT_CA_FILE}" "${TEMP_PATH_CRDS}/_crds/patches/webhook_in_clusterresourcebindings.yaml"
+sed -i'' -e "s/{{name}}/karmada-webhook/g" "${TEMP_PATH_CRDS}/_crds/patches/webhook_in_clusterresourcebindings.yaml"
+sed -i'' -e "s/{{namespace}}/karmada-system/g" "${TEMP_PATH_CRDS}/_crds/patches/webhook_in_clusterresourcebindings.yaml"
 installCRDs "karmada-apiserver" "${TEMP_PATH_CRDS}"
 
 # render the caBundle in these apiservice with root ca, then karmada-apiserver can use caBundle to verify corresponding AA's server-cert
