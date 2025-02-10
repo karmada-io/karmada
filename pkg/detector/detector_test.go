@@ -841,36 +841,15 @@ func TestApplyPolicy(t *testing.T) {
 			fakeRecorder := record.NewFakeRecorder(10)
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
 
-			mockDetector := &mockResourceDetector{
-				ResourceDetector: ResourceDetector{
-					Client:              fakeClient,
-					DynamicClient:       fakeDynamicClient,
-					EventRecorder:       fakeRecorder,
-					ResourceInterpreter: &mockResourceInterpreter{},
-					RESTMapper:          &mockRESTMapper{},
-				},
-				mockClaimPolicyForObject: func(_ *unstructured.Unstructured, _ *policyv1alpha1.PropagationPolicy) (string, error) {
-					return "mocked-policy-id", nil
-				},
-				mockBuildResourceBinding: func(object *unstructured.Unstructured, _, _ map[string]string, _ *policyv1alpha1.PropagationSpec) (*workv1alpha2.ResourceBinding, error) {
-					return &workv1alpha2.ResourceBinding{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      object.GetName() + "-" + strings.ToLower(object.GetKind()),
-							Namespace: object.GetNamespace(),
-						},
-						Spec: workv1alpha2.ResourceBindingSpec{
-							Resource: workv1alpha2.ObjectReference{
-								APIVersion: object.GetAPIVersion(),
-								Kind:       object.GetKind(),
-								Name:       object.GetName(),
-								Namespace:  object.GetNamespace(),
-							},
-						},
-					}, nil
-				},
+			d := &ResourceDetector{
+				Client:              fakeClient,
+				DynamicClient:       fakeDynamicClient,
+				EventRecorder:       fakeRecorder,
+				ResourceInterpreter: &mockResourceInterpreter{},
+				RESTMapper:          &mockRESTMapper{},
 			}
 
-			err := mockDetector.ApplyPolicy(tt.object, keys.ClusterWideKey{}, tt.resourceChangeByKarmada, tt.policy)
+			err := d.ApplyPolicy(tt.object, keys.ClusterWideKey{}, tt.resourceChangeByKarmada, tt.policy)
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -949,49 +928,12 @@ func TestApplyClusterPolicy(t *testing.T) {
 			fakeRecorder := record.NewFakeRecorder(10)
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
 
-			d := &mockResourceDetector{
-				ResourceDetector: ResourceDetector{
-					Client:              fakeClient,
-					DynamicClient:       fakeDynamicClient,
-					EventRecorder:       fakeRecorder,
-					ResourceInterpreter: &mockResourceInterpreter{},
-					RESTMapper:          &mockRESTMapper{},
-				},
-				mockClaimClusterPolicyForObject: func(_ *unstructured.Unstructured, _ *policyv1alpha1.ClusterPropagationPolicy) (string, error) {
-					return "mocked-cluster-policy-id", nil
-				},
-				mockBuildResourceBinding: func(object *unstructured.Unstructured, _, _ map[string]string, _ *policyv1alpha1.PropagationSpec) (*workv1alpha2.ResourceBinding, error) {
-					binding := &workv1alpha2.ResourceBinding{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      object.GetName() + "-" + strings.ToLower(object.GetKind()),
-							Namespace: object.GetNamespace(),
-						},
-						Spec: workv1alpha2.ResourceBindingSpec{
-							Resource: workv1alpha2.ObjectReference{
-								APIVersion: object.GetAPIVersion(),
-								Kind:       object.GetKind(),
-								Name:       object.GetName(),
-								Namespace:  object.GetNamespace(),
-							},
-						},
-					}
-					return binding, nil
-				},
-				mockBuildClusterResourceBinding: func(object *unstructured.Unstructured, _, _ map[string]string, _ *policyv1alpha1.PropagationSpec) (*workv1alpha2.ClusterResourceBinding, error) {
-					binding := &workv1alpha2.ClusterResourceBinding{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: object.GetName() + "-" + strings.ToLower(object.GetKind()),
-						},
-						Spec: workv1alpha2.ResourceBindingSpec{
-							Resource: workv1alpha2.ObjectReference{
-								APIVersion: object.GetAPIVersion(),
-								Kind:       object.GetKind(),
-								Name:       object.GetName(),
-							},
-						},
-					}
-					return binding, nil
-				},
+			d := &ResourceDetector{
+				Client:              fakeClient,
+				DynamicClient:       fakeDynamicClient,
+				EventRecorder:       fakeRecorder,
+				ResourceInterpreter: &mockResourceInterpreter{},
+				RESTMapper:          &mockRESTMapper{},
 			}
 
 			err := d.ApplyClusterPolicy(tt.object, keys.ClusterWideKey{}, tt.resourceChangeByKarmada, tt.policy)
@@ -1000,30 +942,30 @@ func TestApplyClusterPolicy(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-			}
 
-			// Check if ResourceBinding or ClusterResourceBinding was created
-			if tt.object.GetNamespace() != "" {
-				binding := &workv1alpha2.ResourceBinding{}
-				err = fakeClient.Get(context.TODO(), client.ObjectKey{
-					Namespace: tt.object.GetNamespace(),
-					Name:      tt.object.GetName() + "-" + strings.ToLower(tt.object.GetKind()),
-				}, binding)
-				assert.NoError(t, err)
-				assert.Equal(t, tt.object.GetName(), binding.Spec.Resource.Name)
-			} else {
-				binding := &workv1alpha2.ClusterResourceBinding{}
-				err = fakeClient.Get(context.TODO(), client.ObjectKey{
-					Name: tt.object.GetName() + "-" + strings.ToLower(tt.object.GetKind()),
-				}, binding)
-				assert.NoError(t, err)
-				assert.Equal(t, tt.object.GetName(), binding.Spec.Resource.Name)
+				// Check if ResourceBinding or ClusterResourceBinding was created
+				if tt.object.GetNamespace() != "" {
+					binding := &workv1alpha2.ResourceBinding{}
+					err = fakeClient.Get(context.TODO(), client.ObjectKey{
+						Namespace: tt.object.GetNamespace(),
+						Name:      tt.object.GetName() + "-" + strings.ToLower(tt.object.GetKind()),
+					}, binding)
+					assert.NoError(t, err)
+					assert.Equal(t, tt.object.GetName(), binding.Spec.Resource.Name)
+				} else {
+					binding := &workv1alpha2.ClusterResourceBinding{}
+					err = fakeClient.Get(context.TODO(), client.ObjectKey{
+						Name: tt.object.GetName() + "-" + strings.ToLower(tt.object.GetKind()),
+					}, binding)
+					assert.NoError(t, err)
+					assert.Equal(t, tt.object.GetName(), binding.Spec.Resource.Name)
+				}
 			}
 		})
 	}
 }
 
-//Helper Functions
+// Helper Functions
 
 // setupTestScheme creates a runtime scheme with necessary types for testing
 func setupTestScheme() *runtime.Scheme {
@@ -1094,43 +1036,6 @@ func (m *mockRESTMapper) RESTMappings(gk schema.GroupKind, versions ...string) (
 
 func (m *mockRESTMapper) ResourceSingularizer(resource string) (string, error) {
 	return resource, nil
-}
-
-// mockResourceDetector is a mock implementation of ResourceDetector
-type mockResourceDetector struct {
-	ResourceDetector
-	mockClaimPolicyForObject        func(object *unstructured.Unstructured, policy *policyv1alpha1.PropagationPolicy) (string, error)
-	mockClaimClusterPolicyForObject func(object *unstructured.Unstructured, policy *policyv1alpha1.ClusterPropagationPolicy) (string, error)
-	mockBuildResourceBinding        func(object *unstructured.Unstructured, labels, annotations map[string]string, spec *policyv1alpha1.PropagationSpec) (*workv1alpha2.ResourceBinding, error)
-	mockBuildClusterResourceBinding func(object *unstructured.Unstructured, labels, annotations map[string]string, spec *policyv1alpha1.PropagationSpec) (*workv1alpha2.ClusterResourceBinding, error)
-}
-
-func (m *mockResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructured, policy *policyv1alpha1.PropagationPolicy) (string, error) {
-	if m.mockClaimPolicyForObject != nil {
-		return m.mockClaimPolicyForObject(object, policy)
-	}
-	return "", nil
-}
-
-func (m *mockResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unstructured, policy *policyv1alpha1.ClusterPropagationPolicy) (string, error) {
-	if m.mockClaimClusterPolicyForObject != nil {
-		return m.mockClaimClusterPolicyForObject(object, policy)
-	}
-	return "", nil
-}
-
-func (m *mockResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, labels, annotations map[string]string, spec *policyv1alpha1.PropagationSpec) (*workv1alpha2.ResourceBinding, error) {
-	if m.mockBuildResourceBinding != nil {
-		return m.mockBuildResourceBinding(object, labels, annotations, spec)
-	}
-	return &workv1alpha2.ResourceBinding{}, nil
-}
-
-func (m *mockResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured, labels, annotations map[string]string, spec *policyv1alpha1.PropagationSpec) (*workv1alpha2.ClusterResourceBinding, error) {
-	if m.mockBuildClusterResourceBinding != nil {
-		return m.mockBuildClusterResourceBinding(object, labels, annotations, spec)
-	}
-	return &workv1alpha2.ClusterResourceBinding{}, nil
 }
 
 // mockPropagationPolicyLister is a mock implementation of the PropagationPolicyLister
