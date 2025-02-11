@@ -2684,7 +2684,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterWebhook(ref common.Refer
 					},
 					"clientConfig": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ClientConfig defines how to communicate with the hook.",
+							Description: "ClientConfig defines how to communicate with the hook. It supports two mutually exclusive configuration modes:\n\n1. URL - Directly specify the webhook URL with format `scheme://host:port/path`.\n   Example: https://webhook.example.com:8443/my-interpreter\n\n2. Service - Reference a Kubernetes Service that exposes the webhook.\n   When using Service reference, Karmada resolves the endpoint through following steps:\n   a) First attempts to locate the Service in karmada-apiserver\n   b) If found, constructs URL based on Service type:\n      - ClusterIP/LoadBalancer/NodePort: Uses ClusterIP with port from Service spec\n        (Note: Services with ClusterIP \"None\" are rejected), Example:\n        `https://<cluster ip>:<port>`\n      - ExternalName: Uses external DNS name format: `https://<external name>:<port>`\n   c) If NOT found in karmada-apiserver, falls back to standard Kubernetes\n      service DNS name format: `https://<service>.<namespace>.svc:<port>`\n\nNote: When both URL and Service are specified, the Service reference takes precedence\n      and the URL configuration will be ignored.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/api/admissionregistration/v1.WebhookClientConfig"),
 						},

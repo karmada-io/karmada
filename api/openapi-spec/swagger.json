@@ -17791,7 +17791,7 @@
       ],
       "properties": {
         "clientConfig": {
-          "description": "ClientConfig defines how to communicate with the hook.",
+          "description": "ClientConfig defines how to communicate with the hook. It supports two mutually exclusive configuration modes:\n\n1. URL - Directly specify the webhook URL with format `scheme://host:port/path`.\n   Example: https://webhook.example.com:8443/my-interpreter\n\n2. Service - Reference a Kubernetes Service that exposes the webhook.\n   When using Service reference, Karmada resolves the endpoint through following steps:\n   a) First attempts to locate the Service in karmada-apiserver\n   b) If found, constructs URL based on Service type:\n      - ClusterIP/LoadBalancer/NodePort: Uses ClusterIP with port from Service spec\n        (Note: Services with ClusterIP \"None\" are rejected), Example:\n        `https://\u003ccluster ip\u003e:\u003cport\u003e`\n      - ExternalName: Uses external DNS name format: `https://\u003cexternal name\u003e:\u003cport\u003e`\n   c) If NOT found in karmada-apiserver, falls back to standard Kubernetes\n      service DNS name format: `https://\u003cservice\u003e.\u003cnamespace\u003e.svc:\u003cport\u003e`\n\nNote: When both URL and Service are specified, the Service reference takes precedence\n      and the URL configuration will be ignored.",
           "default": {},
           "$ref": "#/definitions/io.k8s.api.admissionregistration.v1.WebhookClientConfig"
         },
