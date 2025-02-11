@@ -150,6 +150,7 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	flags.StringVar(&opts.ExternalEtcdClientKeyPath, "external-etcd-client-key-path", "", "The path of client side private key to the external etcd cluster in pem format.")
 	flags.StringVar(&opts.ExternalEtcdServers, "external-etcd-servers", "", "The server urls of external etcd cluster, to be used by kube-apiserver through --etcd-servers.")
 	flags.StringVar(&opts.ExternalEtcdKeyPrefix, "external-etcd-key-prefix", "", "The key prefix to be configured to kube-apiserver through --etcd-prefix.")
+	flags.StringVar(&opts.EtcdPriorityClass, "etcd-priority-class", "system-node-critical", "The priority class name for the component etcd.")
 	// karmada
 	flags.StringVar(&opts.CRDs, "crds", kubernetes.DefaultCrdURL, "Karmada crds resource.(local file e.g. --crds /root/crds.tar.gz)")
 	flags.StringVar(&opts.KarmadaInitFilePath, "config", "", "Karmada init file path")
@@ -157,19 +158,31 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	flags.Int32VarP(&opts.KarmadaAPIServerNodePort, "port", "p", 32443, "Karmada apiserver service node port")
 	flags.StringVarP(&opts.KarmadaDataPath, "karmada-data", "d", "/etc/karmada", "Karmada data path. kubeconfig cert and crds files")
 	flags.StringVarP(&opts.KarmadaPkiPath, "karmada-pki", "", "/etc/karmada/pki", "Karmada pki path. Karmada cert files")
+	flags.IntVarP(&opts.WaitComponentReadyTimeout, "wait-component-ready-timeout", "", cmdinitoptions.WaitComponentReadyTimeout, "Wait for karmada component ready timeout. 0 means wait forever")
+	// karmada-apiserver
 	flags.StringVarP(&opts.KarmadaAPIServerImage, "karmada-apiserver-image", "", "", "Kubernetes apiserver image")
 	flags.Int32VarP(&opts.KarmadaAPIServerReplicas, "karmada-apiserver-replicas", "", 1, "Karmada apiserver replica set")
+	flags.StringVar(&opts.KarmadaAPIServerPriorityClass, "karmada-apiserver-priority-class", "system-node-critical", "The priority class name for the component karmada-apiserver.")
+	// karmada-scheduler
 	flags.StringVarP(&opts.KarmadaSchedulerImage, "karmada-scheduler-image", "", kubernetes.DefaultKarmadaSchedulerImage, "Karmada scheduler image")
 	flags.Int32VarP(&opts.KarmadaSchedulerReplicas, "karmada-scheduler-replicas", "", 1, "Karmada scheduler replica set")
+	flags.StringVar(&opts.KarmadaSchedulerPriorityClass, "karmada-scheduler-priority-class", "system-node-critical", "The priority class name for the component karmada-scheduler.")
+	// karmada-kube-controller-manager
 	flags.StringVarP(&opts.KubeControllerManagerImage, "karmada-kube-controller-manager-image", "", "", "Kubernetes controller manager image")
 	flags.Int32VarP(&opts.KubeControllerManagerReplicas, "karmada-kube-controller-manager-replicas", "", 1, "Karmada kube controller manager replica set")
+	flags.StringVar(&opts.KubeControllerManagerPriorityClass, "karmada-kube-controller-manager-priority-class", "system-node-critical", "The priority class name for the component karmada-kube-controller-manager.")
+	// karamda-controller-manager
 	flags.StringVarP(&opts.KarmadaControllerManagerImage, "karmada-controller-manager-image", "", kubernetes.DefaultKarmadaControllerManagerImage, "Karmada controller manager image")
 	flags.Int32VarP(&opts.KarmadaControllerManagerReplicas, "karmada-controller-manager-replicas", "", 1, "Karmada controller manager replica set")
+	flags.StringVar(&opts.KarmadaControllerManagerPriorityClass, "karmada-controller-manager-priority-class", "system-node-critical", "The priority class name for the component karmada-controller-manager.")
+	// karmada-webhook
 	flags.StringVarP(&opts.KarmadaWebhookImage, "karmada-webhook-image", "", kubernetes.DefaultKarmadaWebhookImage, "Karmada webhook image")
 	flags.Int32VarP(&opts.KarmadaWebhookReplicas, "karmada-webhook-replicas", "", 1, "Karmada webhook replica set")
+	flags.StringVar(&opts.KarmadaWebhookPriorityClass, "karmada-webhook-priority-class", "system-node-critical", "The priority class name for the component karmada-webhook.")
+	// karmada-aggregated-apiserver
 	flags.StringVarP(&opts.KarmadaAggregatedAPIServerImage, "karmada-aggregated-apiserver-image", "", kubernetes.DefaultKarmadaAggregatedAPIServerImage, "Karmada aggregated apiserver image")
 	flags.Int32VarP(&opts.KarmadaAggregatedAPIServerReplicas, "karmada-aggregated-apiserver-replicas", "", 1, "Karmada aggregated apiserver replica set")
-	flags.IntVarP(&opts.WaitComponentReadyTimeout, "wait-component-ready-timeout", "", cmdinitoptions.WaitComponentReadyTimeout, "Wait for karmada component ready timeout. 0 means wait forever")
+	flags.StringVar(&opts.KarmadaAggregatedAPIServerPriorityClass, "karmada-aggregated-apiserver-priority-class", "system-node-critical", "The priority class name for the component karmada-aggregated-apiserver.")
 
 	return cmd
 }

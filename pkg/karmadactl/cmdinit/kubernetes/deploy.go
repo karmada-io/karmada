@@ -138,58 +138,82 @@ func init() {
 
 // CommandInitOption holds all flags options for init.
 type CommandInitOption struct {
-	ImageRegistry                      string
-	ImagePullPolicy                    string
-	KubeImageRegistry                  string
-	KubeImageMirrorCountry             string
-	KubeImageTag                       string
-	EtcdImage                          string
-	EtcdReplicas                       int32
-	EtcdInitImage                      string
-	EtcdStorageMode                    string
-	EtcdHostDataPath                   string
-	EtcdNodeSelectorLabels             string
-	EtcdNodeSelectorLabelsMap          map[string]string
-	EtcdPersistentVolumeSize           string
-	ExternalEtcdCACertPath             string
-	ExternalEtcdClientCertPath         string
-	ExternalEtcdClientKeyPath          string
-	ExternalEtcdServers                string
-	ExternalEtcdKeyPrefix              string
-	KarmadaAPIServerImage              string
-	KarmadaAPIServerReplicas           int32
-	KarmadaAPIServerAdvertiseAddress   string
-	KarmadaAPIServerNodePort           int32
-	KarmadaSchedulerImage              string
-	KarmadaSchedulerReplicas           int32
+	ImageRegistry          string
+	ImagePullPolicy        string
+	KubeImageRegistry      string
+	KubeImageMirrorCountry string
+	KubeImageTag           string
+
+	// internal etcd
+	EtcdImage                 string
+	EtcdReplicas              int32
+	EtcdInitImage             string
+	EtcdStorageMode           string
+	EtcdHostDataPath          string
+	EtcdNodeSelectorLabels    string
+	EtcdNodeSelectorLabelsMap map[string]string
+	EtcdPersistentVolumeSize  string
+	EtcdPriorityClass         string
+
+	// external etcd
+	ExternalEtcdCACertPath     string
+	ExternalEtcdClientCertPath string
+	ExternalEtcdClientKeyPath  string
+	ExternalEtcdServers        string
+	ExternalEtcdKeyPrefix      string
+
+	// karmada-apiserver
+	KarmadaAPIServerImage            string
+	KarmadaAPIServerReplicas         int32
+	KarmadaAPIServerAdvertiseAddress string
+	KarmadaAPIServerNodePort         int32
+	KarmadaAPIServerIP               []net.IP
+	KarmadaAPIServerPriorityClass    string
+
+	// karmada-scheduler
+	KarmadaSchedulerImage         string
+	KarmadaSchedulerReplicas      int32
+	KarmadaSchedulerPriorityClass string
+
+	// kube-controller-manager
 	KubeControllerManagerImage         string
 	KubeControllerManagerReplicas      int32
-	KarmadaControllerManagerImage      string
-	KarmadaControllerManagerReplicas   int32
-	KarmadaWebhookImage                string
-	KarmadaWebhookReplicas             int32
-	KarmadaAggregatedAPIServerImage    string
-	KarmadaAggregatedAPIServerReplicas int32
-	Namespace                          string
-	KubeConfig                         string
-	Context                            string
-	StorageClassesName                 string
-	KarmadaDataPath                    string
-	KarmadaPkiPath                     string
-	CRDs                               string
-	ExternalIP                         string
-	ExternalDNS                        string
-	PullSecrets                        []string
-	CertValidity                       time.Duration
-	KubeClientSet                      kubernetes.Interface
-	CertAndKeyFileData                 map[string][]byte
-	RestConfig                         *rest.Config
-	KarmadaAPIServerIP                 []net.IP
-	HostClusterDomain                  string
-	WaitComponentReadyTimeout          int
-	CaCertFile                         string
-	CaKeyFile                          string
-	KarmadaInitFilePath                string
+	KubeControllerManagerPriorityClass string
+
+	// karmada-controller-manager
+	KarmadaControllerManagerImage         string
+	KarmadaControllerManagerReplicas      int32
+	KarmadaControllerManagerPriorityClass string
+
+	KarmadaWebhookImage         string
+	KarmadaWebhookReplicas      int32
+	KarmadaWebhookPriorityClass string
+
+	// karamda-aggregated-apiserver
+	KarmadaAggregatedAPIServerImage         string
+	KarmadaAggregatedAPIServerReplicas      int32
+	KarmadaAggregatedAPIServerPriorityClass string
+
+	Namespace          string
+	KubeConfig         string
+	Context            string
+	StorageClassesName string
+	KarmadaDataPath    string
+	KarmadaPkiPath     string
+	CRDs               string
+	ExternalIP         string
+	ExternalDNS        string
+	PullSecrets        []string
+	CertValidity       time.Duration
+	KubeClientSet      kubernetes.Interface
+	CertAndKeyFileData map[string][]byte
+	RestConfig         *rest.Config
+
+	HostClusterDomain         string
+	WaitComponentReadyTimeout int
+	CaCertFile                string
+	CaKeyFile                 string
+	KarmadaInitFilePath       string
 }
 
 func (i *CommandInitOption) validateLocalEtcd(parentCommand string) error {

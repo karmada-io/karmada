@@ -232,7 +232,8 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 
 	// etcd Container
 	podSpec := corev1.PodSpec{
-		ImagePullSecrets: i.getImagePullSecrets(),
+		ImagePullSecrets:  i.getImagePullSecrets(),
+		PriorityClassName: i.EtcdPriorityClass,
 		Affinity: &corev1.Affinity{
 			PodAntiAffinity: &corev1.PodAntiAffinity{
 				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
