@@ -76,6 +76,7 @@ spec:
           {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
           resources:
           {{- toYaml .Values.scheduler.resources | nindent 12 }}
+      priorityClassName: {{ .Values.scheduler.priorityClassName }}
       volumes:
       {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
       {{- include "karmada.scheduler.cert.volume" . | nindent 8 }}

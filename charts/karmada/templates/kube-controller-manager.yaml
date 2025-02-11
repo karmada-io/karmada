@@ -84,7 +84,7 @@ spec:
               name: apiserver-cert
               readOnly: true
             {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
-      priorityClassName: system-node-critical
+      priorityClassName: {{ .Values.kubeControllerManager.priorityClassName }}
       volumes:
         - name: apiserver-cert
           secret:

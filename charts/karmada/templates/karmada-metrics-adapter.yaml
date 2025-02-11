@@ -83,6 +83,7 @@ spec:
       tolerations:
       {{- toYaml . | nindent 8 }}
       {{- end }}
+      priorityClassName: {{ .Values.metricsAdapter.priorityClassName }}
       volumes:
         {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
         - name: apiserver-cert

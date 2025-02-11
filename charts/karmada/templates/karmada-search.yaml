@@ -91,6 +91,7 @@ spec:
             timeoutSeconds: 5
           resources:
           {{- toYaml .Values.apiServer.resources | nindent 12 }}
+      priorityClassName: {{ .Values.search.priorityClassName }}
       volumes:
       {{- include "karmada.search.kubeconfig.volume" . | nindent 8 }}
       {{- include "karmada.search.etcd.cert.volume" . | nindent 8 }}
