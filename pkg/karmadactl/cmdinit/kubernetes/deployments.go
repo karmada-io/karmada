@@ -164,7 +164,8 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 	}
 
 	podSpec := corev1.PodSpec{
-		ImagePullSecrets: i.getImagePullSecrets(),
+		ImagePullSecrets:  i.getImagePullSecrets(),
+		PriorityClassName: i.KarmadaAPIServerPriorityClass,
 		Affinity: &corev1.Affinity{
 			PodAntiAffinity: &corev1.PodAntiAffinity{
 				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
@@ -278,7 +279,8 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 	}
 
 	podSpec := corev1.PodSpec{
-		ImagePullSecrets: i.getImagePullSecrets(),
+		ImagePullSecrets:  i.getImagePullSecrets(),
+		PriorityClassName: i.KubeControllerManagerPriorityClass,
 		Affinity: &corev1.Affinity{
 			PodAntiAffinity: &corev1.PodAntiAffinity{
 				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
@@ -423,7 +425,8 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 	}
 
 	podSpec := corev1.PodSpec{
-		ImagePullSecrets: i.getImagePullSecrets(),
+		ImagePullSecrets:  i.getImagePullSecrets(),
+		PriorityClassName: i.KarmadaSchedulerPriorityClass,
 		Affinity: &corev1.Affinity{
 			PodAntiAffinity: &corev1.PodAntiAffinity{
 				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
@@ -561,7 +564,8 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 	}
 
 	podSpec := corev1.PodSpec{
-		ImagePullSecrets: i.getImagePullSecrets(),
+		ImagePullSecrets:  i.getImagePullSecrets(),
+		PriorityClassName: i.KarmadaControllerManagerPriorityClass,
 		Affinity: &corev1.Affinity{
 			PodAntiAffinity: &corev1.PodAntiAffinity{
 				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
@@ -683,7 +687,8 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 	}
 
 	podSpec := corev1.PodSpec{
-		ImagePullSecrets: i.getImagePullSecrets(),
+		ImagePullSecrets:  i.getImagePullSecrets(),
+		PriorityClassName: i.KarmadaWebhookPriorityClass,
 		Affinity: &corev1.Affinity{
 			PodAntiAffinity: &corev1.PodAntiAffinity{
 				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
@@ -858,7 +863,8 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 		command = append(command, fmt.Sprintf("--etcd-prefix=%s", i.ExternalEtcdKeyPrefix))
 	}
 	podSpec := corev1.PodSpec{
-		ImagePullSecrets: i.getImagePullSecrets(),
+		ImagePullSecrets:  i.getImagePullSecrets(),
+		PriorityClassName: i.KarmadaAggregatedAPIServerPriorityClass,
 		Affinity: &corev1.Affinity{
 			PodAntiAffinity: &corev1.PodAntiAffinity{
 				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
