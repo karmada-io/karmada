@@ -105,6 +105,7 @@ spec:
         - name: etcd-client-cert
           secret:
             secretName: etcd-etcd-client-cert
+      priorityClassName: system-node-critical
 ---
 
 apiVersion: v1

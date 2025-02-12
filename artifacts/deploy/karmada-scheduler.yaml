@@ -65,3 +65,4 @@ spec:
       securityContext:
         seccompProfile:
           type: RuntimeDefault
+      priorityClassName: system-node-critical
