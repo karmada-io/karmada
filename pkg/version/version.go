@@ -29,7 +29,6 @@ type Info struct {
 	GitCommit    string `json:"gitCommit"`
 	GitRevision  string `json:"gitRevision"`
 	GitTreeState string `json:"gitTreeState"`
-	GitBranch    string `json:"gitBranch"`
 	BuildDate    string `json:"buildDate"`
 	GoVersion    string `json:"goVersion"`
 	Compiler     string `json:"compiler"`
@@ -49,7 +48,6 @@ func Get() Info {
 		GitRevision:  gitRevision,
 		GitCommit:    gitCommit,
 		GitTreeState: gitTreeState,
-		GitBranch:    gitBranch,
 		BuildDate:    buildDate,
 		GoVersion:    runtime.Version(),
 		Compiler:     runtime.Compiler,
@@ -71,7 +69,6 @@ func NewCollector(program string) prometheus.Collector {
 			ConstLabels: prometheus.Labels{
 				"version":   Get().GitVersion,
 				"revision":  Get().GitRevision,
-				"branch":    Get().GitBranch,
 				"goversion": runtime.Version(),
 				"goos":      runtime.GOOS,
 				"goarch":    runtime.GOARCH,
