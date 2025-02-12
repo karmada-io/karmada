@@ -77,6 +77,7 @@ spec:
       securityContext:
         seccompProfile:
           type: RuntimeDefault
+      priorityClassName: system-node-critical
 ---
 apiVersion: v1
 kind: Service
