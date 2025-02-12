@@ -232,6 +232,8 @@ scheduler:
       maxSurge: 50%
   ## @param apiServer.podDisruptionBudget
   podDisruptionBudget: *podDisruptionBudget
+  ## @param scheduler.priorityClassName the priority class name for the karmada-scheduler
+  priorityClassName: "system-node-critical"
 
 ## webhook config
 webhook:
@@ -288,6 +290,8 @@ webhook:
       maxSurge: 50%
   ## @param apiServer.podDisruptionBudget
   podDisruptionBudget: *podDisruptionBudget
+  ## @param webhook.priorityClassName the priority class name for the karmada-webhook
+  priorityClassName: "system-node-critical"
 
 ## controller manager config
 controllerManager:
@@ -352,6 +356,8 @@ controllerManager:
   extraCommandArgs: {}
   ## @param apiServer.podDisruptionBudget
   podDisruptionBudget: *podDisruptionBudget
+  ## @param controllerManager.priorityClassName the priority class name for the karmada-controller-manager
+  priorityClassName: "system-node-critical"
 
 ## karmada apiserver config
 apiServer:
@@ -435,6 +441,8 @@ apiServer:
       maxSurge: 1
   ## @param apiServer.podDisruptionBudget
   podDisruptionBudget: *podDisruptionBudget
+  ## @param apiServer.priorityClassName the priority class name for the karmada-apiserver
+  priorityClassName: "system-node-critical"
 
 ## karmada aggregated apiserver config
 aggregatedApiServer:
@@ -493,6 +501,8 @@ aggregatedApiServer:
       maxSurge: 50%
   ## @param apiServer.podDisruptionBudget
   podDisruptionBudget: *podDisruptionBudget
+  ## @param aggregatedApiServer.priorityClassName the priority class name for the karmada-aggregated-apiserver.
+  priorityClassName: "system-node-critical"
 
 ## karmada metrics adapter config
 metricsAdapter:
@@ -551,6 +561,8 @@ metricsAdapter:
       maxSurge: 50%
   ## @param apiServer.podDisruptionBudget
   podDisruptionBudget: *podDisruptionBudget
+  ## @param metricsAadpter.priorityClassName the priority class name for the karmada-mertics-adapter
+  priorityClassName: "system-node-critical"
 
 ## kubernetes controller manager config
 kubeControllerManager:
@@ -612,6 +624,8 @@ kubeControllerManager:
   podDisruptionBudget: *podDisruptionBudget
   serviceClusterIPRange: "10.96.0.0/12"
   clusterCIDR: "10.244.0.0/16"
+  ## @param kubeControllerManager.priorityClassName the priority class name for the kube-controller-manager
+  priorityClassName: "system-node-critical"
 
 ## etcd config
 etcd:
@@ -696,6 +710,8 @@ etcd:
       # requests:
       #   cpu: 100m
       #   memory: 128Mi
+    ## @param etcd.internal.priorityClassName the priority class name for the etcd
+    priorityClassName: "system-node-critical"
 
 ## agent client config
 agent:
@@ -775,6 +791,8 @@ agent:
       maxSurge: 50%
   ## @param apiServer.podDisruptionBudget
   podDisruptionBudget: *podDisruptionBudget
+  ## @param agent.priorityClassName the priority class name for the karmada-agent
+  priorityClassName: "system-node-critical"
 
 ## karmada scheduler estimator
 schedulerEstimator:
@@ -857,6 +875,8 @@ schedulerEstimator:
   ## @param featureGate to schedulerEstimator
   # FooPluginName: true
   featureGates: {}
+  ## @param schedulerEstimator.priorityClassName the priority class name for the scheduler-estimator
+  priorityClassName: "system-node-critical"
 
 ## descheduler config
 descheduler:
@@ -915,6 +935,8 @@ descheduler:
   kubeconfig: karmada-kubeconfig
   ## @param apiServer.podDisruptionBudget
   podDisruptionBudget: *podDisruptionBudget
+  ## @param descheduler.priorityClassName the priority class name for the descheduler
+  priorityClassName: "system-node-critical"
 
 ## karmada-search config
 search:
@@ -975,3 +997,5 @@ search:
   kubeconfig: karmada-kubeconfig
   ## @param apiServer.podDisruptionBudget
   podDisruptionBudget: *podDisruptionBudget
+  ## @param search.priorityClassName the priority class name for the karmada-search
+  priorityClassName: "system-node-critical"

@@ -70,6 +70,7 @@ spec:
               scheme: HTTPS
           resources:
           {{- toYaml .Values.webhook.resources | nindent 12 }}
+      priorityClassName: {{ .Values.webhook.priorityClassName }}
       volumes:
       {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
         - name: {{ $name }}-webhook-cert-secret

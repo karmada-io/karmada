@@ -130,6 +130,7 @@ spec:
               mountPath: /etc/kubeconfig
           resources:
           {{- toYaml .Values.agent.resources | nindent 12 }}
+      priorityClassName: {{ .Values.agent.priorityClassName }}
       volumes:
         - name: kubeconfig
           secret:

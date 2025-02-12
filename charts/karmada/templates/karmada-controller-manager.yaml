@@ -41,6 +41,7 @@ spec:
       tolerations:
       {{- toYaml . | nindent 8 }}
       {{- end }}
+      priorityClassName: {{ .Values.controllerManager.priorityClassName }}
       volumes:
       {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
       initContainers:

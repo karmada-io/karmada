@@ -78,6 +78,7 @@ spec:
               mountPath: /etc/{{ $clusterName }}-kubeconfig
           resources:
           {{- toYaml $.Values.schedulerEstimator.resources | nindent 12 }}
+      priorityClassName: {{ $.Values.schedulerEstimator.priorityClassName }}
       volumes:
       {{- include "karmada.scheduler.cert.volume" $ | nindent 8 }}
         - name: member-kubeconfig
