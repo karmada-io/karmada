@@ -144,7 +144,7 @@ clientConfig:
   caBundle: {{caBundle}}
 ```
 
-Alternatively, you can also define service in clientConfig, which requires you to deploy a Service of type ExternalName in `Karmada-apiserver`:
+Alternatively, you can also declare service in clientConfig:
 
 ```yaml
 clientConfig:
@@ -156,7 +156,7 @@ clientConfig:
     path: /interpreter-workload
 ```
 
-Deploy the Service in `karmada-apiserver`.
+You can deploy a `ExternalName` type Service in `karmada-apiserver`:
 
 ```yaml
 apiVersion: v1
@@ -168,6 +168,8 @@ spec:
   type: ExternalName
   externalName: karmada-interpreter-webhook-example.karmada-system.svc.cluster.local
 ```
+
+Or you do not need to deploy any Service in `karmada-apiserver`, it will fall back to standard Kubernetes service DNS name format: `https://karmada-interpreter-webhook-example.karmada-system.svc:443/interpreter-workload`.
 
 In the example of this article, you can directly run the following script to deploy ResourceInterpreterWebhookConfiguration:
 
