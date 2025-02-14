@@ -17,17 +17,21 @@ limitations under the License.
 package unjoin
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
@@ -194,8 +198,20 @@ func (j *CommandUnjoinOption) RunUnJoinCluster(controlPlaneRestConfig, clusterCo
 	controlPlaneKarmadaClient := controlPlaneKarmadaClientBuilder(controlPlaneRestConfig)
 	controlPlaneKubeClient := controlPlaneKubeClientBuilder(controlPlaneRestConfig)
 
+	target, err := controlPlaneKarmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), j.ClusterName, metav1.GetOptions{})
+	if apierrors.IsNotFound(err) {
+		return fmt.Errorf("no cluster object %s found in karmada control Plane", j.ClusterName)
+	}
+	if err != nil {
+		klog.Errorf("Failed to get cluster object. cluster name: %s, error: %v", j.ClusterName, err)
+		return err
+	}
+	if target.Spec.SyncMode == clusterv1alpha1.Pull {
+		return fmt.Errorf("cluster %s is a %s mode member cluster, please use command `unregister` if you want to continue unregistering the cluster", j.ClusterName, target.Spec.SyncMode)
+	}
+
 	// delete the cluster object in host cluster that associates the unjoining cluster
-	err := cmdutil.DeleteClusterObject(controlPlaneKubeClient, controlPlaneKarmadaClient, j.ClusterName, j.Wait, j.DryRun, j.forceDeletion)
+	err = cmdutil.DeleteClusterObject(controlPlaneKubeClient, controlPlaneKarmadaClient, j.ClusterName, j.Wait, j.DryRun, j.forceDeletion)
 	if err != nil {
 		klog.Errorf("Failed to delete cluster object. cluster name: %s, error: %v", j.ClusterName, err)
 		return err
