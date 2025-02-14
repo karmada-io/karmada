@@ -23,10 +23,10 @@ package version
 // version for ad-hoc builds (e.g. `go build`) that cannot get the version
 // information from git.
 var (
-	gitVersion   = "v0.0.0-master"
-	gitCommit    = "unknown" // sha1 from git, output of $(git rev-parse HEAD)
-	gitTreeState = "unknown" // state of git tree, either "clean" or "dirty"
-	gitRevision  = "unknown" // short sha1 for git, output of $(git rev-parse --short HEAD)
+	gitVersion            = "v0.0.0-master"
+	gitCommit             = "unknown" // sha1 from git, output of $(git rev-parse HEAD)
+	gitTreeState          = "unknown" // state of git tree, either "clean" or "dirty"
+	gitAbbreviativeCommit = "unknown" // short sha1 from git, output of $(git rev-parse --short HEAD)
 
 	buildDate = "unknown" // build date in ISO8601 format, output of $(date -u +'%Y-%m-%dT%H:%M:%SZ')
 )
