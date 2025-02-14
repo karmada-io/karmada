@@ -135,6 +135,7 @@ func (c *ClusterStatusController) Reconcile(ctx context.Context, req controllerr
 			c.GenericInformerManager.Stop(req.NamespacedName.Name)
 			c.TypedInformerManager.Stop(req.NamespacedName.Name)
 			c.clusterConditionCache.delete(req.NamespacedName.Name)
+			metrics.CleanupMetricsForCluster(req.NamespacedName.Name)
 
 			// stop lease controller after the cluster is gone.
 			// only used for clusters in Pull mode because no need to set up lease syncing for Push clusters.
