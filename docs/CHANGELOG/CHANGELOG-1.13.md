@@ -2,9 +2,9 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.13.0-beta.0](#v1130-beta0)
-  - [Downloads for v1.13.0-beta.0](#downloads-for-v1130-beta0)
-  - [Changelog since v1.13.0-alpha.2](#changelog-since-v1130-alpha2)
+- [v1.13.0-rc.0](#v1130-rc0)
+  - [Downloads for v1.13.0-rc.0](#downloads-for-v1130-rc0)
+  - [Changelog since v1.13.0-beta.0](#changelog-since-v1130-beta0)
   - [Urgent Update Notes](#urgent-update-notes)
   - [Changes by Kind](#changes-by-kind)
     - [API Changes](#api-changes)
@@ -16,9 +16,9 @@
     - [Dependencies](#dependencies)
     - [Helm Charts](#helm-charts)
     - [Instrumentation](#instrumentation)
-- [v1.13.0-alpha.2](#v1130-alpha2)
-  - [Downloads for v1.13.0-alpha.2](#downloads-for-v1130-alpha2)
-  - [Changelog since v1.13.0-alpha.1](#changelog-since-v1130-alpha1)
+- [v1.13.0-beta.0](#v1130-beta0)
+  - [Downloads for v1.13.0-beta.0](#downloads-for-v1130-beta0)
+  - [Changelog since v1.13.0-alpha.2](#changelog-since-v1130-alpha2)
   - [Urgent Update Notes](#urgent-update-notes-1)
   - [Changes by Kind](#changes-by-kind-1)
     - [API Changes](#api-changes-1)
@@ -30,9 +30,9 @@
     - [Dependencies](#dependencies-1)
     - [Helm Charts](#helm-charts-1)
     - [Instrumentation](#instrumentation-1)
-- [v1.13.0-alpha.1](#v1130-alpha1)
-  - [Downloads for v1.13.0-alpha.1](#downloads-for-v1130-alpha1)
-  - [Changelog since v1.12.0](#changelog-since-v1120)
+- [v1.13.0-alpha.2](#v1130-alpha2)
+  - [Downloads for v1.13.0-alpha.2](#downloads-for-v1130-alpha2)
+  - [Changelog since v1.13.0-alpha.1](#changelog-since-v1130-alpha1)
   - [Urgent Update Notes](#urgent-update-notes-2)
   - [Changes by Kind](#changes-by-kind-2)
     - [API Changes](#api-changes-2)
@@ -44,8 +44,63 @@
     - [Dependencies](#dependencies-2)
     - [Helm Charts](#helm-charts-2)
     - [Instrumentation](#instrumentation-2)
+- [v1.13.0-alpha.1](#v1130-alpha1)
+  - [Downloads for v1.13.0-alpha.1](#downloads-for-v1130-alpha1)
+  - [Changelog since v1.12.0](#changelog-since-v1120)
+  - [Urgent Update Notes](#urgent-update-notes-3)
+  - [Changes by Kind](#changes-by-kind-3)
+    - [API Changes](#api-changes-3)
+    - [Features & Enhancements](#features--enhancements-3)
+    - [Deprecation](#deprecation-3)
+    - [Bug Fixes](#bug-fixes-3)
+    - [Security](#security-3)
+  - [Other](#other-3)
+    - [Dependencies](#dependencies-3)
+    - [Helm Charts](#helm-charts-3)
+    - [Instrumentation](#instrumentation-3)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.13.0-rc.0
+## Downloads for v1.13.0-rc.0
+
+Download v1.13.0-rc.0 in the [v1.13.0-rc.0 release page](https://github.com/karmada-io/karmada/releases/tag/v1.13.0-rc.0).
+
+## Changelog since v1.13.0-beta.0
+
+## Urgent Update Notes
+None.
+
+## Changes by Kind
+
+### API Changes
+None.
+
+### Features & Enhancements
+- `karmada-controller-manager`: FlinkDeployment health interpreter improvements, adding status.error to reflected status. ([#6073](https://github.com/karmada-io/karmada/pull/6073), @mszacillo)
+- `karmada-operator`: standardize the naming of karmada config in karmada-operator installation method. ([#6082](https://github.com/karmada-io/karmada/pull/6082), @seanlaii)
+- `karmadactl`: command `init` now can specify the priority class name of the karmada components, default to `system-node-critical`. ([#6110](https://github.com/karmada-io/karmada/pull/6110), @zhzhuang-zju)
+- `karmadactl`: The `unjoin` command is restricted to only unjoin push mode member clusters. The `unregister` command is restricted to only unregister pull mode member clusters. ([#6081](https://github.com/karmada-io/karmada/pull/6081), @zhzhuang-zju)
+
+### Deprecation
+None.
+
+### Bug Fixes
+- `karmada-operator`: fix the "no such host" error when accessing the /convert webhook if Karmada instance is deployed in a namespace other than karmada-system. ([#6079](https://github.com/karmada-io/karmada/pull/6079), @zhzhuang-zju)
+- `karmadactl`: fix the "no such host" error when accessing the /convert webhook if Karmada instance is deployed in a namespace other than karmada-system via the `init` command. ([#6079](https://github.com/karmada-io/karmada/pull/6079), @zhzhuang-zju)
+
+### Security
+None.
+
+## Other
+### Dependencies
+None.
+
+### Helm Charts
+- `helm`: The new `PriorityClassName` field added as part of the Karmada control plane component configurations can be used to specify the priority class name of that component, default to `system-node-critical`. ([#6108](https://github.com/karmada-io/karmada/pull/6108), @zhzhuang-zju)
+
+### Instrumentation
+- The cluster status-related metrics, emitting from `karmada-controller-manager`, will be cleaned up after the cluster is removed. ([#5866](https://github.com/karmada-io/karmada/pull/5866), @CharlesQQ)
 
 # v1.13.0-beta.0
 ## Downloads for v1.13.0-beta.0
