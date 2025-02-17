@@ -707,15 +707,10 @@ function util::get_version() {
   git describe --tags --dirty
 }
 
-function util::get_revision() {
-  git rev-parse --short HEAD
-}
-
 function util::version_ldflags() {
   # Git information
   GIT_VERSION=$(util::get_version)
-  # Git revision
-  GIT_ABBREVIATIVE_COMMIT=$(util::get_revision)
+  GIT_ABBREVIATIVE_COMMIT=$(git rev-parse --short HEAD)
   GIT_COMMIT_HASH=$(git rev-parse HEAD)
   if git_status=$(git status --porcelain 2>/dev/null) && [[ -z ${git_status} ]]; then
     GIT_TREESTATE="clean"
