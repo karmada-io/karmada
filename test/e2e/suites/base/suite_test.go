@@ -117,6 +117,7 @@ var (
 	restMapper            meta.RESTMapper
 	controlPlaneClient    client.Client
 	testNamespace         string
+	testNamespace2        string
 	clusterProvider       *cluster.Provider
 	clusterLabels         = map[string]string{"location": "CHN"}
 	pushModeClusterLabels = map[string]string{"sync-mode": "Push"}
@@ -185,6 +186,10 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 
 	testNamespace = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
 	err = setupTestNamespace(testNamespace, kubeClient)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	testNamespace2 = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
+	err = setupTestNamespace(testNamespace2, kubeClient)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	framework.WaitNamespacePresentOnClusters(framework.ClusterNames(), testNamespace)
