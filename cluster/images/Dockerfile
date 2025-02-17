@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM alpine:3.21.2
+FROM alpine:3.21.3
 
 ARG BINARY
 
