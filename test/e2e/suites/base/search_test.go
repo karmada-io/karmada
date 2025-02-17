@@ -362,6 +362,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 			m1Client, m2Client, proxyClient kubernetes.Interface
 			m1Dynamic, m2Dynamic            dynamic.Interface
 			nodeGVR                         = corev1.SchemeGroupVersion.WithResource("nodes")
+			secretGVR                       = corev1.SchemeGroupVersion.WithResource("secrets")
 		)
 
 		ginkgo.BeforeAll(func() {
@@ -721,7 +722,108 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 					gomega.Expect(metav1.HasAnnotation(node.ObjectMeta, clusterv1alpha1.CacheSourceAnnotationKey)).Should(gomega.BeFalse())
 				})
 			})
+
+			ginkgo.Context("caching secret via two ResourceRegistry configurations from different namespaces", func() {
+				var m1SecretName1, m1SecretName2 string
+				var m1Secret1, m1Secret2 *corev1.Secret
+				var member1Client kubernetes.Interface
+
+				var rrName string
+				var rr *searchv1alpha1.ResourceRegistry
+				var rr2Name string
+				var rr2 *searchv1alpha1.ResourceRegistry
+
+				ginkgo.BeforeAll(func() {
+					member1Client = framework.GetClusterClient(member1)
+					gomega.Expect(member1Client).ShouldNot(gomega.BeNil())
+					// create two secrets in two different namespaces
+					m1SecretName1 = secretNamePrefix + rand.String(RandomStrLength)
+					m1Secret1 = testhelper.NewSecret(testNamespace, m1SecretName1, map[string][]byte{"user": []byte("karmada")})
+					framework.CreateSecret(member1Client, m1Secret1)
+
+					m1SecretName2 = secretNamePrefix + rand.String(RandomStrLength)
+					m1Secret2 = testhelper.NewSecret(secondaryTestNamespace, m1SecretName2, map[string][]byte{"user": []byte("karmada")})
+					framework.CreateSecret(member1Client, m1Secret2)
+					// create two resourceRegistries,same cluster with different namespaces
+					rrName = resourceRegistryPrefix + rand.String(RandomStrLength)
+					rr = &searchv1alpha1.ResourceRegistry{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: rrName,
+						},
+						Spec: searchv1alpha1.ResourceRegistrySpec{
+							TargetCluster: policyv1alpha1.ClusterAffinity{
+								ClusterNames: []string{member1},
+							},
+							ResourceSelectors: []searchv1alpha1.ResourceSelector{
+								{
+									APIVersion: "v1",
+									Kind:       "Secret",
+									Namespace:  testNamespace,
+								},
+							},
+						},
+					}
+					framework.CreateResourceRegistry(karmadaClient, rr)
+
+					rr2Name = resourceRegistryPrefix + rand.String(RandomStrLength)
+					rr2 = &searchv1alpha1.ResourceRegistry{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: rr2Name,
+						},
+						Spec: searchv1alpha1.ResourceRegistrySpec{
+							TargetCluster: policyv1alpha1.ClusterAffinity{
+								ClusterNames: []string{member1},
+							},
+							ResourceSelectors: []searchv1alpha1.ResourceSelector{
+								{
+									APIVersion: "v1",
+									Kind:       "Secret",
+									Namespace:  secondaryTestNamespace,
+								},
+							},
+						},
+					}
+					framework.CreateResourceRegistry(karmadaClient, rr2)
+				})
+
+				ginkgo.AfterAll(func() {
+					framework.RemoveSecret(member1Client, testNamespace, m1SecretName1)
+					framework.RemoveSecret(member1Client, secondaryTestNamespace, m1SecretName2)
+					framework.RemoveResourceRegistry(karmadaClient, rrName)
+					framework.RemoveResourceRegistry(karmadaClient, rr2Name)
+				})
+
+				ginkgo.It("all secrets should be listed from two namespaces", func() {
+					fromM1TestNamespace := framework.GetResourceNames(m1Dynamic.Resource(secretGVR).Namespace(testNamespace))
+					ginkgo.By(fmt.Sprintf("list secret from cluster %s namespace %s: %s", member1, testNamespace, strings.Join(sets.List(fromM1TestNamespace), ",")))
+
+					fromM1TestNamespace2 := framework.GetResourceNames(m1Dynamic.Resource(secretGVR).Namespace(secondaryTestNamespace))
+					ginkgo.By(fmt.Sprintf("list secret from cluster %s namespace %s: %s", member1, secondaryTestNamespace, strings.Join(sets.List(fromM1TestNamespace2), ",")))
+					fromMembers := sets.New[string]().Union(fromM1TestNamespace).Union(fromM1TestNamespace2)
+
+					var proxyList *corev1.SecretList
+					gomega.Eventually(func(g gomega.Gomega) {
+						var err error
+						proxyList, err = proxyClient.CoreV1().Secrets(testNamespace).List(context.TODO(), metav1.ListOptions{})
+						g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+						fromProxy := sets.New[string]()
+						for _, item := range proxyList.Items {
+							fromProxy.Insert(item.Name)
+						}
+
+						proxyList, err = proxyClient.CoreV1().Secrets(secondaryTestNamespace).List(context.TODO(), metav1.ListOptions{})
+						g.Expect(err).ShouldNot(gomega.HaveOccurred())
+						for _, item := range proxyList.Items {
+							fromProxy.Insert(item.Name)
+						}
+
+						g.Expect(fromProxy).Should(gomega.Equal(fromMembers))
+					}, pollTimeout, pollInterval).Should(gomega.Succeed())
+				})
+			})
 		})
+
 	})
 })
 
