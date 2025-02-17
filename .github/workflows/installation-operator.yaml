@@ -59,7 +59,7 @@ jobs:
           export KUBECONFIG=${HOME}/.kube/karmada.config
           kubectl config use-context karmada-apiserver
           GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
-          ginkgo -v --race --trace -p  --focus="[BasicPropagation] propagation testing deployment propagation testing"  ./test/e2e/
+          ginkgo -v --race --trace -p  --focus="[BasicPropagation] propagation testing deployment propagation testing"  ./test/e2e/suites/base
       - name: export logs
         if: always()
         run: |
