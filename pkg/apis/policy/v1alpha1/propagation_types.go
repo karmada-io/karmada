@@ -200,6 +200,23 @@ type PropagationSpec struct {
 	//
 	// +optional
 	PreserveResourcesOnDeletion *bool `json:"preserveResourcesOnDeletion,omitempty"`
+
+	// SchedulePriority defines how Karmada should resolve the priority and preemption policy
+	// for workload scheduling.
+	//
+	// This setting is useful for controlling the scheduling behavior of offline workloads.
+	// By setting a higher or lower priority, users can control which workloads are scheduled first.
+	// Additionally, it allows specifying a preemption policy where higher-priority workloads can
+	// preempt lower-priority ones in scenarios of resource contention.
+	//
+	// Note: This feature is currently in the alpha stage. The priority-based scheduling functionality is
+	// controlled by the PriorityBasedScheduling feature gate, and preemption is controlled by the
+	// PriorityBasedPreemptiveScheduling feature gate. Currently, only priority-based scheduling is
+	// supported. Preemption functionality is not yet available and will be introduced in future
+	// releases as the feature matures.
+	//
+	// +optional
+	SchedulePriority *SchedulePriority `json:"schedulePriority,omitempty"`
 }
 
 // ResourceSelector the resources will be selected.
@@ -658,6 +675,60 @@ const (
 	// in other words, the resource template will not be propagated as per the current propagation rules until
 	// there is an update on it.
 	LazyActivation ActivationPreference = "Lazy"
+)
+
+// SchedulePriority defines how Karmada should resolve the priority and preemption policy
+// for workload scheduling.
+type SchedulePriority struct {
+	// PriorityClassSource specifies where Karmada should look for the PriorityClass definition.
+	// Available options:
+	// - KubePriorityClass (default): Uses Kubernetes PriorityClass (scheduling.k8s.io/v1)
+	// - PodPriorityClass: Uses PriorityClassName from PodTemplate: PodSpec.PriorityClassName (not yet implemented)
+	// - FederatedPriorityClass: Uses Karmada FederatedPriorityClass (not yet implemented)
+	//
+	// +kubebuilder:default="KubePriorityClass"
+	// +kubebuilder:validation:Enum=KubePriorityClass
+	// +optional
+	PriorityClassSource PriorityClassSource `json:"priorityClassSource,omitempty"`
+
+	// PriorityClassName specifies which PriorityClass to use. Its behavior depends on PriorityClassSource:
+	//
+	// Behavior of PriorityClassName:
+	//
+	// For KubePriorityClass:
+	// - When specified: Uses the named Kubernetes PriorityClass.
+	// - When empty: Uses the cluster's default PriorityClass (i.e., the PriorityClass marked as the global default in the cluster).
+	// - If neither exists: Sets priority=0 and preemptionPolicy=Never.
+	//
+	// For PodPriorityClass:
+	// - Uses PriorityClassName from the PodTemplate.
+	// - If the specified PriorityClass is not found, falls back to the cluster's default PriorityClass
+	//   (i.e., the PriorityClass marked as the global default in the cluster).
+	// - If no valid PriorityClass is found: Sets priority=0 and preemptionPolicy=Never.
+	// - Not yet implemented.
+	//
+	// For FederatedPriorityClass:
+	// - Not yet implemented.
+	//
+	// +required
+	PriorityClassName string `json:"priorityClassName,omitempty"`
+}
+
+// PriorityClassSource defines the type for PriorityClassSource field.
+type PriorityClassSource string
+
+const (
+	// FederatedPriorityClass specifies to use Karmada FederatedPriorityClass for priority resolution.
+	// This feature is planned for future releases and is currently not implemented.
+	FederatedPriorityClass PriorityClassSource = "FederatedPriorityClass"
+
+	// KubePriorityClass specifies to use Kubernetes native PriorityClass (scheduling.k8s.io/v1)
+	// for priority resolution. This is the default source.
+	KubePriorityClass PriorityClassSource = "KubePriorityClass"
+
+	// PodPriorityClass specifies to use the PriorityClassName defined in the workload's
+	// PodTemplate for priority resolution.
+	PodPriorityClass PriorityClassSource = "PodPriorityClass"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
