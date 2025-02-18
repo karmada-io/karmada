@@ -44,6 +44,7 @@ jobs:
           hack/cli-testing-environment.sh
 
           # run a single e2e
+          export PULL_BASED_CLUSTERS="member1:${HOME}/.kube/member1.config"  
           export KUBECONFIG=${HOME}/.kube/karmada-host.config:${HOME}/karmada/karmada-apiserver.config
           GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
           ginkgo -v --race --trace -p  --focus="[BasicPropagation] propagation testing deployment propagation testing"  ./test/e2e/suites/base
@@ -87,6 +88,7 @@ jobs:
           hack/cli-testing-init-with-config.sh
           
           # run a single e2e
+          export PULL_BASED_CLUSTERS="config-member1:${HOME}/.kube/config-member1.config"
           export KUBECONFIG=${HOME}/.kube/karmada-host.config:${HOME}/karmada/karmada-apiserver.config
           GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
           ginkgo -v --race --trace -p  --focus="[BasicPropagation] propagation testing deployment propagation testing"  ./test/e2e/suites/base
