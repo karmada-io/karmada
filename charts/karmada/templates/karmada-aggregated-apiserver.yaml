@@ -45,9 +45,9 @@ spec:
               readOnly: true
           command:
             - /bin/karmada-aggregated-apiserver
-            - --kubeconfig=/etc/kubeconfig
-            - --authentication-kubeconfig=/etc/kubeconfig
-            - --authorization-kubeconfig=/etc/kubeconfig
+            - --kubeconfig=/etc/karmada/config/karmada.config
+            - --authentication-kubeconfig=/etc/karmada/config/karmada.config
+            - --authorization-kubeconfig=/etc/karmada/config/karmada.config
             {{- if eq .Values.etcd.mode "external" }}
             - --etcd-cafile=/etc/etcd/pki/ca.crt
             - --etcd-certfile=/etc/etcd/pki/tls.crt
@@ -99,7 +99,9 @@ spec:
       {{- end }}
       priorityClassName: {{ .Values.aggregatedApiServer.priorityClassName }}
       volumes:
-        {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
+        - name: karmada-config
+          secret:
+            secretName: {{ $name }}-aggregated-apiserver-config
         - name: apiserver-cert
           secret:
             secretName: {{ $name }}-cert
