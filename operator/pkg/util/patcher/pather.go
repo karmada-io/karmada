@@ -41,6 +41,7 @@ type Patcher struct {
 	extraArgs         map[string]string
 	extraVolumes      []corev1.Volume
 	extraVolumeMounts []corev1.VolumeMount
+	sidecarContainers []corev1.Container
 	featureGates      map[string]bool
 	volume            *operatorv1alpha1.VolumeData
 	resources         corev1.ResourceRequirements
@@ -84,6 +85,12 @@ func (p *Patcher) WithExtraVolumes(extraVolumes []corev1.Volume) *Patcher {
 // WithExtraVolumeMounts sets extra volume mounts for the patcher.
 func (p *Patcher) WithExtraVolumeMounts(extraVolumeMounts []corev1.VolumeMount) *Patcher {
 	p.extraVolumeMounts = extraVolumeMounts
+	return p
+}
+
+// WithSidecarContainers sets sidecar containers for the patcher.
+func (p *Patcher) WithSidecarContainers(sidecarContainers []corev1.Container) *Patcher {
+	p.sidecarContainers = sidecarContainers
 	return p
 }
 
@@ -144,6 +151,7 @@ func (p *Patcher) ForDeployment(deployment *appsv1.Deployment) {
 		command = append(command, buildArgumentListFromMap(argsMap, overrideArgs)...)
 		deployment.Spec.Template.Spec.Containers[0].Command = command
 	}
+	deployment.Spec.Template.Spec.Containers = append(deployment.Spec.Template.Spec.Containers, p.sidecarContainers...)
 	// Add extra volumes and volume mounts
 	// First container in the pod is expected to contain the Karmada component
 	deployment.Spec.Template.Spec.Volumes = append(deployment.Spec.Template.Spec.Volumes, p.extraVolumes...)
