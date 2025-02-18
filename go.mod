@@ -1,6 +1,6 @@
 module github.com/karmada-io/karmada
 
-go 1.22.11 // keep in sync with .go-version
+go 1.22.12 // keep in sync with .go-version
 
 require (
 	github.com/adhocore/gronx v1.6.3
