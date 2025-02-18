@@ -52,7 +52,7 @@ spec:
           imagePullPolicy: {{ .Values.controllerManager.image.pullPolicy }}
           command:
             - /bin/karmada-controller-manager
-            - --kubeconfig=/etc/kubeconfig
+            - --kubeconfig=/etc/karmada/config/karmada.config
             - --cluster-status-update-frequency=10s
             - --leader-elect-resource-namespace={{ $systemNamespace }}
             - --health-probe-bind-address=0.0.0.0:10357
