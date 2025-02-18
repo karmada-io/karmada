@@ -47,8 +47,8 @@ spec:
         - command:
             - kube-controller-manager
             - --allocate-node-cidrs=true
-            - --authentication-kubeconfig=/etc/kubeconfig
-            - --authorization-kubeconfig=/etc/kubeconfig
+            - --authentication-kubeconfig=/etc/karmada/config/karmada.config
+            - --authorization-kubeconfig=/etc/karmada/config/karmada.config
             - --bind-address=0.0.0.0
             - --client-ca-file=/etc/karmada/pki/server-ca.crt
             - --cluster-cidr={{ .Values.kubeControllerManager.clusterCIDR }}
@@ -56,7 +56,7 @@ spec:
             - --cluster-signing-cert-file=/etc/karmada/pki/server-ca.crt
             - --cluster-signing-key-file=/etc/karmada/pki/server-ca.key
             - --controllers={{ .Values.kubeControllerManager.controllers }}
-            - --kubeconfig=/etc/kubeconfig
+            - --kubeconfig=/etc/karmada/config/karmada.config
             - --leader-elect=true
             - --node-cidr-mask-size=24
             - --root-ca-file=/etc/karmada/pki/server-ca.crt
@@ -89,7 +89,9 @@ spec:
         - name: apiserver-cert
           secret:
             secretName: {{ $name }}-cert
-        {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
+        - name: karmada-config
+          secret:
+            secretName: {{ $name }}-kube-controller-manager-config
 
 {{ if .Values.kubeControllerManager.podDisruptionBudget }}
 ---
