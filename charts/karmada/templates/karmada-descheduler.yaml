@@ -49,7 +49,7 @@ spec:
           imagePullPolicy: {{ .Values.descheduler.image.pullPolicy }}
           command:
             - /bin/karmada-descheduler
-            - --kubeconfig=/etc/kubeconfig
+            - --kubeconfig=/etc/karmada/config/karmada.config
             - --metrics-bind-address=0.0.0.0:8080
             - --health-probe-bind-address=0.0.0.0:10358
             - --leader-elect-resource-namespace={{ $systemNamespace }}

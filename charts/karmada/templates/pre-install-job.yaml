@@ -331,14 +331,44 @@ data:
         {{ print "{{ crt }}" }}
       tls.key: |-
         {{ print "{{ key }}" }}
+  {{- range $component := (include "karmada.kubeconfigComponents" . | fromYamlArray) }}
+  {{- if eq (include "karmada.shouldCreateComponentKubeconfig" (dict "component" $component "components" $.Values.components)) "true" }}
+  {{ $component }}-kubeconfig.yaml: |- 
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: {{ $name }}-{{ $component }}-config
+      namespace: {{ $namespace }}
+    stringData:
+      karmada.config: |-
+        apiVersion: v1
+        kind: Config
+        clusters:
+          - cluster:
+              certificate-authority-data: {{ print "{{ ca_crt }}" }}
+              server: https://{{ $name }}-apiserver.{{ $namespace }}.svc.{{ $.Values.clusterDomain }}:5443
+            name: {{ $name }}-apiserver
+        users:
+          - user:
+              client-certificate-data: {{ print "{{ crt }}" }}
+              client-key-data: {{ print "{{ key }}" }}
+            name: {{ $name }}-apiserver
+        contexts:
+          - context:
+              cluster: {{ $name }}-apiserver
+              user: {{ $name }}-apiserver
+            name: {{ $name }}-apiserver
+        current-context: {{ $name }}-apiserver
+  {{- end }}
+  {{- end }}
   kubeconfig.yaml: |-
     apiVersion: v1
     kind: Secret
     metadata:
-      name: {{ $name }}-kubeconfig
+      name: {{ $name }}-config
       namespace: {{ $namespace }}
     stringData:
-      kubeconfig: |-
+      karmada.config: |-
         apiVersion: v1
         kind: Config
         clusters:
@@ -467,6 +497,13 @@ spec:
           sed -i'' -e "s/{{ print "{{ key }}" }}/${karmada_key}/g" /opt/configs/webhook-cert.yaml
           sed -i'' -e "s/{{ print "{{ ca_crt }}" }}/${karmada_ca}/g" /opt/configs/static-resources-configmaps.yaml
           sed -i'' -e "s/{{ print "{{ ca_crt }}" }}/${karmada_ca}/g" /opt/configs/crds-patches-configmaps.yaml
+          {{- range $component := (include "karmada.kubeconfigComponents" . | fromYamlArray) }}
+          {{- if eq (include "karmada.shouldCreateComponentKubeconfig" (dict "component" $component "components" $.Values.components)) "true" }}
+          sed -i'' -e "s/{{ print "{{ ca_crt }}" }}/${karmada_ca}/g" /opt/configs/{{ $component }}-kubeconfig.yaml
+          sed -i'' -e "s/{{ print "{{ crt }}" }}/${karmada_crt}/g" /opt/configs/{{ $component }}-kubeconfig.yaml
+          sed -i'' -e "s/{{ print "{{ key }}" }}/${karmada_key}/g" /opt/configs/{{ $component }}-kubeconfig.yaml
+          {{- end }}
+          {{- end }}
           EOF
         volumeMounts:
         - name: mount

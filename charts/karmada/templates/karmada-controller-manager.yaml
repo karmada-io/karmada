@@ -43,7 +43,9 @@ spec:
       {{- end }}
       priorityClassName: {{ .Values.controllerManager.priorityClassName }}
       volumes:
-      {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
+        - name: karmada-config
+          secret:
+            secretName: {{ $name }}-controller-manager-config
       initContainers:
         {{- include "karmada.initContainer.waitStaticResource" . | nindent 8 }}
       containers:
@@ -52,7 +54,7 @@ spec:
           imagePullPolicy: {{ .Values.controllerManager.image.pullPolicy }}
           command:
             - /bin/karmada-controller-manager
-            - --kubeconfig=/etc/kubeconfig
+            - --kubeconfig=/etc/karmada/config/karmada.config
             - --cluster-status-update-frequency=10s
             - --leader-elect-resource-namespace={{ $systemNamespace }}
             - --health-probe-bind-address=0.0.0.0:10357

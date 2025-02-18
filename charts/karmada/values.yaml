@@ -945,7 +945,7 @@ descheduler:
       maxUnavailable: 0
       maxSurge: 50%
   ## @param descheduler.kubeconfig kubeconfig of the descheduler
-  kubeconfig: karmada-kubeconfig
+  kubeconfig: karmada-config
   ## @param apiServer.podDisruptionBudget
   podDisruptionBudget: *podDisruptionBudget
   ## @param descheduler.priorityClassName the priority class name for the descheduler
@@ -1007,7 +1007,7 @@ search:
   ## @param search.certs certs of the search
   certs: karmada-cert
   ## @param search.kubeconfig kubeconfig of the search
-  kubeconfig: karmada-kubeconfig
+  kubeconfig: karmada-config
   ## @param apiServer.podDisruptionBudget
   podDisruptionBudget: *podDisruptionBudget
   ## @param search.priorityClassName the priority class name for the karmada-search

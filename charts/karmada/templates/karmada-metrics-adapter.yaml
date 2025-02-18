@@ -43,10 +43,10 @@ spec:
               readOnly: true
           command:
             - /bin/karmada-metrics-adapter
-            - --kubeconfig=/etc/kubeconfig
+            - --kubeconfig=/etc/karmada/config/karmada.config
             - --metrics-bind-address=:8080
-            - --authentication-kubeconfig=/etc/kubeconfig
-            - --authorization-kubeconfig=/etc/kubeconfig
+            - --authentication-kubeconfig=/etc/karmada/config/karmada.config
+            - --authorization-kubeconfig=/etc/karmada/config/karmada.config
             - --tls-cert-file=/etc/kubernetes/pki/karmada.crt
             - --tls-private-key-file=/etc/kubernetes/pki/karmada.key
             - --audit-log-path=-
@@ -85,7 +85,9 @@ spec:
       {{- end }}
       priorityClassName: {{ .Values.metricsAdapter.priorityClassName }}
       volumes:
-        {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
+        - name: karmada-config
+          secret:
+            secretName: {{ $name }}-metrics-adapter-config
         - name: apiserver-cert
           secret:
             secretName: {{ $name }}-cert

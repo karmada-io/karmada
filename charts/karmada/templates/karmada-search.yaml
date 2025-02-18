@@ -53,14 +53,12 @@ spec:
             - name: etcd-certs
               mountPath: /etc/etcd/pki
               readOnly: true
-            - name: kubeconfig-secret
-              subPath: kubeconfig
-              mountPath: /etc/kubeconfig
+          {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
           command:
             - /bin/karmada-search
-            - --kubeconfig=/etc/kubeconfig
-            - --authentication-kubeconfig=/etc/kubeconfig
-            - --authorization-kubeconfig=/etc/kubeconfig
+            - --kubeconfig=/etc/karmada/config/karmada.config
+            - --authentication-kubeconfig=/etc/karmada/config/karmada.config
+            - --authorization-kubeconfig=/etc/karmada/config/karmada.config
             {{- if eq .Values.etcd.mode "external" }}
             - --etcd-cafile=/etc/etcd/pki/ca.crt
             - --etcd-certfile=/etc/etcd/pki/tls.crt
@@ -160,7 +158,7 @@ spec:
             - |
               bash <<'EOF'
               set -ex
-              kubectl apply -f /search-apiservice --kubeconfig /etc/kubeconfig
+              kubectl apply -f /search-apiservice --kubeconfig /etc/karmada/config/karmada.config
               EOF
           volumeMounts:
             - name: {{ $name }}-search-apiservice
