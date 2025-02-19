@@ -37,7 +37,12 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-
+      - name: Build karmadactl 
+        run: |
+          mkdir -p ${HOME}/go/bin
+          go build -o ${HOME}/go/bin/karmadactl ./cmd/karmadactl
+          echo "${HOME}/go/bin" >> $GITHUB_PATH
+      
       - name: Set up Helm
         uses: azure/setup-helm@v4
         with:
@@ -106,7 +111,64 @@ jobs:
         run: |
           export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
           hack/setup-dev-base.sh
-          export KUBECONFIG=~/.kube/karmada.config
-          
-          ct install --target-branch ${{ github.event.repository.default_branch }} --charts charts/karmada --debug --helm-extra-set-args '--set components={search,metricsAdapter,descheduler},apiServer.hostNetwork=true' --helm-extra-args "--timeout 800s" --skip-clean-up
+          export KUBECONFIG=~/.kube/karmada.config 
+          ct install --charts charts/karmada --debug --helm-extra-set-args '--set components={search,metricsAdapter,descheduler},apiServer.hostNetwork=true' --helm-extra-args "--timeout 800s" --skip-clean-up
           kubectl get pods -A
+      
+      - name: Check kubeconfig existence
+        run: |
+          ls -la $HOME/.kube/karmada.config
+          cat $HOME/.kube/karmada.config
+
+      - name: Get token info 
+        id: token
+        run: |
+          export KUBECONFIG=$HOME/.kube/karmada.config
+          CMD=$(karmadactl token create --print-register-command --kubeconfig $KUBECONFIG)
+          TOKEN=$(echo "$CMD" | grep -o '\--token [^ ]*' | cut -d' ' -f2)
+          HASH=$(echo "$CMD" | grep -o '\--discovery-token-ca-cert-hash [^ ]*' | cut -d' ' -f2)
+          ENDPOINT=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}' | sed 's|^https://||')
+          echo "Sanitized endpoint: $ENDPOINT"
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+          echo "hash=$HASH" >> $GITHUB_OUTPUT 
+          echo "endpoint=$ENDPOINT" >> $GITHUB_OUTPUT
+
+      - name: Update /etc/hosts to resolve karmada-host-control-plane
+        run: |
+          # Extract the IP from the endpoint (format: IP:PORT)
+          ENDPOINT_IP=$(echo "${{ steps.token.outputs.endpoint }}" | cut -d':' -f1)
+          echo "Adding entry to /etc/hosts: $ENDPOINT_IP karmada-host-control-plane"
+          echo "$ENDPOINT_IP karmada-host-control-plane" | sudo tee -a /etc/hosts
+
+      - name: Configure RBAC for certificate signing
+        run: |
+          export KUBECONFIG=$HOME/.kube/karmada.config
+          kubectl create clusterrolebinding karmada-bootstrap-csr \
+            --clusterrole=system:node-bootstrapper \
+            --group=system:bootstrappers
+
+      - name: Configure CSR Auto-Approval
+        run: |
+          export KUBECONFIG=$HOME/.kube/karmada.config
+          kubectl apply -f - <<EOF
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRoleBinding
+          metadata:
+            name: auto-approve-csrs-for-bootstrappers
+          roleRef:
+            apiGroup: rbac.authorization.k8s.io
+            kind: ClusterRole
+            name: system:certificates.k8s.io:certificatesigningrequests:nodeclient
+          subjects:
+          - kind: Group
+            name: system:bootstrappers
+            apiGroup: rbac.authorization.k8s.io
+          EOF
+
+      - name: Register cluster
+        run: |
+          karmadactl register ${{ steps.token.outputs.endpoint }} \
+            --token ${{ steps.token.outputs.token }} \
+            --discovery-token-ca-cert-hash ${{ steps.token.outputs.hash }} \
+            --discovery-timeout=10m \
+            --kubeconfig $HOME/.kube/karmada.config
