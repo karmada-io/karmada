@@ -33,10 +33,10 @@ subjects:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: {{ $name }}-kubeconfig
+  name: {{ $name }}-config
   namespace: {{ include "karmada.namespace" . }}
 stringData:
-  kubeconfig: |-
+  karmada.config: |-
     apiVersion: v1
     kind: Config
     clusters:
@@ -103,7 +103,7 @@ spec:
           imagePullPolicy: {{ .Values.agent.image.pullPolicy }}
           command:
             - /bin/karmada-agent
-            - --karmada-kubeconfig=/etc/kubeconfig/kubeconfig
+            - --karmada-kubeconfig=/etc/karmada/config/karmada.config
             - --cluster-name={{ .Values.agent.clusterName }}
             {{- if .Values.agent.clusterEndpoint }}
             - --cluster-api-endpoint={{ .Values.agent.clusterEndpoint }}
@@ -126,15 +126,15 @@ spec:
               name: metrics
               protocol: TCP
           volumeMounts:
-            - name: kubeconfig
-              mountPath: /etc/kubeconfig
+            - name: karmada-config
+              mountPath: /etc/karmada/config
           resources:
           {{- toYaml .Values.agent.resources | nindent 12 }}
       priorityClassName: {{ .Values.agent.priorityClassName }}
       volumes:
-        - name: kubeconfig
+        - name: karmada-config
           secret:
-            secretName: {{ $name }}-kubeconfig
+            secretName: {{ $name }}-config
 
 {{ if .Values.agent.podDisruptionBudget }}
 ---

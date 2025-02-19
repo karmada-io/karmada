@@ -283,10 +283,10 @@ data:
     apiVersion: v1
     kind: Secret
     metadata:
-      name: {{ $name }}-kubeconfig
+      name: {{ $name }}-config
       namespace: {{ $namespace }}
     stringData:
-      kubeconfig: |-
+      karmada.config: |-
         apiVersion: v1
         kind: Config
         clusters:
