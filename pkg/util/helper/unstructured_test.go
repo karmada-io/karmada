@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -170,6 +171,8 @@ func TestToUnstructured(t *testing.T) {
 			name: "convert unstructured object",
 			object: &unstructured.Unstructured{
 				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
 					"spec": map[string]interface{}{
 						"replicas": int64(1),
 					},
@@ -180,6 +183,10 @@ func TestToUnstructured(t *testing.T) {
 		{
 			name: "convert typed object",
 			object: &corev1.Pod{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Pod",
+					APIVersion: corev1.SchemeGroupVersion.String(),
+				},
 				Spec: corev1.PodSpec{
 					NodeName: "some-node",
 				},

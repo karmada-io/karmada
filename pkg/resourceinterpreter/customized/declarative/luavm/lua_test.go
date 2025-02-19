@@ -286,13 +286,17 @@ func TestAggregateDeploymentStatus(t *testing.T) {
 	oldDeploy := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
-			APIVersion: "apps/v1",
+			APIVersion: appsv1.SchemeGroupVersion.String(),
 		},
+		Status: appsv1.DeploymentStatus{Replicas: 0, ReadyReplicas: 1, UpdatedReplicas: 0, AvailableReplicas: 0, UnavailableReplicas: 0},
 	}
-	oldDeploy.Status = appsv1.DeploymentStatus{
-		Replicas: 0, ReadyReplicas: 1, UpdatedReplicas: 0, AvailableReplicas: 0, UnavailableReplicas: 0}
 
-	newDeploy := &appsv1.Deployment{Status: appsv1.DeploymentStatus{Replicas: 0, ReadyReplicas: 3, UpdatedReplicas: 0, AvailableReplicas: 0, UnavailableReplicas: 0}}
+	newDeploy := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Deployment",
+			APIVersion: appsv1.SchemeGroupVersion.String(),
+		},
+		Status: appsv1.DeploymentStatus{Replicas: 0, ReadyReplicas: 3, UpdatedReplicas: 0, AvailableReplicas: 0, UnavailableReplicas: 0}}
 	oldObj, _ := helper.ToUnstructured(oldDeploy)
 	newObj, _ := helper.ToUnstructured(newDeploy)
 
@@ -339,10 +343,13 @@ func TestAggregateDeploymentStatus(t *testing.T) {
 func TestHealthDeploymentStatus(t *testing.T) {
 	var cnt int32 = 2
 	newDeploy := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Deployment",
+			APIVersion: appsv1.SchemeGroupVersion.String(),
+		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &cnt,
 		},
-
 		ObjectMeta: metav1.ObjectMeta{
 			Generation: 1,
 		},
