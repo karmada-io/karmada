@@ -81,6 +81,7 @@ func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.K
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
 		WithPriorityClassName(cfg.CommonSettings.PriorityClassName).
 		WithExtraArgs(cfg.ExtraArgs).WithExtraVolumeMounts(cfg.ExtraVolumeMounts).
+		WithExtraCommandArgs(cfg.ExtraCommandArgs).
 		WithExtraVolumes(cfg.ExtraVolumes).WithResources(cfg.Resources).ForDeployment(apiserverDeployment)
 
 	if err := apiclient.CreateOrUpdateDeployment(client, apiserverDeployment); err != nil {
@@ -145,6 +146,7 @@ func installKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operator
 
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
 		WithPriorityClassName(cfg.CommonSettings.PriorityClassName).
+		WithExtraCommandArgs(cfg.ExtraCommandArgs).
 		WithExtraArgs(cfg.ExtraArgs).WithFeatureGates(featureGates).WithResources(cfg.Resources).ForDeployment(aggregatedAPIServerDeployment)
 
 	if err := apiclient.CreateOrUpdateDeployment(client, aggregatedAPIServerDeployment); err != nil {

@@ -103,6 +103,7 @@ type KarmadaSpec struct {
 	// - CustomizedClusterResourceModeling: https://karmada.io/docs/userguide/scheduling/cluster-resources#start-to-use-cluster-resource-models
 	// More info: https://github.com/karmada-io/karmada/blob/master/pkg/features/features.go
 	// +optional
+	// Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting feature gates.
 	FeatureGates map[string]bool `json:"featureGates,omitempty"`
 
 	// CRDTarball specifies the source from which the Karmada CRD tarball should be downloaded, along with the download policy to use.
@@ -325,6 +326,7 @@ type KarmadaAPIServer struct {
 	// https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
 	// for details.
 	// +optional
+	// Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting extra flags.
 	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
 
 	// ExtraVolumes specifies a list of extra volumes for the API server's pod
@@ -352,6 +354,7 @@ type KarmadaAPIServer struct {
 	// FeatureGates enabled by the user.
 	// More info: https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
 	// +optional
+	// Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting feature gates.
 	FeatureGates map[string]bool `json:"featureGates,omitempty"`
 }
 
@@ -374,6 +377,7 @@ type KarmadaAggregatedAPIServer struct {
 	// https://karmada.io/docs/reference/components/karmada-aggregated-apiserver
 	// for details.
 	// +optional
+	// Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting extra flags.
 	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
 
 	// CertSANs sets extra Subject Alternative Names for the API Server signing cert.
@@ -445,11 +449,13 @@ type KubeControllerManager struct {
 	// https://kubernetes.io/docs/reference/command-line-tools-reference/kube-controller-manager/
 	// for details.
 	// +optional
+	// Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting extra flags.
 	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
 
 	// FeatureGates enabled by the user.
 	// More info: https://kubernetes.io/docs/reference/command-line-tools-reference/kube-controller-manager/
 	// +optional
+	// Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting feature gates.
 	FeatureGates map[string]bool `json:"featureGates,omitempty"`
 }
 
@@ -487,6 +493,7 @@ type KarmadaControllerManager struct {
 	// https://karmada.io/docs/reference/components/karmada-controller-manager
 	// for details.
 	// +optional
+	// Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting extra flags.
 	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
 
 	// FeatureGates enabled by the user.
@@ -496,6 +503,7 @@ type KarmadaControllerManager struct {
 	// - CustomizedClusterResourceModeling: https://karmada.io/docs/userguide/scheduling/cluster-resources#start-to-use-cluster-resource-models
 	// More info: https://github.com/karmada-io/karmada/blob/master/pkg/features/features.go
 	// +optional
+	// Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting feature gates.
 	FeatureGates map[string]bool `json:"featureGates,omitempty"`
 }
 
@@ -518,12 +526,14 @@ type KarmadaScheduler struct {
 	// https://karmada.io/docs/reference/components/karmada-scheduler
 	// for details.
 	// +optional
+	// Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting extra flags.
 	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
 
 	// FeatureGates enabled by the user.
 	// - CustomizedClusterResourceModeling: https://karmada.io/docs/userguide/scheduling/cluster-resources#start-to-use-cluster-resource-models
 	// More info: https://github.com/karmada-io/karmada/blob/master/pkg/features/features.go
 	// +optional
+	// Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting feature gates.
 	FeatureGates map[string]bool `json:"featureGates,omitempty"`
 }
 
@@ -546,6 +556,7 @@ type KarmadaDescheduler struct {
 	// https://karmada.io/docs/reference/components/karmada-descheduler
 	// for details.
 	// +optional
+	// Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting extra flags.
 	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
 }
 
@@ -568,6 +579,7 @@ type KarmadaSearch struct {
 	// https://karmada.io/docs/reference/components/karmada-search
 	// for details.
 	// +optional
+	// Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting extra flags.
 	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
 }
 
@@ -590,6 +602,7 @@ type KarmadaMetricsAdapter struct {
 	// https://karmada.io/docs/reference/components/karmada-metrics-adapter
 	// for details.
 	// +optional
+	// Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting extra flags.
 	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
 }
 
@@ -612,6 +625,7 @@ type KarmadaWebhook struct {
 	// https://karmada.io/docs/reference/components/karmada-webhook
 	// for details.
 	// +optional
+	// Deprecated: This field is deprecated and will be removed in a future version. Use ExtraCommandArgs for setting extra flags.
 	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
 }
 
@@ -654,6 +668,29 @@ type CommonSettings struct {
 	// +kubebuilder:default="system-node-critical"
 	// +optional
 	PriorityClassName string `json:"priorityClassName,omitempty"`
+
+	// ExtraCommandArgs is an extra set of flags to pass to the karmada component. A command argument name in
+	// this list is the flag name as it appears on the command line except without leading
+	// dash(es). Extra command arguments will override existing default flags. Duplicate extra command arguments are allowed.
+	//
+	// Note: Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
+	// state. Before you do it, please confirm that you understand the risks of this configuration.
+	//
+	// For supported flags for the components, please see
+	// https://karmada.io/docs/reference/components/{{ component_name }}
+	// for details.
+	// +optional
+	ExtraCommandArgs []CommandArg `json:"extraCommandArgs,omitempty"`
+}
+
+// CommandArg represents a command-line parameters with a name and a value.
+type CommandArg struct {
+	// Name the name of the command-line parameter.
+	// +required
+	Name string `json:"name,omitempty"`
+	// Value the value of the command-line parameter.
+	// +required
+	Value string `json:"value,omitempty"`
 }
 
 // Image allows to customize the image used for components.

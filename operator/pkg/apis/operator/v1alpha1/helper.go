@@ -66,3 +66,21 @@ func KarmadaFailed(karmada *Karmada, conditionType ConditionType, message string
 
 	apimeta.SetStatusCondition(&karmada.Status.Conditions, newCondition)
 }
+
+// GetCommandArgNames returns a map of command argument names to true for quick name existence checks.
+func GetCommandArgNames(commandArgs []CommandArg) map[string]bool {
+	names := make(map[string]bool)
+	for i := range commandArgs {
+		names[commandArgs[i].Name] = true
+	}
+	return names
+}
+
+// ConvertCommandArgsIntoFlags converts a slice of CommandArg structs into a slice of formatted flag strings.
+func ConvertCommandArgsIntoFlags(commandArgs []CommandArg) []string {
+	var flags []string
+	for i := range commandArgs {
+		flags = append(flags, fmt.Sprintf("--%s=%s", commandArgs[i].Name, commandArgs[i].Value))
+	}
+	return flags
+}

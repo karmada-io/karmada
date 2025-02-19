@@ -44,6 +44,7 @@ type Patcher struct {
 	featureGates      map[string]bool
 	volume            *operatorv1alpha1.VolumeData
 	resources         corev1.ResourceRequirements
+	extraCommandArgs  []operatorv1alpha1.CommandArg
 }
 
 // NewPatcher returns a patcher.
@@ -105,6 +106,12 @@ func (p *Patcher) WithResources(resources corev1.ResourceRequirements) *Patcher 
 	return p
 }
 
+// WithExtraCommandArgs sets extraCommandArgs to the patcher.
+func (p *Patcher) WithExtraCommandArgs(extraCommandArgs []operatorv1alpha1.CommandArg) *Patcher {
+	p.extraCommandArgs = extraCommandArgs
+	return p
+}
+
 // ForDeployment patches the deployment manifest.
 func (p *Patcher) ForDeployment(deployment *appsv1.Deployment) {
 	deployment.Labels = labels.Merge(deployment.Labels, p.labels)
@@ -118,6 +125,30 @@ func (p *Patcher) ForDeployment(deployment *appsv1.Deployment) {
 		// It's considered the first container is the karmada component by default.
 		deployment.Spec.Template.Spec.Containers[0].Resources = p.resources
 	}
+	// Add extra volumes and volume mounts
+	// First container in the pod is expected to contain the Karmada component
+	deployment.Spec.Template.Spec.Volumes = append(deployment.Spec.Template.Spec.Volumes, p.extraVolumes...)
+	deployment.Spec.Template.Spec.Containers[0].VolumeMounts = append(deployment.Spec.Template.Spec.Containers[0].VolumeMounts, p.extraVolumeMounts...)
+
+	if len(p.extraCommandArgs) != 0 {
+		// It's considered the first container is the karmada component by default.
+		baseArguments := deployment.Spec.Template.Spec.Containers[0].Command
+		argsMap := parseArgumentListToMap(baseArguments)
+
+		var command []string
+		extraCommandArgNames := operatorv1alpha1.GetCommandArgNames(p.extraCommandArgs)
+		for name, value := range argsMap {
+			if _, ok := extraCommandArgNames[name]; !ok {
+				command = append(command, fmt.Sprintf("--%s=%s", name, value))
+			}
+		}
+		command = append(command, operatorv1alpha1.ConvertCommandArgsIntoFlags(p.extraCommandArgs)...)
+		sort.Strings(command)
+		deployment.Spec.Template.Spec.Containers[0].Command = append([]string{baseArguments[0]}, command...)
+		return
+	}
+
+	// TODO: when the API ExtraArgs and FeatureGates are removed, delete the following logic.
 	if len(p.extraArgs) != 0 || len(p.featureGates) != 0 {
 		// It's considered the first container is the karmada component by default.
 		baseArguments := deployment.Spec.Template.Spec.Containers[0].Command
@@ -144,10 +175,6 @@ func (p *Patcher) ForDeployment(deployment *appsv1.Deployment) {
 		command = append(command, buildArgumentListFromMap(argsMap, overrideArgs)...)
 		deployment.Spec.Template.Spec.Containers[0].Command = command
 	}
-	// Add extra volumes and volume mounts
-	// First container in the pod is expected to contain the Karmada component
-	deployment.Spec.Template.Spec.Volumes = append(deployment.Spec.Template.Spec.Volumes, p.extraVolumes...)
-	deployment.Spec.Template.Spec.Containers[0].VolumeMounts = append(deployment.Spec.Template.Spec.Containers[0].VolumeMounts, p.extraVolumeMounts...)
 }
 
 // ForStatefulSet patches the statefulset manifest.
@@ -167,11 +194,24 @@ func (p *Patcher) ForStatefulSet(sts *appsv1.StatefulSet) {
 		// It's considered the first container is the karmada component by default.
 		sts.Spec.Template.Spec.Containers[0].Resources = p.resources
 	}
-	if len(p.extraArgs) != 0 {
+
+	if len(p.extraCommandArgs) != 0 {
 		// It's considered the first container is the karmada component by default.
 		baseArguments := sts.Spec.Template.Spec.Containers[0].Command
 		argsMap := parseArgumentListToMap(baseArguments)
-		sts.Spec.Template.Spec.Containers[0].Command = buildArgumentListFromMap(argsMap, p.extraArgs)
+
+		// the first argument is most often the binary name
+		var command []string
+		extraCommandArgNames := operatorv1alpha1.GetCommandArgNames(p.extraCommandArgs)
+		for name, value := range argsMap {
+			if _, ok := extraCommandArgNames[name]; !ok {
+				command = append(command, fmt.Sprintf("--%s=%s", name, value))
+			}
+		}
+		command = append(command, operatorv1alpha1.ConvertCommandArgsIntoFlags(p.extraCommandArgs)...)
+		sort.Strings(command)
+		sts.Spec.Template.Spec.Containers[0].Command = append([]string{baseArguments[0]}, command...)
+		return
 	}
 }
 

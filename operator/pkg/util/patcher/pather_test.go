@@ -27,6 +27,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
+	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 )
 
@@ -446,8 +447,11 @@ func TestPatchForStatefulSet(t *testing.T) {
 		{
 			name: "PatchForStatefulSet_WithResourcesAndExtraArgs_Patched",
 			patcher: &Patcher{
-				extraArgs: map[string]string{
-					"some-arg": "some-value",
+				extraCommandArgs: []operatorv1alpha1.CommandArg{
+					{
+						Name:  "some-arg",
+						Value: "some-value",
+					},
 				},
 				resources: corev1.ResourceRequirements{
 					Limits: corev1.ResourceList{
@@ -469,6 +473,9 @@ func TestPatchForStatefulSet(t *testing.T) {
 								{
 									Name:  "test-container",
 									Image: "nginx:latest",
+									Command: []string{
+										"/usr/local/bin/etcd",
+									},
 								},
 							},
 						},
@@ -494,6 +501,7 @@ func TestPatchForStatefulSet(t *testing.T) {
 									Name:  "test-container",
 									Image: "nginx:latest",
 									Command: []string{
+										"/usr/local/bin/etcd",
 										"--some-arg=some-value",
 									},
 									Resources: corev1.ResourceRequirements{
