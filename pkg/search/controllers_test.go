@@ -41,6 +41,7 @@ import (
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	"github.com/karmada-io/karmada/pkg/search/backendstore"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 )
 
 var apiGroupResources = []*restmapper.APIGroupResources{
@@ -125,7 +126,7 @@ func TestAddClusterEventHandler(t *testing.T) {
 		client     *fakekarmadaclient.Clientset
 		restMapper meta.RESTMapper
 		stopCh     chan struct{}
-		prep       func(*fakekarmadaclient.Clientset, *rest.Config, meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error)
+		prep       func(*fakekarmadaclient.Clientset, *rest.Config, meta.RESTMapper, chan struct{}) (*Controller, informerfactory.SharedInformerFactory, error)
 		verify     func(*fakekarmadaclient.Clientset, *Controller) error
 	}{
 		{
@@ -134,9 +135,9 @@ func TestAddClusterEventHandler(t *testing.T) {
 			client:     fakekarmadaclient.NewSimpleClientset(),
 			restMapper: meta.NewDefaultRESTMapper(nil),
 			stopCh:     make(chan struct{}),
-			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
+			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper, stopCh chan struct{}) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, time.Second)
-				controller, err := createController(restConfig, factory, restMapper)
+				controller, err := createController(restConfig, factory, restMapper, stopCh)
 				return controller, factory, err
 			},
 			verify: func(clientConnector *fakekarmadaclient.Clientset, controller *Controller) error {
@@ -158,11 +159,12 @@ func TestAddClusterEventHandler(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			controller, informer, err := test.prep(test.client, test.restConfig, test.restMapper)
+			controller, informer, err := test.prep(test.client, test.restConfig, test.restMapper, test.stopCh)
 			if err != nil {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
 			informer.Start(test.stopCh)
+			informer.WaitForCacheSync(test.stopCh)
 			defer informer.Shutdown()
 			defer close(test.stopCh)
 
@@ -180,7 +182,7 @@ func TestUpdateClusterEventHandler(t *testing.T) {
 		client     *fakekarmadaclient.Clientset
 		restMapper meta.RESTMapper
 		stopCh     chan struct{}
-		prep       func(*fakekarmadaclient.Clientset, *rest.Config, meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error)
+		prep       func(*fakekarmadaclient.Clientset, *rest.Config, meta.RESTMapper, chan struct{}) (*Controller, informerfactory.SharedInformerFactory, error)
 		verify     func(*fakekarmadaclient.Clientset, *Controller) error
 	}{
 		{
@@ -189,9 +191,9 @@ func TestUpdateClusterEventHandler(t *testing.T) {
 			client:     fakekarmadaclient.NewSimpleClientset(),
 			restMapper: meta.NewDefaultRESTMapper(nil),
 			stopCh:     make(chan struct{}),
-			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
+			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper, stopCh chan struct{}) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, time.Second)
-				controller, err := createController(restConfig, factory, restMapper)
+				controller, err := createController(restConfig, factory, restMapper, stopCh)
 				return controller, factory, err
 			},
 			verify: func(clientConnector *fakekarmadaclient.Clientset, controller *Controller) error {
@@ -220,11 +222,12 @@ func TestUpdateClusterEventHandler(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			controller, informer, err := test.prep(test.client, test.restConfig, test.restMapper)
+			controller, informer, err := test.prep(test.client, test.restConfig, test.restMapper, test.stopCh)
 			if err != nil {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
 			informer.Start(test.stopCh)
+			informer.WaitForCacheSync(test.stopCh)
 			defer informer.Shutdown()
 			defer close(test.stopCh)
 
@@ -242,7 +245,7 @@ func TestDeleteClusterEventHandler(t *testing.T) {
 		client     *fakekarmadaclient.Clientset
 		restMapper meta.RESTMapper
 		stopCh     chan struct{}
-		prep       func(*fakekarmadaclient.Clientset, *rest.Config, meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error)
+		prep       func(*fakekarmadaclient.Clientset, *rest.Config, meta.RESTMapper, chan struct{}) (*Controller, informerfactory.SharedInformerFactory, error)
 		verify     func(*fakekarmadaclient.Clientset, *Controller) error
 	}{
 		{
@@ -251,9 +254,9 @@ func TestDeleteClusterEventHandler(t *testing.T) {
 			client:     fakekarmadaclient.NewSimpleClientset(),
 			restMapper: restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			stopCh:     make(chan struct{}),
-			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
+			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper, stopCh chan struct{}) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, time.Second)
-				controller, err := createController(restConfig, factory, restMapper)
+				controller, err := createController(restConfig, factory, restMapper, stopCh)
 				return controller, factory, err
 			},
 			verify: func(clientConnector *fakekarmadaclient.Clientset, controller *Controller) error {
@@ -308,11 +311,12 @@ func TestDeleteClusterEventHandler(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			controller, informer, err := test.prep(test.client, test.restConfig, test.restMapper)
+			controller, informer, err := test.prep(test.client, test.restConfig, test.restMapper, test.stopCh)
 			if err != nil {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
 			informer.Start(test.stopCh)
+			informer.WaitForCacheSync(test.stopCh)
 			defer informer.Shutdown()
 			defer close(test.stopCh)
 
@@ -330,7 +334,7 @@ func TestAddResourceRegistryEventHandler(t *testing.T) {
 		client     *fakekarmadaclient.Clientset
 		restMapper meta.RESTMapper
 		stopCh     chan struct{}
-		prep       func(*fakekarmadaclient.Clientset, *rest.Config, meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error)
+		prep       func(*fakekarmadaclient.Clientset, *rest.Config, meta.RESTMapper, chan struct{}) (*Controller, informerfactory.SharedInformerFactory, error)
 		verify     func(*fakekarmadaclient.Clientset, *Controller) error
 	}{
 		{
@@ -339,9 +343,9 @@ func TestAddResourceRegistryEventHandler(t *testing.T) {
 			client:     fakekarmadaclient.NewSimpleClientset(),
 			restMapper: restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			stopCh:     make(chan struct{}),
-			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
+			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper, stopCh chan struct{}) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, time.Second)
-				controller, err := createController(restConfig, factory, restMapper)
+				controller, err := createController(restConfig, factory, restMapper, stopCh)
 				return controller, factory, err
 			},
 			verify: func(clientConnector *fakekarmadaclient.Clientset, controller *Controller) error {
@@ -384,11 +388,12 @@ func TestAddResourceRegistryEventHandler(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			controller, informer, err := test.prep(test.client, test.restConfig, test.restMapper)
+			controller, informer, err := test.prep(test.client, test.restConfig, test.restMapper, test.stopCh)
 			if err != nil {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
 			informer.Start(test.stopCh)
+			informer.WaitForCacheSync(test.stopCh)
 			defer informer.Shutdown()
 			defer close(test.stopCh)
 
@@ -406,7 +411,7 @@ func TestUpdateResourceRegistryEventHandler(t *testing.T) {
 		client     *fakekarmadaclient.Clientset
 		restMapper meta.RESTMapper
 		stopCh     chan struct{}
-		prep       func(*fakekarmadaclient.Clientset, *rest.Config, meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error)
+		prep       func(*fakekarmadaclient.Clientset, *rest.Config, meta.RESTMapper, chan struct{}) (*Controller, informerfactory.SharedInformerFactory, error)
 		verify     func(*fakekarmadaclient.Clientset, *Controller) error
 	}{
 		{
@@ -415,9 +420,9 @@ func TestUpdateResourceRegistryEventHandler(t *testing.T) {
 			client:     fakekarmadaclient.NewSimpleClientset(),
 			restMapper: restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			stopCh:     make(chan struct{}),
-			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
+			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper, stopCh chan struct{}) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, time.Second)
-				controller, err := createController(restConfig, factory, restMapper)
+				controller, err := createController(restConfig, factory, restMapper, stopCh)
 				return controller, factory, err
 			},
 			verify: func(clientConnector *fakekarmadaclient.Clientset, controller *Controller) error {
@@ -476,11 +481,12 @@ func TestUpdateResourceRegistryEventHandler(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			controller, informer, err := test.prep(test.client, test.restConfig, test.restMapper)
+			controller, informer, err := test.prep(test.client, test.restConfig, test.restMapper, test.stopCh)
 			if err != nil {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
 			informer.Start(test.stopCh)
+			informer.WaitForCacheSync(test.stopCh)
 			defer informer.Shutdown()
 			defer close(test.stopCh)
 
@@ -498,7 +504,7 @@ func TestDeleteResourceRegistryEventHandler(t *testing.T) {
 		client     *fakekarmadaclient.Clientset
 		restMapper meta.RESTMapper
 		stopCh     chan struct{}
-		prep       func(*fakekarmadaclient.Clientset, *rest.Config, meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error)
+		prep       func(*fakekarmadaclient.Clientset, *rest.Config, meta.RESTMapper, chan struct{}) (*Controller, informerfactory.SharedInformerFactory, error)
 		verify     func(*fakekarmadaclient.Clientset, *Controller) error
 	}{
 		{
@@ -507,9 +513,9 @@ func TestDeleteResourceRegistryEventHandler(t *testing.T) {
 			client:     fakekarmadaclient.NewSimpleClientset(),
 			restMapper: restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			stopCh:     make(chan struct{}),
-			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
+			prep: func(clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper, stopCh chan struct{}) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, time.Second)
-				controller, err := createController(restConfig, factory, restMapper)
+				controller, err := createController(restConfig, factory, restMapper, stopCh)
 				return controller, factory, err
 			},
 			verify: func(clientConnector *fakekarmadaclient.Clientset, controller *Controller) error {
@@ -559,11 +565,12 @@ func TestDeleteResourceRegistryEventHandler(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			controller, informer, err := test.prep(test.client, test.restConfig, test.restMapper)
+			controller, informer, err := test.prep(test.client, test.restConfig, test.restMapper, test.stopCh)
 			if err != nil {
 				t.Fatalf("failed to prepare test environment for event handler setup, got: %v", err)
 			}
 			informer.Start(test.stopCh)
+			informer.WaitForCacheSync(test.stopCh)
 			defer informer.Shutdown()
 			defer close(test.stopCh)
 
@@ -577,11 +584,12 @@ func TestDeleteResourceRegistryEventHandler(t *testing.T) {
 // createController initializes a new Controller instance using the provided
 // Kubernetes REST configuration, shared informer factory, and REST mapper.
 // It returns the created Controller or an error if initialization fails.
-func createController(restConfig *rest.Config, factory informerfactory.SharedInformerFactory, restMapper meta.RESTMapper) (*Controller, error) {
+func createController(restConfig *rest.Config, factory informerfactory.SharedInformerFactory, restMapper meta.RESTMapper, stopCh chan struct{}) (*Controller, error) {
 	newController, err := NewController(restConfig, factory, restMapper)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new controller, got: %v", err)
 	}
+	newController.InformerManager = genericmanager.NewMultiClusterInformerManager(stopCh)
 	return newController, nil
 }
 
