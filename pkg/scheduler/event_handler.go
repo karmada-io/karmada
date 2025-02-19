@@ -129,12 +129,6 @@ func (s *Scheduler) onResourceBindingAdd(obj interface{}) {
 }
 
 func (s *Scheduler) onResourceBindingUpdate(old, cur interface{}) {
-	t, err := meta.TypeAccessor(old)
-	if err != nil {
-		klog.Errorf("Failed to transform oldObj as meta.Type, error: %v", err)
-		return
-	}
-
 	oldMeta, err := meta.Accessor(old)
 	if err != nil {
 		klog.Errorf("Failed to transform oldObj as metav1.Object, error: %v", err)
@@ -148,7 +142,11 @@ func (s *Scheduler) onResourceBindingUpdate(old, cur interface{}) {
 	}
 
 	if oldMeta.GetGeneration() == newMeta.GetGeneration() {
-		klog.V(4).Infof("Ignore update event of object (kind=%s, %s/%s) as specification no change", t.GetKind(), oldMeta.GetNamespace(), oldMeta.GetName())
+		if oldMeta.GetNamespace() != "" {
+			klog.V(4).Infof("Ignore update event of resourceBinding %s/%s as specification no change", oldMeta.GetNamespace(), oldMeta.GetName())
+		} else {
+			klog.V(4).Infof("Ignore update event of clusterResourceBinding %s as specification no change", oldMeta.GetName())
+		}
 		return
 	}
 
