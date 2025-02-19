@@ -42,6 +42,10 @@ var (
 	}
 	updateBinding = func(scheduler *Scheduler, obj interface{}) {
 		oldRB := &workv1alpha2.ResourceBinding{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "ResourceBinding",
+				APIVersion: workv1alpha2.GroupVersion.String(),
+			},
 			ObjectMeta: metav1.ObjectMeta{
 				Generation: 1,
 			},
@@ -86,6 +90,10 @@ func TestIncomingBindingMetrics(t *testing.T) {
 	var crbInfos = make([]*workv1alpha2.ClusterResourceBinding, 0, 3)
 	for i := 1; i <= 3; i++ {
 		rb := &workv1alpha2.ResourceBinding{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "ResourceBinding",
+				APIVersion: workv1alpha2.GroupVersion.String(),
+			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       fmt.Sprintf("test-rb-%d", i),
 				Namespace:  "bar",
@@ -97,6 +105,10 @@ func TestIncomingBindingMetrics(t *testing.T) {
 
 	for i := 1; i <= 3; i++ {
 		crb := &workv1alpha2.ClusterResourceBinding{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "ClusterResourceBinding",
+				APIVersion: workv1alpha2.GroupVersion.String(),
+			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       fmt.Sprintf("test-rb-%d", i),
 				Generation: 2,
