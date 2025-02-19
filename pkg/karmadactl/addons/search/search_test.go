@@ -41,6 +41,7 @@ import (
 func TestKarmadaSearchAddonStatus(t *testing.T) {
 	name, namespace := names.KarmadaSearchComponentName, "test"
 	var replicas int32 = 2
+	var priorityClass = "system-node-critical"
 	tests := []struct {
 		name       string
 		listOpts   *addoninit.CommandAddonsListOption
@@ -82,7 +83,7 @@ func TestKarmadaSearchAddonStatus(t *testing.T) {
 				},
 			},
 			prep: func(listOpts *addoninit.CommandAddonsListOption) error {
-				if err := createKarmadaSearchDeployment(listOpts.KubeClientSet, replicas, listOpts.Namespace); err != nil {
+				if err := createKarmadaSearchDeployment(listOpts.KubeClientSet, replicas, listOpts.Namespace, priorityClass); err != nil {
 					return fmt.Errorf("failed to create karmada search deployment, got error: %v", err)
 				}
 				return addonutils.SimulateDeploymentUnready(listOpts.KubeClientSet, name, listOpts.Namespace)
@@ -100,7 +101,7 @@ func TestKarmadaSearchAddonStatus(t *testing.T) {
 				},
 			},
 			prep: func(listOpts *addoninit.CommandAddonsListOption) error {
-				return createKarmadaSearchDeployment(listOpts.KubeClientSet, replicas, listOpts.Namespace)
+				return createKarmadaSearchDeployment(listOpts.KubeClientSet, replicas, listOpts.Namespace, priorityClass)
 			},
 			wantStatus: addoninit.AddonDisabledStatus,
 		},
@@ -114,7 +115,7 @@ func TestKarmadaSearchAddonStatus(t *testing.T) {
 				},
 			},
 			prep: func(listOpts *addoninit.CommandAddonsListOption) error {
-				if err := createKarmadaSearchDeployment(listOpts.KubeClientSet, replicas, listOpts.Namespace); err != nil {
+				if err := createKarmadaSearchDeployment(listOpts.KubeClientSet, replicas, listOpts.Namespace, priorityClass); err != nil {
 					return fmt.Errorf("failed to create karmada search deployment, got error: %v", err)
 				}
 
@@ -136,7 +137,7 @@ func TestKarmadaSearchAddonStatus(t *testing.T) {
 				},
 			},
 			prep: func(listOpts *addoninit.CommandAddonsListOption) error {
-				if err := createKarmadaSearchDeployment(listOpts.KubeClientSet, replicas, listOpts.Namespace); err != nil {
+				if err := createKarmadaSearchDeployment(listOpts.KubeClientSet, replicas, listOpts.Namespace, priorityClass); err != nil {
 					return fmt.Errorf("failed to create karmada search deployment, got error: %v", err)
 				}
 				return createAndMarkAAAPIServiceAvailable(listOpts.KarmadaAggregatorClientSet)
@@ -169,10 +170,11 @@ func TestKarmadaSearchAddonStatus(t *testing.T) {
 // createKarmadaSearchDeployment creates or updates a Deployment for the Karmada search deployment
 // in the specified namespace with the provided number of replicas.
 // It parses and decodes the template for the Deployment before applying it to the cluster.
-func createKarmadaSearchDeployment(c clientset.Interface, replicas int32, namespace string) error {
+func createKarmadaSearchDeployment(c clientset.Interface, replicas int32, namespace, priorityClass string) error {
 	karmadaSearchDeploymentBytes, err := addonutils.ParseTemplate(karmadaSearchDeployment, DeploymentReplace{
-		Namespace: namespace,
-		Replicas:  ptr.To(replicas),
+		Namespace:         namespace,
+		Replicas:          ptr.To(replicas),
+		PriorityClassName: priorityClass,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing karmada search deployment template :%v", err)

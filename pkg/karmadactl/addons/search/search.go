@@ -165,11 +165,12 @@ func installComponentsOnHostCluster(opts *addoninit.CommandAddonsEnableOption) e
 
 	// install karmada search deployment on host clusters
 	karmadaSearchDeploymentBytes, err := addonutils.ParseTemplate(karmadaSearchDeployment, DeploymentReplace{
-		Namespace:  opts.Namespace,
-		Replicas:   &opts.KarmadaSearchReplicas,
-		ETCDSevers: etcdServers,
-		KeyPrefix:  keyPrefix,
-		Image:      addoninit.KarmadaSearchImage(opts),
+		Namespace:         opts.Namespace,
+		Replicas:          &opts.KarmadaSearchReplicas,
+		ETCDSevers:        etcdServers,
+		KeyPrefix:         keyPrefix,
+		Image:             addoninit.KarmadaSearchImage(opts),
+		PriorityClassName: opts.SearchPriorityClass,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing karmada search deployment template :%v", err)

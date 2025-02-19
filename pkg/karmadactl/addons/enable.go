@@ -84,16 +84,28 @@ func NewCmdAddonsEnable(parentCommand string) *cobra.Command {
 	flags.StringVarP(&opts.ImageRegistry, "private-image-registry", "", "", "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.")
 	flags.IntVar(&opts.WaitComponentReadyTimeout, "pod-timeout", options.WaitComponentReadyTimeout, "Wait pod ready timeout.")
 	flags.IntVar(&opts.WaitAPIServiceReadyTimeout, "apiservice-timeout", 30, "Wait apiservice ready timeout.")
-	flags.Int32Var(&opts.KarmadaSearchReplicas, "karmada-search-replicas", 1, "Karmada-search replica set")
-	flags.StringVar(&opts.KarmadaSearchImage, "karmada-search-image", addoninit.DefaultKarmadaSearchImage, "karmada-search image")
-	flags.Int32Var(&opts.KarmadaMetricsAdapterReplicas, "karmada-metrics-adapter-replicas", 1, "karmada-metrics-adapter replica set")
-	flags.StringVar(&opts.KarmadaMetricsAdapterImage, "karmada-metrics-adapter-image", addoninit.DefaultKarmadaMetricsAdapterImage, "karmada-metrics-adapter image")
-	flags.StringVar(&opts.KarmadaDeschedulerImage, "karmada-descheduler-image", addoninit.DefaultKarmadaDeschedulerImage, "karmada-descheduler image")
-	flags.Int32Var(&opts.KarmadaDeschedulerReplicas, "karmada-descheduler-replicas", 1, "karmada descheduler replica set")
-	flags.StringVar(&opts.KarmadaSchedulerEstimatorImage, "karmada-scheduler-estimator-image", addoninit.DefaultKarmadaSchedulerEstimatorImage, "karmada-scheduler-estimator image")
-	flags.Int32Var(&opts.KarmadaEstimatorReplicas, "karmada-estimator-replicas", 1, "karmada-scheduler-estimator replica set")
 	flags.StringVar(&opts.MemberKubeConfig, "member-kubeconfig", "", "Member cluster's kubeconfig which to deploy scheduler estimator")
 	flags.StringVar(&opts.MemberContext, "member-context", "", "Member cluster's context which to deploy scheduler estimator")
 	flags.StringVar(&opts.HostClusterDomain, "host-cluster-domain", globaloptions.DefaultHostClusterDomain, "The cluster domain of karmada host cluster. (e.g. --host-cluster-domain=host.karmada)")
+	// Karmada-descheduler config
+	flags.StringVar(&opts.KarmadaDeschedulerImage, "karmada-descheduler-image", addoninit.DefaultKarmadaDeschedulerImage, "karmada-descheduler image")
+	flags.Int32Var(&opts.KarmadaDeschedulerReplicas, "karmada-descheduler-replicas", 1, "karmada descheduler replica set")
+	flags.StringVar(&opts.KarmadaDeschedulerPriorityClass, "descheduler-priority-class", "system-node-critical", "The priority class name for the component karmada-descheduler.")
+
+	// Karmada-estimator config
+	flags.StringVar(&opts.KarmadaSchedulerEstimatorImage, "karmada-scheduler-estimator-image", addoninit.DefaultKarmadaSchedulerEstimatorImage, "karmada-scheduler-estimator image")
+	flags.Int32Var(&opts.KarmadaEstimatorReplicas, "karmada-estimator-replicas", 1, "karmada-scheduler-estimator replica set")
+	flags.StringVar(&opts.EstimatorPriorityClass, "estimator-priority-class", "system-node-critical", "The priority class name for the component karmada-scheduler-estimator.")
+
+	// Karmada-metrics-adapter config
+	flags.Int32Var(&opts.KarmadaMetricsAdapterReplicas, "karmada-metrics-adapter-replicas", 1, "karmada-metrics-adapter replica set")
+	flags.StringVar(&opts.KarmadaMetricsAdapterImage, "karmada-metrics-adapter-image", addoninit.DefaultKarmadaMetricsAdapterImage, "karmada-metrics-adapter image")
+	flags.StringVar(&opts.KarmadaMetricsAdapterPriorityClass, "metrics-adapter-priority-class", "system-node-critical", "The priority class name for the component karmada-metrics-adaptor.")
+
+	// Karmada-search config
+	flags.Int32Var(&opts.KarmadaSearchReplicas, "karmada-search-replicas", 1, "Karmada-search replica set")
+	flags.StringVar(&opts.KarmadaSearchImage, "karmada-search-image", addoninit.DefaultKarmadaSearchImage, "karmada-search image")
+	flags.StringVar(&opts.SearchPriorityClass, "search-priority-class", "system-node-critical", "The priority class name for the component karmada-search.")
+
 	return cmd
 }

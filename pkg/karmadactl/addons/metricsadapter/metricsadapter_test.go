@@ -42,6 +42,7 @@ import (
 func TestStatus(t *testing.T) {
 	name, namespace := names.KarmadaMetricsAdapterComponentName, "test"
 	var replicas int32 = 2
+	var priorityClassName = "system-node-critical"
 	tests := []struct {
 		name       string
 		listOpts   *addoninit.CommandAddonsListOption
@@ -83,7 +84,7 @@ func TestStatus(t *testing.T) {
 				},
 			},
 			prep: func(listOpts *addoninit.CommandAddonsListOption) error {
-				if err := createKarmadaMetricsDeployment(listOpts.KubeClientSet, replicas, listOpts.Namespace); err != nil {
+				if err := createKarmadaMetricsDeployment(listOpts.KubeClientSet, replicas, listOpts.Namespace, priorityClassName); err != nil {
 					return fmt.Errorf("failed to create karmada metrics deployment, got error: %v", err)
 				}
 				return addonutils.SimulateDeploymentUnready(listOpts.KubeClientSet, name, listOpts.Namespace)
@@ -100,7 +101,7 @@ func TestStatus(t *testing.T) {
 				},
 			},
 			prep: func(listOpts *addoninit.CommandAddonsListOption) error {
-				return createKarmadaMetricsDeployment(listOpts.KubeClientSet, replicas, listOpts.Namespace)
+				return createKarmadaMetricsDeployment(listOpts.KubeClientSet, replicas, listOpts.Namespace, priorityClassName)
 			},
 			wantStatus: addoninit.AddonDisabledStatus,
 		},
@@ -114,7 +115,7 @@ func TestStatus(t *testing.T) {
 				},
 			},
 			prep: func(listOpts *addoninit.CommandAddonsListOption) error {
-				if err := createKarmadaMetricsDeployment(listOpts.KubeClientSet, replicas, listOpts.Namespace); err != nil {
+				if err := createKarmadaMetricsDeployment(listOpts.KubeClientSet, replicas, listOpts.Namespace, priorityClassName); err != nil {
 					return fmt.Errorf("failed to create karmada metrics deployment, got error: %v", err)
 				}
 
@@ -136,7 +137,7 @@ func TestStatus(t *testing.T) {
 				},
 			},
 			prep: func(listOpts *addoninit.CommandAddonsListOption) error {
-				if err := createKarmadaMetricsDeployment(listOpts.KubeClientSet, replicas, listOpts.Namespace); err != nil {
+				if err := createKarmadaMetricsDeployment(listOpts.KubeClientSet, replicas, listOpts.Namespace, priorityClassName); err != nil {
 					return fmt.Errorf("failed to create karmada metrics deployment, got error: %v", err)
 				}
 				return createAndMarkAAAPIServicesAvailable(listOpts.KarmadaAggregatorClientSet)
@@ -169,10 +170,11 @@ func TestStatus(t *testing.T) {
 // createKarmadaMetricsDeployment creates or updates a Deployment for the Karmada metrics adapter
 // in the specified namespace with the provided number of replicas.
 // It parses and decodes the template for the Deployment before applying it to the cluster.
-func createKarmadaMetricsDeployment(c clientset.Interface, replicas int32, namespace string) error {
+func createKarmadaMetricsDeployment(c clientset.Interface, replicas int32, namespace, priorityClass string) error {
 	karmadaMetricsAdapterDeploymentBytes, err := addonutils.ParseTemplate(karmadaMetricsAdapterDeployment, DeploymentReplace{
-		Namespace: namespace,
-		Replicas:  ptr.To[int32](replicas),
+		Namespace:         namespace,
+		Replicas:          ptr.To[int32](replicas),
+		PriorityClassName: priorityClass,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing karmada metrics adapter deployment template :%v", err)
