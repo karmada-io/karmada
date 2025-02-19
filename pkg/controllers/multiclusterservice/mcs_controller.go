@@ -299,7 +299,6 @@ func (c *MCSController) propagateMultiClusterService(ctx context.Context, mcs *n
 			Labels: map[string]string{
 				// We add this id in mutating webhook, let's just use it
 				networkingv1alpha1.MultiClusterServicePermanentIDLabel: util.GetLabelValue(mcs.Labels, networkingv1alpha1.MultiClusterServicePermanentIDLabel),
-				util.PropagationInstruction:                            util.PropagationInstructionSuppressed,
 				util.MultiClusterServiceNamespaceLabel:                 mcs.Namespace,
 				util.MultiClusterServiceNameLabel:                      mcs.Name,
 			},
@@ -310,7 +309,7 @@ func (c *MCSController) propagateMultiClusterService(ctx context.Context, mcs *n
 			klog.Errorf("Failed to convert MultiClusterService(%s/%s) to unstructured object, err is %v", mcs.Namespace, mcs.Name, err)
 			return err
 		}
-		if err = ctrlutil.CreateOrUpdateWork(ctx, c, workMeta, mcsObj); err != nil {
+		if err = ctrlutil.CreateOrUpdateWork(ctx, c, workMeta, mcsObj, ctrlutil.WithSuspendDispatching(true)); err != nil {
 			klog.Errorf("Failed to create or update MultiClusterService(%s/%s) work in the given member cluster %s, err is %v",
 				mcs.Namespace, mcs.Name, clusterName, err)
 			return err

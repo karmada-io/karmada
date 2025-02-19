@@ -46,6 +46,7 @@ const (
 	//
 	// Note: This instruction is intended to set on Work objects to indicate the Work should be ignored by
 	// execution controller. The instruction maybe deprecated once we extend the Work API and no other scenario want this.
+	// Deprecated
 	PropagationInstruction = "propagation.karmada.io/instruction"
 
 	// FederatedResourceQuotaNamespaceLabel is added to Work to specify associated FederatedResourceQuota's namespace.
