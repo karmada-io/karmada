@@ -39,6 +39,7 @@ import (
 	ctrlctx "github.com/karmada-io/karmada/operator/pkg/controller/context"
 	"github.com/karmada-io/karmada/operator/pkg/controller/karmada"
 	"github.com/karmada-io/karmada/operator/pkg/scheme"
+	"github.com/karmada-io/karmada/pkg/goruntime"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/version"
@@ -98,6 +99,8 @@ func NewOperatorCommand(ctx context.Context) *cobra.Command {
 func Run(ctx context.Context, o *options.Options) error {
 	klog.Infof("karmada-operator version: %s", version.Get())
 	klog.InfoS("Golang settings", "GOGC", os.Getenv("GOGC"), "GOMAXPROCS", os.Getenv("GOMAXPROCS"), "GOTRACEBACK", os.Getenv("GOTRACEBACK"))
+
+	goruntime.SetMemLimit(o.MemlimitRatio)
 
 	manager, err := createControllerManager(ctx, o)
 	if err != nil {
