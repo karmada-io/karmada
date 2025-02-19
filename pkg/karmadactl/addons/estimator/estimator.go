@@ -114,6 +114,7 @@ var enableEstimator = func(opts *addoninit.CommandAddonsEnableOption) error {
 		Replicas:          &opts.KarmadaEstimatorReplicas,
 		Image:             addoninit.KarmadaSchedulerEstimatorImage(opts),
 		MemberClusterName: opts.Cluster,
+		PriorityClassName: opts.EstimatorPriorityClass,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing karmada scheduler estimator deployment template :%v", err)

@@ -38,6 +38,7 @@ spec:
         - key: node-role.kubernetes.io/master
           operator: Exists
       automountServiceAccountToken: false
+      priorityClassName: {{ .PriorityClassName }}
       containers:
         - name: karmada-descheduler
           image: {{ .Image }}
@@ -83,7 +84,8 @@ spec:
 // DeploymentReplace is a struct to help to concrete
 // the karmada-descheduler deployment bytes with the deployment template
 type DeploymentReplace struct {
-	Namespace string
-	Replicas  *int32
-	Image     string
+	Namespace         string
+	Replicas          *int32
+	Image             string
+	PriorityClassName string
 }

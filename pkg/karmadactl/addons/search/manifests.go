@@ -38,6 +38,7 @@ spec:
         app: karmada-search
         apiserver: "true"
     spec:
+      priorityClassName: {{ .PriorityClassName }}
       automountServiceAccountToken: false
       containers:
         - name: karmada-search
@@ -138,11 +139,12 @@ spec:
 // DeploymentReplace is a struct to help to concrete
 // the karmada-search deployment bytes with the deployment template
 type DeploymentReplace struct {
-	Namespace  string
-	Replicas   *int32
-	Image      string
-	ETCDSevers string
-	KeyPrefix  string
+	Namespace         string
+	Replicas          *int32
+	Image             string
+	ETCDSevers        string
+	KeyPrefix         string
+	PriorityClassName string
 }
 
 // ServiceReplace is a struct to help to concrete

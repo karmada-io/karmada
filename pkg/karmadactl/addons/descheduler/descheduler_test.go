@@ -39,6 +39,7 @@ import (
 func TestStatus(t *testing.T) {
 	name, namespace := names.KarmadaDeschedulerComponentName, "test"
 	var replicas int32 = 2
+	var priorityClass = "system-node-critical"
 	tests := []struct {
 		name       string
 		listOpts   *addoninit.CommandAddonsListOption
@@ -80,7 +81,7 @@ func TestStatus(t *testing.T) {
 				},
 			},
 			prep: func(listOpts *addoninit.CommandAddonsListOption) error {
-				if err := createKarmadaDeschedulerDeployment(listOpts.KubeClientSet, replicas, listOpts.Namespace); err != nil {
+				if err := createKarmadaDeschedulerDeployment(listOpts.KubeClientSet, replicas, listOpts.Namespace, priorityClass); err != nil {
 					return fmt.Errorf("failed to create karmada descheduler deployment, got error: %v", err)
 				}
 				return addonutils.SimulateDeploymentUnready(listOpts.KubeClientSet, name, listOpts.Namespace)
@@ -96,7 +97,7 @@ func TestStatus(t *testing.T) {
 				},
 			},
 			prep: func(listOpts *addoninit.CommandAddonsListOption) error {
-				if err := createKarmadaDeschedulerDeployment(listOpts.KubeClientSet, replicas, listOpts.Namespace); err != nil {
+				if err := createKarmadaDeschedulerDeployment(listOpts.KubeClientSet, replicas, listOpts.Namespace, priorityClass); err != nil {
 					return fmt.Errorf("failed to create karmada descheduler deployment, got error: %v", err)
 				}
 				return nil
@@ -246,10 +247,11 @@ func TestDisableDescheduler(t *testing.T) {
 // createKarmadaDeschedulerDeployment creates or updates a Deployment for the Karmada descheduler
 // in the specified namespace with the provided number of replicas.
 // It parses and decodes the template for the Deployment before applying it to the cluster.
-func createKarmadaDeschedulerDeployment(c clientset.Interface, replicas int32, namespace string) error {
+func createKarmadaDeschedulerDeployment(c clientset.Interface, replicas int32, namespace, priorityClass string) error {
 	karmadaDeschedulerDeploymentBytes, err := addonutils.ParseTemplate(karmadaDeschedulerDeployment, DeploymentReplace{
-		Namespace: namespace,
-		Replicas:  ptr.To[int32](replicas),
+		Namespace:         namespace,
+		Replicas:          ptr.To[int32](replicas),
+		PriorityClassName: priorityClass,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing karmada descheduler deployment template: %v", err)

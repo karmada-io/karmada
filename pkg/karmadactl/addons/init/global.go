@@ -33,7 +33,7 @@ type GlobalCommandOptions struct {
 	KubeConfig string
 	Context    string
 
-	// KubeConfig holds karmada control plane KUBECONFIG file path.
+	// KarmadaConfig holds karmada control plane KUBECONFIG file path.
 	KarmadaConfig  string
 	KarmadaContext string
 

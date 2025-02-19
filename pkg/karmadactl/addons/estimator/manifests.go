@@ -40,6 +40,7 @@ spec:
         - key: node-role.kubernetes.io/master
           operator: Exists
       automountServiceAccountToken: false
+      priorityClassName: {{ .PriorityClassName }}
       containers:
         - name: karmada-scheduler-estimator
           image: {{ .Image }}
@@ -108,6 +109,7 @@ type DeploymentReplace struct {
 	Replicas          *int32
 	Image             string
 	MemberClusterName string
+	PriorityClassName string
 }
 
 // ServiceReplace is a struct to help to concrete

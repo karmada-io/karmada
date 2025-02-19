@@ -36,21 +36,25 @@ import (
 type CommandAddonsEnableOption struct {
 	GlobalCommandOptions
 
-	KarmadaSearchImage string
-
+	// Karmada-search config
+	KarmadaSearchImage    string
 	KarmadaSearchReplicas int32
+	SearchPriorityClass   string
 
-	KarmadaDeschedulerImage string
+	// Karmada-descheduler config
+	KarmadaDeschedulerImage         string
+	KarmadaDeschedulerReplicas      int32
+	KarmadaDeschedulerPriorityClass string
 
-	KarmadaDeschedulerReplicas int32
+	// Karmada-metrics-adapter config
+	KarmadaMetricsAdapterImage         string
+	KarmadaMetricsAdapterReplicas      int32
+	KarmadaMetricsAdapterPriorityClass string
 
-	KarmadaMetricsAdapterImage string
-
-	KarmadaMetricsAdapterReplicas int32
-
+	// Karmada-estimator config
 	KarmadaSchedulerEstimatorImage string
-
-	KarmadaEstimatorReplicas int32
+	KarmadaEstimatorReplicas       int32
+	EstimatorPriorityClass         string
 
 	KarmadaKubeClientSet *kubernetes.Clientset
 

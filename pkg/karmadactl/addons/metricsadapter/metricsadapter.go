@@ -154,9 +154,10 @@ func installComponentsOnHostCluster(opts *addoninit.CommandAddonsEnableOption) e
 
 	// install karmada metrics adapter deployment on host clusters
 	karmadaMetricsAdapterDeploymentBytes, err := addonutils.ParseTemplate(karmadaMetricsAdapterDeployment, DeploymentReplace{
-		Namespace: opts.Namespace,
-		Replicas:  &opts.KarmadaMetricsAdapterReplicas,
-		Image:     addoninit.KarmadaMetricsAdapterImage(opts),
+		Namespace:         opts.Namespace,
+		Replicas:          &opts.KarmadaMetricsAdapterReplicas,
+		Image:             addoninit.KarmadaMetricsAdapterImage(opts),
+		PriorityClassName: opts.KarmadaMetricsAdapterPriorityClass,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing karmada metrics adapter deployment template :%v", err)
