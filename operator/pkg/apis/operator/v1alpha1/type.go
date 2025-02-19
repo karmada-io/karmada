@@ -353,6 +353,12 @@ type KarmadaAPIServer struct {
 	// More info: https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
 	// +optional
 	FeatureGates map[string]bool `json:"featureGates,omitempty"`
+
+	// SidecarContainers specifies a list of sidecar containers to be deployed
+	// within the Karmada API server pod.
+	// This enables users to integrate auxiliary services such as KMS plugins for configuring encryption at rest.
+	// +optional
+	SidecarContainers []corev1.Container `json:"sidecarContainers,omitempty"`
 }
 
 // KarmadaAggregatedAPIServer holds settings to karmada-aggregated-apiserver component of the karmada.

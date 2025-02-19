@@ -341,6 +341,13 @@ func (in *KarmadaAPIServer) DeepCopyInto(out *KarmadaAPIServer) {
 			(*out)[key] = val
 		}
 	}
+	if in.SidecarContainers != nil {
+		in, out := &in.SidecarContainers, &out.SidecarContainers
+		*out = make([]v1.Container, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	return
 }
 
