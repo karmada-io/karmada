@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/component-base/metrics"
 	"k8s.io/component-base/metrics/legacyregistry"
 	"k8s.io/klog/v2"
@@ -128,13 +129,14 @@ func (o *Options) Config(stopCh <-chan struct{}) (*metricsadapter.MetricsServer,
 		klog.Errorf("Unable to build restConfig: %v", err)
 		return nil, err
 	}
-	restConfig.QPS, restConfig.Burst = o.KubeAPIQPS, o.KubeAPIBurst
+	restConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(o.KubeAPIQPS, o.KubeAPIBurst)
 
 	karmadaClient := karmadaclientset.NewForConfigOrDie(restConfig)
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
 	kubeClient := kubernetes.NewForConfigOrDie(restConfig)
 	kubeFactory := informers.NewSharedInformerFactory(kubeClient, 0)
-	metricsController := metricsadapter.NewMetricsController(stopCh, restConfig, factory, kubeFactory, &util.ClientOption{QPS: o.ClusterAPIQPS, Burst: o.ClusterAPIBurst})
+	limiterGetter := util.GetRateLimiterGetter().SetLimits(o.ClusterAPIQPS, o.ClusterAPIBurst)
+	metricsController := metricsadapter.NewMetricsController(stopCh, restConfig, factory, kubeFactory, &util.ClientOption{RateLimiterGetter: limiterGetter.GetRateLimiter})
 	metricsAdapter := metricsadapter.NewMetricsAdapter(metricsController, o.CustomMetricsAdapterServerOptions)
 	metricsAdapter.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(generatedopenapi.GetOpenAPIDefinitions, openapinamer.NewDefinitionNamer(api.Scheme))
 	metricsAdapter.OpenAPIV3Config = genericapiserver.DefaultOpenAPIV3Config(generatedopenapi.GetOpenAPIDefinitions, openapinamer.NewDefinitionNamer(api.Scheme))

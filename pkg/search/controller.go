@@ -351,7 +351,7 @@ func (c *Controller) getRegistryBackendHandler(cluster string, matchedRegistries
 }
 
 var clusterDynamicClientBuilder = func(cluster string, controlPlaneClient client.Client) (*util.DynamicClusterClient, error) {
-	return util.NewClusterDynamicClientSet(cluster, controlPlaneClient)
+	return util.NewClusterDynamicClientSet(cluster, controlPlaneClient, nil)
 }
 
 // doCacheCluster processes the resourceRegistry object
