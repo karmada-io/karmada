@@ -21,7 +21,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/sets"
 	restclient "k8s.io/client-go/rest"
@@ -32,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/karmada-io/karmada/operator/cmd/operator/app/options"
@@ -109,6 +112,34 @@ func Run(ctx context.Context, o *options.Options) error {
 		klog.Errorf("Failed to add health check endpoint: %v", err)
 		return err
 	}
+
+	// Unregister default NewGoCollector
+	ctrlmetrics.Registry.Unregister(collectors.NewGoCollector())
+
+	ctrlmetrics.Registry.MustRegister(
+		// Go Runtime metrics about debug.GCStats (base metrics) and
+		// runtime/metrics.
+		collectors.NewGoCollector(
+			collectors.WithGoCollectorRuntimeMetrics(
+				// go runtime gc metrics. (e.g. `go_gc_duration_seconds`
+				// means garbage collection cycle pause duration)
+				collectors.MetricsGC,
+				// go runtime scheduler metrics. (e.g. `go_sched_gomaxprocs_threads`
+				// means the current runtime.GOMAXPROCS setting)
+				collectors.MetricsScheduler,
+				// go runtime memory metrics. (e.g. `go_memstats_alloc_bytes`
+				// means number of bytes allocated and still in use)
+				collectors.MetricsMemory,
+				// go runtime sync lock metrics. (e.g. `go_sync_mutex_wait_total_seconds_total`
+				// means Approximate cumulative time goroutines have spent blocked on a sync.Mutex, sync.RWMutex, or runtime-internal lock)
+				collectors.GoRuntimeMetricsRule{Matcher: regexp.MustCompile(`^/sync/.*`)},
+			),
+		),
+	)
+	// `karmada_operator_build_info` metrics for operator version upgrade
+	ctrlmetrics.Registry.MustRegister(
+		version.NewCollector("karmada_operator"),
+	)
 
 	controllerCtx := ctrlctx.Context{
 		Controllers: o.Controllers,
