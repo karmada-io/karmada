@@ -249,11 +249,7 @@ func (c *WorkStatusController) updateResource(ctx context.Context, observedObj *
 
 	// we should check if the observed status is consistent with the declaration to prevent accidental changes made
 	// in member clusters.
-	needUpdate, err := c.ObjectWatcher.NeedsUpdate(clusterName, desiredObj, observedObj)
-	if err != nil {
-		return err
-	}
-
+	needUpdate := c.ObjectWatcher.NeedsUpdate(clusterName, desiredObj, observedObj)
 	if needUpdate {
 		operationResult, updateErr := c.ObjectWatcher.Update(ctx, clusterName, desiredObj, observedObj)
 		metrics.CountUpdateResourceToCluster(updateErr, desiredObj.GetAPIVersion(), desiredObj.GetKind(), clusterName, string(operationResult))
