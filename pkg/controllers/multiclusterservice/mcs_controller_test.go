@@ -265,6 +265,10 @@ func TestPropagateMultiClusterService(t *testing.T) {
 		{
 			name: "Propagate to one ready cluster",
 			mcs: &networkingv1alpha1.MultiClusterService{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "MultiClusterService",
+					APIVersion: networkingv1alpha1.GroupVersion.String(),
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-mcs",
 					Namespace: "default",
@@ -353,6 +357,10 @@ func TestPropagateMultiClusterService(t *testing.T) {
 		{
 			name: "Propagate to multiple ready clusters",
 			mcs: &networkingv1alpha1.MultiClusterService{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "MultiClusterService",
+					APIVersion: networkingv1alpha1.GroupVersion.String(),
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-mcs",
 					Namespace: "default",
@@ -401,6 +409,10 @@ func TestPropagateMultiClusterService(t *testing.T) {
 		{
 			name: "Mixed cluster readiness and API support",
 			mcs: &networkingv1alpha1.MultiClusterService{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "MultiClusterService",
+					APIVersion: networkingv1alpha1.GroupVersion.String(),
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-mcs",
 					Namespace: "default",

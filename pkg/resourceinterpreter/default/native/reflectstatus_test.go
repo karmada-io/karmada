@@ -48,6 +48,10 @@ func Test_reflectPodDisruptionBudgetStatus(t *testing.T) {
 			name: "PDB with valid status",
 			object: func() *unstructured.Unstructured {
 				pdb := &policyv1.PodDisruptionBudget{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "PodDisruptionBudget",
+						APIVersion: policyv1.SchemeGroupVersion.String(),
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-pdb",
 						Namespace: "test-ns",
@@ -142,6 +146,10 @@ func Test_reflectHorizontalPodAutoscalerStatus(t *testing.T) {
 			name: "HPA with valid status",
 			object: func() *unstructured.Unstructured {
 				hpa := &autoscalingv2.HorizontalPodAutoscaler{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "HorizontalPodAutoscaler",
+						APIVersion: autoscalingv2.SchemeGroupVersion.String(),
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-hpa",
 						Namespace: "test-ns",
@@ -357,6 +365,10 @@ func Test_getAllDefaultReflectStatusInterpreter(t *testing.T) {
 
 func Test_reflectDeploymentStatus(t *testing.T) {
 	validDeployment := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Deployment",
+			APIVersion: appsv1.SchemeGroupVersion.String(),
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "test-deployment",
 			Namespace:  "test-ns",
@@ -564,7 +576,10 @@ func Test_reflectIngressStatus(t *testing.T) {
 		},
 	}
 
-	ingressStatusMap, _ := helper.ToUnstructured(&networkingv1.Ingress{Status: testIngress})
+	ingressStatusMap, _ := helper.ToUnstructured(&networkingv1.Ingress{
+		TypeMeta: metav1.TypeMeta{Kind: "Ingress", APIVersion: networkingv1.SchemeGroupVersion.String()},
+		Status:   testIngress,
+	})
 	wantRawExtension, _ := helper.BuildStatusRawExtension(testIngress)
 
 	tests := []struct {
@@ -641,7 +656,10 @@ func Test_reflectJobStatus(t *testing.T) {
 		{
 			name: "job with all status fields",
 			object: func() *unstructured.Unstructured {
-				obj, _ := helper.ToUnstructured(&batchv1.Job{Status: jobStatus})
+				obj, _ := helper.ToUnstructured(&batchv1.Job{
+					TypeMeta: metav1.TypeMeta{Kind: "Job", APIVersion: batchv1.SchemeGroupVersion.String()},
+					Status:   jobStatus,
+				})
 				return obj
 			}(),
 			want: func() *runtime.RawExtension {
@@ -675,7 +693,10 @@ func Test_reflectJobStatus(t *testing.T) {
 			object: func() *unstructured.Unstructured {
 				status := jobStatus.DeepCopy()
 				status.Conditions = []batchv1.JobCondition{}
-				obj, _ := helper.ToUnstructured(&batchv1.Job{Status: *status})
+				obj, _ := helper.ToUnstructured(&batchv1.Job{
+					TypeMeta: metav1.TypeMeta{Kind: "Job", APIVersion: batchv1.SchemeGroupVersion.String()},
+					Status:   *status,
+				})
 				return obj
 			}(),
 			want: func() *runtime.RawExtension {
@@ -701,7 +722,10 @@ func Test_reflectJobStatus(t *testing.T) {
 						Message: "Job failed due to error",
 					},
 				}
-				obj, _ := helper.ToUnstructured(&batchv1.Job{Status: *status})
+				obj, _ := helper.ToUnstructured(&batchv1.Job{
+					TypeMeta: metav1.TypeMeta{Kind: "Job", APIVersion: batchv1.SchemeGroupVersion.String()},
+					Status:   *status,
+				})
 				return obj
 			}(),
 			want: func() *runtime.RawExtension {
@@ -731,7 +755,10 @@ func Test_reflectJobStatus(t *testing.T) {
 				status.Active = 1
 				status.CompletionTime = nil
 				status.Conditions = []batchv1.JobCondition{}
-				obj, _ := helper.ToUnstructured(&batchv1.Job{Status: *status})
+				obj, _ := helper.ToUnstructured(&batchv1.Job{
+					TypeMeta: metav1.TypeMeta{Kind: "Job", APIVersion: batchv1.SchemeGroupVersion.String()},
+					Status:   *status,
+				})
 				return obj
 			}(),
 			want: func() *runtime.RawExtension {
@@ -761,7 +788,10 @@ func Test_reflectJobStatus(t *testing.T) {
 			object: func() *unstructured.Unstructured {
 				status := jobStatus.DeepCopy()
 				status.CompletionTime = nil
-				obj, _ := helper.ToUnstructured(&batchv1.Job{Status: *status})
+				obj, _ := helper.ToUnstructured(&batchv1.Job{
+					TypeMeta: metav1.TypeMeta{Kind: "Job", APIVersion: batchv1.SchemeGroupVersion.String()},
+					Status:   *status,
+				})
 				return obj
 			}(),
 			want: func() *runtime.RawExtension {
@@ -777,7 +807,10 @@ func Test_reflectJobStatus(t *testing.T) {
 			object: func() *unstructured.Unstructured {
 				status := jobStatus.DeepCopy()
 				status.StartTime = nil
-				obj, _ := helper.ToUnstructured(&batchv1.Job{Status: *status})
+				obj, _ := helper.ToUnstructured(&batchv1.Job{
+					TypeMeta: metav1.TypeMeta{Kind: "Job", APIVersion: batchv1.SchemeGroupVersion.String()},
+					Status:   *status,
+				})
 				return obj
 			}(),
 			want: func() *runtime.RawExtension {
@@ -819,6 +852,10 @@ func Test_reflectDaemonSetStatus(t *testing.T) {
 			name: "daemonset with valid status and generation annotation",
 			object: func() *unstructured.Unstructured {
 				ds := &appsv1.DaemonSet{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "DaemonSet",
+						APIVersion: appsv1.SchemeGroupVersion.String(),
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:       "test-daemonset",
 						Namespace:  "test-ns",
@@ -984,6 +1021,10 @@ func Test_reflectStatefulSetStatus(t *testing.T) {
 			name: "statefulset with valid status and generation annotation",
 			object: func() *unstructured.Unstructured {
 				sts := &appsv1.StatefulSet{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "StatefulSet",
+						APIVersion: appsv1.SchemeGroupVersion.String(),
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:       "test-statefulset",
 						Namespace:  "test-ns",
@@ -1069,6 +1110,10 @@ func Test_reflectStatefulSetStatus(t *testing.T) {
 			name: "statefulset with partial status fields",
 			object: func() *unstructured.Unstructured {
 				sts := &appsv1.StatefulSet{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "StatefulSet",
+						APIVersion: appsv1.SchemeGroupVersion.String(),
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:       "test-statefulset",
 						Namespace:  "test-ns",

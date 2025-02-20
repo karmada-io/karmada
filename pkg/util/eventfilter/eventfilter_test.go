@@ -329,6 +329,10 @@ func TestResourceChangeByKarmada(t *testing.T) {
 		{
 			name: "Change by Karmada",
 			oldObj: &corev1.ConfigMap{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ConfigMap",
+					APIVersion: corev1.SchemeGroupVersion.String(),
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					ResourceVersion: "123456",
 					Labels:          map[string]string{"app.karmada.io/managed": "true"},
@@ -336,6 +340,10 @@ func TestResourceChangeByKarmada(t *testing.T) {
 				Data: map[string]string{"key": "value"},
 			},
 			newObj: &corev1.ConfigMap{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ConfigMap",
+					APIVersion: corev1.SchemeGroupVersion.String(),
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					ResourceVersion: "123457",
 					Labels:          map[string]string{"app.karmada.io/managed": "false"},
@@ -347,6 +355,10 @@ func TestResourceChangeByKarmada(t *testing.T) {
 		{
 			name: "Change not by Karmada",
 			oldObj: &corev1.ConfigMap{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ConfigMap",
+					APIVersion: corev1.SchemeGroupVersion.String(),
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					ResourceVersion: "123456",
 					Labels:          map[string]string{"app": "v1"},
@@ -354,6 +366,10 @@ func TestResourceChangeByKarmada(t *testing.T) {
 				Data: map[string]string{"key": "value"},
 			},
 			newObj: &corev1.ConfigMap{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ConfigMap",
+					APIVersion: corev1.SchemeGroupVersion.String(),
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					ResourceVersion: "123457",
 					Labels:          map[string]string{"app": "v2"},
@@ -365,6 +381,10 @@ func TestResourceChangeByKarmada(t *testing.T) {
 		{
 			name: "Change in Karmada annotations",
 			oldObj: &corev1.ConfigMap{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ConfigMap",
+					APIVersion: corev1.SchemeGroupVersion.String(),
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					ResourceVersion: "123456",
 					Annotations:     map[string]string{"note.karmada.io/managed": "true"},
@@ -372,6 +392,10 @@ func TestResourceChangeByKarmada(t *testing.T) {
 				Data: map[string]string{"key": "value"},
 			},
 			newObj: &corev1.ConfigMap{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ConfigMap",
+					APIVersion: corev1.SchemeGroupVersion.String(),
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					ResourceVersion: "123457",
 					Annotations:     map[string]string{"note.karmada.io/managed": "false"},

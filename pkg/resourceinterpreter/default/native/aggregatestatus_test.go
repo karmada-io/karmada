@@ -49,8 +49,19 @@ func TestAggregateDeploymentStatus(t *testing.T) {
 		{ClusterName: "member2", Status: raw, Applied: true},
 	}
 
-	oldDeploy := &appsv1.Deployment{}
-	newDeploy := &appsv1.Deployment{Status: appsv1.DeploymentStatus{Replicas: 2, ReadyReplicas: 2, UpdatedReplicas: 2, AvailableReplicas: 2, UnavailableReplicas: 0}}
+	oldDeploy := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Deployment",
+			APIVersion: appsv1.SchemeGroupVersion.String(),
+		},
+	}
+	newDeploy := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Deployment",
+			APIVersion: appsv1.SchemeGroupVersion.String(),
+		},
+		Status: appsv1.DeploymentStatus{Replicas: 2, ReadyReplicas: 2, UpdatedReplicas: 2, AvailableReplicas: 2, UnavailableReplicas: 0},
+	}
 	oldObj, _ := helper.ToUnstructured(oldDeploy)
 	newObj, _ := helper.ToUnstructured(newDeploy)
 
@@ -95,15 +106,31 @@ func TestAggregateServiceStatus(t *testing.T) {
 		{ClusterName: "member1", Status: rawLB, Applied: true},
 	}
 
-	serviceClusterIP := &corev1.Service{Spec: corev1.ServiceSpec{Type: corev1.ServiceTypeClusterIP}}
-	serviceNodePort := &corev1.Service{Spec: corev1.ServiceSpec{Type: corev1.ServiceTypeNodePort}}
-	serviceExternalName := &corev1.Service{Spec: corev1.ServiceSpec{Type: corev1.ServiceTypeExternalName}}
+	serviceClusterIP := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: corev1.SchemeGroupVersion.String()},
+		Spec:     corev1.ServiceSpec{Type: corev1.ServiceTypeClusterIP},
+	}
+	serviceNodePort := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: corev1.SchemeGroupVersion.String()},
+		Spec:     corev1.ServiceSpec{Type: corev1.ServiceTypeNodePort},
+	}
+	serviceExternalName := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: corev1.SchemeGroupVersion.String()},
+		Spec:     corev1.ServiceSpec{Type: corev1.ServiceTypeExternalName},
+	}
 	objServiceClusterIP, _ := helper.ToUnstructured(serviceClusterIP)
 	objServiceNodePort, _ := helper.ToUnstructured(serviceNodePort)
 	objServiceExternalName, _ := helper.ToUnstructured(serviceExternalName)
 
-	oldServiceLoadBalancer := &corev1.Service{Spec: corev1.ServiceSpec{Type: corev1.ServiceTypeLoadBalancer}}
-	newServiceLoadBalancer := &corev1.Service{Spec: corev1.ServiceSpec{Type: corev1.ServiceTypeLoadBalancer}, Status: corev1.ServiceStatus{LoadBalancer: corev1.LoadBalancerStatus{Ingress: []corev1.LoadBalancerIngress{{IP: "8.8.8.8", Hostname: "member1"}}}}}
+	oldServiceLoadBalancer := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: corev1.SchemeGroupVersion.String()},
+		Spec:     corev1.ServiceSpec{Type: corev1.ServiceTypeLoadBalancer},
+	}
+	newServiceLoadBalancer := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: corev1.SchemeGroupVersion.String()},
+		Spec:     corev1.ServiceSpec{Type: corev1.ServiceTypeLoadBalancer},
+		Status:   corev1.ServiceStatus{LoadBalancer: corev1.LoadBalancerStatus{Ingress: []corev1.LoadBalancerIngress{{IP: "8.8.8.8", Hostname: "member1"}}}},
+	}
 	oldObjServiceLoadBalancer, _ := helper.ToUnstructured(oldServiceLoadBalancer)
 	newObjServiceLoadBalancer, _ := helper.ToUnstructured(newServiceLoadBalancer)
 
@@ -160,8 +187,13 @@ func TestAggregateIngressStatus(t *testing.T) {
 		{ClusterName: "member1", Status: raw, Applied: true},
 	}
 
-	oldIngress := &networkingv1.Ingress{}
-	newIngress := &networkingv1.Ingress{Status: networkingv1.IngressStatus{LoadBalancer: networkingv1.IngressLoadBalancerStatus{Ingress: []networkingv1.IngressLoadBalancerIngress{{IP: "8.8.8.8", Hostname: "member1"}}}}}
+	oldIngress := &networkingv1.Ingress{
+		TypeMeta: metav1.TypeMeta{Kind: "Ingress", APIVersion: networkingv1.SchemeGroupVersion.String()},
+	}
+	newIngress := &networkingv1.Ingress{
+		TypeMeta: metav1.TypeMeta{Kind: "Ingress", APIVersion: networkingv1.SchemeGroupVersion.String()},
+		Status:   networkingv1.IngressStatus{LoadBalancer: networkingv1.IngressLoadBalancerStatus{Ingress: []networkingv1.IngressLoadBalancerIngress{{IP: "8.8.8.8", Hostname: "member1"}}}},
+	}
 	oldObj, _ := helper.ToUnstructured(oldIngress)
 	newObj, _ := helper.ToUnstructured(newIngress)
 
@@ -222,12 +254,20 @@ func TestAggregateJobStatus(t *testing.T) {
 		{ClusterName: "member2", Status: rawWithJobFailed, Applied: true},
 	}
 
-	oldJob := &batchv1.Job{}
-	newJob := &batchv1.Job{Status: batchv1.JobStatus{Active: 0, Succeeded: 2, Failed: 0, StartTime: &startTime, CompletionTime: &completionTime, Conditions: []batchv1.JobCondition{{Type: batchv1.JobComplete, Status: corev1.ConditionTrue, Reason: "Completed", Message: "Job completed"}}}}
+	oldJob := &batchv1.Job{
+		TypeMeta: metav1.TypeMeta{Kind: "Job", APIVersion: batchv1.SchemeGroupVersion.String()},
+	}
+	newJob := &batchv1.Job{
+		TypeMeta: metav1.TypeMeta{Kind: "Job", APIVersion: batchv1.SchemeGroupVersion.String()},
+		Status:   batchv1.JobStatus{Active: 0, Succeeded: 2, Failed: 0, StartTime: &startTime, CompletionTime: &completionTime, Conditions: []batchv1.JobCondition{{Type: batchv1.JobComplete, Status: corev1.ConditionTrue, Reason: "Completed", Message: "Job completed"}}},
+	}
 	oldObj, _ := helper.ToUnstructured(oldJob)
 	newObj, _ := helper.ToUnstructured(newJob)
 
-	newJobWithJobFailed := &batchv1.Job{Status: batchv1.JobStatus{Active: 0, Succeeded: 1, Failed: 1, StartTime: &startTime, CompletionTime: &completionTime, Conditions: []batchv1.JobCondition{{Type: batchv1.JobFailed, Status: corev1.ConditionTrue, Reason: "JobFailed", Message: "Job executed failed in member clusters member2"}}}}
+	newJobWithJobFailed := &batchv1.Job{
+		TypeMeta: metav1.TypeMeta{Kind: "Job", APIVersion: batchv1.SchemeGroupVersion.String()},
+		Status:   batchv1.JobStatus{Active: 0, Succeeded: 1, Failed: 1, StartTime: &startTime, CompletionTime: &completionTime, Conditions: []batchv1.JobCondition{{Type: batchv1.JobFailed, Status: corev1.ConditionTrue, Reason: "JobFailed", Message: "Job executed failed in member clusters member2"}}},
+	}
 	newObjWithJobFailed, _ := helper.ToUnstructured(newJobWithJobFailed)
 
 	tests := []struct {
@@ -280,8 +320,13 @@ func TestAggregateDaemonSetStatus(t *testing.T) {
 		{ClusterName: "member2", Status: raw, Applied: true},
 	}
 
-	oldDaemonSet := &appsv1.DaemonSet{}
-	newDaemonSet := &appsv1.DaemonSet{Status: appsv1.DaemonSetStatus{CurrentNumberScheduled: 2, NumberMisscheduled: 0, DesiredNumberScheduled: 2, NumberReady: 2, UpdatedNumberScheduled: 2, NumberAvailable: 2, NumberUnavailable: 0}}
+	oldDaemonSet := &appsv1.DaemonSet{
+		TypeMeta: metav1.TypeMeta{Kind: "DaemonSet", APIVersion: appsv1.SchemeGroupVersion.String()},
+	}
+	newDaemonSet := &appsv1.DaemonSet{
+		TypeMeta: metav1.TypeMeta{Kind: "DaemonSet", APIVersion: appsv1.SchemeGroupVersion.String()},
+		Status:   appsv1.DaemonSetStatus{CurrentNumberScheduled: 2, NumberMisscheduled: 0, DesiredNumberScheduled: 2, NumberReady: 2, UpdatedNumberScheduled: 2, NumberAvailable: 2, NumberUnavailable: 0},
+	}
 	oldObj, _ := helper.ToUnstructured(oldDaemonSet)
 	newObj, _ := helper.ToUnstructured(newDaemonSet)
 
@@ -325,8 +370,13 @@ func TestAggregateStatefulSetStatus(t *testing.T) {
 		{ClusterName: "member2", Status: raw, Applied: true},
 	}
 
-	oldStatefulSet := &appsv1.StatefulSet{}
-	newStatefulSet := &appsv1.StatefulSet{Status: appsv1.StatefulSetStatus{Replicas: 2, ReadyReplicas: 2, UpdatedReplicas: 2, AvailableReplicas: 2, CurrentReplicas: 2}}
+	oldStatefulSet := &appsv1.StatefulSet{
+		TypeMeta: metav1.TypeMeta{Kind: "StatefulSet", APIVersion: appsv1.SchemeGroupVersion.String()},
+	}
+	newStatefulSet := &appsv1.StatefulSet{
+		TypeMeta: metav1.TypeMeta{Kind: "StatefulSet", APIVersion: appsv1.SchemeGroupVersion.String()},
+		Status:   appsv1.StatefulSetStatus{Replicas: 2, ReadyReplicas: 2, UpdatedReplicas: 2, AvailableReplicas: 2, CurrentReplicas: 2},
+	}
 	oldObj, _ := helper.ToUnstructured(oldStatefulSet)
 	newObj, _ := helper.ToUnstructured(newStatefulSet)
 
@@ -447,10 +497,15 @@ func TestAggregatePodStatus(t *testing.T) {
 			},
 		},
 	}
-	newInitContainerObj, _ := helper.ToUnstructured(&corev1.Pod{Status: corev1.PodStatus{
-		InitContainerStatuses: newInitContainerStatuses1,
-		Phase:                 corev1.PodPending,
-	}})
+	newInitContainerObj, _ := helper.ToUnstructured(&corev1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Pod",
+			APIVersion: corev1.SchemeGroupVersion.String(),
+		},
+		Status: corev1.PodStatus{
+			InitContainerStatuses: newInitContainerStatuses1,
+			Phase:                 corev1.PodPending,
+		}})
 	initContainerStatusMap1 := map[string]interface{}{
 		"initContainerStatuses": []corev1.ContainerStatus{newInitContainerStatuses1[0], newInitContainerStatuses1[1]},
 		"phase":                 corev1.PodPending,
@@ -460,11 +515,21 @@ func TestAggregatePodStatus(t *testing.T) {
 		{ClusterName: "member1", Status: initContainerRaw1, Applied: true},
 	}
 
-	curObj, _ := helper.ToUnstructured(&corev1.Pod{})
-	newObj, _ := helper.ToUnstructured(&corev1.Pod{Status: corev1.PodStatus{
-		ContainerStatuses: newContainerStatuses1,
-		Phase:             corev1.PodRunning,
-	}})
+	curObj, _ := helper.ToUnstructured(&corev1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Pod",
+			APIVersion: corev1.SchemeGroupVersion.String(),
+		},
+	})
+	newObj, _ := helper.ToUnstructured(&corev1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Pod",
+			APIVersion: corev1.SchemeGroupVersion.String(),
+		},
+		Status: corev1.PodStatus{
+			ContainerStatuses: newContainerStatuses1,
+			Phase:             corev1.PodRunning,
+		}})
 
 	statusMap1 := map[string]interface{}{
 		"containerStatuses": []corev1.ContainerStatus{containerStatuses1[0]},
@@ -554,10 +619,15 @@ func TestAggregatePodStatus(t *testing.T) {
 		},
 	}
 
-	newPodFailed := &corev1.Pod{Status: corev1.PodStatus{
-		ContainerStatuses: newContainerStatuses2,
-		Phase:             corev1.PodPending,
-	}}
+	newPodFailed := &corev1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Pod",
+			APIVersion: corev1.SchemeGroupVersion.String(),
+		},
+		Status: corev1.PodStatus{
+			ContainerStatuses: newContainerStatuses2,
+			Phase:             corev1.PodPending,
+		}}
 	newObjFailed, _ := helper.ToUnstructured(newPodFailed)
 
 	containerStatusesRunning := []corev1.ContainerStatus{
@@ -604,10 +674,15 @@ func TestAggregatePodStatus(t *testing.T) {
 		{ClusterName: "member2", Status: nil, Applied: true},
 	}
 
-	failObj, _ := helper.ToUnstructured(&corev1.Pod{Status: corev1.PodStatus{
-		ContainerStatuses: []corev1.ContainerStatus{containerStatusesRunning[0], newContainerStatusesFail[0]},
-		Phase:             corev1.PodFailed,
-	}})
+	failObj, _ := helper.ToUnstructured(&corev1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Pod",
+			APIVersion: corev1.SchemeGroupVersion.String(),
+		},
+		Status: corev1.PodStatus{
+			ContainerStatuses: []corev1.ContainerStatus{containerStatusesRunning[0], newContainerStatusesFail[0]},
+			Phase:             corev1.PodFailed,
+		}})
 
 	// test succeeded
 	rawSucceeded, _ := helper.BuildStatusRawExtension(statusMapSucceeded)
@@ -616,15 +691,25 @@ func TestAggregatePodStatus(t *testing.T) {
 		{ClusterName: "member2", Status: rawSucceeded, Applied: true},
 	}
 
-	succeededObj, _ := helper.ToUnstructured(&corev1.Pod{Status: corev1.PodStatus{
-		ContainerStatuses: []corev1.ContainerStatus{containerStatusesRunning[0], newContainerStatusesSucceeded[0]},
-		Phase:             corev1.PodRunning,
-	}})
+	succeededObj, _ := helper.ToUnstructured(&corev1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Pod",
+			APIVersion: corev1.SchemeGroupVersion.String(),
+		},
+		Status: corev1.PodStatus{
+			ContainerStatuses: []corev1.ContainerStatus{containerStatusesRunning[0], newContainerStatusesSucceeded[0]},
+			Phase:             corev1.PodRunning,
+		}})
 
-	pendingObj, _ := helper.ToUnstructured(&corev1.Pod{Status: corev1.PodStatus{
-		ContainerStatuses: []corev1.ContainerStatus{containerStatusesRunning[0]},
-		Phase:             corev1.PodPending,
-	}})
+	pendingObj, _ := helper.ToUnstructured(&corev1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Pod",
+			APIVersion: corev1.SchemeGroupVersion.String(),
+		},
+		Status: corev1.PodStatus{
+			ContainerStatuses: []corev1.ContainerStatus{containerStatusesRunning[0]},
+			Phase:             corev1.PodPending,
+		}})
 
 	tests := []struct {
 		name                  string
@@ -721,16 +806,27 @@ func TestAggregatePVCStatus(t *testing.T) {
 	}
 
 	// test aggregatePersistentVolumeClaimStatus function
-	oldPVC := &corev1.PersistentVolumeClaim{}
+	oldPVC := &corev1.PersistentVolumeClaim{
+		TypeMeta: metav1.TypeMeta{Kind: "PersistentVolumeClaim", APIVersion: corev1.SchemeGroupVersion.String()},
+	}
 	oldObj, _ := helper.ToUnstructured(oldPVC)
 
-	boundNewPVC := &corev1.PersistentVolumeClaim{Status: corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimBound}}
+	boundNewPVC := &corev1.PersistentVolumeClaim{
+		TypeMeta: metav1.TypeMeta{Kind: "PersistentVolumeClaim", APIVersion: corev1.SchemeGroupVersion.String()},
+		Status:   corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimBound},
+	}
 	newBoundPVCObj, _ := helper.ToUnstructured(boundNewPVC)
 
-	lostNewPVC := &corev1.PersistentVolumeClaim{Status: corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimLost}}
+	lostNewPVC := &corev1.PersistentVolumeClaim{
+		TypeMeta: metav1.TypeMeta{Kind: "PersistentVolumeClaim", APIVersion: corev1.SchemeGroupVersion.String()},
+		Status:   corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimLost},
+	}
 	newLostPVCObj, _ := helper.ToUnstructured(lostNewPVC)
 
-	pendingNewPVC := &corev1.PersistentVolumeClaim{Status: corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimPending}}
+	pendingNewPVC := &corev1.PersistentVolumeClaim{
+		TypeMeta: metav1.TypeMeta{Kind: "PersistentVolumeClaim", APIVersion: corev1.SchemeGroupVersion.String()},
+		Status:   corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimPending},
+	}
 	newPendingPVCObj, _ := helper.ToUnstructured(pendingNewPVC)
 
 	tests := []struct {
@@ -832,22 +928,39 @@ func TestAggregatePVStatus(t *testing.T) {
 	}
 
 	// test aggregatePersistentVolumeStatus function
-	oldPVC := &corev1.PersistentVolume{}
+	oldPVC := &corev1.PersistentVolume{
+		TypeMeta: metav1.TypeMeta{Kind: "PersistentVolume", APIVersion: corev1.SchemeGroupVersion.String()},
+	}
 	oldObj, _ := helper.ToUnstructured(oldPVC)
 
-	availableNewPv := &corev1.PersistentVolume{Status: corev1.PersistentVolumeStatus{Phase: corev1.VolumeAvailable}}
+	availableNewPv := &corev1.PersistentVolume{
+		TypeMeta: metav1.TypeMeta{Kind: "PersistentVolume", APIVersion: corev1.SchemeGroupVersion.String()},
+		Status:   corev1.PersistentVolumeStatus{Phase: corev1.VolumeAvailable},
+	}
 	newAvailablePvObj, _ := helper.ToUnstructured(availableNewPv)
 
-	boundNewPV := &corev1.PersistentVolume{Status: corev1.PersistentVolumeStatus{Phase: corev1.VolumeBound}}
+	boundNewPV := &corev1.PersistentVolume{
+		TypeMeta: metav1.TypeMeta{Kind: "PersistentVolume", APIVersion: corev1.SchemeGroupVersion.String()},
+		Status:   corev1.PersistentVolumeStatus{Phase: corev1.VolumeBound},
+	}
 	newBoundPVObj, _ := helper.ToUnstructured(boundNewPV)
 
-	releaseNewPV := &corev1.PersistentVolume{Status: corev1.PersistentVolumeStatus{Phase: corev1.VolumeReleased}}
+	releaseNewPV := &corev1.PersistentVolume{
+		TypeMeta: metav1.TypeMeta{Kind: "PersistentVolume", APIVersion: corev1.SchemeGroupVersion.String()},
+		Status:   corev1.PersistentVolumeStatus{Phase: corev1.VolumeReleased},
+	}
 	newReleasePVObj, _ := helper.ToUnstructured(releaseNewPV)
 
-	failedNewPV := &corev1.PersistentVolume{Status: corev1.PersistentVolumeStatus{Phase: corev1.VolumeFailed}}
+	failedNewPV := &corev1.PersistentVolume{
+		TypeMeta: metav1.TypeMeta{Kind: "PersistentVolume", APIVersion: corev1.SchemeGroupVersion.String()},
+		Status:   corev1.PersistentVolumeStatus{Phase: corev1.VolumeFailed},
+	}
 	newFailedPVObj, _ := helper.ToUnstructured(failedNewPV)
 
-	pendingNewPV := &corev1.PersistentVolume{Status: corev1.PersistentVolumeStatus{Phase: corev1.VolumePending}}
+	pendingNewPV := &corev1.PersistentVolume{
+		TypeMeta: metav1.TypeMeta{Kind: "PersistentVolume", APIVersion: corev1.SchemeGroupVersion.String()},
+		Status:   corev1.PersistentVolumeStatus{Phase: corev1.VolumePending},
+	}
 	newPendingPVObj, _ := helper.ToUnstructured(pendingNewPV)
 
 	tests := []struct {
@@ -901,6 +1014,10 @@ func TestAggregatePVStatus(t *testing.T) {
 
 func TestAggregatedPodDisruptionBudgetStatus(t *testing.T) {
 	currPdbObj, _ := helper.ToUnstructured(&policyv1.PodDisruptionBudget{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "PodDisruptionBudget",
+			APIVersion: policyv1.SchemeGroupVersion.String(),
+		},
 		Status: policyv1.PodDisruptionBudgetStatus{
 			CurrentHealthy:     1,
 			DesiredHealthy:     1,
@@ -910,6 +1027,10 @@ func TestAggregatedPodDisruptionBudgetStatus(t *testing.T) {
 	})
 
 	expectedPdbObj, _ := helper.ToUnstructured(&policyv1.PodDisruptionBudget{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "PodDisruptionBudget",
+			APIVersion: policyv1.SchemeGroupVersion.String(),
+		},
 		Status: policyv1.PodDisruptionBudgetStatus{
 			CurrentHealthy:     2,
 			DesiredHealthy:     2,
@@ -938,6 +1059,10 @@ func TestAggregatedPodDisruptionBudgetStatus(t *testing.T) {
 	})
 
 	expectedUnhealthyPdbObj, _ := helper.ToUnstructured(&policyv1.PodDisruptionBudget{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "PodDisruptionBudget",
+			APIVersion: policyv1.SchemeGroupVersion.String(),
+		},
 		Status: policyv1.PodDisruptionBudgetStatus{
 			CurrentHealthy:     0,
 			DesiredHealthy:     2,
@@ -994,6 +1119,10 @@ func TestAggregatedPodDisruptionBudgetStatus(t *testing.T) {
 
 func Test_aggregateCronJobStatus(t *testing.T) {
 	currCronJobObj, _ := helper.ToUnstructured(&batchv1.CronJob{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "CronJob",
+			APIVersion: batchv1.SchemeGroupVersion.String(),
+		},
 		Status: batchv1.CronJobStatus{
 			Active:             []corev1.ObjectReference{},
 			LastScheduleTime:   nil,
@@ -1032,6 +1161,10 @@ func Test_aggregateCronJobStatus(t *testing.T) {
 	parse, _ := time.Parse("2006-01-02 15:04:05", "2023-02-08 07:17:00")
 	successfulTime := metav1.NewTime(parse)
 	expectedCronJobObj, _ := helper.ToUnstructured(&batchv1.CronJob{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "CronJob",
+			APIVersion: batchv1.SchemeGroupVersion.String(),
+		},
 		Status: batchv1.CronJobStatus{
 			Active: []corev1.ObjectReference{
 				{
@@ -1082,6 +1215,10 @@ func Test_aggregateCronJobStatus(t *testing.T) {
 
 func Test_aggregateHorizontalPodAutoscalerStatus(t *testing.T) {
 	curHPA, _ := helper.ToUnstructured(&autoscalingv2.HorizontalPodAutoscaler{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "HorizontalPodAutoscaler",
+			APIVersion: autoscalingv2.SchemeGroupVersion.String(),
+		},
 		Status: autoscalingv2.HorizontalPodAutoscalerStatus{
 			CurrentReplicas: 0,
 			DesiredReplicas: 0,
@@ -1096,6 +1233,10 @@ func Test_aggregateHorizontalPodAutoscalerStatus(t *testing.T) {
 		"desiredReplicas": 4,
 	})
 	expectHPA, _ := helper.ToUnstructured(&autoscalingv2.HorizontalPodAutoscaler{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "HorizontalPodAutoscaler",
+			APIVersion: autoscalingv2.SchemeGroupVersion.String(),
+		},
 		Status: autoscalingv2.HorizontalPodAutoscalerStatus{
 			CurrentReplicas: 6,
 			DesiredReplicas: 6,

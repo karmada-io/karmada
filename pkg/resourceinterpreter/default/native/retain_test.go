@@ -169,6 +169,10 @@ func Test_retainK8sWorkloadReplicas(t *testing.T) {
 func Test_retainSecretServiceAccountToken(t *testing.T) {
 	createSecret := func(secretType corev1.SecretType, dataKey, dataValue string) *unstructured.Unstructured {
 		ret, _ := helper.ToUnstructured(&corev1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Secret",
+				APIVersion: corev1.SchemeGroupVersion.String(),
+			},
 			ObjectMeta: metav1.ObjectMeta{},
 			Data:       map[string][]byte{dataKey: []byte(dataValue)},
 			Type:       secretType,
@@ -238,6 +242,10 @@ func Test_retainSecretServiceAccountToken(t *testing.T) {
 func Test_retainPersistentVolumeFields(t *testing.T) {
 	createPV := func(claimRef *corev1.ObjectReference) *unstructured.Unstructured {
 		ret, _ := helper.ToUnstructured(&corev1.PersistentVolume{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "PersistentVolume",
+				APIVersion: corev1.SchemeGroupVersion.String(),
+			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "pv",
 			},
@@ -277,6 +285,10 @@ func Test_retainPersistentVolumeFields(t *testing.T) {
 func Test_retainPersistentVolumeClaimFields(t *testing.T) {
 	createPVC := func(volumeName string) *unstructured.Unstructured {
 		ret, _ := helper.ToUnstructured(&corev1.PersistentVolumeClaim{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "PersistentVolumeClaim",
+				APIVersion: corev1.SchemeGroupVersion.String(),
+			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "pvc",
 			},

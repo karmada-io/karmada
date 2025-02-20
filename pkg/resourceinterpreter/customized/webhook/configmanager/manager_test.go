@@ -194,6 +194,10 @@ func TestUpdateConfiguration(t *testing.T) {
 			name: "valid configurations",
 			configs: []runtime.Object{
 				&configv1alpha1.ResourceInterpreterWebhookConfiguration{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "ResourceInterpreterWebhookConfiguration",
+						APIVersion: configv1alpha1.GroupVersion.String(),
+					},
 					ObjectMeta: metav1.ObjectMeta{Name: "config1"},
 					Webhooks: []configv1alpha1.ResourceInterpreterWebhook{
 						{Name: "webhook1"},
