@@ -1544,7 +1544,7 @@ func WriteYamlToFile(obj interface{}, filePath string) error {
 	return nil
 }
 
-var _ = ginkgo.Describe("Karmadactl register testing", ginkgo.Ordered, func() {
+var _ = framework.SerialDescribe("Karmadactl register testing", ginkgo.Ordered, ginkgo.Labels{NeedCreateCluster}, func() {
 	var (
 		newClusterName, clusterContext        string
 		homeDir, kubeConfigPath, controlPlane string
@@ -1565,14 +1565,6 @@ var _ = ginkgo.Describe("Karmadactl register testing", ginkgo.Ordered, func() {
 		})
 	})
 
-	ginkgo.AfterAll(func() {
-		ginkgo.By(fmt.Sprintf("Deleting clusters: %s", newClusterName), func() {
-			err := deleteCluster(newClusterName, kubeConfigPath)
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			_ = os.Remove(kubeConfigPath)
-		})
-	})
-
 	ginkgo.AfterEach(func() {
 		ginkgo.By(fmt.Sprintf("Unregistering cluster: %s", newClusterName), func() {
 			cmd := framework.NewKarmadactlCommand(
@@ -1584,14 +1576,17 @@ var _ = ginkgo.Describe("Karmadactl register testing", ginkgo.Ordered, func() {
 		})
 	})
 
+	ginkgo.AfterAll(func() {
+		ginkgo.By(fmt.Sprintf("Deleting clusters: %s", newClusterName), func() {
+			err := deleteCluster(newClusterName, kubeConfigPath)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			_ = os.Remove(kubeConfigPath)
+		})
+	})
+
 	ginkgo.It("should register a cluster without CA verification", func() {
 		var karmadaAPIEndpoint, token string
 		var err error
-
-		ginkgo.By("Extract Karmada API server endpoint", func() {
-			karmadaAPIEndpoint, err = extractKarmadaAPIServerEndpoint(kubeconfig)
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		})
 
 		ginkgo.By("Generate token", func() {
 			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout, "token", "create")
@@ -1600,11 +1595,16 @@ var _ = ginkgo.Describe("Karmadactl register testing", ginkgo.Ordered, func() {
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		})
 
+		ginkgo.By("Extract Karmada API server endpoint", func() {
+			karmadaAPIEndpoint, err = extractKarmadaAPIServerEndpoint(kubeconfig)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+
 		ginkgo.By("Register the new cluster in Karmada without CA verification", func() {
 			cmd := framework.NewKarmadactlCommand(
-				kubeConfigPath, "", karmadactlPath, "", karmadactlTimeout*5, "register", karmadaAPIEndpoint, "--token", token,
-				"--discovery-token-unsafe-skip-ca-verification="+"true", "--cluster-name", newClusterName,
-				"--karmada-agent-image", "docker.io/karmada/karmada-agent:latest",
+				kubeconfig, "", karmadactlPath, "", karmadactlTimeout*5, "register", karmadaAPIEndpoint, "--token", token,
+				"--discovery-token-unsafe-skip-ca-verification="+"true", "--kubeconfig="+kubeConfigPath,
+				"--cluster-name", newClusterName, "--karmada-agent-image", "docker.io/karmada/karmada-agent:latest",
 			)
 			output, err := cmd.ExecOrDie()
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -1619,8 +1619,7 @@ var _ = ginkgo.Describe("Karmadactl register testing", ginkgo.Ordered, func() {
 	})
 
 	ginkgo.It("should register a cluster with CA verification", func() {
-		var newClusterAPIEndpoint, token string
-		var discoveryTokenCACertHash string
+		var karmadaAPIEndpoint, token, discoveryTokenCACertHash string
 
 		ginkgo.By("Generate token and discovery token CA cert hash", func() {
 			cmd := framework.NewKarmadactlCommand(
@@ -1630,11 +1629,11 @@ var _ = ginkgo.Describe("Karmadactl register testing", ginkgo.Ordered, func() {
 			output, err := cmd.ExecOrDie()
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-			// Extract the endpoint for new cluster.
+			// Extract the endpoint for Karmada APIServer.
 			endpointRegex := regexp.MustCompile(`(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d{1,5})`)
 			endpointMatches := endpointRegex.FindStringSubmatch(output)
 			gomega.Expect(len(endpointMatches)).Should(gomega.BeNumerically(">=", 2))
-			newClusterAPIEndpoint = fmt.Sprintf("%s:%s", endpointMatches[1], endpointMatches[2])
+			karmadaAPIEndpoint = fmt.Sprintf("%s:%s", endpointMatches[1], endpointMatches[2])
 
 			// Extract token.
 			tokenRegex := regexp.MustCompile(`--token\s+(\S+)`)
@@ -1651,9 +1650,10 @@ var _ = ginkgo.Describe("Karmadactl register testing", ginkgo.Ordered, func() {
 
 		ginkgo.By("Register the new cluster in Karmada with CA verification", func() {
 			cmd := framework.NewKarmadactlCommand(
-				kubeConfigPath, "", karmadactlPath, "", karmadactlTimeout*5, "register", newClusterAPIEndpoint,
+				kubeconfig, "", karmadactlPath, "", karmadactlTimeout*5, "register", karmadaAPIEndpoint,
 				"--token", token, "--discovery-token-ca-cert-hash", discoveryTokenCACertHash,
-				"--cluster-name", newClusterName, "--karmada-agent-image", "docker.io/karmada/karmada-agent:latest",
+				"--kubeconfig="+kubeConfigPath, "--cluster-name", newClusterName,
+				"--karmada-agent-image", "docker.io/karmada/karmada-agent:latest",
 			)
 			output, err := cmd.ExecOrDie()
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
