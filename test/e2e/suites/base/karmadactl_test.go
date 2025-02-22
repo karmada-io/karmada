@@ -1546,21 +1546,40 @@ func WriteYamlToFile(obj interface{}, filePath string) error {
 
 var _ = framework.SerialDescribe("Karmadactl register testing", ginkgo.Ordered, ginkgo.Labels{NeedCreateCluster}, func() {
 	var (
-		newClusterName, clusterContext        string
-		homeDir, kubeConfigPath, controlPlane string
+		newClusterName, clusterContext, fallbackContext string
+		homeDir, kubeConfigPath, controlPlane           string
 	)
 
 	ginkgo.BeforeAll(func() {
 		ginkgo.By("Initialize dependencies", func() {
+			// Initialize member cluster variables.
 			newClusterName = "member-e2e-" + rand.String(RandomStrLength)
 			homeDir = os.Getenv("HOME")
 			kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, newClusterName)
 			controlPlane = fmt.Sprintf("%s-control-plane", newClusterName)
 			clusterContext = fmt.Sprintf("kind-%s", newClusterName)
+
+			// Initialize fallback context for host-control-plane kubeconfig.
+			config, err := clientcmd.LoadFromFile(kubeconfig)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			fallbackContext = config.CurrentContext
 		})
 
 		ginkgo.By(fmt.Sprintf("Creating cluster: %s", newClusterName), func() {
 			err := createCluster(newClusterName, kubeConfigPath, controlPlane, clusterContext)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+
+		ginkgo.By(fmt.Sprintf("Set host-control-plane kubeconfig current context to %s", karmadaContext), func() {
+			// Load kubeconfig.
+			config, err := clientcmd.LoadFromFile(kubeconfig)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+			// Set current context.
+			config.CurrentContext = karmadaContext
+
+			// Write back to file.
+			err = clientcmd.WriteToFile(*config, kubeconfig)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		})
 	})
@@ -1577,6 +1596,19 @@ var _ = framework.SerialDescribe("Karmadactl register testing", ginkgo.Ordered, 
 	})
 
 	ginkgo.AfterAll(func() {
+		ginkgo.By(fmt.Sprintf("Fallback host-control-plane kubeconfig current context to %s", fallbackContext), func() {
+			// Load kubeconfig.
+			config, err := clientcmd.LoadFromFile(kubeconfig)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+			// Set current context.
+			config.CurrentContext = fallbackContext
+
+			// Write back to file.
+			err = clientcmd.WriteToFile(*config, kubeconfig)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+
 		ginkgo.By(fmt.Sprintf("Deleting clusters: %s", newClusterName), func() {
 			err := deleteCluster(newClusterName, kubeConfigPath)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -1619,11 +1651,18 @@ var _ = framework.SerialDescribe("Karmadactl register testing", ginkgo.Ordered, 
 	})
 
 	ginkgo.It("should register a cluster with CA verification", func() {
-		var karmadaAPIEndpoint, token, discoveryTokenCACertHash string
+		var karmadaAPIEndpoint, karmadaAPIEndpointExpected string
+		var token, discoveryTokenCACertHash string
+
+		ginkgo.By("Extract Karmada API server endpoint", func() {
+			var err error
+			karmadaAPIEndpointExpected, err = extractKarmadaAPIServerEndpoint(kubeconfig)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
 
 		ginkgo.By("Generate token and discovery token CA cert hash", func() {
 			cmd := framework.NewKarmadactlCommand(
-				kubeconfig, "", karmadactlPath, "", karmadactlTimeout,
+				kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout,
 				"token", "create", "--print-register-command="+"true",
 			)
 			output, err := cmd.ExecOrDie()
@@ -1634,6 +1673,7 @@ var _ = framework.SerialDescribe("Karmadactl register testing", ginkgo.Ordered, 
 			endpointMatches := endpointRegex.FindStringSubmatch(output)
 			gomega.Expect(len(endpointMatches)).Should(gomega.BeNumerically(">=", 2))
 			karmadaAPIEndpoint = fmt.Sprintf("%s:%s", endpointMatches[1], endpointMatches[2])
+			gomega.Expect(karmadaAPIEndpoint).Should(gomega.Equal(karmadaAPIEndpointExpected))
 
 			// Extract token.
 			tokenRegex := regexp.MustCompile(`--token\s+(\S+)`)
