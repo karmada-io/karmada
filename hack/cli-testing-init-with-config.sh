@@ -99,6 +99,7 @@ kind load docker-image "${REGISTRY}/karmada-controller-manager:${VERSION}" --nam
 kind load docker-image "${REGISTRY}/karmada-scheduler:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 kind load docker-image "${REGISTRY}/karmada-webhook:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 kind load docker-image "${REGISTRY}/karmada-aggregated-apiserver:${VERSION}" --name="${HOST_CLUSTER_NAME}"
+kind load docker-image "${REGISTRY}/karmada-agent:${VERSION}" --name="${MEMBER_CLUSTER_1_NAME}"
 
 # Ensure the parent directory of CONFIG_FILE_PATH exists
 CONFIG_DIR=$(dirname "${CONFIG_FILE_PATH}")
@@ -150,6 +151,19 @@ ${BUILD_PATH}/karmadactl init --config=${CONFIG_FILE_PATH}
 
 # join cluster
 echo "Join member clusters..."
-${BUILD_PATH}/karmadactl --kubeconfig ${HOME}/karmada/karmada-apiserver.config  join ${MEMBER_CLUSTER_1_NAME} --cluster-kubeconfig=${KUBECONFIG_PATH}/${MEMBER_CLUSTER_1_NAME}.config
-${BUILD_PATH}/karmadactl --kubeconfig ${HOME}/karmada/karmada-apiserver.config  join ${MEMBER_CLUSTER_2_NAME} --cluster-kubeconfig=${KUBECONFIG_PATH}/${MEMBER_CLUSTER_2_NAME}.config
-kubectl wait --for=condition=Ready clusters --all --timeout=800s  --kubeconfig=${HOME}/karmada/karmada-apiserver.config
+TOKEN_CMD=$(${BUILD_PATH}/karmadactl --kubeconfig ${HOME}/karmada/karmada-apiserver.config token create --print-register-command)
+TOKEN=$(echo "$TOKEN_CMD" | grep -o '\--token [^ ]*' | cut -d' ' -f2)
+HASH=$(echo "$TOKEN_CMD" | grep -o '\--discovery-token-ca-cert-hash [^ ]*' | cut -d' ' -f2)
+ENDPOINT=$(kubectl --kubeconfig ${HOME}/karmada/karmada-apiserver.config config view --minify -o jsonpath='{.clusters[0].cluster.server}' | sed 's|^https://||')
+
+${BUILD_PATH}/karmadactl register ${ENDPOINT} \
+    --token ${TOKEN} \
+    --discovery-token-ca-cert-hash ${HASH} \
+    --kubeconfig=${KUBECONFIG_PATH}/${MEMBER_CLUSTER_1_NAME}.config \
+    --cluster-name=${MEMBER_CLUSTER_1_NAME} \
+    --karmada-agent-image "${REGISTRY}/karmada-agent:${VERSION}" \
+    --v=4
+
+${BUILD_PATH}/karmadactl --kubeconfig ${HOME}/karmada/karmada-apiserver.config join ${MEMBER_CLUSTER_2_NAME} --cluster-kubeconfig=${KUBECONFIG_PATH}/${MEMBER_CLUSTER_2_NAME}.config
+
+kubectl wait --for=condition=Ready clusters --all --timeout=800s --kubeconfig=${HOME}/karmada/karmada-apiserver.config
