@@ -31,6 +31,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native/prune"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 // MutatingAdmission mutates API request if necessary.
@@ -42,6 +43,9 @@ type MutatingAdmission struct {
 var _ admission.Handler = &MutatingAdmission{}
 
 // Handle yields a response to an AdmissionRequest.
+// This function could affect the informer cache of controller-manager.
+// In controller-manager, redundant updates to Work are avoided as much as possible, and changes to informer cache will affect this behavior.
+// Therefore, if someone modify this function, please ensure that the relevant logic in controller-manager also be updated.
 func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) admission.Response {
 	work := &workv1alpha1.Work{}
 
@@ -73,7 +77,7 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 
 		// Skip label/annotate the workload of Work that is not intended to be propagated.
 		if work.Labels[util.PropagationInstruction] != util.PropagationInstructionSuppressed {
-			setLabelsAndAnnotationsForWorkload(workloadObj, work)
+			helper.SetLabelsAndAnnotationsForWorkload(workloadObj, work)
 		}
 
 		workloadJSON, err := workloadObj.MarshalJSON()
@@ -91,13 +95,4 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 	}
 
 	return admission.PatchResponseFromRaw(req.Object.Raw, marshaledBytes)
-}
-
-// setLabelsAndAnnotationsForWorkload sets the associated work object labels and annotations for workload.
-func setLabelsAndAnnotationsForWorkload(workload *unstructured.Unstructured, work *workv1alpha1.Work) {
-	util.RecordManagedAnnotations(workload)
-	workload.SetLabels(util.DedupeAndMergeLabels(workload.GetLabels(), map[string]string{
-		workv1alpha2.WorkPermanentIDLabel: work.Labels[workv1alpha2.WorkPermanentIDLabel],
-	}))
-	util.RecordManagedLabels(workload)
 }
