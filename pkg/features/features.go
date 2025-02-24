@@ -63,6 +63,15 @@ const (
 	// owner: @mszacillo, @XiShanYongYe-Chang
 	// alpha: v1.12
 	StatefulFailoverInjection featuregate.Feature = "StatefulFailoverInjection"
+
+	// PriorityBasedScheduling controls whether the Priority-Based Scheduling feature is enabled.
+	// When enabled, the scheduler prioritizes applications with higher priority values, ensuring they
+	// are scheduled before lower-priority ones. This is useful for cluster environments where critical
+	// workloads must be processed first to meet SLA requirements.
+	//
+	// owner: @LeonZh0u, @seanlaii, @wengyao04, @whitewindmills, @zclyne
+	// alpha: v1.13
+	PriorityBasedScheduling featuregate.Feature = "PriorityBasedScheduling"
 )
 
 var (
@@ -83,6 +92,7 @@ var (
 		MultiClusterService:               {Default: false, PreRelease: featuregate.Alpha},
 		ResourceQuotaEstimate:             {Default: false, PreRelease: featuregate.Alpha},
 		StatefulFailoverInjection:         {Default: false, PreRelease: featuregate.Alpha},
+		PriorityBasedScheduling:           {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
 
