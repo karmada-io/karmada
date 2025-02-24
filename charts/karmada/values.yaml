@@ -443,6 +443,17 @@ apiServer:
   podDisruptionBudget: *podDisruptionBudget
   ## @param apiServer.priorityClassName the priority class name for the karmada-apiserver
   priorityClassName: "system-node-critical"
+  oidc:
+    caFile: ""
+    clientId: ""
+    groupsClaim: ""
+    groupsPrefix: ""
+    issuerUrl: ""
+    # @param apiServer.oidc.requiredClaim comma separated 'key=value' pairs that describe required claims in the ID token
+    requiredClaim: ""
+    signingAlgs: ""
+    usernameClaim: ""
+    usernamePrefix: ""
 
 ## karmada aggregated apiserver config
 aggregatedApiServer:

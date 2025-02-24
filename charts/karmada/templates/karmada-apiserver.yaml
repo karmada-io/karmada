@@ -73,6 +73,35 @@ spec:
             - --max-requests-inflight={{ .Values.apiServer.maxRequestsInflight }}
             - --max-mutating-requests-inflight={{ .Values.apiServer.maxMutatingRequestsInflight }}
             - --tls-min-version=VersionTLS13
+            {{- with .Values.apiServer.oidc }}
+            {{- if .caFile }}
+            - --oidc-ca-file={{ .caFile }}
+            {{- end }}
+            {{- if .clientId }}
+            - --oidc-client-id={{ .clientId }}
+            {{- end }}
+            {{- if .groupsClaim }}
+            - --oidc-groups-claim={{ .groupsClaim }}
+            {{- end }}
+            {{- if .groupsPrefix }}
+            - --oidc-groups-prefix={{ .groupsPrefix }}
+            {{- end }}
+            {{- if .issuerUrl }}
+            - --oidc-issuer-url={{ .issuerUrl }}
+            {{- end }}
+            {{- if .requiredClaim }}
+            - --oidc-required-claim={{ .requiredClaim }}
+            {{- end }}
+            {{- if .signingAlgs }}
+            - --oidc-signing-algs={{ .signingAlgs }}
+            {{- end }}
+            {{- if .usernameClaim }}
+            - --oidc-username-claim={{ .usernameClaim }}
+            {{- end }}
+            {{- if .usernamePrefix }}
+            - --oidc-username-prefix={{ .usernamePrefix }}
+            {{- end }}
+            {{- end }}
           ports:
             - name: http
               containerPort: 5443
