@@ -111,3 +111,14 @@ func IsWorkContains(manifests []workv1alpha1.Manifest, targetResource schema.Gro
 func IsWorkSuspendDispatching(work *workv1alpha1.Work) bool {
 	return ptr.Deref(work.Spec.SuspendDispatching, false)
 }
+
+// SetLabelsAndAnnotationsForWorkload sets the associated work object labels and annotations for workload.
+func SetLabelsAndAnnotationsForWorkload(workload *unstructured.Unstructured, work *workv1alpha1.Work) {
+	util.RecordManagedAnnotations(workload)
+	if work.Labels[workv1alpha2.WorkPermanentIDLabel] != "" {
+		workload.SetLabels(util.DedupeAndMergeLabels(workload.GetLabels(), map[string]string{
+			workv1alpha2.WorkPermanentIDLabel: work.Labels[workv1alpha2.WorkPermanentIDLabel],
+		}))
+	}
+	util.RecordManagedLabels(workload)
+}

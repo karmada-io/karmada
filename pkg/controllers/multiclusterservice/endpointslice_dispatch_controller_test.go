@@ -604,7 +604,9 @@ func TestEnsureEndpointSliceWork(t *testing.T) {
                                                 "endpointslice.karmada.io/provision-cluster": "provider",
                                                 "work.karmada.io/name": "test-work",
                                                 "work.karmada.io/namespace": "karmada-es-consumer",
-                                                "resourcetemplate.karmada.io/uid": ""
+                                                "resourcetemplate.karmada.io/uid": "",
+                                                "resourcetemplate.karmada.io/managed-annotations": "endpointslice.karmada.io/provision-cluster,resourcetemplate.karmada.io/managed-annotations,resourcetemplate.karmada.io/managed-labels,resourcetemplate.karmada.io/uid,work.karmada.io/name,work.karmada.io/namespace",
+                                                "resourcetemplate.karmada.io/managed-labels":"endpointslice.kubernetes.io/managed-by,karmada.io/managed,kubernetes.io/service-name"
                                             }
                                         },
                                         "endpoints": [
