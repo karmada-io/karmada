@@ -49,7 +49,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: setup e2e test environment
-        uses: nick-fields/retry@v3.0.0
+        uses: nick-fields/retry@v3.0.1
         with:
           max_attempts: 3
           timeout_minutes: 20
