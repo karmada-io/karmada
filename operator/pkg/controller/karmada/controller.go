@@ -92,13 +92,13 @@ func (ctrl *Controller) Reconcile(ctx context.Context, req controllerruntime.Req
 		return ctrl.removeFinalizer(ctx, karmada)
 	}
 
+	if err := ctrl.updateKarmada(ctx, karmada); err != nil {
+		return controllerruntime.Result{}, err
+	}
+
 	if err := ctrl.validateKarmada(ctx, karmada); err != nil {
 		klog.Errorf("Validation failed for karmada: %+v", err)
 		return controllerruntime.Result{}, nil
-	}
-
-	if err := ctrl.ensureKarmada(ctx, karmada); err != nil {
-		return controllerruntime.Result{}, err
 	}
 
 	return controllerruntime.Result{}, ctrl.syncKarmada(karmada)
@@ -129,7 +129,7 @@ func (ctrl *Controller) removeFinalizer(ctx context.Context, karmada *operatorv1
 	})
 }
 
-func (ctrl *Controller) ensureKarmada(ctx context.Context, karmada *operatorv1alpha1.Karmada) error {
+func (ctrl *Controller) updateKarmada(ctx context.Context, karmada *operatorv1alpha1.Karmada) error {
 	// The object is not being deleted, so if it does not have our finalizer,
 	// then lets add the finalizer and update the object. This is equivalent
 	// registering our finalizer.
