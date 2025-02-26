@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -710,6 +711,72 @@ func TestRecordManagedLabels(t *testing.T) {
 			if !reflect.DeepEqual(tt.object, tt.expected) {
 				t.Errorf("RecordManagedLabels() = %v, want %v", tt.object, tt.expected)
 			}
+		})
+	}
+}
+
+func TestDedupeAndMergeFinalizers(t *testing.T) {
+	type args struct {
+		existFinalizers []string
+		newFinalizers   []string
+	}
+	tests := []struct {
+		name string
+		args args
+		want []string
+	}{
+		{
+			name: "existFinalizers is nil",
+			args: args{
+				existFinalizers: nil,
+				newFinalizers:   []string{"karmada.io/binding-controller"},
+			},
+			want: []string{"karmada.io/binding-controller"},
+		},
+		{
+			name: "newFinalizers is nil",
+			args: args{
+				existFinalizers: []string{"karmada.io/binding-controller"},
+				newFinalizers:   nil,
+			},
+			want: []string{"karmada.io/binding-controller"},
+		},
+		{
+			name: "binding-controller in front of binding-dependencies-distributor",
+			args: args{
+				existFinalizers: []string{"karmada.io/binding-controller", "karmada.io/binding-dependencies-distributor"},
+				newFinalizers:   []string{"karmada.io/binding-controller"},
+			},
+			want: []string{"karmada.io/binding-controller", "karmada.io/binding-dependencies-distributor"},
+		},
+		{
+			name: "binding-dependencies-distributor in front of binding-controller",
+			args: args{
+				existFinalizers: []string{"karmada.io/binding-dependencies-distributor", "karmada.io/binding-controller"},
+				newFinalizers:   []string{"karmada.io/binding-controller"},
+			},
+			want: []string{"karmada.io/binding-dependencies-distributor", "karmada.io/binding-controller"},
+		},
+		{
+			name: "new finalizers have all Finalizers",
+			args: args{
+				existFinalizers: []string{"karmada.io/binding-dependencies-distributor", "karmada.io/binding-controller"},
+				newFinalizers:   []string{"karmada.io/binding-controller", "karmada.io/binding-dependencies-distributor"},
+			},
+			want: []string{"karmada.io/binding-dependencies-distributor", "karmada.io/binding-controller"},
+		},
+		{
+			name: "existFinalizers have only one item",
+			args: args{
+				existFinalizers: []string{"karmada.io/binding-dependencies-distributor"},
+				newFinalizers:   []string{"karmada.io/binding-controller", "karmada.io/binding-dependencies-distributor"},
+			},
+			want: []string{"karmada.io/binding-dependencies-distributor", "karmada.io/binding-controller"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, DedupeAndMergeFinalizers(tt.args.existFinalizers, tt.args.newFinalizers), "DedupeAndMergeFinalizers(%v, %v)", tt.args.existFinalizers, tt.args.newFinalizers)
 		})
 	}
 }
