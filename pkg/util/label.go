@@ -124,3 +124,21 @@ func RecordManagedLabels(object *unstructured.Unstructured) {
 	annotations[workv1alpha2.ManagedLabels] = strings.Join(managedKeys, ",")
 	object.SetAnnotations(annotations)
 }
+
+// DedupeAndMergeFinalizers merges the new finalizers into exist finalizers.
+func DedupeAndMergeFinalizers(existFinalizers, newFinalizers []string) []string {
+	if len(existFinalizers) == 0 {
+		return newFinalizers
+	}
+	existFinalizerSets := sets.Set[string]{}
+	existFinalizerSets.Insert(existFinalizers...)
+
+	var mergedFinalizers []string
+	mergedFinalizers = append(mergedFinalizers, existFinalizers...)
+	for _, item := range newFinalizers {
+		if !existFinalizerSets.Has(item) {
+			mergedFinalizers = append(mergedFinalizers, item)
+		}
+	}
+	return mergedFinalizers
+}
