@@ -682,13 +682,12 @@ const (
 type SchedulePriority struct {
 	// PriorityClassSource specifies where Karmada should look for the PriorityClass definition.
 	// Available options:
-	// - KubePriorityClass (default): Uses Kubernetes PriorityClass (scheduling.k8s.io/v1)
+	// - KubePriorityClass: Uses Kubernetes PriorityClass (scheduling.k8s.io/v1)
 	// - PodPriorityClass: Uses PriorityClassName from PodTemplate: PodSpec.PriorityClassName (not yet implemented)
 	// - FederatedPriorityClass: Uses Karmada FederatedPriorityClass (not yet implemented)
 	//
-	// +kubebuilder:default="KubePriorityClass"
 	// +kubebuilder:validation:Enum=KubePriorityClass
-	// +optional
+	// +required
 	PriorityClassSource PriorityClassSource `json:"priorityClassSource,omitempty"`
 
 	// PriorityClassName specifies which PriorityClass to use. Its behavior depends on PriorityClassSource:

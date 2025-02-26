@@ -19297,6 +19297,7 @@
       "description": "SchedulePriority defines how Karmada should resolve the priority and preemption policy for workload scheduling.",
       "type": "object",
       "required": [
+        "priorityClassSource",
         "priorityClassName"
       ],
       "properties": {
@@ -19305,7 +19306,7 @@
           "type": "string"
         },
         "priorityClassSource": {
-          "description": "PriorityClassSource specifies where Karmada should look for the PriorityClass definition. Available options: - KubePriorityClass (default): Uses Kubernetes PriorityClass (scheduling.k8s.io/v1) - PodPriorityClass: Uses PriorityClassName from PodTemplate: PodSpec.PriorityClassName (not yet implemented) - FederatedPriorityClass: Uses Karmada FederatedPriorityClass (not yet implemented)",
+          "description": "PriorityClassSource specifies where Karmada should look for the PriorityClass definition. Available options: - KubePriorityClass: Uses Kubernetes PriorityClass (scheduling.k8s.io/v1) - PodPriorityClass: Uses PriorityClassName from PodTemplate: PodSpec.PriorityClassName (not yet implemented) - FederatedPriorityClass: Uses Karmada FederatedPriorityClass (not yet implemented)",
           "type": "string"
         }
       }

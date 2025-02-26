@@ -5150,7 +5150,7 @@ func schema_pkg_apis_policy_v1alpha1_SchedulePriority(ref common.ReferenceCallba
 				Properties: map[string]spec.Schema{
 					"priorityClassSource": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PriorityClassSource specifies where Karmada should look for the PriorityClass definition. Available options: - KubePriorityClass (default): Uses Kubernetes PriorityClass (scheduling.k8s.io/v1) - PodPriorityClass: Uses PriorityClassName from PodTemplate: PodSpec.PriorityClassName (not yet implemented) - FederatedPriorityClass: Uses Karmada FederatedPriorityClass (not yet implemented)",
+							Description: "PriorityClassSource specifies where Karmada should look for the PriorityClass definition. Available options: - KubePriorityClass: Uses Kubernetes PriorityClass (scheduling.k8s.io/v1) - PodPriorityClass: Uses PriorityClassName from PodTemplate: PodSpec.PriorityClassName (not yet implemented) - FederatedPriorityClass: Uses Karmada FederatedPriorityClass (not yet implemented)",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -5163,7 +5163,7 @@ func schema_pkg_apis_policy_v1alpha1_SchedulePriority(ref common.ReferenceCallba
 						},
 					},
 				},
-				Required: []string{"priorityClassName"},
+				Required: []string{"priorityClassSource", "priorityClassName"},
 			},
 		},
 	}
