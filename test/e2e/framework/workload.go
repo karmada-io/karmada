@@ -55,7 +55,7 @@ func UpdateWorkload(client dynamic.Interface, workload *workloadv1alpha1.Workloa
 		gomega.Eventually(func() error {
 			_, err = client.Resource(workloadGVR).Namespace(workload.Namespace).Update(context.TODO(), newUnstructuredObj, metav1.UpdateOptions{}, subresources...)
 			return err
-		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }
 
@@ -69,7 +69,7 @@ func GetWorkload(client dynamic.Interface, namespace, name string) *workloadv1al
 		gomega.Eventually(func() error {
 			unstructuredObj, err = client.Resource(workloadGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 			return err
-		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObj.UnstructuredContent(), workload)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -101,7 +101,7 @@ func WaitWorkloadPresentOnClusterFitWith(cluster, namespace, name string, fit fu
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(workload.UnstructuredContent(), typedObj)
 		g.Expect(err).ShouldNot(gomega.HaveOccurred())
 		return fit(typedObj), nil
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitWorkloadPresentOnClustersFitWith waits workload present on member clusters sync with fit func.
@@ -130,7 +130,7 @@ func WaitWorkloadDisappearOnCluster(cluster, namespace, name string) {
 
 		klog.Errorf("Failed to get workload(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
 		return false
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitWorkloadDisappearOnClusters wait workload disappear on member clusters until timeout.

@@ -50,6 +50,6 @@ func UpdateStatefulSetReplicas(client kubernetes.Interface, statefulSet *appsv1.
 		gomega.Eventually(func() error {
 			_, err := client.AppsV1().StatefulSets(statefulSet.Namespace).Update(context.TODO(), statefulSet, metav1.UpdateOptions{})
 			return err
-		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }

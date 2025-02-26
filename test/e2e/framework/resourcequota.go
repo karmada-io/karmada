@@ -46,7 +46,7 @@ func WaitResourceQuotaPresentOnCluster(cluster, namespace, name string) {
 		_, err := clusterClient.CoreV1().ResourceQuotas(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		g.Expect(err).NotTo(gomega.HaveOccurred())
 		return true, nil
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitResourceQuotaDisappearOnClusters wait resourceQuota disappear on clusters until timeout.
@@ -75,5 +75,5 @@ func WaitResourceQuotaDisappearOnCluster(cluster, namespace, name string) {
 
 		klog.Errorf("Failed to get resourceQuota(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
 		return false
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }

@@ -68,7 +68,7 @@ func WaitConfigMapPresentOnClusterFitWith(cluster, namespace, name string, fit f
 			return false
 		}
 		return fit(configmap)
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // UpdateConfigMapWithPatch update configmap with patch bytes.
@@ -99,7 +99,7 @@ func WaitConfigMapDisappearOnCluster(cluster, namespace, name string) {
 
 		klog.Errorf("Failed to get configmap(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
 		return false
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitConfigMapDisappearOnClusters wait configmap disappear on member clusters until timeout.

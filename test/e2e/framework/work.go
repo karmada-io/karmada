@@ -40,5 +40,5 @@ func WaitForWorkToDisappear(client karmada.Interface, namespace, name string) {
 			return fmt.Errorf("failed to get work(%s/%s), err: %w", namespace, name, err)
 		}
 		return nil
-	}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+	}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 }

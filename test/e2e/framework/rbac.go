@@ -70,7 +70,7 @@ func WaitRolePresentOnClusterFitWith(cluster, namespace, name string, fit func(r
 			return false
 		}
 		return fit(role)
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitRoleDisappearOnClusters wait role disappear on member clusters until timeout.
@@ -99,7 +99,7 @@ func WaitRoleDisappearOnCluster(cluster, namespace, name string) {
 
 		klog.Errorf("Failed to get role(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
 		return false
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // CreateClusterRole create clusterRole.
@@ -142,7 +142,7 @@ func WaitClusterRolePresentOnClusterFitWith(cluster, name string, fit func(clust
 			return false
 		}
 		return fit(clusterRole)
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitClusterRoleDisappearOnClusters wait clusterRole disappear on member clusters until timeout.
@@ -171,7 +171,7 @@ func WaitClusterRoleDisappearOnCluster(cluster, name string) {
 
 		klog.Errorf("Failed to get clusterRole(%s) on cluster(%s), err: %v", name, cluster, err)
 		return false
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitClusterRoleGetByClientFitWith wait clusterRole get by client fit with func.
@@ -183,7 +183,7 @@ func WaitClusterRoleGetByClientFitWith(client kubernetes.Interface, name string,
 				return false
 			}
 			return fit(clusterRole)
-		}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+		}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 	})
 }
 
@@ -227,7 +227,7 @@ func WaitRoleBindingPresentOnClusterFitWith(cluster, namespace, name string, fit
 			return false
 		}
 		return fit(roleBinding)
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitRoleBindingDisappearOnClusters wait roleBinding disappear on member clusters until timeout.
@@ -256,7 +256,7 @@ func WaitRoleBindingDisappearOnCluster(cluster, namespace, name string) {
 
 		klog.Errorf("Failed to get roleBinding(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
 		return false
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // CreateClusterRoleBinding create clusterRoleBinding.
@@ -299,7 +299,7 @@ func WaitClusterRoleBindingPresentOnClusterFitWith(cluster, name string, fit fun
 			return false
 		}
 		return fit(clusterRoleBinding)
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitClusterRoleBindingDisappearOnClusters wait clusterRoleBinding disappear on member clusters until timeout.
@@ -328,7 +328,7 @@ func WaitClusterRoleBindingDisappearOnCluster(cluster, name string) {
 
 		klog.Errorf("Failed to get clusterRoleBinding(%s) on cluster(%s), err: %v", name, cluster, err)
 		return false
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // CreateServiceAccount create serviceaccount.
@@ -362,7 +362,7 @@ func WaitServiceAccountPresentOnClusterFitWith(cluster, namespace, name string, 
 			return false
 		}
 		return fit(sa)
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitServiceAccountPresentOnClustersFitWith wait sa present on cluster sync with fit func.
@@ -391,7 +391,7 @@ func WaitServiceAccountDisappearOnCluster(cluster, namespace, name string) {
 
 		klog.Errorf("Failed to get sa(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
 		return false
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitServiceAccountDisappearOnClusters wait sa disappear on member clusters until timeout.

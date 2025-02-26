@@ -86,6 +86,6 @@ func WaitFederatedResourceQuotaCollectStatus(client karmada.Interface, namespace
 			}
 
 			return true, nil
-		}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+		}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 	})
 }

@@ -55,7 +55,7 @@ func UpdateDeploymentPaused(client kubernetes.Interface, deployment *appsv1.Depl
 			deploy.Spec.Paused = paused
 			_, err = client.AppsV1().Deployments(deploy.Namespace).Update(context.TODO(), deploy, metav1.UpdateOptions{})
 			return err
-		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }
 
@@ -79,7 +79,7 @@ func WaitDeploymentPresentOnClusterFitWith(cluster, namespace, name string, fit 
 			return false
 		}
 		return fit(dep)
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitDeploymentFitWith wait deployment sync with fit func.
@@ -90,7 +90,7 @@ func WaitDeploymentFitWith(client kubernetes.Interface, namespace, name string, 
 			return false
 		}
 		return fit(dep)
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitDeploymentPresentOnClustersFitWith wait deployment present on cluster sync with fit func.
@@ -111,7 +111,7 @@ func WaitDeploymentStatus(client kubernetes.Interface, deployment *appsv1.Deploy
 				return false
 			}
 			return CheckDeploymentReadyStatus(deploy, replicas)
-		}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+		}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 	})
 }
 
@@ -132,7 +132,7 @@ func WaitDeploymentDisappearOnCluster(cluster, namespace, name string) {
 
 		klog.Errorf("Failed to get deployment(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
 		return false
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitDeploymentDisappearOnClusters wait deployment disappear on member clusters until timeout.
@@ -155,7 +155,7 @@ func UpdateDeploymentReplicas(client kubernetes.Interface, deployment *appsv1.De
 			deploy.Spec.Replicas = &replicas
 			_, err = client.AppsV1().Deployments(deploy.Namespace).Update(context.TODO(), deploy, metav1.UpdateOptions{})
 			return err
-		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }
 
@@ -170,7 +170,7 @@ func UpdateDeploymentAnnotations(client kubernetes.Interface, deployment *appsv1
 			deploy.Annotations = annotations
 			_, err = client.AppsV1().Deployments(deploy.Namespace).Update(context.TODO(), deploy, metav1.UpdateOptions{})
 			return err
-		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }
 
@@ -190,7 +190,7 @@ func AppendDeploymentAnnotations(client kubernetes.Interface, deployment *appsv1
 			}
 			_, err = client.AppsV1().Deployments(deploy.Namespace).Update(context.TODO(), deploy, metav1.UpdateOptions{})
 			return err
-		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }
 
@@ -205,7 +205,7 @@ func UpdateDeploymentLabels(client kubernetes.Interface, deployment *appsv1.Depl
 			deploy.Labels = labels
 			_, err = client.AppsV1().Deployments(deploy.Namespace).Update(context.TODO(), deploy, metav1.UpdateOptions{})
 			return err
-		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }
 
@@ -220,7 +220,7 @@ func UpdateDeploymentVolumes(client kubernetes.Interface, deployment *appsv1.Dep
 			deploy.Spec.Template.Spec.Volumes = volumes
 			_, err = client.AppsV1().Deployments(deploy.Namespace).Update(context.TODO(), deploy, metav1.UpdateOptions{})
 			return err
-		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }
 
@@ -235,7 +235,7 @@ func UpdateDeploymentServiceAccountName(client kubernetes.Interface, deployment 
 			deploy.Spec.Template.Spec.ServiceAccountName = serviceAccountName
 			_, err = client.AppsV1().Deployments(deploy.Namespace).Update(context.TODO(), deploy, metav1.UpdateOptions{})
 			return err
-		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }
 
@@ -252,7 +252,7 @@ func ExtractTargetClustersFrom(c client.Client, deployment *appsv1.Deployment) [
 			return false, nil
 		}
 		return true, nil
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 
 	targetClusterNames := make([]string, 0, len(binding.Spec.Clusters))
 	for _, cluster := range binding.Spec.Clusters {
@@ -282,7 +282,7 @@ func WaitDeploymentGetByClientFitWith(client kubernetes.Interface, namespace, na
 				return false
 			}
 			return fit(dep)
-		}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+		}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 	})
 }
 
@@ -305,6 +305,6 @@ func WaitDeploymentReplicasFitWith(clusters []string, namespace, name string, ex
 			}
 			klog.Infof("The total replicas of deployment(%s/%s) is %d", namespace, name, totalReplicas)
 			return totalReplicas == expectReplicas
-		}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+		}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 	})
 }

@@ -35,5 +35,5 @@ func WaitEventFitWith(kubeClient kubernetes.Interface, namespace string, involve
 		})
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		return slices.ContainsFunc(eventList.Items, fit)
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }

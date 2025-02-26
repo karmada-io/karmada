@@ -67,7 +67,7 @@ func WaitJobPresentOnClusterFitWith(cluster, namespace, name string, fit func(jo
 			return false
 		}
 		return fit(dep)
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitJobPresentOnClustersFitWith wait job present on cluster sync with fit func.
@@ -96,7 +96,7 @@ func WaitJobDisappearOnCluster(cluster, namespace, name string) {
 
 		klog.Errorf("Failed to get job(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
 		return false
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitJobDisappearOnClusters wait job disappear on member clusters until timeout.

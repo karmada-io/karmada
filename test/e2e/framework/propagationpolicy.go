@@ -94,5 +94,5 @@ func WaitPropagationPolicyFitWith(client karmada.Interface, namespace, name stri
 			return false
 		}
 		return fit(policy)
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
