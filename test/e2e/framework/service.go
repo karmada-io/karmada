@@ -59,7 +59,7 @@ func WaitServicePresentOnClusterFitWith(cluster, namespace, name string, fit fun
 			return false
 		}
 		return fit(svc)
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitServicePresentOnClustersFitWith wait service present on cluster sync with fit func.
@@ -88,7 +88,7 @@ func WaitServiceDisappearOnCluster(cluster, namespace, name string) {
 
 		klog.Errorf("Failed to get service(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
 		return false
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitServiceDisappearOnClusters wait service disappear on member clusters until timeout.

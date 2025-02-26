@@ -66,7 +66,7 @@ func WaitSecretPresentOnClusterFitWith(cluster, namespace, name string, fit func
 			return false
 		}
 		return fit(secret)
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitSecretDisappearOnCluster wait secret disappear on cluster until timeout.
@@ -86,7 +86,7 @@ func WaitSecretDisappearOnCluster(cluster, namespace, name string) {
 
 		klog.Errorf("Failed to get secret(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
 		return false
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitSecretDisappearOnClusters wait service disappear on member clusters until timeout.

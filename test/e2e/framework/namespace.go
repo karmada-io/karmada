@@ -52,7 +52,7 @@ func WaitNamespacePresentOnClusterByClient(client kubernetes.Interface, name str
 		_, err := client.CoreV1().Namespaces().Get(context.TODO(), name, metav1.GetOptions{})
 		g.Expect(err).NotTo(gomega.HaveOccurred())
 		return true, nil
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitNamespacePresentOnCluster wait namespace present on cluster until timeout.
@@ -65,7 +65,7 @@ func WaitNamespacePresentOnCluster(cluster, name string) {
 		_, err := clusterClient.CoreV1().Namespaces().Get(context.TODO(), name, metav1.GetOptions{})
 		g.Expect(err).NotTo(gomega.HaveOccurred())
 		return true, nil
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitNamespacePresentOnClusters wait namespace present on clusters until timeout.
@@ -94,7 +94,7 @@ func WaitNamespaceDisappearOnCluster(cluster, name string) {
 
 		klog.Errorf("Failed to get namespace(%s) on cluster(%s), err: %v", name, cluster, err)
 		return false
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitNamespaceDisappearOnClusters wait namespace disappear on clusters until timeout.
@@ -117,6 +117,6 @@ func UpdateNamespaceLabels(client kubernetes.Interface, namespace *corev1.Namesp
 			ns.Labels = labels
 			_, err = client.CoreV1().Namespaces().Update(context.TODO(), ns, metav1.UpdateOptions{})
 			return err
-		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }

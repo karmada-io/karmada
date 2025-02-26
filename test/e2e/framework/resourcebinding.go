@@ -38,7 +38,7 @@ func WaitResourceBindingFitWith(client karmada.Interface, namespace, name string
 			return false
 		}
 		return fit(resourceBinding)
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // AssertBindingScheduledClusters wait deployment present on member clusters sync with fit func.
@@ -61,7 +61,7 @@ func AssertBindingScheduledClusters(client karmada.Interface, namespace, name st
 				}
 			}
 			return fmt.Errorf("scheduled clusters: %+v, expected possible results: %+v", scheduledClusters, expectedResults)
-		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }
 
@@ -77,6 +77,6 @@ func WaitGracefulEvictionTasksDone(client karmada.Interface, namespace, name str
 				return fmt.Errorf("%d GracefulEvictionTasks is being processing", len(binding.Spec.GracefulEvictionTasks))
 			}
 			return nil
-		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }

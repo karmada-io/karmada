@@ -64,7 +64,7 @@ func WaitPodPresentOnClusterFitWith(cluster, namespace, name string, fit func(po
 			return false
 		}
 		return fit(pod)
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitPodMetricsReady wait podMetrics to be ready.
@@ -90,7 +90,7 @@ func WaitPodMetricsReady(kubeClient kubernetes.Interface, karmadaClient karmada.
 			return false
 		}
 		return true
-	}, metricsCreationDelay, pollInterval).Should(gomega.Equal(true))
+	}, metricsCreationDelay, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitPodPresentOnClustersFitWith wait pod present on cluster sync with fit func.
@@ -119,7 +119,7 @@ func WaitPodDisappearOnCluster(cluster, namespace, name string) {
 
 		klog.Errorf("Failed to get pod(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
 		return false
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitPodDisappearOnClusters wait pod disappear on member clusters until timeout.

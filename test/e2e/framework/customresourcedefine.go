@@ -74,7 +74,7 @@ func WaitCRDPresentOnClusters(client karmada.Interface, clusters []string, crdAP
 				cluster, err := FetchCluster(client, clusterName)
 				g.Expect(err).NotTo(gomega.HaveOccurred())
 				return helper.IsAPIEnabled(cluster.Status.APIEnablements, crdAPIVersion, crdKind), nil
-			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+			}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 		}
 	})
 }
@@ -90,7 +90,7 @@ func WaitCRDDisappearedOnClusters(clusters []string, crdName string) {
 			gomega.Eventually(func() bool {
 				_, err := clusterDynamicClient.Resource(crdGVR).Get(context.TODO(), crdName, metav1.GetOptions{})
 				return apierrors.IsNotFound(err)
-			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+			}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 		}
 	})
 }
@@ -108,5 +108,5 @@ func WaitCRDFitWith(client dynamic.Interface, crdName string, fit func(crd *apie
 			return false
 		}
 		return fit(crd)
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }

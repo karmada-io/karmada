@@ -64,7 +64,7 @@ func UpdateWorkloadRebalancer(client karmada.Interface, name string, workloads *
 			}
 			_, err = client.AppsV1alpha1().WorkloadRebalancers().Update(context.TODO(), rebalancer, metav1.UpdateOptions{})
 			return err
-		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }
 
@@ -80,7 +80,7 @@ func WaitRebalancerObservedWorkloads(client karmada.Interface, name string, expe
 				return fmt.Errorf("observedWorkloads: %+v, expectedWorkloads: %+v", rebalancer.Status.ObservedWorkloads, expectedWorkloads)
 			}
 			return nil
-		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }
 
@@ -96,6 +96,6 @@ func WaitRebalancerDisappear(client karmada.Interface, name string) {
 				return err
 			}
 			return fmt.Errorf("WorkloadRebalancer %s still exist: %+v", name, rebalancer)
-		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }

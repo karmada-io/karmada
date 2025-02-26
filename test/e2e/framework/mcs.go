@@ -48,7 +48,7 @@ func UpdateMultiClusterService(client karmada.Interface, mcs *networkingv1alpha1
 			mcsExist.Spec = mcs.Spec
 			_, err = client.NetworkingV1alpha1().MultiClusterServices(mcsExist.Namespace).Update(context.TODO(), mcsExist, metav1.UpdateOptions{})
 			return err
-		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }
 
@@ -68,5 +68,5 @@ func WaitMultiClusterServicePresentOnClustersFitWith(client karmada.Interface, n
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 		return fit(mcs)
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }

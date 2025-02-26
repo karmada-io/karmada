@@ -264,7 +264,7 @@ func UpdateClusterLabels(client karmada.Interface, clusterName string, labels ma
 			return false, err
 		}
 		return true, nil
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // DeleteClusterLabels deletes cluster labels if it exists.
@@ -286,7 +286,7 @@ func DeleteClusterLabels(client karmada.Interface, clusterName string, labels ma
 			return false, err
 		}
 		return true, nil
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // GetClusterNamesFromClusters will get Clusters' names form Clusters Object.
@@ -306,7 +306,7 @@ func WaitClusterFitWith(c client.Client, clusterName string, fit func(cluster *c
 			return false, err
 		}
 		return fit(currentCluster), nil
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // LoadRESTClientConfig creates a rest.Config using the passed kubeconfig. If context is empty, current context in kubeconfig will be used.
@@ -363,5 +363,5 @@ func UpdateClusterStatusCondition(client karmada.Interface, clusterName string, 
 			return false, err
 		}
 		return true, nil
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }

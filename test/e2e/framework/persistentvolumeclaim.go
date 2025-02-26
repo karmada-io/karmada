@@ -66,7 +66,7 @@ func WaitPVCPresentOnClusterFitWith(cluster, namespace, name string, fit func(pv
 			return false
 		}
 		return fit(pvc)
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitPVCDisappearOnCluster wait PersistentVolumeClaim disappear on cluster until timeout.
@@ -86,7 +86,7 @@ func WaitPVCDisappearOnCluster(cluster, namespace, name string) {
 
 		klog.Errorf("Failed to get PersistentVolumeClaim(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
 		return false
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
 
 // WaitPVCDisappearOnClusters Wait for the PersistentVolumeClaim to disappear on member clusters until timeout.

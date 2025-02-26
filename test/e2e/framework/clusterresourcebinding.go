@@ -34,5 +34,5 @@ func WaitClusterResourceBindingFitWith(client karmada.Interface, name string, fi
 			return false
 		}
 		return fit(clusterResourceBinding)
-	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }
