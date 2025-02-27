@@ -21,22 +21,23 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/scheduling/v1"
+	corev1 "k8s.io/api/core/v1"
+	schedulingv1 "k8s.io/api/scheduling/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestGetPriorityClassByNameOrDefault(t *testing.T) {
 	ctx := context.Background()
 
 	// Create mock PriorityClasses
-	priorityClass1 := &v1.PriorityClass{
+	priorityClass1 := &schedulingv1.PriorityClass{
 		ObjectMeta: metav1.ObjectMeta{Name: "high-priority"},
 		Value:      1000,
 	}
 
-	defaultPriorityClass := &v1.PriorityClass{
+	defaultPriorityClass := &schedulingv1.PriorityClass{
 		ObjectMeta:    metav1.ObjectMeta{Name: "default-priority"},
 		Value:         500,
 		GlobalDefault: true,
@@ -44,8 +45,8 @@ func TestGetPriorityClassByNameOrDefault(t *testing.T) {
 
 	// Create a fake client with the objects
 	scheme := runtime.NewScheme()
-	_ = v1.AddToScheme(scheme)
-	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(priorityClass1, defaultPriorityClass).Build()
+	_ = corev1.AddToScheme(scheme)
+	fakeClient := clientfake.NewClientBuilder().WithScheme(scheme).WithObjects(priorityClass1, defaultPriorityClass).Build()
 
 	// Test case 1: Fetch by name
 	pc, err := GetPriorityClassByNameOrDefault(ctx, fakeClient, "high-priority")
@@ -60,9 +61,9 @@ func TestGetPriorityClassByNameOrDefault(t *testing.T) {
 	assert.True(t, pc.GlobalDefault)
 
 	// Test case 3: No priority classes available
-	emptyClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+	emptyClient := clientfake.NewClientBuilder().WithScheme(scheme).Build()
 	pc, err = GetPriorityClassByNameOrDefault(ctx, emptyClient, "nonexistent")
 	assert.Error(t, err)
 	assert.Nil(t, pc)
-	assert.Equal(t, "no default priority class found", err.Error())
+	assert.Equal(t, "priority class nonexistent not found and no default priority class found", err.Error())
 }
