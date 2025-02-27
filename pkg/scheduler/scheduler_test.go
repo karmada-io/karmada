@@ -35,14 +35,15 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	clienttesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/workqueue"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/features"
 	karmadafake "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
 	workv1alpha2lister "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/core"
 	schedulercore "github.com/karmada-io/karmada/pkg/scheduler/core"
+	internalqueue "github.com/karmada-io/karmada/pkg/scheduler/internal/queue"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/grpcconnection"
@@ -1065,26 +1066,31 @@ func TestWorkerAndScheduleNext(t *testing.T) {
 	testCases := []struct {
 		name         string
 		key          string
+		priority     int32
 		shutdown     bool
 		expectResult bool
 	}{
 		{
 			name:         "Schedule ResourceBinding",
 			key:          "default/test-binding",
+			priority:     10,
 			shutdown:     false,
 			expectResult: true,
 		},
 		{
 			name:         "Schedule ClusterResourceBinding",
 			key:          "test-cluster-binding",
+			priority:     5,
 			shutdown:     false,
 			expectResult: true,
 		},
 	}
 
+	// enable "PriorityBasedScheduling" feature gate.
+	_ = features.FeatureGate.Set("PriorityBasedScheduling=true")
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			queue := workqueue.NewTypedRateLimitingQueue[any](workqueue.DefaultTypedControllerRateLimiter[any]())
+			queue := internalqueue.NewSchedulingQueue()
 			bindingLister := &fakeBindingLister{binding: resourceBinding}
 			clusterBindingLister := &fakeClusterBindingLister{binding: clusterResourceBinding}
 
@@ -1103,17 +1109,20 @@ func TestWorkerAndScheduleNext(t *testing.T) {
 
 			s := &Scheduler{
 				KarmadaClient:        fakeClient,
-				queue:                queue,
+				priorityQueue:        queue,
 				bindingLister:        bindingLister,
 				clusterBindingLister: clusterBindingLister,
 				Algorithm:            mockAlgo,
 				eventRecorder:        eventRecorder,
 			}
 
-			s.queue.Add(tc.key)
+			s.priorityQueue.Push(&internalqueue.QueuedBindingInfo{
+				NamespacedKey: tc.key,
+				Priority:      tc.priority,
+			})
 
 			if tc.shutdown {
-				s.queue.ShutDown()
+				s.priorityQueue.Close()
 			}
 
 			result := s.scheduleNext()
@@ -1121,7 +1130,7 @@ func TestWorkerAndScheduleNext(t *testing.T) {
 			assert.Equal(t, tc.expectResult, result, "scheduleNext return value mismatch")
 
 			if !tc.shutdown {
-				assert.Equal(t, 0, s.queue.Len(), "Queue should be empty after processing")
+				assert.Equal(t, 0, s.priorityQueue.Len(), "Queue should be empty after processing")
 			}
 		})
 	}
@@ -1224,6 +1233,7 @@ func TestCreateScheduler(t *testing.T) {
 		enableEmptyWorkloadPropagation      bool
 		plugins                             []string
 		rateLimiterOptions                  ratelimiterflag.Options
+		enablePriorityBasedScheduling       bool
 	}{
 		{
 			name:                     "scheduler with default configuration",
@@ -1313,11 +1323,11 @@ func TestCreateScheduler(t *testing.T) {
 			plugins: mockPlugins,
 		},
 		{
-			name: "scheduler with RateLimiterOptions",
+			name: "scheduler with PriorityBasedScheduling enabled",
 			opts: []Option{
 				WithRateLimiterOptions(mockRateLimiterOptions),
 			},
-			rateLimiterOptions: mockRateLimiterOptions,
+			enablePriorityBasedScheduling: true,
 		},
 	}
 
@@ -1358,8 +1368,8 @@ func TestCreateScheduler(t *testing.T) {
 			if len(tc.plugins) > 0 && sche.Algorithm == nil {
 				t.Errorf("expected Algorithm to be set when plugins are provided")
 			}
-			if tc.rateLimiterOptions != (ratelimiterflag.Options{}) && sche.queue == nil {
-				t.Errorf("expected queue to be set when rate limiter options are provided")
+			if tc.enablePriorityBasedScheduling && sche.priorityQueue == nil {
+				t.Errorf("expected priorityQueue to be set when feature gate %q is enabled", features.PriorityBasedScheduling)
 			}
 		})
 	}

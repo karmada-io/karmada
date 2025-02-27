@@ -204,3 +204,12 @@ func (s *ResourceBindingSpec) SchedulingSuspended() bool {
 
 	return *s.Suspension.Scheduling
 }
+
+// SchedulePriorityValue returns the scheduling priority declared
+// by '.spec.SchedulePriority.Priority'.
+func (s *ResourceBindingSpec) SchedulePriorityValue() int32 {
+	if s.SchedulePriority == nil {
+		return 0
+	}
+	return s.SchedulePriority.Priority
+}

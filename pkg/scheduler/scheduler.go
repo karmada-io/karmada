@@ -44,6 +44,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	estimatorclient "github.com/karmada-io/karmada/pkg/estimator/client"
 	"github.com/karmada-io/karmada/pkg/events"
+	"github.com/karmada-io/karmada/pkg/features"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
@@ -53,6 +54,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	frameworkplugins "github.com/karmada-io/karmada/pkg/scheduler/framework/plugins"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
+	internalqueue "github.com/karmada-io/karmada/pkg/scheduler/internal/queue"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -95,9 +97,12 @@ type Scheduler struct {
 	// clusterReconcileWorker reconciles cluster changes to trigger corresponding
 	// ResourceBinding/ClusterResourceBinding rescheduling.
 	clusterReconcileWorker util.AsyncWorker
-	// TODO: implement a priority scheduling queue
+
+	// queue is the legacy rate limiting queue which will be replaced by priorityQueue
+	// in the future releases.
 	queue workqueue.TypedRateLimitingInterface[any]
 
+	priorityQueue  internalqueue.SchedulingQueue
 	Algorithm      core.ScheduleAlgorithm
 	schedulerCache schedulercache.Cache
 
@@ -128,7 +133,7 @@ type schedulerOptions struct {
 	schedulerEstimatorServicePrefix string
 	// schedulerName is the name of the scheduler. Default is "default-scheduler".
 	schedulerName string
-	//enableEmptyWorkloadPropagation represents whether allow workload with replicas 0 propagated to member clusters should be enabled
+	// enableEmptyWorkloadPropagation represents whether allow workload with replicas 0 propagated to member clusters should be enabled
 	enableEmptyWorkloadPropagation bool
 	// outOfTreeRegistry represents the registry of out-of-tree plugins
 	outOfTreeRegistry runtime.Registry
@@ -239,7 +244,13 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 	for _, opt := range opts {
 		opt(&options)
 	}
-	queue := workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiterflag.DefaultControllerRateLimiter[any](options.RateLimiterOptions), workqueue.TypedRateLimitingQueueConfig[any]{Name: "scheduler-queue"})
+	var legacyQueue workqueue.TypedRateLimitingInterface[any]
+	var priorityQueue internalqueue.SchedulingQueue
+	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) {
+		priorityQueue = internalqueue.NewSchedulingQueue()
+	} else {
+		legacyQueue = workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiterflag.DefaultControllerRateLimiter[any](options.RateLimiterOptions), workqueue.TypedRateLimitingQueueConfig[any]{Name: "scheduler-queue"})
+	}
 	registry := frameworkplugins.NewInTreeRegistry()
 	if err := registry.Merge(options.outOfTreeRegistry); err != nil {
 		return nil, err
@@ -258,7 +269,8 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 		clusterBindingLister: clusterBindingLister,
 		clusterLister:        clusterLister,
 		informerFactory:      factory,
-		queue:                queue,
+		queue:                legacyQueue,
+		priorityQueue:        priorityQueue,
 		Algorithm:            algorithm,
 		schedulerCache:       schedulerCache,
 	}
@@ -310,8 +322,14 @@ func (s *Scheduler) Run(ctx context.Context) {
 
 	go wait.Until(s.worker, time.Second, stopCh)
 
-	<-stopCh
-	s.queue.ShutDown()
+	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) {
+		s.priorityQueue.Run()
+		<-stopCh
+		s.priorityQueue.Close()
+	} else {
+		<-stopCh
+		s.queue.ShutDown()
+	}
 }
 
 func (s *Scheduler) worker() {
@@ -320,15 +338,27 @@ func (s *Scheduler) worker() {
 }
 
 func (s *Scheduler) scheduleNext() bool {
-	key, shutdown := s.queue.Get()
-	if shutdown {
-		klog.Errorf("Fail to pop item from queue")
-		return false
-	}
-	defer s.queue.Done(key)
+	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) {
+		bindingInfo, shutdown := s.priorityQueue.Pop()
+		if shutdown {
+			klog.Errorf("Fail to pop item from priorityQueue")
+			return false
+		}
+		defer s.priorityQueue.Done(bindingInfo)
 
-	err := s.doSchedule(key.(string))
-	s.handleErr(err, key)
+		err := s.doSchedule(bindingInfo.NamespacedKey)
+		s.handleErr(err, bindingInfo)
+	} else {
+		key, shutdown := s.queue.Get()
+		if shutdown {
+			klog.Errorf("Fail to pop item from queue")
+			return false
+		}
+		defer s.queue.Done(key)
+
+		err := s.doSchedule(key.(string))
+		s.legacyHandleErr(err, key)
+	}
 	return true
 }
 
@@ -759,12 +789,26 @@ func (s *Scheduler) patchScheduleResultForClusterResourceBinding(oldBinding *wor
 	return nil
 }
 
-func (s *Scheduler) handleErr(err error, key interface{}) {
+func (s *Scheduler) handleErr(err error, bindingInfo *internalqueue.QueuedBindingInfo) {
+	if err == nil || apierrors.HasStatusCause(err, corev1.NamespaceTerminatingCause) {
+		s.priorityQueue.Forget(bindingInfo)
+		return
+	}
+
+	var unschedulableErr *framework.UnschedulableError
+	if !errors.As(err, &unschedulableErr) {
+		s.priorityQueue.PushUnschedulableIfNotPresent(bindingInfo)
+	} else {
+		s.priorityQueue.PushBackoffIfNotPresent(bindingInfo)
+	}
+	metrics.CountSchedulerBindings(metrics.ScheduleAttemptFailure)
+}
+
+func (s *Scheduler) legacyHandleErr(err error, key interface{}) {
 	if err == nil || apierrors.HasStatusCause(err, corev1.NamespaceTerminatingCause) {
 		s.queue.Forget(key)
 		return
 	}
-
 	s.queue.AddRateLimited(key)
 	metrics.CountSchedulerBindings(metrics.ScheduleAttemptFailure)
 }
