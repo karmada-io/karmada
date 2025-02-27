@@ -767,6 +767,41 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 		propagationBinding.Spec.ReplicaRequirements = replicaRequirements
 	}
 
+	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) {
+		bindingSchedulePriority := &workv1alpha2.SchedulePriority{}
+		priorityClassName := policySpec.SchedulePriority.PriorityClassName
+		switch policySpec.SchedulePriority.PriorityClassSource {
+		case policyv1alpha1.KubePriorityClass:
+			kubePriorityClass, err := helper.GetPriorityClassByNameOrDefault(context.TODO(), d.Client, policySpec.SchedulePriority.PriorityClassName)
+			if err != nil {
+				klog.Errorf("Failed to get Kube PriorityClass(%s): %v", priorityClassName, err)
+			}
+			bindingSchedulePriority = &workv1alpha2.SchedulePriority{
+				Priority: kubePriorityClass.Value,
+				// TODO add preemption
+				//PreemptionPolicy: kubePriorityClass.PreemptionPolicy,
+			}
+		case policyv1alpha1.PodPriorityClass:
+			podPriority, found, err := unstructured.NestedInt64(object.Object, "spec", "priority")
+			if err != nil {
+				klog.Errorf("Failed to get Pod Priority: %v", err)
+			}
+			if !found {
+				klog.Errorf("Failed to get Pod Priority: not found")
+			}
+			bindingSchedulePriority = &workv1alpha2.SchedulePriority{
+				Priority: int32(podPriority),
+				// TODO add preemption
+				//PreemptionPolicy: kubePriorityClass.PreemptionPolicy,
+			}
+		case policyv1alpha1.FederatedPriorityClass:
+			return nil, fmt.Errorf("priority class source is federated, but federated priority class is not supported yet")
+		default:
+			return nil, fmt.Errorf("unsupported priority class source")
+		}
+		propagationBinding.Spec.SchedulePriority = bindingSchedulePriority
+	}
+
 	return propagationBinding, nil
 }
 
