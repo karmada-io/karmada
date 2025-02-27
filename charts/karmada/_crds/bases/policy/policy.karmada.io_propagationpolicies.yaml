@@ -899,11 +899,10 @@ spec:
                       - Not yet implemented.
                     type: string
                   priorityClassSource:
-                    default: KubePriorityClass
                     description: |-
                       PriorityClassSource specifies where Karmada should look for the PriorityClass definition.
                       Available options:
-                      - KubePriorityClass (default): Uses Kubernetes PriorityClass (scheduling.k8s.io/v1)
+                      - KubePriorityClass: Uses Kubernetes PriorityClass (scheduling.k8s.io/v1)
                       - PodPriorityClass: Uses PriorityClassName from PodTemplate: PodSpec.PriorityClassName (not yet implemented)
                       - FederatedPriorityClass: Uses Karmada FederatedPriorityClass (not yet implemented)
                     enum:
@@ -911,6 +910,7 @@ spec:
                     type: string
                 required:
                 - priorityClassName
+                - priorityClassSource
                 type: object
               schedulerName:
                 default: default-scheduler
