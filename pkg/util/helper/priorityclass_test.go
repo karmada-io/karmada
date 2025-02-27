@@ -45,7 +45,8 @@ func TestGetPriorityClassByNameOrDefault(t *testing.T) {
 
 	// Create a fake client with the objects
 	scheme := runtime.NewScheme()
-	_ = corev1.AddToScheme(scheme)
+	corev1.AddToScheme(scheme)
+	schedulingv1.AddToScheme(scheme)
 	fakeClient := clientfake.NewClientBuilder().WithScheme(scheme).WithObjects(priorityClass1, defaultPriorityClass).Build()
 
 	// Test case 1: Fetch by name
