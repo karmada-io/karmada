@@ -768,7 +768,7 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 	}
 
 	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) {
-		bindingSchedulePriority := &workv1alpha2.SchedulePriority{}
+		var bindingSchedulePriority *workv1alpha2.SchedulePriority
 		priorityClassName := policySpec.SchedulePriority.PriorityClassName
 		switch policySpec.SchedulePriority.PriorityClassSource {
 		case policyv1alpha1.KubePriorityClass:

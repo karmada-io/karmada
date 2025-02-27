@@ -24,6 +24,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// GetPriorityClassByNameOrDefault gets the k8s priority class by name. If that priority class is
+// not found it will get the default priority class.
+//
+// It returns the priorityClass and an error.
 func GetPriorityClassByNameOrDefault(ctx context.Context, c client.Client, name string) (*schedulingv1.PriorityClass, error) {
 	priorityClassList := &schedulingv1.PriorityClassList{}
 	priorityClass := &schedulingv1.PriorityClass{}
@@ -40,5 +44,5 @@ func GetPriorityClassByNameOrDefault(ctx context.Context, c client.Client, name 
 			return &pc, nil
 		}
 	}
-	return nil, fmt.Errorf("no default priority class found")
+	return nil, fmt.Errorf("priority class %s not found and no default priority class found", name)
 }
