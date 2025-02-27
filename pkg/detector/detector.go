@@ -778,24 +778,13 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 			}
 			bindingSchedulePriority = &workv1alpha2.SchedulePriority{
 				Priority: kubePriorityClass.Value,
-				// TODO add preemption
+				// TODO add preemptionpolicy
 				//PreemptionPolicy: kubePriorityClass.PreemptionPolicy,
 			}
 		case policyv1alpha1.PodPriorityClass:
-			podPriority, found, err := unstructured.NestedInt64(object.Object, "spec", "priority")
-			if err != nil {
-				klog.Errorf("Failed to get Pod Priority: %v", err)
-			}
-			if !found {
-				klog.Errorf("Failed to get Pod Priority: not found")
-			}
-			bindingSchedulePriority = &workv1alpha2.SchedulePriority{
-				Priority: int32(podPriority),
-				// TODO add preemption
-				//PreemptionPolicy: kubePriorityClass.PreemptionPolicy,
-			}
+			return nil, fmt.Errorf("priority class source is PodPriorityClass, but PodPriorityClass is not supported yet")
 		case policyv1alpha1.FederatedPriorityClass:
-			return nil, fmt.Errorf("priority class source is federated, but federated priority class is not supported yet")
+			return nil, fmt.Errorf("priority class source is FederatedPriorityClass, but FederatedPriorityClass is not supported yet")
 		default:
 			return nil, fmt.Errorf("unsupported priority class source")
 		}
