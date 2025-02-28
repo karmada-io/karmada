@@ -498,8 +498,8 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
 			bindingCopy.Annotations = util.DedupeAndMergeAnnotations(bindingCopy.Annotations, binding.Annotations)
 			bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
+			bindingCopy.Finalizers = util.DedupeAndMergeFinalizers(bindingCopy.Finalizers, binding.Finalizers)
 			bindingCopy.OwnerReferences = binding.OwnerReferences
-			bindingCopy.Finalizers = binding.Finalizers
 			bindingCopy.Spec.Resource = binding.Spec.Resource
 			bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
 			bindingCopy.Spec.Replicas = binding.Spec.Replicas
@@ -594,8 +594,8 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 				// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
 				bindingCopy.Annotations = util.DedupeAndMergeAnnotations(bindingCopy.Annotations, binding.Annotations)
 				bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
+				bindingCopy.Finalizers = util.DedupeAndMergeFinalizers(bindingCopy.Finalizers, binding.Finalizers)
 				bindingCopy.OwnerReferences = binding.OwnerReferences
-				bindingCopy.Finalizers = binding.Finalizers
 				bindingCopy.Spec.Resource = binding.Spec.Resource
 				bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
 				bindingCopy.Spec.Replicas = binding.Spec.Replicas
@@ -640,8 +640,8 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 				// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
 				bindingCopy.Annotations = util.DedupeAndMergeAnnotations(bindingCopy.Annotations, binding.Annotations)
 				bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
+				bindingCopy.Finalizers = util.DedupeAndMergeFinalizers(bindingCopy.Finalizers, binding.Finalizers)
 				bindingCopy.OwnerReferences = binding.OwnerReferences
-				bindingCopy.Finalizers = binding.Finalizers
 				bindingCopy.Spec.Resource = binding.Spec.Resource
 				bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
 				bindingCopy.Spec.Replicas = binding.Spec.Replicas
