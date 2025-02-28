@@ -33,6 +33,7 @@ import (
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
@@ -45,8 +46,9 @@ const RBStatusControllerName = "resource-binding-status-controller"
 // RBStatusController is to sync status of ResourceBinding
 // and aggregate status to the resource template.
 type RBStatusController struct {
-	client.Client                                                   // used to operate ResourceBinding resources.
-	DynamicClient       dynamic.Interface                           // used to fetch arbitrary resources from api server.
+	client.Client                         // used to operate ResourceBinding resources.
+	DynamicClient       dynamic.Interface // used to fetch arbitrary resources from api server.
+	KarmadaClient       karmadaclientset.Interface
 	InformerManager     genericmanager.SingleClusterInformerManager // used to fetch arbitrary resources from cache.
 	ResourceInterpreter resourceinterpreter.ResourceInterpreter
 	EventRecorder       record.EventRecorder
@@ -112,7 +114,7 @@ func (c *RBStatusController) SetupWithManager(mgr controllerruntime.Manager) err
 }
 
 func (c *RBStatusController) syncBindingStatus(ctx context.Context, binding *workv1alpha2.ResourceBinding) error {
-	err := helper.AggregateResourceBindingWorkStatus(ctx, c.Client, binding, c.EventRecorder)
+	err := helper.AggregateResourceBindingWorkStatus(ctx, c.Client, c.KarmadaClient, binding, c.EventRecorder)
 	if err != nil {
 		klog.Errorf("Failed to aggregate workStatus to resourceBinding(%s/%s), Error: %v",
 			binding.Namespace, binding.Name, err)

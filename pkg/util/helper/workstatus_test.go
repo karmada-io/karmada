@@ -36,6 +36,8 @@ import (
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	karmada "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	fakekarmadaclient "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
 )
 
 func TestAggregateResourceBindingWorkStatus(t *testing.T) {
@@ -132,6 +134,7 @@ func TestAggregateResourceBindingWorkStatus(t *testing.T) {
 		expectedStatus  metav1.ConditionStatus
 		expectedApplied bool
 		expectedEvent   string
+		karmadaClint    karmada.Interface
 	}{
 		{
 			name:      "successful single work aggregation",
@@ -196,6 +199,7 @@ func TestAggregateResourceBindingWorkStatus(t *testing.T) {
 			for _, work := range tt.works {
 				objects = append(objects, work)
 			}
+			tt.karmadaClint = fakekarmadaclient.NewSimpleClientset(tt.binding)
 
 			c := fake.NewClientBuilder().
 				WithScheme(scheme).
@@ -210,7 +214,7 @@ func TestAggregateResourceBindingWorkStatus(t *testing.T) {
 
 			recorder := record.NewFakeRecorder(10)
 
-			err := AggregateResourceBindingWorkStatus(context.TODO(), c, tt.binding, recorder)
+			err := AggregateResourceBindingWorkStatus(context.TODO(), c, tt.karmadaClint, tt.binding, recorder)
 			if tt.expectedError {
 				assert.Error(t, err)
 				return
