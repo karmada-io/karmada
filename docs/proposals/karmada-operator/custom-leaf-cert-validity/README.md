@@ -38,11 +38,10 @@ The proposal introduces a new optional field, `LeafCertValidity`, in the `Custom
 ### API Changes
 
 ```go
-// CustomCertificate holds the configuration for generating the certificate.
 type CustomCertificate struct {
    // Other, existing fields omitted for brevity
 
-   // LeafCertValidity specifies the validity period of leaf certificates in days.
+   // LeafCertValidity specifies the validity period of leaf certificates (e.g., API Server certificate) in days.
    // If not specified, the default validity period of 1 year will be used.
    // +optional
    LeafCertValidity *int `json:"leafCertValidity,omitempty"`
