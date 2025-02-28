@@ -22,7 +22,9 @@ import (
 	"net/url"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/api/validation"
 	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
+	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
 	"k8s.io/apimachinery/pkg/util/sets"
 	kubevalidation "k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -51,6 +53,16 @@ func ValidateClusterName(name string) []string {
 	}
 
 	return kubevalidation.IsDNS1123Label(name)
+}
+
+// ValidateClusterLabels tests whether the labels passed are valid
+func ValidateClusterLabels(labels map[string]string) field.ErrorList {
+	return metav1validation.ValidateLabels(labels, field.NewPath("Options.ClusterLabels"))
+}
+
+// ValidateClusterAnnotationss tests whether the annotations passed are valid
+func ValidateClusterAnnotationss(annotations map[string]string) field.ErrorList {
+	return validation.ValidateAnnotations(annotations, field.NewPath("Options.ClusterAnnotations"))
 }
 
 var (

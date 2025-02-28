@@ -20,6 +20,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -150,9 +151,22 @@ func run(ctx context.Context, opts *options.Options) error {
 	controlPlaneKubeClient := kubeclientset.NewForConfigOrDie(controlPlaneRestConfig)
 	karmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
 
+	parseLabelsAnnotations := func(inputs []string) map[string]string {
+		outputs := make(map[string]string)
+		for _, v := range inputs {
+			key, value, found := strings.Cut(v, "=")
+			if found {
+				outputs[key] = value
+			}
+		}
+		return outputs
+	}
+
 	registerOption := util.ClusterRegisterOption{
 		ClusterNamespace:   opts.ClusterNamespace,
 		ClusterName:        opts.ClusterName,
+		ClusterLabels:      parseLabelsAnnotations(opts.ClusterLables),
+		ClusterAnnotations: parseLabelsAnnotations(opts.ClusterAnnotations),
 		ReportSecrets:      opts.ReportSecrets,
 		ClusterAPIEndpoint: opts.ClusterAPIEndpoint,
 		ProxyServerAddress: opts.ProxyServerAddress,
@@ -431,7 +445,13 @@ func startCertRotationController(ctx controllerscontext.Context) (bool, error) {
 }
 
 func generateClusterInControllerPlane(opts util.ClusterRegisterOption) (*clusterv1alpha1.Cluster, error) {
-	clusterObj := &clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: opts.ClusterName}}
+	clusterObj := &clusterv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        opts.ClusterName,
+			Labels:      opts.ClusterLabels,
+			Annotations: opts.ClusterAnnotations,
+		},
+	}
 	mutateFunc := func(cluster *clusterv1alpha1.Cluster) {
 		cluster.Spec.SyncMode = clusterv1alpha1.Pull
 		cluster.Spec.APIEndpoint = opts.ClusterAPIEndpoint
@@ -470,6 +490,12 @@ func generateClusterInControllerPlane(opts util.ClusterRegisterOption) (*cluster
 				Namespace: opts.ImpersonatorSecret.Namespace,
 				Name:      opts.ImpersonatorSecret.Name,
 			}
+		}
+		if opts.ClusterLabels != nil {
+			cluster.ObjectMeta.Labels = opts.ClusterLabels
+		}
+		if opts.ClusterAnnotations != nil {
+			cluster.ObjectMeta.Annotations = opts.ClusterAnnotations
 		}
 	}
 	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(opts.ControlPlaneConfig)
