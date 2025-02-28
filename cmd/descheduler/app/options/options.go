@@ -81,6 +81,10 @@ type Options struct {
 	// It can be set to "0" to disable serving the health probe.
 	// Defaults to ":10358".
 	HealthProbeBindAddress string
+
+	// The ratio of reserved GOMEMLIMIT memory to the detected maximum container or system memory.
+	// Defaults to 0.9.
+	MemlimitRatio float64
 }
 
 // NewOptions builds a default descheduler options.
@@ -134,5 +138,6 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&o.UnschedulableThreshold.Duration, "unschedulable-threshold", defaultUnschedulableThreshold, "The period of pod unschedulable condition. This value is considered as a classification standard of unschedulable replicas.")
 	fs.StringVar(&o.MetricsBindAddress, "metrics-bind-address", ":8080", "The TCP address that the server should bind to for serving prometheus metrics(e.g. 127.0.0.1:8080, :8080). It can be set to \"0\" to disable the metrics serving. Defaults to 0.0.0.0:8080.")
 	fs.StringVar(&o.HealthProbeBindAddress, "health-probe-bind-address", ":10358", "The TCP address that the server should bind to for serving health probes(e.g. 127.0.0.1:10358, :10358). It can be set to \"0\" to disable serving the health probe. Defaults to 0.0.0.0:10358.")
+	fs.Float64Var(&o.MemlimitRatio, "auto-gomemlimit-ratio", 0.9, "The ratio of reserved GOMEMLIMIT memory to the detected maximum container or system memory. The value must be greater than 0 and less than or equal to 1.")
 	o.ProfileOpts.AddFlags(fs)
 }

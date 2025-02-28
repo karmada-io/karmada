@@ -44,6 +44,7 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
+	"github.com/karmada-io/karmada/pkg/goruntime"
 	"github.com/karmada-io/karmada/pkg/search"
 	"github.com/karmada-io/karmada/pkg/search/proxy"
 	"github.com/karmada-io/karmada/pkg/search/proxy/framework/runtime"
@@ -113,6 +114,8 @@ func run(ctx context.Context, o *options.Options, registryOptions ...Option) err
 	klog.Infof("karmada-search version: %s", version.Get())
 
 	profileflag.ListenAndServe(o.ProfileOpts)
+
+	goruntime.SetMemLimit(o.MemlimitRatio)
 
 	config, err := config(o, registryOptions...)
 	if err != nil {

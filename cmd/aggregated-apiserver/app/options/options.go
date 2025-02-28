@@ -44,6 +44,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	pkgfeatures "github.com/karmada-io/karmada/pkg/features"
 	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
+	"github.com/karmada-io/karmada/pkg/goruntime"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 	"github.com/karmada-io/karmada/pkg/version"
@@ -65,6 +66,9 @@ type Options struct {
 	KubeAPIQPS float32
 	// KubeAPIBurst is the burst to allow while talking with karmada-apiserver.
 	KubeAPIBurst int
+
+	// The ratio of reserved GOMEMLIMIT memory to the detected maximum container or system memory.
+	MemlimitRatio float64
 
 	ProfileOpts profileflag.Options
 }
@@ -98,6 +102,9 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 
 	flags.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver.")
 	flags.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver.")
+
+	flags.Float64Var(&o.MemlimitRatio, "auto-gomemlimit-ratio", 0.9, "The ratio of reserved GOMEMLIMIT memory to the detected maximum container or system memory. The value must be greater than 0 and less than or equal to 1.")
+
 	_ = utilfeature.DefaultMutableFeatureGate.Add(pkgfeatures.DefaultFeatureGates)
 	utilfeature.DefaultMutableFeatureGate.AddFlag(flags)
 	o.ProfileOpts.AddFlags(flags)
@@ -113,6 +120,8 @@ func (o *Options) Run(ctx context.Context) error {
 	klog.Infof("karmada-aggregated-apiserver version: %s", version.Get())
 
 	profileflag.ListenAndServe(o.ProfileOpts)
+
+	goruntime.SetMemLimit(o.MemlimitRatio)
 
 	config, err := o.Config()
 	if err != nil {
