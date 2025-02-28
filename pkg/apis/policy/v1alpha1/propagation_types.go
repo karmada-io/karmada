@@ -688,7 +688,7 @@ type SchedulePriority struct {
 	//
 	// +kubebuilder:validation:Enum=KubePriorityClass
 	// +required
-	PriorityClassSource PriorityClassSource `json:"priorityClassSource,omitempty"`
+	PriorityClassSource PriorityClassSource `json:"priorityClassSource"`
 
 	// PriorityClassName specifies which PriorityClass to use. Its behavior depends on PriorityClassSource:
 	//
@@ -696,21 +696,16 @@ type SchedulePriority struct {
 	//
 	// For KubePriorityClass:
 	// - When specified: Uses the named Kubernetes PriorityClass.
-	// - When empty: Uses the cluster's default PriorityClass (i.e., the PriorityClass marked as the global default in the cluster).
-	// - If neither exists: Sets priority=0 and preemptionPolicy=Never.
 	//
 	// For PodPriorityClass:
 	// - Uses PriorityClassName from the PodTemplate.
-	// - If the specified PriorityClass is not found, falls back to the cluster's default PriorityClass
-	//   (i.e., the PriorityClass marked as the global default in the cluster).
-	// - If no valid PriorityClass is found: Sets priority=0 and preemptionPolicy=Never.
 	// - Not yet implemented.
 	//
 	// For FederatedPriorityClass:
 	// - Not yet implemented.
 	//
 	// +required
-	PriorityClassName string `json:"priorityClassName,omitempty"`
+	PriorityClassName string `json:"priorityClassName"`
 }
 
 // PriorityClassSource defines the type for PriorityClassSource field.
