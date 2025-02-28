@@ -114,43 +114,6 @@ func TestCreateOrUpdateWork(t *testing.T) {
 			},
 		},
 		{
-			name: "create work with PropagationInstructionSuppressed",
-			workMeta: metav1.ObjectMeta{
-				Namespace: "default",
-				Name:      "test-work",
-				Labels: map[string]string{
-					util.PropagationInstruction: util.PropagationInstructionSuppressed,
-				},
-			},
-			resource: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "apps/v1",
-					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
-						"name": "test-deployment",
-						"uid":  "test-uid",
-					},
-				},
-			},
-			verify: func(t *testing.T, c client.Client) {
-				work := &workv1alpha1.Work{}
-				err := c.Get(context.TODO(), client.ObjectKey{Namespace: "default", Name: "test-work"}, work)
-				assert.NoError(t, err)
-
-				// Get the resource from manifests
-				manifest := &unstructured.Unstructured{}
-				err = manifest.UnmarshalJSON(work.Spec.Workload.Manifests[0].Raw)
-				assert.NoError(t, err)
-
-				// Verify labels and annotations were NOT set
-				labels := manifest.GetLabels()
-				assert.Empty(t, labels[util.ManagedByKarmadaLabel])
-
-				annotations := manifest.GetAnnotations()
-				assert.Empty(t, annotations[workv1alpha2.ResourceTemplateUIDAnnotation])
-			},
-		},
-		{
 			name: "update existing work",
 			existingWork: &workv1alpha1.Work{
 				ObjectMeta: metav1.ObjectMeta{

@@ -19,6 +19,7 @@ package helper
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -121,4 +122,9 @@ func SetLabelsAndAnnotationsForWorkload(workload *unstructured.Unstructured, wor
 		}))
 	}
 	util.RecordManagedLabels(workload)
+}
+
+// GetWorkSuspendDispatching will get suspendDispatching field from work spec
+func GetWorkSuspendDispatching(spec *workv1alpha1.WorkSpec) []string {
+	return []string{strconv.FormatBool(ptr.Deref(spec.SuspendDispatching, false))}
 }
