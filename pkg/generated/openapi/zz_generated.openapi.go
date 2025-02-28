@@ -5151,13 +5151,15 @@ func schema_pkg_apis_policy_v1alpha1_SchedulePriority(ref common.ReferenceCallba
 					"priorityClassSource": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PriorityClassSource specifies where Karmada should look for the PriorityClass definition. Available options: - KubePriorityClass: Uses Kubernetes PriorityClass (scheduling.k8s.io/v1) - PodPriorityClass: Uses PriorityClassName from PodTemplate: PodSpec.PriorityClassName (not yet implemented) - FederatedPriorityClass: Uses Karmada FederatedPriorityClass (not yet implemented)",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"priorityClassName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PriorityClassName specifies which PriorityClass to use. Its behavior depends on PriorityClassSource:\n\nBehavior of PriorityClassName:\n\nFor KubePriorityClass: - When specified: Uses the named Kubernetes PriorityClass. - When empty: Uses the cluster's default PriorityClass (i.e., the PriorityClass marked as the global default in the cluster). - If neither exists: Sets priority=0 and preemptionPolicy=Never.\n\nFor PodPriorityClass: - Uses PriorityClassName from the PodTemplate. - If the specified PriorityClass is not found, falls back to the cluster's default PriorityClass\n  (i.e., the PriorityClass marked as the global default in the cluster).\n- If no valid PriorityClass is found: Sets priority=0 and preemptionPolicy=Never. - Not yet implemented.\n\nFor FederatedPriorityClass: - Not yet implemented.",
+							Description: "PriorityClassName specifies which PriorityClass to use. Its behavior depends on PriorityClassSource:\n\nBehavior of PriorityClassName:\n\nFor KubePriorityClass: - When specified: Uses the named Kubernetes PriorityClass.\n\nFor PodPriorityClass: - Uses PriorityClassName from the PodTemplate. - Not yet implemented.\n\nFor FederatedPriorityClass: - Not yet implemented.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
