@@ -33,6 +33,7 @@ import (
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 	utilversion "k8s.io/apiserver/pkg/util/version"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/flowcontrol"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
@@ -179,8 +180,7 @@ func config(o *options.Options, outOfTreeRegistryOptions ...Option) (*search.Con
 		return nil, err
 	}
 
-	serverConfig.ClientConfig.QPS = o.KubeAPIQPS
-	serverConfig.ClientConfig.Burst = o.KubeAPIBurst
+	serverConfig.ClientConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(o.KubeAPIQPS, o.KubeAPIBurst)
 	serverConfig.Config.EffectiveVersion = utilversion.NewEffectiveVersion("1.0")
 
 	httpClient, err := rest.HTTPClientFor(serverConfig.ClientConfig)
