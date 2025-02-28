@@ -37,6 +37,7 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
+	"github.com/karmada-io/karmada/pkg/goruntime"
 	"github.com/karmada-io/karmada/pkg/metricsadapter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -182,6 +183,9 @@ func (o *Options) Run(ctx context.Context) error {
 	}
 
 	profileflag.ListenAndServe(o.ProfileOpts)
+
+	//auto setting GOMAXPROCS
+	goruntime.SetMaxProcs()
 
 	stopCh := ctx.Done()
 	metricsServer, err := o.Config(stopCh)
