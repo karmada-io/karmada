@@ -24,7 +24,9 @@ import (
 	"k8s.io/client-go/dynamic"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
@@ -41,6 +43,7 @@ type HpaScaleTargetMarker struct {
 	RESTMapper    meta.RESTMapper
 
 	scaleTargetWorker util.AsyncWorker
+	RatelimiterOption ratelimiterflag.Options
 }
 
 // SetupWithManager creates a controller and register to controller manager.
@@ -55,6 +58,9 @@ func (r *HpaScaleTargetMarker) SetupWithManager(mgr controllerruntime.Manager) e
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(ControllerName).
 		For(&autoscalingv2.HorizontalPodAutoscaler{}, builder.WithPredicates(r)).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](r.RatelimiterOption),
+		}).
 		Complete(r)
 }
 
