@@ -42,17 +42,18 @@ func EnsureKarmadaWebhook(client clientset.Interface, cfg *operatorv1alpha1.Karm
 
 func installKarmadaWebhook(client clientset.Interface, cfg *operatorv1alpha1.KarmadaWebhook, name, namespace string, _ map[string]bool) error {
 	webhookDeploymentSetBytes, err := util.ParseTemplate(KarmadaWebhookDeployment, struct {
-		DeploymentName, Namespace, Image, ImagePullPolicy string
-		KubeconfigSecret, WebhookCertsSecret              string
-		Replicas                                          *int32
+		KarmadaInstanceName, DeploymentName, Namespace, Image, ImagePullPolicy string
+		KubeconfigSecret, WebhookCertsSecret                                   string
+		Replicas                                                               *int32
 	}{
-		DeploymentName:     util.KarmadaWebhookName(name),
-		Namespace:          namespace,
-		Image:              cfg.Image.Name(),
-		ImagePullPolicy:    string(cfg.ImagePullPolicy),
-		Replicas:           cfg.Replicas,
-		KubeconfigSecret:   util.ComponentKarmadaConfigSecretName(util.KarmadaWebhookName(name)),
-		WebhookCertsSecret: util.WebhookCertSecretName(name),
+		KarmadaInstanceName: name,
+		DeploymentName:      util.KarmadaWebhookName(name),
+		Namespace:           namespace,
+		Image:               cfg.Image.Name(),
+		ImagePullPolicy:     string(cfg.ImagePullPolicy),
+		Replicas:            cfg.Replicas,
+		KubeconfigSecret:    util.ComponentKarmadaConfigSecretName(util.KarmadaWebhookName(name)),
+		WebhookCertsSecret:  util.WebhookCertSecretName(name),
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing KarmadaWebhook Deployment template: %w", err)
@@ -75,10 +76,11 @@ func installKarmadaWebhook(client clientset.Interface, cfg *operatorv1alpha1.Kar
 
 func createKarmadaWebhookService(client clientset.Interface, name, namespace string) error {
 	webhookServiceSetBytes, err := util.ParseTemplate(KarmadaWebhookService, struct {
-		ServiceName, Namespace string
+		KarmadaInstanceName, ServiceName, Namespace string
 	}{
-		ServiceName: util.KarmadaWebhookName(name),
-		Namespace:   namespace,
+		KarmadaInstanceName: name,
+		ServiceName:         util.KarmadaWebhookName(name),
+		Namespace:           namespace,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing KarmadaWebhook Service template: %w", err)

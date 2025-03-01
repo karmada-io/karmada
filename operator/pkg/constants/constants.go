@@ -121,6 +121,9 @@ const (
 
 	// APIServiceName defines the karmada aggregated apiserver APIService resource name.
 	APIServiceName = "v1alpha1.cluster.karmada.io"
+
+	AppNameLabel     = "app.kubernetes.io/name"
+	AppInstanceLabel = "app.kubernetes.io/instance"
 )
 
 var (
