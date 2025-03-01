@@ -122,7 +122,9 @@ const (
 	// APIServiceName defines the karmada aggregated apiserver APIService resource name.
 	APIServiceName = "v1alpha1.cluster.karmada.io"
 
-	AppNameLabel     = "app.kubernetes.io/name"
+	// AppNameLabel defines the recommended label for identifying an application.
+	AppNameLabel = "app.kubernetes.io/name"
+	// AppInstanceLabel defines the recommended label for identifying an application instance.
 	AppInstanceLabel = "app.kubernetes.io/instance"
 )
 
