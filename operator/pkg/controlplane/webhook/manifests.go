@@ -53,7 +53,7 @@ spec:
         - --default-not-ready-toleration-seconds=30
         - --default-unreachable-toleration-seconds=30
         - --secure-port=8443
-        - --cert-dir=/var/serving-cert
+        - --cert-dir=/etc/karmada/pki/server
         - --v=4
         ports:
         - containerPort: 8443
