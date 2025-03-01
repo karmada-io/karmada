@@ -19,17 +19,20 @@ package version
 import (
 	"fmt"
 	"runtime"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // Info contains versioning information.
 type Info struct {
-	GitVersion   string `json:"gitVersion"`
-	GitCommit    string `json:"gitCommit"`
-	GitTreeState string `json:"gitTreeState"`
-	BuildDate    string `json:"buildDate"`
-	GoVersion    string `json:"goVersion"`
-	Compiler     string `json:"compiler"`
-	Platform     string `json:"platform"`
+	GitVersion            string `json:"gitVersion"`
+	GitCommit             string `json:"gitCommit"`
+	GitAbbreviativeCommit string `json:"gitAbbreviativeCommit"`
+	GitTreeState          string `json:"gitTreeState"`
+	BuildDate             string `json:"buildDate"`
+	GoVersion             string `json:"goVersion"`
+	Compiler              string `json:"compiler"`
+	Platform              string `json:"platform"`
 }
 
 // String returns a Go-syntax representation of the Info.
@@ -41,12 +44,38 @@ func (info Info) String() string {
 // what code a binary was built from.
 func Get() Info {
 	return Info{
-		GitVersion:   gitVersion,
-		GitCommit:    gitCommit,
-		GitTreeState: gitTreeState,
-		BuildDate:    buildDate,
-		GoVersion:    runtime.Version(),
-		Compiler:     runtime.Compiler,
-		Platform:     fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
+		GitVersion:            gitVersion,
+		GitAbbreviativeCommit: gitAbbreviativeCommit,
+		GitCommit:             gitCommit,
+		GitTreeState:          gitTreeState,
+		BuildDate:             buildDate,
+		GoVersion:             runtime.Version(),
+		Compiler:              runtime.Compiler,
+		Platform:              fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
 	}
+}
+
+// NewCollector returns a collector that exports metrics about current version
+// information.
+func NewCollector(program string) prometheus.Collector {
+	return prometheus.NewGaugeFunc(
+		prometheus.GaugeOpts{
+			Namespace: program,
+			Name:      "build_info",
+			Help: fmt.Sprintf(
+				"A metric with a constant '1' value labeled by version, revision, branch, goversion from which %s was built, and the goos and goarch for the build.",
+				program,
+			),
+			ConstLabels: prometheus.Labels{
+				"version":   Get().GitVersion,
+				"revision":  Get().GitAbbreviativeCommit,
+				"goversion": runtime.Version(),
+				"goos":      runtime.GOOS,
+				"goarch":    runtime.GOARCH,
+				"compiler":  runtime.Compiler,
+				"platform":  fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
+			},
+		},
+		func() float64 { return 1 },
+	)
 }

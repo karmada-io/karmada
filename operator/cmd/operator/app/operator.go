@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/karmada-io/karmada/operator/cmd/operator/app/options"
@@ -109,6 +110,11 @@ func Run(ctx context.Context, o *options.Options) error {
 		klog.Errorf("Failed to add health check endpoint: %v", err)
 		return err
 	}
+
+	// `karmada_operator_build_info` metrics for operator version upgrade
+	ctrlmetrics.Registry.MustRegister(
+		version.NewCollector("karmada_operator"),
+	)
 
 	controllerCtx := ctrlctx.Context{
 		Controllers: o.Controllers,
