@@ -43,17 +43,18 @@ func EnsureKarmadaSearch(client clientset.Interface, cfg *operatorv1alpha1.Karma
 
 func installKarmadaSearch(client clientset.Interface, cfg *operatorv1alpha1.KarmadaSearch, etcdCfg *operatorv1alpha1.Etcd, name, namespace string, _ map[string]bool) error {
 	searchDeploymentSetBytes, err := util.ParseTemplate(KarmadaSearchDeployment, struct {
-		DeploymentName, Namespace, Image, ImagePullPolicy, KarmadaCertsSecret string
-		KubeconfigSecret                                                      string
-		Replicas                                                              *int32
+		KarmadaInstanceName, DeploymentName, Namespace, Image, ImagePullPolicy, KarmadaCertsSecret string
+		KubeconfigSecret                                                                           string
+		Replicas                                                                                   *int32
 	}{
-		DeploymentName:     util.KarmadaSearchName(name),
-		Namespace:          namespace,
-		Image:              cfg.Image.Name(),
-		ImagePullPolicy:    string(cfg.ImagePullPolicy),
-		KarmadaCertsSecret: util.KarmadaCertSecretName(name),
-		Replicas:           cfg.Replicas,
-		KubeconfigSecret:   util.ComponentKarmadaConfigSecretName(util.KarmadaSearchName(name)),
+		KarmadaInstanceName: name,
+		DeploymentName:      util.KarmadaSearchName(name),
+		Namespace:           namespace,
+		Image:               cfg.Image.Name(),
+		ImagePullPolicy:     string(cfg.ImagePullPolicy),
+		KarmadaCertsSecret:  util.KarmadaCertSecretName(name),
+		Replicas:            cfg.Replicas,
+		KubeconfigSecret:    util.ComponentKarmadaConfigSecretName(util.KarmadaSearchName(name)),
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing KarmadaSearch Deployment template: %w", err)
@@ -81,10 +82,11 @@ func installKarmadaSearch(client clientset.Interface, cfg *operatorv1alpha1.Karm
 
 func createKarmadaSearchService(client clientset.Interface, name, namespace string) error {
 	searchServiceSetBytes, err := util.ParseTemplate(KarmadaSearchService, struct {
-		ServiceName, Namespace string
+		KarmadaInstanceName, ServiceName, Namespace string
 	}{
-		ServiceName: util.KarmadaSearchName(name),
-		Namespace:   namespace,
+		KarmadaInstanceName: name,
+		ServiceName:         util.KarmadaSearchName(name),
+		Namespace:           namespace,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing KarmadaSearch Service template: %w", err)

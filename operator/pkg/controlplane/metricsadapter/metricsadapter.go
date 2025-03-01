@@ -42,17 +42,18 @@ func EnsureKarmadaMetricAdapter(client clientset.Interface, cfg *operatorv1alpha
 
 func installKarmadaMetricAdapter(client clientset.Interface, cfg *operatorv1alpha1.KarmadaMetricsAdapter, name, namespace string) error {
 	metricAdapterBytes, err := util.ParseTemplate(KarmadaMetricsAdapterDeployment, struct {
-		DeploymentName, Namespace, Image, ImagePullPolicy string
-		KubeconfigSecret, KarmadaCertsSecret              string
-		Replicas                                          *int32
+		KarmadaInstanceName, DeploymentName, Namespace, Image, ImagePullPolicy string
+		KubeconfigSecret, KarmadaCertsSecret                                   string
+		Replicas                                                               *int32
 	}{
-		DeploymentName:     util.KarmadaMetricsAdapterName(name),
-		Namespace:          namespace,
-		Image:              cfg.Image.Name(),
-		ImagePullPolicy:    string(cfg.ImagePullPolicy),
-		Replicas:           cfg.Replicas,
-		KubeconfigSecret:   util.ComponentKarmadaConfigSecretName(util.KarmadaMetricsAdapterName(name)),
-		KarmadaCertsSecret: util.KarmadaCertSecretName(name),
+		KarmadaInstanceName: name,
+		DeploymentName:      util.KarmadaMetricsAdapterName(name),
+		Namespace:           namespace,
+		Image:               cfg.Image.Name(),
+		ImagePullPolicy:     string(cfg.ImagePullPolicy),
+		Replicas:            cfg.Replicas,
+		KubeconfigSecret:    util.ComponentKarmadaConfigSecretName(util.KarmadaMetricsAdapterName(name)),
+		KarmadaCertsSecret:  util.KarmadaCertSecretName(name),
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing KarmadaMetricAdapter Deployment template: %w", err)
@@ -74,10 +75,11 @@ func installKarmadaMetricAdapter(client clientset.Interface, cfg *operatorv1alph
 
 func createKarmadaMetricAdapterService(client clientset.Interface, name, namespace string) error {
 	metricAdapterServiceBytes, err := util.ParseTemplate(KarmadaMetricsAdapterService, struct {
-		ServiceName, Namespace string
+		KarmadaInstanceName, ServiceName, Namespace string
 	}{
-		ServiceName: util.KarmadaMetricsAdapterName(name),
-		Namespace:   namespace,
+		KarmadaInstanceName: name,
+		ServiceName:         util.KarmadaMetricsAdapterName(name),
+		Namespace:           namespace,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing KarmadaMetricAdapter Service template: %w", err)

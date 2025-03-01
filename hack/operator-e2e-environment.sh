@@ -77,6 +77,6 @@ cd -
 CRDTARBALL_URL="http://local"
 DATA_DIR="/var/lib/karmada"
 CRD_CACHE_DIR=$(getCrdsDir "${DATA_DIR}" "${CRDTARBALL_URL}")
-OPERATOR_POD_NAME=$(kubectl --kubeconfig="${MAIN_KUBECONFIG}" --context="${HOST_CLUSTER_NAME}" get pods -n ${KARMADA_SYSTEM_NAMESPACE} -l karmada-app=karmada-operator -o custom-columns=NAME:.metadata.name --no-headers)
+OPERATOR_POD_NAME=$(kubectl --kubeconfig="${MAIN_KUBECONFIG}" --context="${HOST_CLUSTER_NAME}" get pods -n ${KARMADA_SYSTEM_NAMESPACE} -l app.kubernetes.io/name=karmada-operator -o custom-columns=NAME:.metadata.name --no-headers)
 kubectl --kubeconfig="${MAIN_KUBECONFIG}" --context="${HOST_CLUSTER_NAME}" exec -i ${OPERATOR_POD_NAME} -n ${KARMADA_SYSTEM_NAMESPACE} -- mkdir -p ${CRD_CACHE_DIR}
 kubectl --kubeconfig="${MAIN_KUBECONFIG}" --context="${HOST_CLUSTER_NAME}" cp ${REPO_ROOT}/crds.tar.gz ${KARMADA_SYSTEM_NAMESPACE}/${OPERATOR_POD_NAME}:${CRD_CACHE_DIR}
