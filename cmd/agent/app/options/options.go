@@ -183,8 +183,8 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 	fs.StringVar(&o.KarmadaKubeConfig, "karmada-kubeconfig", o.KarmadaKubeConfig, "Path to karmada control plane kubeconfig file.")
 	fs.StringVar(&o.KarmadaContext, "karmada-context", "", "Name of the cluster context in karmada control plane kubeconfig file.")
 	fs.StringVar(&o.ClusterName, "cluster-name", o.ClusterName, "Name of member cluster that the agent serves for.")
-	fs.StringArrayVar(&o.ClusterLables, "cluster-labels", []string{}, "Lables of the member cluster")
-	fs.StringArrayVar(&o.ClusterAnnotations, "cluster-annotations", []string{}, "Annotations of the member cluster")
+	fs.StringArrayVar(&o.ClusterLables, "cluster-labels", []string{}, "Specify labels for the member cluster in the format <key>=<value> e.g., --cluster-labels=foo=bar. You can use this flag multiple times. Note that it reconciles the labels of the cluster object when the agent restarts.")
+	fs.StringArrayVar(&o.ClusterAnnotations, "cluster-annotations", []string{}, "Specify annotations for the member cluster in the format <key>=<value> e.g., --cluster-annotations=foo=bar. You can use this flag multiple times. Note that it reconciles the annotations of the cluster object when the agent restarts.")
 	fs.StringVar(&o.ClusterNamespace, "cluster-namespace", DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster secrets are stored.")
 	fs.DurationVar(&o.ClusterStatusUpdateFrequency.Duration, "cluster-status-update-frequency", 10*time.Second, "Specifies how often karmada-agent posts cluster status to karmada-apiserver. Note: be cautious when changing the constant, it must work with ClusterMonitorGracePeriod in karmada-controller-manager.")
 	fs.DurationVar(&o.ClusterLeaseDuration.Duration, "cluster-lease-duration", 40*time.Second,
