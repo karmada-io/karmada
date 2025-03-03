@@ -73,7 +73,7 @@ spec:
             command:
             - /bin/sh
             - -ec
-            - etcdctl get /registry --prefix --keys-only --endpoints https://127.0.0.1:{{ .EtcdListenClientPort }} --cacert=/etc/karmada/pki/etcd/etcd-ca.crt --cert=/etc/karmada/pki/etcd/etcd-server.crt --key=/etc/karmada/pki/etcd/etcd-server.key
+            - etcdctl get /registry --prefix --keys-only --endpoints https://127.0.0.1:{{ .EtcdListenClientPort }} --cacert=/etc/karmada/pki/etcd-client/ca.crt --cert=/etc/karmada/pki/etcd-client/tls.crt --key=/etc/karmada/pki/etcd-client/tls.key
           failureThreshold: 3
           initialDelaySeconds: 600
           periodSeconds: 60
