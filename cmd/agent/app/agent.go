@@ -165,7 +165,7 @@ func run(ctx context.Context, opts *options.Options) error {
 	registerOption := util.ClusterRegisterOption{
 		ClusterNamespace:   opts.ClusterNamespace,
 		ClusterName:        opts.ClusterName,
-		ClusterLabels:      parseLabelsAnnotations(opts.ClusterLables),
+		ClusterLabels:      parseLabelsAnnotations(opts.ClusterLabels),
 		ClusterAnnotations: parseLabelsAnnotations(opts.ClusterAnnotations),
 		ReportSecrets:      opts.ReportSecrets,
 		ClusterAPIEndpoint: opts.ClusterAPIEndpoint,

@@ -145,7 +145,7 @@ func CreateOrUpdateClusterObject(controlPlaneClient karmadaclientset.Interface, 
 	if exist {
 		clusterCopy := cluster.DeepCopy()
 		mutate(cluster)
-		if reflect.DeepEqual(clusterCopy, cluster) {
+		if reflect.DeepEqual(clusterCopy.ObjectMeta.Annotations, cluster.ObjectMeta.Annotations) && reflect.DeepEqual(clusterCopy.ObjectMeta.Labels, cluster.ObjectMeta.Labels) && reflect.DeepEqual(clusterCopy.Spec, cluster.Spec) {
 			klog.Warningf("Cluster(%s) already exist and newest", clusterObj.Name)
 			return cluster, nil
 		}
