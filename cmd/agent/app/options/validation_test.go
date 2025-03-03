@@ -73,7 +73,7 @@ func TestValidateKarmadaAgentConfiguration(t *testing.T) {
 		},
 		"invalid ClusterLabels": {
 			opt: New(func(options *Options) {
-				options.ClusterLables = []string{"key=invalid=value"}
+				options.ClusterLabels = []string{"key=invalid=value"}
 			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterLabels"), "invalid=value", "a valid label must be an empty string or consist of alphanumeric characters, '-', '_' or '.', and must start and end with an alphanumeric character (e.g. 'MyValue',  or 'my_value',  or '12345', regex used for validation is '(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?')")},
 		},

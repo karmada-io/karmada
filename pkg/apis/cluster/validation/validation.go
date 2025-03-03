@@ -60,8 +60,8 @@ func ValidateClusterLabels(labels map[string]string) field.ErrorList {
 	return metav1validation.ValidateLabels(labels, field.NewPath("Options.ClusterLabels"))
 }
 
-// ValidateClusterAnnotationss tests whether the annotations passed are valid
-func ValidateClusterAnnotationss(annotations map[string]string) field.ErrorList {
+// ValidateClusterAnnotations tests whether the annotations passed are valid
+func ValidateClusterAnnotations(annotations map[string]string) field.ErrorList {
 	return validation.ValidateAnnotations(annotations, field.NewPath("Options.ClusterAnnotations"))
 }
 

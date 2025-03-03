@@ -44,12 +44,12 @@ func (o *Options) Validate() field.ErrorList {
 		return outputs
 	}
 
-	if o.ClusterLables != nil {
-		errs = append(errs, validation.ValidateClusterLabels(parseLabelsAnnotations(o.ClusterLables))...)
+	if o.ClusterLabels != nil {
+		errs = append(errs, validation.ValidateClusterLabels(parseLabelsAnnotations(o.ClusterLabels))...)
 	}
 
 	if o.ClusterAnnotations != nil {
-		errs = append(errs, validation.ValidateClusterAnnotationss(parseLabelsAnnotations(o.ClusterAnnotations))...)
+		errs = append(errs, validation.ValidateClusterAnnotations(parseLabelsAnnotations(o.ClusterAnnotations))...)
 	}
 
 	if o.ClusterStatusUpdateFrequency.Duration < 0 {
