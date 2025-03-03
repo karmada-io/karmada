@@ -43,6 +43,18 @@ func SelectBestClusters(placement *policyv1alpha1.Placement, groupClustersInfo *
 	return selectBestClustersBySpreadConstraints(placement.SpreadConstraints, groupClustersInfo, needReplicas)
 }
 
+// when replica assignment strategy is "Duplicated" or "static weighted", no need to calculate the available resource
+func ignoreCalculateAvailableResource(placement *policyv1alpha1.Placement) bool {
+	strategy := placement.ReplicaSchedulingType()
+	if strategy == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
+		return true
+	}
+	if strategy == policyv1alpha1.ReplicaSchedulingTypeDivided && placement.ReplicaScheduling.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceWeighted && (placement.ReplicaScheduling.WeightPreference == nil || len(placement.ReplicaScheduling.WeightPreference.DynamicWeight) == 0) {
+		return true
+	}
+	return false
+}
+
 func selectBestClustersBySpreadConstraints(spreadConstraints []policyv1alpha1.SpreadConstraint,
 	groupClustersInfo *GroupClustersInfo, needReplicas int32) ([]*clusterv1alpha1.Cluster, error) {
 	spreadConstraintMap := make(map[policyv1alpha1.SpreadFieldValue]policyv1alpha1.SpreadConstraint)
