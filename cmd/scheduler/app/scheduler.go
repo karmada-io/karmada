@@ -32,6 +32,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
+	"k8s.io/client-go/util/flowcontrol"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
@@ -146,7 +147,7 @@ func run(opts *options.Options, stopChan <-chan struct{}, registryOptions ...Opt
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig: %s", err.Error())
 	}
-	restConfig.QPS, restConfig.Burst = opts.KubeAPIQPS, opts.KubeAPIBurst
+	restConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(opts.KubeAPIQPS, opts.KubeAPIBurst)
 
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
 	karmadaClient := karmadaclientset.NewForConfigOrDie(restConfig)
