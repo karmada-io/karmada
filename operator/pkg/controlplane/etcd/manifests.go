@@ -23,7 +23,8 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   labels:
-    karmada-app: etcd
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
     app.kubernetes.io/managed-by: karmada-operator
   namespace: {{ .Namespace }}
   name: {{ .StatefulSetName }}
@@ -33,13 +34,13 @@ spec:
   podManagementPolicy: Parallel
   selector:
     matchLabels:
-      karmada-app: etcd
+      app.kubernetes.io/name: etcd
+      app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
   template:
     metadata:
       labels:
-        karmada-app: etcd
-    tolerations:
-    - operator: Exists
+        app.kubernetes.io/name: etcd
+        app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
     spec:
       automountServiceAccountToken: false
       containers:
@@ -49,7 +50,7 @@ spec:
         command:
         - /usr/local/bin/etcd
         - --name=$(KARMADA_ETCD_NAME)
-        - --listen-client-urls= https://0.0.0.0:{{ .EtcdListenClientPort }}
+        - --listen-client-urls=https://0.0.0.0:{{ .EtcdListenClientPort }}
         - --listen-peer-urls=http://0.0.0.0:{{ .EtcdListenPeerPort }}
         - --advertise-client-urls=https://{{ .EtcdClientService }}.{{ .Namespace }}.svc.cluster.local:{{ .EtcdListenClientPort }}
         - --initial-cluster={{ .InitialCluster }}
@@ -103,7 +104,8 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    karmada-app: etcd
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
     app.kubernetes.io/managed-by: karmada-operator
   name: {{ .ServiceName }}
   namespace: {{ .Namespace }}
@@ -114,33 +116,36 @@ spec:
     protocol: TCP
     targetPort: {{ .EtcdListenClientPort }}
   selector:
-    karmada-app: etcd
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
   type: ClusterIP
- `
+`
 
 	// KarmadaEtcdPeerService is karmada etcd peer Service manifest
 	KarmadaEtcdPeerService = `
- apiVersion: v1
- kind: Service
- metadata:
-   labels:
-     karmada-app: etcd
-     app.kubernetes.io/managed-by: karmada-operator
-   name: {{ .ServiceName }}
-   namespace: {{ .Namespace }}
- spec:
-   clusterIP: None
-   ports:
-   - name: client
-     port: {{ .EtcdListenClientPort }}
-     protocol: TCP
-     targetPort: {{ .EtcdListenClientPort }}
-   - name: server
-     port: {{ .EtcdListenPeerPort }}
-     protocol: TCP
-     targetPort: {{ .EtcdListenPeerPort }}
-   selector:
-     karmada-app: etcd
-   type: ClusterIP
-  `
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
+    app.kubernetes.io/managed-by: karmada-operator
+  name: {{ .ServiceName }}
+  namespace: {{ .Namespace }}
+spec:
+  clusterIP: None
+  ports:
+  - name: client
+    port: {{ .EtcdListenClientPort }}
+    protocol: TCP
+    targetPort: {{ .EtcdListenClientPort }}
+  - name: server
+    port: {{ .EtcdListenPeerPort }}
+    protocol: TCP
+    targetPort: {{ .EtcdListenPeerPort }}
+  selector:
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
+  type: ClusterIP
+`
 )

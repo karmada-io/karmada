@@ -52,17 +52,18 @@ func EnsureKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operatorv
 
 func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaAPIServer, etcdCfg *operatorv1alpha1.Etcd, name, namespace string, _ map[string]bool) error {
 	apiserverDeploymentBytes, err := util.ParseTemplate(KarmadaApiserverDeployment, struct {
-		DeploymentName, Namespace, Image, ImagePullPolicy string
-		ServiceSubnet, KarmadaCertsSecret                 string
-		Replicas                                          *int32
+		KarmadaInstanceName, DeploymentName, Namespace, Image, ImagePullPolicy string
+		ServiceSubnet, KarmadaCertsSecret                                      string
+		Replicas                                                               *int32
 	}{
-		DeploymentName:     util.KarmadaAPIServerName(name),
-		Namespace:          namespace,
-		Image:              cfg.Image.Name(),
-		ImagePullPolicy:    string(cfg.ImagePullPolicy),
-		ServiceSubnet:      *cfg.ServiceSubnet,
-		KarmadaCertsSecret: util.KarmadaCertSecretName(name),
-		Replicas:           cfg.Replicas,
+		KarmadaInstanceName: name,
+		DeploymentName:      util.KarmadaAPIServerName(name),
+		Namespace:           namespace,
+		Image:               cfg.Image.Name(),
+		ImagePullPolicy:     string(cfg.ImagePullPolicy),
+		ServiceSubnet:       *cfg.ServiceSubnet,
+		KarmadaCertsSecret:  util.KarmadaCertSecretName(name),
+		Replicas:            cfg.Replicas,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing karmadaApiserver deployment template: %w", err)
@@ -91,11 +92,12 @@ func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.K
 
 func createKarmadaAPIServerService(client clientset.Interface, cfg *operatorv1alpha1.KarmadaAPIServer, name, namespace string) error {
 	karmadaApiserverServiceBytes, err := util.ParseTemplate(KarmadaApiserverService, struct {
-		ServiceName, Namespace, ServiceType string
+		KarmadaInstanceName, ServiceName, Namespace, ServiceType string
 	}{
-		ServiceName: util.KarmadaAPIServerName(name),
-		Namespace:   namespace,
-		ServiceType: string(cfg.ServiceType),
+		KarmadaInstanceName: name,
+		ServiceName:         util.KarmadaAPIServerName(name),
+		Namespace:           namespace,
+		ServiceType:         string(cfg.ServiceType),
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing karmadaApiserver serive template: %w", err)
@@ -117,17 +119,18 @@ func createKarmadaAPIServerService(client clientset.Interface, cfg *operatorv1al
 
 func installKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaAggregatedAPIServer, etcdCfg *operatorv1alpha1.Etcd, name, namespace string, featureGates map[string]bool) error {
 	aggregatedAPIServerDeploymentBytes, err := util.ParseTemplate(KarmadaAggregatedAPIServerDeployment, struct {
-		DeploymentName, Namespace, Image, ImagePullPolicy string
-		KubeconfigSecret, KarmadaCertsSecret              string
-		Replicas                                          *int32
+		KarmadaInstanceName, DeploymentName, Namespace, Image, ImagePullPolicy string
+		KubeconfigSecret, KarmadaCertsSecret                                   string
+		Replicas                                                               *int32
 	}{
-		DeploymentName:     util.KarmadaAggregatedAPIServerName(name),
-		Namespace:          namespace,
-		Image:              cfg.Image.Name(),
-		ImagePullPolicy:    string(cfg.ImagePullPolicy),
-		KubeconfigSecret:   util.ComponentKarmadaConfigSecretName(util.KarmadaAggregatedAPIServerName(name)),
-		KarmadaCertsSecret: util.KarmadaCertSecretName(name),
-		Replicas:           cfg.Replicas,
+		KarmadaInstanceName: name,
+		DeploymentName:      util.KarmadaAggregatedAPIServerName(name),
+		Namespace:           namespace,
+		Image:               cfg.Image.Name(),
+		ImagePullPolicy:     string(cfg.ImagePullPolicy),
+		KubeconfigSecret:    util.ComponentKarmadaConfigSecretName(util.KarmadaAggregatedAPIServerName(name)),
+		KarmadaCertsSecret:  util.KarmadaCertSecretName(name),
+		Replicas:            cfg.Replicas,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing karmadaAggregatedAPIServer deployment template: %w", err)
@@ -155,10 +158,11 @@ func installKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operator
 
 func createKarmadaAggregatedAPIServerService(client clientset.Interface, name, namespace string) error {
 	aggregatedAPIServerServiceBytes, err := util.ParseTemplate(KarmadaAggregatedAPIServerService, struct {
-		ServiceName, Namespace string
+		KarmadaInstanceName, ServiceName, Namespace string
 	}{
-		ServiceName: util.KarmadaAggregatedAPIServerName(name),
-		Namespace:   namespace,
+		KarmadaInstanceName: name,
+		ServiceName:         util.KarmadaAggregatedAPIServerName(name),
+		Namespace:           namespace,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing karmadaAggregatedAPIServer serive template: %w", err)

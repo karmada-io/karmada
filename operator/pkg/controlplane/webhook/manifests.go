@@ -25,59 +25,62 @@ metadata:
   name: {{ .DeploymentName }}
   namespace: {{ .Namespace }}
   labels:
-    karmada-app: karmada-webhook
+    app.kubernetes.io/name: karmada-webhook
+    app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
     app.kubernetes.io/managed-by: karmada-operator
 spec:
   replicas: {{ .Replicas }}
   selector:
     matchLabels:
-      karmada-app: karmada-webhook
+      app.kubernetes.io/name: karmada-webhook
+      app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
   template:
     metadata:
       labels:
-        karmada-app: karmada-webhook
+        app.kubernetes.io/name: karmada-webhook
+        app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
     spec:
       automountServiceAccountToken: false
       tolerations:
         - key: node-role.kubernetes.io/master
           operator: Exists
       containers:
-      - name: karmada-webhook
-        image: {{ .Image }}
-        imagePullPolicy: {{ .ImagePullPolicy }}
-        command:
-        - /bin/karmada-webhook
-        - --kubeconfig=/etc/karmada/config/karmada.config
-        - --bind-address=0.0.0.0
-        - --metrics-bind-address=:8080
-        - --default-not-ready-toleration-seconds=30
-        - --default-unreachable-toleration-seconds=30
-        - --secure-port=8443
-        - --cert-dir=/var/serving-cert
-        - --v=4
-        ports:
-        - containerPort: 8443
-        - containerPort: 8080
-          name: metrics
-          protocol: TCP
-        volumeMounts:
-        - name: karmada-config
-          mountPath: /etc/karmada/config
-        - name: cert
-          mountPath: /var/serving-cert
-          readOnly: true
-        readinessProbe:
-          httpGet:
-            path: /readyz
-            port: 8443
-            scheme: HTTPS
+        - name: karmada-webhook
+          image: {{ .Image }}
+          imagePullPolicy: {{ .ImagePullPolicy }}
+          command:
+            - /bin/karmada-webhook
+            - --kubeconfig=/etc/karmada/config/karmada.config
+            - --bind-address=0.0.0.0
+            - --metrics-bind-address=:8080
+            - --default-not-ready-toleration-seconds=30
+            - --default-unreachable-toleration-seconds=30
+            - --secure-port=8443
+            - --cert-dir=/var/serving-cert
+            - --v=4
+          ports:
+            - containerPort: 8443
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
+          volumeMounts:
+            - name: karmada-config
+              mountPath: /etc/karmada/config
+            - name: cert
+              mountPath: /var/serving-cert
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8443
+              scheme: HTTPS
       volumes:
-      - name: karmada-config
-        secret:
-          secretName: {{ .KubeconfigSecret }}
-      - name: cert
-        secret:
-          secretName: {{ .WebhookCertsSecret }}
+        - name: karmada-config
+          secret:
+            secretName: {{ .KubeconfigSecret }}
+        - name: cert
+          secret:
+            secretName: {{ .WebhookCertsSecret }}
 `
 
 	// KarmadaWebhookService is karmada webhook service manifest
@@ -88,12 +91,15 @@ metadata:
   name: {{ .ServiceName }}
   namespace: {{ .Namespace }}
   labels:
+    app.kubernetes.io/name: karmada-webhook
+    app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
     app.kubernetes.io/managed-by: karmada-operator
 spec:
   selector:
-    karmada-app: karmada-webhook
+    app.kubernetes.io/name: karmada-webhook
+    app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
   ports:
-  - port: 443
-    targetPort: 8443
+    - port: 443
+      targetPort: 8443
 `
 )

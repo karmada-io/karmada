@@ -40,14 +40,14 @@ var (
 	// the process will stop and return an error.
 	failureThreshold = 3
 
-	etcdLabels                       = labels.Set{"karmada-app": constants.Etcd}
-	karmadaApiserverLabels           = labels.Set{"karmada-app": constants.KarmadaAPIServer}
-	karmadaAggregatedAPIServerLabels = labels.Set{"karmada-app": names.KarmadaAggregatedAPIServerComponentName}
-	kubeControllerManagerLabels      = labels.Set{"karmada-app": constants.KubeControllerManager}
-	karmadaControllerManagerLabels   = labels.Set{"karmada-app": names.KarmadaControllerManagerComponentName}
-	karmadaSchedulerLabels           = labels.Set{"karmada-app": names.KarmadaSchedulerComponentName}
-	karmadaWebhookLabels             = labels.Set{"karmada-app": names.KarmadaWebhookComponentName}
-	karmadaMetricAdapterLabels       = labels.Set{"karmada-app": names.KarmadaMetricsAdapterComponentName}
+	etcdLabels                       = labels.Set{constants.AppNameLabel: constants.Etcd}
+	karmadaApiserverLabels           = labels.Set{constants.AppNameLabel: constants.KarmadaAPIServer}
+	karmadaAggregatedAPIServerLabels = labels.Set{constants.AppNameLabel: names.KarmadaAggregatedAPIServerComponentName}
+	kubeControllerManagerLabels      = labels.Set{constants.AppNameLabel: constants.KubeControllerManager}
+	karmadaControllerManagerLabels   = labels.Set{constants.AppNameLabel: names.KarmadaControllerManagerComponentName}
+	karmadaSchedulerLabels           = labels.Set{constants.AppNameLabel: names.KarmadaSchedulerComponentName}
+	karmadaWebhookLabels             = labels.Set{constants.AppNameLabel: names.KarmadaWebhookComponentName}
+	karmadaMetricAdapterLabels       = labels.Set{constants.AppNameLabel: names.KarmadaMetricsAdapterComponentName}
 )
 
 // NewCheckApiserverHealthTask init wait-apiserver task
@@ -114,6 +114,7 @@ func runWaitControlPlaneSubTask(component string, ls labels.Set) func(r workflow
 			return errors.New("wait-controlPlane task invoked with an invalid data struct")
 		}
 
+		ls[constants.AppInstanceLabel] = data.GetName()
 		waiter := apiclient.NewKarmadaWaiter(nil, data.RemoteClient(), componentBeReadyTimeout)
 		if err := waiter.WaitForSomePods(ls.String(), data.GetNamespace(), 1); err != nil {
 			return fmt.Errorf("waiting for %s to ready timeout, err: %w", component, err)

@@ -3,7 +3,7 @@ kind: ClusterRoleBinding
 metadata:
   name: karmada-operator
   labels:
-    karmada-app: karmada-operator
+    app.kubernetes.io/name: karmada-operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

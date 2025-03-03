@@ -25,19 +25,22 @@ metadata:
   name: {{ .DeploymentName }}
   namespace: {{ .Namespace }}
   labels:
+    app.kubernetes.io/name: karmada-search
+    app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
     app.kubernetes.io/managed-by: karmada-operator
-    karmada-app: karmada-search
     apiserver: "true"
 spec:
   selector:
     matchLabels:
-      karmada-app: karmada-search
+      app.kubernetes.io/name: karmada-search
+      app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
       apiserver: "true"
   replicas: {{ .Replicas }}
   template:
     metadata:
       labels:
-        karmada-app: karmada-search
+        app.kubernetes.io/name: karmada-search
+        app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
         apiserver: "true"
     spec:
       automountServiceAccountToken: false
@@ -91,8 +94,9 @@ metadata:
   name: {{ .ServiceName }}
   namespace: {{ .Namespace }}
   labels:
+    app.kubernetes.io/name: karmada-search
+    app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
     app.kubernetes.io/managed-by: karmada-operator
-    karmada-app: karmada-search
     apiserver: "true"
 spec:
   ports:
@@ -100,6 +104,8 @@ spec:
       protocol: TCP
       targetPort: 443
   selector:
-    karmada-app: karmada-search
+    app.kubernetes.io/name: karmada-search
+    app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
+    apiserver: "true"
 `
 )

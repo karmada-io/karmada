@@ -23,19 +23,22 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    karmada-app: karmada-apiserver
     app.kubernetes.io/managed-by: karmada-operator
+    app.kubernetes.io/name: karmada-apiserver
+    app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
   name: {{ .DeploymentName }}
   namespace: {{ .Namespace }}
 spec:
   replicas: {{ .Replicas }}
   selector:
     matchLabels:
-      karmada-app: karmada-apiserver
+      app.kubernetes.io/name: karmada-apiserver
+      app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
   template:
     metadata:
       labels:
-        karmada-app: karmada-apiserver
+        app.kubernetes.io/name: karmada-apiserver
+        app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
     spec:
       automountServiceAccountToken: false
       containers:
@@ -69,7 +72,6 @@ spec:
         - --max-requests-inflight=1500
         - --max-mutating-requests-inflight=500
         - --v=4
-
         livenessProbe:
           failureThreshold: 8
           httpGet:
@@ -94,11 +96,15 @@ spec:
           podAntiAffinity:
             requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
-              matchExpressions:
-              - key: karmada-app
-                operator: In
-                values:
-                - karmada-apiserver
+                matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                  - karmada-apiserver
+                - key: app.kubernetes.io/instance
+                  operator: In
+                  values:
+                  - {{ .KarmadaInstanceName }}
               topologyKey: kubernetes.io/hostname
         ports:
         - containerPort: 5443
@@ -120,8 +126,9 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    karmada-app: karmada-apiserver
     app.kubernetes.io/managed-by: karmada-operator
+    app.kubernetes.io/name: karmada-apiserver
+    app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
   name: {{ .ServiceName }}
   namespace: {{ .Namespace }}
 spec:
@@ -131,29 +138,33 @@ spec:
     protocol: TCP
     targetPort: 5443
   selector:
-    karmada-app: karmada-apiserver
+    app.kubernetes.io/name: karmada-apiserver
+    app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
   type: {{ .ServiceType }}
 `
 
-	// KarmadaAggregatedAPIServerDeployment is karmada aggreagated apiserver deployment manifest
+	// KarmadaAggregatedAPIServerDeployment is karmada aggregated apiserver deployment manifest
 	KarmadaAggregatedAPIServerDeployment = `
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    karmada-app: karmada-aggregated-apiserver
     app.kubernetes.io/managed-by: karmada-operator
+    app.kubernetes.io/name: karmada-aggregated-apiserver
+    app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
   name: {{ .DeploymentName }}
   namespace: {{ .Namespace }}
 spec:
   replicas: {{ .Replicas }}
   selector:
     matchLabels:
-      karmada-app: karmada-aggregated-apiserver
+      app.kubernetes.io/name: karmada-aggregated-apiserver
+      app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
   template:
     metadata:
       labels:
-        karmada-app: karmada-aggregated-apiserver
+        app.kubernetes.io/name: karmada-aggregated-apiserver
+        app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
     spec:
       automountServiceAccountToken: false
       containers:
@@ -185,14 +196,16 @@ spec:
         secret:
           secretName: {{ .KarmadaCertsSecret }}
 `
+
 	// KarmadaAggregatedAPIServerService is karmada aggregated APIServer Service manifest
 	KarmadaAggregatedAPIServerService = `
 apiVersion: v1
 kind: Service
 metadata:
   labels:
-    karmada-app: karmada-aggregated-apiserver
     app.kubernetes.io/managed-by: karmada-operator
+    app.kubernetes.io/name: karmada-aggregated-apiserver
+    app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
   name: {{ .ServiceName }}
   namespace: {{ .Namespace }}
 spec:
@@ -201,7 +214,8 @@ spec:
     protocol: TCP
     targetPort: 443
   selector:
-    karmada-app: karmada-aggregated-apiserver
+    app.kubernetes.io/name: karmada-aggregated-apiserver
+    app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
   type: ClusterIP
 `
 )
