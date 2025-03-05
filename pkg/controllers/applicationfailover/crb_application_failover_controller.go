@@ -47,8 +47,8 @@ const CRBApplicationFailoverControllerName = "cluster-resource-binding-applicati
 // CRBApplicationFailoverController is to sync ClusterResourceBinding's application failover behavior.
 type CRBApplicationFailoverController struct {
 	client.Client
-	EventRecorder      record.EventRecorder
-	RateLimiterOptions ratelimiterflag.Options
+	EventRecorder     record.EventRecorder
+	RateLimiterOption ratelimiterflag.Options
 
 	// workloadUnhealthyMap records which clusters the specific resource is in an unhealthy state
 	workloadUnhealthyMap *workloadUnhealthyMap
@@ -209,7 +209,7 @@ func (c *CRBApplicationFailoverController) SetupWithManager(mgr controllerruntim
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(CRBApplicationFailoverControllerName).
 		For(&workv1alpha2.ClusterResourceBinding{}, builder.WithPredicates(clusterResourceBindingPredicateFn)).
-		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).
+		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOption)}).
 		Complete(c)
 }
 

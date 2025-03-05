@@ -47,8 +47,8 @@ const RBApplicationFailoverControllerName = "resource-binding-application-failov
 // RBApplicationFailoverController is to sync ResourceBinding's application failover behavior.
 type RBApplicationFailoverController struct {
 	client.Client
-	EventRecorder      record.EventRecorder
-	RateLimiterOptions ratelimiterflag.Options
+	EventRecorder     record.EventRecorder
+	RateLimiterOption ratelimiterflag.Options
 
 	// workloadUnhealthyMap records which clusters the specific resource is in an unhealthy state
 	workloadUnhealthyMap *workloadUnhealthyMap
@@ -209,7 +209,7 @@ func (c *RBApplicationFailoverController) SetupWithManager(mgr controllerruntime
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(RBApplicationFailoverControllerName).
 		For(&workv1alpha2.ResourceBinding{}, builder.WithPredicates(resourceBindingPredicateFn)).
-		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).
+		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOption)}).
 		Complete(c)
 }
 
