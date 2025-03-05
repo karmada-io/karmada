@@ -619,7 +619,8 @@ func (d *DependenciesDistributor) Start(ctx context.Context) error {
 				Labels:         metaInfo.GetLabels(),
 			}, nil
 		},
-		ReconcileFunc: d.reconcileResourceTemplate,
+		ReconcileFunc:      d.reconcileResourceTemplate,
+		RateLimiterOptions: d.RateLimiterOptions,
 	}
 	d.eventHandler = fedinformer.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
 	d.resourceProcessor = util.NewAsyncWorker(resourceWorkerOptions)
