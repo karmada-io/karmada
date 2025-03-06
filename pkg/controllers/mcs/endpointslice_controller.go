@@ -29,12 +29,14 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -46,7 +48,8 @@ const EndpointSliceControllerName = "endpointslice-controller"
 // EndpointSliceController is to collect EndpointSlice which reported by member cluster from executionNamespace to serviceexport namespace.
 type EndpointSliceController struct {
 	client.Client
-	EventRecorder record.EventRecorder
+	EventRecorder      record.EventRecorder
+	RateLimiterOptions ratelimiterflag.Options
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -118,6 +121,9 @@ func (c *EndpointSliceController) SetupWithManager(mgr controllerruntime.Manager
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(EndpointSliceControllerName).
 		For(&workv1alpha1.Work{}, builder.WithPredicates(serviceImportPredicateFun)).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions),
+		}).
 		Complete(c)
 }
 
