@@ -33,7 +33,7 @@ In scenarios where security policies require frequent rotation of certificates, 
 
 ## Proposal
 
-The proposal introduces a new optional field, `LeafCertValidity`, in the `CustomCertificate` struct, where users can specify the validity period of leaf certificates in days.
+The proposal introduces a new optional field, `LeafCertValidityDays`, in the `CustomCertificate` struct, where users can specify the validity period of leaf certificates in days.
 
 ### API Changes
 
@@ -41,10 +41,10 @@ The proposal introduces a new optional field, `LeafCertValidity`, in the `Custom
 type CustomCertificate struct {
    // Other, existing fields omitted for brevity
 
-   // LeafCertValidity specifies the validity period of leaf certificates (e.g., API Server certificate) in days.
+   // LeafCertValidityDays specifies the validity period of leaf certificates (e.g., API Server certificate) in days.
    // If not specified, the default validity period of 1 year will be used.
    // +optional
-   LeafCertValidity *int `json:"leafCertValidity,omitempty"`
+   LeafCertValidityDays *int `json:"leafCertValidityDays,omitempty"`
 }
 ```
 
@@ -66,9 +66,9 @@ As a cloud infrastructure architect, I want to configure the validity period of 
 
 ## Design Details
 
-The `LeafCertValidity` field in `CustomCertificate` will allow users to specify the validity period of leaf certificates in days. During the reconciliation process, the Karmada operator will:
+The `LeafCertValidityDays` field in `CustomCertificate` will allow users to specify the validity period of leaf certificates in days. During the reconciliation process, the Karmada operator will:
 
-- Check if `CustomCertificate.LeafCertValidity` is set.
+- Check if `CustomCertificate.LeafCertValidityDays` is set.
 - If specified:
     - Use the provided validity period to derive the `NotAfter` field of the leaf certificate.
 - If not specified:
