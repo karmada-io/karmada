@@ -28,6 +28,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
+	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
 )
@@ -57,7 +58,7 @@ func NewGenericScheduler(
 	schedCache cache.Cache,
 	registry runtime.Registry,
 ) (ScheduleAlgorithm, error) {
-	f, err := runtime.NewFramework(registry)
+	f, err := runtime.NewFramework(registry, runtime.WithScorePluginsWeight(plugins.GetDefaultScorePluginsWeight()))
 	if err != nil {
 		return nil, err
 	}
