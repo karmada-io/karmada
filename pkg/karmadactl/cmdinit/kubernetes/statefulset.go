@@ -27,7 +27,7 @@ import (
 	"k8s.io/component-base/cli/flag"
 	"k8s.io/utils/ptr"
 
-	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
 const (
@@ -45,8 +45,6 @@ const (
 	etcdConfigName                     = "etcd.conf"
 	etcdEnvPodName                     = "POD_NAME"
 	etcdEnvPodIP                       = "POD_IP"
-	//secrets name
-	etcdCertName = "etcd-cert"
 )
 
 var (
@@ -57,23 +55,30 @@ var (
 )
 
 func (i *CommandInitOption) etcdVolume() (*[]corev1.Volume, *corev1.PersistentVolumeClaim) {
-	var Volumes []corev1.Volume
-
-	secretVolume := corev1.Volume{
-		Name: etcdCertName,
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: etcdCertName,
+	Volumes := []corev1.Volume{
+		{
+			Name: util.GetCertName(util.Server),
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: util.GetComponentCertName(util.Etcd),
+				},
+			},
+		},
+		{
+			Name: util.GetCertName(util.EtcdClient),
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: util.GetComponentClientCertName(util.Etcd, util.EtcdClient),
+				},
+			},
+		},
+		{
+			Name: etcdContainerConfigVolumeMountName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
 	}
-	configVolume := corev1.Volume{
-		Name: etcdContainerConfigVolumeMountName,
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
-		},
-	}
-	Volumes = append(Volumes, secretVolume, configVolume)
 
 	switch i.EtcdStorageMode {
 	case etcdStorageModePVC:
@@ -142,14 +147,14 @@ cat <<EOF | tee %s/%s
 name: ${%s}
 client-transport-security:
   client-cert-auth: true
-  trusted-ca-file: %s/%s.crt
-  key-file: %s/%s.key
-  cert-file: %s/%s.crt
+  trusted-ca-file: %s
+  key-file: %s
+  cert-file: %s
 peer-transport-security:
   client-cert-auth: false
-  trusted-ca-file: %s/%s.crt
-  key-file: %s/%s.key
-  cert-file: %s/%s.crt
+  trusted-ca-file: %s
+  key-file: %s
+  cert-file: %s
 initial-cluster-state: new
 initial-cluster-token: etcd-cluster
 initial-cluster: %s
@@ -163,12 +168,12 @@ cipher-suites: %s
 `,
 			etcdContainerConfigDataMountPath, etcdConfigName,
 			etcdEnvPodName,
-			karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
+			util.GetFilePath(util.Server, util.CACrtFile),
+			util.GetFilePath(util.Server, util.TLSKeyFile),
+			util.GetFilePath(util.Server, util.TLSCrtFile),
+			util.GetFilePath(util.Server, util.CACrtFile),
+			util.GetFilePath(util.Server, util.TLSKeyFile),
+			util.GetFilePath(util.Server, util.TLSCrtFile),
 			strings.TrimRight(etcdClusterConfig, ","),
 			etcdEnvPodIP, etcdContainerServerPort,
 			etcdEnvPodIP, etcdContainerClientPort, etcdContainerClientPort,
@@ -288,9 +293,14 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 						MountPath: etcdContainerConfigDataMountPath,
 					},
 					{
-						Name:      etcdCertName,
+						Name:      util.GetCertName(util.Server),
 						ReadOnly:  true,
-						MountPath: karmadaCertsVolumeMountPath,
+						MountPath: util.GetDirPath(util.Server),
+					},
+					{
+						Name:      util.GetCertName(util.EtcdClient),
+						ReadOnly:  true,
+						MountPath: util.GetDirPath(util.EtcdClient),
 					},
 				},
 				LivenessProbe: livenesProbe,
@@ -319,6 +329,16 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 					Name:      etcdContainerConfigVolumeMountName,
 					ReadOnly:  false,
 					MountPath: etcdContainerConfigDataMountPath,
+				},
+				{
+					Name:      util.GetCertName(util.Server),
+					ReadOnly:  true,
+					MountPath: util.GetDirPath(util.Server),
+				},
+				{
+					Name:      util.GetCertName(util.EtcdClient),
+					ReadOnly:  true,
+					MountPath: util.GetDirPath(util.EtcdClient),
 				},
 			},
 			Env: []corev1.EnvVar{

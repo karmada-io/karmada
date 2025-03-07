@@ -40,16 +40,20 @@ const (
 	TestCaKeyPath       = "./test-certs-tmp-without-ca-certificate/ca.key" //nolint
 )
 
-var certFiles = []string{
-	"apiserver.crt", "apiserver.key",
-	"ca.crt", "ca.key",
-	"etcd-ca.crt", "etcd-ca.key",
-	"etcd-client.crt", "etcd-client.key",
-	"etcd-server.crt", "etcd-server.key",
-	"front-proxy-ca.crt", "front-proxy-ca.key",
-	"front-proxy-client.crt", "front-proxy-client.key",
-	"karmada.crt", "karmada.key",
-}
+var (
+	certFiles = []string{
+		"server.crt", "server.key",
+		"ca.crt", "ca.key",
+		"client.crt", "client.key",
+		"etcd-client.crt", "etcd-client.key",
+		"etcd-server.crt", "etcd-server.key",
+		"front-proxy-ca.crt", "front-proxy-ca.key",
+		"front-proxy-client.crt", "front-proxy-client.key",
+	}
+	keyPairFiles = []string{
+		"sa.pub", "sa.key",
+	}
+)
 
 func TestGenCerts(t *testing.T) {
 	defer os.RemoveAll(TestCertsTmp)
@@ -143,6 +147,29 @@ func TestGenCerts(t *testing.T) {
 		t.Fatal(err)
 	} else {
 		klog.Infof("The certificate files in the two directories are the same")
+	}
+}
+
+func TestGenKeyPair(t *testing.T) {
+	defer os.RemoveAll(TestCertsTmp)
+	defer os.RemoveAll(TestCertsTmpWithArg)
+
+	if err := GenKeyPair(TestCertsTmp, "sa"); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkCertFiles(TestCertsTmp, keyPairFiles); err != nil {
+		t.Fatal(err)
+	} else {
+		klog.Infof("All certificate files are present without CA certificates address parameter exists")
+	}
+
+	if err := GenKeyPair(TestCertsTmpWithArg, "sa"); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkCertFiles(TestCertsTmpWithArg, keyPairFiles); err != nil {
+		t.Fatal(err)
+	} else {
+		klog.Infof("All certificate files are present with CA certificates address parameter exists")
 	}
 }
 

@@ -40,7 +40,7 @@ import (
 	"k8s.io/kube-openapi/pkg/util/sets"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
-	globaloptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
 const (
@@ -241,6 +241,46 @@ func WriteKey(pkiPath, name string, key crypto.Signer) error {
 	return nil
 }
 
+// WriteKeyPair stores the given key pair at the given location
+func WriteKeyPair(pkiPath, name string, key crypto.Signer) error {
+	if key == nil {
+		return errors.New("private key cannot be nil when writing to file")
+	}
+
+	// Write private key
+	privateKeyPath := PathForKey(pkiPath, name)
+	encoded, err := keyutil.MarshalPrivateKeyToPEM(key)
+	if err != nil {
+		return fmt.Errorf("unable to marshal private key to PEM: %w", err)
+	}
+	if err := keyutil.WriteKey(privateKeyPath, encoded); err != nil {
+		return fmt.Errorf("unable to write private key to file: %w", err)
+	}
+
+	// Write public key
+	publicKeyPath := filepath.Join(pkiPath, fmt.Sprintf("%s.pub", name))
+	publicKey, ok := key.Public().(*rsa.PublicKey)
+	if !ok {
+		return fmt.Errorf("expected RSA public key but got %T", key.Public())
+	}
+
+	bytes, err := x509.MarshalPKIXPublicKey(publicKey)
+	if err != nil {
+		return fmt.Errorf("unable to marshal public key to bytes: %w", err)
+	}
+
+	block := &pem.Block{
+		Type:  keyutil.PublicKeyBlockType,
+		Bytes: bytes,
+	}
+	publicEncoded := pem.EncodeToMemory(block)
+	if err := keyutil.WriteKey(publicKeyPath, publicEncoded); err != nil {
+		return fmt.Errorf("unable to write public key to file: %w", err)
+	}
+
+	return nil
+}
+
 // WriteCertAndKey Write certificate and key to file.
 func WriteCertAndKey(pkiPath, pkiName string, ca *x509.Certificate, key *crypto.Signer) error {
 	if err := WriteKey(pkiPath, pkiName, *key); err != nil {
@@ -268,34 +308,35 @@ func NewCertConfig(cn string, org []string, altNames certutil.AltNames, notAfter
 	}
 }
 
-// GenCerts Create CA certificate and sign etcd karmada certificate.
-func GenCerts(pkiPath, caCertFile, caKeyFile string, etcdServerCertCfg, etcdClientCertCfg, karmadaCertCfg, apiserverCertCfg, frontProxyClientCertCfg *CertsConfig) error {
+// GenCerts creates CA certificate and signs certificates for etcd and karmada components.
+func GenCerts(pkiPath, caCertFile, caKeyFile string, etcdServerCertCfg, etcdClientCertCfg, serverCertCfg, clientCertCfg, frontProxyClientCertCfg *CertsConfig) error {
 	caCert, caKey, err := getCACertAndKey(caCertFile, caKeyFile)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get CA cert and key: %w", err)
 	}
 
-	if err = WriteCertAndKey(pkiPath, globaloptions.CaCertAndKeyName, caCert, caKey); err != nil {
-		return err
+	if err = WriteCertAndKey(pkiPath, util.CA, caCert, caKey); err != nil {
+		return fmt.Errorf("failed to write CA cert and key: %w", err)
 	}
 
-	karmadaCert, karmadaKey, err := NewCertAndKey(caCert, *caKey, karmadaCertCfg)
-	if err != nil {
-		return err
-	}
-	if err = WriteCertAndKey(pkiPath, options.KarmadaCertAndKeyName, karmadaCert, &karmadaKey); err != nil {
-		return err
+	// Generate and write core certificates
+	certConfigs := map[string]*CertsConfig{
+		util.Server: serverCertCfg,
+		util.Client: clientCertCfg,
 	}
 
-	apiserverCert, apiserverKey, err := NewCertAndKey(caCert, *caKey, apiserverCertCfg)
-	if err != nil {
-		return err
-	}
-	if err = WriteCertAndKey(pkiPath, options.ApiserverCertAndKeyName, apiserverCert, &apiserverKey); err != nil {
-		return err
+	for name, config := range certConfigs {
+		cert, key, err := NewCertAndKey(caCert, *caKey, config)
+		if err != nil {
+			return fmt.Errorf("failed to generate %s cert and key: %w", name, err)
+		}
+		if err = WriteCertAndKey(pkiPath, name, cert, &key); err != nil {
+			return fmt.Errorf("failed to write %s cert and key: %w", name, err)
+		}
 	}
 
-	frontProxyCaCert, frontProxyCaKey, err := NewCACertAndKey("front-proxy-ca")
+	// Generate and write front-proxy certificates
+	frontProxyCaCert, frontProxyCaKey, err := NewCACertAndKey(options.FrontProxyCaCertAndKeyName)
 	if err != nil {
 		return err
 	}
@@ -307,15 +348,46 @@ func GenCerts(pkiPath, caCertFile, caKeyFile string, etcdServerCertCfg, etcdClie
 	if err != nil {
 		return err
 	}
-	if err := WriteCertAndKey(pkiPath, options.FrontProxyClientCertAndKeyName, frontProxyClientCert, &frontProxyClientKey); err != nil {
-		return err
+	if err = WriteCertAndKey(pkiPath, util.FrontProxyClient, frontProxyClientCert, &frontProxyClientKey); err != nil {
+		return fmt.Errorf("failed to write %s cert and key: %w", util.FrontProxyClient, err)
 	}
 
+	// Skip etcd certificate generation if using external etcd
 	if etcdServerCertCfg == nil && etcdClientCertCfg == nil {
-		// use external etcd
 		return nil
 	}
-	return genEtcdCerts(pkiPath, etcdServerCertCfg, etcdClientCertCfg)
+
+	// Generate and write etcd certificates
+	etcdCertConfigs := map[string]*CertsConfig{
+		options.EtcdServerCertAndKeyName: etcdServerCertCfg,
+		options.EtcdClientCertAndKeyName: etcdClientCertCfg,
+	}
+
+	for name, config := range etcdCertConfigs {
+		cert, key, err := NewCertAndKey(caCert, *caKey, config)
+		if err != nil {
+			return fmt.Errorf("failed to generate %s cert and key: %w", name, err)
+		}
+		if err = WriteCertAndKey(pkiPath, name, cert, &key); err != nil {
+			return fmt.Errorf("failed to write %s cert and key: %w", name, err)
+		}
+	}
+
+	return nil
+}
+
+// GenKeyPair creates a key pair with the given name.
+func GenKeyPair(pkiPath, name string) error {
+	key, err := GeneratePrivateKey(x509.RSA)
+	if err != nil {
+		return fmt.Errorf("failed to generate private key: %w", err)
+	}
+
+	if err := WriteKeyPair(pkiPath, name, key); err != nil {
+		return fmt.Errorf("failed to write key pair: %w", err)
+	}
+
+	return nil
 }
 
 func getCACertAndKey(caCertFile, caKeyFile string) (caCert *x509.Certificate, caKey *crypto.Signer, err error) {
@@ -337,31 +409,4 @@ func getCACertAndKey(caCertFile, caKeyFile string) (caCert *x509.Certificate, ca
 		}
 	}
 	return caCert, caKey, nil
-}
-
-func genEtcdCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg *CertsConfig) error {
-	etcdCaCert, etcdCaKey, err := NewCACertAndKey("etcd-ca")
-	if err != nil {
-		return err
-	}
-	if err = WriteCertAndKey(pkiPath, options.EtcdCaCertAndKeyName, etcdCaCert, etcdCaKey); err != nil {
-		return err
-	}
-
-	etcdServerCert, etcdServerKey, err := NewCertAndKey(etcdCaCert, *etcdCaKey, etcdServerCertCfg)
-	if err != nil {
-		return err
-	}
-	if err = WriteCertAndKey(pkiPath, options.EtcdServerCertAndKeyName, etcdServerCert, &etcdServerKey); err != nil {
-		return err
-	}
-
-	etcdClientCert, etcdClientKey, err := NewCertAndKey(etcdCaCert, *etcdCaKey, etcdClientCertCfg)
-	if err != nil {
-		return err
-	}
-	if err = WriteCertAndKey(pkiPath, options.EtcdClientCertAndKeyName, etcdClientCert, &etcdClientKey); err != nil {
-		return err
-	}
-	return nil
 }

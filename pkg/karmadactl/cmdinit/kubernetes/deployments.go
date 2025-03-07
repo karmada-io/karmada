@@ -29,7 +29,6 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
-	globaloptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
@@ -87,11 +86,10 @@ func (i *CommandInitOption) karmadaAPIServerContainerCommand() []string {
 		"kube-apiserver",
 		"--allow-privileged=true",
 		"--authorization-mode=Node,RBAC",
-		fmt.Sprintf("--client-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
 		"--enable-bootstrap-token-auth=true",
-		fmt.Sprintf("--etcd-cafile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName),
-		fmt.Sprintf("--etcd-certfile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
-		fmt.Sprintf("--etcd-keyfile=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
+		fmt.Sprintf("--etcd-cafile=%s", util.GetFilePath(util.EtcdClient, util.CACrtFile)),
+		fmt.Sprintf("--etcd-certfile=%s", util.GetFilePath(util.EtcdClient, util.TLSCrtFile)),
+		fmt.Sprintf("--etcd-keyfile=%s", util.GetFilePath(util.EtcdClient, util.TLSKeyFile)),
 		fmt.Sprintf("--etcd-servers=%s", etcdServers),
 		"--bind-address=0.0.0.0",
 		"--disable-admission-plugins=StorageObjectInUseProtection,ServiceAccount",
@@ -99,18 +97,19 @@ func (i *CommandInitOption) karmadaAPIServerContainerCommand() []string {
 		fmt.Sprintf("--apiserver-count=%v", i.KarmadaAPIServerReplicas),
 		fmt.Sprintf("--secure-port=%v", karmadaAPIServerContainerPort),
 		fmt.Sprintf("--service-account-issuer=https://kubernetes.default.svc.%s", i.HostClusterDomain),
-		fmt.Sprintf("--service-account-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
-		fmt.Sprintf("--service-account-signing-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
+		fmt.Sprintf("--service-account-key-file=%s", util.GetFilePath(util.ServiceAccountKeyPair, util.SAPubFile)),
+		fmt.Sprintf("--service-account-signing-key-file=%s", util.GetFilePath(util.ServiceAccountKeyPair, util.SAKeyFile)),
 		fmt.Sprintf("--service-cluster-ip-range=%s", serviceClusterIP),
-		fmt.Sprintf("--proxy-client-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.FrontProxyClientCertAndKeyName),
-		fmt.Sprintf("--proxy-client-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.FrontProxyClientCertAndKeyName),
+		fmt.Sprintf("--proxy-client-cert-file=%s", util.GetFilePath(util.FrontProxyClient, util.TLSCrtFile)),
+		fmt.Sprintf("--proxy-client-key-file=%s", util.GetFilePath(util.FrontProxyClient, util.TLSKeyFile)),
+		fmt.Sprintf("--requestheader-client-ca-file=%s", util.GetFilePath(util.FrontProxyClient, util.CACrtFile)),
 		"--requestheader-allowed-names=front-proxy-client",
-		fmt.Sprintf("--requestheader-client-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.FrontProxyCaCertAndKeyName),
 		"--requestheader-extra-headers-prefix=X-Remote-Extra-",
 		"--requestheader-group-headers=X-Remote-Group",
 		"--requestheader-username-headers=X-Remote-User",
-		fmt.Sprintf("--tls-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.ApiserverCertAndKeyName),
-		fmt.Sprintf("--tls-private-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.ApiserverCertAndKeyName),
+		fmt.Sprintf("--tls-cert-file=%s", util.GetFilePath(util.Server, util.TLSCrtFile)),
+		fmt.Sprintf("--tls-private-key-file=%s", util.GetFilePath(util.Server, util.TLSKeyFile)),
+		fmt.Sprintf("--client-ca-file=%s", util.GetFilePath(util.Server, util.CACrtFile)),
 		"--tls-min-version=VersionTLS13",
 	}
 	if i.ExternalEtcdKeyPrefix != "" {
@@ -199,9 +198,24 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 				},
 				VolumeMounts: []corev1.VolumeMount{
 					{
-						Name:      globaloptions.KarmadaCertsName,
+						Name:      util.GetCertName(util.Server),
 						ReadOnly:  true,
-						MountPath: karmadaCertsVolumeMountPath,
+						MountPath: util.GetDirPath(util.Server),
+					},
+					{
+						Name:      util.GetCertName(util.EtcdClient),
+						ReadOnly:  true,
+						MountPath: util.GetDirPath(util.EtcdClient),
+					},
+					{
+						Name:      util.GetCertName(util.FrontProxyClient),
+						ReadOnly:  true,
+						MountPath: util.GetDirPath(util.FrontProxyClient),
+					},
+					{
+						Name:      util.ServiceAccountKeyPair,
+						ReadOnly:  true,
+						MountPath: util.GetDirPath(util.ServiceAccountKeyPair),
 					},
 				},
 				LivenessProbe:  livenessProbe,
@@ -210,10 +224,33 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 		},
 		Volumes: []corev1.Volume{
 			{
-				Name: globaloptions.KarmadaCertsName,
+				Name: util.GetCertName(util.Server),
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: globaloptions.KarmadaCertsName,
+						SecretName: util.GetComponentCertName(names.KarmadaAPIServerComponentName),
+					},
+				},
+			},
+			{
+				Name: util.GetCertName(util.EtcdClient),
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: util.GetComponentClientCertName(names.KarmadaAPIServerComponentName, util.EtcdClient),
+					},
+				},
+			},
+			{
+				Name: util.GetCertName(util.FrontProxyClient),
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: util.GetComponentClientCertName(names.KarmadaAPIServerComponentName, util.FrontProxyClient)},
+				},
+			},
+			{
+				Name: util.ServiceAccountKeyPair,
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: fmt.Sprintf("%s-%s", names.KarmadaAPIServerComponentName, util.ServiceAccountKeyPair),
 					},
 				},
 			},
@@ -311,17 +348,17 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 					fmt.Sprintf("--authentication-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
 					fmt.Sprintf("--authorization-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
 					"--bind-address=0.0.0.0",
-					fmt.Sprintf("--client-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
+					fmt.Sprintf("--client-ca-file=%s", util.GetFilePath(util.CA, util.TLSCrtFile)),
 					"--cluster-cidr=10.244.0.0/16",
 					fmt.Sprintf("--cluster-name=%s", options.ClusterName),
-					fmt.Sprintf("--cluster-signing-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
-					fmt.Sprintf("--cluster-signing-key-file=%s/%s.key", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
+					fmt.Sprintf("--cluster-signing-cert-file=%s", util.GetFilePath(util.CA, util.TLSCrtFile)),
+					fmt.Sprintf("--cluster-signing-key-file=%s", util.GetFilePath(util.CA, util.TLSKeyFile)),
 					"--controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrcleaner,csrsigning,clusterrole-aggregation",
 					"--leader-elect=true",
 					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
 					"--node-cidr-mask-size=24",
-					fmt.Sprintf("--root-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
-					fmt.Sprintf("--service-account-private-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
+					fmt.Sprintf("--root-ca-file=%s", util.GetFilePath(util.CA, util.TLSCrtFile)),
+					fmt.Sprintf("--service-account-private-key-file=%s", util.GetFilePath(util.ServiceAccountKeyPair, util.SAKeyFile)),
 					fmt.Sprintf("--service-cluster-ip-range=%s", serviceClusterIP),
 					"--use-service-account-credentials=true",
 					"--v=4",
@@ -341,9 +378,14 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 						MountPath: karmadaConfigVolumeMountPath,
 					},
 					{
-						Name:      globaloptions.KarmadaCertsName,
+						Name:      util.GetCertName(util.CA),
 						ReadOnly:  true,
-						MountPath: karmadaCertsVolumeMountPath,
+						MountPath: util.GetDirPath(util.CA),
+					},
+					{
+						Name:      util.ServiceAccountKeyPair,
+						ReadOnly:  true,
+						MountPath: util.GetDirPath(util.ServiceAccountKeyPair),
 					},
 				},
 			},
@@ -358,10 +400,18 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 				},
 			},
 			{
-				Name: globaloptions.KarmadaCertsName,
+				Name: util.GetCertName(util.CA),
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: globaloptions.KarmadaCertsName,
+						SecretName: util.GetComponentClientCertName(names.KubeControllerManagerComponentName, util.CA),
+					},
+				},
+			},
+			{
+				Name: util.ServiceAccountKeyPair,
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: fmt.Sprintf("%s-%s", names.KubeControllerManagerComponentName, util.ServiceAccountKeyPair),
 					},
 				},
 			},
@@ -457,9 +507,9 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 					"--health-probe-bind-address=0.0.0.0:10351",
 					"--enable-scheduler-estimator=true",
 					"--leader-elect=true",
-					"--scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt",
-					"--scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt",
-					"--scheduler-estimator-key-file=/etc/karmada/pki/karmada.key",
+					fmt.Sprintf("--scheduler-estimator-ca-file=%s", util.GetFilePath(util.SchedulerEstimatorClient, util.CACrtFile)),
+					fmt.Sprintf("--scheduler-estimator-cert-file=%s", util.GetFilePath(util.SchedulerEstimatorClient, util.TLSCrtFile)),
+					fmt.Sprintf("--scheduler-estimator-key-file=%s", util.GetFilePath(util.SchedulerEstimatorClient, util.TLSKeyFile)),
 					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
 					"--v=4",
 				},
@@ -478,9 +528,9 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 						MountPath: karmadaConfigVolumeMountPath,
 					},
 					{
-						Name:      globaloptions.KarmadaCertsName,
+						Name:      util.GetCertName(util.SchedulerEstimatorClient),
 						ReadOnly:  true,
-						MountPath: karmadaCertsVolumeMountPath,
+						MountPath: util.GetDirPath(util.SchedulerEstimatorClient),
 					},
 				},
 			},
@@ -495,10 +545,10 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 				},
 			},
 			{
-				Name: globaloptions.KarmadaCertsName,
+				Name: util.GetCertName(util.SchedulerEstimatorClient),
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: globaloptions.KarmadaCertsName,
+						SecretName: util.GetComponentClientCertName(names.KarmadaSchedulerComponentName, util.SchedulerEstimatorClient),
 					},
 				},
 			},
@@ -719,7 +769,7 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 					"--bind-address=0.0.0.0",
 					"--metrics-bind-address=:8080",
 					fmt.Sprintf("--secure-port=%v", webhookTargetPort),
-					fmt.Sprintf("--cert-dir=%s", webhookCertVolumeMountPath),
+					fmt.Sprintf("--cert-dir=%s", util.GetDirPath(util.Server)),
 					"--v=4",
 				},
 				Ports: []corev1.ContainerPort{
@@ -741,9 +791,9 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 						MountPath: karmadaConfigVolumeMountPath,
 					},
 					{
-						Name:      webhookCertsName,
+						Name:      util.GetCertName(util.Server),
 						ReadOnly:  true,
-						MountPath: webhookCertVolumeMountPath,
+						MountPath: util.GetDirPath(util.Server),
 					},
 				},
 				ReadinessProbe: readinesProbe,
@@ -759,10 +809,10 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 				},
 			},
 			{
-				Name: webhookCertsName,
+				Name: util.GetCertName(util.Server),
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: webhookCertsName,
+						SecretName: util.GetComponentCertName(names.KarmadaWebhookComponentName),
 					},
 				},
 			},
@@ -849,11 +899,11 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 		fmt.Sprintf("--authentication-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
 		fmt.Sprintf("--authorization-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
 		fmt.Sprintf("--etcd-servers=%s", etcdServers),
-		fmt.Sprintf("--etcd-cafile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName),
-		fmt.Sprintf("--etcd-certfile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
-		fmt.Sprintf("--etcd-keyfile=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
-		fmt.Sprintf("--tls-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
-		fmt.Sprintf("--tls-private-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
+		fmt.Sprintf("--etcd-cafile=%s", util.GetFilePath(util.EtcdClient, util.CACrtFile)),
+		fmt.Sprintf("--etcd-certfile=%s", util.GetFilePath(util.EtcdClient, util.TLSCrtFile)),
+		fmt.Sprintf("--etcd-keyfile=%s", util.GetFilePath(util.EtcdClient, util.TLSKeyFile)),
+		fmt.Sprintf("--tls-cert-file=%s", util.GetFilePath(util.Server, util.TLSCrtFile)),
+		fmt.Sprintf("--tls-private-key-file=%s", util.GetFilePath(util.Server, util.TLSKeyFile)),
 		"--tls-min-version=VersionTLS13",
 		"--audit-log-path=-",
 		"--audit-log-maxage=0",
@@ -904,9 +954,14 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 						MountPath: karmadaConfigVolumeMountPath,
 					},
 					{
-						Name:      globaloptions.KarmadaCertsName,
+						Name:      util.GetCertName(util.Server),
 						ReadOnly:  true,
-						MountPath: karmadaCertsVolumeMountPath,
+						MountPath: util.GetDirPath(util.Server),
+					},
+					{
+						Name:      util.GetCertName(util.EtcdClient),
+						ReadOnly:  true,
+						MountPath: util.GetDirPath(util.EtcdClient),
 					},
 				},
 			},
@@ -921,10 +976,18 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 				},
 			},
 			{
-				Name: globaloptions.KarmadaCertsName,
+				Name: util.GetCertName(util.Server),
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: globaloptions.KarmadaCertsName,
+						SecretName: util.GetComponentCertName(names.KarmadaAggregatedAPIServerComponentName),
+					},
+				},
+			},
+			{
+				Name: util.GetCertName(util.EtcdClient),
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: util.GetComponentClientCertName(names.KarmadaAggregatedAPIServerComponentName, util.EtcdClient),
 					},
 				},
 			},
