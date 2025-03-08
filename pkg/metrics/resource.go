@@ -17,6 +17,7 @@ limitations under the License.
 package metrics
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -30,8 +31,9 @@ const (
 	policyApplyAttemptsMetricsName             = "policy_apply_attempts_total"
 	syncWorkDurationMetricsName                = "binding_sync_work_duration_seconds"
 	syncWorkloadDurationMetricsName            = "work_sync_workload_duration_seconds"
-	recreateResourceToCluster                  = "recreate_resource_to_cluster"
+	createResourceToCluster                    = "create_resource_to_cluster"
 	updateResourceToCluster                    = "update_resource_to_cluster"
+	deleteResourceFromCluster                  = "delete_resource_from_cluster"
 	policyPreemptionMetricsName                = "policy_preemption_total"
 	cronFederatedHPADurationMetricsName        = "cronfederatedhpa_process_duration_seconds"
 	cronFederatedHPARuleDurationMetricsName    = "cronfederatedhpa_rule_process_duration_seconds"
@@ -69,14 +71,19 @@ var (
 		Buckets: prometheus.ExponentialBuckets(0.001, 2, 12),
 	}, []string{"result"})
 
-	recreateResourceWhenSyncWorkStatus = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: recreateResourceToCluster,
-		Help: "Number of recreating operation of the resource to a target member cluster. By the result, 'error' means a resource recreated failed. Otherwise 'success'. Cluster means the target member cluster.",
-	}, []string{"result", "apiversion", "kind", "cluster"})
+	createResourceWhenSyncWork = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: createResourceToCluster,
+		Help: "Number of creation operations against a target member cluster. The 'result' label indicates outcome ('success' or 'error'), 'recreate' indicates whether the operation is recreated (true/false). Labels 'apiversion', 'kind', and 'cluster' specify the resource type, API version, and target cluster respectively.",
+	}, []string{"result", "apiversion", "kind", "cluster", "recreate"})
 
-	updateResourceWhenSyncWorkStatus = prometheus.NewCounterVec(prometheus.CounterOpts{
+	updateResourceWhenSyncWork = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: updateResourceToCluster,
-		Help: "Number of updating operation of the resource to a target member cluster. By the result, 'error' means a resource updated failed. Otherwise 'success'. Cluster means the target member cluster.",
+		Help: "Number of updating operation of the resource to a target member cluster. By the result, 'error' means a resource updated failed. Otherwise 'success'. Cluster means the target member cluster. operationResult means the result of the update operation.",
+	}, []string{"result", "apiversion", "kind", "cluster", "operationResult"})
+
+	deleteResourceWhenSyncWork = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: deleteResourceFromCluster,
+		Help: "Number of deletion operations against a target member cluster. The 'result' label indicates outcome ('success' or 'error'). Labels 'apiversion', 'kind', and 'cluster' specify the resource's API version, type, and source cluster respectively.",
 	}, []string{"result", "apiversion", "kind", "cluster"})
 
 	policyPreemptionCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -130,14 +137,19 @@ func ObserveSyncWorkloadLatency(err error, start time.Time) {
 	syncWorkloadDurationHistogram.WithLabelValues(utilmetrics.GetResultByError(err)).Observe(utilmetrics.DurationInSeconds(start))
 }
 
-// CountRecreateResourceToCluster records the number of recreating operation of the resource to a target member cluster.
-func CountRecreateResourceToCluster(err error, apiVersion, kind, cluster string) {
-	recreateResourceWhenSyncWorkStatus.WithLabelValues(utilmetrics.GetResultByError(err), apiVersion, kind, cluster).Inc()
+// CountCreateResourceToCluster records the number of creation operations of the resource for a target member cluster.
+func CountCreateResourceToCluster(err error, apiVersion, kind, cluster string, recreate bool) {
+	createResourceWhenSyncWork.WithLabelValues(utilmetrics.GetResultByError(err), apiVersion, kind, cluster, strconv.FormatBool(recreate)).Inc()
 }
 
 // CountUpdateResourceToCluster records the number of updating operation of the resource to a target member cluster.
-func CountUpdateResourceToCluster(err error, apiVersion, kind, cluster string) {
-	updateResourceWhenSyncWorkStatus.WithLabelValues(utilmetrics.GetResultByError(err), apiVersion, kind, cluster).Inc()
+func CountUpdateResourceToCluster(err error, apiVersion, kind, cluster string, operationResult string) {
+	updateResourceWhenSyncWork.WithLabelValues(utilmetrics.GetResultByError(err), apiVersion, kind, cluster, operationResult).Inc()
+}
+
+// CountDeleteResourceFromCluster records the number of deletion operations of the resource from a target member cluster.
+func CountDeleteResourceFromCluster(err error, apiVersion, kind, cluster string) {
+	deleteResourceWhenSyncWork.WithLabelValues(utilmetrics.GetResultByError(err), apiVersion, kind, cluster).Inc()
 }
 
 // CountPolicyPreemption records the numbers of policy preemption.
@@ -173,8 +185,9 @@ func ResourceCollectors() []prometheus.Collector {
 		policyApplyAttempts,
 		syncWorkDurationHistogram,
 		syncWorkloadDurationHistogram,
-		recreateResourceWhenSyncWorkStatus,
-		updateResourceWhenSyncWorkStatus,
+		createResourceWhenSyncWork,
+		updateResourceWhenSyncWork,
+		deleteResourceWhenSyncWork,
 		policyPreemptionCounter,
 		cronFederatedHPADurationHistogram,
 		cronFederatedHPARuleDurationHistogram,

@@ -39,10 +39,22 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
+// OperationResult is the action result of an Update call.
+type OperationResult string
+
+const (
+	// OperationResultNone means that the update operation was not performed and the resource has not been changed.
+	OperationResultNone OperationResult = "none"
+	// OperationResultUnchanged means that the update operation was performed but the resource did not change.
+	OperationResultUnchanged OperationResult = "unchanged"
+	// OperationResultUpdated means that an existing resource is updated.
+	OperationResultUpdated OperationResult = "updated"
+)
+
 // ObjectWatcher manages operations for object dispatched to member clusters.
 type ObjectWatcher interface {
 	Create(ctx context.Context, clusterName string, desireObj *unstructured.Unstructured) error
-	Update(ctx context.Context, clusterName string, desireObj, clusterObj *unstructured.Unstructured) error
+	Update(ctx context.Context, clusterName string, desireObj, clusterObj *unstructured.Unstructured) (operationResult OperationResult, err error)
 	Delete(ctx context.Context, clusterName string, desireObj *unstructured.Unstructured) error
 	NeedsUpdate(clusterName string, desiredObj, clusterObj *unstructured.Unstructured) (bool, error)
 }
@@ -138,43 +150,48 @@ func (o *objectWatcherImpl) retainClusterFields(desired, observed *unstructured.
 	return desired, nil
 }
 
-func (o *objectWatcherImpl) Update(ctx context.Context, clusterName string, desireObj, clusterObj *unstructured.Unstructured) error {
+func (o *objectWatcherImpl) Update(ctx context.Context, clusterName string, desireObj, clusterObj *unstructured.Unstructured) (OperationResult, error) {
 	updateAllowed := o.allowUpdate(clusterName, desireObj, clusterObj)
 	if !updateAllowed {
 		// The existing resource is not managed by Karmada, and no conflict resolution found, avoid updating the existing resource by default.
-		return fmt.Errorf("resource(kind=%s, %s/%s) already exists in the cluster %v and the %s strategy value is empty, Karmada will not manage this resource",
+		return OperationResultNone, fmt.Errorf("resource(kind=%s, %s/%s) already exists in the cluster %v and the %s strategy value is empty, Karmada will not manage this resource",
 			desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, workv1alpha2.ResourceConflictResolutionAnnotation)
 	}
 
 	dynamicClusterClient, err := o.ClusterClientSetFunc(clusterName, o.KubeClientSet)
 	if err != nil {
 		klog.Errorf("Failed to build dynamic cluster client for cluster %s, err: %v.", clusterName, err)
-		return err
+		return OperationResultNone, err
 	}
 
 	gvr, err := restmapper.GetGroupVersionResource(o.RESTMapper, desireObj.GroupVersionKind())
 	if err != nil {
 		klog.Errorf("Failed to update the resource(kind=%s, %s/%s) in the cluster %s as mapping GVK to GVR failed: %v", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
-		return err
+		return OperationResultNone, err
 	}
 
 	desireObj, err = o.retainClusterFields(desireObj, clusterObj)
 	if err != nil {
 		klog.Errorf("Failed to retain fields for resource(kind=%s, %s/%s) in cluster %s: %v", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), clusterName, err)
-		return err
+		return OperationResultNone, err
 	}
 
 	resource, err := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Update(ctx, desireObj, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("Failed to update resource(kind=%s, %s/%s) in cluster %s, err: %v.", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
-		return err
+		return OperationResultNone, err
 	}
-
-	klog.Infof("Updated the resource(kind=%s, %s/%s) on cluster(%s).", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName)
 
 	// record version
 	o.recordVersion(resource, clusterName)
-	return nil
+
+	if clusterObj.GetResourceVersion() == resource.GetResourceVersion() {
+		klog.Infof("Updated the resource(kind=%s, %s/%s) on cluster(%s) but the cluster object was not changed.", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName)
+		return OperationResultUnchanged, nil
+	}
+
+	klog.Infof("Updated the resource(kind=%s, %s/%s) on cluster(%s).", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName)
+	return OperationResultUpdated, nil
 }
 
 func (o *objectWatcherImpl) Delete(ctx context.Context, clusterName string, desireObj *unstructured.Unstructured) error {
@@ -242,21 +259,13 @@ func (o *objectWatcherImpl) genObjectKey(obj *unstructured.Unstructured) string 
 func (o *objectWatcherImpl) recordVersion(clusterObj *unstructured.Unstructured, clusterName string) {
 	objVersion := lifted.ObjectVersion(clusterObj)
 	objectKey := o.genObjectKey(clusterObj)
-	if o.isClusterVersionRecordExist(clusterName) {
-		o.updateVersionRecord(clusterName, objectKey, objVersion)
-	} else {
-		o.addVersionRecord(clusterName, objectKey, objVersion)
+
+	o.Lock.Lock()
+	defer o.Lock.Unlock()
+	if o.VersionRecord[clusterName] == nil {
+		o.VersionRecord[clusterName] = make(map[string]string)
 	}
-}
-
-// isClusterVersionRecordExist checks if the version record map of given member cluster exist
-func (o *objectWatcherImpl) isClusterVersionRecordExist(clusterName string) bool {
-	o.Lock.RLock()
-	defer o.Lock.RUnlock()
-
-	_, exist := o.VersionRecord[clusterName]
-
-	return exist
+	o.VersionRecord[clusterName][objectKey] = objVersion
 }
 
 // getVersionRecord will return the recorded version of given resource(if exist)
@@ -266,20 +275,6 @@ func (o *objectWatcherImpl) getVersionRecord(clusterName, resourceName string) (
 
 	version, exist := o.VersionRecord[clusterName][resourceName]
 	return version, exist
-}
-
-// addVersionRecord will add new version record of given resource
-func (o *objectWatcherImpl) addVersionRecord(clusterName, resourceName, version string) {
-	o.Lock.Lock()
-	defer o.Lock.Unlock()
-	o.VersionRecord[clusterName] = map[string]string{resourceName: version}
-}
-
-// updateVersionRecord will update the recorded version of given resource
-func (o *objectWatcherImpl) updateVersionRecord(clusterName, resourceName, version string) {
-	o.Lock.Lock()
-	defer o.Lock.Unlock()
-	o.VersionRecord[clusterName][resourceName] = version
 }
 
 // deleteVersionRecord will delete the recorded version of given resource
