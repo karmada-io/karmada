@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
@@ -198,6 +199,12 @@ func mutateCertConfig(data InitData, cc *certs.CertConfig) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	if data.CustomCertificate().LeafCertValidityDays != nil {
+		certValidityDuration := time.Hour * 24 * time.Duration(*data.CustomCertificate().LeafCertValidityDays)
+		notAfter := time.Now().Add(certValidityDuration).UTC()
+		cc.NotAfter = &notAfter
 	}
 
 	return nil
