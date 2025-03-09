@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
@@ -85,6 +86,11 @@ func newCertSubTasks(karmada *operatorv1alpha1.Karmada) []workflow.Task {
 			task = workflow.Task{Name: cert.Name, Run: runCATask(cert)}
 			caCert[cert.Name] = cert
 		} else {
+			if karmada.Spec.CustomCertificate != nil && karmada.Spec.CustomCertificate.LeafCertValidityDays != nil {
+				certValidityDuration := time.Hour * 24 * time.Duration(*karmada.Spec.CustomCertificate.LeafCertValidityDays)
+				notAfter := time.Now().Add(certValidityDuration).UTC()
+				cert.NotAfter = &notAfter
+			}
 			task = workflow.Task{Name: cert.Name, Run: runCertTask(cert, caCert[cert.CAName])}
 		}
 

@@ -19,6 +19,7 @@ package tasks
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -157,6 +158,12 @@ func buildKubeConfigFromSpec(data InitData, serverURL string) (*clientcmdapi.Con
 	}
 
 	cc := certs.KarmadaCertClient()
+	customCertificate := data.CustomCertificate()
+	if customCertificate.LeafCertValidityDays != nil {
+		certValidityDuration := time.Hour * 24 * time.Duration(*customCertificate.LeafCertValidityDays)
+		notAfter := time.Now().Add(certValidityDuration).UTC()
+		cc.NotAfter = &notAfter
+	}
 
 	if err := mutateCertConfig(data, cc); err != nil {
 		return nil, fmt.Errorf("error when mutate cert altNames for %s, err: %w", cc.Name, err)
