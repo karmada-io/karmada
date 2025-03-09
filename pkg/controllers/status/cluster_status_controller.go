@@ -86,8 +86,8 @@ type ClusterStatusController struct {
 	PredicateFunc               predicate.Predicate
 	TypedInformerManager        typedmanager.MultiClusterInformerManager
 	GenericInformerManager      genericmanager.MultiClusterInformerManager
-	ClusterClientSetFunc        func(string, client.Client, *util.ClientOption) (*util.ClusterClient, error)
-	ClusterDynamicClientSetFunc func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
+	ClusterClientSetFunc        util.NewClusterClientSetFunc
+	ClusterDynamicClientSetFunc util.NewClusterDynamicClientSetFunc
 	// ClusterClientOption holds the attributes that should be injected to a Kubernetes client.
 	ClusterClientOption *util.ClientOption
 
@@ -342,7 +342,7 @@ func (c *ClusterStatusController) initializeGenericInformerManagerForCluster(clu
 		return
 	}
 
-	dynamicClient, err := c.ClusterDynamicClientSetFunc(clusterClient.ClusterName, c.Client)
+	dynamicClient, err := c.ClusterDynamicClientSetFunc(clusterClient.ClusterName, c.Client, c.ClusterClientOption)
 	if err != nil {
 		klog.Errorf("Failed to build dynamic cluster client for cluster %s.", clusterClient.ClusterName)
 		return

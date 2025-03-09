@@ -229,7 +229,7 @@ func newController(work *workv1alpha1.Work, recorder *record.FakeRecorder) Contr
 	informerManager.ForCluster(cluster.Name, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 	informerManager.Start(cluster.Name)
 	informerManager.WaitForCacheSync(cluster.Name)
-	clusterClientSetFunc := func(string, client.Client) (*util.DynamicClusterClient, error) {
+	clusterClientSetFunc := func(string, client.Client, *util.ClientOption) (*util.DynamicClusterClient, error) {
 		return &util.DynamicClusterClient{
 			ClusterName:      clusterName,
 			DynamicClientSet: dynamicClientSet,
@@ -241,7 +241,7 @@ func newController(work *workv1alpha1.Work, recorder *record.FakeRecorder) Contr
 		InformerManager: informerManager,
 		EventRecorder:   recorder,
 		RESTMapper:      restMapper,
-		ObjectWatcher:   objectwatcher.NewObjectWatcher(fakeClient, restMapper, clusterClientSetFunc, resourceInterpreter),
+		ObjectWatcher:   objectwatcher.NewObjectWatcher(fakeClient, restMapper, clusterClientSetFunc, nil, resourceInterpreter),
 	}
 }
 

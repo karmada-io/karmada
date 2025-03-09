@@ -74,8 +74,9 @@ func (m *MultiClusterDiscovery) Set(clusterName string) error {
 	if err != nil {
 		return err
 	}
-	clusterConfig.QPS = m.clusterClientOption.QPS
-	clusterConfig.Burst = m.clusterClientOption.Burst
+	if m.clusterClientOption != nil && m.clusterClientOption.RateLimiterGetter != nil {
+		clusterConfig.RateLimiter = m.clusterClientOption.RateLimiterGetter(clusterName)
+	}
 	m.Lock()
 	defer m.Unlock()
 	m.clients[clusterName] = discovery.NewDiscoveryClientForConfigOrDie(clusterConfig)

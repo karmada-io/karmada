@@ -58,6 +58,7 @@ type MetricsController struct {
 	MultiClusterDiscovery multiclient.MultiClusterDiscoveryInterface
 	queue                 workqueue.TypedRateLimitingInterface[any]
 	restConfig            *rest.Config
+	clusterClientOption   *util.ClientOption
 }
 
 // NewMetricsController creates a new metrics controller
@@ -73,6 +74,7 @@ func NewMetricsController(ctx context.Context, restConfig *rest.Config, factory 
 		queue: workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[any](), workqueue.TypedRateLimitingQueueConfig[any]{
 			Name: "metrics-adapter",
 		}),
+		clusterClientOption: clusterClientOption,
 	}
 	controller.addEventHandler()
 
@@ -235,11 +237,11 @@ func (m *MetricsController) handleClusters() bool {
 	if !m.TypedInformerManager.IsManagerExist(clusterName) {
 		klog.Info("Try to build informer manager for cluster ", clusterName)
 		controlPlaneClient := gclient.NewForConfigOrDie(m.restConfig)
-		clusterClient, err := util.NewClusterClientSet(clusterName, controlPlaneClient, nil)
+		clusterClient, err := util.NewClusterClientSet(clusterName, controlPlaneClient, m.clusterClientOption)
 		if err != nil {
 			return false
 		}
-		clusterDynamicClient, err := util.NewClusterDynamicClientSet(clusterName, controlPlaneClient)
+		clusterDynamicClient, err := util.NewClusterDynamicClientSet(clusterName, controlPlaneClient, m.clusterClientOption)
 		if err != nil {
 			return false
 		}

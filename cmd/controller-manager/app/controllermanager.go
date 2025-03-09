@@ -330,7 +330,7 @@ func startClusterStatusController(ctx controllerscontext.Context) (enabled bool,
 		GenericInformerManager:            genericmanager.GetInstance(),
 		ClusterClientSetFunc:              util.NewClusterClientSet,
 		ClusterDynamicClientSetFunc:       util.NewClusterDynamicClientSet,
-		ClusterClientOption:               &util.ClientOption{QPS: opts.ClusterAPIQPS, Burst: opts.ClusterAPIBurst},
+		ClusterClientOption:               ctx.ClusterClientOption,
 		ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
 		ClusterLeaseDuration:              opts.ClusterLeaseDuration,
 		ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
@@ -434,6 +434,7 @@ func startWorkStatusController(ctx controllerscontext.Context) (enabled bool, er
 		ObjectWatcher:               ctx.ObjectWatcher,
 		PredicateFunc:               helper.NewExecutionPredicate(ctx.Mgr),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
+		ClusterClientOption:         ctx.ClusterClientOption,
 		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,
 		ConcurrentWorkStatusSyncs:   opts.ConcurrentWorkSyncs,
 		RateLimiterOptions:          ctx.Opts.RateLimiterOptions,
@@ -472,6 +473,7 @@ func startServiceExportController(ctx controllerscontext.Context) (enabled bool,
 		WorkerNumber:                3,
 		PredicateFunc:               helper.NewPredicateForServiceExportController(ctx.Mgr),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
+		ClusterClientOption:         ctx.ClusterClientOption,
 		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,
 		RateLimiterOptions:          ctx.Opts.RateLimiterOptions,
 	}
@@ -498,6 +500,7 @@ func startEndpointSliceCollectController(ctx controllerscontext.Context) (enable
 		WorkerNumber:                3,
 		PredicateFunc:               helper.NewPredicateForEndpointSliceCollectController(ctx.Mgr),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
+		ClusterClientOption:         ctx.ClusterClientOption,
 		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,
 		RateLimiterOptions:          ctx.Opts.RateLimiterOptions,
 	}
@@ -781,8 +784,9 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 	if err := mgr.Add(resourceInterpreter); err != nil {
 		klog.Fatalf("Failed to setup custom resource interpreter: %v", err)
 	}
-
-	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet, resourceInterpreter)
+	rateLimiterGetter := util.GetClusterRateLimiterGetter().SetDefaultLimits(opts.ClusterAPIQPS, opts.ClusterAPIBurst)
+	clusterClientOption := &util.ClientOption{RateLimiterGetter: rateLimiterGetter.GetRateLimiter}
+	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet, clusterClientOption, resourceInterpreter)
 
 	resourceDetector := &detector.ResourceDetector{
 		DiscoveryClientSet:                      discoverClientSet,
@@ -835,8 +839,6 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 			ClusterSuccessThreshold:           opts.ClusterSuccessThreshold,
 			ClusterFailureThreshold:           opts.ClusterFailureThreshold,
 			ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
-			ClusterAPIQPS:                     opts.ClusterAPIQPS,
-			ClusterAPIBurst:                   opts.ClusterAPIBurst,
 			SkippedPropagatingNamespaces:      opts.SkippedNamespacesRegexps(),
 			ConcurrentWorkSyncs:               opts.ConcurrentWorkSyncs,
 			EnableTaintManager:                opts.EnableTaintManager,
@@ -851,6 +853,7 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 		OverrideManager:             overrideManager,
 		ControlPlaneInformerManager: controlPlaneInformerManager,
 		ResourceInterpreter:         resourceInterpreter,
+		ClusterClientOption:         clusterClientOption,
 	}
 
 	if err := controllers.StartControllers(controllerContext, controllersDisabledByDefault); err != nil {

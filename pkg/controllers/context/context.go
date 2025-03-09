@@ -31,6 +31,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/federatedhpa/config"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
@@ -68,10 +69,6 @@ type Options struct {
 	ClusterFailureThreshold metav1.Duration
 	// ClusterCacheSyncTimeout is the timeout period waiting for cluster cache to sync.
 	ClusterCacheSyncTimeout metav1.Duration
-	// ClusterAPIQPS is the QPS to use while talking with cluster kube-apiserver.
-	ClusterAPIQPS float32
-	// ClusterAPIBurst is the burst to allow while talking with cluster kube-apiserver.
-	ClusterAPIBurst int
 	// SkippedPropagatingNamespaces is a list of namespace regular expressions, matching namespaces will be skipped propagating.
 	SkippedPropagatingNamespaces []*regexp.Regexp
 	// ClusterName is the name of cluster.
@@ -113,6 +110,7 @@ type Context struct {
 	OverrideManager             overridemanager.OverrideManager
 	ControlPlaneInformerManager genericmanager.SingleClusterInformerManager
 	ResourceInterpreter         resourceinterpreter.ResourceInterpreter
+	ClusterClientOption         *util.ClientOption
 }
 
 // IsControllerEnabled check if a specified controller enabled or not.
