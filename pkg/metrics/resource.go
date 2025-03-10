@@ -29,7 +29,9 @@ const (
 	resourceApplyPolicyDurationMetricsName     = "resource_apply_policy_duration_seconds"
 	policyApplyAttemptsMetricsName             = "policy_apply_attempts_total"
 	syncWorkDurationMetricsName                = "binding_sync_work_duration_seconds"
+	syncWorkTotalMetricsName                   = "binding_sync_work_total"
 	syncWorkloadDurationMetricsName            = "work_sync_workload_duration_seconds"
+	syncWorkloadTotalMetricsName               = "work_sync_workload_total"
 	recreateResourceToCluster                  = "recreate_resource_to_cluster"
 	updateResourceToCluster                    = "update_resource_to_cluster"
 	policyPreemptionMetricsName                = "policy_preemption_total"
@@ -63,10 +65,20 @@ var (
 		Buckets: prometheus.ExponentialBuckets(0.001, 2, 12),
 	}, []string{"result"})
 
+	syncWorkTotalCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: syncWorkTotalMetricsName,
+		Help: "Total number of sync works for ResourceBinding.",
+	}, []string{"result"})
+
 	syncWorkloadDurationHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    syncWorkloadDurationMetricsName,
 		Help:    "Duration in seconds to sync the workload to a target cluster. By the result, 'error' means a work failed to sync workloads. Otherwise 'success'.",
 		Buckets: prometheus.ExponentialBuckets(0.001, 2, 12),
+	}, []string{"result"})
+
+	syncWorkloadTotalCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: syncWorkloadTotalMetricsName,
+		Help: "Total number of sync workload for work.",
 	}, []string{"result"})
 
 	recreateResourceWhenSyncWorkStatus = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -123,11 +135,13 @@ func ObserveApplyPolicyAttemptAndLatency(err error, start time.Time) {
 // ObserveSyncWorkLatency records the duration to sync works for a binding object.
 func ObserveSyncWorkLatency(err error, start time.Time) {
 	syncWorkDurationHistogram.WithLabelValues(utilmetrics.GetResultByError(err)).Observe(utilmetrics.DurationInSeconds(start))
+	syncWorkTotalCounter.WithLabelValues(utilmetrics.GetResultByError(err)).Inc()
 }
 
 // ObserveSyncWorkloadLatency records the duration to sync the workload to a target cluster.
 func ObserveSyncWorkloadLatency(err error, start time.Time) {
 	syncWorkloadDurationHistogram.WithLabelValues(utilmetrics.GetResultByError(err)).Observe(utilmetrics.DurationInSeconds(start))
+	syncWorkloadTotalCounter.WithLabelValues(utilmetrics.GetResultByError(err)).Inc()
 }
 
 // CountRecreateResourceToCluster records the number of recreating operation of the resource to a target member cluster.
@@ -172,7 +186,9 @@ func ResourceCollectors() []prometheus.Collector {
 		findMatchedPolicyDurationHistogram,
 		policyApplyAttempts,
 		syncWorkDurationHistogram,
+		syncWorkTotalCounter,
 		syncWorkloadDurationHistogram,
+		syncWorkloadTotalCounter,
 		recreateResourceWhenSyncWorkStatus,
 		updateResourceWhenSyncWorkStatus,
 		policyPreemptionCounter,
@@ -187,5 +203,6 @@ func ResourceCollectors() []prometheus.Collector {
 func ResourceCollectorsForAgent() []prometheus.Collector {
 	return []prometheus.Collector{
 		syncWorkloadDurationHistogram,
+		syncWorkloadTotalCounter,
 	}
 }
