@@ -196,7 +196,7 @@ func TestWaitForAPIService(t *testing.T) {
 
 func TestWaitForPods(t *testing.T) {
 	name, namespace := "karmada-demo-apiserver", "test"
-	karmadaAPIServerLabels := labels.Set{"karmada-app": constants.KarmadaAPIServer}
+	karmadaAPIServerLabels := labels.Set{constants.AppNameLabel: constants.KarmadaAPIServer}
 	var replicas int32 = 2
 	tests := []struct {
 		name          string
@@ -263,7 +263,7 @@ func TestWaitForPods(t *testing.T) {
 
 func TestWaitForSomePods(t *testing.T) {
 	name, namespace := "karmada-demo-apiserver", "test"
-	karmadaAPIServerLabels := labels.Set{"karmada-app": constants.KarmadaAPIServer}
+	karmadaAPIServerLabels := labels.Set{constants.AppNameLabel: constants.KarmadaAPIServer}
 	var replicas int32 = 2
 	tests := []struct {
 		name          string

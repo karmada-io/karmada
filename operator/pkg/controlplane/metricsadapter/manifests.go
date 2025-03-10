@@ -25,73 +25,76 @@ metadata:
   name: {{ .DeploymentName }}
   namespace: {{ .Namespace }}
   labels:
-    karmada-app: karmada-metrics-adapter
+    app.kubernetes.io/name: karmada-metrics-adapter
+    app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
     app.kubernetes.io/managed-by: karmada-operator
 spec:
   replicas: {{ .Replicas }}
   selector:
     matchLabels:
-      karmada-app: karmada-metrics-adapter
+      app.kubernetes.io/name: karmada-metrics-adapter
+      app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
   template:
     metadata:
       labels:
-        karmada-app: karmada-metrics-adapter
+        app.kubernetes.io/name: karmada-metrics-adapter
+        app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
     spec:
       automountServiceAccountToken: false
       tolerations:
         - key: node-role.kubernetes.io/master
           operator: Exists
       containers:
-      - name: karmada-metrics-adapter
-        image: {{ .Image }}
-        imagePullPolicy: {{ .ImagePullPolicy }}
-        command:
-        - /bin/karmada-metrics-adapter
-        - --kubeconfig=/etc/karmada/config/karmada.config
-        - --metrics-bind-address=:8080
-        - --authentication-kubeconfig=/etc/karmada/config/karmada.config
-        - --authorization-kubeconfig=/etc/karmada/config/karmada.config
-        - --client-ca-file=/etc/karmada/pki/ca.crt
-        - --tls-cert-file=/etc/karmada/pki/karmada.crt
-        - --tls-private-key-file=/etc/karmada/pki/karmada.key
-        - --tls-min-version=VersionTLS13
-        - --audit-log-path=-
-        - --audit-log-maxage=0
-        - --audit-log-maxbackup=0
-        volumeMounts:
-        - name: karmada-config
-          mountPath: /etc/karmada/config
-        - name: karmada-cert
-          mountPath: /etc/karmada/pki
-          readOnly: true
-        readinessProbe:
-          httpGet:
-            path: /readyz
-            port: 443
-            scheme: HTTPS
-          initialDelaySeconds: 1
-          failureThreshold: 3
-          periodSeconds: 3
-          timeoutSeconds: 15
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 443
-            scheme: HTTPS
-          initialDelaySeconds: 10
-          failureThreshold: 3
-          periodSeconds: 10
-          timeoutSeconds: 15
-        resources:
-          requests:
-            cpu: 100m
+        - name: karmada-metrics-adapter
+          image: {{ .Image }}
+          imagePullPolicy: {{ .ImagePullPolicy }}
+          command:
+            - /bin/karmada-metrics-adapter
+            - --kubeconfig=/etc/karmada/config/karmada.config
+            - --metrics-bind-address=:8080
+            - --authentication-kubeconfig=/etc/karmada/config/karmada.config
+            - --authorization-kubeconfig=/etc/karmada/config/karmada.config
+            - --client-ca-file=/etc/karmada/pki/ca.crt
+            - --tls-cert-file=/etc/karmada/pki/karmada.crt
+            - --tls-private-key-file=/etc/karmada/pki/karmada.key
+            - --tls-min-version=VersionTLS13
+            - --audit-log-path=-
+            - --audit-log-maxage=0
+            - --audit-log-maxbackup=0
+          volumeMounts:
+            - name: karmada-config
+              mountPath: /etc/karmada/config
+            - name: karmada-cert
+              mountPath: /etc/karmada/pki
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 443
+              scheme: HTTPS
+            initialDelaySeconds: 1
+            failureThreshold: 3
+            periodSeconds: 3
+            timeoutSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 443
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            failureThreshold: 3
+            periodSeconds: 10
+            timeoutSeconds: 15
+          resources:
+            requests:
+              cpu: 100m
       volumes:
-      - name: karmada-config
-        secret:
-          secretName: {{ .KubeconfigSecret }}
-      - name: karmada-cert
-        secret:
-          secretName: {{ .KarmadaCertsSecret }}
+        - name: karmada-config
+          secret:
+            secretName: {{ .KubeconfigSecret }}
+        - name: karmada-cert
+          secret:
+            secretName: {{ .KarmadaCertsSecret }}
 `
 
 	// KarmadaMetricsAdapterService is karmada-metrics-adapter service manifest
@@ -105,10 +108,11 @@ metadata:
     app.kubernetes.io/managed-by: karmada-operator
 spec:
   selector:
-    karmada-app: karmada-metrics-adapter
+    app.kubernetes.io/name: karmada-metrics-adapter
+    app.kubernetes.io/instance: {{ .KarmadaInstanceName }}
   ports:
-  - port: 443
-    protocol: TCP
-    targetPort: 443
+    - port: 443
+      protocol: TCP
+      targetPort: 443
 `
 )

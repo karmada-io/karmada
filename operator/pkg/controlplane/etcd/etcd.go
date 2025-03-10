@@ -62,11 +62,12 @@ func installKarmadaEtcd(client clientset.Interface, name, namespace string, cfg 
 	}
 
 	etcdStatefulSetBytes, err := util.ParseTemplate(KarmadaEtcdStatefulSet, struct {
-		StatefulSetName, Namespace, Image, ImagePullPolicy, EtcdClientService string
-		CertsSecretName, EtcdPeerServiceName                                  string
-		InitialCluster, EtcdDataVolumeName, EtcdCipherSuites                  string
-		Replicas, EtcdListenClientPort, EtcdListenPeerPort                    int32
+		KarmadaInstanceName, StatefulSetName, Namespace, Image, ImagePullPolicy, EtcdClientService string
+		CertsSecretName, EtcdPeerServiceName                                                       string
+		InitialCluster, EtcdDataVolumeName, EtcdCipherSuites                                       string
+		Replicas, EtcdListenClientPort, EtcdListenPeerPort                                         int32
 	}{
+		KarmadaInstanceName:  name,
 		StatefulSetName:      util.KarmadaEtcdName(name),
 		Namespace:            namespace,
 		Image:                cfg.Image.Name(),
@@ -103,9 +104,10 @@ func installKarmadaEtcd(client clientset.Interface, name, namespace string, cfg 
 
 func createEtcdService(client clientset.Interface, name, namespace string) error {
 	etcdServicePeerBytes, err := util.ParseTemplate(KarmadaEtcdPeerService, struct {
-		ServiceName, Namespace                   string
-		EtcdListenClientPort, EtcdListenPeerPort int32
+		KarmadaInstanceName, ServiceName, Namespace string
+		EtcdListenClientPort, EtcdListenPeerPort    int32
 	}{
+		KarmadaInstanceName:  name,
 		ServiceName:          util.KarmadaEtcdName(name),
 		Namespace:            namespace,
 		EtcdListenClientPort: constants.EtcdListenClientPort,
@@ -125,9 +127,10 @@ func createEtcdService(client clientset.Interface, name, namespace string) error
 	}
 
 	etcdClientServiceBytes, err := util.ParseTemplate(KarmadaEtcdClientService, struct {
-		ServiceName, Namespace string
-		EtcdListenClientPort   int32
+		KarmadaInstanceName, ServiceName, Namespace string
+		EtcdListenClientPort                        int32
 	}{
+		KarmadaInstanceName:  name,
 		ServiceName:          util.KarmadaEtcdClientName(name),
 		Namespace:            namespace,
 		EtcdListenClientPort: constants.EtcdListenClientPort,
