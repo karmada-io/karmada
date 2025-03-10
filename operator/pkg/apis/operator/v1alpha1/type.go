@@ -133,6 +133,11 @@ type CustomCertificate struct {
 	// all components that access the APIServer as clients.
 	// +optional
 	APIServerCACert *LocalSecretReference `json:"apiServerCACert,omitempty"`
+
+	// LeafCertValidityDays specifies the validity period of leaf certificates (e.g., API Server certificate) in days.
+	// If not specified, the default validity period of 1 year will be used.
+	// +optional
+	LeafCertValidityDays *int64 `json:"leafCertValidityDays,omitempty"`
 }
 
 // ImageRegistry represents an image registry as well as the
