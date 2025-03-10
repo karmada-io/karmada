@@ -182,6 +182,58 @@ data:
     {{- $.Files.Get $path | nindent 8 }}
   {{ end }}
 
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}-hook-job
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "1"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ $name }}-hook-job
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "1"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
+rules:
+  - apiGroups: ['*']
+    resources: ['*']
+    verbs: ["get", "watch", "list", "create", "update", "patch", "delete"]
+  - nonResourceURLs: ['*']
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $name }}-hook-job
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "1"
+  {{- if "karmada.preInstallJob.labels" }}
+  labels:
+    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
+  {{- end }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $name }}-hook-job
+subjects:
+  - kind: ServiceAccount
+    name: {{ $name }}-hook-job
+    namespace: {{ $namespace }}
+
 {{- if eq .Values.certs.mode "custom" }}
 ---
 apiVersion: v1
@@ -445,57 +497,6 @@ spec:
           name: {{ $name }}-config
       - name: configs
         emptyDir: {}
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: {{ $name }}-hook-job
-  namespace: {{ $namespace }}
-  annotations:
-    "helm.sh/hook": pre-install
-    "helm.sh/hook-weight": "1"
-  {{- if "karmada.preInstallJob.labels" }}
-  labels:
-    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
-  {{- end }}
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: {{ $name }}-hook-job
-  annotations:
-    "helm.sh/hook": pre-install
-    "helm.sh/hook-weight": "1"
-  {{- if "karmada.preInstallJob.labels" }}
-  labels:
-    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
-  {{- end }}
-rules:
-  - apiGroups: ['*']
-    resources: ['*']
-    verbs: ["get", "watch", "list", "create", "update", "patch", "delete"]
-  - nonResourceURLs: ['*']
-    verbs: ["get"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: {{ $name }}-hook-job
-  annotations:
-    "helm.sh/hook": pre-install
-    "helm.sh/hook-weight": "1"
-  {{- if "karmada.preInstallJob.labels" }}
-  labels:
-    {{- include "karmada.preInstallJob.labels" . | nindent 4 }}
-  {{- end }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: {{ $name }}-hook-job
-subjects:
-  - kind: ServiceAccount
-    name: {{ $name }}-hook-job
-    namespace: {{ $namespace }}
 ---
 {{- end }}
 {{- end }}
