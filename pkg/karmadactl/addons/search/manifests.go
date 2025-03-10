@@ -50,11 +50,11 @@ spec:
             - --authentication-kubeconfig=/etc/karmada/config/karmada.config
             - --authorization-kubeconfig=/etc/karmada/config/karmada.config
             - --etcd-servers={{ .ETCDSevers }}
-            - --etcd-cafile=/etc/karmada/pki/etcd-ca.crt
-            - --etcd-certfile=/etc/karmada/pki/etcd-client.crt
-            - --etcd-keyfile=/etc/karmada/pki/etcd-client.key
-            - --tls-cert-file=/etc/karmada/pki/karmada.crt
-            - --tls-private-key-file=/etc/karmada/pki/karmada.key
+            - --etcd-cafile=/etc/karmada/pki/etcd-client/ca.crt
+            - --etcd-certfile=/etc/karmada/pki/etcd-client/tls.crt
+            - --etcd-keyfile=/etc/karmada/pki/etcd-client/tls.key
+            - --tls-cert-file=/etc/karmada/pki/server/tls.crt
+            - --tls-private-key-file=/etc/karmada/pki/server/tls.key
             - --tls-min-version=VersionTLS13
             - --audit-log-path=-
             - --audit-log-maxage=0
@@ -75,16 +75,21 @@ spec:
           volumeMounts:
             - name: karmada-config
               mountPath: /etc/karmada/config
-            - name: k8s-certs
-              mountPath: /etc/karmada/pki
+            - name: server-cert
+              mountPath: /etc/karmada/pki/server
               readOnly: true
+            - name: etcd-client-cert
+              mountPath: /etc/karmada/pki/etcd-client
       volumes:
         - name: karmada-config
           secret:
             secretName: karmada-search-config
-        - name: k8s-certs
+        - name: server-cert
           secret:
-            secretName: karmada-cert
+            secretName: karmada-search-cert
+        - name: etcd-client-cert
+          secret:
+            secretName: karmada-search-etcd-client-cert
 `
 
 	karmadaSearchService = `
