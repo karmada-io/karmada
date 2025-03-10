@@ -212,7 +212,9 @@ func (c *Controller) cleanupPolicyClaimMetadata(ctx context.Context, work *workv
 		util.RemoveLabels(workload, util.ManagedResourceLabels...)
 		util.RemoveAnnotations(workload, util.ManagedResourceAnnotations...)
 
-		if err := c.ObjectWatcher.Update(ctx, cluster.Name, workload, clusterObj); err != nil {
+		operationResult, err := c.ObjectWatcher.Update(ctx, cluster.Name, workload, clusterObj)
+		metrics.CountUpdateResourceToCluster(err, workload.GetAPIVersion(), workload.GetKind(), cluster.Name, string(operationResult))
+		if err != nil {
 			klog.Errorf("Failed to update metadata in the given member cluster %v, err is %v", cluster.Name, err)
 			return err
 		}
@@ -232,6 +234,7 @@ func (c *Controller) tryDeleteWorkload(ctx context.Context, clusterName string, 
 		}
 
 		err = c.ObjectWatcher.Delete(ctx, clusterName, workload)
+		metrics.CountDeleteResourceFromCluster(err, workload.GetAPIVersion(), workload.GetKind(), clusterName)
 		if err != nil {
 			klog.Errorf("Failed to delete resource in the given member cluster %v, err is %v", clusterName, err)
 			return err
@@ -312,13 +315,15 @@ func (c *Controller) tryCreateOrUpdateWorkload(ctx context.Context, clusterName 
 			return err
 		}
 		err = c.ObjectWatcher.Create(ctx, clusterName, workload)
+		metrics.CountCreateResourceToCluster(err, workload.GetAPIVersion(), workload.GetKind(), clusterName, false)
 		if err != nil {
 			return err
 		}
 		return nil
 	}
 
-	err = c.ObjectWatcher.Update(ctx, clusterName, workload, clusterObj)
+	operationResult, err := c.ObjectWatcher.Update(ctx, clusterName, workload, clusterObj)
+	metrics.CountUpdateResourceToCluster(err, workload.GetAPIVersion(), workload.GetKind(), clusterName, string(operationResult))
 	if err != nil {
 		return err
 	}

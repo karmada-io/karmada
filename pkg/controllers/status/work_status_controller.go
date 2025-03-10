@@ -255,8 +255,8 @@ func (c *WorkStatusController) updateResource(ctx context.Context, observedObj *
 	}
 
 	if needUpdate {
-		updateErr := c.ObjectWatcher.Update(ctx, clusterName, desiredObj, observedObj)
-		metrics.CountUpdateResourceToCluster(updateErr, desiredObj.GetAPIVersion(), desiredObj.GetKind(), clusterName)
+		operationResult, updateErr := c.ObjectWatcher.Update(ctx, clusterName, desiredObj, observedObj)
+		metrics.CountUpdateResourceToCluster(updateErr, desiredObj.GetAPIVersion(), desiredObj.GetKind(), clusterName, string(operationResult))
 		if updateErr != nil {
 			klog.Errorf("Updating %s failed: %v", fedKey.String(), updateErr)
 			return updateErr
@@ -299,7 +299,6 @@ func (c *WorkStatusController) handleDeleteEvent(ctx context.Context, key keys.F
 	}
 
 	reCreateErr := c.recreateResourceIfNeeded(ctx, work, key)
-	metrics.CountRecreateResourceToCluster(reCreateErr, key.GroupVersion().String(), key.Kind, key.Cluster)
 	if reCreateErr != nil {
 		c.updateAppliedCondition(ctx, work, metav1.ConditionFalse, "ReCreateFailed", reCreateErr.Error())
 		return reCreateErr
@@ -321,6 +320,7 @@ func (c *WorkStatusController) recreateResourceIfNeeded(ctx context.Context, wor
 			manifest.GetName() == workloadKey.Name {
 			klog.Infof("Recreating resource(%s).", workloadKey.String())
 			err := c.ObjectWatcher.Create(ctx, workloadKey.Cluster, manifest)
+			metrics.CountCreateResourceToCluster(err, workloadKey.GroupVersion().String(), workloadKey.Kind, workloadKey.Cluster, true)
 			if err != nil {
 				c.eventf(manifest, corev1.EventTypeWarning, events.EventReasonSyncWorkloadFailed, "Failed to create or update resource(%s/%s) in member cluster(%s): %v", manifest.GetNamespace(), manifest.GetName(), workloadKey.Cluster, err)
 				return err
