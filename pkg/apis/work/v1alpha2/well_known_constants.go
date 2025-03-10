@@ -71,6 +71,9 @@ const (
 	//    synced on member clusters, then generates accurate observed generation(like Deployment's .status.observedGeneration)
 	//    which might be required by the release system.
 	ResourceTemplateGenerationAnnotationKey = "resourcetemplate.karmada.io/generation"
+	// DependenciesAnnotationKey is added to the independent binding,
+	// it describes the names of dependencies (json serialized).
+	DependenciesAnnotationKey = "resourcebinding.karmada.io/dependencies"
 )
 
 // Define resource conflict resolution
