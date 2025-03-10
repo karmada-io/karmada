@@ -44,6 +44,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	pkgfeatures "github.com/karmada-io/karmada/pkg/features"
 	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
+	"github.com/karmada-io/karmada/pkg/goruntime"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 	"github.com/karmada-io/karmada/pkg/version"
@@ -113,6 +114,9 @@ func (o *Options) Run(ctx context.Context) error {
 	klog.Infof("karmada-aggregated-apiserver version: %s", version.Get())
 
 	profileflag.ListenAndServe(o.ProfileOpts)
+
+	//auto setting GOMAXPROCS
+	goruntime.SetMaxProcs()
 
 	config, err := o.Config()
 	if err != nil {
