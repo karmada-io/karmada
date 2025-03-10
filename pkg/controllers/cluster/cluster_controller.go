@@ -38,6 +38,7 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -45,6 +46,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/features"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	utilhelper "github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -119,7 +121,8 @@ type Controller struct {
 	ExecutionSpaceRetryFrequency       time.Duration
 
 	// Per Cluster map stores last observed health together with a local time when it was observed.
-	clusterHealthMap *clusterHealthMap
+	clusterHealthMap   *clusterHealthMap
+	RateLimiterOptions ratelimiterflag.Options
 }
 
 type clusterHealthMap struct {
@@ -215,7 +218,8 @@ func (c *Controller) Start(ctx context.Context) error {
 func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	c.clusterHealthMap = newClusterHealthMap()
 	return utilerrors.NewAggregate([]error{
-		controllerruntime.NewControllerManagedBy(mgr).Named(ControllerName).For(&clusterv1alpha1.Cluster{}).Complete(c),
+		controllerruntime.NewControllerManagedBy(mgr).Named(ControllerName).For(&clusterv1alpha1.Cluster{}).
+			WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).Complete(c),
 		mgr.Add(c),
 	})
 }
