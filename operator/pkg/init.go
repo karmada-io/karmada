@@ -63,6 +63,18 @@ func (opt *InitOptions) Validate() error {
 		return fmt.Errorf("unexpected karmada invalid version %s", opt.KarmadaVersion)
 	}
 
+	if opt.CustomCertificateConfig.CertConfig.Expiry < 0 {
+		return fmt.Errorf("invalid custom cert expiry: %d", opt.CustomCertificateConfig.CertConfig.Expiry)
+	}
+
+	if opt.CustomCertificateConfig.CertConfig.NotAfter.Before(opt.CustomCertificateConfig.CertConfig.NotBefore) {
+		return fmt.Errorf("invalid custom cert config: notbefore, %s. notafter, %s", opt.CustomCertificateConfig.CertConfig.NotBefore, opt.CustomCertificateConfig.CertConfig.NotAfter)
+	}
+
+	if *opt.CustomCertificateConfig.CertConfig.PublicKeyAlgorithm != "RSA" && *opt.CustomCertificateConfig.CertConfig.PublicKeyAlgorithm != "ECDSA" {
+		return fmt.Errorf("invalid custom cert config: publicKeyAlgorithm, %s", *opt.CustomCertificateConfig.CertConfig.PublicKeyAlgorithm)
+	}
+
 	return nil
 }
 

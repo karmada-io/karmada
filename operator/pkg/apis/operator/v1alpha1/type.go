@@ -133,6 +133,37 @@ type CustomCertificate struct {
 	// all components that access the APIServer as clients.
 	// +optional
 	APIServerCACert *LocalSecretReference `json:"apiServerCACert,omitempty"`
+
+	// CertConfig represents the config to generate certificate by karmada-operator.
+	// +optional
+	CertConfig *CertConfig `json:"certConfig,omitempty"`
+}
+
+// CertConfig represents the configuration for creating a signing certificate.
+// It includes settings such as expiry, not_before, not_after, and public key algorithm.
+type CertConfig struct {
+	// Expiry is the duration of the certificate's validity period.
+	// The unit is days, where 1 represents one day.
+	// Defaults to 365.
+	// Ignored when NotAfter and NotBefore are not nil.
+	// +optional
+	Expiry int32 `json:"expiry,omitempty"`
+	// NotBefore specifies the start date of the certificate's validity period.
+	// If NotBefore and NotAfter are both nil, the certificate will inherit the NotBefore date from the CA certificate during its generation.
+	// If NotBefore is nil, the start date of the certificate's validity period will be calculated based on Expiry and NotAfter.
+	// +optional
+	NotBefore *metav1.Time `json:"notBefore,omitempty"`
+	// NotAfter specifies the end date of the certificate's validity period.
+	// This field can be nil, indicating that the end time will be calculated based on Expiry and NotBefore.
+	// +optional
+	NotAfter *metav1.Time `json:"notAfter,omitempty"`
+	// PublicKeyAlgorithm is the public key algorithm used for the certificate.
+	// This can be RSA or ECDSA.
+	// For ECDSA, using the P-256 elliptic curve.
+	// For RSA, the key is generated with a size of 3072 bits.
+	// Defaults to RSA
+	// +optional
+	PublicKeyAlgorithm *string `json:"publicKeyAlgorithm,omitempty"`
 }
 
 // ImageRegistry represents an image registry as well as the

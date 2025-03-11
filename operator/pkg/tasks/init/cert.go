@@ -18,6 +18,7 @@ package tasks
 
 import (
 	"context"
+	"crypto/x509"
 	"errors"
 	"fmt"
 
@@ -187,6 +188,28 @@ func runCertTask(cc, caCert *certs.CertConfig) func(d workflow.RunData) error {
 }
 
 func mutateCertConfig(data InitData, cc *certs.CertConfig) error {
+	cc.PublicKeyAlgorithm = x509.RSA
+
+	customCertConfig := data.CustomCertificate().CertConfig
+	if customCertConfig != nil {
+		if customCertConfig.PublicKeyAlgorithm != nil {
+			switch *customCertConfig.PublicKeyAlgorithm {
+			case "ECDSA":
+				cc.PublicKeyAlgorithm = x509.ECDSA
+			default:
+				cc.PublicKeyAlgorithm = x509.RSA
+			}
+		}
+
+		cc.Expiry = customCertConfig.Expiry
+		if customCertConfig.NotBefore != nil {
+			cc.Config.NotBefore = customCertConfig.NotBefore.UTC()
+		}
+		if customCertConfig.NotAfter != nil {
+			cc.NotAfter = customCertConfig.NotAfter.UTC()
+		}
+	}
+
 	if cc.AltNamesMutatorFunc != nil {
 		err := cc.AltNamesMutatorFunc(&certs.AltNamesMutatorConfig{
 			Name:                data.GetName(),

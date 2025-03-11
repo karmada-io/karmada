@@ -159,7 +159,7 @@ func buildKubeConfigFromSpec(data InitData, serverURL string) (*clientcmdapi.Con
 	cc := certs.KarmadaCertClient()
 
 	if err := mutateCertConfig(data, cc); err != nil {
-		return nil, fmt.Errorf("error when mutate cert altNames for %s, err: %w", cc.Name, err)
+		return nil, fmt.Errorf("error when mutate cert config for %s, err: %w", cc.Name, err)
 	}
 	client, err := certs.CreateCertAndKeyFilesWithCA(cc, ca.CertData(), ca.KeyData())
 	if err != nil {

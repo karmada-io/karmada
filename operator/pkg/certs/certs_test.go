@@ -59,24 +59,6 @@ func TestCertConfig_defaultPublicKeyAlgorithm(t *testing.T) {
 	}
 }
 
-func TestCertConfig_defaultNotAfter(t *testing.T) {
-	c := &CertConfig{}
-	c.defaultNotAfter()
-
-	if c.NotAfter == nil {
-		t.Error("expected NotAfter to be set, but it was nil")
-	}
-
-	if !c.NotAfter.After(time.Now()) {
-		t.Errorf("expected NotAfter to be a future time, got %v", c.NotAfter)
-	}
-
-	expectedTime := time.Now().Add(constants.CertificateValidity).UTC()
-	if c.NotAfter.Sub(expectedTime) > time.Minute {
-		t.Errorf("NotAfter time is too far from expected, got %v, expected %v", c.NotAfter, expectedTime)
-	}
-}
-
 func TestKarmadaCertRootCA(t *testing.T) {
 	certConfig := KarmadaCertRootCA()
 
@@ -590,7 +572,7 @@ func TestNewSignedCert_Success(t *testing.T) {
 			AltNames:     certutil.AltNames{DNSNames: expectedCertDNSNames},
 			Usages:       expectedUsages,
 		},
-		NotAfter: &certNotAfter,
+		NotAfter: certNotAfter,
 	}
 
 	cert, err := NewSignedCert(cc, key, caCert, caKey, false)
@@ -638,7 +620,7 @@ func TestNewSignedCert_ErrorOnEmptyCommonName(t *testing.T) {
 			AltNames:     certutil.AltNames{DNSNames: expectedCertDNSNames},
 			Usages:       expectedUsages,
 		},
-		NotAfter: &certNotAfter,
+		NotAfter: certNotAfter,
 	}
 
 	_, err = NewSignedCert(cc, key, &x509.Certificate{}, key, false)
