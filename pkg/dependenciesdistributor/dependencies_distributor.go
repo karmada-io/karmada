@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -35,6 +36,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -74,13 +76,6 @@ const (
 	// the key in the labels of the current attached binding should be unique,
 	// because resource like secret can be referred by multiple deployments.
 	dependedByLabelKeyPrefix = "resourcebinding.karmada.io/depended-by-"
-)
-
-// well-know annotations
-const (
-	// dependenciesAnnotationKey is added to the independent binding,
-	// it describes the names of dependencies (json serialized).
-	dependenciesAnnotationKey = "resourcebinding.karmada.io/dependencies"
 )
 
 // LabelsKey is the object key which is a unique identifier under a cluster, across all resources.
@@ -170,25 +165,33 @@ func (d *DependenciesDistributor) reconcileResourceTemplate(key util.QueueKey) e
 		return fmt.Errorf("invalid key")
 	}
 	klog.V(4).Infof("DependenciesDistributor start to reconcile object: %s", resourceTemplateKey)
-	bindingList := &workv1alpha2.ResourceBindingList{}
-	err := d.Client.List(context.TODO(), bindingList, &client.ListOptions{
-		Namespace:     resourceTemplateKey.Namespace,
-		LabelSelector: labels.Everything()})
+	var dependency = configv1alpha1.DependentObjectReference{
+		APIVersion: resourceTemplateKey.GroupVersion().String(),
+		Kind:       resourceTemplateKey.Kind,
+		Namespace:  resourceTemplateKey.Namespace,
+	}
+	dependencyByte, err := json.Marshal(dependency)
 	if err != nil {
 		return err
 	}
-
+	bindingList := &workv1alpha2.ResourceBindingList{}
+	listOpt := &client.ListOptions{
+		FieldSelector:         fields.OneTermEqualSelector(helper.IndexNameForResourceBindingDependency, string(dependencyByte)),
+		UnsafeDisableDeepCopy: ptr.To(true),
+	}
+	err = d.Client.List(context.TODO(), bindingList, listOpt)
+	if err != nil {
+		return err
+	}
 	for i := range bindingList.Items {
 		binding := &bindingList.Items[i]
 		if !binding.DeletionTimestamp.IsZero() {
 			continue
 		}
-
 		matched := matchesWithBindingDependencies(resourceTemplateKey, binding)
 		if !matched {
 			continue
 		}
-
 		klog.V(4).Infof("ResourceBinding(%s/%s) is matched for resource(%s/%s)", binding.Namespace, binding.Name, resourceTemplateKey.Namespace, resourceTemplateKey.Name)
 		d.genericEvent <- event.TypedGenericEvent[*workv1alpha2.ResourceBinding]{Object: binding}
 	}
@@ -199,7 +202,7 @@ func (d *DependenciesDistributor) reconcileResourceTemplate(key util.QueueKey) e
 // matchesWithBindingDependencies tells if the given object(resource template) is matched
 // with the dependencies of independent resourceBinding.
 func matchesWithBindingDependencies(resourceTemplateKey *LabelsKey, independentBinding *workv1alpha2.ResourceBinding) bool {
-	dependencies, exist := independentBinding.Annotations[dependenciesAnnotationKey]
+	dependencies, exist := independentBinding.Annotations[workv1alpha2.DependenciesAnnotationKey]
 	if !exist {
 		return false
 	}
@@ -428,10 +431,10 @@ func (d *DependenciesDistributor) recordDependencies(ctx context.Context, indepe
 	}
 
 	// dependencies are not updated, no need to update annotation.
-	if oldDependencies, exist := objectAnnotation[dependenciesAnnotationKey]; exist && oldDependencies == dependenciesStr {
+	if oldDependencies, exist := objectAnnotation[workv1alpha2.DependenciesAnnotationKey]; exist && oldDependencies == dependenciesStr {
 		return nil
 	}
-	objectAnnotation[dependenciesAnnotationKey] = dependenciesStr
+	objectAnnotation[workv1alpha2.DependenciesAnnotationKey] = dependenciesStr
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		independentBinding.SetAnnotations(objectAnnotation)
