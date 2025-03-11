@@ -37,7 +37,7 @@ spec:
             - --etcd-certfile=/etc/karmada/pki/etcd-client/tls.crt
             - --etcd-keyfile=/etc/karmada/pki/etcd-client/tls.key
             - --tls-cert-file=/etc/karmada/pki/server/tls.crt
-            - --tls-private-key-file=/etc/karmada/pki//server/tls.key
+            - --tls-private-key-file=/etc/karmada/pki/server/tls.key
             - --audit-log-path=-
             - --audit-log-maxage=0
             - --audit-log-maxbackup=0
