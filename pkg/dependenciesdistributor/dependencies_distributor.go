@@ -151,7 +151,6 @@ func (d *DependenciesDistributor) OnUpdate(oldObj, newObj interface{}) {
 		klog.V(4).Infof("Ignore update event of object (%s, kind=%s, %s) as specification no change", unstructuredOldObj.GetAPIVersion(), unstructuredOldObj.GetKind(), names.NamespacedKey(unstructuredOldObj.GetNamespace(), unstructuredOldObj.GetName()))
 		return
 	}
-	d.OnAdd(oldObj)
 	d.OnAdd(newObj)
 }
 
