@@ -28,6 +28,7 @@ import (
 	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/scale"
+	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -60,13 +61,9 @@ type ClusterScaleClient struct {
 
 // ClientOption holds the attributes that should be injected to a Kubernetes client.
 type ClientOption struct {
-	// QPS indicates the maximum QPS to the master from this client.
-	// If it's zero, the created RESTClient will use DefaultQPS: 5
-	QPS float32
-
-	// Burst indicates the maximum burst for throttle.
-	// If it's zero, the created RESTClient will use DefaultBurst: 10.
-	Burst int
+	// RateLimiter is used to limit the QPS to the master from this client.
+	// We use this instead of QPS/Burst to avoid multiple client initializations causing QPS/Burst to lose its effect.
+	RateLimiterGetter func(key string) flowcontrol.RateLimiter
 }
 
 // NewClusterScaleClientSet returns a ClusterScaleClient for the given member cluster.
@@ -102,6 +99,9 @@ func NewClusterScaleClientSet(clusterName string, client client.Client) (*Cluste
 	return &clusterScaleClientSet, nil
 }
 
+// NewClusterClientSetFunc is a function that returns a ClusterClient for the given member cluster.
+type NewClusterClientSetFunc = func(clusterName string, client client.Client, clientOption *ClientOption) (*ClusterClient, error)
+
 // NewClusterClientSet returns a ClusterClient for the given member cluster.
 func NewClusterClientSet(clusterName string, client client.Client, clientOption *ClientOption) (*ClusterClient, error) {
 	clusterConfig, err := BuildClusterConfig(clusterName, clusterGetter(client), secretGetter(client))
@@ -113,8 +113,9 @@ func NewClusterClientSet(clusterName string, client client.Client, clientOption 
 
 	if clusterConfig != nil {
 		if clientOption != nil {
-			clusterConfig.QPS = clientOption.QPS
-			clusterConfig.Burst = clientOption.Burst
+			if clientOption.RateLimiterGetter != nil {
+				clusterConfig.RateLimiter = clientOption.RateLimiterGetter(clusterName)
+			}
 		}
 		clusterClientSet.KubeClient = kubeclientset.NewForConfigOrDie(clusterConfig)
 	}
@@ -132,16 +133,20 @@ func NewClusterClientSetForAgent(clusterName string, _ client.Client, clientOpti
 
 	if clusterConfig != nil {
 		if clientOption != nil {
-			clusterConfig.QPS = clientOption.QPS
-			clusterConfig.Burst = clientOption.Burst
+			if clientOption.RateLimiterGetter != nil {
+				clusterConfig.RateLimiter = clientOption.RateLimiterGetter(clusterName)
+			}
 		}
 		clusterClientSet.KubeClient = kubeclientset.NewForConfigOrDie(clusterConfig)
 	}
 	return &clusterClientSet, nil
 }
 
+// NewClusterDynamicClientSetFunc is a function that returns a dynamic client for the given member cluster.
+type NewClusterDynamicClientSetFunc = func(clusterName string, client client.Client, clientOption *ClientOption) (*DynamicClusterClient, error)
+
 // NewClusterDynamicClientSet returns a dynamic client for the given member cluster.
-func NewClusterDynamicClientSet(clusterName string, client client.Client) (*DynamicClusterClient, error) {
+func NewClusterDynamicClientSet(clusterName string, client client.Client, clientOption *ClientOption) (*DynamicClusterClient, error) {
 	clusterConfig, err := BuildClusterConfig(clusterName, clusterGetter(client), secretGetter(client))
 	if err != nil {
 		return nil, err
@@ -149,13 +154,18 @@ func NewClusterDynamicClientSet(clusterName string, client client.Client) (*Dyna
 	var clusterClientSet = DynamicClusterClient{ClusterName: clusterName}
 
 	if clusterConfig != nil {
+		if clientOption != nil {
+			if clientOption.RateLimiterGetter != nil {
+				clusterConfig.RateLimiter = clientOption.RateLimiterGetter(clusterName)
+			}
+		}
 		clusterClientSet.DynamicClientSet = dynamic.NewForConfigOrDie(clusterConfig)
 	}
 	return &clusterClientSet, nil
 }
 
 // NewClusterDynamicClientSetForAgent returns a dynamic client for the given member cluster which will be used in karmada agent.
-func NewClusterDynamicClientSetForAgent(clusterName string, _ client.Client) (*DynamicClusterClient, error) {
+func NewClusterDynamicClientSetForAgent(clusterName string, _ client.Client, clientOption *ClientOption) (*DynamicClusterClient, error) {
 	clusterConfig, err := controllerruntime.GetConfig()
 	if err != nil {
 		return nil, fmt.Errorf("error building kubeconfig of member cluster: %s", err.Error())
@@ -163,6 +173,11 @@ func NewClusterDynamicClientSetForAgent(clusterName string, _ client.Client) (*D
 	var clusterClientSet = DynamicClusterClient{ClusterName: clusterName}
 
 	if clusterConfig != nil {
+		if clientOption != nil {
+			if clientOption.RateLimiterGetter != nil {
+				clusterConfig.RateLimiter = clientOption.RateLimiterGetter(clusterName)
+			}
+		}
 		clusterClientSet.DynamicClientSet = dynamic.NewForConfigOrDie(clusterConfig)
 	}
 	return &clusterClientSet, nil
