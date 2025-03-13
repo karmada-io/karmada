@@ -114,6 +114,11 @@ func (in *CustomCertificate) DeepCopyInto(out *CustomCertificate) {
 		*out = new(LocalSecretReference)
 		**out = **in
 	}
+	if in.LeafCertValidityDays != nil {
+		in, out := &in.LeafCertValidityDays, &out.LeafCertValidityDays
+		*out = new(int32)
+		**out = **in
+	}
 	return
 }
 

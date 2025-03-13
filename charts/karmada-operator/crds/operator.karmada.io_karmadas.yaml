@@ -5197,6 +5197,13 @@ spec:
                           referenced.
                         type: string
                     type: object
+                  leafCertValidityDays:
+                    description: |-
+                      LeafCertValidityDays specifies the validity period of leaf certificates (e.g., API Server certificate) in days.
+                      If not specified, the default validity period of 1 year will be used.
+                    format: int32
+                    minimum: 1
+                    type: integer
                 type: object
               featureGates:
                 additionalProperties:
