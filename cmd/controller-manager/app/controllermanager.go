@@ -72,6 +72,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/dependenciesdistributor"
 	"github.com/karmada-io/karmada/pkg/detector"
 	"github.com/karmada-io/karmada/pkg/features"
+	"github.com/karmada-io/karmada/pkg/goruntime"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
@@ -139,6 +140,8 @@ func Run(ctx context.Context, opts *options.Options) error {
 	klog.Infof("karmada-controller-manager version: %s", version.Get())
 
 	profileflag.ListenAndServe(opts.ProfileOpts)
+
+	goruntime.SetMemLimit(opts.MemlimitRatio)
 
 	controlPlaneRestConfig, err := controllerruntime.GetConfig()
 	if err != nil {
