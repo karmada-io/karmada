@@ -84,6 +84,11 @@ func NewPredicateForServiceExportController(mgr controllerruntime.Manager) predi
 			return false
 		}
 
+		if IsWorkSuspendDispatching(obj) {
+			klog.V(5).Infof("Ignored Work(%s/%s) %s event as dispatching is suspended.", obj.Namespace, obj.Name, eventType)
+			return false
+		}
+
 		clusterName, err := names.GetClusterName(obj.GetNamespace())
 		if err != nil {
 			klog.Errorf("Failed to get member cluster name for work %s/%s", obj.GetNamespace(), obj.GetName())
@@ -173,6 +178,11 @@ func NewPredicateForServiceExportControllerOnAgent(curClusterName string) predic
 
 		if util.GetLabelValue(obj.Labels, util.PropagationInstruction) == util.PropagationInstructionSuppressed {
 			klog.V(5).Infof("Ignored Work(%s/%s) %s event as propagation instruction is suppressed.", obj.Namespace, obj.Name, eventType)
+			return false
+		}
+
+		if IsWorkSuspendDispatching(obj) {
+			klog.V(5).Infof("Ignored Work(%s/%s) %s event as dispatching is suspended.", obj.Namespace, obj.Name, eventType)
 			return false
 		}
 
