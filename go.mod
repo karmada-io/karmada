@@ -27,6 +27,7 @@ require (
 	github.com/tidwall/sjson v1.2.5
 	github.com/vektra/mockery/v2 v2.10.0
 	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64
+	go.uber.org/automaxprocs v1.6.0
 	go.uber.org/mock v0.4.0
 	golang.org/x/net v0.34.0
 	golang.org/x/term v0.28.0
