@@ -29,6 +29,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/flowcontrol"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
@@ -121,7 +122,7 @@ func run(ctx context.Context, opts *options.Options) error {
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig: %s", err.Error())
 	}
-	restConfig.QPS, restConfig.Burst = opts.ClusterAPIQPS, opts.ClusterAPIBurst
+	restConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(opts.ClusterAPIQPS, opts.ClusterAPIBurst)
 
 	kubeClient := kubernetes.NewForConfigOrDie(restConfig)
 	dynamicClient := dynamic.NewForConfigOrDie(restConfig)

@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/component-base/metrics"
 	"k8s.io/component-base/metrics/legacyregistry"
 	"k8s.io/klog/v2"
@@ -128,7 +129,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*metricsadapter.MetricsServer,
 		klog.Errorf("Unable to build restConfig: %v", err)
 		return nil, err
 	}
-	restConfig.QPS, restConfig.Burst = o.KubeAPIQPS, o.KubeAPIBurst
+	restConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(o.KubeAPIQPS, o.KubeAPIBurst)
 
 	karmadaClient := karmadaclientset.NewForConfigOrDie(restConfig)
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
