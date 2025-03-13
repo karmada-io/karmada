@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
@@ -42,11 +43,14 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/features"
+	"github.com/karmada-io/karmada/pkg/generated/applyconfiguration/work/v1alpha2"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
+	applyconfigurationsmetav1 "k8s.io/client-go/applyconfigurations/meta/v1"
 )
 
 // ClusterWeightInfo records the weight of a cluster
@@ -477,4 +481,51 @@ func ConstructObjectReference(rs policyv1alpha1.ResourceSelector) workv1alpha2.O
 		Namespace:  rs.Namespace,
 		Name:       rs.Name,
 	}
+}
+
+// PatchBindingStatus patch resourceBinding status with SSA (Server Side Apply) to avoid patch status condition conflict with controllers.
+func PatchBindingStatus(karmadaClient karmadaclientset.Interface, rb, updateRB *workv1alpha2.ResourceBinding, condition *metav1.Condition) error {
+	if condition == nil {
+		klog.Warningf("Skip patch ResourceBinding: %s as status condition is nil", klog.KObj(rb))
+		return nil
+	}
+
+	applyCondition := applyconfigurationsmetav1.Condition().
+		WithType(condition.Type).
+		WithStatus(condition.Status).
+		WithMessage(condition.Message).
+		WithReason(condition.Reason).
+		WithLastTransitionTime(condition.LastTransitionTime)
+	applyStatus := v1alpha2.ResourceBindingStatus().WithConditions(applyCondition)
+
+	applyStatus.WithSchedulerObservedGeneration(updateRB.Status.SchedulerObservedGeneration)
+	applyRb := v1alpha2.ResourceBinding(rb.Name, rb.Namespace).WithStatus(applyStatus)
+
+	_, err := karmadaClient.WorkV1alpha2().ResourceBindings(rb.Namespace).ApplyStatus(context.TODO(), applyRb, metav1.ApplyOptions{FieldManager: names.KarmadaSchedulerComponentName})
+	if err != nil {
+		klog.Errorf("Failed to patch schedule status ResourceBinding(%s/%s): %v", rb.Namespace, rb.Name, err)
+		return err
+	}
+
+	klog.V(4).Infof("Patch schedule status to ResourceBinding(%s/%s) succeed", rb.Namespace, rb.Name)
+	return nil
+}
+
+// PatchBindingStatusFiled patch specified status field of resource binding.
+func PatchBindingStatusFiled(karmadaClient karmadaclientset.Interface, fieldName string, rb, updateRB *workv1alpha2.ResourceBinding) error {
+	patchBytes, err := GenFieldMergePatch(fieldName, rb.Status, updateRB.Status)
+	if err != nil {
+		return err
+	}
+	if len(patchBytes) == 0 {
+		return nil
+	}
+
+	_, err = karmadaClient.WorkV1alpha2().ResourceBindings(rb.Namespace).Patch(context.TODO(), rb.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
+	if err != nil {
+		klog.Errorf("Failed to patch schedule status ResourceBinding(%s/%s), filedName: %s, err: %v", rb.Namespace, rb.Name, fieldName, err)
+		return err
+	}
+	klog.V(4).Infof("Patch schedule status to ResourceBinding(%s/%s) succeed, filedName: %s", rb.Namespace, rb.Name, fieldName)
+	return nil
 }
