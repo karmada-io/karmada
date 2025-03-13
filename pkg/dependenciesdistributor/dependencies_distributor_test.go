@@ -114,7 +114,7 @@ func Test_OnUpdate(t *testing.T) {
 					},
 				},
 			},
-			wantQueueSize: 2,
+			wantQueueSize: 1,
 		},
 		{
 			name: "do not update the object, no specification changed",
