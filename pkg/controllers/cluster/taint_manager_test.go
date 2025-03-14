@@ -34,6 +34,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 func newNoExecuteTaintManager() *NoExecuteTaintManager {
@@ -55,8 +56,8 @@ func newNoExecuteTaintManager() *NoExecuteTaintManager {
 
 	mgr := &NoExecuteTaintManager{
 		Client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).
-			WithIndex(&workv1alpha2.ResourceBinding{}, rbClusterKeyIndex, rbIndexerFunc).
-			WithIndex(&workv1alpha2.ClusterResourceBinding{}, crbClusterKeyIndex, crbIndexerFunc).Build(),
+			WithIndex(&workv1alpha2.ResourceBinding{}, helper.IndexNameForResourceBindingClusters, rbIndexerFunc).
+			WithIndex(&workv1alpha2.ClusterResourceBinding{}, helper.IndexNameForClusterResourceBindingClusters, crbIndexerFunc).Build(),
 	}
 	bindingEvictionWorkerOptions := util.Options{
 		Name:          "binding-eviction",
