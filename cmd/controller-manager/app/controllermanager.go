@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/discovery"
@@ -191,6 +192,11 @@ func Run(ctx context.Context, opts *options.Options) error {
 	crtlmetrics.Registry.MustRegister(metrics.ClusterCollectors()...)
 	crtlmetrics.Registry.MustRegister(metrics.ResourceCollectors()...)
 	crtlmetrics.Registry.MustRegister(metrics.PoolCollectors()...)
+
+	if err := util.RegisterEqualityCheckFunctions(&equality.Semantic); err != nil {
+		klog.Errorf("Failed to register equality check functions: %v", err)
+		return err
+	}
 
 	if err := helper.IndexWork(ctx, controllerManager); err != nil {
 		klog.Fatalf("Failed to index Work: %v", err)
