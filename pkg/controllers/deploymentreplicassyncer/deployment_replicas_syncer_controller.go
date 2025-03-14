@@ -32,6 +32,7 @@ import (
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
@@ -45,7 +46,8 @@ const (
 
 // DeploymentReplicasSyncer is to sync deployment replicas from status field to spec field.
 type DeploymentReplicasSyncer struct {
-	Client client.Client
+	Client             client.Client
+	RateLimiterOptions ratelimiterflag.Options
 }
 
 var predicateFunc = predicate.Funcs{

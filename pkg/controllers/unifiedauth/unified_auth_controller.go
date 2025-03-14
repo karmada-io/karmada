@@ -31,6 +31,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -39,6 +40,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/controllers/ctrlutil"
 	"github.com/karmada-io/karmada/pkg/events"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -58,8 +60,9 @@ const (
 
 // Controller is to sync impersonation config to member clusters for unified authentication.
 type Controller struct {
-	client.Client // used to operate Cluster resources.
-	EventRecorder record.EventRecorder
+	client.Client      // used to operate Cluster resources.
+	EventRecorder      record.EventRecorder
+	RateLimiterOptions ratelimiterflag.Options
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -260,6 +263,7 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 		For(&clusterv1alpha1.Cluster{}, builder.WithPredicates(clusterPredicateFunc)).
 		Watches(&rbacv1.ClusterRole{}, handler.EnqueueRequestsFromMapFunc(c.newClusterRoleMapFunc())).
 		Watches(&rbacv1.ClusterRoleBinding{}, handler.EnqueueRequestsFromMapFunc(c.newClusterRoleBindingMapFunc())).
+		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).
 		Complete(c)
 }
 
