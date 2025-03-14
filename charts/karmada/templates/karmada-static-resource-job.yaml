@@ -42,11 +42,11 @@ spec:
           bash <<'EOF'
           set -ex
           kubectl rollout status deployment {{ $name }}-apiserver -n {{ $namespace }}
-          kubectl apply -k /crds --kubeconfig /etc/kubeconfig
-          kubectl apply -f /static-resources/system-namespace.yaml --kubeconfig /etc/kubeconfig
-          kubectl apply -f /static-resources/ --kubeconfig /etc/kubeconfig
+          kubectl apply -k /crds --kubeconfig /etc/karmada/config/karmada.config
+          kubectl apply -f /static-resources/system-namespace.yaml --kubeconfig /etc/karmada/config/karmada.config
+          kubectl apply -f /static-resources/ --kubeconfig /etc/karmada/config/karmada.config
 
-          kubectl --kubeconfig /etc/kubeconfig apply -f - <<InnerEOF
+          kubectl --kubeconfig /etc/karmada/config/karmada.config apply -f - <<InnerEOF
           apiVersion: v1
           kind: ConfigMap
           metadata:
