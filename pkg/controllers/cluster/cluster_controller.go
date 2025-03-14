@@ -282,7 +282,7 @@ func (c *Controller) isTargetClusterRemoved(ctx context.Context, cluster *cluste
 	// List all ResourceBindings which are assigned to this cluster.
 	rbList := &workv1alpha2.ResourceBindingList{}
 	if err := c.List(ctx, rbList, client.MatchingFieldsSelector{
-		Selector: fields.OneTermEqualSelector(rbClusterKeyIndex, cluster.Name),
+		Selector: fields.OneTermEqualSelector(utilhelper.IndexNameForResourceBindingClusters, cluster.Name),
 	}); err != nil {
 		klog.ErrorS(err, "Failed to list ResourceBindings", "cluster", cluster.Name)
 		return false, err
@@ -293,7 +293,7 @@ func (c *Controller) isTargetClusterRemoved(ctx context.Context, cluster *cluste
 	// List all ClusterResourceBindings which are assigned to this cluster.
 	crbList := &workv1alpha2.ClusterResourceBindingList{}
 	if err := c.List(ctx, crbList, client.MatchingFieldsSelector{
-		Selector: fields.OneTermEqualSelector(crbClusterKeyIndex, cluster.Name),
+		Selector: fields.OneTermEqualSelector(utilhelper.IndexNameForClusterResourceBindingClusters, cluster.Name),
 	}); err != nil {
 		klog.ErrorS(err, "Failed to list ClusterResourceBindings", "cluster", cluster.Name)
 		return false, err

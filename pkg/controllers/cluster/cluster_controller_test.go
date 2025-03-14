@@ -37,6 +37,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -57,8 +58,8 @@ func newClusterController() *Controller {
 		return util.GetBindingClusterNames(&crb.Spec)
 	}
 	client := fake.NewClientBuilder().WithScheme(gclient.NewSchema()).
-		WithIndex(&workv1alpha2.ResourceBinding{}, rbClusterKeyIndex, rbIndexerFunc).
-		WithIndex(&workv1alpha2.ClusterResourceBinding{}, crbClusterKeyIndex, crbIndexerFunc).
+		WithIndex(&workv1alpha2.ResourceBinding{}, helper.IndexNameForResourceBindingClusters, rbIndexerFunc).
+		WithIndex(&workv1alpha2.ClusterResourceBinding{}, helper.IndexNameForClusterResourceBindingClusters, crbIndexerFunc).
 		WithStatusSubresource(&clusterv1alpha1.Cluster{}).Build()
 	return &Controller{
 		Client:                    client,

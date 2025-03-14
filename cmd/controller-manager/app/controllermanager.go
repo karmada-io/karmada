@@ -192,7 +192,8 @@ func Run(ctx context.Context, opts *options.Options) error {
 	crtlmetrics.Registry.MustRegister(metrics.ResourceCollectors()...)
 	crtlmetrics.Registry.MustRegister(metrics.PoolCollectors()...)
 
-	if err := helper.IndexWork(ctx, controllerManager); err != nil {
+	registerIndexOption := helper.Options{EnableTaintManager: opts.EnableTaintManager}
+	if err := helper.RegisterFieldIndexes(ctx, controllerManager, &registerIndexOption); err != nil {
 		klog.Fatalf("Failed to index Work: %v", err)
 	}
 
@@ -261,9 +262,6 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 	}
 
 	if ctx.Opts.EnableTaintManager {
-		if err := cluster.IndexField(mgr); err != nil {
-			return false, err
-		}
 		taintManager := &cluster.NoExecuteTaintManager{
 			Client:                             mgr.GetClient(),
 			EventRecorder:                      mgr.GetEventRecorderFor(cluster.TaintManagerName),
