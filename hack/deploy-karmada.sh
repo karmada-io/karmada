@@ -102,6 +102,7 @@ function generate_cert_related_secrets {
     generate_cert_secret karmada-search ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
     generate_cert_secret karmada-webhook ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
     generate_cert_secret karmada-interpreter-webhook-example ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
+    generate_cert_secret karmada-scheduler-estimator ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
     generate_cert_secret etcd ${karmada_ca} ${ETCD_SERVER_CRT} ${ETCD_SERVER_KEY}
 
     # 2. generate secret with client cert

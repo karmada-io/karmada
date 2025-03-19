@@ -58,7 +58,7 @@ spec:
       volumes:
         - name: server-cert
           secret:
-            secretName: karmada-metrics-adapter-cert
+            secretName: karmada-scheduler-estimator-cert
         - name: member-kubeconfig
           secret:
             secretName: {{member_cluster_name}}-kubeconfig
