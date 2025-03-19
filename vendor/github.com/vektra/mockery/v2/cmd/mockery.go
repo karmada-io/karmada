@@ -2,47 +2,52 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
 	"runtime/pprof"
 	"strings"
-	"time"
 
-	homedir "github.com/mitchellh/go-homedir"
-	"github.com/pkg/errors"
+	"github.com/vektra/mockery/v2/pkg"
+	"github.com/vektra/mockery/v2/pkg/config"
+	"github.com/vektra/mockery/v2/pkg/logging"
+	"github.com/vektra/mockery/v2/pkg/stackerr"
+
+	"github.com/chigopher/pathlib"
+	"github.com/mitchellh/go-homedir"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/vektra/mockery/v2/pkg"
-	"github.com/vektra/mockery/v2/pkg/config"
-	"github.com/vektra/mockery/v2/pkg/logging"
-	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/tools/go/packages"
 )
 
 var (
-	cfgFile = ""
+	cfgFile  = ""
+	viperCfg *viper.Viper
 )
 
 func init() {
-	cobra.OnInitialize(initConfig)
+	cobra.OnInitialize(func() { initConfig(nil, viperCfg, nil) })
 }
 
 func NewRootCmd() *cobra.Command {
+	viperCfg = viper.NewWithOptions(viper.KeyDelimiter("::"))
 	cmd := &cobra.Command{
 		Use:   "mockery",
 		Short: "Generate mock objects for your Golang interfaces",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			r, err := GetRootAppFromViper(viper.GetViper())
+		Run: func(cmd *cobra.Command, args []string) {
+			r, err := GetRootAppFromViper(viperCfg)
 			if err != nil {
 				printStackTrace(err)
-				return err
+				os.Exit(1)
 			}
-			return r.Run()
+			if err := r.Run(); err != nil {
+				printStackTrace(err)
+				os.Exit(1)
+			}
 		},
 	}
 
@@ -50,21 +55,24 @@ func NewRootCmd() *cobra.Command {
 	pFlags.StringVar(&cfgFile, "config", "", "config file to use")
 	pFlags.String("name", "", "name or matching regular expression of interface to generate mock for")
 	pFlags.Bool("print", false, "print the generated mock to stdout")
-	pFlags.String("output", "./mocks", "directory to write mocks to")
+	pFlags.String("output", "", "directory to write mocks to")
 	pFlags.String("outpkg", "mocks", "name of generated package")
 	pFlags.String("packageprefix", "", "prefix for the generated package name, it is ignored if outpkg is also specified.")
-	pFlags.String("dir", ".", "directory to search for interfaces")
+	pFlags.String("dir", "", "directory to search for interfaces")
 	pFlags.BoolP("recursive", "r", false, "recurse search into sub-directories")
+	pFlags.StringArray("exclude", nil, "prefixes of subdirectories and files to exclude from search")
 	pFlags.Bool("all", false, "generates mocks for all found interfaces in all sub-directories")
 	pFlags.Bool("inpackage", false, "generate a mock that goes inside the original package")
+	pFlags.Bool("inpackage-suffix", false, "use filename '_mock' suffix instead of 'mock_' prefix for InPackage mocks")
 	pFlags.Bool("testonly", false, "generate a mock in a _test.go file")
-	pFlags.String("case", "camel", "name the mocked file using casing convention [camel, snake, underscore]")
+	pFlags.String("case", "", "name the mocked file using casing convention [camel, snake, underscore]")
 	pFlags.String("note", "", "comment to insert into prologue of each generated file")
 	pFlags.String("cpuprofile", "", "write cpu profile to file")
 	pFlags.Bool("version", false, "prints the installed version of mockery")
 	pFlags.Bool("quiet", false, `suppresses logger output (equivalent to --log-level="")`)
 	pFlags.Bool("keeptree", false, "keep the tree structure of the original interface files into a different repository. Must be used with XX")
-	pFlags.String("tags", "", "space-separated list of additional build tags to use")
+	pFlags.String("tags", "", "space-separated list of additional build tags to load packages")
+	pFlags.String("mock-build-tags", "", "set the build tags of the generated mocks. Read more about the format: https://pkg.go.dev/cmd/go#hdr-Build_constraints")
 	pFlags.String("filename", "", "name of generated file (only works with -name and no regex)")
 	pFlags.String("structname", "", "name of generated struct (only works with -name and no regex)")
 	pFlags.String("log-level", "info", "Level of logging")
@@ -75,61 +83,88 @@ func NewRootCmd() *cobra.Command {
 	pFlags.Bool("unroll-variadic", true, "For functions with variadic arguments, do not unroll the arguments into the underlying testify call. Instead, pass variadic slice as-is.")
 	pFlags.Bool("exported", false, "Generates public mocks for private interfaces.")
 	pFlags.Bool("with-expecter", false, "Generate expecter utility around mock's On, Run and Return methods with explicit types. This option is NOT compatible with -unroll-variadic=false")
+	pFlags.StringArray("replace-type", nil, "Replace types")
+	pFlags.Bool("disable-func-mocks", false, "Disable generation of function mocks.")
 
-	viper.BindPFlags(pFlags)
+	if err := viperCfg.BindPFlags(pFlags); err != nil {
+		panic(fmt.Sprintf("failed to bind PFlags: %v", err))
+	}
 
 	cmd.AddCommand(NewShowConfigCmd())
 	return cmd
 }
 
-type stackTracer interface {
-	StackTrace() errors.StackTrace
-}
-
 func printStackTrace(e error) {
 	fmt.Printf("%v\n", e)
-	if err, ok := e.(stackTracer); ok {
-		for _, f := range err.StackTrace() {
-			fmt.Printf("%+s:%d\n", f, f)
-		}
-	}
 
+	if stack, ok := stackerr.GetStack(e); ok {
+		fmt.Printf("%+s\n", stack)
+	}
 }
 
 // Execute executes the cobra CLI workflow
 func Execute() {
 	if err := NewRootCmd().Execute(); err != nil {
-		//printStackTrace(err)
 		os.Exit(1)
 	}
 }
 
-func initConfig() {
-	viper.SetEnvPrefix("mockery")
-	viper.AutomaticEnv()
-
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else if viper.IsSet("config") {
-		viper.SetConfigFile(viper.GetString("config"))
-	} else {
-		// Find home directory.
-		home, err := homedir.Dir()
+func initConfig(
+	baseSearchPath *pathlib.Path,
+	viperObj *viper.Viper,
+	configPath *pathlib.Path,
+) *viper.Viper {
+	if baseSearchPath == nil {
+		currentWorkingDir, err := os.Getwd()
 		if err != nil {
-			log.Fatal().Err(err).Msgf("Failed to find homedir")
+			panic(err)
 		}
-
-		// Search config in home directory with name ".cobra" (without extension).
-		viper.AddConfigPath(".")
-		viper.AddConfigPath(home)
-		viper.SetConfigName(".mockery")
+		baseSearchPath = pathlib.NewPath(currentWorkingDir)
+	}
+	if viperObj == nil {
+		viperObj = viper.NewWithOptions(viper.KeyDelimiter("::"))
 	}
 
-	// Note we purposely ignore the error. Don't care if we can't find a config file.
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Fprintf(os.Stderr, "Using config file: %s\n", viper.ConfigFileUsed())
+	viperObj.SetEnvPrefix("MOCKERY")
+	viperObj.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	viperObj.AutomaticEnv()
+
+	if !viperObj.GetBool("disable-config-search") {
+		if configPath == nil && cfgFile != "" {
+			// Use config file from the flag.
+			viperObj.SetConfigFile(cfgFile)
+		} else if configPath != nil {
+			viperObj.SetConfigFile(configPath.String())
+		} else if viperObj.IsSet("config") {
+			viperObj.SetConfigFile(viperObj.GetString("config"))
+		} else {
+			// Find home directory.
+			home, err := homedir.Dir()
+			if err != nil {
+				log.Fatal().Err(err).Msgf("Failed to find homedir")
+			}
+
+			currentDir := baseSearchPath
+
+			for {
+				viperObj.AddConfigPath(currentDir.String())
+				if len(currentDir.Parts()) <= 1 {
+					break
+				}
+				currentDir = currentDir.Parent()
+			}
+
+			viperObj.AddConfigPath(home)
+			viperObj.SetConfigName(".mockery")
+		}
+		if err := viperObj.ReadInConfig(); err != nil {
+			log, _ := logging.GetLogger("debug")
+			log.Info().Msg("couldn't read any config file")
+		}
 	}
+
+	viperObj.Set("config", viperObj.ConfigFileUsed())
+	return viperObj
 }
 
 const regexMetadataChars = "\\.+*?()|[]{}^$"
@@ -140,16 +175,17 @@ type RootApp struct {
 
 func GetRootAppFromViper(v *viper.Viper) (*RootApp, error) {
 	r := &RootApp{}
-	if err := v.UnmarshalExact(&r.Config); err != nil {
-		return nil, errors.Wrapf(err, "failed to get config")
+	config, err := config.NewConfigFromViper(v)
+	if err != nil {
+		return nil, stackerr.NewStackErrf(err, "failed to get config")
 	}
+	r.Config = *config
 	return r, nil
 }
 
 func (r *RootApp) Run() error {
 	var recursive bool
 	var filter *regexp.Regexp
-	var err error
 	var limitOne bool
 
 	if r.Quiet {
@@ -157,24 +193,153 @@ func (r *RootApp) Run() error {
 		r.Config.LogLevel = ""
 	}
 
-	log, err := getLogger(r.Config.LogLevel)
+	log, err := logging.GetLogger(r.Config.LogLevel)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
 		return err
 	}
+	logging.DisableDeprecationWarnings = r.Config.DisableDeprecationWarnings
+	logging.DisabledDeprecationWarnings = r.Config.DisabledDeprecationWarnings
+	defer logging.LogDeprecationWarnings()
+
 	log = log.With().Bool(logging.LogKeyDryRun, r.Config.DryRun).Logger()
 	log.Info().Msgf("Starting mockery")
+	log.Info().Msgf("Using config: %s", r.Config.Config)
 	ctx := log.WithContext(context.Background())
 
+	if err := r.Config.Initialize(ctx); err != nil {
+		return err
+	}
+
 	if r.Config.Version {
-		fmt.Println(config.GetSemverInfo())
+		fmt.Println(logging.GetSemverInfo())
 		return nil
-	} else if r.Config.Name != "" && r.Config.All {
+	}
+
+	if r.Config.Profile != "" || r.Config.Cpuprofile != "" {
+		profile := r.Config.Profile
+		if profile == "" {
+			profile = r.Config.Cpuprofile
+		}
+		f, err := os.Create(profile)
+		if err != nil {
+			return stackerr.NewStackErrf(err, "Failed to create profile file")
+		}
+		defer f.Close()
+		if err := pprof.StartCPUProfile(f); err != nil {
+			return fmt.Errorf("failed to start CPU profile: %w", err)
+		}
+		defer pprof.StopCPUProfile()
+	}
+
+	var osp pkg.OutputStreamProvider
+	if r.Config.Print {
+		osp = &pkg.StdoutStreamProvider{}
+	}
+	var buildTags []string
+	if r.Config.BuildTags != "" {
+		buildTags = strings.Split(r.Config.BuildTags, " ")
+	}
+
+	var boilerplate string
+	if r.Config.BoilerplateFile != "" {
+		data, err := os.ReadFile(r.Config.BoilerplateFile)
+		if err != nil {
+			log.Fatal().Msgf("Failed to read boilerplate file %s: %v", r.Config.BoilerplateFile, err)
+		}
+		boilerplate = string(data)
+	}
+
+	configuredPackages, err := r.Config.GetPackages(ctx)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("failed to determine configured packages: %w", err)
+	}
+	if len(configuredPackages) == 0 {
+		logging.WarnDeprecated(
+			"packages",
+			"use of the packages config will be the only way to generate mocks in v3. Please migrate your config to use the packages feature.",
+			map[string]any{
+				"url":       logging.DocsURL("/features/#packages-configuration"),
+				"migration": logging.DocsURL("/migrating_to_packages/"),
+			},
+		)
+	} else {
+		r.Config.LogUnsupportedPackagesConfig(ctx)
+
+		configuredPackages, err := r.Config.GetPackages(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get package from config: %w", err)
+		}
+		parser := pkg.NewParser(buildTags, pkg.ParserDisableFuncMocks(r.Config.DisableFuncMocks))
+
+		if err := parser.ParsePackages(ctx, configuredPackages); err != nil {
+			log.Error().Err(err).Msg("unable to parse packages")
+			return err
+		}
+
+		log.Info().Msg("done loading, visiting interface nodes")
+		for _, iface := range parser.Interfaces() {
+			ifaceLog := log.
+				With().
+				Str(logging.LogKeyInterface, iface.Name).
+				Str(logging.LogKeyQualifiedName, iface.QualifiedName).
+				Logger()
+
+			ifaceCtx := ifaceLog.WithContext(ctx)
+
+			shouldGenerate, err := r.Config.ShouldGenerateInterface(ifaceCtx, iface.QualifiedName, iface.Name, iface.IsAutoGenerated)
+			if err != nil {
+				return err
+			}
+			if !shouldGenerate {
+				ifaceLog.Debug().Msg("config doesn't specify to generate this interface, skipping.")
+				continue
+			}
+			ifaceLog.Debug().Msg("config specifies to generate this interface")
+
+			outputter := pkg.NewOutputter(&r.Config, boilerplate, r.Config.DryRun)
+			if err := outputter.Generate(ifaceCtx, iface); err != nil {
+				return err
+			}
+		}
+
+		// Output interfaces that were specified but not found.
+		// We do that here and not before the loop because it's easier to
+		// see for the user.
+		var foundMissing bool
+		for _, p := range configuredPackages {
+			ifaceList, err := r.Config.GetInterfacesForPackage(ctx, p)
+			if err != nil {
+				log.Error().Msgf("Failed to get interfaces for package %s: %v", p, err)
+			}
+
+			for _, name := range ifaceList {
+				if !parser.Has(p, name) {
+					level := zerolog.WarnLevel
+					if r.Config.FailOnMissing {
+						level = zerolog.ErrorLevel
+					}
+					log.WithLevel(level).Ctx(ctx).
+						Str(logging.LogKeyInterface, name).
+						Str(logging.LogKeyQualifiedName, p).
+						Msg("no such interface")
+					foundMissing = true
+				}
+			}
+			if foundMissing && r.Config.FailOnMissing {
+				os.Exit(1)
+			}
+		}
+
+		return nil
+	}
+
+	if r.Config.Name != "" && r.Config.All {
 		log.Fatal().Msgf("Specify --name or --all, but not both")
 	} else if (r.Config.FileName != "" || r.Config.StructName != "") && r.Config.All {
 		log.Fatal().Msgf("Cannot specify --filename or --structname with --all")
 	} else if r.Config.Dir != "" && r.Config.Dir != "." && r.Config.SrcPkg != "" {
-		log.Fatal().Msgf("Specify -dir or -srcpkg, but not both")
+		log.Fatal().Msgf("Specify --dir or --srcpkg, but not both")
 	} else if r.Config.Name != "" {
 		recursive = r.Config.Recursive
 		if strings.ContainsAny(r.Config.Name, regexMetadataChars) {
@@ -194,24 +359,14 @@ func (r *RootApp) Run() error {
 		log.Fatal().Msgf("Use --name to specify the name of the interface or --all for all interfaces found")
 	}
 
-	if r.Config.Profile != "" {
-		f, err := os.Create(r.Config.Profile)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to create profile file")
-		}
+	baseDir := r.Config.Dir
 
-		pprof.StartCPUProfile(f)
-		defer pprof.StopCPUProfile()
-	}
-
-	var osp pkg.OutputStreamProvider
-	if r.Config.Print {
-		osp = &pkg.StdoutStreamProvider{}
-	} else {
+	if osp == nil {
 		osp = &pkg.FileOutputStreamProvider{
 			Config:                    r.Config,
 			BaseDir:                   r.Config.Output,
 			InPackage:                 r.Config.InPackage,
+			InPackageSuffix:           r.Config.InPackageSuffix,
 			TestOnly:                  r.Config.TestOnly,
 			Case:                      r.Config.Case,
 			KeepTree:                  r.Config.KeepTree,
@@ -219,8 +374,6 @@ func (r *RootApp) Run() error {
 			FileName:                  r.Config.FileName,
 		}
 	}
-
-	baseDir := r.Config.Dir
 
 	if r.Config.SrcPkg != "" {
 		pkgs, err := packages.Load(&packages.Config{
@@ -244,68 +397,38 @@ func (r *RootApp) Run() error {
 		baseDir = filepath.Dir(pkg.GoFiles[0])
 	}
 
-	var boilerplate string
-	if r.Config.BoilerplateFile != "" {
-		data, err := ioutil.ReadFile(r.Config.BoilerplateFile)
-		if err != nil {
-			log.Fatal().Msgf("Failed to read boilerplate file %s: %v", r.Config.BoilerplateFile, err)
-		}
-		boilerplate = string(data)
-	}
-
-	visitor := &pkg.GeneratorVisitor{
-		Config:            r.Config,
-		InPackage:         r.Config.InPackage,
-		Note:              r.Config.Note,
-		Boilerplate:       boilerplate,
-		Osp:               osp,
-		PackageName:       r.Config.Outpkg,
-		PackageNamePrefix: r.Config.Packageprefix,
-		StructName:        r.Config.StructName,
-	}
-
 	walker := pkg.Walker{
 		Config:    r.Config,
 		BaseDir:   baseDir,
 		Recursive: recursive,
 		Filter:    filter,
 		LimitOne:  limitOne,
-		BuildTags: strings.Split(r.Config.BuildTags, " "),
+		BuildTags: buildTags,
 	}
+
+	visitor := pkg.NewGeneratorVisitor(pkg.GeneratorVisitorConfig{
+		Boilerplate:          boilerplate,
+		DisableVersionString: r.Config.DisableVersionString,
+		Exported:             r.Config.Exported,
+		InPackage:            r.Config.InPackage,
+		KeepTree:             r.Config.KeepTree,
+		Note:                 r.Config.Note,
+		MockBuildTags:        r.Config.MockBuildTags,
+		PackageName:          r.Config.Outpkg,
+		PackageNamePrefix:    r.Config.Packageprefix,
+		StructName:           r.Config.StructName,
+		UnrollVariadic:       r.Config.UnrollVariadic,
+		WithExpecter:         r.Config.WithExpecter,
+		ReplaceType:          r.Config.ReplaceType,
+		ResolveTypeAlias:     r.Config.ResolveTypeAlias,
+	}, osp, r.Config.DryRun)
 
 	generated := walker.Walk(ctx, visitor)
 
 	if r.Config.Name != "" && !generated {
-		log.Fatal().Msgf("Unable to find '%s' in any go files under this path", r.Config.Name)
+		log.Error().Msgf("Unable to find '%s' in any go files under this path", r.Config.Name)
+		return fmt.Errorf("unable to find interface")
 	}
+
 	return nil
-}
-
-type timeHook struct{}
-
-func (t timeHook) Run(e *zerolog.Event, level zerolog.Level, msg string) {
-	e.Time("time", time.Now())
-}
-
-func getLogger(levelStr string) (zerolog.Logger, error) {
-	level, err := zerolog.ParseLevel(levelStr)
-	if err != nil {
-		return zerolog.Logger{}, errors.Wrapf(err, "Couldn't parse log level")
-	}
-	out := os.Stderr
-	writer := zerolog.ConsoleWriter{
-		Out:        out,
-		TimeFormat: time.RFC822,
-	}
-	if !terminal.IsTerminal(int(out.Fd())) {
-		writer.NoColor = true
-	}
-	log := zerolog.New(writer).
-		Hook(timeHook{}).
-		Level(level).
-		With().
-		Str("version", config.GetSemverInfo()).
-		Logger()
-
-	return log, nil
 }
