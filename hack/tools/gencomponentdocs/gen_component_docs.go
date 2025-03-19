@@ -55,50 +55,70 @@ func main() {
 		os.Exit(1)
 	}
 
-	var cmd *cobra.Command
+	cmds, err := generateCMDs(module)
+	if err != nil {
+		fmt.Fprint(os.Stderr, err.Error())
+		os.Exit(1)
+	}
 
+	for _, cmd := range cmds {
+		cmd.DisableAutoGenTag = true
+		err = doc.GenMarkdownTree(cmd, outDir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to generate docs: %v\n", err)
+			os.Exit(1)
+		}
+		err = MarkdownPostProcessing(cmd, outDir, cleanupForInclude)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to cleanup docs: %v\n", err)
+			os.Exit(1)
+		}
+	}
+}
+
+func generateCMDs(module string) ([]*cobra.Command, error) {
+	var cmds []*cobra.Command
 	switch module {
 	case names.KarmadaControllerManagerComponentName:
 		// generate docs for karmada-controller-manager
-		cmd = cmapp.NewControllerManagerCommand(context.TODO())
+		cmds = append(cmds, cmapp.NewControllerManagerCommand(context.TODO()))
 	case names.KarmadaSchedulerComponentName:
 		// generate docs for karmada-scheduler
-		cmd = schapp.NewSchedulerCommand(nil)
+		cmds = append(cmds, schapp.NewSchedulerCommand(nil))
 	case names.KarmadaAgentComponentName:
 		// generate docs for karmada-agent
-		cmd = agentapp.NewAgentCommand(context.TODO())
+		cmds = append(cmds, agentapp.NewAgentCommand(context.TODO()))
 	case names.KarmadaAggregatedAPIServerComponentName:
 		// generate docs for karmada-aggregated-apiserver
-		cmd = aaapp.NewAggregatedApiserverCommand(context.TODO())
+		cmds = append(cmds, aaapp.NewAggregatedApiserverCommand(context.TODO()))
 	case names.KarmadaDeschedulerComponentName:
 		// generate docs for karmada-descheduler
-		cmd = deschapp.NewDeschedulerCommand(nil)
+		cmds = append(cmds, deschapp.NewDeschedulerCommand(nil))
 	case names.KarmadaSearchComponentName:
 		// generate docs for karmada-search
-		cmd = searchapp.NewKarmadaSearchCommand(context.TODO())
+		cmds = append(cmds, searchapp.NewKarmadaSearchCommand(context.TODO()))
 	case names.KarmadaSchedulerEstimatorComponentName:
 		// generate docs for karmada-scheduler-estimator
-		cmd = estiapp.NewSchedulerEstimatorCommand(context.TODO())
+		cmds = append(cmds, estiapp.NewSchedulerEstimatorCommand(context.TODO()))
 	case names.KarmadaWebhookComponentName:
 		// generate docs for karmada-webhook
-		cmd = webhookapp.NewWebhookCommand(context.TODO())
+		cmds = append(cmds, webhookapp.NewWebhookCommand(context.TODO()))
 	case names.KarmadaMetricsAdapterComponentName:
 		// generate docs for karmada-metrics-adapter
-		cmd = adapterapp.NewMetricsAdapterCommand(context.TODO())
+		cmds = append(cmds, adapterapp.NewMetricsAdapterCommand(context.TODO()))
+	case "all":
+		cmds = append(cmds, cmapp.NewControllerManagerCommand(context.TODO()))
+		cmds = append(cmds, schapp.NewSchedulerCommand(nil))
+		cmds = append(cmds, agentapp.NewAgentCommand(context.TODO()))
+		cmds = append(cmds, aaapp.NewAggregatedApiserverCommand(context.TODO()))
+		cmds = append(cmds, deschapp.NewDeschedulerCommand(nil))
+		cmds = append(cmds, searchapp.NewKarmadaSearchCommand(context.TODO()))
+		cmds = append(cmds, estiapp.NewSchedulerEstimatorCommand(context.TODO()))
+		cmds = append(cmds, webhookapp.NewWebhookCommand(context.TODO()))
+		cmds = append(cmds, adapterapp.NewMetricsAdapterCommand(context.TODO()))
 	default:
-		fmt.Fprintf(os.Stderr, "Module %s is not supported", module)
-		os.Exit(1)
+		return nil, fmt.Errorf("Module %s is not supported", module)
 	}
 
-	cmd.DisableAutoGenTag = true
-	err = doc.GenMarkdownTree(cmd, outDir)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to generate docs: %v\n", err)
-		os.Exit(1)
-	}
-	err = MarkdownPostProcessing(cmd, outDir, cleanupForInclude)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to cleanup docs: %v\n", err)
-		os.Exit(1)
-	}
+	return cmds, nil
 }
