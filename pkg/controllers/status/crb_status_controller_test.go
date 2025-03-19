@@ -39,6 +39,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	utilhelper "github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/indexregistry"
 )
 
 func generateCRBStatusController() *CRBStatusController {
@@ -54,7 +55,7 @@ func generateCRBStatusController() *CRBStatusController {
 	c := &CRBStatusController{
 		Client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithIndex(
 			&workv1alpha1.Work{},
-			workv1alpha2.ClusterResourceBindingPermanentIDLabel,
+			indexregistry.WorkIndexByClusterResourceBindingID,
 			utilhelper.IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
 		).Build(),
 		DynamicClient:   dynamicClient,
@@ -137,7 +138,7 @@ func TestCRBStatusController_Reconcile(t *testing.T) {
 			// Prepare binding and create it in client
 			if tt.binding != nil {
 				c.Client = fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(tt.binding).WithStatusSubresource(tt.binding).
-					WithIndex(&workv1alpha1.Work{}, workv1alpha2.ClusterResourceBindingPermanentIDLabel, utilhelper.IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel)).
+					WithIndex(&workv1alpha1.Work{}, indexregistry.WorkIndexByClusterResourceBindingID, utilhelper.IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel)).
 					Build()
 			}
 
@@ -209,7 +210,7 @@ func TestCRBStatusController_syncBindingStatus(t *testing.T) {
 
 			if tt.resourceExistInClient {
 				c.Client = fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(binding).WithStatusSubresource(binding).
-					WithIndex(&workv1alpha1.Work{}, workv1alpha2.ClusterResourceBindingPermanentIDLabel, utilhelper.IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel)).
+					WithIndex(&workv1alpha1.Work{}, indexregistry.WorkIndexByClusterResourceBindingID, utilhelper.IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel)).
 					Build()
 			}
 

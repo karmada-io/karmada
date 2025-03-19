@@ -25,17 +25,18 @@ import (
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util/indexregistry"
 )
 
 // IndexWork creates index for Work.
 func IndexWork(ctx context.Context, mgr ctrl.Manager) error {
-	err := mgr.GetFieldIndexer().IndexField(ctx, &workv1alpha1.Work{}, workv1alpha2.ResourceBindingPermanentIDLabel,
+	err := mgr.GetFieldIndexer().IndexField(ctx, &workv1alpha1.Work{}, indexregistry.WorkIndexByResourceBindingID,
 		IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel))
 	if err != nil {
 		klog.Errorf("failed to create index for work, err: %v", err)
 		return err
 	}
-	err = mgr.GetFieldIndexer().IndexField(ctx, &workv1alpha1.Work{}, workv1alpha2.ClusterResourceBindingPermanentIDLabel,
+	err = mgr.GetFieldIndexer().IndexField(ctx, &workv1alpha1.Work{}, indexregistry.WorkIndexByClusterResourceBindingID,
 		IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel))
 	if err != nil {
 		klog.Errorf("failed to create index for work, err: %v", err)

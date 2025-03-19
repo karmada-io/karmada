@@ -33,6 +33,7 @@ import (
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util/indexregistry"
 )
 
 func TestGetWorksByLabelsSet(t *testing.T) {
@@ -119,28 +120,31 @@ func TestGetWorksByBindingID(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		works          []client.Object
-		bindingID      string
-		permanentIDKey string
-		namespaced     bool
-		wantWorks      []string
+		name                string
+		works               []client.Object
+		bindingID           string
+		indexName           string
+		permanentIDLabelKey string
+		namespaced          bool
+		wantWorks           []string
 	}{
 		{
-			name:           "find namespaced binding works",
-			works:          []client.Object{workWithRBID, workWithCRBID},
-			bindingID:      bindingID,
-			permanentIDKey: workv1alpha2.ResourceBindingPermanentIDLabel,
-			namespaced:     true,
-			wantWorks:      []string{"workWithRBID"},
+			name:                "find namespaced binding works",
+			works:               []client.Object{workWithRBID, workWithCRBID},
+			bindingID:           bindingID,
+			indexName:           indexregistry.WorkIndexByResourceBindingID,
+			permanentIDLabelKey: workv1alpha2.ResourceBindingPermanentIDLabel,
+			namespaced:          true,
+			wantWorks:           []string{"workWithRBID"},
 		},
 		{
-			name:           "find cluster binding works",
-			works:          []client.Object{workWithRBID, workWithCRBID},
-			bindingID:      bindingID,
-			permanentIDKey: workv1alpha2.ClusterResourceBindingPermanentIDLabel,
-			namespaced:     false,
-			wantWorks:      []string{"workWithCRBID"},
+			name:                "find cluster binding works",
+			works:               []client.Object{workWithRBID, workWithCRBID},
+			bindingID:           bindingID,
+			indexName:           indexregistry.WorkIndexByClusterResourceBindingID,
+			permanentIDLabelKey: workv1alpha2.ClusterResourceBindingPermanentIDLabel,
+			namespaced:          false,
+			wantWorks:           []string{"workWithCRBID"},
 		},
 	}
 
@@ -150,8 +154,8 @@ func TestGetWorksByBindingID(t *testing.T) {
 				WithScheme(scheme).
 				WithIndex(
 					&workv1alpha1.Work{},
-					tt.permanentIDKey,
-					IndexerFuncBasedOnLabel(tt.permanentIDKey),
+					tt.indexName,
+					IndexerFuncBasedOnLabel(tt.permanentIDLabelKey),
 				).
 				WithObjects(tt.works...).
 				Build()

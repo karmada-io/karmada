@@ -41,6 +41,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	"github.com/karmada-io/karmada/pkg/util/indexregistry"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
@@ -466,7 +467,7 @@ func TestFindOrphanWorks(t *testing.T) {
 					},
 				).WithIndex(
 					&workv1alpha1.Work{},
-					workv1alpha2.ResourceBindingPermanentIDLabel,
+					indexregistry.WorkIndexByResourceBindingID,
 					IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel),
 				).Build(),
 				bindingNamespace: "default",
@@ -515,7 +516,7 @@ func TestFindOrphanWorks(t *testing.T) {
 					},
 				).WithIndex(
 					&workv1alpha1.Work{},
-					workv1alpha2.ResourceBindingPermanentIDLabel,
+					indexregistry.WorkIndexByResourceBindingID,
 					IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel),
 				).Build(),
 				bindingNamespace: "default",
@@ -571,7 +572,7 @@ func TestFindOrphanWorks(t *testing.T) {
 					},
 				).WithIndex(
 					&workv1alpha1.Work{},
-					workv1alpha2.ClusterResourceBindingPermanentIDLabel,
+					indexregistry.WorkIndexByClusterResourceBindingID,
 					IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
 				).Build(),
 				bindingNamespace: "",
@@ -1032,7 +1033,7 @@ func TestDeleteWorkByRBNamespaceAndName(t *testing.T) {
 			args: args{
 				c: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithIndex(
 					&workv1alpha1.Work{},
-					workv1alpha2.ResourceBindingPermanentIDLabel,
+					indexregistry.WorkIndexByResourceBindingID,
 					IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel),
 				).Build(),
 				namespace: "default",
@@ -1060,7 +1061,7 @@ func TestDeleteWorkByRBNamespaceAndName(t *testing.T) {
 					},
 				).WithIndex(
 					&workv1alpha1.Work{},
-					workv1alpha2.ResourceBindingPermanentIDLabel,
+					indexregistry.WorkIndexByResourceBindingID,
 					IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel),
 				).Build(),
 				namespace: "default",
@@ -1087,7 +1088,7 @@ func TestDeleteWorkByRBNamespaceAndName(t *testing.T) {
 					},
 				).WithIndex(
 					&workv1alpha1.Work{},
-					workv1alpha2.ClusterResourceBindingPermanentIDLabel,
+					indexregistry.WorkIndexByClusterResourceBindingID,
 					IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
 				).Build(),
 				name:      "foo",
