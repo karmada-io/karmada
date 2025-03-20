@@ -117,16 +117,18 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 
 	// setup policy reconcile worker
 	policyWorkerOptions := util.Options{
-		Name:          "propagationPolicy reconciler",
-		KeyFunc:       ClusterWideKeyFunc,
-		ReconcileFunc: d.ReconcilePropagationPolicy,
+		Name:               "propagationPolicy reconciler",
+		KeyFunc:            ClusterWideKeyFunc,
+		ReconcileFunc:      d.ReconcilePropagationPolicy,
+		RateLimiterOptions: d.RateLimiterOptions,
 	}
 	d.policyReconcileWorker = util.NewAsyncWorker(policyWorkerOptions)
 	d.policyReconcileWorker.Run(d.ConcurrentPropagationPolicySyncs, d.stopCh)
 	clusterPolicyWorkerOptions := util.Options{
-		Name:          "clusterPropagationPolicy reconciler",
-		KeyFunc:       ClusterWideKeyFunc,
-		ReconcileFunc: d.ReconcileClusterPropagationPolicy,
+		Name:               "clusterPropagationPolicy reconciler",
+		KeyFunc:            ClusterWideKeyFunc,
+		ReconcileFunc:      d.ReconcileClusterPropagationPolicy,
+		RateLimiterOptions: d.RateLimiterOptions,
 	}
 	d.clusterPolicyReconcileWorker = util.NewAsyncWorker(clusterPolicyWorkerOptions)
 	d.clusterPolicyReconcileWorker.Run(d.ConcurrentClusterPropagationPolicySyncs, d.stopCh)

@@ -255,6 +255,7 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 		EnableTaintManager:                 ctx.Opts.EnableTaintManager,
 		ClusterTaintEvictionRetryFrequency: 10 * time.Second,
 		ExecutionSpaceRetryFrequency:       10 * time.Second,
+		RateLimiterOptions:                 ctx.Opts.RateLimiterOptions,
 	}
 	if err := clusterController.SetupWithManager(mgr); err != nil {
 		return false, err
@@ -269,6 +270,7 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 			EventRecorder:                      mgr.GetEventRecorderFor(cluster.TaintManagerName),
 			ClusterTaintEvictionRetryFrequency: 10 * time.Second,
 			ConcurrentReconciles:               3,
+			RateLimiterOptions:                 ctx.Opts.RateLimiterOptions,
 		}
 		if err := taintManager.SetupWithManager(mgr); err != nil {
 			return false, err
@@ -409,7 +411,7 @@ func startExecutionController(ctx controllerscontext.Context) (enabled bool, err
 		ObjectWatcher:      ctx.ObjectWatcher,
 		PredicateFunc:      helper.NewExecutionPredicate(ctx.Mgr),
 		InformerManager:    genericmanager.GetInstance(),
-		RatelimiterOptions: ctx.Opts.RateLimiterOptions,
+		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err := executionController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -447,6 +449,7 @@ func startNamespaceController(ctx controllerscontext.Context) (enabled bool, err
 		EventRecorder:                ctx.Mgr.GetEventRecorderFor(namespace.ControllerName),
 		SkippedPropagatingNamespaces: ctx.Opts.SkippedPropagatingNamespaces,
 		OverrideManager:              ctx.OverrideManager,
+		RateLimiterOptions:           ctx.Opts.RateLimiterOptions,
 	}
 	if err := namespaceSyncController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -466,6 +469,7 @@ func startServiceExportController(ctx controllerscontext.Context) (enabled bool,
 		PredicateFunc:               helper.NewPredicateForServiceExportController(ctx.Mgr),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
 		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,
+		RateLimiterOptions:          ctx.Opts.RateLimiterOptions,
 	}
 	serviceExportController.RunWorkQueue()
 	if err := serviceExportController.SetupWithManager(ctx.Mgr); err != nil {
@@ -488,6 +492,7 @@ func startEndpointSliceCollectController(ctx controllerscontext.Context) (enable
 		PredicateFunc:               helper.NewPredicateForEndpointSliceCollectController(ctx.Mgr),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
 		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,
+		RateLimiterOptions:          ctx.Opts.RateLimiterOptions,
 	}
 	endpointSliceCollectController.RunWorkQueue()
 	if err := endpointSliceCollectController.SetupWithManager(ctx.Mgr); err != nil {
@@ -501,10 +506,11 @@ func startEndpointSliceDispatchController(ctx controllerscontext.Context) (enabl
 		return false, nil
 	}
 	endpointSliceSyncController := &multiclusterservice.EndpointsliceDispatchController{
-		Client:          ctx.Mgr.GetClient(),
-		EventRecorder:   ctx.Mgr.GetEventRecorderFor(multiclusterservice.EndpointsliceDispatchControllerName),
-		RESTMapper:      ctx.Mgr.GetRESTMapper(),
-		InformerManager: genericmanager.GetInstance(),
+		Client:             ctx.Mgr.GetClient(),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(multiclusterservice.EndpointsliceDispatchControllerName),
+		RESTMapper:         ctx.Mgr.GetRESTMapper(),
+		InformerManager:    genericmanager.GetInstance(),
+		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err := endpointSliceSyncController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -514,8 +520,9 @@ func startEndpointSliceDispatchController(ctx controllerscontext.Context) (enabl
 
 func startEndpointSliceController(ctx controllerscontext.Context) (enabled bool, err error) {
 	endpointSliceController := &mcs.EndpointSliceController{
-		Client:        ctx.Mgr.GetClient(),
-		EventRecorder: ctx.Mgr.GetEventRecorderFor(mcs.EndpointSliceControllerName),
+		Client:             ctx.Mgr.GetClient(),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(mcs.EndpointSliceControllerName),
+		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err := endpointSliceController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -525,8 +532,9 @@ func startEndpointSliceController(ctx controllerscontext.Context) (enabled bool,
 
 func startServiceImportController(ctx controllerscontext.Context) (enabled bool, err error) {
 	serviceImportController := &mcs.ServiceImportController{
-		Client:        ctx.Mgr.GetClient(),
-		EventRecorder: ctx.Mgr.GetEventRecorderFor(mcs.ServiceImportControllerName),
+		Client:             ctx.Mgr.GetClient(),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(mcs.ServiceImportControllerName),
+		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err := serviceImportController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -536,8 +544,9 @@ func startServiceImportController(ctx controllerscontext.Context) (enabled bool,
 
 func startUnifiedAuthController(ctx controllerscontext.Context) (enabled bool, err error) {
 	unifiedAuthController := &unifiedauth.Controller{
-		Client:        ctx.Mgr.GetClient(),
-		EventRecorder: ctx.Mgr.GetEventRecorderFor(unifiedauth.ControllerName),
+		Client:             ctx.Mgr.GetClient(),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(unifiedauth.ControllerName),
+		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err := unifiedAuthController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -547,8 +556,9 @@ func startUnifiedAuthController(ctx controllerscontext.Context) (enabled bool, e
 
 func startFederatedResourceQuotaSyncController(ctx controllerscontext.Context) (enabled bool, err error) {
 	controller := federatedresourcequota.SyncController{
-		Client:        ctx.Mgr.GetClient(),
-		EventRecorder: ctx.Mgr.GetEventRecorderFor(federatedresourcequota.SyncControllerName),
+		Client:             ctx.Mgr.GetClient(),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(federatedresourcequota.SyncControllerName),
+		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err = controller.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -558,8 +568,9 @@ func startFederatedResourceQuotaSyncController(ctx controllerscontext.Context) (
 
 func startFederatedResourceQuotaStatusController(ctx controllerscontext.Context) (enabled bool, err error) {
 	controller := federatedresourcequota.StatusController{
-		Client:        ctx.Mgr.GetClient(),
-		EventRecorder: ctx.Mgr.GetEventRecorderFor(federatedresourcequota.StatusControllerName),
+		Client:             ctx.Mgr.GetClient(),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(federatedresourcequota.StatusControllerName),
+		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err = controller.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -596,6 +607,7 @@ func startApplicationFailoverController(ctx controllerscontext.Context) (enabled
 		Client:              ctx.Mgr.GetClient(),
 		EventRecorder:       ctx.Mgr.GetEventRecorderFor(applicationfailover.RBApplicationFailoverControllerName),
 		ResourceInterpreter: ctx.ResourceInterpreter,
+		RateLimiterOptions:  ctx.Opts.RateLimiterOptions,
 	}
 	if err = rbApplicationFailoverController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -605,6 +617,7 @@ func startApplicationFailoverController(ctx controllerscontext.Context) (enabled
 		Client:              ctx.Mgr.GetClient(),
 		EventRecorder:       ctx.Mgr.GetEventRecorderFor(applicationfailover.CRBApplicationFailoverControllerName),
 		ResourceInterpreter: ctx.ResourceInterpreter,
+		RateLimiterOptions:  ctx.Opts.RateLimiterOptions,
 	}
 	if err = crbApplicationFailoverController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -659,8 +672,9 @@ func startCronFederatedHorizontalPodAutoscalerController(ctx controllerscontext.
 
 func startHPAScaleTargetMarkerController(ctx controllerscontext.Context) (enabled bool, err error) {
 	hpaScaleTargetMarker := hpascaletargetmarker.HpaScaleTargetMarker{
-		DynamicClient: ctx.DynamicClientSet,
-		RESTMapper:    ctx.Mgr.GetRESTMapper(),
+		DynamicClient:      ctx.DynamicClientSet,
+		RESTMapper:         ctx.Mgr.GetRESTMapper(),
+		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	err = hpaScaleTargetMarker.SetupWithManager(ctx.Mgr)
 	if err != nil {
@@ -672,7 +686,8 @@ func startHPAScaleTargetMarkerController(ctx controllerscontext.Context) (enable
 
 func startDeploymentReplicasSyncerController(ctx controllerscontext.Context) (enabled bool, err error) {
 	deploymentReplicasSyncer := deploymentreplicassyncer.DeploymentReplicasSyncer{
-		Client: ctx.Mgr.GetClient(),
+		Client:             ctx.Mgr.GetClient(),
+		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	err = deploymentReplicasSyncer.SetupWithManager(ctx.Mgr)
 	if err != nil {
@@ -710,7 +725,8 @@ func startRemedyController(ctx controllerscontext.Context) (enabled bool, err er
 
 func startWorkloadRebalancerController(ctx controllerscontext.Context) (enabled bool, err error) {
 	workloadRebalancer := workloadrebalancer.RebalancerController{
-		Client: ctx.Mgr.GetClient(),
+		Client:             ctx.Mgr.GetClient(),
+		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	err = workloadRebalancer.SetupWithManager(ctx.Mgr)
 	if err != nil {
@@ -721,7 +737,10 @@ func startWorkloadRebalancerController(ctx controllerscontext.Context) (enabled 
 }
 
 func startAgentCSRApprovingController(ctx controllerscontext.Context) (enabled bool, err error) {
-	agentCSRApprover := approver.AgentCSRApprovingController{Client: ctx.KubeClientSet}
+	agentCSRApprover := approver.AgentCSRApprovingController{
+		Client:             ctx.KubeClientSet,
+		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
+	}
 	err = agentCSRApprover.SetupWithManager(ctx.Mgr)
 	if err != nil {
 		return false, err

@@ -28,9 +28,11 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
 	"github.com/karmada-io/karmada/pkg/events"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
@@ -41,7 +43,8 @@ const ServiceImportControllerName = "service-import-controller"
 // ServiceImportController is to sync derived service from ServiceImport.
 type ServiceImportController struct {
 	client.Client
-	EventRecorder record.EventRecorder
+	EventRecorder      record.EventRecorder
+	RateLimiterOptions ratelimiterflag.Options
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -74,6 +77,7 @@ func (c *ServiceImportController) SetupWithManager(mgr controllerruntime.Manager
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(ServiceImportControllerName).
 		For(&mcsv1alpha1.ServiceImport{}).
+		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).
 		Complete(c)
 }
 

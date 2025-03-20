@@ -73,7 +73,7 @@ type Controller struct {
 	ObjectWatcher      objectwatcher.ObjectWatcher
 	PredicateFunc      predicate.Predicate
 	InformerManager    genericmanager.MultiClusterInformerManager
-	RatelimiterOptions ratelimiterflag.Options
+	RateLimiterOptions ratelimiterflag.Options
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -137,7 +137,7 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 		For(&workv1alpha1.Work{}, builder.WithPredicates(c.PredicateFunc)).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithOptions(controller.Options{
-			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RatelimiterOptions),
+			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions),
 		}).
 		Complete(c)
 }

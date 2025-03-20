@@ -33,6 +33,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -42,6 +43,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
 	"github.com/karmada-io/karmada/pkg/controllers/ctrlutil"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -59,6 +61,7 @@ type Controller struct {
 	EventRecorder                record.EventRecorder
 	SkippedPropagatingNamespaces []*regexp.Regexp
 	OverrideManager              overridemanager.OverrideManager
+	RateLimiterOptions           ratelimiterflag.Options
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -282,5 +285,8 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 		Watches(&policyv1alpha1.ClusterOverridePolicy{},
 			handler.EnqueueRequestsFromMapFunc(clusterOverridePolicyNamespaceFn),
 			clusterOverridePolicyPredicate).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions),
+		}).
 		Complete(c)
 }

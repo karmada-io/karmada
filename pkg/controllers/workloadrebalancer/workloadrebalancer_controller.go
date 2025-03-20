@@ -31,11 +31,13 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	appsv1alpha1 "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -46,7 +48,8 @@ const (
 
 // RebalancerController is to handle a rebalance to workloads selected by WorkloadRebalancer object.
 type RebalancerController struct {
-	Client client.Client
+	Client             client.Client
+	RateLimiterOptions ratelimiterflag.Options
 }
 
 // SetupWithManager creates a controller and register to controller manager.
@@ -65,6 +68,7 @@ func (c *RebalancerController) SetupWithManager(mgr controllerruntime.Manager) e
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(ControllerName).
 		For(&appsv1alpha1.WorkloadRebalancer{}, builder.WithPredicates(predicateFunc)).
+		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).
 		Complete(c)
 }
 
