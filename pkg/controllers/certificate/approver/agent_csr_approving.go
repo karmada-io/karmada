@@ -33,9 +33,11 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util/certificate"
 )
 
@@ -47,7 +49,8 @@ const (
 
 // AgentCSRApprovingController is used to automatically approve the agent's CSR.
 type AgentCSRApprovingController struct {
-	Client kubernetes.Interface
+	Client             kubernetes.Interface
+	RateLimiterOptions ratelimiterflag.Options
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -289,5 +292,6 @@ func (a *AgentCSRApprovingController) SetupWithManager(mgr controllerruntime.Man
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(csrApprovingController).
 		For(&certificatesv1.CertificateSigningRequest{}, builder.WithPredicates(predicateFunc)).
+		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](a.RateLimiterOptions)}).
 		Complete(a)
 }

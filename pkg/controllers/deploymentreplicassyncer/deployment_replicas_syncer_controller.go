@@ -27,11 +27,13 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
@@ -45,7 +47,8 @@ const (
 
 // DeploymentReplicasSyncer is to sync deployment replicas from status field to spec field.
 type DeploymentReplicasSyncer struct {
-	Client client.Client
+	Client             client.Client
+	RateLimiterOptions ratelimiterflag.Options
 }
 
 var predicateFunc = predicate.Funcs{
@@ -88,6 +91,7 @@ func (r *DeploymentReplicasSyncer) SetupWithManager(mgr controllerruntime.Manage
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(ControllerName).
 		For(&appsv1.Deployment{}, builder.WithPredicates(predicateFunc)).
+		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](r.RateLimiterOptions)}).
 		Complete(r)
 }
 
