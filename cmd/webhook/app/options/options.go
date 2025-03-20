@@ -66,6 +66,10 @@ type Options struct {
 	DefaultNotReadyTolerationSeconds    int64
 	DefaultUnreachableTolerationSeconds int64
 
+	// The ratio of reserved GOMEMLIMIT memory to the detected maximum container or system memory.
+	// Defaults to 0.9.
+	MemlimitRatio float64
+
 	ProfileOpts profileflag.Options
 }
 
@@ -95,6 +99,8 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	// webhook flags
 	flags.Int64Var(&o.DefaultNotReadyTolerationSeconds, "default-not-ready-toleration-seconds", 300, "Indicates the tolerationSeconds of the propagation policy toleration for notReady:NoExecute that is added by default to every propagation policy that does not already have such a toleration.")
 	flags.Int64Var(&o.DefaultUnreachableTolerationSeconds, "default-unreachable-toleration-seconds", 300, "Indicates the tolerationSeconds of the propagation policy toleration for unreachable:NoExecute that is added by default to every propagation policy that does not already have such a toleration.")
+
+	flags.Float64Var(&o.MemlimitRatio, "auto-gomemlimit-ratio", 0.9, "The ratio of reserved GOMEMLIMIT memory to the detected maximum container or system memory. The value must be greater than 0 and less than or equal to 1.")
 
 	o.ProfileOpts.AddFlags(flags)
 }

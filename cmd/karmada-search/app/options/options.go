@@ -52,6 +52,10 @@ type Options struct {
 
 	DisableSearch bool
 	DisableProxy  bool
+
+	// The ratio of reserved GOMEMLIMIT memory to the detected maximum container or system memory.
+	// Defaults to 0.9.
+	MemlimitRatio float64
 }
 
 // NewOptions returns a new Options.
@@ -88,7 +92,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver.")
 	flags.BoolVar(&o.DisableSearch, "disable-search", false, "Disable search feature that would save memory usage significantly.")
 	flags.BoolVar(&o.DisableProxy, "disable-proxy", false, "Disable proxy feature that would save memory usage significantly.")
-
+	flags.Float64Var(&o.MemlimitRatio, "auto-gomemlimit-ratio", 0.9, "The ratio of reserved GOMEMLIMIT memory to the detected maximum container or system memory. The value must be greater than 0 and less than or equal to 1.")
 	o.ProfileOpts.AddFlags(flags)
 }
 

@@ -37,6 +37,7 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
+	"github.com/karmada-io/karmada/pkg/goruntime"
 	"github.com/karmada-io/karmada/pkg/metricsadapter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -92,7 +93,10 @@ type Options struct {
 	KubeAPIQPS float32
 	// KubeAPIBurst is the burst to allow while talking with karmada-apiserver.
 	KubeAPIBurst int
-	ProfileOpts  profileflag.Options
+	// The ratio of reserved GOMEMLIMIT memory to the detected maximum container or system memory.
+	// Defaults to 0.9.
+	MemlimitRatio float64
+	ProfileOpts   profileflag.Options
 }
 
 // NewOptions builds a default metrics-adapter options.
@@ -119,6 +123,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver.")
 	fs.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver.")
 	fs.StringVar(&o.KubeConfig, "kubeconfig", o.KubeConfig, "Path to karmada control plane kubeconfig file.")
+	fs.Float64Var(&o.MemlimitRatio, "auto-gomemlimit-ratio", 0.9, "The ratio of reserved GOMEMLIMIT memory to the detected maximum container or system memory. The value must be greater than 0 and less than or equal to 1.")
 }
 
 // Config returns config for the metrics-adapter server given Options
@@ -182,6 +187,8 @@ func (o *Options) Run(ctx context.Context) error {
 	}
 
 	profileflag.ListenAndServe(o.ProfileOpts)
+
+	goruntime.SetMemLimit(o.MemlimitRatio)
 
 	stopCh := ctx.Done()
 	metricsServer, err := o.Config(stopCh)
