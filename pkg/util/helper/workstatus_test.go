@@ -36,6 +36,7 @@ import (
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util/indexregistry"
 )
 
 func TestAggregateResourceBindingWorkStatus(t *testing.T) {
@@ -201,7 +202,7 @@ func TestAggregateResourceBindingWorkStatus(t *testing.T) {
 				WithScheme(scheme).
 				WithIndex(
 					&workv1alpha1.Work{},
-					workv1alpha2.ResourceBindingPermanentIDLabel,
+					indexregistry.WorkIndexByResourceBindingID,
 					IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel),
 				).
 				WithObjects(objects...).
@@ -398,7 +399,7 @@ func TestAggregateClusterResourceBindingWorkStatus(t *testing.T) {
 				WithScheme(scheme).
 				WithIndex(
 					&workv1alpha1.Work{},
-					workv1alpha2.ClusterResourceBindingPermanentIDLabel,
+					indexregistry.WorkIndexByClusterResourceBindingID,
 					IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
 				).
 				WithObjects(objects...).
