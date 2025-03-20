@@ -39,6 +39,7 @@ import (
 	"github.com/karmada-io/karmada/cmd/descheduler/app/options"
 	"github.com/karmada-io/karmada/pkg/descheduler"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/goruntime"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
@@ -129,6 +130,9 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 	serveHealthzAndMetrics(opts.HealthProbeBindAddress, opts.MetricsBindAddress)
 
 	profileflag.ListenAndServe(opts.ProfileOpts)
+
+	//auto setting GOMAXPROCS
+	goruntime.SetMaxProcs()
 
 	restConfig, err := clientcmd.BuildConfigFromFlags(opts.Master, opts.KubeConfig)
 	if err != nil {

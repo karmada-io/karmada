@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/conversion"
 
 	"github.com/karmada-io/karmada/cmd/webhook/app/options"
+	"github.com/karmada-io/karmada/pkg/goruntime"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
@@ -111,6 +112,9 @@ func Run(ctx context.Context, opts *options.Options) error {
 	klog.Infof("karmada-webhook version: %s", version.Get())
 
 	profileflag.ListenAndServe(opts.ProfileOpts)
+
+	//auto setting GOMAXPROCS
+	goruntime.SetMaxProcs()
 
 	config, err := controllerruntime.GetConfig()
 	if err != nil {
