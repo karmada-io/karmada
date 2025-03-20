@@ -29,12 +29,14 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/conversion"
 
 	"github.com/karmada-io/karmada/cmd/webhook/app/options"
+	versionmetrics "github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
@@ -182,6 +184,8 @@ func Run(ctx context.Context, opts *options.Options) error {
 	hookServer.Register("/mutate-resourcebinding", &webhook.Admission{Handler: &resourcebinding.MutatingAdmission{Decoder: decoder}})
 	hookServer.Register("/mutate-clusterresourcebinding", &webhook.Admission{Handler: &clusterresourcebinding.MutatingAdmission{Decoder: decoder}})
 	hookServer.WebhookMux().Handle("/readyz/", http.StripPrefix("/readyz/", &healthz.Handler{}))
+
+	ctrlmetrics.Registry.MustRegister(versionmetrics.NewBuildInfoCollector())
 
 	// blocks until the context is done.
 	if err := hookManager.Start(ctx); err != nil {

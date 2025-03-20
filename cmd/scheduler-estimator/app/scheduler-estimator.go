@@ -36,6 +36,7 @@ import (
 
 	"github.com/karmada-io/karmada/cmd/scheduler-estimator/app/options"
 	"github.com/karmada-io/karmada/pkg/estimator/server"
+	versionmetrics "github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
@@ -183,6 +184,8 @@ func healthzHandler(w http.ResponseWriter, _ *http.Request) {
 }
 
 func metricsHandler() http.Handler {
+	ctrlmetrics.Registry.MustRegister(versionmetrics.NewBuildInfoCollector())
+
 	return promhttp.HandlerFor(ctrlmetrics.Registry, promhttp.HandlerOpts{
 		ErrorHandling: promhttp.HTTPErrorOnError,
 	})
