@@ -13,122 +13,589 @@ approvers:
 creation-date: 2025-03-07
 ---
 
-# Separation of Karmada Component Certificates to Enhance Security and Compliance
+# Karmada Component Certificate Separation for Enhanced Security and Compliance
 
 ## Summary
 
-This proposal aims to refactor Karmada's certificate management system by issuing unique X.509 certificates to each core component, thereby standardizing the certificate system and enhancing security compliance. The project will establish a hierarchical certificate framework based on a single root Certificate Authority (CA). It will issue dedicated server certificates for 8 server components and specialized client certificates for 11 client components. This approach will ensure strong identity authentication for inter-component communication, eliminate security risks associated with shared certificates, and ultimately create a certificate management solution that meets industry standards.
+This proposal aims to restructure Karmada's certificate management system by issuing unique X.509 certificates for each core component, establishing a standardized and security-compliant certificate infrastructure. The project will implement a hierarchical certificate authority (CA) system based on a single root CA, issuing individual server certificates for 8 server components and dedicated client certificates for 11 client components. This will ensure strong mutual authentication between components, eliminate security risks from shared certificates, and ultimately form an industry-standard compliant certificate management solution.
 
 ## Motivation
 
-The current Karmada architecture exhibits the following certificate management shortcomings:
+Current certificate management in Karmada presents the following issues:
 
-- **Identity Confusion:** All components share the same certificate content, making it impossible to distinguish component identities via the certificate subject.
-- **Security Vulnerabilities:** A single certificate leak can compromise the entire system, violating the principle of least privilege.
-- **Operational Complexity:** Certificate rotation must be performed globally due to the lack of fine-grained control.
-- **Compliance Gaps:** The current approach does not meet cloud-native security standards (such as NIST SP 800-204B) regarding mTLS communication between microservices.
+- **Identity Confusion Risk**: All components share identical certificate content, preventing component identification through certificate Subject fields
+- **Security Vulnerabilities**: Compromise of a single certificate jeopardizes the entire system, violating the principle of least privilege
+- **Operational Complexity**: Certificate rotation requires global operations with no granular control
+- **Compliance Gaps**: Fails to meet cloud-native security standards (e.g., NIST SP 800-204B) for mTLS communication between microservices
+
+This certificate modification primarily affects the certificate generation logic when deploying Karmada clusters through hack scripts. The phased approach focuses on experimental updates in script-based deployments due to the sensitive nature of certificate resources, requiring extensive community testing before extending to other production deployment methods.
 
 ### Goals
-
-**Expected Outcome:**
-
-- Complete the issuance of distinct certificates for 8 server components and import the certificate contents into the corresponding certificate Secrets.
-- Complete the issuance of distinct certificates for 11 client components and import the certificate contents into the corresponding certificate Secrets or Config Secrets.
+**Expected Outcomes:**
+- Issue distinct certificates for 8 server components and store them in corresponding Secrets
+- Issue distinct certificates for 11 client components and store them in appropriate Secrets/ConfigMaps
 
 ### Non-Goals
 
 ## Proposal
 
-In the current system, the certificate usage for server and client components is as follows:
+Currently, the certificate usage in the system for server and client components is as follows:
+
+### Definition of Server and Client Components:
+
+- **Server Component**: A component that provides API endpoints.
+- **Client Component**: A component that connects to other components.
+
+The components that use certificates are as follows:
 
 - **8 Server Components:**
-  1. karmada-apiserver
-  2. karmada-scheduler
-  3. karmada-controller-manager
-  4. karmada-webhook
-  5. karmada-aggregated-apiserver
-  6. karmada-search
-  7. karmada-descheduler
-  8. karmada-metrics-adapter
+  1. karmada-apiserver (both server and client)
+  2. karmada-aggregated-apiserver (both server and client)
+  3. karmada-scheduler-estimator (both server and client)
+  4. karmada-metrics-adapter (both server and client)
+  5. karmada-webhook (both server and client)
+  6. karmada-search (both server and client)
+  7. etcd
+  8. karmada-interpreter-webhook (both server and client)
 - **11 Client Components:**
-  1. karmada-agent
-  2. karmada-scheduler-estimator
-  3. karmada-interpreter-webhook
-  4. karmada-cluster-controller
-  5. karmada-policy-controller
-  6. karmada-work-controller
-  7. karmada-binding-controller
-  8. karmada-status-controller
-  9. karmada-federated-resource-controller
-  10. karmada-propagation-controller
-  11. karmada-execution-controller
+  1. karmada-apiserver (connects to etcd)
+  2. karmada-aggregated-apiserver (connects to etcd, apiserver)
+  3. karmada-scheduler-estimator (connects to apiserver)
+  4. karmada-controller-manager (connects to apiserver)
+  5. karmada-metrics-adapter (connects to apiserver)
+  6. karmada-webhook (connects to apiserver)
+  7. karmada-search (connects to apiserver, etcd)
+  8. karmada-descheduler (connects to apiserver, karmada-scheduler-estimator)
+  9. karmada-scheduler (connects to apiserver, karmada-scheduler-estimator)
+  10. karmada-interpreter-webhook (connects to apiserver)
+  11. karmadactl (connects to apiserver)
+  12. karmada-agent (connects to apiserver)
 
-The current certificate allocation is as follows:
-
-- **Server Components:**
-  - Only the apiserver and the local etcd component possess individual certificates.
-  - All other server components share the same `karmda-admin` certificate.
-  - Most server components load the certificate into containers via a shared volume.
-- **Client Components:**
-  - All client components share a single client certificate generated by the karmada-apiserver, which is stored in the `client-certificate-data` field within the karmada-apiserver.config file.
-
-In addition, due to the special nature of karmada-controller-manager here, although it is referred to as a server component, it is actually a collection of all client controller components, so I think that a common substitute should be generated for all controller components here The client component certificates that table their identities do not generate server component related information for the karmada-controller-manager
-
-To address these issues and meet best practices, every component should have its own unique certificate reflecting its identity. The specific modifications are as follows:
-
-------
-
-### 1. Changes for Server Components
-
-#### 1.1 Modifying the Certificate Generation Framework
-
-- Extend the CertConfig Definition:
-  - Add configuration functions for each component, ensuring that the component name can be specified as the Common Name (CN).
-  - Supplement the certificate name constants in the `constants` package.
-- Adjust the Generation Logic:
-  - Modify the certificate generation logic in `pkg/karmadactl/cmdinit/kubernetes/deploy.go` to generate individual certificates and keys per component.
-  - For local etcd usage, ensure that etcd also gets its own dedicated certificate and key.
-
-#### 1.2 Modifying Certificate Upload and Secret Management
-
-- Generate Independent Secrets:
-  - Modify the certificate upload logic in `operator/pkg/tasks/init/upload.go` to replace the shared certificate handling with individual Secret creation for each component.
-  - Add new functions to create these independent Secrets and enforce new RBAC rules to restrict each component’s access to its own certificate.
-- Certificate File Generation and Mounting:
-  - During `karmadactl init`, generate separate crt and key files for each component under the pki folder.
-  - Adjust each component’s `manifest.go` or other Pod configuration files to mount only the certificate relevant to that component.
-
-------
-
-### 2. Changes for Client Components
-
-#### 2.1 Client Certificate Issuance Strategy
-
-Currently, all client components use a single client certificate. Two approaches are considered:
-
-- Option 1: Issue Independent Authentication Certificates for Each Client
-  - Modify the certificate issuance tool to generate a dedicated authentication certificate for each client component (with CN set to the component name).
-  - Adjust the client construction logic so that each client uses its own certificate during connections.
-- Option 2: Expand the Configuration via Multi-User Mode
-  - In the existing `karmada-apiserver.config` file, store each client component’s certificate information in a multi-user format.
-  - Implement a mechanism for the client to load only its relevant certificate data and use it for authentication.
-
-#### 2.2 Subsequent Modifications
-
-- API Server Authentication Logic:
-  - Once the certificate issuance tool is modified, the API Server authentication logic may need adjustments to remove the current binding of client certificates to specific servers.
-  - Given that different Karmada clusters may use different root certificates, provide an option during cluster creation to use an external root certificate as the CA for signing other certificates, ensuring consistent validation across clusters.
-
-------
-
-### 3. Expected Outcomes
+Currently, the certificate allocation is as follows:
 
 - Server Components:
-  - Issue independent certificates for the 8 server components and import the certificate contents into their respective Secrets.
+  - Only the apiserver and local etcd components have independent certificates.
+  - All other server components share the same certificate with `cn=karmda-admin`.
+  - Most components mount certificates through volumes, loading them into the container.
 - Client Components:
-  - Depending on the chosen option, either issue independent authentication certificates for the 11 client components or use a multi-user configuration in the karmada-apiserver.config file to achieve independent authentication, ensuring that each client uses its own certificate during connection.
+  - All client components connected to the apiserver share the client certificate generated by the karmada-apiserver.
+  - All client components connected to etcd share the etcd-client certificate generated by etcd.
+  - Client components connected to karmada-scheduler-estimator use the grpc validation certificate issued by karmada-scheduler-estimator.
 
-Completing these modifications will significantly enhance the clarity of component identities and security within the Karmada system, reduce the security risks associated with shared certificates, and align certificate management with industry best practices.
+**Special Cases**:
+
+1. For the two clients connected to karmada-scheduler-estimator (`karmada-scheduler` and `karmada-descheduler`), the certificate is only used to complete the TLS connection via grpc, without any identity validation properties.
+2. The `karmada-interpreter-webhook` component is used only in cluster e2e testing and is considered a test component, so it does not need fine-grained certificate separation.
+
+To address this issue and meet best practices, each component should have an independent certificate reflecting its identity. The specific modification plan is as follows:
+
+------
+
+### 1. Modifications for Server Components
+
+#### 1.1 Modify the Certificate Generation
+
+The main modification is to change the certificate generation logic during the deployment of the Karmada cluster using the `hack/deploy-karmada.sh` script.
+
+Currently, the certificate generation process in `hack/deploy-karmada.sh` is as follows:
+
+1. ##### Create the root CA
+
+```bash
+util::create_signing_certkey "" "${CERT_DIR}" ca karmada '"client auth","server auth"'
+```
+
+2. ##### Create general server certificates using the root CA
+
+```bash
+util::create_certkey "" "${CERT_DIR}" "ca" server server "" "${karmadaAltNames[@]}"
+util::create_certkey "" "${CERT_DIR}" "ca" client system:admin system:masters "${karmadaAltNames[@]}"
+util::create_certkey "" "${CERT_DIR}" "ca" front-proxy-client front-proxy-client "" "${karmadaAltNames[@]}"
+util::create_certkey "" "${CERT_DIR}" "ca" etcd-server etcd-server "" "${karmadaAltNames[@]}"
+util::create_certkey "" "${CERT_DIR}" "ca" etcd-client etcd-client "" "${karmadaAltNames[@]}"
+```
+
+3. ##### Create service account key pairs
+
+```bash
+util::create_key_pair "" "${CERT_DIR}" "sa"
+```
+
+Now, we need to modify the logic as follows:
+
+1. ##### Create the root CA
+
+```bash
+util::create_signing_certkey "" "${CERT_DIR}" ca karmada '"client auth","server auth"'
+```
+
+2. ##### For each server component, create the server authentication certificate used for API endpoints (distinguished by modifying the corresponding CN name)
+
+```bash
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-apiserver karmada-apiserver "" "${karmadaAltNames[@]}"
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-aggregated-apiserver karmada-aggregated-apiserver "" "${karmadaAltNames[@]}"
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-scheduler-estimator karmada-scheduler-estimator system:master "${karmadaAltNames[@]}"
+...
+```
+
+3. ##### For components like etcd and apiserver that provide connections to external components, use the component's certificate to create corresponding client certificates.
+
+```bash
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-apiserver-etcd-client karmada-apiserver "" "${karmadaAltNames[@]}"
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-aggregated-apiserver-etcd-client karmada-aggregated-apiserver "" "${karmadaAltNames[@]}"
+...
+```
+
+4. ##### Create service account key pairs
+
+```bash
+util::create_key_pair "" "${CERT_DIR}" "sa"
+```
+
+Through this approach, we can mark the identity of the request and the requested party, and control the access permissions of each component to the cluster via the organization (O) and user (CN) fields.
+
+#### 1.2 Modify ConfigMap and Secret Management
+
+**Secret**:
+
+Currently, when deploying Karmada, each component's corresponding server and client certificates are stored as individual secrets in the cluster. This approach works under the current configuration, as the number of certificates is not large.
+
+```bash
+# Generate a secret to store the certificates
+function generate_cert_related_secrets {
+    local karmada_ca
+    local karmada_ca_key
+    karmada_ca=$(base64 < "${ROOT_CA_FILE}" | tr -d '\r\n')
+    karmada_ca_key=$(base64 < "${ROOT_CA_KEY}" | tr -d '\r\n')
+
+    local TEMP_PATH
+    TEMP_PATH=$(mktemp -d)
+    echo ${TEMP_PATH}
+
+    # 1. Generate secret with secret cert
+    generate_cert_secret karmada-apiserver ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
+    generate_cert_secret karmada-aggregated-apiserver ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
+    generate_cert_secret karmada-metrics-adapter ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
+    generate_cert_secret karmada-search ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
+    generate_cert_secret karmada-webhook ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
+    generate_cert_secret karmada-interpreter-webhook-example ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
+    generate_cert_secret etcd ${karmada_ca} ${ETCD_SERVER_CRT} ${ETCD_SERVER_KEY}
+
+    # 2. Generate secret with client cert
+    generate_cert_secret karmada-apiserver-etcd-client ${karmada_ca} ${ETCD_CLIENT_CRT} ${ETCD_CLIENT_KEY}
+    generate_cert_secret karmada-apiserver-front-proxy-client ${karmada_ca} ${FRONT_PROXY_CLIENT_CRT} ${FRONT_PROXY_CLIENT_KEY}
+    generate_cert_secret karmada-aggregated-apiserver-etcd-client ${karmada_ca} ${ETCD_CLIENT_CRT} ${ETCD_CLIENT_KEY}
+    generate_cert_secret karmada-search-etcd-client ${karmada_ca} ${ETCD_CLIENT_CRT} ${ETCD_CLIENT_KEY}
+    generate_cert_secret etcd-etcd-client ${karmada_ca} ${ETCD_CLIENT_CRT} ${ETCD_CLIENT_KEY}
+    generate_cert_secret karmada-scheduler-scheduler-estimator-client ${karmada_ca} ${CLIENT_CRT} ${CLIENT_KEY}
+    generate_cert_secret karmada-descheduler-scheduler-estimator-client ${karmada_ca} ${CLIENT_CRT} ${CLIENT_KEY}
+
+    # 3. Generate secret with CA cert or SA key
+    generate_ca_cert_secret kube-controller-manager ${karmada_ca} ${karmada_ca_key}
+    generate_key_pair_secret kube-controller-manager ${SA_PUB} ${SA_KEY}
+    generate_key_pair_secret karmada-apiserver ${SA_PUB} ${SA_KEY}
+
+    # 4. Generate secret with Karmada config
+    components=(karmada-aggregated-apiserver karmada-controller-manager kube-controller-manager karmada-scheduler karmada-descheduler karmada-metrics-adapter karmada-search karmada-webhook karmada-interpreter-webhook-example)
+    for component in "${components[@]}"
+    do
+      generate_config_secret ${component} ${karmada_ca} ${CLIENT_CRT} ${CLIENT_KEY}
+    done
+
+    rm -rf "${TEMP_PATH}"
+}
+```
+
+During deployment, the components will mount the `karmada-kube-config` file and the corresponding certificates to the pod, and then load these certificates via parameters.
+
+In the Karmada cluster deployed via the bash script, there are three root CA files: `front-proxy-ca`, `server-ca`, and `etcd/ca`. Therefore, we need to generate corresponding server certificates, client certificates for each component, and etcd certificates for components connecting to the etcd server. If we continue with the previous strategy and store all certificates in separate secrets, it will lead to an excessive number of certificates in the `karmada-system` namespace. To address this, we propose to aggregate certificates with similar permissions into a single secret, reducing the number of secrets in the namespace. Below is an example YAML file for `karmada-etcd-client-ca` and `karmada-scheduler-estimator-client-ca`, which contain the certificates for the respective components to connect to etcd.
+
+```yaml
+# karmada-etcd-client-ca Secret (contains certificates for multiple components accessing etcd)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: karmada-etcd-client-ca
+  namespace: karmada-system
+type: Opaque
+data:
+  # Component 1's etcd client certificate
+  karmada-apiserver-etcd-client.crt: <BASE64_APISERVER_ETCD_CLIENT_CRT>
+  karmada-apiserver-etcd-client.key: <BASE64_APISERVER_ETCD_CLIENT_KEY>
+  
+  # Component 2's etcd client certificate
+  karmada-controller-manager-etcd-client.crt: <BASE64_CONTROLLER_ETCD_CLIENT_CRT>
+  karmada-controller-manager-etcd-client.key: <BASE64_CONTROLLER_ETCD_CLIENT_KEY>
+```
+
+By aggregating certificates with similar permissions into secrets, we reduce the number of secrets in the namespace.
+
+When actually mounting and using the certificates, we modify the `volumeMounts` and `items` fields in the component's configuration file, so that each component mounts only its own part of the certificate from the secret. This achieves identification of the component’s connection identity.
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karmada-scheduler
+  namespace: karmada-system
+  labels:
+    app: karmada-scheduler
+spec:
+...
+  template:
+    metadata:
+      labels:
+        app: karmada-scheduler
+    spec:
+      ...
+        command:
+          - /bin/karmada-scheduler
+          - --kubeconfig=/etc/karmada/config/scheduler-config  
+        ...
+          - --scheduler-estimator-ca-file=/etc/karmada/pki/estimator-ca/ca.crt
+          - --scheduler-estimator-cert-file=/etc/karmada/pki/estimator-client/tls.crt
+          - --scheduler-estimator-key-file=/etc/karmada/pki/estimator-client/tls.key
+        volumeMounts:
+          - name: kube-config
+            mountPath: /etc/karmada/config
+            readOnly: true
+          - name: estimator-client-ca
+            mountPath: /etc/karmada/pki/estimator-ca
+            readOnly: true
+          - name: estimator-client-cert
+            mountPath: /etc/karmada/pki/estimator-client
+            readOnly: true
+      volumes:
+        - name: kube-config
+          configMap:
+            name: karmada-kube-config
+            items:
+              - key: karmada-scheduler-config
+                path: karmada-scheduler-config
+        ...
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+```
+
+**ConfigMap:**
+
+Currently, regardless of the client type, all clients connect to the apiserver via the `karmada-kube-config` file containing the `client-certificate-data`, completing authentication during the connection process.
+
+```yaml
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data:...
+    server: https://x.x.x.x:32443
+  name: karmada-apiserver
+contexts:
+- context:
+    cluster: karmada-apiserver
+    user: karmada-admin
+  name: karmada-apiserver
+current-context: karmada-apiserver
+kind: Config
+preferences: {}
+users:
+- name: karmada-admin
+  user:
+    client-certificate-data: ...
+    client-key-data: ...
+```
+
+After the update, since the new generation logic will create a separate certificate for each component, there will be no universal `karmada-kube-config` for all components to connect to the apiserver. Therefore, each component will use the same template but with different certificates and users to create its own `kubeconfig` file.
+
+These files will be stored in a single `karmada-kube-config` ConfigMap, with subdirectories named after the components to distinguish them. Below is an example YAML file for constructing the ConfigMap:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: karmada-kube-config
+  namespace: karmada-system
+data:
+  # Component-specific subdirectories (each component’s independent kubeconfig)
+  karmada-apiserver/config: |
+    apiVersion: v1
+    clusters:
+    - cluster:
+        certificate-authority-data: <APISERVER_CA_CERT>
+        server: https://karmada-apiserver:6443
+      name: karmada-apiserver
+    contexts:
+    - context:
+        cluster: karmada-apiserver
+        user: karmada-apiserver-client
+      name: default
+    current-context: default
+    kind: Config
+    users:
+    - name: karmada-apiserver-client
+      user:
+        client-certificate: ...
+        client-key: ...
+
+  karmada-scheduler/config: |
+    apiVersion: v1
+    clusters:
+    - cluster:
+        certificate-authority-data: <APISERVER_CA_CERT>
+        server: https://karmada-apiserver:6443
+      name: karmada-apiserver
+    contexts:
+    - context:
+        cluster: karmada-apiserver
+        user: karmada-scheduler
+      name: default
+    current-context: default
+    kind: Config
+    users:
+    - name: karmada-scheduler
+      user:
+        client-certificate: ...
+        client-key: ...
+```
+
+These `karmada-config` files will be mounted into the pods when deploying the components.
+
+------
+
+### 2. Certificate Modification Plan
+
+Certificate before modification
+
+#### Server Certificate (`karmada-apiserver`)
+
+```x
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 3120819415934316465 (0x2b4f60b956e82fb1)
+        Signature Algorithm: sha256WithRSAEncryption
+    Issuer: CN = karmada
+    Validity
+        Not Before: Mar 6 01:57:50 2025 GMT
+        Not After : Mar 6 01:57:48 2026 GMT
+    Subject: O = , CN = karmada-apiserver
+    X509v3 extensions:
+        X509v3 Subject Alternative Name:
+            DNS:, DNS:.karmada-system.svc,
+            DNS:.karmada-system.svc.cluster.local,
+            DNS:karmada-aggregated-apiserver,
+            DNS:karmada-aggregated-apiserver.karmada-system.svc.cluster.local,
+            DNS:karmada-apiserver,
+            DNS:karmada-apiserver.karmada-system.svc.cluster.local,
+            DNS:karmada-webhook,
+            DNS:karmada-webhook.karmada-system.svc,
+            DNS:karmada-webhook.karmada-system.svc.cluster.local,
+            DNS:kubernetes, DNS:kubernetes.default,
+            DNS:kubernetes.default.svc,
+            DNS:localhost,
+            IP Address:127.0.0.1, IP Address:172.18.0.3, IP Address:2407:D840:51:1:0:0:0:6
+```
+
+#### Server Certificate (etcd-server)
+
+```
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 3465618765702869829 (0x301859e7e0a5b345)
+        Signature Algorithm: sha256WithRSAEncryption
+        Issuer: CN = etcd-ca
+        Validity
+        Subject: CN = karmada-etcd-server
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (3072 bit)
+                Modulus:
+                   ...
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage: 
+                TLS Web Server Authentication, TLS Web Client Authentication
+            X509v3 Basic Constraints: critical
+                CA:FALSE
+            X509v3 Authority Key Identifier: 
+                14:55:5D:43:EB:76:25:75:B0:29:45:6D:F6:30:CD:99:6C:C2:B3:1F
+            X509v3 Subject Alternative Name: 
+                DNS:etcd-0.etcd.karmada-system.svc.cluster.local, DNS:localhost, IP Address:127.0.0.1
+```
+
+#### Server Certificate (other component)
+
+```
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 1637290494322391051 (0x16b8d307a435b80b)
+        Signature Algorithm: sha256WithRSAEncryption
+        Issuer: CN = karmada
+        Validity
+            Not Before: Mar 16 07:15:19 2025 GMT
+            Not After : Mar 16 07:15:17 2026 GMT
+        Subject: O = system:masters, CN = system:admin
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (3072 bit)
+                Modulus:
+                    ...
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage: 
+                TLS Web Server Authentication, TLS Web Client Authentication
+            X509v3 Basic Constraints: critical
+                CA:FALSE
+            X509v3 Authority Key Identifier: 
+                52:7F:A9:9B:95:75:C7:74:42:5D:FF:04:5A:7F:E3:8A:4C:5F:B0:96
+            X509v3 Subject Alternative Name: 
+                DNS:, DNS:*.karmada-system.svc, DNS:*.karmada-system.svc.cluster.local, DNS:karmada-aggregated-apiserver, DNS:karmada-aggregated-apiserver.karmada-system.svc.cluster.local, DNS:karmada-apiserver, DNS:karmada-apiserver.karmada-system.svc.cluster.local, DNS:karmada-webhook, DNS:karmada-webhook.karmada-system.svc, DNS:karmada-webhook.karmada-system.svc.cluster.local, DNS:kubernetes, DNS:kubernetes.default, DNS:kubernetes.default.svc, DNS:localhost, IP Address:127.0.0.1, IP Address:172.18.0.2, IP Address:223.85.243.108
+```
+
+#### Client Certificate (`client-certificate-data`)
+
+```
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 6967587319794734003 (0x60b1d7c061e193b3)
+        Signature Algorithm: sha256WithRSAEncryption
+    Issuer: CN = karmada
+    Validity
+        Not Before: Mar 6 01:57:50 2025 GMT
+        Not After : Mar 6 01:57:48 2026 GMT
+    Subject: O = system:masters, CN = system:admin
+    X509v3 extensions:
+        X509v3 Key Usage: critical
+            Digital Signature, Key Encipherment
+        X509v3 Extended Key Usage:
+            TLS Web Server Authentication, TLS Web Client Authentication
+        X509v3 Basic Constraints: critical
+            CA:FALSE
+        X509v3 Authority Key Identifier:
+            87:3D:86:17:F6:A0:A8:D2:5B:01:95:A5:F9:BB:C9:CD:A3:88:3A:3C
+        X509v3 Subject Alternative Name:
+            DNS:, DNS:.karmada-system.svc,
+            DNS:.karmada-system.svc.cluster.local,
+            DNS:karmada-aggregated-apiserver,
+            DNS:karmada-aggregated-apiserver.karmada-system.svc.cluster.local,
+            DNS:karmada-apiserver,
+            DNS:karmada-apiserver.karmada-system.svc.cluster.local,
+            DNS:karmada-webhook,
+            DNS:karmada-webhook.karmada-system.svc,
+            DNS:karmada-webhook.karmada-system.svc.cluster.local,
+            DNS:kubernetes, DNS:kubernetes.default,
+            DNS:kubernetes.default.svc,
+            DNS:localhost,
+            IP Address:127.0.0.1, IP Address:172.18.0.3, IP Address:2407:D840:51:1:0:0:0:6
+```
+
+It can be seen that before the update, most of Karmada's components used the same certificate, with `O=system:master, CN=system:admin`.
+
+The `system:admin` user is created by Karmada during deployment through the YAML file. This setup prevents the server from distinguishing which client is connecting to it through CA certificate authentication. This configuration leads to confusion within the Karmada system.
+
+### After Changes
+
+#### Server Certificate (`karmada-apiserver`)
+
+```
+Same as above
+```
+
+#### Server Certificate (etcd-server)
+
+```
+Same as above
+```
+
+#### Server Certificate (karmada-search as example)
+
+```
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 1637290494322391051 (0x16b8d307a435b80b)
+        Signature Algorithm: sha256WithRSAEncryption
+        Issuer: CN = karmada
+        Validity
+            Not Before: Mar 16 07:15:19 2025 GMT
+            Not After : Mar 16 07:15:17 2026 GMT
+        Subject: O = system:masters, CN = system:karmada-scheduler-estimator
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (3072 bit)
+                Modulus:
+                    ...
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage: 
+                TLS Web Server Authentication, TLS Web Client Authentication
+            X509v3 Basic Constraints: critical
+                CA:FALSE
+            X509v3 Authority Key Identifier: 
+                52:7F:A9:9B:95:75:C7:74:42:5D:FF:04:5A:7F:E3:8A:4C:5F:B0:96
+            X509v3 Subject Alternative Name: 
+                DNS:, DNS:*.karmada-system.svc, DNS:*.karmada-system.svc.cluster.local, 
+                DNS:karmada-apiserver.karmada-system.svc.cluster.local,
+            	DNS:karmada-apiserver,
+            	DNS:karmada-etcd.karmada-system.svc.cluster.local,
+            	DNS:karmada-etcd,
+            	IP Address:127.0.0.1,
+            	IP Address:172.18.0.3
+          # Detailed changes to the dns content still need to be determined
+```
+
+#### Client Certificate (`karmada-scheduler`)
+
+```
+Certificate:
+    Data:
+        Signature Algorithm: sha256WithRSAEncryption
+    Issuer: CN = karmada
+    Subject: O = system:masters, CN = system:karmada-scheduler
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (3072 bit)
+                Modulus:
+                    ...
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage: 
+                TLS Web Server Authentication, TLS Web Client Authentication
+            X509v3 Basic Constraints: critical
+                CA:FALSE
+            X509v3 Authority Key Identifier: 
+                52:7F:A9:9B:95:75:C7:74:42:5D:FF:04:5A:7F:E3:8A:4C:5F:B0:96
+            X509v3 Subject Alternative Name: 
+                DNS:, DNS:*.karmada-system.svc, DNS:*.karmada-system.svc.cluster.local, 
+                DNS:karmada-apiserver.karmada-system.svc.cluster.local,
+            	DNS:karmada-apiserver,
+            	IP Address:127.0.0.1,
+            	IP Address:172.18.0.3
+          # Detailed changes to the dns content still need to be determined
+```
+
+It can be seen that the main modification result is in the certificate's Subject field and SAN (Subject Alternative Name) content. We have modified the CN (Common Name) of the component in the Subject field and restricted the DNS addresses in the SAN. Through these modifications, we can achieve identification of the component's identity and restrict the scope of the certificate's usage.
+
+------
+
+### 3. Expected Outcome
+
+- Server Components:
+  - Complete the issuance of independent certificates for 8 server components and import the certificate content into the corresponding Secrets.
+- Client Components:
+  - Issue independent authentication certificates for 11 client components or use multiple user configurations to achieve independent authentication, ensuring each component uses its own certificate for connections.
+
+By completing the above modifications, the Karmada system will significantly improve the clarity and security of component identities, reduce security risks due to shared certificates, and align certificate management with industry best practices.
 
 ### User Stories (Optional)
 
@@ -136,7 +603,7 @@ Completing these modifications will significantly enhance the clarity of compone
 
 ### Risks and Mitigations
 
-## Design Details
+## Design Details(The current design details are not useful because the implementation needs to be changed)
 
 <!-- This section should contain enough information that the specifics of your change are understandable. This may include API specs (though not always required) or even code snippets. If there's any ambiguity about HOW your proposal will be implemented, this is the place to discuss them. -->
 
