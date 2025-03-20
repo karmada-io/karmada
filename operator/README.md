@@ -307,6 +307,65 @@ If you only need temporary access to the Karmada API Server or prefer not to per
 forward a local port to the Karmada API Server's Pod. This method is ideal for development and debugging but is not 
 recommended for production environments.
 
+### Custom API Server sidecar containers
+By default, the Karmada operator provisions the API Server as a standalone container within a pod. You can configure additional
+containers for the Karmada API Server component by setting the `karmadaAPIServer.sidecarContainers` field in the Karmada CR. This
+configuration enables seamless integration of auxiliary services such as [KMS-based encryption providers](https://kubernetes.io/docs/tasks/administer-cluster/kms-provider/).
+Here is a sample configuration to integrate a KMS provider sidecar container with the Karmada API Server:
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: encryption-config
+  namespace: test
+data:
+  encryption-config.yaml: |
+    apiVersion: apiserver.config.k8s.io/v1
+    kind: EncryptionConfiguration
+    resources:
+      - resources:
+          - secrets
+        providers:
+          - kms:
+              apiVersion: v2
+              name: custom-kms-provider
+              endpoint: unix:///var/run/kmsplugin/socket.sock
+              cachesize: 1000
+              timeout: 3s
+          - identity: {}
+---
+apiVersion: operator.karmada.io/v1alpha1
+kind: Karmada
+metadata:
+  name: karmada-demo
+  namespace: test
+spec:
+  components:
+    karmadaAPIServer:
+      sidecarContainers:
+        - name: kms-plugin
+          image: <custom-kms-plugin-image>
+          volumeMounts:
+            - name: kms-socket
+              mountPath: /var/run/kmsplugin
+      extraArgs:
+        "encryption-provider-config": "/etc/kubernetes/encryption-config.yaml"
+      extraVolumes:
+        - name: kms-socket
+          emptyDir: {}
+        - name: encryption-config
+          configMap:
+            name: encryption-config
+      extraVolumeMounts:
+        - name: encryption-config
+          mountPath: "/etc/kubernetes/encryption-config.yaml"
+          subPath: "encryption-config.yaml"
+        - name: kms-socket
+          mountPath: "/var/run/kmsplugin"
+    etcd: {}
+```
+Once set up, the API server communicates to the plugin over a UNIX domain socket via gRPC.
+
 ## Contributing
 
 The `karmada/operator` repo is part of Karmada from 1.5 onwards. If you're interested in
