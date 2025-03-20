@@ -66,7 +66,7 @@ func GetUnschedulablePodsOfWorkload(unstructObj *unstructured.Unstructured, thre
 		// TODO(Garrybest): add abstract workload
 		return 0, fmt.Errorf("kind(%s) of workload(%s) is not supported", unstructObj.GetKind(), klog.KObj(unstructObj).String())
 	}
-	return int32(unschedulable), nil
+	return int32(unschedulable), nil // #nosec G115: integer overflow conversion int -> int32
 }
 
 func podUnschedulable(pod *corev1.Pod, threshold time.Duration) bool {
