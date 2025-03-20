@@ -184,8 +184,12 @@ func run(ctx context.Context, opts *options.Options) error {
 	if err != nil {
 		return err
 	}
-	registerOption.Secret = *clusterSecret
-	registerOption.ImpersonatorSecret = *impersonatorSecret
+	if clusterSecret != nil {
+		registerOption.Secret = *clusterSecret
+	}
+	if impersonatorSecret != nil {
+		registerOption.ImpersonatorSecret = *impersonatorSecret
+	}
 	err = util.RegisterClusterInControllerPlane(registerOption, controlPlaneKubeClient, generateClusterInControllerPlane)
 	if err != nil {
 		return fmt.Errorf("failed to register with karmada control plane: %w", err)
