@@ -72,6 +72,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/dependenciesdistributor"
 	"github.com/karmada-io/karmada/pkg/detector"
 	"github.com/karmada-io/karmada/pkg/features"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
@@ -377,6 +378,7 @@ func startBindingStatusController(ctx controllerscontext.Context) (enabled bool,
 	rbStatusController := &status.RBStatusController{
 		Client:              ctx.Mgr.GetClient(),
 		DynamicClient:       ctx.DynamicClientSet,
+		KarmadaClient:       ctx.KarmadaClient,
 		InformerManager:     ctx.ControlPlaneInformerManager,
 		ResourceInterpreter: ctx.ResourceInterpreter,
 		EventRecorder:       ctx.Mgr.GetEventRecorderFor(status.RBStatusControllerName),
@@ -754,6 +756,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
 	discoverClientSet := discovery.NewDiscoveryClientForConfigOrDie(restConfig)
 	kubeClientSet := kubeclientset.NewForConfigOrDie(restConfig)
+	karmadaClientSet := karmadaclientset.NewForConfigOrDie(restConfig)
 
 	overrideManager := overridemanager.New(mgr.GetClient(), mgr.GetEventRecorderFor(overridemanager.OverrideManagerName))
 	skippedResourceConfig := util.NewSkippedResourceConfig()
@@ -840,6 +843,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		StopChan:                    stopChan,
 		DynamicClientSet:            dynamicClientSet,
 		KubeClientSet:               kubeClientSet,
+		KarmadaClient:               karmadaClientSet,
 		OverrideManager:             overrideManager,
 		ControlPlaneInformerManager: controlPlaneInformerManager,
 		ResourceInterpreter:         resourceInterpreter,

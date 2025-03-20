@@ -371,6 +371,8 @@ type ResourceBindingStatus struct {
 
 	// Conditions contain the different condition statuses.
 	// +optional
+	// +listType=map
+	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// AggregatedStatus represents status list of the resource running in each member cluster.

@@ -28,6 +28,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
 	"github.com/karmada-io/karmada/pkg/controllers/federatedhpa/config"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
@@ -109,6 +110,7 @@ type Context struct {
 	StopChan                    <-chan struct{}
 	DynamicClientSet            dynamic.Interface
 	KubeClientSet               clientset.Interface
+	KarmadaClient               karmadaclientset.Interface
 	OverrideManager             overridemanager.OverrideManager
 	ControlPlaneInformerManager genericmanager.SingleClusterInformerManager
 	ResourceInterpreter         resourceinterpreter.ResourceInterpreter
