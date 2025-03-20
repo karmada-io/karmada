@@ -29,15 +29,16 @@ func TestInfo_String(t *testing.T) {
 		{
 			name: "test1",
 			info: Info{
-				GitVersion:   "1.3.0",
-				GitCommit:    "da070e68f3318410c8c70ed8186a2bc4736dacbd",
-				GitTreeState: "clean",
-				BuildDate:    "2022-08-31T13:09:22Z",
-				GoVersion:    "go1.18.3",
-				Compiler:     "gc",
-				Platform:     "linux/amd64",
+				GitVersion:     "1.3.0",
+				GitCommit:      "da070e68f3318410c8c70ed8186a2bc4736dacbd",
+				GitTreeState:   "clean",
+				GitShortCommit: "851c78564",
+				BuildDate:      "2022-08-31T13:09:22Z",
+				GoVersion:      "go1.18.3",
+				Compiler:       "gc",
+				Platform:       "linux/amd64",
 			},
-			want: `version.Info{GitVersion:"1.3.0", GitCommit:"da070e68f3318410c8c70ed8186a2bc4736dacbd", GitTreeState:"clean", BuildDate:"2022-08-31T13:09:22Z", GoVersion:"go1.18.3", Compiler:"gc", Platform:"linux/amd64"}`,
+			want: `version.Info{GitVersion:"1.3.0", GitCommit:"da070e68f3318410c8c70ed8186a2bc4736dacbd", GitShortCommit:"851c78564", GitTreeState:"clean", BuildDate:"2022-08-31T13:09:22Z", GoVersion:"go1.18.3", Compiler:"gc", Platform:"linux/amd64"}`,
 		},
 	}
 	for _, tt := range tests {
