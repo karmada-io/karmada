@@ -391,7 +391,8 @@ func reportEndpointSlice(ctx context.Context, c client.Client, endpointSlice *un
 		return err
 	}
 
-	if err := ctrlutil.CreateOrUpdateWork(ctx, c, workMeta, endpointSlice); err != nil {
+	// indicate the Work should be not propagated since it's collected resource.
+	if err := ctrlutil.CreateOrUpdateWork(ctx, c, workMeta, endpointSlice, ctrlutil.WithSuspendDispatching(true)); err != nil {
 		klog.Errorf("Failed to create or update work(%s/%s), Error: %v", workMeta.Namespace, workMeta.Name, err)
 		return err
 	}
@@ -413,9 +414,7 @@ func getEndpointSliceWorkMeta(ctx context.Context, c client.Client, ns string, w
 	ls := map[string]string{
 		util.MultiClusterServiceNamespaceLabel: endpointSlice.GetNamespace(),
 		util.MultiClusterServiceNameLabel:      endpointSlice.GetLabels()[discoveryv1.LabelServiceName],
-		// indicate the Work should be not propagated since it's collected resource.
-		util.PropagationInstruction:          util.PropagationInstructionSuppressed,
-		util.EndpointSliceWorkManagedByLabel: util.MultiClusterServiceKind,
+		util.EndpointSliceWorkManagedByLabel:   util.MultiClusterServiceKind,
 	}
 	if existWork.Labels == nil || (err != nil && apierrors.IsNotFound(err)) {
 		workMeta := metav1.ObjectMeta{Name: workName, Namespace: ns, Labels: ls}

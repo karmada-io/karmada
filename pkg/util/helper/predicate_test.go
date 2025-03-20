@@ -110,6 +110,7 @@ func TestNewExecutionPredicate(t *testing.T) {
 				obj: &workv1alpha1.Work{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster",
+						//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
 						Labels: map[string]string{util.PropagationInstruction: util.PropagationInstructionSuppressed},
 					},
 				},
@@ -230,6 +231,7 @@ func TestNewExecutionPredicate_Update(t *testing.T) {
 	unmatched := &workv1alpha1.Work{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster",
+			//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
 			Labels: map[string]string{util.PropagationInstruction: util.PropagationInstructionSuppressed},
 		},
 	}
@@ -301,6 +303,7 @@ func TestNewExecutionPredicateOnAgent(t *testing.T) {
 		{
 			name: "object is suppressed",
 			obj: &workv1alpha1.Work{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+				//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
 				util.PropagationInstruction: util.PropagationInstructionSuppressed,
 			}}},
 			want: want{
@@ -348,6 +351,7 @@ func TestNewExecutionPredicateOnAgent_Update(t *testing.T) {
 	unmatched := &workv1alpha1.Work{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster",
+			//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
 			Labels: map[string]string{util.PropagationInstruction: util.PropagationInstructionSuppressed},
 		},
 	}
@@ -431,6 +435,7 @@ func TestNewPredicateForServiceExportController(t *testing.T) {
 				obj: &workv1alpha1.Work{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster",
+						//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
 						Labels: map[string]string{util.PropagationInstruction: util.PropagationInstructionSuppressed},
 					},
 				},
@@ -551,6 +556,7 @@ func TestNewPredicateForServiceExportController_Update(t *testing.T) {
 	unmatched := &workv1alpha1.Work{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster",
+			//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
 			Labels: map[string]string{util.PropagationInstruction: util.PropagationInstructionSuppressed},
 		},
 	}
@@ -623,6 +629,7 @@ func TestNewPredicateForServiceExportControllerOnAgent(t *testing.T) {
 			name: "object is suppressed",
 			obj: &workv1alpha1.Work{ObjectMeta: metav1.ObjectMeta{
 				Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster",
+				//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
 				Labels: map[string]string{util.PropagationInstruction: util.PropagationInstructionSuppressed},
 			}},
 			want: want{
@@ -695,6 +702,7 @@ func TestNewPredicateForServiceExportControllerOnAgent_Update(t *testing.T) {
 	unmatched := &workv1alpha1.Work{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster",
+			//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
 			Labels: map[string]string{util.PropagationInstruction: util.PropagationInstructionSuppressed},
 		},
 	}

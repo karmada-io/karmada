@@ -471,6 +471,9 @@ func startServiceExportController(ctx controllerscontext.Context) (enabled bool,
 		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,
 		RateLimiterOptions:          ctx.Opts.RateLimiterOptions,
 	}
+	if err = mcs.IndexField(ctx.Mgr); err != nil {
+		return false, err
+	}
 	serviceExportController.RunWorkQueue()
 	if err := serviceExportController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err

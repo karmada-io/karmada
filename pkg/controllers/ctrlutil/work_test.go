@@ -76,6 +76,7 @@ func TestCreateOrUpdateWork(t *testing.T) {
 				Namespace: "default",
 				Name:      "test-work",
 				Labels: map[string]string{
+					//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
 					util.PropagationInstruction: "some-value",
 				},
 				Annotations: map[string]string{
@@ -111,43 +112,6 @@ func TestCreateOrUpdateWork(t *testing.T) {
 				assert.Equal(t, "test-work", annotations[workv1alpha2.WorkNameAnnotation])
 				assert.Equal(t, "default", annotations[workv1alpha2.WorkNamespaceAnnotation])
 				assert.Equal(t, "overwrite", annotations[workv1alpha2.ResourceConflictResolutionAnnotation])
-			},
-		},
-		{
-			name: "create work with PropagationInstructionSuppressed",
-			workMeta: metav1.ObjectMeta{
-				Namespace: "default",
-				Name:      "test-work",
-				Labels: map[string]string{
-					util.PropagationInstruction: util.PropagationInstructionSuppressed,
-				},
-			},
-			resource: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "apps/v1",
-					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
-						"name": "test-deployment",
-						"uid":  "test-uid",
-					},
-				},
-			},
-			verify: func(t *testing.T, c client.Client) {
-				work := &workv1alpha1.Work{}
-				err := c.Get(context.TODO(), client.ObjectKey{Namespace: "default", Name: "test-work"}, work)
-				assert.NoError(t, err)
-
-				// Get the resource from manifests
-				manifest := &unstructured.Unstructured{}
-				err = manifest.UnmarshalJSON(work.Spec.Workload.Manifests[0].Raw)
-				assert.NoError(t, err)
-
-				// Verify labels and annotations were NOT set
-				labels := manifest.GetLabels()
-				assert.Empty(t, labels[util.ManagedByKarmadaLabel])
-
-				annotations := manifest.GetAnnotations()
-				assert.Empty(t, annotations[workv1alpha2.ResourceTemplateUIDAnnotation])
 			},
 		},
 		{
