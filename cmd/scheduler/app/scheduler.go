@@ -39,6 +39,7 @@ import (
 
 	"github.com/karmada-io/karmada/cmd/scheduler/app/options"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	versionmetrics "github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/scheduler"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
@@ -138,6 +139,8 @@ the most suitable cluster.`,
 
 func run(opts *options.Options, stopChan <-chan struct{}, registryOptions ...Option) error {
 	klog.Infof("karmada-scheduler version: %s", version.Get())
+
+	ctrlmetrics.Registry.MustRegister(versionmetrics.NewBuildInfoCollector())
 	serveHealthzAndMetrics(opts.HealthProbeBindAddress, opts.MetricsBindAddress)
 
 	profileflag.ListenAndServe(opts.ProfileOpts)

@@ -36,6 +36,7 @@ import (
 
 	"github.com/karmada-io/karmada/cmd/scheduler-estimator/app/options"
 	"github.com/karmada-io/karmada/pkg/estimator/server"
+	versionmetrics "github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
@@ -113,6 +114,9 @@ provides the scheduler with more accurate cluster resource information.`,
 
 func run(ctx context.Context, opts *options.Options) error {
 	klog.Infof("karmada-scheduler-estimator version: %s", version.Get())
+
+	ctrlmetrics.Registry.MustRegister(versionmetrics.NewBuildInfoCollector())
+
 	serveHealthzAndMetrics(opts.HealthProbeBindAddress, opts.MetricsBindAddress)
 
 	profileflag.ListenAndServe(opts.ProfileOpts)

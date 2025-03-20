@@ -39,6 +39,7 @@ import (
 	"github.com/karmada-io/karmada/cmd/descheduler/app/options"
 	"github.com/karmada-io/karmada/pkg/descheduler"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	versionmetrics "github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
@@ -126,6 +127,9 @@ karmada-scheduler-estimator to get replica status.`,
 func run(opts *options.Options, stopChan <-chan struct{}) error {
 	klog.Infof("karmada-descheduler version: %s", version.Get())
 	klog.Infof("Please make sure the karmada-scheduler-estimator of all member clusters has been deployed")
+
+	ctrlmetrics.Registry.MustRegister(versionmetrics.NewBuildInfoCollector())
+
 	serveHealthzAndMetrics(opts.HealthProbeBindAddress, opts.MetricsBindAddress)
 
 	profileflag.ListenAndServe(opts.ProfileOpts)
