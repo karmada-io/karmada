@@ -39,6 +39,7 @@ import (
 
 	"github.com/karmada-io/karmada/cmd/scheduler/app/options"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	versionmetrics "github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/scheduler"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
@@ -266,6 +267,8 @@ func healthzHandler(w http.ResponseWriter, _ *http.Request) {
 }
 
 func metricsHandler() http.Handler {
+	ctrlmetrics.Registry.MustRegister(versionmetrics.NewBuildInfoCollector())
+
 	return promhttp.HandlerFor(ctrlmetrics.Registry, promhttp.HandlerOpts{
 		ErrorHandling: promhttp.HTTPErrorOnError,
 	})
