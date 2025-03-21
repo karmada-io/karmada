@@ -36,6 +36,7 @@ import (
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	utilversion "k8s.io/apiserver/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/klog/v2"
 	netutils "k8s.io/utils/net"
 
@@ -120,7 +121,7 @@ func (o *Options) Run(ctx context.Context) error {
 	}
 
 	restConfig := config.GenericConfig.ClientConfig
-	restConfig.QPS, restConfig.Burst = o.KubeAPIQPS, o.KubeAPIBurst
+	restConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(o.KubeAPIQPS, o.KubeAPIBurst)
 	secretLister := config.GenericConfig.SharedInformerFactory.Core().V1().Secrets().Lister()
 	config.GenericConfig.EffectiveVersion = utilversion.NewEffectiveVersion("1.0")
 
