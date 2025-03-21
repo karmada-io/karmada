@@ -374,12 +374,12 @@ func (o *CommandRegisterOption) EnsureNecessaryResourcesExistInControlPlane(boot
 		return nil, err
 	}
 
-	kubelient, err := ToClientSet(rbacCfg)
+	kubeClient, err := ToClientSet(rbacCfg)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
-		err = kubelient.CertificatesV1().CertificateSigningRequests().Delete(context.Background(), csrName, metav1.DeleteOptions{})
+		err = kubeClient.CertificatesV1().CertificateSigningRequests().Delete(context.Background(), csrName, metav1.DeleteOptions{})
 		if err != nil {
 			klog.Warningf("Failed to delete CertificateSigningRequests %s: %v", csrName, err)
 		}
@@ -388,22 +388,22 @@ func (o *CommandRegisterOption) EnsureNecessaryResourcesExistInControlPlane(boot
 	fmt.Println("[karmada-agent-start] Waiting to check cluster exists")
 	karmadaClient, err := ToKarmadaClient(rbacCfg)
 	if err != nil {
-		return kubelient, err
+		return kubeClient, err
 	}
 	_, exist, err := karmadautil.GetClusterWithKarmadaClient(karmadaClient, o.ClusterName)
 	if err != nil {
-		return kubelient, err
+		return kubeClient, err
 	} else if exist {
-		return kubelient, fmt.Errorf("failed to register as cluster with name %s already exists", o.ClusterName)
+		return kubeClient, fmt.Errorf("failed to register as cluster with name %s already exists", o.ClusterName)
 	}
 
 	fmt.Println("[karmada-agent-start] Assign the necessary RBAC permissions to the agent")
-	err = o.ensureAgentRBACResourcesExistInControlPlane(kubelient)
+	err = o.ensureAgentRBACResourcesExistInControlPlane(kubeClient)
 	if err != nil {
-		return kubelient, err
+		return kubeClient, err
 	}
 
-	return kubelient, nil
+	return kubeClient, nil
 }
 
 // EnsureNecessaryResourcesExistInMemberCluster ensures that all necessary resources are exist in the registering cluster.
