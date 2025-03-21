@@ -20,8 +20,11 @@ package fake
 
 import (
 	"context"
+	json "encoding/json"
+	"fmt"
 
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfiguration/work/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	types "k8s.io/apimachinery/pkg/types"
@@ -139,6 +142,53 @@ func (c *FakeWorks) Patch(ctx context.Context, name string, pt types.PatchType, 
 	emptyResult := &v1alpha1.Work{}
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceActionWithOptions(worksResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
+
+	if obj == nil {
+		return emptyResult, err
+	}
+	return obj.(*v1alpha1.Work), err
+}
+
+// Apply takes the given apply declarative configuration, applies it and returns the applied work.
+func (c *FakeWorks) Apply(ctx context.Context, work *workv1alpha1.WorkApplyConfiguration, opts v1.ApplyOptions) (result *v1alpha1.Work, err error) {
+	if work == nil {
+		return nil, fmt.Errorf("work provided to Apply must not be nil")
+	}
+	data, err := json.Marshal(work)
+	if err != nil {
+		return nil, err
+	}
+	name := work.Name
+	if name == nil {
+		return nil, fmt.Errorf("work.Name must be provided to Apply")
+	}
+	emptyResult := &v1alpha1.Work{}
+	obj, err := c.Fake.
+		Invokes(testing.NewPatchSubresourceActionWithOptions(worksResource, c.ns, *name, types.ApplyPatchType, data, opts.ToPatchOptions()), emptyResult)
+
+	if obj == nil {
+		return emptyResult, err
+	}
+	return obj.(*v1alpha1.Work), err
+}
+
+// ApplyStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+func (c *FakeWorks) ApplyStatus(ctx context.Context, work *workv1alpha1.WorkApplyConfiguration, opts v1.ApplyOptions) (result *v1alpha1.Work, err error) {
+	if work == nil {
+		return nil, fmt.Errorf("work provided to Apply must not be nil")
+	}
+	data, err := json.Marshal(work)
+	if err != nil {
+		return nil, err
+	}
+	name := work.Name
+	if name == nil {
+		return nil, fmt.Errorf("work.Name must be provided to Apply")
+	}
+	emptyResult := &v1alpha1.Work{}
+	obj, err := c.Fake.
+		Invokes(testing.NewPatchSubresourceActionWithOptions(worksResource, c.ns, *name, types.ApplyPatchType, data, opts.ToPatchOptions(), "status"), emptyResult)
 
 	if obj == nil {
 		return emptyResult, err
