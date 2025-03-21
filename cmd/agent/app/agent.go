@@ -265,7 +265,10 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		return fmt.Errorf("failed to setup custom resource interpreter: %w", err)
 	}
 
-	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSetForAgent, resourceInterpreter)
+	rateLimiterGetter := util.GetRateLimiterGetter().SetLimits(opts.ClusterAPIQPS, opts.ClusterAPIBurst)
+	clusterClientOption := &util.ClientOption{RateLimiterGetter: rateLimiterGetter.GetRateLimiter}
+
+	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSetForAgent, clusterClientOption, resourceInterpreter)
 	controllerContext := controllerscontext.Context{
 		Mgr:           mgr,
 		ObjectWatcher: objectWatcher,
@@ -278,8 +281,6 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ClusterSuccessThreshold:            opts.ClusterSuccessThreshold,
 			ClusterFailureThreshold:            opts.ClusterFailureThreshold,
 			ClusterCacheSyncTimeout:            opts.ClusterCacheSyncTimeout,
-			ClusterAPIQPS:                      opts.ClusterAPIQPS,
-			ClusterAPIBurst:                    opts.ClusterAPIBurst,
 			ConcurrentWorkSyncs:                opts.ConcurrentWorkSyncs,
 			RateLimiterOptions:                 opts.RateLimiterOpts,
 			EnableClusterResourceModeling:      opts.EnableClusterResourceModeling,
@@ -289,6 +290,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		},
 		StopChan:            stopChan,
 		ResourceInterpreter: resourceInterpreter,
+		ClusterClientOption: clusterClientOption,
 	}
 
 	if err := controllers.StartControllers(controllerContext, controllersDisabledByDefault); err != nil {
@@ -315,7 +317,7 @@ func startClusterStatusController(ctx controllerscontext.Context) (bool, error) 
 		StopChan:                          ctx.StopChan,
 		ClusterClientSetFunc:              util.NewClusterClientSetForAgent,
 		ClusterDynamicClientSetFunc:       util.NewClusterDynamicClientSetForAgent,
-		ClusterClientOption:               &util.ClientOption{QPS: ctx.Opts.ClusterAPIQPS, Burst: ctx.Opts.ClusterAPIBurst},
+		ClusterClientOption:               ctx.ClusterClientOption,
 		ClusterStatusUpdateFrequency:      ctx.Opts.ClusterStatusUpdateFrequency,
 		ClusterLeaseDuration:              ctx.Opts.ClusterLeaseDuration,
 		ClusterLeaseRenewIntervalFraction: ctx.Opts.ClusterLeaseRenewIntervalFraction,
