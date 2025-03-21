@@ -1,0 +1,7 @@
+go 1.23.0
+
+use (
+	.
+	./pkg/fixtures/example_project/pkg_with_submodules
+	./tools
+)
