@@ -355,7 +355,6 @@ func (s *Scheduler) scheduleNext() bool {
 			return false
 		}
 		defer s.queue.Done(key)
-
 		err := s.doSchedule(key.(string))
 		s.legacyHandleErr(err, key)
 	}
@@ -420,7 +419,7 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
-	if rb.Spec.Replicas == 0 ||
+	if !s.isWorkloadByRB(rb) ||
 		rb.Spec.Placement.ReplicaSchedulingType() == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
 		// Duplicated resources should always be scheduled. Note: non-workload is considered as duplicated
 		// even if scheduling type is divided.
@@ -490,7 +489,7 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
-	if crb.Spec.Replicas == 0 ||
+	if !s.isWorkloadByCRB(crb) ||
 		crb.Spec.Placement.ReplicaSchedulingType() == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
 		// Duplicated resources should always be scheduled. Note: non-workload is considered as duplicated
 		// even if scheduling type is divided.
@@ -541,14 +540,19 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinity(rb *workv1alpha2.
 		klog.V(4).ErrorS(err, "Failed to marshal binding placement", "resourceBinding", klog.KObj(rb))
 		return err
 	}
-
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &rb.Spec, &rb.Status, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
-	var fitErr *framework.FitError
-	// in case of no cluster error, can not return but continue to patch(cleanup) the result.
-	if err != nil && !errors.As(err, &fitErr) {
-		s.recordScheduleResultEventForResourceBinding(rb, nil, err)
-		klog.Errorf("Failed scheduling ResourceBinding(%s/%s): %v", rb.Namespace, rb.Name, err)
-		return err
+	var scheduleResult core.ScheduleResult
+	// scale down to zero replicas
+	if s.isWorkloadByRB(rb) && rb.Spec.Replicas == 0 {
+		scheduleResult = s.scaleDownToZeroReplicasWithClusters(rb.Spec.Clusters)
+	} else {
+		scheduleResult, err = s.Algorithm.Schedule(context.TODO(), &rb.Spec, &rb.Status, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
+		var fitErr *framework.FitError
+		// in case of no cluster error, can not return but continue to patch(cleanup) the result.
+		if err != nil && !errors.As(err, &fitErr) {
+			s.recordScheduleResultEventForResourceBinding(rb, nil, err)
+			klog.Errorf("Failed scheduling ResourceBinding(%s/%s): %v", rb.Namespace, rb.Name, err)
+			return err
+		}
 	}
 
 	klog.V(4).Infof("ResourceBinding(%s/%s) scheduled to clusters %v", rb.Namespace, rb.Name, scheduleResult.SuggestedClusters)
@@ -580,20 +584,24 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinities(rb *workv1alpha
 	for affinityIndex < len(rb.Spec.Placement.ClusterAffinities) {
 		klog.V(4).Infof("Schedule ResourceBinding(%s/%s) with clusterAffiliates index(%d)", rb.Namespace, rb.Name, affinityIndex)
 		updatedStatus.SchedulerObservedAffinityName = rb.Spec.Placement.ClusterAffinities[affinityIndex].AffinityName
-		scheduleResult, err = s.Algorithm.Schedule(context.TODO(), &rb.Spec, updatedStatus, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
-		if err == nil {
-			break
-		}
+		if s.isWorkloadByRB(rb) && rb.Spec.Replicas == 0 {
+			scheduleResult = s.scaleDownToZeroReplicasWithClusters(rb.Spec.Clusters)
+		} else {
+			scheduleResult, err = s.Algorithm.Schedule(context.TODO(), &rb.Spec, updatedStatus, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
+			if err == nil {
+				break
+			}
 
-		// obtain to err of the first scheduling
-		if firstErr == nil {
-			firstErr = err
-		}
+			// obtain to err of the first scheduling
+			if firstErr == nil {
+				firstErr = err
+			}
 
-		err = fmt.Errorf("failed to schedule ResourceBinding(%s/%s) with clusterAffiliates index(%d): %v", rb.Namespace, rb.Name, affinityIndex, err)
-		klog.Error(err)
-		s.recordScheduleResultEventForResourceBinding(rb, nil, err)
-		affinityIndex++
+			err = fmt.Errorf("failed to schedule ResourceBinding(%s/%s) with clusterAffiliates index(%d): %v", rb.Namespace, rb.Name, affinityIndex, err)
+			klog.Error(err)
+			s.recordScheduleResultEventForResourceBinding(rb, nil, err)
+			affinityIndex++
+		}
 	}
 
 	if affinityIndex >= len(rb.Spec.Placement.ClusterAffinities) {
@@ -679,14 +687,18 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinity(crb *workv
 		klog.V(4).ErrorS(err, "Failed to marshal binding placement", "clusterResourceBinding", klog.KObj(crb))
 		return err
 	}
-
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &crb.Spec, &crb.Status, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
-	var fitErr *framework.FitError
-	// in case of no cluster error, can not return but continue to patch(cleanup) the result.
-	if err != nil && !errors.As(err, &fitErr) {
-		s.recordScheduleResultEventForClusterResourceBinding(crb, nil, err)
-		klog.Errorf("Failed scheduling clusterResourceBinding(%s): %v", crb.Name, err)
-		return err
+	var scheduleResult core.ScheduleResult
+	if s.isWorkloadByCRB(crb) && crb.Spec.Replicas == 0 {
+		scheduleResult = s.scaleDownToZeroReplicasWithClusters(crb.Spec.Clusters)
+	} else {
+		scheduleResult, err = s.Algorithm.Schedule(context.TODO(), &crb.Spec, &crb.Status, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
+		var fitErr *framework.FitError
+		// in case of no cluster error, can not return but continue to patch(cleanup) the result.
+		if err != nil && !errors.As(err, &fitErr) {
+			s.recordScheduleResultEventForClusterResourceBinding(crb, nil, err)
+			klog.Errorf("Failed scheduling clusterResourceBinding(%s): %v", crb.Name, err)
+			return err
+		}
 	}
 
 	klog.V(4).Infof("clusterResourceBinding(%s) scheduled to clusters %v", crb.Name, scheduleResult.SuggestedClusters)
@@ -718,20 +730,24 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinities(crb *wor
 	for affinityIndex < len(crb.Spec.Placement.ClusterAffinities) {
 		klog.V(4).Infof("Schedule ClusterResourceBinding(%s) with clusterAffiliates index(%d)", crb.Name, affinityIndex)
 		updatedStatus.SchedulerObservedAffinityName = crb.Spec.Placement.ClusterAffinities[affinityIndex].AffinityName
-		scheduleResult, err = s.Algorithm.Schedule(context.TODO(), &crb.Spec, updatedStatus, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
-		if err == nil {
-			break
-		}
+		if s.isWorkloadByCRB(crb) && crb.Spec.Replicas == 0 {
+			scheduleResult = s.scaleDownToZeroReplicasWithClusters(crb.Spec.Clusters)
+		} else {
+			scheduleResult, err = s.Algorithm.Schedule(context.TODO(), &crb.Spec, updatedStatus, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
+			if err == nil {
+				break
+			}
 
-		// obtain to err of the first scheduling
-		if firstErr == nil {
-			firstErr = err
-		}
+			// obtain to err of the first scheduling
+			if firstErr == nil {
+				firstErr = err
+			}
 
-		err = fmt.Errorf("failed to schedule ClusterResourceBinding(%s) with clusterAffiliates index(%d): %v", crb.Name, affinityIndex, err)
-		klog.Error(err)
-		s.recordScheduleResultEventForClusterResourceBinding(crb, nil, err)
-		affinityIndex++
+			err = fmt.Errorf("failed to schedule ClusterResourceBinding(%s) with clusterAffiliates index(%d): %v", crb.Name, affinityIndex, err)
+			klog.Error(err)
+			s.recordScheduleResultEventForClusterResourceBinding(crb, nil, err)
+			affinityIndex++
+		}
 	}
 
 	if affinityIndex >= len(crb.Spec.Placement.ClusterAffinities) {
@@ -857,6 +873,33 @@ func (s *Scheduler) establishEstimatorConnections() {
 		if err = estimatorclient.EstablishConnection(s.KubeClient, serviceInfo, s.schedulerEstimatorCache, s.schedulerEstimatorClientConfig); err != nil {
 			klog.Error(err)
 		}
+	}
+}
+
+func (s *Scheduler) isWorkloadByRB(rb *workv1alpha2.ResourceBinding) bool {
+	// workload is defined as the resource binding with non-nil resource request field
+	if rb.Spec.ReplicaRequirements == nil || rb.Spec.ReplicaRequirements.ResourceRequest == nil {
+		return false
+	}
+	return true
+}
+
+func (s *Scheduler) isWorkloadByCRB(crb *workv1alpha2.ClusterResourceBinding) bool {
+	// workload is defined as the cluster resource binding with non-nil resource request field
+	if crb.Spec.ReplicaRequirements == nil || crb.Spec.ReplicaRequirements.ResourceRequest == nil {
+		return false
+	}
+	return true
+}
+
+func (s *Scheduler) scaleDownToZeroReplicasWithClusters(clusters []workv1alpha2.TargetCluster) core.ScheduleResult {
+	var newCluster []workv1alpha2.TargetCluster
+	for _, cluster := range clusters {
+		cluster.Replicas = 0
+		newCluster = append(newCluster, cluster)
+	}
+	return core.ScheduleResult{
+		SuggestedClusters: newCluster,
 	}
 }
 
