@@ -56,14 +56,14 @@ spec:
       imageRepository: docker.io/karmada/karmada-metrics-adapter
       imageTag: v1.13.0
       replicas: 2
-    # karmadaSearch: # the component `Karmadasearch` is not installed by default, if you need to install it, uncomment it and note the formatting
-      # imageRepository: docker.io/karmada/karmada-search
-      # imageTag: v1.12.2
-      # replicas: 1
-    # karmadaDescheduler: # the component `KarmadaDescheduler` is not installed by default, if you need to install it, uncomment it and note the formatting
-      # imageRepository: docker.io/karmada/karmada-descheduler
-      # imageTag: v1.12.2
-      # replicas: 1
+    karmadaSearch: # the component `Karmadasearch` is not installed by default, if you need to install it, uncomment it and note the formatting
+      imageRepository: docker.io/karmada/karmada-search
+      imageTag: v1.13.0
+      replicas: 1
+    karmadaDescheduler: # the component `KarmadaDescheduler` is not installed by default, if you need to install it, uncomment it and note the formatting
+      imageRepository: docker.io/karmada/karmada-descheduler
+      imageTag: v1.13.0
+      replicas: 1
   hostCluster:
     networking:
       dnsDomain: cluster.local
