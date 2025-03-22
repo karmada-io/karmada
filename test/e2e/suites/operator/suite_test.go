@@ -31,6 +31,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
+	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	operator "github.com/karmada-io/karmada/operator/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/test/e2e/framework"
@@ -133,8 +134,11 @@ func cleanupTestNamespace(namespace string, kubeClient kubernetes.Interface) err
 }
 
 // InitializeKarmadaInstance initializes a karmada instance.
-func InitializeKarmadaInstance(client operator.Interface, namespace, name string) {
+func InitializeKarmadaInstance(client operator.Interface, namespace, name string, mutateFns ...func(karmada *operatorv1alpha1.Karmada)) {
 	karmada := helper.NewKarmada(namespace, name)
+	for _, mutateFn := range mutateFns {
+		mutateFn(karmada)
+	}
 	now := time.Now()
 	err := operatorresource.CreateKarmadaInstance(client, karmada)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
