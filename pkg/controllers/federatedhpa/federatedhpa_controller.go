@@ -677,7 +677,7 @@ func (c *FHPAController) validateAndParseSelector(hpa *autoscalingv1alpha1.Feder
 		errMsg := fmt.Sprintf("couldn't convert selector into a corresponding internal selector object: %v", err)
 		c.EventRecorder.Event(hpa, corev1.EventTypeWarning, "InvalidSelector", errMsg)
 		setCondition(hpa, autoscalingv2.ScalingActive, corev1.ConditionFalse, "InvalidSelector", errMsg)
-		return nil, fmt.Errorf(errMsg)
+		return nil, errors.New(errMsg)
 	}
 
 	hpaKey := selectors.Key{Name: hpa.Name, Namespace: hpa.Namespace}
@@ -692,7 +692,7 @@ func (c *FHPAController) validateAndParseSelector(hpa *autoscalingv1alpha1.Feder
 		errMsg := fmt.Sprintf("pods by selector %v are controlled by multiple HPAs: %v", selector, selectingHpas)
 		c.EventRecorder.Event(hpa, corev1.EventTypeWarning, "AmbiguousSelector", errMsg)
 		setCondition(hpa, autoscalingv2.ScalingActive, corev1.ConditionFalse, "AmbiguousSelector", errMsg)
-		return nil, fmt.Errorf(errMsg)
+		return nil, errors.New(errMsg)
 	}
 
 	return parsedSelector, nil
@@ -812,7 +812,7 @@ func (c *FHPAController) computeStatusForObjectMetric(specReplicas, statusReplic
 		return replicaCountProposal, timestampProposal, fmt.Sprintf("external metric %s(%+v)", metricSpec.Object.Metric.Name, metricSpec.Object.Metric.Selector), autoscalingv2.HorizontalPodAutoscalerCondition{}, nil
 	}
 	errMsg := "invalid object metric source: neither a value target nor an average value target was set"
-	err = fmt.Errorf(errMsg)
+	err = errors.New(errMsg)
 	condition = c.getUnableComputeReplicaCountCondition(hpa, "FailedGetObjectMetric", err)
 	return 0, time.Time{}, "", condition, err
 }
@@ -859,7 +859,7 @@ func (c *FHPAController) computeStatusForResourceMetricGeneric(ctx context.Conte
 
 	if target.AverageUtilization == nil {
 		errMsg := "invalid resource metric source: neither an average utilization target nor an average value target was set"
-		return 0, nil, time.Time{}, "", condition, fmt.Errorf(errMsg)
+		return 0, nil, time.Time{}, "", condition, errors.New(errMsg)
 	}
 
 	targetUtilization := *target.AverageUtilization
@@ -1286,10 +1286,10 @@ func calculateScaleUpLimitWithScalingRules(currentReplicas int32, scaleUpEvents,
 		return currentReplicas // Scaling is disabled
 	} else if scalingRules.SelectPolicy != nil && *scalingRules.SelectPolicy == autoscalingv2.MinChangePolicySelect {
 		result = math.MaxInt32
-		selectPolicyFn = min // For scaling up, the lowest change ('min' policy) produces a minimum value
+		selectPolicyFn = minOfInt32 // For scaling up, the lowest change ('min' policy) produces a minimum value
 	} else {
 		result = math.MinInt32
-		selectPolicyFn = max // Use the default policy otherwise to produce a highest possible change
+		selectPolicyFn = maxOfInt32 // Use the default policy otherwise to produce a highest possible change
 	}
 	for _, policy := range scalingRules.Policies {
 		replicasAddedInCurrentPeriod := getReplicasChangePerPeriod(policy.PeriodSeconds, scaleUpEvents)
@@ -1315,10 +1315,10 @@ func calculateScaleDownLimitWithBehaviors(currentReplicas int32, scaleUpEvents, 
 		return currentReplicas // Scaling is disabled
 	} else if scalingRules.SelectPolicy != nil && *scalingRules.SelectPolicy == autoscalingv2.MinChangePolicySelect {
 		result = math.MinInt32
-		selectPolicyFn = max // For scaling down, the lowest change ('min' policy) produces a maximum value
+		selectPolicyFn = maxOfInt32 // For scaling down, the lowest change ('min' policy) produces a maximum value
 	} else {
 		result = math.MaxInt32
-		selectPolicyFn = min // Use the default policy otherwise to produce a highest possible change
+		selectPolicyFn = minOfInt32 // Use the default policy otherwise to produce a highest possible change
 	}
 	for _, policy := range scalingRules.Policies {
 		replicasAddedInCurrentPeriod := getReplicasChangePerPeriod(policy.PeriodSeconds, scaleUpEvents)
@@ -1415,14 +1415,14 @@ func setConditionInList(inputList []autoscalingv2.HorizontalPodAutoscalerConditi
 	return resList
 }
 
-func max(a, b int32) int32 {
+func maxOfInt32(a, b int32) int32 {
 	if a >= b {
 		return a
 	}
 	return b
 }
 
-func min(a, b int32) int32 {
+func minOfInt32(a, b int32) int32 {
 	if a <= b {
 		return a
 	}

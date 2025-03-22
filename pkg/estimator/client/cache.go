@@ -110,7 +110,7 @@ func EstablishConnection(kubeClient kubernetes.Interface, serviceInfo SchedulerE
 	}
 
 	serverAddrs, err := resolveCluster(kubeClient, serviceInfo.Namespace,
-		names.GenerateEstimatorServiceName(serviceInfo.NamePrefix, serviceInfo.Name), int32(grpcConfig.TargetPort))
+		names.GenerateEstimatorServiceName(serviceInfo.NamePrefix, serviceInfo.Name), int32(grpcConfig.TargetPort)) // #nosec G115: integer overflow conversion int -> int32
 	if err != nil {
 		return err
 	}

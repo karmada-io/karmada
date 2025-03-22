@@ -40,7 +40,7 @@ func selectBestClustersByCluster(spreadConstraint policyv1alpha1.SpreadConstrain
 	if needReplicas == InvalidReplicas {
 		clusterInfos = groupClustersInfo.Clusters[:needCnt]
 	} else {
-		clusterInfos = selectClustersByAvailableResource(groupClustersInfo.Clusters, int32(needCnt), needReplicas)
+		clusterInfos = selectClustersByAvailableResource(groupClustersInfo.Clusters, int32(needCnt), needReplicas) // #nosec G115: integer overflow conversion int -> int32
 		if len(clusterInfos) == 0 {
 			return nil, fmt.Errorf("no enough resource when selecting %d clusters", needCnt)
 		}

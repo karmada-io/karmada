@@ -53,7 +53,7 @@ func ValidationResponse(successful bool, msg string) Response {
 		ResourceInterpreterResponse: configv1alpha1.ResourceInterpreterResponse{
 			Successful: successful,
 			Status: &configv1alpha1.RequestStatus{
-				Code:    int32(code),
+				Code:    int32(code), // #nosec G115: integer overflow conversion int -> int32
 				Message: msg,
 			},
 		},

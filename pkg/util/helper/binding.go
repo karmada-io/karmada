@@ -123,7 +123,7 @@ func (a *Dispenser) TakeByWeight(w ClusterWeightInfoList) {
 	result := make([]workv1alpha2.TargetCluster, 0, w.Len())
 	remain := a.NumReplicas
 	for _, info := range w {
-		replicas := int32(info.Weight * int64(a.NumReplicas) / sum)
+		replicas := int32(info.Weight * int64(a.NumReplicas) / sum) // #nosec G115: integer overflow conversion int64 -> int32
 		result = append(result, workv1alpha2.TargetCluster{
 			Name:     info.ClusterName,
 			Replicas: replicas,

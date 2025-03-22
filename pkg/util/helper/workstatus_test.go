@@ -230,7 +230,7 @@ func TestAggregateResourceBindingWorkStatus(t *testing.T) {
 			}
 
 			// Verify aggregated status
-			if tt.works != nil && len(tt.works) > 0 {
+			if len(tt.works) > 0 {
 				assert.Len(t, updatedBinding.Status.AggregatedStatus, len(tt.works))
 				for _, status := range updatedBinding.Status.AggregatedStatus {
 					assert.Equal(t, tt.expectedApplied, status.Applied)
@@ -427,7 +427,7 @@ func TestAggregateClusterResourceBindingWorkStatus(t *testing.T) {
 			}
 
 			// Verify aggregated status
-			if tt.works != nil && len(tt.works) > 0 {
+			if len(tt.works) > 0 {
 				assert.Len(t, updatedBinding.Status.AggregatedStatus, len(tt.works))
 				// For multiple clusters case, verify specific cluster status
 				for _, status := range updatedBinding.Status.AggregatedStatus {
