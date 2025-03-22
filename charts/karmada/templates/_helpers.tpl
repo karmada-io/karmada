@@ -112,15 +112,14 @@ app: {{- include "karmada.name" .}}-kube-controller-manager
 
 {{- define "karmada.kubeconfig.volume" -}}
 {{- $name := include "karmada.name" . -}}
-- name: kubeconfig-secret
+- name: karmada-config
   secret:
-    secretName: {{ $name }}-kubeconfig
+    secretName: {{ $name }}-config
 {{- end -}}
 
 {{- define "karmada.kubeconfig.volumeMount" -}}
-- name: kubeconfig-secret
-  subPath: kubeconfig
-  mountPath: /etc/kubeconfig
+- name: karmada-config
+  mountPath: /etc/karmada/config
 {{- end -}}
 
 {{- define "karmada.kubeconfig.caData" -}}
@@ -197,11 +196,11 @@ app: {{$name}}
 {{- define "karmada.descheduler.kubeconfig.volume" -}}
 {{ $name :=  include "karmada.name" . }}
 {{- if eq .Values.installMode "host" -}}
-- name: kubeconfig-secret
+- name: karmada-config
   secret:
-    secretName: {{ $name }}-kubeconfig
+    secretName: {{ $name }}-descheduler-config
 {{- else -}}
-- name: kubeconfig-secret
+- name: karmada-config
   secret:
     secretName: {{ .Values.descheduler.kubeconfig }}
 {{- end -}}
@@ -324,14 +323,14 @@ app: {{- include "karmada.name" .}}-search
 - name: k8s-certs
   secret:
     secretName: {{ $name }}-cert
-- name: kubeconfig-secret
+- name: karmada-config
   secret:
-    secretName: {{ $name }}-kubeconfig
+    secretName: {{ $name }}-search-config
 {{- else -}}
 - name: k8s-certs
   secret:
     secretName: {{ .Values.search.certs }}
-- name: kubeconfig-secret
+- name: karmada-config
   secret:
     secretName: {{ .Values.search.kubeconfig }}
 {{- end -}}
@@ -628,7 +627,7 @@ Return the proper Docker Image Registry Secret Names
       # case first installation: no `cm/karmada-version` at first, so when you get it, it means `karmada-static-resource-job` finished.
       # case restart: already has `cm/karmada-version`, which means `karmada-static-resource-job` already finished.
       # case upgrading: already has `cm/karmada-version`, but it may be old version, we should wait until `.data.karmadaVersion` equal to current `.Values.karmadaImageVersion`.
-      while [[ $(kubectl --kubeconfig /etc/kubeconfig get configmap karmada-version -n {{ .Values.systemNamespace }} -o jsonpath='{.data.karmadaVersion}') != {{ .Values.karmadaImageVersion }} ]]; do
+      while [[ $(kubectl --kubeconfig /etc/karmada/config/karmada.config get configmap karmada-version -n {{ .Values.systemNamespace }} -o jsonpath='{.data.karmadaVersion}') != {{ .Values.karmadaImageVersion }} ]]; do
         echo "wait for karmada-static-resource-job finished"; sleep 2
       done
 
@@ -636,4 +635,28 @@ Return the proper Docker Image Registry Secret Names
       EOF
   volumeMounts:
     {{- include "karmada.kubeconfig.volumeMount" .| nindent 4 }}
+{{- end -}}
+
+{{- define "karmada.kubeconfigComponents" -}}
+- aggregated-apiserver
+- controller-manager
+- kube-controller-manager
+- scheduler
+- webhook
+- metrics-adapter
+- descheduler
+- search
+{{- end }}
+
+{{- define "karmada.shouldCreateComponentKubeconfig" -}}
+{{- $component := .component }}
+{{- $components := .components }}
+{{- $specialComponentMap := dict "metrics-adapter" "metricsAdapter" "descheduler" "descheduler" "search" "search" }}
+{{- $shouldProcess := true }}
+{{- if hasKey $specialComponentMap $component }}
+  {{- if not (has (get $specialComponentMap $component) $components) }}
+    {{- $shouldProcess = false }}
+  {{- end }}
+{{- end }}
+{{- $shouldProcess }}
 {{- end -}}
