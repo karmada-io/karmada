@@ -1,4 +1,6 @@
-FROM golang:1.16-alpine as builder
+FROM golang:1.24-alpine as builder
+
+RUN apk --update add --no-cache gcc musl-dev git openssh
 
 COPY mockery /usr/local/bin
 

@@ -1,6 +1,7 @@
 package zerolog
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -24,9 +25,10 @@ type Event struct {
 	w         LevelWriter
 	level     Level
 	done      func(msg string)
-	stack     bool   // enable error stack trace
-	ch        []Hook // hooks from context
-	skipFrame int    // The number of additional frames to skip when printing the caller.
+	stack     bool            // enable error stack trace
+	ch        []Hook          // hooks from context
+	skipFrame int             // The number of additional frames to skip when printing the caller.
+	ctx       context.Context // Optional Go context for event
 }
 
 func putEvent(e *Event) {
@@ -129,6 +131,13 @@ func (e *Event) Msgf(format string, v ...interface{}) {
 	e.msg(fmt.Sprintf(format, v...))
 }
 
+func (e *Event) MsgFunc(createMsg func() string) {
+	if e == nil {
+		return
+	}
+	e.msg(createMsg())
+}
+
 func (e *Event) msg(msg string) {
 	for _, hook := range e.ch {
 		hook.Run(e, e.level, msg)
@@ -155,7 +164,7 @@ func (e *Event) Fields(fields interface{}) *Event {
 	if e == nil {
 		return e
 	}
-	e.buf = appendFields(e.buf, fields)
+	e.buf = appendFields(e.buf, fields, e.stack)
 	return e
 }
 
@@ -311,6 +320,18 @@ func (e *Event) RawJSON(key string, b []byte) *Event {
 	return e
 }
 
+// RawCBOR adds already encoded CBOR to the log line under key.
+//
+// No sanity check is performed on b
+// Note: The full featureset of CBOR is supported as data will not be mapped to json but stored as data-url
+func (e *Event) RawCBOR(key string, b []byte) *Event {
+	if e == nil {
+		return e
+	}
+	e.buf = appendCBOR(enc.AppendKey(e.buf, key), b)
+	return e
+}
+
 // AnErr adds the field key with serialized err to the *Event context.
 // If err is nil, no field is added.
 func (e *Event) AnErr(key string, err error) *Event {
@@ -396,6 +417,28 @@ func (e *Event) Stack() *Event {
 		e.stack = true
 	}
 	return e
+}
+
+// Ctx adds the Go Context to the *Event context.  The context is not rendered
+// in the output message, but is available to hooks and to Func() calls via the
+// GetCtx() accessor. A typical use case is to extract tracing information from
+// the Go Ctx.
+func (e *Event) Ctx(ctx context.Context) *Event {
+	if e != nil {
+		e.ctx = ctx
+	}
+	return e
+}
+
+// GetCtx retrieves the Go context.Context which is optionally stored in the
+// Event.  This allows Hooks and functions passed to Func() to retrieve values
+// which are stored in the context.Context.  This can be useful in tracing,
+// where span information is commonly propagated in the context.Context.
+func (e *Event) GetCtx() context.Context {
+	if e == nil || e.ctx == nil {
+		return context.Background()
+	}
+	return e.ctx
 }
 
 // Bool adds the field key with val as a bool to the *Event context.
@@ -601,7 +644,7 @@ func (e *Event) Float32(key string, f float32) *Event {
 	if e == nil {
 		return e
 	}
-	e.buf = enc.AppendFloat32(enc.AppendKey(e.buf, key), f)
+	e.buf = enc.AppendFloat32(enc.AppendKey(e.buf, key), f, FloatingPointPrecision)
 	return e
 }
 
@@ -610,7 +653,7 @@ func (e *Event) Floats32(key string, f []float32) *Event {
 	if e == nil {
 		return e
 	}
-	e.buf = enc.AppendFloats32(enc.AppendKey(e.buf, key), f)
+	e.buf = enc.AppendFloats32(enc.AppendKey(e.buf, key), f, FloatingPointPrecision)
 	return e
 }
 
@@ -619,7 +662,7 @@ func (e *Event) Float64(key string, f float64) *Event {
 	if e == nil {
 		return e
 	}
-	e.buf = enc.AppendFloat64(enc.AppendKey(e.buf, key), f)
+	e.buf = enc.AppendFloat64(enc.AppendKey(e.buf, key), f, FloatingPointPrecision)
 	return e
 }
 
@@ -628,7 +671,7 @@ func (e *Event) Floats64(key string, f []float64) *Event {
 	if e == nil {
 		return e
 	}
-	e.buf = enc.AppendFloats64(enc.AppendKey(e.buf, key), f)
+	e.buf = enc.AppendFloats64(enc.AppendKey(e.buf, key), f, FloatingPointPrecision)
 	return e
 }
 
@@ -645,7 +688,7 @@ func (e *Event) Timestamp() *Event {
 	return e
 }
 
-// Time adds the field key with t formated as string using zerolog.TimeFieldFormat.
+// Time adds the field key with t formatted as string using zerolog.TimeFieldFormat.
 func (e *Event) Time(key string, t time.Time) *Event {
 	if e == nil {
 		return e
@@ -654,7 +697,7 @@ func (e *Event) Time(key string, t time.Time) *Event {
 	return e
 }
 
-// Times adds the field key with t formated as string using zerolog.TimeFieldFormat.
+// Times adds the field key with t formatted as string using zerolog.TimeFieldFormat.
 func (e *Event) Times(key string, t []time.Time) *Event {
 	if e == nil {
 		return e
@@ -670,7 +713,7 @@ func (e *Event) Dur(key string, d time.Duration) *Event {
 	if e == nil {
 		return e
 	}
-	e.buf = enc.AppendDuration(enc.AppendKey(e.buf, key), d, DurationFieldUnit, DurationFieldInteger)
+	e.buf = enc.AppendDuration(enc.AppendKey(e.buf, key), d, DurationFieldUnit, DurationFieldInteger, FloatingPointPrecision)
 	return e
 }
 
@@ -681,7 +724,7 @@ func (e *Event) Durs(key string, d []time.Duration) *Event {
 	if e == nil {
 		return e
 	}
-	e.buf = enc.AppendDurations(enc.AppendKey(e.buf, key), d, DurationFieldUnit, DurationFieldInteger)
+	e.buf = enc.AppendDurations(enc.AppendKey(e.buf, key), d, DurationFieldUnit, DurationFieldInteger, FloatingPointPrecision)
 	return e
 }
 
@@ -696,8 +739,13 @@ func (e *Event) TimeDiff(key string, t time.Time, start time.Time) *Event {
 	if t.After(start) {
 		d = t.Sub(start)
 	}
-	e.buf = enc.AppendDuration(enc.AppendKey(e.buf, key), d, DurationFieldUnit, DurationFieldInteger)
+	e.buf = enc.AppendDuration(enc.AppendKey(e.buf, key), d, DurationFieldUnit, DurationFieldInteger, FloatingPointPrecision)
 	return e
+}
+
+// Any is a wrapper around Event.Interface.
+func (e *Event) Any(key string, i interface{}) *Event {
+	return e.Interface(key, i)
 }
 
 // Interface adds the field key with i marshaled using reflection.
@@ -709,6 +757,15 @@ func (e *Event) Interface(key string, i interface{}) *Event {
 		return e.Object(key, obj)
 	}
 	e.buf = enc.AppendInterface(enc.AppendKey(e.buf, key), i)
+	return e
+}
+
+// Type adds the field key with val's type using reflection.
+func (e *Event) Type(key string, val interface{}) *Event {
+	if e == nil {
+		return e
+	}
+	e.buf = enc.AppendType(enc.AppendKey(e.buf, key), val)
 	return e
 }
 
@@ -737,11 +794,11 @@ func (e *Event) caller(skip int) *Event {
 	if e == nil {
 		return e
 	}
-	_, file, line, ok := runtime.Caller(skip + e.skipFrame)
+	pc, file, line, ok := runtime.Caller(skip + e.skipFrame)
 	if !ok {
 		return e
 	}
-	e.buf = enc.AppendString(enc.AppendKey(e.buf, CallerFieldName), CallerMarshalFunc(file, line))
+	e.buf = enc.AppendString(enc.AppendKey(e.buf, CallerFieldName), CallerMarshalFunc(pc, file, line))
 	return e
 }
 

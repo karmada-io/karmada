@@ -1,33 +1,62 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"io"
+	"os"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/vektra/mockery/v2/pkg/config"
-	"gopkg.in/yaml.v2"
+	"github.com/vektra/mockery/v2/pkg/logging"
+	"github.com/vektra/mockery/v2/pkg/stackerr"
+	"gopkg.in/yaml.v3"
 )
 
 func NewShowConfigCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "showconfig",
-		Short: "Show the merged config",
-		Long: `Print out a yaml representation of the merged config. 
-	This initializes viper and prints out the merged configuration between
-	config files, environment variables, and CLI flags.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			config := &config.Config{}
-			if err := viper.UnmarshalExact(config); err != nil {
-				return errors.Wrapf(err, "failed to unmarshal config")
-			}
-			out, err := yaml.Marshal(config)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to marsrhal yaml")
-			}
-			fmt.Printf("%s", string(out))
-			return nil
-		},
+		Short: "Show the yaml config",
+		Long:  `Print out a yaml representation of the yaml config file. This does not show config from exterior sources like CLI, environment etc.`,
+		RunE:  func(cmd *cobra.Command, args []string) error { return showConfig(cmd, args, viperCfg, os.Stdout) },
 	}
+}
+
+func showConfig(
+	cmd *cobra.Command,
+	args []string,
+	v *viper.Viper,
+	outputter io.Writer,
+) error {
+	if v == nil {
+		v = viperCfg
+	}
+	ctx := context.Background()
+	config, err := config.NewConfigFromViper(v)
+	if err != nil {
+		return stackerr.NewStackErrf(err, "failed to unmarshal config")
+	}
+	log, err := logging.GetLogger(config.LogLevel)
+	if err != nil {
+		return fmt.Errorf("getting logger: %w", err)
+	}
+	ctx = log.WithContext(ctx)
+	if err := config.Initialize(ctx); err != nil {
+		return err
+	}
+	cfgMap, err := config.CfgAsMap(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	encoder := yaml.NewEncoder(outputter)
+	encoder.SetIndent(2)
+	if err := encoder.Encode(cfgMap); err != nil {
+		return stackerr.NewStackErrf(err, "failed to marshal yaml")
+	}
+
+	log.Info().Msgf("Using config: %s", config.Config)
+
+	return nil
 }
