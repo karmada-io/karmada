@@ -5,6 +5,7 @@ package cbor
 import (
 	"bufio"
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"math"
@@ -43,7 +44,7 @@ func readByte(src *bufio.Reader) byte {
 	return b
 }
 
-func decodeIntAdditonalType(src *bufio.Reader, minor byte) int64 {
+func decodeIntAdditionalType(src *bufio.Reader, minor byte) int64 {
 	val := int64(0)
 	if minor <= 23 {
 		val = int64(minor)
@@ -77,7 +78,7 @@ func decodeInteger(src *bufio.Reader) int64 {
 	if major != majorTypeUnsignedInt && major != majorTypeNegativeInt {
 		panic(fmt.Errorf("Major type is: %d in decodeInteger!! (expected 0 or 1)", major))
 	}
-	val := decodeIntAdditonalType(src, minor)
+	val := decodeIntAdditionalType(src, minor)
 	if major == 0 {
 		return val
 	}
@@ -94,7 +95,7 @@ func decodeFloat(src *bufio.Reader) (float64, int) {
 
 	switch minor {
 	case additionalTypeFloat16:
-		panic(fmt.Errorf("float16 is not suppported in decodeFloat"))
+		panic(fmt.Errorf("float16 is not supported in decodeFloat"))
 
 	case additionalTypeFloat32:
 		pb := readNBytes(src, 4)
@@ -204,7 +205,7 @@ func decodeString(src *bufio.Reader, noQuotes bool) []byte {
 	if !noQuotes {
 		result = append(result, '"')
 	}
-	length := decodeIntAdditonalType(src, minor)
+	length := decodeIntAdditionalType(src, minor)
 	len := int(length)
 	pbs := readNBytes(src, len)
 	result = append(result, pbs...)
@@ -212,6 +213,31 @@ func decodeString(src *bufio.Reader, noQuotes bool) []byte {
 		return result
 	}
 	return append(result, '"')
+}
+func decodeStringToDataUrl(src *bufio.Reader, mimeType string) []byte {
+	pb := readByte(src)
+	major := pb & maskOutAdditionalType
+	minor := pb & maskOutMajorType
+	if major != majorTypeByteString {
+		panic(fmt.Errorf("Major type is: %d in decodeString", major))
+	}
+	length := decodeIntAdditionalType(src, minor)
+	l := int(length)
+	enc := base64.StdEncoding
+	lEnc := enc.EncodedLen(l)
+	result := make([]byte, len("\"data:;base64,\"")+len(mimeType)+lEnc)
+	dest := result
+	u := copy(dest, "\"data:")
+	dest = dest[u:]
+	u = copy(dest, mimeType)
+	dest = dest[u:]
+	u = copy(dest, ";base64,")
+	dest = dest[u:]
+	pbs := readNBytes(src, l)
+	enc.Encode(dest, pbs)
+	dest = dest[lEnc:]
+	dest[0] = '"'
+	return result
 }
 
 func decodeUTF8String(src *bufio.Reader) []byte {
@@ -222,7 +248,7 @@ func decodeUTF8String(src *bufio.Reader) []byte {
 		panic(fmt.Errorf("Major type is: %d in decodeUTF8String", major))
 	}
 	result := []byte{'"'}
-	length := decodeIntAdditonalType(src, minor)
+	length := decodeIntAdditionalType(src, minor)
 	len := int(length)
 	pbs := readNBytes(src, len)
 
@@ -238,7 +264,7 @@ func decodeUTF8String(src *bufio.Reader) []byte {
 			return append(dst, '"')
 		}
 	}
-	// The string has no need for encoding an therefore is directly
+	// The string has no need for encoding and therefore is directly
 	// appended to the byte slice.
 	result = append(result, pbs...)
 	return append(result, '"')
@@ -257,7 +283,7 @@ func array2Json(src *bufio.Reader, dst io.Writer) {
 	if minor == additionalTypeInfiniteCount {
 		unSpecifiedCount = true
 	} else {
-		length := decodeIntAdditonalType(src, minor)
+		length := decodeIntAdditionalType(src, minor)
 		len = int(length)
 	}
 	for i := 0; unSpecifiedCount || i < len; i++ {
@@ -266,7 +292,7 @@ func array2Json(src *bufio.Reader, dst io.Writer) {
 			if e != nil {
 				panic(e)
 			}
-			if pb[0] == byte(majorTypeSimpleAndFloat|additionalTypeBreak) {
+			if pb[0] == majorTypeSimpleAndFloat|additionalTypeBreak {
 				readByte(src)
 				break
 			}
@@ -277,7 +303,7 @@ func array2Json(src *bufio.Reader, dst io.Writer) {
 			if e != nil {
 				panic(e)
 			}
-			if pb[0] == byte(majorTypeSimpleAndFloat|additionalTypeBreak) {
+			if pb[0] == majorTypeSimpleAndFloat|additionalTypeBreak {
 				readByte(src)
 				break
 			}
@@ -301,7 +327,7 @@ func map2Json(src *bufio.Reader, dst io.Writer) {
 	if minor == additionalTypeInfiniteCount {
 		unSpecifiedCount = true
 	} else {
-		length := decodeIntAdditonalType(src, minor)
+		length := decodeIntAdditionalType(src, minor)
 		len = int(length)
 	}
 	dst.Write([]byte{'{'})
@@ -311,7 +337,7 @@ func map2Json(src *bufio.Reader, dst io.Writer) {
 			if e != nil {
 				panic(e)
 			}
-			if pb[0] == byte(majorTypeSimpleAndFloat|additionalTypeBreak) {
+			if pb[0] == majorTypeSimpleAndFloat|additionalTypeBreak {
 				readByte(src)
 				break
 			}
@@ -326,7 +352,7 @@ func map2Json(src *bufio.Reader, dst io.Writer) {
 				if e != nil {
 					panic(e)
 				}
-				if pb[0] == byte(majorTypeSimpleAndFloat|additionalTypeBreak) {
+				if pb[0] == majorTypeSimpleAndFloat|additionalTypeBreak {
 					readByte(src)
 					break
 				}
@@ -349,10 +375,24 @@ func decodeTagData(src *bufio.Reader) []byte {
 	switch minor {
 	case additionalTypeTimestamp:
 		return decodeTimeStamp(src)
+	case additionalTypeIntUint8:
+		val := decodeIntAdditionalType(src, minor)
+		switch byte(val) {
+		case additionalTypeEmbeddedCBOR:
+			pb := readByte(src)
+			dataMajor := pb & maskOutAdditionalType
+			if dataMajor != majorTypeByteString {
+				panic(fmt.Errorf("Unsupported embedded Type: %d in decodeEmbeddedCBOR", dataMajor))
+			}
+			src.UnreadByte()
+			return decodeStringToDataUrl(src, "application/cbor")
+		default:
+			panic(fmt.Errorf("Unsupported Additional Tag Type: %d in decodeTagData", val))
+		}
 
 	// Tag value is larger than 256 (so uint16).
 	case additionalTypeIntUint16:
-		val := decodeIntAdditonalType(src, minor)
+		val := decodeIntAdditionalType(src, minor)
 
 		switch uint16(val) {
 		case additionalTypeEmbeddedJSON:
@@ -383,7 +423,7 @@ func decodeTagData(src *bufio.Reader) []byte {
 
 		case additionalTypeTagNetworkPrefix:
 			pb := readByte(src)
-			if pb != byte(majorTypeMap|0x1) {
+			if pb != majorTypeMap|0x1 {
 				panic(fmt.Errorf("IP Prefix is NOT of MAP of 1 elements as expected"))
 			}
 			octets := decodeString(src, true)
