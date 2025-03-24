@@ -78,7 +78,12 @@ func (c *CRBGracefulEvictionController) Reconcile(ctx context.Context, req contr
 }
 
 func (c *CRBGracefulEvictionController) syncBinding(ctx context.Context, binding *workv1alpha2.ClusterResourceBinding) (time.Duration, error) {
-	keptTask, evictedClusters := assessEvictionTasks(binding.Spec, binding.Status.AggregatedStatus, c.GracefulEvictionTimeout, metav1.Now())
+	keptTask, evictedClusters := assessEvictionTasks(binding.Spec.GracefulEvictionTasks, metav1.Now(), assessmentOption{
+		timeout:        c.GracefulEvictionTimeout,
+		scheduleResult: binding.Spec.Clusters,
+		observedStatus: binding.Status.AggregatedStatus,
+		hasScheduled:   binding.Status.SchedulerObservedGeneration == binding.Generation,
+	})
 	if reflect.DeepEqual(binding.Spec.GracefulEvictionTasks, keptTask) {
 		return nextRetry(keptTask, c.GracefulEvictionTimeout, metav1.Now().Time), nil
 	}
@@ -104,21 +109,13 @@ func (c *CRBGracefulEvictionController) SetupWithManager(mgr controllerruntime.M
 	clusterResourceBindingPredicateFn := predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			newObj := createEvent.Object.(*workv1alpha2.ClusterResourceBinding)
-			if len(newObj.Spec.GracefulEvictionTasks) == 0 {
-				return false
-			}
 			// When the current component is restarted and there are still tasks in the
 			// GracefulEvictionTasks queue, we need to continue the procession.
-			return newObj.Status.SchedulerObservedGeneration == newObj.Generation
+			return len(newObj.Spec.GracefulEvictionTasks) != 0
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			newObj := updateEvent.ObjectNew.(*workv1alpha2.ClusterResourceBinding)
-
-			if len(newObj.Spec.GracefulEvictionTasks) == 0 {
-				return false
-			}
-
-			return newObj.Status.SchedulerObservedGeneration == newObj.Generation
+			return len(newObj.Spec.GracefulEvictionTasks) != 0
 		},
 		DeleteFunc:  func(event.DeleteEvent) bool { return false },
 		GenericFunc: func(event.GenericEvent) bool { return false },

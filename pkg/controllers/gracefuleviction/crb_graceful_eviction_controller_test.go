@@ -67,7 +67,8 @@ func TestCRBGracefulEvictionController_Reconcile(t *testing.T) {
 			name: "binding with active graceful eviction tasks",
 			binding: &workv1alpha2.ClusterResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-binding",
+					Name:       "test-binding",
+					Generation: 1,
 				},
 				Spec: workv1alpha2.ResourceBindingSpec{
 					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{

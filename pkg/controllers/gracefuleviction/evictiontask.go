@@ -29,19 +29,17 @@ type assessmentOption struct {
 	timeout        time.Duration
 	scheduleResult []workv1alpha2.TargetCluster
 	observedStatus []workv1alpha2.AggregatedStatusItem
+	hasScheduled   bool
 }
 
 // assessEvictionTasks assesses each task according to graceful eviction rules and
 // returns the tasks that should be kept.
-func assessEvictionTasks(bindingSpec workv1alpha2.ResourceBindingSpec,
-	observedStatus []workv1alpha2.AggregatedStatusItem,
-	timeout time.Duration,
-	now metav1.Time,
-) ([]workv1alpha2.GracefulEvictionTask, []string) {
+// The now time is used as the input parameter to facilitate the unit test.
+func assessEvictionTasks(tasks []workv1alpha2.GracefulEvictionTask, now metav1.Time, opt assessmentOption) ([]workv1alpha2.GracefulEvictionTask, []string) {
 	var keptTasks []workv1alpha2.GracefulEvictionTask
 	var evictedClusters []string
 
-	for _, task := range bindingSpec.GracefulEvictionTasks {
+	for _, task := range tasks {
 		// set creation timestamp for new task
 		if task.CreationTimestamp.IsZero() {
 			task.CreationTimestamp = &now
@@ -49,12 +47,12 @@ func assessEvictionTasks(bindingSpec workv1alpha2.ResourceBindingSpec,
 			continue
 		}
 
+		if task.GracePeriodSeconds != nil {
+			opt.timeout = time.Duration(*task.GracePeriodSeconds) * time.Second
+		}
+
 		// assess task according to observed status
-		kt := assessSingleTask(task, assessmentOption{
-			scheduleResult: bindingSpec.Clusters,
-			timeout:        timeout,
-			observedStatus: observedStatus,
-		})
+		kt := assessSingleTask(task, opt)
 		if kt != nil {
 			keptTasks = append(keptTasks, *kt)
 		} else {
@@ -75,16 +73,14 @@ func assessSingleTask(task workv1alpha2.GracefulEvictionTask, opt assessmentOpti
 		return nil
 	}
 
-	timeout := opt.timeout
-	if task.GracePeriodSeconds != nil {
-		timeout = time.Duration(*task.GracePeriodSeconds) * time.Second
-	}
 	// task exceeds timeout
-	if metav1.Now().After(task.CreationTimestamp.Add(timeout)) {
+	if metav1.Now().After(task.CreationTimestamp.Add(opt.timeout)) {
 		return nil
 	}
 
-	if allScheduledResourceInHealthyState(opt) {
+	// Only when the binding object has been scheduled can further judgment be made.
+	// Otherwise, the binding status may be the old, which will affect the correctness of the judgment.
+	if opt.hasScheduled && allScheduledResourceInHealthyState(opt) {
 		return nil
 	}
 
@@ -117,7 +113,7 @@ func allScheduledResourceInHealthyState(opt assessmentOption) bool {
 	return true
 }
 
-func nextRetry(tasks []workv1alpha2.GracefulEvictionTask, timeout time.Duration, timeNow time.Time) time.Duration {
+func nextRetry(tasks []workv1alpha2.GracefulEvictionTask, gracefulTimeout time.Duration, timeNow time.Time) time.Duration {
 	if len(tasks) == 0 {
 		return 0
 	}
@@ -132,6 +128,7 @@ func nextRetry(tasks []workv1alpha2.GracefulEvictionTask, timeout time.Duration,
 		if tasks[i].SuppressDeletion != nil {
 			continue
 		}
+		timeout := gracefulTimeout
 		if tasks[i].GracePeriodSeconds != nil {
 			timeout = time.Duration(*tasks[i].GracePeriodSeconds) * time.Second
 		}
