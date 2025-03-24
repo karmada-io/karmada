@@ -83,7 +83,7 @@ func (es *AccurateSchedulerEstimatorServer) estimateReplicas(
 	}
 
 	if !ret.IsSuccess() && !ret.IsNoOperation() {
-		return replicas, fmt.Errorf(fmt.Sprintf("estimate replice plugins fails with %s", ret.Reasons()))
+		return replicas, fmt.Errorf("estimate replica plugins fails with %s", ret.Reasons())
 	}
 	processNode := func(i int) {
 		node := allNodes[i]
@@ -108,5 +108,5 @@ func (es *AccurateSchedulerEstimatorServer) nodeMaxAvailableReplica(node *framew
 	// do not contain pod resources. So after subtraction, we should cope with allowed pod
 	// number manually which is the upper bound of this node available replicas.
 	rest.AllowedPodNumber = util.MaxInt64(rest.AllowedPodNumber-int64(len(node.Pods)), 0)
-	return int32(rest.MaxDivided(rl))
+	return int32(rest.MaxDivided(rl)) // #nosec G115: integer overflow conversion int64 -> int32
 }

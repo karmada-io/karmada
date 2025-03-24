@@ -19,6 +19,7 @@ package overridemanager
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -423,7 +424,7 @@ func applyFieldOverriders(rawObj *unstructured.Unstructured, FieldOverriders []p
 		if kind != reflect.String {
 			errMsg := fmt.Sprintf("Get object's value by overrider's path(%s) is not string", FieldOverriders[index].FieldPath)
 			klog.Errorf(errMsg)
-			return fmt.Errorf(errMsg)
+			return errors.New(errMsg)
 		}
 		dataBytes := []byte(res.(string))
 		klog.V(4).Infof("Parsed JSON patches by FieldOverriders[%d](%+v)", index, FieldOverriders[index])

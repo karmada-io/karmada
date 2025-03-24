@@ -553,8 +553,8 @@ func getNodeSummary(nodes []*corev1.Node) *clusterv1alpha1.NodeSummary {
 	}
 
 	nodeSummary := &clusterv1alpha1.NodeSummary{}
-	nodeSummary.TotalNum = int32(totalNum)
-	nodeSummary.ReadyNum = int32(readyNum)
+	nodeSummary.TotalNum = int32(totalNum) // #nosec G115: integer overflow conversion int -> int32
+	nodeSummary.ReadyNum = int32(readyNum) // #nosec G115: integer overflow conversion int -> int32
 
 	return nodeSummary
 }

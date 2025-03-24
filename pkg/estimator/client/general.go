@@ -66,7 +66,7 @@ func (ge *GeneralEstimator) maxAvailableReplicas(cluster *clusterv1alpha1.Cluste
 	}
 
 	if replicaRequirements == nil {
-		return int32(maximumReplicas)
+		return int32(maximumReplicas) // #nosec G115: integer overflow conversion int64 -> int32
 	}
 
 	// if the allocatableModelings from the cluster status are empty possibly due to
@@ -80,7 +80,7 @@ func (ge *GeneralEstimator) maxAvailableReplicas(cluster *clusterv1alpha1.Cluste
 				maximumReplicas = num
 			}
 
-			return int32(maximumReplicas)
+			return int32(maximumReplicas) // #nosec G115: integer overflow conversion int64 -> int32
 		}
 		klog.Info(err.Error())
 	}
@@ -90,7 +90,7 @@ func (ge *GeneralEstimator) maxAvailableReplicas(cluster *clusterv1alpha1.Cluste
 		maximumReplicas = num
 	}
 
-	return int32(maximumReplicas)
+	return int32(maximumReplicas) // #nosec G115: integer overflow conversion int64 -> int32
 }
 
 func getAllowedPodNumber(resourceSummary *clusterv1alpha1.ResourceSummary) int64 {

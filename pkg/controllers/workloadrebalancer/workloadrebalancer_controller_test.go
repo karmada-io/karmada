@@ -462,8 +462,7 @@ func newClusterRoleObjectReference(obj *rbacv1.ClusterRole) appsv1alpha1.ObjectR
 
 // Helper function for generating random suffix
 func randomSuffix() string {
-	max := big.NewInt(10000)
-	n, err := rand.Int(rand.Reader, max)
+	n, err := rand.Int(rand.Reader, big.NewInt(10000))
 	if err != nil {
 		// In a test setup, it's unlikely we'll hit this error
 		panic(fmt.Sprintf("failed to generate random number: %v", err))

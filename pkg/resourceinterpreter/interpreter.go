@@ -161,7 +161,7 @@ func (i *customResourceInterpreterImpl) ReviseReplica(object *unstructured.Unstr
 	obj, hookEnabled, err = i.customizedInterpreter.Patch(context.TODO(), &request.Attributes{
 		Operation:   configv1alpha1.InterpreterOperationReviseReplica,
 		Object:      object,
-		ReplicasSet: int32(replica),
+		ReplicasSet: int32(replica), // #nosec G115: integer overflow conversion int64 -> int32
 	})
 	if err != nil {
 		return nil, err

@@ -255,7 +255,7 @@ func TestReviseDeploymentReplica(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			res, err := vm.ReviseReplica(tt.object, int64(tt.replica), tt.luaScript)
 			if err != nil {
-				t.Errorf(err.Error())
+				t.Error(err.Error())
 			}
 			deploy := &appsv1.Deployment{}
 			err = runtime.DefaultUnstructuredConverter.FromUnstructured(res.UnstructuredContent(), deploy)
@@ -263,7 +263,7 @@ func TestReviseDeploymentReplica(t *testing.T) {
 				t.Log("Success Test")
 			}
 			if err != nil {
-				t.Errorf(err.Error())
+				t.Error(err.Error())
 			}
 		})
 	}
@@ -461,7 +461,7 @@ func TestRetainDeployment(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			res, err := vm.Retain(tt.desiredObj, tt.observedObj, tt.luaScript)
 			if err != nil {
-				t.Errorf(err.Error())
+				t.Error(err.Error())
 			}
 			if !reflect.DeepEqual(res.UnstructuredContent(), tt.observedObj.Object) {
 				t.Errorf("Retain() got = %v, want %v", res.UnstructuredContent(), tt.observedObj.Object)

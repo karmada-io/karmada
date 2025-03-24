@@ -46,7 +46,7 @@ func GetResourceUtilizationRatio(metrics PodMetricsInfo, requests map[string]int
 		return 0, 0, 0, fmt.Errorf("no metrics returned matched known pods")
 	}
 
-	currentUtilization = int32((metricsTotal * 100) / requestsTotal)
+	currentUtilization = int32((metricsTotal * 100) / requestsTotal) // #nosec G115: integer overflow conversion int64 -> int32
 
 	return float64(currentUtilization) / float64(targetUtilization), currentUtilization, metricsTotal / int64(numEntries), nil
 }

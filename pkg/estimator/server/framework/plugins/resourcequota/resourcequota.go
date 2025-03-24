@@ -171,7 +171,7 @@ func (e *resourceQuotaEvaluator) evaluate(replicaRequirements *pb.ReplicaRequire
 			continue
 		}
 
-		replica := int32(allowed)
+		replica := int32(allowed) // #nosec G115: integer overflow conversion int64 -> int32
 		if replica < result {
 			result = replica
 		}

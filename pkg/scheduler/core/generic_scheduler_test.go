@@ -52,7 +52,7 @@ func stringToTargetCluster(str string) []workv1alpha2.TargetCluster {
 	tcs := make([]workv1alpha2.TargetCluster, len(arr))
 	for i, replicas := range arr {
 		num, _ := strconv.Atoi(replicas)
-		tcs[i].Replicas = int32(num) // #nosec G109
+		tcs[i].Replicas = int32(num) // #nosec G109,G115: integer overflow conversion int -> int32
 		tcs[i].Name = indexToCluster[i]
 	}
 	return tcs
