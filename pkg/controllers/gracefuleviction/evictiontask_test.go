@@ -41,17 +41,15 @@ func Test_assessSingleTask(t *testing.T) {
 		want *workv1alpha2.GracefulEvictionTask
 	}{
 		{
-			name: "task that doesn't exceed the timeout",
+			name: "task doesn't exceed the timeout, hasScheduled is false, task has no change",
 			args: args{
 				task: workv1alpha2.GracefulEvictionTask{
 					FromCluster:       "member1",
 					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 				},
 				opt: assessmentOption{
-					timeout: timeout,
-					scheduleResult: []workv1alpha2.TargetCluster{
-						{Name: "memberA"},
-					},
+					timeout:      timeout,
+					hasScheduled: false,
 				},
 			},
 			want: &workv1alpha2.GracefulEvictionTask{
@@ -60,7 +58,7 @@ func Test_assessSingleTask(t *testing.T) {
 			},
 		},
 		{
-			name: "task that exceeds the timeout",
+			name: "task exceeds the timeout, task will be nil",
 			args: args{
 				task: workv1alpha2.GracefulEvictionTask{
 					FromCluster:       "member1",
@@ -68,15 +66,12 @@ func Test_assessSingleTask(t *testing.T) {
 				},
 				opt: assessmentOption{
 					timeout: timeout,
-					scheduleResult: []workv1alpha2.TargetCluster{
-						{Name: "memberA"},
-					},
 				},
 			},
 			want: nil,
 		},
 		{
-			name: "binding scheduled result is healthy, task should be nil",
+			name: "task doesn't exceed the timeout, hasScheduled is true, scheduled result is healthy, task will be nil",
 			args: args{
 				task: workv1alpha2.GracefulEvictionTask{
 					FromCluster:       "member1",
@@ -90,12 +85,13 @@ func Test_assessSingleTask(t *testing.T) {
 					observedStatus: []workv1alpha2.AggregatedStatusItem{
 						{ClusterName: "memberA", Health: workv1alpha2.ResourceHealthy},
 					},
+					hasScheduled: true,
 				},
 			},
 			want: nil,
 		},
 		{
-			name: "binding scheduled result is unhealthy, task has no effect",
+			name: "task doesn't exceed the timeout, hasScheduled is true, scheduled result is unhealthy, task has no change",
 			args: args{
 				task: workv1alpha2.GracefulEvictionTask{
 					FromCluster:       "member1",
@@ -109,6 +105,7 @@ func Test_assessSingleTask(t *testing.T) {
 					observedStatus: []workv1alpha2.AggregatedStatusItem{
 						{ClusterName: "memberA", Health: workv1alpha2.ResourceUnhealthy},
 					},
+					hasScheduled: true,
 				},
 			},
 			want: &workv1alpha2.GracefulEvictionTask{
@@ -117,7 +114,7 @@ func Test_assessSingleTask(t *testing.T) {
 			},
 		},
 		{
-			name: "binding scheduled result is unknown, task has no effect",
+			name: "task doesn't exceed the timeout, hasScheduled is true, scheduled result is unknown, task has no change",
 			args: args{
 				task: workv1alpha2.GracefulEvictionTask{
 					FromCluster:       "member1",
@@ -131,6 +128,7 @@ func Test_assessSingleTask(t *testing.T) {
 					observedStatus: []workv1alpha2.AggregatedStatusItem{
 						{ClusterName: "memberA", Health: workv1alpha2.ResourceUnknown},
 					},
+					hasScheduled: true,
 				},
 			},
 			want: &workv1alpha2.GracefulEvictionTask{
@@ -139,65 +137,12 @@ func Test_assessSingleTask(t *testing.T) {
 			},
 		},
 		{
-			name: "gracePeriodSeconds is declared in gracefulEvictionTask and timeout is not reached",
-			args: args{
-				task: workv1alpha2.GracefulEvictionTask{
-					FromCluster:        "member1",
-					GracePeriodSeconds: ptr.To[int32](30),
-					CreationTimestamp:  &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
-				},
-				opt: assessmentOption{
-					timeout: timeout,
-					scheduleResult: []workv1alpha2.TargetCluster{
-						{Name: "memberA"},
-					},
-					observedStatus: []workv1alpha2.AggregatedStatusItem{
-						{ClusterName: "memberA", Health: workv1alpha2.ResourceUnknown},
-					},
-				},
-			},
-			want: nil,
-		},
-		{
-			name: "gracePeriodSeconds is declared in gracefulEvictionTask and timeout is reached",
-			args: args{
-				task: workv1alpha2.GracefulEvictionTask{
-					FromCluster:        "member1",
-					GracePeriodSeconds: ptr.To[int32](120),
-					CreationTimestamp:  &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
-				},
-				opt: assessmentOption{
-					timeout: timeout,
-					scheduleResult: []workv1alpha2.TargetCluster{
-						{Name: "memberA"},
-					},
-					observedStatus: []workv1alpha2.AggregatedStatusItem{
-						{ClusterName: "memberA", Health: workv1alpha2.ResourceUnknown},
-					},
-				},
-			},
-			want: &workv1alpha2.GracefulEvictionTask{
-				FromCluster:        "member1",
-				GracePeriodSeconds: ptr.To[int32](120),
-				CreationTimestamp:  &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
-			},
-		},
-		{
-			name: "suppressDeletion is declared in gracefulEvictionTask and is true",
+			name: "suppressDeletion is declared, value is true",
 			args: args{
 				task: workv1alpha2.GracefulEvictionTask{
 					FromCluster:       "member1",
 					SuppressDeletion:  ptr.To[bool](true),
 					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
-				},
-				opt: assessmentOption{
-					timeout: timeout,
-					scheduleResult: []workv1alpha2.TargetCluster{
-						{Name: "memberA"},
-					},
-					observedStatus: []workv1alpha2.AggregatedStatusItem{
-						{ClusterName: "memberA", Health: workv1alpha2.ResourceHealthy},
-					},
 				},
 			},
 			want: &workv1alpha2.GracefulEvictionTask{
@@ -207,21 +152,12 @@ func Test_assessSingleTask(t *testing.T) {
 			},
 		},
 		{
-			name: "suppressDeletion is declared in gracefulEvictionTask and is false",
+			name: "suppressDeletion is declared, value is false",
 			args: args{
 				task: workv1alpha2.GracefulEvictionTask{
 					FromCluster:       "member1",
 					SuppressDeletion:  ptr.To[bool](false),
 					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
-				},
-				opt: assessmentOption{
-					timeout: timeout,
-					scheduleResult: []workv1alpha2.TargetCluster{
-						{Name: "memberA"},
-					},
-					observedStatus: []workv1alpha2.AggregatedStatusItem{
-						{ClusterName: "memberA", Health: workv1alpha2.ResourceHealthy},
-					},
 				},
 			},
 			want: nil,
@@ -245,6 +181,7 @@ func Test_assessEvictionTasks(t *testing.T) {
 		observedStatus []workv1alpha2.AggregatedStatusItem
 		timeout        time.Duration
 		now            metav1.Time
+		hasScheduled   bool
 	}
 	tests := []struct {
 		name        string
@@ -256,17 +193,13 @@ func Test_assessEvictionTasks(t *testing.T) {
 			name: "tasks without creation timestamp",
 			args: args{
 				bindingSpec: workv1alpha2.ResourceBindingSpec{
-					Clusters: []workv1alpha2.TargetCluster{
-						{Name: "memberA"},
-					},
 					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
 						{FromCluster: "member1"},
 						{FromCluster: "member2"},
 					},
 				},
-				observedStatus: []workv1alpha2.AggregatedStatusItem{},
-				timeout:        timeout,
-				now:            timeNow,
+				timeout: timeout,
+				now:     timeNow,
 			},
 			wantTask: []workv1alpha2.GracefulEvictionTask{
 				{
@@ -281,7 +214,7 @@ func Test_assessEvictionTasks(t *testing.T) {
 			wantCluster: nil,
 		},
 		{
-			name: "tasks that do not exceed the timeout should do nothing",
+			name: "all tasks do not exceed the timeout, but hasScheduled is false, all tasks should do nothing",
 			args: args{
 				bindingSpec: workv1alpha2.ResourceBindingSpec{
 					Clusters: []workv1alpha2.TargetCluster{
@@ -301,6 +234,7 @@ func Test_assessEvictionTasks(t *testing.T) {
 				observedStatus: []workv1alpha2.AggregatedStatusItem{},
 				timeout:        timeout,
 				now:            timeNow,
+				hasScheduled:   false,
 			},
 			wantTask: []workv1alpha2.GracefulEvictionTask{
 				{
@@ -315,7 +249,7 @@ func Test_assessEvictionTasks(t *testing.T) {
 			wantCluster: nil,
 		},
 		{
-			name: "tasks that exceed the timeout should be removed",
+			name: "task that exceed the timeout should be removed, task do not exceed the timeout should do nothing",
 			args: args{
 				bindingSpec: workv1alpha2.ResourceBindingSpec{
 					Clusters: []workv1alpha2.TargetCluster{
@@ -328,16 +262,22 @@ func Test_assessEvictionTasks(t *testing.T) {
 						},
 						{
 							FromCluster:       "member2",
-							CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -5)},
+							CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 						},
 					},
 				},
 				observedStatus: []workv1alpha2.AggregatedStatusItem{},
 				timeout:        timeout,
 				now:            timeNow,
+				hasScheduled:   true,
 			},
-			wantTask:    nil,
-			wantCluster: []string{"member1", "member2"},
+			wantTask: []workv1alpha2.GracefulEvictionTask{
+				{
+					FromCluster:       "member2",
+					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+				},
+			},
+			wantCluster: []string{"member1"},
 		},
 		{
 			name: "mixed tasks",
@@ -399,8 +339,9 @@ func Test_assessEvictionTasks(t *testing.T) {
 				observedStatus: []workv1alpha2.AggregatedStatusItem{
 					{ClusterName: "memberA", Health: workv1alpha2.ResourceHealthy},
 				},
-				timeout: timeout,
-				now:     timeNow,
+				timeout:      timeout,
+				now:          timeNow,
+				hasScheduled: true,
 			},
 			wantTask: []workv1alpha2.GracefulEvictionTask{
 				{
@@ -437,8 +378,9 @@ func Test_assessEvictionTasks(t *testing.T) {
 					{ClusterName: "memberA", Health: workv1alpha2.ResourceHealthy},
 					{ClusterName: "memberB", Health: workv1alpha2.ResourceHealthy},
 				},
-				timeout: timeout,
-				now:     timeNow,
+				timeout:      timeout,
+				now:          timeNow,
+				hasScheduled: true,
 			},
 			wantTask:    nil,
 			wantCluster: []string{"member1", "member2"},
@@ -466,8 +408,9 @@ func Test_assessEvictionTasks(t *testing.T) {
 					{ClusterName: "memberA", Health: workv1alpha2.ResourceHealthy},
 					{ClusterName: "memberB", Health: workv1alpha2.ResourceUnhealthy},
 				},
-				timeout: timeout,
-				now:     timeNow,
+				timeout:      timeout,
+				now:          timeNow,
+				hasScheduled: true,
 			},
 			wantTask: []workv1alpha2.GracefulEvictionTask{
 				{
@@ -504,8 +447,9 @@ func Test_assessEvictionTasks(t *testing.T) {
 					{ClusterName: "memberA", Health: workv1alpha2.ResourceHealthy},
 					{ClusterName: "memberB", Health: workv1alpha2.ResourceUnknown},
 				},
-				timeout: timeout,
-				now:     timeNow,
+				timeout:      timeout,
+				now:          timeNow,
+				hasScheduled: true,
 			},
 			wantTask: []workv1alpha2.GracefulEvictionTask{
 				{
@@ -522,7 +466,12 @@ func Test_assessEvictionTasks(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if gotTask, gotCluster := assessEvictionTasks(tt.args.bindingSpec, tt.args.observedStatus, tt.args.timeout, tt.args.now); !reflect.DeepEqual(gotTask, tt.wantTask) || !reflect.DeepEqual(gotCluster, tt.wantCluster) {
+			if gotTask, gotCluster := assessEvictionTasks(tt.args.bindingSpec.GracefulEvictionTasks, tt.args.now, assessmentOption{
+				timeout:        tt.args.timeout,
+				scheduleResult: tt.args.bindingSpec.Clusters,
+				observedStatus: tt.args.observedStatus,
+				hasScheduled:   true,
+			}); !reflect.DeepEqual(gotTask, tt.wantTask) || !reflect.DeepEqual(gotCluster, tt.wantCluster) {
 				t.Errorf("assessEvictionTasks() = (%v, %v), want (%v, %v)", gotTask, gotCluster, tt.wantTask, tt.wantCluster)
 			}
 		})

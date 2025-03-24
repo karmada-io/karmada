@@ -78,7 +78,12 @@ func (c *RBGracefulEvictionController) Reconcile(ctx context.Context, req contro
 }
 
 func (c *RBGracefulEvictionController) syncBinding(ctx context.Context, binding *workv1alpha2.ResourceBinding) (time.Duration, error) {
-	keptTask, evictedCluster := assessEvictionTasks(binding.Spec, binding.Status.AggregatedStatus, c.GracefulEvictionTimeout, metav1.Now())
+	keptTask, evictedCluster := assessEvictionTasks(binding.Spec.GracefulEvictionTasks, metav1.Now(), assessmentOption{
+		timeout:        c.GracefulEvictionTimeout,
+		scheduleResult: binding.Spec.Clusters,
+		observedStatus: binding.Status.AggregatedStatus,
+		hasScheduled:   binding.Status.SchedulerObservedGeneration == binding.Generation,
+	})
 	if reflect.DeepEqual(binding.Spec.GracefulEvictionTasks, keptTask) {
 		return nextRetry(keptTask, c.GracefulEvictionTimeout, metav1.Now().Time), nil
 	}
@@ -104,21 +109,13 @@ func (c *RBGracefulEvictionController) SetupWithManager(mgr controllerruntime.Ma
 	resourceBindingPredicateFn := predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			newObj := createEvent.Object.(*workv1alpha2.ResourceBinding)
-			if len(newObj.Spec.GracefulEvictionTasks) == 0 {
-				return false
-			}
 			// When the current component is restarted and there are still tasks in the
 			// GracefulEvictionTasks queue, we need to continue the procession.
-			return newObj.Status.SchedulerObservedGeneration == newObj.Generation
+			return len(newObj.Spec.GracefulEvictionTasks) != 0
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			newObj := updateEvent.ObjectNew.(*workv1alpha2.ResourceBinding)
-
-			if len(newObj.Spec.GracefulEvictionTasks) == 0 {
-				return false
-			}
-
-			return newObj.Status.SchedulerObservedGeneration == newObj.Generation
+			return len(newObj.Spec.GracefulEvictionTasks) != 0
 		},
 		DeleteFunc:  func(event.DeleteEvent) bool { return false },
 		GenericFunc: func(event.GenericEvent) bool { return false },
