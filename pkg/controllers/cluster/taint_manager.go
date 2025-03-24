@@ -192,7 +192,7 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 			return err
 		}
 		klog.V(2).Infof("Success to evict Cluster(%s) from ResourceBinding(%s) schedule result",
-			fedKey.ClusterWideKey.NamespaceKey(), fedKey.Cluster)
+			fedKey.Cluster, fedKey.ClusterWideKey.NamespaceKey())
 	} else if tolerationTime > 0 {
 		tc.bindingEvictionWorker.AddAfter(fedKey, tolerationTime)
 	}
