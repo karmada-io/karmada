@@ -34,6 +34,7 @@ This certificate modification primarily affects the certificate generation logic
 **Expected Outcomes:**
 - Issue distinct certificates for 8 server components and store them in corresponding Secrets
 - Issue distinct certificates for 11 client components and store them in appropriate Secrets/ConfigMaps
+- This proposal corresponds to a task that temporarily focuses on providing a universal certificate isolation framework for Karmada. Based on this framework, the certificate issuance and usage of the `hack` installation method will be reformed. However, this change will not involve other installation methods of Karmada (such as `helm`, `karmadactl`, `karmada-operator`) at the moment.
 
 ### Non-Goals
 
@@ -365,69 +366,9 @@ These `karmada-config` files will be mounted into the pods when deploying the co
 
 Certificate before modification
 
-#### Server Certificate (`karmada-apiserver`)
+#### Server Certificate (`karmada-apiserver` and other component)
 
 ```x
-Certificate:
-    Data:
-        Version: 3 (0x2)
-        Serial Number: 3120819415934316465 (0x2b4f60b956e82fb1)
-        Signature Algorithm: sha256WithRSAEncryption
-    Issuer: CN = karmada
-    Validity
-        Not Before: Mar 6 01:57:50 2025 GMT
-        Not After : Mar 6 01:57:48 2026 GMT
-    Subject: O = , CN = karmada-apiserver
-    X509v3 extensions:
-        X509v3 Subject Alternative Name:
-            DNS:, DNS:.karmada-system.svc,
-            DNS:.karmada-system.svc.cluster.local,
-            DNS:karmada-aggregated-apiserver,
-            DNS:karmada-aggregated-apiserver.karmada-system.svc.cluster.local,
-            DNS:karmada-apiserver,
-            DNS:karmada-apiserver.karmada-system.svc.cluster.local,
-            DNS:karmada-webhook,
-            DNS:karmada-webhook.karmada-system.svc,
-            DNS:karmada-webhook.karmada-system.svc.cluster.local,
-            DNS:kubernetes, DNS:kubernetes.default,
-            DNS:kubernetes.default.svc,
-            DNS:localhost,
-            IP Address:127.0.0.1, IP Address:172.18.0.3, IP Address:2407:D840:51:1:0:0:0:6
-```
-
-#### Server Certificate (etcd-server)
-
-```
-Certificate:
-    Data:
-        Version: 3 (0x2)
-        Serial Number: 3465618765702869829 (0x301859e7e0a5b345)
-        Signature Algorithm: sha256WithRSAEncryption
-        Issuer: CN = etcd-ca
-        Validity
-        Subject: CN = karmada-etcd-server
-        Subject Public Key Info:
-            Public Key Algorithm: rsaEncryption
-                Public-Key: (3072 bit)
-                Modulus:
-                   ...
-                Exponent: 65537 (0x10001)
-        X509v3 extensions:
-            X509v3 Key Usage: critical
-                Digital Signature, Key Encipherment
-            X509v3 Extended Key Usage: 
-                TLS Web Server Authentication, TLS Web Client Authentication
-            X509v3 Basic Constraints: critical
-                CA:FALSE
-            X509v3 Authority Key Identifier: 
-                14:55:5D:43:EB:76:25:75:B0:29:45:6D:F6:30:CD:99:6C:C2:B3:1F
-            X509v3 Subject Alternative Name: 
-                DNS:etcd-0.etcd.karmada-system.svc.cluster.local, DNS:localhost, IP Address:127.0.0.1
-```
-
-#### Server Certificate (other component)
-
-```
 Certificate:
     Data:
         Version: 3 (0x2)
@@ -437,7 +378,7 @@ Certificate:
         Validity
             Not Before: Mar 16 07:15:19 2025 GMT
             Not After : Mar 16 07:15:17 2026 GMT
-        Subject: O = system:masters, CN = system:admin
+        Subject: CN = server
         Subject Public Key Info:
             Public Key Algorithm: rsaEncryption
                 Public-Key: (3072 bit)
@@ -454,7 +395,37 @@ Certificate:
             X509v3 Authority Key Identifier: 
                 52:7F:A9:9B:95:75:C7:74:42:5D:FF:04:5A:7F:E3:8A:4C:5F:B0:96
             X509v3 Subject Alternative Name: 
-                DNS:, DNS:*.karmada-system.svc, DNS:*.karmada-system.svc.cluster.local, DNS:karmada-aggregated-apiserver, DNS:karmada-aggregated-apiserver.karmada-system.svc.cluster.local, DNS:karmada-apiserver, DNS:karmada-apiserver.karmada-system.svc.cluster.local, DNS:karmada-webhook, DNS:karmada-webhook.karmada-system.svc, DNS:karmada-webhook.karmada-system.svc.cluster.local, DNS:kubernetes, DNS:kubernetes.default, DNS:kubernetes.default.svc, DNS:localhost, IP Address:127.0.0.1, IP Address:172.18.0.2, IP Address:223.85.243.108
+                DNS:*.karmada-system.svc.cluster.local, DNS:*.karmada-system.svc, DNS:localhost, IP Address:127.0.0.1, IP Address:172.18.0.4, IP Address:172.18.0.8
+```
+
+#### Server Certificate (etcd-server)
+
+```
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 3465618765702869829 (0x301859e7e0a5b345)
+        Signature Algorithm: sha256WithRSAEncryption
+        Issuer: CN = etcd-ca
+        Validity
+        Subject: CN = etcd-server
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (3072 bit)
+                Modulus:
+                   ...
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage: 
+                TLS Web Server Authentication, TLS Web Client Authentication
+            X509v3 Basic Constraints: critical
+                CA:FALSE
+            X509v3 Authority Key Identifier: 
+                14:55:5D:43:EB:76:25:75:B0:29:45:6D:F6:30:CD:99:6C:C2:B3:1F
+            X509v3 Subject Alternative Name: 
+                DNS:*.karmada-system.svc.cluster.local, DNS:*.karmada-system.svc, DNS:localhost, IP Address:127.0.0.1, IP Address:172.18.0.4, IP Address:172.18.0.8
 ```
 
 #### Client Certificate (`client-certificate-data`)
@@ -480,19 +451,7 @@ Certificate:
         X509v3 Authority Key Identifier:
             87:3D:86:17:F6:A0:A8:D2:5B:01:95:A5:F9:BB:C9:CD:A3:88:3A:3C
         X509v3 Subject Alternative Name:
-            DNS:, DNS:.karmada-system.svc,
-            DNS:.karmada-system.svc.cluster.local,
-            DNS:karmada-aggregated-apiserver,
-            DNS:karmada-aggregated-apiserver.karmada-system.svc.cluster.local,
-            DNS:karmada-apiserver,
-            DNS:karmada-apiserver.karmada-system.svc.cluster.local,
-            DNS:karmada-webhook,
-            DNS:karmada-webhook.karmada-system.svc,
-            DNS:karmada-webhook.karmada-system.svc.cluster.local,
-            DNS:kubernetes, DNS:kubernetes.default,
-            DNS:kubernetes.default.svc,
-            DNS:localhost,
-            IP Address:127.0.0.1, IP Address:172.18.0.3, IP Address:2407:D840:51:1:0:0:0:6
+           DNS:*.karmada-system.svc.cluster.local, DNS:*.karmada-system.svc, DNS:localhost, IP Address:127.0.0.1, IP Address:172.18.0.4, IP Address:172.18.0.8
 ```
 
 It can be seen that before the update, most of Karmada's components used the same certificate, with `O=system:master, CN=system:admin`.
@@ -501,36 +460,43 @@ The `system:admin` user is created by Karmada during deployment through the YAML
 
 ### After Changes
 
-#### Server Certificate (`karmada-apiserver`)
-
-```
-Same as above
-```
-
-#### Server Certificate (etcd-server)
-
-```
-Same as above
-```
-
-#### Server Certificate (karmada-search as example)
+#### Server Certificate (`karmada-apiserver` and other component)
 
 ```
 Certificate:
     Data:
         Version: 3 (0x2)
-        Serial Number: 1637290494322391051 (0x16b8d307a435b80b)
+        Serial Number: 3120819415934316465 (0x2b4f60b956e82fb1)
         Signature Algorithm: sha256WithRSAEncryption
-        Issuer: CN = karmada
+    Issuer: CN = karmada
+    Validity
+        Not Before: Mar 6 01:57:50 2025 GMT
+        Not After : Mar 6 01:57:48 2026 GMT
+    Subject: CN = karmada-apiserver
+    X509v3 extensions:
+        X509v3 Subject Alternative Name:
+            DNS:karmada-apiserver.karmada-system.svc.cluster.local,
+            DNS:karmada-apiserver.karmada-system.svc, 
+            DNS:localhost, 
+            IP Address:127.0.0.1, IP Address:172.18.0.2
+```
+
+#### Server Certificate (etcd-server)
+
+```
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 3465618765702869829 (0x301859e7e0a5b345)
+        Signature Algorithm: sha256WithRSAEncryption
+        Issuer: CN = etcd-ca
         Validity
-            Not Before: Mar 16 07:15:19 2025 GMT
-            Not After : Mar 16 07:15:17 2026 GMT
-        Subject: O = system:masters, CN = system:karmada-scheduler-estimator
+        Subject: CN = etcd-server
         Subject Public Key Info:
             Public Key Algorithm: rsaEncryption
                 Public-Key: (3072 bit)
                 Modulus:
-                    ...
+                   ...
                 Exponent: 65537 (0x10001)
         X509v3 extensions:
             X509v3 Key Usage: critical
@@ -540,16 +506,33 @@ Certificate:
             X509v3 Basic Constraints: critical
                 CA:FALSE
             X509v3 Authority Key Identifier: 
-                52:7F:A9:9B:95:75:C7:74:42:5D:FF:04:5A:7F:E3:8A:4C:5F:B0:96
+                14:55:5D:43:EB:76:25:75:B0:29:45:6D:F6:30:CD:99:6C:C2:B3:1F
             X509v3 Subject Alternative Name: 
-                DNS:, DNS:*.karmada-system.svc, DNS:*.karmada-system.svc.cluster.local, 
-                DNS:karmada-apiserver.karmada-system.svc.cluster.local,
-            	DNS:karmada-apiserver,
-            	DNS:karmada-etcd.karmada-system.svc.cluster.local,
-            	DNS:karmada-etcd,
-            	IP Address:127.0.0.1,
-            	IP Address:172.18.0.3
-          # Detailed changes to the dns content still need to be determined
+                DNS:etcd-client.karmada-system.svc.cluster.local,
+                DNS:etcd-client.karmada-system.svc, 
+                DNS:localhost, 
+                IP Address:127.0.0.1
+```
+
+#### Server Certificate (karmada-search as example)
+
+```
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 3120819415934316465 (0x2b4f60b956e82fb1)
+        Signature Algorithm: sha256WithRSAEncryption
+    Issuer: CN = karmada
+    Validity
+        Not Before: Mar 6 01:57:50 2025 GMT
+        Not After : Mar 6 01:57:48 2026 GMT
+    Subject: CN = karmada-search
+    X509v3 extensions:
+        X509v3 Subject Alternative Name:
+            DNS:karmada-search.karmada-system.svc.cluster.local,
+            DNS:karmada-search.karmada-system.svc, 
+            DNS:localhost, 
+            IP Address:127.0.0.1
 ```
 
 #### Client Certificate (`karmada-scheduler`)
@@ -576,12 +559,6 @@ Certificate:
             X509v3 Authority Key Identifier: 
                 52:7F:A9:9B:95:75:C7:74:42:5D:FF:04:5A:7F:E3:8A:4C:5F:B0:96
             X509v3 Subject Alternative Name: 
-                DNS:, DNS:*.karmada-system.svc, DNS:*.karmada-system.svc.cluster.local, 
-                DNS:karmada-apiserver.karmada-system.svc.cluster.local,
-            	DNS:karmada-apiserver,
-            	IP Address:127.0.0.1,
-            	IP Address:172.18.0.3
-          # Detailed changes to the dns content still need to be determined
 ```
 
 It can be seen that the main modification result is in the certificate's Subject field and SAN (Subject Alternative Name) content. We have modified the CN (Common Name) of the component in the Subject field and restricted the DNS addresses in the SAN. Through these modifications, we can achieve identification of the component's identity and restrict the scope of the certificate's usage.
@@ -603,345 +580,245 @@ By completing the above modifications, the Karmada system will significantly imp
 
 ### Risks and Mitigations
 
-## Design Details(The current design details are not useful because the implementation needs to be changed)
+## Design Details
 
 <!-- This section should contain enough information that the specifics of your change are understandable. This may include API specs (though not always required) or even code snippets. If there's any ambiguity about HOW your proposal will be implemented, this is the place to discuss them. -->
 
 ### Server Certificate Modifications
 
-#### Certificate Generation Templates and Logic
+There are currently eight server components, and I'll list sample certificates for each of them here to show the specific cn and san changes for each server component
 
-Currently, Karmada generates certificates using template functions. The key logic is mainly found in the following files:
+- karmada-apiserver
 
-- `operator/pkg/certs/certs.go`
-- `pkg/karmadactl/cmdinit/cert/cert.go`
-
-The critical code is located in the `GetDefaultCertList` function within `operator/pkg/certs/certs.go`:
-
-```go
-func GetDefaultCertList(karmada *operatorv1alpha1.Karmada) []*CertConfig {
-    certConfigs := []*CertConfig{
-        // karmada cert config.
-        KarmadaCertRootCA(),
-        KarmadaCertAdmin(),
-        KarmadaCertApiserver(),
-        // front proxy cert config.
-        KarmadaCertFrontProxyCA(),
-        KarmadaCertFrontProxyClient(),
-    }
-    if karmada.Spec.Components.Etcd.Local != nil {
-        certConfigs = append(certConfigs, KarmadaCertEtcdCA(), KarmadaCertEtcdServer(), KarmadaCertEtcdClient())
-    }
-    return certConfigs
-}
-```
-
-To create independent certificates for each server component, the following modifications are required:
-
-1. **Extend the CertConfig Definition**
-    Add functions similar to `KarmadaCertApiserver` for each component to generate a unique CertConfig template. For example:
-
-   ```go
-   func KarmadaCertModule() *CertConfig {
-       return &CertConfig{
-           Name:   constants.ModuleCertAndKeyName,
-           CAName: constants.CaCertAndKeyName,
-           Config: certutil.Config{
-               CommonName: "karmada-module-name",
-               Usages:     []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-           },
-           AltNamesMutatorFunc: makeAltNamesMutator(apiServerAltNamesMutator),
-       }
-   }
-   ```
-
-2. **Supplement Constants**
-    Add new certificate names and related constants in `constants/constants.go`.
-
-3. **Modify GetDefaultCertList**
-    Update the `GetDefaultCertList` function to include certificate configurations for all components:
-
-   ```go
-   func GetDefaultCertList(karmada *operatorv1alpha1.Karmada) []*CertConfig {
-       certConfigs := []*CertConfig{
-           // karmada cert config.
-           KarmadaCertRootCA(),
-           KarmadaCertAdmin(),
-           KarmadaCertApiserver(),
-           KarmadaCertScheduler(),
-           KarmadaCertControllerManager(),
-           KarmadaCertWebhook(),
-           KarmadaCertSearch(),
-           KarmadaCertMetricsAdapter(),
-           // ... other modules
-           // front proxy cert config.
-           KarmadaCertFrontProxyCA(),
-           KarmadaCertFrontProxyClient(),
-       }
-       // ...
-       return certConfigs
-   }
-   ```
-
-#### Generating Independent Secrets and Uploading Certificates
-
-After generating independent certificates for each server component, the certificate upload logic must be modified, primarily in `operator/pkg/tasks/init/upload.go`, which is currently implemented via the `NewUploadCertsTask` function:
-
-```go
-// NewUploadCertsTask init a Upload-Certs task
-func NewUploadCertsTask(karmada *operatorv1alpha1.Karmada) workflow.Task {
-    tasks := []workflow.Task{
-        {
-            Name: "Upload-KarmadaCert",
-            Run:  runUploadKarmadaCert,
-        },
-        {
-            Name: "Upload-WebHookCert",
-            Run:  runUploadWebHookCert,
-        },
-    }
-    if karmada.Spec.Components.Etcd.Local != nil {
-        uploadEtcdTask := workflow.Task{
-            Name: "Upload-EtcdCert",
-            Run:  runUploadEtcdCert,
-        }
-        tasks = append(tasks, uploadEtcdTask)
-    }
-    return workflow.Task{
-        Name:        "Upload-Certs",
-        Run:         runUploadCerts,
-        RunSubTasks: true,
-        Tasks:       tasks,
-    }
-}
-```
-
-The required modifications are as follows:
-
-- **Add the generateComponentCertSecret Function**
-   Generate a dedicated cert Secret for each component:
-
-  ```go
-  func generateComponentCertSecret(certName, namespace string, cert, key []byte) *corev1.Secret {
-      return &corev1.Secret{
-          ObjectMeta: metav1.ObjectMeta{
-              Name:      fmt.Sprintf("%s-cert", certName),
-              Namespace: namespace,
-              Labels:    constants.KarmadaOperatorLabel,
-          },
-          Type: corev1.SecretTypeTLS,
-          Data: map[string][]byte{
-              "tls.crt": cert,
-              "tls.key": key,
-              "ca.crt":  caCert,
-          },
-      }
-  }
+  ```
+  Certificate:
+      Data:
+          Version: 3 (0x2)
+          Serial Number: 3120819415934316465 (0x2b4f60b956e82fb1)
+          Signature Algorithm: sha256WithRSAEncryption
+      Issuer: CN = karmada
+      Validity
+          Not Before: Mar 6 01:57:50 2025 GMT
+          Not After : Mar 6 01:57:48 2026 GMT
+      Subject: CN = karmada-apiserver
+      X509v3 extensions:
+          X509v3 Subject Alternative Name:
+              DNS:karmada-apiserver.karmada-system.svc.cluster.local,
+              DNS:karmada-apiserver.karmada-system.svc, 
+              DNS:localhost, 
+              IP Address:127.0.0.1, 
+              IP Address:${apiserver_service_ip_address}
   ```
 
-- **Create RBAC Rules**
-   Limit each component's access to its own certificate. For example:
+- karmada-aggregated-apiserver
 
-  ```go
-  func createCertificateRBAC(client kubernetes.Interface, componentName, namespace string) error {
-      // Create ServiceAccount
-      sa := &corev1.ServiceAccount{
-          ObjectMeta: metav1.ObjectMeta{
-              Name:      componentName,
-              Namespace: namespace,
-          },
-      }
-      
-      // Create Role
-      role := &rbacv1.Role{
-          ObjectMeta: metav1.ObjectMeta{
-              Name:      fmt.Sprintf("%s-cert-access", componentName),
-              Namespace: namespace,
-          },
-          Rules: []rbacv1.PolicyRule{
-              {
-                  APIGroups: []string{""},
-                  Resources: []string{"secrets"},
-                  ResourceNames: []string{fmt.Sprintf("%s-cert", componentName)},
-                  Verbs:     []string{"get", "watch", "list"},
-              },
-          },
-      }
-      
-      // Create RoleBinding
-      binding := &rbacv1.RoleBinding{
-          ObjectMeta: metav1.ObjectMeta{
-              Name:      fmt.Sprintf("%s-cert-access", componentName),
-              Namespace: namespace,
-          },
-          Subjects: []rbacv1.Subject{
-              {
-                  Kind:      "ServiceAccount",
-                  Name:      componentName,
-                  Namespace: namespace,
-              },
-          },
-          RoleRef: rbacv1.RoleRef{
-              APIGroup: "rbac.authorization.k8s.io",
-              Kind:     "Role",
-              Name:     fmt.Sprintf("%s-cert-access", componentName),
-          },
-      }
-      
-      return nil
-  }
+  ```
+  Certificate:
+      Data:
+          Version: 3 (0x2)
+          Serial Number: 3120819415934316465 (0x2b4f60b956e82fb1)
+          Signature Algorithm: sha256WithRSAEncryption
+      Issuer: CN = karmada
+      Validity
+          Not Before: Mar 6 01:57:50 2025 GMT
+          Not After : Mar 6 01:57:48 2026 GMT
+      Subject: CN = karmada-aggregated-apiserver
+      X509v3 extensions:
+          X509v3 Subject Alternative Name:
+              DNS:karmada-aggregated-apiserver.karmada-system.svc.cluster.local,
+              DNS:karmada-aggregated-apiserver.karmada-system.svc, 
+              DNS:localhost, 
+              IP Address:127.0.0.1
   ```
 
-- **Modify Component Manifest Templates**
-   Update the manifest files (e.g., `manifest.go`) in each component package to change the certificate mounting logic so that only the certificate relevant to that component is mounted. For example:
+- karmada-scheduler-estimator
 
-  ```yaml
-  volumes:
-  - name: karmada-module-certs
-    secret:
-      secretName: {{ .moduleName }}-cert  # Changed to component-specific cert
+  ```
+  Certificate:
+      Data:
+          Version: 3 (0x2)
+          Serial Number: 3120819415934316465 (0x2b4f60b956e82fb1)
+          Signature Algorithm: sha256WithRSAEncryption
+      Issuer: CN = karmada
+      Validity
+          Not Before: Mar 6 01:57:50 2025 GMT
+          Not After : Mar 6 01:57:48 2026 GMT
+      Subject: CN = karmada-scheduler-estimator
+      X509v3 extensions:
+          X509v3 Subject Alternative Name:
+              DNS:karmada-scheduler-estimator.karmada-system.svc.cluster.local,
+              DNS:karmada-scheduler-estimator.karmada-system.svc, 
+              DNS:localhost, 
+              IP Address:127.0.0.1
   ```
 
-------
+- karmada-metrics-adapter
+
+  ```
+  Certificate:
+      Data:
+          Version: 3 (0x2)
+          Serial Number: 3120819415934316465 (0x2b4f60b956e82fb1)
+          Signature Algorithm: sha256WithRSAEncryption
+      Issuer: CN = karmada
+      Validity
+          Not Before: Mar 6 01:57:50 2025 GMT
+          Not After : Mar 6 01:57:48 2026 GMT
+      Subject: CN = karmada-metrics-adapter
+      X509v3 extensions:
+          X509v3 Subject Alternative Name:
+              DNS:karmada-metrics-adapter.karmada-system.svc.cluster.local,
+              DNS:karmada-metrics-adapter.karmada-system.svc, 
+              DNS:localhost, 
+              IP Address:127.0.0.1
+  ```
+
+- karmada-webhook
+
+  ```
+  Certificate:
+      Data:
+          Version: 3 (0x2)
+          Serial Number: 3120819415934316465 (0x2b4f60b956e82fb1)
+          Signature Algorithm: sha256WithRSAEncryption
+      Issuer: CN = karmada
+      Validity
+          Not Before: Mar 6 01:57:50 2025 GMT
+          Not After : Mar 6 01:57:48 2026 GMT
+      Subject: CN = karmada-webhook
+      X509v3 extensions:
+          X509v3 Subject Alternative Name:
+              DNS:karmada-webhook.karmada-system.svc.cluster.local,
+              DNS:karmada-webhook.karmada-system.svc, 
+              DNS:localhost, 
+              IP Address:127.0.0.1
+  ```
+
+- karmada-search
+
+  ```
+  Certificate:
+      Data:
+          Version: 3 (0x2)
+          Serial Number: 3120819415934316465 (0x2b4f60b956e82fb1)
+          Signature Algorithm: sha256WithRSAEncryption
+      Issuer: CN = karmada
+      Validity
+          Not Before: Mar 6 01:57:50 2025 GMT
+          Not After : Mar 6 01:57:48 2026 GMT
+      Subject: CN = karmada-search
+      X509v3 extensions:
+          X509v3 Subject Alternative Name:
+              DNS:karmada-search.karmada-system.svc.cluster.local,
+              DNS:karmada-search.karmada-system.svc, 
+              DNS:localhost, 
+              IP Address:127.0.0.1
+  ```
+
+- etcd-client
+
+  ```
+  Certificate:
+      Data:
+          Version: 3 (0x2)
+          Serial Number: 3120819415934316465 (0x2b4f60b956e82fb1)
+          Signature Algorithm: sha256WithRSAEncryption
+      Issuer: CN = karmada
+      Validity
+          Not Before: Mar 6 01:57:50 2025 GMT
+          Not After : Mar 6 01:57:48 2026 GMT
+      Subject: CN = etcd-client
+      X509v3 extensions:
+          X509v3 Subject Alternative Name:
+              DNS:etcd-client.karmada-system.svc.cluster.local,
+              DNS:etcd-client.karmada-system.svc, 
+              DNS:localhost, 
+              IP Address:127.0.0.1
+  ```
 
 ### Client Certificate Modifications
 
-In clusters deployed using `karmadactl init`, the client authentication certificate content is stored locally in the `karmada-apiserver.config` file, and clients use this file to build the `karmadaClient` which automatically loads the certificate via client-go.
+- karmada-apiserver Connection certificate (Using karmada-search as an example)
 
-For clusters deployed using the Operator, the certificate data is stored in the `karmada-cert` Secret and may also be present in the container of the karmada-apiserver (the design of the Operator part is not yet fully understood).
+  ```
+  Certificate:
+      Data:
+          Signature Algorithm: sha256WithRSAEncryption
+      Issuer: CN = karmada
+      Subject: O = system:masters, CN = system:karmada-search
+          Subject Public Key Info:
+              Public Key Algorithm: rsaEncryption
+                  Public-Key: (3072 bit)
+                  Modulus:
+                      ...
+                  Exponent: 65537 (0x10001)
+          X509v3 extensions:
+              X509v3 Key Usage: critical
+                  Digital Signature, Key Encipherment
+              X509v3 Extended Key Usage: 
+                  TLS Web Server Authentication, TLS Web Client Authentication
+              X509v3 Basic Constraints: critical
+                  CA:FALSE
+              X509v3 Authority Key Identifier: 
+                  52:7F:A9:9B:95:75:C7:74:42:5D:FF:04:5A:7F:E3:8A:4C:5F:B0:96
+              X509v3 Subject Alternative Name: 
+  ```
 
-Two design approaches for modifying client certificates are considered:
+- etcd-client Connection certificate (Using karmada-search as an example)
 
-1. Option 1: Issue Independent Authentication Certificates for Each Client
-   - Modify the certificate issuance tool to generate a dedicated authentication certificate for each client component (with CN set to the component name).
-   - Adjust the client connection logic so that each client uses its own certificate during connections.
-2. Option 2: Extend the Configuration File via Multi-User Mode
-   - In the existing `karmada-apiserver.config` file, store each client component's certificate information in a multi-user format.
-   - Implement a mechanism for clients to load only the certificate portion corresponding to themselves and use it for authentication.
+  ```
+  Certificate:
+      Data:
+          Signature Algorithm: sha256WithRSAEncryption
+      Issuer: CN = karmada
+      Subject: O = system:masters, CN = system:karmada-search
+          Subject Public Key Info:
+              Public Key Algorithm: rsaEncryption
+                  Public-Key: (3072 bit)
+                  Modulus:
+                      ...
+                  Exponent: 65537 (0x10001)
+          X509v3 extensions:
+              X509v3 Key Usage: critical
+                  Digital Signature, Key Encipherment
+              X509v3 Extended Key Usage: 
+                  TLS Web Server Authentication, TLS Web Client Authentication
+              X509v3 Basic Constraints: critical
+                  CA:FALSE
+              X509v3 Authority Key Identifier: 
+                  52:7F:A9:9B:95:75:C7:74:42:5D:FF:04:5A:7F:E3:8A:4C:5F:B0:96
+              X509v3 Subject Alternative Name: 
+  ```
 
-#### Other Modification Points
+- Karmada-scheduler-estimator Connection certificate (Using karmada-scheduler as an example)
 
-- **Cancel the Binding of Client Certificates to Specific Servers**
-   After modifying the certificate issuance tool, the API Server authentication logic may need to be adjusted to remove the current binding between client certificates and specific servers.
-- **Address Root Certificate Differences Across Deployments**
-   Different Karmada clusters may use different root certificates, which can cause validation failures when clients communicate across clusters. A potential solution is to add an option during cluster creation to use an external root certificate as the CA for signing other certificates, ensuring consistent validation.
+  ```
+  Certificate:
+      Data:
+          Signature Algorithm: sha256WithRSAEncryption
+      Issuer: CN = karmada
+      Subject: O = system:masters, CN = system:karmada-scheduler
+          Subject Public Key Info:
+              Public Key Algorithm: rsaEncryption
+                  Public-Key: (3072 bit)
+                  Modulus:
+                      ...
+                  Exponent: 65537 (0x10001)
+          X509v3 extensions:
+              X509v3 Key Usage: critical
+                  Digital Signature, Key Encipherment
+              X509v3 Extended Key Usage: 
+                  TLS Web Server Authentication, TLS Web Client Authentication
+              X509v3 Basic Constraints: critical
+                  CA:FALSE
+              X509v3 Authority Key Identifier: 
+                  52:7F:A9:9B:95:75:C7:74:42:5D:FF:04:5A:7F:E3:8A:4C:5F:B0:96
+              X509v3 Subject Alternative Name: 
+  ```
 
 ------
 
 After completing the above work, the proposed functionality should be fully implemented, achieving the goal of providing independent certificates for each component, enhancing system security, and reducing management complexity.
-
-## Attachment: Comparison of certificate components before and after modification
-
-### Before Changes (Current Implementation)
-
-#### Server Certificate (`karmada-apiserver`)
-
-```
-Certificate:
-    Data:
-        Version: 3 (0x2)
-        Serial Number: 3120819415934316465 (0x2b4f60b956e82fb1)
-        Signature Algorithm: sha256WithRSAEncryption
-    Issuer: CN = karmada
-    Validity
-        Not Before: Mar 6 01:57:50 2025 GMT
-        Not After : Mar 6 01:57:48 2026 GMT
-    Subject: O = , CN = karmada-apiserver
-    X509v3 extensions:
-        X509v3 Subject Alternative Name:
-            DNS:, DNS:.karmada-system.svc,
-            DNS:.karmada-system.svc.cluster.local,
-            DNS:karmada-aggregated-apiserver,
-            DNS:karmada-aggregated-apiserver.karmada-system.svc.cluster.local,
-            DNS:karmada-apiserver,
-            DNS:karmada-apiserver.karmada-system.svc.cluster.local,
-            DNS:karmada-webhook,
-            DNS:karmada-webhook.karmada-system.svc,
-            DNS:karmada-webhook.karmada-system.svc.cluster.local,
-            DNS:kubernetes, DNS:kubernetes.default,
-            DNS:kubernetes.default.svc,
-            DNS:localhost,
-            IP Address:127.0.0.1, IP Address:172.18.0.3, IP Address:2407:D840:51:1:0:0:0:6
-```
-
-
-
-#### Client Certificate (`client-certificate-data`)
-
-```
-Certificate:
-    Data:
-        Version: 3 (0x2)
-        Serial Number: 6967587319794734003 (0x60b1d7c061e193b3)
-        Signature Algorithm: sha256WithRSAEncryption
-    Issuer: CN = karmada
-    Validity
-        Not Before: Mar 6 01:57:50 2025 GMT
-        Not After : Mar 6 01:57:48 2026 GMT
-    Subject: O = system:masters, CN = system:admin
-    X509v3 extensions:
-        X509v3 Key Usage: critical
-            Digital Signature, Key Encipherment
-        X509v3 Extended Key Usage:
-            TLS Web Server Authentication, TLS Web Client Authentication
-        X509v3 Basic Constraints: critical
-            CA:FALSE
-        X509v3 Authority Key Identifier:
-            87:3D:86:17:F6:A0:A8:D2:5B:01:95:A5:F9:BB:C9:CD:A3:88:3A:3C
-        X509v3 Subject Alternative Name:
-            DNS:, DNS:.karmada-system.svc,
-            DNS:.karmada-system.svc.cluster.local,
-            DNS:karmada-aggregated-apiserver,
-            DNS:karmada-aggregated-apiserver.karmada-system.svc.cluster.local,
-            DNS:karmada-apiserver,
-            DNS:karmada-apiserver.karmada-system.svc.cluster.local,
-            DNS:karmada-webhook,
-            DNS:karmada-webhook.karmada-system.svc,
-            DNS:karmada-webhook.karmada-system.svc.cluster.local,
-            DNS:kubernetes, DNS:kubernetes.default,
-            DNS:kubernetes.default.svc,
-            DNS:localhost,
-            IP Address:127.0.0.1, IP Address:172.18.0.3, IP Address:2407:D840:51:1:0:0:0:6
-```
-
-
-
-### After Changes
-
-#### Server Certificate (`karmada-apiserver`)
-
-```
-Certificate:
-    Data:
-        Signature Algorithm: sha256WithRSAEncryption
-    Issuer: CN = karmada-apiserver-ca  # Dedicated CA per component
-    Subject: CN = karmada-apiserver
-    X509v3 extensions:
-        X509v3 Subject Alternative Name:
-            DNS:karmada-apiserver,
-            DNS:karmada-apiserver.karmada-system.svc,
-            DNS:karmada-apiserver.karmada-system.svc.cluster.local,
-            DNS:localhost,
-            IP Address:127.0.0.1
-#Contains only the domain name required by the component
-```
-
-
-
-#### Client Certificate (`karmada-scheduler`)
-
-```
-Certificate:
-    Data:
-        Signature Algorithm: sha256WithRSAEncryption
-    Issuer: CN = karmada-scheduler-ca  # Dedicated CA per component
-    Subject: O = system:karmada-components, CN = system:karmada-scheduler
-    X509v3 extensions:
-        X509v3 Key Usage: critical
-            Digital Signature, Key Encipherment
-# In order to complete the function of connecting different servers, it does not contain any domain name
-# Because I don't know much about the functional design that allows the same client to use consistent certificates 
-```
 
 ## Alternatives
 
