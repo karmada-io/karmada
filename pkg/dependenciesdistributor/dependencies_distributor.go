@@ -90,6 +90,15 @@ type LabelsKey struct {
 	Labels map[string]string
 }
 
+// LabelsKeyString is the object key which is a unique identifier under a cluster, across all resources.
+// labels field is the serialized labels string; the reason for this is that map is an incomparable type in golang
+// thus, the queue's add method cannot deduplicate
+type LabelsKeyString struct {
+	keys.ClusterWideKey
+	// Labels is the labels string of the referencing object.
+	Labels string
+}
+
 // DependenciesDistributor is to automatically propagate relevant resources.
 // ResourceBinding will be created when a resource(e.g. deployment) is matched by a propagation policy,
 // we call it independent binding in DependenciesDistributor.
@@ -164,7 +173,7 @@ func (d *DependenciesDistributor) OnDelete(obj interface{}) {
 // When the resource is confirmed to need to be distributed, it will be processed by DependenciesDistributor.Reconcile.
 // The key will be re-queued if an error is non-nil.
 func (d *DependenciesDistributor) reconcileResourceTemplate(key util.QueueKey) error {
-	resourceTemplateKey, ok := key.(*LabelsKey)
+	resourceTemplateKey, ok := key.(LabelsKeyString)
 	if !ok {
 		klog.Error("Invalid key")
 		return fmt.Errorf("invalid key")
@@ -198,7 +207,7 @@ func (d *DependenciesDistributor) reconcileResourceTemplate(key util.QueueKey) e
 
 // matchesWithBindingDependencies tells if the given object(resource template) is matched
 // with the dependencies of independent resourceBinding.
-func matchesWithBindingDependencies(resourceTemplateKey *LabelsKey, independentBinding *workv1alpha2.ResourceBinding) bool {
+func matchesWithBindingDependencies(resourceTemplateKey LabelsKeyString, independentBinding *workv1alpha2.ResourceBinding) bool {
 	dependencies, exist := independentBinding.Annotations[dependenciesAnnotationKey]
 	if !exist {
 		return false
@@ -214,7 +223,13 @@ func matchesWithBindingDependencies(resourceTemplateKey *LabelsKey, independentB
 			independentBinding.Namespace, independentBinding.Name, dependencies, err)
 		return false
 	}
-
+	var labelsMap map[string]string
+	err = json.Unmarshal([]byte(resourceTemplateKey.Labels), &labelsMap)
+	if err != nil {
+		klog.Errorf("Failed to unmarshal labels(%s/%s) dependencies(%s): %v",
+			independentBinding.Namespace, independentBinding.Name, dependencies, err)
+		return false
+	}
 	if len(dependenciesSlice) == 0 {
 		return false
 	}
@@ -232,7 +247,7 @@ func matchesWithBindingDependencies(resourceTemplateKey *LabelsKey, independentB
 					independentBinding.Namespace, independentBinding.Name, dependencies, err)
 				return false
 			}
-			return selector.Matches(labels.Set(resourceTemplateKey.Labels))
+			return selector.Matches(labels.Set(labelsMap))
 		}
 	}
 	return false
@@ -614,9 +629,10 @@ func (d *DependenciesDistributor) Start(ctx context.Context) error {
 			if err != nil { // should not happen
 				return nil, fmt.Errorf("object has no meta: %v", err)
 			}
-			return &LabelsKey{
+			labelsByte, _ := json.Marshal(metaInfo.GetLabels())
+			return &LabelsKeyString{
 				ClusterWideKey: key,
-				Labels:         metaInfo.GetLabels(),
+				Labels:         string(labelsByte),
 			}, nil
 		},
 		ReconcileFunc: d.reconcileResourceTemplate,
