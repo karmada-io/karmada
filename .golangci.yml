@@ -1,10 +1,11 @@
 # This files contains all configuration options for analysis running.
 # More details please refer to: https://golangci-lint.run/usage/configuration/
 
+version: "2"
 run:
-  # timeout for analysis, e.g. 30s, 5m, default is 1m
+  # timeout for analysis, e.g. 30s, 5m, default timeout is disabled
   timeout: 10m
-
+  
   # One of 'readonly' and 'vendor'.
   #  - readonly: the go command is disallowed from the implicit automatic updating of go.mod described above.
   #              Instead, it fails when any changes to go.mod are needed. This setting is most useful to check
@@ -14,95 +15,97 @@ run:
   modules-download-mode: readonly
 linters:
   enable:
-  # linters maintained by golang.org
-  - gofmt
-  - goimports
-  - govet
-  # linters default enabled by golangci-lint .
-  - errcheck
-  - gosimple
-  - ineffassign
-  - staticcheck
-  - typecheck
-  - unused
-  # other linters supported by golangci-lint.
-  - gci
-  - gocyclo
-  - gosec
-  - misspell
-  - whitespace
-  - revive
-  - depguard
-
-linters-settings:
-  depguard:
-    rules:
-      main:
-        deny:
-        - pkg: "io/ioutil"
-          desc: "replaced by io and os packages since Go 1.16: https://tip.golang.org/doc/go1.16#ioutil"
-  goimports:
-    local-prefixes: github.com/karmada-io/karmada
-  gocyclo:
-    # minimal cyclomatic complexity to report
-    min-complexity: 15
-  gci:
-    sections:
-      - Standard
-      - Default
-      - Prefix(github.com/karmada-io/karmada)
-  revive:
-    rules:
-      # Disable if-return as it is too strict and not always useful.
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#if-return
-      - name: if-return
-        disabled: true
-      - name: package-comments
-      - name: superfluous-else
-        arguments:
-          - preserveScope
-      - name: error-strings
-      - name: error-return
-      - name: receiver-naming
-      - name: increment-decrement
-      - name: range
-      - name: error-naming
-      - name: dot-imports
-      - name: errorf
-      - name: exported
-      - name: var-declaration
-      - name: blank-imports
-      - name: indent-error-flow
-      - name: unreachable-code
-      - name: var-naming
-      - name: redefines-builtin-id
-      - name: unused-parameter
-      - name: context-as-argument
-      - name: context-keys-type
-      - name: unexported-return
-      - name: time-naming
-      - name: empty-block
-
-issues:
-  # The list of ids of default excludes to include or disable. By default it's empty.
-  include:
-  # disable excluding of issues about comments from revive
-  # see https://golangci-lint.run/usage/configuration/#command-line-options for more info
-  - EXC0012
-  - EXC0013
-  - EXC0014
-  # Which dirs to exclude: issues from them won't be reported.
-  # Can use regexp here: `generated.*`, regexp is applied on full path,
-  # including the path prefix if one is set.
-  # Default dirs are skipped independently of this option's value (see exclude-dirs-use-default).
-  # "/" will be replaced by current OS file path separator to properly work on Windows.
-  # Default: []
-  exclude-dirs:
-    - hack/tools/preferredimports # This code is directly lifted from the Kubernetes codebase, skip checking
-    - (^|/)vendor($|/)
-    - (^|/)third_party($|/)
-    - pkg/util/lifted # This code is lifted from other projects(Kubernetes, Kubefed, and so on), skip checking.
-  # Enables exclude of directories:
-  # - vendor$, third_party$, testdata$, examples$, Godeps$, builtin$
-  # Default: true
-  exclude-dirs-use-default: false
+    - depguard
+    - gocyclo
+    - gosec
+    - misspell
+    - revive
+    - whitespace
+  settings:
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: io/ioutil
+              desc: 'replaced by io and os packages since Go 1.16: https://tip.golang.org/doc/go1.16#ioutil'
+    gocyclo:
+      # minimal cyclomatic complexity to report
+      min-complexity: 15
+    revive:
+      rules:
+        # Disable if-return as it is too strict and not always useful.
+        # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#if-return
+        - name: if-return
+          disabled: true
+        - name: package-comments
+          disabled: true
+        - name: superfluous-else
+          arguments:
+            - preserveScope
+        - name: error-strings
+        - name: error-return
+        - name: receiver-naming
+        - name: increment-decrement
+        - name: range
+        - name: error-naming
+        - name: dot-imports
+        - name: errorf
+        - name: exported
+        - name: var-declaration
+        - name: blank-imports
+        - name: indent-error-flow
+        - name: unreachable-code
+        - name: var-naming
+        - name: redefines-builtin-id
+        - name: unused-parameter
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: unexported-return
+        - name: time-naming
+        - name: empty-block
+    staticcheck:
+      checks:
+        - all
+        # Exclude the following checks temporarily.
+        # Will fix the issues in the following PRs.
+        # Issue: https://github.com/karmada-io/karmada/issues/6273.
+        - "-QF1008"
+        - "-ST1019"
+        - "-ST1005"
+        - "-QF1004"
+        - "-ST1011"
+        - "-QF1003"
+        - "-QF1001"
+        - "-ST1000"
+  exclusions:
+    generated: lax
+    presets:
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - hack/tools/preferredimports
+      - (^|/)vendor($|/)
+      - (^|/)third_party($|/)
+      - pkg/util/lifted
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - goimports
+  settings:
+    gci:
+      sections:
+        - Standard
+        - Default
+        - Prefix(github.com/karmada-io/karmada)
+    goimports:
+      local-prefixes:
+        - github.com/karmada-io/karmada
+  exclusions:
+    generated: lax
+    paths:
+      - hack/tools/preferredimports
+      - (^|/)vendor($|/)
+      - (^|/)third_party($|/)
+      - pkg/util/lifted
