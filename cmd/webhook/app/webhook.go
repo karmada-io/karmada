@@ -24,6 +24,7 @@ import (
 	"net/http"
 
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/util/flowcontrol"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
@@ -116,7 +117,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 	if err != nil {
 		panic(err)
 	}
-	config.QPS, config.Burst = opts.KubeAPIQPS, opts.KubeAPIBurst
+	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(opts.KubeAPIQPS, opts.KubeAPIBurst)
 
 	hookManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
 		Logger: klog.Background(),
