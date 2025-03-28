@@ -175,9 +175,8 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 					ingresses := []corev1.LoadBalancerIngress{{IP: fmt.Sprintf("172.19.1.%d", index+6)}}
 					for _, ingress := range ingresses {
 						svcLoadBalancer.Ingress = append(svcLoadBalancer.Ingress, corev1.LoadBalancerIngress{
-							IP:       ingress.IP,
-							Hostname: clusterName,
-							IPMode:   ingress.IPMode,
+							IP:     ingress.IP,
+							IPMode: ingress.IPMode,
 						})
 					}
 
@@ -323,8 +322,7 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 					ingresses := []networkingv1.IngressLoadBalancerIngress{{IP: fmt.Sprintf("172.19.2.%d", index+6)}}
 					for _, ingress := range ingresses {
 						ingLoadBalancer.Ingress = append(ingLoadBalancer.Ingress, networkingv1.IngressLoadBalancerIngress{
-							IP:       ingress.IP,
-							Hostname: clusterName,
+							IP: ingress.IP,
 						})
 					}
 

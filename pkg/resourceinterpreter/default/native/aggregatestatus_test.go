@@ -129,7 +129,7 @@ func TestAggregateServiceStatus(t *testing.T) {
 	newServiceLoadBalancer := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: corev1.SchemeGroupVersion.String()},
 		Spec:     corev1.ServiceSpec{Type: corev1.ServiceTypeLoadBalancer},
-		Status:   corev1.ServiceStatus{LoadBalancer: corev1.LoadBalancerStatus{Ingress: []corev1.LoadBalancerIngress{{IP: "8.8.8.8", Hostname: "member1"}}}},
+		Status:   corev1.ServiceStatus{LoadBalancer: corev1.LoadBalancerStatus{Ingress: []corev1.LoadBalancerIngress{{IP: "8.8.8.8"}}}},
 	}
 	oldObjServiceLoadBalancer, _ := helper.ToUnstructured(oldServiceLoadBalancer)
 	newObjServiceLoadBalancer, _ := helper.ToUnstructured(newServiceLoadBalancer)
@@ -192,7 +192,7 @@ func TestAggregateIngressStatus(t *testing.T) {
 	}
 	newIngress := &networkingv1.Ingress{
 		TypeMeta: metav1.TypeMeta{Kind: "Ingress", APIVersion: networkingv1.SchemeGroupVersion.String()},
-		Status:   networkingv1.IngressStatus{LoadBalancer: networkingv1.IngressLoadBalancerStatus{Ingress: []networkingv1.IngressLoadBalancerIngress{{IP: "8.8.8.8", Hostname: "member1"}}}},
+		Status:   networkingv1.IngressStatus{LoadBalancer: networkingv1.IngressLoadBalancerStatus{Ingress: []networkingv1.IngressLoadBalancerIngress{{IP: "8.8.8.8"}}}},
 	}
 	oldObj, _ := helper.ToUnstructured(oldIngress)
 	newObj, _ := helper.ToUnstructured(newIngress)
