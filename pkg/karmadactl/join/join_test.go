@@ -105,7 +105,7 @@ func TestRunJoinCluster(t *testing.T) {
 		prep                                 func(karmadaClient karmadaclientset.Interface, controlKubeClient kubeclient.Interface, clusterKubeClient kubeclient.Interface, opts *CommandJoinOption, clusterID types.UID, clusterName string) error
 		verify                               func(karmadaClient karmadaclientset.Interface, controlKubeClient kubeclient.Interface, clusterKubeClint kubeclient.Interface, opts *CommandJoinOption, clusterID types.UID) error
 		wantErr                              bool
-		errMsg                               string
+		errMsg                               func(opts *CommandJoinOption, clusterID types.UID) string
 	}{
 		{
 			name:                "RunJoinCluster_RegisterTheSameClusterWithSameID_TheSameClusterHasBeenRegistered",
@@ -136,7 +136,9 @@ func TestRunJoinCluster(t *testing.T) {
 				return nil
 			},
 			wantErr: true,
-			errMsg:  "the same cluster has been registered with name member1",
+			errMsg: func(opts *CommandJoinOption, clusterID types.UID) string {
+				return fmt.Sprintf("the cluster ID %s or the cluster name %s has been registered", clusterID, opts.ClusterName)
+			},
 		},
 		{
 			name: "RunJoinCluster_RegisterClusterInControllerPlane_ClusterRegisteredInControllerPlane",
@@ -170,8 +172,8 @@ func TestRunJoinCluster(t *testing.T) {
 			if err != nil && !test.wantErr {
 				t.Errorf("unexpected error, got: %v", err)
 			}
-			if err != nil && test.wantErr && !strings.Contains(err.Error(), test.errMsg) {
-				t.Errorf("expected error message %s to be in %s", test.errMsg, err.Error())
+			if err != nil && test.wantErr && !strings.Contains(err.Error(), test.errMsg(test.joinOpts, test.clusterID)) {
+				t.Errorf("expected error message %s to be in %s", test.errMsg(test.joinOpts, test.clusterID), err.Error())
 			}
 			if err := test.verify(test.karmadaClient, test.controlKubeClient, test.clusterKubeClient, test.joinOpts, test.clusterID); err != nil {
 				t.Errorf("failed to verify joining the cluster, got error: %v", err)

@@ -52,6 +52,7 @@ const (
 type ClusterRegisterOption struct {
 	ClusterNamespace   string
 	ClusterName        string
+	ClusterID          string
 	ReportSecrets      []string
 	ClusterAPIEndpoint string
 	ProxyServerAddress string
@@ -64,11 +65,10 @@ type ClusterRegisterOption struct {
 	ClusterConfig      *rest.Config
 	Secret             corev1.Secret
 	ImpersonatorSecret corev1.Secret
-	ClusterID          string
 }
 
 // IsKubeCredentialsEnabled represents whether report secret
-func (r ClusterRegisterOption) IsKubeCredentialsEnabled() bool {
+func (r *ClusterRegisterOption) IsKubeCredentialsEnabled() bool {
 	for _, sct := range r.ReportSecrets {
 		if sct == KubeCredentials {
 			return true
@@ -78,13 +78,56 @@ func (r ClusterRegisterOption) IsKubeCredentialsEnabled() bool {
 }
 
 // IsKubeImpersonatorEnabled represents whether report impersonator secret
-func (r ClusterRegisterOption) IsKubeImpersonatorEnabled() bool {
+func (r *ClusterRegisterOption) IsKubeImpersonatorEnabled() bool {
 	for _, sct := range r.ReportSecrets {
 		if sct == KubeImpersonator {
 			return true
 		}
 	}
 	return false
+}
+
+// Validate validates the cluster register option, including clusterID, cluster name and so on.
+func (r *ClusterRegisterOption) Validate(karmadaClient karmadaclientset.Interface, isAgent bool) error {
+	clusterList, err := karmadaClient.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	clusterIDUsed, clusterNameUsed, sameCluster := r.validateCluster(clusterList)
+	if err != nil {
+		return err
+	}
+
+	if isAgent && sameCluster {
+		return nil
+	}
+
+	if clusterIDUsed || clusterNameUsed {
+		return fmt.Errorf("the cluster ID %s or the cluster name %s has been registered", r.ClusterID, r.ClusterName)
+	}
+
+	return nil
+}
+
+// validateCluster validates the cluster register option whether the cluster name and cluster ID are unique.
+// 1. When registering a cluster for the first time, the metrics `clusterIDUsed` and `clusterNameUsed` can be used
+// to check if the cluster ID and the cluster name have already been used, which can avoid duplicate registrations.
+// 2. In cases where the agent is restarted, the metric `sameCluster` can be used to determine if the cluster
+// specified in the `RegisterOption` has already been registered, aiming to achieve the purpose of re-entering and updating the cluster.
+func (r *ClusterRegisterOption) validateCluster(clusterList *clusterv1alpha1.ClusterList) (clusterIDUsed, clusterNameUsed, sameCluster bool) {
+	for _, cluster := range clusterList.Items {
+		if cluster.Spec.ID == r.ClusterID && cluster.GetName() == r.ClusterName {
+			return true, true, true
+		}
+		if cluster.Spec.ID == r.ClusterID {
+			clusterIDUsed = true
+		}
+		if cluster.GetName() == r.ClusterName {
+			clusterNameUsed = true
+		}
+	}
+
+	return clusterIDUsed, clusterNameUsed, false
 }
 
 // IsClusterReady tells whether the cluster status in 'Ready' condition.
@@ -206,21 +249,6 @@ func ObtainClusterID(clusterKubeClient kubernetes.Interface) (string, error) {
 		return "", err
 	}
 	return string(ns.UID), nil
-}
-
-// IsClusterIdentifyUnique checks whether the ClusterID exists in the karmada control plane.
-func IsClusterIdentifyUnique(controlPlaneClient karmadaclientset.Interface, id string) (bool, string, error) {
-	clusterList, err := controlPlaneClient.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return false, "", err
-	}
-
-	for _, cluster := range clusterList.Items {
-		if cluster.Spec.ID == id {
-			return false, cluster.Name, nil
-		}
-	}
-	return true, "", nil
 }
 
 // ClusterAccessCredentialChanged checks whether the cluster access credential changed
