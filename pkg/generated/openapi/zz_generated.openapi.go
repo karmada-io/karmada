@@ -116,9 +116,11 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ImagePredicate":                              schema_pkg_apis_policy_v1alpha1_ImagePredicate(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.JSONPatchOperation":                          schema_pkg_apis_policy_v1alpha1_JSONPatchOperation(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.LabelAnnotationOverrider":                    schema_pkg_apis_policy_v1alpha1_LabelAnnotationOverrider(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ObjectFieldSelector":                         schema_pkg_apis_policy_v1alpha1_ObjectFieldSelector(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OverridePolicy":                              schema_pkg_apis_policy_v1alpha1_OverridePolicy(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OverridePolicyList":                          schema_pkg_apis_policy_v1alpha1_OverridePolicyList(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OverrideSpec":                                schema_pkg_apis_policy_v1alpha1_OverrideSpec(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OverriderVarSource":                          schema_pkg_apis_policy_v1alpha1_OverriderVarSource(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Overriders":                                  schema_pkg_apis_policy_v1alpha1_Overriders(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement":                                   schema_pkg_apis_policy_v1alpha1_Placement(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PlaintextOverrider":                          schema_pkg_apis_policy_v1alpha1_PlaintextOverrider(ref),
@@ -4437,6 +4439,28 @@ func schema_pkg_apis_policy_v1alpha1_LabelAnnotationOverrider(ref common.Referen
 	}
 }
 
+func schema_pkg_apis_policy_v1alpha1_ObjectFieldSelector(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ObjectFieldSelector selects a field of an object.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"fieldPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FieldPath Path of the field to select in the specified API version.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"fieldPath"},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_policy_v1alpha1_OverridePolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -4583,6 +4607,27 @@ func schema_pkg_apis_policy_v1alpha1_OverrideSpec(ref common.ReferenceCallback) 
 		},
 		Dependencies: []string{
 			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Overriders", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ResourceSelector", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.RuleWithCluster"},
+	}
+}
+
+func schema_pkg_apis_policy_v1alpha1_OverriderVarSource(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OverriderVarSource represents a source for the value of an PlaintextOverrider.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"fieldRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FieldRef Selects a field of the resources.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ObjectFieldSelector"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ObjectFieldSelector"},
 	}
 }
 
@@ -4797,12 +4842,18 @@ func schema_pkg_apis_policy_v1alpha1_PlaintextOverrider(ref common.ReferenceCall
 							Ref:         ref("k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"),
 						},
 					},
+					"valueFrom": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ValueFrom Source for the PlaintextOverrider's value. Cannot be used if value is not empty. Must be empty when operator is Remove.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OverriderVarSource"),
+						},
+					},
 				},
 				Required: []string{"path", "operator"},
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"},
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OverriderVarSource", "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"},
 	}
 }
 

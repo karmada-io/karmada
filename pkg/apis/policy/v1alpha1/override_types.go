@@ -251,6 +251,24 @@ type PlaintextOverrider struct {
 	// Must be empty when operator is Remove.
 	// +optional
 	Value apiextensionsv1.JSON `json:"value,omitempty"`
+	// ValueFrom Source for the PlaintextOverrider's value. Cannot be used if value is not empty.
+	// Must be empty when operator is Remove.
+	// +optional
+	ValueFrom *OverriderVarSource `json:"valueFrom,omitempty"`
+}
+
+// OverriderVarSource represents a source for the value of an PlaintextOverrider.
+type OverriderVarSource struct {
+	// FieldRef Selects a field of the resources.
+	FieldRef *ObjectFieldSelector `json:"fieldRef,omitempty"`
+}
+
+// ObjectFieldSelector selects a field of an object.
+type ObjectFieldSelector struct {
+	// FieldPath Path of the field to select in the specified API version.
+	// +kubebuilder:validation:MinLength=1
+	// +required
+	FieldPath string `json:"fieldPath"`
 }
 
 // OverriderOperator is the set of operators that can be used in an overrider.
