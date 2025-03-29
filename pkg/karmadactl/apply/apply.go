@@ -18,6 +18,7 @@ package apply
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -141,7 +142,7 @@ func (o *CommandApplyOptions) Complete(f util.Factory, cmd *cobra.Command, paren
 // Validate verifies if CommandApplyOptions are valid and without conflicts.
 func (o *CommandApplyOptions) Validate() error {
 	if o.AllClusters && len(o.Clusters) > 0 {
-		return fmt.Errorf("--all-clusters and --cluster cannot be used together")
+		return errors.New("--all-clusters and --cluster cannot be used together")
 	}
 	if len(o.Clusters) > 0 {
 		clusters, err := o.karmadaClient.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
@@ -169,16 +170,16 @@ func (o *CommandApplyOptions) Run() error {
 		return o.kubectlApplyOptions.Run()
 	}
 
-	if err := o.generateAndInjectPolices(); err != nil {
+	if err := o.generateAndInjectPolicies(); err != nil {
 		return err
 	}
 
 	return o.kubectlApplyOptions.Run()
 }
 
-// generateAndInjectPolices generates and injects policies to the given resources.
+// generateAndInjectPolicies generates and injects policies to the given resources.
 // It returns an error if any of the policies cannot be generated.
-func (o *CommandApplyOptions) generateAndInjectPolices() error {
+func (o *CommandApplyOptions) generateAndInjectPolicies() error {
 	// load the resources
 	infos, err := o.kubectlApplyOptions.GetObjects()
 	if err != nil {
