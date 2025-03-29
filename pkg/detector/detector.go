@@ -176,9 +176,45 @@ var (
 	_ manager.LeaderElectionRunnable = &ResourceDetector{}
 )
 
+// Some resources have changed group for historical reasons, thus available in more than one group in the same kubernetes version.
+// e.g: Ingress(extensions/v1beta1) and Ingress(networking.k8s.io/v1)
+// Resource in such different groups are actually the same resource, however, one group are preferred while others are deprecated.
+// sameResourceInDifferentGroup is a map enumerating such resources which once changed group.
+// the key refers to the preferred GroupVersionResource in a given k8s version,
+// while the value refers to corresponding deprecated GroupVersionResource existing in another group.
+var sameResourceInDifferentGroup = map[schema.GroupVersionResource]schema.GroupVersionResource{
+	{Group: "networking.k8s.io", Version: "v1", Resource: "ingresses"}:      {Group: "extensions", Version: "v1beta1", Resource: "ingresses"},
+	{Group: "networking.k8s.io", Version: "v1beta1", Resource: "ingresses"}: {Group: "extensions", Version: "v1beta1", Resource: "ingresses"},
+}
+
 func (d *ResourceDetector) discoverResources(period time.Duration) {
 	wait.Until(func() {
 		newResources := lifted.GetDeletableResources(d.DiscoveryClientSet)
+
+		// Some resources, during their evolutionary iterations, undergo modifications that involve not only changing the version but also altering the group.
+		// e.g: Ingress(extensions/v1beta1) is deprecated in v1.14+, unavailable in v1.22+,
+		// while Ingress(networking.k8s.io/v1beta1) is the preferred substitute in v1.14 ~ v1.18, and Ingress(networking.k8s.io/v1) is the preferred substitute in v1.19+.
+		//
+		// As for v1.19 ~ v1.21 kubernetes cluster, two group Ingress are actually the same resources, when you create Ingress(networking.k8s.io/v1),
+		// you can get both Ingress(networking.k8s.io/v1) and Ingress(extensions/v1beta1) from apiserver, vice versa.
+		// Thereby, when user creates an Ingress(networking.k8s.io/v1) and specifies a PropagationPolicy to propagate it to the member clusters,
+		// the detector will listen two resource creation events: Ingress(networking.k8s.io/v1) and Ingress(extensions/v1beta1).
+		//
+		// However, the PropagationPolicy only support the ServerPreferredResources since detector only listen resource filtered by `discoveryClient.ServerPreferredResources()`.
+		// Just like HPA once had v1/v2beta2/v2 three different versions in k8s v1.25, originally events of three versions would all be generated,
+		// but two of them are filtered not to discover in detector, only keeping ServerPreferredResources version discovered.
+		//
+		// Those resources altered groups are just special cases of ServerPreferredResources, essentially should follow the same principle.
+		// That means the deprecated resource like Ingress(extensions/v1beta1) should be filtered not to discover,
+		// and the preferred resource like Ingress(networking.k8s.io/v1) should be kept discovering.
+		for preferredResource, deprecatedResource := range sameResourceInDifferentGroup {
+			_, preferredResourceExist := newResources[preferredResource]
+			_, deprecatedResourceExist := newResources[deprecatedResource]
+			if preferredResourceExist && deprecatedResourceExist {
+				delete(newResources, deprecatedResource)
+			}
+		}
+
 		for r := range newResources {
 			if d.InformerManager.IsHandlerExist(r, d.EventHandler) || d.gvrDisabled(r) {
 				continue
