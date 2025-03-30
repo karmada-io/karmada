@@ -28,21 +28,32 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/indexregistry"
 )
 
-// IndexWork creates index for Work.
-func IndexWork(ctx context.Context, mgr ctrl.Manager) error {
-	err := mgr.GetFieldIndexer().IndexField(ctx, &workv1alpha1.Work{}, indexregistry.WorkIndexByResourceBindingID,
-		IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel))
-	if err != nil {
-		klog.Errorf("failed to create index for work, err: %v", err)
-		return err
-	}
-	err = mgr.GetFieldIndexer().IndexField(ctx, &workv1alpha1.Work{}, indexregistry.WorkIndexByClusterResourceBindingID,
-		IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel))
-	if err != nil {
-		klog.Errorf("failed to create index for work, err: %v", err)
-		return err
-	}
-	return nil
+// RegisterWorkIndexByResourceBindingID creates indexer WorkIndexByResourceBindingID.
+func RegisterWorkIndexByResourceBindingID(ctx context.Context, mgr ctrl.Manager) error {
+	var err error
+	indexregistry.WorkIndexByRBIDRegisterOnce.Do(func() {
+		err = mgr.GetFieldIndexer().IndexField(ctx, &workv1alpha1.Work{}, indexregistry.WorkIndexByResourceBindingID,
+			IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel))
+		if err != nil {
+			klog.Errorf("failed to create index for work, err: %v", err)
+			return
+		}
+	})
+	return err
+}
+
+// RegisterWorkIndexByClusterResourceBindingID creates indexer WorkIndexByClusterResourceBindingID.
+func RegisterWorkIndexByClusterResourceBindingID(ctx context.Context, mgr ctrl.Manager) error {
+	var err error
+	indexregistry.WorkIndexByCRBIDRegisterOnce.Do(func() {
+		err = mgr.GetFieldIndexer().IndexField(ctx, &workv1alpha1.Work{}, indexregistry.WorkIndexByClusterResourceBindingID,
+			IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel))
+		if err != nil {
+			klog.Errorf("failed to create index for work, err: %v", err)
+			return
+		}
+	})
+	return err
 }
 
 // IndexerFuncBasedOnLabel returns an IndexerFunc used to index resource with the given key as label key.

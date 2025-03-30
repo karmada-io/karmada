@@ -16,6 +16,8 @@ limitations under the License.
 
 package indexregistry
 
+import "sync"
+
 const (
 	// WorkIndexByResourceBindingID is the index name for Works that are associated with a ResourceBinding ID.
 	// This index allows efficient lookup of Works by their `metadata.labels.<ResourceBindingPermanentIDLabel>`,
@@ -26,4 +28,11 @@ const (
 	// The index is built using `metadata.labels.<ClusterResourceBindingPermanentIDLabel>` to enable fast queries
 	// of Works linked to specific ClusterResourceBinding objects across all namespaces.
 	WorkIndexByClusterResourceBindingID = "WorkIndexByClusterResourceBindingID"
+)
+
+var (
+	// WorkIndexByRBIDRegisterOnce make sure WorkIndexByResourceBindingID indexer is only added once
+	WorkIndexByRBIDRegisterOnce sync.Once
+	// WorkIndexByCRBIDRegisterOnce make sure WorkIndexByClusterResourceBindingID indexer is only added once
+	WorkIndexByCRBIDRegisterOnce sync.Once
 )
