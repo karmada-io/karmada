@@ -145,13 +145,6 @@ func aggregateServiceStatus(object *unstructured.Unstructured, aggregatedStatusI
 		klog.V(3).Infof("Grab service(%s/%s) status from cluster(%s), loadBalancer status: %v",
 			service.Namespace, service.Name, item.ClusterName, temp.LoadBalancer)
 
-		// Set cluster name as Hostname by default to indicate the status is collected from which member cluster.
-		for i := range temp.LoadBalancer.Ingress {
-			if temp.LoadBalancer.Ingress[i].Hostname == "" {
-				temp.LoadBalancer.Ingress[i].Hostname = item.ClusterName
-			}
-		}
-
 		newStatus.LoadBalancer.Ingress = append(newStatus.LoadBalancer.Ingress, temp.LoadBalancer.Ingress...)
 	}
 
@@ -183,13 +176,6 @@ func aggregateIngressStatus(object *unstructured.Unstructured, aggregatedStatusI
 		}
 		klog.V(3).Infof("Grab ingress(%s/%s) status from cluster(%s), loadBalancer status: %v",
 			ingress.Namespace, ingress.Name, item.ClusterName, temp.LoadBalancer)
-
-		// Set cluster name as Hostname by default to indicate the status is collected from which member cluster.
-		for i := range temp.LoadBalancer.Ingress {
-			if temp.LoadBalancer.Ingress[i].Hostname == "" {
-				temp.LoadBalancer.Ingress[i].Hostname = item.ClusterName
-			}
-		}
 
 		newStatus.LoadBalancer.Ingress = append(newStatus.LoadBalancer.Ingress, temp.LoadBalancer.Ingress...)
 	}
