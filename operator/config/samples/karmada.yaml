@@ -6,7 +6,7 @@ metadata:
 spec:
   crdTarball:
     httpSource: 
-      url: "https://github.com/karmada-io/karmada/releases/download/v1.12.2/crds.tar.gz"
+      url: "https://github.com/karmada-io/karmada/releases/download/v1.13.0/crds.tar.gz"
   components:
     etcd:
       local:
