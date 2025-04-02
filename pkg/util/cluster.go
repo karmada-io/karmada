@@ -52,6 +52,8 @@ const (
 type ClusterRegisterOption struct {
 	ClusterNamespace   string
 	ClusterName        string
+	ClusterLabels      map[string]string
+	ClusterAnnotations map[string]string
 	ReportSecrets      []string
 	ClusterAPIEndpoint string
 	ProxyServerAddress string
@@ -143,8 +145,8 @@ func CreateOrUpdateClusterObject(controlPlaneClient karmadaclientset.Interface, 
 	if exist {
 		clusterCopy := cluster.DeepCopy()
 		mutate(cluster)
-		if reflect.DeepEqual(clusterCopy.Spec, cluster.Spec) {
-			klog.Warningf("Cluster(%s) already exist and newest", clusterObj.Name)
+		if reflect.DeepEqual(clusterCopy.ObjectMeta.Annotations, cluster.ObjectMeta.Annotations) && reflect.DeepEqual(clusterCopy.ObjectMeta.Labels, cluster.ObjectMeta.Labels) && reflect.DeepEqual(clusterCopy.Spec, cluster.Spec) {
+			klog.Infof("Skip updating Cluster(%s) as it is already up-to-date.", clusterObj.Name)
 			return cluster, nil
 		}
 

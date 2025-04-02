@@ -33,6 +33,25 @@ func (o *Options) Validate() field.ErrorList {
 		errs = append(errs, field.Invalid(newPath.Child("ClusterName"), o.ClusterName, strings.Join(errMsgs, ",")))
 	}
 
+	parseLabelsAnnotations := func(inputs []string) map[string]string {
+		outputs := make(map[string]string)
+		for _, v := range inputs {
+			key, value, found := strings.Cut(v, "=")
+			if found {
+				outputs[key] = value
+			}
+		}
+		return outputs
+	}
+
+	if o.ClusterLabels != nil {
+		errs = append(errs, validation.ValidateClusterLabels(parseLabelsAnnotations(o.ClusterLabels))...)
+	}
+
+	if o.ClusterAnnotations != nil {
+		errs = append(errs, validation.ValidateClusterAnnotations(parseLabelsAnnotations(o.ClusterAnnotations))...)
+	}
+
 	if o.ClusterStatusUpdateFrequency.Duration < 0 {
 		errs = append(errs, field.Invalid(newPath.Child("ClusterStatusUpdateFrequency"), o.ClusterStatusUpdateFrequency, "must be greater than or equal to 0"))
 	}

@@ -71,6 +71,18 @@ func TestValidateKarmadaAgentConfiguration(t *testing.T) {
 			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterName"), "", "must be not empty")},
 		},
+		"invalid ClusterLabels": {
+			opt: New(func(options *Options) {
+				options.ClusterLabels = []string{"key=invalid=value"}
+			}),
+			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterLabels"), "invalid=value", "a valid label must be an empty string or consist of alphanumeric characters, '-', '_' or '.', and must start and end with an alphanumeric character (e.g. 'MyValue',  or 'my_value',  or '12345', regex used for validation is '(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?')")},
+		},
+		"invalid ClusterAnnotations": {
+			opt: New(func(options *Options) {
+				options.ClusterAnnotations = []string{"_key=value"}
+			}),
+			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterAnnotations"), "_key", "name part must consist of alphanumeric characters, '-', '_' or '.', and must start and end with an alphanumeric character (e.g. 'MyName',  or 'my.name',  or '123-abc', regex used for validation is '([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]')")},
+		},
 		"invalid ClusterStatusUpdateFrequency": {
 			opt: New(func(options *Options) {
 				options.ClusterStatusUpdateFrequency = metav1.Duration{Duration: -10 * time.Second}
