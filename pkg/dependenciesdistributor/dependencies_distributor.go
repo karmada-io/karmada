@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -151,7 +152,9 @@ func (d *DependenciesDistributor) OnUpdate(oldObj, newObj interface{}) {
 		klog.V(4).Infof("Ignore update event of object (%s, kind=%s, %s) as specification no change", unstructuredOldObj.GetAPIVersion(), unstructuredOldObj.GetKind(), names.NamespacedKey(unstructuredOldObj.GetNamespace(), unstructuredOldObj.GetName()))
 		return
 	}
-	d.OnAdd(oldObj)
+	if !equality.Semantic.DeepEqual(unstructuredOldObj.GetLabels(), unstructuredNewObj.GetLabels()) {
+		d.OnAdd(oldObj)
+	}
 	d.OnAdd(newObj)
 }
 
@@ -214,7 +217,6 @@ func matchesWithBindingDependencies(resourceTemplateKey *LabelsKey, independentB
 			independentBinding.Namespace, independentBinding.Name, dependencies, err)
 		return false
 	}
-
 	if len(dependenciesSlice) == 0 {
 		return false
 	}

@@ -114,7 +114,7 @@ func Test_OnUpdate(t *testing.T) {
 					},
 				},
 			},
-			wantQueueSize: 2,
+			wantQueueSize: 1,
 		},
 		{
 			name: "do not update the object, no specification changed",
@@ -139,6 +139,130 @@ func Test_OnUpdate(t *testing.T) {
 				},
 			},
 			wantQueueSize: 0,
+		},
+		{
+			name: "no specification changed, labels changed",
+			args: args{
+				oldObj: &corev1.Node{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Node",
+						APIVersion: "v1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "bar",
+						Labels: map[string]string{
+							"app": "test",
+						},
+					},
+				},
+				newObj: &corev1.Node{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Node",
+						APIVersion: "v1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "bar",
+						Labels: map[string]string{
+							"app": "new-test",
+						},
+					},
+				},
+			},
+			wantQueueSize: 2,
+		},
+		{
+			name: "specification changed, labels not changed",
+			args: args{
+				oldObj: &corev1.Node{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Node",
+						APIVersion: "v1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "bar",
+						Labels: map[string]string{
+							"app": "test",
+						},
+					},
+				},
+				newObj: &corev1.Node{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Node",
+						APIVersion: "v1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foo",
+						Labels: map[string]string{
+							"app": "test",
+						},
+					},
+				},
+			},
+			wantQueueSize: 1,
+		},
+		{
+			name: "specification changed,  more than two elements in labels and not changed",
+			args: args{
+				oldObj: &corev1.Node{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Node",
+						APIVersion: "v1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "bar",
+						Labels: map[string]string{
+							"app":    "test",
+							"online": "svc",
+						},
+					},
+				},
+				newObj: &corev1.Node{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Node",
+						APIVersion: "v1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foo",
+						Labels: map[string]string{
+							"online": "svc",
+							"app":    "test",
+						},
+					},
+				},
+			},
+			wantQueueSize: 1,
+		},
+		{
+			name: "specification changed,  more than two elements in labels and changed",
+			args: args{
+				oldObj: &corev1.Node{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Node",
+						APIVersion: "v1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "bar",
+						Labels: map[string]string{
+							"app":    "test",
+							"online": "svc",
+						},
+					},
+				},
+				newObj: &corev1.Node{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Node",
+						APIVersion: "v1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foo",
+						Labels: map[string]string{
+							"online": "svc1",
+							"app":    "test",
+						},
+					},
+				},
+			},
+			wantQueueSize: 2,
 		},
 	}
 	for _, tt := range tests {
