@@ -111,6 +111,19 @@ func ClusterWideKeyFunc(obj interface{}) (ClusterWideKey, error) {
 	return key, nil
 }
 
+// ClusterWideKeyFuncWithoutGVK generates a ClusterWideKey that without gvk for object.
+func ClusterWideKeyFuncWithoutGVK(obj interface{}) (ClusterWideKey, error) {
+	key := ClusterWideKey{}
+
+	metaInfo, err := meta.Accessor(obj)
+	if err != nil { // should not happen
+		return key, fmt.Errorf("object has no meta: %v", err)
+	}
+	key.Namespace = metaInfo.GetNamespace()
+	key.Name = metaInfo.GetName()
+	return key, nil
+}
+
 // ClusterWideKeyWithConfig is the object key which is a unique identifier under a cluster, combined with certain config.
 type ClusterWideKeyWithConfig struct {
 	// ClusterWideKey is the object key which is a unique identifier under a cluster, across all resources.
