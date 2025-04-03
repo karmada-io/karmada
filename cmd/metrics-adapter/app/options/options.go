@@ -38,6 +38,7 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
+	versionmetrics "github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/metricsadapter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -178,6 +179,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*metricsadapter.MetricsServer,
 // Run runs the metrics-adapter with options. This should never exit.
 func (o *Options) Run(ctx context.Context) error {
 	klog.Infof("karmada-metrics-adapter version: %s", version.Get())
+	legacyregistry.RawMustRegister(versionmetrics.NewBuildInfoCollector())
 	if o.MetricsBindAddress != "0" {
 		go serveMetrics(o.MetricsBindAddress)
 	}

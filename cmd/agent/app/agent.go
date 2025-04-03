@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	crtlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/karmada-io/karmada/cmd/agent/app/options"
@@ -52,6 +52,7 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	"github.com/karmada-io/karmada/pkg/metrics"
+	versionmetrics "github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
@@ -228,9 +229,10 @@ func run(ctx context.Context, opts *options.Options) error {
 		return err
 	}
 
-	crtlmetrics.Registry.MustRegister(metrics.ClusterCollectors()...)
-	crtlmetrics.Registry.MustRegister(metrics.ResourceCollectorsForAgent()...)
-	crtlmetrics.Registry.MustRegister(metrics.PoolCollectors()...)
+	ctrlmetrics.Registry.MustRegister(metrics.ClusterCollectors()...)
+	ctrlmetrics.Registry.MustRegister(metrics.ResourceCollectorsForAgent()...)
+	ctrlmetrics.Registry.MustRegister(metrics.PoolCollectors()...)
+	ctrlmetrics.Registry.MustRegister(versionmetrics.NewBuildInfoCollector())
 
 	if err = setupControllers(controllerManager, opts, ctx.Done()); err != nil {
 		return err
