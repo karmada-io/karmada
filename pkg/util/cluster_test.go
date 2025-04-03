@@ -22,7 +22,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -51,11 +50,6 @@ func withAPIEndPoint(cluster *clusterv1alpha1.Cluster, apiEndPoint string) *clus
 
 func withSyncMode(cluster *clusterv1alpha1.Cluster, syncMode clusterv1alpha1.ClusterSyncMode) *clusterv1alpha1.Cluster {
 	cluster.Spec.SyncMode = syncMode
-	return cluster
-}
-
-func withID(cluster *clusterv1alpha1.Cluster, id string) *clusterv1alpha1.Cluster {
-	cluster.Spec.ID = id
 	return cluster
 }
 
@@ -162,48 +156,6 @@ func TestCreateOrUpdateClusterObject(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("CreateOrUpdateClusterObject() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestIsClusterIDUnique(t *testing.T) {
-	tests := []struct {
-		name           string
-		existedCluster []runtime.Object
-		id             string
-		want           bool
-		clustername    string
-	}{
-		{
-			name: "no cluster", id: "1", want: true,
-			existedCluster: []runtime.Object{},
-		},
-		{
-			name: "existed id", id: "1", want: false, clustername: "cluster-1",
-			existedCluster: []runtime.Object{withID(newCluster("cluster-1"), "1")},
-		},
-		{
-			name: "unique id", id: "2", want: true,
-			existedCluster: []runtime.Object{withID(newCluster("cluster-1"), "1")},
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			fakeClient := karmadaclientsetfake.NewSimpleClientset(tc.existedCluster...)
-
-			ok, name, err := IsClusterIdentifyUnique(fakeClient, tc.id)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if ok != tc.want {
-				t.Errorf("expected value: %v, but got: %v", tc.want, ok)
-			}
-
-			if !ok && name != tc.clustername {
-				t.Errorf("expected clustername: %v, but got: %v", tc.clustername, name)
 			}
 		})
 	}
@@ -318,6 +270,106 @@ func TestClusterRegisterOption_IsKubeImpersonatorEnabled(t *testing.T) {
 			}
 			if got := r.IsKubeImpersonatorEnabled(); got != tt.want {
 				t.Errorf("IsKubeImpersonatorEnabled() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestClusterRegisterOption_ValidateCluster(t *testing.T) {
+	registeredClusterList := &clusterv1alpha1.ClusterList{
+		Items: []clusterv1alpha1.Cluster{
+			{
+				Spec: clusterv1alpha1.ClusterSpec{
+					ID: "1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "member1",
+				},
+			},
+			{
+				Spec: clusterv1alpha1.ClusterSpec{
+					ID: "2",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "member2",
+				},
+			},
+			{
+				Spec: clusterv1alpha1.ClusterSpec{
+					ID: "3",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "member3",
+				},
+			},
+		},
+	}
+
+	testItems := []struct {
+		name                    string
+		clusterList             *clusterv1alpha1.ClusterList
+		opts                    ClusterRegisterOption
+		expectedClusterIDUsed   bool
+		expectedClusterNameUsed bool
+		expectedSameCluster     bool
+	}{
+		{
+			name:        "registering a brand new cluster",
+			clusterList: registeredClusterList,
+			opts: ClusterRegisterOption{
+				ClusterID:   "4",
+				ClusterName: "member4",
+			},
+			expectedClusterIDUsed:   false,
+			expectedClusterNameUsed: false,
+			expectedSameCluster:     false,
+		},
+		{
+			name:        "clusterName is used",
+			clusterList: registeredClusterList,
+			opts: ClusterRegisterOption{
+				ClusterID:   "4",
+				ClusterName: "member2",
+			},
+			expectedClusterIDUsed:   false,
+			expectedClusterNameUsed: true,
+			expectedSameCluster:     false,
+		},
+		{
+			name:        "clusterID is used",
+			clusterList: registeredClusterList,
+			opts: ClusterRegisterOption{
+				ClusterID:   "2",
+				ClusterName: "member4",
+			},
+			expectedClusterIDUsed:   true,
+			expectedClusterNameUsed: false,
+			expectedSameCluster:     false,
+		},
+		{
+			name:        "the same cluster",
+			clusterList: registeredClusterList,
+			opts: ClusterRegisterOption{
+				ClusterID:   "2",
+				ClusterName: "member2",
+			},
+			expectedClusterIDUsed:   true,
+			expectedClusterNameUsed: true,
+			expectedSameCluster:     true,
+		},
+	}
+
+	for _, item := range testItems {
+		t.Run(item.name, func(t *testing.T) {
+			clusterIDUsed, clusterNameUsed, sameCluster := item.opts.validateCluster(item.clusterList)
+			if clusterIDUsed != item.expectedClusterIDUsed {
+				t.Errorf("clusterNameUsed = %v, want %v", clusterIDUsed, item.expectedClusterIDUsed)
+			}
+			if clusterNameUsed != item.expectedClusterNameUsed {
+				t.Errorf("clusterNameUsed = %v, want %v", clusterNameUsed, item.expectedClusterNameUsed)
+			}
+			if sameCluster != item.expectedSameCluster {
+				t.Errorf("clusterNameUsed = %v, want %v", sameCluster, item.expectedSameCluster)
 			}
 		})
 	}
