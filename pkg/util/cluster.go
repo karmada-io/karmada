@@ -94,10 +94,6 @@ func (r *ClusterRegisterOption) Validate(karmadaClient karmadaclientset.Interfac
 		return err
 	}
 	clusterIDUsed, clusterNameUsed, sameCluster := r.validateCluster(clusterList)
-	if err != nil {
-		return err
-	}
-
 	if isAgent && sameCluster {
 		return nil
 	}
