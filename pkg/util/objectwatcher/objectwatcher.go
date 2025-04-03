@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"sync"
 
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,6 +32,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native/prune"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
@@ -56,7 +58,7 @@ type ObjectWatcher interface {
 	Create(ctx context.Context, clusterName string, desireObj *unstructured.Unstructured) error
 	Update(ctx context.Context, clusterName string, desireObj, clusterObj *unstructured.Unstructured) (operationResult OperationResult, err error)
 	Delete(ctx context.Context, clusterName string, desireObj *unstructured.Unstructured) error
-	NeedsUpdate(clusterName string, desiredObj, clusterObj *unstructured.Unstructured) (bool, error)
+	NeedsUpdate(clusterName string, desiredObj, clusterObj *unstructured.Unstructured) bool
 }
 
 // ClientSetFunc is used to generate client set of member cluster
@@ -123,7 +125,7 @@ func (o *objectWatcherImpl) Create(ctx context.Context, clusterName string, desi
 	return nil
 }
 
-func (o *objectWatcherImpl) retainClusterFields(desired, observed *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+func (o *objectWatcherImpl) retainClusterFields(desired, observed *unstructured.Unstructured) *unstructured.Unstructured {
 	// Pass the same ResourceVersion as in the cluster object for update operation, otherwise operation will fail.
 	desired.SetResourceVersion(observed.GetResourceVersion())
 
@@ -143,11 +145,7 @@ func (o *objectWatcherImpl) retainClusterFields(desired, observed *unstructured.
 	// and be set by user in karmada-controller-plane.
 	util.RetainLabels(desired, observed)
 
-	if o.resourceInterpreter.HookEnabled(desired.GroupVersionKind(), configv1alpha1.InterpreterOperationRetain) {
-		return o.resourceInterpreter.Retain(desired, observed)
-	}
-
-	return desired, nil
+	return desired
 }
 
 func (o *objectWatcherImpl) Update(ctx context.Context, clusterName string, desireObj, clusterObj *unstructured.Unstructured) (OperationResult, error) {
@@ -170,10 +168,24 @@ func (o *objectWatcherImpl) Update(ctx context.Context, clusterName string, desi
 		return OperationResultNone, err
 	}
 
-	desireObj, err = o.retainClusterFields(desireObj, clusterObj)
+	desireObj = o.retainClusterFields(desireObj, clusterObj)
+	if o.resourceInterpreter.HookEnabled(desireObj.GroupVersionKind(), configv1alpha1.InterpreterOperationRetain) {
+		desireObj, err = o.resourceInterpreter.Retain(desireObj, clusterObj)
+		if err != nil {
+			klog.Errorf("Failed to retain fields for resource(kind=%s, %s/%s) in cluster %s: %v", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), clusterName, err)
+			return OperationResultNone, err
+		}
+	}
+
+	deepEqual, err := o.resourceDeepEqual(desireObj, clusterObj, clusterName)
 	if err != nil {
-		klog.Errorf("Failed to retain fields for resource(kind=%s, %s/%s) in cluster %s: %v", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), clusterName, err)
+		klog.Errorf("Failed to check deepequal for resource(kind=%s, %s/%s) in cluster %s: %v", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), clusterName, err)
 		return OperationResultNone, err
+	}
+	if deepEqual {
+		klog.Infof("No need to update resource(kind=%s, %s/%s) in cluster %s because the content has not changed", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), clusterName)
+		o.recordVersion(clusterObj, clusterName)
+		return OperationResultNone, nil
 	}
 
 	resource, err := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Update(ctx, desireObj, metav1.UpdateOptions{})
@@ -284,15 +296,10 @@ func (o *objectWatcherImpl) deleteVersionRecord(clusterName, resourceName string
 	delete(o.VersionRecord[clusterName], resourceName)
 }
 
-func (o *objectWatcherImpl) NeedsUpdate(clusterName string, desiredObj, clusterObj *unstructured.Unstructured) (bool, error) {
+func (o *objectWatcherImpl) NeedsUpdate(clusterName string, desiredObj, clusterObj *unstructured.Unstructured) bool {
 	// get resource version
-	version, exist := o.getVersionRecord(clusterName, desiredObj.GroupVersionKind().String()+"/"+desiredObj.GetNamespace()+"/"+desiredObj.GetName())
-	if !exist {
-		klog.Errorf("Failed to update the resource(kind=%s, %s/%s) in the cluster %s because the version record does not exist.", desiredObj.GetKind(), desiredObj.GetNamespace(), desiredObj.GetName(), clusterName)
-		return false, fmt.Errorf("failed to update resource(kind=%s, %s/%s) in cluster %s for the version record does not exist", desiredObj.GetKind(), desiredObj.GetNamespace(), desiredObj.GetName(), clusterName)
-	}
-
-	return lifted.ObjectNeedsUpdate(desiredObj, clusterObj, version), nil
+	version, _ := o.getVersionRecord(clusterName, desiredObj.GroupVersionKind().String()+"/"+desiredObj.GetNamespace()+"/"+desiredObj.GetName())
+	return lifted.ObjectNeedsUpdate(desiredObj, clusterObj, version)
 }
 
 func (o *objectWatcherImpl) isManagedResource(clusterObj *unstructured.Unstructured) bool {
@@ -316,4 +323,21 @@ func (o *objectWatcherImpl) allowUpdate(clusterName string, desiredObj, clusterO
 	}
 
 	return false
+}
+
+// resourceDeepEqual checks if the desired object and the cluster object are equal.
+func (o *objectWatcherImpl) resourceDeepEqual(desiredObj, clusterObj *unstructured.Unstructured, clusterName string) (bool, error) {
+	clusterObjCopy := clusterObj.DeepCopy()
+	err := prune.RemoveIrrelevantFields(clusterObjCopy, prune.RemoveJobTTLSeconds)
+	if err != nil {
+		klog.Errorf("Failed to remove irrelevant fields for cluster resource(kind=%s, %s/%s) in cluster %s: %v", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), clusterName, err)
+		return false, err
+	}
+
+	clusterObjCopy = o.retainClusterFields(clusterObjCopy, clusterObj)
+
+	// If there's no actual content changes, skip the update and record the current version.
+	// if there's some strange mutating webhook in member cluster, theoretically this DeepEqual check will fail,
+	// so objectWatcher's VersionRecord is still needed.
+	return equality.Semantic.DeepEqual(desiredObj, clusterObjCopy), nil
 }
