@@ -101,10 +101,24 @@ spec:
             type: DirectoryOrCreate
         - name: server-cert
           secret:
-            secretName: etcd-cert
+            secretName: etcd-secret
+            items:
+              - key: ca.crt
+                path: ca.crt
+              - key: tls.crt
+                path: tls.crt
+              - key: tls.key
+                path: tls.key
         - name: etcd-client-cert
           secret:
-            secretName: etcd-etcd-client-cert
+            secretName: etcd-secret
+            items:
+              - key: ca.crt
+                path: ca.crt
+              - key: etcd-client.crt
+                path: tls.crt
+              - key: etcd-client.key
+                path: tls.key
       priorityClassName: system-node-critical
 ---
 
