@@ -22,6 +22,7 @@ import (
 	"context"
 
 	v1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/generated/applyconfiguration/work/v1alpha2"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -47,18 +48,21 @@ type ClusterResourceBindingInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*v1alpha2.ClusterResourceBindingList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha2.ClusterResourceBinding, err error)
+	Apply(ctx context.Context, clusterResourceBinding *workv1alpha2.ClusterResourceBindingApplyConfiguration, opts v1.ApplyOptions) (result *v1alpha2.ClusterResourceBinding, err error)
+	// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+	ApplyStatus(ctx context.Context, clusterResourceBinding *workv1alpha2.ClusterResourceBindingApplyConfiguration, opts v1.ApplyOptions) (result *v1alpha2.ClusterResourceBinding, err error)
 	ClusterResourceBindingExpansion
 }
 
 // clusterResourceBindings implements ClusterResourceBindingInterface
 type clusterResourceBindings struct {
-	*gentype.ClientWithList[*v1alpha2.ClusterResourceBinding, *v1alpha2.ClusterResourceBindingList]
+	*gentype.ClientWithListAndApply[*v1alpha2.ClusterResourceBinding, *v1alpha2.ClusterResourceBindingList, *workv1alpha2.ClusterResourceBindingApplyConfiguration]
 }
 
 // newClusterResourceBindings returns a ClusterResourceBindings
 func newClusterResourceBindings(c *WorkV1alpha2Client) *clusterResourceBindings {
 	return &clusterResourceBindings{
-		gentype.NewClientWithList[*v1alpha2.ClusterResourceBinding, *v1alpha2.ClusterResourceBindingList](
+		gentype.NewClientWithListAndApply[*v1alpha2.ClusterResourceBinding, *v1alpha2.ClusterResourceBindingList, *workv1alpha2.ClusterResourceBindingApplyConfiguration](
 			"clusterresourcebindings",
 			c.RESTClient(),
 			scheme.ParameterCodec,
