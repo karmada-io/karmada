@@ -228,21 +228,14 @@ func (j *CommandJoinOption) RunJoinCluster(controlPlaneRestConfig, clusterConfig
 		ClusterConfig:      clusterConfig,
 	}
 
-	id, err := util.ObtainClusterID(clusterKubeClient)
+	registerOption.ClusterID, err = util.ObtainClusterID(clusterKubeClient)
 	if err != nil {
 		return err
 	}
 
-	ok, name, err := util.IsClusterIdentifyUnique(karmadaClient, id)
-	if err != nil {
+	if err = registerOption.Validate(karmadaClient, false); err != nil {
 		return err
 	}
-
-	if !ok {
-		return fmt.Errorf("the same cluster has been registered with name %s", name)
-	}
-
-	registerOption.ClusterID = id
 
 	clusterSecret, impersonatorSecret, err := util.ObtainCredentialsFromMemberCluster(clusterKubeClient, registerOption)
 	if err != nil {
