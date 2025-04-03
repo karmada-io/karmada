@@ -147,6 +147,7 @@ func aggregateServiceStatus(object *unstructured.Unstructured, aggregatedStatusI
 
 		newStatus.LoadBalancer.Ingress = append(newStatus.LoadBalancer.Ingress, temp.LoadBalancer.Ingress...)
 	}
+	newStatus.LoadBalancer.Ingress = helper.DedupeAndSortServiceLoadBalancerIngress(newStatus.LoadBalancer.Ingress)
 
 	if reflect.DeepEqual(service.Status, *newStatus) {
 		klog.V(3).Infof("Ignore update service(%s/%s) status as up to date", service.Namespace, service.Name)
@@ -179,6 +180,7 @@ func aggregateIngressStatus(object *unstructured.Unstructured, aggregatedStatusI
 
 		newStatus.LoadBalancer.Ingress = append(newStatus.LoadBalancer.Ingress, temp.LoadBalancer.Ingress...)
 	}
+	newStatus.LoadBalancer.Ingress = helper.DedupeAndSortIngressLoadBalancerIngress(newStatus.LoadBalancer.Ingress)
 
 	if reflect.DeepEqual(ingress.Status, *newStatus) {
 		klog.V(3).Infof("Ignore update ingress(%s/%s) status as up to date", ingress.Namespace, ingress.Name)
