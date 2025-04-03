@@ -36,6 +36,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -175,8 +176,10 @@ func (d *DependenciesDistributor) reconcileResourceTemplate(key util.QueueKey) e
 	klog.V(4).Infof("DependenciesDistributor start to reconcile object: %s", resourceTemplateKey)
 	bindingList := &workv1alpha2.ResourceBindingList{}
 	err := d.Client.List(context.TODO(), bindingList, &client.ListOptions{
-		Namespace:     resourceTemplateKey.Namespace,
-		LabelSelector: labels.Everything()})
+		Namespace:             resourceTemplateKey.Namespace,
+		LabelSelector:         labels.Everything(),
+		UnsafeDisableDeepCopy: ptr.To(true),
+	})
 	if err != nil {
 		return err
 	}
