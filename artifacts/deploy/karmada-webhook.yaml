@@ -55,10 +55,20 @@ spec:
       volumes:
         - name: karmada-config
           secret:
-            secretName: karmada-webhook-config
+            secretName: karmada-webhook-secret
+            items:
+              - key: karmada.config
+                path: karmada.config
         - name: server-cert
           secret:
-            secretName: karmada-webhook-cert
+            secretName: karmada-webhook-secret
+            items:
+              - key: ca.crt
+                path: ca.crt
+              - key: tls.crt
+                path: tls.crt
+              - key: tls.key
+                path: tls.key
       securityContext:
         seccompProfile:
           type: RuntimeDefault

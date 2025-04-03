@@ -70,10 +70,20 @@ spec:
       volumes:
         - name: karmada-config
           secret:
-            secretName: karmada-metrics-adapter-config
+            secretName: karmada-metrics-adapter-secret
+            items:
+              - key: karmada.config
+                path: karmada.config
         - name: server-cert
           secret:
-            secretName: karmada-metrics-adapter-cert
+            secretName: karmada-metrics-adapter-secret
+            items:
+              - key: ca.crt
+                path: ca.crt
+              - key: tls.crt
+                path: tls.crt
+              - key: tls.key
+                path: tls.key
       securityContext:
         seccompProfile:
           type: RuntimeDefault
