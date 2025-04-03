@@ -57,7 +57,7 @@ type CommandDeInitOption struct {
 	Force          bool
 	PurgeNamespace bool
 
-	KubeClientSet *kubernetes.Clientset
+	KubeClientSet kubernetes.Interface
 }
 
 // NewCmdDeInit removes Karmada from Kubernetes
