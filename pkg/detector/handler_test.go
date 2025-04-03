@@ -17,14 +17,17 @@ limitations under the License.
 package detector
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 )
 
@@ -248,6 +251,44 @@ func TestResourceItemKeyFunc(t *testing.T) {
 			if !reflect.DeepEqual(key, tt.expectKey) {
 				t.Errorf("ResourceItemKeyFunc() = '%v', want '%v'", key, tt.expectKey)
 			}
+		})
+	}
+}
+
+func TestClusterWideKeyFuncWithoutGVK(t *testing.T) {
+	type args struct {
+		obj interface{}
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    util.QueueKey
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name: "object without gvk",
+			args: args{
+				obj: &appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "foo",
+						Name:      "bar",
+					},
+				},
+			},
+			want: keys.ClusterWideKey{
+				Namespace: "foo",
+				Name:      "bar",
+			},
+			wantErr: assert.NoError,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ClusterWideKeyFuncWithoutGVK(tt.args.obj)
+			if !tt.wantErr(t, err, fmt.Sprintf("ClusterWideKeyFuncWithoutGVK(%v)", tt.args.obj)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "ClusterWideKeyFuncWithoutGVK(%v)", tt.args.obj)
 		})
 	}
 }
