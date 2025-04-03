@@ -45,6 +45,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 type MockAsyncWorker struct {
@@ -326,7 +327,7 @@ func Test_reconcileResourceTemplate(t *testing.T) {
 								"app": "test",
 							},
 							Annotations: map[string]string{
-								dependenciesAnnotationKey: "[{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"namespace\":\"test\",\"name\":\"demo-app\"}]",
+								workv1alpha2.DependenciesAnnotationKey: "[{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"namespace\":\"test\",\"name\":\"demo-app\"}]",
 							},
 						},
 						Spec: workv1alpha2.ResourceBindingSpec{
@@ -339,7 +340,27 @@ func Test_reconcileResourceTemplate(t *testing.T) {
 							},
 						},
 					}
-					return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb).Build()
+					rb1 := &workv1alpha2.ResourceBinding{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "test-binding1",
+							Namespace:       "test",
+							ResourceVersion: "1000",
+							Labels: map[string]string{
+								"app": "test",
+							},
+							Annotations: map[string]string{},
+						},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion:      "apps/v1",
+								Kind:            "Deployment",
+								Namespace:       "test",
+								Name:            "demo-app",
+								ResourceVersion: "22222",
+							},
+						},
+					}
+					return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb, rb1).WithIndex(&workv1alpha2.ResourceBinding{}, helper.IndexNameForResourceBindingDependency, helper.IndexFuncResourceBindingDependencies()).Build()
 				}(),
 			},
 			wantGenericEventLength: 1,
@@ -391,7 +412,7 @@ func Test_dependentObjectReferenceMatches(t *testing.T) {
 				},
 				referenceBinding: &workv1alpha2.ResourceBinding{
 					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
-						dependenciesAnnotationKey: "[{\"apiVersion\":\"example-stgzr.karmada.io/v1alpha1\",\"kind\":\"Foot5zmh\",\"namespace\":\"karmadatest-vpvll\",\"name\":\"cr-fxzq6\"}]",
+						workv1alpha2.DependenciesAnnotationKey: "[{\"apiVersion\":\"example-stgzr.karmada.io/v1alpha1\",\"kind\":\"Foot5zmh\",\"namespace\":\"karmadatest-vpvll\",\"name\":\"cr-fxzq6\"}]",
 					}},
 				},
 			},
@@ -412,7 +433,7 @@ func Test_dependentObjectReferenceMatches(t *testing.T) {
 				},
 				referenceBinding: &workv1alpha2.ResourceBinding{
 					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
-						dependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"namespace\":\"karmadatest-h46wh\",\"name\":\"configmap-8w426\"}]",
+						workv1alpha2.DependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"namespace\":\"karmadatest-h46wh\",\"name\":\"configmap-8w426\"}]",
 					}},
 				},
 			},
@@ -434,7 +455,7 @@ func Test_dependentObjectReferenceMatches(t *testing.T) {
 				},
 				referenceBinding: &workv1alpha2.ResourceBinding{
 					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
-						dependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"namespace\":\"test\",\"labelSelector\":{\"matchExpressions\":[{\"key\":\"app\",\"operator\":\"In\",\"values\":[\"test\"]}]}}]",
+						workv1alpha2.DependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"namespace\":\"test\",\"labelSelector\":{\"matchExpressions\":[{\"key\":\"app\",\"operator\":\"In\",\"values\":[\"test\"]}]}}]",
 					}},
 				},
 			},
@@ -1318,7 +1339,7 @@ func Test_recordDependencies(t *testing.T) {
 					Namespace:       "test",
 					ResourceVersion: "1001",
 					Annotations: map[string]string{
-						dependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"namespace\":\"default\",\"name\":\"pod\"}]",
+						workv1alpha2.DependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"namespace\":\"default\",\"name\":\"pod\"}]",
 					},
 				},
 				Spec: workv1alpha2.ResourceBindingSpec{
@@ -1346,7 +1367,7 @@ func Test_recordDependencies(t *testing.T) {
 							Namespace:       "test",
 							ResourceVersion: "1000",
 							Annotations: map[string]string{
-								dependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"namespace\":\"default\",\"name\":\"pod\"}]",
+								workv1alpha2.DependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"namespace\":\"default\",\"name\":\"pod\"}]",
 							},
 						},
 						Spec: workv1alpha2.ResourceBindingSpec{
@@ -1369,7 +1390,7 @@ func Test_recordDependencies(t *testing.T) {
 						Namespace:       "test",
 						ResourceVersion: "1000",
 						Annotations: map[string]string{
-							dependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"namespace\":\"default\",\"name\":\"pod\"}]",
+							workv1alpha2.DependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"namespace\":\"default\",\"name\":\"pod\"}]",
 						},
 					},
 					Spec: workv1alpha2.ResourceBindingSpec{
@@ -1397,7 +1418,7 @@ func Test_recordDependencies(t *testing.T) {
 					Namespace:       "test",
 					ResourceVersion: "1000",
 					Annotations: map[string]string{
-						dependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"namespace\":\"default\",\"name\":\"pod\"}]",
+						workv1alpha2.DependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"namespace\":\"default\",\"name\":\"pod\"}]",
 					},
 				},
 				Spec: workv1alpha2.ResourceBindingSpec{
@@ -1425,7 +1446,7 @@ func Test_recordDependencies(t *testing.T) {
 							Namespace:       "test",
 							ResourceVersion: "1000",
 							Annotations: map[string]string{
-								dependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"namespace\":\"default\",\"name\":\"pod\"}]",
+								workv1alpha2.DependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"namespace\":\"default\",\"name\":\"pod\"}]",
 							},
 						},
 						Spec: workv1alpha2.ResourceBindingSpec{
@@ -1473,7 +1494,7 @@ func Test_recordDependencies(t *testing.T) {
 					Namespace:       "test",
 					ResourceVersion: "1001",
 					Annotations: map[string]string{
-						dependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"namespace\":\"default\",\"name\":\"pod\"}]",
+						workv1alpha2.DependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"namespace\":\"default\",\"name\":\"pod\"}]",
 					},
 				},
 				Spec: workv1alpha2.ResourceBindingSpec{
