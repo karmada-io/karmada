@@ -106,13 +106,34 @@ spec:
       volumes:
         - name: server-cert
           secret:
-            secretName: karmada-apiserver-cert
+            secretName: karmada-apiserver-secret
+            items:
+              - key: ca.crt
+                path: ca.crt
+              - key: tls.crt
+                path: tls.crt
+              - key: tls.key
+                path: tls.key
         - name: etcd-client-cert
           secret:
-            secretName: karmada-apiserver-etcd-client-cert
+            secretName: karmada-apiserver-secret
+            items:
+              - key: etcd-ca.crt
+                path: ca.crt
+              - key: etcd-client.crt
+                path: tls.crt
+              - key: etcd-client.key
+                path: tls.key
         - name: front-proxy-client-cert
           secret:
-            secretName: karmada-apiserver-front-proxy-client-cert
+            secretName: karmada-apiserver-secret
+            items:
+              - key: ca.crt
+                path: ca.crt
+              - key: front-proxy-client.crt
+                path: tls.crt
+              - key: front-proxy-client.key
+                path: tls.key
         - name: service-account-key-pair
           secret:
             secretName: karmada-apiserver-service-account-key-pair
