@@ -2,6 +2,12 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
+- [v1.13.1](#v1131)
+  - [Downloads for v1.13.1](#downloads-for-v1131)
+  - [Changelog since v1.13.0](#changelog-since-v1130)
+    - [Changes by Kind](#changes-by-kind)
+      - [Bug Fixes](#bug-fixes)
+      - [Others](#others)
 - [v1.13.0](#v1130)
   - [Downloads for v1.13.0](#downloads-for-v1130)
   - [Urgent Update Notes](#urgent-update-notes)
@@ -14,7 +20,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes)
+    - [Bug Fixes](#bug-fixes-1)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -26,11 +32,11 @@
   - [Downloads for v1.13.0-rc.0](#downloads-for-v1130-rc0)
   - [Changelog since v1.13.0-beta.0](#changelog-since-v1130-beta0)
   - [Urgent Update Notes](#urgent-update-notes-1)
-  - [Changes by Kind](#changes-by-kind)
+  - [Changes by Kind](#changes-by-kind-1)
     - [API Changes](#api-changes-1)
     - [Features & Enhancements](#features--enhancements-1)
     - [Deprecation](#deprecation-1)
-    - [Bug Fixes](#bug-fixes-1)
+    - [Bug Fixes](#bug-fixes-2)
     - [Security](#security-1)
   - [Other](#other-1)
     - [Dependencies](#dependencies-1)
@@ -40,11 +46,11 @@
   - [Downloads for v1.13.0-beta.0](#downloads-for-v1130-beta0)
   - [Changelog since v1.13.0-alpha.2](#changelog-since-v1130-alpha2)
   - [Urgent Update Notes](#urgent-update-notes-2)
-  - [Changes by Kind](#changes-by-kind-1)
+  - [Changes by Kind](#changes-by-kind-2)
     - [API Changes](#api-changes-2)
     - [Features & Enhancements](#features--enhancements-2)
     - [Deprecation](#deprecation-2)
-    - [Bug Fixes](#bug-fixes-2)
+    - [Bug Fixes](#bug-fixes-3)
     - [Security](#security-2)
   - [Other](#other-2)
     - [Dependencies](#dependencies-2)
@@ -54,11 +60,11 @@
   - [Downloads for v1.13.0-alpha.2](#downloads-for-v1130-alpha2)
   - [Changelog since v1.13.0-alpha.1](#changelog-since-v1130-alpha1)
   - [Urgent Update Notes](#urgent-update-notes-3)
-  - [Changes by Kind](#changes-by-kind-2)
+  - [Changes by Kind](#changes-by-kind-3)
     - [API Changes](#api-changes-3)
     - [Features & Enhancements](#features--enhancements-3)
     - [Deprecation](#deprecation-3)
-    - [Bug Fixes](#bug-fixes-3)
+    - [Bug Fixes](#bug-fixes-4)
     - [Security](#security-3)
   - [Other](#other-3)
     - [Dependencies](#dependencies-3)
@@ -68,11 +74,11 @@
   - [Downloads for v1.13.0-alpha.1](#downloads-for-v1130-alpha1)
   - [Changelog since v1.12.0](#changelog-since-v1120)
   - [Urgent Update Notes](#urgent-update-notes-4)
-  - [Changes by Kind](#changes-by-kind-3)
+  - [Changes by Kind](#changes-by-kind-4)
     - [API Changes](#api-changes-4)
     - [Features & Enhancements](#features--enhancements-4)
     - [Deprecation](#deprecation-4)
-    - [Bug Fixes](#bug-fixes-4)
+    - [Bug Fixes](#bug-fixes-5)
     - [Security](#security-4)
   - [Other](#other-4)
     - [Dependencies](#dependencies-4)
@@ -80,6 +86,22 @@
     - [Instrumentation](#instrumentation-4)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.13.1
+## Downloads for v1.13.1
+
+Download v1.13.1 in the [v1.13.1 release page](https://github.com/karmada-io/karmada/releases/tag/v1.13.1).
+
+## Changelog since v1.13.0
+### Changes by Kind
+#### Bug Fixes
+- `karmada-operator`: The `karmada-app` label key previously used for control plane components and for the components of the operator itself has been changed to the more idiomatic `app.kubernetes.io/name` label key. ([#6200](https://github.com/karmada-io/karmada/pull/6200), @jabellard)
+- `karmada-agent`: Fixed a panic issue where the agent does not need to report secret when registering cluster. ([#6222](https://github.com/karmada-io/karmada/pull/6222), @jabellard)
+- `karmada-controller-manager`: Fixed the issue that the gracefulEvictionTask of ResourceBinding can not be cleared in case of schedule fails. ([#6234](https://github.com/karmada-io/karmada/pull/6234), @XiShanYongYe-Chang)
+- `helm`: Fixed the issue where the required ServiceAccount was missing when the certificate mode was set to custom. ([#6242](https://github.com/karmada-io/karmada/pull/6242), @seanlaii)
+
+#### Others
+None.
 
 # v1.13.0
 ## Downloads for v1.13.0
