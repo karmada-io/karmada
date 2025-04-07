@@ -139,24 +139,23 @@ func NewDescheduler(karmadaClient karmadaclientset.Interface, kubeClient kuberne
 
 // Run runs the scheduler
 func (d *Descheduler) Run(ctx context.Context) {
-	stopCh := ctx.Done()
 	klog.Infof("Starting karmada descheduler")
 	defer klog.Infof("Shutting down karmada descheduler")
 
 	// Establish all connections first and then begin scheduling.
 	d.establishEstimatorConnections()
-	d.schedulerEstimatorWorker.Run(1, stopCh)
+	d.schedulerEstimatorWorker.Run(ctx, 1)
 
-	d.informerFactory.Start(stopCh)
+	d.informerFactory.Start(ctx.Done())
 
-	if !cache.WaitForCacheSync(stopCh, d.bindingInformer.HasSynced, d.clusterInformer.HasSynced) {
+	if !cache.WaitForCacheSync(ctx.Done(), d.bindingInformer.HasSynced, d.clusterInformer.HasSynced) {
 		klog.Errorf("Failed to wait for cache sync")
 	}
 
-	go wait.Until(d.descheduleOnce, d.deschedulingInterval, stopCh)
-	d.deschedulerWorker.Run(1, stopCh)
+	go wait.Until(d.descheduleOnce, d.deschedulingInterval, ctx.Done())
+	d.deschedulerWorker.Run(ctx, 1)
 
-	<-stopCh
+	<-ctx.Done()
 }
 
 func (d *Descheduler) descheduleOnce() {

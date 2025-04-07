@@ -17,6 +17,7 @@ limitations under the License.
 package util
 
 import (
+	"context"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -40,9 +41,9 @@ type AsyncWorker interface {
 	// Enqueue generates the key of 'obj' according to a 'KeyFunc' then adds the key as an item to queue by 'Add'.
 	Enqueue(obj interface{})
 
-	// Run starts a certain number of concurrent workers to reconcile the items and will never stop until 'stopChan'
-	// is closed.
-	Run(workerNumber int, stopChan <-chan struct{})
+	// Run starts a certain number of concurrent workers to reconcile the items and will never stop until context
+	// is canceled.
+	Run(ctx context.Context, workerNumber int)
 }
 
 // QueueKey is the item key that stores in queue.
@@ -137,13 +138,13 @@ func (w *asyncWorker) worker() {
 	w.queue.Forget(key)
 }
 
-func (w *asyncWorker) Run(workerNumber int, stopChan <-chan struct{}) {
+func (w *asyncWorker) Run(ctx context.Context, workerNumber int) {
 	for i := 0; i < workerNumber; i++ {
-		go wait.Until(w.worker, 0, stopChan)
+		go wait.Until(w.worker, 0, ctx.Done())
 	}
 	// Ensure all goroutines are cleaned up when the stop channel closes
 	go func() {
-		<-stopChan
+		<-ctx.Done()
 		w.queue.ShutDown()
 	}()
 }

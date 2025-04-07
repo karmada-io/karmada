@@ -90,11 +90,11 @@ type AccurateSchedulerEstimatorServer struct {
 
 // NewEstimatorServer creates an instance of AccurateSchedulerEstimatorServer.
 func NewEstimatorServer(
+	ctx context.Context,
 	kubeClient kubernetes.Interface,
 	dynamicClient dynamic.Interface,
 	discoveryClient discovery.DiscoveryInterface,
 	opts *options.Options,
-	stopChan <-chan struct{},
 ) (*AccurateSchedulerEstimatorServer, error) {
 	cachedDiscoClient := cacheddiscovery.NewMemCacheClient(discoveryClient)
 	restMapper := restmapper.NewDeferredDiscoveryRESTMapper(cachedDiscoClient)
@@ -112,7 +112,7 @@ func NewEstimatorServer(
 			ReplicaSetLister: informerFactory.Apps().V1().ReplicaSets().Lister(),
 		},
 		parallelizer: parallelize.NewParallelizer(opts.Parallelism),
-		Cache:        schedcache.New(durationToExpireAssumedPod, stopChan),
+		Cache:        schedcache.New(durationToExpireAssumedPod, ctx.Done()),
 		GrpcConfig: &grpcconnection.ServerConfig{
 			InsecureSkipClientVerify: opts.InsecureSkipGrpcClientVerify,
 			ClientAuthCAFile:         opts.GrpcClientCaFile,
@@ -126,7 +126,7 @@ func NewEstimatorServer(
 	_ = informerFactory.Core().V1().Pods().Informer().SetTransform(fedinformer.StripUnusedFields)
 	_ = informerFactory.Apps().V1().ReplicaSets().Informer().SetTransform(fedinformer.StripUnusedFields)
 
-	es.informerManager = genericmanager.NewSingleClusterInformerManager(dynamicClient, 0, stopChan)
+	es.informerManager = genericmanager.NewSingleClusterInformerManager(ctx, dynamicClient, 0)
 	for _, gvr := range supportedGVRs {
 		es.informerManager.Lister(gvr)
 	}
@@ -148,12 +148,11 @@ func NewEstimatorServer(
 
 // Start runs the accurate replica estimator server.
 func (es *AccurateSchedulerEstimatorServer) Start(ctx context.Context) error {
-	stopCh := ctx.Done()
 	klog.Infof("Starting karmada cluster(%s) accurate scheduler estimator", es.clusterName)
 	defer klog.Infof("Shutting down cluster(%s) accurate scheduler estimator", es.clusterName)
 
-	es.informerFactory.Start(stopCh)
-	es.informerFactory.WaitForCacheSync(stopCh)
+	es.informerFactory.Start(ctx.Done())
+	es.informerFactory.WaitForCacheSync(ctx.Done())
 
 	es.informerManager.Start()
 	if synced := es.informerManager.WaitForCacheSync(); synced == nil {
@@ -176,7 +175,7 @@ func (es *AccurateSchedulerEstimatorServer) Start(ctx context.Context) error {
 
 	// Graceful stop when the context is cancelled.
 	go func() {
-		<-stopCh
+		<-ctx.Done()
 		s.GracefulStop()
 	}()
 

@@ -101,7 +101,7 @@ func (i *customResourceInterpreterImpl) Start(ctx context.Context) (err error) {
 	i.informer.Start()
 	i.informer.WaitForCacheSync()
 	<-ctx.Done()
-	klog.Infof("Stopped as stopCh closed.")
+	klog.Infof("Stopped as context canceled.")
 	return nil
 }
 

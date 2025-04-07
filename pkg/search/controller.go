@@ -17,6 +17,7 @@ limitations under the License.
 package search
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strings"
@@ -128,17 +129,17 @@ func (c *Controller) addAllEventHandlers() {
 }
 
 // Start the controller
-func (c *Controller) Start(stopCh <-chan struct{}) {
+func (c *Controller) Start(ctx context.Context) {
 	klog.Infof("Starting karmada search controller")
 
 	defer runtime.HandleCrash()
 
-	c.informerFactory.WaitForCacheSync(stopCh)
+	c.informerFactory.WaitForCacheSync(ctx.Done())
 
-	go wait.Until(c.worker, time.Second, stopCh)
+	go wait.Until(c.worker, time.Second, ctx.Done())
 
 	go func() {
-		<-stopCh
+		<-ctx.Done()
 		genericmanager.StopInstance()
 		klog.Infof("Shutting down karmada search controller")
 	}()

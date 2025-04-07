@@ -64,14 +64,11 @@ type ClusterDetector struct {
 	EventHandler          cache.ResourceEventHandler
 	Processor             util.AsyncWorker
 	ConcurrentReconciles  int
-
-	stopCh <-chan struct{}
 }
 
-// Start runs the detector, never stop until stopCh closed.
+// Start runs the detector, never stop until context canceled.
 func (d *ClusterDetector) Start(ctx context.Context) error {
 	klog.Infof("Starting cluster-api cluster detector.")
-	d.stopCh = ctx.Done()
 
 	d.EventHandler = fedinformer.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
 	workerOptions := util.Options{
@@ -80,11 +77,11 @@ func (d *ClusterDetector) Start(ctx context.Context) error {
 		ReconcileFunc: d.Reconcile,
 	}
 	d.Processor = util.NewAsyncWorker(workerOptions)
-	d.Processor.Run(d.ConcurrentReconciles, d.stopCh)
+	d.Processor.Run(ctx, d.ConcurrentReconciles)
 	d.discoveryCluster()
 
-	<-d.stopCh
-	klog.Infof("Stopped as stopCh closed.")
+	<-ctx.Done()
+	klog.Infof("Stopped as context canceled.")
 	return nil
 }
 

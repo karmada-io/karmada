@@ -17,6 +17,7 @@ limitations under the License.
 package scheduler
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -469,4 +470,4 @@ func (m *mockAsyncWorker) Enqueue(item interface{}) {
 
 func (m *mockAsyncWorker) AddAfter(_ interface{}, _ time.Duration) {}
 
-func (m *mockAsyncWorker) Run(_ int, _ <-chan struct{}) {}
+func (m *mockAsyncWorker) Run(_ context.Context, _ int) {}

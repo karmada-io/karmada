@@ -71,10 +71,10 @@ func (m *MockAsyncWorker) Enqueue(obj interface{}) {
 }
 
 // Note: This is a dummy implementation of Run for testing purposes.
-func (m *MockAsyncWorker) Run(workerNumber int, stopChan <-chan struct{}) {
+func (m *MockAsyncWorker) Run(ctx context.Context, workerNumber int) {
 	// No actual work is done in the mock; we just simulate running
 	fmt.Printf("%v", workerNumber)
-	fmt.Printf("%v", <-stopChan)
+	fmt.Printf("%v", <-ctx.Done())
 }
 
 // GetQueue returns the current state of the queue
@@ -848,7 +848,7 @@ func Test_removeOrphanAttachedBindings(t *testing.T) {
 				InformerManager: func() genericmanager.SingleClusterInformerManager {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"}}})
-					m := genericmanager.NewSingleClusterInformerManager(c, 0, context.TODO().Done())
+					m := genericmanager.NewSingleClusterInformerManager(context.TODO(), c, 0)
 					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 					m.Start()
 					m.WaitForCacheSync()
@@ -994,7 +994,7 @@ func Test_handleDependentResource(t *testing.T) {
 				InformerManager: func() genericmanager.SingleClusterInformerManager {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"}}})
-					m := genericmanager.NewSingleClusterInformerManager(c, 0, context.TODO().Done())
+					m := genericmanager.NewSingleClusterInformerManager(context.TODO(), c, 0)
 					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 					m.Start()
 					m.WaitForCacheSync()
@@ -1102,7 +1102,7 @@ func Test_handleDependentResource(t *testing.T) {
 				InformerManager: func() genericmanager.SingleClusterInformerManager {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"}}})
-					m := genericmanager.NewSingleClusterInformerManager(c, 0, context.TODO().Done())
+					m := genericmanager.NewSingleClusterInformerManager(context.TODO(), c, 0)
 					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 					m.Start()
 					m.WaitForCacheSync()
@@ -1181,7 +1181,7 @@ func Test_handleDependentResource(t *testing.T) {
 				InformerManager: func() genericmanager.SingleClusterInformerManager {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"}}})
-					m := genericmanager.NewSingleClusterInformerManager(c, 0, context.TODO().Done())
+					m := genericmanager.NewSingleClusterInformerManager(context.TODO(), c, 0)
 					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 					m.Start()
 					m.WaitForCacheSync()
@@ -1562,7 +1562,7 @@ func Test_findOrphanAttachedBindings(t *testing.T) {
 				InformerManager: func() genericmanager.SingleClusterInformerManager {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"}}})
-					m := genericmanager.NewSingleClusterInformerManager(c, 0, context.TODO().Done())
+					m := genericmanager.NewSingleClusterInformerManager(context.TODO(), c, 0)
 					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 					m.Start()
 					m.WaitForCacheSync()
@@ -1659,7 +1659,7 @@ func Test_findOrphanAttachedBindings(t *testing.T) {
 				InformerManager: func() genericmanager.SingleClusterInformerManager {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"}}})
-					m := genericmanager.NewSingleClusterInformerManager(c, 0, context.TODO().Done())
+					m := genericmanager.NewSingleClusterInformerManager(context.TODO(), c, 0)
 					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 					m.Start()
 					m.WaitForCacheSync()
@@ -1768,7 +1768,7 @@ func TestDependenciesDistributor_findOrphanAttachedBindingsByDependencies(t *tes
 				InformerManager: func() genericmanager.SingleClusterInformerManager {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"bar": "bar"}}})
-					m := genericmanager.NewSingleClusterInformerManager(c, 0, context.TODO().Done())
+					m := genericmanager.NewSingleClusterInformerManager(context.TODO(), c, 0)
 					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 					m.Start()
 					m.WaitForCacheSync()
@@ -1819,7 +1819,7 @@ func TestDependenciesDistributor_findOrphanAttachedBindingsByDependencies(t *tes
 				InformerManager: func() genericmanager.SingleClusterInformerManager {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"bar": "foo"}}})
-					m := genericmanager.NewSingleClusterInformerManager(c, 0, context.TODO().Done())
+					m := genericmanager.NewSingleClusterInformerManager(context.TODO(), c, 0)
 					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 					m.Start()
 					m.WaitForCacheSync()

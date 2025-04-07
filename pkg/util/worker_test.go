@@ -17,6 +17,7 @@ limitations under the License.
 package util
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -131,10 +132,10 @@ func Test_asyncWorker_Run(t *testing.T) {
 	reconcile := newAsyncWorkerReconciler()
 	worker := newTestAsyncWorker(reconcile.ReconcileFunc)
 
-	stopChan := make(chan struct{})
-	defer close(stopChan)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	worker.Run(5, stopChan)
+	worker.Run(ctx, 5)
 
 	for i := 0; i < cnt; i++ {
 		worker.Add(i)

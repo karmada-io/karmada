@@ -78,7 +78,7 @@ const (
 )
 
 // NewDeschedulerCommand creates a *cobra.Command object with default parameters
-func NewDeschedulerCommand(stopChan <-chan struct{}) *cobra.Command {
+func NewDeschedulerCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
@@ -91,7 +91,7 @@ karmada-scheduler-estimator to get replica status.`,
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()
 			}
-			if err := run(opts, stopChan); err != nil {
+			if err := run(ctx, opts); err != nil {
 				return err
 			}
 			return nil
@@ -124,7 +124,7 @@ karmada-scheduler-estimator to get replica status.`,
 	return cmd
 }
 
-func run(opts *options.Options, stopChan <-chan struct{}) error {
+func run(ctx context.Context, opts *options.Options) error {
 	klog.Infof("karmada-descheduler version: %s", version.Get())
 	klog.Infof("Please make sure the karmada-scheduler-estimator of all member clusters has been deployed")
 	serveHealthzAndMetrics(opts.HealthProbeBindAddress, opts.MetricsBindAddress)
@@ -139,12 +139,6 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 
 	karmadaClient := karmadaclientset.NewForConfigOrDie(restConfig)
 	kubeClient := kubernetes.NewForConfigOrDie(restConfig)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		<-stopChan
-		cancel()
-	}()
 
 	desched := descheduler.NewDescheduler(karmadaClient, kubeClient, opts)
 	if !opts.LeaderElection.LeaderElect {

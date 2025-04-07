@@ -28,8 +28,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
-
-	"github.com/karmada-io/karmada/pkg/util"
 )
 
 var (
@@ -86,8 +84,8 @@ type SingleClusterInformerManager interface {
 
 // NewSingleClusterInformerManager constructs a new instance of singleClusterInformerManagerImpl.
 // defaultResync with value '0' means no re-sync.
-func NewSingleClusterInformerManager(client kubernetes.Interface, defaultResync time.Duration, parentCh <-chan struct{}, transformFuncs map[schema.GroupVersionResource]cache.TransformFunc) SingleClusterInformerManager {
-	ctx, cancel := util.ContextForChannel(parentCh)
+func NewSingleClusterInformerManager(ctx context.Context, client kubernetes.Interface, defaultResync time.Duration, transformFuncs map[schema.GroupVersionResource]cache.TransformFunc) SingleClusterInformerManager {
+	ctx, cancel := context.WithCancel(ctx)
 	return &singleClusterInformerManagerImpl{
 		informerFactory:  informers.NewSharedInformerFactory(client, defaultResync),
 		handlers:         make(map[schema.GroupVersionResource][]cache.ResourceEventHandler),

@@ -90,7 +90,7 @@ func WithPlugin(name string, factory runtime.PluginFactory) Option {
 }
 
 // NewSchedulerCommand creates a *cobra.Command object with default parameters
-func NewSchedulerCommand(stopChan <-chan struct{}, registryOptions ...Option) *cobra.Command {
+func NewSchedulerCommand(ctx context.Context, registryOptions ...Option) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
@@ -104,7 +104,7 @@ the most suitable cluster.`,
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()
 			}
-			if err := run(opts, stopChan, registryOptions...); err != nil {
+			if err := run(ctx, opts, registryOptions...); err != nil {
 				return err
 			}
 			return nil
@@ -137,7 +137,7 @@ the most suitable cluster.`,
 	return cmd
 }
 
-func run(opts *options.Options, stopChan <-chan struct{}, registryOptions ...Option) error {
+func run(ctx context.Context, opts *options.Options, registryOptions ...Option) error {
 	klog.Infof("karmada-scheduler version: %s", version.Get())
 	serveHealthzAndMetrics(opts.HealthProbeBindAddress, opts.MetricsBindAddress)
 
@@ -153,11 +153,6 @@ func run(opts *options.Options, stopChan <-chan struct{}, registryOptions ...Opt
 	karmadaClient := karmadaclientset.NewForConfigOrDie(restConfig)
 	kubeClientSet := kubernetes.NewForConfigOrDie(restConfig)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		<-stopChan
-		cancel()
-	}()
 	outOfTreeRegistry := make(runtime.Registry)
 	for _, option := range registryOptions {
 		if err := option(outOfTreeRegistry); err != nil {

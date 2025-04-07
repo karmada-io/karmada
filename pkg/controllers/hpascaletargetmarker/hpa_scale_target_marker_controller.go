@@ -53,7 +53,7 @@ func (r *HpaScaleTargetMarker) SetupWithManager(mgr controllerruntime.Manager) e
 		ReconcileFunc: r.reconcileScaleRef,
 	}
 	r.scaleTargetWorker = util.NewAsyncWorker(scaleTargetWorkerOptions)
-	r.scaleTargetWorker.Run(scaleTargetWorkerNum, context.Background().Done())
+	r.scaleTargetWorker.Run(context.Background(), scaleTargetWorkerNum)
 
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(ControllerName).

@@ -176,8 +176,8 @@ func newPlugins(option NewControllerOption, clusterStore store.Store) ([]framewo
 }
 
 // Start run the proxy controller
-func (ctl *Controller) Start(stopCh <-chan struct{}) {
-	ctl.worker.Run(1, stopCh)
+func (ctl *Controller) Start(ctx context.Context) {
+	ctl.worker.Run(ctx, 1)
 }
 
 // Stop shutdown cache

@@ -140,14 +140,14 @@ func run(ctx context.Context, o *options.Options, registryOptions ...Option) err
 	if config.ExtraConfig.Controller != nil {
 		server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-search-controller", func(context genericapiserver.PostStartHookContext) error {
 			// start ResourceRegistry controller
-			config.ExtraConfig.Controller.Start(context.Done())
+			config.ExtraConfig.Controller.Start(context)
 			return nil
 		})
 	}
 
 	if config.ExtraConfig.ProxyController != nil {
 		server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-proxy-controller", func(context genericapiserver.PostStartHookContext) error {
-			config.ExtraConfig.ProxyController.Start(context.Done())
+			config.ExtraConfig.ProxyController.Start(context)
 			return nil
 		})
 

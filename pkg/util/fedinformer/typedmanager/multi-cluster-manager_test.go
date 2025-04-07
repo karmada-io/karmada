@@ -17,6 +17,7 @@ limitations under the License.
 package typedmanager
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -28,15 +29,15 @@ import (
 )
 
 func TestMultiClusterInformerManager(t *testing.T) {
-	stopCh := make(chan struct{})
-	defer close(stopCh)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	transforms := map[schema.GroupVersionResource]cache.TransformFunc{
 		nodeGVR: fedinformer.NodeTransformFunc,
 		podGVR:  fedinformer.PodTransformFunc,
 	}
 
-	manager := NewMultiClusterInformerManager(stopCh, transforms)
+	manager := NewMultiClusterInformerManager(ctx, transforms)
 
 	t.Run("ForCluster", func(_ *testing.T) {
 		cluster := "test-cluster"
