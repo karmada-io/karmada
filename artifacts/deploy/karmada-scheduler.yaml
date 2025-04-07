@@ -59,10 +59,20 @@ spec:
       volumes:
         - name: karmada-config
           secret:
-            secretName: karmada-scheduler-config
+            secretName: karmada-scheduler-secret
+            items:
+              - key: karmada.config
+                path: karmada.config
         - name: scheduler-estimator-client-cert
           secret:
-            secretName: karmada-scheduler-scheduler-estimator-client-cert
+            secretName: karmada-scheduler-secret
+            items:
+              - key: ca.crt
+                path: ca.crt
+              - key: grpc.crt
+                path: tls.crt
+              - key: grpc.key
+                path: tls.key
       securityContext:
         seccompProfile:
           type: RuntimeDefault

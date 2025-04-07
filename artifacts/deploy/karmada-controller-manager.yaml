@@ -17,8 +17,8 @@ spec:
     spec:
       automountServiceAccountToken: false
       tolerations:
-      - key: node-role.kubernetes.io/master
-        operator: Exists
+        - key: node-role.kubernetes.io/master
+          operator: Exists
       containers:
         - name: karmada-controller-manager
           securityContext:
@@ -50,12 +50,15 @@ spec:
               name: metrics
               protocol: TCP
           volumeMounts:
-          - name: karmada-config
-            mountPath: /etc/karmada/config
+            - name: karmada-config
+              mountPath: /etc/karmada/config
       volumes:
         - name: karmada-config
           secret:
-            secretName: karmada-controller-manager-config
+            secretName: karmada-controller-manager-secret
+            items:
+              - key: karmada.config
+                path: karmada.config
       securityContext:
         seccompProfile:
           type: RuntimeDefault
