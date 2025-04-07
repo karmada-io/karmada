@@ -149,7 +149,7 @@ func (c *MCSController) retrieveMultiClusterService(ctx context.Context, mcs *ne
 			continue
 		}
 
-		if providerClusters.Has(clusterName) && c.IsClusterReady(ctx, clusterName) {
+		if providerClusters.Has(clusterName) {
 			continue
 		}
 
@@ -522,17 +522,6 @@ func (c *MCSController) updateMultiClusterServiceStatus(ctx context.Context, mcs
 		})
 		return err
 	})
-}
-
-// IsClusterReady checks whether the cluster is ready.
-func (c *MCSController) IsClusterReady(ctx context.Context, clusterName string) bool {
-	cluster := &clusterv1alpha1.Cluster{}
-	if err := c.Client.Get(ctx, types.NamespacedName{Name: clusterName}, cluster); err != nil {
-		klog.Errorf("Failed to get cluster object(%s):%v", clusterName, err)
-		return false
-	}
-
-	return util.IsClusterReady(&cluster.Status)
 }
 
 // SetupWithManager creates a controller and register to controller manager.
