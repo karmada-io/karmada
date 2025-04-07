@@ -17,6 +17,7 @@ limitations under the License.
 package runtime
 
 import (
+	"context"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -42,20 +43,23 @@ type metricsRecorder struct {
 	// how often the recorder runs to flush the metrics.
 	interval time.Duration
 
-	// stopCh is used to stop the goroutine which periodically flushes metrics. It's currently only
+	// ctx and cancel are used to stop the goroutine which periodically flushes metrics. They're currently only
 	// used in tests.
-	stopCh chan struct{}
+	ctx    context.Context
+	cancel context.CancelFunc
 	// isStoppedCh indicates whether the goroutine is stopped. It's used in tests only to make sure
 	// the metric flushing goroutine is stopped so that tests can collect metrics for verification.
 	isStoppedCh chan struct{}
 }
 
 func newMetricsRecorder(bufferSize int, interval time.Duration) *metricsRecorder {
+	ctx, cancel := context.WithCancel(context.Background())
 	recorder := &metricsRecorder{
 		bufferCh:    make(chan *frameworkMetric, bufferSize),
 		bufferSize:  bufferSize,
 		interval:    interval,
-		stopCh:      make(chan struct{}),
+		ctx:         ctx,
+		cancel:      cancel,
 		isStoppedCh: make(chan struct{}),
 	}
 	go recorder.run()
@@ -80,7 +84,7 @@ func (r *metricsRecorder) observePluginDurationAsync(extensionPoint, pluginName 
 func (r *metricsRecorder) run() {
 	for {
 		select {
-		case <-r.stopCh:
+		case <-r.ctx.Done():
 			close(r.isStoppedCh)
 			return
 		default:

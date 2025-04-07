@@ -61,14 +61,14 @@ type MetricsController struct {
 }
 
 // NewMetricsController creates a new metrics controller
-func NewMetricsController(stopCh <-chan struct{}, restConfig *rest.Config, factory informerfactory.SharedInformerFactory, kubeFactory informers.SharedInformerFactory, clusterClientOption *util.ClientOption) *MetricsController {
+func NewMetricsController(ctx context.Context, restConfig *rest.Config, factory informerfactory.SharedInformerFactory, kubeFactory informers.SharedInformerFactory, clusterClientOption *util.ClientOption) *MetricsController {
 	clusterLister := factory.Cluster().V1alpha1().Clusters().Lister()
 	controller := &MetricsController{
 		InformerFactory:       factory,
 		ClusterLister:         clusterLister,
 		MultiClusterDiscovery: multiclient.NewMultiClusterDiscoveryClient(clusterLister, kubeFactory, clusterClientOption),
 		InformerManager:       genericmanager.GetInstance(),
-		TypedInformerManager:  newInstance(stopCh),
+		TypedInformerManager:  newInstance(ctx),
 		restConfig:            restConfig,
 		queue: workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[any](), workqueue.TypedRateLimitingQueueConfig[any]{
 			Name: "metrics-adapter",
@@ -131,12 +131,12 @@ func podTransformFunc(obj interface{}) (interface{}, error) {
 	return aggregatedPod, nil
 }
 
-func newInstance(stopCh <-chan struct{}) typedmanager.MultiClusterInformerManager {
+func newInstance(ctx context.Context) typedmanager.MultiClusterInformerManager {
 	transforms := map[schema.GroupVersionResource]cache.TransformFunc{
 		provider.NodesGVR: cache.TransformFunc(nodeTransformFunc),
 		provider.PodsGVR:  cache.TransformFunc(podTransformFunc),
 	}
-	return typedmanager.NewMultiClusterInformerManager(stopCh, transforms)
+	return typedmanager.NewMultiClusterInformerManager(ctx, transforms)
 }
 
 // addEventHandler adds event handler for cluster
@@ -181,13 +181,13 @@ func (m *MetricsController) updateCluster(oldObj, curObj interface{}) {
 }
 
 // startController starts controller
-func (m *MetricsController) startController(stopCh <-chan struct{}) {
-	m.InformerFactory.WaitForCacheSync(stopCh)
+func (m *MetricsController) startController(ctx context.Context) {
+	m.InformerFactory.WaitForCacheSync(ctx.Done())
 
-	go wait.Until(m.worker, time.Second, stopCh)
+	go wait.Until(m.worker, time.Second, ctx.Done())
 
 	go func() {
-		<-stopCh
+		<-ctx.Done()
 		m.queue.ShutDown()
 		genericmanager.StopInstance()
 		klog.Infof("Shutting down karmada-metrics-adapter")

@@ -153,7 +153,7 @@ func NewSchedulingQueue(opts ...Option) SchedulingQueue {
 //   - unschedulableBindings holds bindings that were already attempted for scheduling and
 //     are currently determined to be unschedulable.
 type prioritySchedulingQueue struct {
-	// stopCh is used to stop the goroutine which periodically flushes pending bindings.
+	// stop is used to stop the goroutine which periodically flushes pending bindings.
 	stop chan struct{}
 	// lock takes precedence and should be taken first,
 	// before any other locks in the queue.

@@ -65,7 +65,7 @@ type WorkStatusController struct {
 	RESTMapper      meta.RESTMapper
 	InformerManager genericmanager.MultiClusterInformerManager
 	eventHandler    cache.ResourceEventHandler // eventHandler knows how to handle events from the member cluster.
-	StopChan        <-chan struct{}
+	Context         context.Context
 	worker          util.AsyncWorker // worker process resources periodic from rateLimitingQueue.
 	// ConcurrentWorkStatusSyncs is the number of Work status that are allowed to sync concurrently.
 	ConcurrentWorkStatusSyncs   int
@@ -148,7 +148,7 @@ func (c *WorkStatusController) RunWorkQueue() {
 		ReconcileFunc: c.syncWorkStatus,
 	}
 	c.worker = util.NewAsyncWorker(workerOptions)
-	c.worker.Run(c.ConcurrentWorkStatusSyncs, c.StopChan)
+	c.worker.Run(c.Context, c.ConcurrentWorkStatusSyncs)
 }
 
 // generateKey generates a key from obj, the key contains cluster, GVK, namespace and name.

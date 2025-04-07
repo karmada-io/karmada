@@ -124,7 +124,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 }
 
 // Config returns config for the metrics-adapter server given Options
-func (o *Options) Config(stopCh <-chan struct{}) (*metricsadapter.MetricsServer, error) {
+func (o *Options) Config(ctx context.Context) (*metricsadapter.MetricsServer, error) {
 	restConfig, err := clientcmd.BuildConfigFromFlags("", o.KubeConfig)
 	if err != nil {
 		klog.Errorf("Unable to build restConfig: %v", err)
@@ -136,7 +136,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*metricsadapter.MetricsServer,
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
 	kubeClient := kubernetes.NewForConfigOrDie(restConfig)
 	kubeFactory := informers.NewSharedInformerFactory(kubeClient, 0)
-	metricsController := metricsadapter.NewMetricsController(stopCh, restConfig, factory, kubeFactory, &util.ClientOption{QPS: o.ClusterAPIQPS, Burst: o.ClusterAPIBurst})
+	metricsController := metricsadapter.NewMetricsController(ctx, restConfig, factory, kubeFactory, &util.ClientOption{QPS: o.ClusterAPIQPS, Burst: o.ClusterAPIBurst})
 	metricsAdapter := metricsadapter.NewMetricsAdapter(metricsController, o.CustomMetricsAdapterServerOptions)
 	metricsAdapter.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(generatedopenapi.GetOpenAPIDefinitions, openapinamer.NewDefinitionNamer(api.Scheme))
 	metricsAdapter.OpenAPIV3Config = genericapiserver.DefaultOpenAPIV3Config(generatedopenapi.GetOpenAPIDefinitions, openapinamer.NewDefinitionNamer(api.Scheme))
@@ -186,8 +186,7 @@ func (o *Options) Run(ctx context.Context) error {
 
 	profileflag.ListenAndServe(o.ProfileOpts)
 
-	stopCh := ctx.Done()
-	metricsServer, err := o.Config(stopCh)
+	metricsServer, err := o.Config(ctx)
 	if err != nil {
 		return err
 	}

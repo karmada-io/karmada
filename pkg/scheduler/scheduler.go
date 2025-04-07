@@ -305,29 +305,28 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 
 // Run runs the scheduler
 func (s *Scheduler) Run(ctx context.Context) {
-	stopCh := ctx.Done()
 	klog.Infof("Starting karmada scheduler")
 	defer klog.Infof("Shutting down karmada scheduler")
 
 	// Establish all connections first and then begin scheduling.
 	if s.enableSchedulerEstimator {
 		s.establishEstimatorConnections()
-		s.schedulerEstimatorWorker.Run(1, stopCh)
+		s.schedulerEstimatorWorker.Run(ctx, 1)
 	}
 
-	s.informerFactory.Start(stopCh)
-	s.informerFactory.WaitForCacheSync(stopCh)
+	s.informerFactory.Start(ctx.Done())
+	s.informerFactory.WaitForCacheSync(ctx.Done())
 
-	s.clusterReconcileWorker.Run(1, stopCh)
+	s.clusterReconcileWorker.Run(ctx, 1)
 
-	go wait.Until(s.worker, time.Second, stopCh)
+	go wait.Until(s.worker, time.Second, ctx.Done())
 
 	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) {
 		s.priorityQueue.Run()
-		<-stopCh
+		<-ctx.Done()
 		s.priorityQueue.Close()
 	} else {
-		<-stopCh
+		<-ctx.Done()
 		s.queue.ShutDown()
 	}
 }

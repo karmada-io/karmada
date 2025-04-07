@@ -105,15 +105,12 @@ type ResourceDetector struct {
 	// RateLimiterOptions is the configuration for rate limiter which may significantly influence the performance of
 	// the controller.
 	RateLimiterOptions ratelimiterflag.Options
-
-	stopCh <-chan struct{}
 }
 
-// Start runs the detector, never stop until stopCh closed.
+// Start runs the detector, never stop until context canceled.
 func (d *ResourceDetector) Start(ctx context.Context) error {
 	klog.Infof("Starting resource detector.")
 	d.waitingObjects = make(map[keys.ClusterWideKey]struct{})
-	d.stopCh = ctx.Done()
 
 	// setup policy reconcile worker
 	policyWorkerOptions := util.Options{
@@ -123,7 +120,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 		RateLimiterOptions: d.RateLimiterOptions,
 	}
 	d.policyReconcileWorker = util.NewAsyncWorker(policyWorkerOptions)
-	d.policyReconcileWorker.Run(d.ConcurrentPropagationPolicySyncs, d.stopCh)
+	d.policyReconcileWorker.Run(ctx, d.ConcurrentPropagationPolicySyncs)
 	clusterPolicyWorkerOptions := util.Options{
 		Name:               "clusterPropagationPolicy reconciler",
 		KeyFunc:            NamespacedKeyFunc,
@@ -131,7 +128,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 		RateLimiterOptions: d.RateLimiterOptions,
 	}
 	d.clusterPolicyReconcileWorker = util.NewAsyncWorker(clusterPolicyWorkerOptions)
-	d.clusterPolicyReconcileWorker.Run(d.ConcurrentClusterPropagationPolicySyncs, d.stopCh)
+	d.clusterPolicyReconcileWorker.Run(ctx, d.ConcurrentClusterPropagationPolicySyncs)
 
 	detectorWorkerOptions := util.Options{
 		Name:               "resource detector",
@@ -140,7 +137,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 		RateLimiterOptions: d.RateLimiterOptions,
 	}
 	d.Processor = util.NewAsyncWorker(detectorWorkerOptions)
-	d.Processor.Run(d.ConcurrentResourceTemplateSyncs, d.stopCh)
+	d.Processor.Run(ctx, d.ConcurrentResourceTemplateSyncs)
 
 	// watch and enqueue PropagationPolicy changes.
 	policyHandler := fedinformer.NewHandlerOnEvents(d.OnPropagationPolicyAdd, d.OnPropagationPolicyUpdate, nil)
@@ -169,10 +166,10 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 	}
 
 	d.EventHandler = fedinformer.NewFilteringHandlerOnAllEvents(d.EventFilter, d.OnAdd, d.OnUpdate, d.OnDelete)
-	go d.discoverResources(30 * time.Second)
+	go d.discoverResources(ctx, 30*time.Second)
 
-	<-d.stopCh
-	klog.Infof("Stopped as stopCh closed.")
+	<-ctx.Done()
+	klog.Infof("Stopped as context canceled")
 	return nil
 }
 
@@ -182,7 +179,7 @@ var (
 	_ manager.LeaderElectionRunnable = &ResourceDetector{}
 )
 
-func (d *ResourceDetector) discoverResources(period time.Duration) {
+func (d *ResourceDetector) discoverResources(ctx context.Context, period time.Duration) {
 	wait.Until(func() {
 		newResources := lifted.GetDeletableResources(d.DiscoveryClientSet)
 		for r := range newResources {
@@ -193,7 +190,7 @@ func (d *ResourceDetector) discoverResources(period time.Duration) {
 			d.InformerManager.ForResource(r, d.EventHandler)
 		}
 		d.InformerManager.Start()
-	}, period, d.stopCh)
+	}, period, ctx.Done())
 }
 
 // gvrDisabled returns whether GroupVersionResource is disabled.
@@ -785,7 +782,7 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 			bindingSchedulePriority = &workv1alpha2.SchedulePriority{
 				Priority: kubePriorityClass.Value,
 				// TODO add preemptionpolicy
-				//PreemptionPolicy: kubePriorityClass.PreemptionPolicy,
+				// PreemptionPolicy: kubePriorityClass.PreemptionPolicy,
 			}
 		case policyv1alpha1.PodPriorityClass:
 			return nil, fmt.Errorf("priority class source is PodPriorityClass, but PodPriorityClass is not supported yet")

@@ -996,7 +996,7 @@ func (m *mockAsyncWorker) Add(_ interface{}) {
 }
 func (m *mockAsyncWorker) AddAfter(_ interface{}, _ time.Duration) {}
 
-func (m *mockAsyncWorker) Run(_ int, _ <-chan struct{}) {}
+func (m *mockAsyncWorker) Run(_ context.Context, _ int) {}
 
 // mockRESTMapper is a simple mock that satisfies the meta.RESTMapper interface
 type mockRESTMapper struct{}
