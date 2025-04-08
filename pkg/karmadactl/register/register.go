@@ -444,7 +444,7 @@ func (o *CommandRegisterOption) EnsureNecessaryResourcesExistInMemberCluster(boo
 		return err
 	}
 
-	if err = cmdutil.WaitForDeploymentRollout(o.memberClusterClient, KarmadaAgentDeployment, int(o.Timeout)); err != nil {
+	if err = cmdutil.WaitForDeploymentRollout(o.memberClusterClient, KarmadaAgentDeployment, o.Timeout); err != nil {
 		return err
 	}
 
