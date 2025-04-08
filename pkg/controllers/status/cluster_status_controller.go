@@ -435,8 +435,11 @@ func (c *ClusterStatusController) initLeaseController(cluster *clusterv1alpha1.C
 
 func getClusterHealthStatus(clusterClient *util.ClusterClient) (online, healthy bool) {
 	healthStatus, err := healthEndpointCheck(clusterClient.KubeClient, "/readyz")
-	if err != nil && healthStatus == http.StatusNotFound {
-		// do health check with healthz endpoint if the readyz endpoint is not installed in member cluster
+	if err != nil && (healthStatus == http.StatusInternalServerError || healthStatus == http.StatusNotFound) {
+		// do health check with healthz endpoint in two cases:
+		// 1. StatusInternalServerError(500): When the server is configured with --shutdown-delay-duration,
+		//    /readyz returns failure but /healthz still serves success
+		// 2. StatusNotFound(404): When the readyz endpoint is not installed in member cluster
 		healthStatus, err = healthEndpointCheck(clusterClient.KubeClient, "/healthz")
 	}
 

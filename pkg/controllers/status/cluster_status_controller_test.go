@@ -1105,6 +1105,28 @@ func mockServer(statusCode int, existError bool) *httptest.Server {
 	return server
 }
 
+func mockNotReadyServer() *httptest.Server {
+	respBody := "test"
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(bytes.NewBufferString(respBody)),
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		if request.URL.Path == "/readyz" {
+			statusCode := http.StatusInternalServerError
+			errorMessage := "An error occurred"
+			http.Error(w, errorMessage, statusCode)
+		} else {
+			w.WriteHeader(resp.StatusCode)
+			_, err := io.Copy(w, resp.Body)
+			if err != nil {
+				fmt.Printf("failed to copy, err: %v", err)
+			}
+		}
+	}))
+	return server
+}
+
 func TestHealthEndpointCheck(t *testing.T) {
 	server := mockServer(http.StatusOK, false)
 	defer server.Close()
@@ -1140,5 +1162,14 @@ func TestGetClusterHealthStatus(t *testing.T) {
 		online, healthy := getClusterHealthStatus(clusterClient)
 		assert.Equal(t, true, online)
 		assert.Equal(t, false, healthy)
+	})
+
+	t.Run("readyz return error and StatusInternalServerError healthz return http.StatusOK", func(t *testing.T) {
+		server := mockNotReadyServer()
+		defer server.Close()
+		clusterClient := generateClusterClient(server.URL)
+		online, healthy := getClusterHealthStatus(clusterClient)
+		assert.Equal(t, true, online)
+		assert.Equal(t, true, healthy)
 	})
 }
