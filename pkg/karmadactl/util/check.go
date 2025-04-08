@@ -59,10 +59,10 @@ func WaitForStatefulSetRollout(c kubernetes.Interface, sts *appsv1.StatefulSet, 
 	return nil
 }
 
-// WaitForDeploymentRollout  wait for Deployment reaches the ready state or timeout.
-func WaitForDeploymentRollout(c kubernetes.Interface, dep *appsv1.Deployment, timeoutSeconds int) error {
+// WaitForDeploymentRollout wait for Deployment reaches the ready state or timeout.
+func WaitForDeploymentRollout(c kubernetes.Interface, dep *appsv1.Deployment, timeout time.Duration) error {
 	var lastErr error
-	pollError := wait.PollUntilContextTimeout(context.TODO(), time.Second, time.Duration(timeoutSeconds)*time.Second, true, func(ctx context.Context) (bool, error) {
+	pollError := wait.PollUntilContextTimeout(context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 		d, err := c.AppsV1().Deployments(dep.GetNamespace()).Get(ctx, dep.GetName(), metav1.GetOptions{})
 		if err != nil {
 			lastErr = err
