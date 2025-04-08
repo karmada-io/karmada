@@ -18,6 +18,7 @@ package utils
 
 import (
 	"context"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,5 +33,5 @@ func CreateDeployAndWait(kubeClientSet kubernetes.Interface, deployment *appsv1.
 	if _, err := kubeClientSet.AppsV1().Deployments(deployment.GetNamespace()).Create(context.TODO(), deployment, metav1.CreateOptions{}); err != nil {
 		klog.Warning(err)
 	}
-	return util.WaitForDeploymentRollout(kubeClientSet, deployment, waitComponentReadyTimeout)
+	return util.WaitForDeploymentRollout(kubeClientSet, deployment, time.Duration(waitComponentReadyTimeout)*time.Second)
 }
