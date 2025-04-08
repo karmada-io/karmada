@@ -40,7 +40,7 @@ import (
 	bootstrapapi "k8s.io/cluster-bootstrap/token/api"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	k8syaml "sigs.k8s.io/yaml"
+	"sigs.k8s.io/yaml"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -1521,7 +1521,7 @@ var _ = ginkgo.Describe("Karmadactl apply testing", func() {
 // - error: An error if there was an issue during the process, otherwise nil.
 func WriteYamlToFile(obj interface{}, filePath string) error {
 	// Marshal the object to YAML.
-	yamlData, err := k8syaml.Marshal(obj)
+	yamlData, err := yaml.Marshal(obj)
 	if err != nil {
 		return err
 	}
@@ -1581,9 +1581,7 @@ var _ = framework.SerialDescribe("Karmadactl register testing", ginkgo.Ordered, 
 
 			// Extract the endpoint for Karmada APIServer.
 			endpointRegex := regexp.MustCompile(`(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d{1,5})`)
-			endpointMatches := endpointRegex.FindStringSubmatch(output)
-			gomega.Expect(len(endpointMatches)).Should(gomega.BeNumerically(">=", 2))
-			karmadaAPIEndpoint = fmt.Sprintf("%s:%s", endpointMatches[1], endpointMatches[2])
+			karmadaAPIEndpoint = endpointRegex.FindString(output)
 			gomega.Expect(karmadaAPIEndpoint).Should(gomega.Equal(karmadaAPIEndpointExpected))
 
 			// Extract token.
