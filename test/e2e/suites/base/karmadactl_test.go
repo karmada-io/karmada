@@ -1542,6 +1542,148 @@ func WriteYamlToFile(obj interface{}, filePath string) error {
 	return nil
 }
 
+var _ = framework.SerialDescribe("Karmadactl register testing", ginkgo.Ordered, ginkgo.Labels{NeedCreateCluster}, func() {
+	var (
+		newClusterName, clusterContext                 string
+		homeDir, kubeConfigPath, controlPlane          string
+		karmadaAPIEndpoint, karmadaAPIEndpointExpected string
+		token, discoveryTokenCACertHash                string
+	)
+
+	ginkgo.BeforeAll(func() {
+		ginkgo.By("Initialize dependencies", func() {
+			// Initialize member cluster variables.
+			newClusterName = "member-e2e-" + rand.String(RandomStrLength)
+			homeDir = os.Getenv("HOME")
+			kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, newClusterName)
+			controlPlane = fmt.Sprintf("%s-control-plane", newClusterName)
+			clusterContext = fmt.Sprintf("kind-%s", newClusterName)
+		})
+
+		ginkgo.By(fmt.Sprintf("Creating cluster: %s", newClusterName), func() {
+			err := createCluster(newClusterName, kubeConfigPath, controlPlane, clusterContext)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+
+		ginkgo.By("Extract Karmada API server endpoint", func() {
+			var err error
+			karmadaAPIEndpointExpected, err = extractAPIServerEndpoint(kubeconfig, "karmada-apiserver")
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+
+		ginkgo.By("Generate token and discovery token CA cert hash", func() {
+			cmd := framework.NewKarmadactlCommand(
+				kubeconfig, karmadaContext, karmadactlPath, "", karmadactlTimeout,
+				"token", "create", "--print-register-command="+"true",
+			)
+			output, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+			// Extract the endpoint for Karmada APIServer.
+			endpointRegex := regexp.MustCompile(`(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d{1,5})`)
+			karmadaAPIEndpoint = endpointRegex.FindString(output)
+			gomega.Expect(karmadaAPIEndpoint).Should(gomega.Equal(karmadaAPIEndpointExpected))
+
+			// Extract token.
+			tokenRegex := regexp.MustCompile(`--token\s+(\S+)`)
+			tokenMatches := tokenRegex.FindStringSubmatch(output)
+			gomega.Expect(len(tokenMatches)).Should(gomega.BeNumerically(">", 1))
+			token = tokenMatches[1]
+
+			// Extract discovery token CA cert hash.
+			hashRegex := regexp.MustCompile(`--discovery-token-ca-cert-hash\s+(\S+)`)
+			hashMatches := hashRegex.FindStringSubmatch(output)
+			gomega.Expect(len(hashMatches)).Should(gomega.BeNumerically(">", 1))
+			discoveryTokenCACertHash = hashMatches[1]
+		})
+	})
+
+	ginkgo.AfterEach(func() {
+		ginkgo.By(fmt.Sprintf("Unregistering cluster: %s", newClusterName), func() {
+			cmd := framework.NewKarmadactlCommand(
+				kubeconfig, karmadaContext, karmadactlPath, "", 5*options.DefaultKarmadactlCommandDuration,
+				"unregister", "--cluster-kubeconfig", kubeConfigPath, newClusterName,
+			)
+			_, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+	})
+
+	ginkgo.AfterAll(func() {
+		ginkgo.By(fmt.Sprintf("Deleting clusters: %s", newClusterName), func() {
+			err := deleteCluster(newClusterName, kubeConfigPath)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			_ = os.Remove(kubeConfigPath)
+		})
+	})
+
+	ginkgo.It("should register a cluster without CA verification", func() {
+		ginkgo.By("Register the new cluster in Karmada without CA verification", func() {
+			cmd := framework.NewKarmadactlCommand(
+				"", karmadaContext, karmadactlPath, "", karmadactlTimeout*5, "register", karmadaAPIEndpoint, "--token", token,
+				"--discovery-token-unsafe-skip-ca-verification="+"true", "--kubeconfig="+kubeConfigPath,
+				"--cluster-name", newClusterName, "--karmada-agent-image", "docker.io/karmada/karmada-agent:latest",
+			)
+			output, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			gomega.Expect(output).Should(gomega.ContainSubstring(fmt.Sprintf("cluster(%s) is joined successfully", newClusterName)))
+		})
+
+		ginkgo.By("Wait for the new cluster to be ready", func() {
+			framework.WaitClusterFitWith(controlPlaneClient, newClusterName, func(cluster *clusterv1alpha1.Cluster) bool {
+				return meta.IsStatusConditionPresentAndEqual(cluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
+			})
+		})
+	})
+
+	ginkgo.It("should register a cluster with CA verification", func() {
+		ginkgo.By("Register the new cluster in Karmada with CA verification", func() {
+			cmd := framework.NewKarmadactlCommand(
+				"", karmadaContext, karmadactlPath, "", karmadactlTimeout*5, "register", karmadaAPIEndpoint,
+				"--token", token, "--discovery-token-ca-cert-hash", discoveryTokenCACertHash,
+				"--kubeconfig="+kubeConfigPath, "--cluster-name", newClusterName,
+				"--karmada-agent-image", "docker.io/karmada/karmada-agent:latest",
+			)
+			output, err := cmd.ExecOrDie()
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			gomega.Expect(output).Should(gomega.ContainSubstring(fmt.Sprintf("cluster(%s) is joined successfully", newClusterName)))
+		})
+
+		ginkgo.By("Wait for the new cluster to be ready", func() {
+			framework.WaitClusterFitWith(controlPlaneClient, newClusterName, func(cluster *clusterv1alpha1.Cluster) bool {
+				return meta.IsStatusConditionPresentAndEqual(cluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
+			})
+		})
+	})
+})
+
+// extractAPIServerEndpoint extracts the given clusterName API endpoint from a kubeconfig file.
+//
+// Parameters:
+// - kubeConfigPath: The file path to the kubeconfig file.
+//
+// Returns:
+// - string: The extracted API server endpoint without the "https://" prefix.
+// - error: An error if:
+//   - the kubeconfig file cannot be read
+//   - the YAML format is invalid
+//   - the given clusterName is not found
+func extractAPIServerEndpoint(kubeConfigPath string, clusterName string) (string, error) {
+	config, err := clientcmd.LoadFromFile(kubeConfigPath)
+	if err != nil {
+		return "", err
+	}
+
+	for name, cluster := range config.Clusters {
+		if name == clusterName {
+			endpointWithoutPrefix := strings.TrimPrefix(cluster.Server, "https://")
+			return endpointWithoutPrefix, nil
+		}
+	}
+
+	return "", fmt.Errorf("%s endpoint not found in kubeconfig", clusterName)
+}
+
 // extractPropagationPolicyName extracts the propagation policy name from the input string.
 //
 // Parameters:
