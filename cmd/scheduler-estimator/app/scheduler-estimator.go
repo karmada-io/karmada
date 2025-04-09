@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/flowcontrol"
 	cliflag "k8s.io/component-base/cli/flag"
@@ -37,6 +38,8 @@ import (
 
 	"github.com/karmada-io/karmada/cmd/scheduler-estimator/app/options"
 	"github.com/karmada-io/karmada/pkg/estimator/server"
+	ctloptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
@@ -118,9 +121,23 @@ func run(ctx context.Context, opts *options.Options) error {
 
 	profileflag.ListenAndServe(opts.ProfileOpts)
 
-	restConfig, err := clientcmd.BuildConfigFromFlags(opts.Master, opts.KubeConfig)
-	if err != nil {
-		return fmt.Errorf("error building kubeconfig: %s", err.Error())
+	var restConfig *rest.Config
+	var err error
+	if opts.KubeConfig != "" {
+		restConfig, err = clientcmd.BuildConfigFromFlags(opts.Master, opts.KubeConfig)
+		if err != nil {
+			return fmt.Errorf("error building kubeconfig: %s", err.Error())
+		}
+	} else {
+		f := util.NewFactory(ctloptions.DefaultConfigFlags)
+		memberFactory, err := f.FactoryForMemberCluster(opts.ClusterName)
+		if err != nil {
+			return err
+		}
+		restConfig, err = memberFactory.ToRESTConfig()
+		if err != nil {
+			return fmt.Errorf("error building kubeconfig: %s", err.Error())
+		}
 	}
 	restConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(opts.ClusterAPIQPS, opts.ClusterAPIBurst)
 
