@@ -19,6 +19,7 @@ package estimator
 import (
 	"context"
 	"fmt"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -127,7 +128,7 @@ var enableEstimator = func(opts *addoninit.CommandAddonsEnableOption) error {
 		return fmt.Errorf("create or update scheduler estimator deployment error: %v", err)
 	}
 
-	if err := cmdutil.WaitForDeploymentRollout(opts.KubeClientSet, karmadaEstimatorDeployment, opts.WaitComponentReadyTimeout); err != nil {
+	if err := cmdutil.WaitForDeploymentRollout(opts.KubeClientSet, karmadaEstimatorDeployment, time.Duration(opts.WaitComponentReadyTimeout)*time.Second); err != nil {
 		klog.Warning(err)
 	}
 	klog.Infof("Karmada scheduler estimator of member cluster %s is installed successfully.", opts.Cluster)
