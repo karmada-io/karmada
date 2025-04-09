@@ -19,6 +19,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,7 +36,7 @@ var (
 	// This blocks until the Deployment's observed generation and ready replicas match the desired state,
 	// ensuring it is fully rolled out.
 	WaitForDeploymentRollout = func(c clientset.Interface, dep *appsv1.Deployment, timeoutSeconds int) error {
-		return cmdutil.WaitForDeploymentRollout(c, dep, timeoutSeconds)
+		return cmdutil.WaitForDeploymentRollout(c, dep, time.Duration(timeoutSeconds)*time.Second)
 	}
 )
 
