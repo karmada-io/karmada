@@ -30,6 +30,12 @@ func ClusterWideKeyFunc(obj interface{}) (util.QueueKey, error) {
 	return keys.ClusterWideKeyFunc(obj)
 }
 
+// ClusterWideKeyFuncWithoutGVK generates a ClusterWideKey that without gvk for object.
+// For typed objects, there is no gvk, and gvk is not needed in reconcile
+func ClusterWideKeyFuncWithoutGVK(obj interface{}) (util.QueueKey, error) {
+	return keys.ClusterWideKeyFuncWithoutGVK(obj)
+}
+
 const (
 	// ObjectChangedByKarmada the key name for a bool value which describes whether the object is changed by Karmada
 	ObjectChangedByKarmada = "ObjectChangedByKarmada"
