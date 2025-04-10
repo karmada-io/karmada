@@ -94,20 +94,25 @@ function generate_cert_related_secrets {
     local TEMP_PATH
     TEMP_PATH=$(mktemp -d)
     echo ${TEMP_PATH}
+    trap '{ rm -rf ${TEMP_PATH}; }' EXIT
+
+    # Generate specific secrets for etcd and karmada-apiserver
+    generate_etcd_secret "etcd" "${karmada_ca}" "${ETCD_SERVER_CRT}" "${ETCD_SERVER_KEY}" "${ETCD_CLIENT_CRT}" "${ETCD_CLIENT_KEY}"
+    generate_apiserver_secret "karmada-apiserver" "${karmada_ca}" \
+        "${KARMADA_APISERVER_SERVER_CRT}" "${KARMADA_APISERVER_SERVER_KEY}" \
+        "${KARMADA_APISERVER_CLIENT_CRT}" "${KARMADA_APISERVER_CLIENT_KEY}" \
+        "${KARMADA_APISERVER_ETCD_CLIENT_CRT}" "${KARMADA_APISERVER_ETCD_CLIENT_KEY}" \
+        "${FRONT_PROXY_CLIENT_CRT}" "${FRONT_PROXY_CLIENT_KEY}"
 
     # 1. generate secret with secret cert
-    generate_cert_secret karmada-apiserver ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
     generate_cert_secret karmada-aggregated-apiserver ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
     generate_cert_secret karmada-metrics-adapter ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
     generate_cert_secret karmada-search ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
     generate_cert_secret karmada-webhook ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
     generate_cert_secret karmada-interpreter-webhook-example ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
     generate_cert_secret karmada-scheduler-estimator ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
-    generate_cert_secret etcd ${karmada_ca} ${ETCD_SERVER_CRT} ${ETCD_SERVER_KEY}
 
     # 2. generate secret with client cert
-    generate_cert_secret karmada-apiserver-etcd-client ${karmada_ca} ${ETCD_CLIENT_CRT} ${ETCD_CLIENT_KEY}
-    generate_cert_secret karmada-apiserver-front-proxy-client ${karmada_ca} ${FRONT_PROXY_CLIENT_CRT} ${FRONT_PROXY_CLIENT_KEY}
     generate_cert_secret karmada-aggregated-apiserver-etcd-client ${karmada_ca} ${ETCD_CLIENT_CRT} ${ETCD_CLIENT_KEY}
     generate_cert_secret karmada-search-etcd-client ${karmada_ca} ${ETCD_CLIENT_CRT} ${ETCD_CLIENT_KEY}
     generate_cert_secret etcd-etcd-client ${karmada_ca} ${ETCD_CLIENT_CRT} ${ETCD_CLIENT_KEY}
@@ -125,8 +130,58 @@ function generate_cert_related_secrets {
     do
       generate_config_secret ${component} ${karmada_ca} ${CLIENT_CRT} ${CLIENT_KEY}
     done
+}
 
-    rm -rf "${TEMP_PATH}"
+# Generate Secret for the etcd component
+# Includes: ca.crt, tls.crt (server), tls.key (server), client-tls.crt, client-tls.key
+function generate_etcd_secret() {
+    local component=$1
+    local ca_crt=$2
+    local tls_crt=$3
+    local tls_key=$4
+    local etcd_client_crt=$5
+    local etcd_client_key=$6
+
+    cp "${REPO_ROOT}/artifacts/secret/karmada-etcd-secret.yaml" "${TEMP_PATH}/${component}-secret.yaml"
+    sed -i'' -e "s/\${component}/${component}/g" "${TEMP_PATH}/${component}-secret.yaml"
+    sed -i'' -e "s/\${ca_crt}/${ca_crt}/g" "${TEMP_PATH}/${component}-secret.yaml"
+    sed -i'' -e "s/\${tls_crt}/${tls_crt}/g" "${TEMP_PATH}/${component}-secret.yaml"
+    sed -i'' -e "s/\${tls_key}/${tls_key}/g" "${TEMP_PATH}/${component}-secret.yaml"
+    sed -i'' -e "s/\${etcd_client_crt}/${etcd_client_crt}/g" "${TEMP_PATH}/${component}-secret.yaml"
+    sed -i'' -e "s/\${etcd_client_key}/${etcd_client_key}/g" "${TEMP_PATH}/${component}-secret.yaml"
+
+    kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${TEMP_PATH}/${component}-secret.yaml"
+}
+
+# Generate Secret for the karmada-apiserver component
+# Includes: ca.crt, tls.crt (server), tls.key (server), client.crt, client.key,
+#           etcd-ca.crt, etcd-client.crt, etcd-client.key, front-proxy-client.crt, front-proxy-client.key
+function generate_apiserver_secret() {
+    local component=$1
+    local ca_crt=$2
+    local tls_crt=$3
+    local tls_key=$4
+    local client_crt=$5
+    local client_key=$6
+    local etcd_client_crt=$7
+    local etcd_client_key=$8
+    local front_proxy_client_crt=$9
+    local front_proxy_client_key=${10}
+
+    cp "${REPO_ROOT}/artifacts/secret/karmada-apiserver-secret.yaml" "${TEMP_PATH}/${component}-secret.yaml"
+    sed -i'' -e "s/\${component}/${component}/g" "${TEMP_PATH}/${component}-secret.yaml"
+    sed -i'' -e "s/\${ca_crt}/${ca_crt}/g" "${TEMP_PATH}/${component}-secret.yaml"
+    sed -i'' -e "s/\${tls_crt}/${tls_crt}/g" "${TEMP_PATH}/${component}-secret.yaml"
+    sed -i'' -e "s/\${tls_key}/${tls_key}/g" "${TEMP_PATH}/${component}-secret.yaml"
+    sed -i'' -e "s/\${client_crt}/${client_crt}/g" "${TEMP_PATH}/${component}-secret.yaml"
+    sed -i'' -e "s/\${client_key}/${client_key}/g" "${TEMP_PATH}/${component}-secret.yaml"
+    sed -i'' -e "s/\${etcd_ca_crt}/${ca_crt}/g" "${TEMP_PATH}/${component}-secret.yaml"
+    sed -i'' -e "s/\${etcd_client_crt}/${etcd_client_crt}/g" "${TEMP_PATH}/${component}-secret.yaml"
+    sed -i'' -e "s/\${etcd_client_key}/${etcd_client_key}/g" "${TEMP_PATH}/${component}-secret.yaml"
+    sed -i'' -e "s/\${front_proxy_client_crt}/${front_proxy_client_crt}/g" "${TEMP_PATH}/${component}-secret.yaml"
+    sed -i'' -e "s/\${front_proxy_client_key}/${front_proxy_client_key}/g" "${TEMP_PATH}/${component}-secret.yaml"
+    
+    kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${TEMP_PATH}/${component}-secret.yaml"
 }
 
 function generate_config_secret() {
@@ -187,13 +242,23 @@ util::cmd_must_exist "openssl"
 util::cmd_must_exist_cfssl ${CFSSL_VERSION}
 # create CA signers
 util::create_signing_certkey "" "${CERT_DIR}" ca karmada '"client auth","server auth"'
-# signs a certificate
+
+# Define SAN names for each server component
 karmadaAltNames=("*.karmada-system.svc.cluster.local" "*.karmada-system.svc" "localhost" "127.0.0.1" $(util::get_apiserver_ip_from_kubeconfig "${HOST_CLUSTER_NAME}") "${interpreter_webhook_example_service_external_ip_address}")
+karmada_apiserver_alt_names=("karmada-apiserver.karmada-system.svc.cluster.local" "karmada-apiserver.karmada-system.svc" "localhost" "127.0.0.1" $(util::get_apiserver_ip_from_kubeconfig "${HOST_CLUSTER_NAME}"))
+etcd_server_alt_names=("etcd.karmada-system.svc.cluster.local" "etcd.karmada-system.svc" "etcd-client.karmada-system.svc.cluster.local" "etcd-client.karmada-system.svc" "localhost" "127.0.0.1")
+
+# Generate certificates for common usage
 util::create_certkey "" "${CERT_DIR}" "ca" server server "" "${karmadaAltNames[@]}"
 util::create_certkey "" "${CERT_DIR}" "ca" client system:admin system:masters "${karmadaAltNames[@]}"
 util::create_certkey "" "${CERT_DIR}" "ca" front-proxy-client front-proxy-client "" "${karmadaAltNames[@]}"
-util::create_certkey "" "${CERT_DIR}" "ca" etcd-server etcd-server "" "${karmadaAltNames[@]}"
-util::create_certkey "" "${CERT_DIR}" "ca" etcd-client etcd-client "" "${karmadaAltNames[@]}"
+
+# Generate certificates for karmada-apiserver and etcd
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-apiserver "system:karmada:karmada-apiserver" "" "${karmada_apiserver_alt_names[@]}"
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-apiserver-client "system:karmada:karmada-apiserver" "system:masters" 
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-apiserver-etcd-client "system:karmada:karmada-apiserver-etcd-client" "system:masters"
+util::create_certkey "" "${CERT_DIR}" "ca" etcd-server "system:karmada:etcd-server" "" "${etcd_server_alt_names[@]}"
+util::create_certkey "" "${CERT_DIR}" "ca" etcd-client "system:karmada:etcd-client" ""
 util::create_key_pair "" "${CERT_DIR}" "sa"
 
 # create namespace for control plane components
@@ -205,10 +270,22 @@ CLIENT_CRT=$(base64 < "${CERT_DIR}/client.crt" | tr -d '\r\n')
 CLIENT_KEY=$(base64 < "${CERT_DIR}/client.key" | tr -d '\r\n')
 FRONT_PROXY_CLIENT_CRT=$(base64 < "${CERT_DIR}/front-proxy-client.crt" | tr -d '\r\n')
 FRONT_PROXY_CLIENT_KEY=$(base64 < "${CERT_DIR}/front-proxy-client.key" | tr -d '\r\n')
+
+# Add new certificate variables for karmada-apiserver
+KARMADA_APISERVER_SERVER_CRT=$(base64 < "${CERT_DIR}/karmada-apiserver.crt" | tr -d '\r\n')
+KARMADA_APISERVER_SERVER_KEY=$(base64 < "${CERT_DIR}/karmada-apiserver.key" | tr -d '\r\n')
+KARMADA_APISERVER_CLIENT_CRT=$(base64 < "${CERT_DIR}/karmada-apiserver-client.crt" | tr -d '\r\n')
+KARMADA_APISERVER_CLIENT_KEY=$(base64 < "${CERT_DIR}/karmada-apiserver-client.key" | tr -d '\r\n')
+KARMADA_APISERVER_ETCD_CLIENT_CRT=$(base64 < "${CERT_DIR}/karmada-apiserver-etcd-client.crt" | tr -d '\r\n')
+KARMADA_APISERVER_ETCD_CLIENT_KEY=$(base64 < "${CERT_DIR}/karmada-apiserver-etcd-client.key" | tr -d '\r\n')
+
+# etcd certificates
 ETCD_SERVER_CRT=$(base64 < "${CERT_DIR}/etcd-server.crt" | tr -d '\r\n')
 ETCD_SERVER_KEY=$(base64 < "${CERT_DIR}/etcd-server.key" | tr -d '\r\n')
 ETCD_CLIENT_CRT=$(base64 < "${CERT_DIR}/etcd-client.crt" | tr -d '\r\n')
 ETCD_CLIENT_KEY=$(base64 < "${CERT_DIR}/etcd-client.key" | tr -d '\r\n')
+
+# service account keys
 SA_PUB=$(base64 < "${CERT_DIR}/sa.pub" | tr -d '\r\n')
 SA_KEY=$(base64 < "${CERT_DIR}/sa.key" | tr -d '\r\n')
 generate_cert_related_secrets
