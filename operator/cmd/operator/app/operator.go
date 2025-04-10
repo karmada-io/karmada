@@ -112,7 +112,6 @@ func Run(ctx context.Context, o *options.Options) error {
 		return err
 	}
 
-	// `karmada_operator_build_info` metrics for operator version upgrade
 	ctrlmetrics.Registry.MustRegister(versionmetrics.NewBuildInfoCollector())
 
 	controllerCtx := ctrlctx.Context{
