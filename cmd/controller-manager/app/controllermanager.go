@@ -195,7 +195,10 @@ func Run(ctx context.Context, opts *options.Options) error {
 	ctrlmetrics.Registry.MustRegister(metrics.PoolCollectors()...)
 	ctrlmetrics.Registry.MustRegister(versionmetrics.NewBuildInfoCollector())
 
-	if err := helper.IndexWork(ctx, controllerManager); err != nil {
+	if err := helper.RegisterWorkIndexByResourceBindingID(ctx, controllerManager); err != nil {
+		klog.Fatalf("Failed to index Work: %v", err)
+	}
+	if err := helper.RegisterWorkIndexByClusterResourceBindingID(ctx, controllerManager); err != nil {
 		klog.Fatalf("Failed to index Work: %v", err)
 	}
 
