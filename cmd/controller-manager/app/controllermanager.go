@@ -303,8 +303,11 @@ func startClusterStatusController(ctx controllerscontext.Context) (enabled bool,
 			if obj.Spec.SecretRef == nil {
 				return false
 			}
-
-			return obj.Spec.SyncMode == clusterv1alpha1.Push
+			if obj.Spec.SyncMode != clusterv1alpha1.Push {
+				return false
+			}
+			// that could use generation to check if the object is updated.
+			return updateEvent.ObjectNew.GetGeneration() != updateEvent.ObjectOld.GetGeneration()
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			obj := deleteEvent.Object.(*clusterv1alpha1.Cluster)

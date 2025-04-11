@@ -162,7 +162,11 @@ func NewClusterPredicateOnAgent(clusterName string) predicate.Funcs {
 			return createEvent.Object.GetName() == clusterName
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			return updateEvent.ObjectOld.GetName() == clusterName
+			if updateEvent.ObjectOld.GetName() != clusterName {
+				return false
+			}
+			// that could use generation to check if the object is updated.
+			return updateEvent.ObjectNew.GetGeneration() != updateEvent.ObjectOld.GetGeneration()
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			return deleteEvent.Object.GetName() == clusterName
