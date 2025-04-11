@@ -62,7 +62,8 @@ type EndpointSliceCollectController struct {
 	InformerManager             genericmanager.MultiClusterInformerManager
 	WorkerNumber                int                 // WorkerNumber is the number of worker goroutines
 	PredicateFunc               predicate.Predicate // PredicateFunc is the function that filters events before enqueuing the keys.
-	ClusterDynamicClientSetFunc func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
+	ClusterDynamicClientSetFunc util.NewClusterDynamicClientSetFunc
+	ClusterClientOption         *util.ClientOption
 	// eventHandlers holds the handlers which used to handle events reported from member clusters.
 	// Each handler takes the cluster name as key and takes the handler function as the value, e.g.
 	// "member1": instance of ResourceEventHandler
@@ -182,7 +183,7 @@ func (c *EndpointSliceCollectController) buildResourceInformers(clusterName stri
 func (c *EndpointSliceCollectController) registerInformersAndStart(cluster *clusterv1alpha1.Cluster) error {
 	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(cluster.Name)
 	if singleClusterInformerManager == nil {
-		dynamicClusterClient, err := c.ClusterDynamicClientSetFunc(cluster.Name, c.Client)
+		dynamicClusterClient, err := c.ClusterDynamicClientSetFunc(cluster.Name, c.Client, c.ClusterClientOption)
 		if err != nil {
 			klog.Errorf("Failed to build dynamic cluster client for cluster %s.", cluster.Name)
 			return err
