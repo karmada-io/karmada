@@ -34,6 +34,6 @@ func NewMetricsServer(controller *MetricsController, metricsAdapter *MetricsAdap
 
 // StartServer starts the metrics server
 func (m *MetricsServer) StartServer(ctx context.Context) error {
-	go m.metricsController.startController(ctx.Done())
+	go m.metricsController.startController(ctx)
 	return m.metricsAdapter.Run(ctx)
 }

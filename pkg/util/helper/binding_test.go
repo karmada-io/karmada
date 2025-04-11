@@ -670,7 +670,7 @@ func TestRemoveOrphanWorks(t *testing.T) {
 func TestFetchWorkload(t *testing.T) {
 	type args struct {
 		dynamicClient   dynamic.Interface
-		informerManager func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager
+		informerManager func(context.Context) genericmanager.SingleClusterInformerManager
 		restMapper      meta.RESTMapper
 		resource        workv1alpha2.ObjectReference
 	}
@@ -684,8 +684,8 @@ func TestFetchWorkload(t *testing.T) {
 			name: "kind is not registered",
 			args: args{
 				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme),
-				informerManager: func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager {
-					return genericmanager.NewSingleClusterInformerManager(dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0, stopCh)
+				informerManager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
+					return genericmanager.NewSingleClusterInformerManager(ctx, dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0)
 				},
 				restMapper: meta.NewDefaultRESTMapper(nil),
 				resource:   workv1alpha2.ObjectReference{APIVersion: "v1", Kind: "Pod"},
@@ -697,8 +697,8 @@ func TestFetchWorkload(t *testing.T) {
 			name: "not found",
 			args: args{
 				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme),
-				informerManager: func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager {
-					return genericmanager.NewSingleClusterInformerManager(dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0, stopCh)
+				informerManager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
+					return genericmanager.NewSingleClusterInformerManager(ctx, dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0)
 				},
 				restMapper: func() meta.RESTMapper {
 					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
@@ -720,8 +720,8 @@ func TestFetchWorkload(t *testing.T) {
 			args: args{
 				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 					&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default"}}),
-				informerManager: func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager {
-					return genericmanager.NewSingleClusterInformerManager(dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0, stopCh)
+				informerManager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
+					return genericmanager.NewSingleClusterInformerManager(ctx, dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0)
 				},
 				restMapper: func() meta.RESTMapper {
 					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
@@ -750,10 +750,10 @@ func TestFetchWorkload(t *testing.T) {
 			name: "namespace scope: get from cache",
 			args: args{
 				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme),
-				informerManager: func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager {
+				informerManager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default"}})
-					m := genericmanager.NewSingleClusterInformerManager(c, 0, stopCh)
+					m := genericmanager.NewSingleClusterInformerManager(ctx, c, 0)
 					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 					m.Start()
 					m.WaitForCacheSync()
@@ -787,8 +787,8 @@ func TestFetchWorkload(t *testing.T) {
 			args: args{
 				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node"}}),
-				informerManager: func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager {
-					return genericmanager.NewSingleClusterInformerManager(dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0, stopCh)
+				informerManager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
+					return genericmanager.NewSingleClusterInformerManager(ctx, dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0)
 				},
 				restMapper: func() meta.RESTMapper {
 					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
@@ -815,10 +815,10 @@ func TestFetchWorkload(t *testing.T) {
 			name: "cluster scope: get from cache",
 			args: args{
 				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme),
-				informerManager: func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager {
+				informerManager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node"}})
-					m := genericmanager.NewSingleClusterInformerManager(c, 0, stopCh)
+					m := genericmanager.NewSingleClusterInformerManager(ctx, c, 0)
 					m.Lister(corev1.SchemeGroupVersion.WithResource("nodes"))
 					m.Start()
 					m.WaitForCacheSync()
@@ -848,8 +848,8 @@ func TestFetchWorkload(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stopCh := make(chan struct{})
-			mgr := tt.args.informerManager(stopCh)
+			ctx := context.TODO()
+			mgr := tt.args.informerManager(ctx)
 			got, err := FetchResourceTemplate(context.TODO(), tt.args.dynamicClient, mgr, tt.args.restMapper, tt.args.resource)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("FetchResourceTemplate() error = %v, wantErr %v", err, tt.wantErr)
@@ -870,7 +870,7 @@ func TestFetchWorkload(t *testing.T) {
 func TestFetchWorkloadByLabelSelector(t *testing.T) {
 	type args struct {
 		dynamicClient   dynamic.Interface
-		informerManager func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager
+		informerManager func(ctx context.Context) genericmanager.SingleClusterInformerManager
 		restMapper      meta.RESTMapper
 		resource        workv1alpha2.ObjectReference
 		selector        *metav1.LabelSelector
@@ -885,8 +885,8 @@ func TestFetchWorkloadByLabelSelector(t *testing.T) {
 			name: "kind is not registered",
 			args: args{
 				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme),
-				informerManager: func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager {
-					return genericmanager.NewSingleClusterInformerManager(dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0, stopCh)
+				informerManager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
+					return genericmanager.NewSingleClusterInformerManager(ctx, dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0)
 				},
 				restMapper: meta.NewDefaultRESTMapper(nil),
 				resource:   workv1alpha2.ObjectReference{APIVersion: "v1", Kind: "Pod"},
@@ -899,8 +899,8 @@ func TestFetchWorkloadByLabelSelector(t *testing.T) {
 			args: args{
 				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 					&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"foo": "foo"}}}),
-				informerManager: func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager {
-					return genericmanager.NewSingleClusterInformerManager(dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0, stopCh)
+				informerManager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
+					return genericmanager.NewSingleClusterInformerManager(ctx, dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0)
 				},
 				restMapper: func() meta.RESTMapper {
 					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
@@ -921,10 +921,10 @@ func TestFetchWorkloadByLabelSelector(t *testing.T) {
 			name: "namespace scope: get from cache",
 			args: args{
 				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme),
-				informerManager: func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager {
+				informerManager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"bar": "foo"}}})
-					m := genericmanager.NewSingleClusterInformerManager(c, 0, stopCh)
+					m := genericmanager.NewSingleClusterInformerManager(ctx, c, 0)
 					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 					m.Start()
 					m.WaitForCacheSync()
@@ -951,8 +951,8 @@ func TestFetchWorkloadByLabelSelector(t *testing.T) {
 			args: args{
 				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node", Labels: map[string]string{"bar": "bar"}}}),
-				informerManager: func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager {
-					return genericmanager.NewSingleClusterInformerManager(dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0, stopCh)
+				informerManager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
+					return genericmanager.NewSingleClusterInformerManager(ctx, dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0)
 				},
 				restMapper: func() meta.RESTMapper {
 					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
@@ -973,10 +973,10 @@ func TestFetchWorkloadByLabelSelector(t *testing.T) {
 			name: "cluster scope: get from cache",
 			args: args{
 				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme),
-				informerManager: func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager {
+				informerManager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node", Labels: map[string]string{"bar": "foo"}}})
-					m := genericmanager.NewSingleClusterInformerManager(c, 0, stopCh)
+					m := genericmanager.NewSingleClusterInformerManager(ctx, c, 0)
 					m.Lister(corev1.SchemeGroupVersion.WithResource("nodes"))
 					m.Start()
 					m.WaitForCacheSync()
@@ -1000,8 +1000,8 @@ func TestFetchWorkloadByLabelSelector(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stopCh := make(chan struct{})
-			mgr := tt.args.informerManager(stopCh)
+			ctx := context.TODO()
+			mgr := tt.args.informerManager(ctx)
 			selector, _ := metav1.LabelSelectorAsSelector(tt.args.selector)
 			got, err := FetchResourceTemplatesByLabelSelector(tt.args.dynamicClient, mgr, tt.args.restMapper, tt.args.resource, selector)
 			if (err != nil) != tt.wantErr {

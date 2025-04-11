@@ -58,7 +58,7 @@ import (
 type EndpointSliceCollectController struct {
 	client.Client
 	RESTMapper                  meta.RESTMapper
-	StopChan                    <-chan struct{}
+	Context                     context.Context
 	InformerManager             genericmanager.MultiClusterInformerManager
 	WorkerNumber                int                 // WorkerNumber is the number of worker goroutines
 	PredicateFunc               predicate.Predicate // PredicateFunc is the function that filters events before enqueuing the keys.
@@ -136,7 +136,7 @@ func (c *EndpointSliceCollectController) RunWorkQueue() {
 		ReconcileFunc: c.collectEndpointSlice,
 	}
 	c.worker = util.NewAsyncWorker(workerOptions)
-	c.worker.Run(c.WorkerNumber, c.StopChan)
+	c.worker.Run(c.Context, c.WorkerNumber)
 }
 
 func (c *EndpointSliceCollectController) collectEndpointSlice(key util.QueueKey) error {

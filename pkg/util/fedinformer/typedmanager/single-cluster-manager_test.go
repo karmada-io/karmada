@@ -17,6 +17,7 @@ limitations under the License.
 package typedmanager
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -29,10 +30,10 @@ import (
 
 func TestSingleClusterInformerManager(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	stopCh := make(chan struct{})
-	defer close(stopCh)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	manager := NewSingleClusterInformerManager(client, 0, stopCh, nil)
+	manager := NewSingleClusterInformerManager(ctx, client, 0, nil)
 
 	t.Run("ForResource", func(t *testing.T) {
 		handler := &testResourceEventHandler{}
@@ -84,8 +85,8 @@ func TestSingleClusterInformerManager(t *testing.T) {
 
 func TestSingleClusterInformerManagerWithTransformFunc(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	stopCh := make(chan struct{})
-	defer close(stopCh)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	transformFunc := func(i interface{}) (interface{}, error) {
 		return i, nil
@@ -95,7 +96,7 @@ func TestSingleClusterInformerManagerWithTransformFunc(t *testing.T) {
 		podGVR: transformFunc,
 	}
 
-	manager := NewSingleClusterInformerManager(client, 0, stopCh, transformFuncs)
+	manager := NewSingleClusterInformerManager(ctx, client, 0, transformFuncs)
 
 	t.Run("ForResourceWithTransform", func(t *testing.T) {
 		handler := &testResourceEventHandler{}
@@ -106,10 +107,10 @@ func TestSingleClusterInformerManagerWithTransformFunc(t *testing.T) {
 
 func TestSingleClusterInformerManagerMultipleHandlers(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	stopCh := make(chan struct{})
-	defer close(stopCh)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	manager := NewSingleClusterInformerManager(client, 0, stopCh, nil)
+	manager := NewSingleClusterInformerManager(ctx, client, 0, nil)
 
 	handler1 := &testResourceEventHandler{}
 	handler2 := &testResourceEventHandler{}
@@ -128,10 +129,10 @@ func TestSingleClusterInformerManagerMultipleHandlers(t *testing.T) {
 
 func TestSingleClusterInformerManagerDifferentResources(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	stopCh := make(chan struct{})
-	defer close(stopCh)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	manager := NewSingleClusterInformerManager(client, 0, stopCh, nil)
+	manager := NewSingleClusterInformerManager(ctx, client, 0, nil)
 
 	t.Run("DifferentResources", func(t *testing.T) {
 		podHandler := &testResourceEventHandler{}
@@ -149,9 +150,9 @@ func TestSingleClusterInformerManagerDifferentResources(t *testing.T) {
 
 func TestIsInformerSynced(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	stopCh := make(chan struct{})
-	defer close(stopCh)
-	manager := NewSingleClusterInformerManager(client, 0, stopCh, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	manager := NewSingleClusterInformerManager(ctx, client, 0, nil)
 
 	assert.False(t, manager.IsInformerSynced(podGVR))
 	assert.False(t, manager.IsInformerSynced(nodeGVR))

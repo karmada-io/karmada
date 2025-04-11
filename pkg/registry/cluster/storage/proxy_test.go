@@ -169,8 +169,8 @@ func TestProxyREST_Connect(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stopCh := make(chan struct{})
-			defer close(stopCh)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 
 			req, err := http.NewRequestWithContext(request.WithUser(request.NewContext(), &user.DefaultInfo{}), http.MethodGet, "http://127.0.0.1/xxx", nil)
 			if err != nil {
@@ -185,8 +185,8 @@ func TestProxyREST_Connect(t *testing.T) {
 				clusterGetter: tt.fields.clusterGetter,
 			}
 
-			kubeFactory.Start(stopCh)
-			kubeFactory.WaitForCacheSync(stopCh)
+			kubeFactory.Start(ctx.Done())
+			kubeFactory.WaitForCacheSync(ctx.Done())
 
 			h, err := r.Connect(req.Context(), tt.args.id, tt.args.options, utiltest.NewResponder(resp))
 			if (err != nil) != tt.wantErr {

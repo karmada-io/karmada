@@ -27,8 +27,8 @@ import (
 )
 
 func main() {
-	stopChan := controllerruntime.SetupSignalHandler().Done()
-	command := app.NewSchedulerCommand(stopChan)
+	ctx := controllerruntime.SetupSignalHandler()
+	command := app.NewSchedulerCommand(ctx)
 	code := cli.Run(command)
 	os.Exit(code)
 }

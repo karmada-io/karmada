@@ -17,6 +17,7 @@ limitations under the License.
 package typedmanager
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -28,15 +29,10 @@ import (
 )
 
 var (
-	instance MultiClusterInformerManager
-	once     sync.Once
-	stopOnce sync.Once
-	stopCh   chan struct{}
+	instance    MultiClusterInformerManager
+	once        sync.Once
+	ctx, cancel = context.WithCancel(context.Background())
 )
-
-func init() {
-	stopCh = make(chan struct{})
-}
 
 // GetInstance returns a shared MultiClusterInformerManager instance.
 func GetInstance() MultiClusterInformerManager {
@@ -45,16 +41,14 @@ func GetInstance() MultiClusterInformerManager {
 			nodeGVR: fedinformer.NodeTransformFunc,
 			podGVR:  fedinformer.PodTransformFunc,
 		}
-		instance = NewMultiClusterInformerManager(stopCh, transforms)
+		instance = NewMultiClusterInformerManager(ctx, transforms)
 	})
 	return instance
 }
 
 // StopInstance will stop the shared MultiClusterInformerManager instance.
 func StopInstance() {
-	stopOnce.Do(func() {
-		close(stopCh)
-	})
+	cancel()
 }
 
 // MultiClusterInformerManager manages typed shared informer for all resources, include Kubernetes resource and
@@ -87,18 +81,18 @@ type MultiClusterInformerManager interface {
 }
 
 // NewMultiClusterInformerManager constructs a new instance of multiClusterInformerManagerImpl.
-func NewMultiClusterInformerManager(stopCh <-chan struct{}, transformFuncs map[schema.GroupVersionResource]cache.TransformFunc) MultiClusterInformerManager {
+func NewMultiClusterInformerManager(ctx context.Context, transformFuncs map[schema.GroupVersionResource]cache.TransformFunc) MultiClusterInformerManager {
 	return &multiClusterInformerManagerImpl{
 		managers:       make(map[string]SingleClusterInformerManager),
 		transformFuncs: transformFuncs,
-		stopCh:         stopCh,
+		ctx:            ctx,
 	}
 }
 
 type multiClusterInformerManagerImpl struct {
 	managers       map[string]SingleClusterInformerManager
 	transformFuncs map[schema.GroupVersionResource]cache.TransformFunc
-	stopCh         <-chan struct{}
+	ctx            context.Context
 	lock           sync.RWMutex
 }
 
@@ -118,7 +112,7 @@ func (m *multiClusterInformerManagerImpl) ForCluster(cluster string, client kube
 		return manager
 	}
 
-	manager := NewSingleClusterInformerManager(client, defaultResync, m.stopCh, m.transformFuncs)
+	manager := NewSingleClusterInformerManager(m.ctx, client, defaultResync, m.transformFuncs)
 	m.managers[cluster] = manager
 	return manager
 }

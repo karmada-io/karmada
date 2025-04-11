@@ -26,8 +26,6 @@ import (
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
-
-	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // SingleClusterInformerManager manages dynamic shared informer for all resources, include Kubernetes resource and
@@ -75,8 +73,8 @@ type SingleClusterInformerManager interface {
 
 // NewSingleClusterInformerManager constructs a new instance of singleClusterInformerManagerImpl.
 // defaultResync with value '0' means no re-sync.
-func NewSingleClusterInformerManager(client dynamic.Interface, defaultResync time.Duration, parentCh <-chan struct{}) SingleClusterInformerManager {
-	ctx, cancel := util.ContextForChannel(parentCh)
+func NewSingleClusterInformerManager(ctx context.Context, client dynamic.Interface, defaultResync time.Duration) SingleClusterInformerManager {
+	ctx, cancel := context.WithCancel(ctx)
 	return &singleClusterInformerManagerImpl{
 		informerFactory: dynamicinformer.NewDynamicSharedInformerFactory(client, defaultResync),
 		handlers:        make(map[schema.GroupVersionResource][]cache.ResourceEventHandler),

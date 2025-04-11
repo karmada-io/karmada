@@ -374,7 +374,7 @@ func (m *mockAsyncWorker) AddAfter(_ interface{}, _ time.Duration) {}
 
 func (m *mockAsyncWorker) Enqueue(_ interface{}) {}
 
-func (m *mockAsyncWorker) Run(_ int, _ <-chan struct{}) {}
+func (m *mockAsyncWorker) Run(_ context.Context, _ int) {}
 
 type mockResourceEventHandler struct{}
 

@@ -396,8 +396,8 @@ func Test_clusterProxy_connect(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stopCh := make(chan struct{})
-			defer close(stopCh)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			kubeFactory := informers.NewSharedInformerFactory(fake.NewSimpleClientset(tt.fields.secrets...), 0)
 			karmadaFactory := karmadainformers.NewSharedInformerFactory(karmadafake.NewSimpleClientset(tt.fields.clusters...), 0)
 
@@ -407,10 +407,10 @@ func Test_clusterProxy_connect(t *testing.T) {
 				secretLister:  kubeFactory.Core().V1().Secrets().Lister(),
 			}
 
-			kubeFactory.Start(stopCh)
-			karmadaFactory.Start(stopCh)
-			kubeFactory.WaitForCacheSync(stopCh)
-			karmadaFactory.WaitForCacheSync(stopCh)
+			kubeFactory.Start(ctx.Done())
+			karmadaFactory.Start(ctx.Done())
+			kubeFactory.WaitForCacheSync(ctx.Done())
+			karmadaFactory.WaitForCacheSync(ctx.Done())
 
 			response := httptest.NewRecorder()
 

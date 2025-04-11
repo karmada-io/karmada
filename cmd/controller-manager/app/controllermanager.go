@@ -199,7 +199,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 		klog.Fatalf("Failed to index Work: %v", err)
 	}
 
-	setupControllers(controllerManager, opts, ctx.Done())
+	setupControllers(ctx, controllerManager, opts)
 
 	// blocks until the context is done.
 	if err := controllerManager.Start(ctx); err != nil {
@@ -286,7 +286,6 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 func startClusterStatusController(ctx controllerscontext.Context) (enabled bool, err error) {
 	mgr := ctx.Mgr
 	opts := ctx.Opts
-	stopChan := ctx.StopChan
 	clusterPredicateFunc := predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			obj := createEvent.Object.(*clusterv1alpha1.Cluster)
@@ -326,7 +325,6 @@ func startClusterStatusController(ctx controllerscontext.Context) (enabled bool,
 		PredicateFunc:                     clusterPredicateFunc,
 		TypedInformerManager:              typedmanager.GetInstance(),
 		GenericInformerManager:            genericmanager.GetInstance(),
-		StopChan:                          stopChan,
 		ClusterClientSetFunc:              util.NewClusterClientSet,
 		ClusterDynamicClientSetFunc:       util.NewClusterDynamicClientSet,
 		ClusterClientOption:               &util.ClientOption{QPS: opts.ClusterAPIQPS, Burst: opts.ClusterAPIBurst},
@@ -429,7 +427,7 @@ func startWorkStatusController(ctx controllerscontext.Context) (enabled bool, er
 		EventRecorder:               ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
 		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
 		InformerManager:             genericmanager.GetInstance(),
-		StopChan:                    ctx.StopChan,
+		Context:                     ctx.Context,
 		ObjectWatcher:               ctx.ObjectWatcher,
 		PredicateFunc:               helper.NewExecutionPredicate(ctx.Mgr),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
@@ -467,7 +465,7 @@ func startServiceExportController(ctx controllerscontext.Context) (enabled bool,
 		EventRecorder:               ctx.Mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
 		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
 		InformerManager:             genericmanager.GetInstance(),
-		StopChan:                    ctx.StopChan,
+		Context:                     ctx.Context,
 		WorkerNumber:                3,
 		PredicateFunc:               helper.NewPredicateForServiceExportController(ctx.Mgr),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
@@ -493,7 +491,7 @@ func startEndpointSliceCollectController(ctx controllerscontext.Context) (enable
 		Client:                      ctx.Mgr.GetClient(),
 		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
 		InformerManager:             genericmanager.GetInstance(),
-		StopChan:                    ctx.StopChan,
+		Context:                     ctx.Context,
 		WorkerNumber:                3,
 		PredicateFunc:               helper.NewPredicateForEndpointSliceCollectController(ctx.Mgr),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
@@ -636,7 +634,7 @@ func startFederatedHorizontalPodAutoscalerController(ctx controllerscontext.Cont
 	go custom_metrics.PeriodicallyInvalidate(
 		apiVersionsGetter,
 		ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerSyncPeriod.Duration,
-		ctx.StopChan)
+		ctx.Context.Done())
 	metricsClient := metricsclient.NewRESTMetricsClient(
 		resourceclient.NewForConfigOrDie(ctx.Mgr.GetConfig()),
 		custom_metrics.NewForConfig(ctx.Mgr.GetConfig(), ctx.Mgr.GetRESTMapper(), apiVersionsGetter),
@@ -755,7 +753,7 @@ func startAgentCSRApprovingController(ctx controllerscontext.Context) (enabled b
 }
 
 // setupControllers initialize controllers and setup one by one.
-func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) {
+func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *options.Options) {
 	restConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
 	discoverClientSet := discovery.NewDiscoveryClientForConfigOrDie(restConfig)
@@ -768,13 +766,13 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		return
 	}
 
-	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, opts.ResyncPeriod.Duration, stopChan)
+	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(ctx, dynamicClientSet, opts.ResyncPeriod.Duration)
 	// We need a service lister to build a resource interpreter with `ClusterIPServiceResolver`
 	// witch allows connection to the customized interpreter webhook without a cluster DNS service.
 	sharedFactory := informers.NewSharedInformerFactory(kubeClientSet, opts.ResyncPeriod.Duration)
 	serviceLister := sharedFactory.Core().V1().Services().Lister()
-	sharedFactory.Start(stopChan)
-	sharedFactory.WaitForCacheSync(stopChan)
+	sharedFactory.Start(ctx.Done())
+	sharedFactory.WaitForCacheSync(ctx.Done())
 
 	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, serviceLister)
 	if err := mgr.Add(resourceInterpreter); err != nil {
@@ -817,7 +815,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			klog.Fatalf("Failed to setup dependencies distributor: %v", err)
 		}
 	}
-	setupClusterAPIClusterDetector(mgr, opts, stopChan)
+	setupClusterAPIClusterDetector(ctx, mgr, opts)
 	controllerContext := controllerscontext.Context{
 		Mgr:           mgr,
 		ObjectWatcher: objectWatcher,
@@ -843,7 +841,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			EnableClusterResourceModeling:     opts.EnableClusterResourceModeling,
 			HPAControllerConfiguration:        opts.HPAControllerConfiguration,
 		},
-		StopChan:                    stopChan,
+		Context:                     ctx,
 		DynamicClientSet:            dynamicClientSet,
 		KubeClientSet:               kubeClientSet,
 		OverrideManager:             overrideManager,
@@ -857,13 +855,13 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 
 	// Ensure the InformerManager stops when the stop channel closes
 	go func() {
-		<-stopChan
+		<-ctx.Done()
 		genericmanager.StopInstance()
 	}()
 }
 
 // setupClusterAPIClusterDetector initialize Cluster detector with the cluster-api management cluster.
-func setupClusterAPIClusterDetector(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) {
+func setupClusterAPIClusterDetector(ctx context.Context, mgr controllerruntime.Manager, opts *options.Options) {
 	if len(opts.ClusterAPIKubeconfig) == 0 {
 		return
 	}
@@ -884,7 +882,7 @@ func setupClusterAPIClusterDetector(mgr controllerruntime.Manager, opts *options
 		ControllerPlaneConfig: mgr.GetConfig(),
 		ClusterAPIConfig:      clusterAPIRestConfig,
 		ClusterAPIClient:      clusterAPIClient,
-		InformerManager:       genericmanager.NewSingleClusterInformerManager(dynamic.NewForConfigOrDie(clusterAPIRestConfig), 0, stopChan),
+		InformerManager:       genericmanager.NewSingleClusterInformerManager(ctx, dynamic.NewForConfigOrDie(clusterAPIRestConfig), 0),
 		ConcurrentReconciles:  3,
 	}
 	if err := mgr.Add(clusterAPIClusterDetector); err != nil {

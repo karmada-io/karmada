@@ -379,24 +379,24 @@ func TransformFunc(interface{}) (interface{}, error) {
 }
 
 func TestListPods(t *testing.T) {
-	stopCh := make(<-chan struct{})
+	ctx := context.Background()
 	clientset := kubernetesfake.NewSimpleClientset()
 	transformFuncs := map[schema.GroupVersionResource]cache.TransformFunc{
 		{}: TransformFunc,
 	}
-	m := typedmanager.NewSingleClusterInformerManager(clientset, 0, stopCh, transformFuncs)
+	m := typedmanager.NewSingleClusterInformerManager(ctx, clientset, 0, transformFuncs)
 	pods, err := listPods(m)
 	assert.Equal(t, []*corev1.Pod(nil), pods)
 	assert.Empty(t, err, "listPods returns error")
 }
 
 func TestListNodes(t *testing.T) {
-	stopCh := make(<-chan struct{})
+	ctx := context.Background()
 	clientset := kubernetesfake.NewSimpleClientset()
 	transformFuncs := map[schema.GroupVersionResource]cache.TransformFunc{
 		{}: TransformFunc,
 	}
-	m := typedmanager.NewSingleClusterInformerManager(clientset, 0, stopCh, transformFuncs)
+	m := typedmanager.NewSingleClusterInformerManager(ctx, clientset, 0, transformFuncs)
 	nodes, err := listNodes(m)
 	assert.Equal(t, []*corev1.Node(nil), nodes)
 	assert.Empty(t, err, "listNodes returns error")

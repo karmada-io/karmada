@@ -110,7 +110,6 @@ type DependenciesDistributor struct {
 	eventHandler      cache.ResourceEventHandler
 	resourceProcessor util.AsyncWorker
 	genericEvent      chan event.TypedGenericEvent[*workv1alpha2.ResourceBinding]
-	stopCh            <-chan struct{}
 	// ConcurrentDependentResourceSyncs is the number of dependent resource that are allowed to sync concurrently.
 	ConcurrentDependentResourceSyncs int
 }
@@ -601,10 +600,9 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding 
 	return d.Client.Create(context.TODO(), attachedBinding)
 }
 
-// Start runs the distributor, never stop until stopCh closed.
+// Start runs the distributor, never stop until context canceled.
 func (d *DependenciesDistributor) Start(ctx context.Context) error {
 	klog.Infof("Starting dependencies distributor.")
-	d.stopCh = ctx.Done()
 	resourceWorkerOptions := util.Options{
 		Name: "dependencies resource detector",
 		KeyFunc: func(obj interface{}) (util.QueueKey, error) {
@@ -626,10 +624,10 @@ func (d *DependenciesDistributor) Start(ctx context.Context) error {
 	}
 	d.eventHandler = fedinformer.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
 	d.resourceProcessor = util.NewAsyncWorker(resourceWorkerOptions)
-	d.resourceProcessor.Run(d.ConcurrentDependentResourceSyncs, d.stopCh)
-	<-d.stopCh
+	d.resourceProcessor.Run(ctx, d.ConcurrentDependentResourceSyncs)
+	<-ctx.Done()
 
-	klog.Infof("Stopped as stopCh closed.")
+	klog.Infof("Stopped as context canceled.")
 	return nil
 }
 

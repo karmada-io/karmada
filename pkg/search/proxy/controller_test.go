@@ -82,15 +82,15 @@ func TestController(t *testing.T) {
 		return
 	}
 
-	stopCh := make(chan struct{})
-	defer close(stopCh)
-	kubeFactory.Start(stopCh)
-	karmadaFactory.Start(stopCh)
-	ctrl.Start(stopCh)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	kubeFactory.Start(ctx.Done())
+	karmadaFactory.Start(ctx.Done())
+	ctrl.Start(ctx)
 	defer ctrl.Stop()
 
-	kubeFactory.WaitForCacheSync(stopCh)
-	karmadaFactory.WaitForCacheSync(stopCh)
+	kubeFactory.WaitForCacheSync(ctx.Done())
+	karmadaFactory.WaitForCacheSync(ctx.Done())
 	// wait for controller synced
 	time.Sleep(time.Second)
 
@@ -366,10 +366,10 @@ func TestController_reconcile(t *testing.T) {
 					},
 				},
 			}
-			stopCh := make(chan struct{})
-			defer close(stopCh)
-			karmadaFactory.Start(stopCh)
-			karmadaFactory.WaitForCacheSync(stopCh)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			karmadaFactory.Start(ctx.Done())
+			karmadaFactory.WaitForCacheSync(ctx.Done())
 
 			err := ctl.reconcile(workKey)
 			if err != nil {

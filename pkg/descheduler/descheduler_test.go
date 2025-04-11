@@ -300,13 +300,13 @@ func TestRun(t *testing.T) {
 	_, err := karmadaClient.ClusterV1alpha1().Clusters().Create(context.TODO(), testCluster, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
-	stopCh := make(chan struct{})
-	defer close(stopCh)
-	descheduler.informerFactory.Start(stopCh)
-	descheduler.informerFactory.WaitForCacheSync(stopCh)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	baseCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	descheduler.informerFactory.Start(baseCtx.Done())
+	descheduler.informerFactory.WaitForCacheSync(baseCtx.Done())
+
+	ctx, cancel1 := context.WithTimeout(baseCtx, 2*time.Second)
+	defer cancel1()
 	go descheduler.Run(ctx)
 
 	time.Sleep(500 * time.Millisecond)
@@ -909,7 +909,7 @@ func (m *mockAsyncWorker) AddAfter(item interface{}, duration time.Duration) {
 	m.Called(item, duration)
 }
 
-func (m *mockAsyncWorker) Run(_ int, _ <-chan struct{}) {}
+func (m *mockAsyncWorker) Run(_ context.Context, _ int) {}
 
 func (m *mockAsyncWorker) Enqueue(obj interface{}) {
 	m.Called(obj)
