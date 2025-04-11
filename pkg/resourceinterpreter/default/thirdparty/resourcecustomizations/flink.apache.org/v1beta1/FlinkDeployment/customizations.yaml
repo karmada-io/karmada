@@ -30,7 +30,7 @@ spec:
               return observedObj.status.error ~= nil or observedObj.status.jobManagerDeploymentStatus == 'ERROR'
             end
           end
-          return false
+          return observedObj.status.error ~= nil
         end
     replicaResource:
       luaScript: >
