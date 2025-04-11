@@ -234,6 +234,8 @@ scheduler:
   podDisruptionBudget: *podDisruptionBudget
   ## @param scheduler.priorityClassName the priority class name for the karmada-scheduler
   priorityClassName: "system-node-critical"
+  ## @param scheduler.enableSchedulerEstimator enable scheduler estimator
+  enableSchedulerEstimator: false
 
 ## webhook config
 webhook:
