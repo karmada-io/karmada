@@ -27,6 +27,11 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             privileged: false
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           command:
             - /bin/karmada-aggregated-apiserver
             - --kubeconfig=/etc/karmada/config/karmada.config
@@ -42,6 +47,7 @@ spec:
             - --audit-log-maxage=0
             - --audit-log-maxbackup=0
             - --tls-min-version=VersionTLS13
+            - --bind-address=$(POD_IP)
           resources:
             requests:
               cpu: 100m

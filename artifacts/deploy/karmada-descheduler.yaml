@@ -26,11 +26,16 @@ spec:
             privileged: false
           image: docker.io/karmada/karmada-descheduler:latest
           imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           command:
             - /bin/karmada-descheduler
             - --kubeconfig=/etc/karmada/config/karmada.config
-            - --metrics-bind-address=0.0.0.0:8080
-            - --health-probe-bind-address=0.0.0.0:10358
+            - --metrics-bind-address=$(POD_IP):8080
+            - --health-probe-bind-address=$(POD_IP):10358
             - --scheduler-estimator-ca-file=/etc/karmada/pki/scheduler-estimator-client/ca.crt
             - --scheduler-estimator-cert-file=/etc/karmada/pki/scheduler-estimator-client/tls.crt
             - --scheduler-estimator-key-file=/etc/karmada/pki/scheduler-estimator-client/tls.key

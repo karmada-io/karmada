@@ -26,6 +26,11 @@ spec:
             privileged: false
           image: docker.io/karmada/karmada-scheduler-estimator:latest
           imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           command:
             - /bin/karmada-scheduler-estimator
             - --kubeconfig=/etc/{{member_cluster_name}}-kubeconfig
@@ -33,8 +38,8 @@ spec:
             - --grpc-auth-cert-file=/etc/karmada/pki/server/tls.crt
             - --grpc-auth-key-file=/etc/karmada/pki/server/tls.key
             - --grpc-client-ca-file=/etc/karmada/pki/server/ca.crt
-            - --metrics-bind-address=0.0.0.0:8080
-            - --health-probe-bind-address=0.0.0.0:10351
+            - --metrics-bind-address=$(POD_IP):8080
+            - --health-probe-bind-address=$(POD_IP):10351
           livenessProbe:
             httpGet:
               path: /healthz

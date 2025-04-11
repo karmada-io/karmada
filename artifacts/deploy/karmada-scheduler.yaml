@@ -39,11 +39,16 @@ spec:
             - containerPort: 8080
               name: metrics
               protocol: TCP
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           command:
             - /bin/karmada-scheduler
             - --kubeconfig=/etc/karmada/config/karmada.config
-            - --metrics-bind-address=0.0.0.0:8080
-            - --health-probe-bind-address=0.0.0.0:10351
+            - --metrics-bind-address=$(POD_IP):8080
+            - --health-probe-bind-address=$(POD_IP):10351
             - --enable-scheduler-estimator=true
             - --scheduler-estimator-ca-file=/etc/karmada/pki/scheduler-estimator-client/ca.crt
             - --scheduler-estimator-cert-file=/etc/karmada/pki/scheduler-estimator-client/tls.crt

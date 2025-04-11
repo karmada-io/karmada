@@ -27,10 +27,15 @@ spec:
             privileged: false
           image: docker.io/karmada/karmada-metrics-adapter:latest
           imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           command:
             - /bin/karmada-metrics-adapter
             - --kubeconfig=/etc/karmada/config/karmada.config
-            - --metrics-bind-address=:8080
+            - --metrics-bind-address=$(POD_IP):8080
             - --authentication-kubeconfig=/etc/karmada/config/karmada.config
             - --authorization-kubeconfig=/etc/karmada/config/karmada.config
             - --client-ca-file=/etc/karmada/pki/server/ca.crt
@@ -40,6 +45,7 @@ spec:
             - --audit-log-maxage=0
             - --audit-log-maxbackup=0
             - --tls-min-version=VersionTLS13
+            - --bind-address=$(POD_IP)
           readinessProbe:
             httpGet:
               path: /readyz
