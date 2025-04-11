@@ -30,6 +30,7 @@ spec:
           command:
             - /bin/karmada-aggregated-apiserver
             - --kubeconfig=/etc/karmada/config/karmada.config
+            - --metrics-bind-address=:8080
             - --authentication-kubeconfig=/etc/karmada/config/karmada.config
             - --authorization-kubeconfig=/etc/karmada/config/karmada.config
             - --etcd-servers=https://etcd-client.karmada-system.svc.cluster.local:2379
@@ -61,6 +62,10 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 15
+          ports:
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
           volumeMounts:
             - name: karmada-config
               mountPath: /etc/karmada/config

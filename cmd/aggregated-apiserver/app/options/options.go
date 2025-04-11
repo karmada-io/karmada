@@ -21,8 +21,11 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"strings"
+	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -39,18 +42,49 @@ import (
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/klog/v2"
 	netutils "k8s.io/utils/net"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/karmada-io/karmada/pkg/aggregatedapiserver"
 	clusterscheme "github.com/karmada-io/karmada/pkg/apis/cluster/scheme"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	pkgfeatures "github.com/karmada-io/karmada/pkg/features"
 	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
+	versionmetrics "github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 	"github.com/karmada-io/karmada/pkg/version"
 )
 
 const defaultEtcdPathPrefix = "/registry"
+
+const (
+	// ReadHeaderTimeout is the amount of time allowed to read
+	// request headers.
+	// HTTP timeouts are necessary to expire inactive connections
+	// and failing to do so might make the application vulnerable
+	// to attacks like slowloris which work by sending data very slow,
+	// which in case of no timeout will keep the connection active
+	// eventually leading to a denial-of-service (DoS) attack.
+	// References:
+	// - https://en.wikipedia.org/wiki/Slowloris_(computer_security)
+	ReadHeaderTimeout = 32 * time.Second
+	// WriteTimeout is the amount of time allowed to write the
+	// request data.
+	// HTTP timeouts are necessary to expire inactive connections
+	// and failing to do so might make the application vulnerable
+	// to attacks like slowloris which work by sending data very slow,
+	// which in case of no timeout will keep the connection active
+	// eventually leading to a denial-of-service (DoS) attack.
+	WriteTimeout = 5 * time.Minute
+	// ReadTimeout is the amount of time allowed to read
+	// response data.
+	// HTTP timeouts are necessary to expire inactive connections
+	// and failing to do so might make the application vulnerable
+	// to attacks like slowloris which work by sending data very slow,
+	// which in case of no timeout will keep the connection active
+	// eventually leading to a denial-of-service (DoS) attack.
+	ReadTimeout = 5 * time.Minute
+)
 
 // Options contains everything necessary to create and run aggregated-apiserver.
 type Options struct {
@@ -68,6 +102,12 @@ type Options struct {
 	KubeAPIBurst int
 
 	ProfileOpts profileflag.Options
+
+	// MetricsBindAddress is the TCP address that the controller should bind to
+	// for serving prometheus metrics.
+	// It can be set to "0" to disable the metrics serving.
+	// Defaults to ":8080".
+	MetricsBindAddress string
 }
 
 // NewOptions returns a new Options.
@@ -99,6 +139,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 
 	flags.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver.")
 	flags.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver.")
+	flags.StringVar(&o.MetricsBindAddress, "metrics-bind-address", ":8080", "The TCP address that the server should bind to for serving prometheus metrics(e.g. 127.0.0.1:8080, :8080). It can be set to \"0\" to disable the metrics serving.")
 	_ = utilfeature.DefaultMutableFeatureGate.Add(pkgfeatures.DefaultFeatureGates)
 	utilfeature.DefaultMutableFeatureGate.AddFlag(flags)
 	o.ProfileOpts.AddFlags(flags)
@@ -112,6 +153,11 @@ func (o *Options) Complete() error {
 // Run runs the aggregated-apiserver with options. This should never exit.
 func (o *Options) Run(ctx context.Context) error {
 	klog.Infof("karmada-aggregated-apiserver version: %s", version.Get())
+
+	ctrlmetrics.Registry.MustRegister(versionmetrics.NewBuildInfoCollector())
+	if o.MetricsBindAddress != "0" {
+		go serveMetrics(o.MetricsBindAddress)
+	}
 
 	profileflag.ListenAndServe(o.ProfileOpts)
 
@@ -214,4 +260,32 @@ func customLongRunningRequestCheck(longRunningVerbs, longRunningSubresources set
 func isClusterProxy(pathParts []string) bool {
 	// cluster/proxy url path format: /apis/cluster.karmada.io/v1alpha1/clusters/{cluster}/proxy/...
 	return len(pathParts) >= 6 && pathParts[1] == "cluster.karmada.io" && pathParts[5] == "proxy"
+}
+
+func serveMetrics(address string) {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", metricsHandler())
+	serveHTTP(address, mux, "metrics")
+}
+
+func metricsHandler() http.Handler {
+	return promhttp.HandlerFor(ctrlmetrics.Registry, promhttp.HandlerOpts{
+		ErrorHandling: promhttp.HTTPErrorOnError,
+	})
+}
+
+func serveHTTP(address string, handler http.Handler, name string) {
+	httpServer := &http.Server{
+		Addr:              address,
+		Handler:           handler,
+		ReadHeaderTimeout: ReadHeaderTimeout,
+		WriteTimeout:      WriteTimeout,
+		ReadTimeout:       ReadTimeout,
+	}
+
+	klog.Infof("Starting %s server on %s", name, address)
+	if err := httpServer.ListenAndServe(); err != nil {
+		klog.Errorf("Failed to serve %s on %s: %v", name, address, err)
+		os.Exit(1)
+	}
 }

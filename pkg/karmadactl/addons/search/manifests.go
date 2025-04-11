@@ -47,6 +47,7 @@ spec:
           command:
             - /bin/karmada-search
             - --kubeconfig=/etc/karmada/config/karmada.config
+            - --metrics-bind-address=:8080
             - --authentication-kubeconfig=/etc/karmada/config/karmada.config
             - --authorization-kubeconfig=/etc/karmada/config/karmada.config
             - --etcd-servers={{ .ETCDSevers }}
@@ -69,6 +70,10 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 15
             timeoutSeconds: 5
+          ports:
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
           resources:
             requests:
               cpu: 100m

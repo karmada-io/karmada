@@ -57,6 +57,7 @@ spec:
           command:
             - /bin/karmada-search
             - --kubeconfig=/etc/karmada/config/karmada.config
+            - --metrics-bind-address=:8080
             - --authentication-kubeconfig=/etc/karmada/config/karmada.config
             - --authorization-kubeconfig=/etc/karmada/config/karmada.config
             - --tls-cert-file=/etc/karmada/pki/karmada.crt
