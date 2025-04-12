@@ -27,7 +27,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 
-	"github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/certs"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
@@ -387,8 +386,8 @@ func TestRunCertTask(t *testing.T) {
 			runData: &TestInitData{
 				Name:      "karmada-demo",
 				Namespace: "test",
-				ComponentsUnits: &v1alpha1.KarmadaComponents{
-					KarmadaAPIServer: &v1alpha1.KarmadaAPIServer{},
+				ComponentsUnits: &operatorv1alpha1.KarmadaComponents{
+					KarmadaAPIServer: &operatorv1alpha1.KarmadaAPIServer{},
 				},
 			},
 			prep: func(ca *certs.CertConfig, _ *certs.CertConfig, rd workflow.RunData) error {

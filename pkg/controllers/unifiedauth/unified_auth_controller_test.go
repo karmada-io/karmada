@@ -30,7 +30,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -95,7 +94,7 @@ func Test_findRBACSubjectsWithCluster(t *testing.T) {
 		{
 			name: "find rbac subjects with cluster",
 			args: args{
-				c: fakeclient.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
+				c: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
 					clusterRoleWithCluster, clusterRoleWithSearch, clusterRoleBindingWithCluster, clusterRoleBindingWithSearch).Build(),
 				cluster: "member1",
 			},
@@ -241,7 +240,7 @@ func TestController_generateRequestsFromClusterRole(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &Controller{
-				Client:        fakeclient.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(cluster1, cluster2, cluster3).Build(),
+				Client:        fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(cluster1, cluster2, cluster3).Build(),
 				EventRecorder: record.NewFakeRecorder(1024),
 			}
 			if got := c.generateRequestsFromClusterRole(context.Background(), tt.args.clusterRole); !reflect.DeepEqual(got, tt.want) {
