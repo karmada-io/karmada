@@ -421,11 +421,12 @@ func (c *MCSController) propagateService(ctx context.Context, mcs *networkingv1a
 		return err
 	}
 
-	if operationResult == controllerutil.OperationResultCreated {
+	switch operationResult {
+	case controllerutil.OperationResultCreated:
 		klog.Infof("Create ResourceBinding(%s/%s) successfully.", binding.GetNamespace(), binding.GetName())
-	} else if operationResult == controllerutil.OperationResultUpdated {
+	case controllerutil.OperationResultUpdated:
 		klog.Infof("Update ResourceBinding(%s/%s) successfully.", binding.GetNamespace(), binding.GetName())
-	} else {
+	default:
 		klog.V(2).Infof("ResourceBinding(%s/%s) is up to date.", binding.GetNamespace(), binding.GetName())
 	}
 

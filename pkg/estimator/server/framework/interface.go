@@ -126,9 +126,10 @@ func (p PluginToResult) Merge() *Result {
 	var hasUnschedulable bool
 	hasAllNoOp := true
 	for _, s := range p {
-		if s.code == Error {
+		switch s.code {
+		case Error:
 			finalStatus.err = s.err
-		} else if s.code == Unschedulable {
+		case Unschedulable:
 			hasUnschedulable = true
 		}
 		if s.code != Noopperation {
