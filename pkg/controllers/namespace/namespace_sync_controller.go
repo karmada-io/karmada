@@ -68,13 +68,13 @@ type Controller struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Namespaces sync controller reconciling %s", req.NamespacedName.String())
+	klog.V(4).Infof("Namespaces sync controller reconciling %s", req.String())
 	if !c.namespaceShouldBeSynced(req.Name) {
 		return controllerruntime.Result{}, nil
 	}
 
 	namespace := &corev1.Namespace{}
-	if err := c.Client.Get(ctx, req.NamespacedName, namespace); err != nil {
+	if err := c.Get(ctx, req.NamespacedName, namespace); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
@@ -96,7 +96,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	}
 
 	clusterList := &clusterv1alpha1.ClusterList{}
-	if err := c.Client.List(ctx, clusterList); err != nil {
+	if err := c.List(ctx, clusterList); err != nil {
 		klog.Errorf("Failed to list clusters, error: %v", err)
 		return controllerruntime.Result{}, err
 	}
@@ -185,7 +185,7 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 		func(ctx context.Context, _ client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 			namespaceList := &corev1.NamespaceList{}
-			if err := c.Client.List(ctx, namespaceList); err != nil {
+			if err := c.List(ctx, namespaceList); err != nil {
 				klog.Errorf("Failed to list namespace, error: %v", err)
 				return nil
 			}
@@ -238,7 +238,7 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 
 			if containsAllNamespace {
 				namespaceList := &corev1.NamespaceList{}
-				if err := c.Client.List(context.TODO(), namespaceList); err != nil {
+				if err := c.List(context.TODO(), namespaceList); err != nil {
 					klog.Errorf("Failed to list namespace, error: %v", err)
 					return nil
 				}

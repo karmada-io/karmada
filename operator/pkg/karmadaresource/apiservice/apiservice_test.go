@@ -212,7 +212,7 @@ func TestKarmadaMetricsAdapterAPIService(t *testing.T) {
 		karmadaMetricsAdapterGV := constants.KarmadaMetricsAdapterAPIServices[i]
 		apiServiceNameExpected := fmt.Sprintf("%s.%s", karmadaMetricsAdapterGV.Version, karmadaMetricsAdapterGV.Group)
 		if service.Name != apiServiceNameExpected {
-			t.Fatalf("expected APIService name %s, but got %s", apiServiceNameExpected, service.ObjectMeta.Name)
+			t.Fatalf("expected APIService name %s, but got %s", apiServiceNameExpected, service.Name)
 		}
 
 		if service.Spec.Service.Namespace != namespace {

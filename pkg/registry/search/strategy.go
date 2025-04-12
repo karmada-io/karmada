@@ -43,7 +43,7 @@ func GetAttrs(obj runtime.Object) (labels.Set, fields.Set, error) {
 	if !ok {
 		return nil, nil, fmt.Errorf("given object is not a ResourceRegistry")
 	}
-	return resourceRegistry.ObjectMeta.Labels, SelectableFields(resourceRegistry), nil
+	return resourceRegistry.Labels, SelectableFields(resourceRegistry), nil
 }
 
 // MatchResourceRegistry is the filter used by the generic etcd backend to watch events

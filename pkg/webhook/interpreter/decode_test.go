@@ -210,7 +210,7 @@ func TestDecode(t *testing.T) {
 			},
 			into: &unstructured.Unstructured{},
 			prep: func(re *Request, apiVersion, kind, name string) error {
-				re.ResourceInterpreterRequest.Object.Raw = []byte(fmt.Sprintf(`{"apiVersion": "%s", "kind": "%s", "metadata": {"name": "%s"}}`, apiVersion, kind, name))
+				re.Object.Raw = []byte(fmt.Sprintf(`{"apiVersion": "%s", "kind": "%s", "metadata": {"name": "%s"}}`, apiVersion, kind, name))
 				return nil
 			},
 			verify:  verifyRuntimeObject,

@@ -67,10 +67,10 @@ type Controller struct {
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling cluster %s", req.NamespacedName.String())
+	klog.V(4).Infof("Reconciling cluster %s", req.String())
 
 	cluster := &clusterv1alpha1.Cluster{}
-	if err := c.Client.Get(ctx, req.NamespacedName, cluster); err != nil {
+	if err := c.Get(ctx, req.NamespacedName, cluster); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
@@ -282,7 +282,7 @@ func (c *Controller) newClusterRoleBindingMapFunc() handler.MapFunc {
 		}
 
 		clusterRole := &rbacv1.ClusterRole{}
-		if err := c.Client.Get(ctx, types.NamespacedName{Name: clusterRoleBinding.RoleRef.Name}, clusterRole); err != nil {
+		if err := c.Get(ctx, types.NamespacedName{Name: clusterRoleBinding.RoleRef.Name}, clusterRole); err != nil {
 			klog.Errorf("Failed to get reference ClusterRole, error: %v", err)
 			return nil
 		}
@@ -293,7 +293,7 @@ func (c *Controller) newClusterRoleBindingMapFunc() handler.MapFunc {
 // generateRequestsFromClusterRole generates the requests for which clusters need be synced with impersonation config.
 func (c *Controller) generateRequestsFromClusterRole(ctx context.Context, clusterRole *rbacv1.ClusterRole) []reconcile.Request {
 	clusterList := &clusterv1alpha1.ClusterList{}
-	if err := c.Client.List(ctx, clusterList); err != nil {
+	if err := c.List(ctx, clusterList); err != nil {
 		klog.Errorf("Failed to list existing clusters, error: %v", err)
 		return nil
 	}

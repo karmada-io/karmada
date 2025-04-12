@@ -139,11 +139,11 @@ func (c *FHPAController) SetupWithManager(mgr controllerruntime.Manager) error {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *FHPAController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling FederatedHPA %s.", req.NamespacedName.String())
+	klog.V(4).Infof("Reconciling FederatedHPA %s.", req.String())
 
 	hpa := &autoscalingv1alpha1.FederatedHPA{}
-	key := req.NamespacedName.String()
-	if err := c.Client.Get(ctx, req.NamespacedName, hpa); err != nil {
+	key := req.String()
+	if err := c.Get(ctx, req.NamespacedName, hpa); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("FederatedHPA %s has been deleted in %s", req.Name, req.Namespace)
 			c.recommendationsLock.Lock()
@@ -423,7 +423,7 @@ func (c *FHPAController) getBindingByLabel(ctx context.Context, resourceLabel ma
 
 	binding := &workv1alpha2.ResourceBinding{}
 	bindingList := &workv1alpha2.ResourceBindingList{}
-	err := c.Client.List(ctx, bindingList, &client.ListOptions{LabelSelector: selector})
+	err := c.List(ctx, bindingList, &client.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return nil, err
 	}
@@ -454,7 +454,7 @@ func (c *FHPAController) getTargetCluster(ctx context.Context, binding *workv1al
 	var allClusters []string
 	cluster := &clusterv1alpha1.Cluster{}
 	for _, targetCluster := range binding.Spec.Clusters {
-		err := c.Client.Get(ctx, types.NamespacedName{Name: targetCluster.Name}, cluster)
+		err := c.Get(ctx, types.NamespacedName{Name: targetCluster.Name}, cluster)
 		if err != nil {
 			return nil, err
 		}

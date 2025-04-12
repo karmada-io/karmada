@@ -62,14 +62,14 @@ type SyncController struct {
 // The SyncController will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *SyncController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("FederatedResourceQuota sync controller reconciling %s", req.NamespacedName.String())
+	klog.V(4).Infof("FederatedResourceQuota sync controller reconciling %s", req.String())
 
 	quota := &policyv1alpha1.FederatedResourceQuota{}
-	if err := c.Client.Get(ctx, req.NamespacedName, quota); err != nil {
+	if err := c.Get(ctx, req.NamespacedName, quota); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.V(4).Infof("Begin to cleanup works created by federatedResourceQuota(%s)", req.NamespacedName.String())
+			klog.V(4).Infof("Begin to cleanup works created by federatedResourceQuota(%s)", req.String())
 			if err = c.cleanUpWorks(ctx, req.Namespace, req.Name); err != nil {
-				klog.Errorf("Failed to cleanup works created by federatedResourceQuota(%s)", req.NamespacedName.String())
+				klog.Errorf("Failed to cleanup works created by federatedResourceQuota(%s)", req.String())
 				return controllerruntime.Result{}, err
 			}
 			return controllerruntime.Result{}, nil
@@ -78,17 +78,17 @@ func (c *SyncController) Reconcile(ctx context.Context, req controllerruntime.Re
 	}
 
 	clusterList := &clusterv1alpha1.ClusterList{}
-	if err := c.Client.List(ctx, clusterList); err != nil {
+	if err := c.List(ctx, clusterList); err != nil {
 		klog.Errorf("Failed to list clusters, error: %v", err)
 		return controllerruntime.Result{}, err
 	}
 
 	if err := c.buildWorks(ctx, quota, clusterList.Items); err != nil {
-		klog.Errorf("Failed to build works for federatedResourceQuota(%s), error: %v", req.NamespacedName.String(), err)
+		klog.Errorf("Failed to build works for federatedResourceQuota(%s), error: %v", req.String(), err)
 		c.EventRecorder.Eventf(quota, corev1.EventTypeWarning, events.EventReasonSyncFederatedResourceQuotaFailed, err.Error())
 		return controllerruntime.Result{}, err
 	}
-	c.EventRecorder.Eventf(quota, corev1.EventTypeNormal, events.EventReasonSyncFederatedResourceQuotaSucceed, "Sync works for FederatedResourceQuota(%s) succeed.", req.NamespacedName.String())
+	c.EventRecorder.Eventf(quota, corev1.EventTypeNormal, events.EventReasonSyncFederatedResourceQuotaSucceed, "Sync works for FederatedResourceQuota(%s) succeed.", req.String())
 
 	return controllerruntime.Result{}, nil
 }
@@ -100,7 +100,7 @@ func (c *SyncController) SetupWithManager(mgr controllerruntime.Manager) error {
 			var requests []reconcile.Request
 
 			FederatedResourceQuotaList := &policyv1alpha1.FederatedResourceQuotaList{}
-			if err := c.Client.List(ctx, FederatedResourceQuotaList); err != nil {
+			if err := c.List(ctx, FederatedResourceQuotaList); err != nil {
 				klog.Errorf("Failed to list FederatedResourceQuota, error: %v", err)
 			}
 

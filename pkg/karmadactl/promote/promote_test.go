@@ -145,7 +145,7 @@ func TestPromoteResourceInLegacyCluster(t *testing.T) {
 			controlPlaneDynamicClient: fakedynamic.NewSimpleDynamicClient(scheme.Scheme),
 			gvr:                       schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"},
 			prep: func(controlPlaneDynamicClient dynamic.Interface, _ karmadaclientset.Interface, gvr schema.GroupVersionResource) error {
-				controlPlaneDynamicClient.(*fakedynamic.FakeDynamicClient).Fake.PrependReactor("create", gvr.Resource, func(coretesting.Action) (bool, runtime.Object, error) {
+				controlPlaneDynamicClient.(*fakedynamic.FakeDynamicClient).PrependReactor("create", gvr.Resource, func(coretesting.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("unexpected error; encountered network issue while creating resources")
 				})
 				dynamicClientBuilder = func(*rest.Config) dynamic.Interface {
@@ -317,7 +317,7 @@ func TestCreatePropagationPolicy(t *testing.T) {
 			},
 			client: fakekarmadaclient.NewSimpleClientset(),
 			prep: func(client karmadaclientset.Interface, _ *CommandPromoteOption) error {
-				client.(*fakekarmadaclient.Clientset).Fake.PrependReactor("get", "propagationpolicies", func(coretesting.Action) (bool, runtime.Object, error) {
+				client.(*fakekarmadaclient.Clientset).PrependReactor("get", "propagationpolicies", func(coretesting.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("unexpected error: encountered a network issue while getting the propagationpolicies")
 				})
 				return nil
@@ -335,7 +335,7 @@ func TestCreatePropagationPolicy(t *testing.T) {
 			},
 			client: fakekarmadaclient.NewSimpleClientset(),
 			prep: func(client karmadaclientset.Interface, _ *CommandPromoteOption) error {
-				client.(*fakekarmadaclient.Clientset).Fake.PrependReactor("get", "propagationpolicies", func(coretesting.Action) (bool, runtime.Object, error) {
+				client.(*fakekarmadaclient.Clientset).PrependReactor("get", "propagationpolicies", func(coretesting.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("unexpected error: encountered a network issue while creating the propagationpolicies")
 				})
 				return nil
@@ -434,7 +434,7 @@ func TestCreateClusterPropagationPolicy(t *testing.T) {
 			},
 			client: fakekarmadaclient.NewSimpleClientset(),
 			prep: func(client karmadaclientset.Interface, _ *CommandPromoteOption) error {
-				client.(*fakekarmadaclient.Clientset).Fake.PrependReactor("get", "clusterpropagationpolicies", func(coretesting.Action) (bool, runtime.Object, error) {
+				client.(*fakekarmadaclient.Clientset).PrependReactor("get", "clusterpropagationpolicies", func(coretesting.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("unexpected error: encountered a network issue while getting the cluster propagationpolicies")
 				})
 				return nil
@@ -451,7 +451,7 @@ func TestCreateClusterPropagationPolicy(t *testing.T) {
 			},
 			client: fakekarmadaclient.NewSimpleClientset(),
 			prep: func(client karmadaclientset.Interface, _ *CommandPromoteOption) error {
-				client.(*fakekarmadaclient.Clientset).Fake.PrependReactor("get", "clusterpropagationpolicies", func(coretesting.Action) (bool, runtime.Object, error) {
+				client.(*fakekarmadaclient.Clientset).PrependReactor("get", "clusterpropagationpolicies", func(coretesting.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("unexpected error: encountered a network issue while creating the cluster propagationpolicies")
 				})
 				return nil

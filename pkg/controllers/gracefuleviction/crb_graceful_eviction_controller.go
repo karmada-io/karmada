@@ -52,10 +52,10 @@ type CRBGracefulEvictionController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *CRBGracefulEvictionController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling ClusterResourceBinding %s.", req.NamespacedName.String())
+	klog.V(4).Infof("Reconciling ClusterResourceBinding %s.", req.String())
 
 	binding := &workv1alpha2.ClusterResourceBinding{}
-	if err := c.Client.Get(ctx, req.NamespacedName, binding); err != nil {
+	if err := c.Get(ctx, req.NamespacedName, binding); err != nil {
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
@@ -91,7 +91,7 @@ func (c *CRBGracefulEvictionController) syncBinding(ctx context.Context, binding
 	objPatch := client.MergeFrom(binding)
 	modifiedObj := binding.DeepCopy()
 	modifiedObj.Spec.GracefulEvictionTasks = keptTask
-	err := c.Client.Patch(ctx, modifiedObj, objPatch)
+	err := c.Patch(ctx, modifiedObj, objPatch)
 	if err != nil {
 		return 0, err
 	}

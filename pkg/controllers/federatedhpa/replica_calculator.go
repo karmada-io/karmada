@@ -343,7 +343,7 @@ func groupPods(pods []*corev1.Pod, metrics metricsclient.PodMetricsInfo, resourc
 				// Pod still within possible initialisation period.
 				if pod.Status.StartTime.Add(cpuInitializationPeriod).After(time.Now()) {
 					// Ignore sample if pod is unready or one window of metric wasn't collected since last state transition.
-					unready = condition.Status == corev1.ConditionFalse || metric.Timestamp.Before(condition.LastTransitionTime.Time.Add(metric.Window))
+					unready = condition.Status == corev1.ConditionFalse || metric.Timestamp.Before(condition.LastTransitionTime.Add(metric.Window))
 				} else {
 					// Ignore metric if pod is unready and it has never been ready.
 					unready = condition.Status == corev1.ConditionFalse && pod.Status.StartTime.Add(delayOfInitialReadinessStatus).After(condition.LastTransitionTime.Time)
@@ -368,7 +368,7 @@ func calculatePodRequests(pods []*corev1.Pod, container string, resource corev1.
 				if containerRequest, ok := c.Resources.Requests[resource]; ok {
 					podSum += containerRequest.MilliValue()
 				} else {
-					return nil, fmt.Errorf("missing request for %s in container %s of Pod %s", resource, c.Name, pod.ObjectMeta.Name)
+					return nil, fmt.Errorf("missing request for %s in container %s of Pod %s", resource, c.Name, pod.Name)
 				}
 			}
 		}

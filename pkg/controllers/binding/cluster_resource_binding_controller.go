@@ -68,10 +68,10 @@ type ClusterResourceBindingController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling ClusterResourceBinding %s.", req.NamespacedName.String())
+	klog.V(4).Infof("Reconciling ClusterResourceBinding %s.", req.String())
 
 	clusterResourceBinding := &workv1alpha2.ClusterResourceBinding{}
-	if err := c.Client.Get(ctx, req.NamespacedName, clusterResourceBinding); err != nil {
+	if err := c.Get(ctx, req.NamespacedName, clusterResourceBinding); err != nil {
 		// The resource no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
@@ -81,7 +81,7 @@ func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req co
 	}
 
 	if !clusterResourceBinding.DeletionTimestamp.IsZero() {
-		klog.V(4).Infof("Begin to delete works owned by binding(%s).", req.NamespacedName.String())
+		klog.V(4).Infof("Begin to delete works owned by binding(%s).", req.String())
 		if err := helper.DeleteWorks(ctx, c.Client, "", req.Name, clusterResourceBinding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel]); err != nil {
 			klog.Errorf("Failed to delete works related to %s: %v", clusterResourceBinding.GetName(), err)
 			return controllerruntime.Result{}, err
@@ -99,7 +99,7 @@ func (c *ClusterResourceBindingController) removeFinalizer(ctx context.Context, 
 	}
 
 	controllerutil.RemoveFinalizer(crb, util.ClusterResourceBindingControllerFinalizer)
-	err := c.Client.Update(ctx, crb)
+	err := c.Update(ctx, crb)
 	if err != nil {
 		return controllerruntime.Result{}, err
 	}
@@ -181,7 +181,7 @@ func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.MapFu
 		}
 
 		bindingList := &workv1alpha2.ClusterResourceBindingList{}
-		if err := c.Client.List(ctx, bindingList); err != nil {
+		if err := c.List(ctx, bindingList); err != nil {
 			klog.Errorf("Failed to list clusterResourceBindings, error: %v", err)
 			return nil
 		}

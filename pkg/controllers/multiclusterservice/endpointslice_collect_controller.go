@@ -83,10 +83,10 @@ const EndpointSliceCollectControllerName = "endpointslice-collect-controller"
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 func (c *EndpointSliceCollectController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling Work %s", req.NamespacedName.String())
+	klog.V(4).Infof("Reconciling Work %s", req.String())
 
 	work := &workv1alpha1.Work{}
-	if err := c.Client.Get(ctx, req.NamespacedName, work); err != nil {
+	if err := c.Get(ctx, req.NamespacedName, work); err != nil {
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
@@ -301,7 +301,7 @@ func (c *EndpointSliceCollectController) handleEndpointSliceEvent(ctx context.Co
 	}
 
 	workList := &workv1alpha1.WorkList{}
-	if err := c.Client.List(ctx, workList, &client.ListOptions{
+	if err := c.List(ctx, workList, &client.ListOptions{
 		Namespace: names.GenerateExecutionSpaceName(endpointSliceKey.Cluster),
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			util.MultiClusterServiceNamespaceLabel: endpointSliceKey.Namespace,

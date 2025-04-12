@@ -309,7 +309,7 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 				},
 			}
 
-			if err := tt.c.Client.Create(context.Background(), tt.work); err != nil {
+			if err := tt.c.Create(context.Background(), tt.work); err != nil {
 				t.Fatalf("Failed to create cluster: %v", err)
 			}
 
@@ -698,7 +698,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 
 			key, _ := generateKey(tt.obj)
 
-			if err := c.Client.Create(context.Background(), work); err != nil {
+			if err := c.Create(context.Background(), work); err != nil {
 				t.Fatalf("Failed to create work: %v", err)
 			}
 
@@ -887,7 +887,7 @@ func TestWorkStatusController_recreateResourceIfNeeded(t *testing.T) {
 	})
 
 	t.Run("failed to UnmarshalJSON", func(t *testing.T) {
-		work.Spec.Workload.Manifests[0].RawExtension.Raw = []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}},`)
+		work.Spec.Workload.Manifests[0].Raw = []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}},`)
 		err := c.recreateResourceIfNeeded(context.Background(), work, fedKey)
 		assert.NotEmpty(t, err)
 	})
@@ -1016,7 +1016,7 @@ func TestWorkStatusController_registerInformersAndStart(t *testing.T) {
 	})
 
 	t.Run("failed to getGVRsFromWork", func(t *testing.T) {
-		work.Spec.Workload.Manifests[0].RawExtension.Raw = []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}},`)
+		work.Spec.Workload.Manifests[0].Raw = []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}},`)
 
 		m := genericmanager.NewMultiClusterInformerManager(stopCh)
 		m.ForCluster(clusterName, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer

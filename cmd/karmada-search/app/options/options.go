@@ -97,13 +97,13 @@ func (o *Options) ApplyTo(config *genericapiserver.RecommendedConfig) error {
 	if err := o.Etcd.ApplyTo(&config.Config); err != nil {
 		return err
 	}
-	if err := o.SecureServing.ApplyTo(&config.Config.SecureServing, &config.Config.LoopbackClientConfig); err != nil {
+	if err := o.SecureServing.ApplyTo(&config.SecureServing, &config.LoopbackClientConfig); err != nil {
 		return err
 	}
-	if err := o.Authentication.ApplyTo(&config.Config.Authentication, config.SecureServing, config.OpenAPIConfig); err != nil {
+	if err := o.Authentication.ApplyTo(&config.Authentication, config.SecureServing, config.OpenAPIConfig); err != nil {
 		return err
 	}
-	if err := o.Authorization.ApplyTo(&config.Config.Authorization); err != nil {
+	if err := o.Authorization.ApplyTo(&config.Authorization); err != nil {
 		return err
 	}
 	if err := o.Audit.ApplyTo(&config.Config); err != nil {

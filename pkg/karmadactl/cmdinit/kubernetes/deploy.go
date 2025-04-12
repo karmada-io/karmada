@@ -899,7 +899,7 @@ func (i *CommandInitOption) parseEtcdConfig(etcd initConfig.Etcd) {
 // parseLocalEtcdConfig parses the local Etcd settings, including image information,
 // data path, PVC size, and node selector labels.
 func (i *CommandInitOption) parseLocalEtcdConfig(localEtcd *initConfig.LocalEtcd) {
-	setIfNotEmpty(&i.EtcdImage, localEtcd.CommonSettings.Image.GetImage())
+	setIfNotEmpty(&i.EtcdImage, localEtcd.GetImage())
 	setIfNotEmpty(&i.EtcdInitImage, localEtcd.InitImage.GetImage())
 	setIfNotEmpty(&i.EtcdHostDataPath, localEtcd.DataPath)
 	setIfNotEmpty(&i.EtcdPersistentVolumeSize, localEtcd.PVCSize)
@@ -943,8 +943,8 @@ func (i *CommandInitOption) parseKarmadaAPIServerConfig(apiServer *initConfig.Ka
 	if apiServer != nil {
 		setIfNotZeroInt32(&i.KarmadaAPIServerNodePort, apiServer.Networking.Port)
 		setIfNotEmpty(&i.Namespace, apiServer.Networking.Namespace)
-		setIfNotEmpty(&i.KarmadaAPIServerImage, apiServer.CommonSettings.Image.GetImage())
-		setIfNotZeroInt32(&i.KarmadaAPIServerReplicas, apiServer.CommonSettings.Replicas)
+		setIfNotEmpty(&i.KarmadaAPIServerImage, apiServer.GetImage())
+		setIfNotZeroInt32(&i.KarmadaAPIServerReplicas, apiServer.Replicas)
 		setIfNotEmpty(&i.KarmadaAPIServerAdvertiseAddress, apiServer.AdvertiseAddress)
 	}
 }
@@ -953,8 +953,8 @@ func (i *CommandInitOption) parseKarmadaAPIServerConfig(apiServer *initConfig.Ka
 // including image and replica settings.
 func (i *CommandInitOption) parseKarmadaControllerManagerConfig(manager *initConfig.KarmadaControllerManager) {
 	if manager != nil {
-		setIfNotEmpty(&i.KarmadaControllerManagerImage, manager.CommonSettings.Image.GetImage())
-		setIfNotZeroInt32(&i.KarmadaControllerManagerReplicas, manager.CommonSettings.Replicas)
+		setIfNotEmpty(&i.KarmadaControllerManagerImage, manager.GetImage())
+		setIfNotZeroInt32(&i.KarmadaControllerManagerReplicas, manager.Replicas)
 	}
 }
 
@@ -962,8 +962,8 @@ func (i *CommandInitOption) parseKarmadaControllerManagerConfig(manager *initCon
 // including image and replica settings.
 func (i *CommandInitOption) parseKarmadaSchedulerConfig(scheduler *initConfig.KarmadaScheduler) {
 	if scheduler != nil {
-		setIfNotEmpty(&i.KarmadaSchedulerImage, scheduler.CommonSettings.Image.GetImage())
-		setIfNotZeroInt32(&i.KarmadaSchedulerReplicas, scheduler.CommonSettings.Replicas)
+		setIfNotEmpty(&i.KarmadaSchedulerImage, scheduler.GetImage())
+		setIfNotZeroInt32(&i.KarmadaSchedulerReplicas, scheduler.Replicas)
 	}
 }
 
@@ -971,8 +971,8 @@ func (i *CommandInitOption) parseKarmadaSchedulerConfig(scheduler *initConfig.Ka
 // including image and replica settings.
 func (i *CommandInitOption) parseKarmadaWebhookConfig(webhook *initConfig.KarmadaWebhook) {
 	if webhook != nil {
-		setIfNotEmpty(&i.KarmadaWebhookImage, webhook.CommonSettings.Image.GetImage())
-		setIfNotZeroInt32(&i.KarmadaWebhookReplicas, webhook.CommonSettings.Replicas)
+		setIfNotEmpty(&i.KarmadaWebhookImage, webhook.GetImage())
+		setIfNotZeroInt32(&i.KarmadaWebhookReplicas, webhook.Replicas)
 	}
 }
 
@@ -980,8 +980,8 @@ func (i *CommandInitOption) parseKarmadaWebhookConfig(webhook *initConfig.Karmad
 // including image and replica settings.
 func (i *CommandInitOption) parseKarmadaAggregatedAPIServerConfig(aggregatedAPIServer *initConfig.KarmadaAggregatedAPIServer) {
 	if aggregatedAPIServer != nil {
-		setIfNotEmpty(&i.KarmadaAggregatedAPIServerImage, aggregatedAPIServer.CommonSettings.Image.GetImage())
-		setIfNotZeroInt32(&i.KarmadaAggregatedAPIServerReplicas, aggregatedAPIServer.CommonSettings.Replicas)
+		setIfNotEmpty(&i.KarmadaAggregatedAPIServerImage, aggregatedAPIServer.GetImage())
+		setIfNotZeroInt32(&i.KarmadaAggregatedAPIServerReplicas, aggregatedAPIServer.Replicas)
 	}
 }
 
@@ -989,8 +989,8 @@ func (i *CommandInitOption) parseKarmadaAggregatedAPIServerConfig(aggregatedAPIS
 // including image and replica settings.
 func (i *CommandInitOption) parseKubeControllerManagerConfig(manager *initConfig.KubeControllerManager) {
 	if manager != nil {
-		setIfNotEmpty(&i.KubeControllerManagerImage, manager.CommonSettings.Image.GetImage())
-		setIfNotZeroInt32(&i.KubeControllerManagerReplicas, manager.CommonSettings.Replicas)
+		setIfNotEmpty(&i.KubeControllerManagerImage, manager.GetImage())
+		setIfNotZeroInt32(&i.KubeControllerManagerReplicas, manager.Replicas)
 	}
 }
 

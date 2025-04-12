@@ -121,11 +121,11 @@ func setDefaultsEtcd(obj *KarmadaComponents) {
 		if obj.Etcd.Local.Replicas == nil {
 			obj.Etcd.Local.Replicas = ptr.To[int32](1)
 		}
-		if len(obj.Etcd.Local.Image.ImageRepository) == 0 {
-			obj.Etcd.Local.Image.ImageRepository = etcdImageRepository
+		if len(obj.Etcd.Local.ImageRepository) == 0 {
+			obj.Etcd.Local.ImageRepository = etcdImageRepository
 		}
-		if len(obj.Etcd.Local.Image.ImageTag) == 0 {
-			obj.Etcd.Local.Image.ImageTag = constants.EtcdDefaultVersion
+		if len(obj.Etcd.Local.ImageTag) == 0 {
+			obj.Etcd.Local.ImageTag = constants.EtcdDefaultVersion
 		}
 		if len(obj.Etcd.Local.ImagePullPolicy) == 0 {
 			obj.Etcd.Local.ImagePullPolicy = corev1.PullIfNotPresent
@@ -145,11 +145,11 @@ func setDefaultsKarmadaAPIServer(obj *KarmadaComponents) {
 	}
 
 	apiserver := obj.KarmadaAPIServer
-	if len(apiserver.Image.ImageRepository) == 0 {
-		apiserver.Image.ImageRepository = karmadaAPIServiceImageRepository
+	if len(apiserver.ImageRepository) == 0 {
+		apiserver.ImageRepository = karmadaAPIServiceImageRepository
 	}
-	if len(apiserver.Image.ImageTag) == 0 {
-		apiserver.Image.ImageTag = constants.KubeDefaultVersion
+	if len(apiserver.ImageTag) == 0 {
+		apiserver.ImageTag = constants.KubeDefaultVersion
 	}
 	if len(apiserver.ImagePullPolicy) == 0 {
 		apiserver.ImagePullPolicy = corev1.PullIfNotPresent
@@ -171,11 +171,11 @@ func setDefaultsKarmadaAggregatedAPIServer(obj *KarmadaComponents) {
 	}
 
 	aggregated := obj.KarmadaAggregatedAPIServer
-	if len(aggregated.Image.ImageRepository) == 0 {
-		aggregated.Image.ImageRepository = karmadaAggregatedAPIServerImageRepository
+	if len(aggregated.ImageRepository) == 0 {
+		aggregated.ImageRepository = karmadaAggregatedAPIServerImageRepository
 	}
-	if len(aggregated.Image.ImageTag) == 0 {
-		aggregated.Image.ImageTag = DefaultKarmadaImageVersion
+	if len(aggregated.ImageTag) == 0 {
+		aggregated.ImageTag = DefaultKarmadaImageVersion
 	}
 	if len(aggregated.ImagePullPolicy) == 0 {
 		aggregated.ImagePullPolicy = corev1.PullIfNotPresent
@@ -191,11 +191,11 @@ func setDefaultsKubeControllerManager(obj *KarmadaComponents) {
 	}
 
 	kubeControllerManager := obj.KubeControllerManager
-	if len(kubeControllerManager.Image.ImageRepository) == 0 {
-		kubeControllerManager.Image.ImageRepository = kubeControllerManagerImageRepository
+	if len(kubeControllerManager.ImageRepository) == 0 {
+		kubeControllerManager.ImageRepository = kubeControllerManagerImageRepository
 	}
-	if len(kubeControllerManager.Image.ImageTag) == 0 {
-		kubeControllerManager.Image.ImageTag = constants.KubeDefaultVersion
+	if len(kubeControllerManager.ImageTag) == 0 {
+		kubeControllerManager.ImageTag = constants.KubeDefaultVersion
 	}
 	if len(kubeControllerManager.ImagePullPolicy) == 0 {
 		kubeControllerManager.ImagePullPolicy = corev1.PullIfNotPresent
@@ -211,11 +211,11 @@ func setDefaultsKarmadaControllerManager(obj *KarmadaComponents) {
 	}
 
 	karmadaControllerManager := obj.KarmadaControllerManager
-	if len(karmadaControllerManager.Image.ImageRepository) == 0 {
-		karmadaControllerManager.Image.ImageRepository = karmadaControllerManagerImageRepository
+	if len(karmadaControllerManager.ImageRepository) == 0 {
+		karmadaControllerManager.ImageRepository = karmadaControllerManagerImageRepository
 	}
-	if len(karmadaControllerManager.Image.ImageTag) == 0 {
-		karmadaControllerManager.Image.ImageTag = DefaultKarmadaImageVersion
+	if len(karmadaControllerManager.ImageTag) == 0 {
+		karmadaControllerManager.ImageTag = DefaultKarmadaImageVersion
 	}
 	if len(karmadaControllerManager.ImagePullPolicy) == 0 {
 		karmadaControllerManager.ImagePullPolicy = corev1.PullIfNotPresent
@@ -231,11 +231,11 @@ func setDefaultsKarmadaScheduler(obj *KarmadaComponents) {
 	}
 
 	scheduler := obj.KarmadaScheduler
-	if len(scheduler.Image.ImageRepository) == 0 {
-		scheduler.Image.ImageRepository = karmadaSchedulerImageRepository
+	if len(scheduler.ImageRepository) == 0 {
+		scheduler.ImageRepository = karmadaSchedulerImageRepository
 	}
-	if len(scheduler.Image.ImageTag) == 0 {
-		scheduler.Image.ImageTag = DefaultKarmadaImageVersion
+	if len(scheduler.ImageTag) == 0 {
+		scheduler.ImageTag = DefaultKarmadaImageVersion
 	}
 	if len(scheduler.ImagePullPolicy) == 0 {
 		scheduler.ImagePullPolicy = corev1.PullIfNotPresent
@@ -251,11 +251,11 @@ func setDefaultsKarmadaWebhook(obj *KarmadaComponents) {
 	}
 
 	webhook := obj.KarmadaWebhook
-	if len(webhook.Image.ImageRepository) == 0 {
-		webhook.Image.ImageRepository = karmadaWebhookImageRepository
+	if len(webhook.ImageRepository) == 0 {
+		webhook.ImageRepository = karmadaWebhookImageRepository
 	}
-	if len(webhook.Image.ImageTag) == 0 {
-		webhook.Image.ImageTag = DefaultKarmadaImageVersion
+	if len(webhook.ImageTag) == 0 {
+		webhook.ImageTag = DefaultKarmadaImageVersion
 	}
 	if len(webhook.ImagePullPolicy) == 0 {
 		webhook.ImagePullPolicy = corev1.PullIfNotPresent
@@ -271,11 +271,11 @@ func setDefaultsKarmadaSearch(obj *KarmadaComponents) {
 	}
 
 	search := obj.KarmadaSearch
-	if len(search.Image.ImageRepository) == 0 {
-		search.Image.ImageRepository = karmadaSearchImageRepository
+	if len(search.ImageRepository) == 0 {
+		search.ImageRepository = karmadaSearchImageRepository
 	}
-	if len(search.Image.ImageTag) == 0 {
-		search.Image.ImageTag = DefaultKarmadaImageVersion
+	if len(search.ImageTag) == 0 {
+		search.ImageTag = DefaultKarmadaImageVersion
 	}
 	if len(search.ImagePullPolicy) == 0 {
 		search.ImagePullPolicy = corev1.PullIfNotPresent
@@ -291,11 +291,11 @@ func setDefaultsKarmadaDescheduler(obj *KarmadaComponents) {
 	}
 
 	descheduler := obj.KarmadaDescheduler
-	if len(descheduler.Image.ImageRepository) == 0 {
-		descheduler.Image.ImageRepository = karmadaDeschedulerImageRepository
+	if len(descheduler.ImageRepository) == 0 {
+		descheduler.ImageRepository = karmadaDeschedulerImageRepository
 	}
-	if len(descheduler.Image.ImageTag) == 0 {
-		descheduler.Image.ImageTag = DefaultKarmadaImageVersion
+	if len(descheduler.ImageTag) == 0 {
+		descheduler.ImageTag = DefaultKarmadaImageVersion
 	}
 	if len(descheduler.ImagePullPolicy) == 0 {
 		descheduler.ImagePullPolicy = corev1.PullIfNotPresent
@@ -311,11 +311,11 @@ func setDefaultsKarmadaMetricsAdapter(obj *KarmadaComponents) {
 	}
 
 	metricsAdapter := obj.KarmadaMetricsAdapter
-	if len(metricsAdapter.Image.ImageRepository) == 0 {
-		metricsAdapter.Image.ImageRepository = karmadaMetricsAdapterImageRepository
+	if len(metricsAdapter.ImageRepository) == 0 {
+		metricsAdapter.ImageRepository = karmadaMetricsAdapterImageRepository
 	}
-	if len(metricsAdapter.Image.ImageTag) == 0 {
-		metricsAdapter.Image.ImageTag = DefaultKarmadaImageVersion
+	if len(metricsAdapter.ImageTag) == 0 {
+		metricsAdapter.ImageTag = DefaultKarmadaImageVersion
 	}
 	if len(metricsAdapter.ImagePullPolicy) == 0 {
 		metricsAdapter.ImagePullPolicy = corev1.PullIfNotPresent

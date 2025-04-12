@@ -70,7 +70,7 @@ func installKarmadaEtcd(client clientset.Interface, name, namespace string, cfg 
 		KarmadaInstanceName:  name,
 		StatefulSetName:      util.KarmadaEtcdName(name),
 		Namespace:            namespace,
-		Image:                cfg.Image.Name(),
+		Image:                cfg.Name(),
 		ImagePullPolicy:      string(cfg.ImagePullPolicy),
 		EtcdClientService:    util.KarmadaEtcdClientName(name),
 		CertsSecretName:      util.EtcdCertSecretName(name),

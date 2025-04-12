@@ -49,7 +49,7 @@ func installKarmadaWebhook(client clientset.Interface, cfg *operatorv1alpha1.Kar
 		KarmadaInstanceName: name,
 		DeploymentName:      util.KarmadaWebhookName(name),
 		Namespace:           namespace,
-		Image:               cfg.Image.Name(),
+		Image:               cfg.Name(),
 		ImagePullPolicy:     string(cfg.ImagePullPolicy),
 		Replicas:            cfg.Replicas,
 		KubeconfigSecret:    util.ComponentKarmadaConfigSecretName(util.KarmadaWebhookName(name)),

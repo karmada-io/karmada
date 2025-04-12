@@ -59,10 +59,10 @@ func (c *CronFHPAController) Reconcile(ctx context.Context, req controllerruntim
 	klog.V(4).Infof("Reconciling CronFederatedHPA %s", req.NamespacedName)
 
 	cronFHPA := &autoscalingv1alpha1.CronFederatedHPA{}
-	if err := c.Client.Get(ctx, req.NamespacedName, cronFHPA); err != nil {
+	if err := c.Get(ctx, req.NamespacedName, cronFHPA); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("Begin to cleanup the cron jobs for CronFederatedHPA:%s", req.NamespacedName)
-			c.CronHandler.StopCronFHPAExecutor(req.NamespacedName.String())
+			c.CronHandler.StopCronFHPAExecutor(req.String())
 			return controllerruntime.Result{}, nil
 		}
 
@@ -72,7 +72,7 @@ func (c *CronFHPAController) Reconcile(ctx context.Context, req controllerruntim
 
 	//  If this CronFederatedHPA is deleting, stop all related cron executors
 	if !cronFHPA.DeletionTimestamp.IsZero() {
-		c.CronHandler.StopCronFHPAExecutor(req.NamespacedName.String())
+		c.CronHandler.StopCronFHPAExecutor(req.String())
 		return controllerruntime.Result{}, nil
 	}
 
@@ -86,11 +86,11 @@ func (c *CronFHPAController) Reconcile(ctx context.Context, req controllerruntim
 	}
 
 	// If scale target is updated, stop all the rule executors, and next steps will create the new executors
-	if c.CronHandler.CronFHPAScaleTargetRefUpdates(req.NamespacedName.String(), cronFHPA.Spec.ScaleTargetRef) {
-		c.CronHandler.StopCronFHPAExecutor(req.NamespacedName.String())
+	if c.CronHandler.CronFHPAScaleTargetRefUpdates(req.String(), cronFHPA.Spec.ScaleTargetRef) {
+		c.CronHandler.StopCronFHPAExecutor(req.String())
 	}
 
-	c.CronHandler.AddCronExecutorIfNotExist(req.NamespacedName.String())
+	c.CronHandler.AddCronExecutorIfNotExist(req.String())
 
 	newRuleSets := sets.New[string]()
 	for _, rule := range cronFHPA.Spec.Rules {
@@ -105,7 +105,7 @@ func (c *CronFHPAController) Reconcile(ctx context.Context, req controllerruntim
 		if newRuleSets.Has(name) {
 			continue
 		}
-		c.CronHandler.StopRuleExecutor(req.NamespacedName.String(), name)
+		c.CronHandler.StopRuleExecutor(req.String(), name)
 		if err = c.removeCronFHPAHistory(ctx, cronFHPA, name); err != nil {
 			return controllerruntime.Result{}, err
 		}

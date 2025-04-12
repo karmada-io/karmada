@@ -65,6 +65,6 @@ func NewCmdAddonsList(parentCommand string) *cobra.Command {
 		},
 	}
 
-	opts.GlobalCommandOptions.AddFlags(cmd.Flags())
+	opts.AddFlags(cmd.Flags())
 	return cmd
 }

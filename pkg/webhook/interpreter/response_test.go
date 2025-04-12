@@ -139,7 +139,7 @@ func TestPatchResponseFromRaw(t *testing.T) {
 				if err != nil {
 					return fmt.Errorf("marshal failure: %v", err)
 				}
-				wantRes.ResourceInterpreterResponse.Patch = expectedPatchJSON
+				wantRes.Patch = expectedPatchJSON
 
 				return nil
 			},

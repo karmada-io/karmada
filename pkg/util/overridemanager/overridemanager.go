@@ -93,7 +93,7 @@ func New(client client.Client, eventRecorder record.EventRecorder) OverrideManag
 
 func (o *overrideManagerImpl) ApplyOverridePolicies(rawObj *unstructured.Unstructured, clusterName string) (*AppliedOverrides, *AppliedOverrides, error) {
 	clusterObj := &clusterv1alpha1.Cluster{}
-	if err := o.Client.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
+	if err := o.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
 		klog.Errorf("Failed to get member cluster: %s, error: %v", clusterName, err)
 		return nil, nil, err
 	}
@@ -127,7 +127,7 @@ func (o *overrideManagerImpl) ApplyOverridePolicies(rawObj *unstructured.Unstruc
 func (o *overrideManagerImpl) applyClusterOverrides(rawObj *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) (*AppliedOverrides, error) {
 	// get all cluster-scoped override policies
 	policyList := &policyv1alpha1.ClusterOverridePolicyList{}
-	if err := o.Client.List(context.TODO(), policyList, &client.ListOptions{}); err != nil {
+	if err := o.List(context.TODO(), policyList, &client.ListOptions{}); err != nil {
 		klog.Errorf("Failed to list cluster override policies, error: %v", err)
 		return nil, err
 	}
@@ -150,11 +150,11 @@ func (o *overrideManagerImpl) applyClusterOverrides(rawObj *unstructured.Unstruc
 	for _, p := range matchingPolicyOverriders {
 		if err := applyPolicyOverriders(rawObj, p.overriders); err != nil {
 			klog.Errorf("Failed to apply cluster overrides(%s) for resource(%s/%s), error: %v", p.name, rawObj.GetNamespace(), rawObj.GetName(), err)
-			o.EventRecorder.Eventf(rawObj, corev1.EventTypeWarning, events.EventReasonApplyOverridePolicyFailed, "Apply cluster override policy(%s) for cluster(%s) failed.", p.name, cluster.Name)
+			o.Eventf(rawObj, corev1.EventTypeWarning, events.EventReasonApplyOverridePolicyFailed, "Apply cluster override policy(%s) for cluster(%s) failed.", p.name, cluster.Name)
 			return nil, err
 		}
 		klog.V(2).Infof("Applied cluster overrides(%s) for resource(%s/%s)", p.name, rawObj.GetNamespace(), rawObj.GetName())
-		o.EventRecorder.Eventf(rawObj, corev1.EventTypeNormal, events.EventReasonApplyOverridePolicySucceed, "Apply cluster override policy(%s) for cluster(%s) succeed.", p.name, cluster.Name)
+		o.Eventf(rawObj, corev1.EventTypeNormal, events.EventReasonApplyOverridePolicySucceed, "Apply cluster override policy(%s) for cluster(%s) succeed.", p.name, cluster.Name)
 		appliedList.Add(p.name, p.overriders)
 	}
 
@@ -165,7 +165,7 @@ func (o *overrideManagerImpl) applyClusterOverrides(rawObj *unstructured.Unstruc
 func (o *overrideManagerImpl) applyNamespacedOverrides(rawObj *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) (*AppliedOverrides, error) {
 	// get all namespace-scoped override policies
 	policyList := &policyv1alpha1.OverridePolicyList{}
-	if err := o.Client.List(context.TODO(), policyList, &client.ListOptions{Namespace: rawObj.GetNamespace()}); err != nil {
+	if err := o.List(context.TODO(), policyList, &client.ListOptions{Namespace: rawObj.GetNamespace()}); err != nil {
 		klog.Errorf("Failed to list override policies from namespace: %s, error: %v", rawObj.GetNamespace(), err)
 		return nil, err
 	}
@@ -188,11 +188,11 @@ func (o *overrideManagerImpl) applyNamespacedOverrides(rawObj *unstructured.Unst
 	for _, p := range matchingPolicyOverriders {
 		if err := applyPolicyOverriders(rawObj, p.overriders); err != nil {
 			klog.Errorf("Failed to apply overrides(%s/%s) for resource(%s/%s), error: %v", p.namespace, p.name, rawObj.GetNamespace(), rawObj.GetName(), err)
-			o.EventRecorder.Eventf(rawObj, corev1.EventTypeWarning, events.EventReasonApplyOverridePolicyFailed, "Apply override policy(%s/%s) for cluster(%s) failed.", p.namespace, p.name, cluster.Name)
+			o.Eventf(rawObj, corev1.EventTypeWarning, events.EventReasonApplyOverridePolicyFailed, "Apply override policy(%s/%s) for cluster(%s) failed.", p.namespace, p.name, cluster.Name)
 			return nil, err
 		}
 		klog.V(2).Infof("Applied overrides(%s/%s) for resource(%s/%s)", p.namespace, p.name, rawObj.GetNamespace(), rawObj.GetName())
-		o.EventRecorder.Eventf(rawObj, corev1.EventTypeNormal, events.EventReasonApplyOverridePolicySucceed, "Apply override policy(%s/%s) for cluster(%s) succeed.", p.namespace, p.name, cluster.Name)
+		o.Eventf(rawObj, corev1.EventTypeNormal, events.EventReasonApplyOverridePolicySucceed, "Apply override policy(%s/%s) for cluster(%s) succeed.", p.namespace, p.name, cluster.Name)
 		appliedList.Add(p.name, p.overriders)
 	}
 

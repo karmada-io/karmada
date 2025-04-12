@@ -150,9 +150,9 @@ func TestStopRuleExecutor(t *testing.T) {
 	}
 	_, err := handler.cronExecutorMap[cronFHPAKey][ruleName].Scheduler.Every(1).Minute().Do(func() {})
 	assert.NoError(t, err)
-	handler.cronExecutorMap[cronFHPAKey][ruleName].Scheduler.StartAsync()
+	handler.cronExecutorMap[cronFHPAKey][ruleName].StartAsync()
 
-	assert.True(t, handler.cronExecutorMap[cronFHPAKey][ruleName].Scheduler.IsRunning())
+	assert.True(t, handler.cronExecutorMap[cronFHPAKey][ruleName].IsRunning())
 
 	handler.StopRuleExecutor(cronFHPAKey, ruleName)
 
@@ -181,11 +181,11 @@ func TestStopCronFHPAExecutor(t *testing.T) {
 	_, err = handler.cronExecutorMap[cronFHPAKey][ruleName2].Scheduler.Every(1).Minute().Do(func() {})
 	assert.NoError(t, err)
 
-	handler.cronExecutorMap[cronFHPAKey][ruleName1].Scheduler.StartAsync()
-	handler.cronExecutorMap[cronFHPAKey][ruleName2].Scheduler.StartAsync()
+	handler.cronExecutorMap[cronFHPAKey][ruleName1].StartAsync()
+	handler.cronExecutorMap[cronFHPAKey][ruleName2].StartAsync()
 
-	assert.True(t, handler.cronExecutorMap[cronFHPAKey][ruleName1].Scheduler.IsRunning())
-	assert.True(t, handler.cronExecutorMap[cronFHPAKey][ruleName2].Scheduler.IsRunning())
+	assert.True(t, handler.cronExecutorMap[cronFHPAKey][ruleName1].IsRunning())
+	assert.True(t, handler.cronExecutorMap[cronFHPAKey][ruleName2].IsRunning())
 
 	handler.StopCronFHPAExecutor(cronFHPAKey)
 
@@ -253,12 +253,12 @@ func TestCreateCronJobForExecutor(t *testing.T) {
 				assert.Contains(t, handler.cronExecutorMap[cronFHPAKey], tt.rule.Name)
 				ruleCron := handler.cronExecutorMap[cronFHPAKey][tt.rule.Name]
 				assert.NotNil(t, ruleCron.Scheduler)
-				assert.True(t, ruleCron.Scheduler.IsRunning())
+				assert.True(t, ruleCron.IsRunning())
 			}
 
 			// Clean up
 			if !tt.wantErr {
-				handler.cronExecutorMap[cronFHPAKey][tt.rule.Name].Scheduler.Stop()
+				handler.cronExecutorMap[cronFHPAKey][tt.rule.Name].Stop()
 			}
 		})
 	}
@@ -294,5 +294,5 @@ func TestGetRuleNextExecuteTime(t *testing.T) {
 	_, err = handler.GetRuleNextExecuteTime(cronFHPA, "non-existent-rule")
 	assert.Error(t, err)
 
-	handler.cronExecutorMap[cronFHPAKey][rule.Name].Scheduler.Stop()
+	handler.cronExecutorMap[cronFHPAKey][rule.Name].Stop()
 }

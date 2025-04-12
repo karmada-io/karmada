@@ -119,8 +119,8 @@ func NewCmdInterpret(f util.Factory, parentCommand string, streams genericioopti
 
 	flags := cmd.Flags()
 	options.AddKubeConfigFlags(flags)
-	o.EditOptions.RecordFlags.AddFlags(cmd)
-	o.EditOptions.PrintFlags.AddFlags(cmd)
+	o.RecordFlags.AddFlags(cmd)
+	o.PrintFlags.AddFlags(cmd)
 	flags.StringVar(&o.Operation, "operation", o.Operation, "The interpret operation to use. One of: ("+strings.Join(o.Rules.Names(), ",")+")")
 	flags.BoolVar(&o.Check, "check", false, "Validates the given ResourceInterpreterCustomization configuration(s)")
 	flags.BoolVar(&o.Edit, "edit", false, "Edit customizations")
@@ -129,8 +129,8 @@ func NewCmdInterpret(f util.Factory, parentCommand string, streams genericioopti
 	flags.StringVar(&o.ObservedFile, "observed-file", o.ObservedFile, "Filename, directory, or URL to files identifying the resource to use as observedObj argument in rule script.")
 	flags.StringVar(&o.StatusFile, "status-file", o.StatusFile, "Filename, directory, or URL to files identifying the resource to use as statusItems argument in rule script.")
 	flags.Int32Var(&o.DesiredReplica, "desired-replica", o.DesiredReplica, "The desiredReplica argument in rule script.")
-	cmdutil.AddJsonFilenameFlag(flags, &o.FilenameOptions.Filenames, "Filename, directory, or URL to files containing the customizations")
-	flags.BoolVarP(&o.FilenameOptions.Recursive, "recursive", "R", false, "Process the directory used in -f, --filename recursively. Useful when you want to manage related manifests organized within the same directory.")
+	cmdutil.AddJsonFilenameFlag(flags, &o.Filenames, "Filename, directory, or URL to files containing the customizations")
+	flags.BoolVarP(&o.Recursive, "recursive", "R", false, "Process the directory used in -f, --filename recursively. Useful when you want to manage related manifests organized within the same directory.")
 
 	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(cmd)
 	return cmd

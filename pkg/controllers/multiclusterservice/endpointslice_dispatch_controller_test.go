@@ -676,11 +676,11 @@ func TestEnsureEndpointSliceWork(t *testing.T) {
 					}, createdWork)
 					assert.NoError(t, err)
 
-					assert.Equal(t, tt.expectedWork.ObjectMeta.Name, createdWork.ObjectMeta.Name)
-					assert.Equal(t, tt.expectedWork.ObjectMeta.Namespace, createdWork.ObjectMeta.Namespace)
-					assert.Equal(t, tt.expectedWork.ObjectMeta.Finalizers, createdWork.ObjectMeta.Finalizers)
-					assert.Equal(t, tt.expectedWork.ObjectMeta.Annotations, createdWork.ObjectMeta.Annotations)
-					assert.Equal(t, tt.expectedWork.ObjectMeta.Labels, createdWork.ObjectMeta.Labels)
+					assert.Equal(t, tt.expectedWork.Name, createdWork.Name)
+					assert.Equal(t, tt.expectedWork.Namespace, createdWork.Namespace)
+					assert.Equal(t, tt.expectedWork.Finalizers, createdWork.Finalizers)
+					assert.Equal(t, tt.expectedWork.Annotations, createdWork.Annotations)
+					assert.Equal(t, tt.expectedWork.Labels, createdWork.Labels)
 
 					// Comparing manifests
 					assert.Equal(t, len(tt.expectedWork.Spec.Workload.Manifests), len(createdWork.Spec.Workload.Manifests))
@@ -766,13 +766,13 @@ func TestCleanupEndpointSliceFromConsumerClusters(t *testing.T) {
 				// Check if works are deleted
 				for _, obj := range tt.existingObjs {
 					work := obj.(*workv1alpha1.Work)
-					err := c.Client.Get(context.Background(), types.NamespacedName{Namespace: work.Namespace, Name: work.Name}, &workv1alpha1.Work{})
+					err := c.Get(context.Background(), types.NamespacedName{Namespace: work.Namespace, Name: work.Name}, &workv1alpha1.Work{})
 					assert.True(t, client.IgnoreNotFound(err) == nil)
 				}
 
 				// Check if the finalizer is removed
 				updatedWork := &workv1alpha1.Work{}
-				err := c.Client.Get(context.Background(), types.NamespacedName{Namespace: tt.inputWork.Namespace, Name: tt.inputWork.Name}, updatedWork)
+				err := c.Get(context.Background(), types.NamespacedName{Namespace: tt.inputWork.Namespace, Name: tt.inputWork.Name}, updatedWork)
 				assert.NoError(t, err)
 				assert.NotContains(t, updatedWork.Finalizers, util.MCSEndpointSliceDispatchControllerFinalizer)
 			}

@@ -154,7 +154,7 @@ func TestResourceBindingController_Reconcile(t *testing.T) {
 			}
 			if tt.rb != nil {
 				// Add a rb to the fake client.
-				if err := c.Client.Create(context.Background(), tt.rb); err != nil {
+				if err := c.Create(context.Background(), tt.rb); err != nil {
 					t.Fatalf("Failed to create rb: %v", err)
 				}
 			}
@@ -362,7 +362,7 @@ func TestResourceBindingController_newOverridePolicyFunc(t *testing.T) {
 			}
 
 			if tt.rb != nil {
-				if err := c.Client.Create(context.Background(), tt.rb); err != nil {
+				if err := c.Create(context.Background(), tt.rb); err != nil {
 					t.Errorf("create rb %v", err)
 					return
 				}
@@ -430,7 +430,7 @@ func TestResourceBindingController_removeFinalizer(t *testing.T) {
 			}
 
 			if tt.create && tt.rb != nil {
-				if err := c.Client.Create(context.Background(), tt.rb); err != nil {
+				if err := c.Create(context.Background(), tt.rb); err != nil {
 					t.Fatalf("Failed to create ClusterResourceBinding: %v", err)
 				}
 			}

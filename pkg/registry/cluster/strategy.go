@@ -48,7 +48,7 @@ func GetAttrs(obj runtime.Object) (labels.Set, fields.Set, error) {
 	if !ok {
 		return nil, nil, fmt.Errorf("given object is not a Cluster")
 	}
-	return cluster.ObjectMeta.Labels, SelectableFields(cluster), nil
+	return cluster.Labels, SelectableFields(cluster), nil
 }
 
 // MatchCluster is the filter used by the generic etcd backend to watch events

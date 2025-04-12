@@ -77,7 +77,7 @@ func (v *URLVisitor) Visit(fn VisitorFunc) error {
 		return err
 	}
 	defer body.Close()
-	v.StreamVisitor.Reader = body
+	v.Reader = body
 	return v.StreamVisitor.Visit(fn)
 }
 
@@ -161,7 +161,7 @@ func (v *FileVisitor) Visit(fn VisitorFunc) error {
 	// TODO: Consider adding a flag to force to UTF16, apparently some
 	// Windows tools don't write the BOM
 	utf16bom := unicode.BOMOverride(unicode.UTF8.NewDecoder())
-	v.StreamVisitor.Reader = transform.NewReader(f, utf16bom)
+	v.Reader = transform.NewReader(f, utf16bom)
 
 	return v.StreamVisitor.Visit(fn)
 }

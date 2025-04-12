@@ -122,10 +122,10 @@ func TestClusterStatusController_Reconcile(t *testing.T) {
 
 			if tt.cluster != nil {
 				// Add a cluster to the fake client.
-				tt.cluster.ObjectMeta.Name = tt.clusterName
+				tt.cluster.Name = tt.clusterName
 				c.Client = fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithStatusSubresource(tt.cluster).Build()
 
-				if err := c.Client.Create(context.Background(), tt.cluster); err != nil {
+				if err := c.Create(context.Background(), tt.cluster); err != nil {
 					t.Fatalf("Failed to create cluster: %v", err)
 				}
 			}
@@ -225,7 +225,7 @@ func TestClusterStatusController_syncClusterStatus(t *testing.T) {
 			ClusterClientSetFunc:        clusterClientSetFuncWithError,
 			ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 		}
-		if err := c.Client.Create(context.Background(), cluster); err != nil {
+		if err := c.Create(context.Background(), cluster); err != nil {
 			t.Fatalf("Failed to create cluster: %v", err)
 		}
 		err := c.syncClusterStatus(context.Background(), cluster)
@@ -269,7 +269,7 @@ func TestClusterStatusController_syncClusterStatus(t *testing.T) {
 			ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 		}
 
-		if err := c.Client.Create(context.Background(), cluster); err != nil {
+		if err := c.Create(context.Background(), cluster); err != nil {
 			t.Fatalf("Failed to create cluster: %v", err)
 		}
 
@@ -315,7 +315,7 @@ func TestClusterStatusController_syncClusterStatus(t *testing.T) {
 			ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 		}
 
-		if err := c.Client.Create(context.Background(), cluster); err != nil {
+		if err := c.Create(context.Background(), cluster); err != nil {
 			t.Fatalf("Failed to create cluster: %v", err)
 		}
 		err := c.syncClusterStatus(context.Background(), cluster)

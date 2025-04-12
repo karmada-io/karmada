@@ -179,10 +179,10 @@ func (n *clusterHealthData) deepCopy() *clusterHealthData {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling cluster %s", req.NamespacedName.Name)
+	klog.V(4).Infof("Reconciling cluster %s", req.Name)
 
 	cluster := &clusterv1alpha1.Cluster{}
-	if err := c.Client.Get(ctx, req.NamespacedName, cluster); err != nil {
+	if err := c.Get(ctx, req.NamespacedName, cluster); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
@@ -324,7 +324,7 @@ func (c *Controller) removeExecutionSpace(ctx context.Context, cluster *clusterv
 			return err
 		}
 	}
-	if err := c.Client.Delete(ctx, executionSpaceObj); err != nil && !apierrors.IsNotFound(err) {
+	if err := c.Delete(ctx, executionSpaceObj); err != nil && !apierrors.IsNotFound(err) {
 		klog.Errorf("Error while deleting namespace %s: %s", executionSpaceName, err)
 		return err
 	}
@@ -337,7 +337,7 @@ func (c *Controller) ExecutionSpaceExistForCluster(ctx context.Context, clusterN
 	executionSpaceName := names.GenerateExecutionSpaceName(clusterName)
 
 	executionSpaceObj := &corev1.Namespace{}
-	err := c.Client.Get(ctx, types.NamespacedName{Name: executionSpaceName}, executionSpaceObj)
+	err := c.Get(ctx, types.NamespacedName{Name: executionSpaceName}, executionSpaceObj)
 	if apierrors.IsNotFound(err) {
 		klog.V(2).Infof("Execution space(%s) no longer exists", executionSpaceName)
 		return false, nil
@@ -352,7 +352,7 @@ func (c *Controller) ExecutionSpaceExistForCluster(ctx context.Context, clusterN
 // Delete finalizers of work objects
 func (c *Controller) deleteFinalizerForWorks(ctx context.Context, workSpace *corev1.Namespace) error {
 	workList := &workv1alpha1.WorkList{}
-	err := c.Client.List(ctx, workList, &client.ListOptions{
+	err := c.List(ctx, workList, &client.ListOptions{
 		Namespace: workSpace.Name,
 	})
 	if err != nil {
@@ -377,7 +377,7 @@ func (c *Controller) removeWorkFinalizer(work *workv1alpha1.Work) error {
 	}
 
 	controllerutil.RemoveFinalizer(work, util.ExecutionControllerFinalizer)
-	err := c.Client.Update(context.TODO(), work)
+	err := c.Update(context.TODO(), work)
 
 	return err
 }
@@ -388,7 +388,7 @@ func (c *Controller) removeFinalizer(ctx context.Context, cluster *clusterv1alph
 	}
 
 	controllerutil.RemoveFinalizer(cluster, util.ClusterControllerFinalizer)
-	err := c.Client.Update(ctx, cluster)
+	err := c.Update(ctx, cluster)
 	if err != nil {
 		return controllerruntime.Result{}, err
 	}
@@ -402,7 +402,7 @@ func (c *Controller) ensureFinalizer(ctx context.Context, cluster *clusterv1alph
 	}
 
 	controllerutil.AddFinalizer(cluster, util.ClusterControllerFinalizer)
-	err := c.Client.Update(ctx, cluster)
+	err := c.Update(ctx, cluster)
 	if err != nil {
 		return controllerruntime.Result{}, err
 	}
@@ -416,7 +416,7 @@ func (c *Controller) createExecutionSpace(ctx context.Context, cluster *clusterv
 
 	// create member cluster execution space when member cluster joined
 	executionSpaceObj := &corev1.Namespace{}
-	err := c.Client.Get(ctx, types.NamespacedName{Name: executionSpaceName}, executionSpaceObj)
+	err := c.Get(ctx, types.NamespacedName{Name: executionSpaceName}, executionSpaceObj)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			klog.Errorf("Failed to get namespace(%s): %v", executionSpaceName, err)
@@ -432,7 +432,7 @@ func (c *Controller) createExecutionSpace(ctx context.Context, cluster *clusterv
 				},
 			},
 		}
-		err = c.Client.Create(ctx, executionSpace)
+		err = c.Create(ctx, executionSpace)
 		if err != nil {
 			klog.Errorf("Failed to create execution space for cluster(%s): %v", cluster.Name, err)
 			return err
@@ -447,7 +447,7 @@ func (c *Controller) createExecutionSpace(ctx context.Context, cluster *clusterv
 
 func (c *Controller) monitorClusterHealth(ctx context.Context) (err error) {
 	clusterList := &clusterv1alpha1.ClusterList{}
-	if err = c.Client.List(ctx, clusterList); err != nil {
+	if err = c.List(ctx, clusterList); err != nil {
 		return err
 	}
 
@@ -563,7 +563,7 @@ func (c *Controller) tryUpdateClusterHealth(ctx context.Context, cluster *cluste
 	// Note: If cluster-status-controller never posted the cluster status, but continues renewing the
 	// heartbeat leases, the cluster controller will assume the cluster is healthy and take no action.
 	observedLease := &coordinationv1.Lease{}
-	err := c.Client.Get(ctx, client.ObjectKey{Namespace: util.NamespaceClusterLease, Name: cluster.Name}, observedLease)
+	err := c.Get(ctx, client.ObjectKey{Namespace: util.NamespaceClusterLease, Name: cluster.Name}, observedLease)
 	if err == nil && (savedLease == nil || savedLease.Spec.RenewTime.Before(observedLease.Spec.RenewTime)) {
 		clusterHealth.lease = observedLease
 		clusterHealth.probeTimestamp = metav1.Now()
@@ -590,7 +590,7 @@ func (c *Controller) tryUpdateClusterHealth(ctx context.Context, cluster *cluste
 				})
 			} else {
 				klog.V(2).Infof("Cluster %v hasn't been updated for %+v. Last %v is: %+v",
-					cluster.Name, metav1.Now().Time.Sub(clusterHealth.probeTimestamp.Time), clusterConditionType, currentCondition)
+					cluster.Name, metav1.Now().Sub(clusterHealth.probeTimestamp.Time), clusterConditionType, currentCondition)
 				if currentCondition.Status != metav1.ConditionUnknown {
 					currentCondition.Status = metav1.ConditionUnknown
 					currentCondition.Reason = "ClusterStatusUnknown"
@@ -688,7 +688,7 @@ func (c *Controller) updateClusterTaints(ctx context.Context, taintsToAdd, taint
 
 	cluster = cluster.DeepCopy()
 	cluster.Spec.Taints = taints
-	err := c.Client.Update(ctx, cluster)
+	err := c.Update(ctx, cluster)
 	if err != nil {
 		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, events.EventReasonTaintClusterFailed, err.Error())
 		return err

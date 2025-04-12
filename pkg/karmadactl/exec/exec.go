@@ -106,7 +106,7 @@ func NewCmdExec(f util.Factory, parentCommand string, streams genericiooptions.I
 	options.AddKubeConfigFlags(flags)
 	options.AddNamespaceFlag(flags)
 	cmdutil.AddPodRunningTimeoutFlag(cmd, defaultPodExecTimeout)
-	cmdutil.AddJsonFilenameFlag(flags, &o.KubectlExecOptions.FilenameOptions.Filenames, "to use to exec into the resource")
+	cmdutil.AddJsonFilenameFlag(flags, &o.KubectlExecOptions.Filenames, "to use to exec into the resource")
 	cmdutil.AddContainerVarFlags(cmd, &o.KubectlExecOptions.ContainerName, o.KubectlExecOptions.ContainerName)
 
 	flags.BoolVarP(&o.KubectlExecOptions.Stdin, "stdin", "i", o.KubectlExecOptions.Stdin, "Pass stdin to the container")

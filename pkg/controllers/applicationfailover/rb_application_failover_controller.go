@@ -59,10 +59,10 @@ type RBApplicationFailoverController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *RBApplicationFailoverController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling ResourceBinding %s.", req.NamespacedName.String())
+	klog.V(4).Infof("Reconciling ResourceBinding %s.", req.String())
 
 	binding := &workv1alpha2.ResourceBinding{}
-	if err := c.Client.Get(ctx, req.NamespacedName, binding); err != nil {
+	if err := c.Get(ctx, req.NamespacedName, binding); err != nil {
 		if apierrors.IsNotFound(err) {
 			c.workloadUnhealthyMap.delete(req.NamespacedName)
 			return controllerruntime.Result{}, nil

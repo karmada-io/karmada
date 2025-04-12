@@ -48,7 +48,7 @@ type resourceCache struct {
 
 func (c *resourceCache) stop() {
 	klog.Infof("Stop store for %s %s", c.clusterName, c.resource)
-	go c.Store.DestroyFunc()
+	go c.DestroyFunc()
 }
 
 func newResourceCache(clusterName string, gvr schema.GroupVersionResource, gvk schema.GroupVersionKind, singularName string,

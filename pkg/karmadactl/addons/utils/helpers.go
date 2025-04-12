@@ -43,7 +43,7 @@ var (
 // SimulateNetworkErrorOnOp simulates a network error during the specified
 // operation on a resource by prepending a reactor to the fake client.
 func SimulateNetworkErrorOnOp(c clientset.Interface, operation, resource string) error {
-	c.(*fakeclientset.Clientset).Fake.PrependReactor(operation, resource, func(coretesting.Action) (bool, runtime.Object, error) {
+	c.(*fakeclientset.Clientset).PrependReactor(operation, resource, func(coretesting.Action) (bool, runtime.Object, error) {
 		return true, nil, fmt.Errorf("unexpected error: encountered a network issue while %s the %s", operation, resource)
 	})
 	return nil

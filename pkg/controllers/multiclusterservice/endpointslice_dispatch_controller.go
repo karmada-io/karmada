@@ -66,10 +66,10 @@ type EndpointsliceDispatchController struct {
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 func (c *EndpointsliceDispatchController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling Work %s", req.NamespacedName.String())
+	klog.V(4).Infof("Reconciling Work %s", req.String())
 
 	work := &workv1alpha1.Work{}
-	if err := c.Client.Get(ctx, req.NamespacedName, work); err != nil {
+	if err := c.Get(ctx, req.NamespacedName, work); err != nil {
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
@@ -91,7 +91,7 @@ func (c *EndpointsliceDispatchController) Reconcile(ctx context.Context, req con
 
 	mcsNS := util.GetLabelValue(work.Labels, util.MultiClusterServiceNamespaceLabel)
 	mcs := &networkingv1alpha1.MultiClusterService{}
-	if err := c.Client.Get(ctx, types.NamespacedName{Namespace: mcsNS, Name: mcsName}, mcs); err != nil {
+	if err := c.Get(ctx, types.NamespacedName{Namespace: mcsNS, Name: mcsName}, mcs); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Warningf("MultiClusterService %s/%s is not found", mcsNS, mcsName)
 			return controllerruntime.Result{}, nil
@@ -184,7 +184,7 @@ func (c *EndpointsliceDispatchController) newClusterFunc() handler.MapFunc {
 		}
 
 		mcsList := &networkingv1alpha1.MultiClusterServiceList{}
-		if err := c.Client.List(ctx, mcsList, &client.ListOptions{}); err != nil {
+		if err := c.List(ctx, mcsList, &client.ListOptions{}); err != nil {
 			klog.Errorf("Failed to list MultiClusterService, error: %v", err)
 			return nil
 		}
@@ -223,7 +223,7 @@ func (c *EndpointsliceDispatchController) newClusterFunc() handler.MapFunc {
 
 func (c *EndpointsliceDispatchController) getClusterEndpointSliceWorks(ctx context.Context, mcsNamespace, mcsName string) ([]workv1alpha1.Work, error) {
 	workList := &workv1alpha1.WorkList{}
-	if err := c.Client.List(ctx, workList, &client.ListOptions{
+	if err := c.List(ctx, workList, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
 			util.MultiClusterServiceNameLabel:      mcsName,
 			util.MultiClusterServiceNamespaceLabel: mcsNamespace,
@@ -268,7 +268,7 @@ func (c *EndpointsliceDispatchController) newMultiClusterServiceFunc() handler.M
 
 func (c *EndpointsliceDispatchController) cleanOrphanDispatchedEndpointSlice(ctx context.Context, mcs *networkingv1alpha1.MultiClusterService) error {
 	workList := &workv1alpha1.WorkList{}
-	if err := c.Client.List(ctx, workList, &client.ListOptions{
+	if err := c.List(ctx, workList, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
 			util.MultiClusterServiceNameLabel:      mcs.Name,
 			util.MultiClusterServiceNamespaceLabel: mcs.Namespace,
@@ -299,7 +299,7 @@ func (c *EndpointsliceDispatchController) cleanOrphanDispatchedEndpointSlice(ctx
 			continue
 		}
 
-		if err = c.Client.Delete(ctx, work.DeepCopy()); err != nil {
+		if err = c.Delete(ctx, work.DeepCopy()); err != nil {
 			klog.Errorf("Failed to delete work %s/%s, error is: %v", work.Namespace, work.Name, err)
 			return err
 		}
@@ -412,7 +412,7 @@ func (c *EndpointsliceDispatchController) ensureEndpointSliceWork(ctx context.Co
 func (c *EndpointsliceDispatchController) cleanupEndpointSliceFromConsumerClusters(ctx context.Context, work *workv1alpha1.Work) error {
 	// TBD: There may be a better way without listing all works.
 	workList := &workv1alpha1.WorkList{}
-	err := c.Client.List(ctx, workList)
+	err := c.List(ctx, workList)
 	if err != nil {
 		klog.Errorf("Failed to list works serror: %v", err)
 		return err
@@ -427,13 +427,13 @@ func (c *EndpointsliceDispatchController) cleanupEndpointSliceFromConsumerCluste
 		if item.Name != work.Name || util.GetAnnotationValue(item.Annotations, util.EndpointSliceProvisionClusterAnnotation) != epsSourceCluster {
 			continue
 		}
-		if err := c.Client.Delete(ctx, item.DeepCopy()); err != nil {
+		if err := c.Delete(ctx, item.DeepCopy()); err != nil {
 			return err
 		}
 	}
 
 	if controllerutil.RemoveFinalizer(work, util.MCSEndpointSliceDispatchControllerFinalizer) {
-		if err := c.Client.Update(ctx, work); err != nil {
+		if err := c.Update(ctx, work); err != nil {
 			klog.Errorf("Failed to remove %s finalizer for work %s/%s:%v", util.MCSEndpointSliceDispatchControllerFinalizer, work.Namespace, work.Name, err)
 			return err
 		}

@@ -179,6 +179,6 @@ func (c *CronHandler) GetRuleNextExecuteTime(cronFHPA *autoscalingv1alpha1.CronF
 		return time.Time{}, fmt.Errorf("CronFederatedHPA(%s/%s) rule(%s) not exist", cronFHPA.Namespace, cronFHPA.Name, ruleName)
 	}
 
-	_, next := ruleCron.Scheduler.NextRun()
+	_, next := ruleCron.NextRun()
 	return next, nil
 }

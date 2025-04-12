@@ -49,10 +49,10 @@ type ServiceImportController struct {
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 func (c *ServiceImportController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling ServiceImport %s.", req.NamespacedName.String())
+	klog.V(4).Infof("Reconciling ServiceImport %s.", req.String())
 
 	svcImport := &mcsv1alpha1.ServiceImport{}
-	if err := c.Client.Get(ctx, req.NamespacedName, svcImport); err != nil {
+	if err := c.Get(ctx, req.NamespacedName, svcImport); err != nil {
 		if apierrors.IsNotFound(err) {
 			return c.deleteDerivedService(ctx, req.NamespacedName)
 		}
@@ -87,7 +87,7 @@ func (c *ServiceImportController) deleteDerivedService(ctx context.Context, svcI
 		Namespace: svcImport.Namespace,
 		Name:      names.GenerateDerivedServiceName(svcImport.Name),
 	}
-	err := c.Client.Get(ctx, derivedSvcNamespacedName, derivedSvc)
+	err := c.Get(ctx, derivedSvcNamespacedName, derivedSvc)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
@@ -96,7 +96,7 @@ func (c *ServiceImportController) deleteDerivedService(ctx context.Context, svcI
 		return controllerruntime.Result{}, err
 	}
 
-	err = c.Client.Delete(ctx, derivedSvc)
+	err = c.Delete(ctx, derivedSvc)
 	if err != nil && !apierrors.IsNotFound(err) {
 		klog.Errorf("Delete derived service(%s) failed, Error: %v", derivedSvcNamespacedName, err)
 		return controllerruntime.Result{}, err
@@ -118,13 +118,13 @@ func (c *ServiceImportController) deriveServiceFromServiceImport(ctx context.Con
 	}
 
 	oldDerivedService := &corev1.Service{}
-	err := c.Client.Get(ctx, types.NamespacedName{
+	err := c.Get(ctx, types.NamespacedName{
 		Name:      names.GenerateDerivedServiceName(svcImport.Name),
 		Namespace: svcImport.Namespace,
 	}, oldDerivedService)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			if err = c.Client.Create(ctx, newDerivedService); err != nil {
+			if err = c.Create(ctx, newDerivedService); err != nil {
 				klog.Errorf("Create derived service(%s/%s) failed, Error: %v", newDerivedService.Namespace, newDerivedService.Name, err)
 				return err
 			}
@@ -138,7 +138,7 @@ func (c *ServiceImportController) deriveServiceFromServiceImport(ctx context.Con
 	// retain necessary fields with old service
 	retainServiceFields(oldDerivedService, newDerivedService)
 
-	err = c.Client.Update(ctx, newDerivedService)
+	err = c.Update(ctx, newDerivedService)
 	if err != nil {
 		klog.Errorf("Update derived service(%s/%s) failed, Error: %v", newDerivedService.Namespace, newDerivedService.Name, err)
 		return err

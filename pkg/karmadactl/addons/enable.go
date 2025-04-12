@@ -80,7 +80,7 @@ func NewCmdAddonsEnable(parentCommand string) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	opts.GlobalCommandOptions.AddFlags(flags)
+	opts.AddFlags(flags)
 	flags.StringVarP(&opts.ImageRegistry, "private-image-registry", "", "", "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.")
 	flags.IntVar(&opts.WaitComponentReadyTimeout, "pod-timeout", options.WaitComponentReadyTimeout, "Wait pod ready timeout.")
 	flags.IntVar(&opts.WaitAPIServiceReadyTimeout, "apiservice-timeout", 30, "Wait apiservice ready timeout.")

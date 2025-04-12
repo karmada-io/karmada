@@ -49,7 +49,7 @@ func installKarmadaMetricAdapter(client clientset.Interface, cfg *operatorv1alph
 		KarmadaInstanceName: name,
 		DeploymentName:      util.KarmadaMetricsAdapterName(name),
 		Namespace:           namespace,
-		Image:               cfg.Image.Name(),
+		Image:               cfg.Name(),
 		ImagePullPolicy:     string(cfg.ImagePullPolicy),
 		Replicas:            cfg.Replicas,
 		KubeconfigSecret:    util.ComponentKarmadaConfigSecretName(util.KarmadaMetricsAdapterName(name)),

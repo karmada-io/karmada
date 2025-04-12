@@ -118,7 +118,7 @@ func TestRunUnJoinCluster(t *testing.T) {
 			clusterConfig:          &rest.Config{},
 			karmadaClient:          fakekarmadaclient.NewSimpleClientset(),
 			prep: func(_ kubeclient.Interface, _ kubeclient.Interface, karmadaClient karmadaclientset.Interface, _ *CommandUnjoinOption) error {
-				karmadaClient.(*fakekarmadaclient.Clientset).Fake.PrependReactor("get", "clusters", func(coretesting.Action) (bool, runtime.Object, error) {
+				karmadaClient.(*fakekarmadaclient.Clientset).PrependReactor("get", "clusters", func(coretesting.Action) (bool, runtime.Object, error) {
 					return true, &clusterv1alpha1.Cluster{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "member1",
@@ -146,7 +146,7 @@ func TestRunUnJoinCluster(t *testing.T) {
 			clusterConfig:          &rest.Config{},
 			karmadaClient:          fakekarmadaclient.NewSimpleClientset(),
 			prep: func(_ kubeclient.Interface, _ kubeclient.Interface, karmadaClient karmadaclientset.Interface, _ *CommandUnjoinOption) error {
-				karmadaClient.(*fakekarmadaclient.Clientset).Fake.PrependReactor("get", "clusters", func(coretesting.Action) (bool, runtime.Object, error) {
+				karmadaClient.(*fakekarmadaclient.Clientset).PrependReactor("get", "clusters", func(coretesting.Action) (bool, runtime.Object, error) {
 					return true, &clusterv1alpha1.Cluster{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "member1",
@@ -156,7 +156,7 @@ func TestRunUnJoinCluster(t *testing.T) {
 						},
 					}, nil
 				})
-				karmadaClient.(*fakekarmadaclient.Clientset).Fake.PrependReactor("delete", "clusters", func(coretesting.Action) (bool, runtime.Object, error) {
+				karmadaClient.(*fakekarmadaclient.Clientset).PrependReactor("delete", "clusters", func(coretesting.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("unexpected error: encountered a network issue while deleting the clusters")
 				})
 				controlPlaneKarmadaClientBuilder = func(*rest.Config) karmadaclientset.Interface {

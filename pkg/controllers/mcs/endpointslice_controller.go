@@ -54,10 +54,10 @@ type EndpointSliceController struct {
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 func (c *EndpointSliceController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling Work %s.", req.NamespacedName.String())
+	klog.V(4).Infof("Reconciling Work %s.", req.String())
 
 	work := &workv1alpha1.Work{}
-	if err := c.Client.Get(ctx, req.NamespacedName, work); err != nil {
+	if err := c.Get(ctx, req.NamespacedName, work); err != nil {
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
@@ -96,7 +96,7 @@ func (c *EndpointSliceController) removeFinalizer(ctx context.Context, work *wor
 	if !controllerutil.RemoveFinalizer(work, util.EndpointSliceControllerFinalizer) {
 		return nil
 	}
-	return c.Client.Update(ctx, work)
+	return c.Update(ctx, work)
 }
 
 // SetupWithManager creates a controller and register to controller manager.

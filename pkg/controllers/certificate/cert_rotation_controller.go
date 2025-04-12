@@ -87,12 +87,12 @@ type CertRotationController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *CertRotationController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Rotating the certificate of karmada-agent for the member cluster: %s", req.NamespacedName.Name)
+	klog.V(4).Infof("Rotating the certificate of karmada-agent for the member cluster: %s", req.Name)
 
 	var err error
 
 	cluster := &clusterv1alpha1.Cluster{}
-	if err := c.Client.Get(ctx, req.NamespacedName, cluster); err != nil {
+	if err := c.Get(ctx, req.NamespacedName, cluster); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil

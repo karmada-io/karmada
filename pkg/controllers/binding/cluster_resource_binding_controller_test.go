@@ -163,13 +163,13 @@ func TestClusterResourceBindingController_Reconcile(t *testing.T) {
 			}
 
 			if tt.crb != nil {
-				if err := c.Client.Create(context.Background(), tt.crb); err != nil {
+				if err := c.Create(context.Background(), tt.crb); err != nil {
 					t.Fatalf("Failed to create ClusterResourceBinding: %v", err)
 				}
 			}
 
 			if tt.del {
-				if err := c.Client.Delete(context.Background(), tt.crb); err != nil {
+				if err := c.Delete(context.Background(), tt.crb); err != nil {
 					t.Fatalf("Failed to delete ClusterResourceBinding: %v", err)
 				}
 			}
@@ -239,7 +239,7 @@ func TestClusterResourceBindingController_removeFinalizer(t *testing.T) {
 			}
 
 			if tt.create && tt.crb != nil {
-				if err := c.Client.Create(context.Background(), tt.crb); err != nil {
+				if err := c.Create(context.Background(), tt.crb); err != nil {
 					t.Fatalf("Failed to create ClusterResourceBinding: %v", err)
 				}
 			}
@@ -426,7 +426,7 @@ func TestClusterResourceBindingController_newOverridePolicyFunc(t *testing.T) {
 			}
 
 			if tt.crb != nil {
-				if err := c.Client.Create(context.Background(), tt.crb); err != nil {
+				if err := c.Create(context.Background(), tt.crb); err != nil {
 					t.Fatalf("Failed to create ClusterResourceBinding: %v", err)
 				}
 			}

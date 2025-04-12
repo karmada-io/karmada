@@ -62,7 +62,7 @@ func (c *CRBApplicationFailoverController) Reconcile(ctx context.Context, req co
 	klog.V(4).Infof("Reconciling ClusterResourceBinding %s.", req.Name)
 
 	binding := &workv1alpha2.ClusterResourceBinding{}
-	if err := c.Client.Get(ctx, req.NamespacedName, binding); err != nil {
+	if err := c.Get(ctx, req.NamespacedName, binding); err != nil {
 		if apierrors.IsNotFound(err) {
 			c.workloadUnhealthyMap.delete(req.NamespacedName)
 			return controllerruntime.Result{}, nil

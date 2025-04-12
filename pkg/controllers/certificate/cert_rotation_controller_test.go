@@ -138,7 +138,7 @@ func TestCertRotationController_Reconcile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := makeFakeCertRotationController(0)
 			if tt.del {
-				if err := c.Client.Delete(context.Background(), tt.cluster); err != nil {
+				if err := c.Delete(context.Background(), tt.cluster); err != nil {
 					t.Fatalf("delete cluster failed, error %v", err)
 				}
 			}

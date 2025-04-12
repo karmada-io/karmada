@@ -144,8 +144,8 @@ func verifyRestConfig(restConfig *rest.Config, caCert string) error {
 	if err != nil {
 		return fmt.Errorf("failed to decode ca certificate, got error: %v", err)
 	}
-	if !bytes.Equal(restConfig.TLSClientConfig.CAData, caCertDecoded) {
-		return fmt.Errorf("expected ca cert bytes %v to be %v", restConfig.TLSClientConfig.CAData, caCertDecoded)
+	if !bytes.Equal(restConfig.CAData, caCertDecoded) {
+		return fmt.Errorf("expected ca cert bytes %v to be %v", restConfig.CAData, caCertDecoded)
 	}
 
 	return nil

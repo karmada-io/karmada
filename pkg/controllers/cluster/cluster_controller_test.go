@@ -455,7 +455,7 @@ func TestController_monitorClusterHealth(t *testing.T) {
 
 // cleanUpCluster removes unnecessary fields from Cluster resource for testing purposes.
 func cleanUpCluster(c *clusterv1alpha1.Cluster) {
-	c.ObjectMeta.ResourceVersion = ""
+	c.ResourceVersion = ""
 
 	taints := []corev1.Taint{}
 	for _, taint := range c.Spec.Taints {

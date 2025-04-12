@@ -126,5 +126,5 @@ func (o *CommandAPIResourcesOptions) Validate() error {
 
 // Run does the work
 func (o *CommandAPIResourcesOptions) Run() error {
-	return o.APIResourceOptions.RunAPIResources()
+	return o.RunAPIResources()
 }

@@ -181,7 +181,7 @@ func config(o *options.Options, outOfTreeRegistryOptions ...Option) (*search.Con
 	}
 
 	serverConfig.ClientConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(o.KubeAPIQPS, o.KubeAPIBurst)
-	serverConfig.Config.EffectiveVersion = utilversion.NewEffectiveVersion("1.0")
+	serverConfig.EffectiveVersion = utilversion.NewEffectiveVersion("1.0")
 
 	httpClient, err := rest.HTTPClientFor(serverConfig.ClientConfig)
 	if err != nil {
@@ -217,7 +217,7 @@ func config(o *options.Options, outOfTreeRegistryOptions ...Option) (*search.Con
 			RestMapper:                   restMapper,
 			KubeFactory:                  serverConfig.SharedInformerFactory,
 			KarmadaFactory:               factory,
-			MinRequestTimeout:            time.Second * time.Duration(serverConfig.Config.MinRequestTimeout),
+			MinRequestTimeout:            time.Second * time.Duration(serverConfig.MinRequestTimeout),
 			StorageInitializationTimeout: serverConfig.StorageInitializationTimeout,
 			OutOfTreeRegistry:            outOfTreeRegistry,
 		})

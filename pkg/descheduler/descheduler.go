@@ -208,7 +208,7 @@ func (d *Descheduler) worker(key util.QueueKey) error {
 func (d *Descheduler) updateScheduleResult(h *core.SchedulingResultHelper) error {
 	unschedulableSum := int32(0)
 	message := descheduleSuccessMessage
-	binding := h.ResourceBinding.DeepCopy()
+	binding := h.DeepCopy()
 	for i, cluster := range h.TargetClusters {
 		if cluster.Unschedulable > 0 && cluster.Spec >= cluster.Unschedulable {
 			target := cluster.Spec - cluster.Unschedulable

@@ -115,11 +115,11 @@ func TestHandleMultiClusterServiceDelete(t *testing.T) {
 			assert.NoError(t, err)
 
 			updatedService := &corev1.Service{}
-			err = controller.Client.Get(context.Background(), types.NamespacedName{Namespace: tt.mcs.Namespace, Name: tt.mcs.Name}, updatedService)
+			err = controller.Get(context.Background(), types.NamespacedName{Namespace: tt.mcs.Namespace, Name: tt.mcs.Name}, updatedService)
 			assert.NoError(t, err)
 
 			updatedRB := &workv1alpha2.ResourceBinding{}
-			err = controller.Client.Get(context.Background(), types.NamespacedName{Namespace: tt.mcs.Namespace, Name: "service-" + tt.mcs.Name}, updatedRB)
+			err = controller.Get(context.Background(), types.NamespacedName{Namespace: tt.mcs.Namespace, Name: "service-" + tt.mcs.Name}, updatedRB)
 			assert.NoError(t, err)
 
 			assert.Equal(t, tt.expectedServiceLabels, updatedService.Labels)
@@ -128,7 +128,7 @@ func TestHandleMultiClusterServiceDelete(t *testing.T) {
 			assert.Equal(t, tt.expectedRBAnnotations, updatedRB.Annotations)
 
 			updatedMCS := &networkingv1alpha1.MultiClusterService{}
-			err = controller.Client.Get(context.Background(), types.NamespacedName{Namespace: tt.mcs.Namespace, Name: tt.mcs.Name}, updatedMCS)
+			err = controller.Get(context.Background(), types.NamespacedName{Namespace: tt.mcs.Namespace, Name: tt.mcs.Name}, updatedMCS)
 			assert.NoError(t, err)
 			assert.NotContains(t, updatedMCS.Finalizers, util.MCSControllerFinalizer)
 		})
@@ -246,7 +246,7 @@ func TestRetrieveMultiClusterService(t *testing.T) {
 			assert.NoError(t, err)
 
 			workList := &workv1alpha1.WorkList{}
-			err = controller.Client.List(context.Background(), workList)
+			err = controller.List(context.Background(), workList)
 			assert.NoError(t, err)
 
 			assert.Equal(t, tt.expectedWorks, len(workList.Items))
@@ -479,7 +479,7 @@ func TestPropagateMultiClusterService(t *testing.T) {
 			assert.NoError(t, err)
 
 			workList := &workv1alpha1.WorkList{}
-			err = controller.Client.List(context.Background(), workList)
+			err = controller.List(context.Background(), workList)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedWorks, len(workList.Items))
 
@@ -700,7 +700,7 @@ func TestClaimMultiClusterServiceForService(t *testing.T) {
 			assert.NoError(t, err)
 
 			updatedSvc := &corev1.Service{}
-			err = controller.Client.Get(context.Background(), types.NamespacedName{Namespace: tt.svc.Namespace, Name: tt.svc.Name}, updatedSvc)
+			err = controller.Get(context.Background(), types.NamespacedName{Namespace: tt.svc.Namespace, Name: tt.svc.Name}, updatedSvc)
 			assert.NoError(t, err)
 
 			// Added labels and annotations check

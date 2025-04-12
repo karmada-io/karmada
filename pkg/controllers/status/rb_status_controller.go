@@ -58,10 +58,10 @@ type RBStatusController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *RBStatusController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling ResourceBinding %s.", req.NamespacedName.String())
+	klog.V(4).Infof("Reconciling ResourceBinding %s.", req.String())
 
 	binding := &workv1alpha2.ResourceBinding{}
-	if err := c.Client.Get(ctx, req.NamespacedName, binding); err != nil {
+	if err := c.Get(ctx, req.NamespacedName, binding); err != nil {
 		// The rb no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil

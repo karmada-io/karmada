@@ -63,10 +63,10 @@ type NoExecuteTaintManager struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (tc *NoExecuteTaintManager) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	klog.V(4).Infof("Reconciling cluster %s for taint manager", req.NamespacedName.Name)
+	klog.V(4).Infof("Reconciling cluster %s for taint manager", req.Name)
 
 	cluster := &clusterv1alpha1.Cluster{}
-	if err := tc.Client.Get(ctx, req.NamespacedName, cluster); err != nil {
+	if err := tc.Get(ctx, req.NamespacedName, cluster); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
@@ -149,10 +149,10 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 	}
 	cluster := fedKey.Cluster
 	klog.V(4).Infof("Begin to sync ResourceBinding(%s) with taintManager for Cluster(%s)",
-		fedKey.ClusterWideKey.NamespaceKey(), cluster)
+		fedKey.NamespaceKey(), cluster)
 
 	binding := &workv1alpha2.ResourceBinding{}
-	if err := tc.Client.Get(context.TODO(), types.NamespacedName{Namespace: fedKey.Namespace, Name: fedKey.Name}, binding); err != nil {
+	if err := tc.Get(context.TODO(), types.NamespacedName{Namespace: fedKey.Namespace, Name: fedKey.Name}, binding); err != nil {
 		// The resource no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
 			return nil
@@ -166,7 +166,7 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 
 	needEviction, tolerationTime, err := tc.needEviction(cluster, binding.Annotations)
 	if err != nil {
-		klog.ErrorS(err, "Failed to check if binding needs eviction", "binding", fedKey.ClusterWideKey.NamespaceKey())
+		klog.ErrorS(err, "Failed to check if binding needs eviction", "binding", fedKey.NamespaceKey())
 		return err
 	}
 
@@ -192,7 +192,7 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 			return err
 		}
 		klog.V(2).Infof("Success to evict Cluster(%s) from ResourceBinding(%s) schedule result",
-			fedKey.Cluster, fedKey.ClusterWideKey.NamespaceKey())
+			fedKey.Cluster, fedKey.NamespaceKey())
 	} else if tolerationTime > 0 {
 		tc.bindingEvictionWorker.AddAfter(fedKey, tolerationTime)
 	}
@@ -208,10 +208,10 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 	}
 	cluster := fedKey.Cluster
 	klog.V(4).Infof("Begin to sync ClusterResourceBinding(%s) with taintManager for Cluster(%s)",
-		fedKey.ClusterWideKey.NamespaceKey(), cluster)
+		fedKey.NamespaceKey(), cluster)
 
 	binding := &workv1alpha2.ClusterResourceBinding{}
-	if err := tc.Client.Get(context.TODO(), types.NamespacedName{Name: fedKey.Name}, binding); err != nil {
+	if err := tc.Get(context.TODO(), types.NamespacedName{Name: fedKey.Name}, binding); err != nil {
 		// The resource no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
 			return nil
@@ -251,7 +251,7 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 			return err
 		}
 		klog.V(2).Infof("Success to evict Cluster(%s) from ClusterResourceBinding(%s) schedule result",
-			fedKey.ClusterWideKey.NamespaceKey(), fedKey.Cluster)
+			fedKey.NamespaceKey(), fedKey.Cluster)
 	} else if tolerationTime > 0 {
 		tc.clusterBindingEvictionWorker.AddAfter(fedKey, tolerationTime)
 		return nil
@@ -276,7 +276,7 @@ func (tc *NoExecuteTaintManager) needEviction(clusterName string, annotations ma
 	}
 
 	cluster := &clusterv1alpha1.Cluster{}
-	if err = tc.Client.Get(context.TODO(), types.NamespacedName{Name: clusterName}, cluster); err != nil {
+	if err = tc.Get(context.TODO(), types.NamespacedName{Name: clusterName}, cluster); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
 			return false, -1, nil

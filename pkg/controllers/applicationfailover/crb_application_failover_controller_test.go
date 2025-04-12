@@ -74,7 +74,7 @@ func TestCRBApplicationFailoverController_Reconcile(t *testing.T) {
 			},
 		}
 
-		if err := c.Client.Create(context.Background(), binding); err != nil {
+		if err := c.Create(context.Background(), binding); err != nil {
 			t.Fatalf("Failed to create binding: %v", err)
 		}
 
@@ -286,7 +286,7 @@ func TestCRBApplicationFailoverController_updateBinding(t *testing.T) {
 	})
 
 	t.Run("normal case", func(t *testing.T) {
-		if err := c.Client.Create(context.Background(), binding); err != nil {
+		if err := c.Create(context.Background(), binding); err != nil {
 			t.Fatalf("Failed to create binding: %v", err)
 		}
 		err := c.updateBinding(context.Background(), binding, allClusters, needEvictClusters)

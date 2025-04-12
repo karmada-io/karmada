@@ -74,7 +74,7 @@ users:
 				Namespace: namespace,
 			},
 			prep: func(client clientset.Interface) error {
-				client.(*fakeclientset.Clientset).Fake.PrependReactor("get", "secrets", func(coretesting.Action) (bool, runtime.Object, error) {
+				client.(*fakeclientset.Clientset).PrependReactor("get", "secrets", func(coretesting.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("unexpected error: encountered a network issue while getting the secrets")
 				})
 				return nil

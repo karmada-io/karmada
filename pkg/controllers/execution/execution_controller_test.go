@@ -193,7 +193,7 @@ func TestExecutionController_Reconcile(t *testing.T) {
 			}
 
 			if tt.expectCondition != nil {
-				assert.NoError(t, c.Client.Get(context.Background(), req.NamespacedName, tt.work))
+				assert.NoError(t, c.Get(context.Background(), req.NamespacedName, tt.work))
 				assert.True(t, meta.IsStatusConditionPresentAndEqual(tt.work.Status.Conditions, tt.expectCondition.Type, tt.expectCondition.Status))
 			}
 

@@ -80,10 +80,10 @@ type Controller struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling Work %s", req.NamespacedName.String())
+	klog.V(4).Infof("Reconciling Work %s", req.String())
 
 	work := &workv1alpha1.Work{}
-	if err := c.Client.Get(ctx, req.NamespacedName, work); err != nil {
+	if err := c.Get(ctx, req.NamespacedName, work); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
@@ -251,7 +251,7 @@ func (c *Controller) removeFinalizer(ctx context.Context, work *workv1alpha1.Wor
 	}
 
 	controllerutil.RemoveFinalizer(work, util.ExecutionControllerFinalizer)
-	err := c.Client.Update(ctx, work)
+	err := c.Update(ctx, work)
 	if err != nil {
 		return controllerruntime.Result{}, err
 	}

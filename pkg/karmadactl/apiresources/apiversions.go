@@ -106,5 +106,5 @@ func (o *CommandAPIVersionsOptions) Validate() error {
 
 // Run does the work
 func (o *CommandAPIVersionsOptions) Run() error {
-	return o.APIVersionsOptions.RunAPIVersions()
+	return o.RunAPIVersions()
 }

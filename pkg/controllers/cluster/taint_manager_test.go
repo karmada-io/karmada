@@ -120,7 +120,7 @@ func TestNoExecuteTaintManager_Reconcile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tc := newNoExecuteTaintManager()
-			if err := tc.Client.Create(context.Background(), &workv1alpha2.ResourceBinding{
+			if err := tc.Create(context.Background(), &workv1alpha2.ResourceBinding{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "ResourceBinding",
 					APIVersion: "work.karmada.io/v1alpha2",
@@ -141,7 +141,7 @@ func TestNoExecuteTaintManager_Reconcile(t *testing.T) {
 				t.Fatalf("failed to create rb, %v", err)
 			}
 
-			if err := tc.Client.Create(context.Background(), &workv1alpha2.ClusterResourceBinding{
+			if err := tc.Create(context.Background(), &workv1alpha2.ClusterResourceBinding{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "ClusterResourceBinding",
 					APIVersion: "work.karmada.io/v1alpha2",
@@ -162,7 +162,7 @@ func TestNoExecuteTaintManager_Reconcile(t *testing.T) {
 			}
 
 			if tt.cluster != nil {
-				if err := tc.Client.Create(context.Background(), tt.cluster, &client.CreateOptions{}); err != nil {
+				if err := tc.Create(context.Background(), tt.cluster, &client.CreateOptions{}); err != nil {
 					t.Fatal(err)
 					return
 				}

@@ -296,7 +296,7 @@ func TestController_buildImpersonationClusterRole(t *testing.T) {
 			assert.NoError(t, err)
 
 			var createdWorks workv1alpha1.WorkList
-			err = c.Client.List(context.Background(), &createdWorks, &client.ListOptions{
+			err = c.List(context.Background(), &createdWorks, &client.ListOptions{
 				Namespace: generateExecutionSpaceName(tt.cluster.Name),
 			})
 			assert.NoError(t, err)
@@ -356,7 +356,7 @@ func TestController_buildImpersonationClusterRoleBinding(t *testing.T) {
 				assert.NoError(t, err)
 
 				var createdWorks workv1alpha1.WorkList
-				err = c.Client.List(context.Background(), &createdWorks, &client.ListOptions{
+				err = c.List(context.Background(), &createdWorks, &client.ListOptions{
 					Namespace: generateExecutionSpaceName(tt.cluster.Name),
 				})
 				assert.NoError(t, err)
@@ -537,7 +537,7 @@ func TestController_syncImpersonationConfig(t *testing.T) {
 				assert.NoError(t, err)
 
 				var createdWorks workv1alpha1.WorkList
-				err = c.Client.List(context.Background(), &createdWorks, &client.ListOptions{
+				err = c.List(context.Background(), &createdWorks, &client.ListOptions{
 					Namespace: generateExecutionSpaceName(tt.cluster.Name),
 				})
 				assert.NoError(t, err)

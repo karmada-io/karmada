@@ -92,10 +92,10 @@ var (
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 func (c *ServiceExportController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling Work %s", req.NamespacedName.String())
+	klog.V(4).Infof("Reconciling Work %s", req.String())
 
 	work := &workv1alpha1.Work{}
-	if err := c.Client.Get(ctx, req.NamespacedName, work); err != nil {
+	if err := c.Get(ctx, req.NamespacedName, work); err != nil {
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}

@@ -204,7 +204,7 @@ func BuildClusterConfig(clusterName string,
 
 	// Handle TLS configuration.
 	if cluster.Spec.InsecureSkipTLSVerification {
-		clusterConfig.TLSClientConfig.Insecure = true
+		clusterConfig.Insecure = true
 	} else {
 		ca, ok := secret.Data[clusterv1alpha1.SecretCADataKey]
 		if !ok {

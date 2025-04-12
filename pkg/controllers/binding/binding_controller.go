@@ -68,10 +68,10 @@ type ResourceBindingController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *ResourceBindingController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling ResourceBinding %s.", req.NamespacedName.String())
+	klog.V(4).Infof("Reconciling ResourceBinding %s.", req.String())
 
 	binding := &workv1alpha2.ResourceBinding{}
-	if err := c.Client.Get(ctx, req.NamespacedName, binding); err != nil {
+	if err := c.Get(ctx, req.NamespacedName, binding); err != nil {
 		// The resource no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
@@ -81,7 +81,7 @@ func (c *ResourceBindingController) Reconcile(ctx context.Context, req controlle
 	}
 
 	if !binding.DeletionTimestamp.IsZero() {
-		klog.V(4).Infof("Begin to delete works owned by binding(%s).", req.NamespacedName.String())
+		klog.V(4).Infof("Begin to delete works owned by binding(%s).", req.String())
 		if err := helper.DeleteWorks(ctx, c.Client, req.Namespace, req.Name, binding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel]); err != nil {
 			klog.Errorf("Failed to delete works related to %s/%s: %v", binding.GetNamespace(), binding.GetName(), err)
 			return controllerruntime.Result{}, err
@@ -99,7 +99,7 @@ func (c *ResourceBindingController) removeFinalizer(ctx context.Context, rb *wor
 	}
 
 	controllerutil.RemoveFinalizer(rb, util.BindingControllerFinalizer)
-	err := c.Client.Update(ctx, rb)
+	err := c.Update(ctx, rb)
 	if err != nil {
 		return controllerruntime.Result{}, err
 	}
@@ -190,7 +190,7 @@ func (c *ResourceBindingController) newOverridePolicyFunc() handler.MapFunc {
 		}
 
 		bindingList := &workv1alpha2.ResourceBindingList{}
-		if err := c.Client.List(ctx, bindingList); err != nil {
+		if err := c.List(ctx, bindingList); err != nil {
 			klog.Errorf("Failed to list resourceBindings, error: %v", err)
 			return nil
 		}

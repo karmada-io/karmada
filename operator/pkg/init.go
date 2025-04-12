@@ -197,7 +197,7 @@ func (data *initData) RemoteClient() clientset.Interface {
 
 func (data *initData) KarmadaClient() clientset.Interface {
 	if data.karmadaClient == nil {
-		data.Once.Do(func() {
+		data.Do(func() {
 			client, err := clientset.NewForConfig(data.controlplaneConfig)
 			if err != nil {
 				klog.Errorf("error when init karmada client, err: %v", err)

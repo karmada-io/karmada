@@ -49,9 +49,9 @@ type RemedyController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *RemedyController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Start to reconcile cluster(%s)", req.NamespacedName.String())
+	klog.V(4).Infof("Start to reconcile cluster(%s)", req.String())
 	cluster := &clusterv1alpha1.Cluster{}
-	if err := c.Client.Get(ctx, req.NamespacedName, cluster); err != nil {
+	if err := c.Get(ctx, req.NamespacedName, cluster); err != nil {
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}

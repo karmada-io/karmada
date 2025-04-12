@@ -50,7 +50,7 @@ func installKarmadaSearch(client clientset.Interface, cfg *operatorv1alpha1.Karm
 		KarmadaInstanceName: name,
 		DeploymentName:      util.KarmadaSearchName(name),
 		Namespace:           namespace,
-		Image:               cfg.Image.Name(),
+		Image:               cfg.Name(),
 		ImagePullPolicy:     string(cfg.ImagePullPolicy),
 		KarmadaCertsSecret:  util.KarmadaCertSecretName(name),
 		Replicas:            cfg.Replicas,

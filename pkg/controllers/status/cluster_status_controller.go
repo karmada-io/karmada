@@ -126,20 +126,20 @@ type ClusterStatusController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will requeue the reconcile key after the duration.
 func (c *ClusterStatusController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Syncing cluster status: %s", req.NamespacedName.Name)
+	klog.V(4).Infof("Syncing cluster status: %s", req.Name)
 
 	cluster := &clusterv1alpha1.Cluster{}
-	if err := c.Client.Get(ctx, req.NamespacedName, cluster); err != nil {
+	if err := c.Get(ctx, req.NamespacedName, cluster); err != nil {
 		// The resource may no longer exist, in which case we stop the informer.
 		if apierrors.IsNotFound(err) {
-			c.GenericInformerManager.Stop(req.NamespacedName.Name)
-			c.TypedInformerManager.Stop(req.NamespacedName.Name)
-			c.clusterConditionCache.delete(req.NamespacedName.Name)
-			metrics.CleanupMetricsForCluster(req.NamespacedName.Name)
+			c.GenericInformerManager.Stop(req.Name)
+			c.TypedInformerManager.Stop(req.Name)
+			c.clusterConditionCache.delete(req.Name)
+			metrics.CleanupMetricsForCluster(req.Name)
 
 			// stop lease controller after the cluster is gone.
 			// only used for clusters in Pull mode because no need to set up lease syncing for Push clusters.
-			canceller, exists := c.ClusterLeaseControllers.LoadAndDelete(req.NamespacedName.Name)
+			canceller, exists := c.ClusterLeaseControllers.LoadAndDelete(req.Name)
 			if exists {
 				if cf, ok := canceller.(context.CancelFunc); ok {
 					cf()

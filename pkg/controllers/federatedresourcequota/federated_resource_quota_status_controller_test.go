@@ -254,7 +254,7 @@ func TestAggregatedStatusFormWorks(t *testing.T) {
 					assert.Equal(t, len(tt.expected), len(result))
 					for i, expected := range tt.expected {
 						assert.Equal(t, expected.ClusterName, result[i].ClusterName)
-						assert.Equal(t, expected.ResourceQuotaStatus.Used, result[i].ResourceQuotaStatus.Used)
+						assert.Equal(t, expected.Used, result[i].Used)
 					}
 				}
 			}

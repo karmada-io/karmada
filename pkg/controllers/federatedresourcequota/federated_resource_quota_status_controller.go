@@ -65,7 +65,7 @@ type StatusController struct {
 // The SyncController will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *StatusController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("FederatedResourceQuota status controller reconciling %s", req.NamespacedName.String())
+	klog.V(4).Infof("FederatedResourceQuota status controller reconciling %s", req.String())
 
 	quota := &policyv1alpha1.FederatedResourceQuota{}
 	if err := c.Get(ctx, req.NamespacedName, quota); err != nil {
@@ -81,11 +81,11 @@ func (c *StatusController) Reconcile(ctx context.Context, req controllerruntime.
 	}
 
 	if err := c.collectQuotaStatus(ctx, quota); err != nil {
-		klog.Errorf("Failed to collect status from works to federatedResourceQuota(%s), error: %v", req.NamespacedName.String(), err)
+		klog.Errorf("Failed to collect status from works to federatedResourceQuota(%s), error: %v", req.String(), err)
 		c.EventRecorder.Eventf(quota, corev1.EventTypeWarning, events.EventReasonCollectFederatedResourceQuotaStatusFailed, err.Error())
 		return controllerruntime.Result{}, err
 	}
-	c.EventRecorder.Eventf(quota, corev1.EventTypeNormal, events.EventReasonCollectFederatedResourceQuotaStatusSucceed, "Collect status of FederatedResourceQuota(%s) succeed.", req.NamespacedName.String())
+	c.EventRecorder.Eventf(quota, corev1.EventTypeNormal, events.EventReasonCollectFederatedResourceQuotaStatusSucceed, "Collect status of FederatedResourceQuota(%s) succeed.", req.String())
 	return controllerruntime.Result{}, nil
 }
 

@@ -1087,7 +1087,7 @@ var _ = ginkgo.Describe("[AdvancedCase] PropagationPolicy testing", func() {
 			policyName := configMapNamePrefix + rand.String(RandomStrLength)
 
 			configmap = testhelper.NewConfigMap(testNamespace, policyName, map[string]string{"a": "b"})
-			configmap.ObjectMeta.Labels = map[string]string{"a": "b"}
+			configmap.Labels = map[string]string{"a": "b"}
 
 			policy01 = testhelper.NewPropagationPolicy(policyNamespace, policyName+"01", []policyv1alpha1.ResourceSelector{
 				{

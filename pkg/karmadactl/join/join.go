@@ -283,7 +283,7 @@ func generateClusterInControllerPlane(opts util.ClusterRegisterOption) (*cluster
 		clusterObj.Spec.Region = opts.ClusterRegion
 	}
 
-	clusterObj.Spec.InsecureSkipTLSVerification = opts.ClusterConfig.TLSClientConfig.Insecure
+	clusterObj.Spec.InsecureSkipTLSVerification = opts.ClusterConfig.Insecure
 
 	if opts.ClusterConfig.Proxy != nil {
 		url, err := opts.ClusterConfig.Proxy(nil)
