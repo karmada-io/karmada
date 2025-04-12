@@ -74,7 +74,6 @@ linters:
         - "-ST1005"
         - "-QF1004"
         - "-ST1011"
-        - "-QF1003"
         - "-QF1001"
         - "-ST1000"
   exclusions:

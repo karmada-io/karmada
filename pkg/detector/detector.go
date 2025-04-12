@@ -499,11 +499,12 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		return err
 	}
 
-	if operationResult == controllerutil.OperationResultCreated {
+	switch operationResult {
+	case controllerutil.OperationResultCreated:
 		klog.Infof("Create ResourceBinding(%s/%s) successfully.", binding.GetNamespace(), binding.GetName())
-	} else if operationResult == controllerutil.OperationResultUpdated {
+	case controllerutil.OperationResultUpdated:
 		klog.Infof("Update ResourceBinding(%s/%s) successfully.", binding.GetNamespace(), binding.GetName())
-	} else {
+	default:
 		klog.V(2).Infof("ResourceBinding(%s/%s) is up to date.", binding.GetNamespace(), binding.GetName())
 	}
 
@@ -591,11 +592,12 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			return err
 		}
 
-		if operationResult == controllerutil.OperationResultCreated {
+		switch operationResult {
+		case controllerutil.OperationResultCreated:
 			klog.Infof("Create ResourceBinding(%s) successfully.", binding.GetName())
-		} else if operationResult == controllerutil.OperationResultUpdated {
+		case controllerutil.OperationResultUpdated:
 			klog.Infof("Update ResourceBinding(%s) successfully.", binding.GetName())
-		} else {
+		default:
 			klog.V(2).Infof("ResourceBinding(%s) is up to date.", binding.GetName())
 		}
 	} else {
@@ -643,11 +645,12 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			return err
 		}
 
-		if operationResult == controllerutil.OperationResultCreated {
+		switch operationResult {
+		case controllerutil.OperationResultCreated:
 			klog.Infof("Create ClusterResourceBinding(%s) successfully.", binding.GetName())
-		} else if operationResult == controllerutil.OperationResultUpdated {
+		case controllerutil.OperationResultUpdated:
 			klog.Infof("Update ClusterResourceBinding(%s) successfully.", binding.GetName())
-		} else {
+		default:
 			klog.V(2).Infof("ClusterResourceBinding(%s) is up to date.", binding.GetName())
 		}
 	}

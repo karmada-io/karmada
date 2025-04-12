@@ -121,9 +121,10 @@ func (p PluginToResult) Merge() *Result {
 	finalStatus := NewResult(Success)
 	var hasUnschedulable bool
 	for _, s := range p {
-		if s.code == Error {
+		switch s.code {
+		case Error:
 			finalStatus.err = s.err
-		} else if s.code == Unschedulable {
+		case Unschedulable:
 			hasUnschedulable = true
 		}
 		finalStatus.code = s.code

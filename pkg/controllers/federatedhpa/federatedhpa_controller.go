@@ -771,7 +771,8 @@ func (c *FHPAController) computeReplicasForMetric(ctx context.Context, hpa *auto
 
 // computeStatusForObjectMetric computes the desired number of replicas for the specified metric of type ObjectMetricSourceType.
 func (c *FHPAController) computeStatusForObjectMetric(specReplicas, statusReplicas int32, metricSpec autoscalingv2.MetricSpec, hpa *autoscalingv1alpha1.FederatedHPA, status *autoscalingv2.MetricStatus, metricSelector labels.Selector, podList []*corev1.Pod, calibration float64) (replicas int32, timestamp time.Time, metricName string, condition autoscalingv2.HorizontalPodAutoscalerCondition, err error) {
-	if metricSpec.Object.Target.Type == autoscalingv2.ValueMetricType {
+	switch metricSpec.Object.Target.Type {
+	case autoscalingv2.ValueMetricType:
 		replicaCountProposal, usageProposal, timestampProposal, err := c.ReplicaCalc.GetObjectMetricReplicas(specReplicas, metricSpec.Object.Target.Value.MilliValue(), metricSpec.Object.Metric.Name, hpa.Namespace, &metricSpec.Object.DescribedObject, metricSelector, podList, calibration)
 		if err != nil {
 			condition := c.getUnableComputeReplicaCountCondition(hpa, "FailedGetObjectMetric", err)
@@ -791,7 +792,7 @@ func (c *FHPAController) computeStatusForObjectMetric(specReplicas, statusReplic
 			},
 		}
 		return replicaCountProposal, timestampProposal, fmt.Sprintf("%s metric %s", metricSpec.Object.DescribedObject.Kind, metricSpec.Object.Metric.Name), autoscalingv2.HorizontalPodAutoscalerCondition{}, nil
-	} else if metricSpec.Object.Target.Type == autoscalingv2.AverageValueMetricType {
+	case autoscalingv2.AverageValueMetricType:
 		replicaCountProposal, usageProposal, timestampProposal, err := c.ReplicaCalc.GetObjectPerPodMetricReplicas(statusReplicas, metricSpec.Object.Target.AverageValue.MilliValue(), metricSpec.Object.Metric.Name, hpa.Namespace, &metricSpec.Object.DescribedObject, metricSelector, calibration)
 		if err != nil {
 			condition := c.getUnableComputeReplicaCountCondition(hpa, "FailedGetObjectMetric", err)
@@ -1295,9 +1296,10 @@ func calculateScaleUpLimitWithScalingRules(currentReplicas int32, scaleUpEvents,
 		replicasAddedInCurrentPeriod := getReplicasChangePerPeriod(policy.PeriodSeconds, scaleUpEvents)
 		replicasDeletedInCurrentPeriod := getReplicasChangePerPeriod(policy.PeriodSeconds, scaleDownEvents)
 		periodStartReplicas := currentReplicas - replicasAddedInCurrentPeriod + replicasDeletedInCurrentPeriod
-		if policy.Type == autoscalingv2.PodsScalingPolicy {
+		switch policy.Type {
+		case autoscalingv2.PodsScalingPolicy:
 			proposed = periodStartReplicas + policy.Value
-		} else if policy.Type == autoscalingv2.PercentScalingPolicy {
+		case autoscalingv2.PercentScalingPolicy:
 			// the proposal has to be rounded up because the proposed change might not increase the replica count causing the target to never scale up
 			proposed = int32(math.Ceil(float64(periodStartReplicas) * (1 + float64(policy.Value)/100)))
 		}
@@ -1324,9 +1326,10 @@ func calculateScaleDownLimitWithBehaviors(currentReplicas int32, scaleUpEvents, 
 		replicasAddedInCurrentPeriod := getReplicasChangePerPeriod(policy.PeriodSeconds, scaleUpEvents)
 		replicasDeletedInCurrentPeriod := getReplicasChangePerPeriod(policy.PeriodSeconds, scaleDownEvents)
 		periodStartReplicas := currentReplicas - replicasAddedInCurrentPeriod + replicasDeletedInCurrentPeriod
-		if policy.Type == autoscalingv2.PodsScalingPolicy {
+		switch policy.Type {
+		case autoscalingv2.PodsScalingPolicy:
 			proposed = periodStartReplicas - policy.Value
-		} else if policy.Type == autoscalingv2.PercentScalingPolicy {
+		case autoscalingv2.PercentScalingPolicy:
 			proposed = int32(float64(periodStartReplicas) * (1 - float64(policy.Value)/100))
 		}
 		result = selectPolicyFn(result, proposed)

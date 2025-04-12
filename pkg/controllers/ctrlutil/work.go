@@ -104,11 +104,12 @@ func CreateOrUpdateWork(ctx context.Context, c client.Client, workMeta metav1.Ob
 		return err
 	}
 
-	if operationResult == controllerutil.OperationResultCreated {
+	switch operationResult {
+	case controllerutil.OperationResultCreated:
 		klog.V(2).Infof("Create work %s/%s successfully.", work.GetNamespace(), work.GetName())
-	} else if operationResult == controllerutil.OperationResultUpdated {
+	case controllerutil.OperationResultUpdated:
 		klog.V(2).Infof("Update work %s/%s successfully.", work.GetNamespace(), work.GetName())
-	} else {
+	default:
 		klog.V(2).Infof("Work %s/%s is up to date.", work.GetNamespace(), work.GetName())
 	}
 

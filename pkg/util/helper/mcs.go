@@ -55,11 +55,12 @@ func CreateOrUpdateEndpointSlice(ctx context.Context, client client.Client, endp
 		return err
 	}
 
-	if operationResult == controllerutil.OperationResultCreated {
+	switch operationResult {
+	case controllerutil.OperationResultCreated:
 		klog.V(2).Infof("Create EndpointSlice %s/%s successfully.", endpointSlice.GetNamespace(), endpointSlice.GetName())
-	} else if operationResult == controllerutil.OperationResultUpdated {
+	case controllerutil.OperationResultUpdated:
 		klog.V(2).Infof("Update EndpointSlice %s/%s successfully.", endpointSlice.GetNamespace(), endpointSlice.GetName())
-	} else {
+	default:
 		klog.V(2).Infof("EndpointSlice %s/%s is up to date.", endpointSlice.GetNamespace(), endpointSlice.GetName())
 	}
 

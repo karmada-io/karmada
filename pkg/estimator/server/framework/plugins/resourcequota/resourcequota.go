@@ -112,11 +112,12 @@ func (pl *resourceQuotaEstimator) Estimate(_ context.Context,
 	}
 
 	var result *framework.Result
-	if replica == math.MaxInt32 {
+	switch replica {
+	case math.MaxInt32:
 		result = framework.NewResult(framework.Noopperation, fmt.Sprintf("%s has no operation on input replicaRequirements", pl.Name()))
-	} else if replica == 0 {
+	case 0:
 		result = framework.NewResult(framework.Unschedulable, fmt.Sprintf("zero replica is estimated by %s", pl.Name()))
-	} else {
+	default:
 		result = framework.NewResult(framework.Success)
 	}
 	return replica, result
