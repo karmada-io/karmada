@@ -46,7 +46,7 @@ func PrintCLIByTag(cmd *cobra.Command, all []*cobra.Command, tag string) string 
 		}
 		cname := cmd.Name() + " " + c.Name()
 		link := cname
-		link = strings.Replace(link, " ", "_", -1) + ".md"
+		link = strings.ReplaceAll(link, " ", "_") + ".md"
 		pl = append(pl, fmt.Sprintf("* [%s](%s)\t - %s\n", cname, link, c.Long))
 	}
 
@@ -59,7 +59,7 @@ func PrintCLIByTag(cmd *cobra.Command, all []*cobra.Command, tag string) string 
 
 // GenMarkdownTreeForIndex generate the index page for karmadactl
 func GenMarkdownTreeForIndex(cmd *cobra.Command, dir string) error {
-	basename := strings.Replace(cmd.CommandPath(), " ", "_", -1) + "_index" + ".md"
+	basename := strings.ReplaceAll(cmd.CommandPath(), " ", "_") + "_index" + ".md"
 	filename := filepath.Join(dir, basename)
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, pkgutil.DefaultFilePerm)
 	if err != nil {

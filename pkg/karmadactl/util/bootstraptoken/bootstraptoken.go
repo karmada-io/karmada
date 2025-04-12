@@ -138,7 +138,7 @@ func GenerateRegisterCommand(kubeConfig, parentCommand, token string, karmadaCon
 	}
 
 	return fmt.Sprintf("%s register %s --token %s --discovery-token-ca-cert-hash %s",
-		parentCommand, strings.Replace(clusterConfig.Server, "https://", "", -1),
+		parentCommand, strings.ReplaceAll(clusterConfig.Server, "https://", ""),
 		token, strings.Join(publicKeyPins, ",")), nil
 }
 
