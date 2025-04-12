@@ -85,6 +85,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/typedmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/indexregistry"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
@@ -194,8 +195,11 @@ func Run(ctx context.Context, opts *options.Options) error {
 	ctrlmetrics.Registry.MustRegister(metrics.PoolCollectors()...)
 	ctrlmetrics.Registry.MustRegister(metrics.NewBuildInfoCollector())
 
-	if err := helper.IndexWork(ctx, controllerManager); err != nil {
-		klog.Fatalf("Failed to index Work: %v", err)
+	if err = indexregistry.RegisterWorkParentRBIndex(ctx, controllerManager); err != nil {
+		klog.Fatalf("Failed to register index for Work based on ResourceBinding ID: %v", err)
+	}
+	if err = indexregistry.RegisterWorkParentCRBIndex(ctx, controllerManager); err != nil {
+		klog.Fatalf("Failed to register index for Work based on ClusterResourceBinding ID: %v", err)
 	}
 
 	setupControllers(controllerManager, opts, ctx.Done())

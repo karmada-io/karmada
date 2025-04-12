@@ -1,5 +1,5 @@
 /*
-Copyright 2024 The Karmada Authors.
+Copyright 2025 The Karmada Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package helper
+package indexregistry
 
 import (
 	"testing"
@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func TestIndexerFuncBasedOnLabel(t *testing.T) {
+func TestGenLabelIndexerFunc(t *testing.T) {
 	type args struct {
 		key string
 		obj client.Object
@@ -66,11 +66,11 @@ func TestIndexerFuncBasedOnLabel(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fn := IndexerFuncBasedOnLabel(tt.args.key)
+			fn := GenLabelIndexerFunc(tt.args.key)
 			if !assert.NotNil(t, fn) {
 				t.FailNow()
 			}
-			assert.Equalf(t, tt.want, fn(tt.args.obj), "IndexerFuncBasedOnLabel(%v)", tt.args.key)
+			assert.Equalf(t, tt.want, fn(tt.args.obj), "GenLabelIndexerFunc(%v)", tt.args.key)
 		})
 	}
 }

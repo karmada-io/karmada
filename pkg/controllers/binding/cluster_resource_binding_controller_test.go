@@ -43,7 +43,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
-	utilhelper "github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/indexregistry"
 	testingutil "github.com/karmada-io/karmada/pkg/util/testing"
 	"github.com/karmada-io/karmada/test/helper"
@@ -53,7 +52,7 @@ func makeFakeCRBCByResource(rs *workv1alpha2.ObjectReference) (*ClusterResourceB
 	c := fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithIndex(
 		&workv1alpha1.Work{},
 		indexregistry.WorkIndexByClusterResourceBindingID,
-		utilhelper.IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
+		indexregistry.GenLabelIndexerFunc(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
 	).Build()
 	tempDyClient := fakedynamic.NewSimpleDynamicClient(scheme.Scheme)
 	if rs == nil {
