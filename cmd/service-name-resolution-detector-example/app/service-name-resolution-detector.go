@@ -159,7 +159,7 @@ func createDetectorContext(opts *options.Options) (detectorContext, error) {
 		clusterName:        opts.Generic.ClusterName,
 		detectors:          opts.Generic.Detectors,
 		corednsConfig: &coredns.Config{
-			PeriodSeconds:    opts.Coredns.PeriodSeconds,
+			Period:           opts.Coredns.Period,
 			SuccessThreshold: opts.Coredns.SuccessThreshold,
 			FailureThreshold: opts.Coredns.FailureThreshold,
 			StaleThreshold:   opts.Coredns.StaleThreshold,

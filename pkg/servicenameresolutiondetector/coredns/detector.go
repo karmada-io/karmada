@@ -61,7 +61,7 @@ var localReference = &corev1.ObjectReference{
 
 // Config contains config of coredns detector.
 type Config struct {
-	PeriodSeconds    time.Duration
+	Period           time.Duration
 	SuccessThreshold time.Duration
 	FailureThreshold time.Duration
 	StaleThreshold   time.Duration
@@ -74,7 +74,7 @@ type Detector struct {
 
 	lec leaderelection.LeaderElectionConfig
 
-	periodSeconds time.Duration
+	period time.Duration
 
 	conditionCache store.ConditionCache
 	conditionStore store.ConditionStore
@@ -116,7 +116,7 @@ func NewCorednsDetector(memberClusterClient kubernetes.Interface, karmadaClient 
 		karmadaClient:       karmadaClient,
 		nodeName:            hostName,
 		clusterName:         clusterName,
-		periodSeconds:       cfg.PeriodSeconds,
+		period:              cfg.Period,
 		conditionCache:      store.NewConditionCache(cfg.SuccessThreshold, cfg.FailureThreshold),
 		conditionStore:      store.NewNodeConditionStore(memberClusterClient.CoreV1().Nodes(), nodeInformer.Lister(), condType, cfg.StaleThreshold),
 		cacheSynced:         []cache.InformerSynced{nodeInformer.Informer().HasSynced},
@@ -166,7 +166,7 @@ func (d *Detector) Run(ctx context.Context) {
 				return
 			}
 			d.queue.Add(0)
-		}, d.periodSeconds, ctx.Done())
+		}, d.period, ctx.Done())
 	}()
 
 	if d.lec.Lock != nil {

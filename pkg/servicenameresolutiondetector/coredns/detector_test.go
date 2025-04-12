@@ -113,7 +113,7 @@ func TestNewCorednsDetector(t *testing.T) {
 			informerFactory := informers.NewSharedInformerFactory(memberClusterClient, 0)
 
 			cfg := &Config{
-				PeriodSeconds:    time.Second,
+				Period:           time.Second,
 				SuccessThreshold: time.Minute,
 				FailureThreshold: time.Minute,
 				StaleThreshold:   time.Minute,
@@ -315,7 +315,7 @@ func TestDetectorRun(t *testing.T) {
 			informerFactory := informers.NewSharedInformerFactory(memberClusterClient, 0)
 
 			cfg := &Config{
-				PeriodSeconds:    time.Second,
+				Period:           time.Second,
 				SuccessThreshold: time.Minute,
 				FailureThreshold: time.Minute,
 				StaleThreshold:   time.Minute,
@@ -394,7 +394,7 @@ func TestDetectorWorker(t *testing.T) {
 			informerFactory := informers.NewSharedInformerFactory(memberClusterClient, 0)
 
 			cfg := &Config{
-				PeriodSeconds:    time.Second,
+				Period:           time.Second,
 				SuccessThreshold: time.Minute,
 				FailureThreshold: time.Minute,
 				StaleThreshold:   time.Minute,
@@ -469,7 +469,7 @@ func TestDetectorProcessNextWorkItem(t *testing.T) {
 			informerFactory := informers.NewSharedInformerFactory(memberClusterClient, 0)
 
 			cfg := &Config{
-				PeriodSeconds:    time.Second,
+				Period:           time.Second,
 				SuccessThreshold: time.Minute,
 				FailureThreshold: time.Minute,
 				StaleThreshold:   time.Minute,

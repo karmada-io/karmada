@@ -25,7 +25,7 @@ import (
 
 // CorednsOptions contains options for coredns detector.
 type CorednsOptions struct {
-	PeriodSeconds    time.Duration
+	Period           time.Duration
 	SuccessThreshold time.Duration
 	FailureThreshold time.Duration
 	StaleThreshold   time.Duration
@@ -38,7 +38,7 @@ func NewCorednsOptions() *CorednsOptions {
 
 // AddFlags adds flags of coredns detector to the specified FlagSet.
 func (o *CorednsOptions) AddFlags(fs *pflag.FlagSet) {
-	fs.DurationVar(&o.PeriodSeconds, "coredns-detect-period", 5*time.Second,
+	fs.DurationVar(&o.Period, "coredns-detect-period", 5*time.Second,
 		"Specifies how often detector detects coredns health status.")
 	fs.DurationVar(&o.SuccessThreshold, "coredns-success-threshold", 30*time.Second,
 		"The duration of successes for the coredns to be considered healthy after recovery.")
