@@ -30,7 +30,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/client-go/kubernetes"
-	clientset "k8s.io/client-go/kubernetes"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	bootstrapapi "k8s.io/cluster-bootstrap/token/api"
 
@@ -61,10 +60,10 @@ users:
 `
 	tests := []struct {
 		name    string
-		client  clientset.Interface
+		client  kubernetes.Interface
 		cfgFile string
 		prep    func(cfgFile string) error
-		verify  func(clientset.Interface) error
+		verify  func(kubernetes.Interface) error
 		cleanup func(cfgFile string) error
 		wantErr bool
 		errMsg  string
@@ -72,7 +71,7 @@ users:
 		{
 			name:    "CreateBootstrapConfigMapIfNotExists_NonExistentConfigFile_FailedToLoadAdminKubeConfig",
 			prep:    func(string) error { return nil },
-			verify:  func(clientset.Interface) error { return nil },
+			verify:  func(kubernetes.Interface) error { return nil },
 			cleanup: func(string) error { return nil },
 			wantErr: true,
 			errMsg:  "failed to load admin kubeconfig",
@@ -107,7 +106,7 @@ users:
 				}
 				return nil
 			},
-			verify: func(c clientset.Interface) error {
+			verify: func(c kubernetes.Interface) error {
 				return verifyKubeAdminKubeConfig(c)
 			},
 			wantErr: false,
@@ -146,12 +145,12 @@ func TestCreateClusterInfoRBACRules(t *testing.T) {
 	tests := []struct {
 		name   string
 		client kubernetes.Interface
-		verify func(clientset.Interface) error
+		verify func(kubernetes.Interface) error
 	}{
 		{
 			name:   "CreateClusterInfoRBACRules_CreateRolesAndRoleBindings_Created",
 			client: fakeclientset.NewClientset(),
-			verify: func(c clientset.Interface) error {
+			verify: func(c kubernetes.Interface) error {
 				// Verify that roles are created as expected.
 				role, err := c.RbacV1().Roles(metav1.NamespacePublic).Get(context.TODO(), BootstrapSignerClusterRoleName, metav1.GetOptions{})
 				if err != nil {
@@ -197,7 +196,7 @@ func TestCreateClusterInfoRBACRules(t *testing.T) {
 	}
 }
 
-func verifyKubeAdminKubeConfig(client clientset.Interface) error {
+func verifyKubeAdminKubeConfig(client kubernetes.Interface) error {
 	configMap, err := client.CoreV1().ConfigMaps(metav1.NamespacePublic).Get(context.TODO(), bootstrapapi.ConfigMapClusterInfo, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get configmap %s, got an error: %v", bootstrapapi.ConfigMapClusterInfo, err)

@@ -42,7 +42,6 @@ import (
 	karmadafake "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
 	workv1alpha2lister "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/core"
-	schedulercore "github.com/karmada-io/karmada/pkg/scheduler/core"
 	internalqueue "github.com/karmada-io/karmada/pkg/scheduler/internal/queue"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -119,8 +118,8 @@ func TestDoSchedule(t *testing.T) {
 			}
 
 			mockAlgo := &mockAlgorithm{
-				scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, _ *schedulercore.ScheduleAlgorithmOption) (schedulercore.ScheduleResult, error) {
-					return schedulercore.ScheduleResult{
+				scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, _ *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+					return core.ScheduleResult{
 						SuggestedClusters: []workv1alpha2.TargetCluster{
 							{Name: "cluster1", Replicas: 1},
 						},
@@ -1095,8 +1094,8 @@ func TestWorkerAndScheduleNext(t *testing.T) {
 			clusterBindingLister := &fakeClusterBindingLister{binding: clusterResourceBinding}
 
 			mockAlgo := &mockAlgorithm{
-				scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, _ *schedulercore.ScheduleAlgorithmOption) (schedulercore.ScheduleResult, error) {
-					return schedulercore.ScheduleResult{
+				scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, _ *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+					return core.ScheduleResult{
 						SuggestedClusters: []workv1alpha2.TargetCluster{
 							{Name: "cluster1", Replicas: 1},
 						},

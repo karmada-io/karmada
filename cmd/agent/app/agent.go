@@ -52,7 +52,6 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	"github.com/karmada-io/karmada/pkg/metrics"
-	versionmetrics "github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
@@ -232,7 +231,7 @@ func run(ctx context.Context, opts *options.Options) error {
 	ctrlmetrics.Registry.MustRegister(metrics.ClusterCollectors()...)
 	ctrlmetrics.Registry.MustRegister(metrics.ResourceCollectorsForAgent()...)
 	ctrlmetrics.Registry.MustRegister(metrics.PoolCollectors()...)
-	ctrlmetrics.Registry.MustRegister(versionmetrics.NewBuildInfoCollector())
+	ctrlmetrics.Registry.MustRegister(metrics.NewBuildInfoCollector())
 
 	if err = setupControllers(controllerManager, opts, ctx.Done()); err != nil {
 		return err

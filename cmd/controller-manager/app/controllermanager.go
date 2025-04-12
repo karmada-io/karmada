@@ -75,7 +75,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	"github.com/karmada-io/karmada/pkg/metrics"
-	versionmetrics "github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
@@ -193,7 +192,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 	ctrlmetrics.Registry.MustRegister(metrics.ClusterCollectors()...)
 	ctrlmetrics.Registry.MustRegister(metrics.ResourceCollectors()...)
 	ctrlmetrics.Registry.MustRegister(metrics.PoolCollectors()...)
-	ctrlmetrics.Registry.MustRegister(versionmetrics.NewBuildInfoCollector())
+	ctrlmetrics.Registry.MustRegister(metrics.NewBuildInfoCollector())
 
 	if err := helper.IndexWork(ctx, controllerManager); err != nil {
 		klog.Fatalf("Failed to index Work: %v", err)

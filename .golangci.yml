@@ -70,7 +70,6 @@ linters:
         # Will fix the issues in the following PRs.
         # Issue: https://github.com/karmada-io/karmada/issues/6273.
         - "-QF1008"
-        - "-ST1019"
         - "-ST1005"
         - "-QF1004"
         - "-ST1011"
