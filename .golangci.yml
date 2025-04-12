@@ -71,7 +71,6 @@ linters:
         # Issue: https://github.com/karmada-io/karmada/issues/6273.
         - "-QF1008"
         - "-ST1011"
-        - "-QF1001"
         - "-ST1000"
   exclusions:
     generated: lax
