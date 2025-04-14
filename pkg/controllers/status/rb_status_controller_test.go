@@ -39,7 +39,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
-	utilhelper "github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/indexregistry"
 )
 
@@ -57,7 +56,7 @@ func generateRBStatusController() *RBStatusController {
 		Client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithIndex(
 			&workv1alpha1.Work{},
 			indexregistry.WorkIndexByResourceBindingID,
-			utilhelper.IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
+			indexregistry.GenLabelIndexerFunc(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
 		).Build(),
 		DynamicClient:   dynamicClient,
 		InformerManager: m,
@@ -144,7 +143,7 @@ func TestRBStatusController_Reconcile(t *testing.T) {
 			// Prepare binding and create it in client
 			if tt.binding != nil {
 				c.Client = fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(tt.binding).WithStatusSubresource(tt.binding).
-					WithIndex(&workv1alpha1.Work{}, indexregistry.WorkIndexByResourceBindingID, utilhelper.IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel)).
+					WithIndex(&workv1alpha1.Work{}, indexregistry.WorkIndexByResourceBindingID, indexregistry.GenLabelIndexerFunc(workv1alpha2.ResourceBindingPermanentIDLabel)).
 					Build()
 			}
 
@@ -219,7 +218,7 @@ func TestRBStatusController_syncBindingStatus(t *testing.T) {
 
 			if tt.resourceExistInClient {
 				c.Client = fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(binding).WithStatusSubresource(binding).
-					WithIndex(&workv1alpha1.Work{}, indexregistry.WorkIndexByResourceBindingID, utilhelper.IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel)).
+					WithIndex(&workv1alpha1.Work{}, indexregistry.WorkIndexByResourceBindingID, indexregistry.GenLabelIndexerFunc(workv1alpha2.ResourceBindingPermanentIDLabel)).
 					Build()
 			}
 

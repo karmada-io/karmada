@@ -155,7 +155,7 @@ func TestGetWorksByBindingID(t *testing.T) {
 				WithIndex(
 					&workv1alpha1.Work{},
 					tt.indexName,
-					IndexerFuncBasedOnLabel(tt.permanentIDLabelKey),
+					indexregistry.GenLabelIndexerFunc(tt.permanentIDLabelKey),
 				).
 				WithObjects(tt.works...).
 				Build()

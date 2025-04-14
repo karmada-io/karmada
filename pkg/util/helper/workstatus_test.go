@@ -203,7 +203,7 @@ func TestAggregateResourceBindingWorkStatus(t *testing.T) {
 				WithIndex(
 					&workv1alpha1.Work{},
 					indexregistry.WorkIndexByResourceBindingID,
-					IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel),
+					indexregistry.GenLabelIndexerFunc(workv1alpha2.ResourceBindingPermanentIDLabel),
 				).
 				WithObjects(objects...).
 				WithStatusSubresource(tt.binding).
@@ -400,7 +400,7 @@ func TestAggregateClusterResourceBindingWorkStatus(t *testing.T) {
 				WithIndex(
 					&workv1alpha1.Work{},
 					indexregistry.WorkIndexByClusterResourceBindingID,
-					IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
+					indexregistry.GenLabelIndexerFunc(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
 				).
 				WithObjects(objects...).
 				WithStatusSubresource(tt.binding).
