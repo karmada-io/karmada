@@ -26,15 +26,20 @@ spec:
             privileged: false
           image: docker.io/karmada/karmada-controller-manager:latest
           imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           command:
             - /bin/karmada-controller-manager
             - --kubeconfig=/etc/karmada/config/karmada.config
-            - --metrics-bind-address=:8080
             - --cluster-status-update-frequency=10s
             - --failover-eviction-timeout=30s
             - --controllers=*,hpaScaleTargetMarker,deploymentReplicasSyncer
             - --feature-gates=AllAlpha=true,AllBeta=true
-            - --health-probe-bind-address=0.0.0.0:10357
+            - --metrics-bind-address=$(POD_IP):8080
+            - --health-probe-bind-address=$(POD_IP):10357
             - --v=4
           livenessProbe:
             httpGet:
