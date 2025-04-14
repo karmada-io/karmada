@@ -37,6 +37,9 @@ linters:
         # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#if-return
         - name: if-return
           disabled: true
+        # Disable package-comments for now since most packages in this project are primarily for internal use.
+        # If we decide to provide public packages in the future, we can move them to a separate
+        # repository and revisit adding package-level comments at that time.
         - name: package-comments
           disabled: true
         - name: superfluous-else
@@ -66,11 +69,11 @@ linters:
     staticcheck:
       checks:
         - all
-        # Disable QF1008 to retain embedded fields for better readability
+        # Disable QF1008 to retain embedded fields for better readability.
         - "-QF1008"
-        # Exclude the following checks temporarily.
-        # Will fix the issues in the following PRs.
-        # Issue: https://github.com/karmada-io/karmada/issues/6273.
+        # Disable ST1000 (staticcheck) for now since most packages in this project are primarily for internal use.
+        # If we decide to provide public packages in the future, we can move them to a separate
+        # repository and revisit adding package-level comments at that time.
         - "-ST1000"
   exclusions:
     generated: lax
