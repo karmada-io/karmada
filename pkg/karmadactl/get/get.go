@@ -250,7 +250,7 @@ func (g *CommandGetOptions) Validate(cmd *cobra.Command) error {
 			return fmt.Errorf("--show-labels option cannot be used with %s printer", outputOption)
 		}
 	}
-	if g.OutputWatchEvents && !(g.Watch || g.WatchOnly) {
+	if g.OutputWatchEvents && !g.Watch && !g.WatchOnly {
 		return fmt.Errorf("--output-watch-events option can only be used with --watch or --watch-only")
 	}
 
