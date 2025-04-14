@@ -194,8 +194,8 @@ func Run(ctx context.Context, opts *options.Options) error {
 	ctrlmetrics.Registry.MustRegister(metrics.PoolCollectors()...)
 	ctrlmetrics.Registry.MustRegister(metrics.NewBuildInfoCollector())
 
-	if err := helper.IndexWork(ctx, controllerManager); err != nil {
-		klog.Fatalf("Failed to index Work: %v", err)
+	if err := helper.RegisterFieldIndexes(ctx, controllerManager); err != nil {
+		klog.Fatalf("Failed to field index: %v", err)
 	}
 
 	setupControllers(controllerManager, opts, ctx.Done())
