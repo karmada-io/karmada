@@ -24,7 +24,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -78,12 +77,6 @@ func TestHandleDeprioritizedPropagationPolicy(t *testing.T) {
 	utilruntime.Must(appsv1.AddToScheme(scheme))
 	utilruntime.Must(v1alpha2.Install(scheme))
 	utilruntime.Must(policyv1alpha1.Install(scheme))
-
-	propagationPolicyGVR := schema.GroupVersionResource{
-		Group:    policyv1alpha1.GroupVersion.Group,
-		Version:  policyv1alpha1.GroupVersion.Version,
-		Resource: policyv1alpha1.ResourcePluralPropagationPolicy,
-	}
 
 	tests := []struct {
 		name          string
@@ -341,10 +334,9 @@ func TestHandleDeprioritizedPropagationPolicy(t *testing.T) {
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.objects...)
 			genMgr := genericmanager.NewSingleClusterInformerManager(fakeDynamicClient, 0, stopCh)
 			resourceDetector := &ResourceDetector{
-				Client:                  fakeClient,
-				DynamicClient:           fakeDynamicClient,
-				InformerManager:         genMgr,
-				propagationPolicyLister: genMgr.Lister(propagationPolicyGVR),
+				Client:          fakeClient,
+				DynamicClient:   fakeDynamicClient,
+				InformerManager: genMgr,
 			}
 			mockWorker := &MockAsyncWorker{}
 			resourceDetector.policyReconcileWorker = mockWorker
@@ -367,12 +359,6 @@ func TestHandleDeprioritizedClusterPropagationPolicy(t *testing.T) {
 	utilruntime.Must(appsv1.AddToScheme(scheme))
 	utilruntime.Must(v1alpha2.Install(scheme))
 	utilruntime.Must(policyv1alpha1.Install(scheme))
-
-	clusterPropagationPolicyGVR := schema.GroupVersionResource{
-		Group:    policyv1alpha1.GroupVersion.Group,
-		Version:  policyv1alpha1.GroupVersion.Version,
-		Resource: policyv1alpha1.ResourcePluralClusterPropagationPolicy,
-	}
 
 	tests := []struct {
 		name          string
@@ -630,10 +616,9 @@ func TestHandleDeprioritizedClusterPropagationPolicy(t *testing.T) {
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.objects...)
 			genMgr := genericmanager.NewSingleClusterInformerManager(fakeDynamicClient, 0, stopCh)
 			resourceDetector := &ResourceDetector{
-				Client:                         fakeClient,
-				DynamicClient:                  fakeDynamicClient,
-				InformerManager:                genMgr,
-				clusterPropagationPolicyLister: genMgr.Lister(clusterPropagationPolicyGVR),
+				Client:          fakeClient,
+				DynamicClient:   fakeDynamicClient,
+				InformerManager: genMgr,
 			}
 			mockWorker := &MockAsyncWorker{}
 			resourceDetector.clusterPolicyReconcileWorker = mockWorker
