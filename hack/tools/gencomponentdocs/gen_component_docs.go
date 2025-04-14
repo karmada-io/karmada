@@ -117,7 +117,7 @@ func generateCMDs(module string) ([]*cobra.Command, error) {
 		cmds = append(cmds, webhookapp.NewWebhookCommand(context.TODO()))
 		cmds = append(cmds, adapterapp.NewMetricsAdapterCommand(context.TODO()))
 	default:
-		return nil, fmt.Errorf("Module %s is not supported", module)
+		return nil, fmt.Errorf("module %s is not supported", module)
 	}
 
 	return cmds, nil

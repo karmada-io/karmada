@@ -233,7 +233,7 @@ func (c *FHPAController) reconcileAutoscaler(ctx context.Context, hpa *autoscali
 		if err := c.updateStatusIfNeeded(ctx, hpaStatusOriginal, hpa); err != nil {
 			utilruntime.HandleError(err)
 		}
-		return fmt.Errorf("Failed to get scale target reference: %v ", err)
+		return fmt.Errorf("failed to get scale target reference: %v ", err)
 	}
 
 	binding, err := c.getBindingByLabel(ctx, targetResource.GetLabels(), hpa.Spec.ScaleTargetRef)
