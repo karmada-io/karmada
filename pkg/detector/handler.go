@@ -59,3 +59,8 @@ func ResourceItemKeyFunc(obj interface{}) (util.QueueKey, error) {
 
 	return key, nil
 }
+
+// NamespacedKeyFunc generates a NamespacedKey for object.
+func NamespacedKeyFunc(obj interface{}) (util.QueueKey, error) {
+	return keys.NamespacedKeyFunc(obj)
+}

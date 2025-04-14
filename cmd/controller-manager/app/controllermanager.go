@@ -786,6 +786,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		DiscoveryClientSet:                      discoverClientSet,
 		Client:                                  mgr.GetClient(),
 		InformerManager:                         controlPlaneInformerManager,
+		ControllerRuntimeCache:                  mgr.GetCache(),
 		RESTMapper:                              mgr.GetRESTMapper(),
 		DynamicClient:                           dynamicClientSet,
 		SkippedResourceConfig:                   skippedResourceConfig,

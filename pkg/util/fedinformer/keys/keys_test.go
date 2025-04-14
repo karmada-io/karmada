@@ -18,6 +18,7 @@ package keys
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -312,4 +313,76 @@ func ExampleFederatedKey_String() {
 	// cluster=karmada, apps/v1, kind=Namespace, default/foo
 	// cluster=karmada, apps/v1, kind=Namespace, default/foo
 	// cluster=karmada, apps/v1, kind=Namespace, default/foo
+}
+
+func TestNamespacedKeyFunc(t *testing.T) {
+	type args struct {
+		obj interface{}
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    NamespacedKey
+		wantErr bool
+	}{
+		{
+			name: "obj is deployment",
+			args: args{
+				obj: &appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "foo",
+						Name:      "bar",
+					},
+				}},
+			want: NamespacedKey{
+				Namespace: "foo",
+				Name:      "bar",
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := NamespacedKeyFunc(tt.args.obj)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NamespacedKeyFunc() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NamespacedKeyFunc() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNamespacedKey_String(t *testing.T) {
+	type fields struct {
+		Namespace string
+		Name      string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "obj is deployment",
+			fields: fields{
+				Namespace: "foo",
+				Name:      "bar",
+			},
+			want: fmt.Sprintf("namespace=%s, name=%s", "foo", "bar"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			k := NamespacedKey{
+				Namespace: tt.fields.Namespace,
+				Name:      tt.fields.Name,
+			}
+			if got := k.String(); got != tt.want {
+				t.Errorf("String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

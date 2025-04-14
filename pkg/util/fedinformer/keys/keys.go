@@ -158,3 +158,37 @@ func FederatedKeyFunc(cluster string, obj interface{}) (FederatedKey, error) {
 
 	return key, nil
 }
+
+// NamespacedKey is the object key which is a unique identifier under a cluster, across all resources.
+type NamespacedKey struct {
+	Namespace string
+	Name      string
+}
+
+// NamespacedKeyFunc generates a NamespacedKey for object.
+func NamespacedKeyFunc(obj interface{}) (NamespacedKey, error) {
+	key := NamespacedKey{}
+
+	metaInfo, err := meta.Accessor(obj)
+	if err != nil { // should not happen
+		return key, fmt.Errorf("object has no meta: %v", err)
+	}
+	key.Namespace = metaInfo.GetNamespace()
+	key.Name = metaInfo.GetName()
+	return key, nil
+}
+
+// String returns the key's printable info with format:
+// "namespace=<Namespace>, name=<Name>"
+func (k NamespacedKey) String() string {
+	return fmt.Sprintf("namespace=%s, name=%s", k.Namespace, k.Name)
+}
+
+// NamespaceKey returns the traditional key of an object.
+func (k *NamespacedKey) NamespaceKey() string {
+	if len(k.Namespace) > 0 {
+		return k.Namespace + "/" + k.Name
+	}
+
+	return k.Name
+}
