@@ -2,9 +2,9 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.14.0-alpha.1](#v1140-alpha1)
-  - [Downloads for v1.14.0-alpha.1](#downloads-for-v1140-alpha1)
-  - [Changelog since v1.13.0](#changelog-since-v1130)
+- [v1.14.0-alpha.2](#v1140-alpha2)
+  - [Downloads for v1.14.0-alpha.2](#downloads-for-v1140-alpha2)
+  - [Changelog since v1.14.0-alpha.1](#changelog-since-v1140-alpha1)
   - [Urgent Update Notes](#urgent-update-notes)
   - [Changes by Kind](#changes-by-kind)
     - [API Changes](#api-changes)
@@ -16,8 +16,66 @@
     - [Dependencies](#dependencies)
     - [Helm Charts](#helm-charts)
     - [Instrumentation](#instrumentation)
+    - [Performance](#performance)
+- [v1.14.0-alpha.1](#v1140-alpha1)
+  - [Downloads for v1.14.0-alpha.1](#downloads-for-v1140-alpha1)
+  - [Changelog since v1.13.0](#changelog-since-v1130)
+  - [Urgent Update Notes](#urgent-update-notes-1)
+  - [Changes by Kind](#changes-by-kind-1)
+    - [API Changes](#api-changes-1)
+    - [Features & Enhancements](#features--enhancements-1)
+    - [Deprecation](#deprecation-1)
+    - [Bug Fixes](#bug-fixes-1)
+    - [Security](#security-1)
+  - [Other](#other-1)
+    - [Dependencies](#dependencies-1)
+    - [Helm Charts](#helm-charts-1)
+    - [Instrumentation](#instrumentation-1)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.14.0-alpha.2
+## Downloads for v1.14.0-alpha.2
+
+Download v1.14.0-alpha.2 in the [v1.14.0-alpha.2 release page](https://github.com/karmada-io/karmada/releases/tag/v1.14.0-alpha.2).
+
+## Changelog since v1.14.0-alpha.1
+
+## Urgent Update Notes
+None.
+
+## Changes by Kind
+
+### API Changes
+
+### Features & Enhancements
+- `karmada-controller-manager`: The default resource interpreter will deduplicate and sort `status.Loadbalancer.Ingress` field for Service and Ingress resource when aggregating status. ([#6252](https://github.com/karmada-io/karmada/pull/6252), @zach593)
+- Updated Flink interpreter to check error when job state is not published. ([#6287](https://github.com/karmada-io/karmada/pull/6287), @liwang0513)
+
+### Deprecation
+None.
+
+### Bug Fixes
+- `karmada-controller-manager`: The default resource interpreter will no longer populate the `.status.LoadBalancer.Ingress[].Hostname` field with the member cluster name for Service and Ingress resources. ([#6249](https://github.com/karmada-io/karmada/pull/6249), @zach593)
+- `karmada-controller-manager`: when cluster is not-ready doesn't clean MultiClusterService and EndpointSlice work. ([#6258](https://github.com/karmada-io/karmada/pull/6258), @XiShanYongYe-Chang)
+- `karmada-agent`: Fixed the issue where a new pull-mode cluster may overwrite the existing member clusters. ([#6253](https://github.com/karmada-io/karmada/pull/6253), @zhzhuang-zju)
+- `karmadactl`: Fixed the issue where option `discovery-timeout` fails to work properly. ([#6270](https://github.com/karmada-io/karmada/pull/6270), @zhzhuang-zju)
+
+### Security
+None.
+
+## Other
+### Dependencies
+- Bump go version to 1.23.8. ([#6272](https://github.com/karmada-io/karmada/pull/6272), @seanlaii)
+
+### Helm Charts
+- Added `scheduler.enableSchedulerEstimator` to helm values for karmada chart to allow the scheduler to connect with the scheduler estimator. ([#6286](https://github.com/karmada-io/karmada/pull/6286), @mojojoji)
+
+### Instrumentation
+- Introduced `karmada_build_info` metric, which exposes build metadata, to components `karmada-agent`, `karmada-controller-manager`, `karmada-descheduler`, `karmada-metrics-adapter`, `karmada-scheduler-estimator`, `karmada-scheduler`, and `karmada-webhook`. ([#6215](https://github.com/karmada-io/karmada/pull/6215), @dongjiang1989)
+
+### Performance
+- After replacing dynamic informers in the `detector` controller with typed informers, which reduces CPU usage by 25% during restarts and reduces memory consumption by 10%. ([#5802](https://github.com/karmada-io/karmada/pull/5802), @CharlesQQ)
 
 # v1.14.0-alpha.1
 ## Downloads for v1.14.0-alpha.1
