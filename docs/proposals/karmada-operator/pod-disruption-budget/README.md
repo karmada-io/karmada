@@ -112,7 +112,7 @@ type PodDisruptionBudgetConfig struct {
 
 ### Misconfiguration of PDB
 - If a user sets `minAvailable` higher than the number of replicas, the pods could become unschedulable during updates or evictions.  
-  **Mitigation**: The operator could report and error during validation of the Karmada resource if `replicas < minAvailable`.
+  **Mitigation**: The operator could report an error during validation of the Karmada resource if `replicas < minAvailable`.
 
 ### Backward Compatibility
 - Existing installations don’t create or expect PDBs.  
