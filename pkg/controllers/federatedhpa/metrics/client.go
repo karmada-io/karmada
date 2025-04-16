@@ -70,7 +70,9 @@ func (c *resourceMetricsClient) GetResourceMetric(ctx context.Context, resource 
 	// observe pull ResourceMetric latency
 	var err error
 	startTime := time.Now()
-	defer metrics.ObserveFederatedHPAPullMetricsLatency(err, "ResourceMetric", startTime)
+	defer func() {
+		metrics.ObserveFederatedHPAPullMetricsLatency(err, "ResourceMetric", startTime)
+	}()
 
 	podMetrics, err := c.client.PodMetricses(namespace).List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
@@ -154,7 +156,9 @@ func (c *customMetricsClient) GetRawMetric(metricName string, namespace string, 
 	// observe pull RawMetric latency
 	var err error
 	startTime := time.Now()
-	defer metrics.ObserveFederatedHPAPullMetricsLatency(err, "RawMetric", startTime)
+	defer func() {
+		metrics.ObserveFederatedHPAPullMetricsLatency(err, "RawMetric", startTime)
+	}()
 
 	metricList, err := c.client.NamespacedMetrics(namespace).GetForObjects(schema.GroupKind{Kind: "Pod"}, selector, metricName, metricSelector)
 	if err != nil {
@@ -191,7 +195,9 @@ func (c *customMetricsClient) GetObjectMetric(metricName string, namespace strin
 	// observe pull ObjectMetric latency
 	var err error
 	startTime := time.Now()
-	defer metrics.ObserveFederatedHPAPullMetricsLatency(err, "ObjectMetric", startTime)
+	defer func() {
+		metrics.ObserveFederatedHPAPullMetricsLatency(err, "ObjectMetric", startTime)
+	}()
 
 	gvk := schema.FromAPIVersionAndKind(objectRef.APIVersion, objectRef.Kind)
 	var metricValue *customapi.MetricValue
@@ -223,7 +229,9 @@ func (c *externalMetricsClient) GetExternalMetric(metricName, namespace string, 
 	// observe pull ExternalMetric latency
 	var err error
 	startTime := time.Now()
-	defer metrics.ObserveFederatedHPAPullMetricsLatency(err, "ExternalMetric", startTime)
+	defer func() {
+		metrics.ObserveFederatedHPAPullMetricsLatency(err, "ExternalMetric", startTime)
+	}()
 
 	externalMetrics, err := c.client.NamespacedMetrics(namespace).List(metricName, selector)
 	if err != nil {

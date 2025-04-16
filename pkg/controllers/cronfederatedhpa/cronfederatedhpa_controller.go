@@ -78,7 +78,9 @@ func (c *CronFHPAController) Reconcile(ctx context.Context, req controllerruntim
 
 	var err error
 	startTime := time.Now()
-	defer metrics.ObserveProcessCronFederatedHPALatency(err, startTime)
+	defer func() {
+		metrics.ObserveProcessCronFederatedHPALatency(err, startTime)
+	}()
 
 	origRuleSets := sets.New[string]()
 	for _, history := range cronFHPA.Status.ExecutionHistories {
