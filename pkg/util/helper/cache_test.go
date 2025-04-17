@@ -17,6 +17,7 @@ limitations under the License.
 package helper
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -35,7 +36,7 @@ import (
 func TestGetObjectFromCache(t *testing.T) {
 	type args struct {
 		restMapper meta.RESTMapper
-		manager    func(<-chan struct{}) genericmanager.MultiClusterInformerManager
+		manager    func(ctx context.Context) genericmanager.MultiClusterInformerManager
 		fedKey     keys.FederatedKey
 	}
 	tests := []struct {
@@ -48,8 +49,8 @@ func TestGetObjectFromCache(t *testing.T) {
 			name: "kind not registered",
 			args: args{
 				restMapper: meta.NewDefaultRESTMapper(nil),
-				manager: func(stopCh <-chan struct{}) genericmanager.MultiClusterInformerManager {
-					return genericmanager.NewMultiClusterInformerManager(stopCh)
+				manager: func(ctx context.Context) genericmanager.MultiClusterInformerManager {
+					return genericmanager.NewMultiClusterInformerManager(ctx)
 				},
 				fedKey: keys.FederatedKey{Cluster: "cluster", ClusterWideKey: keys.ClusterWideKey{
 					Version: "v1", Kind: "Pod", Namespace: "default", Name: "pod",
@@ -66,8 +67,8 @@ func TestGetObjectFromCache(t *testing.T) {
 					m.Add(schema.GroupVersionKind{Version: "v1", Kind: "Pod"}, meta.RESTScopeNamespace)
 					return m
 				}(),
-				manager: func(stopCh <-chan struct{}) genericmanager.MultiClusterInformerManager {
-					return genericmanager.NewMultiClusterInformerManager(stopCh)
+				manager: func(ctx context.Context) genericmanager.MultiClusterInformerManager {
+					return genericmanager.NewMultiClusterInformerManager(ctx)
 				},
 				fedKey: keys.FederatedKey{Cluster: "cluster", ClusterWideKey: keys.ClusterWideKey{
 					Version: "v1", Kind: "Pod", Namespace: "default", Name: "pod",
@@ -84,8 +85,8 @@ func TestGetObjectFromCache(t *testing.T) {
 					m.Add(schema.GroupVersionKind{Version: "v1", Kind: "Pod"}, meta.RESTScopeNamespace)
 					return m
 				}(),
-				manager: func(stopCh <-chan struct{}) genericmanager.MultiClusterInformerManager {
-					m := genericmanager.NewMultiClusterInformerManager(stopCh)
+				manager: func(ctx context.Context) genericmanager.MultiClusterInformerManager {
+					m := genericmanager.NewMultiClusterInformerManager(ctx)
 					m.ForCluster("cluster", fake.NewSimpleDynamicClient(scheme.Scheme), 0)
 					return m
 				},
@@ -104,8 +105,8 @@ func TestGetObjectFromCache(t *testing.T) {
 					m.Add(schema.GroupVersionKind{Version: "v1", Kind: "Pod"}, meta.RESTScopeNamespace)
 					return m
 				}(),
-				manager: func(stopCh <-chan struct{}) genericmanager.MultiClusterInformerManager {
-					m := genericmanager.NewMultiClusterInformerManager(stopCh)
+				manager: func(ctx context.Context) genericmanager.MultiClusterInformerManager {
+					m := genericmanager.NewMultiClusterInformerManager(ctx)
 					m.ForCluster("cluster", fake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default"}},
 					), 0)
@@ -131,8 +132,8 @@ func TestGetObjectFromCache(t *testing.T) {
 					m.Add(corev1.SchemeGroupVersion.WithKind("Pod"), meta.RESTScopeNamespace)
 					return m
 				}(),
-				manager: func(stopCh <-chan struct{}) genericmanager.MultiClusterInformerManager {
-					m := genericmanager.NewMultiClusterInformerManager(stopCh)
+				manager: func(ctx context.Context) genericmanager.MultiClusterInformerManager {
+					m := genericmanager.NewMultiClusterInformerManager(ctx)
 					m.ForCluster("cluster", fake.NewSimpleDynamicClient(scheme.Scheme), 0).
 						Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
 					m.Start("cluster")
@@ -154,8 +155,8 @@ func TestGetObjectFromCache(t *testing.T) {
 					m.Add(corev1.SchemeGroupVersion.WithKind("Pod"), meta.RESTScopeNamespace)
 					return m
 				}(),
-				manager: func(stopCh <-chan struct{}) genericmanager.MultiClusterInformerManager {
-					m := genericmanager.NewMultiClusterInformerManager(stopCh)
+				manager: func(ctx context.Context) genericmanager.MultiClusterInformerManager {
+					m := genericmanager.NewMultiClusterInformerManager(ctx)
 					m.ForCluster("cluster", fake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default"}},
 					), 0).Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
@@ -178,9 +179,9 @@ func TestGetObjectFromCache(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stopCh := make(chan struct{})
-			defer close(stopCh)
-			mgr := tt.args.manager(stopCh)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			mgr := tt.args.manager(ctx)
 			got, err := GetObjectFromCache(tt.args.restMapper, mgr, tt.args.fedKey)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetObjectFromCache() error = %v, wantErr %v", err, tt.wantErr)
@@ -196,7 +197,7 @@ func TestGetObjectFromCache(t *testing.T) {
 func TestGetObjectFromSingleClusterCache(t *testing.T) {
 	type args struct {
 		restMapper meta.RESTMapper
-		manager    func(<-chan struct{}) genericmanager.SingleClusterInformerManager
+		manager    func(context.Context) genericmanager.SingleClusterInformerManager
 		cwk        *keys.ClusterWideKey
 	}
 	tests := []struct {
@@ -209,8 +210,8 @@ func TestGetObjectFromSingleClusterCache(t *testing.T) {
 			name: "kind not registered",
 			args: args{
 				restMapper: meta.NewDefaultRESTMapper(nil),
-				manager: func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager {
-					return genericmanager.NewSingleClusterInformerManager(fake.NewSimpleDynamicClient(scheme.Scheme), 0, stopCh)
+				manager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
+					return genericmanager.NewSingleClusterInformerManager(ctx, fake.NewSimpleDynamicClient(scheme.Scheme), 0)
 				},
 				cwk: &keys.ClusterWideKey{Version: "v1", Kind: "Pod", Namespace: "default", Name: "pod"},
 			},
@@ -225,8 +226,8 @@ func TestGetObjectFromSingleClusterCache(t *testing.T) {
 					m.Add(schema.GroupVersionKind{Version: "v1", Kind: "Pod"}, meta.RESTScopeNamespace)
 					return m
 				}(),
-				manager: func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager {
-					return genericmanager.NewSingleClusterInformerManager(fake.NewSimpleDynamicClient(scheme.Scheme), 0, stopCh)
+				manager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
+					return genericmanager.NewSingleClusterInformerManager(ctx, fake.NewSimpleDynamicClient(scheme.Scheme), 0)
 				},
 				cwk: &keys.ClusterWideKey{Version: "v1", Kind: "Pod", Namespace: "default", Name: "pod"},
 			},
@@ -241,9 +242,9 @@ func TestGetObjectFromSingleClusterCache(t *testing.T) {
 					m.Add(schema.GroupVersionKind{Version: "v1", Kind: "Pod"}, meta.RESTScopeNamespace)
 					return m
 				}(),
-				manager: func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager {
+				manager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
 					c := fake.NewSimpleDynamicClient(scheme.Scheme, &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default"}})
-					return genericmanager.NewSingleClusterInformerManager(c, 0, stopCh)
+					return genericmanager.NewSingleClusterInformerManager(ctx, c, 0)
 				},
 				cwk: &keys.ClusterWideKey{Version: "v1", Kind: "Pod", Namespace: "default", Name: "pod"},
 			},
@@ -263,8 +264,8 @@ func TestGetObjectFromSingleClusterCache(t *testing.T) {
 					m.Add(corev1.SchemeGroupVersion.WithKind("Pod"), meta.RESTScopeNamespace)
 					return m
 				}(),
-				manager: func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager {
-					m := genericmanager.NewSingleClusterInformerManager(fake.NewSimpleDynamicClient(scheme.Scheme), 0, stopCh)
+				manager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
+					m := genericmanager.NewSingleClusterInformerManager(ctx, fake.NewSimpleDynamicClient(scheme.Scheme), 0)
 					m.Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
 					m.Start()
 					m.WaitForCacheSync()
@@ -283,9 +284,9 @@ func TestGetObjectFromSingleClusterCache(t *testing.T) {
 					m.Add(corev1.SchemeGroupVersion.WithKind("Pod"), meta.RESTScopeNamespace)
 					return m
 				}(),
-				manager: func(stopCh <-chan struct{}) genericmanager.SingleClusterInformerManager {
+				manager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
 					c := fake.NewSimpleDynamicClient(scheme.Scheme, &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default"}})
-					m := genericmanager.NewSingleClusterInformerManager(c, 0, stopCh)
+					m := genericmanager.NewSingleClusterInformerManager(ctx, c, 0)
 					m.Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
 					m.Start()
 					m.WaitForCacheSync()
@@ -304,9 +305,9 @@ func TestGetObjectFromSingleClusterCache(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stopCh := make(chan struct{})
-			defer close(stopCh)
-			mgr := tt.args.manager(stopCh)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			mgr := tt.args.manager(ctx)
 			got, err := GetObjectFromSingleClusterCache(tt.args.restMapper, mgr, tt.args.cwk)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetObjectFromCache() error = %v, wantErr %v", err, tt.wantErr)

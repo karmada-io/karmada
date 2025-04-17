@@ -233,7 +233,7 @@ func run(ctx context.Context, opts *options.Options) error {
 	ctrlmetrics.Registry.MustRegister(metrics.PoolCollectors()...)
 	ctrlmetrics.Registry.MustRegister(metrics.NewBuildInfoCollector())
 
-	if err = setupControllers(controllerManager, opts, ctx.Done()); err != nil {
+	if err = setupControllers(ctx, controllerManager, opts); err != nil {
 		return err
 	}
 
@@ -245,18 +245,18 @@ func run(ctx context.Context, opts *options.Options) error {
 	return nil
 }
 
-func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) error {
+func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *options.Options) error {
 	restConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
-	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
+	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(ctx, dynamicClientSet, 0)
 	controlPlaneKubeClientSet := kubeclientset.NewForConfigOrDie(restConfig)
 
 	// We need a service lister to build a resource interpreter with `ClusterIPServiceResolver`
 	// witch allows connection to the customized interpreter webhook without a cluster DNS service.
 	sharedFactory := informers.NewSharedInformerFactory(controlPlaneKubeClientSet, 0)
 	serviceLister := sharedFactory.Core().V1().Services().Lister()
-	sharedFactory.Start(stopChan)
-	sharedFactory.WaitForCacheSync(stopChan)
+	sharedFactory.Start(ctx.Done())
+	sharedFactory.WaitForCacheSync(ctx.Done())
 
 	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, serviceLister)
 	if err := mgr.Add(resourceInterpreter); err != nil {
@@ -285,7 +285,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			CertRotationRemainingTimeThreshold: opts.CertRotationRemainingTimeThreshold,
 			KarmadaKubeconfigNamespace:         opts.KarmadaKubeconfigNamespace,
 		},
-		StopChan:            stopChan,
+		Context:             ctx,
 		ResourceInterpreter: resourceInterpreter,
 	}
 
@@ -295,7 +295,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 
 	// Ensure the InformerManager stops when the stop channel closes
 	go func() {
-		<-stopChan
+		<-ctx.Done()
 		genericmanager.StopInstance()
 	}()
 
@@ -310,7 +310,6 @@ func startClusterStatusController(ctx controllerscontext.Context) (bool, error) 
 		PredicateFunc:                     helper.NewClusterPredicateOnAgent(ctx.Opts.ClusterName),
 		TypedInformerManager:              typedmanager.GetInstance(),
 		GenericInformerManager:            genericmanager.GetInstance(),
-		StopChan:                          ctx.StopChan,
 		ClusterClientSetFunc:              util.NewClusterClientSetForAgent,
 		ClusterDynamicClientSetFunc:       util.NewClusterDynamicClientSetForAgent,
 		ClusterClientOption:               &util.ClientOption{QPS: ctx.Opts.ClusterAPIQPS, Burst: ctx.Opts.ClusterAPIBurst},
@@ -351,7 +350,7 @@ func startWorkStatusController(ctx controllerscontext.Context) (bool, error) {
 		EventRecorder:               ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
 		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
 		InformerManager:             genericmanager.GetInstance(),
-		StopChan:                    ctx.StopChan,
+		Context:                     ctx.Context,
 		ObjectWatcher:               ctx.ObjectWatcher,
 		PredicateFunc:               helper.NewExecutionPredicateOnAgent(),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
@@ -373,7 +372,7 @@ func startServiceExportController(ctx controllerscontext.Context) (bool, error) 
 		EventRecorder:               ctx.Mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
 		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
 		InformerManager:             genericmanager.GetInstance(),
-		StopChan:                    ctx.StopChan,
+		Context:                     ctx.Context,
 		WorkerNumber:                3,
 		PredicateFunc:               helper.NewPredicateForServiceExportControllerOnAgent(ctx.Opts.ClusterName),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
@@ -399,7 +398,7 @@ func startEndpointSliceCollectController(ctx controllerscontext.Context) (enable
 		Client:                      ctx.Mgr.GetClient(),
 		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
 		InformerManager:             genericmanager.GetInstance(),
-		StopChan:                    ctx.StopChan,
+		Context:                     ctx.Context,
 		WorkerNumber:                3,
 		PredicateFunc:               helper.NewPredicateForEndpointSliceCollectControllerOnAgent(opts.ClusterName),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,

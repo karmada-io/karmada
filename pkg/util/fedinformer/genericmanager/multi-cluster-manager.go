@@ -17,6 +17,7 @@ limitations under the License.
 package genericmanager
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -25,29 +26,22 @@ import (
 )
 
 var (
-	instance MultiClusterInformerManager
-	once     sync.Once
-	stopOnce sync.Once
-	stopCh   chan struct{}
+	instance    MultiClusterInformerManager
+	once        sync.Once
+	ctx, cancel = context.WithCancel(context.Background())
 )
-
-func init() {
-	stopCh = make(chan struct{})
-}
 
 // GetInstance returns a shared MultiClusterInformerManager instance.
 func GetInstance() MultiClusterInformerManager {
 	once.Do(func() {
-		instance = NewMultiClusterInformerManager(stopCh)
+		instance = NewMultiClusterInformerManager(ctx)
 	})
 	return instance
 }
 
 // StopInstance will stop the shared MultiClusterInformerManager instance.
 func StopInstance() {
-	stopOnce.Do(func() {
-		close(stopCh)
-	})
+	cancel()
 }
 
 // MultiClusterInformerManager manages dynamic shared informer for all resources, include Kubernetes resource and
@@ -80,16 +74,16 @@ type MultiClusterInformerManager interface {
 }
 
 // NewMultiClusterInformerManager constructs a new instance of multiClusterInformerManagerImpl.
-func NewMultiClusterInformerManager(stopCh <-chan struct{}) MultiClusterInformerManager {
+func NewMultiClusterInformerManager(ctx context.Context) MultiClusterInformerManager {
 	return &multiClusterInformerManagerImpl{
 		managers: make(map[string]SingleClusterInformerManager),
-		stopCh:   stopCh,
+		ctx:      ctx,
 	}
 }
 
 type multiClusterInformerManagerImpl struct {
 	managers map[string]SingleClusterInformerManager
-	stopCh   <-chan struct{}
+	ctx      context.Context
 	lock     sync.RWMutex
 }
 
@@ -109,7 +103,7 @@ func (m *multiClusterInformerManagerImpl) ForCluster(cluster string, client dyna
 		return manager
 	}
 
-	manager := NewSingleClusterInformerManager(client, defaultResync, m.stopCh)
+	manager := NewSingleClusterInformerManager(m.ctx, client, defaultResync)
 	m.managers[cluster] = manager
 	return manager
 }

@@ -17,6 +17,7 @@ limitations under the License.
 package context
 
 import (
+	"context"
 	"regexp"
 	"time"
 
@@ -106,7 +107,7 @@ type Context struct {
 	Mgr                         controllerruntime.Manager
 	ObjectWatcher               objectwatcher.ObjectWatcher
 	Opts                        Options
-	StopChan                    <-chan struct{}
+	Context                     context.Context
 	DynamicClientSet            dynamic.Interface
 	KubeClientSet               clientset.Interface
 	OverrideManager             overridemanager.OverrideManager

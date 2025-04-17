@@ -84,7 +84,7 @@ func generateCMDs(module string) ([]*cobra.Command, error) {
 		cmds = append(cmds, cmapp.NewControllerManagerCommand(context.TODO()))
 	case names.KarmadaSchedulerComponentName:
 		// generate docs for karmada-scheduler
-		cmds = append(cmds, schapp.NewSchedulerCommand(nil))
+		cmds = append(cmds, schapp.NewSchedulerCommand(context.TODO()))
 	case names.KarmadaAgentComponentName:
 		// generate docs for karmada-agent
 		cmds = append(cmds, agentapp.NewAgentCommand(context.TODO()))
@@ -93,7 +93,7 @@ func generateCMDs(module string) ([]*cobra.Command, error) {
 		cmds = append(cmds, aaapp.NewAggregatedApiserverCommand(context.TODO()))
 	case names.KarmadaDeschedulerComponentName:
 		// generate docs for karmada-descheduler
-		cmds = append(cmds, deschapp.NewDeschedulerCommand(nil))
+		cmds = append(cmds, deschapp.NewDeschedulerCommand(context.TODO()))
 	case names.KarmadaSearchComponentName:
 		// generate docs for karmada-search
 		cmds = append(cmds, searchapp.NewKarmadaSearchCommand(context.TODO()))
@@ -108,10 +108,10 @@ func generateCMDs(module string) ([]*cobra.Command, error) {
 		cmds = append(cmds, adapterapp.NewMetricsAdapterCommand(context.TODO()))
 	case "all":
 		cmds = append(cmds, cmapp.NewControllerManagerCommand(context.TODO()))
-		cmds = append(cmds, schapp.NewSchedulerCommand(nil))
+		cmds = append(cmds, schapp.NewSchedulerCommand(context.TODO()))
 		cmds = append(cmds, agentapp.NewAgentCommand(context.TODO()))
 		cmds = append(cmds, aaapp.NewAggregatedApiserverCommand(context.TODO()))
-		cmds = append(cmds, deschapp.NewDeschedulerCommand(nil))
+		cmds = append(cmds, deschapp.NewDeschedulerCommand(context.TODO()))
 		cmds = append(cmds, searchapp.NewKarmadaSearchCommand(context.TODO()))
 		cmds = append(cmds, estiapp.NewSchedulerEstimatorCommand(context.TODO()))
 		cmds = append(cmds, webhookapp.NewWebhookCommand(context.TODO()))

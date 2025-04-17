@@ -86,7 +86,6 @@ type ClusterStatusController struct {
 	PredicateFunc               predicate.Predicate
 	TypedInformerManager        typedmanager.MultiClusterInformerManager
 	GenericInformerManager      genericmanager.MultiClusterInformerManager
-	StopChan                    <-chan struct{}
 	ClusterClientSetFunc        func(string, client.Client, *util.ClientOption) (*util.ClusterClient, error)
 	ClusterDynamicClientSetFunc func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
 	// ClusterClientOption holds the attributes that should be injected to a Kubernetes client.

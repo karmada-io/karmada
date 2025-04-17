@@ -17,6 +17,7 @@ limitations under the License.
 package app
 
 import (
+	"context"
 	"net/http"
 	"testing"
 	"time"
@@ -29,8 +30,8 @@ import (
 )
 
 func TestNewDeschedulerCommand(t *testing.T) {
-	stopCh := make(chan struct{})
-	cmd := NewDeschedulerCommand(stopCh)
+	ctx := context.Background()
+	cmd := NewDeschedulerCommand(ctx)
 
 	assert.NotNil(t, cmd)
 	assert.Equal(t, names.KarmadaDeschedulerComponentName, cmd.Use)
@@ -51,8 +52,8 @@ func TestDeschedulerCommandFlagParsing(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			stopCh := make(chan struct{})
-			cmd := NewDeschedulerCommand(stopCh)
+			ctx := context.Background()
+			cmd := NewDeschedulerCommand(ctx)
 			cmd.SetArgs(tc.args)
 			err := cmd.ParseFlags(tc.args)
 			if tc.expectError {

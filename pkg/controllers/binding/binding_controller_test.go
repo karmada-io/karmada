@@ -63,7 +63,7 @@ func makeFakeRBCByResource(rs *workv1alpha2.ObjectReference) (*ResourceBindingCo
 		return &ResourceBindingController{
 			Client:          c,
 			RESTMapper:      testing2.RestMapper,
-			InformerManager: genericmanager.NewSingleClusterInformerManager(tempDyClient, 0, nil),
+			InformerManager: genericmanager.NewSingleClusterInformerManager(context.TODO(), tempDyClient, 0),
 			DynamicClient:   tempDyClient,
 		}, nil
 	}

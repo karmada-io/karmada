@@ -17,6 +17,7 @@ limitations under the License.
 package detector
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -60,10 +61,10 @@ func (m *MockAsyncWorker) Enqueue(obj interface{}) {
 }
 
 // Note: This is a dummy implementation of Run for testing purposes.
-func (m *MockAsyncWorker) Run(workerNumber int, stopChan <-chan struct{}) {
+func (m *MockAsyncWorker) Run(ctx context.Context, workerNumber int) {
 	// No actual work is done in the mock; we just simulate running
 	fmt.Printf("%v", workerNumber)
-	fmt.Printf("%v", <-stopChan)
+	fmt.Printf("%v", <-ctx.Done())
 }
 
 // GetQueue returns the current state of the queue
@@ -329,10 +330,10 @@ func TestHandleDeprioritizedPropagationPolicy(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := tt.setupClient().Build()
-			stopCh := make(chan struct{})
-			defer close(stopCh)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.objects...)
-			genMgr := genericmanager.NewSingleClusterInformerManager(fakeDynamicClient, 0, stopCh)
+			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0)
 			resourceDetector := &ResourceDetector{
 				Client:          fakeClient,
 				DynamicClient:   fakeDynamicClient,
@@ -611,10 +612,10 @@ func TestHandleDeprioritizedClusterPropagationPolicy(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := tt.setupClient().Build()
-			stopCh := make(chan struct{})
-			defer close(stopCh)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.objects...)
-			genMgr := genericmanager.NewSingleClusterInformerManager(fakeDynamicClient, 0, stopCh)
+			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0)
 			resourceDetector := &ResourceDetector{
 				Client:          fakeClient,
 				DynamicClient:   fakeDynamicClient,

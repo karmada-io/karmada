@@ -123,10 +123,9 @@ func Test_interpreterConfigManager_LuaScriptAccessors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.TODO(), time.Second*5)
 			defer cancel()
-			stopCh := ctx.Done()
 
 			client := fake.NewSimpleDynamicClient(gclient.NewSchema(), tt.args.customizations...)
-			informer := genericmanager.NewSingleClusterInformerManager(client, 0, stopCh)
+			informer := genericmanager.NewSingleClusterInformerManager(ctx, client, 0)
 			configManager := NewInterpreterConfigManager(informer)
 
 			informer.Start()
@@ -134,7 +133,7 @@ func Test_interpreterConfigManager_LuaScriptAccessors(t *testing.T) {
 
 			informer.WaitForCacheSync()
 
-			if !cache.WaitForCacheSync(stopCh, configManager.HasSynced) {
+			if !cache.WaitForCacheSync(ctx.Done(), configManager.HasSynced) {
 				t.Errorf("informer has not been synced")
 			}
 

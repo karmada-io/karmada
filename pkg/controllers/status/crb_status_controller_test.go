@@ -42,11 +42,11 @@ import (
 )
 
 func generateCRBStatusController() *CRBStatusController {
-	stopCh := make(chan struct{})
-	defer close(stopCh)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "ns1"}})
-	m := genericmanager.NewSingleClusterInformerManager(dynamicClient, 0, stopCh)
+	m := genericmanager.NewSingleClusterInformerManager(ctx, dynamicClient, 0)
 	m.Lister(corev1.SchemeGroupVersion.WithResource("namespaces"))
 	m.Start()
 	m.WaitForCacheSync()

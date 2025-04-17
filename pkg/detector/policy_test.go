@@ -17,6 +17,7 @@ limitations under the License.
 package detector
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -150,10 +151,10 @@ func Test_cleanPPUnmatchedRBs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := tt.setupClient().Build()
-			stopCh := make(chan struct{})
-			defer close(stopCh)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
-			genMgr := genericmanager.NewSingleClusterInformerManager(fakeDynamicClient, 0, stopCh)
+			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0)
 			resourceDetector := &ResourceDetector{
 				Client:          fakeClient,
 				DynamicClient:   fakeDynamicClient,
@@ -285,10 +286,10 @@ func Test_cleanUnmatchedRBs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := tt.setupClient().Build()
-			stopCh := make(chan struct{})
-			defer close(stopCh)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
-			genMgr := genericmanager.NewSingleClusterInformerManager(fakeDynamicClient, 0, stopCh)
+			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0)
 			resourceDetector := &ResourceDetector{
 				Client:          fakeClient,
 				DynamicClient:   fakeDynamicClient,
@@ -420,10 +421,10 @@ func Test_cleanUnmatchedCRBs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := tt.setupClient().Build()
-			stopCh := make(chan struct{})
-			defer close(stopCh)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
-			genMgr := genericmanager.NewSingleClusterInformerManager(fakeDynamicClient, 0, stopCh)
+			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0)
 			resourceDetector := &ResourceDetector{
 				Client:          fakeClient,
 				DynamicClient:   fakeDynamicClient,
@@ -654,10 +655,10 @@ func Test_removeRBsClaimMetadata(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := tt.setupClient().Build()
-			stopCh := make(chan struct{})
-			defer close(stopCh)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
-			genMgr := genericmanager.NewSingleClusterInformerManager(fakeDynamicClient, 0, stopCh)
+			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0)
 			resourceDetector := &ResourceDetector{
 				Client:          fakeClient,
 				DynamicClient:   fakeDynamicClient,
@@ -879,10 +880,10 @@ func Test_removeCRBsClaimMetadata(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := tt.setupClient().Build()
-			stopCh := make(chan struct{})
-			defer close(stopCh)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
-			genMgr := genericmanager.NewSingleClusterInformerManager(fakeDynamicClient, 0, stopCh)
+			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0)
 			resourceDetector := &ResourceDetector{
 				Client:          fakeClient,
 				DynamicClient:   fakeDynamicClient,
@@ -1102,10 +1103,10 @@ func Test_removeResourceClaimMetadataIfNotMatched(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := tt.setupClient().Build()
-			stopCh := make(chan struct{})
-			defer close(stopCh)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
-			genMgr := genericmanager.NewSingleClusterInformerManager(fakeDynamicClient, 0, stopCh)
+			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0)
 			resourceDetector := &ResourceDetector{
 				Client:          fakeClient,
 				DynamicClient:   fakeDynamicClient,

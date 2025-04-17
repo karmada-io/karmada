@@ -452,16 +452,16 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 		return nil
 	}
 	// create resource interpreter
-	stopCh := make(chan struct{})
-	defer close(stopCh)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	dynamicClientSet := dynamicClientBuilder(config)
 
-	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopCh)
+	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(ctx, dynamicClientSet, 0)
 	controlPlaneKubeClientSet := kubeClientBuilder(config)
 	sharedFactory := informers.NewSharedInformerFactory(controlPlaneKubeClientSet, 0)
 	serviceLister := sharedFactory.Core().V1().Services().Lister()
-	sharedFactory.Start(stopCh)
-	sharedFactory.WaitForCacheSync(stopCh)
+	sharedFactory.Start(ctx.Done())
+	sharedFactory.WaitForCacheSync(ctx.Done())
 	controlPlaneInformerManager.Start()
 	if sync := controlPlaneInformerManager.WaitForCacheSync(); sync == nil {
 		return errors.New("informer factory for cluster does not exist")

@@ -67,7 +67,7 @@ type ServiceExportController struct {
 	client.Client
 	EventRecorder               record.EventRecorder
 	RESTMapper                  meta.RESTMapper
-	StopChan                    <-chan struct{}
+	Context                     context.Context
 	InformerManager             genericmanager.MultiClusterInformerManager
 	WorkerNumber                int                 // WorkerNumber is the number of worker goroutines
 	PredicateFunc               predicate.Predicate // PredicateFunc is the function that filters events before enqueuing the keys.
@@ -151,7 +151,7 @@ func (c *ServiceExportController) RunWorkQueue() {
 		ReconcileFunc: c.syncServiceExportOrEndpointSlice,
 	}
 	c.worker = util.NewAsyncWorker(workerOptions)
-	c.worker.Run(c.WorkerNumber, c.StopChan)
+	c.worker.Run(c.Context, c.WorkerNumber)
 
 	go c.enqueueReportedEpsServiceExport()
 }

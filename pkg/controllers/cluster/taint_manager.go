@@ -127,7 +127,7 @@ func (tc *NoExecuteTaintManager) Start(ctx context.Context) error {
 		ReconcileFunc: tc.syncBindingEviction,
 	}
 	tc.bindingEvictionWorker = util.NewAsyncWorker(bindingEvictionWorkerOptions)
-	tc.bindingEvictionWorker.Run(tc.ConcurrentReconciles, ctx.Done())
+	tc.bindingEvictionWorker.Run(ctx, tc.ConcurrentReconciles)
 
 	clusterBindingEvictionWorkerOptions := util.Options{
 		Name:          "cluster-binding-eviction",
@@ -135,7 +135,7 @@ func (tc *NoExecuteTaintManager) Start(ctx context.Context) error {
 		ReconcileFunc: tc.syncClusterBindingEviction,
 	}
 	tc.clusterBindingEvictionWorker = util.NewAsyncWorker(clusterBindingEvictionWorkerOptions)
-	tc.clusterBindingEvictionWorker.Run(tc.ConcurrentReconciles, ctx.Done())
+	tc.clusterBindingEvictionWorker.Run(ctx, tc.ConcurrentReconciles)
 
 	<-ctx.Done()
 	return nil
