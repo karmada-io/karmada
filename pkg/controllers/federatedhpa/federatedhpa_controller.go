@@ -175,7 +175,9 @@ func (c *FHPAController) Reconcile(ctx context.Context, req controllerruntime.Re
 	// observe process FederatedHPA latency
 	var err error
 	startTime := time.Now()
-	defer metrics.ObserveProcessFederatedHPALatency(err, startTime)
+	defer func() {
+		metrics.ObserveProcessFederatedHPALatency(err, startTime)
+	}()
 
 	err = c.reconcileAutoscaler(ctx, hpa)
 	if err != nil {
