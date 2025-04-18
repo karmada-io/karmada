@@ -19,7 +19,7 @@ jobs:
       max-parallel: 5
       fail-fast: false
       matrix:
-        kubeapiserver-version: [ v1.23.4, v1.24.2, v1.25.0, v1.26.0, v1.27.3, v1.28.0, v1.29.0, v1.30.0, v1.31.0 ]
+        kubeapiserver-version: [ v1.23.4, v1.24.2, v1.25.0, v1.26.0, v1.27.3, v1.28.0, v1.29.0, v1.30.0, v1.31.0, v1.32.0 ]
         karmada-version: [ master, release-1.13, release-1.12, release-1.11 ]
     env:
       KARMADA_APISERVER_VERSION: ${{ matrix.kubeapiserver-version }}
