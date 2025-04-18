@@ -19,108 +19,34 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeClusterPropagationPolicies implements ClusterPropagationPolicyInterface
-type FakeClusterPropagationPolicies struct {
+// fakeClusterPropagationPolicies implements ClusterPropagationPolicyInterface
+type fakeClusterPropagationPolicies struct {
+	*gentype.FakeClientWithList[*v1alpha1.ClusterPropagationPolicy, *v1alpha1.ClusterPropagationPolicyList]
 	Fake *FakePolicyV1alpha1
 }
 
-var clusterpropagationpoliciesResource = v1alpha1.SchemeGroupVersion.WithResource("clusterpropagationpolicies")
-
-var clusterpropagationpoliciesKind = v1alpha1.SchemeGroupVersion.WithKind("ClusterPropagationPolicy")
-
-// Get takes name of the clusterPropagationPolicy, and returns the corresponding clusterPropagationPolicy object, and an error if there is any.
-func (c *FakeClusterPropagationPolicies) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ClusterPropagationPolicy, err error) {
-	emptyResult := &v1alpha1.ClusterPropagationPolicy{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootGetActionWithOptions(clusterpropagationpoliciesResource, name, options), emptyResult)
-	if obj == nil {
-		return emptyResult, err
+func newFakeClusterPropagationPolicies(fake *FakePolicyV1alpha1) policyv1alpha1.ClusterPropagationPolicyInterface {
+	return &fakeClusterPropagationPolicies{
+		gentype.NewFakeClientWithList[*v1alpha1.ClusterPropagationPolicy, *v1alpha1.ClusterPropagationPolicyList](
+			fake.Fake,
+			"",
+			v1alpha1.SchemeGroupVersion.WithResource("clusterpropagationpolicies"),
+			v1alpha1.SchemeGroupVersion.WithKind("ClusterPropagationPolicy"),
+			func() *v1alpha1.ClusterPropagationPolicy { return &v1alpha1.ClusterPropagationPolicy{} },
+			func() *v1alpha1.ClusterPropagationPolicyList { return &v1alpha1.ClusterPropagationPolicyList{} },
+			func(dst, src *v1alpha1.ClusterPropagationPolicyList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha1.ClusterPropagationPolicyList) []*v1alpha1.ClusterPropagationPolicy {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v1alpha1.ClusterPropagationPolicyList, items []*v1alpha1.ClusterPropagationPolicy) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1alpha1.ClusterPropagationPolicy), err
-}
-
-// List takes label and field selectors, and returns the list of ClusterPropagationPolicies that match those selectors.
-func (c *FakeClusterPropagationPolicies) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.ClusterPropagationPolicyList, err error) {
-	emptyResult := &v1alpha1.ClusterPropagationPolicyList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootListActionWithOptions(clusterpropagationpoliciesResource, clusterpropagationpoliciesKind, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1alpha1.ClusterPropagationPolicyList{ListMeta: obj.(*v1alpha1.ClusterPropagationPolicyList).ListMeta}
-	for _, item := range obj.(*v1alpha1.ClusterPropagationPolicyList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested clusterPropagationPolicies.
-func (c *FakeClusterPropagationPolicies) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewRootWatchActionWithOptions(clusterpropagationpoliciesResource, opts))
-}
-
-// Create takes the representation of a clusterPropagationPolicy and creates it.  Returns the server's representation of the clusterPropagationPolicy, and an error, if there is any.
-func (c *FakeClusterPropagationPolicies) Create(ctx context.Context, clusterPropagationPolicy *v1alpha1.ClusterPropagationPolicy, opts v1.CreateOptions) (result *v1alpha1.ClusterPropagationPolicy, err error) {
-	emptyResult := &v1alpha1.ClusterPropagationPolicy{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateActionWithOptions(clusterpropagationpoliciesResource, clusterPropagationPolicy, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.ClusterPropagationPolicy), err
-}
-
-// Update takes the representation of a clusterPropagationPolicy and updates it. Returns the server's representation of the clusterPropagationPolicy, and an error, if there is any.
-func (c *FakeClusterPropagationPolicies) Update(ctx context.Context, clusterPropagationPolicy *v1alpha1.ClusterPropagationPolicy, opts v1.UpdateOptions) (result *v1alpha1.ClusterPropagationPolicy, err error) {
-	emptyResult := &v1alpha1.ClusterPropagationPolicy{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateActionWithOptions(clusterpropagationpoliciesResource, clusterPropagationPolicy, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.ClusterPropagationPolicy), err
-}
-
-// Delete takes name of the clusterPropagationPolicy and deletes it. Returns an error if one occurs.
-func (c *FakeClusterPropagationPolicies) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteActionWithOptions(clusterpropagationpoliciesResource, name, opts), &v1alpha1.ClusterPropagationPolicy{})
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeClusterPropagationPolicies) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionActionWithOptions(clusterpropagationpoliciesResource, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1alpha1.ClusterPropagationPolicyList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched clusterPropagationPolicy.
-func (c *FakeClusterPropagationPolicies) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ClusterPropagationPolicy, err error) {
-	emptyResult := &v1alpha1.ClusterPropagationPolicy{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceActionWithOptions(clusterpropagationpoliciesResource, name, pt, data, opts, subresources...), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.ClusterPropagationPolicy), err
 }

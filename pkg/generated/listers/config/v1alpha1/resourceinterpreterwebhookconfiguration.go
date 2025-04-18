@@ -19,10 +19,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // ResourceInterpreterWebhookConfigurationLister helps list ResourceInterpreterWebhookConfigurations.
@@ -30,19 +30,19 @@ import (
 type ResourceInterpreterWebhookConfigurationLister interface {
 	// List lists all ResourceInterpreterWebhookConfigurations in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.ResourceInterpreterWebhookConfiguration, err error)
+	List(selector labels.Selector) (ret []*configv1alpha1.ResourceInterpreterWebhookConfiguration, err error)
 	// Get retrieves the ResourceInterpreterWebhookConfiguration from the index for a given name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.ResourceInterpreterWebhookConfiguration, error)
+	Get(name string) (*configv1alpha1.ResourceInterpreterWebhookConfiguration, error)
 	ResourceInterpreterWebhookConfigurationListerExpansion
 }
 
 // resourceInterpreterWebhookConfigurationLister implements the ResourceInterpreterWebhookConfigurationLister interface.
 type resourceInterpreterWebhookConfigurationLister struct {
-	listers.ResourceIndexer[*v1alpha1.ResourceInterpreterWebhookConfiguration]
+	listers.ResourceIndexer[*configv1alpha1.ResourceInterpreterWebhookConfiguration]
 }
 
 // NewResourceInterpreterWebhookConfigurationLister returns a new ResourceInterpreterWebhookConfigurationLister.
 func NewResourceInterpreterWebhookConfigurationLister(indexer cache.Indexer) ResourceInterpreterWebhookConfigurationLister {
-	return &resourceInterpreterWebhookConfigurationLister{listers.New[*v1alpha1.ResourceInterpreterWebhookConfiguration](indexer, v1alpha1.Resource("resourceinterpreterwebhookconfiguration"))}
+	return &resourceInterpreterWebhookConfigurationLister{listers.New[*configv1alpha1.ResourceInterpreterWebhookConfiguration](indexer, configv1alpha1.Resource("resourceinterpreterwebhookconfiguration"))}
 }

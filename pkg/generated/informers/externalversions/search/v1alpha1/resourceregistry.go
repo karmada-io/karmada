@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
+	apissearchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
 	versioned "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/search/v1alpha1"
+	searchv1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/search/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // ResourceRegistries.
 type ResourceRegistryInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.ResourceRegistryLister
+	Lister() searchv1alpha1.ResourceRegistryLister
 }
 
 type resourceRegistryInformer struct {
@@ -70,7 +70,7 @@ func NewFilteredResourceRegistryInformer(client versioned.Interface, resyncPerio
 				return client.SearchV1alpha1().ResourceRegistries().Watch(context.TODO(), options)
 			},
 		},
-		&searchv1alpha1.ResourceRegistry{},
+		&apissearchv1alpha1.ResourceRegistry{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,9 +81,9 @@ func (f *resourceRegistryInformer) defaultInformer(client versioned.Interface, r
 }
 
 func (f *resourceRegistryInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&searchv1alpha1.ResourceRegistry{}, f.defaultInformer)
+	return f.factory.InformerFor(&apissearchv1alpha1.ResourceRegistry{}, f.defaultInformer)
 }
 
-func (f *resourceRegistryInformer) Lister() v1alpha1.ResourceRegistryLister {
-	return v1alpha1.NewResourceRegistryLister(f.Informer().GetIndexer())
+func (f *resourceRegistryInformer) Lister() searchv1alpha1.ResourceRegistryLister {
+	return searchv1alpha1.NewResourceRegistryLister(f.Informer().GetIndexer())
 }

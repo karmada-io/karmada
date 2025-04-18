@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	remedyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1"
+	apisremedyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1"
 	versioned "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/remedy/v1alpha1"
+	remedyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/remedy/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // Remedies.
 type RemedyInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.RemedyLister
+	Lister() remedyv1alpha1.RemedyLister
 }
 
 type remedyInformer struct {
@@ -70,7 +70,7 @@ func NewFilteredRemedyInformer(client versioned.Interface, resyncPeriod time.Dur
 				return client.RemedyV1alpha1().Remedies().Watch(context.TODO(), options)
 			},
 		},
-		&remedyv1alpha1.Remedy{},
+		&apisremedyv1alpha1.Remedy{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,9 +81,9 @@ func (f *remedyInformer) defaultInformer(client versioned.Interface, resyncPerio
 }
 
 func (f *remedyInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&remedyv1alpha1.Remedy{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisremedyv1alpha1.Remedy{}, f.defaultInformer)
 }
 
-func (f *remedyInformer) Lister() v1alpha1.RemedyLister {
-	return v1alpha1.NewRemedyLister(f.Informer().GetIndexer())
+func (f *remedyInformer) Lister() remedyv1alpha1.RemedyLister {
+	return remedyv1alpha1.NewRemedyLister(f.Informer().GetIndexer())
 }

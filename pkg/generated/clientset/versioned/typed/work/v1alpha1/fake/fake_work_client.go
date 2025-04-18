@@ -29,15 +29,15 @@ type FakeWorkV1alpha1 struct {
 }
 
 func (c *FakeWorkV1alpha1) ClusterResourceBindings() v1alpha1.ClusterResourceBindingInterface {
-	return &FakeClusterResourceBindings{c}
+	return newFakeClusterResourceBindings(c)
 }
 
 func (c *FakeWorkV1alpha1) ResourceBindings(namespace string) v1alpha1.ResourceBindingInterface {
-	return &FakeResourceBindings{c, namespace}
+	return newFakeResourceBindings(c, namespace)
 }
 
 func (c *FakeWorkV1alpha1) Works(namespace string) v1alpha1.WorkInterface {
-	return &FakeWorks{c, namespace}
+	return newFakeWorks(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

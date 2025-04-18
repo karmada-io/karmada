@@ -29,7 +29,7 @@ type FakeAppsV1alpha1 struct {
 }
 
 func (c *FakeAppsV1alpha1) WorkloadRebalancers() v1alpha1.WorkloadRebalancerInterface {
-	return &FakeWorkloadRebalancers{c}
+	return newFakeWorkloadRebalancers(c)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

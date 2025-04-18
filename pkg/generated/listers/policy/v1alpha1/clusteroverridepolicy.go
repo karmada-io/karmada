@@ -19,10 +19,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // ClusterOverridePolicyLister helps list ClusterOverridePolicies.
@@ -30,19 +30,19 @@ import (
 type ClusterOverridePolicyLister interface {
 	// List lists all ClusterOverridePolicies in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.ClusterOverridePolicy, err error)
+	List(selector labels.Selector) (ret []*policyv1alpha1.ClusterOverridePolicy, err error)
 	// Get retrieves the ClusterOverridePolicy from the index for a given name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.ClusterOverridePolicy, error)
+	Get(name string) (*policyv1alpha1.ClusterOverridePolicy, error)
 	ClusterOverridePolicyListerExpansion
 }
 
 // clusterOverridePolicyLister implements the ClusterOverridePolicyLister interface.
 type clusterOverridePolicyLister struct {
-	listers.ResourceIndexer[*v1alpha1.ClusterOverridePolicy]
+	listers.ResourceIndexer[*policyv1alpha1.ClusterOverridePolicy]
 }
 
 // NewClusterOverridePolicyLister returns a new ClusterOverridePolicyLister.
 func NewClusterOverridePolicyLister(indexer cache.Indexer) ClusterOverridePolicyLister {
-	return &clusterOverridePolicyLister{listers.New[*v1alpha1.ClusterOverridePolicy](indexer, v1alpha1.Resource("clusteroverridepolicy"))}
+	return &clusterOverridePolicyLister{listers.New[*policyv1alpha1.ClusterOverridePolicy](indexer, policyv1alpha1.Resource("clusteroverridepolicy"))}
 }

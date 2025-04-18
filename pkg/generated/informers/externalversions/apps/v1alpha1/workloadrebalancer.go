@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	appsv1alpha1 "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1"
+	apisappsv1alpha1 "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1"
 	versioned "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/apps/v1alpha1"
+	appsv1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/apps/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // WorkloadRebalancers.
 type WorkloadRebalancerInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.WorkloadRebalancerLister
+	Lister() appsv1alpha1.WorkloadRebalancerLister
 }
 
 type workloadRebalancerInformer struct {
@@ -70,7 +70,7 @@ func NewFilteredWorkloadRebalancerInformer(client versioned.Interface, resyncPer
 				return client.AppsV1alpha1().WorkloadRebalancers().Watch(context.TODO(), options)
 			},
 		},
-		&appsv1alpha1.WorkloadRebalancer{},
+		&apisappsv1alpha1.WorkloadRebalancer{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,9 +81,9 @@ func (f *workloadRebalancerInformer) defaultInformer(client versioned.Interface,
 }
 
 func (f *workloadRebalancerInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&appsv1alpha1.WorkloadRebalancer{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisappsv1alpha1.WorkloadRebalancer{}, f.defaultInformer)
 }
 
-func (f *workloadRebalancerInformer) Lister() v1alpha1.WorkloadRebalancerLister {
-	return v1alpha1.NewWorkloadRebalancerLister(f.Informer().GetIndexer())
+func (f *workloadRebalancerInformer) Lister() appsv1alpha1.WorkloadRebalancerLister {
+	return appsv1alpha1.NewWorkloadRebalancerLister(f.Informer().GetIndexer())
 }

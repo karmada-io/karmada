@@ -29,11 +29,11 @@ type FakeConfigV1alpha1 struct {
 }
 
 func (c *FakeConfigV1alpha1) ResourceInterpreterCustomizations() v1alpha1.ResourceInterpreterCustomizationInterface {
-	return &FakeResourceInterpreterCustomizations{c}
+	return newFakeResourceInterpreterCustomizations(c)
 }
 
 func (c *FakeConfigV1alpha1) ResourceInterpreterWebhookConfigurations() v1alpha1.ResourceInterpreterWebhookConfigurationInterface {
-	return &FakeResourceInterpreterWebhookConfigurations{c}
+	return newFakeResourceInterpreterWebhookConfigurations(c)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

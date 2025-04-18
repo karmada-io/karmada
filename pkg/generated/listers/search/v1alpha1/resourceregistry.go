@@ -19,10 +19,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // ResourceRegistryLister helps list ResourceRegistries.
@@ -30,19 +30,19 @@ import (
 type ResourceRegistryLister interface {
 	// List lists all ResourceRegistries in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.ResourceRegistry, err error)
+	List(selector labels.Selector) (ret []*searchv1alpha1.ResourceRegistry, err error)
 	// Get retrieves the ResourceRegistry from the index for a given name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.ResourceRegistry, error)
+	Get(name string) (*searchv1alpha1.ResourceRegistry, error)
 	ResourceRegistryListerExpansion
 }
 
 // resourceRegistryLister implements the ResourceRegistryLister interface.
 type resourceRegistryLister struct {
-	listers.ResourceIndexer[*v1alpha1.ResourceRegistry]
+	listers.ResourceIndexer[*searchv1alpha1.ResourceRegistry]
 }
 
 // NewResourceRegistryLister returns a new ResourceRegistryLister.
 func NewResourceRegistryLister(indexer cache.Indexer) ResourceRegistryLister {
-	return &resourceRegistryLister{listers.New[*v1alpha1.ResourceRegistry](indexer, v1alpha1.Resource("resourceregistry"))}
+	return &resourceRegistryLister{listers.New[*searchv1alpha1.ResourceRegistry](indexer, searchv1alpha1.Resource("resourceregistry"))}
 }

@@ -19,8 +19,8 @@ limitations under the License.
 package versioned
 
 import (
-	"fmt"
-	"net/http"
+	fmt "fmt"
+	http "net/http"
 
 	appsv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/apps/v1alpha1"
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/autoscaling/v1alpha1"

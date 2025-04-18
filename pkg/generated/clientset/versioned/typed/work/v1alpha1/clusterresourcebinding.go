@@ -19,9 +19,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,33 +37,34 @@ type ClusterResourceBindingsGetter interface {
 
 // ClusterResourceBindingInterface has methods to work with ClusterResourceBinding resources.
 type ClusterResourceBindingInterface interface {
-	Create(ctx context.Context, clusterResourceBinding *v1alpha1.ClusterResourceBinding, opts v1.CreateOptions) (*v1alpha1.ClusterResourceBinding, error)
-	Update(ctx context.Context, clusterResourceBinding *v1alpha1.ClusterResourceBinding, opts v1.UpdateOptions) (*v1alpha1.ClusterResourceBinding, error)
+	Create(ctx context.Context, clusterResourceBinding *workv1alpha1.ClusterResourceBinding, opts v1.CreateOptions) (*workv1alpha1.ClusterResourceBinding, error)
+	Update(ctx context.Context, clusterResourceBinding *workv1alpha1.ClusterResourceBinding, opts v1.UpdateOptions) (*workv1alpha1.ClusterResourceBinding, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, clusterResourceBinding *v1alpha1.ClusterResourceBinding, opts v1.UpdateOptions) (*v1alpha1.ClusterResourceBinding, error)
+	UpdateStatus(ctx context.Context, clusterResourceBinding *workv1alpha1.ClusterResourceBinding, opts v1.UpdateOptions) (*workv1alpha1.ClusterResourceBinding, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.ClusterResourceBinding, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.ClusterResourceBindingList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*workv1alpha1.ClusterResourceBinding, error)
+	List(ctx context.Context, opts v1.ListOptions) (*workv1alpha1.ClusterResourceBindingList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ClusterResourceBinding, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *workv1alpha1.ClusterResourceBinding, err error)
 	ClusterResourceBindingExpansion
 }
 
 // clusterResourceBindings implements ClusterResourceBindingInterface
 type clusterResourceBindings struct {
-	*gentype.ClientWithList[*v1alpha1.ClusterResourceBinding, *v1alpha1.ClusterResourceBindingList]
+	*gentype.ClientWithList[*workv1alpha1.ClusterResourceBinding, *workv1alpha1.ClusterResourceBindingList]
 }
 
 // newClusterResourceBindings returns a ClusterResourceBindings
 func newClusterResourceBindings(c *WorkV1alpha1Client) *clusterResourceBindings {
 	return &clusterResourceBindings{
-		gentype.NewClientWithList[*v1alpha1.ClusterResourceBinding, *v1alpha1.ClusterResourceBindingList](
+		gentype.NewClientWithList[*workv1alpha1.ClusterResourceBinding, *workv1alpha1.ClusterResourceBindingList](
 			"clusterresourcebindings",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			"",
-			func() *v1alpha1.ClusterResourceBinding { return &v1alpha1.ClusterResourceBinding{} },
-			func() *v1alpha1.ClusterResourceBindingList { return &v1alpha1.ClusterResourceBindingList{} }),
+			func() *workv1alpha1.ClusterResourceBinding { return &workv1alpha1.ClusterResourceBinding{} },
+			func() *workv1alpha1.ClusterResourceBindingList { return &workv1alpha1.ClusterResourceBindingList{} },
+		),
 	}
 }

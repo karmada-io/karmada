@@ -19,108 +19,36 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/config/v1alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeResourceInterpreterCustomizations implements ResourceInterpreterCustomizationInterface
-type FakeResourceInterpreterCustomizations struct {
+// fakeResourceInterpreterCustomizations implements ResourceInterpreterCustomizationInterface
+type fakeResourceInterpreterCustomizations struct {
+	*gentype.FakeClientWithList[*v1alpha1.ResourceInterpreterCustomization, *v1alpha1.ResourceInterpreterCustomizationList]
 	Fake *FakeConfigV1alpha1
 }
 
-var resourceinterpretercustomizationsResource = v1alpha1.SchemeGroupVersion.WithResource("resourceinterpretercustomizations")
-
-var resourceinterpretercustomizationsKind = v1alpha1.SchemeGroupVersion.WithKind("ResourceInterpreterCustomization")
-
-// Get takes name of the resourceInterpreterCustomization, and returns the corresponding resourceInterpreterCustomization object, and an error if there is any.
-func (c *FakeResourceInterpreterCustomizations) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ResourceInterpreterCustomization, err error) {
-	emptyResult := &v1alpha1.ResourceInterpreterCustomization{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootGetActionWithOptions(resourceinterpretercustomizationsResource, name, options), emptyResult)
-	if obj == nil {
-		return emptyResult, err
+func newFakeResourceInterpreterCustomizations(fake *FakeConfigV1alpha1) configv1alpha1.ResourceInterpreterCustomizationInterface {
+	return &fakeResourceInterpreterCustomizations{
+		gentype.NewFakeClientWithList[*v1alpha1.ResourceInterpreterCustomization, *v1alpha1.ResourceInterpreterCustomizationList](
+			fake.Fake,
+			"",
+			v1alpha1.SchemeGroupVersion.WithResource("resourceinterpretercustomizations"),
+			v1alpha1.SchemeGroupVersion.WithKind("ResourceInterpreterCustomization"),
+			func() *v1alpha1.ResourceInterpreterCustomization { return &v1alpha1.ResourceInterpreterCustomization{} },
+			func() *v1alpha1.ResourceInterpreterCustomizationList {
+				return &v1alpha1.ResourceInterpreterCustomizationList{}
+			},
+			func(dst, src *v1alpha1.ResourceInterpreterCustomizationList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha1.ResourceInterpreterCustomizationList) []*v1alpha1.ResourceInterpreterCustomization {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v1alpha1.ResourceInterpreterCustomizationList, items []*v1alpha1.ResourceInterpreterCustomization) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1alpha1.ResourceInterpreterCustomization), err
-}
-
-// List takes label and field selectors, and returns the list of ResourceInterpreterCustomizations that match those selectors.
-func (c *FakeResourceInterpreterCustomizations) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.ResourceInterpreterCustomizationList, err error) {
-	emptyResult := &v1alpha1.ResourceInterpreterCustomizationList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootListActionWithOptions(resourceinterpretercustomizationsResource, resourceinterpretercustomizationsKind, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1alpha1.ResourceInterpreterCustomizationList{ListMeta: obj.(*v1alpha1.ResourceInterpreterCustomizationList).ListMeta}
-	for _, item := range obj.(*v1alpha1.ResourceInterpreterCustomizationList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested resourceInterpreterCustomizations.
-func (c *FakeResourceInterpreterCustomizations) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewRootWatchActionWithOptions(resourceinterpretercustomizationsResource, opts))
-}
-
-// Create takes the representation of a resourceInterpreterCustomization and creates it.  Returns the server's representation of the resourceInterpreterCustomization, and an error, if there is any.
-func (c *FakeResourceInterpreterCustomizations) Create(ctx context.Context, resourceInterpreterCustomization *v1alpha1.ResourceInterpreterCustomization, opts v1.CreateOptions) (result *v1alpha1.ResourceInterpreterCustomization, err error) {
-	emptyResult := &v1alpha1.ResourceInterpreterCustomization{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateActionWithOptions(resourceinterpretercustomizationsResource, resourceInterpreterCustomization, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.ResourceInterpreterCustomization), err
-}
-
-// Update takes the representation of a resourceInterpreterCustomization and updates it. Returns the server's representation of the resourceInterpreterCustomization, and an error, if there is any.
-func (c *FakeResourceInterpreterCustomizations) Update(ctx context.Context, resourceInterpreterCustomization *v1alpha1.ResourceInterpreterCustomization, opts v1.UpdateOptions) (result *v1alpha1.ResourceInterpreterCustomization, err error) {
-	emptyResult := &v1alpha1.ResourceInterpreterCustomization{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateActionWithOptions(resourceinterpretercustomizationsResource, resourceInterpreterCustomization, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.ResourceInterpreterCustomization), err
-}
-
-// Delete takes name of the resourceInterpreterCustomization and deletes it. Returns an error if one occurs.
-func (c *FakeResourceInterpreterCustomizations) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteActionWithOptions(resourceinterpretercustomizationsResource, name, opts), &v1alpha1.ResourceInterpreterCustomization{})
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeResourceInterpreterCustomizations) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionActionWithOptions(resourceinterpretercustomizationsResource, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1alpha1.ResourceInterpreterCustomizationList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched resourceInterpreterCustomization.
-func (c *FakeResourceInterpreterCustomizations) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ResourceInterpreterCustomization, err error) {
-	emptyResult := &v1alpha1.ResourceInterpreterCustomization{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceActionWithOptions(resourceinterpretercustomizationsResource, name, pt, data, opts, subresources...), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.ResourceInterpreterCustomization), err
 }

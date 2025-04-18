@@ -29,7 +29,7 @@ type FakeRemedyV1alpha1 struct {
 }
 
 func (c *FakeRemedyV1alpha1) Remedies() v1alpha1.RemedyInterface {
-	return &FakeRemedies{c}
+	return newFakeRemedies(c)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

@@ -19,10 +19,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	appsv1alpha1 "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // WorkloadRebalancerLister helps list WorkloadRebalancers.
@@ -30,19 +30,19 @@ import (
 type WorkloadRebalancerLister interface {
 	// List lists all WorkloadRebalancers in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.WorkloadRebalancer, err error)
+	List(selector labels.Selector) (ret []*appsv1alpha1.WorkloadRebalancer, err error)
 	// Get retrieves the WorkloadRebalancer from the index for a given name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.WorkloadRebalancer, error)
+	Get(name string) (*appsv1alpha1.WorkloadRebalancer, error)
 	WorkloadRebalancerListerExpansion
 }
 
 // workloadRebalancerLister implements the WorkloadRebalancerLister interface.
 type workloadRebalancerLister struct {
-	listers.ResourceIndexer[*v1alpha1.WorkloadRebalancer]
+	listers.ResourceIndexer[*appsv1alpha1.WorkloadRebalancer]
 }
 
 // NewWorkloadRebalancerLister returns a new WorkloadRebalancerLister.
 func NewWorkloadRebalancerLister(indexer cache.Indexer) WorkloadRebalancerLister {
-	return &workloadRebalancerLister{listers.New[*v1alpha1.WorkloadRebalancer](indexer, v1alpha1.Resource("workloadrebalancer"))}
+	return &workloadRebalancerLister{listers.New[*appsv1alpha1.WorkloadRebalancer](indexer, appsv1alpha1.Resource("workloadrebalancer"))}
 }

@@ -29,11 +29,11 @@ type FakeAutoscalingV1alpha1 struct {
 }
 
 func (c *FakeAutoscalingV1alpha1) CronFederatedHPAs(namespace string) v1alpha1.CronFederatedHPAInterface {
-	return &FakeCronFederatedHPAs{c, namespace}
+	return newFakeCronFederatedHPAs(c, namespace)
 }
 
 func (c *FakeAutoscalingV1alpha1) FederatedHPAs(namespace string) v1alpha1.FederatedHPAInterface {
-	return &FakeFederatedHPAs{c, namespace}
+	return newFakeFederatedHPAs(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

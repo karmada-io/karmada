@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	apisconfigv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	versioned "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/config/v1alpha1"
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/config/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // ResourceInterpreterWebhookConfigurations.
 type ResourceInterpreterWebhookConfigurationInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.ResourceInterpreterWebhookConfigurationLister
+	Lister() configv1alpha1.ResourceInterpreterWebhookConfigurationLister
 }
 
 type resourceInterpreterWebhookConfigurationInformer struct {
@@ -70,7 +70,7 @@ func NewFilteredResourceInterpreterWebhookConfigurationInformer(client versioned
 				return client.ConfigV1alpha1().ResourceInterpreterWebhookConfigurations().Watch(context.TODO(), options)
 			},
 		},
-		&configv1alpha1.ResourceInterpreterWebhookConfiguration{},
+		&apisconfigv1alpha1.ResourceInterpreterWebhookConfiguration{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,9 +81,9 @@ func (f *resourceInterpreterWebhookConfigurationInformer) defaultInformer(client
 }
 
 func (f *resourceInterpreterWebhookConfigurationInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&configv1alpha1.ResourceInterpreterWebhookConfiguration{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisconfigv1alpha1.ResourceInterpreterWebhookConfiguration{}, f.defaultInformer)
 }
 
-func (f *resourceInterpreterWebhookConfigurationInformer) Lister() v1alpha1.ResourceInterpreterWebhookConfigurationLister {
-	return v1alpha1.NewResourceInterpreterWebhookConfigurationLister(f.Informer().GetIndexer())
+func (f *resourceInterpreterWebhookConfigurationInformer) Lister() configv1alpha1.ResourceInterpreterWebhookConfigurationLister {
+	return configv1alpha1.NewResourceInterpreterWebhookConfigurationLister(f.Informer().GetIndexer())
 }

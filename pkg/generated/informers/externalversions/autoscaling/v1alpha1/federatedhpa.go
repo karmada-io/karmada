@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
+	apisautoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 	versioned "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/autoscaling/v1alpha1"
+	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/autoscaling/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // FederatedHPAs.
 type FederatedHPAInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.FederatedHPALister
+	Lister() autoscalingv1alpha1.FederatedHPALister
 }
 
 type federatedHPAInformer struct {
@@ -71,7 +71,7 @@ func NewFilteredFederatedHPAInformer(client versioned.Interface, namespace strin
 				return client.AutoscalingV1alpha1().FederatedHPAs(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&autoscalingv1alpha1.FederatedHPA{},
+		&apisautoscalingv1alpha1.FederatedHPA{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +82,9 @@ func (f *federatedHPAInformer) defaultInformer(client versioned.Interface, resyn
 }
 
 func (f *federatedHPAInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&autoscalingv1alpha1.FederatedHPA{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisautoscalingv1alpha1.FederatedHPA{}, f.defaultInformer)
 }
 
-func (f *federatedHPAInformer) Lister() v1alpha1.FederatedHPALister {
-	return v1alpha1.NewFederatedHPALister(f.Informer().GetIndexer())
+func (f *federatedHPAInformer) Lister() autoscalingv1alpha1.FederatedHPALister {
+	return autoscalingv1alpha1.NewFederatedHPALister(f.Informer().GetIndexer())
 }

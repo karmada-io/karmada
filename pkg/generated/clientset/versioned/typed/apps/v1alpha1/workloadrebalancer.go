@@ -19,9 +19,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1"
+	appsv1alpha1 "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,33 +37,34 @@ type WorkloadRebalancersGetter interface {
 
 // WorkloadRebalancerInterface has methods to work with WorkloadRebalancer resources.
 type WorkloadRebalancerInterface interface {
-	Create(ctx context.Context, workloadRebalancer *v1alpha1.WorkloadRebalancer, opts v1.CreateOptions) (*v1alpha1.WorkloadRebalancer, error)
-	Update(ctx context.Context, workloadRebalancer *v1alpha1.WorkloadRebalancer, opts v1.UpdateOptions) (*v1alpha1.WorkloadRebalancer, error)
+	Create(ctx context.Context, workloadRebalancer *appsv1alpha1.WorkloadRebalancer, opts v1.CreateOptions) (*appsv1alpha1.WorkloadRebalancer, error)
+	Update(ctx context.Context, workloadRebalancer *appsv1alpha1.WorkloadRebalancer, opts v1.UpdateOptions) (*appsv1alpha1.WorkloadRebalancer, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, workloadRebalancer *v1alpha1.WorkloadRebalancer, opts v1.UpdateOptions) (*v1alpha1.WorkloadRebalancer, error)
+	UpdateStatus(ctx context.Context, workloadRebalancer *appsv1alpha1.WorkloadRebalancer, opts v1.UpdateOptions) (*appsv1alpha1.WorkloadRebalancer, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.WorkloadRebalancer, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.WorkloadRebalancerList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*appsv1alpha1.WorkloadRebalancer, error)
+	List(ctx context.Context, opts v1.ListOptions) (*appsv1alpha1.WorkloadRebalancerList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.WorkloadRebalancer, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *appsv1alpha1.WorkloadRebalancer, err error)
 	WorkloadRebalancerExpansion
 }
 
 // workloadRebalancers implements WorkloadRebalancerInterface
 type workloadRebalancers struct {
-	*gentype.ClientWithList[*v1alpha1.WorkloadRebalancer, *v1alpha1.WorkloadRebalancerList]
+	*gentype.ClientWithList[*appsv1alpha1.WorkloadRebalancer, *appsv1alpha1.WorkloadRebalancerList]
 }
 
 // newWorkloadRebalancers returns a WorkloadRebalancers
 func newWorkloadRebalancers(c *AppsV1alpha1Client) *workloadRebalancers {
 	return &workloadRebalancers{
-		gentype.NewClientWithList[*v1alpha1.WorkloadRebalancer, *v1alpha1.WorkloadRebalancerList](
+		gentype.NewClientWithList[*appsv1alpha1.WorkloadRebalancer, *appsv1alpha1.WorkloadRebalancerList](
 			"workloadrebalancers",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			"",
-			func() *v1alpha1.WorkloadRebalancer { return &v1alpha1.WorkloadRebalancer{} },
-			func() *v1alpha1.WorkloadRebalancerList { return &v1alpha1.WorkloadRebalancerList{} }),
+			func() *appsv1alpha1.WorkloadRebalancer { return &appsv1alpha1.WorkloadRebalancer{} },
+			func() *appsv1alpha1.WorkloadRebalancerList { return &appsv1alpha1.WorkloadRebalancerList{} },
+		),
 	}
 }

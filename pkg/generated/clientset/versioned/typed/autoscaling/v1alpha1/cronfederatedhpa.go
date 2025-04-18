@@ -19,9 +19,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
+	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,33 +37,34 @@ type CronFederatedHPAsGetter interface {
 
 // CronFederatedHPAInterface has methods to work with CronFederatedHPA resources.
 type CronFederatedHPAInterface interface {
-	Create(ctx context.Context, cronFederatedHPA *v1alpha1.CronFederatedHPA, opts v1.CreateOptions) (*v1alpha1.CronFederatedHPA, error)
-	Update(ctx context.Context, cronFederatedHPA *v1alpha1.CronFederatedHPA, opts v1.UpdateOptions) (*v1alpha1.CronFederatedHPA, error)
+	Create(ctx context.Context, cronFederatedHPA *autoscalingv1alpha1.CronFederatedHPA, opts v1.CreateOptions) (*autoscalingv1alpha1.CronFederatedHPA, error)
+	Update(ctx context.Context, cronFederatedHPA *autoscalingv1alpha1.CronFederatedHPA, opts v1.UpdateOptions) (*autoscalingv1alpha1.CronFederatedHPA, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, cronFederatedHPA *v1alpha1.CronFederatedHPA, opts v1.UpdateOptions) (*v1alpha1.CronFederatedHPA, error)
+	UpdateStatus(ctx context.Context, cronFederatedHPA *autoscalingv1alpha1.CronFederatedHPA, opts v1.UpdateOptions) (*autoscalingv1alpha1.CronFederatedHPA, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.CronFederatedHPA, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.CronFederatedHPAList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*autoscalingv1alpha1.CronFederatedHPA, error)
+	List(ctx context.Context, opts v1.ListOptions) (*autoscalingv1alpha1.CronFederatedHPAList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.CronFederatedHPA, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *autoscalingv1alpha1.CronFederatedHPA, err error)
 	CronFederatedHPAExpansion
 }
 
 // cronFederatedHPAs implements CronFederatedHPAInterface
 type cronFederatedHPAs struct {
-	*gentype.ClientWithList[*v1alpha1.CronFederatedHPA, *v1alpha1.CronFederatedHPAList]
+	*gentype.ClientWithList[*autoscalingv1alpha1.CronFederatedHPA, *autoscalingv1alpha1.CronFederatedHPAList]
 }
 
 // newCronFederatedHPAs returns a CronFederatedHPAs
 func newCronFederatedHPAs(c *AutoscalingV1alpha1Client, namespace string) *cronFederatedHPAs {
 	return &cronFederatedHPAs{
-		gentype.NewClientWithList[*v1alpha1.CronFederatedHPA, *v1alpha1.CronFederatedHPAList](
+		gentype.NewClientWithList[*autoscalingv1alpha1.CronFederatedHPA, *autoscalingv1alpha1.CronFederatedHPAList](
 			"cronfederatedhpas",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1alpha1.CronFederatedHPA { return &v1alpha1.CronFederatedHPA{} },
-			func() *v1alpha1.CronFederatedHPAList { return &v1alpha1.CronFederatedHPAList{} }),
+			func() *autoscalingv1alpha1.CronFederatedHPA { return &autoscalingv1alpha1.CronFederatedHPA{} },
+			func() *autoscalingv1alpha1.CronFederatedHPAList { return &autoscalingv1alpha1.CronFederatedHPAList{} },
+		),
 	}
 }

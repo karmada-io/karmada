@@ -19,129 +19,30 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeWorks implements WorkInterface
-type FakeWorks struct {
+// fakeWorks implements WorkInterface
+type fakeWorks struct {
+	*gentype.FakeClientWithList[*v1alpha1.Work, *v1alpha1.WorkList]
 	Fake *FakeWorkV1alpha1
-	ns   string
 }
 
-var worksResource = v1alpha1.SchemeGroupVersion.WithResource("works")
-
-var worksKind = v1alpha1.SchemeGroupVersion.WithKind("Work")
-
-// Get takes name of the work, and returns the corresponding work object, and an error if there is any.
-func (c *FakeWorks) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.Work, err error) {
-	emptyResult := &v1alpha1.Work{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(worksResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeWorks(fake *FakeWorkV1alpha1, namespace string) workv1alpha1.WorkInterface {
+	return &fakeWorks{
+		gentype.NewFakeClientWithList[*v1alpha1.Work, *v1alpha1.WorkList](
+			fake.Fake,
+			namespace,
+			v1alpha1.SchemeGroupVersion.WithResource("works"),
+			v1alpha1.SchemeGroupVersion.WithKind("Work"),
+			func() *v1alpha1.Work { return &v1alpha1.Work{} },
+			func() *v1alpha1.WorkList { return &v1alpha1.WorkList{} },
+			func(dst, src *v1alpha1.WorkList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha1.WorkList) []*v1alpha1.Work { return gentype.ToPointerSlice(list.Items) },
+			func(list *v1alpha1.WorkList, items []*v1alpha1.Work) { list.Items = gentype.FromPointerSlice(items) },
+		),
+		fake,
 	}
-	return obj.(*v1alpha1.Work), err
-}
-
-// List takes label and field selectors, and returns the list of Works that match those selectors.
-func (c *FakeWorks) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.WorkList, err error) {
-	emptyResult := &v1alpha1.WorkList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(worksResource, worksKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1alpha1.WorkList{ListMeta: obj.(*v1alpha1.WorkList).ListMeta}
-	for _, item := range obj.(*v1alpha1.WorkList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested works.
-func (c *FakeWorks) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(worksResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a work and creates it.  Returns the server's representation of the work, and an error, if there is any.
-func (c *FakeWorks) Create(ctx context.Context, work *v1alpha1.Work, opts v1.CreateOptions) (result *v1alpha1.Work, err error) {
-	emptyResult := &v1alpha1.Work{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(worksResource, c.ns, work, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Work), err
-}
-
-// Update takes the representation of a work and updates it. Returns the server's representation of the work, and an error, if there is any.
-func (c *FakeWorks) Update(ctx context.Context, work *v1alpha1.Work, opts v1.UpdateOptions) (result *v1alpha1.Work, err error) {
-	emptyResult := &v1alpha1.Work{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(worksResource, c.ns, work, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Work), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeWorks) UpdateStatus(ctx context.Context, work *v1alpha1.Work, opts v1.UpdateOptions) (result *v1alpha1.Work, err error) {
-	emptyResult := &v1alpha1.Work{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceActionWithOptions(worksResource, "status", c.ns, work, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Work), err
-}
-
-// Delete takes name of the work and deletes it. Returns an error if one occurs.
-func (c *FakeWorks) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(worksResource, c.ns, name, opts), &v1alpha1.Work{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeWorks) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(worksResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1alpha1.WorkList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched work.
-func (c *FakeWorks) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.Work, err error) {
-	emptyResult := &v1alpha1.Work{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(worksResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Work), err
 }

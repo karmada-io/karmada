@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha2
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	apisworkv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	versioned "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha2 "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha2"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // ClusterResourceBindings.
 type ClusterResourceBindingInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha2.ClusterResourceBindingLister
+	Lister() workv1alpha2.ClusterResourceBindingLister
 }
 
 type clusterResourceBindingInformer struct {
@@ -70,7 +70,7 @@ func NewFilteredClusterResourceBindingInformer(client versioned.Interface, resyn
 				return client.WorkV1alpha2().ClusterResourceBindings().Watch(context.TODO(), options)
 			},
 		},
-		&workv1alpha2.ClusterResourceBinding{},
+		&apisworkv1alpha2.ClusterResourceBinding{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,9 +81,9 @@ func (f *clusterResourceBindingInformer) defaultInformer(client versioned.Interf
 }
 
 func (f *clusterResourceBindingInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&workv1alpha2.ClusterResourceBinding{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisworkv1alpha2.ClusterResourceBinding{}, f.defaultInformer)
 }
 
-func (f *clusterResourceBindingInformer) Lister() v1alpha2.ClusterResourceBindingLister {
-	return v1alpha2.NewClusterResourceBindingLister(f.Informer().GetIndexer())
+func (f *clusterResourceBindingInformer) Lister() workv1alpha2.ClusterResourceBindingLister {
+	return workv1alpha2.NewClusterResourceBindingLister(f.Informer().GetIndexer())
 }

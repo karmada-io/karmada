@@ -19,9 +19,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,33 +37,36 @@ type ResourceInterpreterCustomizationsGetter interface {
 
 // ResourceInterpreterCustomizationInterface has methods to work with ResourceInterpreterCustomization resources.
 type ResourceInterpreterCustomizationInterface interface {
-	Create(ctx context.Context, resourceInterpreterCustomization *v1alpha1.ResourceInterpreterCustomization, opts v1.CreateOptions) (*v1alpha1.ResourceInterpreterCustomization, error)
-	Update(ctx context.Context, resourceInterpreterCustomization *v1alpha1.ResourceInterpreterCustomization, opts v1.UpdateOptions) (*v1alpha1.ResourceInterpreterCustomization, error)
+	Create(ctx context.Context, resourceInterpreterCustomization *configv1alpha1.ResourceInterpreterCustomization, opts v1.CreateOptions) (*configv1alpha1.ResourceInterpreterCustomization, error)
+	Update(ctx context.Context, resourceInterpreterCustomization *configv1alpha1.ResourceInterpreterCustomization, opts v1.UpdateOptions) (*configv1alpha1.ResourceInterpreterCustomization, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.ResourceInterpreterCustomization, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.ResourceInterpreterCustomizationList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*configv1alpha1.ResourceInterpreterCustomization, error)
+	List(ctx context.Context, opts v1.ListOptions) (*configv1alpha1.ResourceInterpreterCustomizationList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ResourceInterpreterCustomization, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *configv1alpha1.ResourceInterpreterCustomization, err error)
 	ResourceInterpreterCustomizationExpansion
 }
 
 // resourceInterpreterCustomizations implements ResourceInterpreterCustomizationInterface
 type resourceInterpreterCustomizations struct {
-	*gentype.ClientWithList[*v1alpha1.ResourceInterpreterCustomization, *v1alpha1.ResourceInterpreterCustomizationList]
+	*gentype.ClientWithList[*configv1alpha1.ResourceInterpreterCustomization, *configv1alpha1.ResourceInterpreterCustomizationList]
 }
 
 // newResourceInterpreterCustomizations returns a ResourceInterpreterCustomizations
 func newResourceInterpreterCustomizations(c *ConfigV1alpha1Client) *resourceInterpreterCustomizations {
 	return &resourceInterpreterCustomizations{
-		gentype.NewClientWithList[*v1alpha1.ResourceInterpreterCustomization, *v1alpha1.ResourceInterpreterCustomizationList](
+		gentype.NewClientWithList[*configv1alpha1.ResourceInterpreterCustomization, *configv1alpha1.ResourceInterpreterCustomizationList](
 			"resourceinterpretercustomizations",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			"",
-			func() *v1alpha1.ResourceInterpreterCustomization { return &v1alpha1.ResourceInterpreterCustomization{} },
-			func() *v1alpha1.ResourceInterpreterCustomizationList {
-				return &v1alpha1.ResourceInterpreterCustomizationList{}
-			}),
+			func() *configv1alpha1.ResourceInterpreterCustomization {
+				return &configv1alpha1.ResourceInterpreterCustomization{}
+			},
+			func() *configv1alpha1.ResourceInterpreterCustomizationList {
+				return &configv1alpha1.ResourceInterpreterCustomizationList{}
+			},
+		),
 	}
 }

@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
+	apisnetworkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 	versioned "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/networking/v1alpha1"
+	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/networking/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // MultiClusterServices.
 type MultiClusterServiceInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.MultiClusterServiceLister
+	Lister() networkingv1alpha1.MultiClusterServiceLister
 }
 
 type multiClusterServiceInformer struct {
@@ -71,7 +71,7 @@ func NewFilteredMultiClusterServiceInformer(client versioned.Interface, namespac
 				return client.NetworkingV1alpha1().MultiClusterServices(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&networkingv1alpha1.MultiClusterService{},
+		&apisnetworkingv1alpha1.MultiClusterService{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +82,9 @@ func (f *multiClusterServiceInformer) defaultInformer(client versioned.Interface
 }
 
 func (f *multiClusterServiceInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&networkingv1alpha1.MultiClusterService{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisnetworkingv1alpha1.MultiClusterService{}, f.defaultInformer)
 }
 
-func (f *multiClusterServiceInformer) Lister() v1alpha1.MultiClusterServiceLister {
-	return v1alpha1.NewMultiClusterServiceLister(f.Informer().GetIndexer())
+func (f *multiClusterServiceInformer) Lister() networkingv1alpha1.MultiClusterServiceLister {
+	return networkingv1alpha1.NewMultiClusterServiceLister(f.Informer().GetIndexer())
 }

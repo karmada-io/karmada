@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	apispolicyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	versioned "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/policy/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/policy/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // FederatedResourceQuotas.
 type FederatedResourceQuotaInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.FederatedResourceQuotaLister
+	Lister() policyv1alpha1.FederatedResourceQuotaLister
 }
 
 type federatedResourceQuotaInformer struct {
@@ -71,7 +71,7 @@ func NewFilteredFederatedResourceQuotaInformer(client versioned.Interface, names
 				return client.PolicyV1alpha1().FederatedResourceQuotas(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&policyv1alpha1.FederatedResourceQuota{},
+		&apispolicyv1alpha1.FederatedResourceQuota{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +82,9 @@ func (f *federatedResourceQuotaInformer) defaultInformer(client versioned.Interf
 }
 
 func (f *federatedResourceQuotaInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&policyv1alpha1.FederatedResourceQuota{}, f.defaultInformer)
+	return f.factory.InformerFor(&apispolicyv1alpha1.FederatedResourceQuota{}, f.defaultInformer)
 }
 
-func (f *federatedResourceQuotaInformer) Lister() v1alpha1.FederatedResourceQuotaLister {
-	return v1alpha1.NewFederatedResourceQuotaLister(f.Informer().GetIndexer())
+func (f *federatedResourceQuotaInformer) Lister() policyv1alpha1.FederatedResourceQuotaLister {
+	return policyv1alpha1.NewFederatedResourceQuotaLister(f.Informer().GetIndexer())
 }

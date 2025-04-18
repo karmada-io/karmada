@@ -19,10 +19,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // PropagationPolicyLister helps list PropagationPolicies.
@@ -30,7 +30,7 @@ import (
 type PropagationPolicyLister interface {
 	// List lists all PropagationPolicies in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.PropagationPolicy, err error)
+	List(selector labels.Selector) (ret []*policyv1alpha1.PropagationPolicy, err error)
 	// PropagationPolicies returns an object that can list and get PropagationPolicies.
 	PropagationPolicies(namespace string) PropagationPolicyNamespaceLister
 	PropagationPolicyListerExpansion
@@ -38,17 +38,17 @@ type PropagationPolicyLister interface {
 
 // propagationPolicyLister implements the PropagationPolicyLister interface.
 type propagationPolicyLister struct {
-	listers.ResourceIndexer[*v1alpha1.PropagationPolicy]
+	listers.ResourceIndexer[*policyv1alpha1.PropagationPolicy]
 }
 
 // NewPropagationPolicyLister returns a new PropagationPolicyLister.
 func NewPropagationPolicyLister(indexer cache.Indexer) PropagationPolicyLister {
-	return &propagationPolicyLister{listers.New[*v1alpha1.PropagationPolicy](indexer, v1alpha1.Resource("propagationpolicy"))}
+	return &propagationPolicyLister{listers.New[*policyv1alpha1.PropagationPolicy](indexer, policyv1alpha1.Resource("propagationpolicy"))}
 }
 
 // PropagationPolicies returns an object that can list and get PropagationPolicies.
 func (s *propagationPolicyLister) PropagationPolicies(namespace string) PropagationPolicyNamespaceLister {
-	return propagationPolicyNamespaceLister{listers.NewNamespaced[*v1alpha1.PropagationPolicy](s.ResourceIndexer, namespace)}
+	return propagationPolicyNamespaceLister{listers.NewNamespaced[*policyv1alpha1.PropagationPolicy](s.ResourceIndexer, namespace)}
 }
 
 // PropagationPolicyNamespaceLister helps list and get PropagationPolicies.
@@ -56,15 +56,15 @@ func (s *propagationPolicyLister) PropagationPolicies(namespace string) Propagat
 type PropagationPolicyNamespaceLister interface {
 	// List lists all PropagationPolicies in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.PropagationPolicy, err error)
+	List(selector labels.Selector) (ret []*policyv1alpha1.PropagationPolicy, err error)
 	// Get retrieves the PropagationPolicy from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.PropagationPolicy, error)
+	Get(name string) (*policyv1alpha1.PropagationPolicy, error)
 	PropagationPolicyNamespaceListerExpansion
 }
 
 // propagationPolicyNamespaceLister implements the PropagationPolicyNamespaceLister
 // interface.
 type propagationPolicyNamespaceLister struct {
-	listers.ResourceIndexer[*v1alpha1.PropagationPolicy]
+	listers.ResourceIndexer[*policyv1alpha1.PropagationPolicy]
 }

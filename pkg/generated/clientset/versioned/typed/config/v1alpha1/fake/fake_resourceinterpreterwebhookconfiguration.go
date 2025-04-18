@@ -19,108 +19,38 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/config/v1alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeResourceInterpreterWebhookConfigurations implements ResourceInterpreterWebhookConfigurationInterface
-type FakeResourceInterpreterWebhookConfigurations struct {
+// fakeResourceInterpreterWebhookConfigurations implements ResourceInterpreterWebhookConfigurationInterface
+type fakeResourceInterpreterWebhookConfigurations struct {
+	*gentype.FakeClientWithList[*v1alpha1.ResourceInterpreterWebhookConfiguration, *v1alpha1.ResourceInterpreterWebhookConfigurationList]
 	Fake *FakeConfigV1alpha1
 }
 
-var resourceinterpreterwebhookconfigurationsResource = v1alpha1.SchemeGroupVersion.WithResource("resourceinterpreterwebhookconfigurations")
-
-var resourceinterpreterwebhookconfigurationsKind = v1alpha1.SchemeGroupVersion.WithKind("ResourceInterpreterWebhookConfiguration")
-
-// Get takes name of the resourceInterpreterWebhookConfiguration, and returns the corresponding resourceInterpreterWebhookConfiguration object, and an error if there is any.
-func (c *FakeResourceInterpreterWebhookConfigurations) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ResourceInterpreterWebhookConfiguration, err error) {
-	emptyResult := &v1alpha1.ResourceInterpreterWebhookConfiguration{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootGetActionWithOptions(resourceinterpreterwebhookconfigurationsResource, name, options), emptyResult)
-	if obj == nil {
-		return emptyResult, err
+func newFakeResourceInterpreterWebhookConfigurations(fake *FakeConfigV1alpha1) configv1alpha1.ResourceInterpreterWebhookConfigurationInterface {
+	return &fakeResourceInterpreterWebhookConfigurations{
+		gentype.NewFakeClientWithList[*v1alpha1.ResourceInterpreterWebhookConfiguration, *v1alpha1.ResourceInterpreterWebhookConfigurationList](
+			fake.Fake,
+			"",
+			v1alpha1.SchemeGroupVersion.WithResource("resourceinterpreterwebhookconfigurations"),
+			v1alpha1.SchemeGroupVersion.WithKind("ResourceInterpreterWebhookConfiguration"),
+			func() *v1alpha1.ResourceInterpreterWebhookConfiguration {
+				return &v1alpha1.ResourceInterpreterWebhookConfiguration{}
+			},
+			func() *v1alpha1.ResourceInterpreterWebhookConfigurationList {
+				return &v1alpha1.ResourceInterpreterWebhookConfigurationList{}
+			},
+			func(dst, src *v1alpha1.ResourceInterpreterWebhookConfigurationList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha1.ResourceInterpreterWebhookConfigurationList) []*v1alpha1.ResourceInterpreterWebhookConfiguration {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v1alpha1.ResourceInterpreterWebhookConfigurationList, items []*v1alpha1.ResourceInterpreterWebhookConfiguration) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1alpha1.ResourceInterpreterWebhookConfiguration), err
-}
-
-// List takes label and field selectors, and returns the list of ResourceInterpreterWebhookConfigurations that match those selectors.
-func (c *FakeResourceInterpreterWebhookConfigurations) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.ResourceInterpreterWebhookConfigurationList, err error) {
-	emptyResult := &v1alpha1.ResourceInterpreterWebhookConfigurationList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootListActionWithOptions(resourceinterpreterwebhookconfigurationsResource, resourceinterpreterwebhookconfigurationsKind, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1alpha1.ResourceInterpreterWebhookConfigurationList{ListMeta: obj.(*v1alpha1.ResourceInterpreterWebhookConfigurationList).ListMeta}
-	for _, item := range obj.(*v1alpha1.ResourceInterpreterWebhookConfigurationList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested resourceInterpreterWebhookConfigurations.
-func (c *FakeResourceInterpreterWebhookConfigurations) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewRootWatchActionWithOptions(resourceinterpreterwebhookconfigurationsResource, opts))
-}
-
-// Create takes the representation of a resourceInterpreterWebhookConfiguration and creates it.  Returns the server's representation of the resourceInterpreterWebhookConfiguration, and an error, if there is any.
-func (c *FakeResourceInterpreterWebhookConfigurations) Create(ctx context.Context, resourceInterpreterWebhookConfiguration *v1alpha1.ResourceInterpreterWebhookConfiguration, opts v1.CreateOptions) (result *v1alpha1.ResourceInterpreterWebhookConfiguration, err error) {
-	emptyResult := &v1alpha1.ResourceInterpreterWebhookConfiguration{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateActionWithOptions(resourceinterpreterwebhookconfigurationsResource, resourceInterpreterWebhookConfiguration, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.ResourceInterpreterWebhookConfiguration), err
-}
-
-// Update takes the representation of a resourceInterpreterWebhookConfiguration and updates it. Returns the server's representation of the resourceInterpreterWebhookConfiguration, and an error, if there is any.
-func (c *FakeResourceInterpreterWebhookConfigurations) Update(ctx context.Context, resourceInterpreterWebhookConfiguration *v1alpha1.ResourceInterpreterWebhookConfiguration, opts v1.UpdateOptions) (result *v1alpha1.ResourceInterpreterWebhookConfiguration, err error) {
-	emptyResult := &v1alpha1.ResourceInterpreterWebhookConfiguration{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateActionWithOptions(resourceinterpreterwebhookconfigurationsResource, resourceInterpreterWebhookConfiguration, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.ResourceInterpreterWebhookConfiguration), err
-}
-
-// Delete takes name of the resourceInterpreterWebhookConfiguration and deletes it. Returns an error if one occurs.
-func (c *FakeResourceInterpreterWebhookConfigurations) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteActionWithOptions(resourceinterpreterwebhookconfigurationsResource, name, opts), &v1alpha1.ResourceInterpreterWebhookConfiguration{})
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeResourceInterpreterWebhookConfigurations) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionActionWithOptions(resourceinterpreterwebhookconfigurationsResource, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1alpha1.ResourceInterpreterWebhookConfigurationList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched resourceInterpreterWebhookConfiguration.
-func (c *FakeResourceInterpreterWebhookConfigurations) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ResourceInterpreterWebhookConfiguration, err error) {
-	emptyResult := &v1alpha1.ResourceInterpreterWebhookConfiguration{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceActionWithOptions(resourceinterpreterwebhookconfigurationsResource, name, pt, data, opts, subresources...), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.ResourceInterpreterWebhookConfiguration), err
 }

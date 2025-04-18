@@ -19,9 +19,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,31 +37,34 @@ type ClusterPropagationPoliciesGetter interface {
 
 // ClusterPropagationPolicyInterface has methods to work with ClusterPropagationPolicy resources.
 type ClusterPropagationPolicyInterface interface {
-	Create(ctx context.Context, clusterPropagationPolicy *v1alpha1.ClusterPropagationPolicy, opts v1.CreateOptions) (*v1alpha1.ClusterPropagationPolicy, error)
-	Update(ctx context.Context, clusterPropagationPolicy *v1alpha1.ClusterPropagationPolicy, opts v1.UpdateOptions) (*v1alpha1.ClusterPropagationPolicy, error)
+	Create(ctx context.Context, clusterPropagationPolicy *policyv1alpha1.ClusterPropagationPolicy, opts v1.CreateOptions) (*policyv1alpha1.ClusterPropagationPolicy, error)
+	Update(ctx context.Context, clusterPropagationPolicy *policyv1alpha1.ClusterPropagationPolicy, opts v1.UpdateOptions) (*policyv1alpha1.ClusterPropagationPolicy, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.ClusterPropagationPolicy, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.ClusterPropagationPolicyList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*policyv1alpha1.ClusterPropagationPolicy, error)
+	List(ctx context.Context, opts v1.ListOptions) (*policyv1alpha1.ClusterPropagationPolicyList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ClusterPropagationPolicy, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *policyv1alpha1.ClusterPropagationPolicy, err error)
 	ClusterPropagationPolicyExpansion
 }
 
 // clusterPropagationPolicies implements ClusterPropagationPolicyInterface
 type clusterPropagationPolicies struct {
-	*gentype.ClientWithList[*v1alpha1.ClusterPropagationPolicy, *v1alpha1.ClusterPropagationPolicyList]
+	*gentype.ClientWithList[*policyv1alpha1.ClusterPropagationPolicy, *policyv1alpha1.ClusterPropagationPolicyList]
 }
 
 // newClusterPropagationPolicies returns a ClusterPropagationPolicies
 func newClusterPropagationPolicies(c *PolicyV1alpha1Client) *clusterPropagationPolicies {
 	return &clusterPropagationPolicies{
-		gentype.NewClientWithList[*v1alpha1.ClusterPropagationPolicy, *v1alpha1.ClusterPropagationPolicyList](
+		gentype.NewClientWithList[*policyv1alpha1.ClusterPropagationPolicy, *policyv1alpha1.ClusterPropagationPolicyList](
 			"clusterpropagationpolicies",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			"",
-			func() *v1alpha1.ClusterPropagationPolicy { return &v1alpha1.ClusterPropagationPolicy{} },
-			func() *v1alpha1.ClusterPropagationPolicyList { return &v1alpha1.ClusterPropagationPolicyList{} }),
+			func() *policyv1alpha1.ClusterPropagationPolicy { return &policyv1alpha1.ClusterPropagationPolicy{} },
+			func() *policyv1alpha1.ClusterPropagationPolicyList {
+				return &policyv1alpha1.ClusterPropagationPolicyList{}
+			},
+		),
 	}
 }

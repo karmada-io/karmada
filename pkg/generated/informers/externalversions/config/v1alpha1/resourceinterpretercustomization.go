@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	apisconfigv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	versioned "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/config/v1alpha1"
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/config/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // ResourceInterpreterCustomizations.
 type ResourceInterpreterCustomizationInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.ResourceInterpreterCustomizationLister
+	Lister() configv1alpha1.ResourceInterpreterCustomizationLister
 }
 
 type resourceInterpreterCustomizationInformer struct {
@@ -70,7 +70,7 @@ func NewFilteredResourceInterpreterCustomizationInformer(client versioned.Interf
 				return client.ConfigV1alpha1().ResourceInterpreterCustomizations().Watch(context.TODO(), options)
 			},
 		},
-		&configv1alpha1.ResourceInterpreterCustomization{},
+		&apisconfigv1alpha1.ResourceInterpreterCustomization{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,9 +81,9 @@ func (f *resourceInterpreterCustomizationInformer) defaultInformer(client versio
 }
 
 func (f *resourceInterpreterCustomizationInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&configv1alpha1.ResourceInterpreterCustomization{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisconfigv1alpha1.ResourceInterpreterCustomization{}, f.defaultInformer)
 }
 
-func (f *resourceInterpreterCustomizationInformer) Lister() v1alpha1.ResourceInterpreterCustomizationLister {
-	return v1alpha1.NewResourceInterpreterCustomizationLister(f.Informer().GetIndexer())
+func (f *resourceInterpreterCustomizationInformer) Lister() configv1alpha1.ResourceInterpreterCustomizationLister {
+	return configv1alpha1.NewResourceInterpreterCustomizationLister(f.Informer().GetIndexer())
 }
