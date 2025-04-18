@@ -31,11 +31,11 @@ import (
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericfilters "k8s.io/apiserver/pkg/server/filters"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
-	utilversion "k8s.io/apiserver/pkg/util/version"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/flowcontrol"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
+	cbversion "k8s.io/component-base/version"
 	"k8s.io/klog/v2"
 	netutils "k8s.io/utils/net"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -181,7 +181,7 @@ func config(o *options.Options, outOfTreeRegistryOptions ...Option) (*search.Con
 	}
 
 	serverConfig.ClientConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(o.KubeAPIQPS, o.KubeAPIBurst)
-	serverConfig.Config.EffectiveVersion = utilversion.NewEffectiveVersion("1.0")
+	serverConfig.Config.EffectiveVersion = cbversion.NewEffectiveVersion("1.0")
 
 	httpClient, err := rest.HTTPClientFor(serverConfig.ClientConfig)
 	if err != nil {
