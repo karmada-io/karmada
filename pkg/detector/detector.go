@@ -39,6 +39,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -366,7 +367,8 @@ func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructure
 	klog.V(2).Infof("Attempts to match policy for resource(%s)", objectKey)
 	policyList := &policyv1alpha1.PropagationPolicyList{}
 	err := d.Client.List(context.TODO(), policyList, &client.ListOptions{
-		Namespace: objectKey.Namespace,
+		Namespace:             objectKey.Namespace,
+		UnsafeDisableDeepCopy: ptr.To(true),
 	})
 	if err != nil {
 		klog.Errorf("Failed to list propagation policy: %v", err)
@@ -392,7 +394,9 @@ func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructure
 func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey) (*policyv1alpha1.ClusterPropagationPolicy, error) {
 	klog.V(2).Infof("Attempts to match cluster policy for resource(%s)", objectKey)
 	policyList := &policyv1alpha1.ClusterPropagationPolicyList{}
-	err := d.Client.List(context.TODO(), policyList)
+	err := d.Client.List(context.TODO(), policyList, &client.ListOptions{
+		UnsafeDisableDeepCopy: ptr.To(true),
+	})
 	if err != nil {
 		klog.Errorf("Failed to list cluster propagation policy: %v", err)
 		return nil, err

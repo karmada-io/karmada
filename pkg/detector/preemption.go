@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -254,7 +255,8 @@ func (d *ResourceDetector) HandleDeprioritizedPropagationPolicy(oldPolicy policy
 	klog.Infof("PropagationPolicy(%s/%s) priority changed from %d to %d", newPolicy.GetNamespace(), newPolicy.GetName(), *oldPolicy.Spec.Priority, *newPolicy.Spec.Priority)
 	policyList := &policyv1alpha1.PropagationPolicyList{}
 	err := d.Client.List(context.TODO(), policyList, &client.ListOptions{
-		Namespace: newPolicy.GetNamespace(),
+		Namespace:             newPolicy.GetNamespace(),
+		UnsafeDisableDeepCopy: ptr.To(true),
 	})
 	if err != nil {
 		klog.Errorf("Failed to list PropagationPolicy from namespace: %s, error: %v", newPolicy.GetNamespace(), err)
@@ -297,7 +299,9 @@ func (d *ResourceDetector) HandleDeprioritizedClusterPropagationPolicy(oldPolicy
 	klog.Infof("ClusterPropagationPolicy(%s) priority changed from %d to %d",
 		newPolicy.GetName(), *oldPolicy.Spec.Priority, *newPolicy.Spec.Priority)
 	policyList := &policyv1alpha1.ClusterPropagationPolicyList{}
-	err := d.Client.List(context.TODO(), policyList)
+	err := d.Client.List(context.TODO(), policyList, &client.ListOptions{
+		UnsafeDisableDeepCopy: ptr.To(true),
+	})
 	if err != nil {
 		klog.Errorf("Failed to list ClusterPropagationPolicy, error: %v", err)
 		return

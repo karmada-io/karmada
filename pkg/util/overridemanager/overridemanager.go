@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
@@ -127,7 +128,7 @@ func (o *overrideManagerImpl) ApplyOverridePolicies(rawObj *unstructured.Unstruc
 func (o *overrideManagerImpl) applyClusterOverrides(rawObj *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) (*AppliedOverrides, error) {
 	// get all cluster-scoped override policies
 	policyList := &policyv1alpha1.ClusterOverridePolicyList{}
-	if err := o.Client.List(context.TODO(), policyList, &client.ListOptions{}); err != nil {
+	if err := o.Client.List(context.TODO(), policyList, &client.ListOptions{UnsafeDisableDeepCopy: ptr.To(true)}); err != nil {
 		klog.Errorf("Failed to list cluster override policies, error: %v", err)
 		return nil, err
 	}
@@ -165,7 +166,7 @@ func (o *overrideManagerImpl) applyClusterOverrides(rawObj *unstructured.Unstruc
 func (o *overrideManagerImpl) applyNamespacedOverrides(rawObj *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) (*AppliedOverrides, error) {
 	// get all namespace-scoped override policies
 	policyList := &policyv1alpha1.OverridePolicyList{}
-	if err := o.Client.List(context.TODO(), policyList, &client.ListOptions{Namespace: rawObj.GetNamespace()}); err != nil {
+	if err := o.Client.List(context.TODO(), policyList, &client.ListOptions{Namespace: rawObj.GetNamespace(), UnsafeDisableDeepCopy: ptr.To(true)}); err != nil {
 		klog.Errorf("Failed to list override policies from namespace: %s, error: %v", rawObj.GetNamespace(), err)
 		return nil, err
 	}

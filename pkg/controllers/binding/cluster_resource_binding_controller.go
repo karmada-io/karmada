@@ -29,6 +29,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -180,14 +181,14 @@ func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.MapFu
 			return nil
 		}
 
-		bindingList := &workv1alpha2.ClusterResourceBindingList{}
-		if err := c.Client.List(ctx, bindingList); err != nil {
+		readonlyBindingList := &workv1alpha2.ClusterResourceBindingList{}
+		if err := c.Client.List(ctx, readonlyBindingList, &client.ListOptions{UnsafeDisableDeepCopy: ptr.To(true)}); err != nil {
 			klog.Errorf("Failed to list clusterResourceBindings, error: %v", err)
 			return nil
 		}
 
 		var requests []reconcile.Request
-		for _, binding := range bindingList.Items {
+		for _, binding := range readonlyBindingList.Items {
 			// Nil resourceSelectors means matching all resources.
 			if len(overrideRS) == 0 {
 				klog.V(2).Infof("Enqueue ClusterResourceBinding(%s) as cluster override policy(%s) changes.", binding.Name, a.GetName())
