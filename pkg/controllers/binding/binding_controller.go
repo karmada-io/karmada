@@ -29,6 +29,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -189,19 +190,23 @@ func (c *ResourceBindingController) newOverridePolicyFunc() handler.MapFunc {
 			return nil
 		}
 
-		bindingList := &workv1alpha2.ResourceBindingList{}
-		if err := c.Client.List(ctx, bindingList); err != nil {
+		readonlyBindingList := &workv1alpha2.ResourceBindingList{}
+		listOption := &client.ListOptions{
+			UnsafeDisableDeepCopy: ptr.To(true),
+		}
+		if len(namespace) > 0 {
+			listOption = &client.ListOptions{
+				Namespace:             namespace,
+				UnsafeDisableDeepCopy: ptr.To(true),
+			}
+		}
+		if err := c.Client.List(ctx, readonlyBindingList, listOption); err != nil {
 			klog.Errorf("Failed to list resourceBindings, error: %v", err)
 			return nil
 		}
 
 		var requests []reconcile.Request
-		for _, binding := range bindingList.Items {
-			// Skip resourceBinding with different namespace of current overridePolicy.
-			if len(namespace) != 0 && namespace != binding.Namespace {
-				continue
-			}
-
+		for _, binding := range readonlyBindingList.Items {
 			// Nil resourceSelectors means matching all resources.
 			if len(overrideRS) == 0 {
 				klog.V(2).Infof("Enqueue ResourceBinding(%s/%s) as override policy(%s/%s) changes.", binding.Namespace, binding.Name, a.GetNamespace(), a.GetName())
