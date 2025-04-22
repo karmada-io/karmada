@@ -46,6 +46,7 @@ spec:
           command:
             - /bin/karmada-aggregated-apiserver
             - --kubeconfig=/etc/kubeconfig
+            - --metrics-bind-address=:8080
             - --authentication-kubeconfig=/etc/kubeconfig
             - --authorization-kubeconfig=/etc/kubeconfig
             {{- if eq .Values.etcd.mode "external" }}
@@ -85,6 +86,10 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 15
+          ports:
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
       {{- with .Values.aggregatedApiServer.nodeSelector }}
       nodeSelector:
       {{- toYaml . | nindent 8 }}

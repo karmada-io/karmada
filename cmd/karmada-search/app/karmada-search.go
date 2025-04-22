@@ -21,9 +21,11 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"path"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apiserver/pkg/endpoints/openapi"
@@ -39,12 +41,14 @@ import (
 	"k8s.io/klog/v2"
 	netutils "k8s.io/utils/net"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/karmada-io/karmada/cmd/karmada-search/app/options"
 	searchscheme "github.com/karmada-io/karmada/pkg/apis/search/scheme"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
+	versionmetrics "github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/search"
 	"github.com/karmada-io/karmada/pkg/search/proxy"
 	"github.com/karmada-io/karmada/pkg/search/proxy/framework/runtime"
@@ -55,6 +59,35 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
+)
+
+const (
+	// ReadHeaderTimeout is the amount of time allowed to read
+	// request headers.
+	// HTTP timeouts are necessary to expire inactive connections
+	// and failing to do so might make the application vulnerable
+	// to attacks like slowloris which work by sending data very slow,
+	// which in case of no timeout will keep the connection active
+	// eventually leading to a denial-of-service (DoS) attack.
+	// References:
+	// - https://en.wikipedia.org/wiki/Slowloris_(computer_security)
+	ReadHeaderTimeout = 32 * time.Second
+	// WriteTimeout is the amount of time allowed to write the
+	// request data.
+	// HTTP timeouts are necessary to expire inactive connections
+	// and failing to do so might make the application vulnerable
+	// to attacks like slowloris which work by sending data very slow,
+	// which in case of no timeout will keep the connection active
+	// eventually leading to a denial-of-service (DoS) attack.
+	WriteTimeout = 5 * time.Minute
+	// ReadTimeout is the amount of time allowed to read
+	// response data.
+	// HTTP timeouts are necessary to expire inactive connections
+	// and failing to do so might make the application vulnerable
+	// to attacks like slowloris which work by sending data very slow,
+	// which in case of no timeout will keep the connection active
+	// eventually leading to a denial-of-service (DoS) attack.
+	ReadTimeout = 5 * time.Minute
 )
 
 // Option configures a framework.Registry.
@@ -112,6 +145,11 @@ func WithPlugin(factory runtime.PluginFactory) Option {
 // `run` runs the karmada-search with options. This should never exit.
 func run(ctx context.Context, o *options.Options, registryOptions ...Option) error {
 	klog.Infof("karmada-search version: %s", version.Get())
+
+	ctrlmetrics.Registry.MustRegister(versionmetrics.NewBuildInfoCollector())
+	if o.MetricsBindAddress != "0" {
+		go serveMetrics(o.MetricsBindAddress)
+	}
 
 	profileflag.ListenAndServe(o.ProfileOpts)
 
@@ -250,5 +288,33 @@ func customLongRunningRequestCheck(longRunningVerbs, longRunningSubresources set
 			requestInfo = lifted.NewRequestInfo(reqClone)
 		}
 		return genericfilters.BasicLongRunningRequestCheck(longRunningVerbs, longRunningSubresources)(r, requestInfo)
+	}
+}
+
+func serveMetrics(address string) {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", metricsHandler())
+	serveHTTP(address, mux, "metrics")
+}
+
+func metricsHandler() http.Handler {
+	return promhttp.HandlerFor(ctrlmetrics.Registry, promhttp.HandlerOpts{
+		ErrorHandling: promhttp.HTTPErrorOnError,
+	})
+}
+
+func serveHTTP(address string, handler http.Handler, name string) {
+	httpServer := &http.Server{
+		Addr:              address,
+		Handler:           handler,
+		ReadHeaderTimeout: ReadHeaderTimeout,
+		WriteTimeout:      WriteTimeout,
+		ReadTimeout:       ReadTimeout,
+	}
+
+	klog.Infof("Starting %s server on %s", name, address)
+	if err := httpServer.ListenAndServe(); err != nil {
+		klog.Errorf("Failed to serve %s on %s: %v", name, address, err)
+		os.Exit(1)
 	}
 }

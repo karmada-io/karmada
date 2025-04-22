@@ -174,6 +174,7 @@ spec:
         command:
         - /bin/karmada-aggregated-apiserver
         - --kubeconfig=/etc/karmada/config/karmada.config
+        - --metrics-bind-address=:8080
         - --authentication-kubeconfig=/etc/karmada/config/karmada.config
         - --authorization-kubeconfig=/etc/karmada/config/karmada.config
         - --tls-cert-file=/etc/karmada/pki/karmada.crt
@@ -182,6 +183,10 @@ spec:
         - --audit-log-path=-
         - --audit-log-maxage=0
         - --audit-log-maxbackup=0
+        ports:
+          - containerPort: 8080
+            name: metrics
+            protocol: TCP
         volumeMounts:
         - name: karmada-config
           mountPath: /etc/karmada/config
