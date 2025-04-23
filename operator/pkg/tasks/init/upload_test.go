@@ -1,5 +1,5 @@
 /*
-Copyright 2024 The Karmada Authors.
+Copyright 2025 The Karmada Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -110,47 +110,49 @@ func TestRunUploadKubeconfig(t *testing.T) {
 func TestRunUploadAdminKubeconfig(t *testing.T) {
 	name, namespace := "karmada-demo", "test"
 	controlPlaneAddress := "10.96.1.5"
+	apiServerComponentName := util.KarmadaAPIServerName(name)
+	apiServerPort := constants.KarmadaAPIserverListenClientPort
 	tests := []struct {
-		name     string
-		runData  workflow.RunData
-		endpoint string
-		prep     func(workflow.RunData) error
-		verify   func(workflow.RunData, string) error
-		wantErr  bool
-		errMsg   string
+		name             string
+		runData          workflow.RunData
+		endpoingExpected string
+		prep             func(workflow.RunData) error
+		verify           func(workflow.RunData, string) error
+		wantErr          bool
+		errMsg           string
 	}{
-		// {
-		// 	name:    "InvalidTypeAssertion_TypeAssertionFailed",
-		// 	runData: &MyTestData{Data: "test"},
-		// 	prep:    func(workflow.RunData) error { return nil },
-		// 	verify:  func(workflow.RunData, string) error { return nil },
-		// 	wantErr: true,
-		// 	errMsg:  "UploadAdminKubeconfig task invoked with an invalid data struct",
-		// },
-		// {
-		// 	name: "WithKarmadaAPIServerClusterIPServiceType_SecretCreated",
-		// 	runData: &TestInitData{
-		// 		Name:      name,
-		// 		Namespace: namespace,
-		// 		ComponentsUnits: &operatorv1alpha1.KarmadaComponents{
-		// 			KarmadaAPIServer: &operatorv1alpha1.KarmadaAPIServer{
-		// 				ServiceType: corev1.ServiceTypeClusterIP,
-		// 			},
-		// 		},
-		// 		RemoteClientConnector: fakeclientset.NewSimpleClientset(),
-		// 	},
-		// 	endpoint: fmt.Sprintf("https://%s.%s.svc.cluster.local:%d", util.KarmadaAPIServerName(name), namespace, constants.KarmadaAPIserverListenClientPort),
-		// 	prep:     createCA,
-		// 	verify: func(rd workflow.RunData, endpoint string) error {
-		// 		data := rd.(*TestInitData)
-		// 		client := data.RemoteClient().(*fakeclientset.Clientset)
-		// 		if err := verifySecret(client, name, namespace, endpoint); err != nil {
-		// 			return fmt.Errorf("failed to verify secret: %v", err)
-		// 		}
-		// 		return nil
-		// 	},
-		// 	wantErr: false,
-		// },
+		{
+			name:    "InvalidTypeAssertion_TypeAssertionFailed",
+			runData: &MyTestData{Data: "test"},
+			prep:    func(workflow.RunData) error { return nil },
+			verify:  func(workflow.RunData, string) error { return nil },
+			wantErr: true,
+			errMsg:  "UploadAdminKubeconfig task invoked with an invalid data struct",
+		},
+		{
+			name: "WithKarmadaAPIServerClusterIPServiceType_SecretCreated",
+			runData: &TestInitData{
+				Name:      name,
+				Namespace: namespace,
+				ComponentsUnits: &operatorv1alpha1.KarmadaComponents{
+					KarmadaAPIServer: &operatorv1alpha1.KarmadaAPIServer{
+						ServiceType: corev1.ServiceTypeClusterIP,
+					},
+				},
+				RemoteClientConnector: fakeclientset.NewSimpleClientset(),
+			},
+			endpoingExpected: fmt.Sprintf("https://%s.%s.svc.cluster.local:%d", apiServerComponentName, namespace, apiServerPort),
+			prep:             createCA,
+			verify: func(rd workflow.RunData, endpoint string) error {
+				data := rd.(*TestInitData)
+				client := data.RemoteClient().(*fakeclientset.Clientset)
+				if err := verifySecret(client, name, namespace, endpoint); err != nil {
+					return fmt.Errorf("failed to verify secret: %v", err)
+				}
+				return nil
+			},
+			wantErr: false,
+		},
 		{
 			name: "WithKarmadaAPIServerNodePortServiceType_SecretCreated",
 			runData: &TestInitData{
@@ -177,11 +179,16 @@ func TestRunUploadAdminKubeconfig(t *testing.T) {
 				RemoteClientConnector: fakeclientset.NewSimpleClientset(),
 				ControlplaneAddr:      controlPlaneAddress,
 			},
-			endpoint: fmt.Sprintf("https://%s:0", controlPlaneAddress),
+			endpoingExpected: fmt.Sprintf("https://%s:0", controlPlaneAddress),
 			prep: func(rd workflow.RunData) error {
+				// Create a certificate authority to generate the Karmada admin kubeconfig.
 				if err := createCA(rd); err != nil {
 					return err
 				}
+
+				// Install the Karmada API Server. This is necessary to ensure
+				// the API Server is available when uploading the admin kubeconfig secret,
+				// particularly when the service type is set to NodePort.
 				data := rd.(*TestInitData)
 				client := data.RemoteClient()
 				if err := apiserver.EnsureKarmadaAPIServer(client, data.Components(), name, namespace, map[string]bool{}); err != nil {
@@ -217,25 +224,40 @@ func TestRunUploadAdminKubeconfig(t *testing.T) {
 			if err != nil && test.wantErr && !strings.Contains(err.Error(), test.errMsg) {
 				t.Errorf("expected %s error msg to contain %s", err.Error(), test.errMsg)
 			}
-			if err := test.verify(test.runData, test.endpoint); err != nil {
+			if err := test.verify(test.runData, test.endpoingExpected); err != nil {
 				t.Errorf("failed to run upload admin kubeconfig task: %v", err)
 			}
 		})
 	}
 }
 
-// verifySecret checks if the secret has been created with the expected values.
-func verifySecret(client *fakeclientset.Clientset, name, namespace string, expectedEndpoint string) error {
-	secretName := util.AdminKarmadaConfigSecretName(name)
+// verifySecret checks whether the admin kubeconfig secret for the specified Karmada instance
+// has been created in the given namespace, and verifies its fields against expected values.
+//
+// It ensures that:
+//   - The secret exists and has the correct name.
+//   - The Karmada operator label is present and has the correct value.
+//   - The kubeconfig stored in the secret contains the expected API server endpoint.
+//
+// Parameters:
+//
+//	client:           The fake Kubernetes clientset to use for retrieving the secret.
+//	karmadaInstanceName:  The name of the Karmada instance whose admin kubeconfig secret should be verified.
+//	namespace:        The namespace in which the secret is expected to exist.
+//	expectedEndpoint: The expected API server endpoint URL in the kubeconfig.
+//
+// Returns:
+//
+//	An error if the secret does not exist, or any of the checks fail, otherwise nil.
+func verifySecret(client *fakeclientset.Clientset, karmadaInstanceName, namespace, expectedEndpoint string) error {
+	// Get Karmada admin config secret.
+	secretName := util.AdminKarmadaConfigSecretName(karmadaInstanceName)
 	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get %s secret in %s namespace: %v", secretName, namespace, err)
 	}
 
-	if secret.Name != secretName {
-		return fmt.Errorf("expected secret name %s to be %s", secret.Name, secretName)
-	}
-
+	// Check for the Karmada operator label and verify its value.
 	value, ok := secret.Labels[constants.KarmadaOperatorLabelKeyName]
 	if !ok {
 		return fmt.Errorf("expected %s label to exist in %s secret in %s namespace", constants.KarmadaOperatorLabelKeyName, secretName, namespace)
@@ -244,12 +266,14 @@ func verifySecret(client *fakeclientset.Clientset, name, namespace string, expec
 		return fmt.Errorf("expected %s secret label value to be %s", value, constants.KarmadaOperator)
 	}
 
+	// Extract and load the kubeconfig from the secret.
 	karmadaConfig := []byte(secret.StringData["karmada.config"])
 	config, err := clientcmd.Load(karmadaConfig)
 	if err != nil {
 		return fmt.Errorf("failed to load secret kubeconfig data: %v", err)
 	}
 
+	// Get the Karmada APIServer endpoint from the loaded kubeconfig and verify it.
 	gotEndpoint := config.Clusters[config.Contexts[config.CurrentContext].Cluster].Server
 	if gotEndpoint != expectedEndpoint {
 		return fmt.Errorf("expected endpoint %s, but got %s", expectedEndpoint, gotEndpoint)
