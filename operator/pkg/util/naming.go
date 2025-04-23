@@ -21,98 +21,117 @@ import (
 	"strings"
 )
 
-// Namefunc defines a function to generate resource name according to karmada resource name.
+// Namefunc defines a function that generates a resource name based on the Karmada resource name.
 type Namefunc func(karmada string) string
 
-// AdminKarmadaConfigSecretName returns secret name of karmada-admin karmada-config
-func AdminKarmadaConfigSecretName(karmada string) string {
-	return generateResourceName(karmada, "admin-config")
+// AdminKarmadaConfigSecretName returns the secret name for the Karmada admin kubeconfig
+// for the specified Karmada instance.
+func AdminKarmadaConfigSecretName(karmadaInstanceName string) string {
+	return generateResourceName(karmadaInstanceName, "admin-config")
 }
 
-// ComponentKarmadaConfigSecretName returns secret name of karmada component karmada-config
+// ComponentKarmadaConfigSecretName returns the secret name of a Karmada component's kubeconfig
 func ComponentKarmadaConfigSecretName(karmadaComponent string) string {
 	return fmt.Sprintf("%s-config", karmadaComponent)
 }
 
-// KarmadaCertSecretName returns secret name of karmada certs
-func KarmadaCertSecretName(karmada string) string {
-	return generateResourceName(karmada, "cert")
+// KarmadaCertSecretName returns the secret name of Karmada certificate
+// for the specified Karmada instance.
+func KarmadaCertSecretName(karmadaInstanceName string) string {
+	return generateResourceName(karmadaInstanceName, "cert")
 }
 
-// EtcdCertSecretName returns secret name of etcd cert
-func EtcdCertSecretName(karmada string) string {
-	return generateResourceName(karmada, "etcd-cert")
+// EtcdCertSecretName returns the secret name for etcd certificates
+// for the specified Karmada instance.
+func EtcdCertSecretName(karmadaInstanceName string) string {
+	return generateResourceName(karmadaInstanceName, "etcd-cert")
 }
 
-// WebhookCertSecretName returns secret name of karmada-webhook cert
-func WebhookCertSecretName(karmada string) string {
-	return generateResourceName(karmada, "webhook-cert")
+// WebhookCertSecretName returns the secret name for Karmada webhook certificates
+// for the specified Karmada instance.
+func WebhookCertSecretName(karmadaInstanceName string) string {
+	return generateResourceName(karmadaInstanceName, "webhook-cert")
 }
 
-// KarmadaAPIServerName returns secret name of karmada-apiserver
-func KarmadaAPIServerName(karmada string) string {
-	return generateResourceName(karmada, "apiserver")
+// KarmadaAPIServerName returns the name of the Karmada API server
+// for the specified Karmada instance.
+func KarmadaAPIServerName(karmadaInstanceName string) string {
+	return generateResourceName(karmadaInstanceName, "apiserver")
 }
 
-// KarmadaAggregatedAPIServerName returns secret name of karmada-aggregated-apiserver
-func KarmadaAggregatedAPIServerName(karmada string) string {
-	return generateResourceName(karmada, "aggregated-apiserver")
+// KarmadaAggregatedAPIServerName returns the name of the Karmada aggregated API server
+// for the specified Karmada instance.
+func KarmadaAggregatedAPIServerName(karmadaInstanceName string) string {
+	return generateResourceName(karmadaInstanceName, "aggregated-apiserver")
 }
 
-// KarmadaSearchAPIServerName returns secret name of karmada-search
-func KarmadaSearchAPIServerName(karmada string) string {
-	return generateResourceName(karmada, "search")
+// KarmadaSearchAPIServerName returns the name of the Karmada search API server
+// for the specified Karmada instance.
+func KarmadaSearchAPIServerName(karmadaInstanceName string) string {
+	return generateResourceName(karmadaInstanceName, "search")
 }
 
-// KarmadaEtcdName returns name of karmada-etcd
-func KarmadaEtcdName(karmada string) string {
-	return generateResourceName(karmada, "etcd")
+// KarmadaEtcdName returns the name of the Karmada etcd instance
+// for the specified Karmada instance.
+func KarmadaEtcdName(karmadaInstanceName string) string {
+	return generateResourceName(karmadaInstanceName, "etcd")
 }
 
-// KarmadaEtcdClientName returns name of karmada-etcd client
-func KarmadaEtcdClientName(karmada string) string {
-	return generateResourceName(karmada, "etcd-client")
+// KarmadaEtcdClientName returns the name of the Karmada etcd client
+// for the specified Karmada instance.
+func KarmadaEtcdClientName(karmadaInstanceName string) string {
+	return generateResourceName(karmadaInstanceName, "etcd-client")
 }
 
-// KubeControllerManagerName returns name of kube-controller-manager
-func KubeControllerManagerName(karmada string) string {
-	return generateResourceName(karmada, "kube-controller-manager")
+// KubeControllerManagerName returns the name of the kube-controller-manager
+// for the specified Karmada instance.
+func KubeControllerManagerName(karmadaInstanceName string) string {
+	return generateResourceName(karmadaInstanceName, "kube-controller-manager")
 }
 
-// KarmadaControllerManagerName returns name of karmada-controller-manager
-func KarmadaControllerManagerName(karmada string) string {
-	return generateResourceName(karmada, "controller-manager")
+// KarmadaControllerManagerName returns the name of the Karmada controller manager
+// for the specified Karmada instance.
+func KarmadaControllerManagerName(karmadaInstanceName string) string {
+	return generateResourceName(karmadaInstanceName, "controller-manager")
 }
 
-// KarmadaSchedulerName returns name of karmada-scheduler
-func KarmadaSchedulerName(karmada string) string {
-	return generateResourceName(karmada, "scheduler")
+// KarmadaSchedulerName returns the name of the Karmada scheduler
+// for the specified Karmada instance.
+func KarmadaSchedulerName(karmadaInstanceName string) string {
+	return generateResourceName(karmadaInstanceName, "scheduler")
 }
 
-// KarmadaWebhookName returns name of karmada-webhook
-func KarmadaWebhookName(karmada string) string {
-	return generateResourceName(karmada, "webhook")
+// KarmadaWebhookName returns the name of the Karmada webhook
+// for the specified Karmada instance.
+func KarmadaWebhookName(karmadaInstanceName string) string {
+	return generateResourceName(karmadaInstanceName, "webhook")
 }
 
-// KarmadaDeschedulerName returns name of karmada-descheduler
-func KarmadaDeschedulerName(karmada string) string {
-	return generateResourceName(karmada, "descheduler")
+// KarmadaDeschedulerName returns the name of the Karmada descheduler
+// for the specified Karmada instance.
+func KarmadaDeschedulerName(karmadaInstanceName string) string {
+	return generateResourceName(karmadaInstanceName, "descheduler")
 }
 
-// KarmadaMetricsAdapterName returns name of karmada-metric-adapter
-func KarmadaMetricsAdapterName(karmada string) string {
-	return generateResourceName(karmada, "metrics-adapter")
+// KarmadaMetricsAdapterName returns the name of the Karmada metrics adapter
+// for the specified Karmada instance.
+func KarmadaMetricsAdapterName(karmadaInstanceName string) string {
+	return generateResourceName(karmadaInstanceName, "metrics-adapter")
 }
 
-// KarmadaSearchName returns name of karmada-search
-func KarmadaSearchName(karmada string) string {
-	return generateResourceName(karmada, "search")
+// KarmadaSearchName returns the name of the Karmada search component
+// for the specified Karmada instance.
+func KarmadaSearchName(karmadaInstanceName string) string {
+	return generateResourceName(karmadaInstanceName, "search")
 }
 
-func generateResourceName(karmada, suffix string) string {
-	if strings.Contains(karmada, "karmada") {
-		return fmt.Sprintf("%s-%s", karmada, suffix)
+// generateResourceName generates a resource name for a Karmada resource with
+// the given suffix. If the provided Karmada instance name already contains "karmada",
+// the suffix is appended directly. Otherwise, "karmada" is prefixed before the suffix.
+func generateResourceName(karmadaInstanceName, suffix string) string {
+	if strings.Contains(karmadaInstanceName, "karmada") {
+		return fmt.Sprintf("%s-%s", karmadaInstanceName, suffix)
 	}
 
-	return fmt.Sprintf("%s-karmada-%s", karmada, suffix)
+	return fmt.Sprintf("%s-karmada-%s", karmadaInstanceName, suffix)
 }
