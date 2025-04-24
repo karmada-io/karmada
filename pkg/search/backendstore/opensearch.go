@@ -36,7 +36,10 @@ import (
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
 )
 
-var defaultPrefix = "kubernetes"
+var (
+	defaultPrefix       = "kubernetes"
+	resourceExistsError = "resource_already_exists_exception"
+)
 
 var mapping = `
 {
@@ -125,7 +128,7 @@ type OpenSearch struct {
 
 // NewOpenSearch returns a new OpenSearch
 func NewOpenSearch(cluster string, cfg *searchv1alpha1.BackendStoreConfig) (*OpenSearch, error) {
-	klog.Infof("create opensearch backend store: %s", cluster)
+	klog.Infof("Create opensearch backend store: %s", cluster)
 	os := &OpenSearch{
 		cluster: cluster,
 		indices: make(map[string]struct{})}
@@ -163,9 +166,15 @@ func (os *OpenSearch) delete(obj interface{}) {
 		return
 	}
 
-	indexName, err := os.indexName(us)
+	indexName := generateIndexName(defaultPrefix, us)
+	exists, err := os.checkIndexExists(indexName)
 	if err != nil {
-		klog.Errorf("cannot get index name: %v", err)
+		klog.Errorf("Failed to check if index %s exists: %v", indexName, err)
+		return
+	}
+
+	if !exists {
+		klog.Errorf("Index %s does not exist. Skipping deletion as the index is unavailable.", indexName)
 		return
 	}
 
@@ -223,9 +232,9 @@ func (os *OpenSearch) upsert(obj interface{}) {
 		return
 	}
 
-	indexName, err := os.indexName(us)
+	indexName, err := os.getOrCreateIndexName(us)
 	if err != nil {
-		klog.Errorf("Cannot get index name: %v", err)
+		klog.Errorf("Failed to retrieve or create the index for object %s/%s: %v", us.GetNamespace(), us.GetName(), err)
 		return
 	}
 
@@ -247,39 +256,55 @@ func (os *OpenSearch) upsert(obj interface{}) {
 }
 
 // TODO: apply mapping
-func (os *OpenSearch) indexName(us *unstructured.Unstructured) (string, error) {
-	name := fmt.Sprintf("%s-%s", defaultPrefix, strings.ToLower(us.GetKind()))
+func (os *OpenSearch) getOrCreateIndexName(us *unstructured.Unstructured) (string, error) {
+	// Check if the index already exists.
+	name := generateIndexName(defaultPrefix, us)
+	exists, err := os.checkIndexExists(name)
+	if err != nil {
+		return name, fmt.Errorf("error checking existence of index %s: %v", name, err)
+	}
+	if exists {
+		return name, nil
+	}
+
+	// Index does not exist, proceed to create it.
+	klog.Infof("Try to create index: %s", name)
+	req := opensearchapi.IndicesCreateRequest{Index: name, Body: strings.NewReader(mapping)}
+	resp, err := req.Do(context.Background(), os.client)
+	if err != nil {
+		return os.handleIndexAlreadyExists(err.Error(), name)
+	}
+
+	// Handle cases where the response indicates an error, such as when the
+	// index already exists. This logic is influenced by the
+	// UseResponseCheckOnly config flag when it is set.
+	if resp.IsError() {
+		return os.handleIndexAlreadyExists(resp.String(), name)
+	}
+
+	klog.Infof("Index successfully created: %s. Response: %s", name, resp.String())
+	os.l.Lock()
+	os.indices[name] = struct{}{}
+	os.l.Unlock()
+
+	return name, nil
+}
+
+func (os *OpenSearch) checkIndexExists(name string) (bool, error) {
 	os.l.Lock()
 	defer os.l.Unlock()
 
 	if _, ok := os.indices[name]; ok {
-		return name, nil
+		return true, nil
 	}
+	return false, nil
+}
 
-	klog.Infof("Try to create index: %s", name)
-	res := opensearchapi.IndicesCreateRequest{Index: name, Body: strings.NewReader(mapping)}
-	resp, err := res.Do(context.Background(), os.client)
-	if err != nil {
-		if strings.Contains(err.Error(), "resource_already_exists_exception") {
-			klog.Info("Index already exists")
-			os.indices[name] = struct{}{}
-			return name, nil
-		}
-		return name, fmt.Errorf("cannot create index: %v", err)
-	}
-	if resp.IsError() {
-		if strings.Contains(resp.String(), "resource_already_exists_exception") {
-			klog.Info("Index already exists")
-			os.indices[name] = struct{}{}
-			return name, nil
-		}
-		return name, fmt.Errorf("cannot create index (resp): %v", resp.String())
-	}
-
-	klog.Infof("create index response: %s", resp.String())
-	os.indices[name] = struct{}{}
-
-	return name, nil
+// OpenSearchClientBuilder is a function that creates a new OpenSearch client
+// using the provided configuration. It returns a pointer to the OpenSearch
+// client or an error if the client cannot be created.
+var OpenSearchClientBuilder = func(cfg opensearch.Config) (*opensearch.Client, error) {
+	return opensearch.NewClient(cfg)
 }
 
 func (os *OpenSearch) initClient(bsc *searchv1alpha1.BackendStoreConfig) error {
@@ -294,7 +319,7 @@ func (os *OpenSearch) initClient(bsc *searchv1alpha1.BackendStoreConfig) error {
 
 	user, pwd := func(secretRef clusterv1alpha1.LocalSecretReference) (user, pwd string) {
 		if secretRef.Namespace == "" || secretRef.Name == "" {
-			klog.Warningf("Not found secret for opensearch, try to without auth")
+			klog.Warning("Not found secret for opensearch, try to without auth")
 			return
 		}
 
@@ -312,7 +337,7 @@ func (os *OpenSearch) initClient(bsc *searchv1alpha1.BackendStoreConfig) error {
 		cfg.Password = pwd
 	}
 
-	client, err := opensearch.NewClient(cfg)
+	client, err := OpenSearchClientBuilder(cfg)
 	if err != nil {
 		return fmt.Errorf("cannot create opensearch client: %v", err)
 	}
@@ -325,4 +350,19 @@ func (os *OpenSearch) initClient(bsc *searchv1alpha1.BackendStoreConfig) error {
 	klog.V(4).Infof("Opensearch client: %v", info)
 	os.client = client
 	return nil
+}
+
+// handleIndexAlreadyExists checks if the error message indicates that the index already exists,
+// logs the message, and updates the indices map if needed.
+func (os *OpenSearch) handleIndexAlreadyExists(errMessage, name string) (string, error) {
+	if strings.Contains(errMessage, resourceExistsError) {
+		klog.Info("Index already exists")
+		os.indices[name] = struct{}{}
+		return name, nil
+	}
+	return "", fmt.Errorf("cannot create index: %v", errMessage)
+}
+
+func generateIndexName(prefix string, us *unstructured.Unstructured) string {
+	return fmt.Sprintf("%s-%s", prefix, strings.ToLower(us.GetKind()))
 }
