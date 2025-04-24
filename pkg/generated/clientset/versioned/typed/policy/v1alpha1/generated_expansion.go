@@ -22,6 +22,8 @@ type ClusterOverridePolicyExpansion interface{}
 
 type ClusterPropagationPolicyExpansion interface{}
 
+type ClusterTaintPolicyExpansion interface{}
+
 type FederatedResourceQuotaExpansion interface{}
 
 type OverridePolicyExpansion interface{}

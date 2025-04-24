@@ -28,6 +28,8 @@ type Interface interface {
 	ClusterOverridePolicies() ClusterOverridePolicyInformer
 	// ClusterPropagationPolicies returns a ClusterPropagationPolicyInformer.
 	ClusterPropagationPolicies() ClusterPropagationPolicyInformer
+	// ClusterTaintPolicies returns a ClusterTaintPolicyInformer.
+	ClusterTaintPolicies() ClusterTaintPolicyInformer
 	// FederatedResourceQuotas returns a FederatedResourceQuotaInformer.
 	FederatedResourceQuotas() FederatedResourceQuotaInformer
 	// OverridePolicies returns a OverridePolicyInformer.
@@ -55,6 +57,11 @@ func (v *version) ClusterOverridePolicies() ClusterOverridePolicyInformer {
 // ClusterPropagationPolicies returns a ClusterPropagationPolicyInformer.
 func (v *version) ClusterPropagationPolicies() ClusterPropagationPolicyInformer {
 	return &clusterPropagationPolicyInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+}
+
+// ClusterTaintPolicies returns a ClusterTaintPolicyInformer.
+func (v *version) ClusterTaintPolicies() ClusterTaintPolicyInformer {
+	return &clusterTaintPolicyInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
 // FederatedResourceQuotas returns a FederatedResourceQuotaInformer.
