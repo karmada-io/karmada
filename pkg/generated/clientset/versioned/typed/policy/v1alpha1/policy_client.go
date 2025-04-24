@@ -30,6 +30,7 @@ type PolicyV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	ClusterOverridePoliciesGetter
 	ClusterPropagationPoliciesGetter
+	ClusterTaintPoliciesGetter
 	FederatedResourceQuotasGetter
 	OverridePoliciesGetter
 	PropagationPoliciesGetter
@@ -46,6 +47,10 @@ func (c *PolicyV1alpha1Client) ClusterOverridePolicies() ClusterOverridePolicyIn
 
 func (c *PolicyV1alpha1Client) ClusterPropagationPolicies() ClusterPropagationPolicyInterface {
 	return newClusterPropagationPolicies(c)
+}
+
+func (c *PolicyV1alpha1Client) ClusterTaintPolicies() ClusterTaintPolicyInterface {
+	return newClusterTaintPolicies(c)
 }
 
 func (c *PolicyV1alpha1Client) FederatedResourceQuotas(namespace string) FederatedResourceQuotaInterface {
