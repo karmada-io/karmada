@@ -49,9 +49,9 @@ spec:
             - --metrics-bind-address=0.0.0.0:8080
             - --health-probe-bind-address=0.0.0.0:10358
             - --leader-elect-resource-namespace={{ .Namespace }}
-            - --scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt
-            - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt
-            - --scheduler-estimator-key-file=/etc/karmada/pki/karmada.key
+            - --scheduler-estimator-ca-file=/etc/karmada/pki/scheduler-estimator-client/ca.crt
+            - --scheduler-estimator-cert-file=/etc/karmada/pki/scheduler-estimator-client/tls.crt
+            - --scheduler-estimator-key-file=/etc/karmada/pki/scheduler-estimator-client/tls.key
             - --v=4
           livenessProbe:
             httpGet:
@@ -69,16 +69,16 @@ spec:
           volumeMounts:
             - name: karmada-config
               mountPath: /etc/karmada/config
-            - name: k8s-certs
-              mountPath: /etc/karmada/pki
+            - name: scheduler-estimator-client-cert
+              mountPath: /etc/karmada/pki/scheduler-estimator-client
               readOnly: true
       volumes:
         - name: karmada-config
           secret:
             secretName: karmada-descheduler-config
-        - name: k8s-certs
+        - name: scheduler-estimator-client-cert
           secret:
-            secretName: karmada-cert
+            secretName: karmada-descheduler-scheduler-estimator-client-cert
 `
 
 // DeploymentReplace is a struct to help to concrete

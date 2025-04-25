@@ -39,6 +39,9 @@ const (
 // These names are used consistently across the project to ensure uniformity and clarity.
 // Using these constants helps avoid typos and ensures that all components are referenced with the correct names.
 const (
+	// KarmadaAPIServerComponentName is the name of the Karmada Apiserver component.
+	KarmadaAPIServerComponentName = "karmada-apiserver"
+
 	// KarmadaDeschedulerComponentName is the name of the Karmada Descheduler component.
 	KarmadaDeschedulerComponentName = "karmada-descheduler"
 

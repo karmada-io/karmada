@@ -38,6 +38,7 @@ import (
 	addonutils "github.com/karmada-io/karmada/pkg/karmadactl/addons/utils"
 	initkarmada "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/karmada"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
@@ -203,9 +204,10 @@ func installComponentsOnKarmadaControlPlane(opts *addoninit.CommandAddonsEnableO
 	}
 
 	caCertName := fmt.Sprintf("%s.crt", options.CaCertAndKeyName)
-	karmadaCerts, err := opts.KubeClientSet.CoreV1().Secrets(opts.Namespace).Get(context.TODO(), options.KarmadaCertsName, metav1.GetOptions{})
+	certSecretName := util.GetComponentCertName(names.KarmadaSearchComponentName)
+	karmadaCerts, err := opts.KubeClientSet.CoreV1().Secrets(opts.Namespace).Get(context.TODO(), certSecretName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("error when getting Secret %s/%s, which is used to fetch CaCert for building APIService: %+v", opts.Namespace, options.KarmadaCertsName, err)
+		return fmt.Errorf("error when getting Secret %s/%s, which is used to fetch CaCert for building APIService: %+v", opts.Namespace, certSecretName, err)
 	}
 
 	aaService := &corev1.Service{}
