@@ -450,11 +450,21 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 				Name:            schedulerDeploymentNameAndServiceAccountName,
 				Image:           i.karmadaSchedulerImage(),
 				ImagePullPolicy: corev1.PullPolicy(i.ImagePullPolicy),
+				Env: []corev1.EnvVar{
+					{
+						Name: "POD_IP",
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								FieldPath: "status.podIP",
+							},
+						},
+					},
+				},
 				Command: []string{
 					"/bin/karmada-scheduler",
 					fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
-					"--metrics-bind-address=0.0.0.0:8080",
-					"--health-probe-bind-address=0.0.0.0:10351",
+					"--metrics-bind-address=$(POD_IP):8080",
+					"--health-probe-bind-address=$(POD_IP):10351",
 					"--enable-scheduler-estimator=true",
 					"--leader-elect=true",
 					"--scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt",
@@ -589,11 +599,21 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 				Name:            controllerManagerDeploymentAndServiceName,
 				Image:           i.karmadaControllerManagerImage(),
 				ImagePullPolicy: corev1.PullPolicy(i.ImagePullPolicy),
+				Env: []corev1.EnvVar{
+					{
+						Name: "POD_IP",
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								FieldPath: "status.podIP",
+							},
+						},
+					},
+				},
 				Command: []string{
 					"/bin/karmada-controller-manager",
 					fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
-					"--metrics-bind-address=:8080",
-					"--health-probe-bind-address=0.0.0.0:10357",
+					"--metrics-bind-address=$(POD_IP):8080",
+					"--health-probe-bind-address=$(POD_IP):10357",
 					"--cluster-status-update-frequency=10s",
 					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
 					"--v=4",
@@ -713,11 +733,22 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 				Name:            webhookDeploymentAndServiceAccountAndServiceName,
 				Image:           i.karmadaWebhookImage(),
 				ImagePullPolicy: corev1.PullPolicy(i.ImagePullPolicy),
+				Env: []corev1.EnvVar{
+					{
+						Name: "POD_IP",
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								FieldPath: "status.podIP",
+							},
+						},
+					},
+				},
 				Command: []string{
 					"/bin/karmada-webhook",
 					fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
-					"--bind-address=0.0.0.0",
-					"--metrics-bind-address=:8080",
+					"--bind-address=$(POD_IP)",
+					"--metrics-bind-address=$(POD_IP):8080",
+					"--health-probe-bind-address=$(POD_IP):8000",
 					fmt.Sprintf("--secure-port=%v", webhookTargetPort),
 					fmt.Sprintf("--cert-dir=%s", webhookCertVolumeMountPath),
 					"--v=4",
@@ -858,6 +889,7 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 		"--audit-log-path=-",
 		"--audit-log-maxage=0",
 		"--audit-log-maxbackup=0",
+		"--bind-address=$(POD_IP)",
 	}
 	if i.ExternalEtcdKeyPrefix != "" {
 		command = append(command, fmt.Sprintf("--etcd-prefix=%s", i.ExternalEtcdKeyPrefix))
@@ -889,9 +921,19 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 				Name:            karmadaAggregatedAPIServerDeploymentAndServiceName,
 				Image:           i.karmadaAggregatedAPIServerImage(),
 				ImagePullPolicy: corev1.PullPolicy(i.ImagePullPolicy),
-				Command:         command,
-				ReadinessProbe:  readinesProbe,
-				LivenessProbe:   livenesProbe,
+				Env: []corev1.EnvVar{
+					{
+						Name: "POD_IP",
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								FieldPath: "status.podIP",
+							},
+						},
+					},
+				},
+				Command:        command,
+				ReadinessProbe: readinesProbe,
+				LivenessProbe:  livenesProbe,
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
 						corev1.ResourceCPU: resource.MustParse("100m"),

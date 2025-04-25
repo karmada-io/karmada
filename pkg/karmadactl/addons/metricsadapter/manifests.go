@@ -44,9 +44,14 @@ spec:
         - name: karmada-metrics-adapter
           image: {{ .Image }}
           imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           command:
             - /bin/karmada-metrics-adapter
-            - --metrics-bind-address=:8080
+            - --metrics-bind-address=$(POD_IP):8080
             - --kubeconfig=/etc/karmada/config/karmada.config
             - --authentication-kubeconfig=/etc/karmada/config/karmada.config
             - --authorization-kubeconfig=/etc/karmada/config/karmada.config
@@ -57,6 +62,7 @@ spec:
             - --audit-log-maxage=0
             - --audit-log-maxbackup=0
             - --tls-min-version=VersionTLS13
+            - --bind-address=$(POD_IP)
           readinessProbe:
             httpGet:
               path: /readyz
