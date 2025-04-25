@@ -171,6 +171,11 @@ spec:
       - name: karmada-aggregated-apiserver
         image: {{ .Image }}
         imagePullPolicy: {{ .ImagePullPolicy }}
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
         command:
         - /bin/karmada-aggregated-apiserver
         - --kubeconfig=/etc/karmada/config/karmada.config
@@ -182,6 +187,7 @@ spec:
         - --audit-log-path=-
         - --audit-log-maxage=0
         - --audit-log-maxbackup=0
+        - --bind-address=$(POD_IP)
         volumeMounts:
         - name: karmada-config
           mountPath: /etc/karmada/config

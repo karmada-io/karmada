@@ -48,10 +48,15 @@ spec:
         - name: karmada-metrics-adapter
           image: {{ .Image }}
           imagePullPolicy: {{ .ImagePullPolicy }}
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           command:
             - /bin/karmada-metrics-adapter
             - --kubeconfig=/etc/karmada/config/karmada.config
-            - --metrics-bind-address=:8080
+            - --metrics-bind-address=$(POD_IP):8080
             - --authentication-kubeconfig=/etc/karmada/config/karmada.config
             - --authorization-kubeconfig=/etc/karmada/config/karmada.config
             - --client-ca-file=/etc/karmada/pki/ca.crt
@@ -61,6 +66,7 @@ spec:
             - --audit-log-path=-
             - --audit-log-maxage=0
             - --audit-log-maxbackup=0
+            - --bind-address=$(POD_IP)
           volumeMounts:
             - name: karmada-config
               mountPath: /etc/karmada/config
