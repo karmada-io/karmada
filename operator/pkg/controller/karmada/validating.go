@@ -18,6 +18,7 @@ package karmada
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 
@@ -102,6 +103,10 @@ func validate(karmada *operatorv1alpha1.Karmada) error {
 }
 
 func (ctrl *Controller) validateKarmada(ctx context.Context, karmada *operatorv1alpha1.Karmada) error {
+	if karmada == nil {
+		return errors.New("karmada cannot be nil")
+	}
+
 	if err := validate(karmada); err != nil {
 		ctrl.EventRecorder.Event(karmada, corev1.EventTypeWarning, ValidationErrorReason, err.Error())
 
