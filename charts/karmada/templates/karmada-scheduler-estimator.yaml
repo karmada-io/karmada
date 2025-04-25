@@ -44,6 +44,8 @@ spec:
         - name: karmada-scheduler-estimator
           image: {{ template "karmada.schedulerEstimator.image" $ }}
           imagePullPolicy: {{ $.Values.schedulerEstimator.image.pullPolicy }}
+          env:
+            {{- include "karmada.env.podIP" . | nindent 12 }}
           command:
             - /bin/karmada-scheduler-estimator
             - --kubeconfig=/etc/{{ $clusterName }}-kubeconfig
@@ -51,8 +53,8 @@ spec:
             - --grpc-auth-cert-file=/etc/karmada/pki/karmada.crt
             - --grpc-auth-key-file=/etc/karmada/pki/karmada.key
             - --grpc-client-ca-file=/etc/karmada/pki/server-ca.crt
-            - --metrics-bind-address=0.0.0.0:8080
-            - --health-probe-bind-address=0.0.0.0:10351
+            - --metrics-bind-address=$(POD_IP):8080
+            - --health-probe-bind-address=$(POD_IP):10351
             {{- with (include "karmada.schedulerEstimator.featureGates" (dict "featureGatesArg" $.Values.schedulerEstimator.featureGates)) }}
             - {{ . }}
             {{- end}}

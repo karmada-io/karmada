@@ -101,6 +101,8 @@ spec:
         - name: {{ $name }}
           image: {{ template "karmada.agent.image" . }}
           imagePullPolicy: {{ .Values.agent.image.pullPolicy }}
+          env:
+            {{- include "karmada.env.podIP" . | nindent 12 }}
           command:
             - /bin/karmada-agent
             - --karmada-kubeconfig=/etc/kubeconfig/kubeconfig
@@ -110,7 +112,8 @@ spec:
             {{- end }}
             - --cluster-status-update-frequency=10s
             - --leader-elect-resource-namespace={{ include "karmada.namespace" . }}
-            - --health-probe-bind-address=0.0.0.0:10357
+            - --metrics-bind-address=$(POD_IP):8080
+            - --health-probe-bind-address=$(POD_IP):10357
             - --v=4
           livenessProbe:
             httpGet:

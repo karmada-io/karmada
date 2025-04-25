@@ -47,10 +47,14 @@ spec:
         - name: {{ $name }}-webhook
           image: {{ template "karmada.webhook.image" . }}
           imagePullPolicy: {{ .Values.webhook.image.pullPolicy }}
+          env:
+            {{- include "karmada.env.podIP" . | nindent 12 }}
           command:
             - /bin/karmada-webhook
             - --kubeconfig=/etc/kubeconfig
-            - --bind-address=0.0.0.0
+            - --bind-address=$(POD_IP)
+            - --metrics-bind-address=$(POD_IP):8080
+            - --health-probe-bind-address=$(POD_IP):8000
             - --secure-port=8443
             - --cert-dir=/var/serving-cert
           ports:

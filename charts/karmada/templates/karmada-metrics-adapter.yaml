@@ -41,10 +41,12 @@ spec:
             - name: apiserver-cert
               mountPath: /etc/kubernetes/pki
               readOnly: true
+          env:
+            {{- include "karmada.env.podIP" . | nindent 12 }}
           command:
             - /bin/karmada-metrics-adapter
             - --kubeconfig=/etc/kubeconfig
-            - --metrics-bind-address=:8080
+            - --metrics-bind-address=$(POD_IP):8080
             - --authentication-kubeconfig=/etc/kubeconfig
             - --authorization-kubeconfig=/etc/kubeconfig
             - --tls-cert-file=/etc/kubernetes/pki/karmada.crt
@@ -53,6 +55,7 @@ spec:
             - --audit-log-maxage=0
             - --audit-log-maxbackup=0
             - --tls-min-version=VersionTLS13
+            - --bind-address=$(POD_IP)
           resources:
             {{- toYaml .Values.metricsAdapter.resources | nindent 12 }}
           readinessProbe:

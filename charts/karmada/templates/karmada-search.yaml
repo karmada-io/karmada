@@ -56,6 +56,8 @@ spec:
             - name: kubeconfig-secret
               subPath: kubeconfig
               mountPath: /etc/kubeconfig
+          env:
+            {{- include "karmada.env.podIP" . | nindent 12 }}
           command:
             - /bin/karmada-search
             - --kubeconfig=/etc/kubeconfig
@@ -80,6 +82,7 @@ spec:
             - --audit-log-maxage=0
             - --audit-log-maxbackup=0
             - --tls-min-version=VersionTLS13
+            - --bind-address=$(POD_IP)
           livenessProbe:
             httpGet:
               path: /livez
