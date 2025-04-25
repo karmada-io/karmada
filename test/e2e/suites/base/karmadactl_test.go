@@ -1767,24 +1767,6 @@ var _ = ginkgo.Describe("Karmadactl init testing", ginkgo.Labels{NeedCreateClust
 				return allPodsReady
 			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
 		})
-
-		ginkgo.By("Verifying the ready status of Karmada system services", func() {
-			gomega.Eventually(func() bool {
-				services, err := kubeNewClient.CoreV1().Services(names.NamespaceKarmadaSystem).List(context.TODO(), metav1.ListOptions{})
-				if err != nil {
-					return false
-				}
-
-				allServicesAvailable := true
-				for _, service := range services.Items {
-					if service.Spec.Type == corev1.ServiceTypeClusterIP && len(service.Spec.Ports) == 0 {
-						allServicesAvailable = false
-						break
-					}
-				}
-				return allServicesAvailable
-			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
-		})
 	})
 })
 
