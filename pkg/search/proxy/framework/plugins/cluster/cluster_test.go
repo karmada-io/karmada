@@ -26,12 +26,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"reflect"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -40,6 +40,7 @@ import (
 	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/kubernetes/scheme"
 
 	clusterapis "github.com/karmada-io/karmada/pkg/apis/cluster"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -52,21 +53,64 @@ import (
 )
 
 func TestModifyRequest(t *testing.T) {
-	newObjectFunc := func(annotations map[string]string, resourceVersion string) *unstructured.Unstructured {
-		obj := &unstructured.Unstructured{}
-		obj.SetAPIVersion("v1")
-		obj.SetKind("Pod")
-		obj.SetAnnotations(annotations)
-		obj.SetResourceVersion(resourceVersion)
-		return obj
+	const (
+		contentTypeJSON     = "application/json"
+		contentTypeProtobuf = "application/vnd.kubernetes.protobuf"
+	)
+
+	makePod := func(annotations map[string]string, resourceVersion string) *corev1.Pod {
+		return &corev1.Pod{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Pod",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations:     annotations,
+				ResourceVersion: resourceVersion,
+			},
+		}
+	}
+
+	jsonEncode := func(t *testing.T, obj runtime.Object) []byte {
+		buf := &bytes.Buffer{}
+		require.NoError(t, json.NewEncoder(buf).Encode(obj))
+		return buf.Bytes()
+	}
+
+	protobufEncode := func(t *testing.T, obj runtime.Object) []byte {
+		buf := &bytes.Buffer{}
+		encoder, err := runtime.NewClientNegotiator(scheme.Codecs.WithoutConversion(), corev1.SchemeGroupVersion).Encoder(contentTypeProtobuf, nil)
+		require.NoError(t, err)
+		require.NoError(t, encoder.Encode(obj, buf))
+		return buf.Bytes()
+	}
+
+	makeRequest := func(t *testing.T, contentType string, obj runtime.Object) *http.Request {
+		var body io.Reader
+		if obj != nil {
+			switch contentType {
+			case contentTypeJSON:
+				body = bytes.NewBuffer(jsonEncode(t, obj))
+			case contentTypeProtobuf:
+				body = bytes.NewBuffer(protobufEncode(t, obj))
+			default:
+				t.Fatalf("unknown content-type %s", contentType)
+			}
+		}
+
+		req, err := http.NewRequest(http.MethodPut, "", body)
+		require.NoError(t, err)
+		req.Header.Add("Content-Type", contentType)
+		return req
 	}
 
 	type args struct {
-		body    interface{}
-		cluster string
+		reqFunc     func(t *testing.T) *http.Request
+		requestInfo framework.ProxyRequest
+		cluster     string
 	}
 	type want struct {
-		body interface{}
+		bodyFunc func(t *testing.T) []byte
 	}
 
 	tests := []struct {
@@ -77,102 +121,169 @@ func TestModifyRequest(t *testing.T) {
 		{
 			name: "Empty body",
 			args: args{
-				body: nil,
+				reqFunc: func(t *testing.T) *http.Request {
+					return makeRequest(t, contentTypeJSON, nil)
+				},
+				requestInfo: framework.ProxyRequest{
+					RestMapper: &mockRestMapper{},
+				},
 			},
 			want: want{
-				body: nil,
+				bodyFunc: func(*testing.T) []byte {
+					return nil
+				},
 			},
 		},
 		{
 			name: "Body with nil annotations",
 			args: args{
-				body: newObjectFunc(nil, ""),
+				reqFunc: func(t *testing.T) *http.Request {
+					return makeRequest(t, contentTypeJSON, makePod(nil, ""))
+				},
+				requestInfo: framework.ProxyRequest{
+					RestMapper:           &mockRestMapper{},
+					GroupVersionResource: proxytest.PodGVR,
+				},
 			},
 			want: want{
-				body: newObjectFunc(nil, ""),
+				bodyFunc: func(t *testing.T) []byte {
+					return jsonEncode(t, makePod(nil, ""))
+				},
 			},
 		},
 		{
 			name: "Body with empty annotations",
 			args: args{
-				body: newObjectFunc(map[string]string{}, ""),
+				reqFunc: func(t *testing.T) *http.Request {
+					return makeRequest(t, contentTypeJSON, makePod(map[string]string{}, ""))
+				},
+				requestInfo: framework.ProxyRequest{
+					RestMapper:           &mockRestMapper{},
+					GroupVersionResource: proxytest.PodGVR,
+				},
 			},
 			want: want{
-				body: newObjectFunc(map[string]string{}, ""),
+				bodyFunc: func(t *testing.T) []byte {
+					return jsonEncode(t, makePod(map[string]string{}, ""))
+				},
 			},
 		},
 		{
 			name: "Body with cache source annotation",
 			args: args{
-				body: newObjectFunc(map[string]string{clusterv1alpha1.CacheSourceAnnotationKey: "bar"}, ""),
+				reqFunc: func(t *testing.T) *http.Request {
+					obj := makePod(map[string]string{clusterv1alpha1.CacheSourceAnnotationKey: "bar"}, "")
+					return makeRequest(t, contentTypeJSON, obj)
+				},
+				requestInfo: framework.ProxyRequest{
+					RestMapper:           &mockRestMapper{},
+					GroupVersionResource: proxytest.PodGVR,
+				},
 			},
 			want: want{
-				body: newObjectFunc(map[string]string{}, ""),
+				bodyFunc: func(t *testing.T) []byte {
+					return jsonEncode(t, makePod(nil, ""))
+				},
 			},
 		},
 		{
 			name: "Body with single cluster resource version",
 			args: args{
-				body:    newObjectFunc(nil, "1234"),
+				reqFunc: func(t *testing.T) *http.Request {
+					return makeRequest(t, contentTypeJSON, makePod(nil, "1234"))
+				},
+				requestInfo: framework.ProxyRequest{
+					RestMapper:           &mockRestMapper{},
+					GroupVersionResource: proxytest.PodGVR,
+				},
 				cluster: "cluster1",
 			},
 			want: want{
-				body: newObjectFunc(nil, "1234"),
+				bodyFunc: func(t *testing.T) []byte {
+					return jsonEncode(t, makePod(nil, "1234"))
+				},
 			},
 		},
 		{
 			name: "Body with multi cluster resource version",
 			args: args{
-				body:    newObjectFunc(nil, store.BuildMultiClusterResourceVersion(map[string]string{"cluster1": "1234", "cluster2": "5678"})),
+				reqFunc: func(t *testing.T) *http.Request {
+					obj := makePod(nil, store.BuildMultiClusterResourceVersion(map[string]string{"cluster1": "1234", "cluster2": "5678"}))
+					return makeRequest(t, contentTypeJSON, obj)
+				},
+				requestInfo: framework.ProxyRequest{
+					RestMapper:           &mockRestMapper{},
+					GroupVersionResource: proxytest.PodGVR,
+				},
 				cluster: "cluster1",
 			},
 			want: want{
-				body: newObjectFunc(nil, "1234"),
+				bodyFunc: func(t *testing.T) []byte {
+					return jsonEncode(t, makePod(nil, "1234"))
+				},
+			},
+		},
+		{
+			name: "pod with protobuf",
+			args: args{
+				reqFunc: func(t *testing.T) *http.Request {
+					obj := makePod(map[string]string{clusterv1alpha1.CacheSourceAnnotationKey: "cluster1"}, "1234")
+					return makeRequest(t, contentTypeProtobuf, obj)
+				},
+				requestInfo: framework.ProxyRequest{
+					RestMapper:           &mockRestMapper{},
+					GroupVersionResource: proxytest.PodGVR,
+				},
+				cluster: "cluster1",
+			},
+			want: want{
+				bodyFunc: func(t *testing.T) []byte {
+					return protobufEncode(t, makePod(nil, "1234"))
+				},
+			},
+		},
+		{
+			name: "crd request",
+			args: args{
+				reqFunc: func(t *testing.T) *http.Request {
+					obj := &unstructured.Unstructured{}
+					obj.SetAPIVersion("testing.com/v1")
+					obj.SetKind("TestCRD")
+					obj.SetAnnotations(map[string]string{clusterv1alpha1.CacheSourceAnnotationKey: "cluster1"})
+					return makeRequest(t, contentTypeJSON, obj)
+				},
+				requestInfo: framework.ProxyRequest{
+					RestMapper:           &mockRestMapper{},
+					GroupVersionResource: schema.GroupVersionResource{Group: "testing.com", Version: "v1", Resource: "testcrds"},
+				},
+				cluster: "cluster1",
+			},
+			want: want{
+				bodyFunc: func(t *testing.T) []byte {
+					obj := &unstructured.Unstructured{}
+					obj.SetAPIVersion("testing.com/v1")
+					obj.SetKind("TestCRD")
+					obj.SetAnnotations(map[string]string{})
+					return jsonEncode(t, obj)
+				},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var body io.Reader
-			if tt.args.body != nil {
-				buf := bytes.NewBuffer(nil)
-				err := json.NewEncoder(buf).Encode(tt.args.body)
-				if err != nil {
-					t.Error(err)
-					return
-				}
-				body = buf
-			}
-			req, _ := http.NewRequest(http.MethodPut, "/api/v1/namespaces/default/pods/foo", body)
-			err := modifyRequest(req, tt.args.cluster)
-			if err != nil {
-				t.Error(err)
-				return
+			var err error
+			req := tt.args.reqFunc(t)
+
+			require.NoError(t, modifyRequest(req, tt.args.requestInfo, tt.args.cluster))
+			var got []byte
+			if req.Body != nil {
+				got, err = io.ReadAll(req.Body)
+				require.NoError(t, err)
+				require.Equal(t, int(req.ContentLength), len(got), "ContentLength")
 			}
 
-			var get runtime.Object
-			if req.ContentLength != 0 {
-				data, err := io.ReadAll(req.Body)
-				if err != nil {
-					t.Error(err)
-					return
-				}
-
-				if int64(len(data)) != req.ContentLength {
-					t.Errorf("expect contentLength %v, but got %v", len(data), req.ContentLength)
-					return
-				}
-
-				get, _, err = unstructured.UnstructuredJSONScheme.Decode(data, nil, nil)
-				if err != nil {
-					t.Error(err)
-					return
-				}
-			}
-
-			if !reflect.DeepEqual(tt.want.body, get) {
-				t.Errorf("get body diff: %v", cmp.Diff(tt.want.body, get))
-			}
+			w := tt.want.bodyFunc(t)
+			require.Equal(t, w, got)
 		})
 	}
 }
@@ -456,4 +567,19 @@ type alwaysErrorReader struct{}
 
 func (alwaysErrorReader) Read([]byte) (int, error) {
 	return 0, io.ErrUnexpectedEOF
+}
+
+type mockRestMapper struct {
+	meta.RESTMapper
+}
+
+func (mockRestMapper) KindFor(resource schema.GroupVersionResource) (schema.GroupVersionKind, error) {
+	switch resource {
+	case corev1.SchemeGroupVersion.WithResource("pods"):
+		return resource.GroupVersion().WithKind("Pod"), nil
+	case corev1.SchemeGroupVersion.WithResource("nodes"):
+		return resource.GroupVersion().WithKind("Node"), nil
+	default:
+		return schema.GroupVersionKind{}, fmt.Errorf("unknown resource %s", resource)
+	}
 }

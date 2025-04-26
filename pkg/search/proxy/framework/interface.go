@@ -20,6 +20,7 @@ import (
 	"context"
 	"net/http"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
@@ -74,6 +75,7 @@ type Plugin interface {
 
 // ProxyRequest holds parameter for Proxy.Connect()
 type ProxyRequest struct {
+	RestMapper           meta.RESTMapper
 	RequestInfo          *request.RequestInfo
 	GroupVersionResource schema.GroupVersionResource
 	ProxyPath            string

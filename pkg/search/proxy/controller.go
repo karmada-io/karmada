@@ -291,6 +291,7 @@ func (ctl *Controller) Connect(ctx context.Context, proxyPath string, responder 
 		}
 
 		h, err := ctl.proxy.Connect(newCtx, framework.ProxyRequest{
+			RestMapper:           ctl.restMapper,
 			RequestInfo:          requestInfo,
 			GroupVersionResource: gvr,
 			ProxyPath:            proxyPath,

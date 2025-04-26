@@ -25,6 +25,7 @@ import (
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured/unstructuredscheme"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
@@ -109,7 +110,7 @@ func (c *Cache) Connect(_ context.Context, request framework.ProxyRequest) (http
 			Namer:         meta.NewAccessor(),
 			ClusterScoped: mapping.Scope.Name() == meta.RESTScopeNameRoot,
 		},
-		Serializer:       scheme.Codecs.WithoutConversion(),
+		Serializer:       cacheSerializer,
 		Convertor:        cacheScheme,
 		Subresource:      requestInfo.Subresource,
 		MetaGroupVersion: metav1.SchemeGroupVersion,
@@ -124,6 +125,22 @@ func (c *Cache) Connect(_ context.Context, request framework.ProxyRequest) (http
 		h = handlers.GetResource(r, scope)
 	}
 	return h, nil
+}
+
+var (
+	cacheSerializer = &customSerializer{
+		NegotiatedSerializer: scheme.Codecs.WithoutConversion(),
+		supportedMediaTypes:  unstructuredscheme.NewUnstructuredNegotiatedSerializer().SupportedMediaTypes(),
+	}
+)
+
+type customSerializer struct {
+	runtime.NegotiatedSerializer
+	supportedMediaTypes []runtime.SerializerInfo
+}
+
+func (u *customSerializer) SupportedMediaTypes() []runtime.SerializerInfo {
+	return u.supportedMediaTypes
 }
 
 type rester struct {
