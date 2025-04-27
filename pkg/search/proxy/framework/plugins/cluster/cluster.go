@@ -25,7 +25,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes/scheme"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
+	"k8s.io/klog/v2"
 
 	clusterapis "github.com/karmada-io/karmada/pkg/apis/cluster"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -118,7 +121,7 @@ func (c *Cluster) Connect(ctx context.Context, request framework.ProxyRequest) (
 	// Objects get by client via proxy are edited some fields, different from objects in member clusters.
 	// So before update, we shall recover these fields.
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		if err = modifyRequest(req, clusterName); err != nil {
+		if err = modifyRequest(req, request, clusterName); err != nil {
 			request.Responder.Error(err)
 			return
 		}
@@ -126,7 +129,7 @@ func (c *Cluster) Connect(ctx context.Context, request framework.ProxyRequest) (
 	}), nil
 }
 
-func modifyRequest(req *http.Request, cluster string) error {
+func modifyRequest(req *http.Request, requestInfo framework.ProxyRequest, cluster string) error {
 	if req.ContentLength == 0 {
 		return nil
 	}
@@ -143,9 +146,16 @@ func modifyRequest(req *http.Request, cluster string) error {
 		req.ContentLength = int64(body.Len())
 	}()
 
-	obj := &unstructured.Unstructured{}
-	_, _, err = unstructured.UnstructuredJSONScheme.Decode(body.Bytes(), nil, obj)
+	encoder, decoder, obj, err := getSerializer(req, requestInfo)
 	if err != nil {
+		klog.Warningf("modifyRequest getSerializer error for request %s: %v", req.RequestURI, err)
+		// ignore error
+		return nil
+	}
+
+	_, _, err = decoder.Decode(body.Bytes(), nil, obj)
+	if err != nil {
+		klog.Warningf("modifyRequest decode error for request %s: %v", req.RequestURI, err)
 		// ignore error
 		return nil
 	}
@@ -156,8 +166,23 @@ func modifyRequest(req *http.Request, cluster string) error {
 	if changed {
 		// write changed object into body
 		body.Reset()
-		return unstructured.UnstructuredJSONScheme.Encode(obj, body)
+		return encoder.Encode(obj, body)
 	}
 
 	return nil
+}
+
+func getSerializer(req *http.Request, requestInfo framework.ProxyRequest) (runtime.Encoder, runtime.Decoder, runtime.Object, error) {
+	gvk, _ := requestInfo.RestMapper.KindFor(requestInfo.GroupVersionResource)
+	if scheme.Scheme.Recognizes(gvk) {
+		negotiator := runtime.NewClientNegotiator(scheme.Codecs.WithoutConversion(), requestInfo.GroupVersionResource.GroupVersion())
+		contentType := req.Header.Get("Content-Type")
+		encoder, _ := negotiator.Encoder(contentType, nil)
+		decoder, _ := negotiator.Decoder(contentType, nil)
+
+		obj, err := scheme.Scheme.New(gvk)
+		return encoder, decoder, obj, err
+	}
+
+	return unstructured.UnstructuredJSONScheme, unstructured.UnstructuredJSONScheme, &unstructured.Unstructured{}, nil
 }
