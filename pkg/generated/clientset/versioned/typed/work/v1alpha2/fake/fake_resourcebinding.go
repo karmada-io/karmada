@@ -20,8 +20,11 @@ package fake
 
 import (
 	"context"
+	json "encoding/json"
+	"fmt"
 
 	v1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/generated/applyconfiguration/work/v1alpha2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	types "k8s.io/apimachinery/pkg/types"
@@ -139,6 +142,53 @@ func (c *FakeResourceBindings) Patch(ctx context.Context, name string, pt types.
 	emptyResult := &v1alpha2.ResourceBinding{}
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceActionWithOptions(resourcebindingsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
+
+	if obj == nil {
+		return emptyResult, err
+	}
+	return obj.(*v1alpha2.ResourceBinding), err
+}
+
+// Apply takes the given apply declarative configuration, applies it and returns the applied resourceBinding.
+func (c *FakeResourceBindings) Apply(ctx context.Context, resourceBinding *workv1alpha2.ResourceBindingApplyConfiguration, opts v1.ApplyOptions) (result *v1alpha2.ResourceBinding, err error) {
+	if resourceBinding == nil {
+		return nil, fmt.Errorf("resourceBinding provided to Apply must not be nil")
+	}
+	data, err := json.Marshal(resourceBinding)
+	if err != nil {
+		return nil, err
+	}
+	name := resourceBinding.Name
+	if name == nil {
+		return nil, fmt.Errorf("resourceBinding.Name must be provided to Apply")
+	}
+	emptyResult := &v1alpha2.ResourceBinding{}
+	obj, err := c.Fake.
+		Invokes(testing.NewPatchSubresourceActionWithOptions(resourcebindingsResource, c.ns, *name, types.ApplyPatchType, data, opts.ToPatchOptions()), emptyResult)
+
+	if obj == nil {
+		return emptyResult, err
+	}
+	return obj.(*v1alpha2.ResourceBinding), err
+}
+
+// ApplyStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+func (c *FakeResourceBindings) ApplyStatus(ctx context.Context, resourceBinding *workv1alpha2.ResourceBindingApplyConfiguration, opts v1.ApplyOptions) (result *v1alpha2.ResourceBinding, err error) {
+	if resourceBinding == nil {
+		return nil, fmt.Errorf("resourceBinding provided to Apply must not be nil")
+	}
+	data, err := json.Marshal(resourceBinding)
+	if err != nil {
+		return nil, err
+	}
+	name := resourceBinding.Name
+	if name == nil {
+		return nil, fmt.Errorf("resourceBinding.Name must be provided to Apply")
+	}
+	emptyResult := &v1alpha2.ResourceBinding{}
+	obj, err := c.Fake.
+		Invokes(testing.NewPatchSubresourceActionWithOptions(resourcebindingsResource, c.ns, *name, types.ApplyPatchType, data, opts.ToPatchOptions(), "status"), emptyResult)
 
 	if obj == nil {
 		return emptyResult, err

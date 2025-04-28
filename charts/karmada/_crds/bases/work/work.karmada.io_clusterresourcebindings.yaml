@@ -1407,6 +1407,9 @@ spec:
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
               lastScheduledTime:
                 description: |-
                   LastScheduledTime representing the latest timestamp when scheduler successfully finished a scheduling.
