@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
+	apisnetworkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 	versioned "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/networking/v1alpha1"
+	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/networking/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // MultiClusterIngresses.
 type MultiClusterIngressInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.MultiClusterIngressLister
+	Lister() networkingv1alpha1.MultiClusterIngressLister
 }
 
 type multiClusterIngressInformer struct {
@@ -71,7 +71,7 @@ func NewFilteredMultiClusterIngressInformer(client versioned.Interface, namespac
 				return client.NetworkingV1alpha1().MultiClusterIngresses(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&networkingv1alpha1.MultiClusterIngress{},
+		&apisnetworkingv1alpha1.MultiClusterIngress{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +82,9 @@ func (f *multiClusterIngressInformer) defaultInformer(client versioned.Interface
 }
 
 func (f *multiClusterIngressInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&networkingv1alpha1.MultiClusterIngress{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisnetworkingv1alpha1.MultiClusterIngress{}, f.defaultInformer)
 }
 
-func (f *multiClusterIngressInformer) Lister() v1alpha1.MultiClusterIngressLister {
-	return v1alpha1.NewMultiClusterIngressLister(f.Informer().GetIndexer())
+func (f *multiClusterIngressInformer) Lister() networkingv1alpha1.MultiClusterIngressLister {
+	return networkingv1alpha1.NewMultiClusterIngressLister(f.Informer().GetIndexer())
 }

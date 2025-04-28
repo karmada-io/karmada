@@ -19,108 +19,34 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeClusterOverridePolicies implements ClusterOverridePolicyInterface
-type FakeClusterOverridePolicies struct {
+// fakeClusterOverridePolicies implements ClusterOverridePolicyInterface
+type fakeClusterOverridePolicies struct {
+	*gentype.FakeClientWithList[*v1alpha1.ClusterOverridePolicy, *v1alpha1.ClusterOverridePolicyList]
 	Fake *FakePolicyV1alpha1
 }
 
-var clusteroverridepoliciesResource = v1alpha1.SchemeGroupVersion.WithResource("clusteroverridepolicies")
-
-var clusteroverridepoliciesKind = v1alpha1.SchemeGroupVersion.WithKind("ClusterOverridePolicy")
-
-// Get takes name of the clusterOverridePolicy, and returns the corresponding clusterOverridePolicy object, and an error if there is any.
-func (c *FakeClusterOverridePolicies) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ClusterOverridePolicy, err error) {
-	emptyResult := &v1alpha1.ClusterOverridePolicy{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootGetActionWithOptions(clusteroverridepoliciesResource, name, options), emptyResult)
-	if obj == nil {
-		return emptyResult, err
+func newFakeClusterOverridePolicies(fake *FakePolicyV1alpha1) policyv1alpha1.ClusterOverridePolicyInterface {
+	return &fakeClusterOverridePolicies{
+		gentype.NewFakeClientWithList[*v1alpha1.ClusterOverridePolicy, *v1alpha1.ClusterOverridePolicyList](
+			fake.Fake,
+			"",
+			v1alpha1.SchemeGroupVersion.WithResource("clusteroverridepolicies"),
+			v1alpha1.SchemeGroupVersion.WithKind("ClusterOverridePolicy"),
+			func() *v1alpha1.ClusterOverridePolicy { return &v1alpha1.ClusterOverridePolicy{} },
+			func() *v1alpha1.ClusterOverridePolicyList { return &v1alpha1.ClusterOverridePolicyList{} },
+			func(dst, src *v1alpha1.ClusterOverridePolicyList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha1.ClusterOverridePolicyList) []*v1alpha1.ClusterOverridePolicy {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v1alpha1.ClusterOverridePolicyList, items []*v1alpha1.ClusterOverridePolicy) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1alpha1.ClusterOverridePolicy), err
-}
-
-// List takes label and field selectors, and returns the list of ClusterOverridePolicies that match those selectors.
-func (c *FakeClusterOverridePolicies) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.ClusterOverridePolicyList, err error) {
-	emptyResult := &v1alpha1.ClusterOverridePolicyList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootListActionWithOptions(clusteroverridepoliciesResource, clusteroverridepoliciesKind, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1alpha1.ClusterOverridePolicyList{ListMeta: obj.(*v1alpha1.ClusterOverridePolicyList).ListMeta}
-	for _, item := range obj.(*v1alpha1.ClusterOverridePolicyList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested clusterOverridePolicies.
-func (c *FakeClusterOverridePolicies) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewRootWatchActionWithOptions(clusteroverridepoliciesResource, opts))
-}
-
-// Create takes the representation of a clusterOverridePolicy and creates it.  Returns the server's representation of the clusterOverridePolicy, and an error, if there is any.
-func (c *FakeClusterOverridePolicies) Create(ctx context.Context, clusterOverridePolicy *v1alpha1.ClusterOverridePolicy, opts v1.CreateOptions) (result *v1alpha1.ClusterOverridePolicy, err error) {
-	emptyResult := &v1alpha1.ClusterOverridePolicy{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateActionWithOptions(clusteroverridepoliciesResource, clusterOverridePolicy, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.ClusterOverridePolicy), err
-}
-
-// Update takes the representation of a clusterOverridePolicy and updates it. Returns the server's representation of the clusterOverridePolicy, and an error, if there is any.
-func (c *FakeClusterOverridePolicies) Update(ctx context.Context, clusterOverridePolicy *v1alpha1.ClusterOverridePolicy, opts v1.UpdateOptions) (result *v1alpha1.ClusterOverridePolicy, err error) {
-	emptyResult := &v1alpha1.ClusterOverridePolicy{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateActionWithOptions(clusteroverridepoliciesResource, clusterOverridePolicy, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.ClusterOverridePolicy), err
-}
-
-// Delete takes name of the clusterOverridePolicy and deletes it. Returns an error if one occurs.
-func (c *FakeClusterOverridePolicies) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteActionWithOptions(clusteroverridepoliciesResource, name, opts), &v1alpha1.ClusterOverridePolicy{})
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeClusterOverridePolicies) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionActionWithOptions(clusteroverridepoliciesResource, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1alpha1.ClusterOverridePolicyList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched clusterOverridePolicy.
-func (c *FakeClusterOverridePolicies) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ClusterOverridePolicy, err error) {
-	emptyResult := &v1alpha1.ClusterOverridePolicy{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceActionWithOptions(clusteroverridepoliciesResource, name, pt, data, opts, subresources...), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.ClusterOverridePolicy), err
 }

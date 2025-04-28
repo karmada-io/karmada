@@ -19,10 +19,10 @@ limitations under the License.
 package v1alpha2
 
 import (
-	v1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // ResourceBindingLister helps list ResourceBindings.
@@ -30,7 +30,7 @@ import (
 type ResourceBindingLister interface {
 	// List lists all ResourceBindings in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha2.ResourceBinding, err error)
+	List(selector labels.Selector) (ret []*workv1alpha2.ResourceBinding, err error)
 	// ResourceBindings returns an object that can list and get ResourceBindings.
 	ResourceBindings(namespace string) ResourceBindingNamespaceLister
 	ResourceBindingListerExpansion
@@ -38,17 +38,17 @@ type ResourceBindingLister interface {
 
 // resourceBindingLister implements the ResourceBindingLister interface.
 type resourceBindingLister struct {
-	listers.ResourceIndexer[*v1alpha2.ResourceBinding]
+	listers.ResourceIndexer[*workv1alpha2.ResourceBinding]
 }
 
 // NewResourceBindingLister returns a new ResourceBindingLister.
 func NewResourceBindingLister(indexer cache.Indexer) ResourceBindingLister {
-	return &resourceBindingLister{listers.New[*v1alpha2.ResourceBinding](indexer, v1alpha2.Resource("resourcebinding"))}
+	return &resourceBindingLister{listers.New[*workv1alpha2.ResourceBinding](indexer, workv1alpha2.Resource("resourcebinding"))}
 }
 
 // ResourceBindings returns an object that can list and get ResourceBindings.
 func (s *resourceBindingLister) ResourceBindings(namespace string) ResourceBindingNamespaceLister {
-	return resourceBindingNamespaceLister{listers.NewNamespaced[*v1alpha2.ResourceBinding](s.ResourceIndexer, namespace)}
+	return resourceBindingNamespaceLister{listers.NewNamespaced[*workv1alpha2.ResourceBinding](s.ResourceIndexer, namespace)}
 }
 
 // ResourceBindingNamespaceLister helps list and get ResourceBindings.
@@ -56,15 +56,15 @@ func (s *resourceBindingLister) ResourceBindings(namespace string) ResourceBindi
 type ResourceBindingNamespaceLister interface {
 	// List lists all ResourceBindings in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha2.ResourceBinding, err error)
+	List(selector labels.Selector) (ret []*workv1alpha2.ResourceBinding, err error)
 	// Get retrieves the ResourceBinding from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha2.ResourceBinding, error)
+	Get(name string) (*workv1alpha2.ResourceBinding, error)
 	ResourceBindingNamespaceListerExpansion
 }
 
 // resourceBindingNamespaceLister implements the ResourceBindingNamespaceLister
 // interface.
 type resourceBindingNamespaceLister struct {
-	listers.ResourceIndexer[*v1alpha2.ResourceBinding]
+	listers.ResourceIndexer[*workv1alpha2.ResourceBinding]
 }

@@ -19,9 +19,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,33 +37,34 @@ type ResourceBindingsGetter interface {
 
 // ResourceBindingInterface has methods to work with ResourceBinding resources.
 type ResourceBindingInterface interface {
-	Create(ctx context.Context, resourceBinding *v1alpha1.ResourceBinding, opts v1.CreateOptions) (*v1alpha1.ResourceBinding, error)
-	Update(ctx context.Context, resourceBinding *v1alpha1.ResourceBinding, opts v1.UpdateOptions) (*v1alpha1.ResourceBinding, error)
+	Create(ctx context.Context, resourceBinding *workv1alpha1.ResourceBinding, opts v1.CreateOptions) (*workv1alpha1.ResourceBinding, error)
+	Update(ctx context.Context, resourceBinding *workv1alpha1.ResourceBinding, opts v1.UpdateOptions) (*workv1alpha1.ResourceBinding, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, resourceBinding *v1alpha1.ResourceBinding, opts v1.UpdateOptions) (*v1alpha1.ResourceBinding, error)
+	UpdateStatus(ctx context.Context, resourceBinding *workv1alpha1.ResourceBinding, opts v1.UpdateOptions) (*workv1alpha1.ResourceBinding, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.ResourceBinding, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.ResourceBindingList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*workv1alpha1.ResourceBinding, error)
+	List(ctx context.Context, opts v1.ListOptions) (*workv1alpha1.ResourceBindingList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ResourceBinding, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *workv1alpha1.ResourceBinding, err error)
 	ResourceBindingExpansion
 }
 
 // resourceBindings implements ResourceBindingInterface
 type resourceBindings struct {
-	*gentype.ClientWithList[*v1alpha1.ResourceBinding, *v1alpha1.ResourceBindingList]
+	*gentype.ClientWithList[*workv1alpha1.ResourceBinding, *workv1alpha1.ResourceBindingList]
 }
 
 // newResourceBindings returns a ResourceBindings
 func newResourceBindings(c *WorkV1alpha1Client, namespace string) *resourceBindings {
 	return &resourceBindings{
-		gentype.NewClientWithList[*v1alpha1.ResourceBinding, *v1alpha1.ResourceBindingList](
+		gentype.NewClientWithList[*workv1alpha1.ResourceBinding, *workv1alpha1.ResourceBindingList](
 			"resourcebindings",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1alpha1.ResourceBinding { return &v1alpha1.ResourceBinding{} },
-			func() *v1alpha1.ResourceBindingList { return &v1alpha1.ResourceBindingList{} }),
+			func() *workv1alpha1.ResourceBinding { return &workv1alpha1.ResourceBinding{} },
+			func() *workv1alpha1.ResourceBindingList { return &workv1alpha1.ResourceBindingList{} },
+		),
 	}
 }

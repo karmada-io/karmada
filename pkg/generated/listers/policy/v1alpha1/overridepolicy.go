@@ -19,10 +19,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // OverridePolicyLister helps list OverridePolicies.
@@ -30,7 +30,7 @@ import (
 type OverridePolicyLister interface {
 	// List lists all OverridePolicies in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.OverridePolicy, err error)
+	List(selector labels.Selector) (ret []*policyv1alpha1.OverridePolicy, err error)
 	// OverridePolicies returns an object that can list and get OverridePolicies.
 	OverridePolicies(namespace string) OverridePolicyNamespaceLister
 	OverridePolicyListerExpansion
@@ -38,17 +38,17 @@ type OverridePolicyLister interface {
 
 // overridePolicyLister implements the OverridePolicyLister interface.
 type overridePolicyLister struct {
-	listers.ResourceIndexer[*v1alpha1.OverridePolicy]
+	listers.ResourceIndexer[*policyv1alpha1.OverridePolicy]
 }
 
 // NewOverridePolicyLister returns a new OverridePolicyLister.
 func NewOverridePolicyLister(indexer cache.Indexer) OverridePolicyLister {
-	return &overridePolicyLister{listers.New[*v1alpha1.OverridePolicy](indexer, v1alpha1.Resource("overridepolicy"))}
+	return &overridePolicyLister{listers.New[*policyv1alpha1.OverridePolicy](indexer, policyv1alpha1.Resource("overridepolicy"))}
 }
 
 // OverridePolicies returns an object that can list and get OverridePolicies.
 func (s *overridePolicyLister) OverridePolicies(namespace string) OverridePolicyNamespaceLister {
-	return overridePolicyNamespaceLister{listers.NewNamespaced[*v1alpha1.OverridePolicy](s.ResourceIndexer, namespace)}
+	return overridePolicyNamespaceLister{listers.NewNamespaced[*policyv1alpha1.OverridePolicy](s.ResourceIndexer, namespace)}
 }
 
 // OverridePolicyNamespaceLister helps list and get OverridePolicies.
@@ -56,15 +56,15 @@ func (s *overridePolicyLister) OverridePolicies(namespace string) OverridePolicy
 type OverridePolicyNamespaceLister interface {
 	// List lists all OverridePolicies in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.OverridePolicy, err error)
+	List(selector labels.Selector) (ret []*policyv1alpha1.OverridePolicy, err error)
 	// Get retrieves the OverridePolicy from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.OverridePolicy, error)
+	Get(name string) (*policyv1alpha1.OverridePolicy, error)
 	OverridePolicyNamespaceListerExpansion
 }
 
 // overridePolicyNamespaceLister implements the OverridePolicyNamespaceLister
 // interface.
 type overridePolicyNamespaceLister struct {
-	listers.ResourceIndexer[*v1alpha1.OverridePolicy]
+	listers.ResourceIndexer[*policyv1alpha1.OverridePolicy]
 }

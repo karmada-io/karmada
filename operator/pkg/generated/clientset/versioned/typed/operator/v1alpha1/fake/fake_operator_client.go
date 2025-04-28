@@ -29,7 +29,7 @@ type FakeOperatorV1alpha1 struct {
 }
 
 func (c *FakeOperatorV1alpha1) Karmadas(namespace string) v1alpha1.KarmadaInterface {
-	return &FakeKarmadas{c, namespace}
+	return newFakeKarmadas(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

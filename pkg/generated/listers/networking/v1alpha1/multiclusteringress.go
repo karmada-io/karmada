@@ -19,10 +19,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // MultiClusterIngressLister helps list MultiClusterIngresses.
@@ -30,7 +30,7 @@ import (
 type MultiClusterIngressLister interface {
 	// List lists all MultiClusterIngresses in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.MultiClusterIngress, err error)
+	List(selector labels.Selector) (ret []*networkingv1alpha1.MultiClusterIngress, err error)
 	// MultiClusterIngresses returns an object that can list and get MultiClusterIngresses.
 	MultiClusterIngresses(namespace string) MultiClusterIngressNamespaceLister
 	MultiClusterIngressListerExpansion
@@ -38,17 +38,17 @@ type MultiClusterIngressLister interface {
 
 // multiClusterIngressLister implements the MultiClusterIngressLister interface.
 type multiClusterIngressLister struct {
-	listers.ResourceIndexer[*v1alpha1.MultiClusterIngress]
+	listers.ResourceIndexer[*networkingv1alpha1.MultiClusterIngress]
 }
 
 // NewMultiClusterIngressLister returns a new MultiClusterIngressLister.
 func NewMultiClusterIngressLister(indexer cache.Indexer) MultiClusterIngressLister {
-	return &multiClusterIngressLister{listers.New[*v1alpha1.MultiClusterIngress](indexer, v1alpha1.Resource("multiclusteringress"))}
+	return &multiClusterIngressLister{listers.New[*networkingv1alpha1.MultiClusterIngress](indexer, networkingv1alpha1.Resource("multiclusteringress"))}
 }
 
 // MultiClusterIngresses returns an object that can list and get MultiClusterIngresses.
 func (s *multiClusterIngressLister) MultiClusterIngresses(namespace string) MultiClusterIngressNamespaceLister {
-	return multiClusterIngressNamespaceLister{listers.NewNamespaced[*v1alpha1.MultiClusterIngress](s.ResourceIndexer, namespace)}
+	return multiClusterIngressNamespaceLister{listers.NewNamespaced[*networkingv1alpha1.MultiClusterIngress](s.ResourceIndexer, namespace)}
 }
 
 // MultiClusterIngressNamespaceLister helps list and get MultiClusterIngresses.
@@ -56,15 +56,15 @@ func (s *multiClusterIngressLister) MultiClusterIngresses(namespace string) Mult
 type MultiClusterIngressNamespaceLister interface {
 	// List lists all MultiClusterIngresses in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.MultiClusterIngress, err error)
+	List(selector labels.Selector) (ret []*networkingv1alpha1.MultiClusterIngress, err error)
 	// Get retrieves the MultiClusterIngress from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.MultiClusterIngress, error)
+	Get(name string) (*networkingv1alpha1.MultiClusterIngress, error)
 	MultiClusterIngressNamespaceListerExpansion
 }
 
 // multiClusterIngressNamespaceLister implements the MultiClusterIngressNamespaceLister
 // interface.
 type multiClusterIngressNamespaceLister struct {
-	listers.ResourceIndexer[*v1alpha1.MultiClusterIngress]
+	listers.ResourceIndexer[*networkingv1alpha1.MultiClusterIngress]
 }

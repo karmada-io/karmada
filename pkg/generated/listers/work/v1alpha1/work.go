@@ -19,10 +19,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // WorkLister helps list Works.
@@ -30,7 +30,7 @@ import (
 type WorkLister interface {
 	// List lists all Works in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.Work, err error)
+	List(selector labels.Selector) (ret []*workv1alpha1.Work, err error)
 	// Works returns an object that can list and get Works.
 	Works(namespace string) WorkNamespaceLister
 	WorkListerExpansion
@@ -38,17 +38,17 @@ type WorkLister interface {
 
 // workLister implements the WorkLister interface.
 type workLister struct {
-	listers.ResourceIndexer[*v1alpha1.Work]
+	listers.ResourceIndexer[*workv1alpha1.Work]
 }
 
 // NewWorkLister returns a new WorkLister.
 func NewWorkLister(indexer cache.Indexer) WorkLister {
-	return &workLister{listers.New[*v1alpha1.Work](indexer, v1alpha1.Resource("work"))}
+	return &workLister{listers.New[*workv1alpha1.Work](indexer, workv1alpha1.Resource("work"))}
 }
 
 // Works returns an object that can list and get Works.
 func (s *workLister) Works(namespace string) WorkNamespaceLister {
-	return workNamespaceLister{listers.NewNamespaced[*v1alpha1.Work](s.ResourceIndexer, namespace)}
+	return workNamespaceLister{listers.NewNamespaced[*workv1alpha1.Work](s.ResourceIndexer, namespace)}
 }
 
 // WorkNamespaceLister helps list and get Works.
@@ -56,15 +56,15 @@ func (s *workLister) Works(namespace string) WorkNamespaceLister {
 type WorkNamespaceLister interface {
 	// List lists all Works in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.Work, err error)
+	List(selector labels.Selector) (ret []*workv1alpha1.Work, err error)
 	// Get retrieves the Work from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.Work, error)
+	Get(name string) (*workv1alpha1.Work, error)
 	WorkNamespaceListerExpansion
 }
 
 // workNamespaceLister implements the WorkNamespaceLister
 // interface.
 type workNamespaceLister struct {
-	listers.ResourceIndexer[*v1alpha1.Work]
+	listers.ResourceIndexer[*workv1alpha1.Work]
 }

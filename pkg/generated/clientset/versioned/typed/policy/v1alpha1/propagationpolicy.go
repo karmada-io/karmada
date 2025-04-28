@@ -19,9 +19,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,31 +37,32 @@ type PropagationPoliciesGetter interface {
 
 // PropagationPolicyInterface has methods to work with PropagationPolicy resources.
 type PropagationPolicyInterface interface {
-	Create(ctx context.Context, propagationPolicy *v1alpha1.PropagationPolicy, opts v1.CreateOptions) (*v1alpha1.PropagationPolicy, error)
-	Update(ctx context.Context, propagationPolicy *v1alpha1.PropagationPolicy, opts v1.UpdateOptions) (*v1alpha1.PropagationPolicy, error)
+	Create(ctx context.Context, propagationPolicy *policyv1alpha1.PropagationPolicy, opts v1.CreateOptions) (*policyv1alpha1.PropagationPolicy, error)
+	Update(ctx context.Context, propagationPolicy *policyv1alpha1.PropagationPolicy, opts v1.UpdateOptions) (*policyv1alpha1.PropagationPolicy, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.PropagationPolicy, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.PropagationPolicyList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*policyv1alpha1.PropagationPolicy, error)
+	List(ctx context.Context, opts v1.ListOptions) (*policyv1alpha1.PropagationPolicyList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.PropagationPolicy, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *policyv1alpha1.PropagationPolicy, err error)
 	PropagationPolicyExpansion
 }
 
 // propagationPolicies implements PropagationPolicyInterface
 type propagationPolicies struct {
-	*gentype.ClientWithList[*v1alpha1.PropagationPolicy, *v1alpha1.PropagationPolicyList]
+	*gentype.ClientWithList[*policyv1alpha1.PropagationPolicy, *policyv1alpha1.PropagationPolicyList]
 }
 
 // newPropagationPolicies returns a PropagationPolicies
 func newPropagationPolicies(c *PolicyV1alpha1Client, namespace string) *propagationPolicies {
 	return &propagationPolicies{
-		gentype.NewClientWithList[*v1alpha1.PropagationPolicy, *v1alpha1.PropagationPolicyList](
+		gentype.NewClientWithList[*policyv1alpha1.PropagationPolicy, *policyv1alpha1.PropagationPolicyList](
 			"propagationpolicies",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1alpha1.PropagationPolicy { return &v1alpha1.PropagationPolicy{} },
-			func() *v1alpha1.PropagationPolicyList { return &v1alpha1.PropagationPolicyList{} }),
+			func() *policyv1alpha1.PropagationPolicy { return &policyv1alpha1.PropagationPolicy{} },
+			func() *policyv1alpha1.PropagationPolicyList { return &policyv1alpha1.PropagationPolicyList{} },
+		),
 	}
 }

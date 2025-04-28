@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	apispolicyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	versioned "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/policy/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/policy/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // OverridePolicies.
 type OverridePolicyInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.OverridePolicyLister
+	Lister() policyv1alpha1.OverridePolicyLister
 }
 
 type overridePolicyInformer struct {
@@ -71,7 +71,7 @@ func NewFilteredOverridePolicyInformer(client versioned.Interface, namespace str
 				return client.PolicyV1alpha1().OverridePolicies(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&policyv1alpha1.OverridePolicy{},
+		&apispolicyv1alpha1.OverridePolicy{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +82,9 @@ func (f *overridePolicyInformer) defaultInformer(client versioned.Interface, res
 }
 
 func (f *overridePolicyInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&policyv1alpha1.OverridePolicy{}, f.defaultInformer)
+	return f.factory.InformerFor(&apispolicyv1alpha1.OverridePolicy{}, f.defaultInformer)
 }
 
-func (f *overridePolicyInformer) Lister() v1alpha1.OverridePolicyLister {
-	return v1alpha1.NewOverridePolicyLister(f.Informer().GetIndexer())
+func (f *overridePolicyInformer) Lister() policyv1alpha1.OverridePolicyLister {
+	return policyv1alpha1.NewOverridePolicyLister(f.Informer().GetIndexer())
 }

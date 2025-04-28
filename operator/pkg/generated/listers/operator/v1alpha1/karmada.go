@@ -19,10 +19,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // KarmadaLister helps list Karmadas.
@@ -30,7 +30,7 @@ import (
 type KarmadaLister interface {
 	// List lists all Karmadas in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.Karmada, err error)
+	List(selector labels.Selector) (ret []*operatorv1alpha1.Karmada, err error)
 	// Karmadas returns an object that can list and get Karmadas.
 	Karmadas(namespace string) KarmadaNamespaceLister
 	KarmadaListerExpansion
@@ -38,17 +38,17 @@ type KarmadaLister interface {
 
 // karmadaLister implements the KarmadaLister interface.
 type karmadaLister struct {
-	listers.ResourceIndexer[*v1alpha1.Karmada]
+	listers.ResourceIndexer[*operatorv1alpha1.Karmada]
 }
 
 // NewKarmadaLister returns a new KarmadaLister.
 func NewKarmadaLister(indexer cache.Indexer) KarmadaLister {
-	return &karmadaLister{listers.New[*v1alpha1.Karmada](indexer, v1alpha1.Resource("karmada"))}
+	return &karmadaLister{listers.New[*operatorv1alpha1.Karmada](indexer, operatorv1alpha1.Resource("karmada"))}
 }
 
 // Karmadas returns an object that can list and get Karmadas.
 func (s *karmadaLister) Karmadas(namespace string) KarmadaNamespaceLister {
-	return karmadaNamespaceLister{listers.NewNamespaced[*v1alpha1.Karmada](s.ResourceIndexer, namespace)}
+	return karmadaNamespaceLister{listers.NewNamespaced[*operatorv1alpha1.Karmada](s.ResourceIndexer, namespace)}
 }
 
 // KarmadaNamespaceLister helps list and get Karmadas.
@@ -56,15 +56,15 @@ func (s *karmadaLister) Karmadas(namespace string) KarmadaNamespaceLister {
 type KarmadaNamespaceLister interface {
 	// List lists all Karmadas in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.Karmada, err error)
+	List(selector labels.Selector) (ret []*operatorv1alpha1.Karmada, err error)
 	// Get retrieves the Karmada from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.Karmada, error)
+	Get(name string) (*operatorv1alpha1.Karmada, error)
 	KarmadaNamespaceListerExpansion
 }
 
 // karmadaNamespaceLister implements the KarmadaNamespaceLister
 // interface.
 type karmadaNamespaceLister struct {
-	listers.ResourceIndexer[*v1alpha1.Karmada]
+	listers.ResourceIndexer[*operatorv1alpha1.Karmada]
 }

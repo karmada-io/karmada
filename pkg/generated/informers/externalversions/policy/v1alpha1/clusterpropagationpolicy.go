@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	apispolicyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	versioned "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/policy/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/policy/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // ClusterPropagationPolicies.
 type ClusterPropagationPolicyInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.ClusterPropagationPolicyLister
+	Lister() policyv1alpha1.ClusterPropagationPolicyLister
 }
 
 type clusterPropagationPolicyInformer struct {
@@ -70,7 +70,7 @@ func NewFilteredClusterPropagationPolicyInformer(client versioned.Interface, res
 				return client.PolicyV1alpha1().ClusterPropagationPolicies().Watch(context.TODO(), options)
 			},
 		},
-		&policyv1alpha1.ClusterPropagationPolicy{},
+		&apispolicyv1alpha1.ClusterPropagationPolicy{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,9 +81,9 @@ func (f *clusterPropagationPolicyInformer) defaultInformer(client versioned.Inte
 }
 
 func (f *clusterPropagationPolicyInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&policyv1alpha1.ClusterPropagationPolicy{}, f.defaultInformer)
+	return f.factory.InformerFor(&apispolicyv1alpha1.ClusterPropagationPolicy{}, f.defaultInformer)
 }
 
-func (f *clusterPropagationPolicyInformer) Lister() v1alpha1.ClusterPropagationPolicyLister {
-	return v1alpha1.NewClusterPropagationPolicyLister(f.Informer().GetIndexer())
+func (f *clusterPropagationPolicyInformer) Lister() policyv1alpha1.ClusterPropagationPolicyLister {
+	return policyv1alpha1.NewClusterPropagationPolicyLister(f.Informer().GetIndexer())
 }

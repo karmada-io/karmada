@@ -29,23 +29,23 @@ type FakePolicyV1alpha1 struct {
 }
 
 func (c *FakePolicyV1alpha1) ClusterOverridePolicies() v1alpha1.ClusterOverridePolicyInterface {
-	return &FakeClusterOverridePolicies{c}
+	return newFakeClusterOverridePolicies(c)
 }
 
 func (c *FakePolicyV1alpha1) ClusterPropagationPolicies() v1alpha1.ClusterPropagationPolicyInterface {
-	return &FakeClusterPropagationPolicies{c}
+	return newFakeClusterPropagationPolicies(c)
 }
 
 func (c *FakePolicyV1alpha1) FederatedResourceQuotas(namespace string) v1alpha1.FederatedResourceQuotaInterface {
-	return &FakeFederatedResourceQuotas{c, namespace}
+	return newFakeFederatedResourceQuotas(c, namespace)
 }
 
 func (c *FakePolicyV1alpha1) OverridePolicies(namespace string) v1alpha1.OverridePolicyInterface {
-	return &FakeOverridePolicies{c, namespace}
+	return newFakeOverridePolicies(c, namespace)
 }
 
 func (c *FakePolicyV1alpha1) PropagationPolicies(namespace string) v1alpha1.PropagationPolicyInterface {
-	return &FakePropagationPolicies{c, namespace}
+	return newFakePropagationPolicies(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

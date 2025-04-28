@@ -19,129 +19,32 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/generated/clientset/versioned/typed/operator/v1alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeKarmadas implements KarmadaInterface
-type FakeKarmadas struct {
+// fakeKarmadas implements KarmadaInterface
+type fakeKarmadas struct {
+	*gentype.FakeClientWithList[*v1alpha1.Karmada, *v1alpha1.KarmadaList]
 	Fake *FakeOperatorV1alpha1
-	ns   string
 }
 
-var karmadasResource = v1alpha1.SchemeGroupVersion.WithResource("karmadas")
-
-var karmadasKind = v1alpha1.SchemeGroupVersion.WithKind("Karmada")
-
-// Get takes name of the karmada, and returns the corresponding karmada object, and an error if there is any.
-func (c *FakeKarmadas) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.Karmada, err error) {
-	emptyResult := &v1alpha1.Karmada{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(karmadasResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeKarmadas(fake *FakeOperatorV1alpha1, namespace string) operatorv1alpha1.KarmadaInterface {
+	return &fakeKarmadas{
+		gentype.NewFakeClientWithList[*v1alpha1.Karmada, *v1alpha1.KarmadaList](
+			fake.Fake,
+			namespace,
+			v1alpha1.SchemeGroupVersion.WithResource("karmadas"),
+			v1alpha1.SchemeGroupVersion.WithKind("Karmada"),
+			func() *v1alpha1.Karmada { return &v1alpha1.Karmada{} },
+			func() *v1alpha1.KarmadaList { return &v1alpha1.KarmadaList{} },
+			func(dst, src *v1alpha1.KarmadaList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha1.KarmadaList) []*v1alpha1.Karmada { return gentype.ToPointerSlice(list.Items) },
+			func(list *v1alpha1.KarmadaList, items []*v1alpha1.Karmada) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1alpha1.Karmada), err
-}
-
-// List takes label and field selectors, and returns the list of Karmadas that match those selectors.
-func (c *FakeKarmadas) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.KarmadaList, err error) {
-	emptyResult := &v1alpha1.KarmadaList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(karmadasResource, karmadasKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1alpha1.KarmadaList{ListMeta: obj.(*v1alpha1.KarmadaList).ListMeta}
-	for _, item := range obj.(*v1alpha1.KarmadaList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested karmadas.
-func (c *FakeKarmadas) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(karmadasResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a karmada and creates it.  Returns the server's representation of the karmada, and an error, if there is any.
-func (c *FakeKarmadas) Create(ctx context.Context, karmada *v1alpha1.Karmada, opts v1.CreateOptions) (result *v1alpha1.Karmada, err error) {
-	emptyResult := &v1alpha1.Karmada{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(karmadasResource, c.ns, karmada, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Karmada), err
-}
-
-// Update takes the representation of a karmada and updates it. Returns the server's representation of the karmada, and an error, if there is any.
-func (c *FakeKarmadas) Update(ctx context.Context, karmada *v1alpha1.Karmada, opts v1.UpdateOptions) (result *v1alpha1.Karmada, err error) {
-	emptyResult := &v1alpha1.Karmada{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(karmadasResource, c.ns, karmada, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Karmada), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeKarmadas) UpdateStatus(ctx context.Context, karmada *v1alpha1.Karmada, opts v1.UpdateOptions) (result *v1alpha1.Karmada, err error) {
-	emptyResult := &v1alpha1.Karmada{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceActionWithOptions(karmadasResource, "status", c.ns, karmada, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Karmada), err
-}
-
-// Delete takes name of the karmada and deletes it. Returns an error if one occurs.
-func (c *FakeKarmadas) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(karmadasResource, c.ns, name, opts), &v1alpha1.Karmada{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeKarmadas) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(karmadasResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1alpha1.KarmadaList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched karmada.
-func (c *FakeKarmadas) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.Karmada, err error) {
-	emptyResult := &v1alpha1.Karmada{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(karmadasResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Karmada), err
 }

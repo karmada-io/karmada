@@ -29,7 +29,7 @@ type FakeSearchV1alpha1 struct {
 }
 
 func (c *FakeSearchV1alpha1) ResourceRegistries() v1alpha1.ResourceRegistryInterface {
-	return &FakeResourceRegistries{c}
+	return newFakeResourceRegistries(c)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

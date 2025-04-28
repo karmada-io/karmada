@@ -19,129 +19,34 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/autoscaling/v1alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeFederatedHPAs implements FederatedHPAInterface
-type FakeFederatedHPAs struct {
+// fakeFederatedHPAs implements FederatedHPAInterface
+type fakeFederatedHPAs struct {
+	*gentype.FakeClientWithList[*v1alpha1.FederatedHPA, *v1alpha1.FederatedHPAList]
 	Fake *FakeAutoscalingV1alpha1
-	ns   string
 }
 
-var federatedhpasResource = v1alpha1.SchemeGroupVersion.WithResource("federatedhpas")
-
-var federatedhpasKind = v1alpha1.SchemeGroupVersion.WithKind("FederatedHPA")
-
-// Get takes name of the federatedHPA, and returns the corresponding federatedHPA object, and an error if there is any.
-func (c *FakeFederatedHPAs) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.FederatedHPA, err error) {
-	emptyResult := &v1alpha1.FederatedHPA{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(federatedhpasResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeFederatedHPAs(fake *FakeAutoscalingV1alpha1, namespace string) autoscalingv1alpha1.FederatedHPAInterface {
+	return &fakeFederatedHPAs{
+		gentype.NewFakeClientWithList[*v1alpha1.FederatedHPA, *v1alpha1.FederatedHPAList](
+			fake.Fake,
+			namespace,
+			v1alpha1.SchemeGroupVersion.WithResource("federatedhpas"),
+			v1alpha1.SchemeGroupVersion.WithKind("FederatedHPA"),
+			func() *v1alpha1.FederatedHPA { return &v1alpha1.FederatedHPA{} },
+			func() *v1alpha1.FederatedHPAList { return &v1alpha1.FederatedHPAList{} },
+			func(dst, src *v1alpha1.FederatedHPAList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha1.FederatedHPAList) []*v1alpha1.FederatedHPA {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v1alpha1.FederatedHPAList, items []*v1alpha1.FederatedHPA) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1alpha1.FederatedHPA), err
-}
-
-// List takes label and field selectors, and returns the list of FederatedHPAs that match those selectors.
-func (c *FakeFederatedHPAs) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.FederatedHPAList, err error) {
-	emptyResult := &v1alpha1.FederatedHPAList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(federatedhpasResource, federatedhpasKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1alpha1.FederatedHPAList{ListMeta: obj.(*v1alpha1.FederatedHPAList).ListMeta}
-	for _, item := range obj.(*v1alpha1.FederatedHPAList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested federatedHPAs.
-func (c *FakeFederatedHPAs) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(federatedhpasResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a federatedHPA and creates it.  Returns the server's representation of the federatedHPA, and an error, if there is any.
-func (c *FakeFederatedHPAs) Create(ctx context.Context, federatedHPA *v1alpha1.FederatedHPA, opts v1.CreateOptions) (result *v1alpha1.FederatedHPA, err error) {
-	emptyResult := &v1alpha1.FederatedHPA{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(federatedhpasResource, c.ns, federatedHPA, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.FederatedHPA), err
-}
-
-// Update takes the representation of a federatedHPA and updates it. Returns the server's representation of the federatedHPA, and an error, if there is any.
-func (c *FakeFederatedHPAs) Update(ctx context.Context, federatedHPA *v1alpha1.FederatedHPA, opts v1.UpdateOptions) (result *v1alpha1.FederatedHPA, err error) {
-	emptyResult := &v1alpha1.FederatedHPA{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(federatedhpasResource, c.ns, federatedHPA, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.FederatedHPA), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeFederatedHPAs) UpdateStatus(ctx context.Context, federatedHPA *v1alpha1.FederatedHPA, opts v1.UpdateOptions) (result *v1alpha1.FederatedHPA, err error) {
-	emptyResult := &v1alpha1.FederatedHPA{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceActionWithOptions(federatedhpasResource, "status", c.ns, federatedHPA, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.FederatedHPA), err
-}
-
-// Delete takes name of the federatedHPA and deletes it. Returns an error if one occurs.
-func (c *FakeFederatedHPAs) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(federatedhpasResource, c.ns, name, opts), &v1alpha1.FederatedHPA{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeFederatedHPAs) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(federatedhpasResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1alpha1.FederatedHPAList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched federatedHPA.
-func (c *FakeFederatedHPAs) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.FederatedHPA, err error) {
-	emptyResult := &v1alpha1.FederatedHPA{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(federatedhpasResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.FederatedHPA), err
 }

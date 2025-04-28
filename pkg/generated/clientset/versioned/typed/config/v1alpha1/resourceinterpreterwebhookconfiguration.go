@@ -19,9 +19,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,35 +37,36 @@ type ResourceInterpreterWebhookConfigurationsGetter interface {
 
 // ResourceInterpreterWebhookConfigurationInterface has methods to work with ResourceInterpreterWebhookConfiguration resources.
 type ResourceInterpreterWebhookConfigurationInterface interface {
-	Create(ctx context.Context, resourceInterpreterWebhookConfiguration *v1alpha1.ResourceInterpreterWebhookConfiguration, opts v1.CreateOptions) (*v1alpha1.ResourceInterpreterWebhookConfiguration, error)
-	Update(ctx context.Context, resourceInterpreterWebhookConfiguration *v1alpha1.ResourceInterpreterWebhookConfiguration, opts v1.UpdateOptions) (*v1alpha1.ResourceInterpreterWebhookConfiguration, error)
+	Create(ctx context.Context, resourceInterpreterWebhookConfiguration *configv1alpha1.ResourceInterpreterWebhookConfiguration, opts v1.CreateOptions) (*configv1alpha1.ResourceInterpreterWebhookConfiguration, error)
+	Update(ctx context.Context, resourceInterpreterWebhookConfiguration *configv1alpha1.ResourceInterpreterWebhookConfiguration, opts v1.UpdateOptions) (*configv1alpha1.ResourceInterpreterWebhookConfiguration, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.ResourceInterpreterWebhookConfiguration, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.ResourceInterpreterWebhookConfigurationList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*configv1alpha1.ResourceInterpreterWebhookConfiguration, error)
+	List(ctx context.Context, opts v1.ListOptions) (*configv1alpha1.ResourceInterpreterWebhookConfigurationList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ResourceInterpreterWebhookConfiguration, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *configv1alpha1.ResourceInterpreterWebhookConfiguration, err error)
 	ResourceInterpreterWebhookConfigurationExpansion
 }
 
 // resourceInterpreterWebhookConfigurations implements ResourceInterpreterWebhookConfigurationInterface
 type resourceInterpreterWebhookConfigurations struct {
-	*gentype.ClientWithList[*v1alpha1.ResourceInterpreterWebhookConfiguration, *v1alpha1.ResourceInterpreterWebhookConfigurationList]
+	*gentype.ClientWithList[*configv1alpha1.ResourceInterpreterWebhookConfiguration, *configv1alpha1.ResourceInterpreterWebhookConfigurationList]
 }
 
 // newResourceInterpreterWebhookConfigurations returns a ResourceInterpreterWebhookConfigurations
 func newResourceInterpreterWebhookConfigurations(c *ConfigV1alpha1Client) *resourceInterpreterWebhookConfigurations {
 	return &resourceInterpreterWebhookConfigurations{
-		gentype.NewClientWithList[*v1alpha1.ResourceInterpreterWebhookConfiguration, *v1alpha1.ResourceInterpreterWebhookConfigurationList](
+		gentype.NewClientWithList[*configv1alpha1.ResourceInterpreterWebhookConfiguration, *configv1alpha1.ResourceInterpreterWebhookConfigurationList](
 			"resourceinterpreterwebhookconfigurations",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			"",
-			func() *v1alpha1.ResourceInterpreterWebhookConfiguration {
-				return &v1alpha1.ResourceInterpreterWebhookConfiguration{}
+			func() *configv1alpha1.ResourceInterpreterWebhookConfiguration {
+				return &configv1alpha1.ResourceInterpreterWebhookConfiguration{}
 			},
-			func() *v1alpha1.ResourceInterpreterWebhookConfigurationList {
-				return &v1alpha1.ResourceInterpreterWebhookConfigurationList{}
-			}),
+			func() *configv1alpha1.ResourceInterpreterWebhookConfigurationList {
+				return &configv1alpha1.ResourceInterpreterWebhookConfigurationList{}
+			},
+		),
 	}
 }

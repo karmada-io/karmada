@@ -426,6 +426,9 @@
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
           },
           {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
+          },
+          {
             "$ref": "#/parameters/labelSelector-5Zw57w4C"
           },
           {
@@ -599,6 +602,9 @@
           },
           {
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
+          },
+          {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
           },
           {
             "$ref": "#/parameters/orphanDependents-uRB25kX5"
@@ -1264,6 +1270,9 @@
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
           },
           {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
+          },
+          {
             "$ref": "#/parameters/labelSelector-5Zw57w4C"
           },
           {
@@ -1440,6 +1449,9 @@
           },
           {
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
+          },
+          {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
           },
           {
             "$ref": "#/parameters/orphanDependents-uRB25kX5"
@@ -1909,6 +1921,9 @@
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
           },
           {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
+          },
+          {
             "$ref": "#/parameters/labelSelector-5Zw57w4C"
           },
           {
@@ -2085,6 +2100,9 @@
           },
           {
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
+          },
+          {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
           },
           {
             "$ref": "#/parameters/orphanDependents-uRB25kX5"
@@ -3068,6 +3086,9 @@
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
           },
           {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
+          },
+          {
             "$ref": "#/parameters/labelSelector-5Zw57w4C"
           },
           {
@@ -3241,6 +3262,9 @@
           },
           {
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
+          },
+          {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
           },
           {
             "$ref": "#/parameters/orphanDependents-uRB25kX5"
@@ -4367,6 +4391,9 @@
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
           },
           {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
+          },
+          {
             "$ref": "#/parameters/labelSelector-5Zw57w4C"
           },
           {
@@ -4540,6 +4567,9 @@
           },
           {
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
+          },
+          {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
           },
           {
             "$ref": "#/parameters/orphanDependents-uRB25kX5"
@@ -5003,6 +5033,9 @@
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
           },
           {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
+          },
+          {
             "$ref": "#/parameters/labelSelector-5Zw57w4C"
           },
           {
@@ -5176,6 +5209,9 @@
           },
           {
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
+          },
+          {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
           },
           {
             "$ref": "#/parameters/orphanDependents-uRB25kX5"
@@ -6141,6 +6177,9 @@
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
           },
           {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
+          },
+          {
             "$ref": "#/parameters/labelSelector-5Zw57w4C"
           },
           {
@@ -6317,6 +6356,9 @@
           },
           {
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
+          },
+          {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
           },
           {
             "$ref": "#/parameters/orphanDependents-uRB25kX5"
@@ -6786,6 +6828,9 @@
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
           },
           {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
+          },
+          {
             "$ref": "#/parameters/labelSelector-5Zw57w4C"
           },
           {
@@ -6962,6 +7007,9 @@
           },
           {
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
+          },
+          {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
           },
           {
             "$ref": "#/parameters/orphanDependents-uRB25kX5"
@@ -7945,6 +7993,9 @@
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
           },
           {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
+          },
+          {
             "$ref": "#/parameters/labelSelector-5Zw57w4C"
           },
           {
@@ -8118,6 +8169,9 @@
           },
           {
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
+          },
+          {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
           },
           {
             "$ref": "#/parameters/orphanDependents-uRB25kX5"
@@ -8581,6 +8635,9 @@
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
           },
           {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
+          },
+          {
             "$ref": "#/parameters/labelSelector-5Zw57w4C"
           },
           {
@@ -8754,6 +8811,9 @@
           },
           {
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
+          },
+          {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
           },
           {
             "$ref": "#/parameters/orphanDependents-uRB25kX5"
@@ -9288,6 +9348,9 @@
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
           },
           {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
+          },
+          {
             "$ref": "#/parameters/labelSelector-5Zw57w4C"
           },
           {
@@ -9464,6 +9527,9 @@
           },
           {
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
+          },
+          {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
           },
           {
             "$ref": "#/parameters/orphanDependents-uRB25kX5"
@@ -9933,6 +9999,9 @@
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
           },
           {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
+          },
+          {
             "$ref": "#/parameters/labelSelector-5Zw57w4C"
           },
           {
@@ -10109,6 +10178,9 @@
           },
           {
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
+          },
+          {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
           },
           {
             "$ref": "#/parameters/orphanDependents-uRB25kX5"
@@ -10578,6 +10650,9 @@
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
           },
           {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
+          },
+          {
             "$ref": "#/parameters/labelSelector-5Zw57w4C"
           },
           {
@@ -10754,6 +10829,9 @@
           },
           {
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
+          },
+          {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
           },
           {
             "$ref": "#/parameters/orphanDependents-uRB25kX5"
@@ -12406,6 +12484,9 @@
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
           },
           {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
+          },
+          {
             "$ref": "#/parameters/labelSelector-5Zw57w4C"
           },
           {
@@ -12579,6 +12660,9 @@
           },
           {
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
+          },
+          {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
           },
           {
             "$ref": "#/parameters/orphanDependents-uRB25kX5"
@@ -13252,6 +13336,9 @@
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
           },
           {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
+          },
+          {
             "$ref": "#/parameters/labelSelector-5Zw57w4C"
           },
           {
@@ -13425,6 +13512,9 @@
           },
           {
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
+          },
+          {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
           },
           {
             "$ref": "#/parameters/orphanDependents-uRB25kX5"
@@ -14098,6 +14188,9 @@
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
           },
           {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
+          },
+          {
             "$ref": "#/parameters/labelSelector-5Zw57w4C"
           },
           {
@@ -14274,6 +14367,9 @@
           },
           {
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
+          },
+          {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
           },
           {
             "$ref": "#/parameters/orphanDependents-uRB25kX5"
@@ -15071,6 +15167,9 @@
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
           },
           {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
+          },
+          {
             "$ref": "#/parameters/labelSelector-5Zw57w4C"
           },
           {
@@ -15244,6 +15343,9 @@
           },
           {
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
+          },
+          {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
           },
           {
             "$ref": "#/parameters/orphanDependents-uRB25kX5"
@@ -15707,6 +15809,9 @@
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
           },
           {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
+          },
+          {
             "$ref": "#/parameters/labelSelector-5Zw57w4C"
           },
           {
@@ -15883,6 +15988,9 @@
           },
           {
             "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
+          },
+          {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
           },
           {
             "$ref": "#/parameters/orphanDependents-uRB25kX5"
@@ -20850,7 +20958,7 @@
       ],
       "properties": {
         "containerResource": {
-          "description": "containerResource refers to a resource metric (such as those specified in requests and limits) known to Kubernetes describing a single container in each pod of the current scale target (e.g. CPU or memory). Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source. This is an alpha feature and can be enabled by the HPAContainerMetrics feature flag.",
+          "description": "containerResource refers to a resource metric (such as those specified in requests and limits) known to Kubernetes describing a single container in each pod of the current scale target (e.g. CPU or memory). Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source.",
           "$ref": "#/definitions/io.k8s.api.autoscaling.v2.ContainerResourceMetricSource"
         },
         "external": {
@@ -20870,7 +20978,7 @@
           "$ref": "#/definitions/io.k8s.api.autoscaling.v2.ResourceMetricSource"
         },
         "type": {
-          "description": "type is the type of metric source.  It should be one of \"ContainerResource\", \"External\", \"Object\", \"Pods\" or \"Resource\", each mapping to a matching field in the object. Note: \"ContainerResource\" type is available on when the feature-gate HPAContainerMetrics is enabled",
+          "description": "type is the type of metric source.  It should be one of \"ContainerResource\", \"External\", \"Object\", \"Pods\" or \"Resource\", each mapping to a matching field in the object.",
           "type": "string",
           "default": ""
         }
@@ -20904,7 +21012,7 @@
           "$ref": "#/definitions/io.k8s.api.autoscaling.v2.ResourceMetricStatus"
         },
         "type": {
-          "description": "type is the type of metric source.  It will be one of \"ContainerResource\", \"External\", \"Object\", \"Pods\" or \"Resource\", each corresponds to a matching field in the object. Note: \"ContainerResource\" type is available on when the feature-gate HPAContainerMetrics is enabled",
+          "description": "type is the type of metric source.  It will be one of \"ContainerResource\", \"External\", \"Object\", \"Pods\" or \"Resource\", each corresponds to a matching field in the object.",
           "type": "string",
           "default": ""
         }
@@ -21212,6 +21320,7 @@
       "x-kubernetes-map-type": "atomic"
     },
     "io.k8s.api.core.v1.PortStatus": {
+      "description": "PortStatus represents the error condition of a service port",
       "type": "object",
       "required": [
         "port",
@@ -21853,6 +21962,10 @@
           "type": "integer",
           "format": "int64"
         },
+        "ignoreStoreReadErrorWithClusterBreakingPotential": {
+          "description": "if set to true, it will trigger an unsafe deletion of the resource in case the normal deletion flow fails with a corrupt object error. A resource is considered corrupt if it can not be retrieved from the underlying storage successfully because of a) its data can not be transformed e.g. decryption failure, or b) it fails to decode into an object. NOTE: unsafe deletion ignores finalizer constraints, skips precondition checks, and removes the object from the storage. WARNING: This may potentially break the cluster if the workload associated with the resource being unsafe-deleted relies on normal deletion flow. Use only if you REALLY know what you are doing. The default value is false, and the user must opt in to enable it",
+          "type": "boolean"
+        },
         "kind": {
           "description": "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
           "type": "string"
@@ -22009,7 +22122,7 @@
         {
           "group": "coordination.k8s.io",
           "kind": "DeleteOptions",
-          "version": "v1alpha1"
+          "version": "v1alpha2"
         },
         {
           "group": "coordination.k8s.io",
@@ -22145,6 +22258,11 @@
           "group": "resource.k8s.io",
           "kind": "DeleteOptions",
           "version": "v1alpha3"
+        },
+        {
+          "group": "resource.k8s.io",
+          "kind": "DeleteOptions",
+          "version": "v1beta1"
         },
         {
           "group": "scheduling.k8s.io",
@@ -22771,7 +22889,7 @@
         {
           "group": "coordination.k8s.io",
           "kind": "WatchEvent",
-          "version": "v1alpha1"
+          "version": "v1alpha2"
         },
         {
           "group": "coordination.k8s.io",
@@ -22907,6 +23025,11 @@
           "group": "resource.k8s.io",
           "kind": "WatchEvent",
           "version": "v1alpha3"
+        },
+        {
+          "group": "resource.k8s.io",
+          "kind": "WatchEvent",
+          "version": "v1beta1"
         },
         {
           "group": "scheduling.k8s.io",
@@ -23081,6 +23204,13 @@
       "type": "integer",
       "description": "The duration in seconds before the object should be deleted. Value must be non-negative integer. The value zero indicates delete immediately. If this value is nil, the default grace period for the specified type will be used. Defaults to a per object value if not specified. zero means delete immediately.",
       "name": "gracePeriodSeconds",
+      "in": "query"
+    },
+    "ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj": {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "if set to true, it will trigger an unsafe deletion of the resource in case the normal deletion flow fails with a corrupt object error. A resource is considered corrupt if it can not be retrieved from the underlying storage successfully because of a) its data can not be transformed e.g. decryption failure, or b) it fails to decode into an object. NOTE: unsafe deletion ignores finalizer constraints, skips precondition checks, and removes the object from the storage. WARNING: This may potentially break the cluster if the workload associated with the resource being unsafe-deleted relies on normal deletion flow. Use only if you REALLY know what you are doing. The default value is false, and the user must opt in to enable it",
+      "name": "ignoreStoreReadErrorWithClusterBreakingPotential",
       "in": "query"
     },
     "labelSelector-5Zw57w4C": {

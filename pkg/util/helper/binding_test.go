@@ -1040,7 +1040,7 @@ func TestDeleteWorkByRBNamespaceAndName(t *testing.T) {
 				name:      "foo",
 				bindingID: "3617252f-b1bb-43b0-98a1-c7de833c472c",
 			},
-			want:    nil,
+			want:    []workv1alpha1.Work{},
 			wantErr: false,
 		},
 		{

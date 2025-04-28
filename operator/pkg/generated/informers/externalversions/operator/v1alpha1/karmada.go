@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
+	apisoperatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	versioned "github.com/karmada-io/karmada/operator/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/karmada-io/karmada/operator/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/karmada-io/karmada/operator/pkg/generated/listers/operator/v1alpha1"
+	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/generated/listers/operator/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // Karmadas.
 type KarmadaInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.KarmadaLister
+	Lister() operatorv1alpha1.KarmadaLister
 }
 
 type karmadaInformer struct {
@@ -71,7 +71,7 @@ func NewFilteredKarmadaInformer(client versioned.Interface, namespace string, re
 				return client.OperatorV1alpha1().Karmadas(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&operatorv1alpha1.Karmada{},
+		&apisoperatorv1alpha1.Karmada{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +82,9 @@ func (f *karmadaInformer) defaultInformer(client versioned.Interface, resyncPeri
 }
 
 func (f *karmadaInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&operatorv1alpha1.Karmada{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisoperatorv1alpha1.Karmada{}, f.defaultInformer)
 }
 
-func (f *karmadaInformer) Lister() v1alpha1.KarmadaLister {
-	return v1alpha1.NewKarmadaLister(f.Informer().GetIndexer())
+func (f *karmadaInformer) Lister() operatorv1alpha1.KarmadaLister {
+	return operatorv1alpha1.NewKarmadaLister(f.Informer().GetIndexer())
 }

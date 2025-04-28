@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.5
+    controller-gen.kubebuilder.io/version: v0.17.3
   name: federatedhpas.autoscaling.karmada.io
 spec:
   group: autoscaling.karmada.io
@@ -209,7 +209,6 @@ spec:
                         each pod of the current scale target (e.g. CPU or memory). Such metrics are
                         built in to Kubernetes, and have special scaling options on top of those
                         available to normal per-pod metrics using the "pods" source.
-                        This is an alpha feature and can be enabled by the HPAContainerMetrics feature flag.
                       properties:
                         container:
                           description: container is the name of the container in the
@@ -650,8 +649,6 @@ spec:
                       description: |-
                         type is the type of metric source.  It should be one of "ContainerResource", "External",
                         "Object", "Pods" or "Resource", each mapping to a matching field in the object.
-                        Note: "ContainerResource" type is available on when the feature-gate
-                        HPAContainerMetrics is enabled
                       type: string
                   required:
                   - type
@@ -1147,8 +1144,6 @@ spec:
                       description: |-
                         type is the type of metric source.  It will be one of "ContainerResource", "External",
                         "Object", "Pods" or "Resource", each corresponds to a matching field in the object.
-                        Note: "ContainerResource" type is available on when the feature-gate
-                        HPAContainerMetrics is enabled
                       type: string
                   required:
                   - type

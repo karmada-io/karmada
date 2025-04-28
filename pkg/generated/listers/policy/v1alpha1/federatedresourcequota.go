@@ -19,10 +19,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // FederatedResourceQuotaLister helps list FederatedResourceQuotas.
@@ -30,7 +30,7 @@ import (
 type FederatedResourceQuotaLister interface {
 	// List lists all FederatedResourceQuotas in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.FederatedResourceQuota, err error)
+	List(selector labels.Selector) (ret []*policyv1alpha1.FederatedResourceQuota, err error)
 	// FederatedResourceQuotas returns an object that can list and get FederatedResourceQuotas.
 	FederatedResourceQuotas(namespace string) FederatedResourceQuotaNamespaceLister
 	FederatedResourceQuotaListerExpansion
@@ -38,17 +38,17 @@ type FederatedResourceQuotaLister interface {
 
 // federatedResourceQuotaLister implements the FederatedResourceQuotaLister interface.
 type federatedResourceQuotaLister struct {
-	listers.ResourceIndexer[*v1alpha1.FederatedResourceQuota]
+	listers.ResourceIndexer[*policyv1alpha1.FederatedResourceQuota]
 }
 
 // NewFederatedResourceQuotaLister returns a new FederatedResourceQuotaLister.
 func NewFederatedResourceQuotaLister(indexer cache.Indexer) FederatedResourceQuotaLister {
-	return &federatedResourceQuotaLister{listers.New[*v1alpha1.FederatedResourceQuota](indexer, v1alpha1.Resource("federatedresourcequota"))}
+	return &federatedResourceQuotaLister{listers.New[*policyv1alpha1.FederatedResourceQuota](indexer, policyv1alpha1.Resource("federatedresourcequota"))}
 }
 
 // FederatedResourceQuotas returns an object that can list and get FederatedResourceQuotas.
 func (s *federatedResourceQuotaLister) FederatedResourceQuotas(namespace string) FederatedResourceQuotaNamespaceLister {
-	return federatedResourceQuotaNamespaceLister{listers.NewNamespaced[*v1alpha1.FederatedResourceQuota](s.ResourceIndexer, namespace)}
+	return federatedResourceQuotaNamespaceLister{listers.NewNamespaced[*policyv1alpha1.FederatedResourceQuota](s.ResourceIndexer, namespace)}
 }
 
 // FederatedResourceQuotaNamespaceLister helps list and get FederatedResourceQuotas.
@@ -56,15 +56,15 @@ func (s *federatedResourceQuotaLister) FederatedResourceQuotas(namespace string)
 type FederatedResourceQuotaNamespaceLister interface {
 	// List lists all FederatedResourceQuotas in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.FederatedResourceQuota, err error)
+	List(selector labels.Selector) (ret []*policyv1alpha1.FederatedResourceQuota, err error)
 	// Get retrieves the FederatedResourceQuota from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.FederatedResourceQuota, error)
+	Get(name string) (*policyv1alpha1.FederatedResourceQuota, error)
 	FederatedResourceQuotaNamespaceListerExpansion
 }
 
 // federatedResourceQuotaNamespaceLister implements the FederatedResourceQuotaNamespaceLister
 // interface.
 type federatedResourceQuotaNamespaceLister struct {
-	listers.ResourceIndexer[*v1alpha1.FederatedResourceQuota]
+	listers.ResourceIndexer[*policyv1alpha1.FederatedResourceQuota]
 }

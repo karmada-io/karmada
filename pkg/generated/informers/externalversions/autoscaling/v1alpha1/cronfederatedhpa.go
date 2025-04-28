@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
+	apisautoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 	versioned "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/autoscaling/v1alpha1"
+	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/autoscaling/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // CronFederatedHPAs.
 type CronFederatedHPAInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.CronFederatedHPALister
+	Lister() autoscalingv1alpha1.CronFederatedHPALister
 }
 
 type cronFederatedHPAInformer struct {
@@ -71,7 +71,7 @@ func NewFilteredCronFederatedHPAInformer(client versioned.Interface, namespace s
 				return client.AutoscalingV1alpha1().CronFederatedHPAs(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&autoscalingv1alpha1.CronFederatedHPA{},
+		&apisautoscalingv1alpha1.CronFederatedHPA{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +82,9 @@ func (f *cronFederatedHPAInformer) defaultInformer(client versioned.Interface, r
 }
 
 func (f *cronFederatedHPAInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&autoscalingv1alpha1.CronFederatedHPA{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisautoscalingv1alpha1.CronFederatedHPA{}, f.defaultInformer)
 }
 
-func (f *cronFederatedHPAInformer) Lister() v1alpha1.CronFederatedHPALister {
-	return v1alpha1.NewCronFederatedHPALister(f.Informer().GetIndexer())
+func (f *cronFederatedHPAInformer) Lister() autoscalingv1alpha1.CronFederatedHPALister {
+	return autoscalingv1alpha1.NewCronFederatedHPALister(f.Informer().GetIndexer())
 }

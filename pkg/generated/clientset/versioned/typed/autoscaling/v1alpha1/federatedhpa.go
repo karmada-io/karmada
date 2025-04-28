@@ -19,9 +19,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
+	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,33 +37,34 @@ type FederatedHPAsGetter interface {
 
 // FederatedHPAInterface has methods to work with FederatedHPA resources.
 type FederatedHPAInterface interface {
-	Create(ctx context.Context, federatedHPA *v1alpha1.FederatedHPA, opts v1.CreateOptions) (*v1alpha1.FederatedHPA, error)
-	Update(ctx context.Context, federatedHPA *v1alpha1.FederatedHPA, opts v1.UpdateOptions) (*v1alpha1.FederatedHPA, error)
+	Create(ctx context.Context, federatedHPA *autoscalingv1alpha1.FederatedHPA, opts v1.CreateOptions) (*autoscalingv1alpha1.FederatedHPA, error)
+	Update(ctx context.Context, federatedHPA *autoscalingv1alpha1.FederatedHPA, opts v1.UpdateOptions) (*autoscalingv1alpha1.FederatedHPA, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, federatedHPA *v1alpha1.FederatedHPA, opts v1.UpdateOptions) (*v1alpha1.FederatedHPA, error)
+	UpdateStatus(ctx context.Context, federatedHPA *autoscalingv1alpha1.FederatedHPA, opts v1.UpdateOptions) (*autoscalingv1alpha1.FederatedHPA, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.FederatedHPA, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.FederatedHPAList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*autoscalingv1alpha1.FederatedHPA, error)
+	List(ctx context.Context, opts v1.ListOptions) (*autoscalingv1alpha1.FederatedHPAList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.FederatedHPA, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *autoscalingv1alpha1.FederatedHPA, err error)
 	FederatedHPAExpansion
 }
 
 // federatedHPAs implements FederatedHPAInterface
 type federatedHPAs struct {
-	*gentype.ClientWithList[*v1alpha1.FederatedHPA, *v1alpha1.FederatedHPAList]
+	*gentype.ClientWithList[*autoscalingv1alpha1.FederatedHPA, *autoscalingv1alpha1.FederatedHPAList]
 }
 
 // newFederatedHPAs returns a FederatedHPAs
 func newFederatedHPAs(c *AutoscalingV1alpha1Client, namespace string) *federatedHPAs {
 	return &federatedHPAs{
-		gentype.NewClientWithList[*v1alpha1.FederatedHPA, *v1alpha1.FederatedHPAList](
+		gentype.NewClientWithList[*autoscalingv1alpha1.FederatedHPA, *autoscalingv1alpha1.FederatedHPAList](
 			"federatedhpas",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1alpha1.FederatedHPA { return &v1alpha1.FederatedHPA{} },
-			func() *v1alpha1.FederatedHPAList { return &v1alpha1.FederatedHPAList{} }),
+			func() *autoscalingv1alpha1.FederatedHPA { return &autoscalingv1alpha1.FederatedHPA{} },
+			func() *autoscalingv1alpha1.FederatedHPAList { return &autoscalingv1alpha1.FederatedHPAList{} },
+		),
 	}
 }

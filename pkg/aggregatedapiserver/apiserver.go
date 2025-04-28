@@ -21,9 +21,9 @@ import (
 	"k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
 	genericapiserver "k8s.io/apiserver/pkg/server"
-	"k8s.io/apiserver/pkg/util/version"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
 	restclient "k8s.io/client-go/rest"
+	"k8s.io/component-base/version"
 	"k8s.io/klog/v2"
 
 	clusterapis "github.com/karmada-io/karmada/pkg/apis/cluster"

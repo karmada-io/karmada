@@ -177,7 +177,7 @@ func (s *store) Create(context.Context, string, runtime.Object, runtime.Object, 
 }
 
 // Delete implements storage.Interface.
-func (s *store) Delete(context.Context, string, runtime.Object, *storage.Preconditions, storage.ValidateObjectFunc, runtime.Object) error {
+func (s *store) Delete(context.Context, string, runtime.Object, *storage.Preconditions, storage.ValidateObjectFunc, runtime.Object, storage.DeleteOptions) error {
 	return fmt.Errorf("delete is not supported in proxy store")
 }
 

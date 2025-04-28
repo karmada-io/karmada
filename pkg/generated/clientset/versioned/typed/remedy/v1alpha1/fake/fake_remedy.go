@@ -19,108 +19,32 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	remedyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/remedy/v1alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeRemedies implements RemedyInterface
-type FakeRemedies struct {
+// fakeRemedies implements RemedyInterface
+type fakeRemedies struct {
+	*gentype.FakeClientWithList[*v1alpha1.Remedy, *v1alpha1.RemedyList]
 	Fake *FakeRemedyV1alpha1
 }
 
-var remediesResource = v1alpha1.SchemeGroupVersion.WithResource("remedies")
-
-var remediesKind = v1alpha1.SchemeGroupVersion.WithKind("Remedy")
-
-// Get takes name of the remedy, and returns the corresponding remedy object, and an error if there is any.
-func (c *FakeRemedies) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.Remedy, err error) {
-	emptyResult := &v1alpha1.Remedy{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootGetActionWithOptions(remediesResource, name, options), emptyResult)
-	if obj == nil {
-		return emptyResult, err
+func newFakeRemedies(fake *FakeRemedyV1alpha1) remedyv1alpha1.RemedyInterface {
+	return &fakeRemedies{
+		gentype.NewFakeClientWithList[*v1alpha1.Remedy, *v1alpha1.RemedyList](
+			fake.Fake,
+			"",
+			v1alpha1.SchemeGroupVersion.WithResource("remedies"),
+			v1alpha1.SchemeGroupVersion.WithKind("Remedy"),
+			func() *v1alpha1.Remedy { return &v1alpha1.Remedy{} },
+			func() *v1alpha1.RemedyList { return &v1alpha1.RemedyList{} },
+			func(dst, src *v1alpha1.RemedyList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha1.RemedyList) []*v1alpha1.Remedy { return gentype.ToPointerSlice(list.Items) },
+			func(list *v1alpha1.RemedyList, items []*v1alpha1.Remedy) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1alpha1.Remedy), err
-}
-
-// List takes label and field selectors, and returns the list of Remedies that match those selectors.
-func (c *FakeRemedies) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.RemedyList, err error) {
-	emptyResult := &v1alpha1.RemedyList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootListActionWithOptions(remediesResource, remediesKind, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1alpha1.RemedyList{ListMeta: obj.(*v1alpha1.RemedyList).ListMeta}
-	for _, item := range obj.(*v1alpha1.RemedyList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested remedies.
-func (c *FakeRemedies) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewRootWatchActionWithOptions(remediesResource, opts))
-}
-
-// Create takes the representation of a remedy and creates it.  Returns the server's representation of the remedy, and an error, if there is any.
-func (c *FakeRemedies) Create(ctx context.Context, remedy *v1alpha1.Remedy, opts v1.CreateOptions) (result *v1alpha1.Remedy, err error) {
-	emptyResult := &v1alpha1.Remedy{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateActionWithOptions(remediesResource, remedy, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Remedy), err
-}
-
-// Update takes the representation of a remedy and updates it. Returns the server's representation of the remedy, and an error, if there is any.
-func (c *FakeRemedies) Update(ctx context.Context, remedy *v1alpha1.Remedy, opts v1.UpdateOptions) (result *v1alpha1.Remedy, err error) {
-	emptyResult := &v1alpha1.Remedy{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateActionWithOptions(remediesResource, remedy, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Remedy), err
-}
-
-// Delete takes name of the remedy and deletes it. Returns an error if one occurs.
-func (c *FakeRemedies) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteActionWithOptions(remediesResource, name, opts), &v1alpha1.Remedy{})
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeRemedies) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionActionWithOptions(remediesResource, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1alpha1.RemedyList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched remedy.
-func (c *FakeRemedies) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.Remedy, err error) {
-	emptyResult := &v1alpha1.Remedy{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceActionWithOptions(remediesResource, name, pt, data, opts, subresources...), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Remedy), err
 }

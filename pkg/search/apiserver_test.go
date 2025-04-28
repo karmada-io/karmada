@@ -25,11 +25,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/registry/generic"
 	genericapiserver "k8s.io/apiserver/pkg/server"
-	utilversion "k8s.io/apiserver/pkg/util/version"
 	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	restclient "k8s.io/client-go/rest"
+	cbversion "k8s.io/component-base/version"
 
 	searchstorage "github.com/karmada-io/karmada/pkg/registry/search/storage"
 )
@@ -62,7 +62,7 @@ func TestNewKarmadaSearchAPIServer(t *testing.T) {
 					return nil
 				},
 				ExternalAddress:  "10.0.0.0:10000",
-				EffectiveVersion: utilversion.NewEffectiveVersion("1.0"),
+				EffectiveVersion: cbversion.NewEffectiveVersion("1.0"),
 			},
 			prep: func(cfg *completedConfig, genericAPIServerCfg *genericapiserver.Config, client clientset.Interface) error {
 				sharedInformer := informers.NewSharedInformerFactory(client, 0)
@@ -92,7 +92,7 @@ func TestNewKarmadaSearchAPIServer(t *testing.T) {
 					return nil
 				},
 				ExternalAddress:  "10.0.0.0:10000",
-				EffectiveVersion: utilversion.NewEffectiveVersion("1.0"),
+				EffectiveVersion: cbversion.NewEffectiveVersion("1.0"),
 			},
 			prep: func(cfg *completedConfig, genericAPIServerCfg *genericapiserver.Config, client clientset.Interface) error {
 				sharedInformer := informers.NewSharedInformerFactory(client, 0)
@@ -125,7 +125,7 @@ func TestNewKarmadaSearchAPIServer(t *testing.T) {
 					return nil
 				},
 				ExternalAddress:  "10.0.0.0:10000",
-				EffectiveVersion: utilversion.NewEffectiveVersion("1.0"),
+				EffectiveVersion: cbversion.NewEffectiveVersion("1.0"),
 			},
 			prep: func(cfg *completedConfig, genericAPIServerCfg *genericapiserver.Config, client clientset.Interface) error {
 				sharedInformer := informers.NewSharedInformerFactory(client, 0)

@@ -19,120 +19,34 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	searchv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/search/v1alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeResourceRegistries implements ResourceRegistryInterface
-type FakeResourceRegistries struct {
+// fakeResourceRegistries implements ResourceRegistryInterface
+type fakeResourceRegistries struct {
+	*gentype.FakeClientWithList[*v1alpha1.ResourceRegistry, *v1alpha1.ResourceRegistryList]
 	Fake *FakeSearchV1alpha1
 }
 
-var resourceregistriesResource = v1alpha1.SchemeGroupVersion.WithResource("resourceregistries")
-
-var resourceregistriesKind = v1alpha1.SchemeGroupVersion.WithKind("ResourceRegistry")
-
-// Get takes name of the resourceRegistry, and returns the corresponding resourceRegistry object, and an error if there is any.
-func (c *FakeResourceRegistries) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ResourceRegistry, err error) {
-	emptyResult := &v1alpha1.ResourceRegistry{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootGetActionWithOptions(resourceregistriesResource, name, options), emptyResult)
-	if obj == nil {
-		return emptyResult, err
+func newFakeResourceRegistries(fake *FakeSearchV1alpha1) searchv1alpha1.ResourceRegistryInterface {
+	return &fakeResourceRegistries{
+		gentype.NewFakeClientWithList[*v1alpha1.ResourceRegistry, *v1alpha1.ResourceRegistryList](
+			fake.Fake,
+			"",
+			v1alpha1.SchemeGroupVersion.WithResource("resourceregistries"),
+			v1alpha1.SchemeGroupVersion.WithKind("ResourceRegistry"),
+			func() *v1alpha1.ResourceRegistry { return &v1alpha1.ResourceRegistry{} },
+			func() *v1alpha1.ResourceRegistryList { return &v1alpha1.ResourceRegistryList{} },
+			func(dst, src *v1alpha1.ResourceRegistryList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha1.ResourceRegistryList) []*v1alpha1.ResourceRegistry {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v1alpha1.ResourceRegistryList, items []*v1alpha1.ResourceRegistry) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1alpha1.ResourceRegistry), err
-}
-
-// List takes label and field selectors, and returns the list of ResourceRegistries that match those selectors.
-func (c *FakeResourceRegistries) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.ResourceRegistryList, err error) {
-	emptyResult := &v1alpha1.ResourceRegistryList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootListActionWithOptions(resourceregistriesResource, resourceregistriesKind, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1alpha1.ResourceRegistryList{ListMeta: obj.(*v1alpha1.ResourceRegistryList).ListMeta}
-	for _, item := range obj.(*v1alpha1.ResourceRegistryList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested resourceRegistries.
-func (c *FakeResourceRegistries) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewRootWatchActionWithOptions(resourceregistriesResource, opts))
-}
-
-// Create takes the representation of a resourceRegistry and creates it.  Returns the server's representation of the resourceRegistry, and an error, if there is any.
-func (c *FakeResourceRegistries) Create(ctx context.Context, resourceRegistry *v1alpha1.ResourceRegistry, opts v1.CreateOptions) (result *v1alpha1.ResourceRegistry, err error) {
-	emptyResult := &v1alpha1.ResourceRegistry{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateActionWithOptions(resourceregistriesResource, resourceRegistry, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.ResourceRegistry), err
-}
-
-// Update takes the representation of a resourceRegistry and updates it. Returns the server's representation of the resourceRegistry, and an error, if there is any.
-func (c *FakeResourceRegistries) Update(ctx context.Context, resourceRegistry *v1alpha1.ResourceRegistry, opts v1.UpdateOptions) (result *v1alpha1.ResourceRegistry, err error) {
-	emptyResult := &v1alpha1.ResourceRegistry{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateActionWithOptions(resourceregistriesResource, resourceRegistry, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.ResourceRegistry), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeResourceRegistries) UpdateStatus(ctx context.Context, resourceRegistry *v1alpha1.ResourceRegistry, opts v1.UpdateOptions) (result *v1alpha1.ResourceRegistry, err error) {
-	emptyResult := &v1alpha1.ResourceRegistry{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceActionWithOptions(resourceregistriesResource, "status", resourceRegistry, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.ResourceRegistry), err
-}
-
-// Delete takes name of the resourceRegistry and deletes it. Returns an error if one occurs.
-func (c *FakeResourceRegistries) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteActionWithOptions(resourceregistriesResource, name, opts), &v1alpha1.ResourceRegistry{})
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeResourceRegistries) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionActionWithOptions(resourceregistriesResource, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1alpha1.ResourceRegistryList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched resourceRegistry.
-func (c *FakeResourceRegistries) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ResourceRegistry, err error) {
-	emptyResult := &v1alpha1.ResourceRegistry{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceActionWithOptions(resourceregistriesResource, name, pt, data, opts, subresources...), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.ResourceRegistry), err
 }

@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	apisworkv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	versioned "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // ResourceBindings.
 type ResourceBindingInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.ResourceBindingLister
+	Lister() workv1alpha1.ResourceBindingLister
 }
 
 type resourceBindingInformer struct {
@@ -71,7 +71,7 @@ func NewFilteredResourceBindingInformer(client versioned.Interface, namespace st
 				return client.WorkV1alpha1().ResourceBindings(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&workv1alpha1.ResourceBinding{},
+		&apisworkv1alpha1.ResourceBinding{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +82,9 @@ func (f *resourceBindingInformer) defaultInformer(client versioned.Interface, re
 }
 
 func (f *resourceBindingInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&workv1alpha1.ResourceBinding{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisworkv1alpha1.ResourceBinding{}, f.defaultInformer)
 }
 
-func (f *resourceBindingInformer) Lister() v1alpha1.ResourceBindingLister {
-	return v1alpha1.NewResourceBindingLister(f.Informer().GetIndexer())
+func (f *resourceBindingInformer) Lister() workv1alpha1.ResourceBindingLister {
+	return workv1alpha1.NewResourceBindingLister(f.Informer().GetIndexer())
 }

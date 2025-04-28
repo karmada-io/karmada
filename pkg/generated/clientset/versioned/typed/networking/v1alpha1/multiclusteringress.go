@@ -19,9 +19,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
+	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,33 +37,36 @@ type MultiClusterIngressesGetter interface {
 
 // MultiClusterIngressInterface has methods to work with MultiClusterIngress resources.
 type MultiClusterIngressInterface interface {
-	Create(ctx context.Context, multiClusterIngress *v1alpha1.MultiClusterIngress, opts v1.CreateOptions) (*v1alpha1.MultiClusterIngress, error)
-	Update(ctx context.Context, multiClusterIngress *v1alpha1.MultiClusterIngress, opts v1.UpdateOptions) (*v1alpha1.MultiClusterIngress, error)
+	Create(ctx context.Context, multiClusterIngress *networkingv1alpha1.MultiClusterIngress, opts v1.CreateOptions) (*networkingv1alpha1.MultiClusterIngress, error)
+	Update(ctx context.Context, multiClusterIngress *networkingv1alpha1.MultiClusterIngress, opts v1.UpdateOptions) (*networkingv1alpha1.MultiClusterIngress, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, multiClusterIngress *v1alpha1.MultiClusterIngress, opts v1.UpdateOptions) (*v1alpha1.MultiClusterIngress, error)
+	UpdateStatus(ctx context.Context, multiClusterIngress *networkingv1alpha1.MultiClusterIngress, opts v1.UpdateOptions) (*networkingv1alpha1.MultiClusterIngress, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.MultiClusterIngress, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.MultiClusterIngressList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*networkingv1alpha1.MultiClusterIngress, error)
+	List(ctx context.Context, opts v1.ListOptions) (*networkingv1alpha1.MultiClusterIngressList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.MultiClusterIngress, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *networkingv1alpha1.MultiClusterIngress, err error)
 	MultiClusterIngressExpansion
 }
 
 // multiClusterIngresses implements MultiClusterIngressInterface
 type multiClusterIngresses struct {
-	*gentype.ClientWithList[*v1alpha1.MultiClusterIngress, *v1alpha1.MultiClusterIngressList]
+	*gentype.ClientWithList[*networkingv1alpha1.MultiClusterIngress, *networkingv1alpha1.MultiClusterIngressList]
 }
 
 // newMultiClusterIngresses returns a MultiClusterIngresses
 func newMultiClusterIngresses(c *NetworkingV1alpha1Client, namespace string) *multiClusterIngresses {
 	return &multiClusterIngresses{
-		gentype.NewClientWithList[*v1alpha1.MultiClusterIngress, *v1alpha1.MultiClusterIngressList](
+		gentype.NewClientWithList[*networkingv1alpha1.MultiClusterIngress, *networkingv1alpha1.MultiClusterIngressList](
 			"multiclusteringresses",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1alpha1.MultiClusterIngress { return &v1alpha1.MultiClusterIngress{} },
-			func() *v1alpha1.MultiClusterIngressList { return &v1alpha1.MultiClusterIngressList{} }),
+			func() *networkingv1alpha1.MultiClusterIngress { return &networkingv1alpha1.MultiClusterIngress{} },
+			func() *networkingv1alpha1.MultiClusterIngressList {
+				return &networkingv1alpha1.MultiClusterIngressList{}
+			},
+		),
 	}
 }

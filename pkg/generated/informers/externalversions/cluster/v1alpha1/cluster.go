@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	apisclusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	versioned "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // Clusters.
 type ClusterInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.ClusterLister
+	Lister() clusterv1alpha1.ClusterLister
 }
 
 type clusterInformer struct {
@@ -70,7 +70,7 @@ func NewFilteredClusterInformer(client versioned.Interface, resyncPeriod time.Du
 				return client.ClusterV1alpha1().Clusters().Watch(context.TODO(), options)
 			},
 		},
-		&clusterv1alpha1.Cluster{},
+		&apisclusterv1alpha1.Cluster{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,9 +81,9 @@ func (f *clusterInformer) defaultInformer(client versioned.Interface, resyncPeri
 }
 
 func (f *clusterInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&clusterv1alpha1.Cluster{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisclusterv1alpha1.Cluster{}, f.defaultInformer)
 }
 
-func (f *clusterInformer) Lister() v1alpha1.ClusterLister {
-	return v1alpha1.NewClusterLister(f.Informer().GetIndexer())
+func (f *clusterInformer) Lister() clusterv1alpha1.ClusterLister {
+	return clusterv1alpha1.NewClusterLister(f.Informer().GetIndexer())
 }

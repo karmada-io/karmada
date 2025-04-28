@@ -19,9 +19,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1"
+	remedyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,31 +37,32 @@ type RemediesGetter interface {
 
 // RemedyInterface has methods to work with Remedy resources.
 type RemedyInterface interface {
-	Create(ctx context.Context, remedy *v1alpha1.Remedy, opts v1.CreateOptions) (*v1alpha1.Remedy, error)
-	Update(ctx context.Context, remedy *v1alpha1.Remedy, opts v1.UpdateOptions) (*v1alpha1.Remedy, error)
+	Create(ctx context.Context, remedy *remedyv1alpha1.Remedy, opts v1.CreateOptions) (*remedyv1alpha1.Remedy, error)
+	Update(ctx context.Context, remedy *remedyv1alpha1.Remedy, opts v1.UpdateOptions) (*remedyv1alpha1.Remedy, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.Remedy, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.RemedyList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*remedyv1alpha1.Remedy, error)
+	List(ctx context.Context, opts v1.ListOptions) (*remedyv1alpha1.RemedyList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.Remedy, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *remedyv1alpha1.Remedy, err error)
 	RemedyExpansion
 }
 
 // remedies implements RemedyInterface
 type remedies struct {
-	*gentype.ClientWithList[*v1alpha1.Remedy, *v1alpha1.RemedyList]
+	*gentype.ClientWithList[*remedyv1alpha1.Remedy, *remedyv1alpha1.RemedyList]
 }
 
 // newRemedies returns a Remedies
 func newRemedies(c *RemedyV1alpha1Client) *remedies {
 	return &remedies{
-		gentype.NewClientWithList[*v1alpha1.Remedy, *v1alpha1.RemedyList](
+		gentype.NewClientWithList[*remedyv1alpha1.Remedy, *remedyv1alpha1.RemedyList](
 			"remedies",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			"",
-			func() *v1alpha1.Remedy { return &v1alpha1.Remedy{} },
-			func() *v1alpha1.RemedyList { return &v1alpha1.RemedyList{} }),
+			func() *remedyv1alpha1.Remedy { return &remedyv1alpha1.Remedy{} },
+			func() *remedyv1alpha1.RemedyList { return &remedyv1alpha1.RemedyList{} },
+		),
 	}
 }
