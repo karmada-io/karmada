@@ -43,11 +43,16 @@ spec:
         - name: karmada-descheduler
           image: {{ .Image }}
           imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           command:
             - /bin/karmada-descheduler
             - --kubeconfig=/etc/karmada/config/karmada.config
-            - --metrics-bind-address=0.0.0.0:8080
-            - --health-probe-bind-address=0.0.0.0:10358
+            - --metrics-bind-address=$(POD_IP):8080
+            - --health-probe-bind-address=$(POD_IP):10358
             - --leader-elect-resource-namespace={{ .Namespace }}
             - --scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt
             - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt

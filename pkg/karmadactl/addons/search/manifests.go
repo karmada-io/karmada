@@ -44,6 +44,11 @@ spec:
         - name: karmada-search
           image: {{ .Image }}
           imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           command:
             - /bin/karmada-search
             - --kubeconfig=/etc/karmada/config/karmada.config
@@ -60,6 +65,7 @@ spec:
             - --audit-log-maxage=0
             - --audit-log-maxbackup=0{{- if .KeyPrefix }}
             - --etcd-prefix={{ .KeyPrefix }}{{- end }}
+            - --bind-address=$(POD_IP)
           livenessProbe:
             httpGet:
               path: /livez
