@@ -22,7 +22,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/utils/ptr"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
@@ -777,6 +779,89 @@ func TestDedupeAndMergeFinalizers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equalf(t, tt.want, DedupeAndMergeFinalizers(tt.args.existFinalizers, tt.args.newFinalizers), "DedupeAndMergeFinalizers(%v, %v)", tt.args.existFinalizers, tt.args.newFinalizers)
+		})
+	}
+}
+
+func TestCopySuspension(t *testing.T) {
+	type args struct {
+		existBindingSpec *workv1alpha2.ResourceBindingSpec
+		newBindingSpec   *workv1alpha2.ResourceBindingSpec
+	}
+	tests := []struct {
+		name string
+		args args
+		want *workv1alpha2.Suspension
+	}{
+		{
+			name: "newBindingSpec suspension is nil",
+			args: args{
+				existBindingSpec: &workv1alpha2.ResourceBindingSpec{
+					Suspension: &workv1alpha2.Suspension{
+						Suspension: policyv1alpha1.Suspension{
+							Dispatching: ptr.To(true),
+						},
+					},
+				},
+				newBindingSpec: &workv1alpha2.ResourceBindingSpec{
+					Suspension: nil,
+				},
+			},
+			want: &workv1alpha2.Suspension{
+				Suspension: policyv1alpha1.Suspension{
+					Dispatching: ptr.To(true),
+				},
+			},
+		},
+		{
+			name: "newBindingSpec suspension  is not nil",
+			args: args{
+				existBindingSpec: &workv1alpha2.ResourceBindingSpec{
+					Suspension: &workv1alpha2.Suspension{
+						Suspension: policyv1alpha1.Suspension{
+							Dispatching: ptr.To(true),
+						},
+					},
+				},
+				newBindingSpec: &workv1alpha2.ResourceBindingSpec{
+					Suspension: &workv1alpha2.Suspension{
+						Suspension: policyv1alpha1.Suspension{
+							Dispatching: ptr.To(false),
+						},
+					},
+				},
+			},
+			want: &workv1alpha2.Suspension{
+				Suspension: policyv1alpha1.Suspension{
+					Dispatching: ptr.To(false),
+				},
+			},
+		},
+		{
+			name: "newBindingSpec suspension  is not nil, existBindingSpec suspension is nil",
+			args: args{
+				existBindingSpec: &workv1alpha2.ResourceBindingSpec{
+					Suspension: nil,
+				},
+				newBindingSpec: &workv1alpha2.ResourceBindingSpec{
+					Suspension: &workv1alpha2.Suspension{
+						Suspension: policyv1alpha1.Suspension{
+							Dispatching: ptr.To(false),
+						},
+					},
+				},
+			},
+			want: &workv1alpha2.Suspension{
+				Suspension: policyv1alpha1.Suspension{
+					Dispatching: ptr.To(false),
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			CopySuspension(tt.args.existBindingSpec, tt.args.newBindingSpec)
+			assert.Equalf(t, tt.want, tt.args.existBindingSpec.Suspension, "CopySuspension(%v, %v)", tt.args.existBindingSpec.Suspension, tt.args.newBindingSpec.Suspension)
 		})
 	}
 }

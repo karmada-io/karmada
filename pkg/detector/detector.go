@@ -448,13 +448,19 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		return nil
 	}
 
-	binding, err := d.BuildResourceBinding(object, &policy.Spec, policyID, policy.ObjectMeta, AddPPClaimMetadata)
+	enabled, replicas, replicaRequirements, err := d.InterpretReplicaHook(object)
 	if err != nil {
-		klog.Errorf("Failed to build resourceBinding for object: %s. error: %v", objectKey, err)
 		return err
 	}
-	bindingCopy := binding.DeepCopy()
+	var binding *workv1alpha2.ResourceBinding
+
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		binding, err = d.BuildResourceBinding(object, policy.Namespace, policy.Name, policyID, enabled, replicas, replicaRequirements, AddPPClaimMetadata)
+		if err != nil {
+			klog.Errorf("Failed to build resourceBinding for object: %s. error: %v", objectKey, err)
+			return err
+		}
+		bindingCopy := binding.DeepCopy()
 		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
 			// If this binding exists and its owner is not the input object, return error and let garbage collector
 			// delete this binding and try again later. See https://github.com/karmada-io/karmada/issues/2090.
@@ -478,12 +484,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 			bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
 			bindingCopy.Spec.PreserveResourcesOnDeletion = binding.Spec.PreserveResourcesOnDeletion
 			bindingCopy.Spec.SchedulePriority = binding.Spec.SchedulePriority
-			if binding.Spec.Suspension != nil {
-				if bindingCopy.Spec.Suspension == nil {
-					bindingCopy.Spec.Suspension = &workv1alpha2.Suspension{}
-				}
-				bindingCopy.Spec.Suspension.Suspension = binding.Spec.Suspension.Suspension
-			}
+			util.CopySuspension(&bindingCopy.Spec, &binding.Spec)
 			excludeClusterPolicy(bindingCopy)
 			return nil
 		})
@@ -544,13 +545,19 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 	// For namespace-scoped resources, which namespace is not empty, building `ResourceBinding`.
 	// For cluster-scoped resources, which namespace is empty, building `ClusterResourceBinding`.
 	if object.GetNamespace() != "" {
-		binding, err := d.BuildResourceBinding(object, &policy.Spec, policyID, policy.ObjectMeta, AddCPPClaimMetadata)
+		enabled, replicas, replicaRequirements, err := d.InterpretReplicaHook(object)
 		if err != nil {
-			klog.Errorf("Failed to build resourceBinding for object: %s. error: %v", objectKey, err)
 			return err
 		}
-		bindingCopy := binding.DeepCopy()
+		var binding *workv1alpha2.ResourceBinding
+
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+			binding, err = d.BuildResourceBinding(object, policy.Namespace, policy.Name, policyID, enabled, replicas, replicaRequirements, AddCPPClaimMetadata)
+			if err != nil {
+				klog.Errorf("Failed to build resourceBinding for object: %s. error: %v", objectKey, err)
+				return err
+			}
+			bindingCopy := binding.DeepCopy()
 			operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
 				// If this binding exists and its owner is not the input object, return error and let garbage collector
 				// delete this binding and try again later. See https://github.com/karmada-io/karmada/issues/2090.
@@ -599,13 +606,19 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			klog.V(2).Infof("ResourceBinding(%s) is up to date.", binding.GetName())
 		}
 	} else {
-		binding, err := d.BuildClusterResourceBinding(object, &policy.Spec, policyID, policy.ObjectMeta)
+		enabled, replicas, replicaRequirements, err := d.InterpretReplicaHook(object)
 		if err != nil {
-			klog.Errorf("Failed to build clusterResourceBinding for object: %s. error: %v", objectKey, err)
 			return err
 		}
-		bindingCopy := binding.DeepCopy()
+		var binding *workv1alpha2.ClusterResourceBinding
+
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+			binding, err = d.BuildClusterResourceBinding(object, policy.Name, policyID, enabled, replicas, replicaRequirements)
+			if err != nil {
+				klog.Errorf("Failed to build clusterResourceBinding for object: %s. error: %v", objectKey, err)
+				return err
+			}
+			bindingCopy := binding.DeepCopy()
 			operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
 				// If this binding exists and its owner is not the input object, return error and let garbage collector
 				// delete this binding and try again later. See https://github.com/karmada-io/karmada/issues/2090.
@@ -627,12 +640,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 				bindingCopy.Spec.Failover = binding.Spec.Failover
 				bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
 				bindingCopy.Spec.PreserveResourcesOnDeletion = binding.Spec.PreserveResourcesOnDeletion
-				if binding.Spec.Suspension != nil {
-					if bindingCopy.Spec.Suspension == nil {
-						bindingCopy.Spec.Suspension = &workv1alpha2.Suspension{}
-					}
-					bindingCopy.Spec.Suspension.Suspension = binding.Spec.Suspension.Suspension
-				}
+				util.CopySuspension(&bindingCopy.Spec, &binding.Spec)
 				return nil
 			})
 			return err
@@ -727,7 +735,29 @@ func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unst
 }
 
 // BuildResourceBinding builds a desired ResourceBinding for object.
-func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, policySpec *policyv1alpha1.PropagationSpec, policyID string, policyMeta metav1.ObjectMeta, claimFunc func(object metav1.Object, policyId string, objectMeta metav1.ObjectMeta)) (*workv1alpha2.ResourceBinding, error) {
+func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, policyNamespace, policyName, policyID string,
+	enabled bool, replicas int32, replicaRequirements *workv1alpha2.ReplicaRequirements,
+	claimFunc func(object metav1.Object, policyId string, objectMeta metav1.ObjectMeta)) (*workv1alpha2.ResourceBinding, error) {
+	// Requery pp/cpp to avoid pp/cpp being updated during the period
+	var policySpec *policyv1alpha1.PropagationSpec
+	var policyMeta metav1.ObjectMeta
+	if len(policyNamespace) > 0 {
+		propagationPolicy := &policyv1alpha1.PropagationPolicy{}
+		err := d.Client.Get(context.TODO(), client.ObjectKey{Namespace: policyNamespace, Name: policyName}, propagationPolicy)
+		if err != nil {
+			return nil, err
+		}
+		policySpec = &propagationPolicy.Spec
+		policyMeta = propagationPolicy.ObjectMeta
+	} else {
+		clusterPropagationPolicy := &policyv1alpha1.ClusterPropagationPolicy{}
+		err := d.Client.Get(context.TODO(), client.ObjectKey{Name: policyName}, clusterPropagationPolicy)
+		if err != nil {
+			return nil, err
+		}
+		policySpec = &clusterPropagationPolicy.Spec
+		policyMeta = clusterPropagationPolicy.ObjectMeta
+	}
 	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
 	propagationBinding := &workv1alpha2.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
@@ -762,16 +792,10 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 
 	claimFunc(propagationBinding, policyID, policyMeta)
 
-	if d.ResourceInterpreter.HookEnabled(object.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretReplica) {
-		replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
-		if err != nil {
-			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
-			return nil, err
-		}
+	if enabled {
 		propagationBinding.Spec.Replicas = replicas
 		propagationBinding.Spec.ReplicaRequirements = replicaRequirements
 	}
-
 	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) && policySpec.SchedulePriority != nil {
 		var bindingSchedulePriority *workv1alpha2.SchedulePriority
 		priorityClassName := policySpec.SchedulePriority.PriorityClassName
@@ -802,8 +826,15 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 }
 
 // BuildClusterResourceBinding builds a desired ClusterResourceBinding for object.
-func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured,
-	policySpec *policyv1alpha1.PropagationSpec, policyID string, policyMeta metav1.ObjectMeta) (*workv1alpha2.ClusterResourceBinding, error) {
+func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured, policyName, policyID string,
+	enabled bool, replicas int32, replicaRequirements *workv1alpha2.ReplicaRequirements,
+) (*workv1alpha2.ClusterResourceBinding, error) {
+	// Requery cpp to avoid cpp being updated during the period
+	clusterPropagationPolicy := &policyv1alpha1.ClusterPropagationPolicy{}
+	err := d.Client.Get(context.TODO(), client.ObjectKey{Name: policyName}, clusterPropagationPolicy)
+	if err != nil {
+		return nil, err
+	}
 	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
 	binding := &workv1alpha2.ClusterResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
@@ -814,12 +845,12 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 			Finalizers: []string{util.ClusterResourceBindingControllerFinalizer},
 		},
 		Spec: workv1alpha2.ResourceBindingSpec{
-			PropagateDeps:               policySpec.PropagateDeps,
-			SchedulerName:               policySpec.SchedulerName,
-			Placement:                   &policySpec.Placement,
-			Failover:                    policySpec.Failover,
-			ConflictResolution:          policySpec.ConflictResolution,
-			PreserveResourcesOnDeletion: policySpec.PreserveResourcesOnDeletion,
+			PropagateDeps:               clusterPropagationPolicy.Spec.PropagateDeps,
+			SchedulerName:               clusterPropagationPolicy.Spec.SchedulerName,
+			Placement:                   &clusterPropagationPolicy.Spec.Placement,
+			Failover:                    clusterPropagationPolicy.Spec.Failover,
+			ConflictResolution:          clusterPropagationPolicy.Spec.ConflictResolution,
+			PreserveResourcesOnDeletion: clusterPropagationPolicy.Spec.PreserveResourcesOnDeletion,
 			Resource: workv1alpha2.ObjectReference{
 				APIVersion:      object.GetAPIVersion(),
 				Kind:            object.GetKind(),
@@ -830,22 +861,15 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 		},
 	}
 
-	if policySpec.Suspension != nil {
-		binding.Spec.Suspension = &workv1alpha2.Suspension{Suspension: *policySpec.Suspension}
+	if clusterPropagationPolicy.Spec.Suspension != nil {
+		binding.Spec.Suspension = &workv1alpha2.Suspension{Suspension: *clusterPropagationPolicy.Spec.Suspension}
 	}
 
-	AddCPPClaimMetadata(binding, policyID, policyMeta)
-
-	if d.ResourceInterpreter.HookEnabled(object.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretReplica) {
-		replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
-		if err != nil {
-			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
-			return nil, err
-		}
+	AddCPPClaimMetadata(binding, policyID, clusterPropagationPolicy.ObjectMeta)
+	if enabled {
 		binding.Spec.Replicas = replicas
 		binding.Spec.ReplicaRequirements = replicaRequirements
 	}
-
 	return binding, nil
 }
 
@@ -1357,4 +1381,17 @@ func (d *ResourceDetector) CleanupClusterResourceBindingClaimMetadata(crb *workv
 		}
 		return updateErr
 	})
+}
+
+// InterpretReplicaHook call InterpretReplica hook. the first return value indicates whether the hook is enabled.
+func (d *ResourceDetector) InterpretReplicaHook(object *unstructured.Unstructured) (bool, int32, *workv1alpha2.ReplicaRequirements, error) {
+	if d.ResourceInterpreter.HookEnabled(object.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretReplica) {
+		replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
+		if err != nil {
+			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
+			return true, 0, nil, err
+		}
+		return true, replicas, replicaRequirements, nil
+	}
+	return false, 0, nil, nil
 }
