@@ -47,11 +47,13 @@ spec:
         - name: {{ $name }}-scheduler
           image: {{ template "karmada.scheduler.image" .}}
           imagePullPolicy: {{ .Values.scheduler.image.pullPolicy }}
+          env:
+            {{- include "karmada.env.podIP" . | nindent 12 }}
           command:
             - /bin/karmada-scheduler
             - --kubeconfig=/etc/kubeconfig
-            - --metrics-bind-address=0.0.0.0:8080
-            - --health-probe-bind-address=0.0.0.0:10351
+            - --metrics-bind-address=$(POD_IP):8080
+            - --health-probe-bind-address=$(POD_IP):10351
             - --leader-elect-resource-namespace={{ $systemNamespace }}
             - --scheduler-estimator-ca-file=/etc/karmada/pki/server-ca.crt
             - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt

@@ -152,7 +152,6 @@ app: {{$name}}-controller-manager
 {{- end }}
 {{- end -}}
 
-
 {{- define "karmada.scheduler.labels" -}}
 {{ $name :=  include "karmada.name" . }}
 {{- if .Values.scheduler.labels -}}
@@ -172,7 +171,6 @@ app: {{$name}}-scheduler
 {{- end }}
 {{- end }}
 {{- end -}}
-
 
 {{- define "karmada.descheduler.labels" -}}
 {{ $name :=  include "karmada.name" . }}
@@ -206,7 +204,6 @@ app: {{$name}}
     secretName: {{ .Values.descheduler.kubeconfig }}
 {{- end -}}
 {{- end -}}
-
 
 {{- define "karmada.webhook.labels" -}}
 {{ $name :=  include "karmada.name" .}}
@@ -354,6 +351,16 @@ app: {{- include "karmada.name" .}}-search
 - name: karmada-certs
   secret:
     secretName: {{ $name }}-cert
+{{- end -}}
+
+{{/*
+Common env for POD_IP
+*/}}
+{{- define "karmada.env.podIP" -}}
+- name: POD_IP
+  valueFrom:
+    fieldRef:
+      fieldPath: status.podIP
 {{- end -}}
 
 {{/*

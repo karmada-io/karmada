@@ -47,11 +47,13 @@ spec:
         - name: {{ $name }}-descheduler
           image: {{ template "karmada.descheduler.image" . }}
           imagePullPolicy: {{ .Values.descheduler.image.pullPolicy }}
+          env:
+            {{- include "karmada.env.podIP" . | nindent 12 }}
           command:
             - /bin/karmada-descheduler
             - --kubeconfig=/etc/kubeconfig
-            - --metrics-bind-address=0.0.0.0:8080
-            - --health-probe-bind-address=0.0.0.0:10358
+            - --metrics-bind-address=$(POD_IP):8080
+            - --health-probe-bind-address=$(POD_IP):10358
             - --leader-elect-resource-namespace={{ $systemNamespace }}
             - --scheduler-estimator-ca-file=/etc/karmada/pki/server-ca.crt
             - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt

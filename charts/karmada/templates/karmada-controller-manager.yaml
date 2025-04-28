@@ -50,13 +50,15 @@ spec:
         - name: {{ $name }}-controller-manager
           image: {{ template "karmada.controllerManager.image" . }}
           imagePullPolicy: {{ .Values.controllerManager.image.pullPolicy }}
+          env:
+            {{- include "karmada.env.podIP" . | nindent 12 }}
           command:
             - /bin/karmada-controller-manager
             - --kubeconfig=/etc/kubeconfig
             - --cluster-status-update-frequency=10s
             - --leader-elect-resource-namespace={{ $systemNamespace }}
-            - --health-probe-bind-address=0.0.0.0:10357
-            - --metrics-bind-address=:8080
+            - --metrics-bind-address=$(POD_IP):8080
+            - --health-probe-bind-address=$(POD_IP):10357
             - --v=2
             {{- if .Values.controllerManager.controllers }}
             - --controllers={{ .Values.controllerManager.controllers }}
