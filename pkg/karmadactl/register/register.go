@@ -867,8 +867,15 @@ func (o *CommandRegisterOption) constructKubeConfig(bootstrapClient *kubeclient.
 		return nil, err
 	}
 
+	// Using o.BootstrapToken.APIServerEndpoint instead of the endpoint in discovered cluster-info
+	// because discivered endpoint can often be unreachable from member cluster
+	karmadaServer := karmadaClusterInfo.Server
+	if o.BootstrapToken.APIServerEndpoint != "" {
+		karmadaServer = fmt.Sprintf("https://%s", o.BootstrapToken.APIServerEndpoint)
+	}
+
 	return CreateWithCert(
-		karmadaClusterInfo.Server,
+		karmadaServer,
 		DefaultClusterName,
 		o.ClusterName,
 		karmadaClusterInfo.CertificateAuthorityData,
