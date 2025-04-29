@@ -419,7 +419,7 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
-	if !s.isWorkloadByRB(rb) ||
+	if !rb.Spec.IsWorkloadWithReplicas ||
 		rb.Spec.Placement.ReplicaSchedulingType() == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
 		// Duplicated resources should always be scheduled. Note: non-workload is considered as duplicated
 		// even if scheduling type is divided.
@@ -489,7 +489,7 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
-	if !s.isWorkloadByCRB(crb) ||
+	if !crb.Spec.IsWorkloadWithReplicas ||
 		crb.Spec.Placement.ReplicaSchedulingType() == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
 		// Duplicated resources should always be scheduled. Note: non-workload is considered as duplicated
 		// even if scheduling type is divided.
@@ -542,7 +542,7 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinity(rb *workv1alpha2.
 	}
 	var scheduleResult core.ScheduleResult
 	// scale down to zero replicas
-	if s.isWorkloadByRB(rb) && rb.Spec.Replicas == 0 {
+	if rb.Spec.IsWorkloadWithReplicas && rb.Spec.Replicas == 0 {
 		scheduleResult = s.scaleDownToZeroReplicasWithClusters(rb.Spec.Clusters)
 	} else {
 		scheduleResult, err = s.Algorithm.Schedule(context.TODO(), &rb.Spec, &rb.Status, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
@@ -584,7 +584,7 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinities(rb *workv1alpha
 	for affinityIndex < len(rb.Spec.Placement.ClusterAffinities) {
 		klog.V(4).Infof("Schedule ResourceBinding(%s/%s) with clusterAffiliates index(%d)", rb.Namespace, rb.Name, affinityIndex)
 		updatedStatus.SchedulerObservedAffinityName = rb.Spec.Placement.ClusterAffinities[affinityIndex].AffinityName
-		if s.isWorkloadByRB(rb) && rb.Spec.Replicas == 0 {
+		if rb.Spec.IsWorkloadWithReplicas && rb.Spec.Replicas == 0 {
 			scheduleResult = s.scaleDownToZeroReplicasWithClusters(rb.Spec.Clusters)
 		} else {
 			scheduleResult, err = s.Algorithm.Schedule(context.TODO(), &rb.Spec, updatedStatus, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
@@ -688,7 +688,7 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinity(crb *workv
 		return err
 	}
 	var scheduleResult core.ScheduleResult
-	if s.isWorkloadByCRB(crb) && crb.Spec.Replicas == 0 {
+	if crb.Spec.IsWorkloadWithReplicas && crb.Spec.Replicas == 0 {
 		scheduleResult = s.scaleDownToZeroReplicasWithClusters(crb.Spec.Clusters)
 	} else {
 		scheduleResult, err = s.Algorithm.Schedule(context.TODO(), &crb.Spec, &crb.Status, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
@@ -730,7 +730,7 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinities(crb *wor
 	for affinityIndex < len(crb.Spec.Placement.ClusterAffinities) {
 		klog.V(4).Infof("Schedule ClusterResourceBinding(%s) with clusterAffiliates index(%d)", crb.Name, affinityIndex)
 		updatedStatus.SchedulerObservedAffinityName = crb.Spec.Placement.ClusterAffinities[affinityIndex].AffinityName
-		if s.isWorkloadByCRB(crb) && crb.Spec.Replicas == 0 {
+		if crb.Spec.IsWorkloadWithReplicas && crb.Spec.Replicas == 0 {
 			scheduleResult = s.scaleDownToZeroReplicasWithClusters(crb.Spec.Clusters)
 		} else {
 			scheduleResult, err = s.Algorithm.Schedule(context.TODO(), &crb.Spec, updatedStatus, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
@@ -874,22 +874,6 @@ func (s *Scheduler) establishEstimatorConnections() {
 			klog.Error(err)
 		}
 	}
-}
-
-func (s *Scheduler) isWorkloadByRB(rb *workv1alpha2.ResourceBinding) bool {
-	// workload is defined as the resource binding with non-nil resource request field
-	if rb.Spec.ReplicaRequirements == nil || rb.Spec.ReplicaRequirements.ResourceRequest == nil {
-		return false
-	}
-	return true
-}
-
-func (s *Scheduler) isWorkloadByCRB(crb *workv1alpha2.ClusterResourceBinding) bool {
-	// workload is defined as the cluster resource binding with non-nil resource request field
-	if crb.Spec.ReplicaRequirements == nil || crb.Spec.ReplicaRequirements.ResourceRequest == nil {
-		return false
-	}
-	return true
 }
 
 func (s *Scheduler) scaleDownToZeroReplicasWithClusters(clusters []workv1alpha2.TargetCluster) core.ScheduleResult {
