@@ -54,6 +54,11 @@ spec:
               readOnly: true
             - name: karmada-config
               mountPath: /etc/karmada/config
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           command:
             - /bin/karmada-search
             - --kubeconfig=/etc/karmada/config/karmada.config
@@ -65,6 +70,7 @@ spec:
             - --audit-log-path=-
             - --audit-log-maxage=0
             - --audit-log-maxbackup=0
+            - --bind-address=$(POD_IP)
           livenessProbe:
             httpGet:
               path: /livez

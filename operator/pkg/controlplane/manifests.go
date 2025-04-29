@@ -135,14 +135,19 @@ spec:
         - name: karmada-controller-manager
           image: {{ .Image }}
           imagePullPolicy: {{ .ImagePullPolicy }}
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           command:
             - /bin/karmada-controller-manager
             - --kubeconfig=/etc/karmada/config/karmada.config
-            - --metrics-bind-address=:8080
             - --cluster-status-update-frequency=10s
             - --failover-eviction-timeout=30s
             - --leader-elect-resource-namespace={{ .SystemNamespace }}
-            - --health-probe-bind-address=0.0.0.0:10357
+            - --metrics-bind-address=$(POD_IP):8080
+            - --health-probe-bind-address=$(POD_IP):10357
             - --v=4
           livenessProbe:
             httpGet:
@@ -197,11 +202,16 @@ spec:
         - name: karmada-scheduler
           image: {{ .Image }}
           imagePullPolicy: {{ .ImagePullPolicy }}
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           command:
             - /bin/karmada-scheduler
             - --kubeconfig=/etc/karmada/config/karmada.config
-            - --metrics-bind-address=0.0.0.0:8080
-            - --health-probe-bind-address=0.0.0.0:10351
+            - --metrics-bind-address=$(POD_IP):8080
+            - --health-probe-bind-address=$(POD_IP):10351
             - --enable-scheduler-estimator=true
             - --leader-elect-resource-namespace={{ .SystemNamespace }}
             - --scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt
@@ -267,11 +277,16 @@ spec:
         - name: karmada-descheduler
           image: {{ .Image }}
           imagePullPolicy: {{ .ImagePullPolicy }}
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           command:
             - /bin/karmada-descheduler
             - --kubeconfig=/etc/karmada/config/karmada.config
-            - --metrics-bind-address=0.0.0.0:8080
-            - --health-probe-bind-address=0.0.0.0:10358
+            - --metrics-bind-address=$(POD_IP):8080
+            - --health-probe-bind-address=$(POD_IP):10358
             - --leader-elect-resource-namespace={{ .SystemNamespace }}
             - --scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt
             - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt

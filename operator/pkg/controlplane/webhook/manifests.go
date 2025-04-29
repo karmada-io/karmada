@@ -48,11 +48,17 @@ spec:
         - name: karmada-webhook
           image: {{ .Image }}
           imagePullPolicy: {{ .ImagePullPolicy }}
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           command:
             - /bin/karmada-webhook
             - --kubeconfig=/etc/karmada/config/karmada.config
-            - --bind-address=0.0.0.0
-            - --metrics-bind-address=:8080
+            - --bind-address=$(POD_IP)
+            - --metrics-bind-address=$(POD_IP):8080
+            - --health-probe-bind-address=$(POD_IP):8000
             - --default-not-ready-toleration-seconds=30
             - --default-unreachable-toleration-seconds=30
             - --secure-port=8443
