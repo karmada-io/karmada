@@ -498,7 +498,7 @@ func (c *Controller) tryUpdateClusterHealth(ctx context.Context, cluster *cluste
 	}()
 
 	// Step 2: Get the cluster ready condition.
-	var gracePeriod time.Duration
+	gracePeriod := c.ClusterMonitorGracePeriod
 	var observedReadyCondition *metav1.Condition
 	currentReadyCondition := meta.FindStatusCondition(cluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady)
 	if currentReadyCondition == nil {
@@ -510,7 +510,6 @@ func (c *Controller) tryUpdateClusterHealth(ctx context.Context, cluster *cluste
 			Status:             metav1.ConditionUnknown,
 			LastTransitionTime: cluster.CreationTimestamp,
 		}
-		gracePeriod = c.ClusterStartupGracePeriod
 		if clusterHealth != nil {
 			clusterHealth.status = &cluster.Status
 		} else {
@@ -523,7 +522,6 @@ func (c *Controller) tryUpdateClusterHealth(ctx context.Context, cluster *cluste
 	} else {
 		// If ready condition is not nil, make a copy of it, since we may modify it in place later.
 		observedReadyCondition = currentReadyCondition.DeepCopy()
-		gracePeriod = c.ClusterMonitorGracePeriod
 	}
 
 	// Step 3: Get the last condition and lease from `clusterHealth`.
