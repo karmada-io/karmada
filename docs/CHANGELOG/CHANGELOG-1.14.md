@@ -2,9 +2,9 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.14.0-alpha.2](#v1140-alpha2)
-  - [Downloads for v1.14.0-alpha.2](#downloads-for-v1140-alpha2)
-  - [Changelog since v1.14.0-alpha.1](#changelog-since-v1140-alpha1)
+- [v1.14.0-beta.0](#v1140-beta0)
+  - [Downloads for v1.14.0-beta.0](#downloads-for-v1140-beta0)
+  - [Changelog since v1.14.0-alpha.2](#changelog-since-v1140-alpha2)
   - [Urgent Update Notes](#urgent-update-notes)
   - [Changes by Kind](#changes-by-kind)
     - [API Changes](#api-changes)
@@ -17,9 +17,9 @@
     - [Helm Charts](#helm-charts)
     - [Instrumentation](#instrumentation)
     - [Performance](#performance)
-- [v1.14.0-alpha.1](#v1140-alpha1)
-  - [Downloads for v1.14.0-alpha.1](#downloads-for-v1140-alpha1)
-  - [Changelog since v1.13.0](#changelog-since-v1130)
+- [v1.14.0-alpha.2](#v1140-alpha2)
+  - [Downloads for v1.14.0-alpha.2](#downloads-for-v1140-alpha2)
+  - [Changelog since v1.14.0-alpha.1](#changelog-since-v1140-alpha1)
   - [Urgent Update Notes](#urgent-update-notes-1)
   - [Changes by Kind](#changes-by-kind-1)
     - [API Changes](#api-changes-1)
@@ -31,8 +31,67 @@
     - [Dependencies](#dependencies-1)
     - [Helm Charts](#helm-charts-1)
     - [Instrumentation](#instrumentation-1)
+    - [Performance](#performance-1)
+- [v1.14.0-alpha.1](#v1140-alpha1)
+  - [Downloads for v1.14.0-alpha.1](#downloads-for-v1140-alpha1)
+  - [Changelog since v1.13.0](#changelog-since-v1130)
+  - [Urgent Update Notes](#urgent-update-notes-2)
+  - [Changes by Kind](#changes-by-kind-2)
+    - [API Changes](#api-changes-2)
+    - [Features & Enhancements](#features--enhancements-2)
+    - [Deprecation](#deprecation-2)
+    - [Bug Fixes](#bug-fixes-2)
+    - [Security](#security-2)
+  - [Other](#other-2)
+    - [Dependencies](#dependencies-2)
+    - [Helm Charts](#helm-charts-2)
+    - [Instrumentation](#instrumentation-2)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.14.0-beta.0
+## Downloads for v1.14.0-beta.0
+
+Download v1.14.0-beta.0 in the [v1.14.0-beta.0 release page](https://github.com/karmada-io/karmada/releases/tag/v1.14.0-beta.0).
+
+## Changelog since v1.14.0-alpha.2
+
+## Urgent Update Notes
+None.
+
+## Changes by Kind
+
+### API Changes
+None.
+
+### Features & Enhancements
+None.
+
+### Deprecation
+None.
+
+### Bug Fixes
+- `karmada-search`: Fixed the proxy error with pb content type by explicitly suppressing PB serialization from karmada-search serverside. ([#6326](https://github.com/karmada-io/karmada/pull/6326), @ikaven1024)
+
+### Security
+- Change the listening address of karmada components to the POD IP address to avoid all-zero listening. ([#6266](https://github.com/karmada-io/karmada/issues/6266), @seanlaii, @XiShanYongYe-Chang)
+
+## Other
+### Dependencies
+- Kubernetes dependencies have been updated to v1.32.3. ([#6311](https://github.com/karmada-io/karmada/pull/6311), @RainbowMango)
+
+### Helm Charts
+None.
+
+### Instrumentation
+- `karmada-controller-manager`: Fixed the issue that the result label of `federatedhpa_pull_metrics_duration_seconds` is always `success`. ([#6303](https://github.com/karmada-io/karmada/pull/6303), @tangzhongren)
+
+### Performance
+- `karmada-controller-manager`: Significant performance improvements have been achieved by reducing deepcopy operations during list processes: ([#5813](https://github.com/karmada-io/karmada/pull/5813), @@CharlesQQ)
+  - Binding Controller: Response time reduced by 50%
+  - Dependencies Controller: Execution time improved 5× faster
+  - Detector Controller: Processing time cut by 50%
+- `karmada-controller-manager`: Now when karmada-controller-manager tries to update a resource to a member cluster, it will attempt to compare the contents to skip redundant update operations. The optimization significantly reduces the execution-controller by 80% during the controller start-up. ([#6150](https://github.com/karmada-io/karmada/pull/6150), @zach593)
 
 # v1.14.0-alpha.2
 ## Downloads for v1.14.0-alpha.2

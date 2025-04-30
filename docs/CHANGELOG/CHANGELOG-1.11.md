@@ -2,55 +2,61 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.11.8](#v1118)
-  - [Downloads for v1.11.8](#downloads-for-v1118)
-  - [Changelog since v1.11.7](#changelog-since-v1117)
+- [v1.11.9](#v1119)
+  - [Downloads for v1.11.9](#downloads-for-v1119)
+  - [Changelog since v1.11.8](#changelog-since-v1118)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
-- [v1.11.7](#v1117)
-  - [Downloads for v1.11.7](#downloads-for-v1117)
-  - [Changelog since v1.11.6](#changelog-since-v1116)
+- [v1.11.8](#v1118)
+  - [Downloads for v1.11.8](#downloads-for-v1118)
+  - [Changelog since v1.11.7](#changelog-since-v1117)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
-- [v1.11.6](#v1116)
-  - [Downloads for v1.11.6](#downloads-for-v1116)
-  - [Changelog since v1.11.5](#changelog-since-v1115)
+- [v1.11.7](#v1117)
+  - [Downloads for v1.11.7](#downloads-for-v1117)
+  - [Changelog since v1.11.6](#changelog-since-v1116)
     - [Changes by Kind](#changes-by-kind-2)
       - [Bug Fixes](#bug-fixes-2)
       - [Others](#others-2)
-- [v1.11.5](#v1115)
-  - [Downloads for v1.11.5](#downloads-for-v1115)
-  - [Changelog since v1.11.4](#changelog-since-v1114)
+- [v1.11.6](#v1116)
+  - [Downloads for v1.11.6](#downloads-for-v1116)
+  - [Changelog since v1.11.5](#changelog-since-v1115)
     - [Changes by Kind](#changes-by-kind-3)
       - [Bug Fixes](#bug-fixes-3)
       - [Others](#others-3)
+- [v1.11.5](#v1115)
+  - [Downloads for v1.11.5](#downloads-for-v1115)
+  - [Changelog since v1.11.4](#changelog-since-v1114)
+    - [Changes by Kind](#changes-by-kind-4)
+      - [Bug Fixes](#bug-fixes-4)
+      - [Others](#others-4)
 - [v1.11.4](#v1114)
   - [Downloads for v1.11.4](#downloads-for-v1114)
   - [Changelog since v1.11.3](#changelog-since-v1113)
-    - [Changes by Kind](#changes-by-kind-4)
+    - [Changes by Kind](#changes-by-kind-5)
       - [Urgent Upgrade Notes](#urgent-upgrade-notes)
-      - [Bug Fixes](#bug-fixes-4)
-      - [Others](#others-4)
+      - [Bug Fixes](#bug-fixes-5)
+      - [Others](#others-5)
 - [v1.11.3](#v1113)
   - [Downloads for v1.11.3](#downloads-for-v1113)
   - [Changelog since v1.11.2](#changelog-since-v1112)
-    - [Changes by Kind](#changes-by-kind-5)
-      - [Bug Fixes](#bug-fixes-5)
-      - [Others](#others-5)
-- [v1.11.2](#v1112)
-  - [Downloads for v1.11.2](#downloads-for-v1112)
-  - [Changelog since v1.11.1](#changelog-since-v1111)
     - [Changes by Kind](#changes-by-kind-6)
       - [Bug Fixes](#bug-fixes-6)
       - [Others](#others-6)
-- [v1.11.1](#v1111)
-  - [Downloads for v1.11.1](#downloads-for-v1111)
-  - [Changelog since v1.11.0](#changelog-since-v1110)
+- [v1.11.2](#v1112)
+  - [Downloads for v1.11.2](#downloads-for-v1112)
+  - [Changelog since v1.11.1](#changelog-since-v1111)
     - [Changes by Kind](#changes-by-kind-7)
       - [Bug Fixes](#bug-fixes-7)
       - [Others](#others-7)
+- [v1.11.1](#v1111)
+  - [Downloads for v1.11.1](#downloads-for-v1111)
+  - [Changelog since v1.11.0](#changelog-since-v1110)
+    - [Changes by Kind](#changes-by-kind-8)
+      - [Bug Fixes](#bug-fixes-8)
+      - [Others](#others-8)
 - [v1.11.0](#v1110)
   - [Downloads for v1.11.0](#downloads-for-v1110)
   - [What's New](#whats-new)
@@ -61,7 +67,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-8)
+    - [Bug Fixes](#bug-fixes-9)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -71,6 +77,22 @@
   - [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.11.9
+## Downloads for v1.11.9
+
+Download v1.11.9 in the [v1.11.9 release page](https://github.com/karmada-io/karmada/releases/tag/v1.11.9).
+
+## Changelog since v1.11.8
+### Changes by Kind
+#### Bug Fixes
+- `karmada-agent`: Fixed the issue where a new pull-mode cluster may overwrite the existing member clusters. ([#6262](https://github.com/karmada-io/karmada/pull/6262), @zhzhuang-zju)
+- `karmadactl`: Fixed the issue where option `discovery-timeout` fails to work properly. ([#6278](https://github.com/karmada-io/karmada/pull/6278), @seanlaii)
+- `karmada-controller-manager`: Fixed the issue that the result label of `federatedhpa_pull_metrics_duration_seconds` is always `success`. ([#6314](https://github.com/karmada-io/karmada/pull/6314), @tangzhongren)
+- `helm`: Fixed the issue where the required ServiceAccount was missing when the certificate mode was set to custom. ([#6240](https://github.com/karmada-io/karmada/pull/6240), @seanlaii)
+
+#### Others
+None.
 
 # v1.11.8
 ## Downloads for v1.11.8
