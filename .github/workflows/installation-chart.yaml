@@ -1,8 +1,8 @@
 # validate any chart changes under charts directory
 name: Chart
 env:
-  HELM_VERSION: v3.11.2
-  KUSTOMIZE_VERSION: 5.4.3
+  HELM_VERSION: v3.17.3
+  KUSTOMIZE_VERSION: 5.6.0
 on:
   push:
     # Exclude branches created by Dependabot to avoid triggering current workflow
