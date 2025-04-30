@@ -2,12 +2,18 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.13.1](#v1131)
-  - [Downloads for v1.13.1](#downloads-for-v1131)
-  - [Changelog since v1.13.0](#changelog-since-v1130)
+- [v1.13.2](#v1132)
+  - [Downloads for v1.13.2](#downloads-for-v1132)
+  - [Changelog since v1.13.1](#changelog-since-v1131)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
+- [v1.13.1](#v1131)
+  - [Downloads for v1.13.1](#downloads-for-v1131)
+  - [Changelog since v1.13.0](#changelog-since-v1130)
+    - [Changes by Kind](#changes-by-kind-1)
+      - [Bug Fixes](#bug-fixes-1)
+      - [Others](#others-1)
 - [v1.13.0](#v1130)
   - [Downloads for v1.13.0](#downloads-for-v1130)
   - [Urgent Update Notes](#urgent-update-notes)
@@ -20,7 +26,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-1)
+    - [Bug Fixes](#bug-fixes-2)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -32,11 +38,11 @@
   - [Downloads for v1.13.0-rc.0](#downloads-for-v1130-rc0)
   - [Changelog since v1.13.0-beta.0](#changelog-since-v1130-beta0)
   - [Urgent Update Notes](#urgent-update-notes-1)
-  - [Changes by Kind](#changes-by-kind-1)
+  - [Changes by Kind](#changes-by-kind-2)
     - [API Changes](#api-changes-1)
     - [Features & Enhancements](#features--enhancements-1)
     - [Deprecation](#deprecation-1)
-    - [Bug Fixes](#bug-fixes-2)
+    - [Bug Fixes](#bug-fixes-3)
     - [Security](#security-1)
   - [Other](#other-1)
     - [Dependencies](#dependencies-1)
@@ -46,11 +52,11 @@
   - [Downloads for v1.13.0-beta.0](#downloads-for-v1130-beta0)
   - [Changelog since v1.13.0-alpha.2](#changelog-since-v1130-alpha2)
   - [Urgent Update Notes](#urgent-update-notes-2)
-  - [Changes by Kind](#changes-by-kind-2)
+  - [Changes by Kind](#changes-by-kind-3)
     - [API Changes](#api-changes-2)
     - [Features & Enhancements](#features--enhancements-2)
     - [Deprecation](#deprecation-2)
-    - [Bug Fixes](#bug-fixes-3)
+    - [Bug Fixes](#bug-fixes-4)
     - [Security](#security-2)
   - [Other](#other-2)
     - [Dependencies](#dependencies-2)
@@ -60,11 +66,11 @@
   - [Downloads for v1.13.0-alpha.2](#downloads-for-v1130-alpha2)
   - [Changelog since v1.13.0-alpha.1](#changelog-since-v1130-alpha1)
   - [Urgent Update Notes](#urgent-update-notes-3)
-  - [Changes by Kind](#changes-by-kind-3)
+  - [Changes by Kind](#changes-by-kind-4)
     - [API Changes](#api-changes-3)
     - [Features & Enhancements](#features--enhancements-3)
     - [Deprecation](#deprecation-3)
-    - [Bug Fixes](#bug-fixes-4)
+    - [Bug Fixes](#bug-fixes-5)
     - [Security](#security-3)
   - [Other](#other-3)
     - [Dependencies](#dependencies-3)
@@ -74,11 +80,11 @@
   - [Downloads for v1.13.0-alpha.1](#downloads-for-v1130-alpha1)
   - [Changelog since v1.12.0](#changelog-since-v1120)
   - [Urgent Update Notes](#urgent-update-notes-4)
-  - [Changes by Kind](#changes-by-kind-4)
+  - [Changes by Kind](#changes-by-kind-5)
     - [API Changes](#api-changes-4)
     - [Features & Enhancements](#features--enhancements-4)
     - [Deprecation](#deprecation-4)
-    - [Bug Fixes](#bug-fixes-5)
+    - [Bug Fixes](#bug-fixes-6)
     - [Security](#security-4)
   - [Other](#other-4)
     - [Dependencies](#dependencies-4)
@@ -86,6 +92,22 @@
     - [Instrumentation](#instrumentation-4)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.13.2
+## Downloads for v1.13.2
+
+Download v1.13.2 in the [v1.13.2 release page](https://github.com/karmada-io/karmada/releases/tag/v1.13.2).
+
+## Changelog since v1.13.1
+### Changes by Kind
+#### Bug Fixes
+- `karmada-agent`: Fixed the issue where a new pull-mode cluster may overwrite the existing member clusters. ([#6259](https://github.com/karmada-io/karmada/pull/6259), @zhzhuang-zju)
+- `karmadactl`: Fixed the issue where option `discovery-timeout` fails to work properly. ([#6280](https://github.com/karmada-io/karmada/pull/6280), @seanlaii)
+- `karmada-controller-manager`: Fixed the issue that the result label of `federatedhpa_pull_metrics_duration_seconds` is always `success`. ([#6312](https://github.com/karmada-io/karmada/pull/6312), @tangzhongren)
+- `karmada-controller-manager`/`karmada-agent`: Fixed the issue that cluster status update interval shorter than configured `--cluster-status-update-frequency`. ([#6335](https://github.com/karmada-io/karmada/pull/6335), @RainbowMango)
+
+#### Others
+None.
 
 # v1.13.1
 ## Downloads for v1.13.1
