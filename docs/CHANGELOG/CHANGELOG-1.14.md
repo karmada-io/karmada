@@ -71,7 +71,8 @@ None.
 None.
 
 ### Bug Fixes
-- `karmada-search`: Fixed the proxy error with pb content type by explicitly suppressing PB serialization from karmada-search serverside. ([#6326](https://github.com/karmada-io/karmada/pull/6326), @ikaven1024)
+- `karmada-controller-manager`/`karmada-agent`: Fixed the issue that cluster status update interval shorter than configured `--cluster-status-update-frequency`. ([#6284](https://github.com/karmada-io/karmada/pull/6284), @LivingCcj)
+- `karmada-search`: Suppress protocol buffer serialization explicitly from the server side.  ([#6326](https://github.com/karmada-io/karmada/pull/6326), @ikaven1024)
 
 ### Security
 - Change the listening address of karmada components to the POD IP address to avoid all-zero listening. ([#6266](https://github.com/karmada-io/karmada/issues/6266), @seanlaii, @XiShanYongYe-Chang)

@@ -89,6 +89,7 @@ Download v1.11.9 in the [v1.11.9 release page](https://github.com/karmada-io/kar
 - `karmada-agent`: Fixed the issue where a new pull-mode cluster may overwrite the existing member clusters. ([#6262](https://github.com/karmada-io/karmada/pull/6262), @zhzhuang-zju)
 - `karmadactl`: Fixed the issue where option `discovery-timeout` fails to work properly. ([#6278](https://github.com/karmada-io/karmada/pull/6278), @seanlaii)
 - `karmada-controller-manager`: Fixed the issue that the result label of `federatedhpa_pull_metrics_duration_seconds` is always `success`. ([#6314](https://github.com/karmada-io/karmada/pull/6314), @tangzhongren)
+- `karmada-controller-manager`/`karmada-agent`: Fixed the issue that cluster status update interval shorter than configured `--cluster-status-update-frequency`. ([#6337](https://github.com/karmada-io/karmada/pull/6337), @RainbowMango)
 - `helm`: Fixed the issue where the required ServiceAccount was missing when the certificate mode was set to custom. ([#6240](https://github.com/karmada-io/karmada/pull/6240), @seanlaii)
 
 #### Others
