@@ -1821,7 +1821,7 @@ sigs.k8s.io/controller-runtime/pkg/webhook/admission
 sigs.k8s.io/controller-runtime/pkg/webhook/admission/metrics
 sigs.k8s.io/controller-runtime/pkg/webhook/conversion
 sigs.k8s.io/controller-runtime/pkg/webhook/internal/metrics
-# sigs.k8s.io/custom-metrics-apiserver v1.30.1-0.20250418033306-136db5499fe7
+# sigs.k8s.io/custom-metrics-apiserver v1.32.0
 ## explicit; go 1.23.0
 sigs.k8s.io/custom-metrics-apiserver/pkg/apiserver
 sigs.k8s.io/custom-metrics-apiserver/pkg/apiserver/endpoints/handlers
