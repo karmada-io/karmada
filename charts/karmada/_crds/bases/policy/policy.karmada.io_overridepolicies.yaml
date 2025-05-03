@@ -353,6 +353,23 @@ spec:
                                   Value to be applied to target field.
                                   Must be empty when operator is Remove.
                                 x-kubernetes-preserve-unknown-fields: true
+                              valueFrom:
+                                description: ValueFrom Source for the PlaintextOverrider's
+                                  value. Cannot be used if value is not empty. Must
+                                  be empty when operator is Remove.
+                                properties:
+                                  fieldRef:
+                                    description: FieldRef Selects a field of the resources.
+                                    properties:
+                                      fieldPath:
+                                        description: FieldPath Path of the field to
+                                          select in the specified API version.
+                                        minLength: 1
+                                        type: string
+                                    required:
+                                    - fieldPath
+                                    type: object
+                                type: object
                             required:
                             - operator
                             - path
@@ -774,6 +791,23 @@ spec:
                             Value to be applied to target field.
                             Must be empty when operator is Remove.
                           x-kubernetes-preserve-unknown-fields: true
+                        valueFrom:
+                          description: ValueFrom Source for the PlaintextOverrider's
+                            value. Cannot be used if value is not empty. Must be empty
+                            when operator is Remove.
+                          properties:
+                            fieldRef:
+                              description: FieldRef Selects a field of the resources.
+                              properties:
+                                fieldPath:
+                                  description: FieldPath Path of the field to select
+                                    in the specified API version.
+                                  minLength: 1
+                                  type: string
+                              required:
+                              - fieldPath
+                              type: object
+                          type: object
                       required:
                       - operator
                       - path
