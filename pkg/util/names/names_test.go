@@ -170,13 +170,13 @@ func TestGenerateBindingName(t *testing.T) {
 			testCase: "clusterRole kind resource",
 			kind:     "ClusterRole",
 			name:     "system::tom",
-			expect:   "system..tom-clusterrole",
+			expect:   "system.tom-clusterrole",
 		},
 		{
 			testCase: "roleBinding kind resource",
 			kind:     "RoleBinding",
 			name:     "system::tt:tom",
-			expect:   "system..tt.tom-rolebinding",
+			expect:   "system.tt.tom-rolebinding",
 		},
 		{
 			testCase: "clusterRoleBinding kind resource",
