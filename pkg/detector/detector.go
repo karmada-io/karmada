@@ -332,17 +332,15 @@ func (d *ResourceDetector) OnUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
+	if !eventfilter.SpecificationChanged(unstructuredOldObj, unstructuredNewObj) {
+		klog.V(4).Infof("Ignore update event of object (kind=%s, %s/%s) as specification no change", unstructuredOldObj.GetKind(), unstructuredOldObj.GetNamespace(), unstructuredOldObj.GetName())
+		return
+	}
 	newRuntimeObj, ok := newObj.(runtime.Object)
 	if !ok {
 		klog.Errorf("Failed to assert newObj as runtime.Object")
 		return
 	}
-
-	if !eventfilter.SpecificationChanged(unstructuredOldObj, unstructuredNewObj) {
-		klog.V(4).Infof("Ignore update event of object (kind=%s, %s/%s) as specification no change", unstructuredOldObj.GetKind(), unstructuredOldObj.GetNamespace(), unstructuredOldObj.GetName())
-		return
-	}
-
 	resourceChangeByKarmada := eventfilter.ResourceChangeByKarmada(unstructuredOldObj, unstructuredNewObj)
 
 	resourceItem := ResourceItem{
