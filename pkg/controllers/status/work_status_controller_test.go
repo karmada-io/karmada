@@ -735,7 +735,7 @@ func newWorkStatusController(cluster *clusterv1alpha1.Cluster, dynamicClientSets
 
 	if len(dynamicClientSets) > 0 {
 		c.ResourceInterpreter = FakeResourceInterpreter{DefaultInterpreter: native.NewDefaultInterpreter()}
-		c.ObjectWatcher = objectwatcher.NewObjectWatcher(c.Client, c.RESTMapper, util.NewClusterDynamicClientSetForAgent, c.ResourceInterpreter)
+		c.ObjectWatcher = objectwatcher.NewObjectWatcher(c.Client, c.RESTMapper, util.NewClusterDynamicClientSetForAgent, nil, c.ResourceInterpreter)
 
 		// Generate InformerManager
 		clusterName := cluster.Name

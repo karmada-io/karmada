@@ -199,7 +199,7 @@ func newClusterClientSet(controlPlaneClient client.Client, c *clusterv1alpha1.Cl
 		if err != nil {
 			return nil, nil, err
 		}
-		clusterDynamicClient, err := util.NewClusterDynamicClientSet(c.Name, controlPlaneClient)
+		clusterDynamicClient, err := util.NewClusterDynamicClientSet(c.Name, controlPlaneClient, nil)
 		if err != nil {
 			return nil, nil, err
 		}

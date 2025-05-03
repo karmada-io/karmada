@@ -71,7 +71,8 @@ type WorkStatusController struct {
 	ConcurrentWorkStatusSyncs   int
 	ObjectWatcher               objectwatcher.ObjectWatcher
 	PredicateFunc               predicate.Predicate
-	ClusterDynamicClientSetFunc func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
+	ClusterDynamicClientSetFunc util.NewClusterDynamicClientSetFunc
+	ClusterClientOption         *util.ClientOption
 	ClusterCacheSyncTimeout     metav1.Duration
 	RateLimiterOptions          ratelimiterflag.Options
 	ResourceInterpreter         resourceinterpreter.ResourceInterpreter
@@ -530,7 +531,7 @@ func (c *WorkStatusController) getSingleClusterManager(cluster *clusterv1alpha1.
 	//  the cache in informer manager should be updated.
 	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(cluster.Name)
 	if singleClusterInformerManager == nil {
-		dynamicClusterClient, err := c.ClusterDynamicClientSetFunc(cluster.Name, c.Client)
+		dynamicClusterClient, err := c.ClusterDynamicClientSetFunc(cluster.Name, c.Client, c.ClusterClientOption)
 		if err != nil {
 			klog.Errorf("Failed to build dynamic cluster client for cluster %s.", cluster.Name)
 			return nil, err

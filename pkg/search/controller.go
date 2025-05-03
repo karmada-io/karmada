@@ -352,7 +352,8 @@ func (c *Controller) getRegistryBackendHandler(cluster string, matchedRegistries
 }
 
 var clusterDynamicClientBuilder = func(cluster string, controlPlaneClient client.Client) (*util.DynamicClusterClient, error) {
-	return util.NewClusterDynamicClientSet(cluster, controlPlaneClient)
+	// TODO: Add "--cluster-api-qps" and "--cluster-api-burst" flags to karmada-search and pass them via clientOption， instead of passing a "nil" here
+	return util.NewClusterDynamicClientSet(cluster, controlPlaneClient, nil)
 }
 
 // doCacheCluster processes the resourceRegistry object
