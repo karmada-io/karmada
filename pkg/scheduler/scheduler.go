@@ -795,7 +795,7 @@ func (s *Scheduler) handleErr(err error, bindingInfo *internalqueue.QueuedBindin
 	}
 
 	var unschedulableErr *framework.UnschedulableError
-	if !errors.As(err, &unschedulableErr) {
+	if errors.As(err, &unschedulableErr) {
 		s.priorityQueue.PushUnschedulableIfNotPresent(bindingInfo)
 	} else {
 		s.priorityQueue.PushBackoffIfNotPresent(bindingInfo)
