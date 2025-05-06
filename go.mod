@@ -18,8 +18,8 @@ require (
 	github.com/onsi/ginkgo/v2 v2.22.0
 	github.com/onsi/gomega v1.36.1
 	github.com/opensearch-project/opensearch-go v1.1.0
-	github.com/prometheus/client_golang v1.19.1
-	github.com/prometheus/common v0.55.0
+	github.com/prometheus/client_golang v1.20.5
+	github.com/prometheus/common v0.57.0
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.6
 	github.com/stretchr/testify v1.10.0
@@ -59,7 +59,7 @@ require (
 	sigs.k8s.io/custom-metrics-apiserver v1.32.0
 	sigs.k8s.io/kind v0.25.0
 	sigs.k8s.io/mcs-api v0.1.0
-	sigs.k8s.io/metrics-server v0.7.1-0.20240906155142-bb44be145648
+	sigs.k8s.io/metrics-server v0.7.1-0.20250423033541-8049c0b5d76e
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.2
 	sigs.k8s.io/yaml v1.4.0
 )
@@ -116,7 +116,9 @@ require (
 	github.com/jonboulle/clockwork v0.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/kr/text v0.2.0 // indirect
+	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
