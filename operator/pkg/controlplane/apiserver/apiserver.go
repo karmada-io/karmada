@@ -111,6 +111,11 @@ func createKarmadaAPIServerService(client clientset.Interface, cfg *operatorv1al
 	// merge annotations with configuration of karmada apiserver.
 	karmadaApiserverService.Annotations = labels.Merge(karmadaApiserverService.Annotations, cfg.ServiceAnnotations)
 
+	// Set LoadBalancerClass if ServiceType is LoadBalancer and LoadBalancerClass is specified
+	if karmadaApiserverService.Spec.Type == corev1.ServiceTypeLoadBalancer && cfg.LoadBalancerClass != nil {
+		karmadaApiserverService.Spec.LoadBalancerClass = cfg.LoadBalancerClass
+	}
+
 	if err := apiclient.CreateOrUpdateService(client, karmadaApiserverService); err != nil {
 		return fmt.Errorf("err when creating service for %s, err: %w", karmadaApiserverService.Name, err)
 	}

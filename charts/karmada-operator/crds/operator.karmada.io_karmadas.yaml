@@ -2493,6 +2493,17 @@ spec:
                           and services.
                           More info: http://kubernetes.io/docs/user-guide/labels
                         type: object
+                      loadBalancerClass:
+                        description: |-
+                          LoadBalancerClass specifies the load balancer implementation class for the Karmada API server.
+                          This field is applicable only when ServiceType is set to LoadBalancer.
+                          If specified, the service will be processed by the load balancer implementation that matches the specified class.
+                          By default, this is not set and the LoadBalancer type of Service uses the cloud provider's default load balancer
+                          implementation.
+                          Once set, it cannot be changed. The value must be a label-style identifier, with an optional prefix such as
+                          "internal-vip" or "example.com/internal-vip".
+                          More info: https://kubernetes.io/docs/concepts/services-networking/service/#load-balancer-class
+                        type: string
                       priorityClassName:
                         default: system-node-critical
                         description: |-

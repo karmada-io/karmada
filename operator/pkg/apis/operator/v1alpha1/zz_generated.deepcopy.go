@@ -306,6 +306,11 @@ func (in *KarmadaAPIServer) DeepCopyInto(out *KarmadaAPIServer) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.LoadBalancerClass != nil {
+		in, out := &in.LoadBalancerClass, &out.LoadBalancerClass
+		*out = new(string)
+		**out = **in
+	}
 	if in.ServiceAnnotations != nil {
 		in, out := &in.ServiceAnnotations, &out.ServiceAnnotations
 		*out = make(map[string]string, len(*in))
