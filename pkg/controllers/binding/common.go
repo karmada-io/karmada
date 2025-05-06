@@ -21,6 +21,7 @@ import (
 	"strconv"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/errors"
@@ -39,7 +40,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // ensureWork ensure Work to be created or updated.
@@ -136,10 +136,9 @@ func ensureWork(
 		); err != nil {
 			if apierrors.IsAlreadyExists(err) {
 				klog.V(4).Infof("Work %s/%s already exists, skipping update", workMeta.Namespace, workMeta.Name)
-				continue
+			} else {
+				errs = append(errs, err)
 			}
-			errs = append(errs, err)
-			continue
 		}
 	}
 	if len(errs) > 0 {
