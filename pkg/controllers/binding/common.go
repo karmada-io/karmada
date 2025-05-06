@@ -39,6 +39,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // ensureWork ensure Work to be created or updated.
@@ -133,6 +134,10 @@ func ensureWork(
 			ctrlutil.WithSuspendDispatching(shouldSuspendDispatching(bindingSpec.Suspension, targetCluster)),
 			ctrlutil.WithPreserveResourcesOnDeletion(ptr.Deref(bindingSpec.PreserveResourcesOnDeletion, false)),
 		); err != nil {
+			if apierrors.IsAlreadyExists(err) {
+				klog.V(4).Infof("Work %s/%s already exists, skipping update", workMeta.Namespace, workMeta.Name)
+				continue
+			}
 			errs = append(errs, err)
 			continue
 		}
