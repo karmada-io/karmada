@@ -2493,6 +2493,15 @@ spec:
                           and services.
                           More info: http://kubernetes.io/docs/user-guide/labels
                         type: object
+                      loadBalancerClass:
+                        description: |-
+                          LoadBalancerClass specifies the class of load balancer implementation to use for the service.
+                          This field is applicable only when serviceType is set to LoadBalancer.
+                          If specified, the value of this field must correspond to the name of a LoadBalancerClass resource that has been defined in the cluster.
+                          If not specified and a default LoadBalancerClass exists, the default class will be used.
+                          If not specified and there is no default LoadBalancerClass, the behavior depends on the cloud provider.
+                          More info: https://kubernetes.io/docs/concepts/services-networking/service/#load-balancer-class
+                        type: string
                       priorityClassName:
                         default: system-node-critical
                         description: |-

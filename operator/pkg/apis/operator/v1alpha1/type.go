@@ -312,6 +312,15 @@ type KarmadaAPIServer struct {
 	// +optional
 	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`
 
+	// LoadBalancerClass specifies the class of load balancer implementation to use for the service.
+	// This field is applicable only when serviceType is set to LoadBalancer.
+	// If specified, the value of this field must correspond to the name of a LoadBalancerClass resource that has been defined in the cluster.
+	// If not specified and a default LoadBalancerClass exists, the default class will be used.
+	// If not specified and there is no default LoadBalancerClass, the behavior depends on the cloud provider.
+	// More info: https://kubernetes.io/docs/concepts/services-networking/service/#load-balancer-class
+	// +optional
+	LoadBalancerClass *string `json:"loadBalancerClass,omitempty"`
+
 	// ServiceAnnotations is an extra set of annotations for service of karmada apiserver.
 	// more info: https://github.com/karmada-io/karmada/issues/4634
 	// +optional
