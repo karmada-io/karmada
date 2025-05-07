@@ -58,9 +58,16 @@ type FederatedResourceQuotaSpec struct {
 	// +required
 	Overall corev1.ResourceList `json:"overall"`
 
-	// StaticAssignments represents the subset of desired hard limits for each cluster.
-	// Note: for clusters not present in this list, Karmada will set an empty ResourceQuota to them, which means these
-	// clusters will have no quotas in the referencing namespace.
+	// StaticAssignments specifies ResourceQuota settings for specific clusters.
+	// If non-empty, Karmada will create ResourceQuotas in the corresponding clusters.
+	// Clusters not listed here or when StaticAssignments is empty will have no ResourceQuotas created.
+	//
+	// This field addresses multi-cluster configuration management challenges by allowing centralized
+	// control over ResourceQuotas across clusters.
+	//
+	// Note: The Karmada scheduler currently does NOT use this configuration for scheduling decisions.
+	// Future updates may integrate it into the scheduling logic.
+	//
 	// +optional
 	StaticAssignments []StaticClusterAssignment `json:"staticAssignments,omitempty"`
 
