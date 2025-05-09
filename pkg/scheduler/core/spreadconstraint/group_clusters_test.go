@@ -69,7 +69,9 @@ func Test_GroupClustersWithScore(t *testing.T) {
 			args: args{
 				clustersScore: generateClusterScore(),
 				placement:     &policyv1alpha1.Placement{},
-				spec:          &workv1alpha2.ResourceBindingSpec{},
+				spec: &workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{},
+				},
 			},
 			want: want{
 				clusters: []string{"member4", "member2", "member3", "member1"},
@@ -88,7 +90,9 @@ func Test_GroupClustersWithScore(t *testing.T) {
 						},
 					},
 				},
-				spec: &workv1alpha2.ResourceBindingSpec{},
+				spec: &workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{},
+				},
 			},
 			want: want{
 				clusters: []string{"member4", "member2", "member3", "member1"},
@@ -107,7 +111,9 @@ func Test_GroupClustersWithScore(t *testing.T) {
 						},
 					},
 				},
-				spec: &workv1alpha2.ResourceBindingSpec{},
+				spec: &workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{},
+				},
 			},
 			want: want{
 				clusters: []string{"member4", "member2", "member3", "member1"},
@@ -127,7 +133,9 @@ func Test_GroupClustersWithScore(t *testing.T) {
 						},
 					},
 				},
-				spec: &workv1alpha2.ResourceBindingSpec{},
+				spec: &workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{},
+				},
 			},
 			want: want{
 				clusters:  []string{"member4", "member2", "member3", "member1"},
@@ -147,7 +155,9 @@ func Test_GroupClustersWithScore(t *testing.T) {
 						},
 					},
 				},
-				spec: &workv1alpha2.ResourceBindingSpec{},
+				spec: &workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{},
+				},
 			},
 			want: want{
 				clusters:    []string{"member4", "member2", "member3", "member1"},
@@ -177,7 +187,9 @@ func Test_GroupClustersWithScore(t *testing.T) {
 						},
 					},
 				},
-				spec: &workv1alpha2.ResourceBindingSpec{},
+				spec: &workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{},
+				},
 			},
 			want: want{
 				clusters:    []string{"member4", "member2", "member3", "member1"},
