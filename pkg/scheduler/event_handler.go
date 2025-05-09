@@ -332,6 +332,12 @@ func (s *Scheduler) enqueueAffectedBindings(cluster *clusterv1alpha1.Cluster) er
 			// never reach here
 			continue
 		}
+		if !schedulerNameFilter(s.schedulerName, binding.Spec.SchedulerName) {
+			continue
+		}
+		if binding.Spec.SchedulingSuspended() {
+			continue
+		}
 
 		var affinity *policyv1alpha1.ClusterAffinity
 		if placementPtr.ClusterAffinities != nil {
@@ -340,9 +346,7 @@ func (s *Scheduler) enqueueAffectedBindings(cluster *clusterv1alpha1.Cluster) er
 				// for scheduling or its status has not been synced to the
 				// cache. Just enqueue the binding to avoid missing the cluster
 				// update event.
-				if schedulerNameFilter(s.schedulerName, binding.Spec.SchedulerName) {
-					s.onResourceBindingRequeue(binding, metrics.ClusterChanged)
-				}
+				s.onResourceBindingRequeue(binding, metrics.ClusterChanged)
 				continue
 			}
 			affinityIndex := getAffinityIndex(placementPtr.ClusterAffinities, binding.Status.SchedulerObservedAffinityName)
@@ -357,9 +361,7 @@ func (s *Scheduler) enqueueAffectedBindings(cluster *clusterv1alpha1.Cluster) er
 			fallthrough
 		case util.ClusterMatches(cluster, *affinity):
 			// If the cluster manifest match the affinity, add it to the queue, trigger rescheduling
-			if schedulerNameFilter(s.schedulerName, binding.Spec.SchedulerName) {
-				s.onResourceBindingRequeue(binding, metrics.ClusterChanged)
-			}
+			s.onResourceBindingRequeue(binding, metrics.ClusterChanged)
 		}
 	}
 
@@ -377,6 +379,12 @@ func (s *Scheduler) enqueueAffectedCRBs(cluster *clusterv1alpha1.Cluster) error 
 			// never reach here
 			continue
 		}
+		if !schedulerNameFilter(s.schedulerName, binding.Spec.SchedulerName) {
+			continue
+		}
+		if binding.Spec.SchedulingSuspended() {
+			continue
+		}
 
 		var affinity *policyv1alpha1.ClusterAffinity
 		if placementPtr.ClusterAffinities != nil {
@@ -385,9 +393,7 @@ func (s *Scheduler) enqueueAffectedCRBs(cluster *clusterv1alpha1.Cluster) error 
 				// for scheduling or its status has not been synced to the
 				// cache. Just enqueue the binding to avoid missing the cluster
 				// update event.
-				if schedulerNameFilter(s.schedulerName, binding.Spec.SchedulerName) {
-					s.onClusterResourceBindingRequeue(binding, metrics.ClusterChanged)
-				}
+				s.onClusterResourceBindingRequeue(binding, metrics.ClusterChanged)
 				continue
 			}
 			affinityIndex := getAffinityIndex(placementPtr.ClusterAffinities, binding.Status.SchedulerObservedAffinityName)
@@ -402,9 +408,7 @@ func (s *Scheduler) enqueueAffectedCRBs(cluster *clusterv1alpha1.Cluster) error 
 			fallthrough
 		case util.ClusterMatches(cluster, *affinity):
 			// If the cluster manifest match the affinity, add it to the queue, trigger rescheduling
-			if schedulerNameFilter(s.schedulerName, binding.Spec.SchedulerName) {
-				s.onClusterResourceBindingRequeue(binding, metrics.ClusterChanged)
-			}
+			s.onClusterResourceBindingRequeue(binding, metrics.ClusterChanged)
 		}
 	}
 
