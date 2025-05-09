@@ -120,6 +120,12 @@ type KarmadaSpec struct {
 	// Currently, it only supports customizing the CA certificate for limited components.
 	// +optional
 	CustomCertificate *CustomCertificate `json:"customCertificate,omitempty"`
+
+	// Suspend indicates that the operator should suspend reconciliation
+	// for this Karmada control plane and all its managed resources.
+	// Karmada instances for which this field is not explicitly set to `true` will continue to be reconciled as usual.
+	// +optional
+	Suspend *bool `json:"suspend,omitempty"`
 }
 
 // CustomCertificate holds the configuration for generating the certificate.

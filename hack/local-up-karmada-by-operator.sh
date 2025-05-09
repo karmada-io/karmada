@@ -56,6 +56,7 @@ source "${REPO_ROOT}"/hack/util.sh
 KARMADA_SYSTEM_NAMESPACE="karmada-system"
 
 # variable define
+export COPYFILE_DISABLE=1
 export KUBECONFIG_PATH=${KUBECONFIG_PATH:-"${HOME}/.kube"}
 export MAIN_KUBECONFIG=${MAIN_KUBECONFIG:-"${KUBECONFIG_PATH}/karmada.config"}
 export HOST_CLUSTER_NAME=${HOST_CLUSTER_NAME:-"karmada-host"}
