@@ -160,6 +160,7 @@ func (ctrl *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 			builder.WithPredicates(predicate.Funcs{
 				UpdateFunc: ctrl.onKarmadaUpdate,
 			})).
+		WithEventFilter(skipIfPaused()).
 		Complete(ctrl)
 }
 
@@ -176,4 +177,12 @@ func (ctrl *Controller) onKarmadaUpdate(updateEvent event.UpdateEvent) bool {
 	}
 
 	return !reflect.DeepEqual(newObj.Spec, oldObj.Spec)
+}
+
+// skipIfPaused filters reconciliation of Karmada instances that have been paused.
+func skipIfPaused() predicate.Predicate {
+	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
+		karmada := obj.(*operatorv1alpha1.Karmada)
+		return !karmada.Spec.Paused
+	})
 }

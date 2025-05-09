@@ -5278,6 +5278,11 @@ spec:
                         type: string
                     type: object
                 type: object
+              paused:
+                description: |-
+                  Paused specifies that the operator should suspend reconciliation
+                  for this Karmada instance and all its managed resources.
+                type: boolean
               privateRegistry:
                 description: |-
                   PrivateRegistry is the global image registry.
