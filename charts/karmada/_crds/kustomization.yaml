@@ -3,6 +3,7 @@ resources:
 - bases/multicluster/multicluster.x-k8s.io_serviceimports.yaml
 - bases/policy/policy.karmada.io_clusteroverridepolicies.yaml
 - bases/policy/policy.karmada.io_clusterpropagationpolicies.yaml
+- bases/policy/policy.karmada.io_clustertaintpolicies.yaml
 - bases/policy/policy.karmada.io_federatedresourcequotas.yaml
 - bases/policy/policy.karmada.io_overridepolicies.yaml
 - bases/policy/policy.karmada.io_propagationpolicies.yaml

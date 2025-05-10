@@ -36,6 +36,10 @@ func (c *FakePolicyV1alpha1) ClusterPropagationPolicies() v1alpha1.ClusterPropag
 	return newFakeClusterPropagationPolicies(c)
 }
 
+func (c *FakePolicyV1alpha1) ClusterTaintPolicies() v1alpha1.ClusterTaintPolicyInterface {
+	return &FakeClusterTaintPolicies{c}
+}
+
 func (c *FakePolicyV1alpha1) FederatedResourceQuotas(namespace string) v1alpha1.FederatedResourceQuotaInterface {
 	return newFakeFederatedResourceQuotas(c, namespace)
 }
