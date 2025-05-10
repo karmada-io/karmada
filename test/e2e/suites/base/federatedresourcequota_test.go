@@ -23,6 +23,7 @@ import (
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -77,39 +78,65 @@ var _ = framework.SerialDescribe("FederatedResourceQuota auto-provision testing"
 	})
 
 	framework.SerialContext("join new cluster", ginkgo.Labels{NeedCreateCluster}, func() {
-		var clusterName string
+		var clusterNameInStaticAssignment string
+		var clusterNameNotInStaticAssignment string
 		var homeDir string
-		var kubeConfigPath string
-		var controlPlane string
-		var clusterContext string
+		var kubeConfigPathInStaticAssignment string
+		var kubeConfigPathNotInStaticAssignment string
+		var controlPlaneInStaticAssignment string
+		var controlPlaneNotInStaticAssignment string
+		var clusterContextInStaticAssignment string
+		var clusterContextNotInStaticAssignment string
 
 		ginkgo.BeforeEach(func() {
-			clusterName = "member-e2e-" + rand.String(RandomStrLength)
+			clusterNameInStaticAssignment = "member-e2e-" + rand.String(RandomStrLength)
+			clusterNameNotInStaticAssignment = "member-e2e-" + rand.String(RandomStrLength)
 			homeDir = os.Getenv("HOME")
-			kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, clusterName)
-			controlPlane = fmt.Sprintf("%s-control-plane", clusterName)
-			clusterContext = fmt.Sprintf("kind-%s", clusterName)
+			kubeConfigPathInStaticAssignment = fmt.Sprintf("%s/.kube/%s.config", homeDir, clusterNameInStaticAssignment)
+			kubeConfigPathNotInStaticAssignment = fmt.Sprintf("%s/.kube/%s.config", homeDir, clusterNameNotInStaticAssignment)
+			controlPlaneInStaticAssignment = fmt.Sprintf("%s-control-plane", clusterNameInStaticAssignment)
+			controlPlaneNotInStaticAssignment = fmt.Sprintf("%s-control-plane", clusterNameNotInStaticAssignment)
+			clusterContextInStaticAssignment = fmt.Sprintf("kind-%s", clusterNameInStaticAssignment)
+			clusterContextNotInStaticAssignment = fmt.Sprintf("kind-%s", clusterNameNotInStaticAssignment)
 		})
 
 		ginkgo.BeforeEach(func() {
+			clusterNames := append(framework.ClusterNames(), clusterNameInStaticAssignment)
+			federatedResourceQuota = helper.NewFederatedResourceQuota(frqNamespace, frqName, clusterNames)
 			framework.CreateFederatedResourceQuota(karmadaClient, federatedResourceQuota)
 		})
 
 		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("Creating cluster: %s", clusterName), func() {
-				err := createCluster(clusterName, kubeConfigPath, controlPlane, clusterContext)
+			ginkgo.By(fmt.Sprintf("Creating cluster: %s", clusterNameInStaticAssignment), func() {
+				err := createCluster(clusterNameInStaticAssignment, kubeConfigPathInStaticAssignment, controlPlaneInStaticAssignment, clusterContextInStaticAssignment)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+			ginkgo.By(fmt.Sprintf("Creating cluster: %s", clusterNameNotInStaticAssignment), func() {
+				err := createCluster(clusterNameNotInStaticAssignment, kubeConfigPathNotInStaticAssignment, controlPlaneNotInStaticAssignment, clusterContextNotInStaticAssignment)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 		})
 
 		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("Unjoinning cluster: %s", clusterName), func() {
+			ginkgo.By(fmt.Sprintf("Unjoinning cluster: %s", clusterNameInStaticAssignment), func() {
 				opts := unjoin.CommandUnjoinOption{
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
-					ClusterName:       clusterName,
-					ClusterContext:    clusterContext,
-					ClusterKubeConfig: kubeConfigPath,
+					ClusterName:       clusterNameInStaticAssignment,
+					ClusterContext:    clusterContextInStaticAssignment,
+					ClusterKubeConfig: kubeConfigPathInStaticAssignment,
+					Wait:              5 * options.DefaultKarmadactlCommandDuration,
+				}
+				err := opts.Run(f)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+			ginkgo.By(fmt.Sprintf("Unjoinning cluster: %s", clusterNameNotInStaticAssignment), func() {
+				opts := unjoin.CommandUnjoinOption{
+					DryRun:            false,
+					ClusterNamespace:  "karmada-cluster",
+					ClusterName:       clusterNameNotInStaticAssignment,
+					ClusterContext:    clusterContextNotInStaticAssignment,
+					ClusterKubeConfig: kubeConfigPathNotInStaticAssignment,
 					Wait:              5 * options.DefaultKarmadactlCommandDuration,
 				}
 				err := opts.Run(f)
@@ -118,10 +145,15 @@ var _ = framework.SerialDescribe("FederatedResourceQuota auto-provision testing"
 		})
 
 		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("Deleting clusters: %s", clusterName), func() {
-				err := deleteCluster(clusterName, kubeConfigPath)
+			ginkgo.By(fmt.Sprintf("Deleting clusters: %s", clusterNameInStaticAssignment), func() {
+				err := deleteCluster(clusterNameInStaticAssignment, kubeConfigPathInStaticAssignment)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				_ = os.Remove(kubeConfigPath)
+				_ = os.Remove(kubeConfigPathInStaticAssignment)
+			})
+			ginkgo.By(fmt.Sprintf("Deleting clusters: %s", clusterNameNotInStaticAssignment), func() {
+				err := deleteCluster(clusterNameNotInStaticAssignment, kubeConfigPathNotInStaticAssignment)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				_ = os.Remove(kubeConfigPathNotInStaticAssignment)
 			})
 		})
 
@@ -129,28 +161,55 @@ var _ = framework.SerialDescribe("FederatedResourceQuota auto-provision testing"
 			framework.RemoveFederatedResourceQuota(karmadaClient, frqNamespace, frqName)
 		})
 
-		ginkgo.It("federatedResourceQuota should be propagated to new joined clusters", func() {
-			ginkgo.By(fmt.Sprintf("Joining cluster: %s", clusterName), func() {
-				opts := join.CommandJoinOption{
-					DryRun:            false,
-					ClusterNamespace:  "karmada-cluster",
-					ClusterName:       clusterName,
-					ClusterContext:    clusterContext,
-					ClusterKubeConfig: kubeConfigPath,
-				}
-				err := opts.Run(f)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		ginkgo.It("when join a new cluster", func() {
+			ginkgo.Context("federatedResourceQuota should be propagated to newly joined cluster if the new cluster is declared in the StaticAssignment", func() {
+				ginkgo.By(fmt.Sprintf("Joining cluster: %s", clusterNameInStaticAssignment), func() {
+					opts := join.CommandJoinOption{
+						DryRun:            false,
+						ClusterNamespace:  "karmada-cluster",
+						ClusterName:       clusterNameInStaticAssignment,
+						ClusterContext:    clusterContextInStaticAssignment,
+						ClusterKubeConfig: kubeConfigPathInStaticAssignment,
+					}
+					err := opts.Run(f)
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				})
+
+				ginkgo.By(fmt.Sprintf("waiting federatedResourceQuota(%s/%s) present on cluster: %s", frqNamespace, frqName, clusterNameInStaticAssignment), func() {
+					clusterClient, err := util.NewClusterClientSet(clusterNameInStaticAssignment, controlPlaneClient, nil)
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+					gomega.Eventually(func(g gomega.Gomega) (bool, error) {
+						_, err := clusterClient.KubeClient.CoreV1().ResourceQuotas(frqNamespace).Get(context.TODO(), frqName, metav1.GetOptions{})
+						g.Expect(err).NotTo(gomega.HaveOccurred())
+						return true, nil
+					}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+				})
 			})
 
-			ginkgo.By(fmt.Sprintf("waiting federatedResourceQuota(%s/%s) present on cluster: %s", frqNamespace, frqName, clusterName), func() {
-				clusterClient, err := util.NewClusterClientSet(clusterName, controlPlaneClient, nil)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			ginkgo.Context("federatedResourceQuota should not be propagated to newly joined cluster if the new clusters is not declared in the StaticAssignment", func() {
+				ginkgo.By(fmt.Sprintf("Joining cluster: %s", clusterNameNotInStaticAssignment), func() {
+					opts := join.CommandJoinOption{
+						DryRun:            false,
+						ClusterNamespace:  "karmada-cluster",
+						ClusterName:       clusterNameNotInStaticAssignment,
+						ClusterContext:    clusterContextNotInStaticAssignment,
+						ClusterKubeConfig: kubeConfigPathNotInStaticAssignment,
+					}
+					err := opts.Run(f)
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				})
 
-				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
-					_, err := clusterClient.KubeClient.CoreV1().ResourceQuotas(frqNamespace).Get(context.TODO(), frqName, metav1.GetOptions{})
-					g.Expect(err).NotTo(gomega.HaveOccurred())
-					return true, nil
-				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+				ginkgo.By(fmt.Sprintf("check if federatedResourceQuota(%s/%s) present on cluster: %s", frqNamespace, frqName, clusterNameNotInStaticAssignment), func() {
+					clusterClient, err := util.NewClusterClientSet(clusterNameNotInStaticAssignment, controlPlaneClient, nil)
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+					gomega.Eventually(func(g gomega.Gomega) (bool, error) {
+						_, err := clusterClient.KubeClient.CoreV1().ResourceQuotas(frqNamespace).Get(context.TODO(), frqName, metav1.GetOptions{})
+						g.Expect(apierrors.IsNotFound(err)).Should(gomega.Equal(true))
+						return true, nil
+					}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+				})
 			})
 		})
 	})
