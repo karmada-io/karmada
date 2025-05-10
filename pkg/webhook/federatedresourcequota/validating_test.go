@@ -29,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -579,6 +580,33 @@ func Test_validateClusterQuotaStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := validateClusterQuotaStatus(tt.status, fld); !reflect.DeepEqual(got, tt.expected) {
 				t.Errorf("validateClusterQuotaStatus() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func Test_validateFederatedResourceQuotaName(t *testing.T) {
+	invalidName := strings.Repeat("a", 64)
+	tests := []struct {
+		name string
+		want field.ErrorList
+	}{
+		{
+			name: invalidName,
+			want: field.ErrorList{
+				field.Invalid(field.NewPath("metadata").Child("name"), invalidName, fmt.Sprintf("must be no more than %d characters", validation.LabelValueMaxLength)),
+			},
+		},
+		{
+			name: "name-less-than-63-characters",
+			want: field.ErrorList{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := validateFederatedResourceQuotaName(tt.name, field.NewPath("metadata").Child("name")); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("validateFederatedResourceQuotaName() = %v, want %v", got, tt.want)
 			}
 		})
 	}
