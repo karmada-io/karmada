@@ -83,7 +83,11 @@ func (c *SyncController) Reconcile(ctx context.Context, req controllerruntime.Re
 		return controllerruntime.Result{}, err
 	}
 
-	if err := c.buildWorks(ctx, quota, clusterList.Items); err != nil {
+	if err := c.cleanUpOrphanWorks(ctx, quota); err != nil {
+		klog.Errorf("Failed to cleanup orphan works for federatedResourceQuota(%s), error: %v", req.NamespacedName.String(), err)
+		return controllerruntime.Result{}, err
+	}
+	if err := c.buildWorks(ctx, quota, extractExistedClusters(quota.Spec, clusterList)); err != nil {
 		klog.Errorf("Failed to build works for federatedResourceQuota(%s), error: %v", req.NamespacedName.String(), err)
 		c.EventRecorder.Eventf(quota, corev1.EventTypeWarning, events.EventReasonSyncFederatedResourceQuotaFailed, err.Error())
 		return controllerruntime.Result{}, err
@@ -96,8 +100,15 @@ func (c *SyncController) Reconcile(ctx context.Context, req controllerruntime.Re
 // SetupWithManager creates a controller and register to controller manager.
 func (c *SyncController) SetupWithManager(mgr controllerruntime.Manager) error {
 	fn := handler.MapFunc(
-		func(ctx context.Context, _ client.Object) []reconcile.Request {
+		func(ctx context.Context, a client.Object) []reconcile.Request {
 			var requests []reconcile.Request
+			var clusterName string
+			switch a.(type) {
+			case *clusterv1alpha1.Cluster:
+				clusterName = a.GetName()
+			default:
+				return nil
+			}
 
 			FederatedResourceQuotaList := &policyv1alpha1.FederatedResourceQuotaList{}
 			if err := c.Client.List(ctx, FederatedResourceQuotaList); err != nil {
@@ -105,6 +116,10 @@ func (c *SyncController) SetupWithManager(mgr controllerruntime.Manager) error {
 			}
 
 			for _, federatedResourceQuota := range FederatedResourceQuotaList.Items {
+				hard := extractClusterHardResourceList(federatedResourceQuota.Spec, clusterName)
+				if hard == nil {
+					continue
+				}
 				requests = append(requests, reconcile.Request{
 					NamespacedName: types.NamespacedName{
 						Namespace: federatedResourceQuota.Namespace,
@@ -164,7 +179,32 @@ func (c *SyncController) cleanUpWorks(ctx context.Context, namespace, name strin
 	return errors.NewAggregate(errs)
 }
 
-func (c *SyncController) buildWorks(ctx context.Context, quota *policyv1alpha1.FederatedResourceQuota, clusters []clusterv1alpha1.Cluster) error {
+func (c *SyncController) cleanUpOrphanWorks(ctx context.Context, quota *policyv1alpha1.FederatedResourceQuota) error {
+	var errs []error
+	workList := &workv1alpha1.WorkList{}
+	if err := c.List(ctx, workList, client.MatchingLabels{
+		util.FederatedResourceQuotaNamespaceLabel: quota.GetNamespace(),
+		util.FederatedResourceQuotaNameLabel:      quota.GetName(),
+	}); err != nil {
+		klog.Errorf("Failed to list works, err: %v", err)
+		return err
+	}
+
+	for index := range workList.Items {
+		work := &workList.Items[index]
+		if !isOrphanQuotaWork(work, quota.Spec) {
+			continue
+		}
+		if err := c.Delete(ctx, work); err != nil && !apierrors.IsNotFound(err) {
+			klog.Errorf("Failed to delete work(%s): %v", klog.KObj(work).String(), err)
+			errs = append(errs, err)
+		}
+	}
+
+	return errors.NewAggregate(errs)
+}
+
+func (c *SyncController) buildWorks(ctx context.Context, quota *policyv1alpha1.FederatedResourceQuota, clusters []string) error {
 	var errs []error
 	for _, cluster := range clusters {
 		resourceQuota := &corev1.ResourceQuota{}
@@ -172,7 +212,7 @@ func (c *SyncController) buildWorks(ctx context.Context, quota *policyv1alpha1.F
 		resourceQuota.Kind = "ResourceQuota"
 		resourceQuota.Namespace = quota.Namespace
 		resourceQuota.Name = quota.Name
-		resourceQuota.Spec.Hard = extractClusterHardResourceList(quota.Spec, cluster.Name)
+		resourceQuota.Spec.Hard = extractClusterHardResourceList(quota.Spec, cluster)
 
 		resourceQuotaObj, err := helper.ToUnstructured(resourceQuota)
 		if err != nil {
@@ -182,7 +222,7 @@ func (c *SyncController) buildWorks(ctx context.Context, quota *policyv1alpha1.F
 		}
 
 		objectMeta := metav1.ObjectMeta{
-			Namespace:  names.GenerateExecutionSpaceName(cluster.Name),
+			Namespace:  names.GenerateExecutionSpaceName(cluster),
 			Name:       names.GenerateWorkName(resourceQuota.Kind, quota.Name, quota.Namespace),
 			Finalizers: []string{util.ExecutionControllerFinalizer},
 			Labels: map[string]string{
@@ -200,6 +240,22 @@ func (c *SyncController) buildWorks(ctx context.Context, quota *policyv1alpha1.F
 	return errors.NewAggregate(errs)
 }
 
+func extractExistedClusters(spec policyv1alpha1.FederatedResourceQuotaSpec, clusterList *clusterv1alpha1.ClusterList) []string {
+	existedClusters := make(map[string]struct{})
+	for _, item := range clusterList.Items {
+		existedClusters[item.Name] = struct{}{}
+	}
+
+	var clusters []string
+	for _, assignment := range spec.StaticAssignments {
+		if _, ok := existedClusters[assignment.ClusterName]; ok {
+			clusters = append(clusters, assignment.ClusterName)
+		}
+	}
+
+	return clusters
+}
+
 func extractClusterHardResourceList(spec policyv1alpha1.FederatedResourceQuotaSpec, cluster string) corev1.ResourceList {
 	for index := range spec.StaticAssignments {
 		if spec.StaticAssignments[index].ClusterName == cluster {
@@ -207,4 +263,14 @@ func extractClusterHardResourceList(spec policyv1alpha1.FederatedResourceQuotaSp
 		}
 	}
 	return nil
+}
+
+func isOrphanQuotaWork(work *workv1alpha1.Work, spec policyv1alpha1.FederatedResourceQuotaSpec) bool {
+	for _, assignment := range spec.StaticAssignments {
+		if names.GenerateExecutionSpaceName(assignment.ClusterName) == work.GetNamespace() {
+			return false
+		}
+	}
+
+	return true
 }
