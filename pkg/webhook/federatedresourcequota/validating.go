@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	LabelValueMaxLength = 63
+	labelValueMaxLength = 63
 )
 
 // ValidatingAdmission validates FederatedResourceQuota object when creating/updating.
@@ -177,8 +177,8 @@ func validateResourceList(resourceList corev1.ResourceList, fld *field.Path) fie
 func validateFederatedResourceQuotaName(name string, fld *field.Path) field.ErrorList {
 	errs := field.ErrorList{}
 
-	if len(name) > LabelValueMaxLength {
-		errs = append(errs, field.Invalid(fld, name, fmt.Sprintf("must be no more than %d characters", LabelValueMaxLength)))
+	if len(name) > labelValueMaxLength {
+		errs = append(errs, field.Invalid(fld, name, fmt.Sprintf("must be no more than %d characters", labelValueMaxLength)))
 	}
 
 	return errs
