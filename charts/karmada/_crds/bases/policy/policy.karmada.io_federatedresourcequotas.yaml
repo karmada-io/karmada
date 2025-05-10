@@ -16,7 +16,14 @@ spec:
     singular: federatedresourcequota
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .status.overall
+      name: OVERALL
+      type: string
+    - jsonPath: .status.overallUsed
+      name: OVERALL_USED
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: FederatedResourceQuota sets aggregate quota restrictions enforced

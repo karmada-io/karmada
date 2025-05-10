@@ -37,6 +37,8 @@ const (
 // +kubebuilder:resource:path=federatedresourcequotas,scope=Namespaced,categories={karmada-io}
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
+// +kubebuilder:printcolumn:JSONPath=`.status.overall`,name=`OVERALL`,type=string
+// +kubebuilder:printcolumn:JSONPath=`.status.overallUsed`,name=`OVERALL_USED`,type=string
 
 // FederatedResourceQuota sets aggregate quota restrictions enforced per namespace across all clusters.
 type FederatedResourceQuota struct {
