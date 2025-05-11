@@ -196,13 +196,6 @@ func Run(ctx context.Context, opts *options.Options) error {
 	ctrlmetrics.Registry.MustRegister(metrics.PoolCollectors()...)
 	ctrlmetrics.Registry.MustRegister(metrics.NewBuildInfoCollector())
 
-	if err = indexregistry.RegisterWorkParentRBIndex(ctx, controllerManager); err != nil {
-		klog.Fatalf("Failed to register index for Work based on ResourceBinding ID: %v", err)
-	}
-	if err = indexregistry.RegisterWorkParentCRBIndex(ctx, controllerManager); err != nil {
-		klog.Fatalf("Failed to register index for Work based on ClusterResourceBinding ID: %v", err)
-	}
-
 	setupControllers(ctx, controllerManager, opts)
 
 	// blocks until the context is done.
@@ -271,7 +264,12 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 	}
 
 	if ctx.Opts.EnableTaintManager {
-		if err := cluster.IndexField(mgr); err != nil {
+		// Indexes are added to help the TaintManager quickly locate ResourceBinding and ClusterResourceBinding resources
+		// associated with a given cluster when eviction is needed.
+		if err := indexregistry.RegisterResourceBindingIndexByFieldCluster(ctx.Context, mgr); err != nil {
+			return false, err
+		}
+		if err := indexregistry.RegisterClusterResourceBindingIndexByFieldCluster(ctx.Context, mgr); err != nil {
 			return false, err
 		}
 		taintManager := &cluster.NoExecuteTaintManager{
@@ -350,6 +348,12 @@ func startClusterStatusController(ctx controllerscontext.Context) (enabled bool,
 }
 
 func startBindingController(ctx controllerscontext.Context) (enabled bool, err error) {
+	// To efficiently clean up Work resources created by the bindingController when a cluster or a RB/CRB is deleted,
+	// we index the Work resources to reduce the overhead during each check.
+	if err = indexregistry.RegisterWorkIndexByLabelResourceBindingID(ctx.Context, ctx.Mgr); err != nil {
+		klog.Errorf("Failed to register index for Work based on ResourceBinding ID: %v", err)
+		return false, err
+	}
 	bindingController := &binding.ResourceBindingController{
 		Client:              ctx.Mgr.GetClient(),
 		DynamicClient:       ctx.DynamicClientSet,
@@ -364,6 +368,10 @@ func startBindingController(ctx controllerscontext.Context) (enabled bool, err e
 		return false, err
 	}
 
+	if err = indexregistry.RegisterWorkIndexByLabelClusterResourceBindingID(ctx.Context, ctx.Mgr); err != nil {
+		klog.Errorf("Failed to register index for Work based on ClusterResourceBinding ID: %v", err)
+		return false, err
+	}
 	clusterResourceBindingController := &binding.ClusterResourceBindingController{
 		Client:              ctx.Mgr.GetClient(),
 		DynamicClient:       ctx.DynamicClientSet,
@@ -381,6 +389,11 @@ func startBindingController(ctx controllerscontext.Context) (enabled bool, err e
 }
 
 func startBindingStatusController(ctx controllerscontext.Context) (enabled bool, err error) {
+	// Indexing Work resources allows efficient retrieval for aggregating status.
+	if err = indexregistry.RegisterWorkIndexByLabelResourceBindingID(ctx.Context, ctx.Mgr); err != nil {
+		klog.Errorf("Failed to register index for Work based on ResourceBinding ID: %v", err)
+		return false, err
+	}
 	rbStatusController := &status.RBStatusController{
 		Client:              ctx.Mgr.GetClient(),
 		DynamicClient:       ctx.DynamicClientSet,
@@ -394,6 +407,10 @@ func startBindingStatusController(ctx controllerscontext.Context) (enabled bool,
 		return false, err
 	}
 
+	if err = indexregistry.RegisterWorkIndexByLabelClusterResourceBindingID(ctx.Context, ctx.Mgr); err != nil {
+		klog.Errorf("Failed to register index for Work based on ClusterResourceBinding ID: %v", err)
+		return false, err
+	}
 	crbStatusController := &status.CRBStatusController{
 		Client:              ctx.Mgr.GetClient(),
 		DynamicClient:       ctx.DynamicClientSet,
@@ -480,7 +497,8 @@ func startServiceExportController(ctx controllerscontext.Context) (enabled bool,
 		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,
 		RateLimiterOptions:          ctx.Opts.RateLimiterOptions,
 	}
-	if err = mcs.IndexField(ctx.Mgr); err != nil {
+	// Add an index so ServiceExportController can quickly find and delete related Work resources.
+	if err = indexregistry.RegisterWorkIndexByFieldSuspendDispatching(ctx.Context, ctx.Mgr); err != nil {
 		return false, err
 	}
 	serviceExportController.RunWorkQueue()

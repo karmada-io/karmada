@@ -54,7 +54,7 @@ func generateCRBStatusController() *CRBStatusController {
 	c := &CRBStatusController{
 		Client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithIndex(
 			&workv1alpha1.Work{},
-			indexregistry.WorkIndexByClusterResourceBindingID,
+			indexregistry.WorkIndexByLabelClusterResourceBindingID,
 			indexregistry.GenLabelIndexerFunc(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
 		).Build(),
 		DynamicClient:   dynamicClient,
@@ -137,7 +137,7 @@ func TestCRBStatusController_Reconcile(t *testing.T) {
 			// Prepare binding and create it in client
 			if tt.binding != nil {
 				c.Client = fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(tt.binding).WithStatusSubresource(tt.binding).
-					WithIndex(&workv1alpha1.Work{}, indexregistry.WorkIndexByClusterResourceBindingID, indexregistry.GenLabelIndexerFunc(workv1alpha2.ClusterResourceBindingPermanentIDLabel)).
+					WithIndex(&workv1alpha1.Work{}, indexregistry.WorkIndexByLabelClusterResourceBindingID, indexregistry.GenLabelIndexerFunc(workv1alpha2.ClusterResourceBindingPermanentIDLabel)).
 					Build()
 			}
 
@@ -209,7 +209,7 @@ func TestCRBStatusController_syncBindingStatus(t *testing.T) {
 
 			if tt.resourceExistInClient {
 				c.Client = fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(binding).WithStatusSubresource(binding).
-					WithIndex(&workv1alpha1.Work{}, indexregistry.WorkIndexByClusterResourceBindingID, indexregistry.GenLabelIndexerFunc(workv1alpha2.ClusterResourceBindingPermanentIDLabel)).
+					WithIndex(&workv1alpha1.Work{}, indexregistry.WorkIndexByLabelClusterResourceBindingID, indexregistry.GenLabelIndexerFunc(workv1alpha2.ClusterResourceBindingPermanentIDLabel)).
 					Build()
 			}
 
