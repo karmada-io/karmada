@@ -62,6 +62,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/typedmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/indexregistry"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -381,7 +382,7 @@ func startServiceExportController(ctx controllerscontext.Context) (bool, error) 
 		ClusterCacheSyncTimeout:     ctx.Opts.ClusterCacheSyncTimeout,
 		RateLimiterOptions:          ctx.Opts.RateLimiterOptions,
 	}
-	if err := mcs.IndexField(ctx.Mgr); err != nil {
+	if err := indexregistry.RegisterWorkIndexByFieldSuspendDispatching(ctx.Context, ctx.Mgr); err != nil {
 		return false, err
 	}
 	serviceExportController.RunWorkQueue()

@@ -54,7 +54,7 @@ import (
 func makeFakeRBCByResource(rs *workv1alpha2.ObjectReference) (*ResourceBindingController, error) {
 	c := fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithIndex(
 		&workv1alpha1.Work{},
-		indexregistry.WorkIndexByResourceBindingID,
+		indexregistry.WorkIndexByLabelResourceBindingID,
 		indexregistry.GenLabelIndexerFunc(workv1alpha2.ResourceBindingPermanentIDLabel),
 	).Build()
 

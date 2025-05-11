@@ -40,9 +40,9 @@ func GetWorksByLabelsSet(ctx context.Context, c client.Client, ls labels.Set) (*
 func GetWorksByBindingID(ctx context.Context, c client.Client, bindingID string, namespaced bool) (*workv1alpha1.WorkList, error) {
 	var key string
 	if namespaced {
-		key = indexregistry.WorkIndexByResourceBindingID
+		key = indexregistry.WorkIndexByLabelResourceBindingID
 	} else {
-		key = indexregistry.WorkIndexByClusterResourceBindingID
+		key = indexregistry.WorkIndexByLabelClusterResourceBindingID
 	}
 	workList := &workv1alpha1.WorkList{}
 	listOpt := &client.ListOptions{

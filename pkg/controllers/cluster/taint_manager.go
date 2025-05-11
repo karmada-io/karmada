@@ -40,6 +40,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/indexregistry"
 )
 
 // TaintManagerName is the controller name that will be used when reporting events and metrics.
@@ -86,7 +87,7 @@ func (tc *NoExecuteTaintManager) syncCluster(ctx context.Context, cluster *clust
 	// List all ResourceBindings which are assigned to this cluster.
 	rbList := &workv1alpha2.ResourceBindingList{}
 	if err := tc.List(ctx, rbList, client.MatchingFieldsSelector{
-		Selector: fields.OneTermEqualSelector(rbClusterKeyIndex, cluster.Name),
+		Selector: fields.OneTermEqualSelector(indexregistry.ResourceBindingIndexByFieldCluster, cluster.Name),
 	}); err != nil {
 		klog.ErrorS(err, "Failed to list ResourceBindings", "cluster", cluster.Name)
 		return controllerruntime.Result{}, err
@@ -103,7 +104,7 @@ func (tc *NoExecuteTaintManager) syncCluster(ctx context.Context, cluster *clust
 	// List all ClusterResourceBindings which are assigned to this cluster.
 	crbList := &workv1alpha2.ClusterResourceBindingList{}
 	if err := tc.List(ctx, crbList, client.MatchingFieldsSelector{
-		Selector: fields.OneTermEqualSelector(crbClusterKeyIndex, cluster.Name),
+		Selector: fields.OneTermEqualSelector(indexregistry.ClusterResourceBindingIndexByFieldCluster, cluster.Name),
 	}); err != nil {
 		klog.ErrorS(err, "Failed to list ClusterResourceBindings", "cluster", cluster.Name)
 		return controllerruntime.Result{}, err

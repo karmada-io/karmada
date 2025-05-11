@@ -56,6 +56,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/indexregistry"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -161,7 +162,7 @@ func (c *ServiceExportController) enqueueReportedEpsServiceExport() {
 	workList := &workv1alpha1.WorkList{}
 	err := wait.PollUntilContextCancel(context.TODO(), 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		err = c.List(ctx, workList, client.MatchingFields{
-			workSuspendDispatchingIndex: "true",
+			indexregistry.WorkIndexByFieldSuspendDispatching: "true",
 		})
 		if err != nil {
 			klog.Errorf("Failed to list collected EndpointSlices Work from member clusters: %v", err)
@@ -442,7 +443,7 @@ func (c *ServiceExportController) removeOrphanWork(ctx context.Context, endpoint
 			util.ServiceNamespaceLabel: serviceExportKey.Namespace,
 			util.ServiceNameLabel:      serviceExportKey.Name,
 		}),
-		FieldSelector: fields.OneTermEqualSelector(workSuspendDispatchingIndex, "true"),
+		FieldSelector: fields.OneTermEqualSelector(indexregistry.WorkIndexByFieldSuspendDispatching, "true"),
 	}); err != nil {
 		klog.Errorf("Failed to list endpointslice work with serviceExport(%s/%s) under namespace %s: %v",
 			serviceExportKey.Namespace, serviceExportKey.Name, names.GenerateExecutionSpaceName(serviceExportKey.Cluster), err)
