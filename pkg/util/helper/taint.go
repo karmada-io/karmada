@@ -17,6 +17,8 @@ limitations under the License.
 package helper
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -208,4 +210,34 @@ func NewUnreachableToleration(tolerationSeconds int64) *corev1.Toleration {
 		Effect:            corev1.TaintEffectNoExecute,
 		TolerationSeconds: &tolerationSeconds,
 	}
+}
+
+// GenerateTaintsMessage returns a string that describes the taints of a cluster.
+func GenerateTaintsMessage(taints []corev1.Taint) string {
+	if len(taints) == 0 {
+		return "cluster now does not have taints"
+	}
+
+	var msg string
+	for i, taint := range taints {
+		if i != 0 {
+			msg += ","
+		}
+		if taint.Value != "" {
+			msg += strings.Join([]string{`{`,
+				`Key:` + fmt.Sprintf("%v", taint.Key) + `,`,
+				`Value:` + fmt.Sprintf("%v", taint.Value) + `,`,
+				`Effect:` + fmt.Sprintf("%v", taint.Effect),
+				`}`,
+			}, "")
+		} else {
+			msg += strings.Join([]string{`{`,
+				`Key:` + fmt.Sprintf("%v", taint.Key) + `,`,
+				`Effect:` + fmt.Sprintf("%v", taint.Effect),
+				`}`,
+			}, "")
+		}
+	}
+
+	return fmt.Sprintf("cluster now has taints([%s])", msg)
 }
