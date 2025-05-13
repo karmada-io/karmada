@@ -54,6 +54,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 	var member1, member2 string
 	var member1NodeName, member2NodeName string
 	var member1PodName, member2PodName string
+	var secondaryTestNamespace string
 	var existsDeploymentName = "coredns"
 	var existsServiceName = "kubernetes"
 	var existsDaemonsetName = "kube-proxy"
@@ -72,6 +73,10 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 	// var pathWithLabel = pathPrefix + "apis/apps/v1/namespaces/kube-system/deployments?labelSelector=k8s-app=kube-dns"
 
 	ginkgo.BeforeAll(func() {
+		secondaryTestNamespace = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
+		err := setupTestNamespace(secondaryTestNamespace, kubeClient)
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
 		// get clusters' name
 		pushModeClusters := framework.ClusterNamesWithSyncMode(clusterv1alpha1.Push)
 		ginkgo.By(fmt.Sprintf("get %v clusters in push mode", len(pushModeClusters)))
@@ -88,6 +93,11 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 
 		// clean ResourceRegistries before test
 		gomega.Expect(karmadaClient.SearchV1alpha1().ResourceRegistries().DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{})).Should(gomega.Succeed())
+	})
+
+	ginkgo.AfterAll(func() {
+		err := cleanupTestNamespace(secondaryTestNamespace, kubeClient)
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	})
 
 	// use service as search object

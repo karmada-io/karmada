@@ -118,13 +118,10 @@ var (
 	controlPlaneClient client.Client
 	// testNamespace is the main namespace for testing.
 	// It is the default namespace where most test resources are created and validated.
-	testNamespace string
-	// secondaryTestNamespace is an additional namespace used for testing.
-	// It is only required in specific scenarios where resources need to be created and tested across multiple namespaces.
-	secondaryTestNamespace string
-	clusterProvider        *cluster.Provider
-	clusterLabels          = map[string]string{"location": "CHN"}
-	pushModeClusterLabels  = map[string]string{"sync-mode": "Push"}
+	testNamespace         string
+	clusterProvider       *cluster.Provider
+	clusterLabels         = map[string]string{"location": "CHN"}
+	pushModeClusterLabels = map[string]string{"sync-mode": "Push"}
 )
 
 func init() {
@@ -190,10 +187,6 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 
 	testNamespace = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
 	err = setupTestNamespace(testNamespace, kubeClient)
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-	secondaryTestNamespace = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
-	err = setupTestNamespace(secondaryTestNamespace, kubeClient)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	framework.WaitNamespacePresentOnClusters(framework.ClusterNames(), testNamespace)
