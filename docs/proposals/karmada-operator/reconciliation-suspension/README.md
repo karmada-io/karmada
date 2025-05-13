@@ -45,17 +45,18 @@ This proposal adds support to pause/suspend the reconciliation of a Karmada reso
 
 ### API Changes
 
-Add the optional `paused` **boolean** field to the `Karmada` spec:
+Add the optional `suspend` **boolean** field to the `Karmada` spec:
 
 ```go
 // KarmadaSpec defines the desired state of Karmada.
 type KarmadaSpec struct {
     // ...existing fields...
     
-    // Paused indicates that the operator should suspend reconciliation
-    // for this Karmada control plane and all its managed resources.
+    // Suspend indicates that the operator should suspend reconciliation
+    // for this Karmada control plane and all its managed resources. 
+    // Karmada instances for which this field is not explicitly set to `true` will continue to be reconciled as usual.
     // +optional
-    Paused bool `json:"paused,omitempty"`
+    Suspend *bool `json:"suspend,omitempty"`
 }
 ```
 
@@ -77,7 +78,7 @@ type KarmadaSpec struct {
 
 ## Implementation Plan
 
-1. Add `paused` boolean field to the `KarmadaSpec` struct.
+1. Add `suspend` boolean field to the `KarmadaSpec` struct.
 2. Update the controller reconcile logic to:
-    - Inspect the `paused` field for each `Karmada` object to be reconciled. If set to `true`, the controller will refrain from enqueueing reconciliation requests
+    - Inspect the `suspend` field for each `Karmada` object to be reconciled. If explicitly set to `true`, the controller will refrain from enqueueing reconciliation requests
    for the object. Otherwise, reconciliation will continue to behave as is today.
