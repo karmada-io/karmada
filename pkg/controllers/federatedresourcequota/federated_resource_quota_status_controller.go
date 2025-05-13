@@ -124,8 +124,14 @@ func (c *StatusController) SetupWithManager(mgr controllerruntime.Manager) error
 			}
 			return !reflect.DeepEqual(objOld.Status, objNew.Status)
 		},
-		DeleteFunc: func(event.DeleteEvent) bool {
-			return false
+		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+			obj := deleteEvent.Object.(*workv1alpha1.Work)
+			_, namespaceExist := obj.GetLabels()[util.FederatedResourceQuotaNamespaceLabel]
+			_, nameExist := obj.GetLabels()[util.FederatedResourceQuotaNameLabel]
+			if !namespaceExist || !nameExist {
+				return false
+			}
+			return true
 		},
 		GenericFunc: func(event.GenericEvent) bool {
 			return false

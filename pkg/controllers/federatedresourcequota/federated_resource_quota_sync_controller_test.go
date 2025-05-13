@@ -33,6 +33,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 // setupTest initializes a test environment with the given runtime objects
@@ -132,7 +133,7 @@ func TestBuildWorks(t *testing.T) {
 		expectedWorks int
 	}{
 		{
-			name: "Successfully build works for all clusters",
+			name: "Successfully build works for each cluster declared in StaticAssignments",
 			quota: &policyv1alpha1.FederatedResourceQuota{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-quota",
@@ -163,24 +164,18 @@ func TestBuildWorks(t *testing.T) {
 			expectedWorks: 2,
 		},
 		{
-			name: "No clusters available",
+			name: "No clusters declared in StaticAssignments",
 			quota: &policyv1alpha1.FederatedResourceQuota{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-quota",
 					Namespace: "default",
 				},
-				Spec: policyv1alpha1.FederatedResourceQuotaSpec{
-					StaticAssignments: []policyv1alpha1.StaticClusterAssignment{
-						{
-							ClusterName: "cluster1",
-							Hard: corev1.ResourceList{
-								corev1.ResourceCPU: resource.MustParse("1"),
-							},
-						},
-					},
-				},
+				Spec: policyv1alpha1.FederatedResourceQuotaSpec{},
 			},
-			clusters:      []clusterv1alpha1.Cluster{},
+			clusters: []clusterv1alpha1.Cluster{
+				{ObjectMeta: metav1.ObjectMeta{Name: "cluster1"}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "cluster2"}},
+			},
 			expectedError: false,
 			expectedWorks: 0,
 		},
@@ -289,6 +284,131 @@ func TestExtractClusterHardResourceList(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := extractClusterHardResourceList(tt.spec, tt.clusterName)
 			assert.Equal(t, tt.expectedResult, result)
+		})
+	}
+}
+
+func TestCleanUpOrphanWorks(t *testing.T) {
+	tests := []struct {
+		name           string
+		quota          policyv1alpha1.FederatedResourceQuota
+		totalWorks     []runtime.Object
+		remainingWorks []workv1alpha1.Work
+	}{
+		{
+			name: "Clean up orphan works",
+			quota: policyv1alpha1.FederatedResourceQuota{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-quota",
+					Namespace: "default",
+				},
+				Spec: policyv1alpha1.FederatedResourceQuotaSpec{
+					StaticAssignments: []policyv1alpha1.StaticClusterAssignment{
+						{
+							ClusterName: "cluster1",
+							Hard: corev1.ResourceList{
+								corev1.ResourceCPU: resource.MustParse("1"),
+							},
+						},
+						{
+							ClusterName: "cluster2",
+							Hard: corev1.ResourceList{
+								corev1.ResourceCPU: resource.MustParse("2"),
+							},
+						},
+					},
+				},
+				Status: policyv1alpha1.FederatedResourceQuotaStatus{
+					AggregatedStatus: []policyv1alpha1.ClusterQuotaStatus{
+						{
+							ClusterName: "cluster1",
+						},
+						{
+							ClusterName: "cluster2",
+						},
+						{
+							ClusterName: "cluster3",
+						},
+					},
+				},
+			},
+			totalWorks: []runtime.Object{
+				&workv1alpha1.Work{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      names.GenerateWorkName("ResourceQuota", "test-quota", "default"),
+						Namespace: names.GenerateExecutionSpaceName("cluster1"),
+						Labels: map[string]string{
+							util.FederatedResourceQuotaNamespaceLabel: "default",
+							util.FederatedResourceQuotaNameLabel:      "test-quota",
+						},
+					},
+				},
+				&workv1alpha1.Work{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      names.GenerateWorkName("ResourceQuota", "test-quota", "default"),
+						Namespace: names.GenerateExecutionSpaceName("cluster2"),
+						Labels: map[string]string{
+							util.FederatedResourceQuotaNamespaceLabel: "default",
+							util.FederatedResourceQuotaNameLabel:      "test-quota",
+						},
+					},
+				},
+				&workv1alpha1.Work{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      names.GenerateWorkName("ResourceQuota", "test-quota", "default"),
+						Namespace: names.GenerateExecutionSpaceName("cluster3"),
+						Labels: map[string]string{
+							util.FederatedResourceQuotaNamespaceLabel: "default",
+							util.FederatedResourceQuotaNameLabel:      "test-quota",
+						},
+					},
+				},
+			},
+			remainingWorks: []workv1alpha1.Work{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      names.GenerateWorkName("ResourceQuota", "test-quota", "default"),
+						Namespace: names.GenerateExecutionSpaceName("cluster1"),
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      names.GenerateWorkName("ResourceQuota", "test-quota", "default"),
+						Namespace: names.GenerateExecutionSpaceName("cluster2"),
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient, controller := setupTest(t, tt.totalWorks...)
+			err := controller.cleanUpOrphanWorks(context.Background(), &tt.quota)
+			if err != nil {
+				t.Errorf("Failed to cleanup the orphan works: %s", err.Error())
+			}
+
+			// Verify the number of created works
+			workList := &workv1alpha1.WorkList{}
+			err = fakeClient.List(context.Background(), workList, client.MatchingLabels{
+				util.FederatedResourceQuotaNamespaceLabel: tt.quota.Namespace,
+				util.FederatedResourceQuotaNameLabel:      tt.quota.Name,
+			})
+			if err != nil {
+				t.Errorf("Failed to list works: %s", err.Error())
+			}
+
+			var actualRemainingWorks []workv1alpha1.Work
+			for _, item := range workList.Items {
+				actualRemainingWorks = append(actualRemainingWorks, workv1alpha1.Work{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      item.GetName(),
+						Namespace: item.GetNamespace(),
+					},
+				})
+			}
+			assert.ElementsMatch(t, tt.remainingWorks, actualRemainingWorks)
 		})
 	}
 }
