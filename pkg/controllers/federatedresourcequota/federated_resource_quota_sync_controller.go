@@ -18,6 +18,7 @@ package federatedresourcequota
 
 import (
 	"context"
+	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -77,6 +78,11 @@ func (c *SyncController) Reconcile(ctx context.Context, req controllerruntime.Re
 		return controllerruntime.Result{}, err
 	}
 
+	if err := c.cleanUpOrphanWorks(ctx, quota); err != nil {
+		klog.Errorf("Failed to cleanup orphan works for federatedResourceQuota(%s), error: %v", req.NamespacedName.String(), err)
+		return controllerruntime.Result{}, err
+	}
+
 	clusterList := &clusterv1alpha1.ClusterList{}
 	if err := c.Client.List(ctx, clusterList); err != nil {
 		klog.Errorf("Failed to list clusters, error: %v", err)
@@ -96,8 +102,15 @@ func (c *SyncController) Reconcile(ctx context.Context, req controllerruntime.Re
 // SetupWithManager creates a controller and register to controller manager.
 func (c *SyncController) SetupWithManager(mgr controllerruntime.Manager) error {
 	fn := handler.MapFunc(
-		func(ctx context.Context, _ client.Object) []reconcile.Request {
+		func(ctx context.Context, obj client.Object) []reconcile.Request {
 			var requests []reconcile.Request
+			var clusterName string
+			switch obj.(type) {
+			case *clusterv1alpha1.Cluster:
+				clusterName = obj.GetName()
+			default:
+				return nil
+			}
 
 			FederatedResourceQuotaList := &policyv1alpha1.FederatedResourceQuotaList{}
 			if err := c.Client.List(ctx, FederatedResourceQuotaList); err != nil {
@@ -105,6 +118,10 @@ func (c *SyncController) SetupWithManager(mgr controllerruntime.Manager) error {
 			}
 
 			for _, federatedResourceQuota := range FederatedResourceQuotaList.Items {
+				hard := extractClusterHardResourceList(federatedResourceQuota.Spec, clusterName)
+				if hard == nil {
+					continue
+				}
 				requests = append(requests, reconcile.Request{
 					NamespacedName: types.NamespacedName{
 						Namespace: federatedResourceQuota.Namespace,
@@ -132,9 +149,32 @@ func (c *SyncController) SetupWithManager(mgr controllerruntime.Manager) error {
 		},
 	})
 
+	frqPredicate := builder.WithPredicates(predicate.Funcs{
+		// TODO(zhzhuang-zju): Should ignore the create event in case of the FRQ's .spec.staticAssignments is nil, as
+		// no longer sync empty ResourceQuotas by default starting from v1.14. Here temporarily omitting this filter to
+		// ensure that during upgrades from older versions, there is an opportunity to clean up legacy ResourceQuotas synced
+		// from previous versions.
+		CreateFunc: func(event.CreateEvent) bool {
+			return true
+		},
+		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+			oldObj := updateEvent.ObjectOld.(*policyv1alpha1.FederatedResourceQuota)
+			newObj := updateEvent.ObjectNew.(*policyv1alpha1.FederatedResourceQuota)
+			return !reflect.DeepEqual(oldObj.Spec.StaticAssignments, newObj.Spec.StaticAssignments)
+		},
+		// TODO(zhzhuang-zju): Should ignore the delete event in case of the FRQ's .spec.staticAssignments is nil, as
+		// no longer sync empty ResourceQuotas by default starting from v1.14. Here temporarily omitting this filter to
+		// ensure that during upgrades from older versions, there is an opportunity to clean up legacy ResourceQuotas synced
+		// from previous versions.
+		DeleteFunc: func(event.DeleteEvent) bool {
+			return true
+		},
+		GenericFunc: func(event.GenericEvent) bool { return false },
+	})
+
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(SyncControllerName).
-		For(&policyv1alpha1.FederatedResourceQuota{}).
+		For(&policyv1alpha1.FederatedResourceQuota{}, frqPredicate).
 		Watches(&clusterv1alpha1.Cluster{}, handler.EnqueueRequestsFromMapFunc(fn), clusterPredicate).
 		WithOptions(controller.Options{
 			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions),
@@ -164,15 +204,45 @@ func (c *SyncController) cleanUpWorks(ctx context.Context, namespace, name strin
 	return errors.NewAggregate(errs)
 }
 
+func (c *SyncController) cleanUpOrphanWorks(ctx context.Context, quota *policyv1alpha1.FederatedResourceQuota) error {
+	var errs []error
+	workList := &workv1alpha1.WorkList{}
+	if err := c.List(ctx, workList, client.MatchingLabels{
+		util.FederatedResourceQuotaNamespaceLabel: quota.GetNamespace(),
+		util.FederatedResourceQuotaNameLabel:      quota.GetName(),
+	}); err != nil {
+		klog.Errorf("Failed to list works, err: %v", err)
+		return err
+	}
+
+	for index := range workList.Items {
+		work := &workList.Items[index]
+		if !isOrphanQuotaWork(work, quota.Spec) {
+			continue
+		}
+		if err := c.Delete(ctx, work); err != nil && !apierrors.IsNotFound(err) {
+			klog.Errorf("Failed to delete work(%s): %v", klog.KObj(work).String(), err)
+			errs = append(errs, err)
+		}
+	}
+
+	return errors.NewAggregate(errs)
+}
+
 func (c *SyncController) buildWorks(ctx context.Context, quota *policyv1alpha1.FederatedResourceQuota, clusters []clusterv1alpha1.Cluster) error {
 	var errs []error
 	for _, cluster := range clusters {
+		hard := extractClusterHardResourceList(quota.Spec, cluster.Name)
+		if hard == nil {
+			continue
+		}
+
 		resourceQuota := &corev1.ResourceQuota{}
 		resourceQuota.APIVersion = "v1"
 		resourceQuota.Kind = "ResourceQuota"
 		resourceQuota.Namespace = quota.Namespace
 		resourceQuota.Name = quota.Name
-		resourceQuota.Spec.Hard = extractClusterHardResourceList(quota.Spec, cluster.Name)
+		resourceQuota.Spec.Hard = hard
 
 		resourceQuotaObj, err := helper.ToUnstructured(resourceQuota)
 		if err != nil {
@@ -207,4 +277,14 @@ func extractClusterHardResourceList(spec policyv1alpha1.FederatedResourceQuotaSp
 		}
 	}
 	return nil
+}
+
+func isOrphanQuotaWork(work *workv1alpha1.Work, spec policyv1alpha1.FederatedResourceQuotaSpec) bool {
+	for _, assignment := range spec.StaticAssignments {
+		if names.GenerateExecutionSpaceName(assignment.ClusterName) == work.GetNamespace() {
+			return false
+		}
+	}
+
+	return true
 }
