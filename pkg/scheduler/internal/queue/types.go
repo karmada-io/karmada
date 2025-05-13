@@ -58,10 +58,10 @@ func BindingKeyFunc(bindingInfo *QueuedBindingInfo) string {
 	return bindingInfo.NamespacedKey
 }
 
-// Less is the function used by the activeQ heap algorithm to sort bindings.
+// LessPriority is the function used by the activeQ heap algorithm to sort bindings.
 // It sorts bindings based on their priority. When priorities are equal, it uses
 // QueuedBindingInfo.timestamp.
-func Less(bInfo1, bInfo2 *QueuedBindingInfo) bool {
+func LessPriority(bInfo1, bInfo2 *QueuedBindingInfo) bool {
 	p1 := bInfo1.Priority
 	p2 := bInfo2.Priority
 	return (p1 > p2) || (p1 == p2 && bInfo1.Timestamp.Before(bInfo2.Timestamp))
