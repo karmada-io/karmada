@@ -233,6 +233,7 @@ func init() {
 	controllers["unifiedAuth"] = startUnifiedAuthController
 	controllers["federatedResourceQuotaSync"] = startFederatedResourceQuotaSyncController
 	controllers["federatedResourceQuotaStatus"] = startFederatedResourceQuotaStatusController
+	controllers["federatedResourceQuotaEnforcement"] = startFederatedResourceQuotaEnforcementController
 	controllers["gracefulEviction"] = startGracefulEvictionController
 	controllers["applicationFailover"] = startApplicationFailoverController
 	controllers["federatedHorizontalPodAutoscaler"] = startFederatedHorizontalPodAutoscalerController
@@ -581,6 +582,20 @@ func startFederatedResourceQuotaStatusController(ctx controllerscontext.Context)
 		Client:             ctx.Mgr.GetClient(),
 		EventRecorder:      ctx.Mgr.GetEventRecorderFor(federatedresourcequota.StatusControllerName),
 		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
+	}
+	if err = controller.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startFederatedResourceQuotaEnforcementController(ctx controllerscontext.Context) (enabled bool, err error) {
+	if !features.FeatureGate.Enabled(features.FederatedQuotaEnforcement) {
+		return false, nil
+	}
+	controller := federatedresourcequota.QuotaEnforcementController{
+		Client:        ctx.Mgr.GetClient(),
+		EventRecorder: ctx.Mgr.GetEventRecorderFor(federatedresourcequota.QuotaEnforcementControllerName),
 	}
 	if err = controller.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
