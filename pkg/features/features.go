@@ -72,6 +72,13 @@ const (
 	// owner: @LeonZh0u, @seanlaii, @wengyao04, @whitewindmills, @zclyne
 	// alpha: v1.13
 	PriorityBasedScheduling featuregate.Feature = "PriorityBasedScheduling"
+
+	// FederatedQuotaEnforcement controls whether the existing FederatedResourceQuota enhancement feature is enabled.
+	// When enabled, the existing FederatedResourceQuota can impose namespaced resource limits directly on the Karmada control-plane level
+	//
+	// owner: @mszacillo, @RainbowMango, @zhzhuang-zju, @seanlaii, @liwang0513
+	// alpha: v1.14
+	FederatedQuotaEnforcement featuregate.Feature = "FederatedQuotaEnforcement"
 )
 
 var (
@@ -93,6 +100,7 @@ var (
 		ResourceQuotaEstimate:             {Default: false, PreRelease: featuregate.Alpha},
 		StatefulFailoverInjection:         {Default: false, PreRelease: featuregate.Alpha},
 		PriorityBasedScheduling:           {Default: false, PreRelease: featuregate.Alpha},
+		FederatedQuotaEnforcement:         {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
 
