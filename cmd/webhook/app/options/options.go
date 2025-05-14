@@ -19,6 +19,7 @@ package options
 import (
 	"github.com/spf13/pflag"
 
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 )
 
@@ -96,5 +97,6 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.Int64Var(&o.DefaultNotReadyTolerationSeconds, "default-not-ready-toleration-seconds", 300, "Indicates the tolerationSeconds of the propagation policy toleration for notReady:NoExecute that is added by default to every propagation policy that does not already have such a toleration.")
 	flags.Int64Var(&o.DefaultUnreachableTolerationSeconds, "default-unreachable-toleration-seconds", 300, "Indicates the tolerationSeconds of the propagation policy toleration for unreachable:NoExecute that is added by default to every propagation policy that does not already have such a toleration.")
 
+	features.FeatureGate.AddFlag(flags)
 	o.ProfileOpts.AddFlags(flags)
 }
