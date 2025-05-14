@@ -249,7 +249,7 @@ func TestController_Reconcile(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "remove cluster failed",
+			name: "remove cluster successfully",
 			cluster: &clusterv1alpha1.Cluster{
 				ObjectMeta: controllerruntime.ObjectMeta{
 					Name:       "test-cluster",
@@ -281,7 +281,7 @@ func TestController_Reconcile(t *testing.T) {
 			},
 			del:     true,
 			want:    controllerruntime.Result{},
-			wantErr: true,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {

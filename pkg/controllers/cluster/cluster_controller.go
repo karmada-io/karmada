@@ -244,7 +244,7 @@ func (c *Controller) syncCluster(ctx context.Context, cluster *clusterv1alpha1.C
 
 func (c *Controller) removeCluster(ctx context.Context, cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
 	// add terminating taint before cluster is deleted
-	if err := c.updateClusterTaints(ctx, []*corev1.Taint{TerminatingTaintTemplate}, nil, cluster); err != nil {
+	if err := c.patchClusterTaints(ctx, []*corev1.Taint{TerminatingTaintTemplate}, nil, cluster); err != nil {
 		klog.ErrorS(err, "Failed to update terminating taint", "cluster", cluster.Name)
 		return controllerruntime.Result{}, err
 	}
@@ -387,8 +387,10 @@ func (c *Controller) removeFinalizer(ctx context.Context, cluster *clusterv1alph
 		return controllerruntime.Result{}, nil
 	}
 
-	controllerutil.RemoveFinalizer(cluster, util.ClusterControllerFinalizer)
-	err := c.Client.Update(ctx, cluster)
+	patch := client.MergeFrom(cluster)
+	modifiedCluster := cluster.DeepCopy()
+	controllerutil.RemoveFinalizer(modifiedCluster, util.ClusterControllerFinalizer)
+	err := c.Client.Patch(ctx, modifiedCluster, patch)
 	if err != nil {
 		return controllerruntime.Result{}, err
 	}
@@ -401,8 +403,10 @@ func (c *Controller) ensureFinalizer(ctx context.Context, cluster *clusterv1alph
 		return controllerruntime.Result{}, nil
 	}
 
-	controllerutil.AddFinalizer(cluster, util.ClusterControllerFinalizer)
-	err := c.Client.Update(ctx, cluster)
+	patch := client.MergeFrom(cluster)
+	modifiedCluster := cluster.DeepCopy()
+	controllerutil.AddFinalizer(modifiedCluster, util.ClusterControllerFinalizer)
+	err := c.Client.Patch(ctx, modifiedCluster, patch)
 	if err != nil {
 		return controllerruntime.Result{}, err
 	}
@@ -658,22 +662,22 @@ func (c *Controller) taintClusterByCondition(ctx context.Context, cluster *clust
 		switch currentReadyCondition.Status {
 		case metav1.ConditionFalse:
 			// Add NotReadyTaintTemplateForSched taint immediately.
-			if err = c.updateClusterTaints(ctx, []*corev1.Taint{NotReadyTaintTemplateForSched}, []*corev1.Taint{UnreachableTaintTemplateForSched}, cluster); err != nil {
+			if err = c.patchClusterTaints(ctx, []*corev1.Taint{NotReadyTaintTemplateForSched}, []*corev1.Taint{UnreachableTaintTemplateForSched}, cluster); err != nil {
 				klog.ErrorS(err, "Failed to instantly update UnreachableTaintForSched to NotReadyTaintForSched, will try again in the next cycle.", "cluster", cluster.Name)
 			}
 		case metav1.ConditionUnknown:
 			// Add UnreachableTaintTemplateForSched taint immediately.
-			if err = c.updateClusterTaints(ctx, []*corev1.Taint{UnreachableTaintTemplateForSched}, []*corev1.Taint{NotReadyTaintTemplateForSched}, cluster); err != nil {
+			if err = c.patchClusterTaints(ctx, []*corev1.Taint{UnreachableTaintTemplateForSched}, []*corev1.Taint{NotReadyTaintTemplateForSched}, cluster); err != nil {
 				klog.ErrorS(err, "Failed to instantly swap NotReadyTaintForSched to UnreachableTaintForSched, will try again in the next cycle.", "cluster", cluster.Name)
 			}
 		case metav1.ConditionTrue:
-			if err = c.updateClusterTaints(ctx, nil, []*corev1.Taint{NotReadyTaintTemplateForSched, UnreachableTaintTemplateForSched}, cluster); err != nil {
+			if err = c.patchClusterTaints(ctx, nil, []*corev1.Taint{NotReadyTaintTemplateForSched, UnreachableTaintTemplateForSched}, cluster); err != nil {
 				klog.ErrorS(err, "Failed to remove schedule taints from cluster, will retry in next iteration.", "cluster", cluster.Name)
 			}
 		}
 	} else {
 		// Add NotReadyTaintTemplateForSched taint immediately.
-		if err = c.updateClusterTaints(ctx, []*corev1.Taint{NotReadyTaintTemplateForSched}, nil, cluster); err != nil {
+		if err = c.patchClusterTaints(ctx, []*corev1.Taint{NotReadyTaintTemplateForSched}, nil, cluster); err != nil {
 			klog.ErrorS(err, "Failed to add a NotReady taint to the newly added cluster, will try again in the next cycle.", "cluster", cluster.Name)
 		}
 	}
@@ -689,6 +693,26 @@ func (c *Controller) updateClusterTaints(ctx context.Context, taintsToAdd, taint
 	cluster = cluster.DeepCopy()
 	cluster.Spec.Taints = taints
 	err := c.Client.Update(ctx, cluster)
+	if err != nil {
+		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, events.EventReasonTaintClusterFailed, err.Error())
+		return err
+	}
+	msg := fmt.Sprintf("Taint cluster succeed: %s.", generateEventMessage(taints))
+	c.EventRecorder.Event(cluster, corev1.EventTypeNormal, events.EventReasonTaintClusterSucceed, msg)
+	return nil
+}
+
+func (c *Controller) patchClusterTaints(ctx context.Context, taintsToAdd, taintsToRemove []*corev1.Taint, cluster *clusterv1alpha1.Cluster) error {
+	taints := utilhelper.SetCurrentClusterTaints(taintsToAdd, taintsToRemove, cluster)
+	if reflect.DeepEqual(taints, cluster.Spec.Taints) {
+		return nil
+	}
+
+	patch := client.MergeFrom(cluster)
+	cluster = cluster.DeepCopy()
+	cluster.Spec.Taints = taints
+
+	err := c.Client.Patch(ctx, cluster, patch)
 	if err != nil {
 		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, events.EventReasonTaintClusterFailed, err.Error())
 		return err
