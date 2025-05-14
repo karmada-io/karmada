@@ -97,6 +97,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ApplicationFailoverBehavior":                 schema_pkg_apis_policy_v1alpha1_ApplicationFailoverBehavior(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity":                             schema_pkg_apis_policy_v1alpha1_ClusterAffinity(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinityTerm":                         schema_pkg_apis_policy_v1alpha1_ClusterAffinityTerm(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterFailoverBehavior":                     schema_pkg_apis_policy_v1alpha1_ClusterFailoverBehavior(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterOverridePolicy":                       schema_pkg_apis_policy_v1alpha1_ClusterOverridePolicy(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterOverridePolicyList":                   schema_pkg_apis_policy_v1alpha1_ClusterOverridePolicyList(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterPreferences":                          schema_pkg_apis_policy_v1alpha1_ClusterPreferences(ref),
@@ -3654,6 +3655,33 @@ func schema_pkg_apis_policy_v1alpha1_ClusterAffinityTerm(ref common.ReferenceCal
 	}
 }
 
+func schema_pkg_apis_policy_v1alpha1_ClusterFailoverBehavior(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ClusterFailoverBehavior indicates cluster failover behaviors.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"purgeMode": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Directly\" and \"Gracefully\". Defaults to \"Gracefully\".",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"tolerationSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TolerationSeconds represents the time system should wait for performing failover process after the PreferNoExecute taint occurs on the cluster. Defaults to 300.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_policy_v1alpha1_ClusterOverridePolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -4005,11 +4033,17 @@ func schema_pkg_apis_policy_v1alpha1_FailoverBehavior(ref common.ReferenceCallba
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ApplicationFailoverBehavior"),
 						},
 					},
+					"cluster": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Cluster indicates failover behaviors in case of partial cluster failure. The partial cluster failure here refers to the clusters with taint whose effect is PreferNoExecute.\n\nPreferNoExecute taints do not need to consider the setting of Placement.ClusterTolerations.\n\nIf this value is nil, failover triggered by PreferNoExecute is disabled.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterFailoverBehavior"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ApplicationFailoverBehavior"},
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ApplicationFailoverBehavior", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterFailoverBehavior"},
 	}
 }
 
