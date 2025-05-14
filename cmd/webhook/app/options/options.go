@@ -94,7 +94,9 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 
 	// webhook flags
 	flags.Int64Var(&o.DefaultNotReadyTolerationSeconds, "default-not-ready-toleration-seconds", 300, "Indicates the tolerationSeconds of the propagation policy toleration for notReady:NoExecute that is added by default to every propagation policy that does not already have such a toleration.")
+	_ = flags.MarkDeprecated("default-not-ready-toleration-seconds", "default-not-ready-toleration-seconds is deprecated and will be removed in a future version.")
 	flags.Int64Var(&o.DefaultUnreachableTolerationSeconds, "default-unreachable-toleration-seconds", 300, "Indicates the tolerationSeconds of the propagation policy toleration for unreachable:NoExecute that is added by default to every propagation policy that does not already have such a toleration.")
+	_ = flags.MarkDeprecated("default-unreachable-toleration-seconds", "default-unreachable-toleration-seconds is deprecated and will be removed in a future version.")
 
 	o.ProfileOpts.AddFlags(flags)
 }
