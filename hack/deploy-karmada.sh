@@ -95,32 +95,40 @@ function generate_cert_related_secrets {
     TEMP_PATH=$(mktemp -d)
     echo ${TEMP_PATH}
 
-    # 1. generate secret with secret cert
-    generate_cert_secret karmada-apiserver ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
-    generate_cert_secret karmada-aggregated-apiserver ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
-    generate_cert_secret karmada-metrics-adapter ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
-    generate_cert_secret karmada-search ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
-    generate_cert_secret karmada-webhook ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
+    # 1. generate secret with server cert for each component
+    generate_cert_secret karmada-apiserver ${karmada_ca} ${KARMADA_APISERVER_SERVER_CRT} ${KARMADA_APISERVER_SERVER_KEY}
+    generate_cert_secret karmada-aggregated-apiserver ${karmada_ca} ${KARMADA_AGGREGATED_APISERVER_SERVER_CRT} ${KARMADA_AGGREGATED_APISERVER_SERVER_KEY}
+    generate_cert_secret karmada-metrics-adapter ${karmada_ca} ${KARMADA_METRICS_ADAPTER_SERVER_CRT} ${KARMADA_METRICS_ADAPTER_SERVER_KEY}
+    generate_cert_secret karmada-search ${karmada_ca} ${KARMADA_SEARCH_SERVER_CRT} ${KARMADA_SEARCH_SERVER_KEY}
+    generate_cert_secret karmada-webhook ${karmada_ca} ${KARMADA_WEBHOOK_SERVER_CRT} ${KARMADA_WEBHOOK_SERVER_KEY}
     generate_cert_secret karmada-interpreter-webhook-example ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
-    generate_cert_secret karmada-scheduler-estimator ${karmada_ca} ${SERVER_CRT} ${SERVER_KEY}
+    generate_cert_secret karmada-scheduler-estimator ${karmada_ca} ${KARMADA_SCHEDULER_ESTIMATOR_SERVER_CRT} ${KARMADA_SCHEDULER_ESTIMATOR_SERVER_KEY}
     generate_cert_secret etcd ${karmada_ca} ${ETCD_SERVER_CRT} ${ETCD_SERVER_KEY}
 
     # 2. generate secret with client cert
-    generate_cert_secret karmada-apiserver-etcd-client ${karmada_ca} ${ETCD_CLIENT_CRT} ${ETCD_CLIENT_KEY}
+    generate_cert_secret karmada-apiserver-etcd-client ${karmada_ca} ${KARMADA_APISERVER_ETCD_CLIENT_CRT} ${KARMADA_APISERVER_ETCD_CLIENT_KEY}
     generate_cert_secret karmada-apiserver-front-proxy-client ${karmada_ca} ${FRONT_PROXY_CLIENT_CRT} ${FRONT_PROXY_CLIENT_KEY}
-    generate_cert_secret karmada-aggregated-apiserver-etcd-client ${karmada_ca} ${ETCD_CLIENT_CRT} ${ETCD_CLIENT_KEY}
-    generate_cert_secret karmada-search-etcd-client ${karmada_ca} ${ETCD_CLIENT_CRT} ${ETCD_CLIENT_KEY}
+    generate_cert_secret karmada-aggregated-apiserver-etcd-client ${karmada_ca} ${KARMADA_AGGREGATED_APISERVER_ETCD_CLIENT_CRT} ${KARMADA_AGGREGATED_APISERVER_ETCD_CLIENT_KEY}
+    generate_cert_secret karmada-search-etcd-client ${karmada_ca} ${KARMADA_SEARCH_ETCD_CLIENT_CRT} ${KARMADA_SEARCH_ETCD_CLIENT_KEY}
     generate_cert_secret etcd-etcd-client ${karmada_ca} ${ETCD_CLIENT_CRT} ${ETCD_CLIENT_KEY}
-    generate_cert_secret karmada-scheduler-scheduler-estimator-client ${karmada_ca} ${CLIENT_CRT} ${CLIENT_KEY}
-    generate_cert_secret karmada-descheduler-scheduler-estimator-client ${karmada_ca} ${CLIENT_CRT} ${CLIENT_KEY}
+    generate_cert_secret karmada-scheduler-scheduler-estimator-client ${karmada_ca} ${KARMADA_SCHEDULER_GRPC_CRT} ${KARMADA_SCHEDULER_GRPC_KEY}
+    generate_cert_secret karmada-descheduler-scheduler-estimator-client ${karmada_ca} ${KARMADA_DESCHEDULER_GRPC_CRT} ${KARMADA_DESCHEDULER_GRPC_KEY}
 
     # 3. generate secret with ca cert or sa key
     generate_ca_cert_secret kube-controller-manager ${karmada_ca} ${karmada_ca_key}
     generate_key_pair_secret kube-controller-manager ${SA_PUB} ${SA_KEY}
     generate_key_pair_secret karmada-apiserver ${SA_PUB} ${SA_KEY}
 
-    # 4. generate secret with karmada config
-    components=(karmada-aggregated-apiserver karmada-controller-manager kube-controller-manager karmada-scheduler karmada-descheduler karmada-metrics-adapter karmada-search karmada-webhook karmada-interpreter-webhook-example)
+    # 4. generate secret with karmada config for each component using their specific client certs
+    generate_config_secret karmada-aggregated-apiserver ${karmada_ca} ${KARMADA_AGGREGATED_APISERVER_CLIENT_CRT} ${KARMADA_AGGREGATED_APISERVER_CLIENT_KEY}
+    generate_config_secret karmada-controller-manager ${karmada_ca} ${KARMADA_CONTROLLER_MANAGER_CLIENT_CRT} ${KARMADA_CONTROLLER_MANAGER_CLIENT_KEY}
+    generate_config_secret karmada-scheduler ${karmada_ca} ${KARMADA_SCHEDULER_CLIENT_CRT} ${KARMADA_SCHEDULER_CLIENT_KEY}
+    generate_config_secret karmada-descheduler ${karmada_ca} ${KARMADA_DESCHEDULER_CLIENT_CRT} ${KARMADA_DESCHEDULER_CLIENT_KEY}
+    generate_config_secret karmada-metrics-adapter ${karmada_ca} ${KARMADA_METRICS_ADAPTER_CLIENT_CRT} ${KARMADA_METRICS_ADAPTER_CLIENT_KEY}
+    generate_config_secret karmada-search ${karmada_ca} ${KARMADA_SEARCH_CLIENT_CRT} ${KARMADA_SEARCH_CLIENT_KEY}
+    generate_config_secret karmada-webhook ${karmada_ca} ${KARMADA_WEBHOOK_CLIENT_CRT} ${KARMADA_WEBHOOK_CLIENT_KEY}
+    
+    components=(kube-controller-manager karmada-interpreter-webhook-example)
     for component in "${components[@]}"
     do
       generate_config_secret ${component} ${karmada_ca} ${CLIENT_CRT} ${CLIENT_KEY}
@@ -187,13 +195,53 @@ util::cmd_must_exist "openssl"
 util::cmd_must_exist_cfssl ${CFSSL_VERSION}
 # create CA signers
 util::create_signing_certkey "" "${CERT_DIR}" ca karmada '"client auth","server auth"'
-# signs a certificate
+
 karmadaAltNames=("*.karmada-system.svc.cluster.local" "*.karmada-system.svc" "localhost" "127.0.0.1" $(util::get_apiserver_ip_from_kubeconfig "${HOST_CLUSTER_NAME}") "${interpreter_webhook_example_service_external_ip_address}")
+# Define SAN names for each server component
+karmada_apiserver_alt_names=("karmada-apiserver.karmada-system.svc.cluster.local" "karmada-apiserver.karmada-system.svc" "localhost" "127.0.0.1" $(util::get_apiserver_ip_from_kubeconfig "${HOST_CLUSTER_NAME}"))
+karmada_aggregated_apiserver_alt_names=("karmada-aggregated-apiserver.karmada-system.svc.cluster.local" "karmada-aggregated-apiserver.karmada-system.svc" "localhost" "127.0.0.1")
+karmada_webhook_alt_names=("karmada-webhook.karmada-system.svc.cluster.local" "karmada-webhook.karmada-system.svc" "localhost" "127.0.0.1")
+karmada_search_alt_names=("karmada-search.karmada-system.svc.cluster.local" "karmada-search.karmada-system.svc" "localhost" "127.0.0.1")
+karmada_metrics_adapter_alt_names=("karmada-metrics-adapter.karmada-system.svc.cluster.local" "karmada-metrics-adapter.karmada-system.svc" "localhost" "127.0.0.1")
+karmada_scheduler_estimator_alt_names=("*.karmada-system.svc.cluster.local" "*.karmada-system.svc" "localhost" "127.0.0.1")
+etcd_server_alt_names=("etcd.karmada-system.svc.cluster.local" "etcd.karmada-system.svc" "etcd-client.karmada-system.svc.cluster.local" "etcd-client.karmada-system.svc" "localhost" "127.0.0.1")
+
 util::create_certkey "" "${CERT_DIR}" "ca" server server "" "${karmadaAltNames[@]}"
 util::create_certkey "" "${CERT_DIR}" "ca" client system:admin system:masters "${karmadaAltNames[@]}"
-util::create_certkey "" "${CERT_DIR}" "ca" front-proxy-client front-proxy-client "" "${karmadaAltNames[@]}"
-util::create_certkey "" "${CERT_DIR}" "ca" etcd-server etcd-server "" "${karmadaAltNames[@]}"
-util::create_certkey "" "${CERT_DIR}" "ca" etcd-client etcd-client "" "${karmadaAltNames[@]}"
+# Generate server certificates for server components
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-apiserver "system:karmada:karmada-apiserver" "" "${karmada_apiserver_alt_names[@]}"
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-aggregated-apiserver "system:karmada:karmada-aggregated-apiserver" "" "${karmada_aggregated_apiserver_alt_names[@]}"
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-webhook "system:karmada:karmada-webhook" "" "${karmada_webhook_alt_names[@]}"
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-search "system:karmada:karmada-search" "" "${karmada_search_alt_names[@]}"
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-metrics-adapter "system:karmada:karmada-metrics-adapter" "" "${karmada_metrics_adapter_alt_names[@]}"
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-scheduler-estimator "system:karmada:karmada-scheduler-estimator" "" "${karmada_scheduler_estimator_alt_names[@]}"
+util::create_certkey "" "${CERT_DIR}" "ca" etcd-server "system:karmada:etcd-server" "" "${etcd_server_alt_names[@]}"
+
+# Generate client certificates for client components (without SAN)
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-apiserver-client "system:karmada:karmada-apiserver" "system:masters"
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-aggregated-apiserver-client "system:karmada:karmada-aggregated-apiserver" "system:masters"
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-webhook-client "system:karmada:karmada-webhook" "system:masters"
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-search-client "system:karmada:karmada-search" "system:masters"
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-metrics-adapter-client "system:karmada:karmada-metrics-adapter" "system:masters"
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-scheduler-estimator-client "system:karmada:karmada-scheduler-estimator" "system:masters"
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-controller-manager-client "system:karmada:karmada-controller-manager" "system:masters"
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-scheduler-client "system:karmada:karmada-scheduler" "system:masters"
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-descheduler-client "system:karmada:karmada-descheduler" "system:masters"
+
+# ETCD client certificates
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-apiserver-etcd-client "system:karmada:karmada-apiserver-etcd-client" "system:masters"
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-aggregated-apiserver-etcd-client "system:karmada:karmada-aggregated-apiserver-etcd-client" "system:masters"
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-search-etcd-client "system:karmada:karmada-search-etcd-client" "system:masters"
+util::create_certkey "" "${CERT_DIR}" "ca" etcd-client "system:karmada:etcd-etcd-client" ""
+
+# GRPC client certificates
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-scheduler-grpc "system:karmada:karmada-scheduler-grpc" "system:masters"
+util::create_certkey "" "${CERT_DIR}" "ca" karmada-descheduler-grpc "system:karmada:karmada-descheduler-grpc" "system:masters"
+
+# Front proxy certificates
+util::create_certkey "" "${CERT_DIR}" "ca" front-proxy-client "front-proxy-client" ""
+
+# Create service account key pair
 util::create_key_pair "" "${CERT_DIR}" "sa"
 
 # create namespace for control plane components
@@ -203,14 +251,61 @@ SERVER_CRT=$(base64 < "${CERT_DIR}/server.crt" | tr -d '\r\n')
 SERVER_KEY=$(base64 < "${CERT_DIR}/server.key" | tr -d '\r\n')
 CLIENT_CRT=$(base64 < "${CERT_DIR}/client.crt" | tr -d '\r\n')
 CLIENT_KEY=$(base64 < "${CERT_DIR}/client.key" | tr -d '\r\n')
-FRONT_PROXY_CLIENT_CRT=$(base64 < "${CERT_DIR}/front-proxy-client.crt" | tr -d '\r\n')
-FRONT_PROXY_CLIENT_KEY=$(base64 < "${CERT_DIR}/front-proxy-client.key" | tr -d '\r\n')
+
+KARMADA_APISERVER_SERVER_CRT=$(base64 < "${CERT_DIR}/karmada-apiserver.crt" | tr -d '\r\n')
+KARMADA_APISERVER_SERVER_KEY=$(base64 < "${CERT_DIR}/karmada-apiserver.key" | tr -d '\r\n')
+KARMADA_AGGREGATED_APISERVER_SERVER_CRT=$(base64 < "${CERT_DIR}/karmada-aggregated-apiserver.crt" | tr -d '\r\n')
+KARMADA_AGGREGATED_APISERVER_SERVER_KEY=$(base64 < "${CERT_DIR}/karmada-aggregated-apiserver.key" | tr -d '\r\n')
+KARMADA_WEBHOOK_SERVER_CRT=$(base64 < "${CERT_DIR}/karmada-webhook.crt" | tr -d '\r\n')
+KARMADA_WEBHOOK_SERVER_KEY=$(base64 < "${CERT_DIR}/karmada-webhook.key" | tr -d '\r\n')
+KARMADA_SEARCH_SERVER_CRT=$(base64 < "${CERT_DIR}/karmada-search.crt" | tr -d '\r\n')
+KARMADA_SEARCH_SERVER_KEY=$(base64 < "${CERT_DIR}/karmada-search.key" | tr -d '\r\n')
+KARMADA_METRICS_ADAPTER_SERVER_CRT=$(base64 < "${CERT_DIR}/karmada-metrics-adapter.crt" | tr -d '\r\n')
+KARMADA_METRICS_ADAPTER_SERVER_KEY=$(base64 < "${CERT_DIR}/karmada-metrics-adapter.key" | tr -d '\r\n')
+KARMADA_SCHEDULER_ESTIMATOR_SERVER_CRT=$(base64 < "${CERT_DIR}/karmada-scheduler-estimator.crt" | tr -d '\r\n')
+KARMADA_SCHEDULER_ESTIMATOR_SERVER_KEY=$(base64 < "${CERT_DIR}/karmada-scheduler-estimator.key" | tr -d '\r\n')
 ETCD_SERVER_CRT=$(base64 < "${CERT_DIR}/etcd-server.crt" | tr -d '\r\n')
 ETCD_SERVER_KEY=$(base64 < "${CERT_DIR}/etcd-server.key" | tr -d '\r\n')
 ETCD_CLIENT_CRT=$(base64 < "${CERT_DIR}/etcd-client.crt" | tr -d '\r\n')
 ETCD_CLIENT_KEY=$(base64 < "${CERT_DIR}/etcd-client.key" | tr -d '\r\n')
+
+KARMADA_APISERVER_CLIENT_CRT=$(base64 < "${CERT_DIR}/karmada-apiserver-client.crt" | tr -d '\r\n')
+KARMADA_APISERVER_CLIENT_KEY=$(base64 < "${CERT_DIR}/karmada-apiserver-client.key" | tr -d '\r\n')
+KARMADA_AGGREGATED_APISERVER_CLIENT_CRT=$(base64 < "${CERT_DIR}/karmada-aggregated-apiserver-client.crt" | tr -d '\r\n')
+KARMADA_AGGREGATED_APISERVER_CLIENT_KEY=$(base64 < "${CERT_DIR}/karmada-aggregated-apiserver-client.key" | tr -d '\r\n')
+KARMADA_WEBHOOK_CLIENT_CRT=$(base64 < "${CERT_DIR}/karmada-webhook-client.crt" | tr -d '\r\n')
+KARMADA_WEBHOOK_CLIENT_KEY=$(base64 < "${CERT_DIR}/karmada-webhook-client.key" | tr -d '\r\n')
+KARMADA_SEARCH_CLIENT_CRT=$(base64 < "${CERT_DIR}/karmada-search-client.crt" | tr -d '\r\n')
+KARMADA_SEARCH_CLIENT_KEY=$(base64 < "${CERT_DIR}/karmada-search-client.key" | tr -d '\r\n')
+KARMADA_METRICS_ADAPTER_CLIENT_CRT=$(base64 < "${CERT_DIR}/karmada-metrics-adapter-client.crt" | tr -d '\r\n')
+KARMADA_METRICS_ADAPTER_CLIENT_KEY=$(base64 < "${CERT_DIR}/karmada-metrics-adapter-client.key" | tr -d '\r\n')
+KARMADA_SCHEDULER_ESTIMATOR_CLIENT_CRT=$(base64 < "${CERT_DIR}/karmada-scheduler-estimator-client.crt" | tr -d '\r\n')
+KARMADA_SCHEDULER_ESTIMATOR_CLIENT_KEY=$(base64 < "${CERT_DIR}/karmada-scheduler-estimator-client.key" | tr -d '\r\n')
+KARMADA_CONTROLLER_MANAGER_CLIENT_CRT=$(base64 < "${CERT_DIR}/karmada-controller-manager-client.crt" | tr -d '\r\n')
+KARMADA_CONTROLLER_MANAGER_CLIENT_KEY=$(base64 < "${CERT_DIR}/karmada-controller-manager-client.key" | tr -d '\r\n')
+KARMADA_SCHEDULER_CLIENT_CRT=$(base64 < "${CERT_DIR}/karmada-scheduler-client.crt" | tr -d '\r\n')
+KARMADA_SCHEDULER_CLIENT_KEY=$(base64 < "${CERT_DIR}/karmada-scheduler-client.key" | tr -d '\r\n')
+KARMADA_DESCHEDULER_CLIENT_CRT=$(base64 < "${CERT_DIR}/karmada-descheduler-client.crt" | tr -d '\r\n')
+KARMADA_DESCHEDULER_CLIENT_KEY=$(base64 < "${CERT_DIR}/karmada-descheduler-client.key" | tr -d '\r\n')
+
+KARMADA_APISERVER_ETCD_CLIENT_CRT=$(base64 < "${CERT_DIR}/karmada-apiserver-etcd-client.crt" | tr -d '\r\n')
+KARMADA_APISERVER_ETCD_CLIENT_KEY=$(base64 < "${CERT_DIR}/karmada-apiserver-etcd-client.key" | tr -d '\r\n')
+KARMADA_AGGREGATED_APISERVER_ETCD_CLIENT_CRT=$(base64 < "${CERT_DIR}/karmada-aggregated-apiserver-etcd-client.crt" | tr -d '\r\n')
+KARMADA_AGGREGATED_APISERVER_ETCD_CLIENT_KEY=$(base64 < "${CERT_DIR}/karmada-aggregated-apiserver-etcd-client.key" | tr -d '\r\n')
+KARMADA_SEARCH_ETCD_CLIENT_CRT=$(base64 < "${CERT_DIR}/karmada-search-etcd-client.crt" | tr -d '\r\n')
+KARMADA_SEARCH_ETCD_CLIENT_KEY=$(base64 < "${CERT_DIR}/karmada-search-etcd-client.key" | tr -d '\r\n')
+
+KARMADA_SCHEDULER_GRPC_CRT=$(base64 < "${CERT_DIR}/karmada-scheduler-grpc.crt" | tr -d '\r\n')
+KARMADA_SCHEDULER_GRPC_KEY=$(base64 < "${CERT_DIR}/karmada-scheduler-grpc.key" | tr -d '\r\n')
+KARMADA_DESCHEDULER_GRPC_CRT=$(base64 < "${CERT_DIR}/karmada-descheduler-grpc.crt" | tr -d '\r\n')
+KARMADA_DESCHEDULER_GRPC_KEY=$(base64 < "${CERT_DIR}/karmada-descheduler-grpc.key" | tr -d '\r\n')
+
+FRONT_PROXY_CLIENT_CRT=$(base64 < "${CERT_DIR}/front-proxy-client.crt" | tr -d '\r\n')
+FRONT_PROXY_CLIENT_KEY=$(base64 < "${CERT_DIR}/front-proxy-client.key" | tr -d '\r\n')
+
 SA_PUB=$(base64 < "${CERT_DIR}/sa.pub" | tr -d '\r\n')
 SA_KEY=$(base64 < "${CERT_DIR}/sa.key" | tr -d '\r\n')
+
 generate_cert_related_secrets
 
 # deploy karmada etcd
