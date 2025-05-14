@@ -33,7 +33,6 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native/prune"
 	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 // CreateOrUpdateWork creates a Work object if not exist, or updates if it already exists.
@@ -79,7 +78,7 @@ func CreateOrUpdateWork(ctx context.Context, c client.Client, workMeta metav1.Ob
 			// This is to avoid unnecessary updates to the Work object, especially when controller starts.
 			//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
 			if runtimeObject.Labels[util.PropagationInstruction] != util.PropagationInstructionSuppressed {
-				helper.SetLabelsAndAnnotationsForWorkload(resource, runtimeObject)
+				util.SetLabelsAndAnnotationsForWorkload(resource, runtimeObject)
 			}
 			workloadJSON, err := json.Marshal(resource)
 			if err != nil {

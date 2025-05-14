@@ -31,7 +31,6 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native/prune"
 	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 // MutatingAdmission mutates API request if necessary.
@@ -75,7 +74,7 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 			return admission.Errored(http.StatusInternalServerError, err)
 		}
 
-		helper.SetLabelsAndAnnotationsForWorkload(workloadObj, work)
+		util.SetLabelsAndAnnotationsForWorkload(workloadObj, work)
 
 		workloadJSON, err := workloadObj.MarshalJSON()
 		if err != nil {

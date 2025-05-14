@@ -76,7 +76,7 @@ func (c *EndpointsliceDispatchController) Reconcile(ctx context.Context, req con
 		return controllerruntime.Result{}, err
 	}
 
-	if !helper.IsWorkContains(work.Spec.Workload.Manifests, util.EndpointSliceGVK) {
+	if !util.IsWorkContains(work.Spec.Workload.Manifests, util.EndpointSliceGVK) {
 		return controllerruntime.Result{}, nil
 	}
 

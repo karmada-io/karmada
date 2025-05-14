@@ -94,7 +94,7 @@ func (c *EndpointSliceCollectController) Reconcile(ctx context.Context, req cont
 		return controllerruntime.Result{}, err
 	}
 
-	if !helper.IsWorkContains(work.Spec.Workload.Manifests, multiClusterServiceGVK) {
+	if !util.IsWorkContains(work.Spec.Workload.Manifests, multiClusterServiceGVK) {
 		return controllerruntime.Result{}, nil
 	}
 
@@ -314,7 +314,7 @@ func (c *EndpointSliceCollectController) handleEndpointSliceEvent(ctx context.Co
 
 	mcsExists := false
 	for _, work := range workList.Items {
-		if helper.IsWorkContains(work.Spec.Workload.Manifests, multiClusterServiceGVK) {
+		if util.IsWorkContains(work.Spec.Workload.Manifests, multiClusterServiceGVK) {
 			mcsExists = true
 			break
 		}

@@ -233,7 +233,7 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 }
 
 func (c *WorkStatusController) updateResource(ctx context.Context, observedObj *unstructured.Unstructured, workObject *workv1alpha1.Work, fedKey keys.FederatedKey) error {
-	if helper.IsWorkSuspendDispatching(workObject) {
+	if util.IsWorkSuspendDispatching(workObject) {
 		return nil
 	}
 
@@ -552,7 +552,7 @@ func (c *WorkStatusController) SetupWithManager(mgr controllerruntime.Manager) e
 }
 
 func (c *WorkStatusController) eventf(object *unstructured.Unstructured, eventType, reason, messageFmt string, args ...interface{}) {
-	ref, err := helper.GenEventRef(object)
+	ref, err := util.GenEventRef(object)
 	if err != nil {
 		klog.Errorf("Ignore event(%s) as failing to build event reference for: kind=%s, %s due to %v", reason, object.GetKind(), klog.KObj(object), err)
 		return

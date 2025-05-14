@@ -86,7 +86,7 @@ func NewPredicateForServiceExportController(mgr controllerruntime.Manager) predi
 			return false
 		}
 
-		if IsWorkSuspendDispatching(obj) {
+		if util.IsWorkSuspendDispatching(obj) {
 			klog.V(5).Infof("Ignored Work(%s/%s) %s event as dispatching is suspended.", obj.Namespace, obj.Name, eventType)
 			return false
 		}
@@ -184,7 +184,7 @@ func NewPredicateForServiceExportControllerOnAgent(curClusterName string) predic
 			return false
 		}
 
-		if IsWorkSuspendDispatching(obj) {
+		if util.IsWorkSuspendDispatching(obj) {
 			klog.V(5).Infof("Ignored Work(%s/%s) %s event as dispatching is suspended.", obj.Namespace, obj.Name, eventType)
 			return false
 		}

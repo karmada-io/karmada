@@ -37,7 +37,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
@@ -1135,7 +1135,7 @@ var _ = ginkgo.Describe("[Suspension] ClusterPropagationPolicy testing", func() 
 				if err != nil {
 					return false
 				}
-				return work != nil && helper.IsWorkSuspendDispatching(work)
+				return work != nil && util.IsWorkSuspendDispatching(work)
 			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 		})
 
