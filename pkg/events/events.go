@@ -102,6 +102,10 @@ const (
 	EventReasonCollectFederatedResourceQuotaStatusFailed = "AggregateStatusFailed"
 	// EventReasonCollectFederatedResourceQuotaStatusSucceed indicates that aggregate status succeed.
 	EventReasonCollectFederatedResourceQuotaStatusSucceed = "AggregateStatusSucceed"
+	// EventReasonCollectFederatedResourceQuotaOverallStatusFailed indicates that Collect Overall Status failed.
+	EventReasonCollectFederatedResourceQuotaOverallStatusFailed = "CollectOverallStatusFailed"
+	// EventReasonCollectFederatedResourceQuotaOverallStatusSucceed indicates that Collect Overall Status succeed.
+	EventReasonCollectFederatedResourceQuotaOverallStatusSucceed = "CollectOverallStatusSucceed"
 )
 
 // Define events for resource templates.
