@@ -76,7 +76,7 @@ type SchedulingQueue interface {
 	Len() int
 
 	// Forget indicates that an item is finished being retried.  Doesn't matter whether it's for perm failing
-	// or for success, we'll remove it from backoffQ, but you still have to call `Done` on the queue.
+	// or for success, we'll remove it from backoffQ and unschedulableBindings, but you still have to call `Done` on the queue.
 	Forget(bindingInfo *QueuedBindingInfo)
 
 	// Run starts the goroutines managing the queue.
@@ -136,9 +136,9 @@ func NewSchedulingQueue(opts ...Option) SchedulingQueue {
 		bindingMaxBackoffDuration:     options.bindingMaxBackoffDuration,
 		bindingMaxInUnschedulableBindingsDuration: options.bindingMaxInUnschedulableBindingsDuration,
 		activeQ:               NewActiveQueue(metrics.NewActiveBindingsRecorder()),
-		backoffQ:              heap.NewWithRecorder(BindingKeyFunc, Less, metrics.NewBackoffBindingsRecorder()),
 		unschedulableBindings: newUnschedulableBindings(metrics.NewUnschedulableBindingsRecorder()),
 	}
+	bq.backoffQ = heap.NewWithRecorder(BindingKeyFunc, bq.lessBackoffCompleted, metrics.NewBackoffBindingsRecorder())
 
 	return bq
 }
@@ -211,6 +211,14 @@ func (bq *prioritySchedulingQueue) flushBackoffQCompleted() {
 		}
 		bq.moveToActiveQ(bInfo)
 	}
+}
+
+// lessBackoffCompleted is the function used by the backoffQ heap algorithm to sort bindings.
+// It sorts bindings based on the time when the backoff is completed.
+func (bq *prioritySchedulingQueue) lessBackoffCompleted(bInfo1 *QueuedBindingInfo, bInfo2 *QueuedBindingInfo) bool {
+	boTime1 := bq.getBackoffTime(bInfo1)
+	boTime2 := bq.getBackoffTime(bInfo2)
+	return boTime1.Before(boTime2)
 }
 
 // isBindingBackingoff returns true if a binding is still waiting for its backoff timer.
@@ -318,7 +326,11 @@ func (bq *prioritySchedulingQueue) Forget(bindingInfo *QueuedBindingInfo) {
 	bq.lock.Lock()
 	defer bq.lock.Unlock()
 
+	// Currently, a single goroutine is used to handle the scheduling task, which ensures that when a
+	// binding is being processed, this binding actually does not exist in both the backoffQ and UnschedulableBindings.
+	// The deletion operation is still carried out here to fulfill the semantics of the Forget function and maintain compatibility.
 	_ = bq.backoffQ.Delete(bindingInfo)
+	bq.unschedulableBindings.delete(bindingInfo.NamespacedKey)
 }
 
 // moveToActiveQ tries to add binding to active queue and remove it from unschedulable and backoff queues.
