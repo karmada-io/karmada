@@ -49,7 +49,7 @@ func TestValidateClusterTaintEffect(t *testing.T) {
 			effect:     corev1.TaintEffect("InvalidEffect"),
 			allowEmpty: false,
 			wantErrors: 1,
-			errorMsg:   "test: Unsupported value: \"InvalidEffect\": supported values: \"NoSchedule\", \"NoExecute\"",
+			errorMsg:   "test: Unsupported value: \"InvalidEffect\": supported values: \"NoSchedule\", \"NoExecute\", \"PreferNoExecute\"",
 		},
 		{
 			name:       "empty effect not allowed",
@@ -63,7 +63,7 @@ func TestValidateClusterTaintEffect(t *testing.T) {
 			effect:     corev1.TaintEffect(""),
 			allowEmpty: true,
 			wantErrors: 1,
-			errorMsg:   "test: Unsupported value: \"\": supported values: \"NoSchedule\", \"NoExecute\"",
+			errorMsg:   "test: Unsupported value: \"\": supported values: \"NoSchedule\", \"NoExecute\", \"PreferNoExecute\"",
 		},
 	}
 
