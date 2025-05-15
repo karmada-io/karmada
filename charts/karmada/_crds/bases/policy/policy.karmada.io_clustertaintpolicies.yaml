@@ -1,0 +1,219 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.3
+  name: clustertaintpolicies.policy.karmada.io
+spec:
+  group: policy.karmada.io
+  names:
+    kind: ClusterTaintPolicy
+    listKind: ClusterTaintPolicyList
+    plural: clustertaintpolicies
+    singular: clustertaintpolicy
+  scope: Cluster
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          ClusterTaintPolicy defines how Karmada would taint clusters according
+          to the conditions on the target clusters.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec represents the desired behavior of ClusterTaintPolicy.
+            properties:
+              matchConditions:
+                description: |-
+                  MatchConditions indicates the conditions to match for triggering
+                  the controller to add taints on the cluster object.
+                  The match conditions are ANDed.
+                  When the MatchConditions no longer match, the taints will be removed.
+                  It can not be empty.
+                items:
+                  description: |-
+                    MatchCondition represents the condition match detail of activating the failover
+                    relevant taints on target clusters.
+                  properties:
+                    conditionType:
+                      description: ConditionType specifies the ClusterStatus condition
+                        type.
+                      type: string
+                    operator:
+                      description: |-
+                        Operator represents a relationship to a set of values.
+                        Valid operators are In, NotIn.
+                      type: string
+                    statusValues:
+                      description: |-
+                        StatusValues is an array of metav1.ConditionStatus values.
+                        The item specifies the ClusterStatus condition status.
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - conditionType
+                  - operator
+                  - statusValues
+                  type: object
+                type: array
+              taints:
+                description: |-
+                  Taints specifies the taints that need to be applied to the clusters
+                  which match with TargetClusters.
+                  Distinct ClusterTaintPolicy objects are restricted from operating on
+                  the same taint.
+                items:
+                  description: Taint describes the taint that needs to be applied
+                    to the cluster.
+                  properties:
+                    effect:
+                      description: Effect represents the taint effect to be applied
+                        to a cluster.
+                      type: string
+                    key:
+                      description: Key represents the taint key to be applied to a
+                        cluster.
+                      type: string
+                    value:
+                      description: Value represents the taint value corresponding
+                        to the taint key.
+                      type: string
+                  required:
+                  - effect
+                  - key
+                  type: object
+                type: array
+              targetClusters:
+                description: |-
+                  TargetClusters specifies the clusters that ClusterTaintPolicy needs
+                  to pay attention to.
+                  For clusters that meet the MatchConditions, Taints will be added.
+                  If targetClusters is not set, any cluster can be selected.
+                properties:
+                  clusterNames:
+                    description: ClusterNames is the list of clusters to be selected.
+                    items:
+                      type: string
+                    type: array
+                  exclude:
+                    description: ExcludedClusters is the list of clusters to be ignored.
+                    items:
+                      type: string
+                    type: array
+                  fieldSelector:
+                    description: |-
+                      FieldSelector is a filter to select member clusters by fields.
+                      The key(field) of the match expression should be 'provider', 'region', or 'zone',
+                      and the operator of the match expression should be 'In' or 'NotIn'.
+                      If non-nil and non-empty, only the clusters match this filter will be selected.
+                    properties:
+                      matchExpressions:
+                        description: A list of field selector requirements.
+                        items:
+                          description: |-
+                            A node selector requirement is a selector that contains values, a key, and an operator
+                            that relates the key and values.
+                          properties:
+                            key:
+                              description: The label key that the selector applies
+                                to.
+                              type: string
+                            operator:
+                              description: |-
+                                Represents a key's relationship to a set of values.
+                                Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+                              type: string
+                            values:
+                              description: |-
+                                An array of string values. If the operator is In or NotIn,
+                                the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                the values array must be empty. If the operator is Gt or Lt, the values
+                                array must have a single element, which will be interpreted as an integer.
+                                This array is replaced during a strategic merge patch.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: atomic
+                          required:
+                          - key
+                          - operator
+                          type: object
+                        type: array
+                    type: object
+                  labelSelector:
+                    description: |-
+                      LabelSelector is a filter to select member clusters by labels.
+                      If non-nil and non-empty, only the clusters match this filter will be selected.
+                    properties:
+                      matchExpressions:
+                        description: matchExpressions is a list of label selector
+                          requirements. The requirements are ANDed.
+                        items:
+                          description: |-
+                            A label selector requirement is a selector that contains values, a key, and an operator that
+                            relates the key and values.
+                          properties:
+                            key:
+                              description: key is the label key that the selector
+                                applies to.
+                              type: string
+                            operator:
+                              description: |-
+                                operator represents a key's relationship to a set of values.
+                                Valid operators are In, NotIn, Exists and DoesNotExist.
+                              type: string
+                            values:
+                              description: |-
+                                values is an array of string values. If the operator is In or NotIn,
+                                the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                the values array must be empty. This array is replaced during a strategic
+                                merge patch.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: atomic
+                          required:
+                          - key
+                          - operator
+                          type: object
+                        type: array
+                        x-kubernetes-list-type: atomic
+                      matchLabels:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                          map is equivalent to an element of matchExpressions, whose key field is "key", the
+                          operator is "In", and the values array contains only "value". The requirements are ANDed.
+                        type: object
+                    type: object
+                    x-kubernetes-map-type: atomic
+                type: object
+            required:
+            - matchConditions
+            - taints
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true

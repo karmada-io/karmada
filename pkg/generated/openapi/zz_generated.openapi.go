@@ -103,6 +103,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterPropagationPolicy":                    schema_pkg_apis_policy_v1alpha1_ClusterPropagationPolicy(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterPropagationPolicyList":                schema_pkg_apis_policy_v1alpha1_ClusterPropagationPolicyList(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterQuotaStatus":                          schema_pkg_apis_policy_v1alpha1_ClusterQuotaStatus(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterTaintPolicy":                          schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicy(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterTaintPolicyList":                      schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicyList(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterTaintPolicySpec":                      schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicySpec(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.CommandArgsOverrider":                        schema_pkg_apis_policy_v1alpha1_CommandArgsOverrider(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.DecisionConditions":                          schema_pkg_apis_policy_v1alpha1_DecisionConditions(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior":                            schema_pkg_apis_policy_v1alpha1_FailoverBehavior(ref),
@@ -116,6 +119,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ImagePredicate":                              schema_pkg_apis_policy_v1alpha1_ImagePredicate(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.JSONPatchOperation":                          schema_pkg_apis_policy_v1alpha1_JSONPatchOperation(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.LabelAnnotationOverrider":                    schema_pkg_apis_policy_v1alpha1_LabelAnnotationOverrider(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.MatchCondition":                              schema_pkg_apis_policy_v1alpha1_MatchCondition(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OverridePolicy":                              schema_pkg_apis_policy_v1alpha1_OverridePolicy(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OverridePolicyList":                          schema_pkg_apis_policy_v1alpha1_OverridePolicyList(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OverrideSpec":                                schema_pkg_apis_policy_v1alpha1_OverrideSpec(ref),
@@ -136,6 +140,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StaticClusterWeight":                         schema_pkg_apis_policy_v1alpha1_StaticClusterWeight(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SuspendClusters":                             schema_pkg_apis_policy_v1alpha1_SuspendClusters(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Suspension":                                  schema_pkg_apis_policy_v1alpha1_Suspension(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Taint":                                       schema_pkg_apis_policy_v1alpha1_Taint(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.YAMLPatchOperation":                          schema_pkg_apis_policy_v1alpha1_YAMLPatchOperation(ref),
 		"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.ClusterAffinity":                             schema_pkg_apis_remedy_v1alpha1_ClusterAffinity(ref),
 		"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.ClusterConditionRequirement":                 schema_pkg_apis_remedy_v1alpha1_ClusterConditionRequirement(ref),
@@ -3927,6 +3932,148 @@ func schema_pkg_apis_policy_v1alpha1_ClusterQuotaStatus(ref common.ReferenceCall
 	}
 }
 
+func schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ClusterTaintPolicy defines how Karmada would taint clusters according to the conditions on the target clusters.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Spec represents the desired behavior of ClusterTaintPolicy.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterTaintPolicySpec"),
+						},
+					},
+				},
+				Required: []string{"spec"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterTaintPolicySpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicyList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ClusterTaintPolicyList contains a list of ClusterTaintPolicy",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterTaintPolicy"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterTaintPolicy", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ClusterTaintPolicySpec represents the desired behavior of ClusterTaintPolicy.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"targetClusters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TargetClusters specifies the clusters that ClusterTaintPolicy needs to pay attention to. For clusters that meet the MatchConditions, Taints will be added. If targetClusters is not set, any cluster can be selected.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity"),
+						},
+					},
+					"matchConditions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MatchConditions indicates the conditions to match for triggering the controller to add taints on the cluster object. The match conditions are ANDed. When the MatchConditions no longer match, the taints will be removed. It can not be empty.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.MatchCondition"),
+									},
+								},
+							},
+						},
+					},
+					"taints": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Taints specifies the taints that need to be applied to the clusters which match with TargetClusters. Distinct ClusterTaintPolicy objects are restricted from operating on the same taint.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Taint"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"matchConditions", "taints"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.MatchCondition", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Taint"},
+	}
+}
+
 func schema_pkg_apis_policy_v1alpha1_CommandArgsOverrider(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -4432,6 +4579,51 @@ func schema_pkg_apis_policy_v1alpha1_LabelAnnotationOverrider(ref common.Referen
 					},
 				},
 				Required: []string{"operator", "value"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_policy_v1alpha1_MatchCondition(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MatchCondition represents the condition match detail of activating the failover relevant taints on target clusters.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"conditionType": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConditionType specifies the ClusterStatus condition type.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"operator": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Operator represents a relationship to a set of values. Valid operators are In, NotIn.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"statusValues": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StatusValues is an array of metav1.ConditionStatus values. The item specifies the ClusterStatus condition status.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"conditionType", "operator", "statusValues"},
 			},
 		},
 	}
@@ -5394,6 +5586,44 @@ func schema_pkg_apis_policy_v1alpha1_Suspension(ref common.ReferenceCallback) co
 		},
 		Dependencies: []string{
 			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SuspendClusters"},
+	}
+}
+
+func schema_pkg_apis_policy_v1alpha1_Taint(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Taint describes the taint that needs to be applied to the cluster.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"key": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Key represents the taint key to be applied to a cluster.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"effect": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Effect represents the taint effect to be applied to a cluster.\n\nPossible enum values:\n - `\"NoExecute\"` Evict any already-running pods that do not tolerate the taint. Currently enforced by NodeController.\n - `\"NoSchedule\"` Do not allow new pods to schedule onto the node unless they tolerate the taint, but allow all pods submitted to Kubelet without going through the scheduler to start, and allow all already-running pods to continue running. Enforced by the scheduler.\n - `\"PreferNoSchedule\"` Like TaintEffectNoSchedule, but the scheduler tries not to schedule new pods onto the node, rather than prohibiting new pods from scheduling onto the node entirely. Enforced by the scheduler.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+							Enum:        []interface{}{"NoExecute", "NoSchedule", "PreferNoSchedule"},
+						},
+					},
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Value represents the taint value corresponding to the taint key.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"key", "effect"},
+			},
+		},
 	}
 }
 
