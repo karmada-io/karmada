@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 const (
@@ -38,7 +38,7 @@ func IndexField(mgr controllerruntime.Manager) error {
 		if !ok {
 			return nil
 		}
-		return helper.GetWorkSuspendDispatching(&work.Spec)
+		return util.GetWorkSuspendDispatching(&work.Spec)
 	}
 
 	return utilerrors.NewAggregate([]error{

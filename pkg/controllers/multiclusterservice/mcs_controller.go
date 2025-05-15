@@ -140,7 +140,7 @@ func (c *MCSController) retrieveMultiClusterService(ctx context.Context, mcs *ne
 	}
 
 	for _, work := range workList.Items {
-		if !helper.IsWorkContains(work.Spec.Workload.Manifests, multiClusterServiceGVK) {
+		if !util.IsWorkContains(work.Spec.Workload.Manifests, multiClusterServiceGVK) {
 			continue
 		}
 		clusterName, err := names.GetClusterName(work.Namespace)
@@ -183,7 +183,7 @@ func (c *MCSController) cleanProviderEndpointSliceWork(ctx context.Context, work
 
 	var errs []error
 	for _, work := range workList.Items {
-		if !helper.IsWorkContains(work.Spec.Workload.Manifests, util.EndpointSliceGVK) {
+		if !util.IsWorkContains(work.Spec.Workload.Manifests, util.EndpointSliceGVK) {
 			continue
 		}
 		// This annotation is only added to the EndpointSlice work in consumer clusters' execution namespace

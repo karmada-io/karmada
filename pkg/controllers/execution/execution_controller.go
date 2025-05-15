@@ -117,7 +117,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 		return controllerruntime.Result{}, err
 	}
 
-	if helper.IsWorkSuspendDispatching(work) {
+	if util.IsWorkSuspendDispatching(work) {
 		klog.V(4).Infof("Skip syncing work(%s/%s) for cluster(%s) as work dispatch is suspended.", work.Namespace, work.Name, cluster.Name)
 		return controllerruntime.Result{}, nil
 	}
@@ -336,7 +336,7 @@ func (c *Controller) updateWorkDispatchingConditionIfNeeded(ctx context.Context,
 		LastTransitionTime: metav1.Now(),
 	}
 
-	if helper.IsWorkSuspendDispatching(work) {
+	if util.IsWorkSuspendDispatching(work) {
 		newWorkDispatchingCondition.Status = metav1.ConditionFalse
 		newWorkDispatchingCondition.Reason = workSuspendDispatchingConditionReason
 		newWorkDispatchingCondition.Message = WorkSuspendDispatchingConditionMessage
@@ -387,7 +387,7 @@ func (c *Controller) setStatusCondition(ctx context.Context, work *workv1alpha1.
 }
 
 func (c *Controller) eventf(object *unstructured.Unstructured, eventType, reason, messageFmt string, args ...interface{}) {
-	ref, err := helper.GenEventRef(object)
+	ref, err := util.GenEventRef(object)
 	if err != nil {
 		klog.Errorf("Ignore event(%s) as failed to build event reference for: kind=%s, %s due to %v", reason, object.GetKind(), klog.KObj(object), err)
 		return

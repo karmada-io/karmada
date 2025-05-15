@@ -46,7 +46,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/events"
-	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
@@ -1219,7 +1219,7 @@ var _ = ginkgo.Describe("[Suspension] PropagationPolicy testing", func() {
 				if err != nil {
 					return false
 				}
-				return work != nil && helper.IsWorkSuspendDispatching(work)
+				return work != nil && util.IsWorkSuspendDispatching(work)
 			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 		})
 

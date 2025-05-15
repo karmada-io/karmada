@@ -111,7 +111,7 @@ func (c *ServiceExportController) Reconcile(ctx context.Context, req controllerr
 		return controllerruntime.Result{}, nil
 	}
 
-	if !helper.IsWorkContains(work.Spec.Workload.Manifests, serviceExportGVK) {
+	if !util.IsWorkContains(work.Spec.Workload.Manifests, serviceExportGVK) {
 		return controllerruntime.Result{}, nil
 	}
 
@@ -175,7 +175,7 @@ func (c *ServiceExportController) enqueueReportedEpsServiceExport() {
 
 	for index := range workList.Items {
 		work := workList.Items[index]
-		if !helper.IsWorkContains(work.Spec.Workload.Manifests, endpointSliceGVK) {
+		if !util.IsWorkContains(work.Spec.Workload.Manifests, endpointSliceGVK) {
 			continue
 		}
 
@@ -452,7 +452,7 @@ func (c *ServiceExportController) removeOrphanWork(ctx context.Context, endpoint
 	var errs []error
 	for index := range collectedEpsWorkList.Items {
 		work := collectedEpsWorkList.Items[index]
-		if !helper.IsWorkContains(work.Spec.Workload.Manifests, endpointSliceGVK) {
+		if !util.IsWorkContains(work.Spec.Workload.Manifests, endpointSliceGVK) {
 			continue
 		}
 
