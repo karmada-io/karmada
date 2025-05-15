@@ -29,6 +29,7 @@ import (
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
 func validateCRDTarball(crdTarball *operatorv1alpha1.CRDTarball, fldPath *field.Path) (errs field.ErrorList) {
@@ -51,6 +52,9 @@ func validateKarmadaAPIServer(karmadaAPIServer *operatorv1alpha1.KarmadaAPIServe
 	serviceType := karmadaAPIServer.ServiceType
 	if serviceType != corev1.ServiceTypeClusterIP && serviceType != corev1.ServiceTypeNodePort && serviceType != corev1.ServiceTypeLoadBalancer {
 		errs = append(errs, field.Invalid(fldPath.Child("serviceType"), serviceType, "unsupported service type for Karmada API server"))
+	}
+	if serviceType == corev1.ServiceTypeLoadBalancer && karmadaAPIServer.LoadBalancerClass != nil {
+		errs = append(errs, lifted.ValidateDNS1123Label(*karmadaAPIServer.LoadBalancerClass, fldPath.Child("loadBalancerClass"))...)
 	}
 	if !util.IsInCluster(hostCluster) && serviceType == corev1.ServiceTypeClusterIP {
 		errs = append(errs, field.Invalid(fldPath.Child("serviceType"), serviceType, "if karmada is installed in a remote cluster, the service type of karmada-apiserver must be either NodePort or LoadBalancer"))
