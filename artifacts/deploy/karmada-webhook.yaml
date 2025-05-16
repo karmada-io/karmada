@@ -41,6 +41,7 @@ spec:
             - --default-unreachable-toleration-seconds=30
             - --secure-port=8443
             - --cert-dir=/etc/karmada/pki/server
+            - --feature-gates=AllAlpha=true,AllBeta=true
             - --v=4
           ports:
             - containerPort: 8443

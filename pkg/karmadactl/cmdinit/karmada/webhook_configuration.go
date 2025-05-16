@@ -331,6 +331,20 @@ webhooks:
     sideEffects: None
     admissionReviewVersions: [ "v1" ]
     timeoutSeconds: 3
+  - name: resourcebinding.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["work.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["resourcebindings"]
+        scope: "Namespaced"
+    clientConfig:
+      url: https://karmada-webhook.%[1]s.svc:443/validate-resourcebinding
+      caBundle: %[2]s
+    failurePolicy: Fail
+    sideEffects: NoneOnDryRun
+    admissionReviewVersions: ["v1"]
+    timeoutSeconds: 3
 `, systemNamespace, caBundle)
 }
 

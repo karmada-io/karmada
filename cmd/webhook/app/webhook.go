@@ -183,6 +183,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 	hookServer.Register("/mutate-federatedhpa", &webhook.Admission{Handler: &federatedhpa.MutatingAdmission{Decoder: decoder}})
 	hookServer.Register("/validate-resourcedeletionprotection", &webhook.Admission{Handler: &resourcedeletionprotection.ValidatingAdmission{Decoder: decoder}})
 	hookServer.Register("/mutate-resourcebinding", &webhook.Admission{Handler: &resourcebinding.MutatingAdmission{Decoder: decoder}})
+	hookServer.Register("/validate-resourcebinding", &webhook.Admission{Handler: &resourcebinding.ValidatingAdmission{Client: hookManager.GetClient(), Decoder: decoder}})
 	hookServer.Register("/mutate-clusterresourcebinding", &webhook.Admission{Handler: &clusterresourcebinding.MutatingAdmission{Decoder: decoder}})
 	hookServer.WebhookMux().Handle("/readyz/", http.StripPrefix("/readyz/", &healthz.Handler{}))
 
