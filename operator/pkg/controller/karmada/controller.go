@@ -159,9 +159,16 @@ func (ctrl *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 		For(&operatorv1alpha1.Karmada{},
 			builder.WithPredicates(predicate.Funcs{
 				UpdateFunc: ctrl.onKarmadaUpdate,
-			})).
-		WithEventFilter(skipIfSuspended()).
+			}, skipIfSuspended())).
 		Complete(ctrl)
+}
+
+// skipIfSuspended filters reconciliation of Karmada instances that have been suspended.
+func skipIfSuspended() predicate.Predicate {
+	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
+		karmada := obj.(*operatorv1alpha1.Karmada)
+		return karmada.Spec.Suspend == nil || !*karmada.Spec.Suspend
+	})
 }
 
 // onKarmadaUpdate returns a bool which represents whether the karmada events need to entry the queue.
@@ -177,12 +184,4 @@ func (ctrl *Controller) onKarmadaUpdate(updateEvent event.UpdateEvent) bool {
 	}
 
 	return !reflect.DeepEqual(newObj.Spec, oldObj.Spec)
-}
-
-// skipIfSuspended filters reconciliation of Karmada instances that have been suspended.
-func skipIfSuspended() predicate.Predicate {
-	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
-		karmada := obj.(*operatorv1alpha1.Karmada)
-		return karmada.Spec.Suspend == nil || !*karmada.Spec.Suspend
-	})
 }
