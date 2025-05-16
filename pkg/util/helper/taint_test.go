@@ -21,12 +21,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
 var (
@@ -270,31 +268,6 @@ func TestTolerationExists(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestAddTolerations(t *testing.T) {
-	placement := &policyv1alpha1.Placement{
-		ClusterTolerations: []corev1.Toleration{},
-	}
-
-	toleration1 := &corev1.Toleration{
-		Key:      "key1",
-		Operator: corev1.TolerationOpEqual,
-		Value:    "value1",
-		Effect:   corev1.TaintEffectNoSchedule,
-	}
-	toleration2 := &corev1.Toleration{
-		Key:      "key2",
-		Operator: corev1.TolerationOpEqual,
-		Value:    "value2",
-		Effect:   corev1.TaintEffectNoSchedule,
-	}
-
-	AddTolerations(placement, toleration1, toleration2)
-
-	assert.Equal(t, 2, len(placement.ClusterTolerations))
-	assert.Equal(t, *toleration1, placement.ClusterTolerations[0])
-	assert.Equal(t, *toleration2, placement.ClusterTolerations[1])
 }
 
 func TestHasNoExecuteTaints(t *testing.T) {

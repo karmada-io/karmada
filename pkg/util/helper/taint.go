@@ -23,7 +23,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
 // TaintExists checks if the given taint exists in list of taints. Returns true if exists false otherwise.
@@ -84,15 +83,6 @@ func SetCurrentClusterTaints(taintsToAdd, taintsToRemove []*corev1.Taint, cluste
 	}
 
 	return taints
-}
-
-// AddTolerations add some tolerations if not existed.
-func AddTolerations(placement *policyv1alpha1.Placement, tolerationsToAdd ...*corev1.Toleration) {
-	for _, tolerationToAdd := range tolerationsToAdd {
-		if !TolerationExists(placement.ClusterTolerations, tolerationToAdd) {
-			placement.ClusterTolerations = append(placement.ClusterTolerations, *tolerationToAdd)
-		}
-	}
 }
 
 // HasNoExecuteTaints check if NoExecute taints exist.
