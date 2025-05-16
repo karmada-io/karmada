@@ -43,6 +43,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/events"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -163,9 +164,11 @@ func (c *StatusController) collectQuotaStatus(ctx context.Context, quota *policy
 	}
 
 	quotaStatus := quota.Status.DeepCopy()
-	quotaStatus.Overall = quota.Spec.Overall
 	quotaStatus.AggregatedStatus = aggregatedStatuses
-	quotaStatus.OverallUsed = calculateUsed(aggregatedStatuses)
+	if !features.FeatureGate.Enabled(features.FederatedQuotaEnforcement) {
+		quotaStatus.Overall = quota.Spec.Overall
+		quotaStatus.OverallUsed = calculateUsed(aggregatedStatuses)
+	}
 
 	if reflect.DeepEqual(quota.Status, *quotaStatus) {
 		klog.V(4).Infof("New quotaStatus are equal with old federatedResourceQuota(%s) status, no update required.", klog.KObj(quota).String())
