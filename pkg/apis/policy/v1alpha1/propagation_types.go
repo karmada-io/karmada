@@ -289,14 +289,30 @@ const (
 	// at the same time. During a failover, it is crucial to ensure that the old
 	// application is removed before creating a new one to avoid duplicate
 	// processing and maintaining state consistency.
+	// Deprecated: in favor of PurgeModeDirectly.
 	Immediately PurgeMode = "Immediately"
 	// Graciously represents that Karmada will wait for the application to
 	// come back to healthy on the new cluster or after a timeout is reached
 	// before evicting the application.
+	// Deprecated: in favor of PurgeModeGracefully.
 	Graciously PurgeMode = "Graciously"
 	// Never represents that Karmada will not evict the application and
 	// users manually confirms how to clean up redundant copies.
 	Never PurgeMode = "Never"
+
+	// PurgeModeDirectly represents that Karmada will directly evict the legacy
+	// application. This is useful in scenarios where an application can not
+	// tolerate two instances running simultaneously.
+	// For example, the Flink application supports exactly-once state consistency,
+	// which means it requires that no two instances of the application are running
+	// at the same time. During a failover, it is crucial to ensure that the old
+	// application is removed before creating a new one to avoid duplicate
+	// processing and maintaining state consistency.
+	PurgeModeDirectly PurgeMode = "Directly"
+	// PurgeModeGracefully represents that Karmada will wait for the application to
+	// come back to healthy on the new cluster or after a timeout is reached
+	// before evicting the application.
+	PurgeModeGracefully PurgeMode = "Gracefully"
 )
 
 // FailoverBehavior indicates failover behaviors in case of an application or
@@ -326,10 +342,10 @@ type ApplicationFailoverBehavior struct {
 
 	// PurgeMode represents how to deal with the legacy applications on the
 	// cluster from which the application is migrated.
-	// Valid options are "Immediately", "Graciously" and "Never".
+	// Valid options are "Immediately", "Directly", "Graciously", "Gracefully" and "Never".
 	// Defaults to "Graciously".
-	// +kubebuilder:validation:Enum=Immediately;Graciously;Never
-	// +kubebuilder:default=Graciously
+	// +kubebuilder:validation:Enum=Immediately;Directly;Graciously;Gracefully;Never
+	// +kubebuilder:default=Gracefully
 	// +optional
 	PurgeMode PurgeMode `json:"purgeMode,omitempty"`
 
