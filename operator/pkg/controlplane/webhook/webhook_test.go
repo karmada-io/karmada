@@ -96,12 +96,14 @@ func TestInstallKarmadaWebhook(t *testing.T) {
 	// Create fake clientset.
 	fakeClient := fakeclientset.NewSimpleClientset()
 
-	err := installKarmadaWebhook(fakeClient, cfg, name, namespace, map[string]bool{})
+	featureGates := map[string]bool{"FeatureA": true}
+
+	err := installKarmadaWebhook(fakeClient, cfg, name, namespace, featureGates)
 	if err != nil {
 		t.Fatalf("failed to install karmada webhook: %v", err)
 	}
 
-	err = verifyDeploymentCreation(fakeClient, replicas, imagePullPolicy, extraArgs, name, namespace, image, imageTag, priorityClassName)
+	err = verifyDeploymentCreation(fakeClient, replicas, imagePullPolicy, featureGates, extraArgs, name, namespace, image, imageTag, priorityClassName)
 	if err != nil {
 		t.Fatalf("failed to verify karmada webhook deployment creation: %v", err)
 	}
@@ -149,7 +151,7 @@ func TestCreateKarmadaWebhookService(t *testing.T) {
 }
 
 // verifyDeploymentCreation validates the details of a Deployment against the expected parameters.
-func verifyDeploymentCreation(client *fakeclientset.Clientset, replicas int32, imagePullPolicy corev1.PullPolicy, extraArgs map[string]string, name, namespace, image, imageTag, priorityClassName string) error {
+func verifyDeploymentCreation(client *fakeclientset.Clientset, replicas int32, imagePullPolicy corev1.PullPolicy, featureGates map[string]bool, extraArgs map[string]string, name, namespace, image, imageTag, priorityClassName string) error {
 	// Assert that a Deployment was created.
 	actions := client.Actions()
 	if len(actions) != 1 {
@@ -167,11 +169,11 @@ func verifyDeploymentCreation(client *fakeclientset.Clientset, replicas int32, i
 	}
 
 	deployment := createAction.GetObject().(*appsv1.Deployment)
-	return verifyDeploymentDetails(deployment, replicas, imagePullPolicy, extraArgs, name, namespace, image, imageTag, priorityClassName)
+	return verifyDeploymentDetails(deployment, replicas, imagePullPolicy, featureGates, extraArgs, name, namespace, image, imageTag, priorityClassName)
 }
 
 // verifyDeploymentDetails validates the details of a Deployment against the expected parameters.
-func verifyDeploymentDetails(deployment *appsv1.Deployment, replicas int32, imagePullPolicy corev1.PullPolicy, extraArgs map[string]string, name, namespace, image, imageTag, priorityClassName string) error {
+func verifyDeploymentDetails(deployment *appsv1.Deployment, replicas int32, imagePullPolicy corev1.PullPolicy, featureGates map[string]bool, extraArgs map[string]string, name, namespace, image, imageTag, priorityClassName string) error {
 	expectedDeploymentName := util.KarmadaWebhookName(name)
 	if deployment.Name != expectedDeploymentName {
 		return fmt.Errorf("expected deployment name '%s', but got '%s'", expectedDeploymentName, deployment.Name)
@@ -212,6 +214,10 @@ func verifyDeploymentDetails(deployment *appsv1.Deployment, replicas int32, imag
 		return fmt.Errorf("expected image pull policy '%s', but got '%s'", imagePullPolicy, container.ImagePullPolicy)
 	}
 
+	if err := verifyFeatureGates(&container, featureGates); err != nil {
+		return fmt.Errorf("failed to verify feature gates: %v", err)
+	}
+
 	err := verifyExtraArgs(&container, extraArgs)
 	if err != nil {
 		return fmt.Errorf("failed to verify extra args: %v", err)
@@ -250,6 +256,19 @@ func verifyExtraArgs(container *corev1.Container, extraArgs map[string]string) e
 		if !contains(container.Command, expectedArg) {
 			return fmt.Errorf("expected container commands to include '%s', but it was missing", expectedArg)
 		}
+	}
+	return nil
+}
+
+// verifyFeatureGates ensures the container's command includes the specified feature gates.
+func verifyFeatureGates(container *corev1.Container, featureGates map[string]bool) error {
+	var featureGatesArg string
+	for key, value := range featureGates {
+		featureGatesArg += fmt.Sprintf("%s=%t,", key, value)
+	}
+	featureGatesArg = fmt.Sprintf("--feature-gates=%s", featureGatesArg[:len(featureGatesArg)-1])
+	if !contains(container.Command, featureGatesArg) {
+		return fmt.Errorf("expected container commands to include '%s', but it was missing", featureGatesArg)
 	}
 	return nil
 }
