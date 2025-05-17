@@ -680,6 +680,11 @@ func (in *KarmadaSpec) DeepCopyInto(out *KarmadaSpec) {
 		*out = new(CustomCertificate)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Suspend != nil {
+		in, out := &in.Suspend, &out.Suspend
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
