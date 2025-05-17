@@ -176,10 +176,10 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 	var purgeMode policyv1alpha1.PurgeMode
 	if needEviction {
 		switch tc.NoExecuteTaintEvictionPurgeMode {
-		case "Gracefully":
-			purgeMode = policyv1alpha1.Graciously
-		case "Directly":
-			purgeMode = policyv1alpha1.Immediately
+		case string(policyv1alpha1.PurgeModeGracefully):
+			purgeMode = policyv1alpha1.PurgeModeGracefully
+		case string(policyv1alpha1.PurgeModeDirectly):
+			purgeMode = policyv1alpha1.PurgeModeDirectly
 		}
 	}
 
@@ -192,7 +192,6 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 			workv1alpha2.WithPurgeMode(purgeMode),
 			workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager),
 			workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
-
 		if err = tc.Update(context.TODO(), binding); err != nil {
 			helper.EmitClusterEvictionEventForResourceBinding(binding, cluster, tc.EventRecorder, err)
 			klog.ErrorS(err, "Failed to update binding", "binding", klog.KObj(binding))
@@ -238,10 +237,10 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 	var purgeMode policyv1alpha1.PurgeMode
 	if needEviction {
 		switch tc.NoExecuteTaintEvictionPurgeMode {
-		case "Gracefully":
-			purgeMode = policyv1alpha1.Graciously
-		case "Directly":
-			purgeMode = policyv1alpha1.Immediately
+		case string(policyv1alpha1.PurgeModeGracefully):
+			purgeMode = policyv1alpha1.PurgeModeGracefully
+		case string(policyv1alpha1.PurgeModeDirectly):
+			purgeMode = policyv1alpha1.PurgeModeDirectly
 		}
 	}
 

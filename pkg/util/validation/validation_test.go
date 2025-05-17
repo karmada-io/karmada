@@ -667,36 +667,36 @@ func TestValidateApplicationFailover(t *testing.T) {
 			expectedErr: "spec.failover.application.decisionConditions.tolerationSeconds: Invalid value: -100: must be greater than or equal to 0",
 		},
 		{
-			name: "the gracePeriodSeconds is declared when purgeMode is not graciously",
+			name: "the gracePeriodSeconds is declared when purgeMode is not gracefully",
 			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
 				DecisionConditions: policyv1alpha1.DecisionConditions{
 					TolerationSeconds: ptr.To[int32](100),
 				},
-				PurgeMode:          policyv1alpha1.Immediately,
+				PurgeMode:          policyv1alpha1.PurgeModeDirectly,
 				GracePeriodSeconds: ptr.To[int32](100),
 			},
-			expectedErr: "spec.failover.application.gracePeriodSeconds: Invalid value: 100: only takes effect when purgeMode is graciously",
+			expectedErr: "spec.failover.application.gracePeriodSeconds: Invalid value: 100: only takes effect when purgeMode is gracefully",
 		},
 		{
-			name: "the gracePeriodSeconds is less than 0 when purgeMode is graciously",
+			name: "the gracePeriodSeconds is less than 0 when purgeMode is gracefully",
 			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
 				DecisionConditions: policyv1alpha1.DecisionConditions{
 					TolerationSeconds: ptr.To[int32](100),
 				},
-				PurgeMode:          policyv1alpha1.Graciously,
+				PurgeMode:          policyv1alpha1.PurgeModeGracefully,
 				GracePeriodSeconds: ptr.To[int32](-100),
 			},
 			expectedErr: "spec.failover.application.gracePeriodSeconds: Invalid value: -100: must be greater than 0",
 		},
 		{
-			name: "the gracePeriodSeconds is empty when purgeMode is graciously",
+			name: "the gracePeriodSeconds is empty when purgeMode is gracefully",
 			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
 				DecisionConditions: policyv1alpha1.DecisionConditions{
 					TolerationSeconds: ptr.To[int32](100),
 				},
-				PurgeMode: policyv1alpha1.Graciously,
+				PurgeMode: policyv1alpha1.PurgeModeGracefully,
 			},
-			expectedErr: "spec.failover.application.gracePeriodSeconds: Invalid value: \"null\": should not be empty when purgeMode is graciously",
+			expectedErr: "spec.failover.application.gracePeriodSeconds: Invalid value: \"null\": should not be empty when purgeMode is gracefully",
 		},
 		{
 			name: "application behavior is correctly declared",

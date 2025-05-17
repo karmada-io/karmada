@@ -211,8 +211,8 @@ func TestCRBApplicationFailoverController_evictBinding(t *testing.T) {
 		expectError bool
 	}{
 		{
-			name:        "PurgeMode is Graciously",
-			purgeMode:   policyv1alpha1.Graciously,
+			name:        "PurgeMode is Gracefully",
+			purgeMode:   policyv1alpha1.PurgeModeGracefully,
 			expectError: false,
 		},
 		{
@@ -222,7 +222,7 @@ func TestCRBApplicationFailoverController_evictBinding(t *testing.T) {
 		},
 		{
 			name:        "PurgeMode is Immediately",
-			purgeMode:   policyv1alpha1.Immediately,
+			purgeMode:   policyv1alpha1.PurgeModeDirectly,
 			expectError: false,
 		},
 	}

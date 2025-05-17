@@ -19187,7 +19187,7 @@
           "format": "int32"
         },
         "purgeMode": {
-          "description": "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Immediately\", \"Graciously\" and \"Never\". Defaults to \"Graciously\".",
+          "description": "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Directly\", \"Gracefully\", \"Never\", \"Immediately\"(deprecated), and \"Graciously\"(deprecated). Defaults to \"Gracefully\".",
           "type": "string"
         },
         "statePreservation": {
@@ -21225,7 +21225,7 @@
           "default": ""
         },
         "purgeMode": {
-          "description": "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Immediately\", \"Graciously\" and \"Never\".",
+          "description": "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Immediately\", \"Directly\", \"Graciously\", \"Gracefully\" and \"Never\".",
           "type": "string"
         },
         "reason": {

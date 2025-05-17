@@ -171,7 +171,7 @@ func getBindingSpec(binding metav1.Object, scope apiextensionsv1.ResourceScope) 
 //  2. If consecutive failovers occur, for example, an application is migrated form clusterA
 //     to clusterB and then to clusterC, the PreservedLabelState before the last failover is
 //     used for injection. If the PreservedLabelState is empty, the injection is skipped.
-//  3. The injection operation is performed only when PurgeMode is set to Immediately.
+//  3. The injection operation is performed only when PurgeMode is set to Immediately or Directly.
 func injectReservedLabelState(bindingSpec workv1alpha2.ResourceBindingSpec, moveToCluster workv1alpha2.TargetCluster, workload *unstructured.Unstructured, clustersLen int) *unstructured.Unstructured {
 	if clustersLen > 1 {
 		return workload
@@ -182,7 +182,10 @@ func injectReservedLabelState(bindingSpec workv1alpha2.ResourceBindingSpec, move
 	}
 	targetEvictionTask := bindingSpec.GracefulEvictionTasks[len(bindingSpec.GracefulEvictionTasks)-1]
 
-	if targetEvictionTask.PurgeMode != policyv1alpha1.Immediately {
+	//nolint:staticcheck
+	// disable `deprecation` check for backward compatibility.
+	if targetEvictionTask.PurgeMode != policyv1alpha1.Immediately &&
+		targetEvictionTask.PurgeMode != policyv1alpha1.PurgeModeDirectly {
 		return workload
 	}
 
