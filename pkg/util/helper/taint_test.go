@@ -703,3 +703,53 @@ func TestNewUnreachableToleration(t *testing.T) {
 		t.Errorf("NewUnreachableToleration() = %v, want %v", actualToleration, expectedToleration)
 	}
 }
+
+func TestGenerateTaintsMessage(t *testing.T) {
+	tests := []struct {
+		name     string
+		taints   []corev1.Taint
+		expected string
+	}{
+		{
+			name:     "no taint",
+			taints:   []corev1.Taint{},
+			expected: "cluster now does not have taints",
+		},
+		{
+			name: "single taint with value",
+			taints: []corev1.Taint{
+				{
+					Key:    "key1",
+					Value:  "value1",
+					Effect: corev1.TaintEffectNoSchedule,
+				},
+			},
+			expected: "cluster now has taints([{Key:key1,Value:value1,Effect:NoSchedule}])",
+		},
+		{
+			name: "multiple taints with no value",
+			taints: []corev1.Taint{
+				{
+					Key:    "key1",
+					Value:  "value1",
+					Effect: corev1.TaintEffectNoSchedule,
+				},
+				{
+					Key:    "key2",
+					Value:  "",
+					Effect: corev1.TaintEffectPreferNoSchedule,
+				},
+			},
+			expected: "cluster now has taints([{Key:key1,Value:value1,Effect:NoSchedule},{Key:key2,Effect:PreferNoSchedule}])",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GenerateTaintsMessage(tt.taints)
+			if result != tt.expected {
+				t.Errorf("test failed: %s, expected: %s, actual: %s", tt.name, tt.expected, result)
+			}
+		})
+	}
+}

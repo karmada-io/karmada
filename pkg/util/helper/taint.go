@@ -218,26 +218,23 @@ func GenerateTaintsMessage(taints []corev1.Taint) string {
 		return "cluster now does not have taints"
 	}
 
-	var msg string
+	var builder strings.Builder
 	for i, taint := range taints {
 		if i != 0 {
-			msg += ","
+			builder.WriteString(",")
 		}
 		if taint.Value != "" {
-			msg += strings.Join([]string{`{`,
-				`Key:` + fmt.Sprintf("%v", taint.Key) + `,`,
-				`Value:` + fmt.Sprintf("%v", taint.Value) + `,`,
-				`Effect:` + fmt.Sprintf("%v", taint.Effect),
-				`}`,
-			}, "")
+			builder.WriteString("{")
+			builder.WriteString("Key:" + fmt.Sprintf("%v", taint.Key) + ",")
+			builder.WriteString("Value:" + fmt.Sprintf("%v", taint.Value) + ",")
+			builder.WriteString("Effect:" + fmt.Sprintf("%v", taint.Effect))
+			builder.WriteString("}")
 		} else {
-			msg += strings.Join([]string{`{`,
-				`Key:` + fmt.Sprintf("%v", taint.Key) + `,`,
-				`Effect:` + fmt.Sprintf("%v", taint.Effect),
-				`}`,
-			}, "")
+			builder.WriteString("{")
+			builder.WriteString("Key:" + fmt.Sprintf("%v", taint.Key) + ",")
+			builder.WriteString("Effect:" + fmt.Sprintf("%v", taint.Effect))
+			builder.WriteString("}")
 		}
 	}
-
-	return fmt.Sprintf("cluster now has taints([%s])", msg)
+	return fmt.Sprintf("cluster now has taints([%s])", builder.String())
 }
