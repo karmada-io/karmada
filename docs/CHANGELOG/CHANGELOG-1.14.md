@@ -2,9 +2,9 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.14.0-beta.0](#v1140-beta0)
-  - [Downloads for v1.14.0-beta.0](#downloads-for-v1140-beta0)
-  - [Changelog since v1.14.0-alpha.2](#changelog-since-v1140-alpha2)
+- [v1.14.0-rc.0](#v1140-rc0)
+  - [Downloads for v1.14.0-rc.0](#downloads-for-v1140-rc0)
+  - [Changelog since v1.14.0-beta.0](#changelog-since-v1140-beta0)
   - [Urgent Update Notes](#urgent-update-notes)
   - [Changes by Kind](#changes-by-kind)
     - [API Changes](#api-changes)
@@ -17,9 +17,9 @@
     - [Helm Charts](#helm-charts)
     - [Instrumentation](#instrumentation)
     - [Performance](#performance)
-- [v1.14.0-alpha.2](#v1140-alpha2)
-  - [Downloads for v1.14.0-alpha.2](#downloads-for-v1140-alpha2)
-  - [Changelog since v1.14.0-alpha.1](#changelog-since-v1140-alpha1)
+- [v1.14.0-beta.0](#v1140-beta0)
+  - [Downloads for v1.14.0-beta.0](#downloads-for-v1140-beta0)
+  - [Changelog since v1.14.0-alpha.2](#changelog-since-v1140-alpha2)
   - [Urgent Update Notes](#urgent-update-notes-1)
   - [Changes by Kind](#changes-by-kind-1)
     - [API Changes](#api-changes-1)
@@ -32,9 +32,9 @@
     - [Helm Charts](#helm-charts-1)
     - [Instrumentation](#instrumentation-1)
     - [Performance](#performance-1)
-- [v1.14.0-alpha.1](#v1140-alpha1)
-  - [Downloads for v1.14.0-alpha.1](#downloads-for-v1140-alpha1)
-  - [Changelog since v1.13.0](#changelog-since-v1130)
+- [v1.14.0-alpha.2](#v1140-alpha2)
+  - [Downloads for v1.14.0-alpha.2](#downloads-for-v1140-alpha2)
+  - [Changelog since v1.14.0-alpha.1](#changelog-since-v1140-alpha1)
   - [Urgent Update Notes](#urgent-update-notes-2)
   - [Changes by Kind](#changes-by-kind-2)
     - [API Changes](#api-changes-2)
@@ -46,8 +46,74 @@
     - [Dependencies](#dependencies-2)
     - [Helm Charts](#helm-charts-2)
     - [Instrumentation](#instrumentation-2)
+    - [Performance](#performance-2)
+- [v1.14.0-alpha.1](#v1140-alpha1)
+  - [Downloads for v1.14.0-alpha.1](#downloads-for-v1140-alpha1)
+  - [Changelog since v1.13.0](#changelog-since-v1130)
+  - [Urgent Update Notes](#urgent-update-notes-3)
+  - [Changes by Kind](#changes-by-kind-3)
+    - [API Changes](#api-changes-3)
+    - [Features & Enhancements](#features--enhancements-3)
+    - [Deprecation](#deprecation-3)
+    - [Bug Fixes](#bug-fixes-3)
+    - [Security](#security-3)
+  - [Other](#other-3)
+    - [Dependencies](#dependencies-3)
+    - [Helm Charts](#helm-charts-3)
+    - [Instrumentation](#instrumentation-3)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.14.0-rc.0
+## Downloads for v1.14.0-rc.0
+
+Download v1.14.0-rc.0 in the [v1.14.0-rc.0 release page](https://github.com/karmada-io/karmada/releases/tag/v1.14.0-rc.0).
+
+## Changelog since v1.14.0-beta.0
+
+## Urgent Update Notes
+None.
+
+## Changes by Kind
+
+### API Changes
+- `API Change`: Clusters not explicitly listed in `StaticAssignments` of `FederatedResourceQuota` will no longer have an empty ResourceQuota created. ([#6351](https://github.com/karmada-io/karmada/pull/6351), @RainbowMango)
+- `FederatedResourceQuota`: Added two additional printer columns, `OVERALL` and `OVERALL_USED`, to represent the enforced hard limits and current total usage; these columns will be displayed in the output of kubectl/karmadactl get. ([#6364](https://github.com/karmada-io/karmada/pull/6364), @zhzhuang-zju)
+- Introduced `spec.components.karmadaAPIServer.loadBalancerClass` field in `Karmada` API to specify a `loadBalancerClass` to select a specific load balancer implementation, aligning with Kubernetes Service behavior. ([#6348](https://github.com/karmada-io/karmada/pull/6348), @rajsinghtech)
+- Introduced a new API named `ClusterTaintPolicy` to handle cluster taint. ([#6319](https://github.com/karmada-io/karmada/pull/6319), @XiShanYongYe-Chang)
+
+### Features & Enhancements
+- `karmada-controller-manager`: Added `federated-resource-quota-enforcement-controller` as part of ResourceQuotaEnforcement feature to update `status.overall` and `status.overallUsed` of FederatedResourceQuota resource. ([#6367](https://github.com/karmada-io/karmada/pull/6367), @mszacillo)
+- `karmada-controller-manager`: Introduced a new feature gate `FederatedQuotaEnforcement` for federated resource quota enforcement. ([#6366](https://github.com/karmada-io/karmada/pull/6366), @liwang0513)
+- `karmada-controller-manager`: The `federated-resource-quota-status-controller` will skip reflecting overall and overall used in case the Federated Resource Quota Enforcement feature is on. ([#6382](https://github.com/karmada-io/karmada/pull/6382), @liwang0513)
+- `karmada-controller-manager`: Adjust the behavior of the legacy staticAssignments to skip creating redundant ResourceQuotas to member clusters which are not explicitly listed in `StaticAssignments`. ([#6363](https://github.com/karmada-io/karmada/issues/6363), @zhzhuang-zju)
+- `karmada-controller-manager`: Added the `clustertaintpolicy` controller to manage cluster taint based on ClusterTaintPolicy. ([#6368](https://github.com/karmada-io/karmada/pull/6368), @XiShanYongYe-Chang)
+- `karmada-webhook`: Introduced ResourceBinding webhook for validating quota usage. ([#6377](https://github.com/karmada-io/karmada/pull/6377), @seanlaii)
+- `karmada-webhook`: The length of FederatedResourceQuota now has been restricted to no more than 63 chars. ([#2168](https://github.com/karmada-io/karmada/pull/2168), @likakuli)
+
+### Deprecation
+None.
+
+### Bug Fixes
+- Unify the rate limiter for different clients in each component to access member cluster apiserver. Access may be restricted in large-scale environments compared to before the modification. Administrators can avoid this situation by adjusting 'cluster-api-qps' and 'cluster-api-burst' for karmada-controller-manager, karmada-agent and karmada-metrics-adapter. ([#6192](https://github.com/karmada-io/karmada/pull/6192), @zach593)
+- `karmada-scheduler`: Fixed the issue where resource scheduling suspension may become ineffective during a cluster update. ([#6356](https://github.com/karmada-io/karmada/pull/6356), @zhzhuang-zju)
+- `karmada-scheduler`: Fixed the issue where bindings that fail occasionally will be treated as unschedulableBindings when feature gate PriorityBasedScheduling is enabled. ([#6369](https://github.com/karmada-io/karmada/pull/6369), @zhzhuang-zju)
+
+### Security
+None.
+
+## Other
+### Dependencies
+None.
+
+### Helm Charts
+None.
+
+### Instrumentation
+None.
+
+### Performance
+None.
 
 # v1.14.0-beta.0
 ## Downloads for v1.14.0-beta.0
