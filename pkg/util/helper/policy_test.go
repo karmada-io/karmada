@@ -376,21 +376,21 @@ func TestSetDefaultGracePeriodSeconds(t *testing.T) {
 		{
 			name: "purgeMode is graciously and gracePeriodSeconds is set",
 			behavior: &policyv1alpha1.ApplicationFailoverBehavior{
-				PurgeMode:          policyv1alpha1.Graciously,
+				PurgeMode:          policyv1alpha1.PurgeModeGracefully,
 				GracePeriodSeconds: ptr.To[int32](200),
 			},
 			expectBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
-				PurgeMode:          policyv1alpha1.Graciously,
+				PurgeMode:          policyv1alpha1.PurgeModeGracefully,
 				GracePeriodSeconds: ptr.To[int32](200),
 			},
 		},
 		{
 			name: "purgeMode is graciously and gracePeriodSeconds is not set",
 			behavior: &policyv1alpha1.ApplicationFailoverBehavior{
-				PurgeMode: policyv1alpha1.Graciously,
+				PurgeMode: policyv1alpha1.PurgeModeGracefully,
 			},
 			expectBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
-				PurgeMode:          policyv1alpha1.Graciously,
+				PurgeMode:          policyv1alpha1.PurgeModeGracefully,
 				GracePeriodSeconds: ptr.To[int32](600),
 			},
 		},

@@ -672,7 +672,7 @@ func TestValidateApplicationFailover(t *testing.T) {
 				DecisionConditions: policyv1alpha1.DecisionConditions{
 					TolerationSeconds: ptr.To[int32](100),
 				},
-				PurgeMode:          policyv1alpha1.Immediately,
+				PurgeMode:          policyv1alpha1.PurgeModeDirectly,
 				GracePeriodSeconds: ptr.To[int32](100),
 			},
 			expectedErr: "spec.failover.application.gracePeriodSeconds: Invalid value: 100: only takes effect when purgeMode is graciously",
@@ -683,7 +683,7 @@ func TestValidateApplicationFailover(t *testing.T) {
 				DecisionConditions: policyv1alpha1.DecisionConditions{
 					TolerationSeconds: ptr.To[int32](100),
 				},
-				PurgeMode:          policyv1alpha1.Graciously,
+				PurgeMode:          policyv1alpha1.PurgeModeGracefully,
 				GracePeriodSeconds: ptr.To[int32](-100),
 			},
 			expectedErr: "spec.failover.application.gracePeriodSeconds: Invalid value: -100: must be greater than 0",
@@ -694,7 +694,7 @@ func TestValidateApplicationFailover(t *testing.T) {
 				DecisionConditions: policyv1alpha1.DecisionConditions{
 					TolerationSeconds: ptr.To[int32](100),
 				},
-				PurgeMode: policyv1alpha1.Graciously,
+				PurgeMode: policyv1alpha1.PurgeModeGracefully,
 			},
 			expectedErr: "spec.failover.application.gracePeriodSeconds: Invalid value: \"null\": should not be empty when purgeMode is graciously",
 		},

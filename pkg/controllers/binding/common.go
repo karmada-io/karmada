@@ -174,7 +174,8 @@ func injectReservedLabelState(bindingSpec workv1alpha2.ResourceBindingSpec, move
 	}
 	targetEvictionTask := bindingSpec.GracefulEvictionTasks[len(bindingSpec.GracefulEvictionTasks)-1]
 
-	if targetEvictionTask.PurgeMode != policyv1alpha1.Immediately {
+	if targetEvictionTask.PurgeMode != policyv1alpha1.Immediately &&
+		targetEvictionTask.PurgeMode != policyv1alpha1.PurgeModeDirectly {
 		return workload
 	}
 

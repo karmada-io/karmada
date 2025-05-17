@@ -319,7 +319,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 							DecisionConditions: policyv1alpha1.DecisionConditions{
 								TolerationSeconds: ptr.To[int32](tolerationSeconds),
 							},
-							PurgeMode:          policyv1alpha1.Graciously,
+							PurgeMode:          policyv1alpha1.PurgeModeGracefully,
 							GracePeriodSeconds: ptr.To[int32](gracePeriodSeconds),
 						},
 					},

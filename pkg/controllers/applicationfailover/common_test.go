@@ -478,7 +478,7 @@ func Test_buildTaskOptions(t *testing.T) {
 					DecisionConditions: policyv1alpha1.DecisionConditions{
 						TolerationSeconds: ptr.To[int32](100),
 					},
-					PurgeMode:          policyv1alpha1.Graciously,
+					PurgeMode:          policyv1alpha1.PurgeModeGracefully,
 					GracePeriodSeconds: ptr.To[int32](120),
 					StatePreservation: &policyv1alpha1.StatePreservation{
 						Rules: []policyv1alpha1.StatePreservationRule{
@@ -496,7 +496,7 @@ func Test_buildTaskOptions(t *testing.T) {
 				clustersBeforeFailover: []string{"c0"},
 			},
 			want: *workv1alpha2.NewTaskOptions(
-				workv1alpha2.WithPurgeMode(policyv1alpha1.Graciously),
+				workv1alpha2.WithPurgeMode(policyv1alpha1.PurgeModeGracefully),
 				workv1alpha2.WithProducer(RBApplicationFailoverControllerName),
 				workv1alpha2.WithReason(workv1alpha2.EvictionReasonApplicationFailure),
 				workv1alpha2.WithGracePeriodSeconds(ptr.To[int32](120)),
@@ -543,7 +543,7 @@ func Test_buildTaskOptions(t *testing.T) {
 					DecisionConditions: policyv1alpha1.DecisionConditions{
 						TolerationSeconds: ptr.To[int32](100),
 					},
-					PurgeMode: policyv1alpha1.Immediately,
+					PurgeMode: policyv1alpha1.PurgeModeDirectly,
 					StatePreservation: &policyv1alpha1.StatePreservation{
 						Rules: []policyv1alpha1.StatePreservationRule{
 							{AliasLabelName: "key-a", JSONPath: "{ .replicas }"},
@@ -560,7 +560,7 @@ func Test_buildTaskOptions(t *testing.T) {
 				clustersBeforeFailover: []string{"c0"},
 			},
 			want: *workv1alpha2.NewTaskOptions(
-				workv1alpha2.WithPurgeMode(policyv1alpha1.Immediately),
+				workv1alpha2.WithPurgeMode(policyv1alpha1.PurgeModeDirectly),
 				workv1alpha2.WithProducer(CRBApplicationFailoverControllerName),
 				workv1alpha2.WithReason(workv1alpha2.EvictionReasonApplicationFailure),
 				workv1alpha2.WithPreservedLabelState(map[string]string{"key-a": "2", "key-b": "true"}),
@@ -574,7 +574,7 @@ func Test_buildTaskOptions(t *testing.T) {
 					DecisionConditions: policyv1alpha1.DecisionConditions{
 						TolerationSeconds: ptr.To[int32](100),
 					},
-					PurgeMode:          policyv1alpha1.Graciously,
+					PurgeMode:          policyv1alpha1.PurgeModeGracefully,
 					GracePeriodSeconds: ptr.To[int32](120),
 				},
 				aggregatedStatus: []workv1alpha2.AggregatedStatusItem{
@@ -586,7 +586,7 @@ func Test_buildTaskOptions(t *testing.T) {
 				clustersBeforeFailover: []string{"c0"},
 			},
 			want: *workv1alpha2.NewTaskOptions(
-				workv1alpha2.WithPurgeMode(policyv1alpha1.Graciously),
+				workv1alpha2.WithPurgeMode(policyv1alpha1.PurgeModeGracefully),
 				workv1alpha2.WithProducer(RBApplicationFailoverControllerName),
 				workv1alpha2.WithReason(workv1alpha2.EvictionReasonApplicationFailure),
 				workv1alpha2.WithGracePeriodSeconds(ptr.To[int32](120))),
@@ -599,7 +599,7 @@ func Test_buildTaskOptions(t *testing.T) {
 					DecisionConditions: policyv1alpha1.DecisionConditions{
 						TolerationSeconds: ptr.To[int32](100),
 					},
-					PurgeMode:          policyv1alpha1.Graciously,
+					PurgeMode:          policyv1alpha1.PurgeModeGracefully,
 					GracePeriodSeconds: ptr.To[int32](120),
 					StatePreservation:  &policyv1alpha1.StatePreservation{},
 				},
@@ -612,7 +612,7 @@ func Test_buildTaskOptions(t *testing.T) {
 				clustersBeforeFailover: []string{"c0"},
 			},
 			want: *workv1alpha2.NewTaskOptions(
-				workv1alpha2.WithPurgeMode(policyv1alpha1.Graciously),
+				workv1alpha2.WithPurgeMode(policyv1alpha1.PurgeModeGracefully),
 				workv1alpha2.WithProducer(RBApplicationFailoverControllerName),
 				workv1alpha2.WithReason(workv1alpha2.EvictionReasonApplicationFailure),
 				workv1alpha2.WithGracePeriodSeconds(ptr.To[int32](120))),
@@ -625,7 +625,7 @@ func Test_buildTaskOptions(t *testing.T) {
 					DecisionConditions: policyv1alpha1.DecisionConditions{
 						TolerationSeconds: ptr.To[int32](100),
 					},
-					PurgeMode:          policyv1alpha1.Graciously,
+					PurgeMode:          policyv1alpha1.PurgeModeGracefully,
 					GracePeriodSeconds: ptr.To[int32](120),
 					StatePreservation: &policyv1alpha1.StatePreservation{
 						Rules: []policyv1alpha1.StatePreservationRule{
