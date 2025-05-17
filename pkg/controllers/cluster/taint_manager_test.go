@@ -238,7 +238,7 @@ func TestNoExecuteTaintManager_syncBindingEviction(t *testing.T) {
 					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
 						{
 							FromCluster: "test-cluster",
-							PurgeMode:   policyv1alpha1.Graciously,
+							PurgeMode:   policyv1alpha1.PurgeModeGracefully,
 							Replicas:    &replica,
 							Reason:      workv1alpha2.EvictionReasonTaintUntolerated,
 							Producer:    workv1alpha2.EvictionProducerTaintManager,
@@ -405,7 +405,7 @@ func TestNoExecuteTaintManager_syncClusterBindingEviction(t *testing.T) {
 					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
 						{
 							FromCluster: "test-cluster",
-							PurgeMode:   policyv1alpha1.Graciously,
+							PurgeMode:   policyv1alpha1.PurgeModeGracefully,
 							Replicas:    &replica,
 							Reason:      workv1alpha2.EvictionReasonTaintUntolerated,
 							Producer:    workv1alpha2.EvictionProducerTaintManager,

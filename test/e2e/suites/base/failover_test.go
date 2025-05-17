@@ -269,7 +269,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 		})
 	})
 
-	ginkgo.Context("Application failover testing with purgeMode graciously", func() {
+	ginkgo.Context("Application failover testing with purgeMode gracefully", func() {
 		var policyNamespace, policyName string
 		var deploymentNamespace, deploymentName string
 		var deployment *appsv1.Deployment
@@ -319,7 +319,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 							DecisionConditions: policyv1alpha1.DecisionConditions{
 								TolerationSeconds: ptr.To[int32](tolerationSeconds),
 							},
-							PurgeMode:          policyv1alpha1.Graciously,
+							PurgeMode:          policyv1alpha1.PurgeModeGracefully,
 							GracePeriodSeconds: ptr.To[int32](gracePeriodSeconds),
 						},
 					},
@@ -336,7 +336,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 			})
 		})
 
-		ginkgo.It("application failover with purgeMode graciously when the application come back to healthy on the new cluster", func() {
+		ginkgo.It("application failover with purgeMode gracefully when the application come back to healthy on the new cluster", func() {
 			disabledClusters := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 			ginkgo.By("create an error op", func() {
 				overridePolicy = testhelper.NewOverridePolicyByOverrideRules(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
@@ -399,7 +399,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 			})
 		})
 
-		ginkgo.It("application failover with purgeMode graciously when the GracePeriodSeconds is reach out", func() {
+		ginkgo.It("application failover with purgeMode gracefully when the GracePeriodSeconds is reach out", func() {
 			gracePeriodSeconds = 10
 			ginkgo.By("update pp", func() {
 				// modify gracePeriodSeconds to create a time difference with tolerationSecond to avoid cluster interference
@@ -456,7 +456,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 					})
 			})
 
-			ginkgo.By("check whether application failover with purgeMode graciously when the GracePeriodSeconds is reach out", func() {
+			ginkgo.By("check whether application failover with purgeMode gracefully when the GracePeriodSeconds is reach out", func() {
 				framework.WaitDeploymentDisappearOnClusters(disabledClusters, deploymentNamespace, deploymentName)
 				evictionTime := time.Now()
 				gomega.Expect(evictionTime.Sub(beginTime) > time.Duration(gracePeriodSeconds+tolerationSeconds)*time.Second).Should(gomega.BeTrue())
