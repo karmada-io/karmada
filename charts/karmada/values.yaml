@@ -294,6 +294,8 @@ webhook:
   podDisruptionBudget: *podDisruptionBudget
   ## @param webhook.priorityClassName the priority class name for the karmada-webhook
   priorityClassName: "system-node-critical"
+  ## @param featureGate to webhook
+  featureGates: {}
 
 ## controller manager config
 controllerManager:

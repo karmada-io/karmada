@@ -568,6 +568,28 @@ Return the proper Docker Image Registry Secret Names
      {{- end -}}
 {{- end -}}
 
+{{- /* 
+Generate the --feature-gates command line argument for karmada-webhook.
+Iterates over .Values.webhook.featureGates and constructs a comma-separated key=value list.
+If any feature gates are set, outputs: --feature-gates=Foo=true,Bar=false
+If none are set, outputs nothing.
+*/ -}}
+{{- define "karmada.webhook.featureGates" -}}
+     {{- if (not (empty .Values.webhook.featureGates)) }}
+          {{- $featureGatesFlag := "" -}}
+          {{- range $key, $value := .Values.webhook.featureGates -}}
+               {{- if not (empty (toString $value)) }}
+                    {{- $featureGatesFlag = cat $featureGatesFlag $key "=" $value ","  -}}
+               {{- end -}}
+          {{- end -}}
+
+          {{- if gt (len $featureGatesFlag) 0 }}
+               {{- $featureGatesFlag := trimSuffix "," $featureGatesFlag  | nospace -}}
+               {{- printf "%s=%s" "--feature-gates" $featureGatesFlag -}}
+          {{- end -}}
+     {{- end -}}
+{{- end -}}
+
 {{- define "karmada.schedulerEstimator.featureGates" -}}
      {{- $featureGatesArg := index . "featureGatesArg" -}}
      {{- if (not (empty $featureGatesArg)) }}
