@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"strings"
 	"sync"
 	"time"
 
@@ -693,36 +692,7 @@ func (c *Controller) updateClusterTaints(ctx context.Context, taintsToAdd, taint
 		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, events.EventReasonTaintClusterFailed, err.Error())
 		return err
 	}
-	msg := fmt.Sprintf("Taint cluster succeed: %s.", generateEventMessage(taints))
+	msg := fmt.Sprintf("Taint cluster succeed: %s.", utilhelper.GenerateTaintsMessage(taints))
 	c.EventRecorder.Event(cluster, corev1.EventTypeNormal, events.EventReasonTaintClusterSucceed, msg)
 	return nil
-}
-
-func generateEventMessage(taints []corev1.Taint) string {
-	if len(taints) == 0 {
-		return "cluster now does not have taints"
-	}
-
-	var msg string
-	for i, taint := range taints {
-		if i != 0 {
-			msg += ","
-		}
-		if taint.Value != "" {
-			msg += strings.Join([]string{`{`,
-				`Key:` + fmt.Sprintf("%v", taint.Key) + `,`,
-				`Value:` + fmt.Sprintf("%v", taint.Value) + `,`,
-				`Effect:` + fmt.Sprintf("%v", taint.Effect),
-				`}`,
-			}, "")
-		} else {
-			msg += strings.Join([]string{`{`,
-				`Key:` + fmt.Sprintf("%v", taint.Key) + `,`,
-				`Effect:` + fmt.Sprintf("%v", taint.Effect),
-				`}`,
-			}, "")
-		}
-	}
-
-	return fmt.Sprintf("cluster now has taints([%s])", msg)
 }

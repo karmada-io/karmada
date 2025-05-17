@@ -68,6 +68,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/namespace"
 	"github.com/karmada-io/karmada/pkg/controllers/remediation"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
+	"github.com/karmada-io/karmada/pkg/controllers/taint"
 	"github.com/karmada-io/karmada/pkg/controllers/unifiedauth"
 	"github.com/karmada-io/karmada/pkg/controllers/workloadrebalancer"
 	"github.com/karmada-io/karmada/pkg/dependenciesdistributor"
@@ -246,6 +247,7 @@ func init() {
 	controllers["remedy"] = startRemedyController
 	controllers["workloadRebalancer"] = startWorkloadRebalancerController
 	controllers["agentcsrapproving"] = startAgentCSRApprovingController
+	controllers["clustertaintpolicy"] = startClusterTaintPolicyController
 }
 
 func startClusterController(ctx controllerscontext.Context) (enabled bool, err error) {
@@ -768,6 +770,22 @@ func startAgentCSRApprovingController(ctx controllerscontext.Context) (enabled b
 	}
 	err = agentCSRApprover.SetupWithManager(ctx.Mgr)
 	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startClusterTaintPolicyController(ctx controllerscontext.Context) (enabled bool, err error) {
+	if !features.FeatureGate.Enabled(features.Failover) {
+		return false, nil
+	}
+
+	clusterTaintPolicyController := taint.ClusterTaintPolicyController{
+		Client:             ctx.Mgr.GetClient(),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(taint.ControllerName),
+		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
+	}
+	if err := clusterTaintPolicyController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 	return true, nil
