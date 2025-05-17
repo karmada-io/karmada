@@ -150,15 +150,17 @@ spec:
                         format: int32
                         type: integer
                       purgeMode:
-                        default: Graciously
+                        default: Gracefully
                         description: |-
                           PurgeMode represents how to deal with the legacy applications on the
                           cluster from which the application is migrated.
-                          Valid options are "Immediately", "Graciously" and "Never".
-                          Defaults to "Graciously".
+                          Valid options are "Immediately", "Directly", "Graciously", "Gracefully" and "Never".
+                          Defaults to "Gracefully".
                         enum:
                         - Immediately
+                        - Directly
                         - Graciously
+                        - Gracefully
                         - Never
                         type: string
                       statePreservation:
