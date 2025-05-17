@@ -57,6 +57,9 @@ spec:
             - --health-probe-bind-address=$(POD_IP):8000
             - --secure-port=8443
             - --cert-dir=/var/serving-cert
+            {{- with (include "karmada.webhook.featureGates" .) }}
+            - {{ . }}
+            {{- end }}
           ports:
             - containerPort: 8443
             - containerPort: 8080
