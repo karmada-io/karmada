@@ -3936,7 +3936,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicy(ref common.ReferenceCall
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ClusterTaintPolicy defines how Karmada would taint clusters according to the conditions on the target clusters.",
+				Description: "ClusterTaintPolicy automates taint management on Cluster objects based on declarative conditions. The system evaluates AddOnConditions to determine when to add taints, and RemoveOnConditions to determine when to remove taints. AddOnConditions are evaluated before RemoveOnConditions. Taints are NEVER automatically removed when the ClusterTaintPolicy is deleted.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -4033,13 +4033,27 @@ func schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicySpec(ref common.Reference
 				Properties: map[string]spec.Schema{
 					"targetClusters": {
 						SchemaProps: spec.SchemaProps{
-							Description: "TargetClusters specifies the clusters that ClusterTaintPolicy needs to pay attention to. For clusters that meet the MatchConditions, Taints will be added. If targetClusters is not set, any cluster can be selected.",
+							Description: "TargetClusters specifies the clusters that ClusterTaintPolicy needs to pay attention to. For clusters that no longer match the TargetClusters, the taints will be kept unchanged. If targetClusters is not set, any cluster can be selected.",
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity"),
 						},
 					},
-					"matchConditions": {
+					"addOnConditions": {
 						SchemaProps: spec.SchemaProps{
-							Description: "MatchConditions indicates the conditions to match for triggering the controller to add taints on the cluster object. The match conditions are ANDed. When the MatchConditions no longer match, the taints will be removed. It can not be empty.",
+							Description: "AddOnConditions defines the conditions to match for triggering the controller to add taints on the cluster object. The match conditions are ANDed. If AddOnConditions is empty, no taints will be added.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.MatchCondition"),
+									},
+								},
+							},
+						},
+					},
+					"removeOnConditions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RemoveOnConditions defines the conditions to match for triggering the controller to remove taints from the cluster object. The match conditions are ANDed. If RemoveOnConditions is empty, no taints will be removed.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -4053,7 +4067,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicySpec(ref common.Reference
 					},
 					"taints": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Taints specifies the taints that need to be applied to the clusters which match with TargetClusters. Distinct ClusterTaintPolicy objects are restricted from operating on the same taint.",
+							Description: "Taints specifies the taints that need to be added or removed on the cluster object which match with TargetClusters. If the Taints is modified, the system will process the taints based on the latest value of Taints during the next condition-triggered execution, regardless of whether the taint has been added or removed.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -4066,7 +4080,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicySpec(ref common.Reference
 						},
 					},
 				},
-				Required: []string{"matchConditions", "taints"},
+				Required: []string{"taints"},
 			},
 		},
 		Dependencies: []string{

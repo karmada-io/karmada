@@ -83,9 +83,11 @@ func (c *ClusterTaintPolicyController) Reconcile(ctx context.Context, req contro
 			continue
 		}
 
-		if conditionMatches(clusterCopyObj.Status.Conditions, policy.Spec.MatchConditions) {
+		if conditionMatches(clusterCopyObj.Status.Conditions, policy.Spec.AddOnConditions) {
 			clusterCopyObj.Spec.Taints = addTaintsOnCluster(clusterCopyObj, policy.Spec.Taints, metav1.Now())
-		} else {
+		}
+
+		if conditionMatches(clusterCopyObj.Status.Conditions, policy.Spec.RemoveOnConditions) {
 			clusterCopyObj.Spec.Taints = removeTaintsFromCluster(clusterCopyObj, policy.Spec.Taints)
 		}
 	}

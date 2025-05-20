@@ -18,8 +18,12 @@ spec:
     schema:
       openAPIV3Schema:
         description: |-
-          ClusterTaintPolicy defines how Karmada would taint clusters according
-          to the conditions on the target clusters.
+          ClusterTaintPolicy automates taint management on Cluster objects based
+          on declarative conditions.
+          The system evaluates AddOnConditions to determine when to add taints,
+          and RemoveOnConditions to determine when to remove taints.
+          AddOnConditions are evaluated before RemoveOnConditions.
+          Taints are NEVER automatically removed when the ClusterTaintPolicy is deleted.
         properties:
           apiVersion:
             description: |-
@@ -41,13 +45,45 @@ spec:
           spec:
             description: Spec represents the desired behavior of ClusterTaintPolicy.
             properties:
-              matchConditions:
+              addOnConditions:
                 description: |-
-                  MatchConditions indicates the conditions to match for triggering
+                  AddOnConditions defines the conditions to match for triggering
                   the controller to add taints on the cluster object.
                   The match conditions are ANDed.
-                  When the MatchConditions no longer match, the taints will be removed.
-                  It can not be empty.
+                  If AddOnConditions is empty, no taints will be added.
+                items:
+                  description: |-
+                    MatchCondition represents the condition match detail of activating the failover
+                    relevant taints on target clusters.
+                  properties:
+                    conditionType:
+                      description: ConditionType specifies the ClusterStatus condition
+                        type.
+                      type: string
+                    operator:
+                      description: |-
+                        Operator represents a relationship to a set of values.
+                        Valid operators are In, NotIn.
+                      type: string
+                    statusValues:
+                      description: |-
+                        StatusValues is an array of metav1.ConditionStatus values.
+                        The item specifies the ClusterStatus condition status.
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - conditionType
+                  - operator
+                  - statusValues
+                  type: object
+                type: array
+              removeOnConditions:
+                description: |-
+                  RemoveOnConditions defines the conditions to match for triggering
+                  the controller to remove taints from the cluster object.
+                  The match conditions are ANDed.
+                  If RemoveOnConditions is empty, no taints will be removed.
                 items:
                   description: |-
                     MatchCondition represents the condition match detail of activating the failover
@@ -77,10 +113,11 @@ spec:
                 type: array
               taints:
                 description: |-
-                  Taints specifies the taints that need to be applied to the clusters
-                  which match with TargetClusters.
-                  Distinct ClusterTaintPolicy objects are restricted from operating on
-                  the same taint.
+                  Taints specifies the taints that need to be added or removed on
+                  the cluster object which match with TargetClusters.
+                  If the Taints is modified, the system will process the taints based on
+                  the latest value of Taints during the next condition-triggered execution,
+                  regardless of whether the taint has been added or removed.
                 items:
                   description: Taint describes the taint that needs to be applied
                     to the cluster.
@@ -101,12 +138,14 @@ spec:
                   - effect
                   - key
                   type: object
+                minItems: 1
                 type: array
               targetClusters:
                 description: |-
                   TargetClusters specifies the clusters that ClusterTaintPolicy needs
                   to pay attention to.
-                  For clusters that meet the MatchConditions, Taints will be added.
+                  For clusters that no longer match the TargetClusters, the taints
+                  will be kept unchanged.
                   If targetClusters is not set, any cluster can be selected.
                 properties:
                   clusterNames:
@@ -209,7 +248,6 @@ spec:
                     x-kubernetes-map-type: atomic
                 type: object
             required:
-            - matchConditions
             - taints
             type: object
         required:
