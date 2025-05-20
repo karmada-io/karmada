@@ -467,7 +467,7 @@ func TestFindOrphanWorks(t *testing.T) {
 					},
 				).WithIndex(
 					&workv1alpha1.Work{},
-					indexregistry.WorkIndexByResourceBindingID,
+					indexregistry.WorkIndexByLabelResourceBindingID,
 					indexregistry.GenLabelIndexerFunc(workv1alpha2.ResourceBindingPermanentIDLabel),
 				).Build(),
 				bindingNamespace: "default",
@@ -516,7 +516,7 @@ func TestFindOrphanWorks(t *testing.T) {
 					},
 				).WithIndex(
 					&workv1alpha1.Work{},
-					indexregistry.WorkIndexByResourceBindingID,
+					indexregistry.WorkIndexByLabelResourceBindingID,
 					indexregistry.GenLabelIndexerFunc(workv1alpha2.ResourceBindingPermanentIDLabel),
 				).Build(),
 				bindingNamespace: "default",
@@ -572,7 +572,7 @@ func TestFindOrphanWorks(t *testing.T) {
 					},
 				).WithIndex(
 					&workv1alpha1.Work{},
-					indexregistry.WorkIndexByClusterResourceBindingID,
+					indexregistry.WorkIndexByLabelClusterResourceBindingID,
 					indexregistry.GenLabelIndexerFunc(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
 				).Build(),
 				bindingNamespace: "",
@@ -1033,7 +1033,7 @@ func TestDeleteWorkByRBNamespaceAndName(t *testing.T) {
 			args: args{
 				c: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithIndex(
 					&workv1alpha1.Work{},
-					indexregistry.WorkIndexByResourceBindingID,
+					indexregistry.WorkIndexByLabelResourceBindingID,
 					indexregistry.GenLabelIndexerFunc(workv1alpha2.ResourceBindingPermanentIDLabel),
 				).Build(),
 				namespace: "default",
@@ -1061,7 +1061,7 @@ func TestDeleteWorkByRBNamespaceAndName(t *testing.T) {
 					},
 				).WithIndex(
 					&workv1alpha1.Work{},
-					indexregistry.WorkIndexByResourceBindingID,
+					indexregistry.WorkIndexByLabelResourceBindingID,
 					indexregistry.GenLabelIndexerFunc(workv1alpha2.ResourceBindingPermanentIDLabel),
 				).Build(),
 				namespace: "default",
@@ -1088,7 +1088,7 @@ func TestDeleteWorkByRBNamespaceAndName(t *testing.T) {
 					},
 				).WithIndex(
 					&workv1alpha1.Work{},
-					indexregistry.WorkIndexByClusterResourceBindingID,
+					indexregistry.WorkIndexByLabelClusterResourceBindingID,
 					indexregistry.GenLabelIndexerFunc(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
 				).Build(),
 				name:      "foo",
