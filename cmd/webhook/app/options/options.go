@@ -95,7 +95,9 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 
 	// webhook flags
 	flags.Int64Var(&o.DefaultNotReadyTolerationSeconds, "default-not-ready-toleration-seconds", 300, "Indicates the tolerationSeconds of the propagation policy toleration for notReady:NoExecute that is added by default to every propagation policy that does not already have such a toleration.")
+	_ = flags.MarkDeprecated("default-not-ready-toleration-seconds", "Karmada will no longer automatically add cluster.karmada.io/not-ready:NoExecute taint to cluster objects, so there is no need to add default tolerations in propagation policy, default-not-ready-toleration-seconds is deprecated and will be removed in v1.15.")
 	flags.Int64Var(&o.DefaultUnreachableTolerationSeconds, "default-unreachable-toleration-seconds", 300, "Indicates the tolerationSeconds of the propagation policy toleration for unreachable:NoExecute that is added by default to every propagation policy that does not already have such a toleration.")
+	_ = flags.MarkDeprecated("default-unreachable-toleration-seconds", "Karmada will no longer automatically add cluster.karmada.io/unreachable:NoExecute taint to cluster objects, so there is no need to add default tolerations in propagation policy, default-unreachable-toleration-seconds is deprecated and will be removed in v1.15.")
 
 	features.FeatureGate.AddFlag(flags)
 	o.ProfileOpts.AddFlags(flags)
