@@ -17,7 +17,6 @@ limitations under the License.
 package base
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/onsi/ginkgo/v2"
@@ -27,12 +26,8 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/apimachinery/pkg/util/wait"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	controllercluster "github.com/karmada-io/karmada/pkg/controllers/cluster"
-	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
@@ -424,38 +419,21 @@ var _ = ginkgo.Describe("[ClusterAffinities] propagation testing", func() {
 			})
 		})
 
-		ginkgo.It("deployment failover testing", func() {
+		ginkgo.It("failover testing with propagate deployment by clusterAffinities", func() {
 			// 1. set cluster member1 condition status to false
-			ginkgo.By("set cluster member1 condition status to false", func() {
-				err := disableCluster(controlPlaneClient, member1)
+			ginkgo.By("add not-ready:NoExecute taint to the random one cluster", func() {
+				err := framework.AddClusterTaint(controlPlaneClient, member1, *framework.NotReadyTaintTemplate)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				framework.WaitClusterFitWith(controlPlaneClient, member1, func(cluster *clusterv1alpha1.Cluster) bool {
-					return helper.TaintExists(cluster.Spec.Taints, controllercluster.NotReadyTaintTemplate)
-				})
 			})
 
 			// 2. wait for deployment present on member2 cluster
 			framework.WaitDeploymentPresentOnClusterFitWith(member2, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
 
-			// 3. recover not ready cluster
-			ginkgo.By("recover not ready cluster", func() {
-				originalAPIEndpoint := getClusterAPIEndpoint(member1)
-				err := recoverCluster(controlPlaneClient, member1, originalAPIEndpoint)
+			// 3. remove taint from member1 cluster
+			ginkgo.By("recover cluster", func() {
+				err := framework.RemoveClusterTaint(controlPlaneClient, member1, *framework.NotReadyTaintTemplate)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-				err = wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(_ context.Context) (done bool, err error) {
-					currentCluster, err := util.GetCluster(controlPlaneClient, member1)
-					if err != nil {
-						return false, err
-					}
-					if !helper.TaintExists(currentCluster.Spec.Taints, controllercluster.NotReadyTaintTemplate) {
-						fmt.Printf("cluster %s recovered\n", member1)
-						return true, nil
-					}
-					return false, nil
-				})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 		})
 	})

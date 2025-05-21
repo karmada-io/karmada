@@ -16,7 +16,11 @@ limitations under the License.
 
 package framework
 
-import "time"
+import (
+	"time"
+
+	corev1 "k8s.io/api/core/v1"
+)
 
 const (
 	// PollInterval defines the interval time for a poll operation.
@@ -25,4 +29,56 @@ const (
 	PollTimeout = 420 * time.Second
 	// metricsCreationDelay defines the maximum time metrics not yet available for pod.
 	metricsCreationDelay = 2 * time.Minute
+)
+
+const (
+	// TaintClusterUnscheduler will be added when cluster becomes unschedulable
+	// and removed when cluster becomes schedulable.
+	TaintClusterUnscheduler = "unschedulable"
+	// TaintClusterNotReady will be added when cluster is not ready
+	// and removed when cluster becomes ready.
+	TaintClusterNotReady = "not-ready"
+	// TaintClusterUnreachable will be added when cluster becomes unreachable
+	// (corresponding to ClusterConditionReady status ConditionUnknown)
+	// and removed when cluster becomes reachable (ClusterConditionReady status ConditionTrue).
+	TaintClusterUnreachable = "unreachable"
+	// TaintClusterTerminating will be added when cluster is terminating.
+	TaintClusterTerminating = "terminating"
+)
+
+var (
+	// UnreachableTaintTemplate is the taint for when a cluster becomes unreachable.
+	// Used for taint based eviction.
+	UnreachableTaintTemplate = &corev1.Taint{
+		Key:    TaintClusterUnreachable,
+		Effect: corev1.TaintEffectNoExecute,
+	}
+
+	// UnreachableTaintTemplateForSched is the taint for when a cluster becomes unreachable.
+	// Used for taint based schedule.
+	UnreachableTaintTemplateForSched = &corev1.Taint{
+		Key:    TaintClusterUnreachable,
+		Effect: corev1.TaintEffectNoSchedule,
+	}
+
+	// NotReadyTaintTemplate is the taint for when a cluster is not ready for executing resources.
+	// Used for taint based eviction.
+	NotReadyTaintTemplate = &corev1.Taint{
+		Key:    TaintClusterNotReady,
+		Effect: corev1.TaintEffectNoExecute,
+	}
+
+	// NotReadyTaintTemplateForSched is the taint for when a cluster is not ready for executing resources.
+	// Used for taint based schedule.
+	NotReadyTaintTemplateForSched = &corev1.Taint{
+		Key:    TaintClusterNotReady,
+		Effect: corev1.TaintEffectNoSchedule,
+	}
+
+	// TerminatingTaintTemplate is the taint for when a cluster is terminating executing resources.
+	// Used for taint based eviction.
+	TerminatingTaintTemplate = &corev1.Taint{
+		Key:    TaintClusterTerminating,
+		Effect: corev1.TaintEffectNoExecute,
+	}
 )
