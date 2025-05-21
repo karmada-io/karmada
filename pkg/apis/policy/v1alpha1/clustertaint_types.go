@@ -26,8 +26,12 @@ import (
 // +kubebuilder:resource:path=clustertaintpolicies,scope="Cluster"
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// ClusterTaintPolicy defines how Karmada would taint clusters according
-// to the conditions on the target clusters.
+// ClusterTaintPolicy automates taint management on Cluster objects based
+// on declarative conditions.
+// The system evaluates AddOnConditions to determine when to add taints,
+// and RemoveOnConditions to determine when to remove taints.
+// AddOnConditions are evaluated before RemoveOnConditions.
+// Taints are NEVER automatically removed when the ClusterTaintPolicy is deleted.
 type ClusterTaintPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -41,23 +45,32 @@ type ClusterTaintPolicy struct {
 type ClusterTaintPolicySpec struct {
 	// TargetClusters specifies the clusters that ClusterTaintPolicy needs
 	// to pay attention to.
-	// For clusters that meet the MatchConditions, Taints will be added.
+	// For clusters that no longer match the TargetClusters, the taints
+	// will be kept unchanged.
 	// If targetClusters is not set, any cluster can be selected.
 	// +optional
 	TargetClusters *ClusterAffinity `json:"targetClusters,omitempty"`
 
-	// MatchConditions indicates the conditions to match for triggering
+	// AddOnConditions defines the conditions to match for triggering
 	// the controller to add taints on the cluster object.
 	// The match conditions are ANDed.
-	// When the MatchConditions no longer match, the taints will be removed.
-	// It can not be empty.
-	// +required
-	MatchConditions []MatchCondition `json:"matchConditions"`
+	// If AddOnConditions is empty, no taints will be added.
+	// +optional
+	AddOnConditions []MatchCondition `json:"addOnConditions,omitempty"`
 
-	// Taints specifies the taints that need to be applied to the clusters
-	// which match with TargetClusters.
-	// Distinct ClusterTaintPolicy objects are restricted from operating on
-	// the same taint.
+	// RemoveOnConditions defines the conditions to match for triggering
+	// the controller to remove taints from the cluster object.
+	// The match conditions are ANDed.
+	// If RemoveOnConditions is empty, no taints will be removed.
+	// +optional
+	RemoveOnConditions []MatchCondition `json:"removeOnConditions,omitempty"`
+
+	// Taints specifies the taints that need to be added or removed on
+	// the cluster object which match with TargetClusters.
+	// If the Taints is modified, the system will process the taints based on
+	// the latest value of Taints during the next condition-triggered execution,
+	// regardless of whether the taint has been added or removed.
+	// +kubebuilder:validation:MinItems=1
 	// +required
 	Taints []Taint `json:"taints"`
 }
