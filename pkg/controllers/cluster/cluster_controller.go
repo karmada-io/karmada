@@ -44,7 +44,6 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
-	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	utilhelper "github.com/karmada-io/karmada/pkg/util/helper"
@@ -157,10 +156,9 @@ func (n *clusterHealthMap) delete(name string) {
 }
 
 type clusterHealthData struct {
-	probeTimestamp           metav1.Time
-	readyTransitionTimestamp metav1.Time
-	status                   *clusterv1alpha1.ClusterStatus
-	lease                    *coordinationv1.Lease
+	probeTimestamp metav1.Time
+	status         *clusterv1alpha1.ClusterStatus
+	lease          *coordinationv1.Lease
 }
 
 func (n *clusterHealthData) deepCopy() *clusterHealthData {
@@ -168,10 +166,9 @@ func (n *clusterHealthData) deepCopy() *clusterHealthData {
 		return nil
 	}
 	return &clusterHealthData{
-		probeTimestamp:           n.probeTimestamp,
-		readyTransitionTimestamp: n.readyTransitionTimestamp,
-		status:                   n.status.DeepCopy(),
-		lease:                    n.lease.DeepCopy(),
+		probeTimestamp: n.probeTimestamp,
+		status:         n.status.DeepCopy(),
+		lease:          n.lease.DeepCopy(),
 	}
 }
 
@@ -229,12 +226,6 @@ func (c *Controller) syncCluster(ctx context.Context, cluster *clusterv1alpha1.C
 	err := c.createExecutionSpace(ctx, cluster)
 	if err != nil {
 		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, events.EventReasonCreateExecutionSpaceFailed, err.Error())
-		return controllerruntime.Result{}, err
-	}
-
-	// taint cluster by condition
-	err = c.taintClusterByCondition(ctx, cluster)
-	if err != nil {
 		return controllerruntime.Result{}, err
 	}
 
@@ -454,10 +445,9 @@ func (c *Controller) monitorClusterHealth(ctx context.Context) (err error) {
 	clusters := clusterList.Items
 	for i := range clusters {
 		cluster := &clusters[i]
-		var observedReadyCondition, currentReadyCondition *metav1.Condition
 		if err = wait.PollUntilContextTimeout(ctx, MonitorRetrySleepTime, MonitorRetrySleepTime*HealthUpdateRetry, true, func(ctx context.Context) (bool, error) {
 			// Cluster object may be changed in this function.
-			observedReadyCondition, currentReadyCondition, err = c.tryUpdateClusterHealth(ctx, cluster)
+			err = c.tryUpdateClusterHealth(ctx, cluster)
 			if err == nil {
 				return true, nil
 			}
@@ -475,13 +465,6 @@ func (c *Controller) monitorClusterHealth(ctx context.Context) (err error) {
 			klog.Errorf("Update health of Cluster '%v' from Controller error: %v. Skipping.", cluster.Name, err)
 			continue
 		}
-
-		if currentReadyCondition != nil {
-			if err = c.processTaintBaseEviction(ctx, cluster, observedReadyCondition); err != nil {
-				klog.Errorf("Failed to process taint base eviction error: %v. Skipping.", err)
-				continue
-			}
-		}
 	}
 
 	return nil
@@ -490,7 +473,7 @@ func (c *Controller) monitorClusterHealth(ctx context.Context) (err error) {
 // tryUpdateClusterHealth checks a given cluster's conditions and tries to update it.
 //
 //nolint:gocyclo
-func (c *Controller) tryUpdateClusterHealth(ctx context.Context, cluster *clusterv1alpha1.Cluster) (*metav1.Condition, *metav1.Condition, error) {
+func (c *Controller) tryUpdateClusterHealth(ctx context.Context, cluster *clusterv1alpha1.Cluster) error {
 	// Step 1: Get the last cluster heath from `clusterHealthMap`.
 	clusterHealth := c.clusterHealthMap.getDeepCopy(cluster.Name)
 	defer func() {
@@ -515,9 +498,8 @@ func (c *Controller) tryUpdateClusterHealth(ctx context.Context, cluster *cluste
 			clusterHealth.status = &cluster.Status
 		} else {
 			clusterHealth = &clusterHealthData{
-				status:                   &cluster.Status,
-				probeTimestamp:           cluster.CreationTimestamp,
-				readyTransitionTimestamp: cluster.CreationTimestamp,
+				status:         &cluster.Status,
+				probeTimestamp: cluster.CreationTimestamp,
 			}
 		}
 	} else {
@@ -539,24 +521,18 @@ func (c *Controller) tryUpdateClusterHealth(ctx context.Context, cluster *cluste
 	// Otherwise, we only update the probeTimestamp.
 	if clusterHealth == nil {
 		clusterHealth = &clusterHealthData{
-			status:                   cluster.Status.DeepCopy(),
-			probeTimestamp:           metav1.Now(),
-			readyTransitionTimestamp: metav1.Now(),
+			status:         cluster.Status.DeepCopy(),
+			probeTimestamp: metav1.Now(),
 		}
 	} else if !equality.Semantic.DeepEqual(savedCondition, currentReadyCondition) {
-		transitionTime := metav1.Now()
-		if savedCondition != nil && currentReadyCondition != nil && savedCondition.LastTransitionTime == currentReadyCondition.LastTransitionTime {
-			transitionTime = clusterHealth.readyTransitionTimestamp
-		}
 		clusterHealth = &clusterHealthData{
-			status:                   cluster.Status.DeepCopy(),
-			probeTimestamp:           metav1.Now(),
-			readyTransitionTimestamp: transitionTime,
+			status:         cluster.Status.DeepCopy(),
+			probeTimestamp: metav1.Now(),
 		}
 	}
 
 	if cluster.Spec.SyncMode == clusterv1alpha1.Push {
-		return observedReadyCondition, currentReadyCondition, nil
+		return nil
 	}
 
 	// Always update the probe time if cluster lease is renewed.
@@ -605,79 +581,17 @@ func (c *Controller) tryUpdateClusterHealth(ctx context.Context, cluster *cluste
 		if !equality.Semantic.DeepEqual(currentReadyCondition, observedReadyCondition) {
 			if err := c.Status().Update(ctx, cluster); err != nil {
 				klog.Errorf("Error updating cluster %s: %v", cluster.Name, err)
-				return observedReadyCondition, currentReadyCondition, err
+				return err
 			}
 			clusterHealth = &clusterHealthData{
-				status:                   &cluster.Status,
-				probeTimestamp:           clusterHealth.probeTimestamp,
-				readyTransitionTimestamp: metav1.Now(),
-				lease:                    observedLease,
+				status:         &cluster.Status,
+				probeTimestamp: clusterHealth.probeTimestamp,
+				lease:          observedLease,
 			}
-			return observedReadyCondition, currentReadyCondition, nil
-		}
-	}
-	return observedReadyCondition, currentReadyCondition, nil
-}
-
-func (c *Controller) processTaintBaseEviction(ctx context.Context, cluster *clusterv1alpha1.Cluster, observedReadyCondition *metav1.Condition) error {
-	decisionTimestamp := metav1.Now()
-	clusterHealth := c.clusterHealthMap.getDeepCopy(cluster.Name)
-	if clusterHealth == nil {
-		return fmt.Errorf("health data doesn't exist for cluster %q", cluster.Name)
-	}
-	// Check eviction timeout against decisionTimestamp
-	switch observedReadyCondition.Status {
-	case metav1.ConditionFalse:
-		if features.FeatureGate.Enabled(features.Failover) && decisionTimestamp.After(clusterHealth.readyTransitionTimestamp.Add(c.FailoverEvictionTimeout)) {
-			// We want to update the taint straight away if Cluster is already tainted with the UnreachableTaint
-			taintToAdd := *NotReadyTaintTemplate
-			if err := c.updateClusterTaints(ctx, []*corev1.Taint{&taintToAdd}, []*corev1.Taint{UnreachableTaintTemplate}, cluster); err != nil {
-				klog.ErrorS(err, "Failed to instantly update UnreachableTaint to NotReadyTaint, will try again in the next cycle.", "cluster", cluster.Name)
-			}
-		}
-	case metav1.ConditionUnknown:
-		if features.FeatureGate.Enabled(features.Failover) && decisionTimestamp.After(clusterHealth.probeTimestamp.Add(c.FailoverEvictionTimeout)) {
-			// We want to update the taint straight away if Cluster is already tainted with the UnreachableTaint
-			taintToAdd := *UnreachableTaintTemplate
-			if err := c.updateClusterTaints(ctx, []*corev1.Taint{&taintToAdd}, []*corev1.Taint{NotReadyTaintTemplate}, cluster); err != nil {
-				klog.ErrorS(err, "Failed to instantly swap NotReadyTaint to UnreachableTaint, will try again in the next cycle.", "cluster", cluster.Name)
-			}
-		}
-	case metav1.ConditionTrue:
-		if err := c.updateClusterTaints(ctx, nil, []*corev1.Taint{NotReadyTaintTemplate, UnreachableTaintTemplate}, cluster); err != nil {
-			klog.ErrorS(err, "Failed to remove taints from cluster, will retry in next iteration.", "cluster", cluster.Name)
+			return nil
 		}
 	}
 	return nil
-}
-
-func (c *Controller) taintClusterByCondition(ctx context.Context, cluster *clusterv1alpha1.Cluster) error {
-	currentReadyCondition := meta.FindStatusCondition(cluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady)
-	var err error
-	if currentReadyCondition != nil {
-		switch currentReadyCondition.Status {
-		case metav1.ConditionFalse:
-			// Add NotReadyTaintTemplateForSched taint immediately.
-			if err = c.updateClusterTaints(ctx, []*corev1.Taint{NotReadyTaintTemplateForSched}, []*corev1.Taint{UnreachableTaintTemplateForSched}, cluster); err != nil {
-				klog.ErrorS(err, "Failed to instantly update UnreachableTaintForSched to NotReadyTaintForSched, will try again in the next cycle.", "cluster", cluster.Name)
-			}
-		case metav1.ConditionUnknown:
-			// Add UnreachableTaintTemplateForSched taint immediately.
-			if err = c.updateClusterTaints(ctx, []*corev1.Taint{UnreachableTaintTemplateForSched}, []*corev1.Taint{NotReadyTaintTemplateForSched}, cluster); err != nil {
-				klog.ErrorS(err, "Failed to instantly swap NotReadyTaintForSched to UnreachableTaintForSched, will try again in the next cycle.", "cluster", cluster.Name)
-			}
-		case metav1.ConditionTrue:
-			if err = c.updateClusterTaints(ctx, nil, []*corev1.Taint{NotReadyTaintTemplateForSched, UnreachableTaintTemplateForSched}, cluster); err != nil {
-				klog.ErrorS(err, "Failed to remove schedule taints from cluster, will retry in next iteration.", "cluster", cluster.Name)
-			}
-		}
-	} else {
-		// Add NotReadyTaintTemplateForSched taint immediately.
-		if err = c.updateClusterTaints(ctx, []*corev1.Taint{NotReadyTaintTemplateForSched}, nil, cluster); err != nil {
-			klog.ErrorS(err, "Failed to add a NotReady taint to the newly added cluster, will try again in the next cycle.", "cluster", cluster.Name)
-		}
-	}
-	return err
 }
 
 func (c *Controller) updateClusterTaints(ctx context.Context, taintsToAdd, taintsToRemove []*corev1.Taint, cluster *clusterv1alpha1.Cluster) error {

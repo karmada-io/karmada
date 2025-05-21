@@ -57,12 +57,12 @@ func newClusterController() *Controller {
 		}
 		return util.GetBindingClusterNames(&crb.Spec)
 	}
-	client := fake.NewClientBuilder().WithScheme(gclient.NewSchema()).
+	fakeClient := fake.NewClientBuilder().WithScheme(gclient.NewSchema()).
 		WithIndex(&workv1alpha2.ResourceBinding{}, indexregistry.ResourceBindingIndexByFieldCluster, rbIndexerFunc).
 		WithIndex(&workv1alpha2.ClusterResourceBinding{}, indexregistry.ClusterResourceBindingIndexByFieldCluster, crbIndexerFunc).
 		WithStatusSubresource(&clusterv1alpha1.Cluster{}).Build()
 	return &Controller{
-		Client:                    client,
+		Client:                    fakeClient,
 		EventRecorder:             record.NewFakeRecorder(1024),
 		clusterHealthMap:          newClusterHealthMap(),
 		EnableTaintManager:        true,
@@ -96,10 +96,7 @@ func TestController_Reconcile(t *testing.T) {
 					Finalizers: []string{util.ClusterControllerFinalizer},
 				},
 				Spec: clusterv1alpha1.ClusterSpec{
-					Taints: []corev1.Taint{{
-						Key:    clusterv1alpha1.TaintClusterNotReady,
-						Effect: corev1.TaintEffectNoSchedule,
-					}},
+					Taints: []corev1.Taint{},
 				},
 				Status: clusterv1alpha1.ClusterStatus{
 					Conditions: []metav1.Condition{},
@@ -108,136 +105,7 @@ func TestController_Reconcile(t *testing.T) {
 			want:    controllerruntime.Result{},
 			wantErr: false,
 		},
-		{
-			name: "cluster with ready condition",
-			cluster: &clusterv1alpha1.Cluster{
-				ObjectMeta: controllerruntime.ObjectMeta{
-					Name:       "test-cluster",
-					Finalizers: []string{util.ClusterControllerFinalizer},
-				},
-				Spec: clusterv1alpha1.ClusterSpec{
-					Taints: []corev1.Taint{{
-						Key:    clusterv1alpha1.TaintClusterNotReady,
-						Effect: corev1.TaintEffectNoSchedule,
-					}},
-				},
-				Status: clusterv1alpha1.ClusterStatus{
-					Conditions: []metav1.Condition{
-						{
-							Type:   clusterv1alpha1.ClusterConditionReady,
-							Status: metav1.ConditionTrue,
-						},
-					},
-				},
-			},
-			wCluster: &clusterv1alpha1.Cluster{
-				ObjectMeta: controllerruntime.ObjectMeta{
-					Name:       "test-cluster",
-					Finalizers: []string{util.ClusterControllerFinalizer},
-				},
-				Spec: clusterv1alpha1.ClusterSpec{Taints: []corev1.Taint{}},
-				Status: clusterv1alpha1.ClusterStatus{
-					Conditions: []metav1.Condition{
-						{
-							Type:   clusterv1alpha1.ClusterConditionReady,
-							Status: metav1.ConditionTrue,
-						},
-					},
-				},
-			},
-			want:    controllerruntime.Result{},
-			wantErr: false,
-		},
-		{
-			name: "cluster with unknown condition",
-			cluster: &clusterv1alpha1.Cluster{
-				ObjectMeta: controllerruntime.ObjectMeta{
-					Name:       "test-cluster",
-					Finalizers: []string{util.ClusterControllerFinalizer},
-				},
-				Spec: clusterv1alpha1.ClusterSpec{
-					Taints: []corev1.Taint{{
-						Key:    clusterv1alpha1.TaintClusterNotReady,
-						Effect: corev1.TaintEffectNoSchedule,
-					}},
-				},
-				Status: clusterv1alpha1.ClusterStatus{
-					Conditions: []metav1.Condition{
-						{
-							Type:   clusterv1alpha1.ClusterConditionReady,
-							Status: metav1.ConditionUnknown,
-						},
-					},
-				},
-			},
-			wCluster: &clusterv1alpha1.Cluster{
-				ObjectMeta: controllerruntime.ObjectMeta{
-					Name:       "test-cluster",
-					Finalizers: []string{util.ClusterControllerFinalizer},
-				},
-				Spec: clusterv1alpha1.ClusterSpec{Taints: []corev1.Taint{
-					{
-						Key:    clusterv1alpha1.TaintClusterUnreachable,
-						Effect: corev1.TaintEffectNoSchedule,
-					},
-				}},
-				Status: clusterv1alpha1.ClusterStatus{
-					Conditions: []metav1.Condition{
-						{
-							Type:   clusterv1alpha1.ClusterConditionReady,
-							Status: metav1.ConditionUnknown,
-						},
-					},
-				},
-			},
-			want:    controllerruntime.Result{},
-			wantErr: false,
-		},
-		{
-			name: "cluster with false condition",
-			cluster: &clusterv1alpha1.Cluster{
-				ObjectMeta: controllerruntime.ObjectMeta{
-					Name:       "test-cluster",
-					Finalizers: []string{util.ClusterControllerFinalizer},
-				},
-				Spec: clusterv1alpha1.ClusterSpec{
-					Taints: []corev1.Taint{{
-						Key:    clusterv1alpha1.TaintClusterUnreachable,
-						Effect: corev1.TaintEffectNoSchedule,
-					}},
-				},
-				Status: clusterv1alpha1.ClusterStatus{
-					Conditions: []metav1.Condition{
-						{
-							Type:   clusterv1alpha1.ClusterConditionReady,
-							Status: metav1.ConditionFalse,
-						},
-					},
-				},
-			},
-			wCluster: &clusterv1alpha1.Cluster{
-				ObjectMeta: controllerruntime.ObjectMeta{
-					Name:       "test-cluster",
-					Finalizers: []string{util.ClusterControllerFinalizer},
-				},
-				Spec: clusterv1alpha1.ClusterSpec{Taints: []corev1.Taint{
-					{
-						Key:    clusterv1alpha1.TaintClusterNotReady,
-						Effect: corev1.TaintEffectNoSchedule,
-					},
-				}},
-				Status: clusterv1alpha1.ClusterStatus{
-					Conditions: []metav1.Condition{
-						{
-							Type:   clusterv1alpha1.ClusterConditionReady,
-							Status: metav1.ConditionFalse,
-						},
-					},
-				},
-			},
-			want:    controllerruntime.Result{},
-			wantErr: false,
-		},
+
 		{
 			name: "cluster not found",
 			cluster: &clusterv1alpha1.Cluster{
@@ -318,7 +186,7 @@ func TestController_Reconcile(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Controller.Reconcile() = %v, want %v", got, tt.want)
+				t.Errorf("Controller.Reconcile() = %+v, want %+v", got, tt.want)
 				return
 			}
 
@@ -331,7 +199,7 @@ func TestController_Reconcile(t *testing.T) {
 
 				cleanUpCluster(cluster)
 				if !reflect.DeepEqual(cluster, tt.wCluster) {
-					t.Errorf("Cluster resource reconcile get %v, want %v", *cluster, *tt.wCluster)
+					t.Errorf("Cluster resource reconcile get %+v, want %+v", *cluster, *tt.wCluster)
 				}
 			}
 		})
@@ -363,12 +231,7 @@ func TestController_monitorClusterHealth(t *testing.T) {
 				},
 				Spec: clusterv1alpha1.ClusterSpec{
 					SyncMode: clusterv1alpha1.Pull,
-					Taints: []corev1.Taint{
-						{
-							Key:    clusterv1alpha1.TaintClusterUnreachable,
-							Effect: corev1.TaintEffectNoExecute,
-						},
-					},
+					Taints:   []corev1.Taint{},
 				},
 				Status: clusterv1alpha1.ClusterStatus{
 					Conditions: []metav1.Condition{{
