@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sort"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -65,11 +66,6 @@ func (c *ClusterTaintPolicyController) Reconcile(ctx context.Context, req contro
 		return controllerruntime.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if !clusterObj.DeletionTimestamp.IsZero() {
-		klog.V(4).Infof("Cluster(%s) is deleting.", req.Name)
-		return controllerruntime.Result{}, nil
-	}
-
 	clusterTaintPolicyList := &policyv1alpha1.ClusterTaintPolicyList{}
 	listOption := &client.ListOptions{UnsafeDisableDeepCopy: ptr.To(true)}
 	if err := c.Client.List(ctx, clusterTaintPolicyList, listOption); err != nil {
@@ -77,8 +73,15 @@ func (c *ClusterTaintPolicyController) Reconcile(ctx context.Context, req contro
 		return controllerruntime.Result{}, err
 	}
 
+	// Sorting ensures a deterministic processing order and ensures consistent taint generation for Clusters.
+	// This prevents repeated taint addition/removal cycles when conflicting policies exist.
+	policies := clusterTaintPolicyList.Items
+	sort.Slice(policies, func(i, j int) bool {
+		return policies[i].CreationTimestamp.Before(&policies[j].CreationTimestamp)
+	})
+
 	clusterCopyObj := clusterObj.DeepCopy()
-	for _, policy := range clusterTaintPolicyList.Items {
+	for _, policy := range policies {
 		if policy.Spec.TargetClusters != nil && !util.ClusterMatches(clusterCopyObj, *policy.Spec.TargetClusters) {
 			continue
 		}
@@ -217,6 +220,16 @@ func (c *ClusterTaintPolicyController) SetupWithManager(mgr controllerruntime.Ma
 		DeleteFunc: func(_ event.DeleteEvent) bool { return false },
 	}
 
+	clusterTaintPolicyPredicateFn := predicate.Funcs{
+		CreateFunc: func(_ event.CreateEvent) bool { return true },
+		UpdateFunc: func(event event.UpdateEvent) bool {
+			oldPolicy := event.ObjectOld.(*policyv1alpha1.ClusterTaintPolicy)
+			newPolicy := event.ObjectNew.(*policyv1alpha1.ClusterTaintPolicy)
+			return !reflect.DeepEqual(oldPolicy.Spec, newPolicy.Spec)
+		},
+		DeleteFunc: func(_ event.DeleteEvent) bool { return false },
+	}
+
 	clusterTaintPolicyMapFunc := handler.MapFunc(
 		func(ctx context.Context, policyObj client.Object) []reconcile.Request {
 			clusterList := &clusterv1alpha1.ClusterList{}
@@ -240,7 +253,8 @@ func (c *ClusterTaintPolicyController) SetupWithManager(mgr controllerruntime.Ma
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(ControllerName).
 		For(&clusterv1alpha1.Cluster{}, builder.WithPredicates(clusterStatusConditionPredicateFn)).
-		Watches(&policyv1alpha1.ClusterTaintPolicy{}, handler.EnqueueRequestsFromMapFunc(clusterTaintPolicyMapFunc)).
+		Watches(&policyv1alpha1.ClusterTaintPolicy{}, handler.EnqueueRequestsFromMapFunc(clusterTaintPolicyMapFunc),
+			builder.WithPredicates(clusterTaintPolicyPredicateFn)).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).
 		Complete(c)
 }
