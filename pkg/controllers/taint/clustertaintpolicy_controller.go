@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sort"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -57,28 +58,30 @@ type ClusterTaintPolicyController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *ClusterTaintPolicyController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling Cluster %s.", req.Name)
-
-	clusterObj := &clusterv1alpha1.Cluster{}
-	if err := c.Client.Get(ctx, req.NamespacedName, clusterObj); err != nil {
-		klog.Errorf("Failed to get Cluster(%s), error: %v", req.Name, err)
+	klog.V(4).Infof("Reconciling ClusterTaintPolicy %s.", req.Name)
+	policy := &policyv1alpha1.ClusterTaintPolicy{}
+	if err := c.Client.Get(ctx, req.NamespacedName, policy); err != nil {
+		klog.Errorf("Failed to get ClusterTaintPolicy(%s), error: %v", req.Name, err)
 		return controllerruntime.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if !clusterObj.DeletionTimestamp.IsZero() {
-		klog.V(4).Infof("Cluster(%s) is deleting.", req.Name)
+	if !policy.DeletionTimestamp.IsZero() {
+		klog.V(4).Infof("ClusterTaintPolicy(%s) is deleting.", req.Name)
 		return controllerruntime.Result{}, nil
 	}
 
-	clusterTaintPolicyList := &policyv1alpha1.ClusterTaintPolicyList{}
+	clusterList := &clusterv1alpha1.ClusterList{}
 	listOption := &client.ListOptions{UnsafeDisableDeepCopy: ptr.To(true)}
-	if err := c.Client.List(ctx, clusterTaintPolicyList, listOption); err != nil {
-		klog.Errorf("Failed to list ClusterTaintPolicy, error: %v", err)
+	if err := c.Client.List(ctx, clusterList, listOption); err != nil {
+		klog.Errorf("Failed to list Cluster, error: %v", err)
 		return controllerruntime.Result{}, err
 	}
 
-	clusterCopyObj := clusterObj.DeepCopy()
-	for _, policy := range clusterTaintPolicyList.Items {
+	var errs []error
+	for index := range clusterList.Items {
+		clusterObj := &clusterList.Items[index]
+		clusterCopyObj := clusterObj.DeepCopy()
+
 		if policy.Spec.TargetClusters != nil && !util.ClusterMatches(clusterCopyObj, *policy.Spec.TargetClusters) {
 			continue
 		}
@@ -90,24 +93,29 @@ func (c *ClusterTaintPolicyController) Reconcile(ctx context.Context, req contro
 		if conditionMatches(clusterCopyObj.Status.Conditions, policy.Spec.RemoveOnConditions) {
 			clusterCopyObj.Spec.Taints = removeTaintsFromCluster(clusterCopyObj, policy.Spec.Taints)
 		}
-	}
 
-	if !reflect.DeepEqual(clusterObj.Spec.Taints, clusterCopyObj.Spec.Taints) {
-		objPatch := client.MergeFrom(clusterObj)
-		err := c.Client.Patch(ctx, clusterCopyObj, objPatch)
-		if err != nil {
-			klog.Errorf("Failed to patch Cluster(%s), error: %v", req.Name, err)
-			c.EventRecorder.Event(clusterCopyObj, corev1.EventTypeWarning, events.EventReasonTaintClusterFailed, err.Error())
-			return controllerruntime.Result{}, err
+		if !reflect.DeepEqual(clusterObj.Spec.Taints, clusterCopyObj.Spec.Taints) {
+			objPatch := client.MergeFrom(clusterObj)
+			err := c.Client.Patch(ctx, clusterCopyObj, objPatch)
+			if err != nil {
+				klog.Errorf("Failed to patch Cluster(%s), error: %v", clusterCopyObj.Name, err)
+				c.EventRecorder.Event(clusterCopyObj, corev1.EventTypeWarning, events.EventReasonTaintClusterFailed, err.Error())
+				errs = append(errs, err)
+				continue
+			}
+
+			msg := fmt.Sprintf("Update Cluster(%s) with taints(%v) succeed", clusterCopyObj.Name,
+				utilhelper.GenerateTaintsMessage(clusterCopyObj.Spec.Taints))
+			klog.Info(msg)
+			c.EventRecorder.Event(clusterCopyObj, corev1.EventTypeNormal, events.EventReasonTaintClusterSucceed, msg)
+			continue
 		}
-
-		msg := fmt.Sprintf("Update Cluster(%s) with taints(%v) succeed", req.Name,
-			utilhelper.GenerateTaintsMessage(clusterCopyObj.Spec.Taints))
-		klog.Info(msg)
-		c.EventRecorder.Event(clusterCopyObj, corev1.EventTypeNormal, events.EventReasonTaintClusterSucceed, msg)
-		return controllerruntime.Result{}, nil
+		klog.V(4).Infof("Cluster(%s) taints are up to date.", clusterCopyObj.Name)
 	}
-	klog.V(4).Infof("Cluster(%s) taints are up to date.", req.Name)
+
+	if len(errs) > 0 {
+		return controllerruntime.Result{}, fmt.Errorf("failed to reconcile ClusterTaintPolicy(%s), errors: %v", req.Name, errs)
+	}
 	return controllerruntime.Result{}, nil
 }
 
@@ -204,11 +212,18 @@ func removeTaintsFromCluster(cluster *clusterv1alpha1.Cluster, taints []policyv1
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ClusterTaintPolicyController) SetupWithManager(mgr controllerruntime.Manager) error {
-	clusterStatusConditionPredicateFn := predicate.Funcs{
-		CreateFunc: func(_ event.CreateEvent) bool {
-			// After controller reboot, it will reconcile all clusters.
-			return true
+	clusterTaintPolicyPredicateFn := predicate.Funcs{
+		CreateFunc: func(_ event.CreateEvent) bool { return true },
+		UpdateFunc: func(event event.UpdateEvent) bool {
+			oldPolicy := event.ObjectOld.(*policyv1alpha1.ClusterTaintPolicy)
+			newPolicy := event.ObjectNew.(*policyv1alpha1.ClusterTaintPolicy)
+			return !reflect.DeepEqual(oldPolicy.Spec, newPolicy.Spec)
 		},
+		DeleteFunc: func(_ event.DeleteEvent) bool { return false },
+	}
+
+	clusterPredicateFn := predicate.Funcs{
+		CreateFunc: func(_ event.CreateEvent) bool { return false },
 		UpdateFunc: func(event event.UpdateEvent) bool {
 			oldCluster := event.ObjectOld.(*clusterv1alpha1.Cluster)
 			newCluster := event.ObjectNew.(*clusterv1alpha1.Cluster)
@@ -217,21 +232,26 @@ func (c *ClusterTaintPolicyController) SetupWithManager(mgr controllerruntime.Ma
 		DeleteFunc: func(_ event.DeleteEvent) bool { return false },
 	}
 
-	clusterTaintPolicyMapFunc := handler.MapFunc(
-		func(ctx context.Context, policyObj client.Object) []reconcile.Request {
-			clusterList := &clusterv1alpha1.ClusterList{}
+	clusterMapFunc := handler.MapFunc(
+		func(ctx context.Context, clusterObj client.Object) []reconcile.Request {
+			clusterTaintPolicyList := &policyv1alpha1.ClusterTaintPolicyList{}
 			listOption := &client.ListOptions{UnsafeDisableDeepCopy: ptr.To(true)}
-			if err := c.Client.List(ctx, clusterList, listOption); err != nil {
-				klog.Errorf("Failed to list Cluster, error: %v", err)
+			if err := c.Client.List(ctx, clusterTaintPolicyList, listOption); err != nil {
+				klog.Errorf("Failed to list ClusterTaintPolicy, error: %v", err)
 				return nil
 			}
 
-			policy := policyObj.(*policyv1alpha1.ClusterTaintPolicy)
+			policies := clusterTaintPolicyList.Items
+			sort.Slice(policies, func(i, j int) bool {
+				return policies[i].CreationTimestamp.Before(&policies[j].CreationTimestamp)
+			})
+
+			cluster := clusterObj.(*clusterv1alpha1.Cluster)
 			var requests []reconcile.Request
-			for _, cluster := range clusterList.Items {
+			for _, policy := range policies {
 				if policy.Spec.TargetClusters == nil ||
-					util.ClusterMatches(&cluster, *policy.Spec.TargetClusters) {
-					requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKey{Name: cluster.Name}})
+					util.ClusterMatches(cluster, *policy.Spec.TargetClusters) {
+					requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKey{Name: policy.Name}})
 				}
 			}
 			return requests
@@ -239,8 +259,8 @@ func (c *ClusterTaintPolicyController) SetupWithManager(mgr controllerruntime.Ma
 
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(ControllerName).
-		For(&clusterv1alpha1.Cluster{}, builder.WithPredicates(clusterStatusConditionPredicateFn)).
-		Watches(&policyv1alpha1.ClusterTaintPolicy{}, handler.EnqueueRequestsFromMapFunc(clusterTaintPolicyMapFunc)).
+		For(&policyv1alpha1.ClusterTaintPolicy{}, builder.WithPredicates(clusterTaintPolicyPredicateFn)).
+		Watches(&clusterv1alpha1.Cluster{}, handler.EnqueueRequestsFromMapFunc(clusterMapFunc), builder.WithPredicates(clusterPredicateFn)).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).
 		Complete(c)
 }
