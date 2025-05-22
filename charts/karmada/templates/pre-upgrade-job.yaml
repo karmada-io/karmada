@@ -1,0 +1,98 @@
+{{- $name := include "karmada.name" . -}}
+{{- $namespace := include "karmada.namespace" . -}}
+{{- if eq .Values.installMode "host" }}
+{{- if eq .Values.certs.mode "auto" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-static-resources
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-upgrade
+    "helm.sh/hook-weight": "2"
+data:
+  {{- print "webhook-configuration.yaml: " | nindent 6 }} |-
+    {{- include "karmada.webhook.configuration" . | nindent 8 }}
+  {{- print "system-namespace.yaml: " | nindent 6 }} |-
+    {{- include "karmada.systemNamespace" . | nindent 8 }}
+  {{- print "karmada-aggregated-apiserver-apiservice.yaml: " | nindent 6 }} |-
+    {{- include "karmada.apiservice" . | nindent 8 }}
+  {{- print "cluster-proxy-admin-rbac.yaml: " | nindent 6 }} |-
+    {{- include "karmada.proxyRbac" . | nindent 8 }}
+  {{- print "bootstrap-token-configuration.yaml: " | nindent 6 }} |-
+    {{- include "karmada.bootstrapToken.configuration" . | nindent 8 }}
+  {{- print "clusterrole.yaml: " | nindent 6 }} |-
+    {{- include "karmada.clusterrole" . | nindent 8 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-crds-patches
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-upgrade
+    "helm.sh/hook-weight": "2"
+data:
+  {{- print "webhook_in_clusterresourcebindings.yaml: " | nindent 6 }} |-
+    {{- include "karmada.crd.patch.webhook.clusterresourcebinding" . | nindent 8 }}
+  {{- print "webhook_in_resourcebindings.yaml: " | nindent 6 }} |-
+    {{- include "karmada.crd.patch.webhook.resourcebinding" . | nindent 8 }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ $name }}-pre-upgrade"
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-upgrade
+    "helm.sh/hook-weight": "3"
+    "helm.sh/hook-delete-policy": {{ .Values.preUpdateJob.hookDeletePolicy }}
+  {{- if "karmada.preUpdateJob.labels" }}
+  labels:
+    {{- include "karmada.preUpdateJob.labels" . | nindent 4 }}
+  {{- end }}
+spec:
+  parallelism: 1
+  completions: 1
+  template:
+    metadata:
+      name: {{ $name }}-pre-upgrade
+      labels:
+        app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+        app.kubernetes.io/instance: {{ $name | quote }}
+        helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    spec:
+      {{- include "karmada.imagePullSecrets" . | nindent 6 }}
+      {{- with .Values.preUpdateJob.tolerations}}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.preUpdateJob.nodeSelector }}
+      nodeSelector:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ $name }}-hook-job
+      restartPolicy: Never
+      containers:
+      - name: pre-upgrade
+        image: {{ template "karmada.kubectl.image" . }}
+        imagePullPolicy: {{ .Values.kubectl.image.pullPolicy }}
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -ex
+          # Fetch certs from existing secret
+          karmada_ca=$(kubectl get secret {{ $name }}-cert -n {{ $namespace }} -o jsonpath='{.data.server-ca\.crt}')
+          kubectl get configmap {{ $name }}-static-resources -n {{ $namespace }} -o yaml | sed -e "s/{{ print "{{ ca_crt }}" }}/${karmada_ca}/g" | kubectl apply -f -
+          kubectl get configmap {{ $name }}-crds-patches -n {{ $namespace }} -o yaml | sed -e "s/{{ print "{{ ca_crt }}" }}/${karmada_ca}/g" | kubectl apply -f -
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+{{- end }}
+{{- end }}

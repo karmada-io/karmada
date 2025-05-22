@@ -303,6 +303,10 @@ app: {{- include "karmada.name" .}}-search
 {{- include "karmada.commonLabels" . -}}
 {{- end -}}
 
+{{- define "karmada.preUpdateJob.labels" -}}
+{{- include "karmada.commonLabels" . -}}
+{{- end -}}
+
 {{- define "karmada.staticResourceJob.labels" -}}
 {{- include "karmada.commonLabels" . -}}
 {{- end -}}
