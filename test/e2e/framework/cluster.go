@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -364,4 +365,51 @@ func UpdateClusterStatusCondition(client karmada.Interface, clusterName string, 
 		}
 		return true, nil
 	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
+}
+
+// AddClusterTaint adds a taint to the target cluster.
+func AddClusterTaint(c client.Client, clusterName string, taint corev1.Taint) error {
+	klog.Infof("Adding taint %v to cluster %v", taint.ToString(), clusterName)
+	err := wait.PollUntilContextTimeout(context.TODO(), PollInterval, PollTimeout, true, func(ctx context.Context) (done bool, err error) {
+		clusterObj := &clusterv1alpha1.Cluster{}
+		if err := c.Get(ctx, client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
+			return false, err
+		}
+		clusterObj.Spec.Taints = append(clusterObj.Spec.Taints, taint)
+		if err := c.Update(ctx, clusterObj); err != nil {
+			if apierrors.IsConflict(err) {
+				return false, nil
+			}
+			return false, err
+		}
+		return true, nil
+	})
+	return err
+}
+
+// RemoveClusterTaint removes a taint from the target cluster.
+func RemoveClusterTaint(c client.Client, clusterName string, taint corev1.Taint) error {
+	klog.Infof("Removing taint %v from cluster %v", taint.ToString(), clusterName)
+	err := wait.PollUntilContextTimeout(context.TODO(), PollInterval, PollTimeout, true, func(ctx context.Context) (done bool, err error) {
+		clusterObj := &clusterv1alpha1.Cluster{}
+		if err := c.Get(ctx, client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
+			return false, err
+		}
+
+		for i, t := range clusterObj.Spec.Taints {
+			if t.MatchTaint(&taint) {
+				clusterObj.Spec.Taints = append(clusterObj.Spec.Taints[:i], clusterObj.Spec.Taints[i+1:]...)
+				break
+			}
+		}
+
+		if err := c.Update(ctx, clusterObj); err != nil {
+			if apierrors.IsConflict(err) {
+				return false, nil
+			}
+			return false, err
+		}
+		return true, nil
+	})
+	return err
 }

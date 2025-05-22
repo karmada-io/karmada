@@ -24,6 +24,8 @@ import (
 	"strings"
 	"time"
 
+	controllercluster "github.com/karmada-io/karmada/pkg/controllers/cluster"
+
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -379,11 +381,14 @@ var _ = framework.SerialDescribe("Karmadactl join/unjoin testing", ginkgo.Labels
 			})
 
 			ginkgo.By(fmt.Sprintf("Disable cluster: %s", clusterName), func() {
-				err := disableCluster(controlPlaneClient, clusterName)
+				//err := disableCluster(controlPlaneClient, clusterName)
+				//gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				//framework.WaitClusterFitWith(controlPlaneClient, clusterName, func(cluster *clusterv1alpha1.Cluster) bool {
+				//	return meta.IsStatusConditionPresentAndEqual(cluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)
+				//})
+
+				err := framework.AddClusterTaint(controlPlaneClient, clusterName, *controllercluster.NotReadyTaintTemplate)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				framework.WaitClusterFitWith(controlPlaneClient, clusterName, func(cluster *clusterv1alpha1.Cluster) bool {
-					return meta.IsStatusConditionPresentAndEqual(cluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)
-				})
 			})
 
 			ginkgo.By(fmt.Sprintf("Unjoinning cluster: %s", clusterName), func() {

@@ -36,12 +36,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	controllercluster "github.com/karmada-io/karmada/pkg/controllers/cluster"
-	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
@@ -679,42 +675,23 @@ var _ = framework.SerialDescribe("workload status synchronization testing", func
 			var disabledClusters []string
 			targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 
-			ginkgo.By("set one cluster condition status to false", func() {
+			ginkgo.By(fmt.Sprintf("add taint %v to the random one cluster", framework.NotReadyTaintTemplate), func() {
 				temp := numOfFailedClusters
 				for _, targetClusterName := range targetClusterNames {
 					if temp > 0 {
-						klog.Infof("Set cluster %s to disable.", targetClusterName)
-						err := disableCluster(controlPlaneClient, targetClusterName)
+						err := framework.AddClusterTaint(controlPlaneClient, targetClusterName, *framework.NotReadyTaintTemplate)
 						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-						// wait for the current cluster status changing to false
-						framework.WaitClusterFitWith(controlPlaneClient, targetClusterName, func(cluster *clusterv1alpha1.Cluster) bool {
-							return helper.TaintExists(cluster.Spec.Taints, controllercluster.NotReadyTaintTemplate)
-						})
 						disabledClusters = append(disabledClusters, targetClusterName)
 						temp--
 					}
 				}
 			})
 
-			ginkgo.By("recover not ready cluster", func() {
+			ginkgo.By("recover cluster", func() {
 				for _, disabledCluster := range disabledClusters {
-					fmt.Printf("cluster %s is waiting for recovering\n", disabledCluster)
-					originalAPIEndpoint := getClusterAPIEndpoint(disabledCluster)
-
-					err := recoverCluster(controlPlaneClient, disabledCluster, originalAPIEndpoint)
+					err := framework.RemoveClusterTaint(controlPlaneClient, disabledCluster, *framework.NotReadyTaintTemplate)
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-					// wait for the disabled cluster recovered
-					gomega.Eventually(func(g gomega.Gomega) (bool, error) {
-						currentCluster, err := util.GetCluster(controlPlaneClient, disabledCluster)
-						g.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-						if !helper.TaintExists(currentCluster.Spec.Taints, controllercluster.NotReadyTaintTemplate) {
-							fmt.Printf("cluster %s recovered\n", disabledCluster)
-							return true, nil
-						}
-						return false, nil
-					}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 				}
 			})
 

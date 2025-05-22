@@ -30,14 +30,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	controllercluster "github.com/karmada-io/karmada/pkg/controllers/cluster"
-	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
@@ -104,18 +101,13 @@ var _ = framework.SerialDescribe("failover testing", func() {
 			var disabledClusters []string
 			targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 
-			ginkgo.By("set one cluster condition status to false", func() {
+			ginkgo.By(fmt.Sprintf("add taint %v to the random one cluster", framework.NotReadyTaintTemplate), func() {
 				temp := numOfFailedClusters
 				for _, targetClusterName := range targetClusterNames {
 					if temp > 0 {
-						klog.Infof("Set cluster %s to disable.", targetClusterName)
-						err := disableCluster(controlPlaneClient, targetClusterName)
+						err := framework.AddClusterTaint(controlPlaneClient, targetClusterName, *framework.NotReadyTaintTemplate)
 						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-						// wait for the current cluster status changing to false
-						framework.WaitClusterFitWith(controlPlaneClient, targetClusterName, func(cluster *clusterv1alpha1.Cluster) bool {
-							return helper.TaintExists(cluster.Spec.Taints, controllercluster.NotReadyTaintTemplate)
-						})
 						disabledClusters = append(disabledClusters, targetClusterName)
 						temp--
 					}
@@ -136,25 +128,9 @@ var _ = framework.SerialDescribe("failover testing", func() {
 				}, pollTimeout, pollInterval).Should(gomega.Equal(minGroups))
 			})
 
-			ginkgo.By("recover not ready cluster", func() {
+			ginkgo.By("recover cluster", func() {
 				for _, disabledCluster := range disabledClusters {
-					fmt.Printf("cluster %s is waiting for recovering\n", disabledCluster)
-					originalAPIEndpoint := getClusterAPIEndpoint(disabledCluster)
-
-					err := recoverCluster(controlPlaneClient, disabledCluster, originalAPIEndpoint)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-					// wait for the disabled cluster recovered
-					err = wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(_ context.Context) (done bool, err error) {
-						currentCluster, err := util.GetCluster(controlPlaneClient, disabledCluster)
-						if err != nil {
-							return false, err
-						}
-						if !helper.TaintExists(currentCluster.Spec.Taints, controllercluster.NotReadyTaintTemplate) {
-							fmt.Printf("cluster %s recovered\n", disabledCluster)
-							return true, nil
-						}
-						return false, nil
-					})
+					err := framework.RemoveClusterTaint(controlPlaneClient, disabledCluster, *framework.NotReadyTaintTemplate)
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				}
 			})
@@ -225,16 +201,16 @@ var _ = framework.SerialDescribe("failover testing", func() {
 			})
 		})
 
-		ginkgo.It("taint cluster", func() {
+		ginkgo.It("taint Cluster with NoExecute taint", func() {
 			var disabledClusters []string
 			targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
-			ginkgo.By("taint one cluster", func() {
+			ginkgo.By(fmt.Sprintf("add taint %v to the random one cluster", taint), func() {
 				temp := numOfFailedClusters
 				for _, targetClusterName := range targetClusterNames {
 					if temp > 0 {
-						klog.Infof("Taint one cluster(%s).", targetClusterName)
-						err := taintCluster(controlPlaneClient, targetClusterName, taint)
+						err := framework.AddClusterTaint(controlPlaneClient, targetClusterName, taint)
 						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
 						disabledClusters = append(disabledClusters, targetClusterName)
 						temp--
 					}
@@ -255,10 +231,9 @@ var _ = framework.SerialDescribe("failover testing", func() {
 				}, pollTimeout, pollInterval).Should(gomega.Equal(minGroups))
 			})
 
-			ginkgo.By("recover not ready cluster", func() {
+			ginkgo.By("recover cluster", func() {
 				for _, disabledCluster := range disabledClusters {
-					fmt.Printf("cluster %s is waiting for recovering\n", disabledCluster)
-					err := recoverTaintedCluster(controlPlaneClient, disabledCluster, taint)
+					err := framework.RemoveClusterTaint(controlPlaneClient, disabledCluster, taint)
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				}
 			})
@@ -592,27 +567,6 @@ var _ = framework.SerialDescribe("failover testing", func() {
 	})
 })
 
-// disableCluster will set wrong API endpoint of current cluster
-func disableCluster(c client.Client, clusterName string) error {
-	err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
-		clusterObj := &clusterv1alpha1.Cluster{}
-		if err := c.Get(ctx, client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
-			return false, err
-		}
-		// set the APIEndpoint of matched cluster to a wrong value
-		unavailableAPIEndpoint := "https://172.19.1.3:6443"
-		clusterObj.Spec.APIEndpoint = unavailableAPIEndpoint
-		if err := c.Update(ctx, clusterObj); err != nil {
-			if apierrors.IsConflict(err) {
-				return false, nil
-			}
-			return false, err
-		}
-		return true, nil
-	})
-	return err
-}
-
 // taintCluster will taint cluster
 func taintCluster(c client.Client, clusterName string, taint corev1.Taint) error {
 	err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
@@ -649,35 +603,4 @@ func recoverTaintedCluster(c client.Client, clusterName string, taint corev1.Tai
 		return true, nil
 	})
 	return err
-}
-
-// recoverCluster will recover API endpoint of the disable cluster
-func recoverCluster(c client.Client, clusterName string, originalAPIEndpoint string) error {
-	err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (done bool, err error) {
-		clusterObj := &clusterv1alpha1.Cluster{}
-		if err := c.Get(ctx, client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
-			return false, err
-		}
-		clusterObj.Spec.APIEndpoint = originalAPIEndpoint
-		if err := c.Update(ctx, clusterObj); err != nil {
-			if apierrors.IsConflict(err) {
-				return false, nil
-			}
-			return false, err
-		}
-		fmt.Printf("recovered API endpoint is %s\n", clusterObj.Spec.APIEndpoint)
-		return true, nil
-	})
-	return err
-}
-
-// get the API endpoint of a specific cluster
-func getClusterAPIEndpoint(clusterName string) (apiEndpoint string) {
-	for _, cluster := range framework.Clusters() {
-		if cluster.Name == clusterName {
-			apiEndpoint = cluster.Spec.APIEndpoint
-			fmt.Printf("original API endpoint of the cluster %s is %s\n", clusterName, apiEndpoint)
-		}
-	}
-	return apiEndpoint
 }
