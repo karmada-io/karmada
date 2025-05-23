@@ -265,12 +265,88 @@ func (c *MultiClusterCache) List(ctx context.Context, gvr schema.GroupVersionRes
 		return cnt, list.GetContinue(), nil
 	}
 
-	if options.Limit == 0 {
-		for _, cluster := range clusters {
-			_, _, err := listFunc(cluster)
-			if err != nil {
-				return nil, err
+	asyncClusterList := func(cluster string, m *syncMap) runtime.Object {
+		if requestCluster != "" && requestCluster != cluster {
+			return nil
+		}
+		defer func() {
+			requestCluster = ""
+			options.Continue = ""
+		}()
+
+		cache := c.cacheForClusterResource(cluster, gvr)
+		if cache == nil {
+			klog.V(4).Infof("cluster %v does not cache resource %v", cluster, gvr.String())
+			return nil
+		}
+		if options.Continue != "" {
+			options.ResourceVersion = ""
+		} else {
+			options.ResourceVersion = requestResourceVersion.get(cluster)
+		}
+		defer trace.Step("list from member cluster",
+			utiltrace.Field{Key: "cluster", Value: cluster},
+			utiltrace.Field{Key: "options", Value: fmt.Sprintf("%#v", options)},
+		)
+		go func(s string, c *resourceCache) {
+			obj, err := c.List(ctx, options)
+			if err == nil {
+				m.put(s, obj)
+			} else {
+				m.put(s, nil)
 			}
+			m.done()
+		}(cluster, cache)
+		return nil
+	}
+	aggregateClusterList := func(cluster string, obj runtime.Object) (int, string, error) {
+		if obj == nil {
+			return 0, "", nil
+		}
+		list, err := meta.ListAccessor(obj)
+		if err != nil {
+			return 0, "", err
+		}
+
+		if resultObject == nil {
+			resultObject = obj
+		}
+
+		cnt := 0
+		err = meta.EachListItem(obj, func(o runtime.Object) error {
+			clone := o.DeepCopyObject()
+			addCacheSourceAnnotation(clone, cluster)
+			items = append(items, clone)
+			cnt++
+			return nil
+		})
+		if err != nil {
+			return 0, "", err
+		}
+
+		responseResourceVersion.set(cluster, list.GetResourceVersion())
+		return cnt, list.GetContinue(), nil
+	}
+	asyncListFunc := func(clusters []string) error {
+		am := makeSyncMap()
+		for _, cluster := range clusters {
+			am.add()
+			asyncClusterList(cluster, am)
+		}
+		am.wait()
+		for _, cluster := range clusters {
+			_, _, err := aggregateClusterList(cluster, am.get(cluster))
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	if options.Limit == 0 {
+		err := asyncListFunc(clusters)
+		if err != nil {
+			return nil, err
 		}
 	} else {
 		for clusterIdx, cluster := range clusters {
