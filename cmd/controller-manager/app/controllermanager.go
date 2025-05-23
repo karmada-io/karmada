@@ -263,7 +263,8 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 		return false, err
 	}
 
-	if ctx.Opts.EnableTaintManager {
+	// Taint-based eviction should only take effect if the Failover feature is enabled
+	if ctx.Opts.EnableTaintManager && features.FeatureGate.Enabled(features.Failover) {
 		// Indexes are added to help the TaintManager quickly locate ResourceBinding and ClusterResourceBinding resources
 		// associated with a given cluster when eviction is needed.
 		if err := indexregistry.RegisterResourceBindingIndexByFieldCluster(ctx.Context, mgr); err != nil {
@@ -282,6 +283,8 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 		if err := taintManager.SetupWithManager(mgr); err != nil {
 			return false, err
 		}
+	} else {
+		klog.Infof("Skipping registration of TaintManager, please check that TaintManager option and Failover feature-gate are enabled.")
 	}
 
 	return true, nil
