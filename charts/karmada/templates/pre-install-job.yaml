@@ -242,7 +242,7 @@ metadata:
   name: {{ $name }}-static-resources
   namespace: {{ $namespace }}
   annotations:
-    "helm.sh/hook": pre-install
+    "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "2"
   {{- if "karmada.preInstallJob.labels" }}
   labels:
@@ -268,7 +268,7 @@ metadata:
   name: {{ $name }}-crds-patches
   namespace: {{ $namespace }}
   annotations:
-    "helm.sh/hook": pre-install
+    "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "2"
   {{- if "karmada.preInstallJob.labels" }}
   labels:
