@@ -29,7 +29,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -42,12 +41,10 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
-	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	utilhelper "github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/indexregistry"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -89,20 +86,12 @@ var (
 		Key:    clusterv1alpha1.TaintClusterNotReady,
 		Effect: corev1.TaintEffectNoSchedule,
 	}
-
-	// TerminatingTaintTemplate is the taint for when a cluster is terminating executing resources.
-	// Used for taint based eviction.
-	TerminatingTaintTemplate = &corev1.Taint{
-		Key:    clusterv1alpha1.TaintClusterTerminating,
-		Effect: corev1.TaintEffectNoExecute,
-	}
 )
 
 // Controller is to sync Cluster.
 type Controller struct {
-	client.Client      // used to operate Cluster resources.
-	EventRecorder      record.EventRecorder
-	EnableTaintManager bool
+	client.Client // used to operate Cluster resources.
+	EventRecorder record.EventRecorder
 
 	// ClusterMonitorPeriod represents cluster-controller monitoring period, i.e. how often does
 	// cluster-controller check cluster health signal posted from cluster-status-controller.
@@ -240,12 +229,6 @@ func (c *Controller) syncCluster(ctx context.Context, cluster *clusterv1alpha1.C
 }
 
 func (c *Controller) removeCluster(ctx context.Context, cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
-	// add terminating taint before cluster is deleted
-	if err := c.updateClusterTaints(ctx, []*corev1.Taint{TerminatingTaintTemplate}, nil, cluster); err != nil {
-		klog.ErrorS(err, "Failed to update terminating taint", "cluster", cluster.Name)
-		return controllerruntime.Result{}, err
-	}
-
 	if err := c.removeExecutionSpace(ctx, cluster); err != nil {
 		klog.Errorf("Failed to remove execution space %s: %v", cluster.Name, err)
 		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, events.EventReasonRemoveExecutionSpaceFailed, err.Error())
@@ -265,44 +248,7 @@ func (c *Controller) removeCluster(ctx context.Context, cluster *clusterv1alpha1
 	// delete the health data from the map explicitly after we removing the cluster.
 	c.clusterHealthMap.delete(cluster.Name)
 
-	// check if target cluster is removed from all bindings.
-	if c.EnableTaintManager {
-		if done, err := c.isTargetClusterRemoved(ctx, cluster); err != nil {
-			klog.ErrorS(err, "Failed to check whether target cluster is removed from bindings", "cluster", cluster.Name)
-			return controllerruntime.Result{}, err
-		} else if !done {
-			klog.InfoS("Terminating taint eviction process has not finished yet, will try again later", "cluster", cluster.Name)
-			return controllerruntime.Result{RequeueAfter: c.ClusterTaintEvictionRetryFrequency}, nil
-		}
-	}
-
 	return c.removeFinalizer(ctx, cluster)
-}
-
-func (c *Controller) isTargetClusterRemoved(ctx context.Context, cluster *clusterv1alpha1.Cluster) (bool, error) {
-	// List all ResourceBindings which are assigned to this cluster.
-	rbList := &workv1alpha2.ResourceBindingList{}
-	if err := c.List(ctx, rbList, client.MatchingFieldsSelector{
-		Selector: fields.OneTermEqualSelector(indexregistry.ResourceBindingIndexByFieldCluster, cluster.Name),
-	}); err != nil {
-		klog.ErrorS(err, "Failed to list ResourceBindings", "cluster", cluster.Name)
-		return false, err
-	}
-	if len(rbList.Items) != 0 {
-		return false, nil
-	}
-	// List all ClusterResourceBindings which are assigned to this cluster.
-	crbList := &workv1alpha2.ClusterResourceBindingList{}
-	if err := c.List(ctx, crbList, client.MatchingFieldsSelector{
-		Selector: fields.OneTermEqualSelector(indexregistry.ClusterResourceBindingIndexByFieldCluster, cluster.Name),
-	}); err != nil {
-		klog.ErrorS(err, "Failed to list ClusterResourceBindings", "cluster", cluster.Name)
-		return false, err
-	}
-	if len(crbList.Items) != 0 {
-		return false, nil
-	}
-	return true, nil
 }
 
 // removeExecutionSpace deletes the given execution space
