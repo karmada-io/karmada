@@ -17,7 +17,13 @@ data:
     clusters:
     - cluster:
         {{- include "karmada.kubeconfig.caData" . | nindent 8 }}
+        {{- if and (.Values.apiServer.hostIP) (eq .Values.apiServer.serviceType "NodePort") (.Values.apiServer.nodePort) }}
+        server: https://{{ .Values.apiServer.hostIP }}:{{ .Values.apiServer.nodePort }}
+        {{- else if .Values.apiServer.hostIP }}
+        server: https://{{ .Values.apiServer.hostIP }}:5443
+        {{- else }}
         server: https://{{ $name }}-apiserver.{{ $namespace }}.svc.{{ .Values.clusterDomain }}:5443
+        {{- end }}
     kind: Config
 ---
 apiVersion: rbac.authorization.k8s.io/v1
