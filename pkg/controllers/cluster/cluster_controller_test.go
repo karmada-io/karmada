@@ -363,12 +363,7 @@ func TestController_monitorClusterHealth(t *testing.T) {
 				},
 				Spec: clusterv1alpha1.ClusterSpec{
 					SyncMode: clusterv1alpha1.Pull,
-					Taints: []corev1.Taint{
-						{
-							Key:    clusterv1alpha1.TaintClusterUnreachable,
-							Effect: corev1.TaintEffectNoExecute,
-						},
-					},
+					Taints:   []corev1.Taint{},
 				},
 				Status: clusterv1alpha1.ClusterStatus{
 					Conditions: []metav1.Condition{{
