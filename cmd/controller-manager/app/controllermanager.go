@@ -18,7 +18,6 @@ package app
 
 import (
 	"context"
-	"flag"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -30,7 +29,6 @@ import (
 	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/flowcontrol"
-	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
 	resourceclient "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
@@ -78,7 +76,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
-	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
@@ -97,7 +94,7 @@ import (
 
 // NewControllerManagerCommand creates a *cobra.Command object with default parameters
 func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
-	opts := options.NewOptions()
+	opts := options.NewKarmadaControllerManagerOptions()
 
 	cmd := &cobra.Command{
 		Use: names.KarmadaControllerManagerComponentName,
@@ -114,67 +111,57 @@ to create regular Kubernetes resources.`,
 		},
 	}
 
-	fss := cliflag.NamedFlagSets{}
-
-	genericFlagSet := fss.FlagSet("generic")
-	// Add the flag(--kubeconfig) that is added by controller-runtime
-	// (https://github.com/kubernetes-sigs/controller-runtime/blob/v0.11.1/pkg/client/config/config.go#L39),
-	// and update the flag usage.
-	genericFlagSet.AddGoFlagSet(flag.CommandLine)
-	genericFlagSet.Lookup("kubeconfig").Usage = "Path to karmada control plane kubeconfig file."
-	opts.AddFlags(genericFlagSet, controllers.ControllerNames(), sets.List(controllersDisabledByDefault))
-
-	// Set klog flags
-	logsFlagSet := fss.FlagSet("logs")
-	klogflag.Add(logsFlagSet)
+	fs := cmd.Flags()
+	namedFlagSets := opts.Flags(controllers.ControllerNames(), sets.List(controllersDisabledByDefault))
+	for _, f := range namedFlagSets.FlagSets {
+		fs.AddFlagSet(f)
+	}
 
 	cmd.AddCommand(sharedcommand.NewCmdVersion(names.KarmadaControllerManagerComponentName))
-	cmd.Flags().AddFlagSet(genericFlagSet)
-	cmd.Flags().AddFlagSet(logsFlagSet)
 
 	cols, _, _ := term.TerminalSize(cmd.OutOrStdout())
-	sharedcli.SetUsageAndHelpFunc(cmd, fss, cols)
+	sharedcli.SetUsageAndHelpFunc(cmd, namedFlagSets, cols)
 	return cmd
 }
 
 // Run runs the controller-manager with options. This should never exit.
-func Run(ctx context.Context, opts *options.Options) error {
+func Run(ctx context.Context, opts *options.KarmadaControllerManagerOptions) error {
 	klog.Infof("karmada-controller-manager version: %s", version.Get())
 
-	profileflag.ListenAndServe(opts.ProfileOpts)
+	profileflag.ListenAndServe(opts.Generic.ProfileOpts)
 
 	controlPlaneRestConfig, err := controllerruntime.GetConfig()
 	if err != nil {
 		panic(err)
 	}
-	controlPlaneRestConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(opts.KubeAPIQPS, opts.KubeAPIBurst)
+	controlPlaneRestConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(opts.Generic.KubeAPIQPS, opts.Generic.KubeAPIBurst)
 	controllerManager, err := controllerruntime.NewManager(controlPlaneRestConfig, controllerruntime.Options{
 		Logger:                     klog.Background(),
 		Scheme:                     gclient.NewSchema(),
-		Cache:                      cache.Options{SyncPeriod: &opts.ResyncPeriod.Duration},
-		LeaderElection:             opts.LeaderElection.LeaderElect,
-		LeaderElectionID:           opts.LeaderElection.ResourceName,
-		LeaderElectionNamespace:    opts.LeaderElection.ResourceNamespace,
-		LeaseDuration:              &opts.LeaderElection.LeaseDuration.Duration,
-		RenewDeadline:              &opts.LeaderElection.RenewDeadline.Duration,
-		RetryPeriod:                &opts.LeaderElection.RetryPeriod.Duration,
-		LeaderElectionResourceLock: opts.LeaderElection.ResourceLock,
-		HealthProbeBindAddress:     opts.HealthProbeBindAddress,
+		Cache:                      cache.Options{SyncPeriod: &opts.Generic.ResyncPeriod.Duration},
+		LeaderElection:             opts.Generic.LeaderElection.LeaderElect,
+		LeaderElectionID:           opts.Generic.LeaderElection.ResourceName,
+		LeaderElectionNamespace:    opts.Generic.LeaderElection.ResourceNamespace,
+		LeaseDuration:              &opts.Generic.LeaderElection.LeaseDuration.Duration,
+		RenewDeadline:              &opts.Generic.LeaderElection.RenewDeadline.Duration,
+		RetryPeriod:                &opts.Generic.LeaderElection.RetryPeriod.Duration,
+		LeaderElectionResourceLock: opts.Generic.LeaderElection.ResourceLock,
+		HealthProbeBindAddress:     opts.Generic.HealthProbeBindAddress,
 		LivenessEndpointName:       "/healthz",
-		Metrics:                    metricsserver.Options{BindAddress: opts.MetricsBindAddress},
+		Metrics:                    metricsserver.Options{BindAddress: opts.Generic.MetricsBindAddress},
 		MapperProvider:             restmapper.MapperProvider,
 		BaseContext: func() context.Context {
 			return ctx
 		},
 		Controller: config.Controller{
 			GroupKindConcurrency: map[string]int{
-				workv1alpha1.SchemeGroupVersion.WithKind("Work").GroupKind().String():                     opts.ConcurrentWorkSyncs,
-				workv1alpha2.SchemeGroupVersion.WithKind("ResourceBinding").GroupKind().String():          opts.ConcurrentResourceBindingSyncs,
-				workv1alpha2.SchemeGroupVersion.WithKind("ClusterResourceBinding").GroupKind().String():   opts.ConcurrentClusterResourceBindingSyncs,
-				clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster").GroupKind().String():               opts.ConcurrentClusterSyncs,
-				schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Namespace"}.GroupKind().String(): opts.ConcurrentNamespaceSyncs,
+				workv1alpha1.SchemeGroupVersion.WithKind("Work").GroupKind().String():                     opts.Generic.ConcurrentWorkSyncs,
+				workv1alpha2.SchemeGroupVersion.WithKind("ResourceBinding").GroupKind().String():          opts.Generic.ConcurrentResourceBindingSyncs,
+				workv1alpha2.SchemeGroupVersion.WithKind("ClusterResourceBinding").GroupKind().String():   opts.Generic.ConcurrentClusterResourceBindingSyncs,
+				clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster").GroupKind().String():               opts.Generic.ConcurrentClusterSyncs,
+				schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Namespace"}.GroupKind().String(): opts.Generic.ConcurrentNamespaceSyncs,
 			},
-			CacheSyncTimeout: opts.ClusterCacheSyncTimeout.Duration,
+			CacheSyncTimeout: opts.Generic.ClusterCacheSyncTimeout.Duration,
 		},
 		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
 			opts.DefaultTransform = fedinformer.StripUnusedFields
@@ -810,7 +797,7 @@ func startClusterTaintPolicyController(ctx controllerscontext.Context) (enabled 
 }
 
 // setupControllers initialize controllers and setup one by one.
-func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *options.Options) {
+func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *options.KarmadaControllerManagerOptions) {
 	restConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
 	discoverClientSet := discovery.NewDiscoveryClientForConfigOrDie(restConfig)
@@ -818,15 +805,15 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 
 	overrideManager := overridemanager.New(mgr.GetClient(), mgr.GetEventRecorderFor(overridemanager.OverrideManagerName))
 	skippedResourceConfig := util.NewSkippedResourceConfig()
-	if err := skippedResourceConfig.Parse(opts.SkippedPropagatingAPIs); err != nil {
+	if err := skippedResourceConfig.Parse(opts.Generic.SkippedPropagatingAPIs); err != nil {
 		// The program will never go here because the parameters have been checked
 		return
 	}
 
-	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(ctx, dynamicClientSet, opts.ResyncPeriod.Duration)
+	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(ctx, dynamicClientSet, opts.Generic.ResyncPeriod.Duration)
 	// We need a service lister to build a resource interpreter with `ClusterIPServiceResolver`
 	// witch allows connection to the customized interpreter webhook without a cluster DNS service.
-	sharedFactory := informers.NewSharedInformerFactory(kubeClientSet, opts.ResyncPeriod.Duration)
+	sharedFactory := informers.NewSharedInformerFactory(kubeClientSet, opts.Generic.ResyncPeriod.Duration)
 	serviceLister := sharedFactory.Core().V1().Services().Lister()
 	sharedFactory.Start(ctx.Done())
 	sharedFactory.WaitForCacheSync(ctx.Done())
@@ -835,7 +822,7 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 	if err := mgr.Add(resourceInterpreter); err != nil {
 		klog.Fatalf("Failed to setup custom resource interpreter: %v", err)
 	}
-	rateLimiterGetter := util.GetClusterRateLimiterGetter().SetDefaultLimits(opts.ClusterAPIQPS, opts.ClusterAPIBurst)
+	rateLimiterGetter := util.GetClusterRateLimiterGetter().SetDefaultLimits(opts.Generic.ClusterAPIQPS, opts.Generic.ClusterAPIBurst)
 	clusterClientOption := &util.ClientOption{RateLimiterGetter: rateLimiterGetter.GetRateLimiter}
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet, clusterClientOption, resourceInterpreter)
 
@@ -847,13 +834,13 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 		RESTMapper:                              mgr.GetRESTMapper(),
 		DynamicClient:                           dynamicClientSet,
 		SkippedResourceConfig:                   skippedResourceConfig,
-		SkippedPropagatingNamespaces:            opts.SkippedNamespacesRegexps(),
+		SkippedPropagatingNamespaces:            opts.Generic.SkippedNamespacesRegexps(),
 		ResourceInterpreter:                     resourceInterpreter,
 		EventRecorder:                           mgr.GetEventRecorderFor("resource-detector"),
-		ConcurrentPropagationPolicySyncs:        opts.ConcurrentPropagationPolicySyncs,
-		ConcurrentClusterPropagationPolicySyncs: opts.ConcurrentClusterPropagationPolicySyncs,
-		ConcurrentResourceTemplateSyncs:         opts.ConcurrentResourceTemplateSyncs,
-		RateLimiterOptions:                      opts.RateLimiterOpts,
+		ConcurrentPropagationPolicySyncs:        opts.Generic.ConcurrentPropagationPolicySyncs,
+		ConcurrentClusterPropagationPolicySyncs: opts.Generic.ConcurrentClusterPropagationPolicySyncs,
+		ConcurrentResourceTemplateSyncs:         opts.Generic.ConcurrentResourceTemplateSyncs,
+		RateLimiterOptions:                      opts.Generic.RateLimiterOpts,
 	}
 
 	if err := mgr.Add(resourceDetector); err != nil {
@@ -867,36 +854,36 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 			ResourceInterpreter:              resourceInterpreter,
 			RESTMapper:                       mgr.GetRESTMapper(),
 			EventRecorder:                    mgr.GetEventRecorderFor("dependencies-distributor"),
-			RateLimiterOptions:               opts.RateLimiterOpts,
-			ConcurrentDependentResourceSyncs: opts.ConcurrentDependentResourceSyncs,
+			RateLimiterOptions:               opts.Generic.RateLimiterOpts,
+			ConcurrentDependentResourceSyncs: opts.Generic.ConcurrentDependentResourceSyncs,
 		}
 		if err := dependenciesDistributor.SetupWithManager(mgr); err != nil {
 			klog.Fatalf("Failed to setup dependencies distributor: %v", err)
 		}
 	}
-	setupClusterAPIClusterDetector(ctx, mgr, opts)
+	setupClusterAPIClusterDetector(ctx, mgr, opts.Generic)
 	controllerContext := controllerscontext.Context{
 		Mgr:           mgr,
 		ObjectWatcher: objectWatcher,
 		Opts: controllerscontext.Options{
-			Controllers:                       opts.Controllers,
-			ClusterMonitorPeriod:              opts.ClusterMonitorPeriod,
-			ClusterMonitorGracePeriod:         opts.ClusterMonitorGracePeriod,
-			ClusterStartupGracePeriod:         opts.ClusterStartupGracePeriod,
-			ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
-			FailoverEvictionTimeout:           opts.FailoverEvictionTimeout,
-			ClusterLeaseDuration:              opts.ClusterLeaseDuration,
-			ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
-			ClusterSuccessThreshold:           opts.ClusterSuccessThreshold,
-			ClusterFailureThreshold:           opts.ClusterFailureThreshold,
-			ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
-			SkippedPropagatingNamespaces:      opts.SkippedNamespacesRegexps(),
-			ConcurrentWorkSyncs:               opts.ConcurrentWorkSyncs,
-			EnableTaintManager:                opts.EnableTaintManager,
-			RateLimiterOptions:                opts.RateLimiterOpts,
-			GracefulEvictionTimeout:           opts.GracefulEvictionTimeout,
-			EnableClusterResourceModeling:     opts.EnableClusterResourceModeling,
-			HPAControllerConfiguration:        opts.HPAControllerConfiguration,
+			Controllers:                       opts.Generic.Controllers,
+			ClusterMonitorPeriod:              opts.Generic.ClusterMonitorPeriod,
+			ClusterMonitorGracePeriod:         opts.Generic.ClusterMonitorGracePeriod,
+			ClusterStartupGracePeriod:         opts.Generic.ClusterStartupGracePeriod,
+			ClusterStatusUpdateFrequency:      opts.Generic.ClusterStatusUpdateFrequency,
+			FailoverEvictionTimeout:           opts.Generic.FailoverEvictionTimeout,
+			ClusterLeaseDuration:              opts.Generic.ClusterLeaseDuration,
+			ClusterLeaseRenewIntervalFraction: opts.Generic.ClusterLeaseRenewIntervalFraction,
+			ClusterSuccessThreshold:           opts.Generic.ClusterSuccessThreshold,
+			ClusterFailureThreshold:           opts.Generic.ClusterFailureThreshold,
+			ClusterCacheSyncTimeout:           opts.Generic.ClusterCacheSyncTimeout,
+			SkippedPropagatingNamespaces:      opts.Generic.SkippedNamespacesRegexps(),
+			ConcurrentWorkSyncs:               opts.Generic.ConcurrentWorkSyncs,
+			EnableTaintManager:                opts.Generic.EnableTaintManager,
+			RateLimiterOptions:                opts.Generic.RateLimiterOpts,
+			GracefulEvictionTimeout:           opts.Generic.GracefulEvictionTimeout,
+			EnableClusterResourceModeling:     opts.Generic.EnableClusterResourceModeling,
+			HPAControllerConfiguration:        opts.Generic.HPAControllerConfiguration,
 		},
 		Context:                     ctx,
 		DynamicClientSet:            dynamicClientSet,
@@ -919,7 +906,7 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 }
 
 // setupClusterAPIClusterDetector initialize Cluster detector with the cluster-api management cluster.
-func setupClusterAPIClusterDetector(ctx context.Context, mgr controllerruntime.Manager, opts *options.Options) {
+func setupClusterAPIClusterDetector(ctx context.Context, mgr controllerruntime.Manager, opts *options.GenericOptions) {
 	if len(opts.ClusterAPIKubeconfig) == 0 {
 		return
 	}

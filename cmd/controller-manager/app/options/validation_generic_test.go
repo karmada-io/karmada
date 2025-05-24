@@ -25,11 +25,11 @@ import (
 )
 
 // a callback function to modify options
-type ModifyOptions func(option *Options)
+type ModifyOptions func(option *GenericOptions)
 
-// New an Options with default parameters
-func New(modifyOptions ModifyOptions) Options {
-	option := Options{
+// New an GenericOptions with default parameters
+func New(modifyOptions ModifyOptions) GenericOptions {
+	option := GenericOptions{
 		SkippedPropagatingAPIs:       "cluster.karmada.io;policy.karmada.io;work.karmada.io",
 		ClusterStatusUpdateFrequency: metav1.Duration{Duration: 10 * time.Second},
 		ClusterLeaseDuration:         metav1.Duration{Duration: 10 * time.Second},
@@ -45,7 +45,7 @@ func New(modifyOptions ModifyOptions) Options {
 }
 
 func TestValidateControllerManagerConfiguration(t *testing.T) {
-	successCases := []Options{
+	successCases := []GenericOptions{
 		New(nil),
 	}
 
@@ -55,43 +55,43 @@ func TestValidateControllerManagerConfiguration(t *testing.T) {
 		}
 	}
 
-	newPath := field.NewPath("Options")
+	newPath := field.NewPath("GenericOptions")
 	testCases := map[string]struct {
-		opt          Options
+		opt          GenericOptions
 		expectedErrs field.ErrorList
 	}{
 		"invalid SkippedPropagatingAPIs": {
-			opt: New(func(options *Options) {
+			opt: New(func(options *GenericOptions) {
 				options.SkippedPropagatingAPIs = "a/b/c/d?"
 			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("SkippedPropagatingAPIs"), "a/b/c/d?", "Invalid API string")},
 		},
 		"invalid ClusterStatusUpdateFrequency": {
-			opt: New(func(options *Options) {
+			opt: New(func(options *GenericOptions) {
 				options.ClusterStatusUpdateFrequency.Duration = -10 * time.Second
 			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterStatusUpdateFrequency"), metav1.Duration{Duration: -10 * time.Second}, "must be greater than 0")},
 		},
 		"invalid ClusterLeaseDuration": {
-			opt: New(func(options *Options) {
+			opt: New(func(options *GenericOptions) {
 				options.ClusterLeaseDuration.Duration = -40 * time.Second
 			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterLeaseDuration"), metav1.Duration{Duration: -40 * time.Second}, "must be greater than 0")},
 		},
 		"invalid ClusterMonitorPeriod": {
-			opt: New(func(options *Options) {
+			opt: New(func(options *GenericOptions) {
 				options.ClusterMonitorPeriod.Duration = -40 * time.Second
 			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterMonitorPeriod"), metav1.Duration{Duration: -40 * time.Second}, "must be greater than 0")},
 		},
 		"invalid ClusterMonitorGracePeriod": {
-			opt: New(func(options *Options) {
+			opt: New(func(options *GenericOptions) {
 				options.ClusterMonitorGracePeriod.Duration = -40 * time.Second
 			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterMonitorGracePeriod"), metav1.Duration{Duration: -40 * time.Second}, "must be greater than 0")},
 		},
 		"invalid ClusterStartupGracePeriod": {
-			opt: New(func(options *Options) {
+			opt: New(func(options *GenericOptions) {
 				options.ClusterStartupGracePeriod.Duration = 0 * time.Second
 			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterStartupGracePeriod"), metav1.Duration{Duration: 0 * time.Second}, "must be greater than 0")},

@@ -25,10 +25,10 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
-// Validate checks Options and return a slice of found errs.
-func (o *Options) Validate() field.ErrorList {
+// Validate checks GenericOptions and return a slice of found errs.
+func (o *GenericOptions) Validate() field.ErrorList {
 	errs := field.ErrorList{}
-	newPath := field.NewPath("Options")
+	newPath := field.NewPath("GenericOptions")
 
 	skippedResourceConfig := util.NewSkippedResourceConfig()
 	if err := skippedResourceConfig.Parse(o.SkippedPropagatingAPIs); err != nil {
