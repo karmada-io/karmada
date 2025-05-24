@@ -353,11 +353,11 @@ func TestObtainBindingSpecExistingClusters(t *testing.T) {
 				GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
 					{
 						FromCluster: "member3",
-						PurgeMode:   policyv1alpha1.Immediately,
+						PurgeMode:   policyv1alpha1.PurgeModeDirectly,
 					},
 					{
 						FromCluster: "member4",
-						PurgeMode:   policyv1alpha1.Graciously,
+						PurgeMode:   policyv1alpha1.PurgeModeGracefully,
 					},
 					{
 						FromCluster: "member5",
