@@ -28,138 +28,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/karmadactl/join"
 	"github.com/karmada-io/karmada/pkg/karmadactl/unjoin"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
-
-// reschedule testing is used to test the rescheduling situation when some initially scheduled clusters are unjoined
-var _ = ginkgo.Describe("[cluster unjoined] reschedule testing", func() {
-	framework.SerialContext("Deployment propagation testing", ginkgo.Label(NeedCreateCluster), func() {
-		var newClusterName string
-		var homeDir string
-		var kubeConfigPath string
-		var controlPlane string
-		var clusterContext string
-		var f cmdutil.Factory
-
-		ginkgo.BeforeEach(func() {
-			newClusterName = "member-e2e-" + rand.String(RandomStrLength)
-			homeDir = os.Getenv("HOME")
-			kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, newClusterName)
-			controlPlane = fmt.Sprintf("%s-control-plane", newClusterName)
-			clusterContext = fmt.Sprintf("kind-%s", newClusterName)
-
-			defaultConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
-			defaultConfigFlags.Context = &karmadaContext
-			f = cmdutil.NewFactory(defaultConfigFlags)
-		})
-
-		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("Creating cluster: %s", newClusterName), func() {
-				err := createCluster(newClusterName, kubeConfigPath, controlPlane, clusterContext)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
-		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("Deleting clusters: %s", newClusterName), func() {
-				err := deleteCluster(newClusterName, kubeConfigPath)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				_ = os.Remove(kubeConfigPath)
-			})
-		})
-
-		var policyNamespace, policyName string
-		var deploymentNamespace, deploymentName string
-		var deployment *appsv1.Deployment
-		var policy *policyv1alpha1.PropagationPolicy
-
-		ginkgo.BeforeEach(func() {
-			policyNamespace = testNamespace
-			policyName = deploymentNamePrefix + rand.String(RandomStrLength)
-			deploymentNamespace = testNamespace
-			deploymentName = policyName
-			deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
-			deployment.Spec.Replicas = ptr.To[int32](10)
-
-			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-				{
-					APIVersion: deployment.APIVersion,
-					Kind:       deployment.Kind,
-					Name:       deployment.Name,
-				},
-			}, policyv1alpha1.Placement{
-				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-				},
-			})
-		})
-
-		ginkgo.It("deployment reschedule testing", func() {
-			ginkgo.By(fmt.Sprintf("Joining cluster: %s", newClusterName), func() {
-				opts := join.CommandJoinOption{
-					DryRun:            false,
-					ClusterNamespace:  "karmada-cluster",
-					ClusterName:       newClusterName,
-					ClusterContext:    clusterContext,
-					ClusterKubeConfig: kubeConfigPath,
-				}
-				err := opts.Run(f)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				// wait for the current cluster status changing to true
-				framework.WaitClusterFitWith(controlPlaneClient, newClusterName, func(cluster *clusterv1alpha1.Cluster) bool {
-					return meta.IsStatusConditionPresentAndEqual(cluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
-				})
-			})
-
-			framework.CreatePropagationPolicy(karmadaClient, policy)
-			framework.CreateDeployment(kubeClient, deployment)
-			ginkgo.DeferCleanup(func() {
-				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
-			})
-
-			targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
-
-			ginkgo.By("unjoin target cluster", func() {
-				klog.Infof("Unjoining cluster %q.", newClusterName)
-				opts := unjoin.CommandUnjoinOption{
-					ClusterNamespace: "karmada-cluster",
-					ClusterName:      newClusterName,
-					Wait:             60 * time.Second,
-				}
-				err := opts.Run(f)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			ginkgo.By("check whether the deployment is rescheduled to other available clusters", func() {
-				gomega.Eventually(func(gomega.Gomega) bool {
-					targetClusterNames = framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
-					return testhelper.IsExclude(newClusterName, targetClusterNames)
-				}, pollTimeout, pollInterval).Should(gomega.BeTrue())
-			})
-
-			ginkgo.By("check if the scheduled condition is true", func() {
-				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
-					rb, err := getResourceBinding(deployment)
-					g.Expect(err).ShouldNot(gomega.HaveOccurred())
-					return meta.IsStatusConditionTrue(rb.Status.Conditions, workv1alpha2.Scheduled), nil
-				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
-			})
-		})
-	})
-})
 
 // reschedule testing is used to test the rescheduling situation when some clusters are joined and recovered
 var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {

@@ -254,7 +254,6 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 		ClusterMonitorGracePeriod:          opts.ClusterMonitorGracePeriod.Duration,
 		ClusterStartupGracePeriod:          opts.ClusterStartupGracePeriod.Duration,
 		FailoverEvictionTimeout:            opts.FailoverEvictionTimeout.Duration,
-		EnableTaintManager:                 ctx.Opts.EnableTaintManager,
 		ClusterTaintEvictionRetryFrequency: 10 * time.Second,
 		ExecutionSpaceRetryFrequency:       10 * time.Second,
 		RateLimiterOptions:                 ctx.Opts.RateLimiterOptions,

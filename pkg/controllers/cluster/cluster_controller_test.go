@@ -38,7 +38,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/indexregistry"
-	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 func newClusterController() *Controller {
@@ -65,7 +64,6 @@ func newClusterController() *Controller {
 		Client:                    client,
 		EventRecorder:             record.NewFakeRecorder(1024),
 		clusterHealthMap:          newClusterHealthMap(),
-		EnableTaintManager:        true,
 		ClusterMonitorGracePeriod: 40 * time.Second,
 	}
 }
@@ -248,41 +246,6 @@ func TestController_Reconcile(t *testing.T) {
 			},
 			want:    controllerruntime.Result{},
 			wantErr: false,
-		},
-		{
-			name: "remove cluster failed",
-			cluster: &clusterv1alpha1.Cluster{
-				ObjectMeta: controllerruntime.ObjectMeta{
-					Name:       "test-cluster",
-					Finalizers: []string{util.ClusterControllerFinalizer},
-				},
-				Spec: clusterv1alpha1.ClusterSpec{
-					SyncMode: clusterv1alpha1.Pull,
-				},
-				Status: clusterv1alpha1.ClusterStatus{
-					Conditions: []metav1.Condition{
-						{
-							Type:   clusterv1alpha1.ClusterConditionReady,
-							Status: metav1.ConditionFalse,
-						},
-					},
-				},
-			},
-			ns: &corev1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: names.GenerateExecutionSpaceName("test-cluster"),
-				},
-			},
-			work: &workv1alpha1.Work{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "test-work",
-					Namespace:  names.GenerateExecutionSpaceName("test-cluster"),
-					Finalizers: []string{util.ExecutionControllerFinalizer},
-				},
-			},
-			del:     true,
-			want:    controllerruntime.Result{},
-			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
