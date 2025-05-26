@@ -62,25 +62,11 @@ const (
 )
 
 var (
-	// UnreachableTaintTemplate is the taint for when a cluster becomes unreachable.
-	// Used for taint based eviction.
-	UnreachableTaintTemplate = &corev1.Taint{
-		Key:    clusterv1alpha1.TaintClusterUnreachable,
-		Effect: corev1.TaintEffectNoExecute,
-	}
-
 	// UnreachableTaintTemplateForSched is the taint for when a cluster becomes unreachable.
 	// Used for taint based schedule.
 	UnreachableTaintTemplateForSched = &corev1.Taint{
 		Key:    clusterv1alpha1.TaintClusterUnreachable,
 		Effect: corev1.TaintEffectNoSchedule,
-	}
-
-	// NotReadyTaintTemplate is the taint for when a cluster is not ready for executing resources.
-	// Used for taint based eviction.
-	NotReadyTaintTemplate = &corev1.Taint{
-		Key:    clusterv1alpha1.TaintClusterNotReady,
-		Effect: corev1.TaintEffectNoExecute,
 	}
 
 	// NotReadyTaintTemplateForSched is the taint for when a cluster is not ready for executing resources.
@@ -114,8 +100,7 @@ type Controller struct {
 	ClusterMonitorGracePeriod time.Duration
 	// When cluster is just created, e.g. agent bootstrap or cluster join, we give a longer grace period.
 	ClusterStartupGracePeriod time.Duration
-	// FailoverEvictionTimeout represents the grace period for deleting scheduling result on failed clusters.
-	FailoverEvictionTimeout            time.Duration
+
 	ClusterTaintEvictionRetryFrequency time.Duration
 	ExecutionSpaceRetryFrequency       time.Duration
 

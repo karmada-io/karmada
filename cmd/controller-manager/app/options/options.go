@@ -197,6 +197,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 		"Specifies the grace period of allowing a cluster to be unresponsive during startup before marking it unhealthy.")
 	flags.DurationVar(&o.FailoverEvictionTimeout.Duration, "failover-eviction-timeout", 5*time.Minute,
 		"Specifies the grace period for deleting scheduling result on failed clusters.")
+	_ = flags.MarkDeprecated("failover-eviction-timeout", "This flag was previously used to control the delay time for the cluster-controller to mark NoExecute taints when detecting cluster failures. Now that the cluster-controller no longer automatically marks NoExecute taints, this flag has become obsolete. It is marked as deprecated instead of being directly removed to maintain backward compatibility and ensure it does not block upgrade processes.")
 	flags.StringVar(&o.SkippedPropagatingAPIs, "skipped-propagating-apis", "", "Semicolon separated resources that should be skipped from propagating in addition to the default skip list(cluster.karmada.io;policy.karmada.io;work.karmada.io). Supported formats are:\n"+
 		"<group> for skip resources with a specific API group(e.g. networking.k8s.io),\n"+
 		"<group>/<version> for skip resources with a specific API version(e.g. networking.k8s.io/v1beta1),\n"+
