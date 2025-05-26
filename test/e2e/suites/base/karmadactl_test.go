@@ -44,7 +44,6 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	controllercluster "github.com/karmada-io/karmada/pkg/controllers/cluster"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cordon"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
@@ -380,7 +379,7 @@ var _ = framework.SerialDescribe("Karmadactl join/unjoin testing", ginkgo.Labels
 			})
 
 			ginkgo.By(fmt.Sprintf("Disable cluster: %s", clusterName), func() {
-				err := framework.AddClusterTaint(controlPlaneClient, clusterName, *controllercluster.NotReadyTaintTemplate)
+				err := framework.AddClusterTaint(controlPlaneClient, clusterName, *framework.NotReadyTaintTemplate)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
