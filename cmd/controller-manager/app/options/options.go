@@ -148,6 +148,8 @@ type Options struct {
 	EnableClusterResourceModeling bool
 	// FederatedResourceQuotaOptions holds configurations for FederatedResourceQuota reconciliation.
 	FederatedResourceQuotaOptions FederatedResourceQuotaOptions
+	// FailoverOptions holds the Failover configurations.
+	FailoverOptions FailoverOptions
 }
 
 // NewOptions builds an empty options.
@@ -236,6 +238,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 	o.ProfileOpts.AddFlags(flags)
 	o.HPAControllerConfiguration.AddFlags(flags)
 	o.FederatedResourceQuotaOptions.AddFlags(flags)
+	o.FailoverOptions.AddFlags(flags)
 	features.FeatureGate.AddFlag(flags)
 }
 

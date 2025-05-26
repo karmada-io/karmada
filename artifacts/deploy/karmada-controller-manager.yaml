@@ -40,6 +40,7 @@ spec:
             - --feature-gates=AllAlpha=true,AllBeta=true
             - --metrics-bind-address=$(POD_IP):8080
             - --health-probe-bind-address=$(POD_IP):10357
+            - --enable-no-execute-taint-eviction=true
             - --v=4
           livenessProbe:
             httpGet:

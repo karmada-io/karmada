@@ -116,6 +116,7 @@ to create regular Kubernetes resources.`,
 
 	fss := cliflag.NamedFlagSets{}
 
+	// Set generic flags
 	genericFlagSet := fss.FlagSet("generic")
 	// Add the flag(--kubeconfig) that is added by controller-runtime
 	// (https://github.com/kubernetes-sigs/controller-runtime/blob/v0.11.1/pkg/client/config/config.go#L39),
@@ -276,6 +277,8 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 			ClusterTaintEvictionRetryFrequency: 10 * time.Second,
 			ConcurrentReconciles:               3,
 			RateLimiterOptions:                 ctx.Opts.RateLimiterOptions,
+			EnableNoExecuteTaintEviction:       ctx.Opts.FailoverConfiguration.EnableNoExecuteTaintEviction,
+			NoExecuteTaintEvictionPurgeMode:    ctx.Opts.FailoverConfiguration.NoExecuteTaintEvictionPurgeMode,
 		}
 		if err := taintManager.SetupWithManager(mgr); err != nil {
 			return false, err
@@ -900,6 +903,7 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 			EnableClusterResourceModeling:     opts.EnableClusterResourceModeling,
 			HPAControllerConfiguration:        opts.HPAControllerConfiguration,
 			FederatedResourceQuotaOptions:     opts.FederatedResourceQuotaOptions,
+			FailoverConfiguration:             opts.FailoverOptions,
 		},
 		Context:                     ctx,
 		DynamicClientSet:            dynamicClientSet,

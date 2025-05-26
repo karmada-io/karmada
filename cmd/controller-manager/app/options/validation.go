@@ -56,5 +56,7 @@ func (o *Options) Validate() field.ErrorList {
 	}
 
 	errs = append(errs, o.FederatedResourceQuotaOptions.Validate()...)
+	errs = append(errs, o.FailoverOptions.Validate()...)
+
 	return errs
 }

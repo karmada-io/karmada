@@ -58,6 +58,8 @@ func newNoExecuteTaintManager() *NoExecuteTaintManager {
 		Client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).
 			WithIndex(&workv1alpha2.ResourceBinding{}, indexregistry.ResourceBindingIndexByFieldCluster, rbIndexerFunc).
 			WithIndex(&workv1alpha2.ClusterResourceBinding{}, indexregistry.ClusterResourceBindingIndexByFieldCluster, crbIndexerFunc).Build(),
+		EnableNoExecuteTaintEviction:    true,
+		NoExecuteTaintEvictionPurgeMode: "Gracefully",
 	}
 	bindingEvictionWorkerOptions := util.Options{
 		Name:          "binding-eviction",

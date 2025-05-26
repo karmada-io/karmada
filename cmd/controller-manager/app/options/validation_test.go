@@ -101,6 +101,15 @@ func TestValidateControllerManagerConfiguration(t *testing.T) {
 			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterStartupGracePeriod"), metav1.Duration{Duration: 0 * time.Second}, "must be greater than 0")},
 		},
+		"invalid FailoverOptions": {
+			opt: New(func(options *Options) {
+				options.FailoverOptions.EnableNoExecuteTaintEviction = true
+				options.FailoverOptions.NoExecuteTaintEvictionPurgeMode = ""
+			}),
+			expectedErrs: field.ErrorList{
+				field.Invalid(field.NewPath("FailoverOptions").Child("NoExecuteTaintEvictionPurgeMode"), "", "Invalid mode"),
+			},
+		},
 	}
 
 	for _, testCase := range testCases {
