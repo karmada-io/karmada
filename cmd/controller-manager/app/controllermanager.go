@@ -31,6 +31,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/flowcontrol"
 	cliflag "k8s.io/component-base/cli/flag"
+	"k8s.io/component-base/logs"
+	logsv1 "k8s.io/component-base/logs/api/v1"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
 	resourceclient "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
@@ -97,37 +99,44 @@ import (
 
 // NewControllerManagerCommand creates a *cobra.Command object with default parameters
 func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
-	opts := options.NewOptions()
-
-	cmd := &cobra.Command{
-		Use: names.KarmadaControllerManagerComponentName,
-		Long: `The karmada-controller-manager runs various controllers.
-The controllers watch Karmada objects and then talk to the underlying clusters' API servers
-to create regular Kubernetes resources.`,
-		RunE: func(_ *cobra.Command, _ []string) error {
-			// validate options
-			if errs := opts.Validate(); len(errs) != 0 {
-				return errs.ToAggregate()
-			}
-
-			return Run(ctx, opts)
-		},
-	}
-
+	logConfig := logsv1.NewLoggingConfiguration()
 	fss := cliflag.NamedFlagSets{}
 
-	// Set generic flags
+	logsFlagSet := fss.FlagSet("logs")
+	logs.AddFlags(logsFlagSet, logs.SkipLoggingConfigurationFlags())
+	logsv1.AddFlags(logConfig, logsFlagSet)
+	klogflag.Add(logsFlagSet)
+
 	genericFlagSet := fss.FlagSet("generic")
-	// Add the flag(--kubeconfig) that is added by controller-runtime
+	// Add the flag(--kubeconfig) that is added by controller-runtime.
 	// (https://github.com/kubernetes-sigs/controller-runtime/blob/v0.11.1/pkg/client/config/config.go#L39),
 	// and update the flag usage.
 	genericFlagSet.AddGoFlagSet(flag.CommandLine)
 	genericFlagSet.Lookup("kubeconfig").Usage = "Path to karmada control plane kubeconfig file."
+	opts := options.NewOptions()
 	opts.AddFlags(genericFlagSet, controllers.ControllerNames(), sets.List(controllersDisabledByDefault))
 
-	// Set klog flags
-	logsFlagSet := fss.FlagSet("logs")
-	klogflag.Add(logsFlagSet)
+	cmd := &cobra.Command{
+		Use: names.KarmadaControllerManagerComponentName,
+		Long: `The karmada-controller-manager runs various controllers.
+		The controllers watch Karmada objects and then talk to the underlying
+		clusters' API servers to create regular Kubernetes resources.`,
+
+		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
+			if err := logsv1.ValidateAndApply(logConfig, features.FeatureGate); err != nil {
+				return err
+			}
+			logs.InitLogs()
+			return nil
+		},
+
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if errs := opts.Validate(); len(errs) != 0 {
+				return errs.ToAggregate()
+			}
+			return Run(ctx, opts)
+		},
+	}
 
 	cmd.AddCommand(sharedcommand.NewCmdVersion(names.KarmadaControllerManagerComponentName))
 	cmd.Flags().AddFlagSet(genericFlagSet)
@@ -135,6 +144,7 @@ to create regular Kubernetes resources.`,
 
 	cols, _, _ := term.TerminalSize(cmd.OutOrStdout())
 	sharedcli.SetUsageAndHelpFunc(cmd, fss, cols)
+
 	return cmd
 }
 

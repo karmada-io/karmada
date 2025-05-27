@@ -19,6 +19,7 @@ package features
 import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/component-base/featuregate"
+	logsv1 "k8s.io/component-base/logs/api/v1"
 )
 
 const (
@@ -79,6 +80,29 @@ const (
 	// owner: @mszacillo, @RainbowMango, @zhzhuang-zju, @seanlaii, @liwang0513
 	// alpha: v1.14
 	FederatedQuotaEnforcement featuregate.Feature = "FederatedQuotaEnforcement"
+
+	// LoggingAlphaOptions allows fine-tuning of experimental, alpha-quality logging options.
+	// Inherited from Kubernetes. Ref: https://github.com/kubernetes/component-base/blob/release-1.32/logs/api/v1/kube_features.go#L45
+	//
+	// owner: @jabellard
+	// alpha: v1.15
+	LoggingAlphaOptions = logsv1.LoggingAlphaOptions
+
+	// LoggingBetaOptions allows fine-tuning of experimental, beta-quality logging options.
+	// Inherited from Kubernetes. Ref: https://github.com/kubernetes/component-base/blob/release-1.32/logs/api/v1/kube_features.go#L54
+	//
+	// owner: @jabellard
+	// beta: v1.15
+	LoggingBetaOptions = logsv1.LoggingBetaOptions
+
+	// ContextualLogging enables looking up a logger from a context.Context instead of using
+	// the global fallback logger and manipulating the logger that is
+	// used by a call chain.
+	// Inherited from Kubernetes. Ref: https://github.com/kubernetes/component-base/blob/release-1.32/logs/api/v1/kube_features.go#L32
+	//
+	// owner: @jabellard
+	// beta: v1.15
+	ContextualLogging = logsv1.ContextualLogging
 )
 
 var (
@@ -101,6 +125,9 @@ var (
 		StatefulFailoverInjection:         {Default: false, PreRelease: featuregate.Alpha},
 		PriorityBasedScheduling:           {Default: false, PreRelease: featuregate.Alpha},
 		FederatedQuotaEnforcement:         {Default: false, PreRelease: featuregate.Alpha},
+		LoggingAlphaOptions:               {Default: false, PreRelease: featuregate.Alpha},
+		LoggingBetaOptions:                {Default: true, PreRelease: featuregate.Beta},
+		ContextualLogging:                 {Default: true, PreRelease: featuregate.Beta},
 	}
 )
 
