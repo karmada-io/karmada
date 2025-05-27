@@ -80,6 +80,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
+	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
@@ -104,6 +105,7 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 	logsFlagSet := fss.FlagSet("logs")
 	logs.AddFlags(logsFlagSet, logs.SkipLoggingConfigurationFlags())
 	logsv1.AddFlags(logConfig, logsFlagSet)
+	klogflag.Add(logsFlagSet)
 
 	genericFlagSet := fss.FlagSet("generic")
 	// Add the flag(--kubeconfig) that is added by controller-runtime.
