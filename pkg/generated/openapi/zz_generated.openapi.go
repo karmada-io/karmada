@@ -4051,6 +4051,13 @@ func schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicySpec(ref common.Reference
 							},
 						},
 					},
+					"addOnSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AddOnSeconds is the duration in seconds for which the AddOnConditions must be continuously matched before adding the specified taint to the cluster. This provides stability by ensuring the condition persists long enough before taking action. All AddOnConditions should remain satisfied with the start time calculated from each condition's lastTransitionTime. It requires time synchronization between the controller and the apiserver. Defaults to 30.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 					"removeOnConditions": {
 						SchemaProps: spec.SchemaProps{
 							Description: "RemoveOnConditions defines the conditions to match for triggering the controller to remove taints from the cluster object. The match conditions are ANDed. If RemoveOnConditions is empty, no taints will be removed.",
@@ -4063,6 +4070,13 @@ func schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicySpec(ref common.Reference
 									},
 								},
 							},
+						},
+					},
+					"removeOnSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RemoveOnSeconds is the duration in seconds for which the RemoveOnConditions must be continuously unmatched before removing the taint from the cluster. This prevents premature taint removal during brief connection recoveries. The duration requirement is satisfied when any single condition do not meet the specified time duration. The evaluation uses the lastTransitionTime as the start point for duration calculation. It requires time synchronization between the controller and apiserver. Defaults to 30.",
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 					"taints": {
