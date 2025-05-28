@@ -3,7 +3,7 @@ on:
   schedule:
     # Run this workflow "At 20:00 UTC on Sunday and Saturday"
     - cron: '0 20 * * 0,6'
-  pull:
+  pull_request:
 
 permissions:
   contents: read # Required by actions/checkout to fetch the repository contents.
