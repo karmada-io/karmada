@@ -3,6 +3,7 @@ on:
   schedule:
     # Run this workflow "At 20:00 UTC on Sunday and Saturday"
     - cron: '0 20 * * 0,6'
+  pull:
 
 permissions:
   contents: read # Required by actions/checkout to fetch the repository contents.
@@ -20,7 +21,6 @@ jobs:
       fail-fast: false
       matrix:
         kubeapiserver-version: [ v1.23.4, v1.24.2, v1.25.0, v1.26.0, v1.27.3, v1.28.0, v1.29.0, v1.30.0, v1.31.0, v1.32.0 ]
-        karmada-version: [ master, release-1.13, release-1.12, release-1.11 ]
     env:
       KARMADA_APISERVER_VERSION: ${{ matrix.kubeapiserver-version }}
     steps:
@@ -43,7 +43,6 @@ jobs:
           # Number of commits to fetch. 0 indicates all history for all branches and tags.
           # We need to guess version via git tags.
           fetch-depth: 0
-          ref: ${{ matrix.karmada-version }}
       - name: install Go
         uses: actions/setup-go@v5
         with:
