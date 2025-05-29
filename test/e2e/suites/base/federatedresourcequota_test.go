@@ -268,9 +268,14 @@ var _ = ginkgo.Describe("FederatedResourceQuota enforcement testing", func() {
 	var frqNamespace, frqName string
 	var federatedResourceQuota *policyv1alpha1.FederatedResourceQuota
 	var clusterNames []string
+	var deployNamespace string
 
 	ginkgo.BeforeEach(func() {
-		frqNamespace = testNamespace
+		// To avoid conflicts with other test cases, use random strings to generate unique namespaces instead of using testNamespace.
+		deployNamespace = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
+		err := setupTestNamespace(deployNamespace, kubeClient)
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		frqNamespace = deployNamespace
 		frqName = federatedResourceQuotaPrefix + rand.String(RandomStrLength)
 		clusterNames = framework.ClusterNames()[:1]
 	})
@@ -283,9 +288,9 @@ var _ = ginkgo.Describe("FederatedResourceQuota enforcement testing", func() {
 		var rbName, rbNamespace string
 
 		ginkgo.BeforeEach(func() {
-			policyNamespace = testNamespace
+			policyNamespace = deployNamespace
 			policyName = deploymentNamePrefix + rand.String(RandomStrLength)
-			deploymentNamespace = testNamespace
+			deploymentNamespace = deployNamespace
 			deploymentName = policyName
 
 			ginkgo.By("Creating federatedResourceQuota", func() {
@@ -374,9 +379,9 @@ var _ = ginkgo.Describe("FederatedResourceQuota enforcement testing", func() {
 			var newDeployment *appsv1.Deployment
 
 			ginkgo.By("create a new deployment and propagationpolicy", func() {
-				newPolicyNamespace = testNamespace
+				newPolicyNamespace = deployNamespace
 				newPolicyName = deploymentNamePrefix + rand.String(RandomStrLength)
-				newDeploymentNamespace = testNamespace
+				newDeploymentNamespace = deployNamespace
 				newDeploymentName = newPolicyName
 
 				newDeployment = helper.NewDeployment(newDeploymentNamespace, newDeploymentName)
