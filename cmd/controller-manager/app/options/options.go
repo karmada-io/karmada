@@ -146,6 +146,8 @@ type Options struct {
 	// in scenario of dynamic replica assignment based on cluster free resources.
 	// Disable if it does not fit your cases for better performance.
 	EnableClusterResourceModeling bool
+	// FederatedResourceQuotaOptions holds configurations for FederatedResourceQuota reconciliation.
+	FederatedResourceQuotaOptions FederatedResourceQuotaOptions
 }
 
 // NewOptions builds an empty options.
@@ -233,6 +235,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 	o.RateLimiterOpts.AddFlags(flags)
 	o.ProfileOpts.AddFlags(flags)
 	o.HPAControllerConfiguration.AddFlags(flags)
+	o.FederatedResourceQuotaOptions.AddFlags(flags)
 	features.FeatureGate.AddFlag(flags)
 }
 

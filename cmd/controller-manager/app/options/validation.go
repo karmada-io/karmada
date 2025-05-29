@@ -54,5 +54,7 @@ func (o *Options) Validate() field.ErrorList {
 			errs = append(errs, field.Invalid(newPath.Child("SkippedPropagatingNamespaces").Index(index), ns, "Invalid namespace regular expression"))
 		}
 	}
+
+	errs = append(errs, o.FederatedResourceQuotaOptions.Validate()...)
 	return errs
 }

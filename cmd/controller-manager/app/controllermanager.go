@@ -618,6 +618,9 @@ func startFederatedResourceQuotaEnforcementController(ctx controllerscontext.Con
 	controller := federatedresourcequota.QuotaEnforcementController{
 		Client:        ctx.Mgr.GetClient(),
 		EventRecorder: ctx.Mgr.GetEventRecorderFor(federatedresourcequota.QuotaEnforcementControllerName),
+		Recalculation: federatedresourcequota.QuotaRecalculation{
+			ResyncPeriod: ctx.Opts.FederatedResourceQuotaOptions.ResourceQuotaSyncPeriod,
+		},
 	}
 	if err = controller.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -898,6 +901,7 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 			GracefulEvictionTimeout:           opts.GracefulEvictionTimeout,
 			EnableClusterResourceModeling:     opts.EnableClusterResourceModeling,
 			HPAControllerConfiguration:        opts.HPAControllerConfiguration,
+			FederatedResourceQuotaOptions:     opts.FederatedResourceQuotaOptions,
 		},
 		Context:                     ctx,
 		DynamicClientSet:            dynamicClientSet,

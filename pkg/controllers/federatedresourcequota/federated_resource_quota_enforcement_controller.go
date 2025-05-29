@@ -18,12 +18,16 @@ package federatedresourcequota
 
 import (
 	"context"
+	"fmt"
 	"reflect"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -33,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -54,6 +59,7 @@ const (
 type QuotaEnforcementController struct {
 	client.Client // used to operate FederatedResourceQuota and ResourceBinding resources.
 	EventRecorder record.EventRecorder
+	Recalculation QuotaRecalculation
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -68,7 +74,7 @@ func (c *QuotaEnforcementController) Reconcile(ctx context.Context, req controll
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
-		klog.V(4).Infof("Error fetching FederatedResourceQuota %s", req.NamespacedName.String())
+		klog.Errorf("Error fetching FederatedResourceQuota %s: %v", req.NamespacedName.String(), err)
 		return controllerruntime.Result{}, err
 	}
 
@@ -89,11 +95,42 @@ func (c *QuotaEnforcementController) Reconcile(ctx context.Context, req controll
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *QuotaEnforcementController) SetupWithManager(mgr controllerruntime.Manager) error {
-	fn := handler.MapFunc(
+	enqueueEffectedFRQ := handler.MapFunc(
+		func(ctx context.Context, obj client.Object) []reconcile.Request {
+			rb, ok := obj.(*workv1alpha2.ResourceBinding)
+			if !ok {
+				klog.Errorf("Failed to convert object %v to ResourceBinding", obj)
+				return []reconcile.Request{}
+			}
+
+			federatedResourceQuotaList := &policyv1alpha1.FederatedResourceQuotaList{}
+			if err := c.Client.List(ctx, federatedResourceQuotaList, &client.ListOptions{Namespace: rb.GetNamespace()}); err != nil {
+				klog.Errorf("Failed to list FederatedResourceQuota, error: %v", err)
+				return []reconcile.Request{}
+			}
+
+			var requests []reconcile.Request
+			for _, federatedResourceQuota := range federatedResourceQuotaList.Items {
+				requests = append(requests, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Namespace: federatedResourceQuota.Namespace,
+						Name:      federatedResourceQuota.Name,
+					},
+				})
+			}
+
+			return requests
+		},
+	)
+
+	// enqueueAll defines a mapping function that triggers reconciliation for all FederatedResourceQuota resources.
+	// It is invoked periodically(controlled by ResyncPeriod).
+	enqueueAll := handler.MapFunc(
 		func(ctx context.Context, _ client.Object) []reconcile.Request {
 			federatedResourceQuotaList := &policyv1alpha1.FederatedResourceQuotaList{}
 			if err := c.Client.List(ctx, federatedResourceQuotaList); err != nil {
 				klog.Errorf("Failed to list FederatedResourceQuota, error: %v", err)
+				return []reconcile.Request{}
 			}
 
 			var requests []reconcile.Request
@@ -141,10 +178,62 @@ func (c *QuotaEnforcementController) SetupWithManager(mgr controllerruntime.Mana
 			return false
 		},
 	})
-	return controllerruntime.NewControllerManagedBy(mgr).
+
+	controller, err := controllerruntime.NewControllerManagedBy(mgr).
 		For(&policyv1alpha1.FederatedResourceQuota{}, builder.WithPredicates(federatedResourceQuotaPredicate)).
-		Watches(&workv1alpha2.ResourceBinding{}, handler.EnqueueRequestsFromMapFunc(fn), resourceBindingPredicate).
-		Complete(c)
+		Watches(&workv1alpha2.ResourceBinding{}, handler.EnqueueRequestsFromMapFunc(enqueueEffectedFRQ), resourceBindingPredicate).
+		Build(c)
+	if err != nil {
+		return err
+	}
+
+	// Creates a resync event channel to trigger periodic synchronization.
+	// Because controller.Watch requires a non-nil Source channel, we first initialize the resyncEvent here.
+	c.Recalculation.resyncEvent = make(chan event.GenericEvent)
+	return utilerrors.NewAggregate([]error{
+		mgr.Add(&c.Recalculation),
+		controller.Watch(source.Channel(c.Recalculation.resyncEvent, handler.EnqueueRequestsFromMapFunc(enqueueAll))),
+	})
+}
+
+// QuotaRecalculation holds the configuration for periodically recalculating the status of FederatedResourceQuota resources.
+type QuotaRecalculation struct {
+	// ResyncPeriod defines the interval for periodic full resynchronization of FederatedResourceQuota resources.
+	// This ensures quota recalculations occur at regular intervals to correct potential inaccuracies,
+	// particularly when webhook validation side effects.
+	ResyncPeriod metav1.Duration
+	resyncEvent  chan event.GenericEvent
+}
+
+// Start starts the quota recalculation process.
+// If the resync period is configured (>0):
+// - Fires a blank event at each resync interval
+// - Uses time.Ticker for precise periodic scheduling
+// The empty GenericEvent acts as a signal to force reconciliation.
+func (q *QuotaRecalculation) Start(ctx context.Context) error {
+	if q.resyncEvent == nil {
+		return fmt.Errorf("resyncEvent channel is not initialized, cannot start quota recalculation")
+	}
+	defer close(q.resyncEvent)
+
+	if q.ResyncPeriod.Duration > 0 {
+		klog.Infof("Starting FederatedResourceQuota recalculation process with period %s", q.ResyncPeriod.Duration.String())
+		ticker := time.NewTicker(q.ResyncPeriod.Duration)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-ticker.C:
+				q.resyncEvent <- event.GenericEvent{}
+			}
+		}
+	}
+
+	for {
+		<-ctx.Done()
+		return nil
+	}
 }
 
 func (c *QuotaEnforcementController) collectQuotaStatus(quota *policyv1alpha1.FederatedResourceQuota) error {
