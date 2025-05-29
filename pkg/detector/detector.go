@@ -693,6 +693,7 @@ func (d *ResourceDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) 
 }
 
 // ClaimPolicyForObject set policy identifier which the object associated with.
+// It will add policy labels and annotations to the object, and update the obj with the content returned by the Server, ensuring that the obj used when generating the binding is the latest.
 func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructured, policy *policyv1alpha1.PropagationPolicy) (string, error) {
 	policyID := policy.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel]
 
@@ -705,12 +706,12 @@ func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructure
 		}
 	}
 
-	objectCopy := object.DeepCopy()
-	AddPPClaimMetadata(objectCopy, policyID, policy.ObjectMeta)
-	return policyID, d.Client.Update(context.TODO(), objectCopy)
+	AddPPClaimMetadata(object, policyID, policy.ObjectMeta)
+	return policyID, d.Client.Update(context.TODO(), object)
 }
 
-// ClaimClusterPolicyForObject set cluster identifier which the object associated with
+// ClaimClusterPolicyForObject set cluster identifier which the object associated with.
+// It will add policy labels and annotations to the object, and update the obj with the content returned by the Server, ensuring that the obj used when generating the binding is the latest.
 func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unstructured, policy *policyv1alpha1.ClusterPropagationPolicy) (string, error) {
 	policyID := policy.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]
 
@@ -720,10 +721,8 @@ func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unst
 		return policyID, nil
 	}
 
-	objectCopy := object.DeepCopy()
-	AddCPPClaimMetadata(objectCopy, policyID, policy.ObjectMeta)
-
-	return policyID, d.Client.Update(context.TODO(), objectCopy)
+	AddCPPClaimMetadata(object, policyID, policy.ObjectMeta)
+	return policyID, d.Client.Update(context.TODO(), object)
 }
 
 // BuildResourceBinding builds a desired ResourceBinding for object.
