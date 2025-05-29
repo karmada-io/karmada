@@ -43,14 +43,50 @@ import (
 )
 
 var bindingPredicateFn = builder.WithPredicates(predicate.Funcs{
-	CreateFunc: func(event.CreateEvent) bool {
+	CreateFunc: func(e event.CreateEvent) bool {
 		// Although we don't need to process the ResourceBinding immediately upon its creation,
 		// but it's necessary to ensure that all existing ResourceBindings are processed
 		// uniformly once when the component restarts.
 		// This guarantees that no ResourceBinding is missed after a controller restart.
-		return true
+
+		// Ignore the ResourceBinding/ClusterResourceBinding if it has not been scheduled.
+		// Relies on status.lastScheduledTime as the reliable indicator of successful scheduling because
+		// it is only set by the scheduler after successful scheduling.
+		// TODO(@RainbowMango): Currently the Scheduled condition is misleading as it may change during
+		// re-scheduling attempts, we need to revisit the design and provide a standard helper method to
+		// represents the schedule status.
+		var scheduled bool
+		switch bindingObj := e.Object.(type) {
+		case *workv1alpha2.ResourceBinding:
+			scheduled = bindingObj.Status.LastScheduledTime != nil
+		case *workv1alpha2.ClusterResourceBinding:
+			scheduled = bindingObj.Status.LastScheduledTime != nil
+		default:
+			return false
+		}
+
+		return scheduled
 	},
 	UpdateFunc: func(e event.UpdateEvent) bool {
+		// Ignore the ResourceBinding/ClusterResourceBinding if it has not been scheduled.
+		// Relies on status.lastScheduledTime as the reliable indicator of successful scheduling because
+		// it is only set by the scheduler after successful scheduling.
+		// TODO(@RainbowMango): Currently the Scheduled condition is misleading as it may change during
+		// re-scheduling attempts, we need to revisit the design and provide a standard helper method to
+		// represents the schedule status.
+		var scheduled bool
+		switch bindingObj := e.ObjectNew.(type) {
+		case *workv1alpha2.ResourceBinding:
+			scheduled = bindingObj.Status.LastScheduledTime != nil
+		case *workv1alpha2.ClusterResourceBinding:
+			scheduled = bindingObj.Status.LastScheduledTime != nil
+		default:
+			return false
+		}
+		if !scheduled {
+			return false
+		}
+
 		var oldResourceVersion, newResourceVersion string
 
 		// NOTE: We add this logic to prevent the situation as following:
