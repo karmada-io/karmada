@@ -132,6 +132,13 @@ func (g *genericScheduler) findClustersThatFit(
 	// DO NOT filter unhealthy cluster, let users make decisions by using ClusterTolerations of Placement.
 	clusters := clusterInfo.GetClusters()
 	for _, c := range clusters {
+		// When cluster is deleting, we will clean up the scheduled results in the cluster.
+		// So we should not schedule resource to the deleting cluster.
+		if !c.Cluster().DeletionTimestamp.IsZero() {
+			klog.V(4).Infof("Cluster %q is deleting, skip it", c.Cluster().Name)
+			continue
+		}
+
 		if result := g.scheduleFramework.RunFilterPlugins(ctx, bindingSpec, bindingStatus, c.Cluster()); !result.IsSuccess() {
 			klog.V(4).Infof("Cluster %q is not fit, reason: %v", c.Cluster().Name, result.AsError())
 			diagnosis.ClusterToResultMap[c.Cluster().Name] = result
