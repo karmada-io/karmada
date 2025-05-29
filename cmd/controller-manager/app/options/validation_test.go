@@ -36,6 +36,11 @@ func New(modifyOptions ModifyOptions) Options {
 		ClusterMonitorPeriod:         metav1.Duration{Duration: 10 * time.Second},
 		ClusterMonitorGracePeriod:    metav1.Duration{Duration: 10 * time.Second},
 		ClusterStartupGracePeriod:    metav1.Duration{Duration: 10 * time.Second},
+		FederatedResourceQuotaOptions: FederatedResourceQuotaOptions{
+			ResourceQuotaSyncPeriod: metav1.Duration{
+				Duration: 10 * time.Second,
+			},
+		},
 	}
 
 	if modifyOptions != nil {

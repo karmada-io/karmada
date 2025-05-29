@@ -28,6 +28,7 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
+	"github.com/karmada-io/karmada/cmd/controller-manager/app/options"
 	"github.com/karmada-io/karmada/pkg/controllers/federatedhpa/config"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
@@ -95,6 +96,8 @@ type Options struct {
 	KarmadaKubeconfigNamespace string
 	// HPAControllerConfiguration is the config of federatedHPA-controller.
 	HPAControllerConfiguration config.HPAControllerConfiguration
+	// FederatedResourceQuotaOptions holds configurations for FederatedResourceQuota reconciliation.
+	FederatedResourceQuotaOptions options.FederatedResourceQuotaOptions
 }
 
 // Context defines the context object for controller.
