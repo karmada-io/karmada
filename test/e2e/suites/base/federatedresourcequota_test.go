@@ -20,27 +20,37 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/karmadactl/join"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/unjoin"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
 const waitTimeout = 3 * time.Second
+
+var admissionWebhookDenyMsgPrefix = "admission webhook \"resourcebinding.karmada.io\" denied the request"
 
 var _ = framework.SerialDescribe("FederatedResourceQuota auto-provision testing", func() {
 	var frqNamespace, frqName string
@@ -250,6 +260,162 @@ var _ = framework.SerialDescribe("[FederatedResourceQuota] status collection tes
 			}
 			framework.UpdateFederatedResourceQuotaWithPatch(karmadaClient, frqNamespace, frqName, patch, types.JSONPatchType)
 			framework.WaitFederatedResourceQuotaCollectStatus(karmadaClient, frqNamespace, frqName)
+		})
+	})
+})
+
+var _ = ginkgo.Describe("FederatedResourceQuota enforcement testing", func() {
+	var frqNamespace, frqName string
+	var federatedResourceQuota *policyv1alpha1.FederatedResourceQuota
+	var clusterNames []string
+
+	ginkgo.BeforeEach(func() {
+		frqNamespace = testNamespace
+		frqName = federatedResourceQuotaPrefix + rand.String(RandomStrLength)
+		clusterNames = framework.ClusterNames()[:1]
+	})
+
+	ginkgo.Context("[Compute resource] FederatedResourceQuota should be enforced correctly", func() {
+		var policyNamespace, policyName string
+		var deploymentNamespace, deploymentName string
+		var overall corev1.ResourceList
+		var deployment *appsv1.Deployment
+		var rbName, rbNamespace string
+
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = deploymentNamePrefix + rand.String(RandomStrLength)
+			deploymentNamespace = testNamespace
+			deploymentName = policyName
+
+			ginkgo.By("Creating federatedResourceQuota", func() {
+				overall = corev1.ResourceList{
+					"cpu":    resource.MustParse("10m"),
+					"memory": resource.MustParse("100Mi"),
+				}
+				federatedResourceQuota = helper.NewFederatedResourceQuotaWithOverall(frqNamespace, frqName, overall)
+				framework.CreateFederatedResourceQuota(karmadaClient, federatedResourceQuota)
+				ginkgo.DeferCleanup(func() {
+					framework.RemoveFederatedResourceQuota(karmadaClient, frqNamespace, frqName)
+				})
+			})
+
+			ginkgo.By("Deploying a deployment and propagationpolicy", func() {
+				deployment = helper.NewDeployment(deploymentNamespace, deploymentName)
+				deployment.Spec.Replicas = ptr.To[int32](1)
+				rbName = names.GenerateBindingName(deployment.Kind, deploymentName)
+				rbNamespace = deployment.GetNamespace()
+				policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+					{
+						APIVersion: deployment.APIVersion,
+						Kind:       deployment.Kind,
+						Name:       deployment.Name,
+					},
+				}, policyv1alpha1.Placement{
+					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+						ClusterNames: clusterNames,
+					},
+				})
+
+				framework.CreateDeployment(kubeClient, deployment)
+				ginkgo.DeferCleanup(func() {
+					framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+					framework.WaitDeploymentDisappearOnClusters(framework.ClusterNames(), deployment.Namespace, deployment.Name)
+				})
+
+				framework.CreatePropagationPolicy(karmadaClient, policy)
+				ginkgo.DeferCleanup(func() {
+					framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+				})
+			})
+
+			ginkgo.By("The quota has not been exceeded, and the deployment can be successfully propagated to the member clusters.", func() {
+				framework.WaitDeploymentPresentOnClustersFitWith(clusterNames, deploymentNamespace, deploymentName,
+					func(*appsv1.Deployment) bool {
+						return true
+					})
+				frq, err := karmadaClient.PolicyV1alpha1().FederatedResourceQuotas(frqNamespace).Get(context.TODO(), frqName, metav1.GetOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				gomega.Expect(frq.Status.Overall).Should(gomega.Equal(overall))
+				gomega.Expect(frq.Status.OverallUsed).Should(gomega.Equal(corev1.ResourceList{
+					"cpu": resource.MustParse("10m"),
+				}))
+			})
+		})
+
+		ginkgo.It("Intercept update requests for requirements if they exceed the quota.", func() {
+			ginkgo.By("update the requirements of the deployment", func() {
+				newSpec := deployment.Spec.DeepCopy()
+				newSpec.Template.Spec.Containers[0].Resources.Requests = corev1.ResourceList{
+					"cpu": resource.MustParse("20m"),
+				}
+
+				framework.UpdateDeploymentWithSpec(kubeClient, deploymentNamespace, deploymentName, *newSpec)
+			})
+
+			ginkgo.By("The quota has been exceeded, so the update request for the requirements in resourcebinding will be intercepted.", func() {
+				framework.WaitEventFitWith(kubeClient, deploymentNamespace, deploymentName, func(event corev1.Event) bool {
+					return event.Reason == events.EventReasonApplyPolicyFailed && strings.Contains(event.Message, admissionWebhookDenyMsgPrefix)
+				})
+			})
+
+			ginkgo.By("The spec.replicaRequirements of resourcebinding was not updated.", func() {
+				rb, err := karmadaClient.WorkV1alpha2().ResourceBindings(rbNamespace).Get(context.TODO(), rbName, metav1.GetOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				gomega.Expect(rb.Spec.ReplicaRequirements.ResourceRequest).Should(gomega.Equal(corev1.ResourceList{
+					"cpu": resource.MustParse("10m"),
+				}))
+			})
+		})
+
+		ginkgo.It("Deploy workloads should be rejected in case of no enough quota left", func() {
+			var newPolicyNamespace, newPolicyName string
+			var newDeploymentNamespace, newDeploymentName string
+			var newDeployment *appsv1.Deployment
+
+			ginkgo.By("create a new deployment and propagationpolicy", func() {
+				newPolicyNamespace = testNamespace
+				newPolicyName = deploymentNamePrefix + rand.String(RandomStrLength)
+				newDeploymentNamespace = testNamespace
+				newDeploymentName = newPolicyName
+
+				newDeployment = helper.NewDeployment(newDeploymentNamespace, newDeploymentName)
+				newDeployment.Spec.Replicas = ptr.To[int32](1)
+				newPolicy := helper.NewPropagationPolicy(newPolicyNamespace, newPolicyName, []policyv1alpha1.ResourceSelector{
+					{
+						APIVersion: newDeployment.APIVersion,
+						Kind:       newDeployment.Kind,
+						Name:       newDeployment.Name,
+					},
+				}, policyv1alpha1.Placement{
+					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+						ClusterNames: clusterNames,
+					},
+				})
+
+				framework.CreateDeployment(kubeClient, newDeployment)
+				ginkgo.DeferCleanup(func() {
+					framework.RemoveDeployment(kubeClient, newDeployment.Namespace, newDeployment.Name)
+					framework.WaitDeploymentDisappearOnClusters(framework.ClusterNames(), newDeployment.Namespace, newDeployment.Name)
+				})
+
+				framework.CreatePropagationPolicy(karmadaClient, newPolicy)
+				ginkgo.DeferCleanup(func() {
+					framework.RemovePropagationPolicy(karmadaClient, newPolicy.Namespace, newPolicy.Name)
+				})
+
+			})
+
+			ginkgo.By("The quota has been exceeded, so the update request for the spec.clusters in the new resourcebinding will be intercepted.", func() {
+				newRB := names.GenerateBindingName(newDeployment.Kind, newDeploymentName)
+				framework.WaitEventFitWith(kubeClient, newDeploymentNamespace, newRB, func(event corev1.Event) bool {
+					return event.Reason == events.EventReasonScheduleBindingFailed && strings.Contains(event.Message, admissionWebhookDenyMsgPrefix)
+				})
+				framework.WaitResourceBindingFitWith(karmadaClient, newDeploymentNamespace, newRB, func(resourceBinding *workv1alpha2.ResourceBinding) bool {
+					return resourceBinding.Spec.Clusters == nil
+				})
+				framework.WaitDeploymentDisappearOnClusters(clusterNames, newDeploymentNamespace, newDeploymentName)
+			})
 		})
 	})
 })

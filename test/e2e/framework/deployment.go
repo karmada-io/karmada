@@ -59,6 +59,18 @@ func UpdateDeploymentPaused(client kubernetes.Interface, deployment *appsv1.Depl
 	})
 }
 
+// UpdateDeploymentWithSpec update deployment with the given spec.
+func UpdateDeploymentWithSpec(client kubernetes.Interface, namespace, name string, spec appsv1.DeploymentSpec) {
+	ginkgo.By(fmt.Sprintf("Update Deployment(%s/%s)", namespace, name), func() {
+		newDeployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+		newDeployment.Spec = spec
+		_, err = client.AppsV1().Deployments(namespace).Update(context.TODO(), newDeployment, metav1.UpdateOptions{})
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	})
+}
+
 // RemoveDeployment delete Deployment.
 func RemoveDeployment(client kubernetes.Interface, namespace, name string) {
 	ginkgo.By(fmt.Sprintf("Removing Deployment(%s/%s)", namespace, name), func() {
