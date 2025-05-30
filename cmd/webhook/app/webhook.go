@@ -48,6 +48,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/webhook/clusteroverridepolicy"
 	"github.com/karmada-io/karmada/pkg/webhook/clusterpropagationpolicy"
 	"github.com/karmada-io/karmada/pkg/webhook/clusterresourcebinding"
+	"github.com/karmada-io/karmada/pkg/webhook/clustertaintpolicy"
 	"github.com/karmada-io/karmada/pkg/webhook/configuration"
 	"github.com/karmada-io/karmada/pkg/webhook/cronfederatedhpa"
 	"github.com/karmada-io/karmada/pkg/webhook/federatedhpa"
@@ -161,30 +162,58 @@ func Run(ctx context.Context, opts *options.Options) error {
 
 	klog.Info("Registering webhooks to the webhook server")
 	hookServer := hookManager.GetWebhookServer()
-	hookServer.Register("/mutate-propagationpolicy", &webhook.Admission{Handler: propagationpolicy.NewMutatingHandler(
-		opts.DefaultNotReadyTolerationSeconds, opts.DefaultUnreachableTolerationSeconds, decoder)})
-	hookServer.Register("/validate-propagationpolicy", &webhook.Admission{Handler: &propagationpolicy.ValidatingAdmission{Decoder: decoder}})
+
+	// autoscaling group
+	// CronFederatedHPA
+	hookServer.Register("/validate-cronfederatedhpa", &webhook.Admission{Handler: &cronfederatedhpa.ValidatingAdmission{Decoder: decoder}})
+	// FederatedHPA
+	hookServer.Register("/mutate-federatedhpa", &webhook.Admission{Handler: &federatedhpa.MutatingAdmission{Decoder: decoder}})
+	hookServer.Register("/validate-federatedhpa", &webhook.Admission{Handler: &federatedhpa.ValidatingAdmission{Decoder: decoder}})
+
+	// config group
+	// ResourceInterpreterCustomization
+	hookServer.Register("/validate-resourceinterpretercustomization", &webhook.Admission{Handler: &resourceinterpretercustomization.ValidatingAdmission{Client: hookManager.GetClient(), Decoder: decoder}})
+	// ResourceInterpreterWebhookConfiguration
+	hookServer.Register("/validate-resourceinterpreterwebhookconfiguration", &webhook.Admission{Handler: &configuration.ValidatingAdmission{Decoder: decoder}})
+
+	// networking group
+	// MultiClusterIngress
+	hookServer.Register("/validate-multiclusteringress", &webhook.Admission{Handler: &multiclusteringress.ValidatingAdmission{Decoder: decoder}})
+	// MultiClusterService
+	hookServer.Register("/mutate-multiclusterservice", &webhook.Admission{Handler: &multiclusterservice.MutatingAdmission{Decoder: decoder}})
+	hookServer.Register("/validate-multiclusterservice", &webhook.Admission{Handler: &multiclusterservice.ValidatingAdmission{Decoder: decoder}})
+
+	// policy group
+	// ClusterOverridePolicy
+	hookServer.Register("/validate-clusteroverridepolicy", &webhook.Admission{Handler: &clusteroverridepolicy.ValidatingAdmission{Decoder: decoder}})
+	// ClusterPropagationPolicy
 	hookServer.Register("/mutate-clusterpropagationpolicy", &webhook.Admission{Handler: clusterpropagationpolicy.NewMutatingHandler(
 		opts.DefaultNotReadyTolerationSeconds, opts.DefaultUnreachableTolerationSeconds, decoder)})
 	hookServer.Register("/validate-clusterpropagationpolicy", &webhook.Admission{Handler: &clusterpropagationpolicy.ValidatingAdmission{Decoder: decoder}})
+	// ClusterTaintPolicy
+	hookServer.Register("/validate-clustertaintpolicy", &webhook.Admission{Handler: &clustertaintpolicy.ValidatingAdmission{Decoder: decoder, AllowNoExecuteTaintPolicy: opts.AllowNoExecuteTaintPolicy}})
+	// FederatedResourceQuota
+	hookServer.Register("/validate-federatedresourcequota", &webhook.Admission{Handler: &federatedresourcequota.ValidatingAdmission{Decoder: decoder}})
+	// OverridePolicy
 	hookServer.Register("/mutate-overridepolicy", &webhook.Admission{Handler: &overridepolicy.MutatingAdmission{Decoder: decoder}})
 	hookServer.Register("/validate-overridepolicy", &webhook.Admission{Handler: &overridepolicy.ValidatingAdmission{Decoder: decoder}})
-	hookServer.Register("/validate-clusteroverridepolicy", &webhook.Admission{Handler: &clusteroverridepolicy.ValidatingAdmission{Decoder: decoder}})
-	hookServer.Register("/mutate-work", &webhook.Admission{Handler: &work.MutatingAdmission{Decoder: decoder}})
-	hookServer.Register("/convert", conversion.NewWebhookHandler(hookManager.GetScheme()))
-	hookServer.Register("/validate-resourceinterpreterwebhookconfiguration", &webhook.Admission{Handler: &configuration.ValidatingAdmission{Decoder: decoder}})
-	hookServer.Register("/validate-federatedresourcequota", &webhook.Admission{Handler: &federatedresourcequota.ValidatingAdmission{Decoder: decoder}})
-	hookServer.Register("/validate-federatedhpa", &webhook.Admission{Handler: &federatedhpa.ValidatingAdmission{Decoder: decoder}})
-	hookServer.Register("/validate-cronfederatedhpa", &webhook.Admission{Handler: &cronfederatedhpa.ValidatingAdmission{Decoder: decoder}})
-	hookServer.Register("/validate-resourceinterpretercustomization", &webhook.Admission{Handler: &resourceinterpretercustomization.ValidatingAdmission{Client: hookManager.GetClient(), Decoder: decoder}})
-	hookServer.Register("/validate-multiclusteringress", &webhook.Admission{Handler: &multiclusteringress.ValidatingAdmission{Decoder: decoder}})
-	hookServer.Register("/validate-multiclusterservice", &webhook.Admission{Handler: &multiclusterservice.ValidatingAdmission{Decoder: decoder}})
-	hookServer.Register("/mutate-multiclusterservice", &webhook.Admission{Handler: &multiclusterservice.MutatingAdmission{Decoder: decoder}})
-	hookServer.Register("/mutate-federatedhpa", &webhook.Admission{Handler: &federatedhpa.MutatingAdmission{Decoder: decoder}})
-	hookServer.Register("/validate-resourcedeletionprotection", &webhook.Admission{Handler: &resourcedeletionprotection.ValidatingAdmission{Decoder: decoder}})
-	hookServer.Register("/mutate-resourcebinding", &webhook.Admission{Handler: &resourcebinding.MutatingAdmission{Decoder: decoder}})
-	hookServer.Register("/validate-resourcebinding", &webhook.Admission{Handler: &resourcebinding.ValidatingAdmission{Client: hookManager.GetClient(), Decoder: decoder}})
+	// PropagationPolicy
+	hookServer.Register("/mutate-propagationpolicy", &webhook.Admission{Handler: propagationpolicy.NewMutatingHandler(
+		opts.DefaultNotReadyTolerationSeconds, opts.DefaultUnreachableTolerationSeconds, decoder)})
+	hookServer.Register("/validate-propagationpolicy", &webhook.Admission{Handler: &propagationpolicy.ValidatingAdmission{Decoder: decoder}})
+
+	// work group
+	// ClusterResourceBinding
 	hookServer.Register("/mutate-clusterresourcebinding", &webhook.Admission{Handler: &clusterresourcebinding.MutatingAdmission{Decoder: decoder}})
+	// ResourceBinding
+	hookServer.Register("/validate-resourcebinding", &webhook.Admission{Handler: &resourcebinding.ValidatingAdmission{Client: hookManager.GetClient(), Decoder: decoder}})
+	hookServer.Register("/mutate-resourcebinding", &webhook.Admission{Handler: &resourcebinding.MutatingAdmission{Decoder: decoder}})
+	// Work
+	hookServer.Register("/mutate-work", &webhook.Admission{Handler: &work.MutatingAdmission{Decoder: decoder}})
+
+	// others
+	hookServer.Register("/validate-resourcedeletionprotection", &webhook.Admission{Handler: &resourcedeletionprotection.ValidatingAdmission{Decoder: decoder}})
+	hookServer.Register("/convert", conversion.NewWebhookHandler(hookManager.GetScheme()))
 	hookServer.WebhookMux().Handle("/readyz/", http.StripPrefix("/readyz/", &healthz.Handler{}))
 
 	ctrlmetrics.Registry.MustRegister(versionmetrics.NewBuildInfoCollector())
