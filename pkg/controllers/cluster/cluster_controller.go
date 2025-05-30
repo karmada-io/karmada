@@ -75,20 +75,12 @@ var (
 		Key:    clusterv1alpha1.TaintClusterNotReady,
 		Effect: corev1.TaintEffectNoSchedule,
 	}
-
-	// TerminatingTaintTemplate is the taint for when a cluster is terminating executing resources.
-	// Used for taint based eviction.
-	TerminatingTaintTemplate = &corev1.Taint{
-		Key:    clusterv1alpha1.TaintClusterTerminating,
-		Effect: corev1.TaintEffectNoExecute,
-	}
 )
 
 // Controller is to sync Cluster.
 type Controller struct {
-	client.Client      // used to operate Cluster resources.
-	EventRecorder      record.EventRecorder
-	EnableTaintManager bool
+	client.Client // used to operate Cluster resources.
+	EventRecorder record.EventRecorder
 
 	// ClusterMonitorPeriod represents cluster-controller monitoring period, i.e. how often does
 	// cluster-controller check cluster health signal posted from cluster-status-controller.
@@ -100,9 +92,10 @@ type Controller struct {
 	ClusterMonitorGracePeriod time.Duration
 	// When cluster is just created, e.g. agent bootstrap or cluster join, we give a longer grace period.
 	ClusterStartupGracePeriod time.Duration
-
-	ClusterTaintEvictionRetryFrequency time.Duration
-	ExecutionSpaceRetryFrequency       time.Duration
+	// CleanupCheckInterval defines the fixed interval for polling resource deletion status during cluster removal.
+	// The fixed interval bypasses exponential backoff mechanism to ensure the check frequency remains balanced
+	// - neither too frequent to risk system overload nor too sparse to cause delays.
+	CleanupCheckInterval time.Duration
 
 	// Per Cluster map stores last observed health together with a local time when it was observed.
 	clusterHealthMap   *clusterHealthMap
@@ -225,12 +218,6 @@ func (c *Controller) syncCluster(ctx context.Context, cluster *clusterv1alpha1.C
 }
 
 func (c *Controller) removeCluster(ctx context.Context, cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
-	// add terminating taint before cluster is deleted
-	if err := c.updateClusterTaints(ctx, []*corev1.Taint{TerminatingTaintTemplate}, nil, cluster); err != nil {
-		klog.ErrorS(err, "Failed to update terminating taint", "cluster", cluster.Name)
-		return controllerruntime.Result{}, err
-	}
-
 	if err := c.removeExecutionSpace(ctx, cluster); err != nil {
 		klog.Errorf("Failed to remove execution space %s: %v", cluster.Name, err)
 		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, events.EventReasonRemoveExecutionSpaceFailed, err.Error())
@@ -244,21 +231,19 @@ func (c *Controller) removeCluster(ctx context.Context, cluster *clusterv1alpha1
 		return controllerruntime.Result{}, err
 	} else if exist {
 		klog.Infof("Requeuing operation until the cluster(%s) execution space deleted", cluster.Name)
-		return controllerruntime.Result{RequeueAfter: c.ExecutionSpaceRetryFrequency}, nil
+		return controllerruntime.Result{RequeueAfter: c.CleanupCheckInterval}, nil
 	}
 
-	// delete the health data from the map explicitly after we removing the cluster.
+	// delete the health data from the map explicitly when we're removing the cluster.
 	c.clusterHealthMap.delete(cluster.Name)
 
 	// check if target cluster is removed from all bindings.
-	if c.EnableTaintManager {
-		if done, err := c.isTargetClusterRemoved(ctx, cluster); err != nil {
-			klog.ErrorS(err, "Failed to check whether target cluster is removed from bindings", "cluster", cluster.Name)
-			return controllerruntime.Result{}, err
-		} else if !done {
-			klog.InfoS("Terminating taint eviction process has not finished yet, will try again later", "cluster", cluster.Name)
-			return controllerruntime.Result{RequeueAfter: c.ClusterTaintEvictionRetryFrequency}, nil
-		}
+	if done, err := c.isTargetClusterRemoved(ctx, cluster); err != nil {
+		klog.ErrorS(err, "Failed to check target cluster is removed from all bindings", "cluster", cluster.Name)
+		return controllerruntime.Result{}, err
+	} else if !done {
+		klog.InfoS("The cluster is still waiting to be removed from all bindings, will try again later", "cluster", cluster.Name)
+		return controllerruntime.Result{RequeueAfter: c.CleanupCheckInterval}, nil
 	}
 
 	return c.removeFinalizer(ctx, cluster)

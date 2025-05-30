@@ -268,10 +268,12 @@ func (s *Scheduler) updateCluster(oldObj, newObj interface{}) {
 	}
 
 	switch {
+	case oldCluster.DeletionTimestamp.IsZero() && !newCluster.DeletionTimestamp.IsZero():
+		s.clusterReconcileWorker.Add(newCluster)
 	case !equality.Semantic.DeepEqual(oldCluster.Labels, newCluster.Labels):
 		fallthrough
 	case oldCluster.Generation != newCluster.Generation:
-		// To distinguish the obd and new cluster objects, we need to add the entire object
+		// To distinguish the old and new cluster objects, we need to add the entire object
 		// to the worker. Therefore, call Add func instead of Enqueue func.
 		s.clusterReconcileWorker.Add(oldCluster)
 		s.clusterReconcileWorker.Add(newCluster)

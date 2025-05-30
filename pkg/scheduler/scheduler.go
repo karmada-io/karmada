@@ -29,6 +29,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -428,7 +429,13 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
-	// TODO(dddddai): reschedule bindings on cluster change
+	// TODO: reschedule binding on cluster change other than cluster deletion, such as cluster labels changed.
+	if s.HasTerminatingTargetClusters(&rb.Spec) {
+		klog.Infof("Reschedule ResourceBinding(%s/%s) as some scheduled clusters are deleted", namespace, name)
+		err = s.scheduleResourceBinding(rb)
+		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
+		return err
+	}
 	klog.V(3).Infof("Don't need to schedule ResourceBinding(%s/%s)", rb.Namespace, rb.Name)
 
 	// If no scheduling is required, we need to ensure that binding.Generation is equal to
@@ -498,7 +505,13 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
-	// TODO(dddddai): reschedule bindings on cluster change
+	// TODO: reschedule binding on cluster change other than cluster deletion, such as cluster labels changed.
+	if s.HasTerminatingTargetClusters(&crb.Spec) {
+		klog.Infof("Reschedule ClusterResourceBinding(%s) as some scheduled clusters are deleted", name)
+		err = s.scheduleClusterResourceBinding(crb)
+		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
+		return err
+	}
 	klog.Infof("Don't need to schedule ClusterResourceBinding(%s)", name)
 
 	// If no scheduling is required, we need to ensure that binding.Generation is equal to
@@ -510,6 +523,30 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 		return patchClusterResourceBindingStatus(s.KarmadaClient, crb, updateCRB)
 	}
 	return nil
+}
+
+// HasTerminatingTargetClusters checks whether any cluster in the ResourceBinding's target list
+// is marked for deletion (i.e., has a non-zero DeletionTimestamp).
+//
+// This is used to trigger rescheduling when bound clusters are being terminated, ensuring
+// workloads get migrated before cluster resources become unavailable.
+func (s *Scheduler) HasTerminatingTargetClusters(bindingSpec *workv1alpha2.ResourceBindingSpec) bool {
+	clusters, err := s.clusterLister.List(labels.Everything())
+	if err != nil {
+		klog.Errorf("Failed to list clusters: %v", err)
+		return false
+	}
+
+	for _, cluster := range clusters {
+		if cluster.DeletionTimestamp.IsZero() {
+			continue
+		}
+
+		if bindingSpec.TargetContains(cluster.Name) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Scheduler) scheduleResourceBinding(rb *workv1alpha2.ResourceBinding) (err error) {
