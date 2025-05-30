@@ -63,6 +63,10 @@ type Options struct {
 	// for serving health probes
 	// Defaults to ":8000".
 	HealthProbeBindAddress string
+	// AllowNoExecuteTaintPolicy indicates that allows configuring taints with NoExecute effect in ClusterTaintPolicy.
+	// Given the impact of NoExecute, applying such a taint to a cluster may trigger the eviction of workloads
+	// that do not explicitly tolerate it, potentially causing unexpected service disruptions.
+	AllowNoExecuteTaintPolicy bool
 
 	DefaultNotReadyTolerationSeconds    int64
 	DefaultUnreachableTolerationSeconds int64
@@ -92,6 +96,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver.")
 	flags.StringVar(&o.MetricsBindAddress, "metrics-bind-address", ":8080", "The TCP address that the controller should bind to for serving prometheus metrics(e.g. 127.0.0.1:8080, :8080). It can be set to \"0\" to disable the metrics serving.")
 	flags.StringVar(&o.HealthProbeBindAddress, "health-probe-bind-address", ":8000", "The TCP address that the controller should bind to for serving health probes(e.g. 127.0.0.1:8000, :8000)")
+	flags.BoolVar(&o.AllowNoExecuteTaintPolicy, "allow-no-execute-taint-policy", false, "Allows configuring taints with NoExecute effect in ClusterTaintPolicy. Given the impact of NoExecute, applying such a taint to a cluster may trigger the eviction of workloads that do not explicitly tolerate it, potentially causing unexpected service disruptions. \nThis parameter is designed to remain disabled by default and requires careful evaluation by administrators before being enabled.")
 
 	// webhook flags
 	flags.Int64Var(&o.DefaultNotReadyTolerationSeconds, "default-not-ready-toleration-seconds", 300, "Indicates the tolerationSeconds of the propagation policy toleration for notReady:NoExecute that is added by default to every propagation policy that does not already have such a toleration.")
