@@ -29,7 +29,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
 	"github.com/karmada-io/karmada/cmd/controller-manager/app/options"
-	"github.com/karmada-io/karmada/pkg/controllers/federatedhpa/config"
+	federatehpaconfig "github.com/karmada-io/karmada/pkg/controllers/federatedhpa/config"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -95,9 +95,11 @@ type Options struct {
 	// KarmadaKubeconfigNamespace is the namespace of the secret containing karmada-agent certificate.
 	KarmadaKubeconfigNamespace string
 	// HPAControllerConfiguration is the config of federatedHPA-controller.
-	HPAControllerConfiguration config.HPAControllerConfiguration
+	HPAControllerConfiguration federatehpaconfig.HPAControllerConfiguration
 	// FederatedResourceQuotaOptions holds configurations for FederatedResourceQuota reconciliation.
 	FederatedResourceQuotaOptions options.FederatedResourceQuotaOptions
+	// FailoverConfiguration is the config of failover function.
+	FailoverConfiguration options.FailoverOptions
 }
 
 // Context defines the context object for controller.

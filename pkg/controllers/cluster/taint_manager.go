@@ -54,10 +54,13 @@ type NoExecuteTaintManager struct {
 
 	ClusterTaintEvictionRetryFrequency time.Duration
 	ConcurrentReconciles               int
+	RateLimiterOptions                 ratelimiterflag.Options
+
+	EnableNoExecuteTaintEviction    bool
+	NoExecuteTaintEvictionPurgeMode string
 
 	bindingEvictionWorker        util.AsyncWorker
 	clusterBindingEvictionWorker util.AsyncWorker
-	RateLimiterOptions           ratelimiterflag.Options
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -75,8 +78,8 @@ func (tc *NoExecuteTaintManager) Reconcile(ctx context.Context, req reconcile.Re
 		return controllerruntime.Result{}, err
 	}
 
-	// Check whether the target cluster has no execute taints.
-	if !helper.HasNoExecuteTaints(cluster.Spec.Taints) {
+	// short path to skip reconciliation if NoExecute taint eviction is disabled or no target taints on Cluster
+	if !tc.EnableNoExecuteTaintEviction || !helper.HasNoExecuteTaints(cluster.Spec.Taints) {
 		return controllerruntime.Result{}, nil
 	}
 
@@ -171,6 +174,16 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 		return err
 	}
 
+	var purgeMode policyv1alpha1.PurgeMode
+	if needEviction {
+		switch tc.NoExecuteTaintEvictionPurgeMode {
+		case "Gracefully":
+			purgeMode = policyv1alpha1.Graciously
+		case "Directly":
+			purgeMode = policyv1alpha1.Immediately
+		}
+	}
+
 	// Case 1: Need eviction now.
 	// Case 2: Need eviction after toleration time. If time is up, do eviction right now.
 	// Case 3: Tolerate forever, we do nothing.
@@ -178,12 +191,12 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 		// update final result to evict the target cluster
 		if features.FeatureGate.Enabled(features.GracefulEviction) {
 			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
-				workv1alpha2.WithPurgeMode(policyv1alpha1.Graciously),
+				workv1alpha2.WithPurgeMode(purgeMode),
 				workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager),
 				workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
 		} else {
 			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
-				workv1alpha2.WithPurgeMode(policyv1alpha1.Immediately),
+				workv1alpha2.WithPurgeMode(purgeMode),
 				workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager),
 				workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
 		}
@@ -286,7 +299,7 @@ func (tc *NoExecuteTaintManager) needEviction(clusterName string, annotations ma
 	}
 
 	taints := helper.GetNoExecuteTaints(cluster.Spec.Taints)
-	if len(taints) == 0 {
+	if !tc.EnableNoExecuteTaintEviction || len(taints) == 0 {
 		return false, -1, nil
 	}
 	tolerations := placement.ClusterTolerations
