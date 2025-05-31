@@ -8,7 +8,7 @@ metadata:
   name: {{ $name }}-crds-kustomization
   namespace: {{ $namespace }}
   annotations:
-    "helm.sh/hook": pre-install
+    "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "2"
   {{- if "karmada.preInstallJob.labels" }}
   labels:
@@ -28,7 +28,7 @@ metadata:
   name: {{ $name }}-crds-autoscaling-bases
   namespace: {{ $namespace }}
   annotations:
-    "helm.sh/hook": pre-install
+    "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "2"
   {{- if "karmada.preInstallJob.labels" }}
   labels:
@@ -48,7 +48,7 @@ metadata:
   name: {{ $name }}-crds-config-bases
   namespace: {{ $namespace }}
   annotations:
-    "helm.sh/hook": pre-install
+    "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "2"
   {{- if "karmada.preInstallJob.labels" }}
   labels:
@@ -68,7 +68,7 @@ metadata:
   name: {{ $name }}-crds-multicluster-bases
   namespace: {{ $namespace }}
   annotations:
-    "helm.sh/hook": pre-install
+    "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "2"
   {{- if "karmada.preInstallJob.labels" }}
   labels:
@@ -88,7 +88,7 @@ metadata:
   name: {{ $name }}-crds-networking-bases
   namespace: {{ $namespace }}
   annotations:
-    "helm.sh/hook": pre-install
+    "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "2"
   {{- if "karmada.preInstallJob.labels" }}
   labels:
@@ -109,7 +109,7 @@ metadata:
   name: {{ $name }}-crds-policy-bases
   namespace: {{ $namespace }}
   annotations:
-    "helm.sh/hook": pre-install
+    "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "2"
   {{- if "karmada.preInstallJob.labels" }}
   labels:
@@ -129,7 +129,7 @@ metadata:
   name: {{ $name }}-crds-remedy-bases
   namespace: {{ $namespace }}
   annotations:
-    "helm.sh/hook": pre-install
+    "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "2"
   {{- if "karmada.preInstallJob.labels" }}
   labels:
@@ -149,7 +149,7 @@ metadata:
   name: {{ $name }}-crds-work-bases
   namespace: {{ $namespace }}
   annotations:
-    "helm.sh/hook": pre-install
+    "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "2"
   {{- if "karmada.preInstallJob.labels" }}
   labels:
@@ -169,7 +169,7 @@ metadata:
   name: {{ $name }}-crds-apps-bases
   namespace: {{ $namespace }}
   annotations:
-    "helm.sh/hook": pre-install
+    "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "2"
   {{- if "karmada.preInstallJob.labels" }}
   labels:
@@ -189,7 +189,7 @@ metadata:
   name: {{ $name }}-hook-job
   namespace: {{ $namespace }}
   annotations:
-    "helm.sh/hook": pre-install
+    "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "1"
   {{- if "karmada.preInstallJob.labels" }}
   labels:
@@ -201,7 +201,7 @@ kind: ClusterRole
 metadata:
   name: {{ $name }}-hook-job
   annotations:
-    "helm.sh/hook": pre-install
+    "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "1"
   {{- if "karmada.preInstallJob.labels" }}
   labels:
@@ -219,7 +219,7 @@ kind: ClusterRoleBinding
 metadata:
   name: {{ $name }}-hook-job
   annotations:
-    "helm.sh/hook": pre-install
+    "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "1"
   {{- if "karmada.preInstallJob.labels" }}
   labels:
@@ -242,7 +242,7 @@ metadata:
   name: {{ $name }}-static-resources
   namespace: {{ $namespace }}
   annotations:
-    "helm.sh/hook": pre-install
+    "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "2"
   {{- if "karmada.preInstallJob.labels" }}
   labels:
@@ -268,7 +268,7 @@ metadata:
   name: {{ $name }}-crds-patches
   namespace: {{ $namespace }}
   annotations:
-    "helm.sh/hook": pre-install
+    "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "2"
   {{- if "karmada.preInstallJob.labels" }}
   labels:
