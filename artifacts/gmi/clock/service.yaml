@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gmi-clock
+  labels:
+    app: gmi-clock
+spec:
+  selector:
+    app: gmi-clock
+  ports:
+    - name: gmi-clock
+      port: 8081
+      targetPort: 8081
+  type: ClusterIP
+  clusterIP: None

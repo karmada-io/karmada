@@ -23,7 +23,7 @@ import (
 )
 
 func main() {
-	log.InitLog("gmi-clock", "debug")
+	log.InitLog("gmi-clock", util.GetEnv("GMI_LOG_LEVEL", "debug"))
 	// 1. create a time service
 	ctx, cancel := context.WithCancel(context.Background())
 	port := util.GetEnv("GMI_CLOCK_SERVICE_PORT", ":8081")
