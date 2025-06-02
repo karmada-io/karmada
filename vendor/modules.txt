@@ -77,6 +77,10 @@ github.com/beorn7/perks/quantile
 # github.com/blang/semver/v4 v4.0.0
 ## explicit; go 1.14
 github.com/blang/semver/v4
+# github.com/bytedance/sonic v1.11.6
+## explicit; go 1.16
+# github.com/bytedance/sonic/loader v0.1.1
+## explicit; go 1.16
 # github.com/cenkalti/backoff/v4 v4.3.0
 ## explicit; go 1.18
 github.com/cenkalti/backoff/v4
@@ -92,6 +96,10 @@ github.com/chai2010/gettext-go/po
 # github.com/chigopher/pathlib v0.19.1
 ## explicit; go 1.21
 github.com/chigopher/pathlib
+# github.com/cloudwego/base64x v0.1.4
+## explicit; go 1.16
+# github.com/cloudwego/iasm v0.2.0
+## explicit; go 1.16
 # github.com/containerd/cgroups v1.1.0
 ## explicit; go 1.17
 github.com/containerd/cgroups/stats/v1
@@ -254,6 +262,12 @@ github.com/fsnotify/fsnotify/internal
 # github.com/fxamacker/cbor/v2 v2.7.0
 ## explicit; go 1.17
 github.com/fxamacker/cbor/v2
+# github.com/gabriel-vasile/mimetype v1.4.3
+## explicit; go 1.20
+# github.com/gin-contrib/sse v0.1.0
+## explicit; go 1.12
+# github.com/gin-gonic/gin v1.10.0
+## explicit; go 1.20
 # github.com/go-co-op/gocron v1.30.1
 ## explicit; go 1.16
 github.com/go-co-op/gocron
@@ -281,6 +295,12 @@ github.com/go-openapi/jsonreference/internal
 # github.com/go-openapi/swag v0.23.0
 ## explicit; go 1.20
 github.com/go-openapi/swag
+# github.com/go-playground/locales v0.14.1
+## explicit; go 1.17
+# github.com/go-playground/universal-translator v0.18.1
+## explicit; go 1.18
+# github.com/go-playground/validator/v10 v10.20.0
+## explicit; go 1.18
 # github.com/go-task/slim-sprig/v3 v3.0.0
 ## explicit; go 1.20
 github.com/go-task/slim-sprig/v3
@@ -288,6 +308,8 @@ github.com/go-task/slim-sprig/v3
 ## explicit; go 1.18
 github.com/go-viper/mapstructure/v2
 github.com/go-viper/mapstructure/v2/internal/errors
+# github.com/goccy/go-json v0.10.2
+## explicit; go 1.12
 # github.com/gogo/protobuf v1.3.2
 ## explicit; go 1.15
 github.com/gogo/protobuf/gogoproto
@@ -385,7 +407,7 @@ github.com/google/shlex
 # github.com/google/uuid v1.6.0
 ## explicit
 github.com/google/uuid
-# github.com/gorilla/websocket v1.5.0
+# github.com/gorilla/websocket v1.5.3
 ## explicit; go 1.12
 github.com/gorilla/websocket
 # github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
@@ -429,6 +451,8 @@ github.com/klauspost/compress/internal/cpuinfo
 github.com/klauspost/compress/internal/snapref
 github.com/klauspost/compress/zstd
 github.com/klauspost/compress/zstd/internal/xxhash
+# github.com/klauspost/cpuid/v2 v2.2.7
+## explicit; go 1.15
 # github.com/kr/pretty v0.3.1
 ## explicit; go 1.12
 github.com/kr/pretty
@@ -438,6 +462,8 @@ github.com/kr/text
 # github.com/kylelemons/godebug v1.1.0
 ## explicit; go 1.11
 github.com/kylelemons/godebug/diff
+# github.com/leodido/go-urn v1.4.0
+## explicit; go 1.18
 # github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de
 ## explicit
 github.com/liggitt/tabwriter
@@ -579,6 +605,11 @@ github.com/pelletier/go-toml/v2/unstable
 # github.com/peterbourgon/diskv v2.0.1+incompatible
 ## explicit
 github.com/peterbourgon/diskv
+# github.com/piaobeizu/titan v0.4.3-0.20250602034039-539f8c987c90
+## explicit; go 1.22.6
+github.com/piaobeizu/titan/cache
+github.com/piaobeizu/titan/log
+github.com/piaobeizu/titan/utils
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
@@ -612,6 +643,8 @@ github.com/prometheus/procfs/internal/util
 # github.com/rivo/uniseg v0.4.2
 ## explicit; go 1.18
 github.com/rivo/uniseg
+# github.com/robfig/cron v1.2.0
+## explicit
 # github.com/robfig/cron/v3 v3.0.1
 ## explicit; go 1.12
 github.com/robfig/cron/v3
@@ -689,6 +722,10 @@ github.com/tidwall/pretty
 # github.com/tidwall/sjson v1.2.5
 ## explicit; go 1.14
 github.com/tidwall/sjson
+# github.com/twitchyliquid64/golang-asm v0.15.1
+## explicit; go 1.13
+# github.com/ugorji/go/codec v1.2.14
+## explicit; go 1.11
 # github.com/vektra/mockery/v2 v2.53.3
 ## explicit; go 1.23
 github.com/vektra/mockery/v2
@@ -824,6 +861,8 @@ go.uber.org/zap/internal/pool
 go.uber.org/zap/internal/stacktrace
 go.uber.org/zap/zapcore
 go.uber.org/zap/zapgrpc
+# golang.org/x/arch v0.8.0
+## explicit; go 1.18
 # golang.org/x/crypto v0.37.0
 ## explicit; go 1.23.0
 golang.org/x/crypto/cryptobyte
@@ -1078,6 +1117,9 @@ gopkg.in/natefinch/lumberjack.v2
 gopkg.in/square/go-jose.v2
 gopkg.in/square/go-jose.v2/cipher
 gopkg.in/square/go-jose.v2/json
+# gopkg.in/yaml.v2 v2.4.0
+## explicit; go 1.15
+gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3

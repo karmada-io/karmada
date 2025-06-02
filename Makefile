@@ -19,7 +19,10 @@ TARGETS := karmada-aggregated-apiserver \
 			karmada-search \
 			karmada-operator \
 			karmada-metrics-adapter \
-			gmi-storage
+			gmi-storage \
+			gmi-clock \
+			gmi-agent \
+			gmi-nfd
 
 CTL_TARGETS := karmadactl kubectl-karmada
 
@@ -142,6 +145,9 @@ endif
 	docker push ${REGISTRY}/karmada-operator:${VERSION}
 	docker push ${REGISTRY}/karmada-metrics-adapter:${VERSION}
 	docker push ${REGISTRY}/gmi-storage:${VERSION}
+	docker push ${REGISTRY}/gmi-clock:${VERSION}
+	docker push ${REGISTRY}/gmi-agent:${VERSION}
+	docker push ${REGISTRY}/gmi-nfd:${VERSION}
 
 # Build and package binary
 #

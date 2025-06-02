@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gmi-clock
+  labels:
+    app: gmi-clock
+spec:
+  selector:
+    matchLabels:
+      app: gmi-clock
+  template:
+    metadata:
+      labels:
+        app: gmi-clock
+    spec:
+      hostPID: true
+      hostNetwork: true
+      priorityClassName: system-node-critical
+      serviceAccountName: gmi-clock
+      imagePullSecrets:
+        - name: gcp-secret
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+      containers:
+        - name: gmi-clock
+          image: us-west1-docker.pkg.dev/devv-404803/public/gmi-clock:v1.14.0-3-g1787a15d9-dirty
+          imagePullPolicy: Always
+          command:
+            - /bin/gmi-clock
+          env:
+            - name: GMI_CLOCK_SERVICE_PORT
+              value: ":8000"
+            - name: GMI_LOG_LEVEL
+              value: "debug"
