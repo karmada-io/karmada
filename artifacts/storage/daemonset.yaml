@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: gmi-storage
+  labels:
+    app: gmi-storage
+spec:
+  selector:
+    matchLabels:
+      app: gmi-storage
+  template:
+    metadata:
+      labels:
+        app: gmi-storage
+    spec:
+      hostPID: true
+      hostNetwork: true
+      priorityClassName: system-node-critical
+      serviceAccountName: gmi-storage
+      imagePullSecrets:
+        - name: gcp-secret
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+      containers:
+        - name: gmi-storage
+          image: us-west1-docker.pkg.dev/devv-404803/public/gmi-storage:v1.13.1-11-gf006b93d6-dirty
+          imagePullPolicy: Always
+          securityContext:
+            privileged: true
+            capabilities:
+              add:
+                - SYS_ADMIN
+                - SYS_PTRACE
+                - SYS_RESOURCE
+                - SYSLOG
+          command:
+            - /bin/gmi-storage
+          volumeMounts:
+            - name: containerd-socket
+              mountPath: /var/run/containerd/containerd.sock
+              readOnly: true
+            - name: var-lib-containerd
+              mountPath: /var/lib/containerd
+              readOnly: false
+            - name: var-lib-gmi-storage
+              mountPath: /var/lib/gmi.storage
+              readOnly: false
+      volumes:
+        - name: containerd-socket
+          hostPath:
+            path: /var/run/containerd/containerd.sock
+            type: Socket
+        - name: var-lib-containerd
+          hostPath:
+            path: /var/lib/containerd
+            type: DirectoryOrCreate
+        - name: var-lib-gmi-storage
+          hostPath:
+            path: /var/lib/gmi.storage
+            type: DirectoryOrCreate

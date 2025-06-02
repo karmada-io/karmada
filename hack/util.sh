@@ -34,6 +34,7 @@ KARMADA_SEARCH_LABEL="karmada-search"
 KARMADA_OPENSEARCH_LABEL="karmada-opensearch"
 KARMADA_OPENSEARCH_DASHBOARDS_LABEL="karmada-opensearch-dashboards"
 KARMADA_METRICS_ADAPTER_LABEL="karmada-metrics-adapter"
+GMI_STORAGE_LABEL="gmi-storage"
 
 KARMADA_GO_PACKAGE="github.com/karmada-io/karmada"
 
@@ -55,6 +56,7 @@ KARMADA_TARGET_SOURCE=(
   karmada-search=cmd/karmada-search
   karmada-operator=operator/cmd/operator
   karmada-metrics-adapter=cmd/metrics-adapter
+  gmi-storage=cmd/gmi-storage
 )
 
 #https://textkool.com/en/ascii-art-generator?hl=default&vl=default&font=DOS%20Rebel&text=KARMADA

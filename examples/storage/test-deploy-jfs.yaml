@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: juicefs-test-deployment
+  namespace: gmi-storage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: juicefs-test
+  template:
+    metadata:
+      labels:
+        app: juicefs-test
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:latest
+          volumeMounts:
+            - name: juicefs-volume
+              mountPath: /usr/share/nginx/html
+      volumes:
+        - name: juicefs-volume
+          hostPath:
+            path: /mnt/juicefs/u-00000000
+            type: Directory

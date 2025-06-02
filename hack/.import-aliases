@@ -61,5 +61,6 @@
     "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2": "workv1alpha2",
     "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1": "autoscalingv1alpha1",
     "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1": "appsv1alpha1",
+    "github.com/karmada-io/karmada/pkg/apis/storage/v1alpha1": "storagev1alpha1",
     "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1": "operatorv1alpha1"
 }

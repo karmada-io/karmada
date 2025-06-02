@@ -18,7 +18,8 @@ TARGETS := karmada-aggregated-apiserver \
 			karmada-interpreter-webhook-example \
 			karmada-search \
 			karmada-operator \
-			karmada-metrics-adapter
+			karmada-metrics-adapter \
+			gmi-storage
 
 CTL_TARGETS := karmadactl kubectl-karmada
 
@@ -140,6 +141,7 @@ endif
 	docker push ${REGISTRY}/karmada-search:${VERSION}
 	docker push ${REGISTRY}/karmada-operator:${VERSION}
 	docker push ${REGISTRY}/karmada-metrics-adapter:${VERSION}
+	docker push ${REGISTRY}/gmi-storage:${VERSION}
 
 # Build and package binary
 #

@@ -68,6 +68,9 @@ const (
 
 	// KubeControllerManagerComponentName is the name of the Kube Controller Manager component.
 	KubeControllerManagerComponentName = "kube-controller-manager"
+
+	// KarmadaGmiStorageComponentName is the name of the Karmada GMI Storage component.
+	KarmadaGmiStorageComponentName = "karmada-gmi-storage"
 )
 
 // ExecutionSpacePrefix is the prefix of execution space

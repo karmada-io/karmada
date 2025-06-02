@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: juicefs-test-pod
+  namespace: gmi-storage
+spec:
+  containers:
+    - name: app
+      image: busybox
+      command: ["/bin/sh"]
+      args: ["-c", "while true; do echo 'Testing JuiceFS mount...'; ls -l /mnt/juicefs; sleep 30; done"]
+      volumeMounts:
+        - name: juicefs-volume
+          mountPath: /mnt/juicefs
+  volumes:
+    - name: juicefs-volume
+      hostPath:
+        path: /mnt/juicefs/u-00000000
+        type: Directory

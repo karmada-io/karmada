@@ -30,6 +30,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1"
 	remedyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/remedy/v1alpha1"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/search/v1alpha1"
+	storagev1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/storage/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha2"
 	discovery "k8s.io/client-go/discovery"
@@ -47,6 +48,7 @@ type Interface interface {
 	PolicyV1alpha1() policyv1alpha1.PolicyV1alpha1Interface
 	RemedyV1alpha1() remedyv1alpha1.RemedyV1alpha1Interface
 	SearchV1alpha1() searchv1alpha1.SearchV1alpha1Interface
+	StorageV1alpha1() storagev1alpha1.StorageV1alpha1Interface
 	WorkV1alpha1() workv1alpha1.WorkV1alpha1Interface
 	WorkV1alpha2() workv1alpha2.WorkV1alpha2Interface
 }
@@ -62,6 +64,7 @@ type Clientset struct {
 	policyV1alpha1      *policyv1alpha1.PolicyV1alpha1Client
 	remedyV1alpha1      *remedyv1alpha1.RemedyV1alpha1Client
 	searchV1alpha1      *searchv1alpha1.SearchV1alpha1Client
+	storageV1alpha1     *storagev1alpha1.StorageV1alpha1Client
 	workV1alpha1        *workv1alpha1.WorkV1alpha1Client
 	workV1alpha2        *workv1alpha2.WorkV1alpha2Client
 }
@@ -104,6 +107,11 @@ func (c *Clientset) RemedyV1alpha1() remedyv1alpha1.RemedyV1alpha1Interface {
 // SearchV1alpha1 retrieves the SearchV1alpha1Client
 func (c *Clientset) SearchV1alpha1() searchv1alpha1.SearchV1alpha1Interface {
 	return c.searchV1alpha1
+}
+
+// StorageV1alpha1 retrieves the StorageV1alpha1Client
+func (c *Clientset) StorageV1alpha1() storagev1alpha1.StorageV1alpha1Interface {
+	return c.storageV1alpha1
 }
 
 // WorkV1alpha1 retrieves the WorkV1alpha1Client
@@ -192,6 +200,10 @@ func NewForConfigAndClient(c *rest.Config, httpClient *http.Client) (*Clientset,
 	if err != nil {
 		return nil, err
 	}
+	cs.storageV1alpha1, err = storagev1alpha1.NewForConfigAndClient(&configShallowCopy, httpClient)
+	if err != nil {
+		return nil, err
+	}
 	cs.workV1alpha1, err = workv1alpha1.NewForConfigAndClient(&configShallowCopy, httpClient)
 	if err != nil {
 		return nil, err
@@ -229,6 +241,7 @@ func New(c rest.Interface) *Clientset {
 	cs.policyV1alpha1 = policyv1alpha1.New(c)
 	cs.remedyV1alpha1 = remedyv1alpha1.New(c)
 	cs.searchV1alpha1 = searchv1alpha1.New(c)
+	cs.storageV1alpha1 = storagev1alpha1.New(c)
 	cs.workV1alpha1 = workv1alpha1.New(c)
 	cs.workV1alpha2 = workv1alpha2.New(c)
 

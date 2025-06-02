@@ -1,0 +1,59 @@
+# full juicefs storage definition sample
+apiVersion: storage.karmada.io/v1alpha1
+kind: Juicefs
+metadata:
+  name: example-juicefs
+spec:
+  description: "example juicefs" # storage description
+  location: # storage location
+    region: 
+    az:
+  provider: # storage provider
+    id: "u-00000000" # storage provider id
+    name: "gmi-cloud" # storage provider name
+  public: "true" # whether the storage is public
+  settings:
+    key: value
+  labor:
+    envs:
+      - "xx=xxx"
+    image: ""
+    run-script: ""
+    repo: ""
+  auth:
+    gcp:
+      application-default-credentials: ""
+      service-account-credentials: ""
+    oss:
+      access-key: ""
+      secret-key: ""
+    docker:
+      username: ""
+      password: ""
+    harbor:
+      username: ""
+      password: ""
+      url: ""
+      insecure: true
+    azure:
+      service-principal-id: ""
+      service-principal-secret: ""
+    aliyun:
+      access-key: ""
+      secret-key: ""
+    aws: 
+      access-key: ""
+      secret-key: ""
+  client: 
+    cache-dir: "" # cache directory
+    mount-options: 
+      - cache-size=1024000
+    ee: # juicefs commercial version configuration
+      version: 5.1.18
+      console-web: ""
+      backend: ""
+      token: ""
+    ce: # juicefs open source version configuration
+      version: 1.2.0
+      meta-url: ""
+      backend: ""

@@ -1,0 +1,34 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: OverridePolicy
+metadata:
+  name: gmi-storage-overridepolicy
+spec:
+  resourceSelectors:
+    - apiVersion: apps/v1
+      kind: DaemonSet
+      name: gmi-storage
+  overrideRules:
+    - targetCluster:
+        clusterNames:
+          - gmi-tot
+      overriders:
+        plaintext:
+          - path: "/spec/template/spec/volumes/0/hostPath/path"
+            operator: replace
+            value: "/run/k3s/containerd/containerd.sock"
+          - path: "/spec/template/spec/volumes/1/hostPath/path"
+            operator: replace
+            value: "/var/lib/rancher/rke2/agent/containerd"
+          - path: "/spec/template/spec/containers/0/volumeMounts/0/mountPath"
+            operator: replace
+            value: "/run/k3s/containerd/containerd.sock"
+          - path: "/spec/template/spec/containers/0/volumeMounts/1/mountPath"
+            operator: replace
+            value: "/var/lib/rancher/rke2/agent/containerd"
+          - path: "/spec/template/spec/containers/0/env"
+            operator: add
+            value: 
+              - name: CONTAINERD_SOCKET
+                value: /run/k3s/containerd/containerd.sock
+              - name: CONTAINERD_PATH
+                value: /var/lib/rancher/rke2/agent/containerd
