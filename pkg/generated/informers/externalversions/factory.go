@@ -33,6 +33,7 @@ import (
 	policy "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/policy"
 	remedy "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/remedy"
 	search "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/search"
+	storage "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/storage"
 	work "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/work"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -270,6 +271,7 @@ type SharedInformerFactory interface {
 	Policy() policy.Interface
 	Remedy() remedy.Interface
 	Search() search.Interface
+	Storage() storage.Interface
 	Work() work.Interface
 }
 
@@ -303,6 +305,10 @@ func (f *sharedInformerFactory) Remedy() remedy.Interface {
 
 func (f *sharedInformerFactory) Search() search.Interface {
 	return search.New(f, f.namespace, f.tweakListOptions)
+}
+
+func (f *sharedInformerFactory) Storage() storage.Interface {
+	return storage.New(f, f.namespace, f.tweakListOptions)
 }
 
 func (f *sharedInformerFactory) Work() work.Interface {

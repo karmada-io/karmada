@@ -13952,6 +13952,858 @@
         }
       ]
     },
+    "/apis/storage.karmada.io/": {
+      "get": {
+        "description": "get information of a group",
+        "consumes": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "storageKarmadaIo"
+        ],
+        "operationId": "getStorageKarmadaIoAPIGroup",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.APIGroup"
+            }
+          }
+        }
+      }
+    },
+    "/apis/storage.karmada.io/v1alpha1/": {
+      "get": {
+        "description": "get available resources",
+        "consumes": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "storageKarmadaIo_v1alpha1"
+        ],
+        "operationId": "getStorageKarmadaIoV1alpha1APIResources",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.APIResourceList"
+            }
+          }
+        }
+      }
+    },
+    "/apis/storage.karmada.io/v1alpha1/juicefs": {
+      "get": {
+        "description": "list or watch objects of kind Juicefs",
+        "consumes": [
+          "*/*"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf",
+          "application/json;stream=watch",
+          "application/vnd.kubernetes.protobuf;stream=watch"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "storageKarmadaIo_v1alpha1"
+        ],
+        "operationId": "listStorageKarmadaIoV1alpha1Juicefs",
+        "parameters": [
+          {
+            "$ref": "#/parameters/allowWatchBookmarks-HC2hJt-J"
+          },
+          {
+            "$ref": "#/parameters/continue-QfD61s0i"
+          },
+          {
+            "$ref": "#/parameters/fieldSelector-xIcQKXFG"
+          },
+          {
+            "$ref": "#/parameters/labelSelector-5Zw57w4C"
+          },
+          {
+            "$ref": "#/parameters/limit-1NfNmdNH"
+          },
+          {
+            "$ref": "#/parameters/resourceVersion-5WAnf1kx"
+          },
+          {
+            "$ref": "#/parameters/resourceVersionMatch-t8XhRHeC"
+          },
+          {
+            "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
+          },
+          {
+            "$ref": "#/parameters/watch-XNNPZGbK"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.JuicefsList"
+            }
+          }
+        },
+        "x-kubernetes-action": "list",
+        "x-kubernetes-group-version-kind": {
+          "group": "storage.karmada.io",
+          "version": "v1alpha1",
+          "kind": "Juicefs"
+        }
+      },
+      "post": {
+        "description": "create Juicefs",
+        "consumes": [
+          "*/*"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "storageKarmadaIo_v1alpha1"
+        ],
+        "operationId": "createStorageKarmadaIoV1alpha1Juicefs",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Juicefs"
+            }
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+            "name": "dryRun",
+            "in": "query"
+          },
+          {
+            "$ref": "#/parameters/fieldManager-Qy4HdaTW"
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "fieldValidation instructs the server on how to handle objects in the request (POST/PUT/PATCH) containing unknown or duplicate fields. Valid values are: - Ignore: This will ignore any unknown fields that are silently dropped from the object, and will ignore all but the last duplicate field that the decoder encounters. This is the default behavior prior to v1.23. - Warn: This will send a warning via the standard warning response header for each unknown field that is dropped from the object, and for each duplicate field that is encountered. The request will still succeed if there are no other errors, and will only persist the last of any duplicate fields. This is the default in v1.23+ - Strict: This will fail the request with a BadRequest error if any unknown fields would be dropped from the object, or if any duplicate fields are present. The error returned from the server will contain all unknown and duplicate fields encountered.",
+            "name": "fieldValidation",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Juicefs"
+            }
+          },
+          "201": {
+            "description": "Created",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Juicefs"
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Juicefs"
+            }
+          }
+        },
+        "x-kubernetes-action": "post",
+        "x-kubernetes-group-version-kind": {
+          "group": "storage.karmada.io",
+          "version": "v1alpha1",
+          "kind": "Juicefs"
+        }
+      },
+      "delete": {
+        "description": "delete collection of Juicefs",
+        "consumes": [
+          "*/*"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "storageKarmadaIo_v1alpha1"
+        ],
+        "operationId": "deleteStorageKarmadaIoV1alpha1CollectionJuicefs",
+        "parameters": [
+          {
+            "$ref": "#/parameters/body-2Y1dVQaQ"
+          },
+          {
+            "$ref": "#/parameters/continue-QfD61s0i"
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+            "name": "dryRun",
+            "in": "query"
+          },
+          {
+            "$ref": "#/parameters/fieldSelector-xIcQKXFG"
+          },
+          {
+            "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
+          },
+          {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
+          },
+          {
+            "$ref": "#/parameters/labelSelector-5Zw57w4C"
+          },
+          {
+            "$ref": "#/parameters/limit-1NfNmdNH"
+          },
+          {
+            "$ref": "#/parameters/orphanDependents-uRB25kX5"
+          },
+          {
+            "$ref": "#/parameters/propagationPolicy-6jk3prlO"
+          },
+          {
+            "$ref": "#/parameters/resourceVersion-5WAnf1kx"
+          },
+          {
+            "$ref": "#/parameters/resourceVersionMatch-t8XhRHeC"
+          },
+          {
+            "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Status"
+            }
+          }
+        },
+        "x-kubernetes-action": "deletecollection",
+        "x-kubernetes-group-version-kind": {
+          "group": "storage.karmada.io",
+          "version": "v1alpha1",
+          "kind": "Juicefs"
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/parameters/pretty-tJGM1-ng"
+        }
+      ]
+    },
+    "/apis/storage.karmada.io/v1alpha1/juicefs/{name}": {
+      "get": {
+        "description": "read the specified Juicefs",
+        "consumes": [
+          "*/*"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "storageKarmadaIo_v1alpha1"
+        ],
+        "operationId": "readStorageKarmadaIoV1alpha1Juicefs",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Juicefs"
+            }
+          }
+        },
+        "x-kubernetes-action": "get",
+        "x-kubernetes-group-version-kind": {
+          "group": "storage.karmada.io",
+          "version": "v1alpha1",
+          "kind": "Juicefs"
+        }
+      },
+      "put": {
+        "description": "replace the specified Juicefs",
+        "consumes": [
+          "*/*"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "storageKarmadaIo_v1alpha1"
+        ],
+        "operationId": "replaceStorageKarmadaIoV1alpha1Juicefs",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Juicefs"
+            }
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+            "name": "dryRun",
+            "in": "query"
+          },
+          {
+            "$ref": "#/parameters/fieldManager-Qy4HdaTW"
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "fieldValidation instructs the server on how to handle objects in the request (POST/PUT/PATCH) containing unknown or duplicate fields. Valid values are: - Ignore: This will ignore any unknown fields that are silently dropped from the object, and will ignore all but the last duplicate field that the decoder encounters. This is the default behavior prior to v1.23. - Warn: This will send a warning via the standard warning response header for each unknown field that is dropped from the object, and for each duplicate field that is encountered. The request will still succeed if there are no other errors, and will only persist the last of any duplicate fields. This is the default in v1.23+ - Strict: This will fail the request with a BadRequest error if any unknown fields would be dropped from the object, or if any duplicate fields are present. The error returned from the server will contain all unknown and duplicate fields encountered.",
+            "name": "fieldValidation",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Juicefs"
+            }
+          },
+          "201": {
+            "description": "Created",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Juicefs"
+            }
+          }
+        },
+        "x-kubernetes-action": "put",
+        "x-kubernetes-group-version-kind": {
+          "group": "storage.karmada.io",
+          "version": "v1alpha1",
+          "kind": "Juicefs"
+        }
+      },
+      "delete": {
+        "description": "delete Juicefs",
+        "consumes": [
+          "*/*"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "storageKarmadaIo_v1alpha1"
+        ],
+        "operationId": "deleteStorageKarmadaIoV1alpha1Juicefs",
+        "parameters": [
+          {
+            "$ref": "#/parameters/body-2Y1dVQaQ"
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+            "name": "dryRun",
+            "in": "query"
+          },
+          {
+            "$ref": "#/parameters/gracePeriodSeconds--K5HaBOS"
+          },
+          {
+            "$ref": "#/parameters/ignoreStoreReadErrorWithClusterBreakingPotential-QbNkfIqj"
+          },
+          {
+            "$ref": "#/parameters/orphanDependents-uRB25kX5"
+          },
+          {
+            "$ref": "#/parameters/propagationPolicy-6jk3prlO"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Status"
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "schema": {
+              "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Status"
+            }
+          }
+        },
+        "x-kubernetes-action": "delete",
+        "x-kubernetes-group-version-kind": {
+          "group": "storage.karmada.io",
+          "version": "v1alpha1",
+          "kind": "Juicefs"
+        }
+      },
+      "patch": {
+        "description": "partially update the specified Juicefs",
+        "consumes": [
+          "application/json-patch+json",
+          "application/merge-patch+json",
+          "application/strategic-merge-patch+json",
+          "application/apply-patch+yaml"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "storageKarmadaIo_v1alpha1"
+        ],
+        "operationId": "patchStorageKarmadaIoV1alpha1Juicefs",
+        "parameters": [
+          {
+            "$ref": "#/parameters/body-78PwaGsr"
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+            "name": "dryRun",
+            "in": "query"
+          },
+          {
+            "$ref": "#/parameters/fieldManager-7c6nTn1T"
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "fieldValidation instructs the server on how to handle objects in the request (POST/PUT/PATCH) containing unknown or duplicate fields. Valid values are: - Ignore: This will ignore any unknown fields that are silently dropped from the object, and will ignore all but the last duplicate field that the decoder encounters. This is the default behavior prior to v1.23. - Warn: This will send a warning via the standard warning response header for each unknown field that is dropped from the object, and for each duplicate field that is encountered. The request will still succeed if there are no other errors, and will only persist the last of any duplicate fields. This is the default in v1.23+ - Strict: This will fail the request with a BadRequest error if any unknown fields would be dropped from the object, or if any duplicate fields are present. The error returned from the server will contain all unknown and duplicate fields encountered.",
+            "name": "fieldValidation",
+            "in": "query"
+          },
+          {
+            "$ref": "#/parameters/force-tOGGb0Yi"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Juicefs"
+            }
+          },
+          "201": {
+            "description": "Created",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Juicefs"
+            }
+          }
+        },
+        "x-kubernetes-action": "patch",
+        "x-kubernetes-group-version-kind": {
+          "group": "storage.karmada.io",
+          "version": "v1alpha1",
+          "kind": "Juicefs"
+        }
+      },
+      "parameters": [
+        {
+          "uniqueItems": true,
+          "type": "string",
+          "description": "name of the Juicefs",
+          "name": "name",
+          "in": "path",
+          "required": true
+        },
+        {
+          "$ref": "#/parameters/pretty-tJGM1-ng"
+        }
+      ]
+    },
+    "/apis/storage.karmada.io/v1alpha1/juicefs/{name}/status": {
+      "get": {
+        "description": "read status of the specified Juicefs",
+        "consumes": [
+          "*/*"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "storageKarmadaIo_v1alpha1"
+        ],
+        "operationId": "readStorageKarmadaIoV1alpha1JuicefsStatus",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Juicefs"
+            }
+          }
+        },
+        "x-kubernetes-action": "get",
+        "x-kubernetes-group-version-kind": {
+          "group": "storage.karmada.io",
+          "version": "v1alpha1",
+          "kind": "Juicefs"
+        }
+      },
+      "put": {
+        "description": "replace status of the specified Juicefs",
+        "consumes": [
+          "*/*"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "storageKarmadaIo_v1alpha1"
+        ],
+        "operationId": "replaceStorageKarmadaIoV1alpha1JuicefsStatus",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Juicefs"
+            }
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+            "name": "dryRun",
+            "in": "query"
+          },
+          {
+            "$ref": "#/parameters/fieldManager-Qy4HdaTW"
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "fieldValidation instructs the server on how to handle objects in the request (POST/PUT/PATCH) containing unknown or duplicate fields. Valid values are: - Ignore: This will ignore any unknown fields that are silently dropped from the object, and will ignore all but the last duplicate field that the decoder encounters. This is the default behavior prior to v1.23. - Warn: This will send a warning via the standard warning response header for each unknown field that is dropped from the object, and for each duplicate field that is encountered. The request will still succeed if there are no other errors, and will only persist the last of any duplicate fields. This is the default in v1.23+ - Strict: This will fail the request with a BadRequest error if any unknown fields would be dropped from the object, or if any duplicate fields are present. The error returned from the server will contain all unknown and duplicate fields encountered.",
+            "name": "fieldValidation",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Juicefs"
+            }
+          },
+          "201": {
+            "description": "Created",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Juicefs"
+            }
+          }
+        },
+        "x-kubernetes-action": "put",
+        "x-kubernetes-group-version-kind": {
+          "group": "storage.karmada.io",
+          "version": "v1alpha1",
+          "kind": "Juicefs"
+        }
+      },
+      "patch": {
+        "description": "partially update status of the specified Juicefs",
+        "consumes": [
+          "application/json-patch+json",
+          "application/merge-patch+json",
+          "application/strategic-merge-patch+json",
+          "application/apply-patch+yaml"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "storageKarmadaIo_v1alpha1"
+        ],
+        "operationId": "patchStorageKarmadaIoV1alpha1JuicefsStatus",
+        "parameters": [
+          {
+            "$ref": "#/parameters/body-78PwaGsr"
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+            "name": "dryRun",
+            "in": "query"
+          },
+          {
+            "$ref": "#/parameters/fieldManager-7c6nTn1T"
+          },
+          {
+            "uniqueItems": true,
+            "type": "string",
+            "description": "fieldValidation instructs the server on how to handle objects in the request (POST/PUT/PATCH) containing unknown or duplicate fields. Valid values are: - Ignore: This will ignore any unknown fields that are silently dropped from the object, and will ignore all but the last duplicate field that the decoder encounters. This is the default behavior prior to v1.23. - Warn: This will send a warning via the standard warning response header for each unknown field that is dropped from the object, and for each duplicate field that is encountered. The request will still succeed if there are no other errors, and will only persist the last of any duplicate fields. This is the default in v1.23+ - Strict: This will fail the request with a BadRequest error if any unknown fields would be dropped from the object, or if any duplicate fields are present. The error returned from the server will contain all unknown and duplicate fields encountered.",
+            "name": "fieldValidation",
+            "in": "query"
+          },
+          {
+            "$ref": "#/parameters/force-tOGGb0Yi"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Juicefs"
+            }
+          },
+          "201": {
+            "description": "Created",
+            "schema": {
+              "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Juicefs"
+            }
+          }
+        },
+        "x-kubernetes-action": "patch",
+        "x-kubernetes-group-version-kind": {
+          "group": "storage.karmada.io",
+          "version": "v1alpha1",
+          "kind": "Juicefs"
+        }
+      },
+      "parameters": [
+        {
+          "uniqueItems": true,
+          "type": "string",
+          "description": "name of the Juicefs",
+          "name": "name",
+          "in": "path",
+          "required": true
+        },
+        {
+          "$ref": "#/parameters/pretty-tJGM1-ng"
+        }
+      ]
+    },
+    "/apis/storage.karmada.io/v1alpha1/watch/juicefs": {
+      "get": {
+        "description": "watch individual changes to a list of Juicefs. deprecated: use the 'watch' parameter with a list operation instead.",
+        "consumes": [
+          "*/*"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf",
+          "application/json;stream=watch",
+          "application/vnd.kubernetes.protobuf;stream=watch"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "storageKarmadaIo_v1alpha1"
+        ],
+        "operationId": "watchStorageKarmadaIoV1alpha1JuicefsList",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.WatchEvent"
+            }
+          }
+        },
+        "x-kubernetes-action": "watchlist",
+        "x-kubernetes-group-version-kind": {
+          "group": "storage.karmada.io",
+          "version": "v1alpha1",
+          "kind": "Juicefs"
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/parameters/allowWatchBookmarks-HC2hJt-J"
+        },
+        {
+          "$ref": "#/parameters/continue-QfD61s0i"
+        },
+        {
+          "$ref": "#/parameters/fieldSelector-xIcQKXFG"
+        },
+        {
+          "$ref": "#/parameters/labelSelector-5Zw57w4C"
+        },
+        {
+          "$ref": "#/parameters/limit-1NfNmdNH"
+        },
+        {
+          "$ref": "#/parameters/pretty-tJGM1-ng"
+        },
+        {
+          "$ref": "#/parameters/resourceVersion-5WAnf1kx"
+        },
+        {
+          "$ref": "#/parameters/resourceVersionMatch-t8XhRHeC"
+        },
+        {
+          "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
+        },
+        {
+          "$ref": "#/parameters/watch-XNNPZGbK"
+        }
+      ]
+    },
+    "/apis/storage.karmada.io/v1alpha1/watch/juicefs/{name}": {
+      "get": {
+        "description": "watch changes to an object of kind Juicefs. deprecated: use the 'watch' parameter with a list operation instead, filtered to a single item with the 'fieldSelector' parameter.",
+        "consumes": [
+          "*/*"
+        ],
+        "produces": [
+          "application/json",
+          "application/yaml",
+          "application/vnd.kubernetes.protobuf",
+          "application/json;stream=watch",
+          "application/vnd.kubernetes.protobuf;stream=watch"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "storageKarmadaIo_v1alpha1"
+        ],
+        "operationId": "watchStorageKarmadaIoV1alpha1Juicefs",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.WatchEvent"
+            }
+          }
+        },
+        "x-kubernetes-action": "watch",
+        "x-kubernetes-group-version-kind": {
+          "group": "storage.karmada.io",
+          "version": "v1alpha1",
+          "kind": "Juicefs"
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/parameters/allowWatchBookmarks-HC2hJt-J"
+        },
+        {
+          "$ref": "#/parameters/continue-QfD61s0i"
+        },
+        {
+          "$ref": "#/parameters/fieldSelector-xIcQKXFG"
+        },
+        {
+          "$ref": "#/parameters/labelSelector-5Zw57w4C"
+        },
+        {
+          "$ref": "#/parameters/limit-1NfNmdNH"
+        },
+        {
+          "uniqueItems": true,
+          "type": "string",
+          "description": "name of the Juicefs",
+          "name": "name",
+          "in": "path",
+          "required": true
+        },
+        {
+          "$ref": "#/parameters/pretty-tJGM1-ng"
+        },
+        {
+          "$ref": "#/parameters/resourceVersion-5WAnf1kx"
+        },
+        {
+          "$ref": "#/parameters/resourceVersionMatch-t8XhRHeC"
+        },
+        {
+          "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
+        },
+        {
+          "$ref": "#/parameters/watch-XNNPZGbK"
+        }
+      ]
+    },
     "/apis/work.karmada.io/": {
       "get": {
         "description": "get information of a group",
@@ -19890,6 +20742,360 @@
         }
       }
     },
+    "com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.AkSk": {
+      "description": "AkSk defines configuration for JuiceFS oss",
+      "type": "object",
+      "required": [
+        "access-key",
+        "secret-key"
+      ],
+      "properties": {
+        "access-key": {
+          "type": "string"
+        },
+        "secret-key": {
+          "type": "string"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Auth": {
+      "description": "Auth represents the authentication configuration for a JuiceFS storage resource",
+      "type": "object",
+      "properties": {
+        "aliyun": {
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.AkSk"
+        },
+        "aws": {
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.AkSk"
+        },
+        "azure": {
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Azure"
+        },
+        "docker": {
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Harbor"
+        },
+        "gcp": {
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.GCP"
+        },
+        "harbor": {
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Harbor"
+        },
+        "oss": {
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.AkSk"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Azure": {
+      "description": "Azure represents the Azure configuration for a JuiceFS storage resource",
+      "type": "object",
+      "required": [
+        "service-principal-id",
+        "service-principal-secret"
+      ],
+      "properties": {
+        "service-principal-id": {
+          "type": "string"
+        },
+        "service-principal-secret": {
+          "type": "string"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.CommunityEdition": {
+      "description": "CommunityEdition defines configuration for JuiceFS community edition",
+      "type": "object",
+      "required": [
+        "version",
+        "meta-url",
+        "backend"
+      ],
+      "properties": {
+        "backend": {
+          "type": "string"
+        },
+        "meta-url": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.EnterpriseEdition": {
+      "description": "EnterpriseEdition defines configuration for JuiceFS enterprise edition",
+      "type": "object",
+      "required": [
+        "version",
+        "console-web",
+        "token"
+      ],
+      "properties": {
+        "backend": {
+          "type": "string"
+        },
+        "console-web": {
+          "type": "string"
+        },
+        "token": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.GCP": {
+      "description": "GCP represents the GCP configuration for a JuiceFS storage resource",
+      "type": "object",
+      "properties": {
+        "application-default-credentials": {
+          "type": "string"
+        },
+        "service-account-credentials": {
+          "type": "string"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Harbor": {
+      "description": "Harbor represents the Harbor configuration for a JuiceFS storage resource",
+      "type": "object",
+      "required": [
+        "username",
+        "password",
+        "url"
+      ],
+      "properties": {
+        "insecure": {
+          "type": "boolean"
+        },
+        "password": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Juicefs": {
+      "description": "Juicefs represents a JuiceFS storage resource",
+      "type": "object",
+      "properties": {
+        "apiVersion": {
+          "description": "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+          "type": "string"
+        },
+        "metadata": {
+          "default": {},
+          "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta"
+        },
+        "spec": {
+          "default": {},
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.JuicefsSpec"
+        },
+        "status": {
+          "default": {},
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.JuicefsStatus"
+        }
+      },
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "storage.karmada.io",
+          "kind": "Juicefs",
+          "version": "v1alpha1"
+        }
+      ]
+    },
+    "com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.JuicefsClient": {
+      "description": "JuicefsClient defines the configuration for JuiceFS client",
+      "type": "object",
+      "required": [
+        "cache-dir"
+      ],
+      "properties": {
+        "cache-dir": {
+          "type": "string"
+        },
+        "ce": {
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.CommunityEdition"
+        },
+        "ee": {
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.EnterpriseEdition"
+        },
+        "mount-options": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "default": ""
+          }
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.JuicefsList": {
+      "description": "JuicefsList contains a list of Juicefs resources",
+      "type": "object",
+      "required": [
+        "items"
+      ],
+      "properties": {
+        "apiVersion": {
+          "description": "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+          "type": "string"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Juicefs"
+          }
+        },
+        "kind": {
+          "description": "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+          "type": "string"
+        },
+        "metadata": {
+          "default": {},
+          "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ListMeta"
+        }
+      },
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "storage.karmada.io",
+          "kind": "JuicefsList",
+          "version": "v1alpha1"
+        }
+      ]
+    },
+    "com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.JuicefsSpec": {
+      "description": "JuicefsSpec defines the specification for a JuiceFS storage resource",
+      "type": "object",
+      "required": [
+        "provider",
+        "client",
+        "labor",
+        "auth"
+      ],
+      "properties": {
+        "auth": {
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Auth"
+        },
+        "client": {
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.JuicefsClient"
+        },
+        "description": {
+          "type": "string"
+        },
+        "labor": {
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Labor"
+        },
+        "location": {
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Location"
+        },
+        "provider": {
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Provider"
+        },
+        "public": {
+          "type": "string"
+        },
+        "settings": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "default": ""
+          }
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.JuicefsStatus": {
+      "description": "JuicefsStatus defines the observed state of JuiceFS resource",
+      "type": "object",
+      "properties": {
+        "conditions": {
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Condition"
+          }
+        },
+        "mountInfo": {
+          "default": {},
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.MountInfo"
+        },
+        "phase": {
+          "type": "string"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Labor": {
+      "description": "Labor represents the labor configuration for a JuiceFS storage resource",
+      "type": "object",
+      "required": [
+        "run-script"
+      ],
+      "properties": {
+        "envs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "default": ""
+          }
+        },
+        "run-script": {
+          "description": "Resources corev1.ResourceRequirements `json:\"resources,omitempty\"`",
+          "type": "string"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Location": {
+      "description": "Location represents the storage location",
+      "type": "object",
+      "properties": {
+        "az": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.MountInfo": {
+      "description": "MountInfo provides information about mounted JuiceFS",
+      "type": "object",
+      "properties": {
+        "lastMounted": {
+          "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
+        },
+        "mountedNodes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "default": ""
+          }
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.storage.v1alpha1.Provider": {
+      "description": "Provider represents the storage provider information",
+      "type": "object",
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
     "com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.Manifest": {
       "description": "Manifest represents a resource to be deployed on managed cluster.",
       "type": "object"
@@ -22300,6 +23506,11 @@
           "version": "v1beta1"
         },
         {
+          "group": "storage.karmada.io",
+          "kind": "DeleteOptions",
+          "version": "v1alpha1"
+        },
+        {
           "group": "storagemigration.k8s.io",
           "kind": "DeleteOptions",
           "version": "v1alpha1"
@@ -23065,6 +24276,11 @@
           "group": "storage.k8s.io",
           "kind": "WatchEvent",
           "version": "v1beta1"
+        },
+        {
+          "group": "storage.karmada.io",
+          "kind": "WatchEvent",
+          "version": "v1alpha1"
         },
         {
           "group": "storagemigration.k8s.io",

@@ -34,6 +34,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	remedyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
+	storagev1alpha1 "github.com/karmada-io/karmada/pkg/apis/storage/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
@@ -117,6 +118,10 @@ func main() {
 		appsv1alpha1.SchemeGroupVersion.WithResource(appsv1alpha1.ResourcePluralWorkloadRebalancer),
 		appsv1alpha1.SchemeGroupVersion.WithResource(appsv1alpha1.ResourceSingularWorkloadRebalancer), meta.RESTScopeRoot)
 
+	mapper.AddSpecific(storagev1alpha1.SchemeGroupVersion.WithKind(storagev1alpha1.ResourceKindJuicefs),
+		storagev1alpha1.SchemeGroupVersion.WithResource(storagev1alpha1.ResourcePluralJuicefs),
+		storagev1alpha1.SchemeGroupVersion.WithResource(storagev1alpha1.ResourceSingularJuicefs), meta.RESTScopeRoot)
+
 	spec, err := lib.RenderOpenAPISpec(lib.Config{
 		Info: spec.InfoProps{
 			Title:       "Karmada OpenAPI",
@@ -151,6 +156,7 @@ func main() {
 			{GVR: autoscalingv1alpha1.SchemeGroupVersion.WithResource(autoscalingv1alpha1.ResourcePluralCronFederatedHPA), NamespaceScoped: autoscalingv1alpha1.ResourceNamespaceScopedCronFederatedHPA},
 			{GVR: remedyv1alpha1.SchemeGroupVersion.WithResource(remedyv1alpha1.ResourcePluralRemedy), NamespaceScoped: remedyv1alpha1.ResourceNamespaceScopedRemedy},
 			{GVR: appsv1alpha1.SchemeGroupVersion.WithResource(appsv1alpha1.ResourcePluralWorkloadRebalancer), NamespaceScoped: appsv1alpha1.ResourceNamespaceScopedWorkloadRebalancer},
+			{GVR: storagev1alpha1.SchemeGroupVersion.WithResource(storagev1alpha1.ResourcePluralJuicefs), NamespaceScoped: storagev1alpha1.ResourceNamespaceScopedJuicefs},
 		},
 		Mapper: mapper,
 	})

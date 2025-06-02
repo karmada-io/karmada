@@ -36,6 +36,8 @@ import (
 	fakeremedyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/remedy/v1alpha1/fake"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/search/v1alpha1"
 	fakesearchv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/search/v1alpha1/fake"
+	storagev1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/storage/v1alpha1"
+	fakestoragev1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/storage/v1alpha1/fake"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha1"
 	fakeworkv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha1/fake"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha2"
@@ -139,6 +141,11 @@ func (c *Clientset) RemedyV1alpha1() remedyv1alpha1.RemedyV1alpha1Interface {
 // SearchV1alpha1 retrieves the SearchV1alpha1Client
 func (c *Clientset) SearchV1alpha1() searchv1alpha1.SearchV1alpha1Interface {
 	return &fakesearchv1alpha1.FakeSearchV1alpha1{Fake: &c.Fake}
+}
+
+// StorageV1alpha1 retrieves the StorageV1alpha1Client
+func (c *Clientset) StorageV1alpha1() storagev1alpha1.StorageV1alpha1Interface {
+	return &fakestoragev1alpha1.FakeStorageV1alpha1{Fake: &c.Fake}
 }
 
 // WorkV1alpha1 retrieves the WorkV1alpha1Client

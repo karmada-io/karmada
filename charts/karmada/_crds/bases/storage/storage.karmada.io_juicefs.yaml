@@ -1,0 +1,302 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.3
+  name: juicefs.storage.karmada.io
+spec:
+  group: storage.karmada.io
+  names:
+    kind: Juicefs
+    listKind: JuicefsList
+    plural: juicefs
+    singular: juicefs
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Juicefs represents a JuiceFS storage resource
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: JuicefsSpec defines the specification for a JuiceFS storage
+              resource
+            properties:
+              auth:
+                description: Auth represents the authentication configuration for
+                  a JuiceFS storage resource
+                properties:
+                  aliyun:
+                    description: AkSk defines configuration for JuiceFS oss
+                    properties:
+                      access-key:
+                        type: string
+                      secret-key:
+                        type: string
+                    required:
+                    - access-key
+                    - secret-key
+                    type: object
+                  aws:
+                    description: AkSk defines configuration for JuiceFS oss
+                    properties:
+                      access-key:
+                        type: string
+                      secret-key:
+                        type: string
+                    required:
+                    - access-key
+                    - secret-key
+                    type: object
+                  azure:
+                    description: Azure represents the Azure configuration for a JuiceFS
+                      storage resource
+                    properties:
+                      service-principal-id:
+                        type: string
+                      service-principal-secret:
+                        type: string
+                    required:
+                    - service-principal-id
+                    - service-principal-secret
+                    type: object
+                  docker:
+                    description: Harbor represents the Harbor configuration for a
+                      JuiceFS storage resource
+                    properties:
+                      insecure:
+                        type: boolean
+                      password:
+                        type: string
+                      url:
+                        type: string
+                      username:
+                        type: string
+                    required:
+                    - password
+                    - url
+                    - username
+                    type: object
+                  gcp:
+                    description: GCP represents the GCP configuration for a JuiceFS
+                      storage resource
+                    properties:
+                      application-default-credentials:
+                        type: string
+                      service-account-credentials:
+                        type: string
+                    type: object
+                  harbor:
+                    description: Harbor represents the Harbor configuration for a
+                      JuiceFS storage resource
+                    properties:
+                      insecure:
+                        type: boolean
+                      password:
+                        type: string
+                      url:
+                        type: string
+                      username:
+                        type: string
+                    required:
+                    - password
+                    - url
+                    - username
+                    type: object
+                  oss:
+                    description: AkSk defines configuration for JuiceFS oss
+                    properties:
+                      access-key:
+                        type: string
+                      secret-key:
+                        type: string
+                    required:
+                    - access-key
+                    - secret-key
+                    type: object
+                type: object
+              client:
+                description: JuicefsClient defines the configuration for JuiceFS client
+                properties:
+                  cache-dir:
+                    type: string
+                  ce:
+                    description: CommunityEdition defines configuration for JuiceFS
+                      community edition
+                    properties:
+                      backend:
+                        type: string
+                      meta-url:
+                        type: string
+                      version:
+                        type: string
+                    required:
+                    - backend
+                    - meta-url
+                    - version
+                    type: object
+                  ee:
+                    description: EnterpriseEdition defines configuration for JuiceFS
+                      enterprise edition
+                    properties:
+                      backend:
+                        type: string
+                      console-web:
+                        type: string
+                      token:
+                        type: string
+                      version:
+                        type: string
+                    required:
+                    - console-web
+                    - token
+                    - version
+                    type: object
+                  mount-options:
+                    items:
+                      type: string
+                    type: array
+                required:
+                - cache-dir
+                type: object
+              description:
+                type: string
+              labor:
+                description: Labor represents the labor configuration for a JuiceFS
+                  storage resource
+                properties:
+                  envs:
+                    items:
+                      type: string
+                    type: array
+                  run-script:
+                    description: Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+                    type: string
+                required:
+                - run-script
+                type: object
+              location:
+                description: Location represents the storage location
+                properties:
+                  az:
+                    type: string
+                  region:
+                    type: string
+                type: object
+              provider:
+                description: Provider represents the storage provider information
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                required:
+                - id
+                - name
+                type: object
+              public:
+                type: string
+              settings:
+                additionalProperties:
+                  type: string
+                type: object
+            required:
+            - auth
+            - client
+            - labor
+            - provider
+            type: object
+          status:
+            description: JuicefsStatus defines the observed state of JuiceFS resource
+            properties:
+              conditions:
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              mountInfo:
+                description: MountInfo provides information about mounted JuiceFS
+                properties:
+                  lastMounted:
+                    format: date-time
+                    type: string
+                  mountedNodes:
+                    items:
+                      type: string
+                    type: array
+                type: object
+              phase:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true

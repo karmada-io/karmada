@@ -49,6 +49,7 @@ REGISTRY=${REGISTRY:-"docker.io/karmada"}
 VERSION=${VERSION:="unknown"}
 DOCKER_BUILD_ARGS=${DOCKER_BUILD_ARGS:-}
 SIGN_IMAGE=${SIGN_IMAGE:-"0"}
+OS=${OS:-"alpine"}
 
 function build_images() {
   local -r target=$1
@@ -77,7 +78,7 @@ function build_local_image() {
   docker build --build-arg BINARY="${target}" \
           ${DOCKER_BUILD_ARGS} \
           --tag "${image_name}" \
-          --file "${REPO_ROOT}/cluster/images/Dockerfile" \
+          --file "${REPO_ROOT}/cluster/images/${OS}.Dockerfile" \
           "${REPO_ROOT}/_output/bin/${platform}"
   set +x
 

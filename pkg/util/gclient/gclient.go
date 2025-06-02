@@ -33,6 +33,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	remedyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
+	storagev1alpha1 "github.com/karmada-io/karmada/pkg/apis/storage/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
@@ -54,6 +55,7 @@ func init() {
 	utilruntime.Must(remedyv1alpha1.Install(aggregatedScheme))        // add remedy v1alpha1 schemes
 	utilruntime.Must(appsv1alpha1.Install(aggregatedScheme))          // add apps v1alpha1 schemes
 	utilruntime.Must(clusterapiv1beta1.AddToScheme(aggregatedScheme)) // add cluster-api v1beta1 schemes
+	utilruntime.Must(storagev1alpha1.Install(aggregatedScheme))       // add storage v1alpha1 schemes
 }
 
 // NewSchema returns a singleton schema set which aggregated Kubernetes's schemes and extended schemes.

@@ -29,6 +29,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	remedyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
+	storagev1alpha1 "github.com/karmada-io/karmada/pkg/apis/storage/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	v1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -108,6 +109,10 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		// Group=search.karmada.io, Version=v1alpha1
 	case searchv1alpha1.SchemeGroupVersion.WithResource("resourceregistries"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Search().V1alpha1().ResourceRegistries().Informer()}, nil
+
+		// Group=storage.karmada.io, Version=v1alpha1
+	case storagev1alpha1.SchemeGroupVersion.WithResource("juicefses"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Storage().V1alpha1().Juicefses().Informer()}, nil
 
 		// Group=work.karmada.io, Version=v1alpha1
 	case workv1alpha1.SchemeGroupVersion.WithResource("clusterresourcebindings"):
