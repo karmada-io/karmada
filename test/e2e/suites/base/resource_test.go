@@ -673,7 +673,7 @@ var _ = framework.SerialDescribe("workload status synchronization testing", func
 
 		ginkgo.It("deployment status synchronization testing", func() {
 			var disabledClusters []string
-			targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
+			targetClusterNames := framework.ExtractTargetClustersFromRB(controlPlaneClient, deployment.Kind, deployment.Namespace, deployment.Name)
 
 			ginkgo.By(fmt.Sprintf("add taint %v to the random one cluster", framework.NotReadyTaintTemplate), func() {
 				temp := numOfFailedClusters

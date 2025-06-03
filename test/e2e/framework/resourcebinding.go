@@ -21,13 +21,18 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	karmada "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 // WaitResourceBindingFitWith wait resourceBinding fit with util timeout
@@ -79,4 +84,27 @@ func WaitGracefulEvictionTasksDone(client karmada.Interface, namespace, name str
 			return nil
 		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
+}
+
+// ExtractTargetClustersFromRB extract the target cluster names from resourceBinding object.
+func ExtractTargetClustersFromRB(c client.Client, resourceKind, resourceNs, resourceName string) []string {
+	bindingName := names.GenerateBindingName(resourceKind, resourceName)
+	binding := &workv1alpha2.ResourceBinding{}
+	gomega.Eventually(func(g gomega.Gomega) (bool, error) {
+		err := c.Get(context.TODO(), client.ObjectKey{Namespace: resourceNs, Name: bindingName}, binding)
+		g.Expect(err).NotTo(gomega.HaveOccurred())
+
+		if !helper.IsBindingScheduled(&binding.Status) {
+			klog.Infof("The ResourceBinding(%s/%s) hasn't been scheduled.", binding.Namespace, binding.Name)
+			return false, nil
+		}
+		return true, nil
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
+
+	targetClusterNames := make([]string, 0, len(binding.Spec.Clusters))
+	for _, cluster := range binding.Spec.Clusters {
+		targetClusterNames = append(targetClusterNames, cluster.Name)
+	}
+	klog.Infof("The ResourceBinding(%s/%s) schedule result is: %s", binding.Namespace, binding.Name, strings.Join(targetClusterNames, ","))
+	return targetClusterNames
 }

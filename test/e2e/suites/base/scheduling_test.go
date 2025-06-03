@@ -101,7 +101,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 
 		ginkgo.It("Deployment propagation with label and group constraints testing", func() {
 			ginkgo.By("collect the target clusters in resource binding", func() {
-				targetClusterNames = framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
+				targetClusterNames = framework.ExtractTargetClustersFromRB(controlPlaneClient, deployment.Kind, deployment.Namespace, deployment.Name)
 				gomega.Expect(len(targetClusterNames) == minGroups).ShouldNot(gomega.BeFalse())
 			})
 
