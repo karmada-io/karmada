@@ -21,6 +21,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// ResourceKindClusterTaintPolicy is kind name of ClusterTaintPolicy.
+	ResourceKindClusterTaintPolicy = "ClusterTaintPolicy"
+	// ResourceSingularClusterTaintPolicy is singular name of ClusterTaintPolicy.
+	ResourceSingularClusterTaintPolicy = "clustertaintpolicy"
+	// ResourcePluralClusterTaintPolicy is plural name of ClusterTaintPolicy.
+	ResourcePluralClusterTaintPolicy = "clustertaintpolicies"
+	// ResourceNamespaceScopedClusterTaintPolicy indicates if ClusterTaintPolicy is NamespaceScoped.
+	ResourceNamespaceScopedClusterTaintPolicy = false
+)
+
 // +genclient
 // +genclient:nonNamespaced
 // +kubebuilder:resource:path=clustertaintpolicies,scope="Cluster"
