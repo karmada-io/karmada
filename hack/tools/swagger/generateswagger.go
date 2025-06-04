@@ -85,6 +85,10 @@ func main() {
 		policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourcePluralFederatedResourceQuota),
 		policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourceSingularFederatedResourceQuota), meta.RESTScopeRoot)
 
+	mapper.AddSpecific(policyv1alpha1.SchemeGroupVersion.WithKind(policyv1alpha1.ResourceKindClusterTaintPolicy),
+		policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourcePluralClusterTaintPolicy),
+		policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourceSingularClusterTaintPolicy), meta.RESTScopeRoot)
+
 	mapper.AddSpecific(workv1alpha1.SchemeGroupVersion.WithKind(workv1alpha1.ResourceKindWork),
 		workv1alpha1.SchemeGroupVersion.WithResource(workv1alpha1.ResourcePluralWork),
 		workv1alpha1.SchemeGroupVersion.WithResource(workv1alpha1.ResourceSingularWork), meta.RESTScopeRoot)
@@ -143,6 +147,7 @@ func main() {
 			{GVR: policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourcePluralOverridePolicy), NamespaceScoped: policyv1alpha1.ResourceNamespaceScopedOverridePolicy},
 			{GVR: policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourcePluralClusterOverridePolicy), NamespaceScoped: policyv1alpha1.ResourceNamespaceScopedClusterOverridePolicy},
 			{GVR: policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourcePluralFederatedResourceQuota), NamespaceScoped: policyv1alpha1.ResourceNamespaceScopedFederatedResourceQuota},
+			{GVR: policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourcePluralClusterTaintPolicy), NamespaceScoped: policyv1alpha1.ResourceNamespaceScopedClusterTaintPolicy},
 			{GVR: workv1alpha1.SchemeGroupVersion.WithResource(workv1alpha1.ResourcePluralWork), NamespaceScoped: workv1alpha1.ResourceNamespaceScopedWork},
 			{GVR: workv1alpha2.SchemeGroupVersion.WithResource(workv1alpha2.ResourcePluralResourceBinding), NamespaceScoped: workv1alpha2.ResourceNamespaceScopedResourceBinding},
 			{GVR: workv1alpha2.SchemeGroupVersion.WithResource(workv1alpha2.ResourcePluralClusterResourceBinding), NamespaceScoped: workv1alpha2.ResourceNamespaceScopedClusterResourceBinding},
