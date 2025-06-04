@@ -85,6 +85,7 @@ const (
 	cppNamePrefix                 = "cpp-"
 	workloadRebalancerPrefix      = "rebalancer-"
 	remedyNamePrefix              = "remedy-"
+	clusterTaintPolicyNamePrefix  = "ctp-"
 
 	updateDeploymentReplicas  = 2
 	updateStatefulSetReplicas = 2
