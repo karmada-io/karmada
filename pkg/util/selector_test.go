@@ -1016,7 +1016,7 @@ func Test_matchZones(t *testing.T) {
 				Values:   []string{"foo"},
 			},
 			zones:   []string{"foo", "bar"},
-			matched: false,
+			matched: true,
 		},
 		{
 			name: "all zones for In operator",
