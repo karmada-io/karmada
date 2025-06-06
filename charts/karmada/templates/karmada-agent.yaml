@@ -33,10 +33,10 @@ subjects:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: {{ $name }}-kubeconfig
+  name: karmada-kubeconfig
   namespace: {{ include "karmada.namespace" . }}
 stringData:
-  kubeconfig: |-
+  karmada-kubeconfig: |-
     apiVersion: v1
     kind: Config
     clusters:
@@ -105,7 +105,7 @@ spec:
             {{- include "karmada.env.podIP" . | nindent 12 }}
           command:
             - /bin/karmada-agent
-            - --karmada-kubeconfig=/etc/kubeconfig/kubeconfig
+            - --karmada-kubeconfig=/etc/kubeconfig/karmada-kubeconfig
             - --cluster-name={{ .Values.agent.clusterName }}
             {{- if .Values.agent.clusterEndpoint }}
             - --cluster-api-endpoint={{ .Values.agent.clusterEndpoint }}
@@ -137,7 +137,7 @@ spec:
       volumes:
         - name: kubeconfig
           secret:
-            secretName: {{ $name }}-kubeconfig
+            secretName: karmada-kubeconfig
 
 {{ if .Values.agent.podDisruptionBudget }}
 ---
