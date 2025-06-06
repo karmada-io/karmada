@@ -43,6 +43,7 @@ spec:
             - --cert-dir=/etc/karmada/pki/server
             - --feature-gates=AllAlpha=true,AllBeta=true
             - --allow-no-execute-taint-policy=true
+            - --logging-format=json
             - --v=4
           ports:
             - containerPort: 8443
