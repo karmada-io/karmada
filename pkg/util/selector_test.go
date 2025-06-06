@@ -600,7 +600,7 @@ func TestClusterMatches(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "test field selector zone not matched",
+			name: "test field selector zone partially matched",
 			affinity: policyv1alpha1.ClusterAffinity{
 				ClusterNames: []string{cluster.Name},
 				FieldSelector: &policyv1alpha1.FieldSelector{
@@ -621,7 +621,7 @@ func TestClusterMatches(t *testing.T) {
 					},
 				},
 			},
-			want: false,
+			want: true,
 		},
 		{
 			name: "test field selector region matched",
@@ -1009,14 +1009,14 @@ func Test_matchZones(t *testing.T) {
 			matched: false,
 		},
 		{
-			name: "partial zones for In operator",
+			name: "overlapping zones for In operator",
 			zoneMatchExpression: &corev1.NodeSelectorRequirement{
 				Key:      ZoneField,
 				Operator: corev1.NodeSelectorOpIn,
 				Values:   []string{"foo"},
 			},
 			zones:   []string{"foo", "bar"},
-			matched: false,
+			matched: true,
 		},
 		{
 			name: "all zones for In operator",
