@@ -26,6 +26,8 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/util/flowcontrol"
 	cliflag "k8s.io/component-base/cli/flag"
+	"k8s.io/component-base/logs"
+	logsv1 "k8s.io/component-base/logs/api/v1"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -37,6 +39,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/conversion"
 
 	"github.com/karmada-io/karmada/cmd/webhook/app/options"
+	"github.com/karmada-io/karmada/pkg/features"
 	versionmetrics "github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
@@ -65,12 +68,37 @@ import (
 
 // NewWebhookCommand creates a *cobra.Command object with default parameters
 func NewWebhookCommand(ctx context.Context) *cobra.Command {
+	logConfig := logsv1.NewLoggingConfiguration()
+	fss := cliflag.NamedFlagSets{}
+
+	logsFlagSet := fss.FlagSet("logs")
+	logs.AddFlags(logsFlagSet, logs.SkipLoggingConfigurationFlags())
+	logsv1.AddFlags(logConfig, logsFlagSet)
+	klogflag.Add(logsFlagSet)
+
+	genericFlagSet := fss.FlagSet("generic")
 	opts := options.NewOptions()
+	genericFlagSet.AddGoFlagSet(flag.CommandLine)
+	opts.AddFlags(genericFlagSet)
 
 	cmd := &cobra.Command{
 		Use: names.KarmadaWebhookComponentName,
 		Long: `The karmada-webhook starts a webhook server and manages policies about how to mutate and validate
 Karmada resources including 'PropagationPolicy', 'OverridePolicy' and so on.`,
+		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
+			if err := logsv1.ValidateAndApply(logConfig, features.FeatureGate); err != nil {
+				return err
+			}
+			logs.InitLogs()
+
+			// Starting from version 0.15.0, controller-runtime expects its consumers to set a logger through log.SetLogger.
+			// If SetLogger is not called within the first 30 seconds of a binaries lifetime, it will get
+			// set to a NullLogSink and report an error. Here's to silence the "log.SetLogger(...) was never called; logs will not be displayed" error
+			// by setting a logger through log.SetLogger.
+			// More info refer to: https://github.com/karmada-io/karmada/pull/4885.
+			controllerruntime.SetLogger(klog.Background())
+			return nil
+		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {
@@ -90,16 +118,6 @@ Karmada resources including 'PropagationPolicy', 'OverridePolicy' and so on.`,
 			return nil
 		},
 	}
-
-	fss := cliflag.NamedFlagSets{}
-
-	genericFlagSet := fss.FlagSet("generic")
-	genericFlagSet.AddGoFlagSet(flag.CommandLine)
-	opts.AddFlags(genericFlagSet)
-
-	// Set klog flags
-	logsFlagSet := fss.FlagSet("logs")
-	klogflag.Add(logsFlagSet)
 
 	cmd.AddCommand(sharedcommand.NewCmdVersion(names.KarmadaWebhookComponentName))
 	cmd.Flags().AddFlagSet(genericFlagSet)
