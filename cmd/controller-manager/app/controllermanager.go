@@ -43,6 +43,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -150,6 +151,8 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 
 // Run runs the controller-manager with options. This should never exit.
 func Run(ctx context.Context, opts *options.Options) error {
+	logger := klog.NewKlogr()
+	log.SetLogger(logger)
 	klog.Infof("karmada-controller-manager version: %s", version.Get())
 
 	profileflag.ListenAndServe(opts.ProfileOpts)
@@ -160,7 +163,6 @@ func Run(ctx context.Context, opts *options.Options) error {
 	}
 	controlPlaneRestConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(opts.KubeAPIQPS, opts.KubeAPIBurst)
 	controllerManager, err := controllerruntime.NewManager(controlPlaneRestConfig, controllerruntime.Options{
-		Logger:                     klog.Background(),
 		Scheme:                     gclient.NewSchema(),
 		Cache:                      cache.Options{SyncPeriod: &opts.ResyncPeriod.Duration},
 		LeaderElection:             opts.LeaderElection.LeaderElect,

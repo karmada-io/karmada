@@ -30,6 +30,7 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -112,6 +113,8 @@ Karmada resources including 'PropagationPolicy', 'OverridePolicy' and so on.`,
 
 // Run runs the webhook server with options. This should never exit.
 func Run(ctx context.Context, opts *options.Options) error {
+	logger := klog.NewKlogr()
+	log.SetLogger(logger)
 	klog.Infof("karmada-webhook version: %s", version.Get())
 
 	profileflag.ListenAndServe(opts.ProfileOpts)
@@ -123,7 +126,6 @@ func Run(ctx context.Context, opts *options.Options) error {
 	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(opts.KubeAPIQPS, opts.KubeAPIBurst)
 
 	hookManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
-		Logger: klog.Background(),
 		Scheme: gclient.NewSchema(),
 		WebhookServer: webhook.NewServer(webhook.Options{
 			Host:     opts.BindAddress,

@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
@@ -134,6 +135,8 @@ func init() {
 }
 
 func run(ctx context.Context, opts *options.Options) error {
+	logger := klog.NewKlogr()
+	log.SetLogger(logger)
 	klog.Infof("karmada-agent version: %s", version.Get())
 
 	profileflag.ListenAndServe(opts.ProfileOpts)
