@@ -395,6 +395,14 @@ func (c *ServiceExportController) reportEndpointSliceWithServiceExportCreate(ctx
 		return nil
 	}
 
+	// Before retrieving EndpointSlice objects from the informer, ensure the informer cache is synced.
+	// This is necessary because the informer for EndpointSlice is created dynamically in the Reconcile() routine
+	// when a Work resource containing an ServiceExport is detected for the cluster. If the informer is not yet synced,
+	// return an error and wait a retry at the next time.
+	if !singleClusterManager.IsInformerSynced(endpointSliceGVR) {
+		return fmt.Errorf("the informer for cluster %s has not been synced, wait a retry at the next time", serviceExportKey.Cluster)
+	}
+
 	endpointSliceLister := singleClusterManager.Lister(endpointSliceGVR)
 	if endpointSliceObjects, err = endpointSliceLister.ByNamespace(serviceExportKey.Namespace).List(labels.SelectorFromSet(labels.Set{
 		discoveryv1.LabelServiceName: serviceExportKey.Name,
@@ -468,6 +476,14 @@ func (c *ServiceExportController) reportEndpointSliceWithEndpointSliceCreateOrUp
 	singleClusterManager := c.InformerManager.GetSingleClusterManager(clusterName)
 	if singleClusterManager == nil {
 		return nil
+	}
+
+	// Before retrieving ServiceExport objects from the informer, ensure the informer cache is synced.
+	// This is necessary because the informer for ServiceExport is created dynamically in the Reconcile() routine
+	// when a Work resource containing an ServiceExport is detected for the cluster. If the informer is not yet synced,
+	// return an error and wait a retry at the next time.
+	if !singleClusterManager.IsInformerSynced(serviceExportGVR) {
+		return fmt.Errorf("the informer for cluster %s has not been synced, wait a retry at the next time", clusterName)
 	}
 
 	serviceExportLister := singleClusterManager.Lister(serviceExportGVR)
@@ -602,6 +618,7 @@ func cleanEndpointSliceWork(ctx context.Context, c client.Client, work *workv1al
 			klog.Errorf("Failed to update work(%s/%s): %v", work.Namespace, work.Name, err)
 			return err
 		}
+		klog.Infof("Successfully updated work(%s/%s)", work.Namespace, work.Name)
 		return nil
 	}
 
@@ -609,6 +626,7 @@ func cleanEndpointSliceWork(ctx context.Context, c client.Client, work *workv1al
 		klog.Errorf("Failed to delete work(%s/%s), Error: %v", work.Namespace, work.Name, err)
 		return err
 	}
+	klog.Infof("Successfully deleted work(%s/%s)", work.Namespace, work.Name)
 
 	return nil
 }
