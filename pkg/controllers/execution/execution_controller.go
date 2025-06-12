@@ -95,7 +95,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 
 	clusterName, err := names.GetClusterName(work.Namespace)
 	if err != nil {
-		logger.Error(err, "Failed to get member cluster name for work", "namespace", work.Namespace, "name", work.Name)
+		logger.Error(err, "Failed to get member cluster name for work")
 		return controllerruntime.Result{}, err
 	}
 
@@ -119,12 +119,12 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	}
 
 	if util.IsWorkSuspendDispatching(work) {
-		logger.Info("Skip syncing work as work dispatch is suspended.", "namespace", work.Namespace, "name", work.Name, "cluster", cluster.Name)
+		logger.Info("Skip syncing work as work dispatch is suspended.", "cluster", cluster.Name)
 		return controllerruntime.Result{}, nil
 	}
 
 	if !util.IsClusterReady(&cluster.Status) {
-		logger.Error(fmt.Errorf("cluster not ready"), "Stop syncing the work for the cluster as cluster not ready.", "namespace", work.Namespace, "name", work.Name, "cluster", cluster.Name)
+		logger.Error(fmt.Errorf("cluster not ready"), "Stop syncing the work for the cluster as cluster not ready.", "cluster", cluster.Name)
 		return controllerruntime.Result{}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
 	}
 
@@ -167,7 +167,7 @@ func (c *Controller) handleWorkDelete(ctx context.Context, work *workv1alpha1.Wo
 			logger.Error(err, "Failed to remove annotations and labels on cluster", "cluster", cluster.Name)
 			return err
 		}
-		logger.Info("Preserving resource on deletion from work", "namespace", work.Namespace, "name", work.Name, "cluster", cluster.Name)
+		logger.Info("Preserving resource on deletion from work", "cluster", cluster.Name)
 		return nil
 	}
 
@@ -175,7 +175,7 @@ func (c *Controller) handleWorkDelete(ctx context.Context, work *workv1alpha1.Wo
 	if util.IsClusterReady(&cluster.Status) {
 		err := c.tryDeleteWorkload(ctx, cluster.Name, work)
 		if err != nil {
-			logger.Error(err, "Failed to delete work", "namespace", work.Namespace, "name", work.Name)
+			logger.Error(err, "Failed to delete work")
 			return err
 		}
 	} else if cluster.DeletionTimestamp.IsZero() { // cluster is unready, but not terminating
@@ -190,21 +190,21 @@ func (c *Controller) cleanupPolicyClaimMetadata(ctx context.Context, work *workv
 	for _, manifest := range work.Spec.Workload.Manifests {
 		workload := &unstructured.Unstructured{}
 		if err := workload.UnmarshalJSON(manifest.Raw); err != nil {
-			logger.Error(err, "Failed to unmarshal workload from work", "namespace", work.GetNamespace(), "name", work.GetName())
+			logger.Error(err, "Failed to unmarshal workload from work")
 			return err
 		}
 
 		fedKey, err := keys.FederatedKeyFunc(cluster.Name, workload)
 		if err != nil {
 			logger.Error(err, "Failed to get the federated key resource from member cluster",
-				"kind", workload.GetKind(), "namespace", workload.GetNamespace(), "name", workload.GetName(), "cluster", cluster.Name)
+				"kind", workload.GetKind(), "cluster", cluster.Name)
 			return err
 		}
 
 		clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
 		if err != nil {
 			logger.Error(err, "Failed to get the resource from member cluster cache",
-				"kind", workload.GetKind(), "namespace", workload.GetNamespace(), "name", workload.GetName(), "cluster", cluster.Name)
+				"kind", workload.GetKind(), "cluster", cluster.Name)
 			return err
 		}
 
@@ -259,7 +259,7 @@ func (c *Controller) removeFinalizer(ctx context.Context, work *workv1alpha1.Wor
 	controllerutil.RemoveFinalizer(work, util.ExecutionControllerFinalizer)
 	err := c.Client.Update(ctx, work)
 	if err != nil {
-		logger.Error(err, "Failed to remove finalizer from work", "namespace", work.Namespace, "name", work.Name)
+		logger.Error(err, "Failed to remove finalizer from work")
 		return controllerruntime.Result{}, err
 	}
 	return controllerruntime.Result{}, nil
@@ -274,13 +274,13 @@ func (c *Controller) syncToClusters(ctx context.Context, clusterName string, wor
 		workload := &unstructured.Unstructured{}
 		err := workload.UnmarshalJSON(manifest.Raw)
 		if err != nil {
-			logger.Error(err, "Failed to unmarshal workload of the work", "namespace", work.GetNamespace(), "name", work.GetName())
+			logger.Error(err, "Failed to unmarshal workload of the work")
 			errs = append(errs, err)
 			continue
 		}
 
 		if err = c.tryCreateOrUpdateWorkload(ctx, clusterName, workload); err != nil {
-			logger.Error(err, "Failed to create or update resource in the given member cluster", "namespace", workload.GetNamespace(), "name", workload.GetName(), "cluster", clusterName)
+			logger.Error(err, "Failed to create or update resource in the given member cluster", "cluster", clusterName)
 			c.eventf(ctx, workload, corev1.EventTypeWarning, events.EventReasonSyncWorkloadFailed, "Failed to create or update resource(%s/%s) in member cluster(%s): %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
 			errs = append(errs, err)
 			continue
@@ -294,7 +294,7 @@ func (c *Controller) syncToClusters(ctx context.Context, clusterName string, wor
 		message := fmt.Sprintf("Failed to apply all manifests (%d/%d): %s", syncSucceedNum, total, errors.NewAggregate(errs).Error())
 		err := c.updateAppliedCondition(ctx, work, metav1.ConditionFalse, "AppliedFailed", message)
 		if err != nil {
-			logger.Error(err, "Failed to update applied status for given work", "namespace", work.Namespace, "name", work.Name)
+			logger.Error(err, "Failed to update applied status for given work")
 			errs = append(errs, err)
 		}
 		return errors.NewAggregate(errs)
@@ -302,7 +302,7 @@ func (c *Controller) syncToClusters(ctx context.Context, clusterName string, wor
 
 	err := c.updateAppliedCondition(ctx, work, metav1.ConditionTrue, "AppliedSuccessful", "Manifest has been successfully applied")
 	if err != nil {
-		logger.Error(err, "Failed to update applied status for given work", "namespace", work.Namespace, "name", work.Name)
+		logger.Error(err, "Failed to update applied status for given work")
 		return err
 	}
 
@@ -320,7 +320,7 @@ func (c *Controller) tryCreateOrUpdateWorkload(ctx context.Context, clusterName 
 	clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
-			logger.Error(err, "Failed to get the resource from member cluster", "kind", workload.GetKind(), "namespace", workload.GetNamespace(), "name", workload.GetName(), "cluster", clusterName)
+			logger.Error(err, "Failed to get the resource from member cluster", "kind", workload.GetKind(), "cluster", clusterName)
 			return err
 		}
 		err = c.ObjectWatcher.Create(ctx, clusterName, workload)
