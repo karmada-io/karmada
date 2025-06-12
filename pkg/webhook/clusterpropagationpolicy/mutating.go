@@ -35,20 +35,15 @@ import (
 // MutatingAdmission mutates API request if necessary.
 type MutatingAdmission struct {
 	Decoder admission.Decoder
-
-	DefaultNotReadyTolerationSeconds    int64
-	DefaultUnreachableTolerationSeconds int64
 }
 
 // Check if our MutatingAdmission implements necessary interface
 var _ admission.Handler = &MutatingAdmission{}
 
 // NewMutatingHandler builds a new admission.Handler.
-func NewMutatingHandler(notReadyTolerationSeconds, unreachableTolerationSeconds int64, decoder admission.Decoder) admission.Handler {
+func NewMutatingHandler(decoder admission.Decoder) admission.Handler {
 	return &MutatingAdmission{
-		DefaultNotReadyTolerationSeconds:    notReadyTolerationSeconds,
-		DefaultUnreachableTolerationSeconds: unreachableTolerationSeconds,
-		Decoder:                             decoder,
+		Decoder: decoder,
 	}
 }
 
@@ -64,8 +59,6 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 
 	// Set default spread constraints if both 'SpreadByField' and 'SpreadByLabel' not set.
 	helper.SetDefaultSpreadConstraints(policy.Spec.Placement.SpreadConstraints)
-	helper.AddTolerations(&policy.Spec.Placement, helper.NewNotReadyToleration(a.DefaultNotReadyTolerationSeconds),
-		helper.NewUnreachableToleration(a.DefaultUnreachableTolerationSeconds))
 
 	if helper.ContainsServiceImport(policy.Spec.ResourceSelectors) {
 		policy.Spec.PropagateDeps = true

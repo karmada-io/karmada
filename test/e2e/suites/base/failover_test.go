@@ -75,8 +75,12 @@ var _ = framework.SerialDescribe("failover testing", func() {
 					},
 				},
 				ClusterTolerations: []corev1.Toleration{
-					*helper.NewNotReadyToleration(2),
-					*helper.NewUnreachableToleration(2),
+					{
+						Key:               framework.TaintClusterNotReady,
+						Operator:          corev1.TolerationOpExists,
+						Effect:            corev1.TaintEffectNoExecute,
+						TolerationSeconds: ptr.To[int64](2),
+					},
 				},
 				SpreadConstraints: []policyv1alpha1.SpreadConstraint{
 					{

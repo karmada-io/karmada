@@ -59,8 +59,6 @@ spec:
             - --bind-address=$(POD_IP)
             - --metrics-bind-address=$(POD_IP):8080
             - --health-probe-bind-address=$(POD_IP):8000
-            - --default-not-ready-toleration-seconds=30
-            - --default-unreachable-toleration-seconds=30
             - --secure-port=8443
             - --cert-dir=/var/serving-cert
             - --v=4

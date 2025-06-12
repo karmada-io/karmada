@@ -25,7 +25,6 @@ import (
 	"testing"
 
 	admissionv1 "k8s.io/api/admission/v1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
@@ -34,13 +33,10 @@ import (
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 var (
-	notReadyTolerationSeconds    int64 = 300
-	unreachableTolerationSeconds int64 = 300
-	failOverGracePeriodSeconds   int32 = 600
+	failOverGracePeriodSeconds int32 = 600
 )
 
 type fakeMutationDecoder struct {
@@ -89,9 +85,7 @@ func TestMutatingAdmission_Handle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			v := NewMutatingHandler(
-				notReadyTolerationSeconds, unreachableTolerationSeconds, tt.decoder,
-			)
+			v := NewMutatingHandler(tt.decoder)
 			got := v.Handle(context.Background(), tt.req)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Handle() = %v, want %v", got, tt.want)
@@ -162,10 +156,6 @@ func TestMutatingAdmission_Handle_FullCoverage(t *testing.T) {
 					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
 					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
 				},
-				ClusterTolerations: []corev1.Toleration{
-					*helper.NewNotReadyToleration(notReadyTolerationSeconds),
-					*helper.NewUnreachableToleration(unreachableTolerationSeconds),
-				},
 			},
 			PropagateDeps: true,
 			ResourceSelectors: []policyv1alpha1.ResourceSelector{
@@ -196,9 +186,7 @@ func TestMutatingAdmission_Handle_FullCoverage(t *testing.T) {
 	req.Object.Raw = wantBytes
 
 	// Instantiate the mutating handler.
-	mutatingHandler := NewMutatingHandler(
-		notReadyTolerationSeconds, unreachableTolerationSeconds, decoder,
-	)
+	mutatingHandler := NewMutatingHandler(decoder)
 
 	// Call the Handle function.
 	got := mutatingHandler.Handle(context.Background(), req)

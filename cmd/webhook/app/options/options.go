@@ -68,9 +68,6 @@ type Options struct {
 	// that do not explicitly tolerate it, potentially causing unexpected service disruptions.
 	AllowNoExecuteTaintPolicy bool
 
-	DefaultNotReadyTolerationSeconds    int64
-	DefaultUnreachableTolerationSeconds int64
-
 	ProfileOpts profileflag.Options
 }
 
@@ -97,12 +94,6 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&o.MetricsBindAddress, "metrics-bind-address", ":8080", "The TCP address that the controller should bind to for serving prometheus metrics(e.g. 127.0.0.1:8080, :8080). It can be set to \"0\" to disable the metrics serving.")
 	flags.StringVar(&o.HealthProbeBindAddress, "health-probe-bind-address", ":8000", "The TCP address that the controller should bind to for serving health probes(e.g. 127.0.0.1:8000, :8000)")
 	flags.BoolVar(&o.AllowNoExecuteTaintPolicy, "allow-no-execute-taint-policy", false, "Allows configuring taints with NoExecute effect in ClusterTaintPolicy. Given the impact of NoExecute, applying such a taint to a cluster may trigger the eviction of workloads that do not explicitly tolerate it, potentially causing unexpected service disruptions. \nThis parameter is designed to remain disabled by default and requires careful evaluation by administrators before being enabled.")
-
-	// webhook flags
-	flags.Int64Var(&o.DefaultNotReadyTolerationSeconds, "default-not-ready-toleration-seconds", 300, "Indicates the tolerationSeconds of the propagation policy toleration for notReady:NoExecute that is added by default to every propagation policy that does not already have such a toleration.")
-	_ = flags.MarkDeprecated("default-not-ready-toleration-seconds", "Karmada will no longer automatically add cluster.karmada.io/not-ready:NoExecute taint to cluster objects, so there is no need to add default tolerations in propagation policy, default-not-ready-toleration-seconds is deprecated and will be removed in v1.15.")
-	flags.Int64Var(&o.DefaultUnreachableTolerationSeconds, "default-unreachable-toleration-seconds", 300, "Indicates the tolerationSeconds of the propagation policy toleration for unreachable:NoExecute that is added by default to every propagation policy that does not already have such a toleration.")
-	_ = flags.MarkDeprecated("default-unreachable-toleration-seconds", "Karmada will no longer automatically add cluster.karmada.io/unreachable:NoExecute taint to cluster objects, so there is no need to add default tolerations in propagation policy, default-unreachable-toleration-seconds is deprecated and will be removed in v1.15.")
 
 	features.FeatureGate.AddFlag(flags)
 	o.ProfileOpts.AddFlags(flags)

@@ -187,8 +187,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 	// ClusterOverridePolicy
 	hookServer.Register("/validate-clusteroverridepolicy", &webhook.Admission{Handler: &clusteroverridepolicy.ValidatingAdmission{Decoder: decoder}})
 	// ClusterPropagationPolicy
-	hookServer.Register("/mutate-clusterpropagationpolicy", &webhook.Admission{Handler: clusterpropagationpolicy.NewMutatingHandler(
-		opts.DefaultNotReadyTolerationSeconds, opts.DefaultUnreachableTolerationSeconds, decoder)})
+	hookServer.Register("/mutate-clusterpropagationpolicy", &webhook.Admission{Handler: clusterpropagationpolicy.NewMutatingHandler(decoder)})
 	hookServer.Register("/validate-clusterpropagationpolicy", &webhook.Admission{Handler: &clusterpropagationpolicy.ValidatingAdmission{Decoder: decoder}})
 	// ClusterTaintPolicy
 	hookServer.Register("/validate-clustertaintpolicy", &webhook.Admission{Handler: &clustertaintpolicy.ValidatingAdmission{Decoder: decoder, AllowNoExecuteTaintPolicy: opts.AllowNoExecuteTaintPolicy}})
@@ -198,8 +197,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 	hookServer.Register("/mutate-overridepolicy", &webhook.Admission{Handler: &overridepolicy.MutatingAdmission{Decoder: decoder}})
 	hookServer.Register("/validate-overridepolicy", &webhook.Admission{Handler: &overridepolicy.ValidatingAdmission{Decoder: decoder}})
 	// PropagationPolicy
-	hookServer.Register("/mutate-propagationpolicy", &webhook.Admission{Handler: propagationpolicy.NewMutatingHandler(
-		opts.DefaultNotReadyTolerationSeconds, opts.DefaultUnreachableTolerationSeconds, decoder)})
+	hookServer.Register("/mutate-propagationpolicy", &webhook.Admission{Handler: propagationpolicy.NewMutatingHandler(decoder)})
 	hookServer.Register("/validate-propagationpolicy", &webhook.Admission{Handler: &propagationpolicy.ValidatingAdmission{Decoder: decoder}})
 
 	// work group

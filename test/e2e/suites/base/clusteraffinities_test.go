@@ -26,9 +26,9 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
@@ -396,8 +396,12 @@ var _ = ginkgo.Describe("[ClusterAffinities] propagation testing", func() {
 				},
 			}, policyv1alpha1.Placement{
 				ClusterTolerations: []corev1.Toleration{
-					*helper.NewNotReadyToleration(2),
-					*helper.NewUnreachableToleration(2),
+					{
+						Key:               framework.TaintClusterNotReady,
+						Operator:          corev1.TolerationOpExists,
+						Effect:            corev1.TaintEffectNoExecute,
+						TolerationSeconds: ptr.To[int64](2),
+					},
 				},
 				ClusterAffinities: []policyv1alpha1.ClusterAffinityTerm{
 					{

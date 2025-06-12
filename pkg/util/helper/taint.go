@@ -192,26 +192,6 @@ func GetMatchingTolerations(taints []corev1.Taint, tolerations []corev1.Tolerati
 	return true, result
 }
 
-// NewNotReadyToleration returns a default not ready toleration.
-func NewNotReadyToleration(tolerationSeconds int64) *corev1.Toleration {
-	return &corev1.Toleration{
-		Key:               clusterv1alpha1.TaintClusterNotReady,
-		Operator:          corev1.TolerationOpExists,
-		Effect:            corev1.TaintEffectNoExecute,
-		TolerationSeconds: &tolerationSeconds,
-	}
-}
-
-// NewUnreachableToleration returns a default unreachable toleration.
-func NewUnreachableToleration(tolerationSeconds int64) *corev1.Toleration {
-	return &corev1.Toleration{
-		Key:               clusterv1alpha1.TaintClusterUnreachable,
-		Operator:          corev1.TolerationOpExists,
-		Effect:            corev1.TaintEffectNoExecute,
-		TolerationSeconds: &tolerationSeconds,
-	}
-}
-
 // GenerateTaintsMessage returns a string that describes the taints of a cluster.
 func GenerateTaintsMessage(taints []corev1.Taint) string {
 	if len(taints) == 0 {
