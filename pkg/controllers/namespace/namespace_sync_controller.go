@@ -69,7 +69,7 @@ type Controller struct {
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
 	logger := log.FromContext(ctx)
-	logger.V(4).Info("Namespaces sync controller reconciling", "namespace", req.NamespacedName.String())
+	logger.Info("Namespaces sync controller reconciling")
 	if !c.namespaceShouldBeSynced(req.Name) {
 		return controllerruntime.Result{}, nil
 	}
@@ -93,7 +93,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 
 	skipAutoPropagation := util.GetLabelValue(namespace.Labels, policyv1alpha1.NamespaceSkipAutoPropagationLabel)
 	if strings.ToLower(skipAutoPropagation) == "true" {
-		logger.Info("Skipping auto propagation of namespace", "namespace", namespace.Name)
+		logger.Info("Skipping auto propagation of namespace")
 		return controllerruntime.Result{}, nil
 	}
 
@@ -105,7 +105,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 
 	err := c.buildWorks(ctx, namespace, clusterList.Items)
 	if err != nil {
-		logger.Error(err, "Failed to build works", "namespace", namespace.GetName())
+		logger.Error(err, "Failed to build works")
 		return controllerruntime.Result{}, err
 	}
 
@@ -129,7 +129,7 @@ func (c *Controller) buildWorks(ctx context.Context, namespace *corev1.Namespace
 	logger := log.FromContext(ctx)
 	namespaceObj, err := helper.ToUnstructured(namespace)
 	if err != nil {
-		logger.Error(err, "Failed to build namespace", "namespace", namespace.GetName())
+		logger.Error(err, "Failed to build namespace")
 		return err
 	}
 
@@ -141,7 +141,7 @@ func (c *Controller) buildWorks(ctx context.Context, namespace *corev1.Namespace
 			// namespace only care about ClusterOverridePolicy
 			cops, _, err := c.OverrideManager.ApplyOverridePolicies(clonedNamespaced, cluster.Name)
 			if err != nil {
-				logger.Error(err, "Failed to apply override policy", "cluster", cluster.Name, "namespace", clonedNamespaced.GetName())
+				logger.Error(err, "Failed to apply override policy for cluster")
 				ch <- fmt.Errorf("sync namespace(%s) to cluster(%s) failed due to: %v", clonedNamespaced.GetName(), cluster.GetName(), err)
 				return
 			}
