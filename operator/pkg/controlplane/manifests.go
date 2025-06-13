@@ -144,7 +144,6 @@ spec:
             - /bin/karmada-controller-manager
             - --kubeconfig=/etc/karmada/config/karmada.config
             - --cluster-status-update-frequency=10s
-            - --failover-eviction-timeout=30s
             - --leader-elect-resource-namespace={{ .SystemNamespace }}
             - --metrics-bind-address=$(POD_IP):8080
             - --health-probe-bind-address=$(POD_IP):10357
