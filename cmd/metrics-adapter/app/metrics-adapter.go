@@ -22,9 +22,12 @@ import (
 
 	"github.com/spf13/cobra"
 	cliflag "k8s.io/component-base/cli/flag"
+	"k8s.io/component-base/logs"
+	logsv1 "k8s.io/component-base/logs/api/v1"
 	"k8s.io/component-base/term"
 
 	"github.com/karmada-io/karmada/cmd/metrics-adapter/app/options"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -33,7 +36,17 @@ import (
 
 // NewMetricsAdapterCommand creates a *cobra.Command object with default parameters
 func NewMetricsAdapterCommand(ctx context.Context) *cobra.Command {
+	logConfig := logsv1.NewLoggingConfiguration()
+	fss := cliflag.NamedFlagSets{}
+
+	logsFlagSet := fss.FlagSet("logs")
+	logs.AddFlags(logsFlagSet, logs.SkipLoggingConfigurationFlags())
+	logsv1.AddFlags(logConfig, logsFlagSet)
+	klogflag.Add(logsFlagSet)
+
+	genericFlagSet := fss.FlagSet("generic")
 	opts := options.NewOptions()
+	opts.AddFlags(genericFlagSet)
 
 	cmd := &cobra.Command{
 		Use:  names.KarmadaMetricsAdapterComponentName,
@@ -50,6 +63,13 @@ func NewMetricsAdapterCommand(ctx context.Context) *cobra.Command {
 			}
 			return nil
 		},
+		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
+			if err := logsv1.ValidateAndApply(logConfig, features.FeatureGate); err != nil {
+				return err
+			}
+			logs.InitLogs()
+			return nil
+		},
 		Args: func(cmd *cobra.Command, args []string) error {
 			for _, arg := range args {
 				if len(arg) > 0 {
@@ -59,15 +79,6 @@ func NewMetricsAdapterCommand(ctx context.Context) *cobra.Command {
 			return nil
 		},
 	}
-
-	fss := cliflag.NamedFlagSets{}
-
-	genericFlagSet := fss.FlagSet("generic")
-	opts.AddFlags(genericFlagSet)
-
-	// Set klog flags
-	logsFlagSet := fss.FlagSet("logs")
-	klogflag.Add(logsFlagSet)
 
 	cmd.AddCommand(sharedcommand.NewCmdVersion(names.KarmadaMetricsAdapterComponentName))
 	cmd.Flags().AddFlagSet(genericFlagSet)
