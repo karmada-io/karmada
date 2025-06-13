@@ -3,6 +3,26 @@ entries:
   karmada:
   - apiVersion: v2
     appVersion: v1.1.0
+    created: "2025-06-13T16:23:17.081220385+08:00"
+    dependencies:
+    - name: common
+      repository: https://charts.bitnami.com/bitnami
+      version: 2.x.x
+    description: A Helm chart for karmada
+    digest: cd93e64198f364ff2330d718d80b8f321530ab8147521ef2b6263198a35bc7e0
+    kubeVersion: '>= 1.16.0-0'
+    maintainers:
+    - email: chaosi@zju.edu.cn
+      name: chaosi-zju
+    - email: amiralavi7@gmail.com
+      name: a7i
+    name: karmada
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.14.0/karmada-chart-v1.14.0.tgz
+    version: v1.14.0
+  - apiVersion: v2
+    appVersion: v1.1.0
     created: "2025-03-10T11:24:11.714162019+08:00"
     dependencies:
     - name: common
@@ -424,4 +444,4 @@ entries:
     urls:
     - https://github.com/karmada-io/karmada/releases/download/v1.8.0/karmada-operator-chart-v1.8.0.tgz
     version: v1.8.0
-generated: "2025-03-10T11:24:11.702431444+08:00"
+generated: "2025-06-13T16:23:17.069242033+08:00"
