@@ -34,11 +34,11 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
@@ -154,7 +154,8 @@ func (n *clusterHealthData) deepCopy() *clusterHealthData {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling cluster %s", req.NamespacedName.Name)
+	logger := log.FromContext(ctx)
+	logger.Info("Reconciling cluster")
 
 	cluster := &clusterv1alpha1.Cluster{}
 	if err := c.Client.Get(ctx, req.NamespacedName, cluster); err != nil {
@@ -162,7 +163,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
-
+		logger.Error(err, "Failed to get cluster")
 		return controllerruntime.Result{}, err
 	}
 
@@ -175,13 +176,14 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 
 // Start starts an asynchronous loop that monitors the status of cluster.
 func (c *Controller) Start(ctx context.Context) error {
-	klog.Infof("Starting cluster health monitor")
-	defer klog.Infof("Shutting cluster health monitor")
+	logger := log.FromContext(ctx)
+	logger.Info("Starting cluster health monitor")
+	defer logger.Info("Shutting cluster health monitor")
 
 	// Incorporate the results of cluster health signal pushed from cluster-status-controller to master.
 	go wait.UntilWithContext(ctx, func(ctx context.Context) {
 		if err := c.monitorClusterHealth(ctx); err != nil {
-			klog.Errorf("Error monitoring cluster health: %v", err)
+			log.FromContext(ctx).Error(err, "Error monitoring cluster health")
 		}
 	}, c.ClusterMonitorPeriod)
 	<-ctx.Done()
@@ -200,16 +202,18 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 }
 
 func (c *Controller) syncCluster(ctx context.Context, cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
+	logger := log.FromContext(ctx)
+
 	// create execution space
-	err := c.createExecutionSpace(ctx, cluster)
-	if err != nil {
+	if err := c.createExecutionSpace(ctx, cluster); err != nil {
 		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, events.EventReasonCreateExecutionSpaceFailed, err.Error())
+		logger.Error(err, "Failed to create execution space for cluster")
 		return controllerruntime.Result{}, err
 	}
 
 	// taint cluster by condition
-	err = c.taintClusterByCondition(ctx, cluster)
-	if err != nil {
+	if err := c.taintClusterByCondition(ctx, cluster); err != nil {
+		logger.Error(err, "Failed to taint cluster by condition")
 		return controllerruntime.Result{}, err
 	}
 
@@ -218,19 +222,22 @@ func (c *Controller) syncCluster(ctx context.Context, cluster *clusterv1alpha1.C
 }
 
 func (c *Controller) removeCluster(ctx context.Context, cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
+	logger := log.FromContext(ctx)
+
 	if err := c.removeExecutionSpace(ctx, cluster); err != nil {
-		klog.Errorf("Failed to remove execution space %s: %v", cluster.Name, err)
+		logger.Error(err, "Failed to remove execution space for cluster")
 		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, events.EventReasonRemoveExecutionSpaceFailed, err.Error())
 		return controllerruntime.Result{}, err
 	}
-	msg := fmt.Sprintf("Removed execution space for cluster(%s).", cluster.Name)
-	c.EventRecorder.Event(cluster, corev1.EventTypeNormal, events.EventReasonRemoveExecutionSpaceSucceed, msg)
+	logger.Info("Removed execution space for cluster")
+	c.EventRecorder.Event(cluster, corev1.EventTypeNormal, events.EventReasonRemoveExecutionSpaceSucceed,
+		fmt.Sprintf("Removed execution space for cluster(%s).", cluster.Name))
 
 	if exist, err := c.ExecutionSpaceExistForCluster(ctx, cluster.Name); err != nil {
-		klog.Errorf("Failed to check weather the execution space exist in the given member cluster or not, error is: %v", err)
+		logger.Error(err, "Failed to check whether the execution space exists in the given member cluster")
 		return controllerruntime.Result{}, err
 	} else if exist {
-		klog.Infof("Requeuing operation until the cluster(%s) execution space deleted", cluster.Name)
+		logger.Info("Requeuing operation until the execution space for the cluster is deleted")
 		return controllerruntime.Result{RequeueAfter: c.CleanupCheckInterval}, nil
 	}
 
@@ -239,10 +246,10 @@ func (c *Controller) removeCluster(ctx context.Context, cluster *clusterv1alpha1
 
 	// check if target cluster is removed from all bindings.
 	if done, err := c.isTargetClusterRemoved(ctx, cluster); err != nil {
-		klog.ErrorS(err, "Failed to check target cluster is removed from all bindings", "cluster", cluster.Name)
+		logger.Error(err, "Failed to check target cluster is removed from all bindings")
 		return controllerruntime.Result{}, err
 	} else if !done {
-		klog.InfoS("The cluster is still waiting to be removed from all bindings, will try again later", "cluster", cluster.Name)
+		logger.Info("Cluster is still referenced in bindings, will retry later")
 		return controllerruntime.Result{RequeueAfter: c.CleanupCheckInterval}, nil
 	}
 
@@ -250,12 +257,14 @@ func (c *Controller) removeCluster(ctx context.Context, cluster *clusterv1alpha1
 }
 
 func (c *Controller) isTargetClusterRemoved(ctx context.Context, cluster *clusterv1alpha1.Cluster) (bool, error) {
+	logger := log.FromContext(ctx)
+
 	// List all ResourceBindings which are assigned to this cluster.
 	rbList := &workv1alpha2.ResourceBindingList{}
 	if err := c.List(ctx, rbList, client.MatchingFieldsSelector{
 		Selector: fields.OneTermEqualSelector(indexregistry.ResourceBindingIndexByFieldCluster, cluster.Name),
 	}); err != nil {
-		klog.ErrorS(err, "Failed to list ResourceBindings", "cluster", cluster.Name)
+		logger.Error(err, "Failed to list ResourceBindings")
 		return false, err
 	}
 	if len(rbList.Items) != 0 {
@@ -266,7 +275,7 @@ func (c *Controller) isTargetClusterRemoved(ctx context.Context, cluster *cluste
 	if err := c.List(ctx, crbList, client.MatchingFieldsSelector{
 		Selector: fields.OneTermEqualSelector(indexregistry.ClusterResourceBindingIndexByFieldCluster, cluster.Name),
 	}); err != nil {
-		klog.ErrorS(err, "Failed to list ClusterResourceBindings", "cluster", cluster.Name)
+		logger.Error(err, "Failed to list ClusterResourceBindings")
 		return false, err
 	}
 	if len(crbList.Items) != 0 {
@@ -278,6 +287,7 @@ func (c *Controller) isTargetClusterRemoved(ctx context.Context, cluster *cluste
 // removeExecutionSpace deletes the given execution space
 func (c *Controller) removeExecutionSpace(ctx context.Context, cluster *clusterv1alpha1.Cluster) error {
 	executionSpaceName := names.GenerateExecutionSpaceName(cluster.Name)
+	logger := log.FromContext(ctx)
 
 	executionSpaceObj := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -287,12 +297,12 @@ func (c *Controller) removeExecutionSpace(ctx context.Context, cluster *clusterv
 	// delete finalizers of work objects when the sync-mode is pull and cluster status is notready or unknown
 	if cluster.Spec.SyncMode == clusterv1alpha1.Pull && !util.IsClusterReady(&cluster.Status) {
 		if err := c.deleteFinalizerForWorks(ctx, executionSpaceObj); err != nil {
-			klog.Errorf("Error while deleting finalizers of work which in %s: %s", executionSpaceName, err)
+			logger.Error(err, "Error while deleting finalizers of work in execution space")
 			return err
 		}
 	}
 	if err := c.Client.Delete(ctx, executionSpaceObj); err != nil && !apierrors.IsNotFound(err) {
-		klog.Errorf("Error while deleting namespace %s: %s", executionSpaceName, err)
+		logger.Error(err, "Error while deleting namespace %s", executionSpaceName)
 		return err
 	}
 
@@ -302,15 +312,16 @@ func (c *Controller) removeExecutionSpace(ctx context.Context, cluster *clusterv
 // ExecutionSpaceExistForCluster determine whether the execution space exists in the cluster
 func (c *Controller) ExecutionSpaceExistForCluster(ctx context.Context, clusterName string) (bool, error) {
 	executionSpaceName := names.GenerateExecutionSpaceName(clusterName)
+	logger := log.FromContext(ctx)
 
 	executionSpaceObj := &corev1.Namespace{}
 	err := c.Client.Get(ctx, types.NamespacedName{Name: executionSpaceName}, executionSpaceObj)
 	if apierrors.IsNotFound(err) {
-		klog.V(2).Infof("Execution space(%s) no longer exists", executionSpaceName)
+		logger.Info("Execution space %s no longer exists", executionSpaceName)
 		return false, nil
 	}
 	if err != nil {
-		klog.Errorf("Failed to get execution space %v, err is %v ", executionSpaceName, err)
+		logger.Error(err, "Failed to get execution space")
 		return false, err
 	}
 	return true, nil
@@ -318,45 +329,42 @@ func (c *Controller) ExecutionSpaceExistForCluster(ctx context.Context, clusterN
 
 // Delete finalizers of work objects
 func (c *Controller) deleteFinalizerForWorks(ctx context.Context, workSpace *corev1.Namespace) error {
+	logger := log.FromContext(ctx)
+
 	workList := &workv1alpha1.WorkList{}
-	err := c.Client.List(ctx, workList, &client.ListOptions{
-		Namespace: workSpace.Name,
-	})
-	if err != nil {
-		klog.Errorf("Failed to list works in %s: %s", workSpace.Name, err)
+	if err := c.Client.List(ctx, workList, &client.ListOptions{Namespace: workSpace.Name}); err != nil {
+		logger.Error(err, "Failed to list works in %s workspace", workSpace.Name)
 		return err
 	}
 
-	var errors []error
+	var errs []error
 	for i := range workList.Items {
 		work := &workList.Items[i]
-		err = c.removeWorkFinalizer(work)
-		if err != nil {
-			errors = append(errors, fmt.Errorf("error while removing finalizers of works %s: %v", work.Name, err))
+		if err := c.removeWorkFinalizer(work); err != nil {
+			errs = append(errs, fmt.Errorf("error while removing finalizers of work %s: %v", work.Name, err))
 		}
 	}
-	return utilerrors.NewAggregate(errors)
+	return utilerrors.NewAggregate(errs)
 }
 
 func (c *Controller) removeWorkFinalizer(work *workv1alpha1.Work) error {
 	if !controllerutil.ContainsFinalizer(work, util.ExecutionControllerFinalizer) {
 		return nil
 	}
-
 	controllerutil.RemoveFinalizer(work, util.ExecutionControllerFinalizer)
-	err := c.Client.Update(context.TODO(), work)
-
-	return err
+	return c.Client.Update(context.TODO(), work)
 }
 
 func (c *Controller) removeFinalizer(ctx context.Context, cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
+	logger := log.FromContext(ctx)
+
 	if !controllerutil.ContainsFinalizer(cluster, util.ClusterControllerFinalizer) {
 		return controllerruntime.Result{}, nil
 	}
 
 	controllerutil.RemoveFinalizer(cluster, util.ClusterControllerFinalizer)
-	err := c.Client.Update(ctx, cluster)
-	if err != nil {
+	if err := c.Client.Update(ctx, cluster); err != nil {
+		logger.Error(err, "Failed to remove finalizer")
 		return controllerruntime.Result{}, err
 	}
 
@@ -364,13 +372,15 @@ func (c *Controller) removeFinalizer(ctx context.Context, cluster *clusterv1alph
 }
 
 func (c *Controller) ensureFinalizer(ctx context.Context, cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
+	logger := log.FromContext(ctx)
+
 	if controllerutil.ContainsFinalizer(cluster, util.ClusterControllerFinalizer) {
 		return controllerruntime.Result{}, nil
 	}
 
 	controllerutil.AddFinalizer(cluster, util.ClusterControllerFinalizer)
-	err := c.Client.Update(ctx, cluster)
-	if err != nil {
+	if err := c.Client.Update(ctx, cluster); err != nil {
+		logger.Error(err, "Failed to add finalizer")
 		return controllerruntime.Result{}, err
 	}
 
@@ -380,13 +390,13 @@ func (c *Controller) ensureFinalizer(ctx context.Context, cluster *clusterv1alph
 // createExecutionSpace creates member cluster execution space when member cluster joined
 func (c *Controller) createExecutionSpace(ctx context.Context, cluster *clusterv1alpha1.Cluster) error {
 	executionSpaceName := names.GenerateExecutionSpaceName(cluster.Name)
+	logger := log.FromContext(ctx)
 
 	// create member cluster execution space when member cluster joined
 	executionSpaceObj := &corev1.Namespace{}
-	err := c.Client.Get(ctx, types.NamespacedName{Name: executionSpaceName}, executionSpaceObj)
-	if err != nil {
+	if err := c.Client.Get(ctx, types.NamespacedName{Name: executionSpaceName}, executionSpaceObj); err != nil {
 		if !apierrors.IsNotFound(err) {
-			klog.Errorf("Failed to get namespace(%s): %v", executionSpaceName, err)
+			logger.Error(err, "Failed to get execution space for cluster")
 			return err
 		}
 
@@ -399,50 +409,48 @@ func (c *Controller) createExecutionSpace(ctx context.Context, cluster *clusterv
 				},
 			},
 		}
-		err = c.Client.Create(ctx, executionSpace)
-		if err != nil {
-			klog.Errorf("Failed to create execution space for cluster(%s): %v", cluster.Name, err)
+		if err := c.Client.Create(ctx, executionSpace); err != nil {
+			logger.Error(err, "Failed to create execution space for cluster")
 			return err
 		}
-		msg := fmt.Sprintf("Created execution space(%s) for cluster(%s).", executionSpaceName, cluster.Name)
-		klog.V(2).Info(msg)
-		c.EventRecorder.Event(cluster, corev1.EventTypeNormal, events.EventReasonCreateExecutionSpaceSucceed, msg)
+		logger.Info("Created execution space for cluster")
+		c.EventRecorder.Event(cluster, corev1.EventTypeNormal, events.EventReasonCreateExecutionSpaceSucceed,
+			fmt.Sprintf("Created execution space(%s) for cluster(%s).", executionSpaceName, cluster.Name))
 	}
-
 	return nil
 }
 
-func (c *Controller) monitorClusterHealth(ctx context.Context) (err error) {
+func (c *Controller) monitorClusterHealth(ctx context.Context) error {
+	logger := log.FromContext(ctx)
+
 	clusterList := &clusterv1alpha1.ClusterList{}
-	if err = c.Client.List(ctx, clusterList); err != nil {
+	if err := c.Client.List(ctx, clusterList); err != nil {
 		return err
 	}
 
 	clusters := clusterList.Items
 	for i := range clusters {
 		cluster := &clusters[i]
-		if err = wait.PollUntilContextTimeout(ctx, MonitorRetrySleepTime, MonitorRetrySleepTime*HealthUpdateRetry, true, func(ctx context.Context) (bool, error) {
+		if err := wait.PollUntilContextTimeout(ctx, MonitorRetrySleepTime, MonitorRetrySleepTime*HealthUpdateRetry, true, func(ctx context.Context) (bool, error) {
 			// Cluster object may be changed in this function.
-			err = c.tryUpdateClusterHealth(ctx, cluster)
+			err := c.tryUpdateClusterHealth(ctx, cluster)
 			if err == nil {
 				return true, nil
 			}
-			clusterName := cluster.Name
-			if err = c.Get(ctx, client.ObjectKey{Name: clusterName}, cluster); err != nil {
+
+			if err := c.Get(ctx, client.ObjectKey{Name: cluster.Name}, cluster); err != nil {
 				// If the cluster does not exist any more, we delete the health data from the map.
 				if apierrors.IsNotFound(err) {
-					c.clusterHealthMap.delete(clusterName)
+					c.clusterHealthMap.delete(cluster.Name)
 					return true, nil
 				}
 				return false, err
 			}
 			return false, nil
 		}); err != nil {
-			klog.Errorf("Update health of Cluster '%v' from Controller error: %v. Skipping.", cluster.Name, err)
-			continue
+			logger.Error(err, "Update health of Cluster from Controller error, skipping")
 		}
 	}
-
 	return nil
 }
 
@@ -450,6 +458,8 @@ func (c *Controller) monitorClusterHealth(ctx context.Context) (err error) {
 //
 //nolint:gocyclo
 func (c *Controller) tryUpdateClusterHealth(ctx context.Context, cluster *clusterv1alpha1.Cluster) error {
+	logger := log.FromContext(ctx)
+
 	// Step 1: Get the last cluster heath from `clusterHealthMap`.
 	clusterHealth := c.clusterHealthMap.getDeepCopy(cluster.Name)
 	defer func() {
@@ -531,8 +541,7 @@ func (c *Controller) tryUpdateClusterHealth(ctx context.Context, cluster *cluste
 		for _, clusterConditionType := range clusterConditionTypes {
 			currentCondition := meta.FindStatusCondition(cluster.Status.Conditions, clusterConditionType)
 			if currentCondition == nil {
-				klog.V(2).Infof("Condition %v of cluster %v was never updated by cluster-status-controller",
-					clusterConditionType, cluster.Name)
+				logger.Info("Condition %v was never updated by cluster-status-controller", clusterConditionType)
 				cluster.Status.Conditions = append(cluster.Status.Conditions, metav1.Condition{
 					Type:               clusterConditionType,
 					Status:             metav1.ConditionUnknown,
@@ -541,7 +550,7 @@ func (c *Controller) tryUpdateClusterHealth(ctx context.Context, cluster *cluste
 					LastTransitionTime: nowTimestamp,
 				})
 			} else {
-				klog.V(2).Infof("Cluster %v hasn't been updated for %+v. Last %v is: %+v",
+				logger.Info("Cluster %v hasn't been updated for %+v. Last %v is: %+v",
 					cluster.Name, metav1.Now().Time.Sub(clusterHealth.probeTimestamp.Time), clusterConditionType, currentCondition)
 				if currentCondition.Status != metav1.ConditionUnknown {
 					currentCondition.Status = metav1.ConditionUnknown
@@ -551,12 +560,11 @@ func (c *Controller) tryUpdateClusterHealth(ctx context.Context, cluster *cluste
 				}
 			}
 		}
-		// We need to update currentReadyCondition due to its value potentially changed.
 		currentReadyCondition = meta.FindStatusCondition(cluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady)
 
 		if !equality.Semantic.DeepEqual(currentReadyCondition, observedReadyCondition) {
 			if err := c.Status().Update(ctx, cluster); err != nil {
-				klog.Errorf("Error updating cluster %s: %v", cluster.Name, err)
+				logger.Error(err, "Error updating cluster")
 				return err
 			}
 			clusterHealth = &clusterHealthData{
@@ -571,29 +579,34 @@ func (c *Controller) tryUpdateClusterHealth(ctx context.Context, cluster *cluste
 }
 
 func (c *Controller) taintClusterByCondition(ctx context.Context, cluster *clusterv1alpha1.Cluster) error {
+	logger := log.FromContext(ctx)
+
 	currentReadyCondition := meta.FindStatusCondition(cluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady)
 	var err error
 	if currentReadyCondition != nil {
 		switch currentReadyCondition.Status {
 		case metav1.ConditionFalse:
 			// Add NotReadyTaintTemplateForSched taint immediately.
-			if err = c.updateClusterTaints(ctx, []*corev1.Taint{NotReadyTaintTemplateForSched}, []*corev1.Taint{UnreachableTaintTemplateForSched}, cluster); err != nil {
-				klog.ErrorS(err, "Failed to instantly update UnreachableTaintForSched to NotReadyTaintForSched, will try again in the next cycle.", "cluster", cluster.Name)
+			if err = c.updateClusterTaints(ctx, []*corev1.Taint{NotReadyTaintTemplateForSched},
+				[]*corev1.Taint{UnreachableTaintTemplateForSched}, cluster); err != nil {
+				logger.Error(err, "Failed to instantly update UnreachableTaintForSched to NotReadyTaintForSched, will try again in the next cycle.")
 			}
 		case metav1.ConditionUnknown:
 			// Add UnreachableTaintTemplateForSched taint immediately.
-			if err = c.updateClusterTaints(ctx, []*corev1.Taint{UnreachableTaintTemplateForSched}, []*corev1.Taint{NotReadyTaintTemplateForSched}, cluster); err != nil {
-				klog.ErrorS(err, "Failed to instantly swap NotReadyTaintForSched to UnreachableTaintForSched, will try again in the next cycle.", "cluster", cluster.Name)
+			if err = c.updateClusterTaints(ctx, []*corev1.Taint{UnreachableTaintTemplateForSched},
+				[]*corev1.Taint{NotReadyTaintTemplateForSched}, cluster); err != nil {
+				logger.Error(err, "Failed to instantly swap NotReadyTaintForSched to UnreachableTaintForSched, will try again in the next cycle.")
 			}
 		case metav1.ConditionTrue:
-			if err = c.updateClusterTaints(ctx, nil, []*corev1.Taint{NotReadyTaintTemplateForSched, UnreachableTaintTemplateForSched}, cluster); err != nil {
-				klog.ErrorS(err, "Failed to remove schedule taints from cluster, will retry in next iteration.", "cluster", cluster.Name)
+			if err = c.updateClusterTaints(ctx, nil,
+				[]*corev1.Taint{NotReadyTaintTemplateForSched, UnreachableTaintTemplateForSched}, cluster); err != nil {
+				logger.Error(err, "Failed to remove schedule taints from cluster, will retry in next iteration.")
 			}
 		}
 	} else {
 		// Add NotReadyTaintTemplateForSched taint immediately.
 		if err = c.updateClusterTaints(ctx, []*corev1.Taint{NotReadyTaintTemplateForSched}, nil, cluster); err != nil {
-			klog.ErrorS(err, "Failed to add a NotReady taint to the newly added cluster, will try again in the next cycle.", "cluster", cluster.Name)
+			logger.Error(err, "Failed to add a NotReady taint to the newly added cluster, will try again in the next cycle.")
 		}
 	}
 	return err
