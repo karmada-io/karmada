@@ -31,6 +31,6 @@ updates:
 
 - package-ecosystem: docker
   directory: /cluster/images/
-  target-branch: "release-1.11"
+  target-branch: "release-1.14"
   schedule:
     interval: weekly
