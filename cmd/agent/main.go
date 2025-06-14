@@ -20,6 +20,7 @@ import (
 	"os"
 
 	"k8s.io/component-base/cli"
+	"k8s.io/component-base/logs"
 	_ "k8s.io/component-base/logs/json/register" // for JSON log format registration
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -37,5 +38,7 @@ func main() {
 	controllerruntime.SetLogger(klog.Background())
 	cmd := app.NewAgentCommand(ctx)
 	code := cli.Run(cmd)
+	// Ensure any buffered log entries are flushed
+	logs.FlushLogs()
 	os.Exit(code)
 }

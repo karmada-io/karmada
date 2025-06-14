@@ -30,6 +30,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/flowcontrol"
 	cliflag "k8s.io/component-base/cli/flag"
+	"k8s.io/component-base/logs"
+	logsv1 "k8s.io/component-base/logs/api/v1"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -72,13 +74,32 @@ import (
 
 // NewAgentCommand creates a *cobra.Command object with default parameters
 func NewAgentCommand(ctx context.Context) *cobra.Command {
+	logConfig := logsv1.NewLoggingConfiguration()
+	fss := cliflag.NamedFlagSets{}
+
+	// Set klog flags
+	logsFlagSet := fss.FlagSet("logs")
+	logs.AddFlags(logsFlagSet, logs.SkipLoggingConfigurationFlags())
+	logsv1.AddFlags(logConfig, logsFlagSet)
+	klogflag.Add(logsFlagSet)
+
+	genericFlagSet := fss.FlagSet("generic")
+	genericFlagSet.AddGoFlagSet(flag.CommandLine)
 	opts := options.NewOptions()
+	opts.AddFlags(genericFlagSet, controllers.ControllerNames())
 
 	cmd := &cobra.Command{
 		Use: names.KarmadaAgentComponentName,
 		Long: `The karmada-agent is the agent of member clusters. It can register a specific cluster to the Karmada control
 plane and sync manifests from the Karmada control plane to the member cluster. In addition, it also syncs the status of member
 cluster and manifests to the Karmada control plane.`,
+		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
+			if err := logsv1.ValidateAndApply(logConfig, features.FeatureGate); err != nil {
+				return err
+			}
+			logs.InitLogs()
+			return nil
+		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {
@@ -98,16 +119,6 @@ cluster and manifests to the Karmada control plane.`,
 			return nil
 		},
 	}
-
-	fss := cliflag.NamedFlagSets{}
-
-	genericFlagSet := fss.FlagSet("generic")
-	genericFlagSet.AddGoFlagSet(flag.CommandLine)
-	opts.AddFlags(genericFlagSet, controllers.ControllerNames())
-
-	// Set klog flags
-	logsFlagSet := fss.FlagSet("logs")
-	klogflag.Add(logsFlagSet)
 
 	cmd.AddCommand(sharedcommand.NewCmdVersion(names.KarmadaAgentComponentName))
 	cmd.Flags().AddFlagSet(genericFlagSet)
