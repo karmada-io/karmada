@@ -480,7 +480,14 @@ spec:
                         x-kubernetes-map-type: atomic
                     type: object
                   clusterTolerations:
-                    description: ClusterTolerations represents the tolerations.
+                    description: |-
+                      ClusterTolerations represents the tolerations that allow the resource to be scheduled onto clusters with matching taints.
+                      These tolerations are used during the scheduling process to determine if a cluster's taints can be tolerated.
+                      If a cluster has taints that match these tolerations, the resource can be scheduled to that cluster.
+                      This is particularly useful for scenarios like:
+                      - Scheduling to clusters with specific hardware requirements
+                      - Handling cluster maintenance or draining scenarios
+                      - Managing cluster availability during failover
                     items:
                       description: |-
                         The pod this Toleration is attached to tolerates any taint that matches
