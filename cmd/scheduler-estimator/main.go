@@ -20,6 +20,7 @@ import (
 	"os"
 
 	"k8s.io/component-base/cli"
+	"k8s.io/component-base/logs"
 	_ "k8s.io/component-base/logs/json/register" // for JSON log format registration
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
@@ -30,5 +31,7 @@ func main() {
 	ctx := controllerruntime.SetupSignalHandler()
 	cmd := app.NewSchedulerEstimatorCommand(ctx)
 	code := cli.Run(cmd)
+	// Ensure any buffered log entries are flushed
+	logs.FlushLogs()
 	os.Exit(code)
 }
