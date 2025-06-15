@@ -31,12 +31,15 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/flowcontrol"
 	cliflag "k8s.io/component-base/cli/flag"
+	"k8s.io/component-base/logs"
+	logsv1 "k8s.io/component-base/logs/api/v1"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/karmada-io/karmada/cmd/scheduler-estimator/app/options"
 	"github.com/karmada-io/karmada/pkg/estimator/server"
+	"github.com/karmada-io/karmada/pkg/features"
 	versionmetrics "github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
@@ -77,12 +80,29 @@ const (
 
 // NewSchedulerEstimatorCommand creates a *cobra.Command object with default parameters
 func NewSchedulerEstimatorCommand(ctx context.Context) *cobra.Command {
+	logConfig := logsv1.NewLoggingConfiguration()
+	fss := cliflag.NamedFlagSets{}
+
+	logsFlagSet := fss.FlagSet("logs")
+	logs.AddFlags(logsFlagSet, logs.SkipLoggingConfigurationFlags())
+	logsv1.AddFlags(logConfig, logsFlagSet)
+	klogflag.Add(logsFlagSet)
+
+	genericFlagSet := fss.FlagSet("generic")
 	opts := options.NewOptions()
+	opts.AddFlags(genericFlagSet)
 
 	cmd := &cobra.Command{
 		Use: names.KarmadaSchedulerEstimatorComponentName,
-		Long: `The karmada-scheduler-estimator runs an accurate scheduler estimator of a cluster. It 
+		Long: `The karmada-scheduler-estimator runs an accurate scheduler estimator of a cluster. It
 provides the scheduler with more accurate cluster resource information.`,
+		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
+			if err := logsv1.ValidateAndApply(logConfig, features.FeatureGate); err != nil {
+				return err
+			}
+			logs.InitLogs()
+			return nil
+		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {
@@ -94,15 +114,6 @@ provides the scheduler with more accurate cluster resource information.`,
 			return nil
 		},
 	}
-
-	fss := cliflag.NamedFlagSets{}
-
-	genericFlagSet := fss.FlagSet("generic")
-	opts.AddFlags(genericFlagSet)
-
-	// Set klog flags
-	logsFlagSet := fss.FlagSet("logs")
-	klogflag.Add(logsFlagSet)
 
 	cmd.AddCommand(sharedcommand.NewCmdVersion(names.KarmadaSchedulerEstimatorComponentName))
 	cmd.Flags().AddFlagSet(genericFlagSet)
