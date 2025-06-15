@@ -213,6 +213,25 @@ func aggregateJobStatus(object *unstructured.Unstructured, aggregatedStatusItems
 		return object, nil
 	}
 
+	jobFinished := false
+	for _, c := range job.Status.Conditions {
+		if c.Type == batchv1.JobComplete {
+			if c.Status == corev1.ConditionTrue {
+				jobFinished = true
+				break
+			}
+		}
+	}
+	if jobFinished {
+		now := metav1.Now()
+		job.Status.Conditions = append(job.Status.Conditions, batchv1.JobCondition{
+			Type:               batchv1.JobSuccessCriteriaMet,
+			Status:             corev1.ConditionTrue,
+			LastProbeTime:      now,
+			LastTransitionTime: now,
+		})
+	}
+
 	job.Status = *newStatus
 	return helper.ToUnstructured(job)
 }
