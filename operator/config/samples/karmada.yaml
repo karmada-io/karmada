@@ -58,11 +58,11 @@ spec:
       replicas: 2
     # karmadaSearch: # the component `Karmadasearch` is not installed by default, if you need to install it, uncomment it and note the formatting
       # imageRepository: docker.io/karmada/karmada-search
-      # imageTag: v1.13.0
+      # imageTag: v1.14.0
       # replicas: 1
     # karmadaDescheduler: # the component `KarmadaDescheduler` is not installed by default, if you need to install it, uncomment it and note the formatting
       # imageRepository: docker.io/karmada/karmada-descheduler
-      # imageTag: v1.13.0
+      # imageTag: v1.14.0
       # replicas: 1
   hostCluster:
     networking:
