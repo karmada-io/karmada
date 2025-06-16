@@ -134,7 +134,10 @@ certs:
   mode: auto
   auto:
     ## @param certs.auto.expiry expiry of the certificate
+    ## Note: The expiry value should not exceed the rootCA expiry time (rootCAExpiryDays * 24h)
     expiry: 43800h
+    ## @param certs.auto.rootCAExpiryDays expiry of the root CA certificate in days, defaults to 3650 days (10 years)
+    rootCAExpiryDays: 3650
     ## @param certs.auto.hosts hosts of the certificate
     hosts: [
       "kubernetes.default.svc",
