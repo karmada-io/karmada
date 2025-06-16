@@ -61,13 +61,25 @@ func NewFilteredClusterResourceBindingInformer(client versioned.Interface, resyn
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.WorkV1alpha1().ClusterResourceBindings().List(context.TODO(), options)
+				return client.WorkV1alpha1().ClusterResourceBindings().List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.WorkV1alpha1().ClusterResourceBindings().Watch(context.TODO(), options)
+				return client.WorkV1alpha1().ClusterResourceBindings().Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.WorkV1alpha1().ClusterResourceBindings().List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.WorkV1alpha1().ClusterResourceBindings().Watch(ctx, options)
 			},
 		},
 		&apisworkv1alpha1.ClusterResourceBinding{},
