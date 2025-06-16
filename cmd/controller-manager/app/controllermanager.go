@@ -258,6 +258,15 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 	mgr := ctx.Mgr
 	opts := ctx.Opts
 
+	// Indexes are added to help the cluster-controller and TaintManager quickly locate ResourceBinding
+	// and ClusterResourceBinding resources associated with a given cluster when eviction is needed.
+	if err := indexregistry.RegisterResourceBindingIndexByFieldCluster(ctx.Context, mgr); err != nil {
+		return false, err
+	}
+	if err := indexregistry.RegisterClusterResourceBindingIndexByFieldCluster(ctx.Context, mgr); err != nil {
+		return false, err
+	}
+
 	clusterController := &cluster.Controller{
 		Client:                    mgr.GetClient(),
 		EventRecorder:             mgr.GetEventRecorderFor(cluster.ControllerName),
@@ -273,14 +282,6 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 
 	// Taint-based eviction should only take effect if the Failover feature is enabled
 	if ctx.Opts.EnableTaintManager && features.FeatureGate.Enabled(features.Failover) {
-		// Indexes are added to help the TaintManager quickly locate ResourceBinding and ClusterResourceBinding resources
-		// associated with a given cluster when eviction is needed.
-		if err := indexregistry.RegisterResourceBindingIndexByFieldCluster(ctx.Context, mgr); err != nil {
-			return false, err
-		}
-		if err := indexregistry.RegisterClusterResourceBindingIndexByFieldCluster(ctx.Context, mgr); err != nil {
-			return false, err
-		}
 		taintManager := &cluster.NoExecuteTaintManager{
 			Client:                             mgr.GetClient(),
 			EventRecorder:                      mgr.GetEventRecorderFor(cluster.TaintManagerName),

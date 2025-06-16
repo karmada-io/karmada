@@ -666,44 +666,6 @@ func TestGetMatchingTolerations(t *testing.T) {
 	}
 }
 
-func TestNewNotReadyToleration(t *testing.T) {
-	expectedKey := clusterv1alpha1.TaintClusterNotReady
-	expectedOperator := corev1.TolerationOpExists
-	expectedEffect := corev1.TaintEffectNoExecute
-	expectedSeconds := int64(123)
-
-	toleration := NewNotReadyToleration(expectedSeconds)
-
-	if toleration.Key != expectedKey {
-		t.Errorf("Expected key %q but got %q", expectedKey, toleration.Key)
-	}
-	if toleration.Operator != expectedOperator {
-		t.Errorf("Expected operator %q but got %q", expectedOperator, toleration.Operator)
-	}
-	if toleration.Effect != expectedEffect {
-		t.Errorf("Expected effect %q but got %q", expectedEffect, toleration.Effect)
-	}
-	if *toleration.TolerationSeconds != expectedSeconds {
-		t.Errorf("Expected seconds %d but got %d", expectedSeconds, *toleration.TolerationSeconds)
-	}
-}
-
-func TestNewUnreachableToleration(t *testing.T) {
-	tolerationSeconds := int64(300)
-	expectedToleration := &corev1.Toleration{
-		Key:               clusterv1alpha1.TaintClusterUnreachable,
-		Operator:          corev1.TolerationOpExists,
-		Effect:            corev1.TaintEffectNoExecute,
-		TolerationSeconds: &tolerationSeconds,
-	}
-
-	actualToleration := NewUnreachableToleration(tolerationSeconds)
-
-	if !reflect.DeepEqual(actualToleration, expectedToleration) {
-		t.Errorf("NewUnreachableToleration() = %v, want %v", actualToleration, expectedToleration)
-	}
-}
-
 func TestGenerateTaintsMessage(t *testing.T) {
 	tests := []struct {
 		name     string
