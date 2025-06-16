@@ -75,25 +75,27 @@ func TestValidatePolicyTaints(t *testing.T) {
 			name: "Multi duplicate key-value pairs",
 			taints: []policyv1alpha1.Taint{
 				{Key: "key1", Effect: "NoSchedule"},
-				{Key: "key2", Effect: "SelectiveNoSchedule", Value: "value1"},
+				{Key: "key2", Effect: "SelectiveNoExecute", Value: "value1"},
 				{Key: "key1", Effect: "NoSchedule"},
 				{Key: "key3", Effect: "NoExecute"},
-				{Key: "key2", Effect: "SelectiveNoSchedule"},
+				{Key: "key2", Effect: "SelectiveNoExecute"},
 			},
 			allowNoExecute: true,
 			expected: field.ErrorList{
 				field.Duplicate(field.NewPath("spec").Child("taints").Index(0), "Duplicate taint with the same key(key1) and effect(NoSchedule) is not allowed"),
-				field.Duplicate(field.NewPath("spec").Child("taints").Index(1), "Duplicate taint with the same key(key2) and effect(SelectiveNoSchedule) is not allowed"),
+				field.Duplicate(field.NewPath("spec").Child("taints").Index(1), "Duplicate taint with the same key(key2) and effect(SelectiveNoExecute) is not allowed"),
 			},
 		},
 		{
-			name: "NoExecute effect is not allowed",
+			name: "NoExecute or SelectiveNoExecute effect is not allowed",
 			taints: []policyv1alpha1.Taint{
 				{Key: "key1", Effect: "NoExecute"},
+				{Key: "key2", Effect: "SelectiveNoExecute"},
 			},
 			allowNoExecute: false,
 			expected: field.ErrorList{
-				field.Forbidden(field.NewPath("spec").Child("taints").Index(0), "Configuring taint with NoExecute effect is not allowed, this capability must be explicitly enabled by administrators through command-line flags"),
+				field.Forbidden(field.NewPath("spec").Child("taints").Index(0), "Configuring taint with NoExecute or SelectiveNoExecute effect is not allowed, this capability must be explicitly enabled by administrators through command-line flags"),
+				field.Forbidden(field.NewPath("spec").Child("taints").Index(1), "Configuring taint with NoExecute or SelectiveNoExecute effect is not allowed, this capability must be explicitly enabled by administrators through command-line flags"),
 			},
 		},
 	}

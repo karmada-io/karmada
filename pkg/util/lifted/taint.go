@@ -91,7 +91,7 @@ func parseTaint(st string) (corev1.Taint, error) {
 		key = parts[0]
 	case 2:
 		effect = corev1.TaintEffect(parts[1])
-		if err := validateTaintEffect(effect); err != nil {
+		if err := validateTaintEffectSpec(effect); err != nil {
 			return taint, err
 		}
 
@@ -123,8 +123,8 @@ func parseTaint(st string) (corev1.Taint, error) {
 
 // +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/staging/src/k8s.io/kubectl/pkg/cmd/taint/utils.go#L120-L126
 
-func validateTaintEffect(effect corev1.TaintEffect) error {
-	if effect != corev1.TaintEffectNoSchedule && effect != corev1.TaintEffectPreferNoSchedule && effect != corev1.TaintEffectNoExecute {
+func validateTaintEffectSpec(effect corev1.TaintEffect) error {
+	if effect != corev1.TaintEffectNoSchedule && effect != corev1.TaintEffectPreferNoSchedule && effect != corev1.TaintEffectNoExecute && effect != corev1.TaintEffect("SelectiveNoExecute") {
 		return fmt.Errorf("invalid taint effect: %v, unsupported taint effect", effect)
 	}
 

@@ -22,6 +22,7 @@ limitations under the License.
 package lifted
 
 import (
+	"fmt"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -42,11 +43,12 @@ func validateClusterTaintEffect(effect *corev1.TaintEffect, allowEmpty bool, fld
 
 	allErrors := field.ErrorList{}
 	switch *effect {
-	case corev1.TaintEffectNoSchedule, corev1.TaintEffectNoExecute:
+	case corev1.TaintEffectNoSchedule, corev1.TaintEffectNoExecute, corev1.TaintEffect("SelectiveNoExecute"):
 	default:
 		validValues := []string{
 			string(corev1.TaintEffectNoSchedule),
 			string(corev1.TaintEffectNoExecute),
+			string(corev1.TaintEffect("SelectiveNoExecute")),
 		}
 		allErrors = append(allErrors, field.NotSupported(fldPath, *effect, validValues))
 	}
@@ -92,4 +94,12 @@ func ValidateClusterTaints(taints []corev1.Taint, fldPath *field.Path) field.Err
 		uniqueTaints[currTaint.Effect].Insert(currTaint.Key)
 	}
 	return allErrors
+}
+
+func validateTaintEffect(effect corev1.TaintEffect) error {
+	if effect != corev1.TaintEffectNoSchedule && effect != corev1.TaintEffectPreferNoSchedule && effect != corev1.TaintEffectNoExecute && effect != corev1.TaintEffect("SelectiveNoExecute") {
+		return fmt.Errorf("invalid taint effect: %v, unsupported taint effect", effect)
+	}
+
+	return nil
 }

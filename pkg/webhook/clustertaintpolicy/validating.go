@@ -67,8 +67,8 @@ func validatePolicySpec(spec policyv1alpha1.ClusterTaintPolicySpec, allowNoExecu
 func validatePolicyTaints(taints []policyv1alpha1.Taint, fldPath *field.Path, allowNoExecute bool) field.ErrorList {
 	var allErrs field.ErrorList
 	for i := 0; i < len(taints); i++ {
-		if !allowNoExecute && taints[i].Effect == corev1.TaintEffectNoExecute {
-			allErrs = append(allErrs, field.Forbidden(fldPath.Index(i), "Configuring taint with NoExecute effect is not allowed, this capability must be explicitly enabled by administrators through command-line flags"))
+		if !allowNoExecute && (taints[i].Effect == corev1.TaintEffectNoExecute || taints[i].Effect == corev1.TaintEffect("SelectiveNoExecute")) {
+			allErrs = append(allErrs, field.Forbidden(fldPath.Index(i), "Configuring taint with NoExecute or SelectiveNoExecute effect is not allowed, this capability must be explicitly enabled by administrators through command-line flags"))
 		}
 
 		for j := i + 1; j < len(taints); j++ {
