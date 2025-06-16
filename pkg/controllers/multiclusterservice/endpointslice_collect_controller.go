@@ -274,8 +274,6 @@ func (c *EndpointSliceCollectController) genHandlerUpdateFunc(clusterName string
 
 func (c *EndpointSliceCollectController) genHandlerDeleteFunc(clusterName string) func(obj interface{}) {
 	return func(obj interface{}) {
-		oldObj := obj.(runtime.Object)
-		logger := log.FromContext(c.Context).WithValues("gvk", oldObj.GetObjectKind().GroupVersionKind())
 		if deleted, ok := obj.(cache.DeletedFinalStateUnknown); ok {
 			// This object might be stale but ok for our current usage.
 			obj = deleted.Obj
@@ -283,6 +281,8 @@ func (c *EndpointSliceCollectController) genHandlerDeleteFunc(clusterName string
 				return
 			}
 		}
+		oldObj := obj.(runtime.Object)
+		logger := log.FromContext(c.Context).WithValues("gvk", oldObj.GetObjectKind().GroupVersionKind())
 		key, err := keys.FederatedKeyFunc(clusterName, oldObj)
 		if err != nil {
 			logger.Info("Failed to get federated key")
