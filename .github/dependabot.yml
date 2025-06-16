@@ -34,12 +34,3 @@ updates:
   target-branch: "release-1.12"
   schedule:
     interval: weekly
-<<<<<<< HEAD
-=======
-
-- package-ecosystem: docker
-  directory: /cluster/images/
-  target-branch: "release-1.11"
-  schedule:
-    interval: weekly
->>>>>>> parent of 2dc4ebe26 (chore: update maintained versions from 1.11 to 1.14 and bump imageTag from v1.13.0 to v1.14.0)
