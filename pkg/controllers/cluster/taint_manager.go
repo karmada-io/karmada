@@ -97,7 +97,7 @@ func (tc *NoExecuteTaintManager) Reconcile(ctx context.Context, req reconcile.Re
 
 	// Get all resource bindings that target this cluster
 	var bindings workv1alpha2.ResourceBindingList
-	if err := tc.Client.List(ctx, &bindings, client.MatchingFields{indexregistry.ClusterNameIndexKey: cluster.Name}); err != nil {
+	if err := tc.Client.List(ctx, &bindings, client.MatchingFields{indexregistry.ResourceBindingIndexByFieldCluster: cluster.Name}); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -112,7 +112,12 @@ func (tc *NoExecuteTaintManager) Reconcile(ctx context.Context, req reconcile.Re
 		}
 
 		if shouldEvict {
-			if err := tc.syncBindingEviction(ctx, &binding, cluster); err != nil {
+			key, err := keys.FederatedKeyFunc(cluster.Name, &binding)
+			if err != nil {
+				klog.Errorf("Failed to generate key for binding %s/%s: %v", binding.Namespace, binding.Name, err)
+				continue
+			}
+			if err := tc.syncBindingEviction(key); err != nil {
 				klog.Errorf("Failed to evict binding %s/%s: %v", binding.Namespace, binding.Name, err)
 				continue
 			}
