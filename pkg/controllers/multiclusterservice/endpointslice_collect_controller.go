@@ -34,11 +34,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -84,13 +84,15 @@ const EndpointSliceCollectControllerName = "endpointslice-collect-controller"
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 func (c *EndpointSliceCollectController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling Work %s", req.NamespacedName.String())
+	logger := log.FromContext(c.Context)
+	logger.Info("Reconciling EndpointSliceCollectController")
 
 	work := &workv1alpha1.Work{}
 	if err := c.Client.Get(ctx, req.NamespacedName, work); err != nil {
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
+		logger.Error(err, "Failed to get work in namespace")
 		return controllerruntime.Result{}, err
 	}
 
@@ -105,7 +107,7 @@ func (c *EndpointSliceCollectController) Reconcile(ctx context.Context, req cont
 
 	clusterName, err := names.GetClusterName(work.Namespace)
 	if err != nil {
-		klog.Errorf("Failed to get cluster name for work %s/%s", work.Namespace, work.Name)
+		logger.Error(err, "Failed to get cluster name")
 		return controllerruntime.Result{}, err
 	}
 
@@ -142,16 +144,16 @@ func (c *EndpointSliceCollectController) RunWorkQueue() {
 
 func (c *EndpointSliceCollectController) collectEndpointSlice(key util.QueueKey) error {
 	ctx := context.Background()
+	logger := log.FromContext(ctx)
 	fedKey, ok := key.(keys.FederatedKey)
 	if !ok {
-		klog.Errorf("Failed to collect endpointslice as invalid key: %v", key)
+		logger.Error(nil, "Failed to collect endpointslice as invalid", "key", key)
 		return fmt.Errorf("invalid key")
 	}
 
-	klog.V(4).Infof("Begin to collect %s %s.", fedKey.Kind, fedKey.NamespaceKey())
+	logger.Info("Begin to collect", "kind", fedKey.Kind, "name", fedKey.NamespaceKey())
 	if err := c.handleEndpointSliceEvent(ctx, fedKey); err != nil {
-		klog.Errorf("Failed to handle endpointSlice(%s) event, Error: %v",
-			fedKey.NamespaceKey(), err)
+		logger.Error(err, "Failed to handle endpointslice event for", "name", fedKey.NamespaceKey())
 		return err
 	}
 
@@ -159,19 +161,20 @@ func (c *EndpointSliceCollectController) collectEndpointSlice(key util.QueueKey)
 }
 
 func (c *EndpointSliceCollectController) buildResourceInformers(clusterName string) error {
+	logger := log.FromContext(c.Context)
 	cluster, err := util.GetCluster(c.Client, clusterName)
 	if err != nil {
-		klog.Errorf("Failed to get the given member cluster %s", clusterName)
+		logger.Error(err, "Failed to get cluster", "clusterName", clusterName)
 		return err
 	}
 
 	if !util.IsClusterReady(&cluster.Status) {
-		klog.Errorf("Stop collect endpointslice for cluster(%s) as cluster not ready.", cluster.Name)
+		logger.Error(nil, "Stop collect endpointslice for cluster")
 		return fmt.Errorf("cluster(%s) not ready", cluster.Name)
 	}
 
 	if err := c.registerInformersAndStart(cluster); err != nil {
-		klog.Errorf("Failed to register informer for Cluster %s. Error: %v.", cluster.Name, err)
+		logger.Error(err, "Failed to register informers")
 		return err
 	}
 
@@ -181,11 +184,12 @@ func (c *EndpointSliceCollectController) buildResourceInformers(clusterName stri
 // registerInformersAndStart builds informer manager for cluster if it doesn't exist, then constructs informers for gvr
 // and start it.
 func (c *EndpointSliceCollectController) registerInformersAndStart(cluster *clusterv1alpha1.Cluster) error {
+	logger := log.FromContext(c.Context)
 	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(cluster.Name)
 	if singleClusterInformerManager == nil {
 		dynamicClusterClient, err := c.ClusterDynamicClientSetFunc(cluster.Name, c.Client, c.ClusterClientOption)
 		if err != nil {
-			klog.Errorf("Failed to build dynamic cluster client for cluster %s.", cluster.Name)
+			logger.Error(err, "Failed to get cluster dynamic client")
 			return err
 		}
 		singleClusterInformerManager = c.InformerManager.ForCluster(dynamicClusterClient.ClusterName, dynamicClusterClient.DynamicClientSet, 0)
@@ -220,7 +224,7 @@ func (c *EndpointSliceCollectController) registerInformersAndStart(cluster *clus
 		}
 		return nil
 	}(); err != nil {
-		klog.Errorf("Failed to sync cache for cluster: %s, error: %v", cluster.Name, err)
+		logger.Error(err, "Failed to sync informers")
 		c.InformerManager.Stop(cluster.Name)
 		return err
 	}
@@ -242,10 +246,11 @@ func (c *EndpointSliceCollectController) getEventHandler(clusterName string) cac
 
 func (c *EndpointSliceCollectController) genHandlerAddFunc(clusterName string) func(obj interface{}) {
 	return func(obj interface{}) {
+		logger := log.FromContext(c.Context)
 		curObj := obj.(runtime.Object)
 		key, err := keys.FederatedKeyFunc(clusterName, curObj)
 		if err != nil {
-			klog.Warningf("Failed to generate key for obj: %s", curObj.GetObjectKind().GroupVersionKind())
+			logger.Error(err, "Failed to get federated key", "obj", curObj.GetObjectKind().GroupVersionKind())
 			return
 		}
 		c.worker.Add(key)
@@ -255,10 +260,11 @@ func (c *EndpointSliceCollectController) genHandlerAddFunc(clusterName string) f
 func (c *EndpointSliceCollectController) genHandlerUpdateFunc(clusterName string) func(oldObj, newObj interface{}) {
 	return func(oldObj, newObj interface{}) {
 		curObj := newObj.(runtime.Object)
+		logger := log.FromContext(c.Context).WithValues("gvk", curObj.GetObjectKind().GroupVersionKind())
 		if !reflect.DeepEqual(oldObj, newObj) {
 			key, err := keys.FederatedKeyFunc(clusterName, curObj)
 			if err != nil {
-				klog.Warningf("Failed to generate key for obj: %s", curObj.GetObjectKind().GroupVersionKind())
+				logger.Info("Failed to get federated key")
 				return
 			}
 			c.worker.Add(key)
@@ -268,6 +274,8 @@ func (c *EndpointSliceCollectController) genHandlerUpdateFunc(clusterName string
 
 func (c *EndpointSliceCollectController) genHandlerDeleteFunc(clusterName string) func(obj interface{}) {
 	return func(obj interface{}) {
+		oldObj := obj.(runtime.Object)
+		logger := log.FromContext(c.Context).WithValues("gvk", oldObj.GetObjectKind().GroupVersionKind())
 		if deleted, ok := obj.(cache.DeletedFinalStateUnknown); ok {
 			// This object might be stale but ok for our current usage.
 			obj = deleted.Obj
@@ -275,10 +283,9 @@ func (c *EndpointSliceCollectController) genHandlerDeleteFunc(clusterName string
 				return
 			}
 		}
-		oldObj := obj.(runtime.Object)
 		key, err := keys.FederatedKeyFunc(clusterName, oldObj)
 		if err != nil {
-			klog.Warningf("Failed to generate key for obj: %s", oldObj.GetObjectKind().GroupVersionKind())
+			logger.Info("Failed to get federated key")
 			return
 		}
 		c.worker.Add(key)
@@ -290,6 +297,7 @@ func (c *EndpointSliceCollectController) genHandlerDeleteFunc(clusterName string
 // For EndpointSlice delete event, cleanup the previously reported EndpointSlice.
 func (c *EndpointSliceCollectController) handleEndpointSliceEvent(ctx context.Context, endpointSliceKey keys.FederatedKey) error {
 	endpointSliceObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, endpointSliceKey)
+	logger := log.FromContext(ctx)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return cleanupWorkWithEndpointSliceDelete(ctx, c.Client, endpointSliceKey)
@@ -308,7 +316,7 @@ func (c *EndpointSliceCollectController) handleEndpointSliceEvent(ctx context.Co
 			util.MultiClusterServiceNamespaceLabel: endpointSliceKey.Namespace,
 			util.MultiClusterServiceNameLabel:      util.GetLabelValue(endpointSliceObj.GetLabels(), discoveryv1.LabelServiceName),
 		})}); err != nil {
-		klog.Errorf("Failed to list workList reported by endpointSlice(%s/%s), error: %v", endpointSliceKey.Namespace, endpointSliceKey.Name, err)
+		logger.Error(err, "Failed to list work list")
 		return err
 	}
 
@@ -324,8 +332,7 @@ func (c *EndpointSliceCollectController) handleEndpointSliceEvent(ctx context.Co
 	}
 
 	if err = c.reportEndpointSliceWithEndpointSliceCreateOrUpdate(ctx, endpointSliceKey.Cluster, endpointSliceObj); err != nil {
-		klog.Errorf("Failed to handle endpointSlice(%s) event, Error: %v",
-			endpointSliceKey.NamespaceKey(), err)
+		logger.Error(err, "Failed to report endpointslice with endpointslice controller")
 		return err
 	}
 
@@ -333,10 +340,11 @@ func (c *EndpointSliceCollectController) handleEndpointSliceEvent(ctx context.Co
 }
 
 func (c *EndpointSliceCollectController) collectTargetEndpointSlice(ctx context.Context, work *workv1alpha1.Work, clusterName string) error {
+	logger := log.FromContext(ctx)
 	manager := c.InformerManager.GetSingleClusterManager(clusterName)
 	if manager == nil {
 		err := fmt.Errorf("failed to get informer manager for cluster %s", clusterName)
-		klog.Errorf("%v", err)
+		logger.Error(err, "Failed to get informer manager for cluster", "cluster", clusterName)
 		return err
 	}
 
@@ -347,13 +355,13 @@ func (c *EndpointSliceCollectController) collectTargetEndpointSlice(ctx context.
 	})
 	epsList, err := manager.Lister(discoveryv1.SchemeGroupVersion.WithResource("endpointslices")).ByNamespace(svcNamespace).List(selector)
 	if err != nil {
-		klog.Errorf("Failed to list EndpointSlice for Service(%s/%s) in cluster(%s), Error: %v", svcNamespace, svcName, clusterName, err)
+		logger.Error(err, "Failed to list endpointslices for cluster", "cluster", clusterName, "service", svcName, "namespace", svcNamespace)
 		return err
 	}
 	for _, epsObj := range epsList {
 		eps := &discoveryv1.EndpointSlice{}
 		if err = helper.ConvertToTypedObject(epsObj, eps); err != nil {
-			klog.Errorf("Failed to convert object to EndpointSlice, error: %v", err)
+			logger.Error(err, "Failed to convert endpointslices for cluster", "cluster", clusterName, "service", svcName)
 			return err
 		}
 		if util.GetLabelValue(eps.GetLabels(), discoveryv1.LabelManagedBy) == util.EndpointSliceDispatchControllerLabelValue {
@@ -361,7 +369,7 @@ func (c *EndpointSliceCollectController) collectTargetEndpointSlice(ctx context.
 		}
 		epsUnstructured, err := helper.ToUnstructured(eps)
 		if err != nil {
-			klog.Errorf("Failed to convert EndpointSlice %s/%s to unstructured, error: %v", eps.GetNamespace(), eps.GetName(), err)
+			logger.Error(err, "Failed to convert endpointslices for cluster", "cluster", clusterName, "service", svcName)
 			return err
 		}
 		if err = c.reportEndpointSliceWithEndpointSliceCreateOrUpdate(ctx, clusterName, epsUnstructured); err != nil {
@@ -384,6 +392,7 @@ func (c *EndpointSliceCollectController) reportEndpointSliceWithEndpointSliceCre
 
 // reportEndpointSlice report EndPointSlice objects to control-plane.
 func reportEndpointSlice(ctx context.Context, c client.Client, endpointSlice *unstructured.Unstructured, clusterName string) error {
+	logger := log.FromContext(ctx)
 	executionSpace := names.GenerateExecutionSpaceName(clusterName)
 	workName := names.GenerateWorkName(endpointSlice.GetKind(), endpointSlice.GetName(), endpointSlice.GetNamespace())
 
@@ -394,7 +403,7 @@ func reportEndpointSlice(ctx context.Context, c client.Client, endpointSlice *un
 
 	// indicate the Work should be not propagated since it's collected resource.
 	if err := ctrlutil.CreateOrUpdateWork(ctx, c, workMeta, endpointSlice, ctrlutil.WithSuspendDispatching(true)); err != nil {
-		klog.Errorf("Failed to create or update work(%s/%s), Error: %v", workMeta.Namespace, workMeta.Name, err)
+		logger.Error(err, "Failed to create or update the work", "namespace", workMeta.Namespace, "name", workMeta.Name)
 		return err
 	}
 
@@ -402,13 +411,14 @@ func reportEndpointSlice(ctx context.Context, c client.Client, endpointSlice *un
 }
 
 func getEndpointSliceWorkMeta(ctx context.Context, c client.Client, ns string, workName string, endpointSlice *unstructured.Unstructured) (metav1.ObjectMeta, error) {
+	logger := log.FromContext(ctx)
 	existWork := &workv1alpha1.Work{}
 	var err error
 	if err = c.Get(ctx, types.NamespacedName{
 		Namespace: ns,
 		Name:      workName,
 	}, existWork); err != nil && !apierrors.IsNotFound(err) {
-		klog.Errorf("Get EndpointSlice work(%s/%s) error:%v", ns, workName, err)
+		logger.Error(err, "Failed to get work object", "namespace", ns, "name", workName)
 		return metav1.ObjectMeta{}, err
 	}
 
@@ -439,7 +449,7 @@ func getEndpointSliceWorkMeta(ctx context.Context, c client.Client, ns string, w
 
 func cleanupWorkWithEndpointSliceDelete(ctx context.Context, c client.Client, endpointSliceKey keys.FederatedKey) error {
 	executionSpace := names.GenerateExecutionSpaceName(endpointSliceKey.Cluster)
-
+	logger := log.FromContext(ctx)
 	workNamespaceKey := types.NamespacedName{
 		Namespace: executionSpace,
 		Name:      names.GenerateWorkName(endpointSliceKey.Kind, endpointSliceKey.Name, endpointSliceKey.Namespace),
@@ -449,7 +459,7 @@ func cleanupWorkWithEndpointSliceDelete(ctx context.Context, c client.Client, en
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
-		klog.Errorf("Failed to get work(%s) in executionSpace(%s): %v", workNamespaceKey.String(), executionSpace, err)
+		logger.Error(err, "Failed to get work object", "namespace", executionSpace, "name", workNamespaceKey.Name)
 		return err
 	}
 
@@ -462,6 +472,7 @@ func cleanupWorkWithEndpointSliceDelete(ctx context.Context, c client.Client, en
 // If managed solely by its own controller, delete the work accordingly.
 // This logic should be deleted after the conflict is fixed.
 func cleanProviderClustersEndpointSliceWork(ctx context.Context, c client.Client, work *workv1alpha1.Work) error {
+	logger := log.FromContext(ctx)
 	controllers := util.GetLabelValue(work.Labels, util.EndpointSliceWorkManagedByLabel)
 	controllerSet := sets.New[string]()
 	controllerSet.Insert(strings.Split(controllers, ".")...)
@@ -472,14 +483,14 @@ func cleanProviderClustersEndpointSliceWork(ctx context.Context, c client.Client
 		work.Labels[util.EndpointSliceWorkManagedByLabel] = strings.Join(controllerSet.UnsortedList(), ".")
 
 		if err := c.Update(ctx, work); err != nil {
-			klog.Errorf("Failed to update work(%s/%s): %v", work.Namespace, work.Name, err)
+			logger.Error(err, "Failed to delete work object", "namespace", work.Namespace, "name", work.Name)
 			return err
 		}
 		return nil
 	}
 
 	if err := c.Delete(ctx, work); err != nil {
-		klog.Errorf("Failed to delete work(%s/%s): %v", work.Namespace, work.Name, err)
+		logger.Error(err, "Failed to delete work object", "namespace", work.Namespace, "name", work.Name)
 		return err
 	}
 
