@@ -31,7 +31,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,6 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -69,7 +69,8 @@ type MCSController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *MCSController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling MultiClusterService(%s/%s)", req.Namespace, req.Name)
+	logger := log.FromContext(ctx).WithValues("namespace", req.Namespace, "name", req.Name)
+	logger.Info("Reconciling MultiClusterService")
 
 	mcs := &networkingv1alpha1.MultiClusterService{}
 	if err := c.Client.Get(ctx, req.NamespacedName, mcs); err != nil {
@@ -77,7 +78,7 @@ func (c *MCSController) Reconcile(ctx context.Context, req controllerruntime.Req
 			// The mcs no longer exist, in which case we stop processing.
 			return controllerruntime.Result{}, nil
 		}
-		klog.Errorf("Failed to get MultiClusterService object(%s):%v", req.NamespacedName, err)
+		logger.Error(err, "Failed to get MultiClusterService")
 		return controllerruntime.Result{}, err
 	}
 
@@ -103,7 +104,8 @@ func (c *MCSController) Reconcile(ctx context.Context, req controllerruntime.Req
 }
 
 func (c *MCSController) handleMultiClusterServiceDelete(ctx context.Context, mcs *networkingv1alpha1.MultiClusterService) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Begin to handle MultiClusterService(%s/%s) delete event", mcs.Namespace, mcs.Name)
+	logger := log.FromContext(ctx).WithValues("namespace", mcs.Namespace, "name", mcs.Name)
+	logger.Info("Begin to handle MultiClusterService delete event")
 
 	if err := c.retrieveService(ctx, mcs); err != nil {
 		c.EventRecorder.Event(mcs, corev1.EventTypeWarning, events.EventReasonSyncServiceFailed,
@@ -120,22 +122,23 @@ func (c *MCSController) handleMultiClusterServiceDelete(ctx context.Context, mcs
 	if controllerutil.RemoveFinalizer(mcs, util.MCSControllerFinalizer) {
 		err := c.Client.Update(ctx, mcs)
 		if err != nil {
-			klog.Errorf("Failed to update MultiClusterService(%s/%s) with finalizer:%v", mcs.Namespace, mcs.Name, err)
+			logger.Error(err, "Failed to remove finalizer")
 			return controllerruntime.Result{}, err
 		}
 	}
 
-	klog.V(4).Infof("Success to delete MultiClusterService(%s/%s)", mcs.Namespace, mcs.Name)
+	logger.Info("Success to MultiClusterService delete event")
 	return controllerruntime.Result{}, nil
 }
 
 func (c *MCSController) retrieveMultiClusterService(ctx context.Context, mcs *networkingv1alpha1.MultiClusterService, providerClusters sets.Set[string]) error {
+	logger := log.FromContext(ctx).WithValues("namespace", mcs.Namespace, "name", mcs.Name)
 	mcsID := util.GetLabelValue(mcs.Labels, networkingv1alpha1.MultiClusterServicePermanentIDLabel)
 	workList, err := helper.GetWorksByLabelsSet(ctx, c, labels.Set{
 		networkingv1alpha1.MultiClusterServicePermanentIDLabel: mcsID,
 	})
 	if err != nil {
-		klog.Errorf("Failed to list work by MultiClusterService(%s/%s): %v", mcs.Namespace, mcs.Name, err)
+		logger.Error(err, "Failed to get work list by MultiClusterService")
 		return err
 	}
 
@@ -145,7 +148,7 @@ func (c *MCSController) retrieveMultiClusterService(ctx context.Context, mcs *ne
 		}
 		clusterName, err := names.GetClusterName(work.Namespace)
 		if err != nil {
-			klog.Errorf("Failed to get member cluster name for work %s/%s:%v", work.Namespace, work.Name, work)
+			logger.Error(err, "Failed to get cluster name", "work", work)
 			continue
 		}
 
@@ -154,21 +157,21 @@ func (c *MCSController) retrieveMultiClusterService(ctx context.Context, mcs *ne
 		}
 
 		if err = c.cleanProviderEndpointSliceWork(ctx, work.DeepCopy()); err != nil {
-			klog.Errorf("Failed to clean provider EndpointSlice work(%s/%s):%v", work.Namespace, work.Name, err)
+			logger.Error(err, "Failed to clean provider endpoint slice work")
 			return err
 		}
 
 		if err = c.Client.Delete(ctx, work.DeepCopy()); err != nil && !apierrors.IsNotFound(err) {
-			klog.Errorf("Error while deleting work(%s/%s): %v", work.Namespace, work.Name, err)
+			logger.Error(err, "Error while deleting work", "work", work)
 			return err
 		}
 	}
-
-	klog.V(4).Infof("Success to clean up MultiClusterService(%s/%s) work: %v", mcs.Namespace, mcs.Name, err)
+	logger.Info("Success to clean up work list by MultiClusterService")
 	return nil
 }
 
 func (c *MCSController) cleanProviderEndpointSliceWork(ctx context.Context, work *workv1alpha1.Work) error {
+	logger := log.FromContext(ctx).WithValues("namespace", work.Namespace, "name", work.Name)
 	workList := &workv1alpha1.WorkList{}
 	if err := c.List(ctx, workList, &client.ListOptions{
 		Namespace: work.Namespace,
@@ -177,7 +180,7 @@ func (c *MCSController) cleanProviderEndpointSliceWork(ctx context.Context, work
 			util.MultiClusterServiceNamespaceLabel: util.GetLabelValue(work.Labels, util.MultiClusterServiceNamespaceLabel),
 		}),
 	}); err != nil {
-		klog.Errorf("Failed to list workList reported by work(MultiClusterService)(%s/%s): %v", work.Namespace, work.Name, err)
+		logger.Error(err, "Failed to get work list reported by MultiClusterService")
 		return err
 	}
 
@@ -204,16 +207,17 @@ func (c *MCSController) cleanProviderEndpointSliceWork(ctx context.Context, work
 }
 
 func (c *MCSController) handleMultiClusterServiceCreateOrUpdate(ctx context.Context, mcs *networkingv1alpha1.MultiClusterService) error {
-	klog.V(4).Infof("Begin to handle MultiClusterService(%s/%s) create or update event", mcs.Namespace, mcs.Name)
+	logger := log.FromContext(ctx).WithValues("namespace", mcs.Namespace, "name", mcs.Name)
+	logger.Info("Begin to handle MultiClusterService")
 
 	providerClusters, err := helper.GetProviderClusters(c.Client, mcs)
 	if err != nil {
-		klog.Errorf("Failed to get provider clusters by MultiClusterService(%s/%s):%v", mcs.Namespace, mcs.Name, err)
+		logger.Error(err, "Failed to get provider clusters MultiClusterService")
 		return err
 	}
 	consumerClusters, err := helper.GetConsumerClusters(c.Client, mcs)
 	if err != nil {
-		klog.Errorf("Failed to get consumer clusters by MultiClusterService(%s/%s):%v", mcs.Namespace, mcs.Name, err)
+		logger.Error(err, "Failed to get consumer clusters MultiClusterService")
 		return err
 	}
 
@@ -228,7 +232,7 @@ func (c *MCSController) handleMultiClusterServiceCreateOrUpdate(ctx context.Cont
 		if controllerutil.RemoveFinalizer(mcs, util.MCSControllerFinalizer) {
 			err := c.Client.Update(ctx, mcs)
 			if err != nil {
-				klog.Errorf("Failed to remove finalizer(%s) from MultiClusterService(%s/%s):%v", util.MCSControllerFinalizer, mcs.Namespace, mcs.Name, err)
+				logger.Error(err, "Failed to remove finalizer from MultiClusterService", "finalizer", util.MCSControllerFinalizer)
 				return err
 			}
 		}
@@ -239,7 +243,7 @@ func (c *MCSController) handleMultiClusterServiceCreateOrUpdate(ctx context.Cont
 	if controllerutil.AddFinalizer(mcs, util.MCSControllerFinalizer) {
 		err = c.Client.Update(ctx, mcs)
 		if err != nil {
-			klog.Errorf("Failed to add finalizer(%s) to MultiClusterService(%s/%s): %v ", util.MCSControllerFinalizer, mcs.Namespace, mcs.Name, err)
+			logger.Error(err, "Failed to add finalizer to MultiClusterService", "finalizer", util.MCSControllerFinalizer)
 			return err
 		}
 	}
@@ -259,7 +263,7 @@ func (c *MCSController) handleMultiClusterServiceCreateOrUpdate(ctx context.Cont
 	err = c.Client.Get(ctx, types.NamespacedName{Namespace: mcs.Namespace, Name: mcs.Name}, svc)
 	// If the Service is deleted, the Service's ResourceBinding will be cleaned by GC
 	if err != nil {
-		klog.Errorf("Failed to get service(%s/%s):%v", mcs.Namespace, mcs.Name, err)
+		logger.Error(err, "Failed to get service from MultiClusterService")
 		return err
 	}
 
@@ -267,12 +271,12 @@ func (c *MCSController) handleMultiClusterServiceCreateOrUpdate(ctx context.Cont
 	if err = c.propagateService(ctx, mcs, svc, providerClusters, consumerClusters); err != nil {
 		return err
 	}
-
-	klog.V(4).Infof("Success to reconcile MultiClusterService(%s/%s)", mcs.Namespace, mcs.Name)
+	logger.Info("Success to add finalizer to MultiClusterService")
 	return nil
 }
 
 func (c *MCSController) propagateMultiClusterService(ctx context.Context, mcs *networkingv1alpha1.MultiClusterService, providerClusters sets.Set[string]) error {
+	logger := log.FromContext(ctx).WithValues("namespace", mcs.Namespace, "name", mcs.Name)
 	for clusterName := range providerClusters {
 		clusterObj, err := util.GetCluster(c.Client, clusterName)
 		if err != nil {
@@ -280,7 +284,7 @@ func (c *MCSController) propagateMultiClusterService(ctx context.Context, mcs *n
 				c.EventRecorder.Eventf(mcs, corev1.EventTypeWarning, events.EventReasonClusterNotFound, "Provider cluster %s is not found", clusterName)
 				continue
 			}
-			klog.Errorf("Failed to get cluster %s, error is: %v", clusterName, err)
+			logger.Error(err, "Failed to get provider cluster", "cluster", clusterName)
 			return err
 		}
 		if !util.IsClusterReady(&clusterObj.Status) {
@@ -306,12 +310,11 @@ func (c *MCSController) propagateMultiClusterService(ctx context.Context, mcs *n
 
 		mcsObj, err := helper.ToUnstructured(mcs)
 		if err != nil {
-			klog.Errorf("Failed to convert MultiClusterService(%s/%s) to unstructured object, err is %v", mcs.Namespace, mcs.Name, err)
+			logger.Error(err, "Failed to convert MultiClusterService to Unstructured Object")
 			return err
 		}
 		if err = ctrlutil.CreateOrUpdateWork(ctx, c, workMeta, mcsObj, ctrlutil.WithSuspendDispatching(true)); err != nil {
-			klog.Errorf("Failed to create or update MultiClusterService(%s/%s) work in the given member cluster %s, err is %v",
-				mcs.Namespace, mcs.Name, clusterName, err)
+			logger.Error(err, "Failed to create or update multi cluster service work in the given member cluster", "cluster", clusterName)
 			return err
 		}
 	}
@@ -320,10 +323,11 @@ func (c *MCSController) propagateMultiClusterService(ctx context.Context, mcs *n
 }
 
 func (c *MCSController) retrieveService(ctx context.Context, mcs *networkingv1alpha1.MultiClusterService) error {
+	logger := log.FromContext(ctx).WithValues("namespace", mcs.Namespace, "name", mcs.Name)
 	svc := &corev1.Service{}
 	err := c.Client.Get(ctx, types.NamespacedName{Namespace: mcs.Namespace, Name: mcs.Name}, svc)
 	if err != nil && !apierrors.IsNotFound(err) {
-		klog.Errorf("Failed to get service(%s/%s):%v", mcs.Namespace, mcs.Name, err)
+		logger.Error(err, "Failed to get service from MultiClusterService")
 		return err
 	}
 
@@ -338,7 +342,7 @@ func (c *MCSController) retrieveService(ctx context.Context, mcs *networkingv1al
 	}
 
 	if err = c.Client.Update(ctx, svcCopy); err != nil {
-		klog.Errorf("Failed to update service(%s/%s):%v", mcs.Namespace, mcs.Name, err)
+		logger.Error(err, "Failed to update service from MultiClusterService")
 		return err
 	}
 
@@ -348,7 +352,7 @@ func (c *MCSController) retrieveService(ctx context.Context, mcs *networkingv1al
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
-		klog.Errorf("Failed to get ResourceBinding(%s/%s):%v", mcs.Namespace, names.GenerateBindingName(svc.Kind, svc.Name), err)
+		logger.Error(err, "Failed to get resource binding from MultiClusterService", "resource", names.GenerateBindingName(svc.Kind, svc.Name))
 		return err
 	}
 
@@ -364,7 +368,7 @@ func (c *MCSController) retrieveService(ctx context.Context, mcs *networkingv1al
 		delete(rbCopy.Labels, networkingv1alpha1.MultiClusterServicePermanentIDLabel)
 	}
 	if err := c.Client.Update(ctx, rbCopy); err != nil {
-		klog.Errorf("Failed to update ResourceBinding(%s/%s):%v", mcs.Namespace, names.GenerateBindingName(svc.Kind, svc.Name), err)
+		logger.Error(err, "Failed to update resource binding from MultiClusterService", "resource", names.GenerateBindingName(svc.Kind, svc.Name))
 		return err
 	}
 
@@ -373,14 +377,15 @@ func (c *MCSController) retrieveService(ctx context.Context, mcs *networkingv1al
 
 func (c *MCSController) propagateService(ctx context.Context, mcs *networkingv1alpha1.MultiClusterService, svc *corev1.Service,
 	providerClusters, consumerClusters sets.Set[string]) error {
+	logger := log.FromContext(ctx).WithValues("namespace", mcs.Namespace, "name", mcs.Name)
 	if err := c.claimMultiClusterServiceForService(ctx, svc, mcs); err != nil {
-		klog.Errorf("Failed to claim for Service(%s/%s), err is %v", svc.Namespace, svc.Name, err)
+		logger.Error(err, "Failed to to claim for Service")
 		return err
 	}
 
 	binding, err := c.buildResourceBinding(svc, mcs, providerClusters, consumerClusters)
 	if err != nil {
-		klog.Errorf("Failed to build ResourceBinding for Service(%s/%s), err is %v", svc.Namespace, svc.Name, err)
+		logger.Error(err, "Failed to build ResourceBinding")
 		return err
 	}
 
@@ -417,17 +422,17 @@ func (c *MCSController) propagateService(ctx context.Context, mcs *networkingv1a
 		return nil
 	})
 	if err != nil {
-		klog.Errorf("Failed to create/update ResourceBinding(%s/%s):%v", bindingCopy.Namespace, bindingCopy.Name, err)
+		logger.Error(err, "Failed to create/update ResourceBinding")
 		return err
 	}
 
 	switch operationResult {
 	case controllerutil.OperationResultCreated:
-		klog.Infof("Create ResourceBinding(%s/%s) successfully.", binding.GetNamespace(), binding.GetName())
+		logger.Info("Create ResourceBinding successfully.")
 	case controllerutil.OperationResultUpdated:
-		klog.Infof("Update ResourceBinding(%s/%s) successfully.", binding.GetNamespace(), binding.GetName())
+		logger.Info("Update ResourceBinding successfully.")
 	default:
-		klog.V(2).Infof("ResourceBinding(%s/%s) is up to date.", binding.GetNamespace(), binding.GetName())
+		logger.Info("ResourceBinding is up to date.")
 	}
 
 	return nil
@@ -477,6 +482,7 @@ func (c *MCSController) buildResourceBinding(svc *corev1.Service, mcs *networkin
 }
 
 func (c *MCSController) claimMultiClusterServiceForService(ctx context.Context, svc *corev1.Service, mcs *networkingv1alpha1.MultiClusterService) error {
+	logger := log.FromContext(ctx).WithValues("namespace", mcs.Namespace, "name", mcs.Name)
 	svcCopy := svc.DeepCopy()
 	if svcCopy.Labels == nil {
 		svcCopy.Labels = map[string]string{}
@@ -500,7 +506,7 @@ func (c *MCSController) claimMultiClusterServiceForService(ctx context.Context, 
 	svcCopy.Annotations[networkingv1alpha1.MultiClusterServiceNamespaceAnnotation] = mcs.Namespace
 
 	if err := c.Client.Update(ctx, svcCopy); err != nil {
-		klog.Errorf("Failed to update service(%s/%s):%v ", svc.Namespace, svc.Name, err)
+		logger.Error(err, "Failed to update Service")
 		return err
 	}
 
@@ -604,11 +610,12 @@ func (c *MCSController) SetupWithManager(mgr controllerruntime.Manager) error {
 }
 
 func (c *MCSController) serviceHasCrossClusterMultiClusterService(svc *corev1.Service) bool {
+	logger := log.FromContext(context.Background()).WithValues("namespace", svc.Namespace, "name", svc.Name)
 	mcs := &networkingv1alpha1.MultiClusterService{}
 	if err := c.Client.Get(context.Background(),
 		types.NamespacedName{Namespace: svc.Namespace, Name: svc.Name}, mcs); err != nil {
 		if !apierrors.IsNotFound(err) {
-			klog.Errorf("Failed to get MultiClusterService(%s/%s):%v", svc.Namespace, svc.Name, err)
+			logger.Error(err, "Failed to get MultiClusterService")
 		}
 		return false
 	}
@@ -618,6 +625,7 @@ func (c *MCSController) serviceHasCrossClusterMultiClusterService(svc *corev1.Se
 
 func (c *MCSController) clusterMapFunc() handler.MapFunc {
 	return func(ctx context.Context, a client.Object) []reconcile.Request {
+		logger := log.FromContext(ctx)
 		var clusterName string
 		switch t := a.(type) {
 		case *clusterv1alpha1.Cluster:
@@ -626,10 +634,10 @@ func (c *MCSController) clusterMapFunc() handler.MapFunc {
 			return nil
 		}
 
-		klog.V(4).Infof("Begin to sync mcs with cluster %s.", clusterName)
+		logger.Info("Begin to sync mcs with cluster", "cluster", clusterName)
 		mcsList := &networkingv1alpha1.MultiClusterServiceList{}
 		if err := c.Client.List(ctx, mcsList, &client.ListOptions{}); err != nil {
-			klog.Errorf("Failed to list MultiClusterService, error: %v", err)
+			logger.Error(err, "Failed to list MultiClusterServices")
 			return nil
 		}
 
@@ -648,6 +656,7 @@ func (c *MCSController) clusterMapFunc() handler.MapFunc {
 }
 
 func (c *MCSController) needSyncMultiClusterService(mcs *networkingv1alpha1.MultiClusterService, clusterName string) (bool, error) {
+	logger := log.FromContext(context.Background()).WithValues("namespace", mcs.Namespace, "name", mcs.Name)
 	if !helper.MultiClusterServiceCrossClusterEnabled(mcs) {
 		return false, nil
 	}
@@ -658,7 +667,7 @@ func (c *MCSController) needSyncMultiClusterService(mcs *networkingv1alpha1.Mult
 
 	providerClusters, err := helper.GetProviderClusters(c.Client, mcs)
 	if err != nil {
-		klog.Errorf("Failed to get provider clusters by MultiClusterService(%s/%s):%v", mcs.Namespace, mcs.Name, err)
+		logger.Error(err, "Failed to get provider clusters by MultiClusterService")
 		return false, err
 	}
 	if providerClusters.Has(clusterName) {
@@ -667,7 +676,7 @@ func (c *MCSController) needSyncMultiClusterService(mcs *networkingv1alpha1.Mult
 
 	consumerClusters, err := helper.GetConsumerClusters(c.Client, mcs)
 	if err != nil {
-		klog.Errorf("Failed to get consumer clusters by MultiClusterService(%s/%s):%v", mcs.Namespace, mcs.Name, err)
+		logger.Error(err, "Failed to get consumer clusters by MultiClusterService")
 		return false, err
 	}
 	if consumerClusters.Has(clusterName) {
