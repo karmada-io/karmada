@@ -97,21 +97,21 @@ func AddTolerations(placement *policyv1alpha1.Placement, tolerationsToAdd ...*co
 	}
 }
 
-// HasNoExecuteTaints check if NoExecute taints exist.
+// HasNoExecuteTaints check if NoExecute or SelectiveNoExecute taints exist.
 func HasNoExecuteTaints(taints []corev1.Taint) bool {
 	for i := range taints {
-		if taints[i].Effect == corev1.TaintEffectNoExecute {
+		if taints[i].Effect == corev1.TaintEffectNoExecute || taints[i].Effect == corev1.TaintEffect("SelectiveNoExecute") {
 			return true
 		}
 	}
 	return false
 }
 
-// GetNoExecuteTaints will get all NoExecute taints.
+// GetNoExecuteTaints will get all NoExecute and SelectiveNoExecute taints.
 func GetNoExecuteTaints(taints []corev1.Taint) []corev1.Taint {
 	var result []corev1.Taint
 	for i := range taints {
-		if taints[i].Effect == corev1.TaintEffectNoExecute {
+		if taints[i].Effect == corev1.TaintEffectNoExecute || taints[i].Effect == corev1.TaintEffect("SelectiveNoExecute") {
 			result = append(result, taints[i])
 		}
 	}

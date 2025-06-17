@@ -2090,7 +2090,7 @@ type CSIPersistentVolumeSource struct {
 	Driver string `json:"driver" protobuf:"bytes,1,opt,name=driver"`
 
 	// volumeHandle is the unique volume name returned by the CSI volume
-	// plugin’s CreateVolume to refer to the volume on all subsequent calls.
+	// plugin's CreateVolume to refer to the volume on all subsequent calls.
 	// Required.
 	VolumeHandle string `json:"volumeHandle" protobuf:"bytes,2,opt,name=volumeHandle"`
 
@@ -3728,6 +3728,10 @@ const (
 	// Evict any already-running pods that do not tolerate the taint.
 	// Currently enforced by NodeController.
 	TaintEffectNoExecute TaintEffect = "NoExecute"
+
+	// Like TaintEffectNoExecute, but only evict pods that match the taint's key-value pair.
+	// Enforced by NodeController.
+	TaintEffectSelectiveNoExecute TaintEffect = "SelectiveNoExecute"
 )
 
 // The pod this Toleration is attached to tolerates any taint that matches

@@ -41,6 +41,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/indexregistry"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // TaintManagerName is the controller name that will be used when reporting events and metrics.
@@ -67,20 +68,60 @@ type NoExecuteTaintManager struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (tc *NoExecuteTaintManager) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	klog.V(4).Infof("Reconciling cluster %s for taint manager", req.NamespacedName.Name)
+	klog.V(4).Infof("Reconciling cluster %s", req.NamespacedName)
 
 	cluster := &clusterv1alpha1.Cluster{}
 	if err := tc.Client.Get(ctx, req.NamespacedName, cluster); err != nil {
-		// The resource may no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
-			return controllerruntime.Result{}, nil
+			return reconcile.Result{}, nil
 		}
-		return controllerruntime.Result{}, err
+		return reconcile.Result{}, err
 	}
 
-	// short path to skip reconciliation if NoExecute taint eviction is disabled or no target taints on Cluster
-	if !tc.EnableNoExecuteTaintEviction || !helper.HasNoExecuteTaints(cluster.Spec.Taints) {
-		return controllerruntime.Result{}, nil
+	// short path to skip reconciliation if NoExecute taint eviction is disabled
+	if !tc.EnableNoExecuteTaintEviction {
+		return reconcile.Result{}, nil
+	}
+
+	// Get all NoExecute and SelectiveNoExecute taints
+	var noExecuteTaints []corev1.Taint
+	for _, taint := range cluster.Spec.Taints {
+		if taint.Effect == corev1.TaintEffectNoExecute || taint.Effect == corev1.TaintEffect("SelectiveNoExecute") {
+			noExecuteTaints = append(noExecuteTaints, taint)
+		}
+	}
+
+	if len(noExecuteTaints) == 0 {
+		return reconcile.Result{}, nil
+	}
+
+	// Get all resource bindings that target this cluster
+	var bindings workv1alpha2.ResourceBindingList
+	if err := tc.Client.List(ctx, &bindings, client.MatchingFields{indexregistry.ResourceBindingIndexByFieldCluster: cluster.Name}); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	for _, binding := range bindings.Items {
+		// Check if the binding should be evicted based on taints
+		shouldEvict := false
+		for _, taint := range noExecuteTaints {
+			if tc.shouldEvictPod(taint, binding.Spec.Placement.ClusterTolerations) {
+				shouldEvict = true
+				break
+			}
+		}
+
+		if shouldEvict {
+			key, err := keys.FederatedKeyFunc(cluster.Name, &binding)
+			if err != nil {
+				klog.Errorf("Failed to generate key for binding %s/%s: %v", binding.Namespace, binding.Name, err)
+				continue
+			}
+			if err := tc.syncBindingEviction(key); err != nil {
+				klog.Errorf("Failed to evict binding %s/%s: %v", binding.Namespace, binding.Name, err)
+				continue
+			}
+		}
 	}
 
 	return tc.syncCluster(ctx, cluster)
@@ -93,7 +134,7 @@ func (tc *NoExecuteTaintManager) syncCluster(ctx context.Context, cluster *clust
 		Selector: fields.OneTermEqualSelector(indexregistry.ResourceBindingIndexByFieldCluster, cluster.Name),
 	}); err != nil {
 		klog.ErrorS(err, "Failed to list ResourceBindings", "cluster", cluster.Name)
-		return controllerruntime.Result{}, err
+		return reconcile.Result{}, err
 	}
 	for i := range rbList.Items {
 		key, err := keys.FederatedKeyFunc(cluster.Name, &rbList.Items[i])
@@ -110,7 +151,7 @@ func (tc *NoExecuteTaintManager) syncCluster(ctx context.Context, cluster *clust
 		Selector: fields.OneTermEqualSelector(indexregistry.ClusterResourceBindingIndexByFieldCluster, cluster.Name),
 	}); err != nil {
 		klog.ErrorS(err, "Failed to list ClusterResourceBindings", "cluster", cluster.Name)
-		return controllerruntime.Result{}, err
+		return reconcile.Result{}, err
 	}
 	for i := range crbList.Items {
 		key, err := keys.FederatedKeyFunc(cluster.Name, &crbList.Items[i])
@@ -120,7 +161,7 @@ func (tc *NoExecuteTaintManager) syncCluster(ctx context.Context, cluster *clust
 		}
 		tc.clusterBindingEvictionWorker.Add(key)
 	}
-	return controllerruntime.Result{RequeueAfter: tc.ClusterTaintEvictionRetryFrequency}, nil
+	return reconcile.Result{RequeueAfter: tc.ClusterTaintEvictionRetryFrequency}, nil
 }
 
 // Start starts an asynchronous loop that handle evictions.
@@ -319,4 +360,31 @@ func (tc *NoExecuteTaintManager) SetupWithManager(mgr controllerruntime.Manager)
 			WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](tc.RateLimiterOptions)}).Complete(tc),
 		mgr.Add(tc),
 	})
+}
+
+func (m *NoExecuteTaintManager) shouldEvictPod(taint corev1.Taint, tolerations []corev1.Toleration) bool {
+	// Check if the pod tolerates the taint
+	for _, toleration := range tolerations {
+		if toleration.ToleratesTaint(&taint) {
+			return false
+		}
+	}
+
+	// For SelectiveNoExecute, only evict if key-value matches
+	if taint.Effect == corev1.TaintEffect("SelectiveNoExecute") {
+		// If the taint has no value, treat it like NoExecute
+		if taint.Value == "" {
+			return true
+		}
+		// Check if any toleration matches the key-value pair
+		for _, toleration := range tolerations {
+			if toleration.Key == taint.Key && toleration.Value == taint.Value {
+				return false
+			}
+		}
+		return true
+	}
+
+	// For NoExecute, evict if not tolerated
+	return taint.Effect == corev1.TaintEffectNoExecute
 }

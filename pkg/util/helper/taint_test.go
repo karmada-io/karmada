@@ -318,7 +318,21 @@ func TestHasNoExecuteTaints(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "no NoExecute taints",
+			name: "has SelectiveNoExecute taints",
+			taints: []corev1.Taint{
+				{
+					Key:    clusterv1alpha1.TaintClusterUnreachable,
+					Effect: corev1.TaintEffect("SelectiveNoExecute"),
+				},
+				{
+					Key:    clusterv1alpha1.TaintClusterNotReady,
+					Effect: corev1.TaintEffectNoSchedule,
+				},
+			},
+			want: true,
+		},
+		{
+			name: "no NoExecute or SelectiveNoExecute taints",
 			taints: []corev1.Taint{
 				{
 					Key:    clusterv1alpha1.TaintClusterUnreachable,
@@ -367,7 +381,49 @@ func TestGetNoExecuteTaints(t *testing.T) {
 			},
 		},
 		{
-			name: "no NoExecute taints",
+			name: "has SelectiveNoExecute taints",
+			taints: []corev1.Taint{
+				{
+					Key:    clusterv1alpha1.TaintClusterUnreachable,
+					Effect: corev1.TaintEffect("SelectiveNoExecute"),
+				},
+				{
+					Key:    clusterv1alpha1.TaintClusterNotReady,
+					Effect: corev1.TaintEffectNoSchedule,
+				},
+			},
+			want: []corev1.Taint{
+				{
+					Key:    clusterv1alpha1.TaintClusterUnreachable,
+					Effect: corev1.TaintEffect("SelectiveNoExecute"),
+				},
+			},
+		},
+		{
+			name: "has both NoExecute and SelectiveNoExecute taints",
+			taints: []corev1.Taint{
+				{
+					Key:    clusterv1alpha1.TaintClusterUnreachable,
+					Effect: corev1.TaintEffectNoExecute,
+				},
+				{
+					Key:    clusterv1alpha1.TaintClusterNotReady,
+					Effect: corev1.TaintEffect("SelectiveNoExecute"),
+				},
+			},
+			want: []corev1.Taint{
+				{
+					Key:    clusterv1alpha1.TaintClusterUnreachable,
+					Effect: corev1.TaintEffectNoExecute,
+				},
+				{
+					Key:    clusterv1alpha1.TaintClusterNotReady,
+					Effect: corev1.TaintEffect("SelectiveNoExecute"),
+				},
+			},
+		},
+		{
+			name: "no NoExecute or SelectiveNoExecute taints",
 			taints: []corev1.Taint{
 				{
 					Key:    clusterv1alpha1.TaintClusterUnreachable,
