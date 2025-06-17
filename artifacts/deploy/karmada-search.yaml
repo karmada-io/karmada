@@ -48,6 +48,7 @@ spec:
             - --audit-log-maxbackup=0
             - --tls-min-version=VersionTLS13
             - --bind-address=$(POD_IP)
+            - --logging-format=json
           livenessProbe:
             httpGet:
               path: /livez
