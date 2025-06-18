@@ -127,6 +127,13 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 				return err
 			}
 			logs.InitLogs()
+
+			// Starting from version 0.15.0, controller-runtime expects its consumers to set a logger through log.SetLogger.
+			// If SetLogger is not called within the first 30 seconds of a binaries lifetime, it will get
+			// set to a NullLogSink and report an error. Here's to silence the "log.SetLogger(...) was never called; logs will not be displayed" error
+			// by setting a logger through log.SetLogger.
+			// More info refer to: https://github.com/karmada-io/karmada/pull/4885.
+			controllerruntime.SetLogger(klog.Background())
 			return nil
 		},
 
