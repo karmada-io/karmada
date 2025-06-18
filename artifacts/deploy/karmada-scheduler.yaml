@@ -54,6 +54,7 @@ spec:
             - --scheduler-estimator-cert-file=/etc/karmada/pki/scheduler-estimator-client/tls.crt
             - --scheduler-estimator-key-file=/etc/karmada/pki/scheduler-estimator-client/tls.key
             - --feature-gates=AllAlpha=true,AllBeta=true
+            - --logging-format=json
             - --v=4
           volumeMounts:
             - name: karmada-config
