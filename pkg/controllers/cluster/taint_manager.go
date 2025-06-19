@@ -67,7 +67,7 @@ type NoExecuteTaintManager struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (tc *NoExecuteTaintManager) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	klog.V(4).Infof("Reconciling cluster %s for taint manager", req.NamespacedName.Name)
+	klog.V(4).InfoS("Reconciling cluster for taint manager", "cluster", req.NamespacedName.Name)
 
 	cluster := &clusterv1alpha1.Cluster{}
 	if err := tc.Client.Get(ctx, req.NamespacedName, cluster); err != nil {
@@ -98,7 +98,7 @@ func (tc *NoExecuteTaintManager) syncCluster(ctx context.Context, cluster *clust
 	for i := range rbList.Items {
 		key, err := keys.FederatedKeyFunc(cluster.Name, &rbList.Items[i])
 		if err != nil {
-			klog.Warningf("Failed to generate key for obj: %s", rbList.Items[i].GetObjectKind().GroupVersionKind())
+			klog.ErrorS(err, "Failed to generate federated key for ResourceBinding", "gvk", rbList.Items[i].GetObjectKind().GroupVersionKind())
 			continue
 		}
 		tc.bindingEvictionWorker.Add(key)
@@ -115,7 +115,7 @@ func (tc *NoExecuteTaintManager) syncCluster(ctx context.Context, cluster *clust
 	for i := range crbList.Items {
 		key, err := keys.FederatedKeyFunc(cluster.Name, &crbList.Items[i])
 		if err != nil {
-			klog.Warningf("Failed to generate key for obj: %s", crbList.Items[i].GetObjectKind().GroupVersionKind())
+			klog.ErrorS(err, "Failed to generate federated key for ClusterResourceBinding", "gvk", crbList.Items[i].GetObjectKind().GroupVersionKind())
 			continue
 		}
 		tc.clusterBindingEvictionWorker.Add(key)
@@ -148,12 +148,12 @@ func (tc *NoExecuteTaintManager) Start(ctx context.Context) error {
 func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 	fedKey, ok := key.(keys.FederatedKey)
 	if !ok {
-		klog.Errorf("Failed to sync binding eviction as invalid key: %v", key)
-		return fmt.Errorf("invalid key")
+		err := fmt.Errorf("invalid key type %T", key)
+		klog.ErrorS(err, "Failed to sync binding eviction due to invalid key", "key", key)
+		return err
 	}
 	cluster := fedKey.Cluster
-	klog.V(4).Infof("Begin to sync ResourceBinding(%s) with taintManager for Cluster(%s)",
-		fedKey.ClusterWideKey.NamespaceKey(), cluster)
+	klog.V(4).InfoS("Begin syncing ResourceBinding for taint eviction", "binding", fedKey.ClusterWideKey.NamespaceKey(), "cluster", cluster)
 
 	binding := &workv1alpha2.ResourceBinding{}
 	if err := tc.Client.Get(context.TODO(), types.NamespacedName{Namespace: fedKey.Namespace, Name: fedKey.Name}, binding); err != nil {
@@ -205,8 +205,7 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 			klog.ErrorS(err, "Failed to update binding", "binding", klog.KObj(binding))
 			return err
 		}
-		klog.V(2).Infof("Success to evict Cluster(%s) from ResourceBinding(%s) schedule result",
-			fedKey.Cluster, fedKey.ClusterWideKey.NamespaceKey())
+		klog.V(2).InfoS("Evicted cluster from ResourceBinding", "cluster", fedKey.Cluster, "binding", fedKey.ClusterWideKey.NamespaceKey())
 	} else if tolerationTime > 0 {
 		tc.bindingEvictionWorker.AddAfter(fedKey, tolerationTime)
 	}
@@ -217,12 +216,12 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) error {
 	fedKey, ok := key.(keys.FederatedKey)
 	if !ok {
-		klog.Errorf("Failed to sync cluster binding eviction as invalid key: %v", key)
-		return fmt.Errorf("invalid key")
+		err := fmt.Errorf("invalid key type %T", key)
+		klog.ErrorS(err, "Failed to sync cluster binding eviction due to invalid key", "key", key)
+		return err
 	}
 	cluster := fedKey.Cluster
-	klog.V(4).Infof("Begin to sync ClusterResourceBinding(%s) with taintManager for Cluster(%s)",
-		fedKey.ClusterWideKey.NamespaceKey(), cluster)
+	klog.V(4).InfoS("Begin syncing ClusterResourceBinding with taintManager", "binding", fedKey.ClusterWideKey.NamespaceKey(), "cluster", cluster)
 
 	binding := &workv1alpha2.ClusterResourceBinding{}
 	if err := tc.Client.Get(context.TODO(), types.NamespacedName{Name: fedKey.Name}, binding); err != nil {
@@ -264,8 +263,7 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 			klog.ErrorS(err, "Failed to update cluster binding", "binding", binding.Name)
 			return err
 		}
-		klog.V(2).Infof("Success to evict Cluster(%s) from ClusterResourceBinding(%s) schedule result",
-			fedKey.ClusterWideKey.NamespaceKey(), fedKey.Cluster)
+		klog.V(2).InfoS("Evicted cluster from ClusterResourceBinding", "cluster", fedKey.Cluster, "binding", fedKey.ClusterWideKey.NamespaceKey())
 	} else if tolerationTime > 0 {
 		tc.clusterBindingEvictionWorker.AddAfter(fedKey, tolerationTime)
 		return nil
