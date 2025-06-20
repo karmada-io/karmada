@@ -262,6 +262,11 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 			jobNamespace = testNamespace
 			jobName = policyName
 			job = helper.NewJob(jobNamespace, jobName)
+			// For fixed completion count Jobs, the actual number of pods running in parallel will not exceed the number of remaining completions.
+			// Higher values of .spec.parallelism are effectively ignored.
+			// Since .spec.parallelism will be updated to updateParallelism in the subsequent testing, .spec.completions is set to updateParallelism here to make the update of .spec.parallelism take effect.
+			// More info: https://kubernetes.io/docs/concepts/workloads/controllers/job/
+			job.Spec.Completions = ptr.To[int32](updateParallelism)
 			maxGroups = rand.Intn(2) + 1
 			minGroups = maxGroups
 
