@@ -34,11 +34,14 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/util/flowcontrol"
 	cliflag "k8s.io/component-base/cli/flag"
+	"k8s.io/component-base/logs"
+	logsv1 "k8s.io/component-base/logs/api/v1"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/karmada-io/karmada/cmd/scheduler/app/options"
+	"github.com/karmada-io/karmada/pkg/features"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	versionmetrics "github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/scheduler"
@@ -92,7 +95,18 @@ func WithPlugin(name string, factory runtime.PluginFactory) Option {
 
 // NewSchedulerCommand creates a *cobra.Command object with default parameters
 func NewSchedulerCommand(ctx context.Context, registryOptions ...Option) *cobra.Command {
+	logConfig := logsv1.NewLoggingConfiguration()
+	fss := cliflag.NamedFlagSets{}
+
+	logsFlagSet := fss.FlagSet("logs")
+	logs.AddFlags(logsFlagSet, logs.SkipLoggingConfigurationFlags())
+	logsv1.AddFlags(logConfig, logsFlagSet)
+	klogflag.Add(logsFlagSet)
+
+	genericFlagSet := fss.FlagSet("generic")
+
 	opts := options.NewOptions()
+	opts.AddFlags(genericFlagSet)
 
 	cmd := &cobra.Command{
 		Use: names.KarmadaSchedulerComponentName,
@@ -110,6 +124,13 @@ the most suitable cluster.`,
 			}
 			return nil
 		},
+		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
+			if err := logsv1.ValidateAndApply(logConfig, features.FeatureGate); err != nil {
+				return err
+			}
+			logs.InitLogs()
+			return nil
+		},
 		Args: func(cmd *cobra.Command, args []string) error {
 			for _, arg := range args {
 				if len(arg) > 0 {
@@ -120,14 +141,6 @@ the most suitable cluster.`,
 		},
 	}
 
-	fss := cliflag.NamedFlagSets{}
-
-	genericFlagSet := fss.FlagSet("generic")
-	opts.AddFlags(genericFlagSet)
-
-	// Set klog flags
-	logsFlagSet := fss.FlagSet("logs")
-	klogflag.Add(logsFlagSet)
 	cmd.AddCommand(sharedcommand.NewCmdVersion(names.KarmadaSchedulerComponentName))
 
 	cmd.Flags().AddFlagSet(genericFlagSet)
