@@ -39,6 +39,7 @@ spec:
             - --metrics-bind-address=$(POD_IP):8080
             - --health-probe-bind-address=$(POD_IP):10357
             - --feature-gates=CustomizedClusterResourceModeling=true,MultiClusterService=true
+            - --logging-format=json
             - --v=4
           livenessProbe:
             httpGet:
