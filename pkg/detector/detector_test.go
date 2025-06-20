@@ -26,21 +26,27 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	schedulingv1 "k8s.io/api/scheduling/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 func BenchmarkEventFilterNoSkipNameSpaces(b *testing.B) {
@@ -829,7 +835,9 @@ func TestApplyPolicy(t *testing.T) {
 					Name:      "test-policy",
 					Namespace: "default",
 				},
-				Spec: policyv1alpha1.PropagationSpec{},
+				Spec: policyv1alpha1.PropagationSpec{
+					Suspension: &policyv1alpha1.Suspension{Dispatching: ptr.To(true)},
+				},
 			},
 			resourceChangeByKarmada: false,
 			expectError:             false,
@@ -842,6 +850,8 @@ func TestApplyPolicy(t *testing.T) {
 			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(tt.object).Build()
 			fakeRecorder := record.NewFakeRecorder(10)
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
+			err := fakeClient.Create(context.TODO(), tt.policy)
+			assert.NoError(t, err)
 
 			d := &ResourceDetector{
 				Client:              fakeClient,
@@ -851,7 +861,7 @@ func TestApplyPolicy(t *testing.T) {
 				RESTMapper:          &mockRESTMapper{},
 			}
 
-			err := d.ApplyPolicy(tt.object, keys.ClusterWideKey{}, tt.resourceChangeByKarmada, tt.policy)
+			err = d.ApplyPolicy(tt.object, keys.ClusterWideKey{}, tt.resourceChangeByKarmada, tt.policy)
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -895,7 +905,9 @@ func TestApplyClusterPolicy(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-cluster-policy",
 				},
-				Spec: policyv1alpha1.PropagationSpec{},
+				Spec: policyv1alpha1.PropagationSpec{
+					Suspension: &policyv1alpha1.Suspension{Dispatching: ptr.To(true)},
+				},
 			},
 			resourceChangeByKarmada: false,
 			expectError:             false,
@@ -916,7 +928,9 @@ func TestApplyClusterPolicy(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-cluster-policy",
 				},
-				Spec: policyv1alpha1.PropagationSpec{},
+				Spec: policyv1alpha1.PropagationSpec{
+					Suspension: &policyv1alpha1.Suspension{Dispatching: ptr.To(true)},
+				},
 			},
 			resourceChangeByKarmada: false,
 			expectError:             false,
@@ -937,9 +951,10 @@ func TestApplyClusterPolicy(t *testing.T) {
 				ResourceInterpreter: &mockResourceInterpreter{},
 				RESTMapper:          &mockRESTMapper{},
 			}
+			err := fakeClient.Create(context.TODO(), tt.policy)
+			assert.NoError(t, err)
 
-			err := d.ApplyClusterPolicy(tt.object, keys.ClusterWideKey{}, tt.resourceChangeByKarmada, tt.policy)
-
+			err = d.ApplyClusterPolicy(tt.object, keys.ClusterWideKey{}, tt.resourceChangeByKarmada, tt.policy)
 			if tt.expectError {
 				assert.Error(t, err)
 			} else {
@@ -967,6 +982,424 @@ func TestApplyClusterPolicy(t *testing.T) {
 	}
 }
 
+// validateBasicBinding validates basic binding properties
+func validateBasicBinding(t *testing.T, rb *workv1alpha2.ResourceBinding, expectedName, expectedNamespace string, expectedReplicas int32) {
+	if rb.Name != names.GenerateBindingName("Deployment", expectedName) {
+		t.Errorf("Expected binding name does not match")
+	}
+	if rb.Namespace != expectedNamespace {
+		t.Errorf("Expected namespace does not match")
+	}
+	if rb.Spec.Replicas != expectedReplicas {
+		t.Errorf("Expected replicas does not match")
+	}
+}
+
+// validateSuspension validates suspension settings
+func validateSuspension(t *testing.T, rb *workv1alpha2.ResourceBinding) {
+	if rb.Spec.Suspension == nil {
+		t.Errorf("Expected Suspension to be set")
+	}
+}
+
+// validateReplicas validates replica settings
+func validateReplicas(t *testing.T, rb *workv1alpha2.ResourceBinding, expectedReplicas int32) {
+	if rb.Spec.Replicas != expectedReplicas {
+		t.Errorf("Expected replicas to be %d", expectedReplicas)
+	}
+	if expectedReplicas == 0 && rb.Spec.ReplicaRequirements != nil {
+		t.Errorf("Expected ReplicaRequirements to be nil")
+	}
+}
+
+// validatePriority validates priority settings
+func validatePriority(t *testing.T, rb *workv1alpha2.ResourceBinding) {
+	if rb.Spec.SchedulePriority == nil {
+		t.Errorf("Expected SchedulePriority to be set")
+	}
+	if rb.Spec.SchedulePriority.Priority != 1000 {
+		t.Errorf("Expected priority to be 1000, got %d", rb.Spec.SchedulePriority.Priority)
+	}
+}
+
+// validatePropagateDeps validates propagate dependencies settings
+func validatePropagateDeps(t *testing.T, rb *workv1alpha2.ResourceBinding) {
+	if !rb.Spec.PropagateDeps {
+		t.Errorf("Expected PropagateDeps to be true")
+	}
+}
+
+func TestBuildResourceBinding(t *testing.T) {
+	tests := []struct {
+		name                string
+		object              *unstructured.Unstructured
+		policyNamespace     string
+		policyName          string
+		policyID            string
+		enabled             bool
+		replicas            int32
+		replicaRequirements *workv1alpha2.ReplicaRequirements
+		claimFunc           func(object metav1.Object, policyId string, objectMeta metav1.ObjectMeta)
+		wantErr             bool
+		validate            func(t *testing.T, rb *workv1alpha2.ResourceBinding)
+		setup               func(t *testing.T) error
+		teardown            func(t *testing.T)
+	}{
+		{
+			name: "Basic test case - PropagationPolicy",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "test-deployment",
+						"namespace": "test-ns",
+						"uid":       "test-uid",
+					},
+				},
+			},
+			policyNamespace:     "test-ns",
+			policyName:          "test-policy",
+			policyID:            "test-policy-id",
+			enabled:             true,
+			replicas:            3,
+			replicaRequirements: &workv1alpha2.ReplicaRequirements{},
+			claimFunc:           AddPPClaimMetadata,
+			validate: func(t *testing.T, rb *workv1alpha2.ResourceBinding) {
+				validateBasicBinding(t, rb, "test-deployment", "test-ns", 3)
+			},
+		},
+		{
+			name: "Basic test case - ClusterPropagationPolicy",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "test-deployment",
+						"namespace": "test-ns",
+						"uid":       "test-uid",
+					},
+				},
+			},
+			policyNamespace:     "",
+			policyName:          "test-cluster-policy",
+			policyID:            "test-cluster-policy-id",
+			enabled:             true,
+			replicas:            5,
+			replicaRequirements: &workv1alpha2.ReplicaRequirements{},
+			claimFunc:           AddCPPClaimMetadata,
+			validate: func(t *testing.T, rb *workv1alpha2.ResourceBinding) {
+				validateBasicBinding(t, rb, "test-deployment", "test-ns", 5)
+			},
+		},
+		{
+			name: "Test with suspension policy",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "test-deployment",
+						"namespace": "test-ns",
+						"uid":       "test-uid",
+					},
+				},
+			},
+			policyNamespace:     "test-ns",
+			policyName:          "test-policy",
+			policyID:            "test-policy-id",
+			enabled:             true,
+			replicas:            3,
+			replicaRequirements: &workv1alpha2.ReplicaRequirements{},
+			claimFunc:           AddPPClaimMetadata,
+			validate: func(t *testing.T, rb *workv1alpha2.ResourceBinding) {
+				validateSuspension(t, rb)
+			},
+		},
+		{
+			name: "Test with disabled replicas",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "test-deployment",
+						"namespace": "test-ns",
+						"uid":       "test-uid",
+					},
+				},
+			},
+			policyNamespace:     "test-ns",
+			policyName:          "test-policy",
+			policyID:            "test-policy-id",
+			enabled:             false,
+			replicas:            0,
+			replicaRequirements: nil,
+			claimFunc:           AddPPClaimMetadata,
+			validate: func(t *testing.T, rb *workv1alpha2.ResourceBinding) {
+				validateReplicas(t, rb, 0)
+			},
+		},
+		{
+			name: "Test with priority scheduling",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "test-deployment",
+						"namespace": "test-ns",
+						"uid":       "test-uid",
+					},
+				},
+			},
+			policyNamespace:     "test-ns",
+			policyName:          "test-policy",
+			policyID:            "test-policy-id",
+			enabled:             true,
+			replicas:            3,
+			replicaRequirements: &workv1alpha2.ReplicaRequirements{},
+			claimFunc:           AddPPClaimMetadata,
+			setup: func(t *testing.T) error {
+				originalValue := features.FeatureGate.Enabled(features.PriorityBasedScheduling)
+				if err := features.FeatureGate.SetFromMap(map[string]bool{
+					string(features.PriorityBasedScheduling): true,
+				}); err != nil {
+					return err
+				}
+				t.Cleanup(func() {
+					if err := features.FeatureGate.SetFromMap(map[string]bool{
+						string(features.PriorityBasedScheduling): originalValue,
+					}); err != nil {
+						t.Errorf("Failed to restore feature gate: %v", err)
+					}
+				})
+				return nil
+			},
+			validate: func(t *testing.T, rb *workv1alpha2.ResourceBinding) {
+				validatePriority(t, rb)
+			},
+		},
+		{
+			name: "Test with propagate dependencies",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "test-deployment",
+						"namespace": "test-ns",
+						"uid":       "test-uid",
+					},
+				},
+			},
+			policyNamespace:     "test-ns",
+			policyName:          "test-policy",
+			policyID:            "test-policy-id",
+			enabled:             true,
+			replicas:            3,
+			replicaRequirements: &workv1alpha2.ReplicaRequirements{},
+			claimFunc:           AddPPClaimMetadata,
+			validate: func(t *testing.T, rb *workv1alpha2.ResourceBinding) {
+				validatePropagateDeps(t, rb)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.setup != nil {
+				if err := tt.setup(t); err != nil {
+					t.Fatalf("Setup failed: %v", err)
+				}
+			}
+
+			detector := setupTestDetector()
+
+			if tt.name == "Test with priority scheduling" {
+				createTestPriorityClass(t, detector)
+			}
+
+			if tt.policyNamespace != "" {
+				createTestPolicy(t, detector, tt.policyNamespace, tt.policyName)
+			} else {
+				createTestClusterPolicy(t, detector, tt.policyName)
+			}
+
+			rb, err := detector.BuildResourceBinding(
+				tt.object,
+				tt.policyNamespace,
+				tt.policyName,
+				tt.policyID,
+				tt.enabled,
+				tt.replicas,
+				tt.replicaRequirements,
+				tt.claimFunc,
+			)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("BuildResourceBinding() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if err == nil && tt.validate != nil {
+				tt.validate(t, rb)
+			}
+
+			if tt.teardown != nil {
+				tt.teardown(t)
+			}
+		})
+	}
+}
+
+func TestBuildClusterResourceBinding(t *testing.T) {
+	tests := []struct {
+		name                string
+		object              *unstructured.Unstructured
+		policyName          string
+		policyID            string
+		enabled             bool
+		replicas            int32
+		replicaRequirements *workv1alpha2.ReplicaRequirements
+		wantErr             bool
+		validate            func(t *testing.T, crb *workv1alpha2.ClusterResourceBinding)
+	}{
+		{
+			name: "Basic test case - enabled replicas",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "rbac.authorization.k8s.io/v1",
+					"kind":       "ClusterRole",
+					"metadata": map[string]interface{}{
+						"name": "test-cluster-role",
+						"uid":  "test-uid",
+					},
+				},
+			},
+			policyName:          "test-cluster-policy",
+			policyID:            "test-cluster-policy-id",
+			enabled:             true,
+			replicas:            3,
+			replicaRequirements: &workv1alpha2.ReplicaRequirements{},
+			validate: func(t *testing.T, crb *workv1alpha2.ClusterResourceBinding) {
+				if crb.Name != names.GenerateBindingName("ClusterRole", "test-cluster-role") {
+					t.Errorf("Expected binding name does not match")
+				}
+				if crb.Spec.Replicas != 3 {
+					t.Errorf("Expected replicas does not match")
+				}
+				if crb.Spec.ReplicaRequirements == nil {
+					t.Errorf("Expected ReplicaRequirements to be set")
+				}
+			},
+		},
+		{
+			name: "Basic test case - disabled replicas",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "rbac.authorization.k8s.io/v1",
+					"kind":       "ClusterRole",
+					"metadata": map[string]interface{}{
+						"name": "test-cluster-role",
+						"uid":  "test-uid",
+					},
+				},
+			},
+			policyName:          "test-cluster-policy",
+			policyID:            "test-cluster-policy-id",
+			enabled:             false,
+			replicas:            0,
+			replicaRequirements: nil,
+			validate: func(t *testing.T, crb *workv1alpha2.ClusterResourceBinding) {
+				if crb.Name != names.GenerateBindingName("ClusterRole", "test-cluster-role") {
+					t.Errorf("Expected binding name does not match")
+				}
+				if crb.Spec.Replicas != 0 {
+					t.Errorf("Expected replicas to be 0")
+				}
+				if crb.Spec.ReplicaRequirements != nil {
+					t.Errorf("Expected ReplicaRequirements to be nil")
+				}
+			},
+		},
+		{
+			name: "Test with suspension policy",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "rbac.authorization.k8s.io/v1",
+					"kind":       "ClusterRole",
+					"metadata": map[string]interface{}{
+						"name": "test-cluster-role",
+						"uid":  "test-uid",
+					},
+				},
+			},
+			policyName:          "test-cluster-policy",
+			policyID:            "test-cluster-policy-id",
+			enabled:             true,
+			replicas:            3,
+			replicaRequirements: &workv1alpha2.ReplicaRequirements{},
+			validate: func(t *testing.T, crb *workv1alpha2.ClusterResourceBinding) {
+				if crb.Spec.Suspension == nil {
+					t.Errorf("Expected Suspension to be set")
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := scheme.Scheme
+			s.AddKnownTypes(policyv1alpha1.SchemeGroupVersion, &policyv1alpha1.ClusterPropagationPolicy{})
+
+			fakeClient := fake.NewClientBuilder().WithScheme(s).Build()
+			dynamicClient := dynamicfake.NewSimpleDynamicClient(s)
+
+			detector := &ResourceDetector{
+				Client:          fakeClient,
+				DynamicClient:   dynamicClient,
+				EventRecorder:   &record.FakeRecorder{},
+				InformerManager: genericmanager.NewSingleClusterInformerManager(context.TODO(), dynamicClient, 0*time.Second),
+			}
+
+			// Create ClusterPropagationPolicy with suspension
+			policy := &policyv1alpha1.ClusterPropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: tt.policyName,
+				},
+				Spec: policyv1alpha1.PropagationSpec{
+					Suspension: &policyv1alpha1.Suspension{
+						Dispatching: ptr.To(true),
+					},
+				},
+			}
+			if err := fakeClient.Create(context.TODO(), policy); err != nil {
+				t.Fatalf("Failed to create ClusterPropagationPolicy: %v", err)
+			}
+
+			crb, err := detector.BuildClusterResourceBinding(
+				tt.object,
+				tt.policyName,
+				tt.policyID,
+				tt.enabled,
+				tt.replicas,
+				tt.replicaRequirements,
+			)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("BuildClusterResourceBinding() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if err == nil && tt.validate != nil {
+				tt.validate(t, crb)
+			}
+		})
+	}
+}
+
 // Helper Functions
 
 // setupTestScheme creates a runtime scheme with necessary types for testing
@@ -976,6 +1409,82 @@ func setupTestScheme() *runtime.Scheme {
 	_ = corev1.AddToScheme(scheme)
 	_ = policyv1alpha1.Install(scheme)
 	return scheme
+}
+
+// setupTestDetector creates a ResourceDetector instance for testing
+func setupTestDetector() *ResourceDetector {
+	s := scheme.Scheme
+	s.AddKnownTypes(policyv1alpha1.SchemeGroupVersion, &policyv1alpha1.PropagationPolicy{})
+	s.AddKnownTypes(policyv1alpha1.SchemeGroupVersion, &policyv1alpha1.ClusterPropagationPolicy{})
+	s.AddKnownTypes(schedulingv1.SchemeGroupVersion, &schedulingv1.PriorityClass{})
+
+	fakeClient := fake.NewClientBuilder().WithScheme(s).Build()
+	dynamicClient := dynamicfake.NewSimpleDynamicClient(s)
+
+	return &ResourceDetector{
+		Client:          fakeClient,
+		DynamicClient:   dynamicClient,
+		EventRecorder:   &record.FakeRecorder{},
+		InformerManager: genericmanager.NewSingleClusterInformerManager(context.TODO(), dynamicClient, 0*time.Second),
+	}
+}
+
+// createTestPolicy creates a policy for testing
+func createTestPolicy(t *testing.T, detector *ResourceDetector, namespace, name string) {
+	policy := &policyv1alpha1.PropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+		Spec: policyv1alpha1.PropagationSpec{
+			Suspension: &policyv1alpha1.Suspension{
+				Dispatching: ptr.To(true),
+			},
+			PropagateDeps: true,
+			SchedulePriority: &policyv1alpha1.SchedulePriority{
+				PriorityClassSource: policyv1alpha1.KubePriorityClass,
+				PriorityClassName:   "high-priority",
+			},
+		},
+	}
+	if err := detector.Client.Create(context.TODO(), policy); err != nil {
+		t.Fatalf("Failed to create PropagationPolicy: %v", err)
+	}
+}
+
+// createTestClusterPolicy creates a cluster policy for testing
+func createTestClusterPolicy(t *testing.T, detector *ResourceDetector, name string) {
+	policy := &policyv1alpha1.ClusterPropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: policyv1alpha1.PropagationSpec{
+			Suspension: &policyv1alpha1.Suspension{
+				Dispatching: ptr.To(true),
+			},
+			PropagateDeps: true,
+			SchedulePriority: &policyv1alpha1.SchedulePriority{
+				PriorityClassSource: policyv1alpha1.KubePriorityClass,
+				PriorityClassName:   "high-priority",
+			},
+		},
+	}
+	if err := detector.Client.Create(context.TODO(), policy); err != nil {
+		t.Fatalf("Failed to create ClusterPropagationPolicy: %v", err)
+	}
+}
+
+// createTestPriorityClass creates a priority class for testing
+func createTestPriorityClass(t *testing.T, detector *ResourceDetector) {
+	priorityClass := &schedulingv1.PriorityClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "high-priority",
+		},
+		Value: 1000,
+	}
+	if err := detector.Client.Create(context.TODO(), priorityClass); err != nil {
+		t.Fatalf("Failed to create PriorityClass: %v", err)
+	}
 }
 
 // Mock implementations
