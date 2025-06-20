@@ -20,6 +20,7 @@ import (
 	"os"
 
 	"k8s.io/component-base/cli"
+	"k8s.io/component-base/logs"
 	_ "k8s.io/component-base/logs/json/register" // for JSON log format registration
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
@@ -29,6 +30,7 @@ import (
 func main() {
 	ctx := controllerruntime.SetupSignalHandler()
 	cmd := app.NewKarmadaSearchCommand(ctx)
-	code := cli.Run(cmd)
-	os.Exit(code)
+	exitCode := cli.Run(cmd)
+	logs.FlushLogs()
+	os.Exit(exitCode)
 }
