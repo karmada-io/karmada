@@ -27,12 +27,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	appsv1alpha1 "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1"
@@ -76,13 +76,14 @@ func (c *RebalancerController) SetupWithManager(mgr controllerruntime.Manager) e
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *RebalancerController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling for WorkloadRebalancer %s", req.Name)
+	logger := log.FromContext(ctx)
+	logger.Info(fmt.Sprintf("Reconciling for WorkloadRebalancer %s", req.Name))
 
 	// 1. get latest WorkloadRebalancer
 	rebalancer := &appsv1alpha1.WorkloadRebalancer{}
 	if err := c.Client.Get(ctx, req.NamespacedName, rebalancer); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("no need to reconcile WorkloadRebalancer for it not found")
+			logger.Info("no need to reconcile WorkloadRebalancer for it not found")
 			return controllerruntime.Result{}, nil
 		}
 		return controllerruntime.Result{}, err
@@ -100,7 +101,7 @@ func (c *RebalancerController) Reconcile(ctx context.Context, req controllerrunt
 		if rebalancer.Status.FinishTime == nil {
 			return controllerruntime.Result{}, fmt.Errorf("finish time should not be nil")
 		}
-		remainingTTL := timeLeft(rebalancer)
+		remainingTTL := timeLeft(ctx, rebalancer)
 		if remainingTTL > 0 {
 			return controllerruntime.Result{RequeueAfter: remainingTTL}, nil
 		}
@@ -188,6 +189,8 @@ func (c *RebalancerController) handleWorkloadRebalance(ctx context.Context, reba
 
 func (c *RebalancerController) triggerReschedule(ctx context.Context, metadata metav1.ObjectMeta, newStatus *appsv1alpha1.WorkloadRebalancerStatus) (
 	*appsv1alpha1.WorkloadRebalancerStatus, int64) {
+	logger := log.FromContext(ctx)
+
 	successNum, retryNum := int64(0), int64(0)
 	for i, resource := range newStatus.ObservedWorkloads {
 		if resource.Result == appsv1alpha1.RebalanceSuccessful {
@@ -203,7 +206,7 @@ func (c *RebalancerController) triggerReschedule(ctx context.Context, metadata m
 		if resource.Workload.Namespace != "" {
 			binding := &workv1alpha2.ResourceBinding{}
 			if err := c.Client.Get(ctx, client.ObjectKey{Namespace: resource.Workload.Namespace, Name: bindingName}, binding); err != nil {
-				klog.Errorf("get binding for resource %+v failed: %+v", resource.Workload, err)
+				logger.Error(err, "get binding for resource failed", "resource", resource.Workload)
 				c.recordAndCountRebalancerFailed(&newStatus.ObservedWorkloads[i], &retryNum, err)
 				continue
 			}
@@ -212,7 +215,7 @@ func (c *RebalancerController) triggerReschedule(ctx context.Context, metadata m
 				binding.Spec.RescheduleTriggeredAt = &metadata.CreationTimestamp
 
 				if err := c.Client.Update(ctx, binding); err != nil {
-					klog.Errorf("update binding for resource %+v failed: %+v", resource.Workload, err)
+					logger.Error(err, "update binding for resource failed", "resource", resource.Workload)
 					c.recordAndCountRebalancerFailed(&newStatus.ObservedWorkloads[i], &retryNum, err)
 					continue
 				}
@@ -221,7 +224,7 @@ func (c *RebalancerController) triggerReschedule(ctx context.Context, metadata m
 		} else {
 			clusterbinding := &workv1alpha2.ClusterResourceBinding{}
 			if err := c.Client.Get(ctx, client.ObjectKey{Name: bindingName}, clusterbinding); err != nil {
-				klog.Errorf("get cluster binding for resource %+v failed: %+v", resource.Workload, err)
+				logger.Error(err, "get cluster binding for resource failed", "resource", resource.Workload)
 				c.recordAndCountRebalancerFailed(&newStatus.ObservedWorkloads[i], &retryNum, err)
 				continue
 			}
@@ -230,7 +233,7 @@ func (c *RebalancerController) triggerReschedule(ctx context.Context, metadata m
 				clusterbinding.Spec.RescheduleTriggeredAt = &metadata.CreationTimestamp
 
 				if err := c.Client.Update(ctx, clusterbinding); err != nil {
-					klog.Errorf("update cluster binding for resource %+v failed: %+v", resource.Workload, err)
+					logger.Error(err, "update cluster binding for resource failed", "resource", resource.Workload)
 					c.recordAndCountRebalancerFailed(&newStatus.ObservedWorkloads[i], &retryNum, err)
 					continue
 				}
@@ -239,8 +242,8 @@ func (c *RebalancerController) triggerReschedule(ctx context.Context, metadata m
 		}
 	}
 
-	klog.V(4).Infof("Finish handling WorkloadRebalancer (%s), %d/%d resource success in all, while %d resource need retry",
-		metadata.Name, successNum, len(newStatus.ObservedWorkloads), retryNum)
+	logger.Info(fmt.Sprintf("Finish handling WorkloadRebalancer (%s), %d/%d resource success in all, while %d resource need retry",
+		metadata.Name, successNum, len(newStatus.ObservedWorkloads), retryNum))
 	return newStatus, retryNum
 }
 
@@ -265,37 +268,40 @@ func (c *RebalancerController) recordAndCountRebalancerFailed(resource *appsv1al
 
 func (c *RebalancerController) updateWorkloadRebalancerStatus(ctx context.Context, rebalancer *appsv1alpha1.WorkloadRebalancer,
 	newStatus *appsv1alpha1.WorkloadRebalancerStatus) error {
+	logger := log.FromContext(ctx)
 	modifiedRebalancer := rebalancer.DeepCopy()
 	modifiedRebalancer.Status = *newStatus
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		klog.V(4).Infof("Start to patch WorkloadRebalancer(%s) status", rebalancer.Name)
+		logger.Info("Start to patch WorkloadRebalancer status")
 		if err = c.Client.Status().Patch(ctx, modifiedRebalancer, client.MergeFrom(rebalancer)); err != nil {
-			klog.Errorf("Failed to patch WorkloadRebalancer (%s) status, err: %+v", rebalancer.Name, err)
+			logger.Error(err, "Failed to patch WorkloadRebalancer status")
 			return err
 		}
-		klog.V(4).Infof("Patch WorkloadRebalancer(%s) successful", rebalancer.Name)
+		logger.Info("Patch WorkloadRebalancer successful")
 		return nil
 	})
 }
 
 func (c *RebalancerController) deleteWorkloadRebalancer(ctx context.Context, rebalancer *appsv1alpha1.WorkloadRebalancer) error {
-	klog.V(4).Infof("Start to clean up WorkloadRebalancer(%s)", rebalancer.Name)
+	logger := log.FromContext(ctx)
+	logger.Info("Start to clean up WorkloadRebalancer")
 
 	options := &client.DeleteOptions{Preconditions: &metav1.Preconditions{ResourceVersion: &rebalancer.ResourceVersion}}
 	if err := c.Client.Delete(ctx, rebalancer, options); err != nil {
-		klog.Errorf("Cleaning up WorkloadRebalancer(%s) failed: %+v.", rebalancer.Name, err)
+		logger.Error(err, "Cleaning up WorkloadRebalancer failed")
 		return err
 	}
 
-	klog.V(4).Infof("Cleaning up WorkloadRebalancer(%s) successful", rebalancer.Name)
+	logger.Info("Cleaning up WorkloadRebalancer successful")
 	return nil
 }
 
-func timeLeft(r *appsv1alpha1.WorkloadRebalancer) time.Duration {
+func timeLeft(ctx context.Context, r *appsv1alpha1.WorkloadRebalancer) time.Duration {
+	logger := log.FromContext(ctx)
 	expireAt := r.Status.FinishTime.Add(time.Duration(*r.Spec.TTLSecondsAfterFinished) * time.Second)
 	remainingTTL := time.Until(expireAt)
 
-	klog.V(4).Infof("Found Rebalancer(%s) finished at: %+v, remainingTTL: %+v", r.Name, r.Status.FinishTime.UTC(), remainingTTL)
+	logger.Info(fmt.Sprintf("Found Rebalancer(%s) finished at: %+v, remainingTTL: %+v", r.Name, r.Status.FinishTime.UTC(), remainingTTL))
 	return remainingTTL
 }
