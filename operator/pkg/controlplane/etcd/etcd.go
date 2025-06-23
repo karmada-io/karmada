@@ -96,8 +96,8 @@ func installKarmadaEtcd(client clientset.Interface, name, namespace string, cfg 
 	}
 
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
-		WithPriorityClassName(cfg.CommonSettings.PriorityClassName).
-		WithVolumeData(cfg.VolumeData).WithResources(cfg.Resources).ForStatefulSet(etcdStatefulSet)
+		WithPriorityClassName(cfg.PriorityClassName).WithResources(cfg.Resources).
+		WithTolerations(cfg.Tolerations).WithAffinity(cfg.Affinity).WithVolumeData(cfg.VolumeData).ForStatefulSet(etcdStatefulSet)
 
 	if etcdStatefulSet, err = apiclient.CreateOrUpdateStatefulSet(client, etcdStatefulSet); err != nil {
 		return fmt.Errorf("error when creating Etcd statefulset, err: %w", err)
@@ -162,7 +162,7 @@ func createEtcdService(client clientset.Interface, name, namespace string) error
 
 // Setting Golang's secure cipher suites as etcd's cipher suites.
 // They are obtained by the return value of the function CipherSuites() under the go/src/crypto/tls/cipher_suites.go package.
-// Consistent with the Preferred values of k8s’s default cipher suites.
+// Consistent with the Preferred values of k8s's default cipher suites.
 func genEtcdCipherSuites() string {
 	return strings.Join(flag.PreferredTLSCipherNames(), ",")
 }
