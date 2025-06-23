@@ -61,13 +61,25 @@ func NewFilteredResourceRegistryInformer(client versioned.Interface, resyncPerio
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SearchV1alpha1().ResourceRegistries().List(context.TODO(), options)
+				return client.SearchV1alpha1().ResourceRegistries().List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SearchV1alpha1().ResourceRegistries().Watch(context.TODO(), options)
+				return client.SearchV1alpha1().ResourceRegistries().Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.SearchV1alpha1().ResourceRegistries().List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.SearchV1alpha1().ResourceRegistries().Watch(ctx, options)
 			},
 		},
 		&apissearchv1alpha1.ResourceRegistry{},
