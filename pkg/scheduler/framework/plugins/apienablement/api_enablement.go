@@ -62,7 +62,12 @@ func (p *APIEnablement) Filter(
 		return framework.NewResult(framework.Success)
 	}
 
-	// For new scheduling decisions, check if the API is enabled
+	// For new scheduling decisions, check if the API is enabled to ensure the application
+	// is deployed to a cluster that supports all required APIs.
+	// Note: Although controllers may not always retrieve the complete API list,
+	// we enforce strict checks to maintain consistency. This may occasionally
+	// exclude clusters prematurely. Users requiring a specific number of target
+	// clusters should use SpreadConstraints(in PropagationPolicy) to meet their requirements.
 	if helper.IsAPIEnabled(cluster.Status.APIEnablements, bindingSpec.Resource.APIVersion, bindingSpec.Resource.Kind) {
 		return framework.NewResult(framework.Success)
 	}
