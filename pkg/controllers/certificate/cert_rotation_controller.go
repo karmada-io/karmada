@@ -87,7 +87,7 @@ type CertRotationController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *CertRotationController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Rotating the certificate of karmada-agent for the member cluster: %s", req.NamespacedName.Name)
+	klog.V(4).InfoS("Rotating the certificate of karmada-agent for the member cluster", "cluster", req.NamespacedName.String())
 
 	var err error
 
@@ -108,18 +108,18 @@ func (c *CertRotationController) Reconcile(ctx context.Context, req controllerru
 	// create a ClusterClient for the given member cluster
 	c.ClusterClient, err = c.ClusterClientSetFunc(cluster.Name, c.Client, c.ClusterClientOption)
 	if err != nil {
-		klog.Errorf("Failed to create a ClusterClient for the given member cluster: %s, err is: %v", cluster.Name, err)
+		klog.ErrorS(err, "Failed to create a ClusterClient for the given member cluster", "cluster", cluster.Name)
 		return controllerruntime.Result{}, err
 	}
 
 	secret, err := c.ClusterClient.KubeClient.CoreV1().Secrets(c.KarmadaKubeconfigNamespace).Get(ctx, KarmadaKubeconfigName, metav1.GetOptions{})
 	if err != nil {
-		klog.Errorf("failed to get karmada kubeconfig secret: %v", err)
+		klog.ErrorS(err, "failed to get karmada kubeconfig secret")
 		return controllerruntime.Result{}, err
 	}
 
 	if err = c.syncCertRotation(ctx, secret); err != nil {
-		klog.Errorf("Failed to rotate the certificate of karmada-agent for the given member cluster: %s, err is: %v", cluster.Name, err)
+		klog.ErrorS(err, "Failed to rotate the certificate of karmada-agent for the given member cluster", "cluster", cluster.Name)
 		return controllerruntime.Result{}, err
 	}
 
@@ -181,7 +181,7 @@ func (c *CertRotationController) syncCertRotation(ctx context.Context, secret *c
 	}
 
 	var newCertData []byte
-	klog.V(1).Infof("Waiting for the client certificate to be issued")
+	klog.V(1).InfoS("Waiting for the client certificate to be issued")
 	err = wait.PollUntilContextTimeout(ctx, 1*time.Second, 5*time.Minute, false, func(context.Context) (done bool, err error) {
 		csr, err := c.KubeClient.CertificatesV1().CertificateSigningRequests().Get(ctx, csr, metav1.GetOptions{})
 		if err != nil {
@@ -189,12 +189,12 @@ func (c *CertRotationController) syncCertRotation(ctx context.Context, secret *c
 		}
 
 		if csr.Status.Certificate != nil {
-			klog.V(1).Infof("Signing certificate successfully")
+			klog.V(1).InfoS("Signing certificate successfully")
 			newCertData = csr.Status.Certificate
 			return true, nil
 		}
 
-		klog.V(1).Infof("Waiting for the client certificate to be issued")
+		klog.V(1).InfoS("Waiting for the client certificate to be issued")
 		return false, nil
 	})
 	if err != nil {
@@ -217,11 +217,11 @@ func (c *CertRotationController) syncCertRotation(ctx context.Context, secret *c
 
 	newCert, err := certutil.ParseCertsPEM(newCertData)
 	if err != nil {
-		klog.Errorf("Unable to parse new certificate: %v", err)
+		klog.ErrorS(err, "Unable to parse new certificate")
 		return err
 	}
 
-	klog.V(4).Infof("The certificate has been rotated successfully, new expiration time is %v", newCert[0].NotAfter)
+	klog.V(4).InfoS("The certificate has been rotated successfully", "new expiration time", newCert[0].NotAfter)
 
 	return nil
 }
@@ -287,15 +287,15 @@ func (c *CertRotationController) shouldRotateCert(certData []byte) (bool, error)
 
 	total := notAfter.Sub(*notBefore)
 	remaining := time.Until(*notAfter)
-	klog.V(4).Infof("The certificate of karmada-agent: time total=%v, remaining=%v, remaining/total=%v", total, remaining, remaining.Seconds()/total.Seconds())
+	klog.V(4).InfoS("The certificate of karmada-agent", "time total", total, "remaining", remaining, "remaining/total", remaining.Seconds()/total.Seconds())
 
 	if remaining.Seconds()/total.Seconds() > c.CertRotationRemainingTimeThreshold {
 		// Do nothing if the certificate of karmada-agent is valid and has more than a valid threshold of its life remaining
-		klog.V(4).Infof("The certificate of karmada-agent is valid and has more than %.2f%% of its life remaining", c.CertRotationRemainingTimeThreshold*100)
+		klog.V(4).InfoS("The certificate of karmada-agent is valid and has more than the valid threshold of its life remaining", "threshold", c.CertRotationRemainingTimeThreshold*100)
 		return false, nil
 	}
 
-	klog.V(4).Infof("The certificate of karmada-agent has less than or equal %.2f%% of its life remaining and need to be rotated", c.CertRotationRemainingTimeThreshold*100)
+	klog.V(4).InfoS("The certificate of karmada-agent has less than or equal the valid threshold of its life remaining and need to be rotated", "threshold", c.CertRotationRemainingTimeThreshold*100)
 	return true, nil
 }
 
