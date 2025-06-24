@@ -55,7 +55,9 @@ func (p *APIEnablement) Filter(
 	cluster *clusterv1alpha1.Cluster,
 ) *framework.Result {
 	// If the cluster is already in the target list, always allow it to pass
-	// This ensures we never delete scheduled resources
+	// This ensures we never delete scheduled resources.
+	// In case of the corresponding APIs(CRDs) are accidentally deleted from member cluster, Karmada 
+	// controllers will try recreating these resources once the API becomes available again.
 	if bindingSpec.TargetContains(cluster.Name) {
 		return framework.NewResult(framework.Success)
 	}
