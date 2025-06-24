@@ -126,7 +126,16 @@ func CreateOrUpdateDeployment(client clientset.Interface, deployment *appsv1.Dep
 			return err
 		}
 
-		_, err := client.AppsV1().Deployments(deployment.GetNamespace()).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+		older, err := client.AppsV1().Deployments(deployment.GetNamespace()).Get(context.TODO(), deployment.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		// The Deployment selector field is immutable. To prevent update failures caused by inconsistent Deployment selectors generated during
+		// Karmada Operator upgrades, ensure the selector remains unchanged.
+		deployment.Spec.Selector = older.Spec.Selector
+		deployment.Spec.Template.ObjectMeta.Labels = labels.Merge(deployment.Spec.Template.ObjectMeta.Labels, older.Spec.Selector.MatchLabels)
+		_, err = client.AppsV1().Deployments(deployment.GetNamespace()).Update(context.TODO(), deployment, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -246,6 +255,11 @@ func CreateOrUpdateStatefulSet(client clientset.Interface, statefulSet *appsv1.S
 		}
 
 		statefulSet.ResourceVersion = older.ResourceVersion
+
+		// The StatefulSet selector field is immutable. To prevent update failures caused by inconsistent StatefulSet selectors generated during
+		// Karmada Operator upgrades, ensure the selector remains unchanged.
+		statefulSet.Spec.Selector = older.Spec.Selector
+		statefulSet.Spec.Template.ObjectMeta.Labels = labels.Merge(statefulSet.Spec.Template.ObjectMeta.Labels, older.Spec.Selector.MatchLabels)
 		_, err = client.AppsV1().StatefulSets(statefulSet.GetNamespace()).Update(context.TODO(), statefulSet, metav1.UpdateOptions{})
 		if err != nil {
 			return err
