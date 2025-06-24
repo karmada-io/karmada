@@ -30,11 +30,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
@@ -57,21 +57,22 @@ type AgentCSRApprovingController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (a *AgentCSRApprovingController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling for CertificateSigningRequest %s", req.Name)
+	logger := log.FromContext(ctx)
+	logger.V(4).Info("Reconciling for CertificateSigningRequest", "csr", req.Name)
 
 	// 1. get latest CertificateSigningRequest
 	var csr *certificatesv1.CertificateSigningRequest
 	var err error
 	if csr, err = a.Client.CertificatesV1().CertificateSigningRequests().Get(ctx, req.Name, metav1.GetOptions{}); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("no need to reconcile CertificateSigningRequest %s for it not found", req.Name)
+			logger.V(4).Info("No need to reconcile CertificateSigningRequest because it was not found", "csr", req.Name)
 			return controllerruntime.Result{}, nil
 		}
 		return controllerruntime.Result{}, err
 	}
 
 	if csr.DeletionTimestamp != nil {
-		klog.Infof("no need to reconcile CertificateSigningRequest %s for it has been deleted", csr.Name)
+		logger.V(4).Info("No need to reconcile CertificateSigningRequest because it has been deleted", "csr", csr.Name)
 		return controllerruntime.Result{}, nil
 	}
 
@@ -85,6 +86,7 @@ func (a *AgentCSRApprovingController) Reconcile(ctx context.Context, req control
 }
 
 func (a *AgentCSRApprovingController) handleCertificateSigningRequest(ctx context.Context, csr *certificatesv1.CertificateSigningRequest) error {
+	logger := log.FromContext(ctx)
 	if len(csr.Status.Certificate) != 0 {
 		return nil
 	}
@@ -119,7 +121,7 @@ func (a *AgentCSRApprovingController) handleCertificateSigningRequest(ctx contex
 	}
 
 	if len(tried) != 0 {
-		klog.Warningf("recognized csr %q as %v but subject access review was not approved", csr.Name, tried)
+		logger.V(2).Info("Recognized CSR but subject access review was not approved", "csr", csr.Name, "subresources", tried)
 	}
 
 	return nil
