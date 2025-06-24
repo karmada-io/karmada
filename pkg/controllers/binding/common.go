@@ -48,26 +48,30 @@ func ensureWork(
 ) error {
 	bindingSpec := getBindingSpec(binding, scope)
 	targetClusters := mergeTargetClusters(bindingSpec.Clusters, bindingSpec.RequiredBy)
+	var err error
+	var errs []error
 
 	var jobCompletions []workv1alpha2.TargetCluster
-	var err error
-	if workload.GetKind() == util.JobKind {
+	if workload.GetKind() == util.JobKind && needReviseJobCompletions(bindingSpec.Replicas, bindingSpec.Placement) {
 		jobCompletions, err = divideReplicasByJobCompletions(workload, targetClusters)
 		if err != nil {
 			return err
 		}
 	}
 
-	var errs []error
 	for i := range targetClusters {
 		targetCluster := targetClusters[i]
 		clonedWorkload := workload.DeepCopy()
 
 		workNamespace := names.GenerateExecutionSpaceName(targetCluster.Name)
 
-		// If and only if the resource template has replicas, and the replica scheduling policy is divided,
-		// we need to revise replicas.
-		if needReviseReplicas(bindingSpec.Replicas, bindingSpec.Placement) {
+		// When syncing workloads to member clusters, the controller MUST strictly adhere to the scheduling results
+		// specified in bindingSpec.Clusters for replica allocation, rather than using the replicas declared in the
+		// workload's resource template.
+		// This rule applies regardless of whether the workload distribution mode is "Divided" or "Duplicated".
+		// Failing to do so could allow workloads to bypass the quota checks performed by the scheduler
+		// (especially during scale-up operations) or skip queue validation when scheduling is suspended.
+		if needReviseReplicas(bindingSpec.Replicas) {
 			if resourceInterpreter.HookEnabled(clonedWorkload.GroupVersionKind(), configv1alpha1.InterpreterOperationReviseReplica) {
 				clonedWorkload, err = resourceInterpreter.ReviseReplica(clonedWorkload, int64(targetCluster.Replicas))
 				if err != nil {
@@ -77,18 +81,22 @@ func ensureWork(
 					continue
 				}
 			}
+		}
 
+		// jobSpec.Completions specifies the desired number of successfully finished pods the job should be run with.
+		// When the replica scheduling policy is set to "divided", jobSpec.Completions should also be divided accordingly.
+		// The weight assigned to each cluster roughly equals that cluster's jobSpec.Parallelism value. This approach helps
+		// balance the execution time of the job across member clusters.
+		if len(jobCompletions) > 0 {
 			// Set allocated completions for Job only when the '.spec.completions' field not omitted from resource template.
 			// For jobs running with a 'work queue' usually leaves '.spec.completions' unset, in that case we skip
 			// setting this field as well.
 			// Refer to: https://kubernetes.io/docs/concepts/workloads/controllers/job/#parallel-jobs.
-			if len(jobCompletions) > 0 {
-				if err = helper.ApplyReplica(clonedWorkload, int64(jobCompletions[i].Replicas), util.CompletionsField); err != nil {
-					klog.Errorf("Failed to apply Completions for %s/%s/%s in cluster %s, err is: %v",
-						clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), targetCluster.Name, err)
-					errs = append(errs, err)
-					continue
-				}
+			if err = helper.ApplyReplica(clonedWorkload, int64(jobCompletions[i].Replicas), util.CompletionsField); err != nil {
+				klog.Errorf("Failed to apply Completions for %s/%s/%s in cluster %s, err is: %v",
+					clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), targetCluster.Name, err)
+				errs = append(errs, err)
+				continue
 			}
 		}
 
@@ -137,10 +145,8 @@ func ensureWork(
 			continue
 		}
 	}
-	if len(errs) > 0 {
-		return errors.NewAggregate(errs)
-	}
-	return nil
+
+	return errors.NewAggregate(errs)
 }
 
 func getBindingSpec(binding metav1.Object, scope apiextensionsv1.ResourceScope) workv1alpha2.ResourceBindingSpec {
@@ -312,7 +318,11 @@ func divideReplicasByJobCompletions(workload *unstructured.Unstructured, cluster
 	return targetClusters, nil
 }
 
-func needReviseReplicas(replicas int32, placement *policyv1alpha1.Placement) bool {
+func needReviseReplicas(replicas int32) bool {
+	return replicas > 0
+}
+
+func needReviseJobCompletions(replicas int32, placement *policyv1alpha1.Placement) bool {
 	return replicas > 0 && placement != nil && placement.ReplicaSchedulingType() == policyv1alpha1.ReplicaSchedulingTypeDivided
 }
 
