@@ -80,7 +80,7 @@ type Controller struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling Work %s", req.NamespacedName.String())
+	klog.V(4).InfoS("Reconciling Work", "work", req.NamespacedName.String())
 
 	work := &workv1alpha1.Work{}
 	if err := c.Client.Get(ctx, req.NamespacedName, work); err != nil {
@@ -94,13 +94,13 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 
 	clusterName, err := names.GetClusterName(work.Namespace)
 	if err != nil {
-		klog.Errorf("Failed to get member cluster name for work %s/%s", work.Namespace, work.Name)
+		klog.ErrorS(err, "Failed to get member cluster name for work", "namespace", work.Namespace, "name", work.Name)
 		return controllerruntime.Result{}, err
 	}
 
 	cluster, err := util.GetCluster(c.Client, clusterName)
 	if err != nil {
-		klog.Errorf("Failed to get the given member cluster %s", clusterName)
+		klog.ErrorS(err, "Failed to get the given member cluster", "cluster", clusterName)
 		return controllerruntime.Result{}, err
 	}
 
@@ -113,18 +113,19 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	}
 
 	if err := c.updateWorkDispatchingConditionIfNeeded(ctx, work); err != nil {
-		klog.Errorf("Failed to update work condition type %s. err is %v", workv1alpha1.WorkDispatching, err)
+		klog.ErrorS(err, "Failed to update work condition type", "type", workv1alpha1.WorkDispatching)
 		return controllerruntime.Result{}, err
 	}
 
 	if util.IsWorkSuspendDispatching(work) {
-		klog.V(4).Infof("Skip syncing work(%s/%s) for cluster(%s) as work dispatch is suspended.", work.Namespace, work.Name, cluster.Name)
+		klog.V(4).InfoS("Skip syncing work for cluster as work dispatch is suspended.", "namespace", work.Namespace, "name", work.Name, "cluster", cluster.Name)
 		return controllerruntime.Result{}, nil
 	}
 
 	if !util.IsClusterReady(&cluster.Status) {
-		klog.Errorf("Stop syncing the work(%s/%s) for the cluster(%s) as cluster not ready.", work.Namespace, work.Name, cluster.Name)
-		return controllerruntime.Result{}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
+		err := fmt.Errorf("cluster(%s) not ready", cluster.Name)
+		klog.ErrorS(err, "Stop syncing the work for the cluster as cluster not ready.", "namespace", work.Namespace, "name", work.Name, "cluster", cluster.Name)
+		return controllerruntime.Result{}, err
 	}
 
 	return c.syncWork(ctx, clusterName, work)
@@ -161,10 +162,10 @@ func (c *Controller) syncWork(ctx context.Context, clusterName string, work *wor
 func (c *Controller) handleWorkDelete(ctx context.Context, work *workv1alpha1.Work, cluster *clusterv1alpha1.Cluster) error {
 	if ptr.Deref(work.Spec.PreserveResourcesOnDeletion, false) {
 		if err := c.cleanupPolicyClaimMetadata(ctx, work, cluster); err != nil {
-			klog.Errorf("Failed to remove annotations and labels in on cluster(%s)", cluster.Name)
+			klog.ErrorS(err, "Failed to remove annotations and labels", "cluster", cluster.Name)
 			return err
 		}
-		klog.V(4).Infof("Preserving resource on deletion from work(%s/%s) on cluster(%s)", work.Namespace, work.Name, cluster.Name)
+		klog.V(4).InfoS("Preserving resource on deletion from work on cluster", "namespace", work.Namespace, "name", work.Name, "cluster", cluster.Name)
 		return nil
 	}
 
@@ -172,7 +173,7 @@ func (c *Controller) handleWorkDelete(ctx context.Context, work *workv1alpha1.Wo
 	if util.IsClusterReady(&cluster.Status) {
 		err := c.tryDeleteWorkload(ctx, cluster.Name, work)
 		if err != nil {
-			klog.Errorf("Failed to delete work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
+			klog.ErrorS(err, "Failed to delete work", "name", work.Name, "namespace", work.Namespace)
 			return err
 		}
 	} else if cluster.DeletionTimestamp.IsZero() { // cluster is unready, but not terminating
@@ -186,21 +187,19 @@ func (c *Controller) cleanupPolicyClaimMetadata(ctx context.Context, work *workv
 	for _, manifest := range work.Spec.Workload.Manifests {
 		workload := &unstructured.Unstructured{}
 		if err := workload.UnmarshalJSON(manifest.Raw); err != nil {
-			klog.Errorf("Failed to unmarshal workload from work(%s/%s), error is: %v", err, work.GetNamespace(), work.GetName())
+			klog.ErrorS(err, "Failed to unmarshal workload from work", "namespace", work.GetNamespace(), "name", work.GetName())
 			return err
 		}
 
 		fedKey, err := keys.FederatedKeyFunc(cluster.Name, workload)
 		if err != nil {
-			klog.Errorf("Failed to get the federated key resource(kind=%s, %s/%s) from member cluster(%s), err is %v ",
-				workload.GetKind(), workload.GetNamespace(), workload.GetName(), cluster.Name, err)
+			klog.ErrorS(err, "Failed to get the federated key resource from member cluster", "kind", workload.GetKind(), "namespace", workload.GetNamespace(), "name", workload.GetName(), "cluster", cluster.Name)
 			return err
 		}
 
 		clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
 		if err != nil {
-			klog.Errorf("Failed to get the resource(kind=%s, %s/%s) from member cluster(%s) cache, err is %v ",
-				workload.GetKind(), workload.GetNamespace(), workload.GetName(), cluster.Name, err)
+			klog.ErrorS(err, "Failed to get the resource from member cluster cache", "kind", workload.GetKind(), "namespace", workload.GetNamespace(), "name", workload.GetName(), "cluster", cluster.Name)
 			return err
 		}
 
@@ -215,7 +214,7 @@ func (c *Controller) cleanupPolicyClaimMetadata(ctx context.Context, work *workv
 		operationResult, err := c.ObjectWatcher.Update(ctx, cluster.Name, workload, clusterObj)
 		metrics.CountUpdateResourceToCluster(err, workload.GetAPIVersion(), workload.GetKind(), cluster.Name, string(operationResult))
 		if err != nil {
-			klog.Errorf("Failed to update metadata in the given member cluster %v, err is %v", cluster.Name, err)
+			klog.ErrorS(err, "Failed to update metadata in the given member cluster", "cluster", cluster.Name)
 			return err
 		}
 	}
@@ -229,14 +228,14 @@ func (c *Controller) tryDeleteWorkload(ctx context.Context, clusterName string, 
 		workload := &unstructured.Unstructured{}
 		err := workload.UnmarshalJSON(manifest.Raw)
 		if err != nil {
-			klog.Errorf("Failed to unmarshal workload, error is: %v", err)
+			klog.ErrorS(err, "Failed to unmarshal workload")
 			return err
 		}
 
 		err = c.ObjectWatcher.Delete(ctx, clusterName, workload)
 		metrics.CountDeleteResourceFromCluster(err, workload.GetAPIVersion(), workload.GetKind(), clusterName)
 		if err != nil {
-			klog.Errorf("Failed to delete resource in the given member cluster %v, err is %v", clusterName, err)
+			klog.ErrorS(err, "Failed to delete resource in the given member cluster", "cluster", clusterName)
 			return err
 		}
 	}
@@ -266,13 +265,13 @@ func (c *Controller) syncToClusters(ctx context.Context, clusterName string, wor
 		workload := &unstructured.Unstructured{}
 		err := workload.UnmarshalJSON(manifest.Raw)
 		if err != nil {
-			klog.Errorf("Failed to unmarshal workload of the work(%s/%s), error is: %v", work.GetNamespace(), work.GetName(), err)
+			klog.ErrorS(err, "Failed to unmarshal workload of the work", "namespace", work.GetNamespace(), "name", work.GetName())
 			errs = append(errs, err)
 			continue
 		}
 
 		if err = c.tryCreateOrUpdateWorkload(ctx, clusterName, workload); err != nil {
-			klog.Errorf("Failed to create or update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
+			klog.ErrorS(err, "Failed to create or update resource in the given member cluster", "namespace", workload.GetNamespace(), "name", workload.GetName(), "cluster", clusterName)
 			c.eventf(workload, corev1.EventTypeWarning, events.EventReasonSyncWorkloadFailed, "Failed to create or update resource(%s) in member cluster(%s): %v", klog.KObj(workload), clusterName, err)
 			errs = append(errs, err)
 			continue
@@ -286,7 +285,7 @@ func (c *Controller) syncToClusters(ctx context.Context, clusterName string, wor
 		message := fmt.Sprintf("Failed to apply all manifests (%d/%d): %s", syncSucceedNum, total, errors.NewAggregate(errs).Error())
 		err := c.updateAppliedCondition(ctx, work, metav1.ConditionFalse, "AppliedFailed", message)
 		if err != nil {
-			klog.Errorf("Failed to update applied status for given work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
+			klog.ErrorS(err, "Failed to update applied status for given work", "name", work.Name, "namespace", work.Namespace)
 			errs = append(errs, err)
 		}
 		return errors.NewAggregate(errs)
@@ -294,7 +293,7 @@ func (c *Controller) syncToClusters(ctx context.Context, clusterName string, wor
 
 	err := c.updateAppliedCondition(ctx, work, metav1.ConditionTrue, "AppliedSuccessful", "Manifest has been successfully applied")
 	if err != nil {
-		klog.Errorf("Failed to update applied status for given work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
+		klog.ErrorS(err, "Failed to update applied status for given work", "name", work.Name, "namespace", work.Namespace)
 		return err
 	}
 
@@ -304,14 +303,14 @@ func (c *Controller) syncToClusters(ctx context.Context, clusterName string, wor
 func (c *Controller) tryCreateOrUpdateWorkload(ctx context.Context, clusterName string, workload *unstructured.Unstructured) error {
 	fedKey, err := keys.FederatedKeyFunc(clusterName, workload)
 	if err != nil {
-		klog.Errorf("Failed to get FederatedKey %s, error: %v", workload.GetName(), err)
+		klog.ErrorS(err, "Failed to get FederatedKey", "name", workload.GetName())
 		return err
 	}
 
 	clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
-			klog.Errorf("Failed to get the resource(kind=%s, %s/%s) from member cluster(%s), err is %v ", workload.GetKind(), workload.GetNamespace(), workload.GetName(), clusterName, err)
+			klog.ErrorS(err, "Failed to get the resource from member cluster", "kind", workload.GetKind(), "namespace", workload.GetNamespace(), "name", workload.GetName(), "cluster", clusterName)
 			return err
 		}
 		err = c.ObjectWatcher.Create(ctx, clusterName, workload)
@@ -389,7 +388,7 @@ func (c *Controller) setStatusCondition(ctx context.Context, work *workv1alpha1.
 func (c *Controller) eventf(object *unstructured.Unstructured, eventType, reason, messageFmt string, args ...interface{}) {
 	ref, err := util.GenEventRef(object)
 	if err != nil {
-		klog.Errorf("Ignore event(%s) as failed to build event reference for: kind=%s, %s due to %v", reason, object.GetKind(), klog.KObj(object), err)
+		klog.ErrorS(err, "Ignore event as failed to build event reference", "reason", reason, "kind", object.GetKind(), "object", klog.KObj(object))
 		return
 	}
 	c.EventRecorder.Eventf(ref, eventType, reason, messageFmt, args...)
