@@ -36,11 +36,11 @@ import (
 	"k8s.io/client-go/tools/record"
 	certutil "k8s.io/client-go/util/cert"
 	"k8s.io/client-go/util/keyutil"
+	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -87,8 +87,7 @@ type CertRotationController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *CertRotationController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	logger := log.FromContext(ctx)
-	logger.V(4).Info("Rotating the certificate of karmada-agent for the member cluster", "cluster", req.NamespacedName.String())
+	klog.V(4).InfoS("Rotating the certificate of karmada-agent for the member cluster", "cluster", req.NamespacedName.String())
 
 	var err error
 
@@ -109,18 +108,18 @@ func (c *CertRotationController) Reconcile(ctx context.Context, req controllerru
 	// create a ClusterClient for the given member cluster
 	c.ClusterClient, err = c.ClusterClientSetFunc(cluster.Name, c.Client, c.ClusterClientOption)
 	if err != nil {
-		logger.Error(err, "Failed to create a ClusterClient for the given member cluster", "cluster", cluster.Name)
+		klog.ErrorS(err, "Failed to create a ClusterClient for the given member cluster", "cluster", cluster.Name)
 		return controllerruntime.Result{}, err
 	}
 
 	secret, err := c.ClusterClient.KubeClient.CoreV1().Secrets(c.KarmadaKubeconfigNamespace).Get(ctx, KarmadaKubeconfigName, metav1.GetOptions{})
 	if err != nil {
-		logger.Error(err, "failed to get karmada kubeconfig secret")
+		klog.ErrorS(err, "failed to get karmada kubeconfig secret")
 		return controllerruntime.Result{}, err
 	}
 
 	if err = c.syncCertRotation(ctx, secret); err != nil {
-		logger.Error(err, "Failed to rotate the certificate of karmada-agent for the given member cluster", "cluster", cluster.Name)
+		klog.ErrorS(err, "Failed to rotate the certificate of karmada-agent for the given member cluster", "cluster", cluster.Name)
 		return controllerruntime.Result{}, err
 	}
 
@@ -140,7 +139,6 @@ func (c *CertRotationController) SetupWithManager(mgr controllerruntime.Manager)
 }
 
 func (c *CertRotationController) syncCertRotation(ctx context.Context, secret *corev1.Secret) error {
-	logger := log.FromContext(ctx)
 	karmadaKubeconfig, err := getKubeconfigFromSecret(secret)
 	if err != nil {
 		return err
@@ -153,7 +151,7 @@ func (c *CertRotationController) syncCertRotation(ctx context.Context, secret *c
 
 	oldCertData := karmadaKubeconfig.AuthInfos[clusterName].ClientCertificateData
 
-	shouldRotate, err := c.shouldRotateCert(ctx, oldCertData)
+	shouldRotate, err := c.shouldRotateCert(oldCertData)
 	if err != nil {
 		return err
 	}
@@ -183,7 +181,7 @@ func (c *CertRotationController) syncCertRotation(ctx context.Context, secret *c
 	}
 
 	var newCertData []byte
-	logger.V(1).Info("Waiting for the client certificate to be issued")
+	klog.V(1).InfoS("Waiting for the client certificate to be issued")
 	err = wait.PollUntilContextTimeout(ctx, 1*time.Second, 5*time.Minute, false, func(context.Context) (done bool, err error) {
 		csr, err := c.KubeClient.CertificatesV1().CertificateSigningRequests().Get(ctx, csr, metav1.GetOptions{})
 		if err != nil {
@@ -191,12 +189,12 @@ func (c *CertRotationController) syncCertRotation(ctx context.Context, secret *c
 		}
 
 		if csr.Status.Certificate != nil {
-			logger.V(1).Info("Signing certificate successfully")
+			klog.V(1).InfoS("Signing certificate successfully")
 			newCertData = csr.Status.Certificate
 			return true, nil
 		}
 
-		logger.V(1).Info("Waiting for the client certificate to be issued")
+		klog.V(1).InfoS("Waiting for the client certificate to be issued")
 		return false, nil
 	})
 	if err != nil {
@@ -219,11 +217,11 @@ func (c *CertRotationController) syncCertRotation(ctx context.Context, secret *c
 
 	newCert, err := certutil.ParseCertsPEM(newCertData)
 	if err != nil {
-		logger.Error(err, "Unable to parse new certificate")
+		klog.ErrorS(err, "Unable to parse new certificate")
 		return err
 	}
 
-	logger.V(4).Info("The certificate has been rotated successfully", "expiration time", newCert[0].NotAfter)
+	klog.V(4).InfoS("The certificate has been rotated successfully", "expiration time", newCert[0].NotAfter)
 
 	return nil
 }
@@ -281,8 +279,7 @@ func getKubeconfigFromSecret(secret *corev1.Secret) (*clientcmdapi.Config, error
 	return karmadaKubeconfig, nil
 }
 
-func (c *CertRotationController) shouldRotateCert(ctx context.Context, certData []byte) (bool, error) {
-	logger := log.FromContext(ctx)
+func (c *CertRotationController) shouldRotateCert(certData []byte) (bool, error) {
 	notBefore, notAfter, err := getCertValidityPeriod(certData)
 	if err != nil {
 		return false, err
@@ -290,15 +287,15 @@ func (c *CertRotationController) shouldRotateCert(ctx context.Context, certData 
 
 	total := notAfter.Sub(*notBefore)
 	remaining := time.Until(*notAfter)
-	logger.V(4).Info("The certificate of karmada-agent time", "total", total, "remaining", remaining, "remaining/total", remaining.Seconds()/total.Seconds())
+	klog.V(4).InfoS("The certificate of karmada-agent time", "total", total, "remaining", remaining, "remaining/total", remaining.Seconds()/total.Seconds())
 
 	if remaining.Seconds()/total.Seconds() > c.CertRotationRemainingTimeThreshold {
 		// Do nothing if the certificate of karmada-agent is valid and has more than a valid threshold of its life remaining
-		logger.V(4).Info("The certificate of karmada-agent is valid and has more than the valid threshold of its life remaining", "threshold", c.CertRotationRemainingTimeThreshold*100)
+		klog.V(4).InfoS("The certificate of karmada-agent is valid and has more than the valid threshold of its life remaining", "threshold", c.CertRotationRemainingTimeThreshold*100)
 		return false, nil
 	}
 
-	logger.V(4).Info("The certificate of karmada-agent has less than or equal the valid threshold of its life remaining and need to be rotated", "threshold", c.CertRotationRemainingTimeThreshold*100)
+	klog.V(4).InfoS("The certificate of karmada-agent has less than or equal the valid threshold of its life remaining and need to be rotated", "threshold", c.CertRotationRemainingTimeThreshold*100)
 	return true, nil
 }
 
