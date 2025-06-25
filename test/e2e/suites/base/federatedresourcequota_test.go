@@ -28,6 +28,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -275,6 +276,9 @@ var _ = ginkgo.Describe("FederatedResourceQuota enforcement testing", func() {
 		deployNamespace = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
 		err := setupTestNamespace(deployNamespace, kubeClient)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		ginkgo.DeferCleanup(func() {
+			framework.RemoveNamespace(kubeClient, deployNamespace)
+		})
 		frqNamespace = deployNamespace
 		frqName = federatedResourceQuotaPrefix + rand.String(RandomStrLength)
 		clusterNames = framework.ClusterNames()[:1]
@@ -417,10 +421,61 @@ var _ = ginkgo.Describe("FederatedResourceQuota enforcement testing", func() {
 				framework.WaitEventFitWith(kubeClient, newDeploymentNamespace, newRB, func(event corev1.Event) bool {
 					return event.Reason == events.EventReasonScheduleBindingFailed && strings.Contains(event.Message, admissionWebhookDenyMsgPrefix)
 				})
+				framework.WaitEventFitWith(kubeClient, newDeploymentNamespace, newDeploymentName, func(event corev1.Event) bool {
+					return event.Reason == events.EventReasonScheduleBindingFailed && strings.Contains(event.Message, admissionWebhookDenyMsgPrefix)
+				})
+
+				gomega.Eventually(func() bool {
+					rb, err := karmadaClient.WorkV1alpha2().ResourceBindings(newDeploymentNamespace).Get(context.TODO(), newRB, metav1.GetOptions{})
+					if err != nil {
+						return false
+					}
+					return rb != nil && meta.IsStatusConditionPresentAndEqual(rb.Status.Conditions, workv1alpha2.Scheduled, metav1.ConditionFalse)
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 				framework.WaitResourceBindingFitWith(karmadaClient, newDeploymentNamespace, newRB, func(resourceBinding *workv1alpha2.ResourceBinding) bool {
 					return resourceBinding.Spec.Clusters == nil
 				})
 				framework.WaitDeploymentDisappearOnClusters(clusterNames, newDeploymentNamespace, newDeploymentName)
+			})
+		})
+
+		ginkgo.It("When the quota is insufficient, scaling up will be blocked.", func() {
+			ginkgo.By("update the replicas of the deployment", func() {
+				mutateFunc := func(deploy *appsv1.Deployment) {
+					deploy.Spec.Replicas = ptr.To[int32](2)
+				}
+
+				framework.UpdateDeploymentWith(kubeClient, deploymentNamespace, deploymentName, mutateFunc)
+			})
+
+			ginkgo.By("the quota has been exceed, so the update request for the spec.clusters in the resourcebinding will be intercepted.", func() {
+				framework.WaitEventFitWith(kubeClient, rbNamespace, rbName, func(event corev1.Event) bool {
+					return event.Reason == events.EventReasonScheduleBindingFailed && strings.Contains(event.Message, admissionWebhookDenyMsgPrefix)
+				})
+				framework.WaitEventFitWith(kubeClient, deploymentNamespace, deploymentName, func(event corev1.Event) bool {
+					return event.Reason == events.EventReasonScheduleBindingFailed && strings.Contains(event.Message, admissionWebhookDenyMsgPrefix)
+				})
+
+				gomega.Eventually(func() bool {
+					rb, err := karmadaClient.WorkV1alpha2().ResourceBindings(rbNamespace).Get(context.TODO(), rbName, metav1.GetOptions{})
+					if err != nil {
+						return false
+					}
+					return rb != nil && meta.IsStatusConditionPresentAndEqual(rb.Status.Conditions, workv1alpha2.Scheduled, metav1.ConditionFalse)
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+			})
+
+			ginkgo.By("The spec.clusters of resourcebinding was not updated.", func() {
+				rb, err := karmadaClient.WorkV1alpha2().ResourceBindings(rbNamespace).Get(context.TODO(), rbName, metav1.GetOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				for i := range rb.Spec.Clusters {
+					gomega.Expect(rb.Spec.Clusters[i].Replicas).Should(gomega.Equal(int32(1)))
+				}
+
+				time.Sleep(waitTimeout)
+				framework.WaitDeploymentPresentOnClustersFitWith(clusterNames, deploymentNamespace, deploymentName, func(deployment *appsv1.Deployment) bool {
+					return *deployment.Spec.Replicas == 1
+				})
 			})
 		})
 	})
