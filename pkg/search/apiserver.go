@@ -21,7 +21,7 @@ import (
 	"k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
 	genericapiserver "k8s.io/apiserver/pkg/server"
-	cbversion "k8s.io/component-base/version"
+	"k8s.io/apiserver/pkg/util/compatibility"
 	"k8s.io/klog/v2"
 
 	searchapis "github.com/karmada-io/karmada/pkg/apis/search"
@@ -67,7 +67,7 @@ func (cfg *Config) Complete() CompletedConfig {
 		GenericConfig: cfg.GenericConfig.Complete(),
 		ExtraConfig:   &cfg.ExtraConfig,
 	}
-	c.GenericConfig.EffectiveVersion = cbversion.NewEffectiveVersion("1.0")
+	c.GenericConfig.EffectiveVersion = compatibility.DefaultBuildEffectiveVersion()
 
 	return CompletedConfig{&c}
 }
