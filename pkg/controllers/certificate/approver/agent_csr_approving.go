@@ -64,14 +64,14 @@ func (a *AgentCSRApprovingController) Reconcile(ctx context.Context, req control
 	var err error
 	if csr, err = a.Client.CertificatesV1().CertificateSigningRequests().Get(ctx, req.Name, metav1.GetOptions{}); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.V(4).InfoS("No need to reconcile CertificateSigningRequest because it was not found", "csr", req.Name)
+			klog.InfoS("No need to reconcile CertificateSigningRequest because it was not found", "csr", req.Name)
 			return controllerruntime.Result{}, nil
 		}
 		return controllerruntime.Result{}, err
 	}
 
 	if csr.DeletionTimestamp != nil {
-		klog.V(4).InfoS("No need to reconcile CertificateSigningRequest because it has been deleted", "csr", csr.Name)
+		klog.InfoS("No need to reconcile CertificateSigningRequest because it has been deleted", "csr", csr.Name)
 		return controllerruntime.Result{}, nil
 	}
 
