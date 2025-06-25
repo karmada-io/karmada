@@ -62,13 +62,25 @@ func NewFilteredCronFederatedHPAInformer(client versioned.Interface, namespace s
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.AutoscalingV1alpha1().CronFederatedHPAs(namespace).List(context.TODO(), options)
+				return client.AutoscalingV1alpha1().CronFederatedHPAs(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.AutoscalingV1alpha1().CronFederatedHPAs(namespace).Watch(context.TODO(), options)
+				return client.AutoscalingV1alpha1().CronFederatedHPAs(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.AutoscalingV1alpha1().CronFederatedHPAs(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.AutoscalingV1alpha1().CronFederatedHPAs(namespace).Watch(ctx, options)
 			},
 		},
 		&apisautoscalingv1alpha1.CronFederatedHPA{},
