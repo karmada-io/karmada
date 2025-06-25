@@ -35,7 +35,6 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
@@ -189,17 +188,11 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 	// Case 3: Tolerate forever, we do nothing.
 	if needEviction || tolerationTime == 0 {
 		// update final result to evict the target cluster
-		if features.FeatureGate.Enabled(features.GracefulEviction) {
-			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
-				workv1alpha2.WithPurgeMode(purgeMode),
-				workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager),
-				workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
-		} else {
-			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
-				workv1alpha2.WithPurgeMode(purgeMode),
-				workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager),
-				workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
-		}
+		binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
+			workv1alpha2.WithPurgeMode(purgeMode),
+			workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager),
+			workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
+
 		if err = tc.Update(context.TODO(), binding); err != nil {
 			helper.EmitClusterEvictionEventForResourceBinding(binding, cluster, tc.EventRecorder, err)
 			klog.ErrorS(err, "Failed to update binding", "binding", klog.KObj(binding))
@@ -242,22 +235,25 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 		return err
 	}
 
+	var purgeMode policyv1alpha1.PurgeMode
+	if needEviction {
+		switch tc.NoExecuteTaintEvictionPurgeMode {
+		case "Gracefully":
+			purgeMode = policyv1alpha1.Graciously
+		case "Directly":
+			purgeMode = policyv1alpha1.Immediately
+		}
+	}
+
 	// Case 1: Need eviction now.
 	// Case 2: Need eviction after toleration time. If time is up, do eviction right now.
 	// Case 3: Tolerate forever, we do nothing.
 	if needEviction || tolerationTime == 0 {
 		// update final result to evict the target cluster
-		if features.FeatureGate.Enabled(features.GracefulEviction) {
-			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
-				workv1alpha2.WithPurgeMode(policyv1alpha1.Graciously),
-				workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager),
-				workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
-		} else {
-			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
-				workv1alpha2.WithPurgeMode(policyv1alpha1.Immediately),
-				workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager),
-				workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
-		}
+		binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
+			workv1alpha2.WithPurgeMode(purgeMode),
+			workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager),
+			workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
 		if err = tc.Update(context.TODO(), binding); err != nil {
 			helper.EmitClusterEvictionEventForClusterResourceBinding(binding, cluster, tc.EventRecorder, err)
 			klog.ErrorS(err, "Failed to update cluster binding", "binding", binding.Name)
