@@ -56,13 +56,12 @@ var (
 		
 		# Get the documentation of resources in different format in Karmada control plane
 		%[1]s explain clusterpropagationpolicies --output=plaintext-openapiv2`)
-	plaintextTemplateName = "plaintext"
 )
 
 // NewCmdExplain new explain command.
 func NewCmdExplain(f util.Factory, parentCommand string, streams genericiooptions.IOStreams) *cobra.Command {
 	var o CommandExplainOptions
-	o.ExplainOptions = kubectlexplain.NewExplainOptions(parentCommand, streams)
+	o.ExplainFlags = kubectlexplain.NewExplainFlags(streams)
 
 	cmd := &cobra.Command{
 		Use:                   "explain TYPE [--recursive=FALSE|TRUE] [--api-version=api-version-group] [--output=plaintext|plaintext-openapiv2] ",
@@ -70,8 +69,8 @@ func NewCmdExplain(f util.Factory, parentCommand string, streams genericiooption
 		Short:                 "Get documentation for a resource",
 		Long:                  fmt.Sprintf(explainLong, parentCommand),
 		Example:               fmt.Sprintf(explainExamples, parentCommand),
-		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd, args))
+		Run: func(_ *cobra.Command, args []string) {
+			cmdutil.CheckErr(o.Complete(f, parentCommand, args))
 			cmdutil.CheckErr(o.Validate())
 			cmdutil.CheckErr(o.Run())
 		},
@@ -80,16 +79,13 @@ func NewCmdExplain(f util.Factory, parentCommand string, streams genericiooption
 		},
 	}
 
+	o.ExplainFlags.AddFlags(cmd)
+
 	flags := cmd.Flags()
 	o.OperationScope = options.KarmadaControlPlane
 	options.AddKubeConfigFlags(flags)
 	options.AddNamespaceFlag(flags)
 	flags.VarP(&o.OperationScope, "operation-scope", "s", "Used to control the operation scope of the command. The optional values are karmada and members. Defaults to karmada.")
-	flags.BoolVar(&o.Recursive, "recursive", o.Recursive, "When true, print the name of all the fields recursively. Otherwise, print the available fields with their description.")
-	flags.StringVar(&o.APIVersion, "api-version", o.APIVersion, "Use given api-version (group/version) of the resource.")
-
-	// Only enable --output as a valid flag if the feature is enabled
-	flags.StringVar(&o.OutputFormat, "output", plaintextTemplateName, "Format in which to render the schema. Valid values are: (plaintext, plaintext-openapiv2).")
 	flags.StringVar(&o.Cluster, "cluster", "", "Used to specify a target member cluster and only takes effect when the command's operation scope is member clusters, for example: --operation-scope=all --cluster=member1")
 
 	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(cmd)
@@ -103,12 +99,13 @@ func NewCmdExplain(f util.Factory, parentCommand string, streams genericiooption
 type CommandExplainOptions struct {
 	// flags specific to explain
 	*kubectlexplain.ExplainOptions
+	*kubectlexplain.ExplainFlags
 	Cluster        string
 	OperationScope options.OperationScope
 }
 
 // Complete ensures that options are valid and marshals them if necessary
-func (o *CommandExplainOptions) Complete(f util.Factory, cmd *cobra.Command, args []string) error {
+func (o *CommandExplainOptions) Complete(f util.Factory, parentCommand string, args []string) error {
 	var explainFactory cmdutil.Factory = f
 	if o.OperationScope == options.Members && len(o.Cluster) != 0 {
 		memberFactory, err := f.FactoryForMemberCluster(o.Cluster)
@@ -118,7 +115,9 @@ func (o *CommandExplainOptions) Complete(f util.Factory, cmd *cobra.Command, arg
 		explainFactory = memberFactory
 	}
 
-	return o.ExplainOptions.Complete(explainFactory, cmd, args)
+	var err error
+	o.ExplainOptions, err = o.ExplainFlags.ToOptions(explainFactory, parentCommand, args)
+	return err
 }
 
 // Validate checks that the provided explain options are specified
