@@ -68,7 +68,7 @@ type Controller struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Namespaces sync controller reconciling %s", req.NamespacedName.String())
+	klog.V(4).InfoS("Namespaces sync controller reconciling namespace", "namespace", req.NamespacedName.String())
 	if !c.namespaceShouldBeSynced(req.Name) {
 		return controllerruntime.Result{}, nil
 	}
@@ -91,19 +91,19 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 
 	skipAutoPropagation := util.GetLabelValue(namespace.Labels, policyv1alpha1.NamespaceSkipAutoPropagationLabel)
 	if strings.ToLower(skipAutoPropagation) == "true" {
-		klog.Infof("Skip auto propagation namespace:%s", namespace.Name)
+		klog.InfoS("Skip auto propagation namespace", "namespace", namespace.Name)
 		return controllerruntime.Result{}, nil
 	}
 
 	clusterList := &clusterv1alpha1.ClusterList{}
 	if err := c.Client.List(ctx, clusterList); err != nil {
-		klog.Errorf("Failed to list clusters, error: %v", err)
+		klog.ErrorS(err, "Failed to list clusters")
 		return controllerruntime.Result{}, err
 	}
 
 	err := c.buildWorks(ctx, namespace, clusterList.Items)
 	if err != nil {
-		klog.Errorf("Failed to build work for namespace %s. Error: %v.", namespace.GetName(), err)
+		klog.ErrorS(err, "Failed to build work for namespace", "namespace", namespace.GetName())
 		return controllerruntime.Result{}, err
 	}
 
@@ -126,7 +126,7 @@ func (c *Controller) namespaceShouldBeSynced(namespace string) bool {
 func (c *Controller) buildWorks(ctx context.Context, namespace *corev1.Namespace, clusters []clusterv1alpha1.Cluster) error {
 	namespaceObj, err := helper.ToUnstructured(namespace)
 	if err != nil {
-		klog.Errorf("Failed to transform namespace %s. Error: %v", namespace.GetName(), err)
+		klog.ErrorS(err, "Failed to transform namespace", "namespace", namespace.GetName())
 		return err
 	}
 
@@ -138,14 +138,14 @@ func (c *Controller) buildWorks(ctx context.Context, namespace *corev1.Namespace
 			// namespace only care about ClusterOverridePolicy
 			cops, _, err := c.OverrideManager.ApplyOverridePolicies(clonedNamespaced, cluster.Name)
 			if err != nil {
-				klog.Errorf("Failed to apply overrides for %s/%s/%s, err is: %v", clonedNamespaced.GetKind(), clonedNamespaced.GetNamespace(), clonedNamespaced.GetName(), err)
+				klog.ErrorS(err, "Failed to apply overrides for namespace", "namespace", clonedNamespaced.GetName(), "cluster", cluster.GetName())
 				ch <- fmt.Errorf("sync namespace(%s) to cluster(%s) failed due to: %v", clonedNamespaced.GetName(), cluster.GetName(), err)
 				return
 			}
 
 			annotations, err := binding.RecordAppliedOverrides(cops, nil, nil)
 			if err != nil {
-				klog.Errorf("Failed to record appliedOverrides, Error: %v", err)
+				klog.ErrorS(err, "Failed to record appliedOverrides")
 				ch <- fmt.Errorf("sync namespace(%s) to cluster(%s) failed due to: %v", clonedNamespaced.GetName(), cluster.GetName(), err)
 				return
 			}
@@ -186,7 +186,7 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 			var requests []reconcile.Request
 			namespaceList := &corev1.NamespaceList{}
 			if err := c.Client.List(ctx, namespaceList); err != nil {
-				klog.Errorf("Failed to list namespace, error: %v", err)
+				klog.ErrorS(err, "Failed to list namespace")
 				return nil
 			}
 
@@ -239,7 +239,7 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 			if containsAllNamespace {
 				namespaceList := &corev1.NamespaceList{}
 				if err := c.Client.List(context.TODO(), namespaceList); err != nil {
-					klog.Errorf("Failed to list namespace, error: %v", err)
+					klog.ErrorS(err, "Failed to list namespace")
 					return nil
 				}
 
