@@ -152,7 +152,7 @@ func strFind(L *lua.LState) int {
 
 	mds, err := pm.Find(pattern, unsafeFastStringToReadOnlyBytes(str), init, 1)
 	if err != nil {
-		L.RaiseError(err.Error())
+		L.RaiseError("%s", err.Error())
 	}
 	if len(mds) == 0 {
 		L.Push(lua.LNil)
@@ -231,7 +231,7 @@ func strGmatch(L *lua.LState) int {
 	validateStrParamsLen(L, pattern)
 	mds, err := pm.Find(pattern, []byte(str), 0, -1)
 	if err != nil {
-		L.RaiseError(err.Error())
+		L.RaiseError("%s", err.Error())
 	}
 	L.Push(L.Get(lua.UpvalueIndex(1)))
 	ud := L.NewUserData()
@@ -270,7 +270,7 @@ func strMatch(L *lua.LState) int {
 
 	mds, err := pm.Find(pattern, unsafeFastStringToReadOnlyBytes(str), offset, 1)
 	if err != nil {
-		L.RaiseError(err.Error())
+		L.RaiseError("%s", err.Error())
 	}
 	if len(mds) == 0 {
 		L.Push(lua.LNil)
@@ -382,7 +382,7 @@ func raiseErrorIfContextIsDone(L *lua.LState) {
 
 	select {
 	case <-L.Context().Done():
-		L.RaiseError(L.Context().Err().Error())
+		L.RaiseError("%s", L.Context().Err().Error())
 	default:
 	}
 }

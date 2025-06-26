@@ -517,7 +517,7 @@ func (c *FHPAController) scaleForTargetCluster(ctx context.Context, clusters []s
 		if err != nil {
 			errMsg := fmt.Sprintf("couldn't convert selector into a corresponding internal selector object: %v", err)
 			c.EventRecorder.Event(hpa, corev1.EventTypeWarning, "InvalidSelector", errMsg)
-			setCondition(hpa, autoscalingv2.ScalingActive, corev1.ConditionFalse, "InvalidSelector", errMsg)
+			setCondition(hpa, autoscalingv2.ScalingActive, corev1.ConditionFalse, "InvalidSelector", "%s", errMsg)
 			continue
 		}
 
@@ -633,7 +633,7 @@ func (c *FHPAController) computeReplicasForMetrics(ctx context.Context, hpa *aut
 	// return an error and set the condition of the hpa based on the first invalid metric.
 	// Otherwise set the condition as scaling active as we're going to scale
 	if invalidMetricsCount >= len(metricSpecs) || (invalidMetricsCount > 0 && replicas < specReplicas) {
-		setCondition(hpa, invalidMetricCondition.Type, invalidMetricCondition.Status, invalidMetricCondition.Reason, invalidMetricCondition.Message)
+		setCondition(hpa, invalidMetricCondition.Type, invalidMetricCondition.Status, invalidMetricCondition.Reason, "%s", invalidMetricCondition.Message)
 		return -1, "", statuses, time.Time{}, invalidMetricError
 	}
 	setCondition(hpa, autoscalingv2.ScalingActive, corev1.ConditionTrue, "ValidMetricFound", "the HPA was able to successfully calculate a replica count from %s", metric)
@@ -678,7 +678,7 @@ func (c *FHPAController) validateAndParseSelector(hpa *autoscalingv1alpha1.Feder
 	if err != nil {
 		errMsg := fmt.Sprintf("couldn't convert selector into a corresponding internal selector object: %v", err)
 		c.EventRecorder.Event(hpa, corev1.EventTypeWarning, "InvalidSelector", errMsg)
-		setCondition(hpa, autoscalingv2.ScalingActive, corev1.ConditionFalse, "InvalidSelector", errMsg)
+		setCondition(hpa, autoscalingv2.ScalingActive, corev1.ConditionFalse, "InvalidSelector", "%s", errMsg)
 		return nil, errors.New(errMsg)
 	}
 
@@ -693,7 +693,7 @@ func (c *FHPAController) validateAndParseSelector(hpa *autoscalingv1alpha1.Feder
 	if len(selectingHpas) > 1 {
 		errMsg := fmt.Sprintf("pods by selector %v are controlled by multiple HPAs: %v", selector, selectingHpas)
 		c.EventRecorder.Event(hpa, corev1.EventTypeWarning, "AmbiguousSelector", errMsg)
-		setCondition(hpa, autoscalingv2.ScalingActive, corev1.ConditionFalse, "AmbiguousSelector", errMsg)
+		setCondition(hpa, autoscalingv2.ScalingActive, corev1.ConditionFalse, "AmbiguousSelector", "%s", errMsg)
 		return nil, errors.New(errMsg)
 	}
 
@@ -969,9 +969,9 @@ func (c *FHPAController) normalizeDesiredReplicas(hpa *autoscalingv1alpha1.Feder
 	desiredReplicas, condition, reason := convertDesiredReplicasWithRules(currentReplicas, stabilizedRecommendation, minReplicas, hpa.Spec.MaxReplicas)
 
 	if desiredReplicas == stabilizedRecommendation {
-		setCondition(hpa, autoscalingv2.ScalingLimited, corev1.ConditionFalse, condition, reason)
+		setCondition(hpa, autoscalingv2.ScalingLimited, corev1.ConditionFalse, condition, "%s", reason)
 	} else {
-		setCondition(hpa, autoscalingv2.ScalingLimited, corev1.ConditionTrue, condition, reason)
+		setCondition(hpa, autoscalingv2.ScalingLimited, corev1.ConditionTrue, condition, "%s", reason)
 	}
 
 	return desiredReplicas
@@ -1007,15 +1007,15 @@ func (c *FHPAController) normalizeDesiredReplicasWithBehaviors(hpa *autoscalingv
 	normalizationArg.DesiredReplicas = stabilizedRecommendation
 	if stabilizedRecommendation != prenormalizedDesiredReplicas {
 		// "ScaleUpStabilized" || "ScaleDownStabilized"
-		setCondition(hpa, autoscalingv2.AbleToScale, corev1.ConditionTrue, reason, message)
+		setCondition(hpa, autoscalingv2.AbleToScale, corev1.ConditionTrue, reason, "%s", message)
 	} else {
 		setCondition(hpa, autoscalingv2.AbleToScale, corev1.ConditionTrue, "ReadyForNewScale", "recommended size matches current size")
 	}
 	desiredReplicas, reason, message := c.convertDesiredReplicasWithBehaviorRate(normalizationArg)
 	if desiredReplicas == stabilizedRecommendation {
-		setCondition(hpa, autoscalingv2.ScalingLimited, corev1.ConditionFalse, reason, message)
+		setCondition(hpa, autoscalingv2.ScalingLimited, corev1.ConditionFalse, reason, "%s", message)
 	} else {
-		setCondition(hpa, autoscalingv2.ScalingLimited, corev1.ConditionTrue, reason, message)
+		setCondition(hpa, autoscalingv2.ScalingLimited, corev1.ConditionTrue, reason, "%s", message)
 	}
 
 	return desiredReplicas

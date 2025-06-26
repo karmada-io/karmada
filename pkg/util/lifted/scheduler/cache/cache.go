@@ -21,6 +21,7 @@ limitations under the License.
 package cache
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -296,7 +297,7 @@ func (cache *cacheImpl) UpdateSnapshot(nodeSnapshot *Snapshot) error {
 		// We will try to recover by re-creating the lists for the next scheduling cycle, but still return an
 		// error to surface the problem, the error will likely cause a failure to the current scheduling cycle.
 		cache.updateNodeInfoSnapshotList(nodeSnapshot, true)
-		return fmt.Errorf(errMsg)
+		return errors.New(errMsg)
 	}
 
 	return nil

@@ -137,7 +137,7 @@ func (c *ResourceBindingController) syncBinding(ctx context.Context, binding *wo
 	}
 
 	msg := fmt.Sprintf("Sync work of resourceBinding(%s/%s) successful.", binding.Namespace, binding.Name)
-	klog.V(4).Infof(msg)
+	klog.V(4).Info(msg)
 	c.EventRecorder.Event(binding, corev1.EventTypeNormal, events.EventReasonSyncWorkSucceed, msg)
 	c.EventRecorder.Event(workload, corev1.EventTypeNormal, events.EventReasonSyncWorkSucceed, msg)
 	return controllerruntime.Result{}, nil
