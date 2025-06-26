@@ -26,6 +26,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	restclient "k8s.io/client-go/rest"
 	cliflag "k8s.io/component-base/cli/flag"
+	"k8s.io/component-base/logs"
+	logsv1 "k8s.io/component-base/logs/api/v1"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -40,6 +42,7 @@ import (
 	ctrlctx "github.com/karmada-io/karmada/operator/pkg/controller/context"
 	"github.com/karmada-io/karmada/operator/pkg/controller/karmada"
 	"github.com/karmada-io/karmada/operator/pkg/scheme"
+	"github.com/karmada-io/karmada/pkg/features"
 	versionmetrics "github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
@@ -50,6 +53,21 @@ import (
 // NewOperatorCommand creates a *cobra.Command object with default parameters
 func NewOperatorCommand(ctx context.Context) *cobra.Command {
 	o := options.NewOptions()
+	logConfig := logsv1.NewLoggingConfiguration()
+	fss := cliflag.NamedFlagSets{}
+
+	// Set klog flags
+	logsFlagSet := fss.FlagSet("logs")
+	logs.AddFlags(logsFlagSet, logs.SkipLoggingConfigurationFlags())
+	logsv1.AddFlags(logConfig, logsFlagSet)
+	klogflag.Add(logsFlagSet)
+
+	genericFlagSet := fss.FlagSet("generic")
+	// Add the flag(--kubeconfig) that is added by controller-runtime
+	// (https://github.com/kubernetes-sigs/controller-runtime/blob/v0.11.1/pkg/client/config/config.go#L39).
+	genericFlagSet.AddGoFlagSet(flag.CommandLine)
+	o.AddFlags(genericFlagSet, controllers.ControllerNames(), sets.List(controllersDisabledByDefault))
+
 	cmd := &cobra.Command{
 		Use: "karmada-operator",
 		PersistentPreRunE: func(*cobra.Command, []string) error {
@@ -57,6 +75,10 @@ func NewOperatorCommand(ctx context.Context) *cobra.Command {
 			// karmada-operator generically watches APIs (including deprecated ones),
 			// and CI ensures it works properly against matching kube-apiserver versions.
 			restclient.SetDefaultWarningHandler(restclient.NoWarnings{})
+			if err := logsv1.ValidateAndApply(logConfig, features.FeatureGate); err != nil {
+				return err
+			}
+			logs.InitLogs()
 			return nil
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
@@ -74,19 +96,6 @@ func NewOperatorCommand(ctx context.Context) *cobra.Command {
 			return nil
 		},
 	}
-
-	fss := cliflag.NamedFlagSets{}
-
-	genericFlagSet := fss.FlagSet("generic")
-	// Add the flag(--kubeconfig) that is added by controller-runtime
-	// (https://github.com/kubernetes-sigs/controller-runtime/blob/v0.11.1/pkg/client/config/config.go#L39).
-	genericFlagSet.AddGoFlagSet(flag.CommandLine)
-	o.AddFlags(genericFlagSet, controllers.ControllerNames(), sets.List(controllersDisabledByDefault))
-
-	// Set klog flags
-	logsFlagSet := fss.FlagSet("logs")
-	klogflag.Add(logsFlagSet)
-
 	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-operator"))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)

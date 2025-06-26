@@ -20,8 +20,8 @@ import (
 	"os"
 
 	"k8s.io/component-base/cli"
+	"k8s.io/component-base/logs"
 	_ "k8s.io/component-base/logs/json/register" // for JSON log format registration
-	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
 	"github.com/karmada-io/karmada/operator/cmd/operator/app"
@@ -34,8 +34,9 @@ func main() {
 	// set to a NullLogSink and report an error. Here's to silence the "log.SetLogger(...) was never called; logs will not be displayed" error
 	// by setting a logger through log.SetLogger.
 	// More info refer to: https://github.com/karmada-io/karmada/pull/4885.
-	controllerruntime.SetLogger(klog.Background())
 	command := app.NewOperatorCommand(ctx)
-	code := cli.Run(command)
-	os.Exit(code)
+	exitCode := cli.Run(command)
+	// Ensure any buffered log entries are flushed
+	logs.FlushLogs()
+	os.Exit(exitCode)
 }
