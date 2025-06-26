@@ -22,6 +22,7 @@ spec:
         command:
         - /bin/karmada-operator
         - --leader-elect-resource-namespace=karmada-system
+        - --logging-format=json
         - --v=4
         ports:
         - containerPort: 8080
