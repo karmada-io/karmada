@@ -424,7 +424,7 @@ func applyFieldOverriders(rawObj *unstructured.Unstructured, FieldOverriders []p
 		}
 		if kind != reflect.String {
 			errMsg := fmt.Sprintf("Get object's value by overrider's path(%s) is not string", FieldOverriders[index].FieldPath)
-			klog.Errorf(errMsg)
+			klog.Error(errMsg)
 			return errors.New(errMsg)
 		}
 		dataBytes := []byte(res.(string))
