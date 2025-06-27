@@ -846,7 +846,7 @@ func (o *CommandRegisterOption) constructKubeConfig(bootstrapClient *kubeclient.
 	if err != nil {
 		return nil, err
 	}
-	klog.V(1).Infof(fmt.Sprintf("Waiting for the client certificate %s to be issued", csrName))
+	klog.V(1).Infof("Waiting for the client certificate %s to be issued", csrName)
 	err = wait.PollUntilContextTimeout(context.TODO(), 1*time.Second, o.Timeout, false, func(context.Context) (done bool, err error) {
 		csrOK, err := bootstrapClient.CertificatesV1().CertificateSigningRequests().Get(context.TODO(), csrName, metav1.GetOptions{})
 		if err != nil {
@@ -854,12 +854,12 @@ func (o *CommandRegisterOption) constructKubeConfig(bootstrapClient *kubeclient.
 		}
 
 		if csrOK.Status.Certificate != nil {
-			klog.V(1).Infof(fmt.Sprintf("Signing certificate of csr %s successfully", csrName))
+			klog.V(1).Infof("Signing certificate of csr %s successfully", csrName)
 			cert = csrOK.Status.Certificate
 			return true, nil
 		}
 
-		klog.V(1).Infof(fmt.Sprintf("Waiting for the client certificate of csr %s to be issued", csrName))
+		klog.V(1).Infof("Waiting for the client certificate of csr %s to be issued", csrName)
 		klog.V(1).Infof("Approve the CSR %s manually by executing `kubectl certificate approve %s` on the control plane\nOr enable the agentcsrapproving controller of karmada-controller-manager to automatically approve agent CSR.", csrName, csrName)
 		return false, nil
 	})

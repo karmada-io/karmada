@@ -63,7 +63,7 @@ func TestCommandInitIOption_etcdVolume(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			_, got := tt.opt.etcdVolume()
 			if (got == nil) != tt.claimIsNil {
-				t.Errorf(tt.errorMsg)
+				t.Error(tt.errorMsg)
 			}
 		})
 	}
