@@ -197,7 +197,7 @@ func (s *store) RequestWatchProgress(context.Context) error {
 }
 
 // GetCurrentResourceVersion implements storage.Interface
-func (s *store) GetCurrentResourceVersion(ctx context.Context) (uint64, error) {
+func (s *store) GetCurrentResourceVersion(context.Context) (uint64, error) {
 	return 0, fmt.Errorf("not implemented")
 }
 
