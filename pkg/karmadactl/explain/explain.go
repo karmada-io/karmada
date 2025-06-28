@@ -70,7 +70,7 @@ func NewCmdExplain(f util.Factory, parentCommand string, streams genericiooption
 		Short:                 "Get documentation for a resource",
 		Long:                  fmt.Sprintf(explainLong, parentCommand),
 		Example:               fmt.Sprintf(explainExamples, parentCommand),
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(f, parentCommand, args))
 			cmdutil.CheckErr(o.Validate())
 			cmdutil.CheckErr(o.Run())
