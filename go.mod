@@ -56,7 +56,7 @@ require (
 	layeh.com/gopher-json v0.0.0-20201124131017-552bb3c4c3bf
 	sigs.k8s.io/cluster-api v1.7.1
 	sigs.k8s.io/controller-runtime v0.20.4
-	sigs.k8s.io/custom-metrics-apiserver v1.32.0
+	sigs.k8s.io/custom-metrics-apiserver v1.33.0
 	sigs.k8s.io/kind v0.25.0
 	sigs.k8s.io/mcs-api v0.1.0
 	sigs.k8s.io/metrics-server v0.7.1-0.20250423033541-8049c0b5d76e
@@ -82,7 +82,7 @@ require (
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/emicklei/go-restful/v3 v3.12.1 // indirect
+	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f // indirect
 	github.com/fatih/camelcase v1.0.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
