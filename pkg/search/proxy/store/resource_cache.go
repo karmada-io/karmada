@@ -18,6 +18,7 @@ package store
 
 import (
 	"context"
+	"sync"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -112,8 +113,9 @@ func storageWithCacher(gvr schema.GroupVersionResource, multiNS *MultiNamespace,
 		getAttrsFunc storage.AttrFunc,
 		_ storage.IndexerFuncs,
 		indexers *cache.Indexers) (storage.Interface, factory.DestroyFunc, error) {
+		s := newStore(gvr, multiNS, newClientFunc, versioner, resourcePrefix)
 		cacherConfig := cacherstorage.Config{
-			Storage:        newStore(gvr, multiNS, newClientFunc, versioner, resourcePrefix),
+			Storage:        s,
 			Versioner:      versioner,
 			GroupResource:  storageConfig.GroupResource,
 			ResourcePrefix: resourcePrefix,
@@ -128,7 +130,15 @@ func storageWithCacher(gvr schema.GroupVersionResource, multiNS *MultiNamespace,
 		if err != nil {
 			return nil, nil, err
 		}
-		return cacher, cacher.Stop, nil
+		delegator := cacherstorage.NewCacheDelegator(cacher, s)
+		var once sync.Once
+		destroyFunc := func() {
+			once.Do(func() {
+				delegator.Stop()
+				cacher.Stop()
+			})
+		}
+		return delegator, destroyFunc, nil
 	}
 }
 
