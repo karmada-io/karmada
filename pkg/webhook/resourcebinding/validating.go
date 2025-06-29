@@ -309,10 +309,10 @@ func (v *ValidatingAdmission) processSingleFRQ(frqItem policyv1alpha1.FederatedR
 
 	potentialNewOverallUsedForThisFRQ := addResourceLists(frqItem.Status.OverallUsed, deltaForThisFRQ)
 
-	if !isAllowed(potentialNewOverallUsedForThisFRQ, frqItem.Spec.Overall) {
-		errMsg := fmt.Sprintf("Quota exceeded for FederatedResourceQuota %s/%s. ResourceBinding %s/%s will be denied.",
+	isAllowed, errMsg := isAllowed(potentialNewOverallUsedForThisFRQ, frqItem.Spec.Overall, frqItem)
+	if !isAllowed {
+		klog.Warningf("Quota exceeded for FederatedResourceQuota %s/%s. ResourceBinding %s/%s will be denied.",
 			frqItem.Namespace, frqItem.Name, rbNamespace, rbName)
-		klog.Warning(errMsg)
 		resp := admission.Denied(errMsg)
 		return nil, "", &resp
 	}
@@ -437,9 +437,9 @@ func addResourceLists(list1, list2 corev1.ResourceList) corev1.ResourceList {
 	return result
 }
 
-func isAllowed(requested, allowedLimits corev1.ResourceList) bool {
+func isAllowed(requested, allowedLimits corev1.ResourceList, frqItem policyv1alpha1.FederatedResourceQuota) (bool, string) {
 	if allowedLimits == nil {
-		return true
+		return true, ""
 	}
 	for name, reqQty := range requested {
 		if reqQty.IsZero() {
@@ -451,11 +451,12 @@ func isAllowed(requested, allowedLimits corev1.ResourceList) bool {
 			continue
 		}
 		if reqQty.Cmp(limitQty) > 0 {
-			klog.Warningf("Quota exceeded for resource %s: requested sum %s, limit %s", name, reqQty.String(), limitQty.String())
-			return false
+			msg := fmt.Sprintf("FederatedResourceQuota(%s/%s) exceeded for resource %s: requested sum %s, limit %s.", frqItem.Namespace, frqItem.Name, name, reqQty.String(), limitQty.String())
+			klog.Warningf(msg)
+			return false, msg
 		}
 	}
-	return true
+	return true, ""
 }
 
 func filterResourceListByKeys(original corev1.ResourceList, filterKeySource corev1.ResourceList) corev1.ResourceList {

@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
@@ -134,5 +135,11 @@ func getConditionByError(err error) (metav1.Condition, bool) {
 			}
 		}
 	}
+
+	// ResourceBinding validation webhook will return error with "FederatedResourceQuota" if quota exceeded
+	if strings.Contains(err.Error(), "FederatedResourceQuota") {
+		return util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonQuotaExceeded, err.Error(), metav1.ConditionFalse), false
+	}
+
 	return util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSchedulerError, err.Error(), metav1.ConditionFalse), false
 }
