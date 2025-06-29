@@ -196,6 +196,11 @@ func (s *store) RequestWatchProgress(context.Context) error {
 	return fmt.Errorf("not implemented")
 }
 
+// GetCurrentResourceVersion implements storage.Interface
+func (s *store) GetCurrentResourceVersion(context.Context) (uint64, error) {
+	return 0, fmt.Errorf("not implemented")
+}
+
 // ReadinessCheck checks if the storage is ready for accepting requests.
 // Since store itself does not actually hold the data but only provides
 // methods for querying, and the caller will not use this method to detect

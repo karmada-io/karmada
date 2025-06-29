@@ -123,7 +123,7 @@ func TestReconcile(t *testing.T) {
 			}
 
 			// Assert requeue result
-			assert.Equal(t, tt.expectedRequeue, result.Requeue, "Unexpected requeue result")
+			assert.Equal(t, tt.expectedRequeue, result.RequeueAfter > 0, "Unexpected requeue result")
 
 			// Assert remedy actions if expected
 			if tt.expectedActions != nil {

@@ -33,10 +33,10 @@ import (
 	genericfilters "k8s.io/apiserver/pkg/server/filters"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 	"k8s.io/apiserver/pkg/storage/storagebackend"
+	"k8s.io/apiserver/pkg/util/compatibility"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/flowcontrol"
-	cbversion "k8s.io/component-base/version"
 	"k8s.io/klog/v2"
 	netutils "k8s.io/utils/net"
 
@@ -123,7 +123,7 @@ func (o *Options) Run(ctx context.Context) error {
 	restConfig := config.GenericConfig.ClientConfig
 	restConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(o.KubeAPIQPS, o.KubeAPIBurst)
 	secretLister := config.GenericConfig.SharedInformerFactory.Core().V1().Secrets().Lister()
-	config.GenericConfig.EffectiveVersion = cbversion.NewEffectiveVersion("1.0")
+	config.GenericConfig.EffectiveVersion = compatibility.DefaultBuildEffectiveVersion()
 
 	server, err := config.Complete().New(restConfig, secretLister)
 	if err != nil {
