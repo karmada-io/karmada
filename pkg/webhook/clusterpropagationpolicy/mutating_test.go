@@ -128,7 +128,7 @@ func TestMutatingAdmission_Handle_FullCoverage(t *testing.T) {
 			},
 			Failover: &policyv1alpha1.FailoverBehavior{
 				Application: &policyv1alpha1.ApplicationFailoverBehavior{
-					PurgeMode:          policyv1alpha1.Graciously,
+					PurgeMode:          policyv1alpha1.PurgeModeGracefully,
 					GracePeriodSeconds: nil,
 				},
 			},
@@ -166,7 +166,7 @@ func TestMutatingAdmission_Handle_FullCoverage(t *testing.T) {
 			},
 			Failover: &policyv1alpha1.FailoverBehavior{
 				Application: &policyv1alpha1.ApplicationFailoverBehavior{
-					PurgeMode:          policyv1alpha1.Graciously,
+					PurgeMode:          policyv1alpha1.PurgeModeGracefully,
 					GracePeriodSeconds: ptr.To[int32](failOverGracePeriodSeconds),
 				},
 			},
