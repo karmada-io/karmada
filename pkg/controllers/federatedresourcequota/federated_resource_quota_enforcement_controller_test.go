@@ -23,7 +23,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
@@ -35,9 +34,18 @@ func TestCalculateUsedWithResourceBinding(t *testing.T) {
 		expected corev1.ResourceList
 	}{
 		{
-			name: "single binding, 3 replicas",
+			name: "single binding",
 			bindings: []workv1alpha2.ResourceBinding{
-				makeBinding("500m", "128Mi", int32(3), policyv1alpha1.ReplicaSchedulingTypeDivided),
+				makeBinding("500m", "128Mi", []workv1alpha2.TargetCluster{
+					{
+						Name:     "Cluster1",
+						Replicas: int32(1),
+					},
+					{
+						Name:     "Cluster2",
+						Replicas: int32(2),
+					},
+				}),
 			},
 			overall: makeResourceRequest("2000m", "1Gi"),
 			expected: corev1.ResourceList{
@@ -46,11 +54,38 @@ func TestCalculateUsedWithResourceBinding(t *testing.T) {
 			},
 		},
 		{
-			name: "multiple bindings, mixed scheduling strategies",
+			name: "multiple bindings",
 			bindings: []workv1alpha2.ResourceBinding{
-				makeBinding("1", "2Gi", 2, policyv1alpha1.ReplicaSchedulingTypeDivided),
-				makeBinding("500m", "500Mi", 2, policyv1alpha1.ReplicaSchedulingTypeDuplicated),
-				makeBinding("2", "1Gi", 2, policyv1alpha1.ReplicaSchedulingTypeDivided),
+				makeBinding("1", "2Gi", []workv1alpha2.TargetCluster{
+					{
+						Name:     "Cluster1",
+						Replicas: int32(1),
+					},
+					{
+						Name:     "Cluster2",
+						Replicas: int32(1),
+					},
+				}),
+				makeBinding("500m", "500Mi", []workv1alpha2.TargetCluster{
+					{
+						Name:     "Cluster1",
+						Replicas: int32(2),
+					},
+					{
+						Name:     "Cluster2",
+						Replicas: int32(2),
+					},
+				}),
+				makeBinding("2", "1Gi", []workv1alpha2.TargetCluster{
+					{
+						Name:     "Cluster1",
+						Replicas: int32(1),
+					},
+					{
+						Name:     "Cluster2",
+						Replicas: int32(1),
+					},
+				}),
 			},
 			overall: makeResourceRequest("10", "10Gi"),
 			expected: corev1.ResourceList{
@@ -61,7 +96,16 @@ func TestCalculateUsedWithResourceBinding(t *testing.T) {
 		{
 			name: "single binding, overall only includes cpu",
 			bindings: []workv1alpha2.ResourceBinding{
-				makeBinding("500m", "1Gi", int32(3), policyv1alpha1.ReplicaSchedulingTypeDivided),
+				makeBinding("500m", "1Gi", []workv1alpha2.TargetCluster{
+					{
+						Name:     "Cluster1",
+						Replicas: int32(1),
+					},
+					{
+						Name:     "Cluster2",
+						Replicas: int32(2),
+					},
+				}),
 			},
 			overall: makeResourceRequest("10", ""),
 			expected: corev1.ResourceList{
@@ -80,15 +124,18 @@ func TestCalculateUsedWithResourceBinding(t *testing.T) {
 						ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
 							ResourceRequest: nil,
 						},
-						Replicas: 2,
-						Placement: &policyv1alpha1.Placement{
-							ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-								ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDuplicated,
-							},
-						},
 					},
 				},
-				makeBinding("200m", "128Mi", 2, policyv1alpha1.ReplicaSchedulingTypeDivided),
+				makeBinding("200m", "128Mi", []workv1alpha2.TargetCluster{
+					{
+						Name:     "Cluster1",
+						Replicas: int32(1),
+					},
+					{
+						Name:     "Cluster2",
+						Replicas: int32(1),
+					},
+				}),
 			},
 			overall: makeResourceRequest("10", "10Gi"),
 			expected: corev1.ResourceList{
@@ -118,22 +165,12 @@ func TestCalculateUsedWithResourceBinding(t *testing.T) {
 	}
 }
 
-func makeBinding(cpu string, memory string, replicas int32, strategy policyv1alpha1.ReplicaSchedulingType) workv1alpha2.ResourceBinding {
-	schedulingStrategy := &policyv1alpha1.ReplicaSchedulingStrategy{
-		ReplicaSchedulingType: strategy,
-	}
+func makeBinding(cpu string, memory string, clusters []workv1alpha2.TargetCluster) workv1alpha2.ResourceBinding {
 	return workv1alpha2.ResourceBinding{
 		Spec: workv1alpha2.ResourceBindingSpec{
-			Clusters: []workv1alpha2.TargetCluster{
-				{Name: "cluster1"},
-				{Name: "cluster2"},
-			},
+			Clusters: clusters,
 			ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
 				ResourceRequest: makeResourceRequest(cpu, memory),
-			},
-			Replicas: replicas,
-			Placement: &policyv1alpha1.Placement{
-				ReplicaScheduling: schedulingStrategy,
 			},
 		},
 	}
