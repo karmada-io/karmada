@@ -2,42 +2,48 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.12.6](#v1126)
-  - [Downloads for v1.12.6](#downloads-for-v1126)
-  - [Changelog since v1.12.5](#changelog-since-v1125)
+- [v1.12.7](#v1127)
+  - [Downloads for v1.12.7](#downloads-for-v1127)
+  - [Changelog since v1.12.6](#changelog-since-v1126)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
-- [v1.12.5](#v1125)
-  - [Downloads for v1.12.5](#downloads-for-v1125)
-  - [Changelog since v1.12.4](#changelog-since-v1124)
+- [v1.12.6](#v1126)
+  - [Downloads for v1.12.6](#downloads-for-v1126)
+  - [Changelog since v1.12.5](#changelog-since-v1125)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
-- [v1.12.4](#v1124)
-  - [Downloads for v1.12.4](#downloads-for-v1124)
-  - [Changelog since v1.12.3](#changelog-since-v1123)
+- [v1.12.5](#v1125)
+  - [Downloads for v1.12.5](#downloads-for-v1125)
+  - [Changelog since v1.12.4](#changelog-since-v1124)
     - [Changes by Kind](#changes-by-kind-2)
       - [Bug Fixes](#bug-fixes-2)
       - [Others](#others-2)
-- [v1.12.3](#v1123)
-  - [Downloads for v1.12.3](#downloads-for-v1123)
-  - [Changelog since v1.12.2](#changelog-since-v1122)
+- [v1.12.4](#v1124)
+  - [Downloads for v1.12.4](#downloads-for-v1124)
+  - [Changelog since v1.12.3](#changelog-since-v1123)
     - [Changes by Kind](#changes-by-kind-3)
       - [Bug Fixes](#bug-fixes-3)
       - [Others](#others-3)
-- [v1.12.2](#v1122)
-  - [Downloads for v1.12.2](#downloads-for-v1122)
-  - [Changelog since v1.12.1](#changelog-since-v1121)
+- [v1.12.3](#v1123)
+  - [Downloads for v1.12.3](#downloads-for-v1123)
+  - [Changelog since v1.12.2](#changelog-since-v1122)
     - [Changes by Kind](#changes-by-kind-4)
       - [Bug Fixes](#bug-fixes-4)
       - [Others](#others-4)
-- [v1.12.1](#v1121)
-  - [Downloads for v1.12.1](#downloads-for-v1121)
-  - [Changelog since v1.12.0](#changelog-since-v1120)
+- [v1.12.2](#v1122)
+  - [Downloads for v1.12.2](#downloads-for-v1122)
+  - [Changelog since v1.12.1](#changelog-since-v1121)
     - [Changes by Kind](#changes-by-kind-5)
       - [Bug Fixes](#bug-fixes-5)
       - [Others](#others-5)
+- [v1.12.1](#v1121)
+  - [Downloads for v1.12.1](#downloads-for-v1121)
+  - [Changelog since v1.12.0](#changelog-since-v1120)
+    - [Changes by Kind](#changes-by-kind-6)
+      - [Bug Fixes](#bug-fixes-6)
+      - [Others](#others-6)
 - [v1.12.0](#v1120)
   - [Downloads for v1.12.0](#downloads-for-v1120)
   - [What's New](#whats-new)
@@ -48,7 +54,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-6)
+    - [Bug Fixes](#bug-fixes-7)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -60,11 +66,11 @@
   - [Downloads for v1.12.0-beta.0](#downloads-for-v1120-beta0)
   - [Changelog since v1.12.0-alpha.1](#changelog-since-v1120-alpha1)
   - [Urgent Update Notes](#urgent-update-notes)
-  - [Changes by Kind](#changes-by-kind-6)
+  - [Changes by Kind](#changes-by-kind-7)
     - [API Changes](#api-changes-1)
     - [Features & Enhancements](#features--enhancements-1)
     - [Deprecation](#deprecation-1)
-    - [Bug Fixes](#bug-fixes-7)
+    - [Bug Fixes](#bug-fixes-8)
     - [Security](#security-1)
   - [Other](#other-1)
     - [Dependencies](#dependencies-1)
@@ -74,11 +80,11 @@
   - [Downloads for v1.12.0-alpha.1](#downloads-for-v1120-alpha1)
   - [Changelog since v1.11.0](#changelog-since-v1110)
   - [Urgent Update Notes](#urgent-update-notes-1)
-  - [Changes by Kind](#changes-by-kind-7)
+  - [Changes by Kind](#changes-by-kind-8)
     - [API Changes](#api-changes-2)
     - [Features & Enhancements](#features--enhancements-2)
     - [Deprecation](#deprecation-2)
-    - [Bug Fixes](#bug-fixes-8)
+    - [Bug Fixes](#bug-fixes-9)
     - [Security](#security-2)
   - [Other](#other-2)
     - [Dependencies](#dependencies-2)
@@ -86,6 +92,19 @@
     - [Instrumentation](#instrumentation-2)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.12.7
+## Downloads for v1.12.7
+
+Download v1.12.7 in the [v1.12.7 release page](https://github.com/karmada-io/karmada/releases/tag/v1.12.7).
+
+## Changelog since v1.12.6
+### Changes by Kind
+#### Bug Fixes
+None.
+
+#### Others
+- The base image `alpine` now has been promoted from 3.21.3 to 3.22.0. ([#6422](https://github.com/karmada-io/karmada/pull/6422))
 
 # v1.12.6
 ## Downloads for v1.12.6
