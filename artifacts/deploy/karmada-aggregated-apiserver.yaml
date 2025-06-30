@@ -47,6 +47,7 @@ spec:
             - --audit-log-maxage=0
             - --audit-log-maxbackup=0
             - --tls-min-version=VersionTLS13
+            - --logging-format=json
             - --bind-address=$(POD_IP)
           resources:
             requests:
