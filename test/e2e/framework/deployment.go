@@ -19,6 +19,7 @@ package framework
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/onsi/ginkgo/v2"
@@ -59,15 +60,23 @@ func UpdateDeploymentPaused(client kubernetes.Interface, deployment *appsv1.Depl
 	})
 }
 
-// UpdateDeploymentWithSpec update deployment with the given spec.
-func UpdateDeploymentWithSpec(client kubernetes.Interface, namespace, name string, spec appsv1.DeploymentSpec) {
+// UpdateDeploymentWith update deployment with the given mutate function.
+func UpdateDeploymentWith(client kubernetes.Interface, namespace, name string, mutateFunc func(deploy *appsv1.Deployment)) {
 	ginkgo.By(fmt.Sprintf("Update Deployment(%s/%s)", namespace, name), func() {
-		newDeployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		gomega.Eventually(func() error {
+			deploy, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
 
-		newDeployment.Spec = spec
-		_, err = client.AppsV1().Deployments(namespace).Update(context.TODO(), newDeployment, metav1.UpdateOptions{})
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			deployCopy := deploy.DeepCopy()
+			mutateFunc(deployCopy)
+			if reflect.DeepEqual(deploy, deployCopy) {
+				return nil
+			}
+			_, err = client.AppsV1().Deployments(namespace).Update(context.TODO(), deployCopy, metav1.UpdateOptions{})
+			return err
+		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }
 

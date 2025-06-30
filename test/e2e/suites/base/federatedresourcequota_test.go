@@ -350,12 +350,13 @@ var _ = ginkgo.Describe("FederatedResourceQuota enforcement testing", func() {
 
 		ginkgo.It("Intercept update requests for requirements if they exceed the quota.", func() {
 			ginkgo.By("update the requirements of the deployment", func() {
-				newSpec := deployment.Spec.DeepCopy()
-				newSpec.Template.Spec.Containers[0].Resources.Requests = corev1.ResourceList{
-					"cpu": resource.MustParse("20m"),
+				mutateFunc := func(deploy *appsv1.Deployment) {
+					deploy.Spec.Template.Spec.Containers[0].Resources.Requests = corev1.ResourceList{
+						"cpu": resource.MustParse("20m"),
+					}
 				}
 
-				framework.UpdateDeploymentWithSpec(kubeClient, deploymentNamespace, deploymentName, *newSpec)
+				framework.UpdateDeploymentWith(kubeClient, deploymentNamespace, deploymentName, mutateFunc)
 			})
 
 			ginkgo.By("The quota has been exceeded, so the update request for the requirements in resourcebinding will be intercepted.", func() {
