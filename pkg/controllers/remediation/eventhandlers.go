@@ -99,7 +99,7 @@ func (h *remedyEventHandler) Create(ctx context.Context, e event.TypedCreateEven
 	clusterList := &clusterv1alpha1.ClusterList{}
 	err := h.client.List(ctx, clusterList)
 	if err != nil {
-		klog.Errorf("Failed to list cluster: %v", err)
+		klog.ErrorS(err, "Failed to list cluster")
 		return
 	}
 
@@ -122,7 +122,7 @@ func (h *remedyEventHandler) Update(ctx context.Context, e event.TypedUpdateEven
 		clusterList := &clusterv1alpha1.ClusterList{}
 		err := h.client.List(ctx, clusterList)
 		if err != nil {
-			klog.Errorf("Failed to list cluster: %v", err)
+			klog.ErrorS(err, "Failed to list cluster")
 			return
 		}
 
@@ -174,7 +174,7 @@ func (h *remedyEventHandler) Delete(ctx context.Context, e event.TypedDeleteEven
 	clusterList := &clusterv1alpha1.ClusterList{}
 	err := h.client.List(ctx, clusterList)
 	if err != nil {
-		klog.Errorf("Failed to list cluster: %v", err)
+		klog.ErrorS(err, "Failed to list cluster")
 		return
 	}
 
