@@ -49,7 +49,7 @@ type RemedyController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *RemedyController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Start to reconcile cluster(%s)", req.NamespacedName.String())
+	klog.V(4).InfoS("Start to reconcile cluster", "cluster", req.NamespacedName.String())
 	cluster := &clusterv1alpha1.Cluster{}
 	if err := c.Client.Get(ctx, req.NamespacedName, cluster); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -64,7 +64,7 @@ func (c *RemedyController) Reconcile(ctx context.Context, req controllerruntime.
 
 	clusterRelatedRemedies, err := getClusterRelatedRemedies(ctx, c.Client, cluster)
 	if err != nil {
-		klog.Errorf("Failed to get cluster(%s) related remedies: %v", cluster.Name, err)
+		klog.ErrorS(err, "Failed to get cluster related remedies", "cluster", cluster.Name)
 		return controllerruntime.Result{}, err
 	}
 
@@ -76,10 +76,10 @@ func (c *RemedyController) Reconcile(ctx context.Context, req controllerruntime.
 		})
 		return err
 	}); err != nil {
-		klog.Errorf("Failed to sync cluster(%s) remedy actions: %v", cluster.Name, err)
+		klog.ErrorS(err, "Failed to sync cluster remedy actions", "cluster", cluster.Name)
 		return controllerruntime.Result{}, err
 	}
-	klog.V(4).Infof("Success to sync cluster(%s) remedy actions: %v", cluster.Name, actions)
+	klog.V(4).InfoS("Success to sync cluster remedy actions", "cluster", cluster.Name, "actions", actions)
 	return controllerruntime.Result{}, nil
 }
 
