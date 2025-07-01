@@ -69,7 +69,7 @@ type ResourceBindingController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *ResourceBindingController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling ResourceBinding %s.", req.NamespacedName.String())
+	klog.V(4).InfoS("Reconciling ResourceBinding", "binding", req.NamespacedName.String())
 
 	binding := &workv1alpha2.ResourceBinding{}
 	if err := c.Client.Get(ctx, req.NamespacedName, binding); err != nil {
@@ -82,9 +82,9 @@ func (c *ResourceBindingController) Reconcile(ctx context.Context, req controlle
 	}
 
 	if !binding.DeletionTimestamp.IsZero() {
-		klog.V(4).Infof("Begin to delete works owned by binding(%s).", req.NamespacedName.String())
+		klog.V(4).InfoS("Begin deleting works owned by ResourceBinding", "binding", req.NamespacedName.String())
 		if err := helper.DeleteWorks(ctx, c.Client, req.Namespace, req.Name, binding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel]); err != nil {
-			klog.Errorf("Failed to delete works related to %s/%s: %v", binding.GetNamespace(), binding.GetName(), err)
+			klog.ErrorS(err, "Failed deleting works owned by ResourceBinding", "namespace", binding.GetNamespace(), "binding", binding.GetName())
 			return controllerruntime.Result{}, err
 		}
 		return c.removeFinalizer(ctx, binding)
@@ -121,23 +121,21 @@ func (c *ResourceBindingController) syncBinding(ctx context.Context, binding *wo
 			// So, just return without retry(requeue) would save unnecessary loop.
 			return controllerruntime.Result{}, nil
 		}
-		klog.Errorf("Failed to fetch workload for resourceBinding(%s/%s). Error: %v.",
-			binding.GetNamespace(), binding.GetName(), err)
+		klog.ErrorS(err, "Failed to fetch workload for ResourceBinding", "namespace", binding.GetNamespace(), "binding", binding.GetName())
 		return controllerruntime.Result{}, err
 	}
 	start := time.Now()
 	err = ensureWork(ctx, c.Client, c.ResourceInterpreter, workload, c.OverrideManager, binding, apiextensionsv1.NamespaceScoped)
 	metrics.ObserveSyncWorkLatency(err, start)
 	if err != nil {
-		klog.Errorf("Failed to transform resourceBinding(%s/%s) to works. Error: %v.",
-			binding.GetNamespace(), binding.GetName(), err)
+		klog.ErrorS(err, "Failed to transform ResourceBinding to works", "namespace", binding.GetNamespace(), "binding", binding.GetName())
 		c.EventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonSyncWorkFailed, err.Error())
 		c.EventRecorder.Event(workload, corev1.EventTypeWarning, events.EventReasonSyncWorkFailed, err.Error())
 		return controllerruntime.Result{}, err
 	}
 
-	msg := fmt.Sprintf("Sync work of resourceBinding(%s/%s) successful.", binding.Namespace, binding.Name)
-	klog.V(4).Info(msg)
+	msg := fmt.Sprintf("Sync work of ResourceBinding(%s/%s) successful.", binding.Namespace, binding.Name)
+	klog.V(4).InfoS(msg, "namespace", binding.GetNamespace(), "binding", binding.GetName())
 	c.EventRecorder.Event(binding, corev1.EventTypeNormal, events.EventReasonSyncWorkSucceed, msg)
 	c.EventRecorder.Event(workload, corev1.EventTypeNormal, events.EventReasonSyncWorkSucceed, msg)
 	return controllerruntime.Result{}, nil
@@ -147,16 +145,14 @@ func (c *ResourceBindingController) removeOrphanWorks(ctx context.Context, bindi
 	works, err := helper.FindOrphanWorks(ctx, c.Client, binding.Namespace, binding.Name,
 		binding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel], helper.ObtainBindingSpecExistingClusters(binding.Spec))
 	if err != nil {
-		klog.Errorf("Failed to find orphan works by resourceBinding(%s/%s). Error: %v.",
-			binding.GetNamespace(), binding.GetName(), err)
+		klog.ErrorS(err, "Failed to find orphaned works by ResourceBinding", "namespace", binding.GetNamespace(), "binding", binding.GetName())
 		c.EventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonCleanupWorkFailed, err.Error())
 		return err
 	}
 
 	err = helper.RemoveOrphanWorks(ctx, c.Client, works)
 	if err != nil {
-		klog.Errorf("Failed to remove orphan works by resourceBinding(%s/%s). Error: %v.",
-			binding.GetNamespace(), binding.GetName(), err)
+		klog.ErrorS(err, "Failed to remove orphaned works by ResourceBinding", "namespace", binding.GetNamespace(), "binding", binding.GetName())
 		c.EventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonCleanupWorkFailed, err.Error())
 		return err
 	}
@@ -201,7 +197,7 @@ func (c *ResourceBindingController) newOverridePolicyFunc() handler.MapFunc {
 			}
 		}
 		if err := c.Client.List(ctx, readonlyBindingList, listOption); err != nil {
-			klog.Errorf("Failed to list resourceBindings, error: %v", err)
+			klog.ErrorS(err, "Failed to list ResourceBindings for policy", "namespace", a.GetNamespace(), "name", a.GetName())
 			return nil
 		}
 
@@ -209,7 +205,8 @@ func (c *ResourceBindingController) newOverridePolicyFunc() handler.MapFunc {
 		for _, binding := range readonlyBindingList.Items {
 			// Nil resourceSelectors means matching all resources.
 			if len(overrideRS) == 0 {
-				klog.V(2).Infof("Enqueue ResourceBinding(%s/%s) as override policy(%s/%s) changes.", binding.Namespace, binding.Name, a.GetNamespace(), a.GetName())
+				klog.V(2).InfoS("Enqueue ResourceBinding as override policy changes", "namespace", binding.Namespace,
+					"binding", binding.Name, "policyNamespace", a.GetNamespace(), "policy", a.GetName())
 				requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Namespace: binding.Namespace, Name: binding.Name}})
 				continue
 			}
@@ -218,13 +215,14 @@ func (c *ResourceBindingController) newOverridePolicyFunc() handler.MapFunc {
 			if err != nil {
 				// If we cannot fetch resource template from binding, this may be due to the fact that the resource template has been deleted.
 				// Just skip it so that it will not affect other bindings.
-				klog.Errorf("Failed to fetch workload for resourceBinding(%s/%s). Error: %v.", binding.Namespace, binding.Name, err)
+				klog.ErrorS(err, "Failed to fetch workload for ResourceBinding", "namespace", binding.Namespace, "binding", binding.Name)
 				continue
 			}
 
 			for _, rs := range overrideRS {
 				if util.ResourceMatches(workload, rs) {
-					klog.V(2).Infof("Enqueue ResourceBinding(%s/%s) as override policy(%s/%s) changes.", binding.Namespace, binding.Name, a.GetNamespace(), a.GetName())
+					klog.V(2).InfoS("Enqueue ResourceBinding as override policy changes", "namespace", binding.Namespace,
+						"binding", binding.Name, "policyNamespace", a.GetNamespace(), "policy", a.GetName())
 					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Namespace: binding.Namespace, Name: binding.Name}})
 					break
 				}
