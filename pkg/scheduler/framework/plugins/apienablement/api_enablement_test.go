@@ -93,7 +93,7 @@ func TestAPIEnablement_Filter(t *testing.T) {
 			expectError:  true,
 		},
 		{
-			name: "cluster in target list with incomplete API enablements",
+			name: "cluster in target list with API not enabled",
 			bindingSpec: &workv1alpha2.ResourceBindingSpec{
 				Resource: workv1alpha2.ObjectReference{
 					APIVersion: "custom.io/v1",
@@ -110,10 +110,14 @@ func TestAPIEnablement_Filter(t *testing.T) {
 					Name: "cluster1",
 				},
 				Status: clusterv1alpha1.ClusterStatus{
-					Conditions: []metav1.Condition{
+					APIEnablements: []clusterv1alpha1.APIEnablement{
 						{
-							Type:   clusterv1alpha1.ClusterConditionCompleteAPIEnablements,
-							Status: metav1.ConditionFalse,
+							GroupVersion: "apps/v1",
+							Resources: []clusterv1alpha1.APIResource{
+								{
+									Kind: "Deployment",
+								},
+							},
 						},
 					},
 				},
