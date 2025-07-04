@@ -40,18 +40,6 @@ const (
 	// This label indicates the name.
 	MultiClusterServiceNameLabel = "multiclusterservice.karmada.io/name"
 
-	// PropagationInstruction is used to mark a resource(like Work) propagation instruction.
-	// Valid values includes:
-	// - suppressed: indicates that the resource should not be propagated.
-	//
-	// Note: This instruction is intended to set on Work objects to indicate the Work should be ignored by
-	// execution controller. The instruction maybe deprecated once we extend the Work API and no other scenario want this.
-	//
-	// Deprecated: This label has been deprecated since v1.14, and will be replaced by the filed .spec.suspendDispatching of
-	// Work API. This label should only be used internally by Karmada, but for compatibility, the deletion will be postponed
-	// to release 1.15.
-	PropagationInstruction = "propagation.karmada.io/instruction"
-
 	// FederatedResourceQuotaNamespaceLabel is added to Work to specify associated FederatedResourceQuota's namespace.
 	FederatedResourceQuotaNamespaceLabel = "federatedresourcequota.karmada.io/namespace"
 
@@ -90,9 +78,6 @@ const (
 
 	// RetainReplicasValue is an optional value of RetainReplicasLabel, indicating retain
 	RetainReplicasValue = "true"
-
-	// PropagationInstructionSuppressed indicates that the resource should not be propagated.
-	PropagationInstructionSuppressed = "suppressed"
 )
 
 // Define annotations used by karmada system.
