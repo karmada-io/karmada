@@ -19,7 +19,6 @@ package apienablement
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -55,15 +54,21 @@ func (p *APIEnablement) Filter(
 	_ *workv1alpha2.ResourceBindingStatus,
 	cluster *clusterv1alpha1.Cluster,
 ) *framework.Result {
-	if helper.IsAPIEnabled(cluster.Status.APIEnablements, bindingSpec.Resource.APIVersion, bindingSpec.Resource.Kind) {
+	// If the cluster is already in the target list, always allow it to pass
+	// This ensures the scheduler never deletes scheduled resources by this plugin.
+	// In case of the required APIs(CRDs) are accidentally deleted from member cluster, Karmada
+	// controllers will try recreating these resources once the API becomes available again.
+	if bindingSpec.TargetContains(cluster.Name) {
 		return framework.NewResult(framework.Success)
 	}
 
-	// Let the cluster pass if it is already on the list of schedule result and the cluster's
-	// API enablements is incomplete, to avoid the issue that cluster be accidentally removed
-	// due to untrusted API enablements.
-	if bindingSpec.TargetContains(cluster.Name) &&
-		!meta.IsStatusConditionTrue(cluster.Status.Conditions, clusterv1alpha1.ClusterConditionCompleteAPIEnablements) {
+	// For new scheduling decisions, check if the API is enabled to ensure the application
+	// is deployed to a cluster that supports all required APIs.
+	// Note: Although controllers may not always get the complete API list,
+	// we enforce strict checks to maintain consistency. This may occasionally
+	// exclude clusters prematurely. Users requiring a specific number of target
+	// clusters should use SpreadConstraints(in PropagationPolicy) to meet their requirements.
+	if helper.IsAPIEnabled(cluster.Status.APIEnablements, bindingSpec.Resource.APIVersion, bindingSpec.Resource.Kind) {
 		return framework.NewResult(framework.Success)
 	}
 
