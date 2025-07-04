@@ -40,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/karmada-io/karmada/cmd/agent/app/options"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -348,7 +349,7 @@ func startExecutionController(ctx controllerscontext.Context) (bool, error) {
 		EventRecorder:      ctx.Mgr.GetEventRecorderFor(execution.ControllerName),
 		RESTMapper:         ctx.Mgr.GetRESTMapper(),
 		ObjectWatcher:      ctx.ObjectWatcher,
-		PredicateFunc:      helper.NewExecutionPredicateOnAgent(),
+		PredicateFunc:      predicate.Funcs{},
 		InformerManager:    genericmanager.GetInstance(),
 		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
@@ -366,7 +367,7 @@ func startWorkStatusController(ctx controllerscontext.Context) (bool, error) {
 		InformerManager:             genericmanager.GetInstance(),
 		Context:                     ctx.Context,
 		ObjectWatcher:               ctx.ObjectWatcher,
-		PredicateFunc:               helper.NewExecutionPredicateOnAgent(),
+		PredicateFunc:               predicate.Funcs{},
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 		ClusterCacheSyncTimeout:     ctx.Opts.ClusterCacheSyncTimeout,
 		ConcurrentWorkStatusSyncs:   ctx.Opts.ConcurrentWorkSyncs,
