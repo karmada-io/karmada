@@ -35,7 +35,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/diff"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/endpoints/request"
-	"k8s.io/utils/ptr"
 
 	"github.com/karmada-io/karmada/pkg/search/proxy/framework"
 	proxytest "github.com/karmada-io/karmada/pkg/search/proxy/testing"
@@ -172,11 +171,9 @@ func TestCacheProxy_connect(t *testing.T) {
 			want: want{
 				gvr: proxytest.NodeGVR,
 				listOptions: &metainternalversion.ListOptions{
-					LabelSelector:        labels.NewSelector(),
-					FieldSelector:        fields.Everything(),
-					Watch:                true,
-					ResourceVersionMatch: metav1.ResourceVersionMatchNotOlderThan,
-					SendInitialEvents:    ptr.To[bool](true),
+					LabelSelector: labels.NewSelector(),
+					FieldSelector: fields.Everything(),
+					Watch:         true,
 				},
 			},
 		},
@@ -189,11 +186,9 @@ func TestCacheProxy_connect(t *testing.T) {
 				namespace: "default",
 				gvr:       proxytest.PodGVR,
 				listOptions: &metainternalversion.ListOptions{
-					LabelSelector:        labels.NewSelector(),
-					FieldSelector:        fields.Everything(),
-					Watch:                true,
-					ResourceVersionMatch: metav1.ResourceVersionMatchNotOlderThan,
-					SendInitialEvents:    ptr.To[bool](true),
+					LabelSelector: labels.NewSelector(),
+					FieldSelector: fields.Everything(),
+					Watch:         true,
 				},
 			},
 		},

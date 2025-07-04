@@ -27,12 +27,12 @@ import (
 	"k8s.io/apiserver/pkg/endpoints/openapi"
 	"k8s.io/apiserver/pkg/registry/generic"
 	genericapiserver "k8s.io/apiserver/pkg/server"
+	"k8s.io/apiserver/pkg/util/compatibility"
 	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
 	restclient "k8s.io/client-go/rest"
-	"k8s.io/component-base/version"
 
 	clusterscheme "github.com/karmada-io/karmada/pkg/apis/cluster/scheme"
 	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
@@ -67,7 +67,7 @@ func TestNewAggregatedAPIServer(t *testing.T) {
 					return nil
 				},
 				ExternalAddress:  "10.0.0.0:10000",
-				EffectiveVersion: version.NewEffectiveVersion("1.0"),
+				EffectiveVersion: compatibility.DefaultBuildEffectiveVersion(),
 			},
 			client: fakeclientset.NewSimpleClientset(),
 			prep: func(cfg *completedConfig, genericAPIServerCfg *genericapiserver.Config, client clientset.Interface) error {
@@ -98,7 +98,7 @@ func TestNewAggregatedAPIServer(t *testing.T) {
 				},
 				OpenAPIV3Config:  genericapiserver.DefaultOpenAPIV3Config(generatedopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(clusterscheme.Scheme)),
 				ExternalAddress:  "10.0.0.0:10000",
-				EffectiveVersion: version.NewEffectiveVersion("1.0"),
+				EffectiveVersion: compatibility.DefaultBuildEffectiveVersion(),
 			},
 			prep: func(cfg *completedConfig, genericAPIServerCfg *genericapiserver.Config, client clientset.Interface) error {
 				sharedInformer := informers.NewSharedInformerFactory(client, 0)
@@ -134,7 +134,7 @@ func TestNewAggregatedAPIServer(t *testing.T) {
 				},
 				OpenAPIV3Config:  genericapiserver.DefaultOpenAPIV3Config(generatedopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(clusterscheme.Scheme)),
 				ExternalAddress:  "10.0.0.0:10000",
-				EffectiveVersion: version.NewEffectiveVersion("1.0"),
+				EffectiveVersion: compatibility.DefaultBuildEffectiveVersion(),
 			},
 			prep: func(cfg *completedConfig, genericAPIServerCfg *genericapiserver.Config, client clientset.Interface) error {
 				sharedInformer := informers.NewSharedInformerFactory(client, 0)
