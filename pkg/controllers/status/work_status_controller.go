@@ -70,7 +70,7 @@ type WorkStatusController struct {
 	// ConcurrentWorkStatusSyncs is the number of Work status that are allowed to sync concurrently.
 	ConcurrentWorkStatusSyncs   int
 	ObjectWatcher               objectwatcher.ObjectWatcher
-	PredicateFunc               predicate.Predicate
+	WorkPredicateFunc           predicate.Predicate
 	ClusterDynamicClientSetFunc util.NewClusterDynamicClientSetFunc
 	ClusterClientOption         *util.ClientOption
 	ClusterCacheSyncTimeout     metav1.Duration
@@ -288,11 +288,6 @@ func (c *WorkStatusController) handleDeleteEvent(ctx context.Context, key keys.F
 
 	// stop processing as the work object being deleting.
 	if !work.DeletionTimestamp.IsZero() {
-		return nil
-	}
-
-	//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
-	if util.GetLabelValue(work.Labels, util.PropagationInstruction) == util.PropagationInstructionSuppressed {
 		return nil
 	}
 
@@ -545,7 +540,7 @@ func (c *WorkStatusController) getSingleClusterManager(cluster *clusterv1alpha1.
 func (c *WorkStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(WorkStatusControllerName).
-		For(&workv1alpha1.Work{}, builder.WithPredicates(c.PredicateFunc)).
+		For(&workv1alpha1.Work{}, builder.WithPredicates(c.WorkPredicateFunc)).
 		WithOptions(controller.Options{
 			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions),
 		}).Complete(c)

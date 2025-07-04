@@ -348,8 +348,8 @@ func startExecutionController(ctx controllerscontext.Context) (bool, error) {
 		EventRecorder:      ctx.Mgr.GetEventRecorderFor(execution.ControllerName),
 		RESTMapper:         ctx.Mgr.GetRESTMapper(),
 		ObjectWatcher:      ctx.ObjectWatcher,
-		PredicateFunc:      helper.NewExecutionPredicateOnAgent(),
 		InformerManager:    genericmanager.GetInstance(),
+		WorkPredicateFunc:  helper.AllowAllPredicate(),
 		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err := executionController.SetupWithManager(ctx.Mgr); err != nil {
@@ -366,7 +366,7 @@ func startWorkStatusController(ctx controllerscontext.Context) (bool, error) {
 		InformerManager:             genericmanager.GetInstance(),
 		Context:                     ctx.Context,
 		ObjectWatcher:               ctx.ObjectWatcher,
-		PredicateFunc:               helper.NewExecutionPredicateOnAgent(),
+		WorkPredicateFunc:           helper.AllowAllPredicate(),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 		ClusterCacheSyncTimeout:     ctx.Opts.ClusterCacheSyncTimeout,
 		ConcurrentWorkStatusSyncs:   ctx.Opts.ConcurrentWorkSyncs,
