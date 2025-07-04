@@ -291,11 +291,6 @@ func (c *WorkStatusController) handleDeleteEvent(ctx context.Context, key keys.F
 		return nil
 	}
 
-	//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
-	if util.GetLabelValue(work.Labels, util.PropagationInstruction) == util.PropagationInstructionSuppressed {
-		return nil
-	}
-
 	reCreateErr := c.recreateResourceIfNeeded(ctx, work, key)
 	if reCreateErr != nil {
 		c.updateAppliedCondition(ctx, work, metav1.ConditionFalse, "ReCreateFailed", reCreateErr.Error())
