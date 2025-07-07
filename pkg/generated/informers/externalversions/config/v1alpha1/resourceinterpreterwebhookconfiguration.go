@@ -61,13 +61,25 @@ func NewFilteredResourceInterpreterWebhookConfigurationInformer(client versioned
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ConfigV1alpha1().ResourceInterpreterWebhookConfigurations().List(context.TODO(), options)
+				return client.ConfigV1alpha1().ResourceInterpreterWebhookConfigurations().List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ConfigV1alpha1().ResourceInterpreterWebhookConfigurations().Watch(context.TODO(), options)
+				return client.ConfigV1alpha1().ResourceInterpreterWebhookConfigurations().Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.ConfigV1alpha1().ResourceInterpreterWebhookConfigurations().List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.ConfigV1alpha1().ResourceInterpreterWebhookConfigurations().Watch(ctx, options)
 			},
 		},
 		&apisconfigv1alpha1.ResourceInterpreterWebhookConfiguration{},

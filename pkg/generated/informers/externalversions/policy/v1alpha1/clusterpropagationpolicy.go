@@ -61,13 +61,25 @@ func NewFilteredClusterPropagationPolicyInformer(client versioned.Interface, res
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.PolicyV1alpha1().ClusterPropagationPolicies().List(context.TODO(), options)
+				return client.PolicyV1alpha1().ClusterPropagationPolicies().List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.PolicyV1alpha1().ClusterPropagationPolicies().Watch(context.TODO(), options)
+				return client.PolicyV1alpha1().ClusterPropagationPolicies().Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.PolicyV1alpha1().ClusterPropagationPolicies().List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.PolicyV1alpha1().ClusterPropagationPolicies().Watch(ctx, options)
 			},
 		},
 		&apispolicyv1alpha1.ClusterPropagationPolicy{},

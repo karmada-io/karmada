@@ -61,13 +61,25 @@ func NewFilteredRemedyInformer(client versioned.Interface, resyncPeriod time.Dur
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.RemedyV1alpha1().Remedies().List(context.TODO(), options)
+				return client.RemedyV1alpha1().Remedies().List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.RemedyV1alpha1().Remedies().Watch(context.TODO(), options)
+				return client.RemedyV1alpha1().Remedies().Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.RemedyV1alpha1().Remedies().List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.RemedyV1alpha1().Remedies().Watch(ctx, options)
 			},
 		},
 		&apisremedyv1alpha1.Remedy{},

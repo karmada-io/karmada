@@ -19,12 +19,15 @@ package store
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
@@ -194,6 +197,30 @@ func (s *store) Count(string) (int64, error) {
 // RequestWatchProgress implements storage.Interface.
 func (s *store) RequestWatchProgress(context.Context) error {
 	return fmt.Errorf("not implemented")
+}
+
+// GetCurrentResourceVersion implements storage.Interface
+func (s *store) GetCurrentResourceVersion(ctx context.Context) (uint64, error) {
+	pred := storage.SelectionPredicate{
+		Label: labels.Everything(),
+		Field: fields.Everything(),
+		Limit: 1, // just in case we actually hit something
+	}
+	emptyList := &unstructured.UnstructuredList{}
+	err := s.GetList(ctx, s.prefix, storage.ListOptions{Predicate: pred}, emptyList)
+	if err != nil {
+		return 0, err
+	}
+
+	currentResourceVersion, err := strconv.ParseUint(emptyList.GetResourceVersion(), 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	if currentResourceVersion == 0 {
+		return 0, fmt.Errorf("the current resource version must be greater than 0")
+	}
+	return currentResourceVersion, nil
 }
 
 // ReadinessCheck checks if the storage is ready for accepting requests.
