@@ -19264,6 +19264,21 @@
         }
       }
     },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterFailoverBehavior": {
+      "description": "ClusterFailoverBehavior indicates cluster failover behaviors.",
+      "type": "object",
+      "properties": {
+        "purgeMode": {
+          "description": "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Directly\" and \"Gracefully\". Defaults to \"Gracefully\".",
+          "type": "string"
+        },
+        "tolerationSeconds": {
+          "description": "TolerationSeconds represents the time system should wait for performing failover process after the PreferNoExecute taint occurs on the cluster. Defaults to 300.",
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
     "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterOverridePolicy": {
       "description": "ClusterOverridePolicy represents the cluster-wide policy that overrides a group of resources to one or more clusters.",
       "type": "object",
@@ -19598,6 +19613,10 @@
         "application": {
           "description": "Application indicates failover behaviors in case of application failure. If this value is nil, failover is disabled. If set, the PropagateDeps should be true so that the dependencies could be migrated along with the application.",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ApplicationFailoverBehavior"
+        },
+        "cluster": {
+          "description": "Cluster indicates failover behaviors in case of partial cluster failure. The partial cluster failure here refers to the clusters with taint whose effect is PreferNoExecute.\n\nPreferNoExecute taints do not need to consider the setting of Placement.ClusterTolerations.\n\nIf this value is nil, failover triggered by PreferNoExecute is disabled.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterFailoverBehavior"
         }
       }
     },
