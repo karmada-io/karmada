@@ -18,6 +18,8 @@ package options
 
 import (
 	"fmt"
+	evictionQueueconfig "github.com/karmada-io/karmada/pkg/controllers/cluster/evictionqueue_config"
+
 	"regexp"
 	"strings"
 	"time"
@@ -148,6 +150,8 @@ type Options struct {
 	FederatedResourceQuotaOptions FederatedResourceQuotaOptions
 	// FailoverOptions holds the Failover configurations.
 	FailoverOptions FailoverOptions
+	// EvictionQueueOptions holds the GracefulEviction
+	EvictionQueueOptions evictionQueueconfig.EvictionQueueOptions
 }
 
 // NewOptions builds an empty options.
@@ -234,6 +238,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 	o.HPAControllerConfiguration.AddFlags(flags)
 	o.FederatedResourceQuotaOptions.AddFlags(flags)
 	o.FailoverOptions.AddFlags(flags)
+	o.EvictionQueueOptions.AddFlags(flags)
 	features.FeatureGate.AddFlag(flags)
 }
 
