@@ -299,6 +299,7 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 			RateLimiterOptions:                 ctx.Opts.RateLimiterOptions,
 			EnableNoExecuteTaintEviction:       ctx.Opts.FailoverConfiguration.EnableNoExecuteTaintEviction,
 			NoExecuteTaintEvictionPurgeMode:    ctx.Opts.FailoverConfiguration.NoExecuteTaintEvictionPurgeMode,
+			EvictionQueueOptions:               ctx.Opts.EvictionQueueOptions,
 		}
 		if err := taintManager.SetupWithManager(mgr); err != nil {
 			return false, err
@@ -924,6 +925,7 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 			HPAControllerConfiguration:        opts.HPAControllerConfiguration,
 			FederatedResourceQuotaOptions:     opts.FederatedResourceQuotaOptions,
 			FailoverConfiguration:             opts.FailoverOptions,
+			EvictionQueueOptions:              opts.EvictionQueueOptions,
 		},
 		Context:                     ctx,
 		DynamicClientSet:            dynamicClientSet,

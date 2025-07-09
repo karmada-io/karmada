@@ -37,6 +37,12 @@ const (
 	clusterCPUAllocatedMetricsName       = "cluster_cpu_allocated_number"
 	clusterPodAllocatedMetricsName       = "cluster_pod_allocated_number"
 	clusterSyncStatusDurationMetricsName = "cluster_sync_status_duration_seconds"
+	evictionQueueDepthMetricsName        = "eviction_queue_depth"
+	evictionKindTotalMetricsName         = "evict_kind_total"
+	evictionProcessingLatencyMetricsName = "eviction_processing_latency_seconds"
+	evictionProcessingTotalMetricsName   = "eviction_processing_total"
+	clusterFailureRateMetricsName        = "cluster_failure_rate"
+	clusterFaultNumMetricsName           = "cluster_fault_num"
 )
 
 var (
@@ -99,6 +105,37 @@ var (
 		Name: clusterSyncStatusDurationMetricsName,
 		Help: "Duration in seconds for syncing the status of the cluster once.",
 	}, []string{"cluster_name"})
+
+	evictionQueueMetrics = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: evictionQueueDepthMetricsName,
+		Help: "Current depth of the eviction queue",
+	}, []string{"name"})
+
+	evictionKindTotalMetrics = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: evictionKindTotalMetricsName,
+		Help: "Number of resources in the eviction queue by resource kind",
+	}, []string{"cluster_name", "resource_kind"})
+
+	evictionProcessingLatency = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    evictionProcessingLatencyMetricsName,
+		Help:    "Latency of processing an eviction task in seconds",
+		Buckets: prometheus.ExponentialBuckets(0.001, 2, 15),
+	}, []string{"name"})
+
+	evictionProcessingTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: evictionProcessingTotalMetricsName,
+		Help: "Total number of evictions processed",
+	}, []string{"name", "result"})
+
+	clusterFailureRateMetric = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: clusterFailureRateMetricsName,
+		Help: "Current failure rate of clusters",
+	})
+
+	clusterFaultNumMetric = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: clusterFaultNumMetricsName,
+		Help: "Number of faulty clusters",
+	})
 )
 
 // RecordClusterStatus records the status of the given cluster.
@@ -149,6 +186,40 @@ func CleanupMetricsForCluster(clusterName string) {
 	clusterSyncStatusDuration.DeleteLabelValues(clusterName)
 }
 
+// RecordEvictionQueueMetrics record the depth Of the EvictionQueue
+func RecordEvictionQueueMetrics(name string, depth float64) {
+	evictionQueueMetrics.WithLabelValues(name).Set(depth)
+}
+
+// RecordEvictionKindMetrics records eviction queue items by resource type
+// Increase count when true and decrease count when false
+func RecordEvictionKindMetrics(clusterName, resourceKind string, increase bool) {
+	if clusterName == "" || resourceKind == "" {
+		return
+	}
+
+	if increase {
+		evictionKindTotalMetrics.WithLabelValues(clusterName, resourceKind).Inc()
+	} else {
+		evictionKindTotalMetrics.WithLabelValues(clusterName, resourceKind).Dec()
+	}
+}
+
+// RecordEvictionProcessingMetrics records the processing delay and results of the eviction task
+func RecordEvictionProcessingMetrics(name string, err error, startTime time.Time) {
+	latency := utilmetrics.DurationInSeconds(startTime)
+	evictionProcessingLatency.WithLabelValues(name).Observe(latency)
+
+	result := utilmetrics.GetResultByError(err)
+	evictionProcessingTotal.WithLabelValues(name, result).Inc()
+}
+
+// RecordClusterHealthMetrics record cluster health indicators
+func RecordClusterHealthMetrics(unhealthyClusters int, failureRate float64) {
+	clusterFaultNumMetric.Set(float64(unhealthyClusters))
+	clusterFailureRateMetric.Set(float64(failureRate))
+}
+
 // ClusterCollectors returns the collectors about clusters.
 func ClusterCollectors() []prometheus.Collector {
 	return []prometheus.Collector{
@@ -162,5 +233,11 @@ func ClusterCollectors() []prometheus.Collector {
 		clusterCPUAllocatedGauge,
 		clusterPodAllocatedGauge,
 		clusterSyncStatusDuration,
+		evictionQueueMetrics,
+		evictionKindTotalMetrics,
+		evictionProcessingLatency,
+		evictionProcessingTotal,
+		clusterFailureRateMetric,
+		clusterFaultNumMetric,
 	}
 }
