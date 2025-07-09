@@ -38,6 +38,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/indexregistry"
@@ -52,6 +53,9 @@ type NoExecuteTaintManager struct {
 	client.Client // used to operate Cluster resources.
 	EventRecorder record.EventRecorder
 
+	// InformerManager is used to get cluster information for dynamic rate limiting
+	InformerManager genericmanager.SingleClusterInformerManager
+
 	ClusterTaintEvictionRetryFrequency time.Duration
 	ConcurrentReconciles               int
 	RateLimiterOptions                 ratelimiterflag.Options
@@ -59,8 +63,37 @@ type NoExecuteTaintManager struct {
 	EnableNoExecuteTaintEviction    bool
 	NoExecuteTaintEvictionPurgeMode string
 
-	bindingEvictionWorker        util.AsyncWorker
+	// EvictionQueueOptions contains options for dynamic rate limiting
+	EvictionQueueOptions EvictionQueueOptions
+
+	//bindingEvictionWorker handles ResourceBinding resources
+	bindingEvictionWorker util.AsyncWorker
+	//clusterBindingEvictionWorker handles the ClusterResourceBinding resource
 	clusterBindingEvictionWorker util.AsyncWorker
+}
+
+// EvictionWorkerOptions configures a new EvictionWorker instance.
+type EvictionWorkerOptions struct {
+	// Name is the queue's name used for metrics and logging
+	Name string
+
+	// KeyFunc generates keys from objects for queue operations
+	KeyFunc util.KeyFunc
+
+	// ReconcileFunc processes keys from the queue
+	ReconcileFunc util.ReconcileFunc
+
+	// ResourceKindFunc returns resource metadata for metrics collection
+	ResourceKindFunc func(key interface{}) (clusterName, resourceKind string)
+
+	// ControlPlaneInformerManager provides cluster information for dynamic rate limiting
+	ControlPlaneInformerManager genericmanager.SingleClusterInformerManager
+
+	// EvictionQueueOptions configures dynamic rate limiting behavior
+	EvictionQueueOptions EvictionQueueOptions
+
+	// RateLimiterOptions configures general rate limiter behavior
+	RateLimiterOptions ratelimiterflag.Options
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -125,24 +158,55 @@ func (tc *NoExecuteTaintManager) syncCluster(ctx context.Context, cluster *clust
 
 // Start starts an asynchronous loop that handle evictions.
 func (tc *NoExecuteTaintManager) Start(ctx context.Context) error {
-	bindingEvictionWorkerOptions := util.Options{
-		Name:          "binding-eviction",
-		KeyFunc:       nil,
-		ReconcileFunc: tc.syncBindingEviction,
-	}
-	tc.bindingEvictionWorker = util.NewAsyncWorker(bindingEvictionWorkerOptions)
+	//Create an eviction queue that handles ResourceBinding
+	//The queue dynamically adjusts the processing rate based on the cluster health
+	tc.bindingEvictionWorker = NewEvictionWorker(EvictionWorkerOptions{
+		Name:                        "binding-eviction",
+		KeyFunc:                     nil,
+		ReconcileFunc:               tc.syncBindingEviction,
+		ResourceKindFunc:            tc.getResourceKindFromKey,
+		ControlPlaneInformerManager: tc.InformerManager,
+		EvictionQueueOptions:        tc.EvictionQueueOptions,
+		RateLimiterOptions:          tc.RateLimiterOptions,
+	})
 	tc.bindingEvictionWorker.Run(ctx, tc.ConcurrentReconciles)
 
-	clusterBindingEvictionWorkerOptions := util.Options{
-		Name:          "cluster-binding-eviction",
-		KeyFunc:       nil,
-		ReconcileFunc: tc.syncClusterBindingEviction,
-	}
-	tc.clusterBindingEvictionWorker = util.NewAsyncWorker(clusterBindingEvictionWorkerOptions)
+	//Create an eviction queue that handles ClusterResourceBinding
+	//The queue dynamically adjusts the processing rate based on the cluster health
+	tc.clusterBindingEvictionWorker = NewEvictionWorker(EvictionWorkerOptions{
+		Name:                        "cluster-binding-eviction",
+		KeyFunc:                     nil,
+		ReconcileFunc:               tc.syncClusterBindingEviction,
+		ResourceKindFunc:            tc.getResourceKindFromKey,
+		ControlPlaneInformerManager: tc.InformerManager,
+		EvictionQueueOptions:        tc.EvictionQueueOptions,
+		RateLimiterOptions:          tc.RateLimiterOptions,
+	})
 	tc.clusterBindingEvictionWorker.Run(ctx, tc.ConcurrentReconciles)
 
 	<-ctx.Done()
 	return nil
+}
+
+// getResourceKindFromKey extracts cluster name and resource kind from a queue key
+// for eviction metrics collection.
+func (tc *NoExecuteTaintManager) getResourceKindFromKey(key interface{}) (clusterName, resourceKind string) {
+	fedKey, ok := key.(keys.FederatedKey)
+	if !ok {
+		return "", ""
+	}
+
+	// Extract cluster name from the key
+	clusterName = fedKey.Cluster
+
+	// Determine resource kind based on the worker that processes this key
+	if fedKey.Namespace != "" {
+		resourceKind = "ResourceBinding"
+	} else {
+		resourceKind = "ClusterResourceBinding"
+	}
+
+	return clusterName, resourceKind
 }
 
 func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
