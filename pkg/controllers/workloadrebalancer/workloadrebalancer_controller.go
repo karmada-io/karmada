@@ -188,7 +188,6 @@ func (c *RebalancerController) handleWorkloadRebalance(ctx context.Context, reba
 
 func (c *RebalancerController) triggerReschedule(ctx context.Context, metadata metav1.ObjectMeta, newStatus *appsv1alpha1.WorkloadRebalancerStatus) (
 	*appsv1alpha1.WorkloadRebalancerStatus, int64) {
-
 	successNum, retryNum := int64(0), int64(0)
 	for i, resource := range newStatus.ObservedWorkloads {
 		if resource.Result == appsv1alpha1.RebalanceSuccessful {
