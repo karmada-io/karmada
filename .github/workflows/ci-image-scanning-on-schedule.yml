@@ -56,6 +56,7 @@ jobs:
           format: 'sarif'
           ignore-unfixed: true
           vuln-type: 'os,library'
+          cache: false
           output: '${{ matrix.target }}:${{ matrix.karmada-version }}.trivy-results.sarif'
       - name: display scan results
         uses: aquasecurity/trivy-action@0.32.0
@@ -65,6 +66,7 @@ jobs:
           image-ref: 'docker.io/karmada/${{ matrix.target }}:${{ matrix.karmada-version }}'
           format: 'table'
           ignore-unfixed: true
+          cache: false
           vuln-type: 'os,library'
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
