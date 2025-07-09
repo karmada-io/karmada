@@ -1,0 +1,12 @@
+tests:
+  - desiredInputPath: testdata/desired-sidecarset-nginx.yaml
+    statusInputPath: testdata/status-file.yaml
+    operation: AggregateStatus
+  - desiredInputPath: testdata/desired-sidecarset-nginx.yaml
+    operation: InterpretDependency
+  - observedInputPath: testdata/observed-sidecarset-nginx.yaml
+    operation: InterpretReplica
+  - observedInputPath: testdata/observed-sidecarset-nginx.yaml
+    operation: InterpretHealth
+  - observedInputPath: testdata/observed-sidecarset-nginx.yaml
+    operation: InterpretStatus 
