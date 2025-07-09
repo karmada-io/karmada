@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 )
 
@@ -219,6 +220,53 @@ func TestDeleteEndpointSlice(t *testing.T) {
 			}
 			if got := list.Items; !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("DeleteEndpointSlice() got = %#v, want %#v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsEndpointSliceManagedByKarmada(t *testing.T) {
+	tests := []struct {
+		name   string
+		labels map[string]string
+		want   bool
+	}{
+		{
+			name: "managed by endpointslice-dispatch-controller",
+			labels: map[string]string{
+				discoveryv1.LabelManagedBy: util.EndpointSliceDispatchControllerLabelValue,
+			},
+			want: true,
+		},
+		{
+			name: "managed by endpointslice-controller",
+			labels: map[string]string{
+				discoveryv1.LabelManagedBy: util.EndpointSliceControllerLabelValue,
+			},
+			want: true,
+		},
+		{
+			name: "not managed by karmada",
+			labels: map[string]string{
+				discoveryv1.LabelManagedBy: "not-karmada",
+			},
+			want: false,
+		},
+		{
+			name:   "nil labels",
+			labels: nil,
+			want:   false,
+		},
+		{
+			name:   "empty labels",
+			labels: map[string]string{},
+			want:   false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsEndpointSliceManagedByKarmada(tt.labels); got != tt.want {
+				t.Errorf("IsEndpointSliceManagedByKarmada() = %v, want %v", got, tt.want)
 			}
 		})
 	}
