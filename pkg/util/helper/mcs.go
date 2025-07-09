@@ -141,3 +141,12 @@ func GetConsumerClusters(client client.Client, mcs *networkingv1alpha1.MultiClus
 	}
 	return allClusters, nil
 }
+
+// IsEndpointSliceManagedByKarmada checks if the EndpointSlice is managed by Karmada.
+func IsEndpointSliceManagedByKarmada(epsLabels map[string]string) bool {
+	switch util.GetLabelValue(epsLabels, discoveryv1.LabelManagedBy) {
+	case util.EndpointSliceDispatchControllerLabelValue, util.EndpointSliceControllerLabelValue:
+		return true
+	}
+	return false
+}
