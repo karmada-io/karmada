@@ -394,6 +394,11 @@ func (c *ServiceExportController) handleEndpointSliceEvent(ctx context.Context, 
 		return err
 	}
 
+	// Exclude EndpointSlice resources that are managed by Karmada system to avoid duplicate reporting.
+	if helper.IsEndpointSliceManagedByKarmada(endpointSliceObj.GetLabels()) {
+		return nil
+	}
+
 	if err = c.reportEndpointSliceWithEndpointSliceCreateOrUpdate(ctx, endpointSliceKey.Cluster, endpointSliceObj); err != nil {
 		klog.ErrorS(err, "Failed to handle endpointSlice event", "namespace", endpointSliceKey.Namespace, "name", endpointSliceKey.Name)
 		return err
@@ -440,7 +445,13 @@ func (c *ServiceExportController) reportEndpointSliceWithServiceExportCreate(ctx
 	}
 
 	for index := range endpointSliceObjects {
-		if err = reportEndpointSlice(ctx, c.Client, endpointSliceObjects[index].(*unstructured.Unstructured), serviceExportKey.Cluster); err != nil {
+		endpointSlice := endpointSliceObjects[index].(*unstructured.Unstructured)
+		// Exclude EndpointSlice resources that are managed by Karmada system to avoid duplicate reporting.
+		if helper.IsEndpointSliceManagedByKarmada(endpointSlice.GetLabels()) {
+			continue
+		}
+
+		if err = reportEndpointSlice(ctx, c.Client, endpointSlice, serviceExportKey.Cluster); err != nil {
 			errs = append(errs, err)
 		}
 	}
