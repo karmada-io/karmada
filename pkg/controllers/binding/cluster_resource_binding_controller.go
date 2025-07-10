@@ -84,8 +84,7 @@ func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req co
 	if !clusterResourceBinding.DeletionTimestamp.IsZero() {
 		klog.V(4).InfoS("Begin to delete works owned by binding.", "namespace", req.NamespacedName.Namespace, "name", req.NamespacedName.Name)
 		if err := helper.DeleteWorks(ctx, c.Client, "", req.Name, clusterResourceBinding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel]); err != nil {
-			msg := fmt.Sprintf("Failed to delete works related to %s.", clusterResourceBinding.GetName())
-			klog.ErrorS(err, msg, "clusterResourceBinding", clusterResourceBinding.GetName())
+			klog.ErrorS(err, "Failed to delete works related to clusterResourceBinding.", "clusterResourceBinding", clusterResourceBinding.GetName())
 			return controllerruntime.Result{}, err
 		}
 		return c.removeFinalizer(ctx, clusterResourceBinding)
@@ -137,7 +136,7 @@ func (c *ClusterResourceBindingController) syncBinding(ctx context.Context, bind
 	}
 
 	msg := fmt.Sprintf("Sync work of clusterResourceBinding(%s) successful.", binding.GetName())
-	klog.V(4).InfoS(msg, "clusterResourceBinding", binding.GetName())
+	klog.V(4).InfoS("Sync work of clusterResourceBinding successful.", "clusterResourceBinding", binding.GetName())
 	c.EventRecorder.Event(binding, corev1.EventTypeNormal, events.EventReasonSyncWorkSucceed, msg)
 	c.EventRecorder.Event(workload, corev1.EventTypeNormal, events.EventReasonSyncWorkSucceed, msg)
 	return controllerruntime.Result{}, nil
