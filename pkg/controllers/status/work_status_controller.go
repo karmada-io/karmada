@@ -294,6 +294,11 @@ func (c *WorkStatusController) handleDeleteEvent(ctx context.Context, key keys.F
 		return nil
 	}
 
+	// skip processing as the work object is suspended for dispatching.
+	if helper.IsWorkSuspendDispatching(work) {
+		return nil
+	}
+
 	if util.GetLabelValue(work.Labels, util.PropagationInstruction) == util.PropagationInstructionSuppressed {
 		return nil
 	}

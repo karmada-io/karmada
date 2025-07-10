@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -578,6 +579,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 		expectedError             bool
 		wrongWorkNS               bool
 		workApplyFunc             func(work *workv1alpha1.Work)
+		assertFunc                func(t *testing.T, dynamicClientSets *dynamicfake.FakeDynamicClient)
 	}{
 		{
 			name:                      "failed to exec NeedUpdate",
@@ -668,6 +670,23 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 				work.SetDeletionTimestamp(ptr.To(metav1.Now()))
 			},
 		},
+		{
+			name:                      "resource not found, work suspendDispatching true, should not recreate resource",
+			obj:                       newPodObj("karmada-es-cluster"),
+			pod:                       nil, // Simulate the resource does not exist in the member cluster
+			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
+			controllerWithoutInformer: true,
+			expectedError:             false,
+			workApplyFunc: func(work *workv1alpha1.Work) {
+				work.Spec.SuspendDispatching = ptr.To(true)
+			},
+			assertFunc: func(t *testing.T, dynamicClientSets *dynamicfake.FakeDynamicClient) {
+				gvr := corev1.SchemeGroupVersion.WithResource("pods")
+				obj, err := dynamicClientSets.Resource(gvr).Namespace("default").Get(context.Background(), "pod", metav1.GetOptions{})
+				assert.True(t, apierrors.IsNotFound(err), "expected a NotFound error but got: %s", err)
+				assert.Nil(t, obj)
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -707,6 +726,10 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
+			}
+
+			if tt.assertFunc != nil {
+				tt.assertFunc(t, dynamicClientSet)
 			}
 		})
 	}
