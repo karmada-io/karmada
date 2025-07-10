@@ -1,0 +1,27 @@
+apiVersion: apps.kruise.io/v1alpha1
+kind: UnitedDeployment
+metadata:
+  name: sample-uniteddeployment
+  namespace: test-namespace
+  clusterName: member1
+status:
+  replicas: 2
+  readyReplicas: 2
+  updatedReplicas: 2
+  availableReplicas: 2
+  collisionCount: 0
+  observedGeneration: 1
+---
+apiVersion: apps.kruise.io/v1alpha1
+kind: UnitedDeployment
+metadata:
+  name: sample-uniteddeployment
+  namespace: test-namespace
+  clusterName: member2
+status:
+  replicas: 1
+  readyReplicas: 1
+  updatedReplicas: 1
+  availableReplicas: 1
+  collisionCount: 0
+  observedGeneration: 1
