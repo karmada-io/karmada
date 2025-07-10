@@ -69,7 +69,7 @@ type ClusterResourceBindingController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling ClusterResourceBinding %s.", req.NamespacedName.String())
+	klog.V(4).InfoS("Reconciling ClusterResourceBinding.", "ClusterResourceBinding", req.NamespacedName.Name)
 
 	clusterResourceBinding := &workv1alpha2.ClusterResourceBinding{}
 	if err := c.Client.Get(ctx, req.NamespacedName, clusterResourceBinding); err != nil {
@@ -82,9 +82,9 @@ func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req co
 	}
 
 	if !clusterResourceBinding.DeletionTimestamp.IsZero() {
-		klog.V(4).Infof("Begin to delete works owned by binding(%s).", req.NamespacedName.String())
+		klog.V(4).InfoS("Begin to delete works owned by ClusterResourceBinding.", "ClusterResourceBinding", clusterResourceBinding.Name)
 		if err := helper.DeleteWorks(ctx, c.Client, "", req.Name, clusterResourceBinding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel]); err != nil {
-			klog.Errorf("Failed to delete works related to %s: %v", clusterResourceBinding.GetName(), err)
+			klog.ErrorS(err, "Failed to delete works related to ClusterResourceBinding.", "ClusterResourceBinding", clusterResourceBinding.Name)
 			return controllerruntime.Result{}, err
 		}
 		return c.removeFinalizer(ctx, clusterResourceBinding)
@@ -121,7 +121,7 @@ func (c *ClusterResourceBindingController) syncBinding(ctx context.Context, bind
 			// So, just return without retry(requeue) would save unnecessary loop.
 			return controllerruntime.Result{}, nil
 		}
-		klog.Errorf("Failed to fetch workload for clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
+		klog.ErrorS(err, "Failed to fetch workload for ClusterResourceBinding.", "ClusterResourceBinding", binding.Name)
 		return controllerruntime.Result{}, err
 	}
 
@@ -129,14 +129,14 @@ func (c *ClusterResourceBindingController) syncBinding(ctx context.Context, bind
 	err = ensureWork(ctx, c.Client, c.ResourceInterpreter, workload, c.OverrideManager, binding, apiextensionsv1.ClusterScoped)
 	metrics.ObserveSyncWorkLatency(err, start)
 	if err != nil {
-		klog.Errorf("Failed to transform clusterResourceBinding(%s) to works. Error: %v.", binding.GetName(), err)
+		klog.ErrorS(err, "Failed to transform ClusterResourceBinding to works.", "ClusterResourceBinding", binding.Name)
 		c.EventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonSyncWorkFailed, err.Error())
 		c.EventRecorder.Event(workload, corev1.EventTypeWarning, events.EventReasonSyncWorkFailed, err.Error())
 		return controllerruntime.Result{}, err
 	}
 
-	msg := fmt.Sprintf("Sync work of clusterResourceBinding(%s) successful.", binding.GetName())
-	klog.V(4).Info(msg)
+	msg := fmt.Sprintf("Sync work of ClusterResourceBinding(%s) successful.", binding.Name)
+	klog.V(4).InfoS("Sync work of ClusterResourceBinding successful.", "ClusterResourceBinding", binding.Name)
 	c.EventRecorder.Event(binding, corev1.EventTypeNormal, events.EventReasonSyncWorkSucceed, msg)
 	c.EventRecorder.Event(workload, corev1.EventTypeNormal, events.EventReasonSyncWorkSucceed, msg)
 	return controllerruntime.Result{}, nil
@@ -145,14 +145,14 @@ func (c *ClusterResourceBindingController) syncBinding(ctx context.Context, bind
 func (c *ClusterResourceBindingController) removeOrphanWorks(ctx context.Context, binding *workv1alpha2.ClusterResourceBinding) error {
 	works, err := helper.FindOrphanWorks(ctx, c.Client, "", binding.Name, binding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel], helper.ObtainBindingSpecExistingClusters(binding.Spec))
 	if err != nil {
-		klog.Errorf("Failed to find orphan works by ClusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
+		klog.ErrorS(err, "Failed to find orphan works of ClusterResourceBinding.", "ClusterResourceBinding", binding.Name)
 		c.EventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonCleanupWorkFailed, err.Error())
 		return err
 	}
 
 	err = helper.RemoveOrphanWorks(ctx, c.Client, works)
 	if err != nil {
-		klog.Errorf("Failed to remove orphan works by clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
+		klog.ErrorS(err, "Failed to remove orphan works of ClusterResourceBinding.", "ClusterResourceBinding", binding.Name)
 		c.EventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonCleanupWorkFailed, err.Error())
 		return err
 	}
@@ -183,7 +183,7 @@ func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.MapFu
 
 		readonlyBindingList := &workv1alpha2.ClusterResourceBindingList{}
 		if err := c.Client.List(ctx, readonlyBindingList, &client.ListOptions{UnsafeDisableDeepCopy: ptr.To(true)}); err != nil {
-			klog.Errorf("Failed to list clusterResourceBindings, error: %v", err)
+			klog.ErrorS(err, "Failed to list ClusterResourceBindings")
 			return nil
 		}
 
@@ -191,7 +191,7 @@ func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.MapFu
 		for _, binding := range readonlyBindingList.Items {
 			// Nil resourceSelectors means matching all resources.
 			if len(overrideRS) == 0 {
-				klog.V(2).Infof("Enqueue ClusterResourceBinding(%s) as cluster override policy(%s) changes.", binding.Name, a.GetName())
+				klog.V(2).InfoS("Enqueue ClusterResourceBinding as cluster override policy changes.", "ClusterResourceBinding", binding.Name, "ClusterOverridePolicy", a.GetName())
 				requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: binding.Name}})
 				continue
 			}
@@ -200,13 +200,13 @@ func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.MapFu
 			if err != nil {
 				// If we cannot fetch resource template from binding, this may be due to the fact that the resource template has been deleted.
 				// Just skip it so that it will not affect other bindings.
-				klog.Errorf("Failed to fetch workload for clusterResourceBinding(%s). Error: %v.", binding.Name, err)
+				klog.ErrorS(err, "Failed to fetch workload for ClusterResourceBinding.", "ClusterResourceBinding", binding.Name)
 				continue
 			}
 
 			for _, rs := range overrideRS {
 				if util.ResourceMatches(workload, rs) {
-					klog.V(2).Infof("Enqueue ClusterResourceBinding(%s) as cluster override policy(%s) changes.", binding.Name, a.GetName())
+					klog.V(2).InfoS("Enqueue ClusterResourceBinding as cluster override policy changes.", "ClusterResourceBinding", binding.Name, "ClusterOverridePolicy", a.GetName())
 					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: binding.Name}})
 					break
 				}
