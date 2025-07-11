@@ -66,9 +66,6 @@ const (
 	// managed by karmada controllers.
 	KarmadaSystemLabel = "karmada.io/system"
 
-	// EndpointSliceDispatchControllerLabelValue indicates the endpointSlice are controlled by Karmada
-	EndpointSliceDispatchControllerLabelValue = "endpointslice-dispatch-controller.karmada.io"
-
 	// RetainReplicasLabel is a reserved label to indicate whether the replicas should be retained. e.g:
 	// resourcetemplate.karmada.io/retain-replicas: true   // with value `true` indicates retain
 	// resourcetemplate.karmada.io/retain-replicas: false  // with value `false` and others, indicates not retain
@@ -81,6 +78,7 @@ const (
 	EndpointSliceWorkManagedByLabel = "endpointslice.karmada.io/managed-by"
 )
 
+// Define label values used by Karmada system.
 const (
 	// ManagedByKarmadaLabelValue indicates that these are workloads in member cluster synchronized by karmada controllers.
 	ManagedByKarmadaLabelValue = "true"
@@ -93,6 +91,12 @@ const (
 
 	// PropagationInstructionSuppressed indicates that the resource should not be propagated.
 	PropagationInstructionSuppressed = "suppressed"
+
+	// EndpointSliceDispatchControllerLabelValue indicates the endpointSlice is controlled by Karmada endpointslice-dispatch-controller
+	EndpointSliceDispatchControllerLabelValue = "endpointslice-dispatch-controller.karmada.io"
+
+	// EndpointSliceControllerLabelValue indicates the endpointSlice is controller by Karmada endpointslice-controller
+	EndpointSliceControllerLabelValue = "endpointslice-controller.karmada.io"
 )
 
 // Define annotations used by karmada system.
