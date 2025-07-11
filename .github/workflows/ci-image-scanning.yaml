@@ -32,6 +32,10 @@ jobs:
     steps:
       - name: checkout code
         uses: actions/checkout@v4
+        with:
+         # fetch-depth:
+          # 0 indicates all history for all branches and tags.
+          fetch-depth: 0
       - name: install Go
         uses: actions/setup-go@v5
         with:
@@ -42,7 +46,7 @@ jobs:
           export REGISTRY="docker.io/karmada"
           make image-${{ matrix.target }}
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.29.0
+        uses: aquasecurity/trivy-action@0.32.0
         env:
           ACTIONS_RUNTIME_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
@@ -52,8 +56,9 @@ jobs:
           ignore-unfixed: true
           vuln-type: 'os,library'
           output: 'trivy-results.sarif'
+          cache: false
       - name: display scan results
-        uses: aquasecurity/trivy-action@0.29.0
+        uses: aquasecurity/trivy-action@0.32.0
         env:
           TRIVY_SKIP_DB_UPDATE: true # Avoid updating the vulnerability db as it was cached in the previous step.
         with:
@@ -61,6 +66,7 @@ jobs:
           format: 'table'
           ignore-unfixed: true
           vuln-type: 'os,library'
+          cache: false
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         with:
