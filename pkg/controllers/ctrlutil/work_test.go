@@ -30,7 +30,6 @@ import (
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/util"
 )
 
 func TestCreateOrUpdateWork(t *testing.T) {
@@ -68,50 +67,6 @@ func TestCreateOrUpdateWork(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, "test-work", work.Name)
 				assert.Equal(t, 1, len(work.Spec.Workload.Manifests))
-			},
-		},
-		{
-			name: "create work with PropagationInstruction",
-			workMeta: metav1.ObjectMeta{
-				Namespace: "default",
-				Name:      "test-work",
-				Labels: map[string]string{
-					//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
-					util.PropagationInstruction: "some-value",
-				},
-				Annotations: map[string]string{
-					workv1alpha2.ResourceConflictResolutionAnnotation: "overwrite",
-				},
-			},
-			resource: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "apps/v1",
-					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
-						"name": "test-deployment",
-						"uid":  "test-uid",
-					},
-				},
-			},
-			verify: func(t *testing.T, c client.Client) {
-				work := &workv1alpha1.Work{}
-				err := c.Get(context.TODO(), client.ObjectKey{Namespace: "default", Name: "test-work"}, work)
-				assert.NoError(t, err)
-
-				// Get the resource from manifests
-				manifest := &unstructured.Unstructured{}
-				err = manifest.UnmarshalJSON(work.Spec.Workload.Manifests[0].Raw)
-				assert.NoError(t, err)
-
-				// Verify labels and annotations were set
-				labels := manifest.GetLabels()
-				assert.Equal(t, util.ManagedByKarmadaLabelValue, labels[util.ManagedByKarmadaLabel])
-
-				annotations := manifest.GetAnnotations()
-				assert.Equal(t, "test-uid", annotations[workv1alpha2.ResourceTemplateUIDAnnotation])
-				assert.Equal(t, "test-work", annotations[workv1alpha2.WorkNameAnnotation])
-				assert.Equal(t, "default", annotations[workv1alpha2.WorkNamespaceAnnotation])
-				assert.Equal(t, "overwrite", annotations[workv1alpha2.ResourceConflictResolutionAnnotation])
 			},
 		},
 		{
